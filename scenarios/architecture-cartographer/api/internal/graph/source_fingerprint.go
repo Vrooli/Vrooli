@@ -46,6 +46,9 @@ func (f *FileSystemFingerprinter) Fingerprint(ctx context.Context, in ExtractGra
 		return "", ErrInvalidExtractRequest{Field: "scenario", Reason: "required"}
 	}
 	root := filepath.Join(f.RepoRoot, "scenarios", scenario)
+	if scenario == "control-plane" {
+		root = f.RepoRoot
+	}
 	if _, err := os.Stat(root); err != nil {
 		return "", fmt.Errorf("stat scenario source root: %w", err)
 	}

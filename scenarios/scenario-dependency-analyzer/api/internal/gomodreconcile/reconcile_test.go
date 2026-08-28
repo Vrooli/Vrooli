@@ -35,6 +35,9 @@ func TestLoadTopologyReadsModulePaths(t *testing.T) {
 	fixture.WriteRepoContract(t)
 	fixture.WriteScenarioStub(t, "demo")
 	root := fixture.Root
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/control-plane\n\ngo 1.25.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	writeModule(t, filepath.Join(root, "packages", "leaf"), "module example.com/leaf\n\ngo 1.25.0\n", nil)
 	writeModule(t, filepath.Join(root, "scenarios", "demo", "cli"), "module demo/cli\n\ngo 1.25.0\n", nil)
 	writeModule(t, filepath.Join(root, "packages", "envkit-go"), "module github.com/vrooli/envkit-go\n\ngo 1.25.0\n", nil)
@@ -60,6 +63,9 @@ func TestLoadTopologyReadsModulePaths(t *testing.T) {
 	}
 	if got := topo["github.com/vrooli/envkit-go"]; got != filepath.Join(root, "packages", "envkit-go") {
 		t.Fatalf("envkit-go dir = %q", got)
+	}
+	if got := topo["example.com/control-plane"]; got != root {
+		t.Fatalf("control-plane dir = %q", got)
 	}
 }
 

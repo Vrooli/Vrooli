@@ -10,6 +10,10 @@ import (
 // keeps the resource's generated CLI contract available without introducing a
 // second cloudflared installer or a second secret path.
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+		fmt.Println("resource-cloudflared: managed by vrooli resource lifecycle commands")
+		return
+	}
 	args := append([]string{"resource", "cloudflared"}, os.Args[1:]...)
 	command := exec.Command("vrooli", args...)
 	command.Stdin = os.Stdin

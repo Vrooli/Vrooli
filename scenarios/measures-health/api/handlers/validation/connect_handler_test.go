@@ -90,6 +90,25 @@ func TestValidateScenario_MapsReportToProto(t *testing.T) {
 	}
 }
 
+func TestValidateTargetPreservesControlPlaneIdentity(t *testing.T) {
+	h := NewConnectHandler(Deps{
+		Validator:    fakeValidator{rep: internal.Report{Scenario: "control-plane", Passed: true}},
+		MaturitySpec: testMaturitySpec(),
+	})
+	target := &commonv1.ValidationTarget{
+		Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE,
+		Id:   "control-plane",
+		Root: "/repo",
+	}
+	resp, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{Target: target}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.GetTarget() != target || resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Fatalf("target response = %+v", resp.Msg)
+	}
+}
+
 func TestListFleetCoverage_MapsEntries(t *testing.T) {
 	h := NewConnectHandler(Deps{Validator: fakeValidator{entries: []internal.FleetEntry{
 		{Scenario: "a", Passed: true, Expected: 2, Covered: 2, WorstTier: manifestscan.TierFull, MeasureCount: 3},

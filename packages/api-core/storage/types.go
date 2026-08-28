@@ -15,6 +15,8 @@ const (
 	ClassLogs Class = "logs"
 	// ClassState stores runtime state such as checkpoints and lockfiles.
 	ClassState Class = "state"
+	// ClassTestRuns stores regenerable, scenario-scoped validation evidence.
+	ClassTestRuns Class = "test_runs"
 )
 
 // Profile specifies the deployment/runtime intent used for path defaults.
@@ -43,6 +45,8 @@ type Paths struct {
 	LogsDir string
 	// StateDir is the absolute runtime state directory.
 	StateDir string
+	// TestRunsDir is scoped directly by scenario under runtime_home.test_runs.
+	TestRunsDir string
 }
 
 // ForClass returns the resolved absolute directory for class.
@@ -58,6 +62,8 @@ func (p Paths) ForClass(class Class) (string, error) {
 		return p.LogsDir, nil
 	case ClassState:
 		return p.StateDir, nil
+	case ClassTestRuns:
+		return p.TestRunsDir, nil
 	default:
 		return "", &Error{Kind: ErrInvalidInput, Message: "unknown storage class", Details: string(class)}
 	}

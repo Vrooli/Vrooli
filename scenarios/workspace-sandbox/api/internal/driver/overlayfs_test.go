@@ -11,6 +11,7 @@ import (
 	"workspace-sandbox/internal/types"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 // [REQ:P0-003] Overlayfs Mount Configuration - Verify mount options.
@@ -42,7 +43,7 @@ func TestOverlayfsDriverID(t *testing.T) {
 // [REQ:P0-003] Overlayfs Mount Configuration - Test directory structure
 func TestOverlayfsDriverDirectoryStructure(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("overlayfs tests require Linux")
+		repocontracttest.SkipPlatform(t, "overlayfs tests require Linux")
 	}
 
 	tmpDir, err := os.MkdirTemp("", "overlayfs-test")
@@ -155,7 +156,7 @@ func TestDefaultConfig(t *testing.T) {
 
 func TestOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("overlayfs tests require Linux")
+		repocontracttest.SkipPlatform(t, "overlayfs tests require Linux")
 	}
 
 	tmpDir := t.TempDir()

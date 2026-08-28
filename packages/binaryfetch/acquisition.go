@@ -43,16 +43,19 @@ type Acquisition struct {
 }
 
 type ComposeStep struct {
-	Role     string `json:"role"`
-	Kind     string `json:"kind"`
-	Dest     string `json:"dest"`
-	Source   string `json:"source,omitempty"`
-	URL      string `json:"url,omitempty"`
-	SHA256   string `json:"sha256,omitempty"`
-	Archive  string `json:"archive,omitempty"`
-	BinPath  string `json:"bin_path,omitempty"`
-	Mode     string `json:"mode,omitempty"`
-	Lockfile string `json:"lockfile,omitempty"`
+	Role           string   `json:"role"`
+	Kind           string   `json:"kind"`
+	Dest           string   `json:"dest"`
+	Source         string   `json:"source,omitempty"`
+	URL            string   `json:"url,omitempty"`
+	SHA256         string   `json:"sha256,omitempty"`
+	Archive        string   `json:"archive,omitempty"`
+	BinPath        string   `json:"bin_path,omitempty"`
+	Mode           string   `json:"mode,omitempty"`
+	Lockfile       string   `json:"lockfile,omitempty"`
+	IndexURL       string   `json:"index_url,omitempty"`
+	ExtraIndexURLs []string `json:"extra_index_url,omitempty"`
+	AllowSDists    bool     `json:"allow_sdists,omitempty"`
 }
 
 // AcquisitionTarget is one ordered candidate source. The first target whose
@@ -232,6 +235,19 @@ func (s ComposeStep) Validate() error {
 		if strings.TrimSpace(s.Lockfile) == "" {
 			return errors.New("python-wheels compose step requires lockfile")
 		}
+		for name, value := range map[string]string{"index_url": s.IndexURL} {
+			if strings.TrimSpace(value) == "" {
+				continue
+			}
+			if err := validateWheelIndexURL(value); err != nil {
+				return fmt.Errorf("python-wheels %s: %w", name, err)
+			}
+		}
+		for index, value := range s.ExtraIndexURLs {
+			if err := validateWheelIndexURL(value); err != nil {
+				return fmt.Errorf("python-wheels extra_index_url[%d]: %w", index, err)
+			}
+		}
 	case "local":
 		source := filepath.Clean(filepath.FromSlash(strings.TrimSpace(s.Source)))
 		if source == "." || source == ".." || filepath.IsAbs(s.Source) || strings.HasPrefix(source, ".."+string(filepath.Separator)) {
@@ -241,6 +257,20 @@ func (s ComposeStep) Validate() error {
 		return fmt.Errorf("compose step kind %q is invalid", s.Kind)
 	}
 	return nil
+}
+
+func validateWheelIndexURL(raw string) error {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return errors.New("index URL must be absolute")
+	}
+	if parsed.Scheme == "https" {
+		return nil
+	}
+	if parsed.Scheme == "http" && (parsed.Hostname() == "127.0.0.1" || parsed.Hostname() == "localhost") {
+		return nil
+	}
+	return errors.New("index URL must use HTTPS, except localhost development indexes")
 }
 
 func validateTargetPredicate(predicate map[string]string) error {

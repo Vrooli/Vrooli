@@ -22,12 +22,10 @@ type TargetResolver interface {
 // Scenario is the target scenario name after address parsing; Command and
 // Args retain the typed command shape used by bridge admission.
 type RelayRequest struct {
-	NodeID           string
-	Scenario         string
-	Command          string
-	Args             []string
-	TimeoutSeconds   int64
-	MaxResponseBytes uint64
+	NodeID   string
+	Scenario string
+	Command  string
+	Args     []string
 }
 
 type RelayResponse struct {
@@ -145,7 +143,7 @@ func (r *Resolver) ResolveScenario(ctx context.Context, address, portKey, comman
 }
 
 func (r *Resolver) remoteError(kind ErrorKind, node, scenario, command string, err error) *Error {
-	return &Error{Kind: kind, Node: node, Scenario: scenario, PortKey: command, Err: err}
+	return &Error{Kind: kind, Node: node, Scenario: scenario, Command: command, Err: err}
 }
 
 func (s ScenarioResolution) Validate() error {

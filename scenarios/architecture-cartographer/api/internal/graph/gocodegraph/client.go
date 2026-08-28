@@ -109,10 +109,14 @@ func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, 
 		"go",
 		func(ctx context.Context, baseURL string, projectPath string) (graph.RawGraph, error) {
 			rpc := graph_v1connect.NewGoCodeGraphServiceClient(c.httpClient, baseURL)
-			resp, err := rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
-				ModulePath: projectPath,
-				Profile:    c.profile,
-			}))
+			extract := &graphv1.ExtractRequest{ModulePath: projectPath, Profile: c.profile}
+			// The repository root contains nested scenario modules. Keep the
+			// control-plane graph bounded to the root module's owned packages;
+			// an unscoped ./... request is rejected as ambiguous by go-code-graph.
+			if scenario == "control-plane" {
+				extract.PackagePatterns = []string{"./cmd/vrooli/...", "./internal/..."}
+			}
+			resp, err := rpc.Extract(ctx, connect.NewRequest(extract))
 			if err != nil {
 				return graph.RawGraph{}, graph.ClassifyConnectError(err, ScenarioName)
 			}

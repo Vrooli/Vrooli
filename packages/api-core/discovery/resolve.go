@@ -132,6 +132,7 @@ type Error struct {
 	Kind     ErrorKind
 	Scenario string
 	PortKey  string
+	Command  string
 	Node     string
 	Output   string
 	Err      error
@@ -142,7 +143,11 @@ func (e *Error) Error() string {
 		"api-core discovery",
 		string(e.Kind),
 		fmt.Sprintf("scenario=%q", e.Scenario),
-		fmt.Sprintf("port=%q", e.PortKey),
+	}
+	if e.Command != "" {
+		parts = append(parts, fmt.Sprintf("command=%q", e.Command))
+	} else {
+		parts = append(parts, fmt.Sprintf("port=%q", e.PortKey))
 	}
 	if e.Node != "" {
 		parts = append(parts, fmt.Sprintf("node=%q", e.Node))
@@ -199,14 +204,6 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 	if now == nil {
 		now = time.Now
 	}
-	targetResolver := cfg.TargetResolver
-	relay := cfg.Relay
-	commandScope := cfg.CommandScope
-	if cfg.CommandRunner == nil && cfg.VrooliPath == "" && targetResolver == nil && relay == nil {
-		targetResolver = bridgeTargetResolver{runner: runner, path: "vrooli-bridge"}
-		relay = bridgeRelay{runner: runner, path: "vrooli-bridge"}
-		commandScope = defaultCommandScope
-	}
 	return &Resolver{
 		vrooliPath:    vrooliPath,
 		runner:        runner,
@@ -221,9 +218,9 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		sharedLookup:   cfg.CommandRunner == nil && cfg.VrooliPath == "",
 		now:            now,
 		cache:          make(map[string]*cachedPort),
-		targetResolver: targetResolver,
-		relay:          relay,
-		commandScope:   commandScope,
+		targetResolver: cfg.TargetResolver,
+		relay:          cfg.Relay,
+		commandScope:   cfg.CommandScope,
 	}
 }
 

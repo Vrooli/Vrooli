@@ -25,7 +25,6 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
-	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -96,7 +95,7 @@ func main() {
 	// normal execution path rather than a fallback. Without a bridge source the
 	// inventory can only ever answer "no registered macOS bridge node",
 	// regardless of what the fleet actually holds.
-	bridgeClient := validationmatrix.NewClient(resolveBridgeURL(), os.Getenv("VROOLI_BRIDGE_API_TOKEN"), nil, validationmatrix.WithPlatform("ios"))
+	bridgeClient := validationmatrix.NewClient("", os.Getenv("VROOLI_BRIDGE_API_TOKEN"), nil, validationmatrix.WithPlatform("ios"))
 	var bridgeSources []deliveryramp.BridgeSource
 	if bridgeClient != nil {
 		bridgeSources = append(bridgeSources, bridgeClient)
@@ -191,23 +190,4 @@ func main() {
 func envBool(key string) bool {
 	value := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
 	return value == "1" || value == "true" || value == "yes"
-}
-
-// resolveBridgeURL locates vrooli-bridge, preferring an explicit override and
-// falling back to scenario discovery.
-//
-// Because no Apple toolchain runs on Linux, a macOS bridge node is this ramp's
-// normal execution path. Requiring an environment variable to reach it would let
-// an unset value silently disable remote execution, and the inventory would then
-// report "no registered macOS bridge node" while a healthy fleet ran beside it.
-func resolveBridgeURL() string {
-	if configured := strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_URL")); configured != "" {
-		return configured
-	}
-	resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-bridge")
-	if err != nil {
-		log.Printf("vrooli-bridge discovery failed; iOS bridge targets will report unavailable: %v", err)
-		return ""
-	}
-	return resolved
 }

@@ -126,6 +126,39 @@ func TestService_ExtractGraph_PersistsAndCaches(t *testing.T) {
 	}
 }
 
+func TestService_ExtractGraph_SkipPersistenceAvoidsRepositoryCache(t *testing.T) {
+	repo := &mocks.FakeRepository{Snapshots: []graph.GraphSnapshot{{Scenario: "control-plane", ContentHash: "same"}}}
+	raw := graph.RawGraph{
+		Languages: []graph.Language{graph.LanguageGo},
+		Files:     []graph.FileNode{{ID: "file:root.go", Path: "root.go", PackageID: "pkg:root", Language: graph.LanguageGo}},
+		Packages:  []graph.PackageNode{{ID: "pkg:root", ImportPath: "root", Language: graph.LanguageGo}},
+	}
+	svc := graph.NewServiceWithFingerprinter(repo, newClock(), fingerprinterFunc(func(context.Context, graph.ExtractGraphInput) (string, error) {
+		t.Fatal("one-off extraction must not fingerprint the repository")
+		return "", nil
+	}), newAdapter(graph.LanguageGo, raw))
+
+	snap, fromCache, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "control-plane", SkipPersistence: true})
+	if err != nil {
+		t.Fatalf("Extract: %v", err)
+	}
+	if fromCache {
+		t.Fatal("one-off extraction must not report a cache hit")
+	}
+	if snap.ID == "" {
+		t.Fatal("one-off snapshot should still have a deterministic in-memory ID")
+	}
+	if got := repo.FindCalls.Load(); got != 0 {
+		t.Fatalf("FindByHash calls=%d want 0", got)
+	}
+	if got := repo.SourceFindCalls.Load(); got != 0 {
+		t.Fatalf("FindBySourceFingerprint calls=%d want 0", got)
+	}
+	if got := repo.SaveCalls.Load(); got != 0 {
+		t.Fatalf("SaveSnapshot calls=%d want 0", got)
+	}
+}
+
 func TestService_ExtractGraph_SourceFingerprintHitSkipsAdapters(t *testing.T) {
 	repo := &mocks.FakeRepository{Snapshots: []graph.GraphSnapshot{{
 		ID:                "snap:demo:src",

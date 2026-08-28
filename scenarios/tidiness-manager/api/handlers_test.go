@@ -320,9 +320,35 @@ func TestTidinessBudgetFinding_RatchetRejectsDebtRegressionAndBudgetLoosening(t 
 	if worsened == nil || worsened.Evidence["violation"] != "ratchet_worsened_debt" || worsened.Evidence["delta"] != 1 {
 		t.Fatalf("ratchet debt regression = %#v, want named delta", worsened)
 	}
+}
 
-	if stable := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{DuplicationLineDebt: 100}); stable != nil {
-		t.Fatalf("ratchet at recorded baseline = %#v, want no finding", stable)
+func TestFrozenBudgetFailsTheGate(t *testing.T) {
+	scenarioPath := t.TempDir()
+	if err := os.Mkdir(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"phases":{"tidiness":{"budgets":{"duplication_line_debt":100,"baseline_duplication_line_debt":100,"ratchet":true}}}}`
+	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "testing.json"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	finding := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{DuplicationLineDebt: 100})
+	if finding == nil {
+		t.Fatal("frozen budget passed the gate")
+	}
+	if finding.Evidence["violation"] != "frozen_budget" {
+		t.Fatalf("violation = %#v, want frozen_budget", finding.Evidence["violation"])
+	}
+	message := finding.Description
+	if !strings.Contains(message, filepath.Join(scenarioPath, ".vrooli", "testing.json")) || !strings.Contains(message, "duplication_line_debt") || !strings.Contains(message, "100") {
+		t.Fatalf("message = %q, want file, key, and observation", message)
+	}
+
+	config = `{"phases":{"tidiness":{"budgets":{"duplication_line_debt":99,"baseline_duplication_line_debt":100,"ratchet":true}}}}`
+	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "testing.json"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if finding := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{DuplicationLineDebt: 99}); finding != nil {
+		t.Fatalf("tightened budget failed = %#v", finding)
 	}
 }
 

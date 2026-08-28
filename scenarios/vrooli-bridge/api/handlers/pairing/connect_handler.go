@@ -9,6 +9,7 @@ import (
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/pairing"
+	"vrooli-bridge/pairingwords"
 
 	"connectrpc.com/connect"
 
@@ -23,9 +24,10 @@ type Deps struct {
 	ControlPlanePublicKey string
 	// DefaultScopes are the posture-selected scopes applied when the owner does
 	// not provide a narrower grant at enrollment time.
-	DefaultScopes []string
-	Logger        *log.Logger
-	NodeVerifier  *nodeauth.Verifier
+	DefaultScopes     []string
+	PermissionPresets []pairing.PermissionPreset
+	Logger            *log.Logger
+	NodeVerifier      *nodeauth.Verifier
 }
 
 func (h *connectHandler) RegisterEncryptionKey(ctx context.Context, req *connect.Request[pairingv1.RegisterEncryptionKeyRequest]) (*connect.Response[pairingv1.RegisterEncryptionKeyResponse], error) {
@@ -110,8 +112,25 @@ func (h *connectHandler) RequestPairing(ctx context.Context, req *connect.Reques
 		return nil, h.toConnectError("RequestPairing", err)
 	}
 	return connect.NewResponse(&pairingv1.RequestPairingResponse{
-		RequestId: pr.ID,
-		Status:    statusToProto(pr.Status),
+		RequestId:         pr.ID,
+		Status:            statusToProto(pr.Status),
+		ConfirmationWords: h.confirmationWords(pr),
+		KeyFingerprint:    pairingwords.Fingerprint(pr.PublicKey),
+	}), nil
+}
+
+// GetPairingRequest is the open polling leg of request/approve enrollment. It
+// deliberately returns only the request's public enrollment state; an owner
+// credential is not needed because possession of the request id is the
+// bootstrap handle and no secret is exposed before approval.
+func (h *connectHandler) GetPairingRequest(ctx context.Context, req *connect.Request[pairingv1.GetPairingRequestRequest]) (*connect.Response[pairingv1.GetPairingRequestResponse], error) {
+	request, err := h.deps.Service.GetRequest(ctx, req.Msg.GetRequestId())
+	if err != nil {
+		return nil, h.toConnectError("GetPairingRequest", err)
+	}
+	return connect.NewResponse(&pairingv1.GetPairingRequestResponse{
+		Request:               requestToProto(request, h.confirmationWords(request)),
+		ControlPlanePublicKey: h.deps.ControlPlanePublicKey,
 	}), nil
 }
 
@@ -120,7 +139,14 @@ func (h *connectHandler) ApprovePairing(ctx context.Context, req *connect.Reques
 	if _, err := auth.RequireOwner(ctx); err != nil {
 		return nil, auth.ToConnectError(err)
 	}
-	status, nodeID, err := h.deps.Service.Approve(ctx, req.Msg.GetRequestId(), req.Msg.GetApprove(), req.Msg.GetScopes())
+	var status pairing.RequestStatus
+	var nodeID string
+	var err error
+	if req.Msg.GetApprove() {
+		status, nodeID, err = h.deps.Service.ApproveWithConfirmation(ctx, req.Msg.GetRequestId(), true, req.Msg.GetScopes(), req.Msg.GetConfirmationWords())
+	} else {
+		status, nodeID, err = h.deps.Service.Approve(ctx, req.Msg.GetRequestId(), false, req.Msg.GetScopes())
+	}
 	if err != nil {
 		return nil, h.toConnectError("ApprovePairing", err)
 	}
@@ -139,11 +165,33 @@ func (h *connectHandler) ListPairingRequests(ctx context.Context, req *connect.R
 	if err != nil {
 		return nil, h.toConnectError("ListPairingRequests", err)
 	}
-	out := &pairingv1.ListPairingRequestsResponse{Requests: make([]*pairingv1.PairingRequest, 0, len(reqs))}
+	out := &pairingv1.ListPairingRequestsResponse{
+		Requests: make([]*pairingv1.PairingRequest, 0, len(reqs)),
+		Presets:  make([]*pairingv1.PermissionPreset, 0, len(h.deps.PermissionPresets)),
+	}
 	for _, r := range reqs {
-		out.Requests = append(out.Requests, requestToProto(r))
+		out.Requests = append(out.Requests, requestToProto(r, h.confirmationWords(r)))
+	}
+	for _, preset := range h.deps.PermissionPresets {
+		out.Presets = append(out.Presets, &pairingv1.PermissionPreset{
+			Name:        string(preset.Name),
+			Description: preset.Description,
+			Scopes:      append([]string(nil), preset.Scopes...),
+			Withholds:   append([]string(nil), preset.Withholds...),
+		})
 	}
 	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) confirmationWords(r pairing.PairingRequest) []string {
+	words, err := pairingwords.Derive(h.deps.ControlPlanePublicKey, r.PublicKey)
+	if err != nil {
+		// Test seams and degraded installations can omit a valid CP identity. Do
+		// not make listing a request leak or crash in that state; production
+		// approval still fails closed because its validator is configured below.
+		return nil
+	}
+	return words
 }
 
 // toConnectError maps the pairing domain's typed sentinels to Connect codes. A

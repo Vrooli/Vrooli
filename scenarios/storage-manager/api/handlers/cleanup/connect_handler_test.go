@@ -3,6 +3,8 @@ package cleanup
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -40,16 +42,48 @@ func TestConnectHandlerListsProviderMetadataAndPolicy(t *testing.T) {
 
 func TestRuntimeHomeProviderConfigsRegisterOnlyContractEligibleEntries(t *testing.T) {
 	configs := runtimeHomeProviderConfigs("/home/matthalloran8/Vrooli", t.TempDir())
-	if len(configs) != 8 {
-		t.Fatalf("runtime-home provider count = %d, want eight regenerable cleanup entries", len(configs))
+	if len(configs) != 7 {
+		t.Fatalf("runtime-home provider count = %d, want seven regenerable cleanup entries (bin is an install root)", len(configs))
 	}
 	for _, cfg := range configs {
 		if cfg.ProtectActive != true || cfg.RetentionMaxAge <= 0 {
 			t.Fatalf("runtime-home provider config = %#v, want active protection and age floor", cfg)
 		}
+		if cfg.ID == "runtime-home-bin" {
+			t.Fatalf("control-plane install root registered for generic cleanup: %#v", cfg)
+		}
 		if cfg.ID == "runtime-home-backups" || cfg.ID == "runtime-home-secrets" || cfg.ID == "runtime-home-data" {
 			t.Fatalf("protected runtime-home entry registered for cleanup: %#v", cfg)
 		}
+	}
+}
+
+func TestOwnerScenarioProviderConfigsComeFromDeclarations(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeOwnerProviderManifest(t, repoRoot, "z-owner", `{"storage":{"cleanup_providers":[{"id":"z-retention","name":"Z retained data","safety_tier":"safe_with_owner","default_mode":"disabled","default_approval":"owner"}]}}`)
+	writeOwnerProviderManifest(t, repoRoot, "a-owner", `{"storage":{"cleanup_providers":[{"id":"a-retention","name":"A retained data","safety_tier":"conditional","default_mode":"enabled","default_approval":"operator"}]}}`)
+	writeOwnerProviderManifest(t, repoRoot, "undeclared", `{"storage":{"entries":{}}}`)
+
+	configs := ownerScenarioProviderConfigs(repoRoot)
+	if len(configs) != 2 {
+		t.Fatalf("owner provider count = %d, want two declared providers: %#v", len(configs), configs)
+	}
+	if configs[0].ID != "a-retention" || configs[0].OwnerScenario != "a-owner" || configs[0].SafetyTier != cleanupcore.SafetyTierConditional || configs[0].DefaultApproval != cleanupcore.ApprovalModeOperator {
+		t.Fatalf("first declaration = %#v", configs[0])
+	}
+	if configs[1].ID != "z-retention" || configs[1].OwnerScenario != "z-owner" || configs[1].DefaultMode != cleanupcore.ProviderModeDisabled {
+		t.Fatalf("second declaration = %#v", configs[1])
+	}
+}
+
+func writeOwnerProviderManifest(t *testing.T, repoRoot, scenario, body string) {
+	t.Helper()
+	dir := filepath.Join(repoRoot, "scenarios", scenario, ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "service.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 

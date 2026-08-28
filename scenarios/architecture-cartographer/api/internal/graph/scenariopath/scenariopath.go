@@ -57,6 +57,9 @@ func (r *Resolver) Resolve(scenarioName string) (path string, found bool, err er
 		return "", false, fmt.Errorf("scenariopath: repo root is not configured")
 	}
 	scenarioRoot := filepath.Join(r.repoRoot, "scenarios", name)
+	if name == "control-plane" {
+		scenarioRoot = r.repoRoot
+	}
 	for _, c := range r.candidates {
 		dir := filepath.Join(scenarioRoot, c.Subdir)
 		if info, statErr := os.Stat(filepath.Join(dir, c.Marker)); statErr == nil && !info.IsDir() {

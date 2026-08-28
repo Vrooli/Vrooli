@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"resource-postgres/cli/internal/content"
+	"github.com/vrooli/vrooli/resources/postgres/cli/internal/content"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

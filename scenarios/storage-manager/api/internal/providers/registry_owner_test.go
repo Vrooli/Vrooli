@@ -13,7 +13,7 @@ import (
 // storage-manager could not see or report a byte of it, because
 // architecture-cartographer was not among the registered owner scenarios.
 func TestArchitectureCartographerIsRegistered(t *testing.T) {
-	providers := OwnerScenarioBuiltIns(nil)
+	providers := OwnerScenarioProviders(ownerProviderFixtures(), nil)
 
 	var found cleanup.ProviderMetadata
 	for _, p := range providers {
@@ -55,7 +55,7 @@ func TestArchitectureCartographerIsRegistered(t *testing.T) {
 // graph_snapshots shares a database file with fourteen other tables, and a
 // provider that truncated the file would destroy 753,927 analytics rows.
 func TestOwnerProvidersDeleteThroughTheirOwner(t *testing.T) {
-	for _, p := range OwnerScenarioBuiltIns(nil) {
+	for _, p := range OwnerScenarioProviders(ownerProviderFixtures(), nil) {
 		meta := p.Metadata()
 		if meta.OwnerScenario == "" {
 			t.Errorf("provider %q declares no owner scenario", meta.ID)
@@ -63,5 +63,15 @@ func TestOwnerProvidersDeleteThroughTheirOwner(t *testing.T) {
 		if meta.SafetyTier != cleanup.SafetyTierSafeWithOwner {
 			t.Errorf("provider %q has tier %q; owner-delegated providers must be safe_with_owner", meta.ID, meta.SafetyTier)
 		}
+	}
+}
+
+func ownerProviderFixtures() []OwnerProviderConfig {
+	return []OwnerProviderConfig{
+		{ID: "workspace-sandbox-retention", Name: "Workspace Sandbox retained sandboxes", OwnerScenario: "workspace-sandbox", SafetyTier: cleanup.SafetyTierSafeWithOwner, DefaultMode: cleanup.ProviderModeDisabled, DefaultApproval: cleanup.ApprovalModeOwner},
+		{ID: "test-genie-run-retention", Name: "Test Genie retained runs", OwnerScenario: "test-genie", SafetyTier: cleanup.SafetyTierSafeWithOwner, DefaultMode: cleanup.ProviderModeDisabled, DefaultApproval: cleanup.ApprovalModeOwner},
+		{ID: "architecture-cartographer-snapshots", Name: "Architecture Cartographer graph snapshots", OwnerScenario: "architecture-cartographer", SafetyTier: cleanup.SafetyTierSafeWithOwner, DefaultMode: cleanup.ProviderModeDisabled, DefaultApproval: cleanup.ApprovalModeOwner},
+		{ID: "web-console-sessions", Name: "Web Console old sessions", OwnerScenario: "web-console", SafetyTier: cleanup.SafetyTierSafeWithOwner, DefaultMode: cleanup.ProviderModeDisabled, DefaultApproval: cleanup.ApprovalModeOwner},
+		{ID: "browser-automation-studio-recordings", Name: "Browser Automation Studio terminal recordings", OwnerScenario: "browser-automation-studio", SafetyTier: cleanup.SafetyTierSafeWithOwner, DefaultMode: cleanup.ProviderModeDisabled, DefaultApproval: cleanup.ApprovalModeOwner},
 	}
 }

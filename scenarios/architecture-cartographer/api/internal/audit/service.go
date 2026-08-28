@@ -118,6 +118,18 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 		// on it without re-running the ladder.
 		rep.Domains.Confidence = string(domains.ConfidenceMissing)
 	}
+	if scenario == "control-plane" {
+		// The repository-wide graph is intentionally bounded to the control
+		// plane's owned Go packages. Scenario conflict detectors operate on a
+		// single app-sized graph and several of them enumerate package/file
+		// relationships; applying that fan-out to the whole repository turns
+		// this provider probe into an unbounded operation. Return the graph and
+		// domain evidence with an explicit partial outcome instead.
+		rep.Outcome = OutcomePartial
+		rep.OutcomeReason = "control-plane structural validation omits scenario-scale conflict detectors"
+		rep.Duration = s.clock.Now().Sub(start)
+		return rep, nil
+	}
 
 	var markers []suppressions.Marker
 	if s.suppressions != nil {
@@ -125,7 +137,11 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 	}
 
 	var verdicts conflicts.VerdictProvider
-	if s.verdicts != nil {
+	// Control-plane validation is a structural repository gate. Do not fan a
+	// large root through the optional AI verdict provider: it can turn a
+	// bounded graph extraction into an unbounded request and is not required to
+	// establish the architecture contract.
+	if s.verdicts != nil && scenario != "control-plane" {
 		verdicts = newCachedVerdictProvider(s.verdicts)
 	}
 	found, dErr := s.conflicts.DetectConflicts(ctx, conflicts.DetectOrchestrationInput{
@@ -333,9 +349,16 @@ func lowAuthorityMessage(scenario string) string {
 //     differed from the current source tree.
 //   - FRESH:        no prior persisted snapshot existed.
 func (s *service) freshSnapshot(ctx context.Context, scenario string, skipTS bool) (graph.GraphSnapshot, SnapshotFreshness, error) {
-	_, lsErr := s.graph.LatestSnapshotMeta(ctx, scenario)
-	priorExists := lsErr == nil
-	snap, cacheHit, err := s.graph.ExtractGraph(ctx, graph.ExtractGraphInput{Scenario: scenario, SkipTS: skipTS})
+	// The control-plane graph is deliberately a non-persisted one-off. Do not
+	// query snapshot metadata for it: the repository may contain a very large
+	// historical scenario corpus, and this path must remain independent of that
+	// cache's size or SQLite read latency.
+	priorExists := false
+	if scenario != "control-plane" {
+		_, lsErr := s.graph.LatestSnapshotMeta(ctx, scenario)
+		priorExists = lsErr == nil
+	}
+	snap, cacheHit, err := s.graph.ExtractGraph(ctx, graph.ExtractGraphInput{Scenario: scenario, SkipTS: skipTS, SkipPersistence: scenario == "control-plane"})
 	if err != nil {
 		return graph.GraphSnapshot{}, SnapshotFreshnessUnspecified, err
 	}

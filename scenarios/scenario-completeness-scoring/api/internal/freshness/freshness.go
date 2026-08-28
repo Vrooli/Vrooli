@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/freshness-go/runindex"
 	"github.com/vrooli/freshness-go/treedigest"
 	"github.com/vrooli/maturity-go/phasecoverage"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 )
 
 // PhaseStatus is one phase's verdict enriched with run context.
@@ -70,7 +71,15 @@ type Service struct {
 func New() *Service {
 	return &Service{
 		ComputeDigest: treedigest.Compute,
-		LoadRecords:   runindex.Load,
+		// This compatibility adapter is removed when this artifact consumer is
+		// migrated to the governed authority in its dedicated cutover phase.
+		LoadRecords: func(scenarioDir string) ([]runindex.RunRecord, error) {
+			artifactRoot, err := artifactpaths.ScenarioRootForDir(scenarioDir)
+			if err != nil {
+				return nil, err
+			}
+			return runindex.Load(artifactpaths.RunsIndexPath(artifactRoot))
+		},
 	}
 }
 

@@ -14,7 +14,13 @@
   },
   "targets": {
     "kinds": ["scenario", "package", "resource"],
-    "selection": "enumerate"
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires scenario service dependency declarations and resource graph metadata; the control plane has no scenario dependency manifest."
+      }
+    ]
   },
   "applicability": {
     "default": "not_applicable",

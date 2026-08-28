@@ -13,9 +13,21 @@
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
+      },
+      "soak_evidence": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "soak-evidence",
+        "regenerable": false,
+        "rationale": "Soak and reliability measurements are historical evidence, not reproducible outputs; 1090744 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "The dated evidence cohort measured 1090744 bytes on 2026-08-27; 256 MiB is an alarm-only ceiling for durable measurements."
+        }
       }
     },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+    "rationale": "Storage surfaces include durable scenario data and separately named long-form qualification evidence."
   },
   "service": {
     "parent": "vrooli",

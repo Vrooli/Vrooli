@@ -4,17 +4,18 @@
   "scenario": "security-health",
   "phase": "security",
   "displayName": "Security",
-  "description": "Validates secrets, Go SAST, Go vulnerability data, and JavaScript dependencies through security-health.",
+  "description": "Validates scenarios and the control plane for secrets, Go SAST, Go vulnerability data, and JavaScript dependency risk through one path-first Security Health scanner pipeline.",
   "source": "validation-provider",
   "orderHint": 15,
-  "timeout": "180s",
+  "timeout": "600s",
   "findingSource": "security",
   "validation": {
     "contract": "scenario-validation/v1"
   },
   "targets": {
     "kinds": [
-      "scenario"
+      "scenario",
+      "control-plane"
     ],
     "selection": "enumerate"
   },

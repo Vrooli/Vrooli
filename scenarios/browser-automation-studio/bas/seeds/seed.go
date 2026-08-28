@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	corestorage "github.com/vrooli/api-core/storage"
 	"google.golang.org/protobuf/encoding/protojson"
 
 	apiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -64,7 +65,16 @@ func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	statePath := filepath.Join(scenarioDir, "coverage", "runtime", "seed-state.json")
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return fmt.Errorf("resolve seed-state storage: %w", err)
+	}
+	statePath, err := resolver.ArtifactPath(corestorage.Options{ScenarioID: scenarioName}, corestorage.ArtifactRef{
+		Owner: scenarioName, Domain: "seed", Class: corestorage.ClassState, Segments: []string{"seed-state.json"},
+	})
+	if err != nil {
+		return fmt.Errorf("resolve seed-state path: %w", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(statePath), 0o755); err != nil {
 		return fmt.Errorf("create seed-state dir: %w", err)
 	}

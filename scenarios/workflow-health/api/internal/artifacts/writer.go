@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	corestorage "github.com/vrooli/api-core/storage"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -72,12 +73,20 @@ func (w *Writer) WriteWorkflow(assetID, assetPath string, timeline *bastimeline.
 	if runID == "" {
 		runID = "manual"
 	}
-	dir := filepath.Join(w.scenarioDir, "coverage", "workflow-health", "runs", sanitize(runID), sanitize(assetID))
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return RunArtifact{}, fmt.Errorf("create artifact resolver: %w", err)
+	}
+	target := sanitize(filepath.Base(w.scenarioDir))
+	dir, err := resolver.EnsureArtifactDir(corestorage.Options{ScenarioID: "workflow-health"}, corestorage.ArtifactRef{
+		Owner: "workflow-health", Domain: "run-artifacts", Class: corestorage.ClassState,
+		Segments: []string{target, "runs", sanitize(runID), sanitize(assetID)},
+	}, 0o755)
+	if err != nil {
 		return RunArtifact{}, fmt.Errorf("create artifact dir: %w", err)
 	}
 	out := RunArtifact{
-		Dir:      rel(w.scenarioDir, dir),
+		Dir:      filepath.ToSlash(dir),
 		Workflow: filepath.ToSlash(assetPath),
 	}
 	if timeline != nil {
@@ -89,7 +98,7 @@ func (w *Writer) WriteWorkflow(assetID, assetPath string, timeline *bastimeline.
 		if err := os.WriteFile(path, prettyJSON(data), 0o644); err != nil {
 			return out, fmt.Errorf("write timeline: %w", err)
 		}
-		out.Timeline = rel(w.scenarioDir, path)
+		out.Timeline = filepath.ToSlash(path)
 	}
 	path := filepath.Join(dir, "latest.json")
 	data, err := json.MarshalIndent(latest, "", "  ")
@@ -99,7 +108,7 @@ func (w *Writer) WriteWorkflow(assetID, assetPath string, timeline *bastimeline.
 	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
 		return out, fmt.Errorf("write latest: %w", err)
 	}
-	out.Latest = rel(w.scenarioDir, path)
+	out.Latest = filepath.ToSlash(path)
 	checksum, err := checksumFile(path)
 	if err != nil {
 		return out, fmt.Errorf("checksum latest: %w", err)
@@ -133,14 +142,6 @@ func Counts(timeline *bastimeline.ExecutionTimeline) TimelineCounts {
 		return TimelineCounts{}
 	}
 	return TimelineCounts{Entries: len(timeline.GetEntries()), Logs: len(timeline.GetLogs())}
-}
-
-func rel(root, path string) string {
-	r, err := filepath.Rel(root, path)
-	if err != nil {
-		return filepath.ToSlash(path)
-	}
-	return filepath.ToSlash(r)
 }
 
 func sanitize(value string) string {

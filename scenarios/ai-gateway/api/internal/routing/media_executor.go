@@ -196,7 +196,7 @@ func resolveOpenRouterCredential(_ context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return authority.Resolve(identity, "api-key")
+	return authority.Require(identity, "api-key")
 }
 
 type mediaImageResponse struct {

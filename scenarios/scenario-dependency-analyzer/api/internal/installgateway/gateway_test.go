@@ -56,6 +56,25 @@ func TestResolveSupportsResourceSurface(t *testing.T) {
 	}
 }
 
+func TestResolveSupportsResourceRootSurface(t *testing.T) {
+	repoRoot := t.TempDir()
+	resourceRoot := filepath.Join(repoRoot, "resources", "speaker-verification")
+	if err := os.MkdirAll(resourceRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resourceRoot, "requirements.txt"), []byte("speechbrain==1.0.2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	r, err := Resolve(repoRoot, "speaker-verification", "resource", "pip", "speechbrain", "1.0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot != resourceRoot || r.ManifestPath != filepath.Join(resourceRoot, "requirements.txt") {
+		t.Fatalf("resource-root resolution = %+v, want root requirements manifest", r)
+	}
+}
+
 func TestResolvePrefersScenarioSurfaceWhenNamesOverlap(t *testing.T) {
 	repoRoot := t.TempDir()
 	mkSurface(t, repoRoot, "doc-parse", "cli", map[string]string{"go.mod": "module scenario-doc-parse/cli\n"})

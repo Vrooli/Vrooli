@@ -61,9 +61,28 @@
           "max_bytes": "5GiB",
           "rationale": "The API database and durable metadata are bounded at 10GiB; execution evidence is governed by the recordings and captures entries."
         }
+      },
+      "seed_state": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "seed",
+        "regenerable": false,
+        "rationale": "Seed identity preserves stable demo project and workflow IDs; 227 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The seed state measured 227 bytes on 2026-08-27; 1 MiB detects accidental payload growth without authorizing deletion."
+        }
       }
     },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+    "cleanup_providers": [{
+      "id": "browser-automation-studio-recordings",
+      "name": "Browser Automation Studio terminal recordings",
+      "safety_tier": "safe_with_owner",
+      "default_mode": "disabled",
+      "default_approval": "owner"
+    }],
+    "rationale": "Storage surfaces include durable project and seed state plus separately budgeted regenerable execution evidence."
   },
   "credentials": {
     "descriptors": [

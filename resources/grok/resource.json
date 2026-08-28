@@ -75,7 +75,6 @@
       "kind": "go_module"
     }
   },
-  "template": "external-cli",
   "driver": "external-cli",
   "deployment": {
     "profiles": {

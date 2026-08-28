@@ -15,6 +15,13 @@
         }
       }
     },
+    "cleanup_providers": [{
+      "id": "architecture-cartographer-snapshots",
+      "name": "Architecture Cartographer graph snapshots",
+      "safety_tier": "safe_with_owner",
+      "default_mode": "disabled",
+      "default_approval": "owner"
+    }],
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
   },
   "service": {

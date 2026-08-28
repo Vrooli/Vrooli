@@ -28,6 +28,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	corestorage "github.com/vrooli/api-core/storage"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	authhandler "landing-page-business-suite-api/handlers/administration"
 	aihandler "landing-page-business-suite-api/handlers/intelligence"
 	"landing-page-business-suite-api/internal/administration"
@@ -42,6 +43,7 @@ import (
 	"landing-page-business-suite-api/internal/logx"
 	domainmetrics "landing-page-business-suite-api/internal/metrics"
 	runtimeschema "landing-page-business-suite-api/internal/schema"
+	"landing-page-business-suite-api/internal/securevalue"
 )
 
 // Config holds minimal runtime configuration
@@ -173,6 +175,32 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to seed default data: %w", err)
 	}
 	logStructured("server_database_seeded", nil)
+	administration.SetCredentialWitness(administration.NewCredentialWitness(routedDB))
+	for _, generated := range []struct {
+		key  string
+		mint func() (string, error)
+	}{
+		{"SESSION_SECRET", func() (string, error) { return credentialauthority.RandomBase64(32) }},
+		{"LPBS_" + "SERVICE_SECRET", func() (string, error) { return credentialauthority.RandomBase64(32) }},
+		{"LPBS_API_KEY_ENCRYPTION_KEY", func() (string, error) {
+			ring, err := securevalue.NewRing()
+			if err != nil {
+				return "", err
+			}
+			return ring.Marshal()
+		}},
+		{"LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", func() (string, error) {
+			ring, err := securevalue.NewRing()
+			if err != nil {
+				return "", err
+			}
+			return ring.Marshal()
+		}},
+	} {
+		if _, err := resolveGeneratedSecret(generated.key, generated.mint); err != nil {
+			return nil, fmt.Errorf("resolve %s: %w", generated.key, err)
+		}
+	}
 
 	// Initialize config store from tracked scenario config files.
 	variantsDir := resolveVariantsDir()
@@ -186,11 +214,45 @@ func NewServer() (*Server, error) {
 
 	planService := NewPlanService(db)
 	downloadService := delivery.NewCatalogService(delivery.NewRoutedCatalogStore(routedDB))
-	downloadHosting := delivery.NewService(db, delivery.S3StorageProvider{})
+	downloadHosting := delivery.NewService(db, delivery.S3StorageProvider{ResolveCredential: func(_ context.Context, field string) (string, error) {
+		authority, err := credentialauthority.Default()
+		if err != nil {
+			return "", err
+		}
+		identity, err := credentialauthority.ParseIdentity("vrooli/landing-page-business-suite")
+		if err != nil {
+			return "", err
+		}
+		return authority.Require(identity, field)
+	}})
 	limitsService := commerce.NewLimitsService(routedDB, "postgres", logStructured)
 	accountService := newAccountService(routedDB, planService, limitsService)
 	downloadAuthorizer := delivery.NewDownloadAuthorizer(downloadService, accountService, planService.BundleKey())
-	paymentSettings := commerce.NewPaymentSettingsService(routedDB)
+	readStripeCredential := func(ctx context.Context, field string) (string, error) {
+		_ = ctx
+		authority, err := credentialauthority.Default()
+		if err != nil {
+			return "", err
+		}
+		identity, err := credentialauthority.ParseIdentity("vrooli/landing-page-business-suite")
+		if err != nil {
+			return "", err
+		}
+		return authority.Require(identity, field)
+	}
+	writeStripeCredential := func(ctx context.Context, field, value string) error {
+		_ = ctx
+		authority, err := credentialauthority.Default()
+		if err != nil {
+			return err
+		}
+		identity, err := credentialauthority.ParseIdentity("vrooli/landing-page-business-suite")
+		if err != nil {
+			return err
+		}
+		return authority.Put(identity, field, value)
+	}
+	paymentSettings := commerce.NewPaymentSettingsServiceWithCredentials(routedDB, readStripeCredential, writeStripeCredential)
 	paymentAnomaly := commerce.NewPaymentAnomalyService(context.Background(), routedDB, context.Background(), commerce.PaymentAnomalyRuntime{
 		ScenarioName:   "landing-page-business-suite",
 		NormalizeEmail: NormalizeEmail,
@@ -216,10 +278,11 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize API key service: %w", err)
 	}
 	logStructured("server_api_key_service_initialized", nil)
-	remoteProfileService, err := administration.NewRemoteProfileServiceWithRuntime(
+	remoteProfileService, err := administration.NewRemoteProfileServiceWithCredentialResolver(
 		routedDB,
 		nil,
 		resolveSecret,
+		resolveAuthorityCredential,
 		isProductionEnvironment,
 		logStructured,
 		logStructuredError,
@@ -249,12 +312,12 @@ func NewServer() (*Server, error) {
 	userAuthService := administration.NewUserAuthService(administration.UserAuthServiceOptions{
 		Store:                 routedDB,
 		EmailService:          emailService,
-		JWTIssuer:             resolveSecret("JWT_ISSUER"),
+		JWTIssuer:             resolveConfig("JWT_ISSUER"),
 		ConsumerSigningKeyPEM: consumerSigningKeyPEM,
 		ConsumerSigningKeyID:  consumerKeyID,
 		ConsumerPreviousKeys:  previousConsumerKeys,
 		ConsumerClockSkew:     30 * time.Second,
-		BaseURL:               resolveSecret("AUTH_MAGIC_LINK_BASE_URL"),
+		BaseURL:               resolveConfig("AUTH_MAGIC_LINK_BASE_URL"),
 		AppName:               resolveConfig("EMAIL_FROM_NAME"),
 		Log:                   logStructured,
 		LogError:              logStructuredError,
@@ -364,48 +427,20 @@ func resolvePreviousConsumerKeys() ([]consumeridentity.PublicKey, error) {
 
 // resolveConsumerSigningKey keeps local development tokens valid across API
 // restarts without ever making a generated private key part of the repository.
-// Production deployments must inject CONSUMER_AUTH_PRIVATE_KEY through their
-// secret manager; the persisted local path is intentionally not used there.
+// The generated key is persisted through the credential authority and is
+// witness-gated, so production deployments cannot silently replace it.
 func resolveConsumerSigningKey() (string, error) {
-	if key := strings.TrimSpace(resolveSecret("CONSUMER_AUTH_PRIVATE_KEY")); key != "" {
-		return key, nil
-	}
-	if isProductionEnvironment() {
-		return "", nil
-	}
-	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
-	if err != nil {
-		return "", err
-	}
-	scenarioID, err := corestorage.ScenarioNamespace("landing-page-business-suite")
-	if err != nil {
-		return "", err
-	}
-	path, err := resolver.Path(corestorage.Options{ScenarioID: scenarioID}, corestorage.ClassConfig, "consumer-auth-private.pem")
-	if err != nil {
-		return "", err
-	}
-	if data, readErr := os.ReadFile(path); readErr == nil {
-		return string(data), nil
-	} else if !os.IsNotExist(readErr) {
-		return "", readErr
-	}
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", err
-	}
-	der, err := x509.MarshalPKCS8PrivateKey(key)
-	if err != nil {
-		return "", err
-	}
-	data := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		return "", err
-	}
-	return string(data), nil
+	return resolveGeneratedSecret("CONSUMER_AUTH_PRIVATE_KEY", func() (string, error) {
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			return "", err
+		}
+		der, err := x509.MarshalPKCS8PrivateKey(key)
+		if err != nil {
+			return "", err
+		}
+		return string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})), nil
+	})
 }
 
 // newRuntimeUsageService supplies process configuration at the composition

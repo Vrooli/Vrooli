@@ -2,56 +2,96 @@ package signals
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
+	"net/http"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
 
 // phasesCollector reads cached test-genie phase results and keeps the
 // newest result per phase across coverage/runs/<id>/phase-results/*.json
 // and the legacy top-level coverage/phase-results/*.json.
-type phasesCollector struct{}
+type phasesCollector struct{ source phaseArtifactSource }
+
+type phaseArtifact struct {
+	runID      string
+	phase      string
+	status     string
+	observedAt time.Time
+	content    []byte
+}
+
+type phaseArtifactSource interface {
+	Load(context.Context, string) ([]phaseArtifact, bool, error)
+}
+
+type testGeniePhaseSource struct{}
+
+func (testGeniePhaseSource) Load(ctx context.Context, scenario string) ([]phaseArtifact, bool, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "test-genie")
+	if err != nil {
+		return nil, false, fmt.Errorf("resolve test-genie: %w", err)
+	}
+	client := runsconnect.NewRunsServiceClient(&http.Client{Timeout: 5 * time.Second}, strings.TrimRight(baseURL, "/"))
+	response, err := client.ListRuns(ctx, connect.NewRequest(&runspb.ListRunsRequest{Target: scenario}))
+	if err != nil {
+		return nil, false, fmt.Errorf("list test-genie runs: %w", err)
+	}
+	artifacts := make([]phaseArtifact, 0)
+	for _, run := range response.Msg.GetRuns() {
+		observedAt, _ := time.Parse(time.RFC3339, run.GetCompletedAt())
+		if observedAt.IsZero() {
+			observedAt, _ = time.Parse(time.RFC3339, run.GetStartedAt())
+		}
+		for _, phase := range run.GetPhases() {
+			item := phaseArtifact{runID: run.GetRunId(), phase: phase.GetName(), status: phase.GetStatus(), observedAt: observedAt}
+			artifact, artifactErr := client.GetPhaseArtifact(ctx, connect.NewRequest(&runspb.GetPhaseArtifactRequest{
+				Target: scenario, RunId: run.GetRunId(), Phase: phase.GetName(),
+			}))
+			if artifactErr == nil {
+				item.content = []byte(artifact.Msg.GetContent())
+			}
+			artifacts = append(artifacts, item)
+		}
+	}
+	return artifacts, true, nil
+}
 
 func (phasesCollector) Name() string { return "phases" }
 
-func (phasesCollector) Collect(snap *Snapshot) error {
+func (c phasesCollector) Collect(snap *Snapshot) error {
+	source := c.source
+	if source == nil {
+		source = testGeniePhaseSource{}
+	}
+	artifacts, collected, err := source.Load(context.Background(), snap.Scenario)
+	if err != nil {
+		return err
+	}
+	if !collected {
+		return nil
+	}
 	best := map[string]phaseCandidate{}
-	collected := false
-
-	runsDir := filepath.Join(snap.Root, "coverage", "runs")
-	runEntries, err := os.ReadDir(runsDir)
-	switch {
-	case err == nil:
-		collected = true
-		for _, entry := range runEntries {
-			if !entry.IsDir() {
+	for _, artifact := range artifacts {
+		name, candidate, ok := decodePhaseData(artifact.content, artifact.phase, artifact.runID)
+		if !ok {
+			if strings.TrimSpace(artifact.status) == "" {
 				continue
 			}
-			dir := filepath.Join(runsDir, entry.Name(), "phase-results")
-			mergePhaseDir(dir, entry.Name(), best)
+			name = artifact.phase
+			candidate = phaseCandidate{result: PhaseResult{Status: artifact.status, UpdatedAt: artifact.observedAt}, hasTime: !artifact.observedAt.IsZero(), runDir: artifact.runID}
 		}
-	case !os.IsNotExist(err):
-		return fmt.Errorf("read runs dir: %w", err)
-	}
-
-	legacyDir := filepath.Join(snap.Root, "coverage", "phase-results")
-	if _, statErr := os.Stat(legacyDir); statErr == nil {
-		collected = true
-		// Legacy top-level files carry an empty run-dir key so they lose
-		// ties to run-dir results.
-		mergePhaseDir(legacyDir, "", best)
-	} else if !os.IsNotExist(statErr) {
-		return fmt.Errorf("stat legacy phase-results dir: %w", statErr)
-	}
-
-	if !collected {
-		// Never-tested scenario: missing coverage trees are normal.
-		return nil
+		if existing, seen := best[name]; !seen || candidate.newerThan(existing) {
+			best[name] = candidate
+		}
 	}
 
 	phases := make(map[string]PhaseResult, len(best))
@@ -86,27 +126,6 @@ func (a phaseCandidate) newerThan(b phaseCandidate) bool {
 	return false
 }
 
-// mergePhaseDir folds every decodable result file in dir into best.
-// Unreadable directories and malformed individual files are skipped.
-func mergePhaseDir(dir, runDir string, best map[string]phaseCandidate) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
-			continue
-		}
-		name, cand, ok := decodePhaseFile(filepath.Join(dir, entry.Name()), runDir)
-		if !ok {
-			continue
-		}
-		if existing, seen := best[name]; !seen || cand.newerThan(existing) {
-			best[name] = cand
-		}
-	}
-}
-
 // phaseFile is the on-disk result shape. Findings stays raw so a decode
 // failure degrades to "status only" instead of dropping the file.
 type phaseFile struct {
@@ -116,11 +135,7 @@ type phaseFile struct {
 	Findings  json.RawMessage `json:"findings"`
 }
 
-func decodePhaseFile(path, runDir string) (string, phaseCandidate, bool) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", phaseCandidate{}, false
-	}
+func decodePhaseData(data []byte, fallbackName, runDir string) (string, phaseCandidate, bool) {
 	var pf phaseFile
 	if err := json.Unmarshal(data, &pf); err != nil || pf.Status == "" {
 		return "", phaseCandidate{}, false
@@ -128,7 +143,7 @@ func decodePhaseFile(path, runDir string) (string, phaseCandidate, bool) {
 
 	name := pf.Phase
 	if name == "" {
-		name = strings.TrimSuffix(filepath.Base(path), ".json")
+		name = fallbackName
 	}
 
 	cand := phaseCandidate{runDir: runDir}

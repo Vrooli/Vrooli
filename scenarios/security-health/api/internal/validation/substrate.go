@@ -23,6 +23,11 @@ type Substrate struct {
 	// GoModDirs are the directories (relative to the scenario root) that
 	// contain a go.mod — gosec/govulncheck run per-module.
 	GoModDirs []string
+	// GoPackagePatterns optionally narrows the package patterns run within a
+	// module. Keys are GoModDirs entries. The default is ["./..."]. This lets
+	// repository targets bound a root module to owned source trees without
+	// pretending each package directory is a separate module.
+	GoPackagePatterns map[string][]string
 	// PnpmLockDirs are the directories (relative to the scenario root) that
 	// contain a pnpm-lock.yaml.
 	PnpmLockDirs []string

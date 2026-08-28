@@ -13,9 +13,22 @@
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
+      },
+      "wireframes": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "subpath": "wireframes",
+        "regenerable": true,
+        "rationale": "Rendered wireframes can be reconstructed from experience specifications; 25387 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "256MiB",
+          "rationale": "The cache measured 25387 bytes on 2026-08-27; seven days and 256 MiB bound iterative rendering."
+        }
       }
     },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+    "rationale": "Storage surfaces separate durable product data from regenerable rendered wireframes."
   },
   "service": {
     "parent": "vrooli",

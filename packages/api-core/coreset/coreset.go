@@ -63,7 +63,7 @@ func Load(repoRoot string) (Authority, error) {
 }
 
 func currentAuthority() Authority {
-	if root := strings.TrimSpace(os.Getenv("VROOLI_REPO_ROOT")); root != "" {
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
 		if authority, err := Load(root); err == nil {
 			return authority
 		}

@@ -7,9 +7,9 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { formatDate } from "../i18n/format";
 import { useTranslation } from "../i18n";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 
 /**
  * HealthCard is the canonical system-status component: it polls /health,

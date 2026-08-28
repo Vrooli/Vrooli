@@ -143,6 +143,6 @@
 ## Work ladder
 
 - Rung: W0 (goal/problem contract comparison)
-- Evidence: Indexed goals `search-hub-corpus-buildout` and `search-hub-federation-adoption` concern search infrastructure, not the user-supplied audio-tools reliability plan. SDA was consulted only for dependency/conformance evidence and was not assigned audio implementation scope.
-- Constraint: No dependency-governance goal was substituted for the plan's explicit acceptance contract.
-- Measured: 2026-08-03.
+- Evidence: Indexed goals `search-hub-corpus-buildout` and `search-hub-federation-adoption` direct search capabilities for this scenario, while the P0 PRD targets do not name those search capabilities. The W0 contract therefore remains false for the scenario's broader goal set; this portability plan only consumes SDA's platform-verdict implementation and does not rewrite its product contract.
+- Constraint: Do not substitute the portability plan or dependency-governance evidence for the unresolved search-goal contract mismatch. No lower scenario gate was run under W0.
+- Measured: 2026-08-26.

@@ -72,7 +72,6 @@
       "kind": "go_module"
     }
   },
-  "template": "managed-service",
   "driver": "managed-service",
   "deployment": {
     "profiles": {

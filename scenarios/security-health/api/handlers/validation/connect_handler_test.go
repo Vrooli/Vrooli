@@ -22,6 +22,19 @@ type stubValidator struct {
 	err    error
 }
 
+type stubTargetValidator struct {
+	report validation.Report
+	err    error
+	kind   validation.ValidationTargetKind
+	path   string
+}
+
+func (s *stubTargetValidator) ValidateTarget(_ context.Context, kind validation.ValidationTargetKind, path string) (validation.Report, error) {
+	s.kind = kind
+	s.path = path
+	return s.report, s.err
+}
+
 func (s stubValidator) ValidateScenario(context.Context, string) (validation.Report, error) {
 	return s.report, s.err
 }
@@ -106,6 +119,65 @@ func TestValidateScenario_NoValidatorUnimplemented(t *testing.T) {
 	_, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "x"}))
 	if connect.CodeOf(err) != connect.CodeUnimplemented {
 		t.Errorf("want Unimplemented, got %v", connect.CodeOf(err))
+	}
+}
+
+func TestValidateTargetMapsControlPlaneToRepositoryRoot(t *testing.T) {
+	targetValidator := &stubTargetValidator{report: validation.Report{Scenario: "control-plane", Passed: true}}
+	h := NewConnectHandler(Deps{
+		TargetValidator: targetValidator,
+		RepoRoot:        "/workspace/Vrooli",
+		MaturitySpec:    testMaturitySpec(),
+	})
+	target := &commonv1.ValidationTarget{
+		Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE,
+		Id:   "internal",
+		Root: "internal",
+	}
+	resp, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: target,
+		Path:   "/tmp/untrusted-override",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if targetValidator.kind != validation.ValidationTargetControlPlane || targetValidator.path != "/workspace/Vrooli" {
+		t.Fatalf("target resolver received kind=%q path=%q", targetValidator.kind, targetValidator.path)
+	}
+	if resp.Msg.GetTarget() != target || resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Fatalf("unexpected target response: %+v", resp.Msg)
+	}
+}
+
+func TestValidateTargetHonorsBudgetedPassedReport(t *testing.T) {
+	targetValidator := &stubTargetValidator{report: validation.Report{
+		Scenario: "control-plane",
+		Passed:   true,
+		Findings: []validation.Finding{{RuleID: "gosec.G101", Severity: validation.SeverityError, Title: "accepted baseline"}},
+		Summary:  validation.Summary{Errors: 1},
+	}}
+	h := NewConnectHandler(Deps{TargetValidator: targetValidator, RepoRoot: "/workspace/Vrooli", MaturitySpec: testMaturitySpec()})
+	resp, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: &commonv1.ValidationTarget{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE, Id: "internal"},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Fatalf("budgeted target status = %v, want PASSED", resp.Msg.GetStatus())
+	}
+	if got := resp.Msg.GetAssessment().GetFindingsBySeverity()["FINDING_SEVERITY_ERROR"]; got != 1 {
+		t.Fatalf("baseline findings hidden from assessment: got %d errors", got)
+	}
+}
+
+func TestValidateTargetRejectsUnsupportedKind(t *testing.T) {
+	h := NewConnectHandler(Deps{TargetValidator: &stubTargetValidator{}})
+	_, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: &commonv1.ValidationTarget{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE, Id: "postgres"},
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("want InvalidArgument, got %v", err)
 	}
 }
 

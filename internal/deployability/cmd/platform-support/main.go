@@ -1,3 +1,5 @@
+// Package main exposes the platform-support deployability command and owns
+// its control-plane wiring; it does not own scenario lifecycle or host repair.
 package main
 
 import (
@@ -13,6 +15,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
+	"github.com/vrooli/vrooli/internal/values"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
@@ -191,7 +194,7 @@ func render(snapshot ledger, existing []byte) ([]byte, error) {
 				for _, architecture := range platform.Architectures {
 					architectures = append(architectures, architecture.Architecture+"="+architecture.Support)
 				}
-				out.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %t | %s |\n", item.Name, item.Driver, item.AcquisitionKind, platform.HostOS, strings.Join(architectures, ", "), platform.Support, platform.Mismatch, firstNonEmpty(platform.Reason, "—")))
+				out.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %t | %s |\n", item.Name, item.Driver, item.AcquisitionKind, platform.HostOS, strings.Join(architectures, ", "), platform.Support, platform.Mismatch, values.FirstNonEmpty(platform.Reason, "—")))
 			}
 		}
 	}
@@ -199,20 +202,11 @@ func render(snapshot ledger, existing []byte) ([]byte, error) {
 	if !snapshot.SkipBudget.Available {
 		out.WriteString("**Unavailable:** " + snapshot.SkipBudget.Reason + "\n")
 	} else {
-		out.WriteString(fmt.Sprintf("Measured platform-gated skips: **%d**. Per-OS budgets: `%v`. Ratchet: **%s**. Last run within budget: **%t**.\n", snapshot.SkipBudget.Measured, snapshot.SkipBudget.Budgets, firstNonEmpty(snapshot.SkipBudget.RatchetDirection, "unspecified"), snapshot.SkipBudget.LastRunWithinBudget))
+		out.WriteString(fmt.Sprintf("Measured platform-gated skips: **%d**. Per-OS budgets: `%v`. Ratchet: **%s**. Last run within budget: **%t**.\n", snapshot.SkipBudget.Measured, snapshot.SkipBudget.Budgets, values.FirstNonEmpty(snapshot.SkipBudget.RatchetDirection, "unspecified"), snapshot.SkipBudget.LastRunWithinBudget))
 	}
 	out.WriteString(marker)
 	out.Write(body)
 	return []byte(out.String()), nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 func fatal(err error) {

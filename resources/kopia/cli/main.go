@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	resourceapp "resource-kopia/cli/internal/app"
+	resourceapp "github.com/vrooli/vrooli/resources/kopia/cli/internal/app"
 )
 
 var (

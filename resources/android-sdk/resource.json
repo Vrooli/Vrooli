@@ -3,7 +3,6 @@
   "name": "android-sdk",
   "display_name": "Android SDK",
   "description": "Governed Android SDK, JDK 17, Gradle 8.10.2, platform-tools, emulator, system images, and AVD lifecycle for device-control and scenario packaging.",
-  "template": "external-cli",
   "driver": "external-cli",
   "binary": "adb",
   "cli": {

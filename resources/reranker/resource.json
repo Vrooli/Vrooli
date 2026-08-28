@@ -64,7 +64,6 @@
       "kind": "go_module"
     }
   },
-  "template": "managed-service",
   "driver": "managed-service",
   "managed_service": {
     "provider_policy": {

@@ -13,9 +13,12 @@ import (
 	"os/user"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/packages/artifactledger"
 
 	"storage-manager/hostfs"
 	"storage-manager/hostpaths"
@@ -211,6 +214,14 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	if err != nil {
 		return nil, fmt.Errorf("resolve scenario binary root: %w", err)
 	}
+	// The removal ledger is resolved from home, not from a running scenario:
+	// a reclamation that cannot be recorded must not happen, and a ledger that
+	// needed a service would be unavailable exactly when the control plane is
+	// repairing itself.
+	removalLedger, err := artifactledger.New(home)
+	if err != nil {
+		return nil, fmt.Errorf("resolve removal ledger: %w", err)
+	}
 	ollama := providers.NewHTTPOllamaModelInventory(resolveOllamaBaseURL())
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
 		FileSystem:        files,
@@ -230,17 +241,53 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		GoBuildCacheRoots:    roots.GoBuildCache,
 		PlaywrightCacheRoots: roots.PlaywrightCache,
 		ScenarioBinariesRoot: binRoot,
+		RemovalLedger:        removalLedger,
 		RuntimeHomeProviders: runtimeHomeProviderConfigs(repoRoot, home, newRuntimeHomeBrokerRepairer()),
 		Saturated:            autohealSaturationProbe(http.DefaultClient),
 		OwnerScenarioClient: &cleanupcore.HTTPScenarioProviderClient{
 			ResolveURL: discovery.ResolveScenarioURLDefault,
 			HTTPClient: http.DefaultClient,
 		},
+		OwnerProviderConfigs: ownerScenarioProviderConfigs(repoRoot),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return providers.NewRegistry(builtIns...)
+}
+
+func ownerScenarioProviderConfigs(repoRoot string) []providers.OwnerProviderConfig {
+	paths, _ := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "service.json"))
+	configs := make([]providers.OwnerProviderConfig, 0)
+	for _, manifestPath := range paths {
+		data, err := os.ReadFile(manifestPath)
+		if err != nil {
+			continue
+		}
+		var manifest struct {
+			Storage struct {
+				CleanupProviders []struct {
+					ID              string `json:"id"`
+					Name            string `json:"name"`
+					SafetyTier      string `json:"safety_tier"`
+					DefaultMode     string `json:"default_mode"`
+					DefaultApproval string `json:"default_approval"`
+				} `json:"cleanup_providers"`
+			} `json:"storage"`
+		}
+		if json.Unmarshal(data, &manifest) != nil {
+			continue
+		}
+		owner := filepath.Base(filepath.Dir(filepath.Dir(manifestPath)))
+		for _, declaration := range manifest.Storage.CleanupProviders {
+			configs = append(configs, providers.OwnerProviderConfig{
+				ID: declaration.ID, Name: declaration.Name, OwnerScenario: owner,
+				SafetyTier: cleanupcore.SafetyTier(declaration.SafetyTier), DefaultMode: cleanupcore.ProviderMode(declaration.DefaultMode), DefaultApproval: cleanupcore.ApprovalMode(declaration.DefaultApproval),
+			})
+		}
+	}
+	sort.Slice(configs, func(i, j int) bool { return configs[i].ID < configs[j].ID })
+	return configs
 }
 
 func runtimeHomeProviderConfigs(repoRoot, home string, repairers ...cleanupcore.OwnershipRepairer) []providers.FileProviderConfig {
@@ -258,7 +305,16 @@ func runtimeHomeProviderConfigs(repoRoot, home string, repairers ...cleanupcore.
 		repairer = repairers[0]
 	}
 	for _, entry := range entries {
-		if !entry.Regenerable || entry.Cleanup != "storage_manager" || entry.Retention == nil {
+		// A contract-protected entry is never a generic cleanup provider. This
+		// reads the declaration rather than naming keys: `bin` was hard-coded
+		// here and again, in a second spelling, in the retention enforcer, so
+		// the two guards could disagree and any third consumer inherited
+		// neither. Protection now travels with the entry.
+		//
+		// Protected entries are not unowned: scenario-binaries still removes a
+		// proven orphan CLI triple under its own ledger and lease rules. What
+		// is refused is bulk, age-or-size-driven walking of a shared root.
+		if entry.Protected || !entry.Regenerable || entry.Cleanup != "storage_manager" || entry.Retention == nil {
 			continue
 		}
 		limits, parseErr := runtimeHomeRetentionLimits(entry.Retention)

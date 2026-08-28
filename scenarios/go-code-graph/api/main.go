@@ -24,6 +24,7 @@ import (
 	graphH "go-code-graph/handlers/graph"
 	healthH "go-code-graph/handlers/health"
 	rewriteH "go-code-graph/handlers/rewrite"
+	validationH "go-code-graph/handlers/validation"
 
 	intgraph "go-code-graph/internal/graph"
 	intrewrite "go-code-graph/internal/rewrite"
@@ -72,6 +73,7 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "go-code-graph-api", "1.0.0"),
 		graphH.Module(graphSvc, rewriteSvc, log.Default()),
+		validationH.Module(),
 		rewriteH.Module(rewriteSvc, log.Default()),
 	)
 

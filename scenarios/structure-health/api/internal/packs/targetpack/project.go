@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"structure-health/internal/rules"
@@ -79,6 +80,11 @@ type projectContract struct {
 	Environment struct {
 		Variables map[string]string `json:"variables"`
 	} `json:"environment"`
+	Targets struct {
+		Kinds map[string]struct {
+			Roots []string `json:"roots"`
+		} `json:"kinds"`
+	} `json:"targets"`
 	Sandbox struct {
 		FullRepoScopes      []string `json:"full_repo_scopes"`
 		ScenarioScopePrefix string   `json:"scenario_scope_prefix"`
@@ -117,6 +123,58 @@ func evaluateProject(root string) []rules.Finding {
 	out = append(out, projectSchemaIDRules(root)...)
 	out = append(out, projectCLIManifestSchemaRules(root)...)
 	out = append(out, projectScopeVocabularyRules(root)...)
+	out = append(out, projectConfigInvariantRules(root, contract)...)
+	return out
+}
+
+// projectConfigInvariantRules owns repository-wide configuration invariants
+// that used to be measured by the retired debt census.
+func projectConfigInvariantRules(root string, contract projectContract) []rules.Finding {
+	var out []rules.Finding
+	for _, kind := range []string{"control-plane", "project"} {
+		for _, pattern := range contract.Targets.Kinds[kind].Roots {
+			matches, err := filepath.Glob(filepath.Join(root, filepath.FromSlash(pattern)))
+			if err != nil {
+				out = append(out, finding("PROJECT_CONFIG_SURFACE", "error", fmt.Sprintf("invalid %s target root pattern: %v", kind, err), ".vrooli/repo-contract.json", "Repair the target root pattern."))
+				continue
+			}
+			for _, match := range matches {
+				if _, err := os.Stat(filepath.Join(match, ".vrooli", "testing.json")); os.IsNotExist(err) {
+					location, _ := filepath.Rel(root, filepath.Join(match, ".vrooli", "testing.json"))
+					out = append(out, finding("PROJECT_CONFIG_SURFACE", "error", fmt.Sprintf("%s target has no testing budget", kind), filepath.ToSlash(location), "Add .vrooli/testing.json with a budget for this target."))
+				}
+			}
+		}
+	}
+
+	for _, scenario := range []string{"api-health", "architecture-cartographer", "measures-health", "performance-health"} {
+		path := filepath.Join(root, "scenarios", scenario, ".vrooli", "test-genie.json")
+		data, err := os.ReadFile(path)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			continue
+		}
+		var descriptor struct {
+			Targets struct {
+				Kinds              []string `json:"kinds"`
+				NotApplicableKinds []struct {
+					Kind string `json:"kind"`
+				} `json:"notApplicableKinds"`
+			} `json:"targets"`
+		}
+		if json.Unmarshal(data, &descriptor) != nil || slices.Contains(descriptor.Targets.Kinds, "control-plane") {
+			continue
+		}
+		declaredNotApplicable := false
+		for _, item := range descriptor.Targets.NotApplicableKinds {
+			declaredNotApplicable = declaredNotApplicable || item.Kind == "control-plane"
+		}
+		if !declaredNotApplicable {
+			out = append(out, finding("PROJECT_CONFIG_SURFACE", "error", "phase provider must declare control-plane coverage", filepath.ToSlash(filepath.Join("scenarios", scenario, ".vrooli", "test-genie.json")), "Declare control-plane in targets.kinds or explicitly document non-applicability."))
+		}
+	}
 	return out
 }
 
@@ -158,7 +216,15 @@ func projectCanonicalMarkers(c projectContract) error {
 		return fmt.Errorf("layout directories are not canonical")
 	}
 	wantScenario := map[string]string{"service": ".vrooli/service.json", "orientation": ".vrooli/orientation.json", "docs": "docs", "docs_manifest": "docs/manifest.json", "requirements": "requirements", "api": "api", "ui": "ui", "cli": "cli", "cli_manifest": "cli/manifest.json"}
-	if !stringSliceEqual(c.Scenario.RequiredFiles, []string{".vrooli/service.json"}) || !stringMapEqual(c.Scenario.WellKnownPaths, wantScenario) || c.Resource.Manifest != "resource.json" || !stringMapEqual(c.Resource.WellKnownPaths, map[string]string{"docs": "docs"}) {
+	wantResource := map[string]string{
+		"manifest": "resource.json",
+		"readme":   "README.md",
+		"docs":     "docs",
+		"cli":      "cli",
+		"config":   "config",
+		"test":     "test",
+	}
+	if !stringSliceEqual(c.Scenario.RequiredFiles, []string{".vrooli/service.json"}) || !stringMapEqual(c.Scenario.WellKnownPaths, wantScenario) || c.Resource.Manifest != "resource.json" || !stringMapEqual(c.Resource.WellKnownPaths, wantResource) {
 		return fmt.Errorf("scenario or resource well-known paths are not canonical")
 	}
 	return nil
@@ -168,11 +234,24 @@ func projectRuntimeHome(c projectContract) error {
 	if c.RuntimeHome.DirName != ".vrooli" || len(c.RuntimeHome.EnvOverrides) != 0 {
 		return fmt.Errorf("runtime_home dir or overrides are invalid")
 	}
-	want := map[string]struct {
-		path, kind             string
-		regenerable, sensitive bool
-	}{
-		"plans": {"plans", "dir", false, false}, "state": {"state", "dir", false, false}, "config": {"config", "dir", false, false}, "data": {"data", "dir", false, false}, "runtime_db": {"state/runtime.db", "file", false, false}, "secrets": {"secrets.json", "file", false, true}, "secrets_enc": {"secrets.enc.json", "file", false, true}, "bin": {"bin", "dir", true, false}, "cache": {"cache", "dir", true, false}, "logs": {"logs", "dir", true, false}, "metrics": {"metrics", "dir", true, false}, "processes": {"processes", "dir", true, false}, "build": {"build", "dir", true, false}, "test_runs": {"test-runs", "dir", true, false}, "backups": {"backups", "dir", false, false}, "artifacts": {"artifacts", "dir", true, false},
+	want := map[string]homeEntryExpectation{
+		"plans":       {"plans", "dir", false, false, postureProtected},
+		"state":       {"state", "dir", false, false, postureProtected},
+		"config":      {"config", "dir", false, false, postureProtected},
+		"data":        {"data", "dir", false, false, postureProtected},
+		"runtime_db":  {"state/runtime.db", "file", false, false, postureProtected},
+		"secrets":     {"secrets.json", "file", false, true, postureProtected},
+		"secrets_enc": {"secrets.enc.json", "file", false, true, postureProtected},
+		"bin":         {"bin", "dir", true, false, postureProtected},
+		"shims":       {"shims", "dir", true, false, postureSelfManaged},
+		"backups":     {"backups", "dir", false, false, postureProtected},
+		"cache":       {"cache", "dir", true, false, postureManaged},
+		"logs":        {"logs", "dir", true, false, postureManaged},
+		"metrics":     {"metrics", "dir", true, false, postureManaged},
+		"processes":   {"processes", "dir", true, false, postureManaged},
+		"build":       {"build", "dir", true, false, postureManaged},
+		"test_runs":   {"test-runs", "dir", true, false, postureManaged},
+		"artifacts":   {"artifacts", "dir", true, false, postureManaged},
 	}
 	if len(c.RuntimeHome.Entries) != len(want) {
 		return fmt.Errorf("runtime_home entry count is invalid")
@@ -183,19 +262,19 @@ func projectRuntimeHome(c projectContract) error {
 		if !ok || got.Path != expected.path || got.Kind != expected.kind || got.Regenerable != expected.regenerable || (expected.sensitive && !got.Sensitive) {
 			return fmt.Errorf("runtime_home entry %q is invalid", key)
 		}
-		if expected.regenerable {
-			if got.Owner != "control_plane" || got.Cleanup != "storage_manager" || got.Retention == nil || !got.Retention.ProtectActive {
-				return fmt.Errorf("runtime_home entry %q lacks regenerable retention policy", key)
-			}
-		} else if !got.Protected || (got.Cleanup != "" && got.Cleanup != "never") || got.Retention != nil {
-			return fmt.Errorf("runtime_home entry %q is not conservatively protected", key)
+		if err := checkHomeEntryPosture(key, expected.posture, got.Owner, got.Cleanup, got.Protected, got.Retention != nil, retentionProtectsActive(got.Retention)); err != nil {
+			return err
 		}
 		if prior, duplicate := seen[got.Path]; duplicate {
 			return fmt.Errorf("runtime_home entries %q and %q share path %q", prior, key, got.Path)
 		}
 		seen[got.Path] = key
 	}
-	if !stringMapEqual(c.RuntimeHome.Scoped, map[string]string{"scenario_secrets": "scenarios/{scenario}/secrets.json", "project_state": "state/projects/{project_key}"}) {
+	if !stringMapEqual(c.RuntimeHome.Scoped, map[string]string{
+		"scenario_secrets":   "scenarios/{scenario}/secrets.json",
+		"project_state":      "state/projects/{project_key}",
+		"test_runs_scenario": "test-runs/{scenario}",
+	}) {
 		return fmt.Errorf("runtime_home scoped paths are invalid")
 	}
 	return nil
@@ -557,4 +636,68 @@ func containsString(items []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// homeEntryPosture is who may reclaim a runtime-home entry.
+//
+// This is deliberately independent of `regenerable`. The contract defines
+// regenerable as a backup predicate -- "can be reconstructed, need not be
+// backed up" -- and this validator used to read it as a cleanup predicate too,
+// requiring every regenerable entry to carry a storage-manager retention
+// policy. That conflation is what put a bulk age-and-size budget on ~/.vrooli/bin,
+// a shared install root that is regenerable in the backup sense and must still
+// never be walked by a reaper. The two questions are now asked separately.
+type homeEntryPosture int
+
+const (
+	// postureProtected: never a bulk cleanup or retention target. Reclaiming a
+	// single artifact, where that is meaningful at all, belongs to a component
+	// that can prove the specific artifact is dead.
+	postureProtected homeEntryPosture = iota
+	// postureManaged: storage-manager reclaims by declared age and size.
+	postureManaged
+	// postureSelfManaged: the declaring component owns the whole lifecycle and
+	// re-asserts its own contents. Not protected -- losing it is survivable --
+	// but no age or size rule applies, because nothing here is stale merely by
+	// being old.
+	postureSelfManaged
+)
+
+// homeEntryExpectation is one expected runtime-home entry.
+type homeEntryExpectation struct {
+	path, kind             string
+	regenerable, sensitive bool
+	posture                homeEntryPosture
+}
+
+func retentionProtectsActive(r *struct {
+	MaxAge        string `json:"max_age"`
+	MaxBytes      string `json:"max_bytes"`
+	KeepCount     int    `json:"keep_count"`
+	ProtectActive bool   `json:"protect_active"`
+},
+) bool {
+	return r != nil && r.ProtectActive
+}
+
+// checkHomeEntryPosture verifies the declared cleanup authority matches the
+// posture the contract is required to express for that entry.
+func checkHomeEntryPosture(key string, posture homeEntryPosture, owner, cleanup string, protected, hasRetention, protectsActive bool) error {
+	switch posture {
+	case postureProtected:
+		if !protected || (cleanup != "" && cleanup != "never") || hasRetention {
+			return fmt.Errorf("runtime_home entry %q must be protected with cleanup=never and no retention policy", key)
+		}
+	case postureManaged:
+		if protected || owner != "control_plane" || cleanup != "storage_manager" || !hasRetention || !protectsActive {
+			return fmt.Errorf("runtime_home entry %q lacks a storage-manager retention policy protecting active entries", key)
+		}
+	case postureSelfManaged:
+		if protected || owner != "control_plane" || cleanup != "never" || hasRetention {
+			return fmt.Errorf("runtime_home entry %q must declare cleanup=never with no retention policy; its owner re-asserts it", key)
+		}
+	default:
+		return fmt.Errorf("runtime_home entry %q has an unknown posture", key)
+	}
+	return nil
 }

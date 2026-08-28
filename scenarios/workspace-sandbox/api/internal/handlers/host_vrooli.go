@@ -17,12 +17,13 @@ import (
 var hostScenarioNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 
 type hostVrooliScenarioRequest struct {
-	Action     string `json:"action"`
-	Name       string `json:"name"`
-	PortName   string `json:"port_name,omitempty"`
-	BestEffort bool   `json:"best_effort,omitempty"`
-	CleanStale bool   `json:"clean_stale,omitempty"`
-	CustomPath string `json:"custom_path,omitempty"`
+	Action               string `json:"action"`
+	Name                 string `json:"name"`
+	PortName             string `json:"port_name,omitempty"`
+	BestEffort           bool   `json:"best_effort,omitempty"`
+	CleanStale           bool   `json:"clean_stale,omitempty"`
+	AcceptCredentialLoss bool   `json:"accept_credential_loss,omitempty"`
+	CustomPath           string `json:"custom_path,omitempty"`
 }
 
 type hostVrooliScenarioResponse struct {
@@ -65,6 +66,9 @@ func (h *Handlers) HostVrooliScenario(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.CleanStale {
 		args = append(args, "--clean-stale")
+	}
+	if req.AcceptCredentialLoss {
+		args = append(args, "--accept-credential-loss")
 	}
 
 	result, err := process.Run(ctx, h.Starter, process.StartOpts{

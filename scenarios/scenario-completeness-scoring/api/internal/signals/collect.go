@@ -23,7 +23,7 @@ type Service struct {
 func NewService() *Service {
 	return newService(
 		serviceCollector{},
-		requirementsCollector{},
+		requirementsCollector{syncSource: testGenieRequirementsSource{}},
 		phasesCollector{},
 		uiCollector{},
 	)

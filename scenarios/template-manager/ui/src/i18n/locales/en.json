@@ -1,246 +1,307 @@
 {
+  "$rowKey": "id",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "$text": "Blocked",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Template Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Template Manager"
   },
-  "layout": {
-    "sidebarLabel": "Sidebar navigation",
-    "bottomNavLabel": "Bottom navigation",
-    "mobileMenuLabel": "Mobile menu",
-    "closeMenuLabel": "Close navigation menu",
-    "mainLabel": "Main content",
-    "nav": {
-      "dashboard": "Dashboard",
-      "templates": "Templates",
-      "runs": "Runs",
-      "debt": "Debt",
-      "settings": "Settings"
-    }
-  },
-  "theme": {
-    "switcherLabel": "Theme",
-    "choice": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    }
-  },
-  "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Fleet standing, template debt, validation history, and the governed registry from the live Template Manager API."
-    },
-    "settings": {
-      "title": "Settings",
-      "themeHeading": "Appearance",
-      "localeHeading": "Language"
-    },
-    "templateList": {
-      "title": "Template registry",
-      "description": "Every governed scenario, design, and resource template. Filter by kind, then open one for its versions, drift, and validation history."
-    },
-    "runList": {
-      "title": "Validation history",
-      "description": "Every persisted validation run across the fleet. Filter by status, then open a run for its per-phase results and findings."
-    },
-    "debtList": {
-      "title": "Debt ledger",
-      "description": "Every inherited-template defect across the fleet. Filter by template or status, then open an entry for its full provenance."
-    }
-  },
-  "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "errors": {
-    "canceled": "Operation canceled.",
-    "unknown": "An unknown error occurred.",
-    "invalid_argument": "Invalid input: {{message}}",
-    "deadline_exceeded": "Operation timed out.",
-    "not_found": "Resource not found.",
-    "already_exists": "Already exists.",
-    "permission_denied": "Permission denied.",
-    "resource_exhausted": "Resource limit reached.",
-    "failed_precondition": "Cannot perform this action: {{message}}",
-    "aborted": "Operation aborted.",
-    "out_of_range": "Out of range.",
-    "unimplemented": "Not yet implemented.",
-    "internal": "Something went wrong. Please try again.",
-    "unavailable": "Service temporarily unavailable.",
-    "data_loss": "Data loss detected.",
-    "unauthenticated": "Please sign in to continue."
-  },
-  "locale": {
-    "switcherLabel": "Language"
-  },
-  "errorBoundary": {
-    "title": "Something went wrong",
-    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
-    "retry": "Try again"
-  },
+  "aria-label": "locked",
+  "ascending": "descending",
+  "asset": "navigation.page",
+  "background": "#020617",
+  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
+  "capability": "navigation",
+  "caption": "No rows table",
+  "clsx": "^2.1.1",
   "dashboard": {
-    "loadingTitle": "Loading template standing",
-    "loadingDescription": "Reading registry, debt, validation, drift, and measures data.",
-    "errorTitle": "Unable to load template dashboard",
-    "errorDescription": "Check that template-manager is running and that the Connect API is reachable.",
-    "metrics": {
-      "openDebt": "Open debt",
-      "deepStreak": "Deep streak",
-      "versionLag": "Max lag",
-      "templates": "Templates"
-    },
-    "standing": {
-      "title": "Fleet standing",
-      "description": "Governed templates bucketed by their most urgent standing."
-    },
-    "registry": {
-      "title": "Template registry",
-      "description": "Scenario, design, and resource templates currently governed."
-    },
-    "monitor": {
-      "title": "Deep-validate monitor",
-      "description": "Recurring scheduler status for daily template validation.",
-      "status": "Status",
-      "nextRun": "Next run",
-      "interval": "Interval",
-      "streak": "Green streak",
-      "lastRun": "Last run",
-      "unscheduled": "Unscheduled"
-    },
-    "runs": {
-      "title": "Validation history",
-      "description": "Latest persisted validation runs.",
-      "empty": "No validation runs recorded"
-    },
     "debt": {
-      "title": "Debt ledger",
       "description": "Open and tracked inherited-template defects.",
-      "empty": "No debt entries recorded"
+      "empty": "No debt entries recorded",
+      "title": "Debt ledger"
     },
     "drift": {
-      "title": "Drift snapshots",
       "description": "Latest fleet drift captures.",
-      "empty": "No drift snapshots recorded"
+      "empty": "No drift snapshots recorded",
+      "title": "Drift snapshots"
     },
     "empty": {
-      "title": "No standing data",
-      "description": "Run validation or drift recording to populate standing buckets."
-    }
-  },
-  "list": {
-    "pagination": {
-      "label": "Pagination",
-      "prev": "Previous",
-      "next": "Next",
-      "status": "Page {{page}} of {{total}}"
-    }
-  },
-  "templateList": {
-    "search": "Search templates",
-    "searchPlaceholder": "Search by name, id, or version",
-    "empty": "No templates match the current filters",
-    "viewEntry": "View template",
-    "filters": {
-      "kind": "Kind",
-      "allKinds": "All kinds"
-    }
-  },
-  "runList": {
-    "search": "Search validation runs",
-    "searchPlaceholder": "Search by run id or template",
-    "empty": "No validation runs match the current filters",
-    "viewEntry": "View validation run",
-    "filters": {
+      "description": "Run validation or drift recording to populate standing buckets.",
+      "title": "No standing data"
+    },
+    "errorDescription": "Check that template-manager is running and that the Connect API is reachable.",
+    "errorTitle": "Unable to load template dashboard",
+    "loadingDescription": "Reading registry, debt, validation, drift, and measures data.",
+    "loadingTitle": "Loading template standing",
+    "metrics": {
+      "deepStreak": "Deep streak",
+      "openDebt": "Open debt",
+      "templates": "Templates",
+      "versionLag": "Max lag"
+    },
+    "monitor": {
+      "description": "Recurring scheduler status for daily template validation.",
+      "interval": "Interval",
+      "lastRun": "Last run",
+      "nextRun": "Next run",
       "status": "Status",
-      "allStatuses": "All statuses"
+      "streak": "Green streak",
+      "title": "Deep-validate monitor",
+      "unscheduled": "Unscheduled"
+    },
+    "registry": {
+      "description": "Scenario, design, and resource templates currently governed.",
+      "title": "Template registry"
+    },
+    "runs": {
+      "description": "Latest persisted validation runs.",
+      "empty": "No validation runs recorded",
+      "title": "Validation history"
+    },
+    "standing": {
+      "description": "Governed templates bucketed by their most urgent standing.",
+      "title": "Fleet standing"
     }
   },
+  "debtDetail": {
+    "fields": {
+      "firstSeen": "First seen",
+      "key": "Key",
+      "lastSeen": "Last seen",
+      "severity": "Severity",
+      "source": "Source",
+      "status": "Status",
+      "template": "Template"
+    },
+    "message": "Detail",
+    "messageEmpty": "No additional detail recorded",
+    "overview": "Overview"
+  },
+  "debtList": {
+    "empty": "No debt entries match the current filters",
+    "filters": {
+      "allStatuses": "All statuses",
+      "allTemplates": "All templates",
+      "status": "Status",
+      "template": "Template"
+    },
+    "search": "Search debt entries",
+    "searchPlaceholder": "Search by key, template, or title",
+    "viewEntry": "View debt entry"
+  },
+  "default": "No scenarios match",
+  "defaultValue": "locked",
+  "density": "compact",
+  "desc": "asc",
+  "description": "The responsive navigation shell.",
   "detail": {
     "back": {
       "dashboard": "Back to dashboard",
       "debtList": "Back to debt ledger"
     },
-    "loadingTitle": "Loading",
-    "loadingDescription": "Fetching the latest record from the Template Manager API.",
+    "errorDescription": "Check that template-manager is running and that this record still exists.",
     "errorTitle": "Unable to load",
-    "errorDescription": "Check that template-manager is running and that this record still exists."
+    "loadingDescription": "Fetching the latest record from the Template Manager API.",
+    "loadingTitle": "Loading"
   },
-  "templateDetail": {
-    "overview": "Overview",
-    "runs": "Validation runs",
-    "runsEmpty": "No validation runs recorded",
-    "drift": "Drift snapshots",
-    "driftEmpty": "No drift snapshots recorded",
-    "debt": "Debt",
-    "debtEmpty": "No debt entries recorded",
-    "fields": {
-      "kind": "Kind",
-      "version": "Version",
-      "status": "Status",
-      "latestVersion": "Latest version",
-      "lag": "Version lag",
-      "updatedAt": "Updated",
-      "tags": "Tags",
-      "manifestPath": "Manifest path",
-      "sourcePath": "Source path"
+  "dialog": "complementary",
+  "emptyMessage": "No scenarios match",
+  "equals": "Current",
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "example": "overlay-open",
+  "export": "ResponsiveClosed",
+  "field": "name",
+  "fixture": "fixtures.resource-collection",
+  "format": "renderable-text",
+  "header": "Scenario",
+  "health": {
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
+  },
+  "id": "empty",
+  "kind": "role",
+  "label": "Current",
+  "layout": {
+    "bottomNavLabel": "Bottom navigation",
+    "closeMenuLabel": "Close navigation menu",
+    "mainLabel": "Main content",
+    "mobileMenuLabel": "Mobile menu",
+    "nav": {
+      "dashboard": "Dashboard",
+      "debt": "Debt",
+      "runs": "Runs",
+      "settings": "Settings",
+      "templates": "Templates"
+    },
+    "sidebarLabel": "Sidebar navigation"
+  },
+  "list": {
+    "pagination": {
+      "label": "Pagination",
+      "next": "Next",
+      "prev": "Previous",
+      "status": "Page {{page}} of {{total}}"
     }
   },
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "lucide-react": "^0.424.0",
+  "mode": "pinned",
+  "module": "./story.tsx",
+  "name": "Empty",
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "Fleet standing, template debt, validation history, and the governed registry from the live Template Manager API.",
+      "title": "Dashboard"
+    },
+    "debtList": {
+      "description": "Every inherited-template defect across the fleet. Filter by template or status, then open an entry for its full provenance.",
+      "title": "Debt ledger"
+    },
+    "runList": {
+      "description": "Every persisted validation run across the fleet. Filter by status, then open a run for its per-phase results and findings.",
+      "title": "Validation history"
+    },
+    "settings": {
+      "localeHeading": "Language",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    },
+    "templateList": {
+      "description": "Every governed scenario, design, and resource template. Filter by kind, then open one for its versions, drift, and validation history.",
+      "title": "Template registry"
+    }
+  },
+  "path": "emptyMessage",
+  "placeholder": "Choose status",
+  "provenance": "react-component-library/ControlBase@1.0.0",
+  "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.",
+  "react": "^18",
+  "react-component-library:useEscapeKey": "^1.0.0",
+  "region": "navigation",
+  "role": "table",
   "runDetail": {
-    "overview": "Overview",
-    "phases": "Phase results",
-    "phasesEmpty": "No phase results recorded",
-    "findings": "Findings",
-    "findingsEmpty": "No findings — a clean run",
     "columns": {
       "findingCount": "Findings",
       "source": "Source"
     },
     "fields": {
-      "template": "Template",
-      "mode": "Mode",
-      "status": "Status",
-      "trigger": "Trigger",
-      "target": "Target",
-      "startedAt": "Started",
+      "duration": "Duration",
       "finishedAt": "Finished",
-      "duration": "Duration"
-    }
-  },
-  "debtDetail": {
+      "mode": "Mode",
+      "startedAt": "Started",
+      "status": "Status",
+      "target": "Target",
+      "template": "Template",
+      "trigger": "Trigger"
+    },
+    "findings": "Findings",
+    "findingsEmpty": "No findings — a clean run",
     "overview": "Overview",
-    "message": "Detail",
-    "messageEmpty": "No additional detail recorded",
-    "fields": {
-      "key": "Key",
-      "template": "Template",
-      "severity": "Severity",
-      "status": "Status",
-      "source": "Source",
-      "firstSeen": "First seen",
-      "lastSeen": "Last seen"
-    }
+    "phases": "Phase results",
+    "phasesEmpty": "No phase results recorded"
   },
-  "debtList": {
-    "search": "Search debt entries",
-    "searchPlaceholder": "Search by key, template, or title",
-    "empty": "No debt entries match the current filters",
-    "viewEntry": "View debt entry",
+  "runList": {
+    "empty": "No validation runs match the current filters",
     "filters": {
-      "template": "Template",
-      "allTemplates": "All templates",
+      "allStatuses": "All statuses",
+      "status": "Status"
+    },
+    "search": "Search validation runs",
+    "searchPlaceholder": "Search by run id or template",
+    "viewEntry": "View validation run"
+  },
+  "schema": "scenario-experience-spec/v1",
+  "schemaVersion": "1.1.0",
+  "selector": "[data-testid=",
+  "shape": "pill",
+  "size": "icon",
+  "state": "hover",
+  "statement": "The shell remains bounded by the document viewport in both presentations.",
+  "status": "Behind",
+  "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json",
+  "tailwind-merge": "^2.3.0",
+  "templateDetail": {
+    "debt": "Debt",
+    "debtEmpty": "No debt entries recorded",
+    "drift": "Drift snapshots",
+    "driftEmpty": "No drift snapshots recorded",
+    "fields": {
+      "kind": "Kind",
+      "lag": "Version lag",
+      "latestVersion": "Latest version",
+      "manifestPath": "Manifest path",
+      "sourcePath": "Source path",
       "status": "Status",
-      "allStatuses": "All statuses"
-    }
-  }
+      "tags": "Tags",
+      "updatedAt": "Updated",
+      "version": "Version"
+    },
+    "overview": "Overview",
+    "runs": "Validation runs",
+    "runsEmpty": "No validation runs recorded"
+  },
+  "templateList": {
+    "empty": "No templates match the current filters",
+    "filters": {
+      "allKinds": "All kinds",
+      "kind": "Kind"
+    },
+    "search": "Search templates",
+    "searchPlaceholder": "Search by name, id, or version",
+    "viewEntry": "View template"
+  },
+  "testid": "sidebar-shell",
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  },
+  "tier": "machine",
+  "title": "DataTable",
+  "tone": "danger",
+  "true": "false",
+  "type": "no-document-horizontal-overflow",
+  "value": "No scenarios match",
+  "var(--radius-pill)": "var(--radius-control)",
+  "var(--space-3xs)": "var(--space-2xs)",
+  "variant": "danger",
+  "version": "1.0.0"
 }

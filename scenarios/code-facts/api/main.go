@@ -27,6 +27,7 @@ import (
 
 	factsH "code-facts/handlers/facts"
 	healthH "code-facts/handlers/health"
+	validationH "code-facts/handlers/validation"
 )
 
 func cacheMaxBytesFromEnv() (int64, error) {
@@ -96,6 +97,7 @@ func main() {
 		healthH.Module(db, "code-facts-api", "1.0.0", func(ctx context.Context) (map[string]any, error) {
 			return factsH.OperationalMetrics(ctx, db.Primary(), cacheMaxBytes, admission)
 		}),
+		validationH.Module(),
 		factsH.Module(db.Primary(), logger, cacheMaxBytes, admission, os.Getenv("CODE_FACTS_INDEX_CONTROL_TOKEN"), searchTokens.Matches),
 	)
 

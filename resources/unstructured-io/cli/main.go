@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"resource-unstructured-io/cli/internal/unstructured"
+	"github.com/vrooli/vrooli/resources/unstructured-io/cli/internal/unstructured"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

@@ -11,10 +11,10 @@ import (
 	"os"
 	"strings"
 
-	"resource-openrouter/cli/internal/auth"
-	"resource-openrouter/cli/internal/config"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/auth"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/config"
 
-	resourceenv "resource-openrouter/cli/internal/env"
+	resourceenv "github.com/vrooli/vrooli/resources/openrouter/cli/internal/env"
 )
 
 // HTTPClient is the narrow HTTP client contract used for safe OpenRouter probes.

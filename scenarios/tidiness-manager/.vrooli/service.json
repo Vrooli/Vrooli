@@ -98,6 +98,11 @@
         "enabled": false,
         "required": false,
         "description": "Campaign-based file tracking to ensure progressive coverage without redundancy"
+      },
+      "code-facts": {
+        "enabled": true,
+        "required": true,
+        "description": "Required symbol-resolved fact provider for canonical seam enforcement"
       }
     }
   },

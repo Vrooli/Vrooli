@@ -6,6 +6,7 @@ package validation
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -95,6 +96,35 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// ValidateTarget preserves the generalized target identity while routing the
+// control-plane target through the same honest measures engine. The control
+// plane has no scenario CLI manifest, so the validator reports an empty
+// measures surface rather than pretending that a scenario manifest exists.
+func (h *connectHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	if req == nil || req.Msg == nil || req.Msg.GetTarget() == nil || req.Msg.GetTarget().GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	target := req.Msg.GetTarget()
+	if target.GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE && target.GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("measures-health does not support target kind %s", target.GetKind().String()))
+	}
+	legacy, err := h.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario:         target.GetId(),
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:                target,
+		Status:                legacy.Msg.GetStatus(),
+		Assessment:            legacy.Msg.GetAssessment(),
+		NativeDetail:          legacy.Msg.GetNativeDetail(),
+		Metrics:               legacy.Msg.GetMetrics(),
+		FailureClassification: legacy.Msg.GetFailureClassification(),
+	}), nil
 }
 
 func (h *connectHandler) ListFleetCoverage(ctx context.Context, req *connect.Request[validationv1.ListFleetCoverageRequest]) (*connect.Response[validationv1.ListFleetCoverageResponse], error) {

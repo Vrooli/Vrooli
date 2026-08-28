@@ -40,58 +40,106 @@ type BridgeTrust struct {
 	Reason             string `json:"reason,omitempty"`
 }
 
+// ReadinessCheck is the provider-neutral shape used by product surfaces to
+// explain why a target can or cannot be selected. Identity is stable for
+// machine logic; label, detail, and recovery action are presentation-safe.
+type ReadinessCheck struct {
+	Identity       string `json:"identity"`
+	Label          string `json:"label"`
+	Passed         bool   `json:"passed"`
+	Detail         string `json:"detail,omitempty"`
+	RecoveryAction string `json:"recovery_action,omitempty"`
+}
+
+const (
+	ReadinessRegistry       = "registry_record"
+	ReadinessHeartbeat      = "heartbeat_fresh"
+	ReadinessChannel        = "channel_held"
+	ReadinessProtocol       = "protocol_compatible"
+	ReadinessDispatch       = "dispatchable"
+	ReadinessBridgeScope    = "bridge_scope"
+	ReadinessAgentCLI       = "agent_cli"
+	ReadinessSessionSupport = "session_support"
+)
+
+// ReadinessCheckFor resolves the stable identity to the common operator
+// wording. Unknown identities remain explicit instead of disappearing from a
+// product surface.
+func ReadinessCheckFor(identity string, passed bool, detail string) ReadinessCheck {
+	identity = strings.TrimSpace(identity)
+	labels := map[string]string{
+		ReadinessRegistry:       "Registered",
+		ReadinessHeartbeat:      "Heartbeat fresh",
+		ReadinessChannel:        "Live channel",
+		ReadinessProtocol:       "Protocol compatible",
+		ReadinessDispatch:       "Dispatchable",
+		ReadinessBridgeScope:    "Bridge scope",
+		ReadinessAgentCLI:       "Agent CLI",
+		ReadinessSessionSupport: "Session support",
+	}
+	label := labels[identity]
+	if label == "" {
+		label = identity
+	}
+	return ReadinessCheck{Identity: identity, Label: label, Passed: passed, Detail: detail, RecoveryAction: recoveryAction(identity, passed)}
+}
+
+func recoveryAction(identity string, passed bool) string {
+	if passed {
+		return ""
+	}
+	switch identity {
+	case ReadinessHeartbeat, ReadinessChannel:
+		return "Reconnect the Bridge agent, then refresh"
+	case ReadinessProtocol, ReadinessAgentCLI:
+		return "Update or provision the Bridge agent, then refresh"
+	case ReadinessBridgeScope:
+		return "Grant the required Bridge scope in the node settings"
+	case ReadinessSessionSupport:
+		return "Enable session support on the node"
+	default:
+		return "Refresh the target and inspect its readiness"
+	}
+}
+
+// HeartbeatFresh computes freshness from the timestamp itself. A missing
+// timestamp is never fresh, even when a transport channel is still present.
+func HeartbeatFresh(lastSeen, now time.Time, staleAfter time.Duration) (bool, time.Duration) {
+	if lastSeen.IsZero() || staleAfter <= 0 {
+		return false, 0
+	}
+	age := now.UTC().Sub(lastSeen.UTC())
+	return age >= 0 && age <= staleAfter, age
+}
+
 // Target is one observable execution destination. It contains identity,
 // platform, capability, transport, trust, health, and explicit recovery
 // information so an unavailable selection is actionable rather than guessed.
 type Target struct {
-	ID                string       `json:"id"`
-	Ramp              string       `json:"ramp,omitempty"`
-	Label             string       `json:"label"`
-	Platform          string       `json:"platform"`
-	OS                string       `json:"os"`
-	Architecture      string       `json:"architecture"`
-	DeviceKind        string       `json:"device_kind"`
-	Transport         Transport    `json:"transport"`
-	NodeID            string       `json:"node_id,omitempty"`
-	Mode              string       `json:"mode,omitempty"`
-	Capabilities      []string     `json:"capabilities,omitempty"`
-	Scopes            []string     `json:"scopes,omitempty"`
-	Available         bool         `json:"available"`
-	Reason            string       `json:"reason,omitempty"`
-	MissingCapability string       `json:"missing_capability,omitempty"`
-	NextAction        string       `json:"next_action,omitempty"`
-	Health            TargetHealth `json:"health"`
-	BridgeTrust       *BridgeTrust `json:"bridge_trust,omitempty"`
-	Revoked           bool         `json:"revoked,omitempty"`
+	ID                string           `json:"id"`
+	Ramp              string           `json:"ramp,omitempty"`
+	Label             string           `json:"label"`
+	Platform          string           `json:"platform"`
+	OS                string           `json:"os"`
+	Architecture      string           `json:"architecture"`
+	DeviceKind        string           `json:"device_kind"`
+	Revision          string           `json:"revision,omitempty"`
+	LastSeenAt        time.Time        `json:"last_seen_at,omitempty"`
+	SurvivesRestart   bool             `json:"survives_restart"`
+	Transport         Transport        `json:"transport"`
+	NodeID            string           `json:"node_id,omitempty"`
+	Mode              string           `json:"mode,omitempty"`
+	Capabilities      []string         `json:"capabilities,omitempty"`
+	Scopes            []string         `json:"scopes,omitempty"`
+	Available         bool             `json:"available"`
+	Reason            string           `json:"reason,omitempty"`
+	MissingCapability string           `json:"missing_capability,omitempty"`
+	NextAction        string           `json:"next_action,omitempty"`
+	Health            TargetHealth     `json:"health"`
+	BridgeTrust       *BridgeTrust     `json:"bridge_trust,omitempty"`
+	Revoked           bool             `json:"revoked,omitempty"`
+	Readiness         []ReadinessCheck `json:"readiness,omitempty"`
 }
-
-// Capability vocabulary is provider-neutral. Providers may advertise more
-// names; these stable names are the ones the shared spine understands.
-const (
-	CapabilityCDP             = "cdp"
-	CapabilityNativeWindow    = "native-window"
-	CapabilityProcessMetrics  = "process-metrics"
-	CapabilityOfflineNetwork  = "offline-network"
-	CapabilityAndroidSDK      = "android-sdk"
-	CapabilityAndroidEmulator = "android-emulator"
-	CapabilityAndroidWebView  = "android-webview"
-	CapabilityScreenRecording = "screen-recording"
-	CapabilityDeviceControl   = "device-control"
-)
-
-// Bridge availability reasons are stable cross-consumer vocabulary. Keeping
-// them here prevents the gate and delivery ramp from classifying the same
-// bridge observation differently merely because they have different callers.
-const (
-	ReasonBridgeOffline           = "bridge node is offline or not dispatchable"
-	ReasonBridgeNoCapability      = "bridge node is online but declares no supported capability"
-	ReasonBridgeNoDispatchScope   = "bridge node is online but lacks an authorized scenario-test dispatch scope"
-	ReasonBridgeAuthorizedAndroid = "bridge node is online and authorized; Android evidence remains target-owned"
-	ReasonBridgeAuthorizedDesktop = "bridge node is online and authorized; desktop evidence remains target-owned"
-	ReasonBridgeAuthorizedIOS     = "bridge node is online and authorized; iOS evidence remains target-owned"
-	ReasonBridgeNoHostProbe       = "bridge node is online but its host toolchain could not be probed"
-	ReasonBridgeRevoked           = "bridge node is revoked"
-)
 
 func (t Target) Validate() error {
 	if strings.TrimSpace(t.ID) == "" {

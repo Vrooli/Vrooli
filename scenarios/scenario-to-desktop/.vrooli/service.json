@@ -76,6 +76,59 @@
       }
     }
   },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
+        "label": "LPBS service identity",
+        "description": "Shared LPBS service identity resolved by scenario-to-desktop through the credential authority.",
+        "required": true,
+        "provisioning": "generated",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "windows-cert-password",
+        "env": "CSC_KEY_PASSWORD",
+        "label": "Windows certificate password",
+        "description": "Optional password consumed by electron-builder for Windows code signing.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "apple-id",
+        "env": "APPLE_ID",
+        "label": "Apple ID",
+        "description": "Optional Apple account consumed by electron-builder for notarization.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "apple-app-password",
+        "env": "APPLE_APP_SPECIFIC_PASSWORD",
+        "label": "Apple app-specific password",
+        "description": "Optional Apple app-specific password consumed by electron-builder for notarization.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/scenario-to-desktop",
+        "field": "apple-api-key-p8",
+        "env": "APPLE_API_KEY_FILE",
+        "label": "Apple API key file",
+        "description": "Optional Apple API key file consumed by electron-builder for notarization.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      }
+    ]
+  },
   "generation": {
     "content_sha": "532fcf8d6300617b7f2b220739859c7a09615c0990b7d89839bd699f0a44c45d",
     "generated_at": "2026-07-26T19:20:20Z",
@@ -272,7 +325,8 @@
       "role": "api",
       "build": {
         "kind": "go_module",
-        "dir": "api"
+        "dir": "api",
+        "output": "api/bin/scenario-to-desktop-api"
       },
       "run": {
         "argv": [

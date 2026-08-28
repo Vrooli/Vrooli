@@ -24,11 +24,12 @@ const (
 var runtimeHomeEntryPath = repocontract.RuntimeHomeEntryPath
 
 type classRoots struct {
-	config string
-	data   string
-	cache  string
-	logs   string
-	state  string
+	config   string
+	data     string
+	cache    string
+	logs     string
+	state    string
+	testRuns string
 }
 
 type env struct {
@@ -55,11 +56,12 @@ func resolveClassRoots(profile Profile, e env, rootOverride string) (classRoots,
 			return classRoots{}, &Error{Kind: ErrInvalidInput, Message: "root override must be absolute", Details: rootOverride}
 		}
 		return classRoots{
-			config: filepath.Join(rootOverride, string(ClassConfig)),
-			data:   filepath.Join(rootOverride, string(ClassData)),
-			cache:  filepath.Join(rootOverride, string(ClassCache)),
-			logs:   filepath.Join(rootOverride, string(ClassLogs)),
-			state:  filepath.Join(rootOverride, string(ClassState)),
+			config:   filepath.Join(rootOverride, string(ClassConfig)),
+			data:     filepath.Join(rootOverride, string(ClassData)),
+			cache:    filepath.Join(rootOverride, string(ClassCache)),
+			logs:     filepath.Join(rootOverride, string(ClassLogs)),
+			state:    filepath.Join(rootOverride, string(ClassState)),
+			testRuns: filepath.Join(rootOverride, string(ClassTestRuns)),
 		}, nil
 	}
 
@@ -68,11 +70,12 @@ func resolveClassRoots(profile Profile, e env, rootOverride string) (classRoots,
 			return classRoots{}, &Error{Kind: ErrInvalidInput, Message: envStorageRoot + " must be absolute", Details: global}
 		}
 		return classRoots{
-			config: filepath.Join(global, string(ClassConfig)),
-			data:   filepath.Join(global, string(ClassData)),
-			cache:  filepath.Join(global, string(ClassCache)),
-			logs:   filepath.Join(global, string(ClassLogs)),
-			state:  filepath.Join(global, string(ClassState)),
+			config:   filepath.Join(global, string(ClassConfig)),
+			data:     filepath.Join(global, string(ClassData)),
+			cache:    filepath.Join(global, string(ClassCache)),
+			logs:     filepath.Join(global, string(ClassLogs)),
+			state:    filepath.Join(global, string(ClassState)),
+			testRuns: filepath.Join(global, string(ClassTestRuns)),
 		}, nil
 	}
 
@@ -121,11 +124,12 @@ func defaultClassRoots(profile Profile, e env) (classRoots, error) {
 		return defaultUserClassRoots(e)
 	case ProfileVPS:
 		return classRoots{
-			config: "/etc",
-			data:   "/var/lib",
-			cache:  "/var/cache",
-			logs:   "/var/log",
-			state:  "/var/lib/vrooli-state",
+			config:   "/etc",
+			data:     "/var/lib",
+			cache:    "/var/cache",
+			logs:     "/var/log",
+			state:    "/var/lib/vrooli-state",
+			testRuns: "/var/lib/vrooli-test-runs",
 		}, nil
 	default:
 		return classRoots{}, &Error{Kind: ErrInvalidInput, Message: "unknown storage profile", Details: string(profile)}
@@ -154,6 +158,7 @@ func defaultUserClassRoots(e env) (classRoots, error) {
 		{repocontract.HomeKeyCache, &roots.cache},
 		{repocontract.HomeKeyLogs, &roots.logs},
 		{repocontract.HomeKeyState, &roots.state},
+		{repocontract.HomeKeyTestRuns, &roots.testRuns},
 	} {
 		path, err := runtimeHomeEntryPath(home, m.key)
 		if err != nil {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"resource-adguard-home/cli/internal/adguard"
+	"github.com/vrooli/vrooli/resources/adguard-home/cli/internal/adguard"
 )
 
 const (

@@ -19,7 +19,13 @@
   },
   "targets": {
     "kinds": ["scenario"],
-    "selection": "enumerate"
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires a browser-based dictation product surface and accelerated replay evidence; the control plane has no browser or audio UI."
+      }
+    ]
   },
   "applicability": {
     "default": "not_applicable",

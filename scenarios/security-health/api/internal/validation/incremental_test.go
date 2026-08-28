@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -51,6 +53,7 @@ type osvCountingCommander struct {
 func (c *osvCountingCommander) LookPath(string) (string, error) {
 	return "/logical/osv-scanner-v1", nil
 }
+
 func (c *osvCountingCommander) Run(_ context.Context, _ string, _ string, args ...string) ([]byte, []byte, int, error) {
 	if len(args) > 0 && args[0] == "scan" {
 		c.runs.Add(1)
@@ -89,6 +92,7 @@ func (s *incrementalTestScanner) Scan(context.Context, string, Substrate) ([]Fin
 	s.runs.Add(1)
 	return []Finding{{RuleID: s.name + ".finding", Severity: SeverityInfo, Scanner: s.name}}, nil
 }
+
 func (s *incrementalTestScanner) EvidencePlan(context.Context, string, Substrate, time.Time) (ScannerEvidencePlan, error) {
 	if s.planErr != nil {
 		return ScannerEvidencePlan{}, s.planErr
@@ -330,5 +334,27 @@ func TestScannerEvidencePlanInvalidatesRelevantSourceToolAndAdvisoryEpoch(t *tes
 	}
 	if dayOne.Fingerprint == dayTwo.Fingerprint {
 		t.Fatal("advisory epoch change did not invalidate evidence")
+	}
+}
+
+func TestGoScannerEvidenceStopsAtNestedModuleBoundaries(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module root\n")
+	writeFile(t, filepath.Join(root, "internal", "owned.go"), "package internal\n")
+	writeFile(t, filepath.Join(root, "scenarios", "runtime-only", "data", "runtime.db"), "volatile")
+	writeFile(t, filepath.Join(root, "scenarios", "nested", "go.mod"), "module nested\n")
+	writeFile(t, filepath.Join(root, "scenarios", "nested", "runtime.db"), "volatile")
+
+	files, err := walkModuleEvidenceFiles(root, []string{"."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		if filepath.Base(file) == "runtime.db" || strings.Contains(filepath.ToSlash(file), "scenarios/nested/") {
+			t.Fatalf("nested module input leaked into root-module evidence: %s", file)
+		}
+	}
+	if !slices.Contains(files, filepath.Join(root, "internal", "owned.go")) {
+		t.Fatalf("root-module source missing from evidence: %v", files)
 	}
 }

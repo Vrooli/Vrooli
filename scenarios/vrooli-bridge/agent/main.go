@@ -30,6 +30,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -50,6 +51,7 @@ import (
 	"vrooli-bridge/agent/internal/credentialpush"
 	"vrooli-bridge/agent/internal/discovery"
 	"vrooli-bridge/agent/internal/nodecred"
+	"vrooli-bridge/agent/internal/pairingclient"
 	"vrooli-bridge/agent/internal/platform"
 	"vrooli-bridge/agent/internal/privsep"
 	"vrooli-bridge/agent/internal/service"
@@ -155,6 +157,28 @@ func run(args []string) error {
 		}
 	}
 
+	// A fresh installed agent has a local key but no node credential or pinned
+	// control-plane key. Use the open request/approve flow so an operator can
+	// enroll it from a Vrooli UI without a repository, Go toolchain, or terminal.
+	if cfg.ControlPlaneURL != "" && cfg.NodeID == "" {
+		hostname, _ := os.Hostname()
+		joined, joinErr := (pairingclient.Client{
+			BaseURL: cfg.ControlPlaneURL,
+			Display: func(words []string) { logger.Printf("pairing confirmation words: %s", strings.Join(words, " ")) },
+		}).Join(ctx, cred, pairingclient.Facts{Name: hostname, OS: runtime.GOOS, Arch: runtime.GOARCH, Capabilities: cfg.Capabilities})
+		if joinErr != nil {
+			if errors.Is(joinErr, pairingclient.ErrRejected) {
+				return fmt.Errorf("pairing rejected: %w", joinErr)
+			}
+			return fmt.Errorf("request pairing: %w", joinErr)
+		}
+		if err := persistNodeIdentity(cfg.StateDir, joined.NodeID, joined.ControlPlaneKey); err != nil {
+			return err
+		}
+		cfg.NodeID = joined.NodeID
+		logger.Printf("pairing approved: node_id=%s; control-plane key pinned at %s", cfg.NodeID, cfg.ControlPlaneKeyPath)
+	}
+
 	// Pin the control-plane key BEFORE dialing (SECURITY.md boundary 2): a paired
 	// agent verifies every server push against the key `pair redeem` wrote to
 	// <state-dir>/control_plane.pub. A missing pin is a hard, actionable failure —
@@ -200,6 +224,19 @@ func run(args []string) error {
 	}
 
 	logger.Printf("channel closed (shutdown signal received)")
+	return nil
+}
+
+func persistNodeIdentity(stateDir, nodeID, controlPlaneKey string) error {
+	if strings.TrimSpace(nodeID) == "" || strings.TrimSpace(controlPlaneKey) == "" {
+		return errors.New("pairing returned incomplete node identity")
+	}
+	if err := os.WriteFile(filepath.Join(stateDir, "node_id"), []byte(strings.TrimSpace(nodeID)), 0o600); err != nil {
+		return fmt.Errorf("persist paired node id: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(stateDir, "control_plane.pub"), []byte(strings.TrimSpace(controlPlaneKey)), 0o600); err != nil {
+		return fmt.Errorf("persist control-plane public key: %w", err)
+	}
 	return nil
 }
 

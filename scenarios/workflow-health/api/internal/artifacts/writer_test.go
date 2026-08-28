@@ -12,6 +12,7 @@ import (
 
 func TestWriteWorkflowPublishesChecksummedRedactedSummaryReference(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	writer := NewWriter(root, "run-1")
 
 	artifact, err := writer.WriteWorkflow("scenario:bas/cases/smoke.json", "bas/cases/smoke.json", nil, WorkflowLatest{
@@ -30,7 +31,7 @@ func TestWriteWorkflowPublishesChecksummedRedactedSummaryReference(t *testing.T)
 	require.True(t, reference.Redacted)
 	require.NotEmpty(t, reference.Checksum)
 
-	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(artifact.Latest)))
+	data, err := os.ReadFile(filepath.FromSlash(artifact.Latest))
 	require.NoError(t, err)
 	hash := sha256.Sum256(data)
 	require.Equal(t, "sha256:"+hex.EncodeToString(hash[:]), reference.Checksum)

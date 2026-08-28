@@ -14,7 +14,13 @@
     "contract": "scenario-validation/v1",
     "includeExecution": true
   },
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {"kinds": ["scenario"], "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires UI manifests, browser interop, and runtime evidence; the control plane has no scenario UI or browser surface."
+      }
+    ]},
   "applicability": {
     "default": "applies"
   },

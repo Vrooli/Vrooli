@@ -44,6 +44,7 @@ func (h *connectHandler) ListPlatformVerdicts(ctx context.Context, req *connect.
 				HostOs:             string(platform.HostOS),
 				Status:             platform.Status,
 				Reason:             platform.Reason,
+				ReasonCode:         platform.ReasonCode,
 				BlockingDependency: platform.BlockingDependency,
 				Derived:            platform.Derived,
 				Overridden:         platform.Overridden,

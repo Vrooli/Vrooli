@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"resource-grok/cli/internal/permissionscli"
-	"resource-grok/cli/internal/upstream"
+	"github.com/vrooli/vrooli/resources/grok/cli/internal/permissionscli"
+	"github.com/vrooli/vrooli/resources/grok/cli/internal/upstream"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"

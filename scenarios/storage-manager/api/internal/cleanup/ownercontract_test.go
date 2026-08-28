@@ -19,7 +19,7 @@ func TestHTTPScenarioProviderClientDistinguishesOwnerStatesAndPreservesProtected
 			}
 			_ = json.NewEncoder(w).Encode(OwnerEstimateResponse{ProviderID: "owner-cleanup", EstimatedBytes: 100, ItemCount: 2, ObservedAt: time.Now().UTC()})
 		case "/api/v1/cleanup/preview":
-			_ = json.NewEncoder(w).Encode(OwnerPreviewResponse{ProviderID: "owner-cleanup", Items: []OwnerPreviewItem{{ID: "old", Path: "/old", Bytes: 100}, {ID: "active", Path: "/active", Bytes: 200, Protected: true}}})
+			_ = json.NewEncoder(w).Encode(OwnerPreviewResponse{ProviderID: "owner-cleanup", MinAgeSeconds: 604800, KeepCount: 10, MaxBytes: 1000, Items: []OwnerPreviewItem{{ID: "old", Path: "/old", Bytes: 100}, {ID: "active", Path: "/active", Bytes: 200, Protected: true}}})
 		case "/api/v1/cleanup/apply":
 			if err := json.NewDecoder(r.Body).Decode(&applied); err != nil {
 				t.Fatal(err)
@@ -40,9 +40,15 @@ func TestHTTPScenarioProviderClientDistinguishesOwnerStatesAndPreservesProtected
 	if err != nil || len(preview.Items) != 1 || preview.Items[0].ID != "old" {
 		t.Fatalf("preview=%#v err=%v", preview, err)
 	}
+	if preview.MinAge != 7*24*time.Hour || preview.KeepCount != 10 || preview.MaxBytes != 1000 {
+		t.Fatalf("preview policy was not preserved: %#v", preview)
+	}
 	result, err := client.Apply(context.Background(), ScenarioCleanupRequest{ScenarioID: "owner", ProviderID: "owner-cleanup", IdempotencyKey: "once", Preview: preview})
 	if err != nil || result.ReclaimedBytes != 100 || applied.IdempotencyKey != "once" {
 		t.Fatalf("apply=%#v request=%#v err=%v", result, applied, err)
+	}
+	if applied.Preview.MinAgeSeconds != 604800 || applied.Preview.KeepCount != 10 || applied.Preview.MaxBytes != 1000 {
+		t.Fatalf("apply policy was weakened in transport: %#v", applied.Preview)
 	}
 }
 

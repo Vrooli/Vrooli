@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"log"
+	"time"
 
 	"vrooli-bridge/internal/auth"
 	internalpresence "vrooli-bridge/internal/presence"
@@ -51,11 +52,12 @@ type Disconnector interface {
 
 // Deps wires the seams the Connect registry handler needs.
 type Deps struct {
-	Service     registry.Service
-	Presence    Presence
-	Credentials CredentialRevoker
-	Disconnect  Disconnector
-	Logger      *log.Logger
+	Service            registry.Service
+	Presence           Presence
+	Credentials        CredentialRevoker
+	Disconnect         Disconnector
+	Logger             *log.Logger
+	PresenceStaleAfter time.Duration
 }
 
 type connectHandler struct {
@@ -66,9 +68,9 @@ func (h *connectHandler) nodeProto(n registry.Node) *registryv1.Node {
 	online := h.deps.Presence.IsOnline(n.ID)
 	dispatchable := h.deps.Presence.Dispatchable(n.ID)
 	if r, ok := h.deps.Presence.(ReadinessPresence); ok {
-		return domainToProto(n, online, dispatchable, r.Readiness(n.ID))
+		return domainToProto(n, online, dispatchable, h.deps.PresenceStaleAfter, r.Readiness(n.ID))
 	}
-	return domainToProto(n, online, dispatchable)
+	return domainToProto(n, online, dispatchable, h.deps.PresenceStaleAfter)
 }
 
 // NewConnectHandler constructs the handler, defaulting the logger and the
@@ -218,7 +220,7 @@ func (h *connectHandler) RevokeNode(ctx context.Context, req *connect.Request[re
 
 	// A revoked node is offline by definition; do not consult presence.
 	return connect.NewResponse(&registryv1.RevokeNodeResponse{
-		Node: domainToProto(node, false, false),
+		Node: domainToProto(node, false, false, h.deps.PresenceStaleAfter),
 	}), nil
 }
 

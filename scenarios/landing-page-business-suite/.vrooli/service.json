@@ -159,21 +159,30 @@
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "session-secret",
-        "env": "SESSION_SECRET",
         "label": "Session signing secret",
-        "description": "Signs session cookies. Without it the scenario generates an ephemeral key and sessions do not survive a restart.",
+        "description": "Signs session cookies. Landing Page Business Suite mints this on first start and stores it in the credential authority; there is nothing for an operator to enter.",
         "required": true,
+        "provisioning": "generated",
         "tiers": [
           "tier-1-local"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "service-secret",
-        "env": "LPBS_SERVICE_SECRET",
-        "label": "Service-to-service token",
-        "description": "Bearer token other scenarios present to reach LPBS admin endpoints; scenario-to-desktop uses it.",
+        "field": "session-secret-previous",
+        "label": "Retired session signing secret",
+        "description": "Previous session signing secret retained for verification after rotation; LPBS writes it during rotation and there is nothing for an operator to enter.",
         "required": false,
+        "provisioning": "generated",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "service-secret",
+        "label": "Service-to-service token",
+        "description": "Service-to-service token minted by Landing Page Business Suite and stored in the credential authority; there is nothing for an operator to enter.",
+        "required": true,
+        "provisioning": "generated",
         "tiers": [
           "tier-1-local"
         ]
@@ -181,29 +190,18 @@
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "api-key-encryption-key",
-        "env": "LPBS_API_KEY_ENCRYPTION_KEY",
         "label": "API key encryption key",
-        "description": "Encrypts stored API keys at rest. Required in production; without it keys are stored unencrypted.",
-        "required": false
+        "description": "Versioned encryption ring minted by LPBS. Losing it makes sealed API-key rows unreadable; there is nothing for an operator to enter.",
+        "required": true,
+        "provisioning": "generated"
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "remote-profile-encryption-key",
-        "env": "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY",
         "label": "Remote profile encryption key",
-        "description": "Encrypts stored remote deployment profiles. Falls back to the API key encryption key when unset.",
-        "required": false,
-        "tiers": [
-          "tier-1-local"
-        ]
-      },
-      {
-        "logical_id": "vrooli/landing-page-business-suite",
-        "field": "auth-magic-link-base-url",
-        "env": "AUTH_MAGIC_LINK_BASE_URL",
-        "label": "Magic-link verification URL",
-        "description": "Absolute public URL for the /auth/verify magic-link route. Production requires HTTPS.",
-        "required": false,
+        "description": "Independent versioned encryption ring minted by LPBS. Losing it makes sealed remote profiles unreadable; there is nothing for an operator to enter.",
+        "required": true,
+        "provisioning": "generated",
         "tiers": [
           "tier-1-local"
         ]
@@ -211,10 +209,10 @@
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "admin-default-password",
-        "env": "ADMIN_DEFAULT_PASSWORD",
         "label": "Seeded admin password",
-        "description": "Password for the seeded admin account. Required in production; development generates an ephemeral one.",
-        "required": false,
+      "description": "Password for the seeded admin account. Resolve it through the credential authority; it is never injected into the LPBS process environment.",
+      "required": true,
+      "provisioning": "operator",
         "tiers": [
           "tier-1-local"
         ]
@@ -222,10 +220,10 @@
       {
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "consumer-auth-private-key",
-        "env": "CONSUMER_AUTH_PRIVATE_KEY",
         "label": "Consumer token signing key",
-        "description": "Private RSA key used only by LPBS to sign consumer access tokens. Never distribute to bundled scenarios.",
+        "description": "Private RSA key minted by Landing Page Business Suite and stored in the credential authority. Never distribute it to bundled scenarios.",
         "required": true,
+        "provisioning": "generated",
         "tiers": [
           "tier-1-local"
         ]
@@ -234,20 +232,68 @@
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "sendgrid-api-key",
         "env": "SENDGRID_API_KEY",
-        "label": "SendGrid API key",
-        "description": "Authenticates outbound transactional email delivery.",
-        "required": false
+      "label": "SendGrid API key",
+      "description": "Authenticates outbound transactional email delivery.",
+      "required": false,
+      "provisioning": "operator"
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "admin-default-email",
-        "env": "ADMIN_DEFAULT_EMAIL",
-        "label": "Admin Email",
-        "description": "Email address for the default admin account. Used for logging into the admin portal.",
+        "field": "stripe-secret-key",
+        "label": "Stripe restricted secret key",
+        "description": "Authenticates server-side Stripe API requests. Obtain it from the Stripe dashboard.",
+        "required": true,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/apikeys",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-webhook-secret",
+        "label": "Stripe webhook signing secret",
+        "description": "Verifies inbound Stripe webhook signatures. Obtain it from the Stripe dashboard.",
+        "required": true,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/webhooks",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "stripe-publishable-key",
+        "env": "STRIPE_PUBLISHABLE_KEY",
+        "label": "Stripe publishable key",
+        "description": "Public client key used by the browser checkout flow.",
+        "required": true,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/apikeys",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "delivery-s3-access-key-id",
+        "label": "Download bucket access key ID",
+        "description": "Optional account identifier for signing desktop download URLs; leave unset when using an instance role.",
         "required": false,
-        "tiers": [
-          "tier-1-local"
-        ]
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "delivery-s3-secret-access-key",
+        "label": "Download bucket secret access key",
+        "description": "Optional signing key for desktop download URLs; leave unset when using an instance role.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "delivery-s3-session-token",
+        "label": "Download bucket session token",
+        "description": "Optional session token for temporary download-bucket credentials.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
       }
     ]
   },

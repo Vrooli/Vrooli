@@ -108,6 +108,14 @@ func LoadTopology(repoRoot string) (Topology, error) {
 	}
 	topologyCache.Unlock()
 	topo := make(Topology)
+	// The repository-root Go module owns the control plane even though the
+	// contract exposes cmd/ and internal/ as its concrete source targets. Add
+	// that aggregate module explicitly so transitive in-repo requirements can
+	// be followed through it without widening the filesystem walk to project
+	// docs, templates, and other non-build targets.
+	if modulePath := readModulePath(filepath.Join(repoRoot, "go.mod")); modulePath != "" {
+		topo[modulePath] = repoRoot
+	}
 	targetRoots, err := reconcilableTargetRoots(repoRoot)
 	if err != nil {
 		return nil, err

@@ -61,6 +61,10 @@ type sdkLayout struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
+		fmt.Println("resource-android-sdk: install, status, kvm-check, avd-create, avd-start, avd-stop, avd-delete, toolchain-install, version")
+		return
+	}
 	command := "status"
 	if len(os.Args) > 1 {
 		command = os.Args[1]
@@ -359,7 +363,7 @@ func extractTarArchive(reader *tar.Reader, stage string) error {
 			if err := os.MkdirAll(path, 0o700); err != nil {
 				return err
 			}
-		case tar.TypeReg, tar.TypeRegA:
+		case tar.TypeReg:
 			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 				return err
 			}
@@ -702,15 +706,6 @@ func waitForBoot(ctx context.Context, serial string, timeout time.Duration) erro
 		}
 	}
 	return fmt.Errorf("emulator %s did not report sys.boot_completed=1 within %s", serial, timeout)
-}
-
-func runTool(ctx context.Context, path string, args ...string) error {
-	cmd := exec.CommandContext(ctx, path, args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s %s: %s: %w", path, strings.Join(args, " "), strings.TrimSpace(string(output)), err)
-	}
-	return nil
 }
 
 func runSDKTool(ctx context.Context, layout sdkLayout, path string, args ...string) error {

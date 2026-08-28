@@ -68,6 +68,18 @@ func TestAcquisitionValidateRejectsAmbiguousDeclarations(t *testing.T) {
 			t.Errorf("%s: Validate succeeded", name)
 		}
 	}
+	for name, step := range map[string]ComposeStep{
+		"plain-http": {Role: "wheels", Kind: "python-wheels", Dest: "lib", Lockfile: "requirements.txt", IndexURL: "http://example.test/simple"},
+		"relative":   {Role: "wheels", Kind: "python-wheels", Dest: "lib", Lockfile: "requirements.txt", IndexURL: "/simple"},
+	} {
+		if err := step.Validate(); err == nil {
+			t.Errorf("%s: insecure wheel index accepted", name)
+		}
+	}
+	local := ComposeStep{Role: "wheels", Kind: "python-wheels", Dest: "lib", Lockfile: "requirements.txt", IndexURL: "http://localhost:8080/simple"}
+	if err := local.Validate(); err != nil {
+		t.Fatalf("localhost development index rejected: %v", err)
+	}
 }
 
 func TestAcquisitionExplainNamesRejectedCandidates(t *testing.T) {

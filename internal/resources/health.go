@@ -94,7 +94,7 @@ func (c *Controller) foldPlacementIntoHealth(ctx context.Context, manifest Resou
 			health.Healthy = true
 			health.Serving = true
 			health.LivenessFailed = ""
-			health.Message = "healthy"
+			health.Message = managedServiceHealthy
 		}
 		health.PlacementUndetermined = true
 		return health

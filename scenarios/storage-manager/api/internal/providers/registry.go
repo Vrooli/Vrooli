@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/vrooli/vrooli/packages/artifactledger"
+
 	"storage-manager/internal/cleanup"
 )
 
@@ -65,7 +67,7 @@ func (r *Registry) List() []cleanup.ProviderMetadata {
 func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 	providers := []cleanup.Provider{
 		NewUndeclaredWorkloadProvider(deps.ProcessRunner, UndeclaredWorkloadProviderConfig{HistoricalNames: map[string]string{"airbyte-abctl-control-plane": "agent-experiments/airbyte-abctl-control-plane absent manifest"}, Posture: "vrooli_only"}),
-		NewScenarioBinariesProvider(deps.FileSystem, deps.ProcessLiveness, deps.Clock, ScenarioBinariesProviderConfig{Root: deps.ScenarioBinariesRoot}),
+		NewScenarioBinariesProvider(deps.FileSystem, deps.ProcessLiveness, deps.Clock, ScenarioBinariesProviderConfig{Root: deps.ScenarioBinariesRoot, Ledger: deps.RemovalLedger}),
 		NewTrashProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
 			ID:          "trash",
 			Name:        "Trash",
@@ -118,7 +120,7 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 	if deps.OllamaModelProvider != nil {
 		providers = append(providers, deps.OllamaModelProvider)
 	}
-	providers = append(providers, OwnerScenarioBuiltIns(deps.OwnerScenarioClient)...)
+	providers = append(providers, OwnerScenarioProviders(deps.OwnerProviderConfigs, deps.OwnerScenarioClient)...)
 	for _, cfg := range deps.RuntimeHomeProviders {
 		providers = append(providers, NewRuntimeHomeProvider(deps.FileSystem, deps.Clock, cfg))
 	}
@@ -131,57 +133,7 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 	return providers, nil
 }
 
-func OwnerScenarioBuiltIns(client cleanup.ScenarioProviderClient) []cleanup.Provider {
-	configs := []OwnerProviderConfig{
-		{
-			ID:              "workspace-sandbox-retention",
-			Name:            "Workspace Sandbox retained sandboxes",
-			OwnerScenario:   "workspace-sandbox",
-			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
-			DefaultMode:     cleanup.ProviderModeDisabled,
-			DefaultApproval: cleanup.ApprovalModeOwner,
-		},
-		{
-			ID:              "test-genie-run-retention",
-			Name:            "Test Genie retained runs",
-			OwnerScenario:   "test-genie",
-			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
-			DefaultMode:     cleanup.ProviderModeDisabled,
-			DefaultApproval: cleanup.ApprovalModeOwner,
-		},
-		{
-			// The 2026-07-31 incident's largest consumer. graph_snapshots held
-			// 77.2 GB across 2,469 rows and storage-manager could not see any
-			// of it, because architecture-cartographer was never registered as
-			// an owner. Registering it is the fix; letting storage-manager
-			// crawl another scenario's database would have violated the
-			// ownership boundary and risked the twelve other tables in that
-			// file.
-			ID:              "architecture-cartographer-snapshots",
-			Name:            "Architecture Cartographer graph snapshots",
-			OwnerScenario:   "architecture-cartographer",
-			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
-			DefaultMode:     cleanup.ProviderModeDisabled,
-			DefaultApproval: cleanup.ApprovalModeOwner,
-		},
-		{
-			ID:              "web-console-sessions",
-			Name:            "Web Console old sessions",
-			OwnerScenario:   "web-console",
-			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
-			DefaultMode:     cleanup.ProviderModeDisabled,
-			DefaultApproval: cleanup.ApprovalModeOwner,
-		},
-		{
-			ID:              "browser-automation-studio-recordings",
-			Name:            "Browser Automation Studio terminal recordings",
-			OwnerScenario:   "browser-automation-studio",
-			SafetyTier:      cleanup.SafetyTierSafeWithOwner,
-			DefaultMode:     cleanup.ProviderModeDisabled,
-			DefaultApproval: cleanup.ApprovalModeOwner,
-		},
-	}
-
+func OwnerScenarioProviders(configs []OwnerProviderConfig, client cleanup.ScenarioProviderClient) []cleanup.Provider {
 	out := make([]cleanup.Provider, 0, len(configs))
 	for _, cfg := range configs {
 		out = append(out, NewOwnerScenarioProvider(cfg, client))
@@ -198,6 +150,7 @@ type BuiltInDeps struct {
 	OllamaModelProvider  cleanup.Provider
 	Journal              cleanup.JournalClient
 	OwnerScenarioClient  cleanup.ScenarioProviderClient
+	OwnerProviderConfigs []OwnerProviderConfig
 	Clock                cleanup.Clock
 	TrashRoots           []string
 	TmpRoots             []string
@@ -206,4 +159,7 @@ type BuiltInDeps struct {
 	ScenarioBinariesRoot string
 	RuntimeHomeProviders []FileProviderConfig
 	Saturated            func(context.Context) (bool, error)
+	// RemovalLedger makes reclamations attributable. A built-in that deletes
+	// install-root artifacts refuses to run without it.
+	RemovalLedger *artifactledger.Ledger
 }

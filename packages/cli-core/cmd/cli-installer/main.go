@@ -56,16 +56,27 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("resolve module root: %w", err)
 	}
-
+	sourceModulePath := modulePath
+	buildModulePath := modulePath
+	buildTarget := "."
 	if _, err := os.Stat(filepath.Join(modulePath, "go.mod")); err != nil {
-		return fmt.Errorf("module root must contain go.mod: %w", err)
+		var findErr error
+		buildModulePath, findErr = findGoModuleRoot(modulePath)
+		if findErr != nil {
+			return fmt.Errorf("module root must contain go.mod: %w", err)
+		}
+		relative, relErr := filepath.Rel(buildModulePath, modulePath)
+		if relErr != nil {
+			return fmt.Errorf("resolve module package path: %w", relErr)
+		}
+		buildTarget = "./" + filepath.ToSlash(relative)
 	}
 	manifestPath, err := resolveManifestPath(*manifestSource)
 	if err != nil {
 		return err
 	}
 
-	dst, err := determineDestination(modulePath, *output, *installDir, *name)
+	dst, err := determineDestination(sourceModulePath, *output, *installDir, *name)
 	if err != nil {
 		return err
 	}
@@ -88,7 +99,7 @@ func run() error {
 	if binaryName == "" {
 		binaryName = filepath.Base(modulePath)
 	}
-	spec, err := buildFreshnessSpec(modulePath, *contextRoot, []string(freshnessInputs), binaryName)
+	spec, err := buildFreshnessSpec(sourceModulePath, *contextRoot, []string(freshnessInputs), binaryName)
 	if err != nil {
 		return fmt.Errorf("build freshness spec: %w", err)
 	}
@@ -98,7 +109,7 @@ func run() error {
 	}
 
 	timestamp := time.Now().UTC().Format(time.RFC3339)
-	sourceRoot := filepath.ToSlash(modulePath)
+	sourceRoot := filepath.ToSlash(sourceModulePath)
 	// Bake the freshness-input list into cliapp.BakedFreshnessInputs so the
 	// runtime stale-checker uses the same input set the install-time
 	// fingerprint was computed from. Without this bake, a CLI whose
@@ -130,8 +141,8 @@ func run() error {
 	tmpFile.Close()
 	defer os.Remove(tmpPath)
 
-	cmd := exec.Command("go", "build", "-ldflags", flags, "-o", tmpPath, ".")
-	cmd.Dir = modulePath
+	cmd := exec.Command("go", "build", "-ldflags", flags, "-o", tmpPath, buildTarget)
+	cmd.Dir = buildModulePath
 	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -167,6 +178,20 @@ func run() error {
 	ensurePathHint(dst)
 	ensureShellRefreshHint()
 	return nil
+}
+
+func findGoModuleRoot(start string) (string, error) {
+	dir := filepath.Clean(start)
+	for {
+		if info, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil && !info.IsDir() {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", os.ErrNotExist
+		}
+		dir = parent
+	}
 }
 
 type installMetadata struct {

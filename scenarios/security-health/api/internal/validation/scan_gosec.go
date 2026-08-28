@@ -61,12 +61,14 @@ func (g *gosecScanner) Scan(ctx context.Context, scenarioDir string, sub Substra
 	parsedAny := false
 	for _, rel := range dirs {
 		modDir := filepath.Join(scenarioDir, rel)
+		patterns := goPackagePatterns(sub, rel)
 		// -no-fail keeps gosec's exit code at 0 even with issues; ./... scans
 		// the whole module. We deliberately omit -quiet: with -quiet gosec
 		// emits *nothing* on a clean scan, which is indistinguishable from a
 		// loader failure. Without it, stdout always carries the JSON report
 		// ({"Issues":[]} when clean) and the progress chatter goes to stderr.
-		stdout, stderr, _, err := g.cmd.Run(ctx, modDir, "gosec", "-fmt=json", "-no-fail", "./...")
+		args := append([]string{"-fmt=json", "-no-fail"}, patterns...)
+		stdout, stderr, _, err := g.cmd.Run(ctx, modDir, "gosec", args...)
 		if err != nil {
 			lastErr = fmt.Errorf("gosec failed to run in %s: %w", rel, err)
 			continue
@@ -112,6 +114,13 @@ func (g *gosecScanner) Scan(ctx context.Context, scenarioDir string, sub Substra
 		return nil, lastErr
 	}
 	return findings, nil
+}
+
+func goPackagePatterns(sub Substrate, moduleDir string) []string {
+	if patterns := sub.GoPackagePatterns[moduleDir]; len(patterns) > 0 {
+		return append([]string(nil), patterns...)
+	}
+	return []string{"./..."}
 }
 
 // gosecOverFiringRules caps specific gosec rules below their native severity.

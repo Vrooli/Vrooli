@@ -47,6 +47,21 @@ authorization belongs at the API/service layer.
 | No product-specific data classification | medium | Fill after PRD/domain map defines real data. |
 | No auth model | conditional | Required before protected or multi-user data. |
 
+## Control-Plane SAST Gate
+
+Security Health accepts a first-class `control-plane` validation target. The
+resolver maps that target to the repository root, scans the root Go module with
+the bounded patterns `./internal/...` and `./cmd/...`, and scans each discovered
+`packages/*` Go module. This includes `credentialescrow`,
+`credentialauthority`, `credentialinventory`, and `privilegebroker`.
+
+The CI gate runs `gosec` and `govulncheck` through the shared target pipeline.
+Its ratcheted baseline is 64 blocking findings as measured on 2026-08-27. The
+baseline does not hide findings from the maturity assessment: it permits the
+known set while any increase fails. The proof run added one G404 finding and
+failed at 65, then passed at 64 after the probe was removed. Out-of-scope SAST
+and Go-toolchain debt is filed with Scenario QA and remains visible.
+
 ## Supply-Chain Enforcement Contract
 
 Security Health owns the normalized finding and policy contract. Construction

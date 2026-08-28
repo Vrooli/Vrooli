@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"architecture-cartographer/internal/audit"
@@ -20,6 +22,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Handler implements audit_v1connect.AuditServiceHandler.
@@ -140,6 +143,76 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// ValidateTarget is the path-preserving generalized validation seam. The
+// control-plane target is resolved by the production graph/domain locators to
+// the repository root, while the stable target identity remains in the shared
+// response for Test Genie and downstream evidence.
+func (h *Handler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	if req == nil || req.Msg == nil || req.Msg.GetTarget() == nil || req.Msg.GetTarget().GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	target := req.Msg.GetTarget()
+	if target.GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE && target.GetKind() != commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("architecture-cartographer does not support target kind %s", target.GetKind().String()))
+	}
+	if target.GetKind() == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE {
+		root := strings.TrimSpace(req.Msg.GetPath())
+		if root == "" {
+			root = strings.TrimSpace(target.GetRoot())
+		}
+		if root == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("control-plane target root is required"))
+		}
+		if !filepath.IsAbs(root) {
+			root, _ = filepath.Abs(root)
+		}
+		if info, statErr := os.Stat(root); statErr != nil || !info.IsDir() {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("control-plane target root is not a directory: %s", root))
+		}
+		native := &auditv1.AuditRunResponse{
+			Scenario:      target.GetId(),
+			Outcome:       auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL,
+			OutcomeReason: "control-plane target accepted; repository-scale graph extraction is an explicit follow-up run",
+			Assessment: &commonv1.MaturityAssessment{
+				Scenario: target.GetId(), Provider: "architecture-cartographer", Phase: "architecture", Version: "1.0.0",
+				Local:        &commonv1.LocalMaturityAssessment{CurrentLevel: "L1", Clean: false},
+				Presentation: &commonv1.PhasePresentation{ContractVersion: "v1", Provider: "architecture-cartographer", Phase: "architecture", CurrentLevel: "L1", Clean: false, AtMaximum: false, Capabilities: []*commonv1.PhaseCapabilityPresentation{{Id: "local", Label: "Local Maturity", CurrentLevel: "L1", Clean: false, PriorityRank: 1}}},
+			},
+		}
+		now := timestamppb.Now()
+		execMetrics := &commonv1.ExecutionMetrics{StartedAt: now, CompletedAt: now}
+		shared, buildErr := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native, execMetrics, assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED))
+		if buildErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared target response: %w", buildErr))
+		}
+		return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{Target: target, Status: shared.GetStatus(), Assessment: shared.GetAssessment(), NativeDetail: shared.GetNativeDetail(), Metrics: shared.GetMetrics()}), nil
+	}
+	native, err := h.Run(ctx, connect.NewRequest(&auditv1.AuditRunRequest{
+		Scenario:          target.GetId(),
+		AllowLowAuthority: true,
+		SkipTs:            false,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
+	switch native.Msg.GetOutcome() {
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
+		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS, auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL:
+		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_CLEAN:
+		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+	}
+	shared, err := assessment.BuildValidationResponse(native.Msg.GetScenario(), native.Msg.GetAssessment(), native.Msg, nil, assessment.WithValidationStatus(status))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared target response: %w", err))
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target: target, Status: shared.GetStatus(), Assessment: shared.GetAssessment(), NativeDetail: shared.GetNativeDetail(), Metrics: shared.GetMetrics(),
+	}), nil
 }
 
 func severityFromProto(s sharedv1.Severity) conflicts.Severity {

@@ -5,6 +5,16 @@
     "last_updated": "2026-05-03T00:00:00Z"
   },
   "version": "1.0.0",
+  "phases": {
+    "security": {
+      "timeout": "10m",
+      "budgets": {
+        "error_findings": 64,
+        "baseline_error_findings": 64,
+        "ratchet": true
+      }
+    }
+  },
   "lint": {
     "handlers": {
       "go_module": {

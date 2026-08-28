@@ -12,40 +12,6 @@ import (
 	"time"
 )
 
-func normalizeProtectedRoots(roots []string) ([]string, error) {
-	out := make([]string, 0, len(roots))
-	for _, root := range roots {
-		if root == "" {
-			continue
-		}
-		if !filepath.IsAbs(root) {
-			return nil, fmt.Errorf("protected root %q must be absolute", root)
-		}
-		out = append(out, filepath.Clean(root))
-	}
-	return out, nil
-}
-
-// protectedPathOverlap reports whether removing candidate would remove a
-// protected root, or whether candidate is itself below one. The ancestor case
-// matters because a broad retention root such as ~/.vrooli would otherwise
-// remove its protected ~/.vrooli/bin child as one top-level entry.
-func protectedPathOverlap(candidate string, protectedRoots []string) bool {
-	candidate = filepath.Clean(candidate)
-	for _, root := range protectedRoots {
-		root = filepath.Clean(root)
-		if candidate == root || pathContains(root, candidate) || pathContains(candidate, root) {
-			return true
-		}
-	}
-	return false
-}
-
-func pathContains(parent, child string) bool {
-	rel, err := filepath.Rel(parent, child)
-	return err == nil && rel != "." && rel != ".." && len(rel) >= 3 && rel[:3] != ".."+string(filepath.Separator)
-}
-
 // DirectoryConfig configures the builtin pruner for a directory target.
 type DirectoryConfig struct {
 	// Path is the absolute directory the budget bounds. Required.
@@ -58,6 +24,41 @@ type DirectoryConfig struct {
 	Now func() time.Time
 	// Logger receives cycle detail. Defaults to slog.Default.
 	Logger *slog.Logger
+
+	// MaxDeleteFraction bounds how much of a directory one cycle may remove,
+	// as a fraction of its measured top-level entries between 0 and 1. Zero
+	// disables the cap.
+	//
+	// It exists because a budget is a declaration, and declarations are
+	// sometimes wrong by orders of magnitude -- a units slip, a ceiling copied
+	// from a different entry, or a path that names a shared directory the
+	// declarer only contributes a few files to. Pruning is oldest-first, so a
+	// ceiling far below the steady-state size does not trim a tail: it walks
+	// the whole directory from its oldest entry and stops only when almost
+	// nothing is left. A healthy retention cycle removes the tail; one that
+	// would remove nearly everything is evidence about the declaration, not
+	// about the data. Refusing there keeps the budget working as an alarm and
+	// leaves a human the chance to notice.
+	MaxDeleteFraction float64
+
+	// RemoveHook wraps the removal of one selected top-level entry. It receives
+	// the entry's absolute path and the removal itself, and is responsible for
+	// invoking it. The default invokes it directly.
+	//
+	// A wrapper rather than a replacement, because the two halves belong to
+	// different layers. This package owns *how* an entry is deleted; a caller
+	// owns what must be true around that deletion -- a durable receipt, a dry
+	// run, a quarantine step. Handing callers a replacement would push the
+	// deletion itself out into every caller, which is how a codebase ends up
+	// with the same os.RemoveAll written in five places under five different
+	// sets of guarantees.
+	//
+	// It also keeps this dependency pointing the right way. Which receipts a
+	// deletion deserves is control-plane policy, and api-core must not acquire
+	// a dependency on the control plane's state layout to express it.
+	//
+	// An error fails the cycle, leaving every later entry in place.
+	RemoveHook func(path string, remove func() error) error
 }
 
 // DirectoryPruner enforces a budget over the top-level entries of one directory.
@@ -79,15 +80,21 @@ func NewDirectoryPruner(cfg DirectoryConfig) (*DirectoryPruner, error) {
 	if !filepath.IsAbs(cfg.Path) {
 		return nil, fmt.Errorf("directory pruner: Path %q must be absolute; resolve it through api-core/storage first", cfg.Path)
 	}
-	protectedRoots, err := normalizeProtectedRoots(cfg.ProtectedRoots)
+	protectedRoots, err := NormalizeProtectedRoots(cfg.ProtectedRoots)
 	if err != nil {
 		return nil, fmt.Errorf("directory pruner: %w", err)
+	}
+	if cfg.MaxDeleteFraction < 0 || cfg.MaxDeleteFraction > 1 {
+		return nil, fmt.Errorf("directory pruner: MaxDeleteFraction %v must be within [0,1]", cfg.MaxDeleteFraction)
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
+	}
+	if cfg.RemoveHook == nil {
+		cfg.RemoveHook = func(_ string, remove func() error) error { return remove() }
 	}
 	cfg.Path = filepath.Clean(cfg.Path)
 	return &DirectoryPruner{cfg: cfg, protectedRoots: protectedRoots}, nil
@@ -210,46 +217,95 @@ func (p *DirectoryPruner) Prune(ctx context.Context, b Budget) (Result, error) {
 	}
 	result := Result{Budget: b.Name, Before: before, BoundBy: BoundNone}
 
-	remainingBytes := before.Bytes
-	cutoff := p.cfg.Now().Add(-b.MaxAge)
+	// Selection is a separate pass from deletion so the cycle's full blast
+	// radius is known before anything is destroyed. Deciding entry by entry
+	// cannot express "this cycle would empty the directory, so do none of it".
+	victims, boundBy := p.selectVictims(entries, b)
+	if len(victims) == 0 {
+		result.After = before
+		return result, nil
+	}
 
-	for _, e := range entries {
+	if reason, refused := p.exceedsBlastRadius(len(victims), len(entries)); refused {
+		result.After = before
+		result.Refused = true
+		result.RefusedReason = reason
+		p.cfg.Logger.Warn("retention refused: blast radius exceeded",
+			"budget", b.Name, "path", p.cfg.Path, "reason", reason)
+		return result, nil
+	}
+
+	remainingBytes := before.Bytes
+	for _, e := range victims {
 		if err := ctx.Err(); err != nil {
 			result.Incomplete = true
 			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
+			result.FreedBytes = before.Bytes - remainingBytes
 			return result, err
 		}
 
+		candidate := filepath.Join(p.cfg.Path, e.name)
+		if ProtectedPathOverlap(candidate, p.protectedRoots) {
+			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
+			result.FreedBytes = before.Bytes - remainingBytes
+			return result, fmt.Errorf("refusing to remove protected path %s", candidate)
+		}
+		if err := p.cfg.RemoveHook(candidate, func() error { return os.RemoveAll(candidate) }); err != nil {
+			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
+			result.FreedBytes = before.Bytes - remainingBytes
+			return result, fmt.Errorf("remove %s: %w", candidate, err)
+		}
+		remainingBytes -= e.bytes
+		result.Deleted++
+	}
+
+	result.BoundBy = boundBy
+	result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
+	result.FreedBytes = before.Bytes - remainingBytes
+	return result, nil
+}
+
+// selectVictims returns the oldest-first prefix of entries that b does not
+// permit to be retained, and which bound determined the retained set.
+func (p *DirectoryPruner) selectVictims(entries []entry, b Budget) ([]entry, Bound) {
+	remainingBytes := int64(0)
+	for _, e := range entries {
+		remainingBytes += e.bytes
+	}
+	cutoff := p.cfg.Now().Add(-b.MaxAge)
+	boundBy := BoundNone
+	for i, e := range entries {
 		overAge := b.HasAgeBound() && e.modTime.Before(cutoff)
 		overBytes := b.HasByteBound() && remainingBytes > b.MaxBytes
 		if !overAge && !overBytes {
 			// Entries are oldest-first, so once one is inside both bounds every
 			// later one is too.
-			break
+			return entries[:i], boundBy
 		}
-
-		candidate := filepath.Join(p.cfg.Path, e.name)
-		if protectedPathOverlap(candidate, p.protectedRoots) {
-			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
-			return result, fmt.Errorf("refusing to remove protected path %s", candidate)
-		}
-		if err := os.RemoveAll(candidate); err != nil {
-			result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
-			return result, fmt.Errorf("remove %s: %w", candidate, err)
-		}
-		remainingBytes -= e.bytes
-		result.Deleted++
-
 		// A byte overage that survives the age horizon is the signal: the
 		// producer is outrunning the horizon it declared.
 		if overBytes {
-			result.BoundBy = BoundBytes
-		} else if result.BoundBy == BoundNone {
-			result.BoundBy = BoundAge
+			boundBy = BoundBytes
+		} else if boundBy == BoundNone {
+			boundBy = BoundAge
 		}
+		remainingBytes -= e.bytes
 	}
+	return entries, boundBy
+}
 
-	result.After = Usage{Bytes: remainingBytes, Items: before.Items - result.Deleted}
-	result.FreedBytes = before.Bytes - remainingBytes
-	return result, nil
+// exceedsBlastRadius reports whether removing victims of total entries is more
+// destruction than one cycle is allowed to do unattended.
+func (p *DirectoryPruner) exceedsBlastRadius(victims, total int) (string, bool) {
+	if p.cfg.MaxDeleteFraction <= 0 || total == 0 {
+		return "", false
+	}
+	fraction := float64(victims) / float64(total)
+	if fraction <= p.cfg.MaxDeleteFraction {
+		return "", false
+	}
+	return fmt.Sprintf(
+		"cycle would remove %d of %d top-level entries (%.0f%%), above the %.0f%% ceiling; "+
+			"a budget that prunes nearly all of its directory is evidence the declaration is wrong, so this cycle alarms instead of deleting",
+		victims, total, fraction*100, p.cfg.MaxDeleteFraction*100), true
 }

@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"resource-claude-code/cli/internal/permissionscli"
+	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissionscli"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"

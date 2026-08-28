@@ -20,7 +20,13 @@
   },
   "dimensions": ["contracts"],
   "validation": {"contract": "scenario-validation/v1"},
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {"kinds": ["scenario"], "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires scenario receipt-capture declarations and metering policy metadata; the control plane has no opt-in receipt contract."
+      }
+    ]},
   "applicability": {
     "default": "not_applicable",
     "all": [

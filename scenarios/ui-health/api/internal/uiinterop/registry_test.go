@@ -40,6 +40,7 @@ var expectedRegisteredRuleIDs = []string{
 	"pwa_service_worker_offline",
 	"standard_a11y_harness",
 	"standard_component_canon_unengaged",
+	"standard_component_adoption_contracts",
 	"standard_component_location",
 	"standard_component_kit_affinity",
 	"standard_component_version_staleness",

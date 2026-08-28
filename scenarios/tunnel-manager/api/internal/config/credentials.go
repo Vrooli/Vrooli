@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -28,6 +29,7 @@ type CredentialStoreOptions struct {
 
 type CredentialAuthority interface {
 	Resolve(credentialauthority.Identity, string) (string, error)
+	Require(credentialauthority.Identity, string) (string, error)
 	Put(credentialauthority.Identity, string, string) error
 	Delete(credentialauthority.Identity, string) error
 	Status(credentialauthority.Identity, string) credentialauthority.Status
@@ -137,13 +139,12 @@ func (s *cloudflareCredentialStore) resolveField(spec credentialFieldSpec) (stri
 	if err != nil {
 		return "", CredentialFieldStatus{}, err
 	}
-	value, err := s.authority.Resolve(identity, spec.Field)
+	value, err := s.authority.Require(identity, spec.Field)
 	if err != nil {
-		status := s.authority.Status(identity, spec.Field)
-		if status.ProviderState != "available" {
-			return "", CredentialFieldStatus{}, fmt.Errorf("credential authority unavailable: %s", status.ProviderDetail)
+		if errors.Is(err, credentialauthority.ErrUnconfigured) {
+			return "", CredentialFieldStatus{Name: spec.Name, Source: credentialSourceMissing, Writable: true}, nil
 		}
-		return "", CredentialFieldStatus{Name: spec.Name, Source: credentialSourceMissing, Writable: true}, nil
+		return "", CredentialFieldStatus{}, err
 	}
 	value = strings.TrimSpace(value)
 	return value, CredentialFieldStatus{

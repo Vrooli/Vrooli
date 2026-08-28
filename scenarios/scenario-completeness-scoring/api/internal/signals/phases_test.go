@@ -1,15 +1,60 @@
 package signals
 
 import (
+	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
+type filesystemPhaseSource struct{ root string }
+
+func (s filesystemPhaseSource) Load(_ context.Context, _ string) ([]phaseArtifact, bool, error) {
+	var artifacts []phaseArtifact
+	collected := false
+	runsDir := filepath.Join(s.root, "coverage", "runs")
+	if runs, err := os.ReadDir(runsDir); err == nil {
+		collected = true
+		for _, run := range runs {
+			if !run.IsDir() {
+				continue
+			}
+			phaseDir := filepath.Join(runsDir, run.Name(), "phase-results")
+			entries, _ := os.ReadDir(phaseDir)
+			for _, entry := range entries {
+				if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+					continue
+				}
+				data, _ := os.ReadFile(filepath.Join(phaseDir, entry.Name()))
+				artifacts = append(artifacts, phaseArtifact{runID: run.Name(), phase: strings.TrimSuffix(entry.Name(), ".json"), content: data})
+			}
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, false, err
+	}
+	legacyDir := filepath.Join(s.root, "coverage", "phase-results")
+	if entries, err := os.ReadDir(legacyDir); err == nil {
+		collected = true
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+				continue
+			}
+			data, _ := os.ReadFile(filepath.Join(legacyDir, entry.Name()))
+			artifacts = append(artifacts, phaseArtifact{phase: strings.TrimSuffix(entry.Name(), ".json"), content: data})
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, false, err
+	}
+	return artifacts, collected, nil
+}
+
 func collectPhases(t *testing.T, root string) (PhaseSignals, error) {
 	t.Helper()
-	snap := Snapshot{Root: root}
-	err := phasesCollector{}.Collect(&snap)
+	snap := Snapshot{Scenario: "test", Root: root}
+	err := (phasesCollector{source: filesystemPhaseSource{root: root}}).Collect(&snap)
 	return snap.Phases, err
 }
 

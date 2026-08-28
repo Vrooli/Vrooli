@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 )
 
 // [REQ:BH-EVD-001] Single-writer discipline, enforced structurally: the
@@ -60,7 +62,7 @@ func TestLedgerPathStaysOwned(t *testing.T) {
 	if !strings.HasPrefix(manualLedgerRelPath, "coverage/manual-validations/") {
 		t.Fatalf("manual ledger moved to %q — it must stay under coverage/manual-validations/", manualLedgerRelPath)
 	}
-	if strings.HasPrefix(syncSnapshotRelPath, "coverage/manual-validations/") {
+	if strings.Contains(filepath.ToSlash(artifactpaths.RequirementsSnapshotPath("evidence-root")), "/coverage/manual-validations/") {
 		t.Fatal("sync snapshot path must not live in the business-health-owned directory")
 	}
 }

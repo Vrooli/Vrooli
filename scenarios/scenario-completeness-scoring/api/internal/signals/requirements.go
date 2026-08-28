@@ -2,11 +2,17 @@ package signals
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/vrooli/api-core/discovery"
 )
 
 // targetPassThreshold: an operational target passes when at least this
@@ -16,11 +22,72 @@ const targetPassThreshold = 0.5
 // requirementsCollector reads the requirements registry
 // (requirements/index.json + imported module files) and the
 // requirements-sync metadata under coverage/.
-type requirementsCollector struct{}
+type requirementsCollector struct{ syncSource syncMetadataSource }
+
+type syncMetadataSource interface {
+	Load(context.Context, string, string) (*syncMetadata, error)
+}
+
+type emptySyncMetadataSource struct{}
+
+func (emptySyncMetadataSource) Load(context.Context, string, string) (*syncMetadata, error) { return nil, nil }
+
+type testGenieRequirementsSource struct{}
+
+func (testGenieRequirementsSource) Load(ctx context.Context, scenario, _ string) (*syncMetadata, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "test-genie")
+	if err != nil {
+		return nil, fmt.Errorf("resolve test-genie: %w", err)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		strings.TrimRight(baseURL, "/")+"/api/v1/scenarios/"+url.PathEscape(scenario)+"/requirements", nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := (&http.Client{Timeout: 5 * time.Second}).Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("read test-genie requirements: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("read test-genie requirements: HTTP %d", response.StatusCode)
+	}
+	var snapshot struct {
+		Modules []struct {
+			Requirements []struct {
+				ID         string `json:"id"`
+				Status     string `json:"status"`
+				LiveStatus string `json:"liveStatus"`
+			} `json:"requirements"`
+		} `json:"modules"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&snapshot); err != nil {
+		return nil, fmt.Errorf("decode test-genie requirements: %w", err)
+	}
+	metadata := &syncMetadata{Requirements: make(map[string]syncedReq)}
+	for _, module := range snapshot.Modules {
+		for _, requirement := range module.Requirements {
+			status := strings.TrimSpace(requirement.LiveStatus)
+			if status == "" || strings.EqualFold(status, "unknown") {
+				status = requirement.Status
+			}
+			if requirement.ID != "" && status != "" {
+				metadata.Requirements[requirement.ID] = syncedReq{Status: status}
+			}
+		}
+	}
+	if len(metadata.Requirements) == 0 {
+		return nil, nil
+	}
+	return metadata, nil
+}
 
 func (requirementsCollector) Name() string { return "requirements" }
 
-func (requirementsCollector) Collect(snap *Snapshot) error {
+func (c requirementsCollector) Collect(snap *Snapshot) error {
 	dir := filepath.Join(snap.Root, "requirements")
 	if _, err := os.Stat(dir); err != nil {
 		if os.IsNotExist(err) {
@@ -35,7 +102,14 @@ func (requirementsCollector) Collect(snap *Snapshot) error {
 	if err != nil {
 		return err
 	}
-	sync := loadSyncMetadata(snap.Root)
+	source := c.syncSource
+	if source == nil {
+		source = emptySyncMetadataSource{}
+	}
+	sync, err := source.Load(context.Background(), snap.Scenario, snap.Root)
+	if err != nil {
+		return err
+	}
 	snap.Requirements = summarizeRequirements(reqs, sync)
 	return nil
 }
@@ -268,32 +342,6 @@ type syncTarget struct {
 type syncCounts struct {
 	Total    int `json:"total"`
 	Complete int `json:"complete"`
-}
-
-// loadSyncMetadata tries the legacy path order. Malformed or unusable
-// candidates (e.g. coverage/sync/latest.json, which is a sync-run log with
-// no statuses on current writers) are skipped, not errors.
-func loadSyncMetadata(root string) *syncMetadata {
-	paths := []string{
-		filepath.Join(root, "coverage", "requirements-sync", "latest.json"),
-		filepath.Join(root, "coverage", "requirements-sync.json"),
-		filepath.Join(root, "coverage", "sync", "latest.json"),
-	}
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-		var sm syncMetadata
-		if err := json.Unmarshal(data, &sm); err != nil {
-			continue
-		}
-		if len(sm.Requirements) == 0 && len(sm.OperationalTargets) == 0 {
-			continue
-		}
-		return &sm
-	}
-	return nil
 }
 
 func summarizeRequirements(reqs []flatReq, sync *syncMetadata) RequirementsSignals {

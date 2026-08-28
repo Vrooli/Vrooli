@@ -35,6 +35,7 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		Docker:               &cleanupfakes.DockerClient{},
 		Journal:              &cleanupfakes.JournalClient{},
 		OwnerScenarioClient:  &cleanupfakes.ScenarioProviderClient{},
+		OwnerProviderConfigs: ownerProviderFixtures(),
 		OllamaModelProvider:  NewOllamaModelRetentionProvider(&fakeOllamaInventory{}, &memoryOllamaLedger{}, "model-policy.json", nil),
 		Clock:                cleanupfakes.Clock{Time: time.Unix(10, 0)},
 		TrashRoots:           []string{"/fake/trash"},
@@ -83,7 +84,7 @@ func TestOwnerScenarioBuiltInsDelegateThroughOwnerClientOnly(t *testing.T) {
 		}},
 		ApplyResult: cleanup.ApplyResult{ProviderID: "workspace-sandbox-retention", Applied: true, ReclaimedBytes: 4096},
 	}
-	registry, err := NewRegistry(OwnerScenarioBuiltIns(client)...)
+	registry, err := NewRegistry(OwnerScenarioProviders(ownerProviderFixtures(), client)...)
 	if err != nil {
 		t.Fatalf("NewRegistry() error = %v", err)
 	}

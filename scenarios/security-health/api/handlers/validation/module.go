@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
@@ -46,6 +47,7 @@ const (
 func Module(deps ModuleDeps) module.Module {
 	logger := deps.Logger
 	repoRoot := deps.RepoRoot
+	scenarioDir := filepath.Join(repoRoot, "scenarios", "security-health")
 	policy := validation.RolloutProfile(strings.ToLower(strings.TrimSpace(os.Getenv("SECURITY_HEALTH_POLICY_MODE"))))
 	if policy != validation.RolloutAdvisory && policy != validation.RolloutGuided && policy != validation.RolloutGuarded && policy != validation.RolloutEnforcing {
 		policy = validation.RolloutAdvisory
@@ -56,8 +58,8 @@ func Module(deps ModuleDeps) module.Module {
 	validator := validation.New(validation.Deps{
 		RepoRoot: repoRoot, Logger: logger, PolicyMode: policy,
 		EvidenceCoordinator: coordinator, OSVReportCache: deps.OSVReportCache,
+		ControlPlaneErrorBudget: loadControlPlaneErrorBudget(scenarioDir, logger),
 	})
-	scenarioDir := filepath.Join(repoRoot, "scenarios", "security-health")
 	spec, err := assessment.LoadSpecFromScenario(scenarioDir)
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment disabled: %v", err)
@@ -82,10 +84,12 @@ func Module(deps ModuleDeps) module.Module {
 		environment = nil
 	}
 	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(NewConnectHandler(Deps{
-		Logger:       logger,
-		Validator:    validator,
-		MaturitySpec: spec,
-		Environment:  environment,
+		Logger:          logger,
+		Validator:       validator,
+		TargetValidator: validator,
+		RepoRoot:        repoRoot,
+		MaturitySpec:    spec,
+		Environment:     environment,
 	}), describer.WithFixes(true)))
 	return module.Module{
 		Name: "validation",
@@ -94,6 +98,44 @@ func Module(deps ModuleDeps) module.Module {
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+type testingConfig struct {
+	Phases struct {
+		Security struct {
+			Budgets struct {
+				ErrorFindings         *int `json:"error_findings"`
+				BaselineErrorFindings *int `json:"baseline_error_findings"`
+				Ratchet               bool `json:"ratchet"`
+			} `json:"budgets"`
+		} `json:"security"`
+	} `json:"phases"`
+}
+
+func loadControlPlaneErrorBudget(scenarioDir string, logger *log.Logger) validation.ErrorBudget {
+	raw, err := os.ReadFile(filepath.Join(scenarioDir, ".vrooli", "testing.json"))
+	if err != nil {
+		if logger != nil {
+			logger.Printf("validation: control-plane security budget unavailable: %v", err)
+		}
+		return validation.ErrorBudget{}
+	}
+	var config testingConfig
+	if err := json.Unmarshal(raw, &config); err != nil {
+		if logger != nil {
+			logger.Printf("validation: control-plane security budget invalid: %v", err)
+		}
+		return validation.ErrorBudget{}
+	}
+	budget := config.Phases.Security.Budgets
+	if budget.ErrorFindings == nil {
+		return validation.ErrorBudget{}
+	}
+	baseline := *budget.ErrorFindings
+	if budget.BaselineErrorFindings != nil {
+		baseline = *budget.BaselineErrorFindings
+	}
+	return validation.ErrorBudget{Limit: *budget.ErrorFindings, Baseline: baseline, Ratchet: budget.Ratchet, Declared: true}
 }
 
 func scannerCapacity(logger *log.Logger) int64 {

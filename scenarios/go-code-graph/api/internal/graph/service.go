@@ -120,7 +120,7 @@ func (s *Service) ExtractWithStats(ctx context.Context, in ExtractInput) (Graph,
 		}
 	}
 
-	if err := preflightProject(abs); err != nil {
+	if err := preflightProject(abs, len(patterns) > 0); err != nil {
 		return Graph{}, nil, stats, err
 	}
 
@@ -257,7 +257,7 @@ func packageDir(p *packages.Package) string {
 // so we can return precise typed errors for the catastrophic cases
 // (no go.mod, multiple go.mod, go.work, path unreadable). The loader
 // itself would fail with a generic error.
-func preflightProject(abs string) error {
+func preflightProject(abs string, scoped bool) error {
 	info, err := os.Stat(abs)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -273,7 +273,7 @@ func preflightProject(abs string) error {
 		return ExtractError{Kind: ExtractErrorWorkspaceUnsupported, Path: abs, Message: "go.work present"}
 	}
 
-	goMods, err := findGoMods(abs)
+	goMods, err := findGoMods(abs, scoped)
 	if err != nil {
 		return ExtractError{Kind: ExtractErrorPathUnreadable, Path: abs, Cause: err}
 	}
@@ -291,8 +291,14 @@ func preflightProject(abs string) error {
 // findGoMods returns the list of go.mod files under abs, descending
 // into subdirectories but skipping vendor/, testdata/, and any path
 // whose basename starts with "." (the loader skips those anyway).
-func findGoMods(abs string) ([]string, error) {
+func findGoMods(abs string, scoped bool) ([]string, error) {
 	var found []string
+	if scoped {
+		if _, err := os.Stat(filepath.Join(abs, "go.mod")); err == nil {
+			return []string{filepath.Join(abs, "go.mod")}, nil
+		}
+		return nil, nil
+	}
 	err := filepath.WalkDir(abs, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err

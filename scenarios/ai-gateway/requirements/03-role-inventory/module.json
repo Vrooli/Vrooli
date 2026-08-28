@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Provider role, profile, and policy discovery.",
-    "last_validated_at": "2026-08-17T21:13:38-04:00",
+    "last_validated_at": "2026-08-27T21:29:54-04:00",
     "module": "role-inventory",
     "prd_ref": "OT-P0-003",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "AIGW-INVENTORY-ROLES",
       "title": "AI Gateway presents resource-owned role catalogs without becoming catalog authority",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "inventory.roles",
       "criticality": "P0",
@@ -26,14 +26,14 @@
           "type": "test",
           "ref": "api/internal/providers/adapter_test.go::TestAdapter_ListRoles_ParsesResourcePolicyOutput",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates parsing and normalization for Ollama and OpenRouter policy command output."
         },
         {
           "type": "test",
           "ref": "api/handlers/inventory/connect_handler_test.go::TestListProviderRoles_ReturnsResourceInventory",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates the inventory RPC returns normalized resource inventory."
         }
       ]
@@ -41,7 +41,7 @@
     {
       "id": "AIGW-INVENTORY-SMOKE",
       "title": "Role health includes smoke-test status and policy drift evidence",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "inventory.health",
       "criticality": "P0",
@@ -56,7 +56,7 @@
           "type": "test",
           "ref": "api/handlers/inventory/connect_handler_test.go::TestSmokeProvider_ReturnsTypedFailure",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates role smoke-test result capture without requiring a live provider in unit suites."
         }
       ]

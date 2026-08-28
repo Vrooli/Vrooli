@@ -17,6 +17,8 @@ import (
 	"workspace-sandbox/internal/fsmount"
 	"workspace-sandbox/internal/process"
 	"workspace-sandbox/internal/testutil/mocks/procmocks"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestBackend_String(t *testing.T) {
@@ -159,7 +161,7 @@ func TestSystemMounter_FuseOverlayfs_StartErrorPropagates(t *testing.T) {
 // + permissions.
 func TestSystemMounter_KernelOverlay_RealMount(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skipf("kernel overlay test requires linux; have %s", runtime.GOOS)
+		repocontracttest.SkipPlatformf(t, "kernel overlay test requires linux; have %s", runtime.GOOS)
 	}
 	if os.Getenv("WSB_REAL_OVERLAY_TESTS") != "1" {
 		t.Skip("set WSB_REAL_OVERLAY_TESTS=1 to enable real kernel-overlay tests")

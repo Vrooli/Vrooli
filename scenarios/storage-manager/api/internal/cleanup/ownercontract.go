@@ -49,6 +49,7 @@ type OwnerPreviewResponse struct {
 	Warnings      []string           `json:"warnings,omitempty"`
 	MinAgeSeconds int64              `json:"min_age_seconds,omitempty"`
 	KeepCount     int                `json:"keep_count,omitempty"`
+	MaxBytes      int64              `json:"max_bytes,omitempty"`
 }
 
 type OwnerApplyRequest struct {
@@ -63,6 +64,7 @@ type OwnerApplyResponse struct {
 	RemovedItemIDs []string `json:"removed_item_ids"`
 	SkippedItemIDs []string `json:"skipped_item_ids"`
 	Warnings       []string `json:"warnings,omitempty"`
+	AlreadyDone    bool     `json:"already_done,omitempty"`
 }
 
 // HTTPScenarioProviderClient is the storage-manager transport for owner
@@ -165,7 +167,10 @@ func (c *HTTPScenarioProviderClient) Preview(ctx context.Context, scenario strin
 	if err != nil {
 		return Preview{BlockedReason: blockedReason(err)}, nil
 	}
-	out := Preview{ProviderID: response.ProviderID, BlockedReason: response.BlockedReason, Warnings: response.Warnings}
+	out := Preview{
+		ProviderID: response.ProviderID, BlockedReason: response.BlockedReason, Warnings: response.Warnings,
+		MinAge: time.Duration(response.MinAgeSeconds) * time.Second, KeepCount: response.KeepCount, MaxBytes: response.MaxBytes,
+	}
 	for _, item := range response.Items {
 		if item.Protected {
 			continue
@@ -180,7 +185,10 @@ func (c *HTTPScenarioProviderClient) Apply(ctx context.Context, req ScenarioClea
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	wirePreview := OwnerPreviewResponse{ProviderID: req.ProviderID}
+	wirePreview := OwnerPreviewResponse{
+		ProviderID: req.ProviderID, MinAgeSeconds: int64(req.Preview.MinAge / time.Second),
+		KeepCount: req.Preview.KeepCount, MaxBytes: req.Preview.MaxBytes,
+	}
 	for _, item := range req.Preview.Items {
 		wirePreview.Items = append(wirePreview.Items, OwnerPreviewItem{ID: item.ID, Path: item.Path, Bytes: item.Bytes})
 	}
@@ -189,7 +197,7 @@ func (c *HTTPScenarioProviderClient) Apply(ctx context.Context, req ScenarioClea
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	return ApplyResult{ProviderID: req.ProviderID, Applied: response.ReclaimedBytes > 0 || len(response.RemovedItemIDs) > 0, AppliedItems: response.RemovedItemIDs, SkippedItems: response.SkippedItemIDs, ReclaimedBytes: response.ReclaimedBytes, Warnings: response.Warnings}, nil
+	return ApplyResult{ProviderID: req.ProviderID, Applied: response.ReclaimedBytes > 0 || len(response.RemovedItemIDs) > 0, AlreadyDone: response.AlreadyDone, AppliedItems: response.RemovedItemIDs, SkippedItems: response.SkippedItemIDs, ReclaimedBytes: response.ReclaimedBytes, Warnings: response.Warnings}, nil
 }
 
 func blockedReason(err error) string {

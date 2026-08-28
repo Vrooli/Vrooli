@@ -12,9 +12,9 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 
-	"resource-searxng/cli/internal/config"
-	resourceenv "resource-searxng/cli/internal/env"
-	"resource-searxng/cli/internal/health"
+	"github.com/vrooli/vrooli/resources/searxng/cli/internal/config"
+	resourceenv "github.com/vrooli/vrooli/resources/searxng/cli/internal/env"
+	"github.com/vrooli/vrooli/resources/searxng/cli/internal/health"
 )
 
 const (

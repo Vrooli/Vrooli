@@ -172,10 +172,10 @@ As of the Phase 7 follow-up reconciliation, PRD/requirements no longer mark the 
 
 ## Work ladder
 
-- Rung: W3
-- Evidence: W0/W1/W2 remain internally reconciled; focused API, business, UI-health, UI, experience, and lifecycle checks pass. The experience contract now declares and canonically binds async regions for all seven pages, live DOM evidence confirms the rendered surface binding and real route data, and the focused experience run passed contract checks at L3 with no findings after workflow cases asserted each region lifecycle.
-- Blocker: no local acceptance blocker remains. Remote Cloudflare rehearsal remains unavailable without operator credentials; remote capability limits are surfaced explicitly in the UI and contract evidence.
-- Measured: 2026-08-21
+- Rung: W0
+- Evidence: the exact `swarm-manager goals list --json` name/title/description filter returned no goal naming `tunnel-manager`; the active user-owned Plan Manager execution `credential-blast-radius-make-minted-secrets-un-losable` explicitly requires migrating its operator-credential reads to the shared fail-closed authority seam.
+- Blocker: independent goal-to-PRD reconciliation is unavailable through the swarm-manager gate; continue only under the explicit Plan Manager objective and do not claim the scenario contract is independently reconciled. The prior W3 claim was structurally unsupported because no named goal existed for its W0 comparison.
+- Measured: 2026-08-27
 
 ## Architecture Drift
 

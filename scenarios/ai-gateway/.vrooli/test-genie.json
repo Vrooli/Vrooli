@@ -17,7 +17,13 @@
     "kinds": [
       "scenario"
     ],
-    "selection": "enumerate"
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires scenario-owned AI resource declarations and routing metadata; the control plane has no scenario AI consumer manifest."
+      }
+    ]
   },
   "applicability": {
     "default": "not_applicable",

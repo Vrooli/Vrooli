@@ -5,11 +5,13 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 	"testing"
 	"time"
 
 	"vrooli-bridge/internal/auth"
 	internalpairing "vrooli-bridge/internal/pairing"
+	"vrooli-bridge/pairingwords"
 
 	db "github.com/vrooli/api-core/databasetest"
 
@@ -42,6 +44,36 @@ func newHandler(t *testing.T) *connectHandler {
 	repo := internalpairing.NewSQLiteRepository(d, clk)
 	svc := internalpairing.NewService(repo, &fakeRegistrar{}, clk, internalpairing.WithGrantValidator(func([]string) error { return nil }))
 	return NewConnectHandler(Deps{Service: svc, ControlPlanePublicKey: "CP-PUBKEY"})
+}
+
+func newHandlerWithConfirmation(t *testing.T, controlPlaneKey string) *connectHandler {
+	t.Helper()
+	clk := scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC))
+	d := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+		apidb.SchemaProviderFunc(localdb.SystemSchema),
+		apidb.SchemaProviderFunc(internalpairing.Schema),
+	))
+	repo := internalpairing.NewSQLiteRepository(d, clk)
+	svc := internalpairing.NewService(repo, &fakeRegistrar{}, clk,
+		internalpairing.WithGrantValidator(func([]string) error { return nil }),
+		internalpairing.WithConfirmationValidator(func(req internalpairing.PairingRequest, words []string) error {
+			expected, err := pairingwords.Derive(controlPlaneKey, req.PublicKey)
+			if err != nil {
+				return internalpairing.ErrInvalid{Field: "confirmation_words", Reason: err.Error()}
+			}
+			if len(words) != len(expected) {
+				return internalpairing.ErrInvalid{Field: "confirmation_words", Reason: "words do not match"}
+			}
+			for i := range expected {
+				if !strings.EqualFold(strings.TrimSpace(words[i]), expected[i]) {
+					return internalpairing.ErrInvalid{Field: "confirmation_words", Reason: "words do not match"}
+				}
+			}
+			return nil
+		}),
+	)
+	return NewConnectHandler(Deps{Service: svc, ControlPlanePublicKey: controlPlaneKey})
 }
 
 func ownerCtx() context.Context {
@@ -102,4 +134,30 @@ func TestHandler_RedeemUnknownCodeUnauthenticated(t *testing.T) {
 		Code: "NOPE", NodePublicKey: newPubKeyB64(t),
 	}))
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+}
+
+func TestHandler_ApproveRequiresMatchingConfirmationWords(t *testing.T) {
+	_, cpPrivate, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	cpKey := base64.StdEncoding.EncodeToString(cpPrivate.Public().(ed25519.PublicKey))
+	h := newHandlerWithConfirmation(t, cpKey)
+
+	requested, err := h.RequestPairing(context.Background(), connect.NewRequest(&pairingv1.RequestPairingRequest{
+		NodePublicKey: newPubKeyB64(t), Name: "scratch", Os: "darwin", Arch: "arm64",
+	}))
+	require.NoError(t, err)
+	require.Len(t, requested.Msg.ConfirmationWords, 3)
+
+	_, err = h.ApprovePairing(ownerCtx(), connect.NewRequest(&pairingv1.ApprovePairingRequest{
+		RequestId: requested.Msg.RequestId, Approve: true,
+	}))
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+
+	approved, err := h.ApprovePairing(ownerCtx(), connect.NewRequest(&pairingv1.ApprovePairingRequest{
+		RequestId: requested.Msg.RequestId, Approve: true,
+		ConfirmationWords: append([]string(nil), requested.Msg.ConfirmationWords...),
+	}))
+	require.NoError(t, err)
+	require.Equal(t, pairingv1.PairingRequestStatus_PAIRING_REQUEST_STATUS_APPROVED, approved.Msg.Status)
+	require.NotEmpty(t, approved.Msg.NodeId)
 }

@@ -55,6 +55,10 @@ func TestResolveRuntimeHomeDefault(t *testing.T) {
 			t.Errorf("%s dir = %q, want %q", c.name, c.got, want)
 		}
 	}
+	wantTestRuns := filepath.Join(runtimeHomeRoot(t, home, repocontract.HomeKeyTestRuns), "swarm-manager")
+	if paths.TestRunsDir != wantTestRuns {
+		t.Errorf("test-runs dir = %q, want %q", paths.TestRunsDir, wantTestRuns)
+	}
 }
 
 // TestResolveNoXDGDefault (T-S2): regression lock for the drift removal. With XDG
@@ -215,11 +219,12 @@ func TestResolveVPSProfileUnchanged(t *testing.T) {
 		t.Fatalf("Resolve() error = %v", err)
 	}
 	want := Paths{
-		ConfigDir: filepath.Join("/etc", "vrooli", "demo"),
-		DataDir:   filepath.Join("/var/lib", "vrooli", "demo"),
-		CacheDir:  filepath.Join("/var/cache", "vrooli", "demo"),
-		LogsDir:   filepath.Join("/var/log", "vrooli", "demo"),
-		StateDir:  filepath.Join("/var/lib/vrooli-state", "vrooli", "demo"),
+		ConfigDir:   filepath.Join("/etc", "vrooli", "demo"),
+		DataDir:     filepath.Join("/var/lib", "vrooli", "demo"),
+		CacheDir:    filepath.Join("/var/cache", "vrooli", "demo"),
+		LogsDir:     filepath.Join("/var/log", "vrooli", "demo"),
+		StateDir:    filepath.Join("/var/lib/vrooli-state", "vrooli", "demo"),
+		TestRunsDir: filepath.Join("/var/lib/vrooli-test-runs", "demo"),
 	}
 	if paths != want {
 		t.Fatalf("VPS paths = %+v, want %+v", paths, want)

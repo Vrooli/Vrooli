@@ -192,6 +192,11 @@ type Preview struct {
 	Items           []PreviewItem
 	Warnings        []string
 	BlockedReason   string
+	// OwnerPolicy preserves the exact policy the owner used to produce the
+	// preview so Apply can revalidate against the same bounds.
+	MinAge    time.Duration
+	KeepCount int
+	MaxBytes  int64
 }
 
 type ApplyRequest struct {

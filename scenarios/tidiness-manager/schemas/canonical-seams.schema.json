@@ -23,13 +23,20 @@
         "canonical": { "type": "string", "minLength": 1 },
         "why": { "type": "string", "minLength": 1 },
         "remediation": { "type": "string", "minLength": 1 },
+        "resolver": { "enum": ["local", "code-facts"], "default": "local" },
         "bypass": {
           "type": "object",
           "additionalProperties": false,
           "required": ["kind", "pattern"],
           "properties": {
-            "kind": { "enum": ["call", "literal"] },
-            "pattern": { "type": "string", "minLength": 1 }
+            "kind": { "enum": ["call", "literal", "declaration", "shape", "directive", "absence"], "description": "absence declares a required target that must be present under the selected scope" },
+            "pattern": { "type": "string", "minLength": 1 },
+            "declKind": { "enum": ["func", "method", "type", "interface", "const", "var"] },
+            "repeatedAcrossPackages": { "type": "integer", "minimum": 1 },
+            "shapeKind": { "enum": ["switch_on_argv", "interface_method_set", "struct_field_set", "error_boundary", "context_duration_literal", "service_manifest_decoder", "dynamic_json_writer"] },
+            "minMembers": { "type": "integer", "minimum": 1 },
+            "requireFor": { "type": "string", "minLength": 1, "description": "file or glob that activates the absence rule" },
+            "requirePresent": { "type": "string", "minLength": 1, "description": "file or JSON pointer target required when requireFor matches" }
           }
         },
         "scope": {

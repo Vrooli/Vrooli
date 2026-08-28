@@ -20,7 +20,6 @@ import (
 	"storage-manager/internal/module"
 	"storage-manager/internal/placement"
 	"storage-manager/internal/providers"
-	managerRetention "storage-manager/internal/retention"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/database"
@@ -190,8 +189,6 @@ func Module(d ModuleDeps) module.Module {
 				http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
 				return
 			}
-			enforcement := managerRetention.Enforcer{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)}
-			storageEnforcement, _ := enforcement.Enforce(req.Context(), inventory)
 			capacity := int64(0)
 			if latest, latestErr := store.Latest(req.Context(), snapshotRoot(d.RepoRoot)); latestErr == nil && latest != nil {
 				capacity = latest.ScanCoverage.DeviceTotalBytes
@@ -260,11 +257,12 @@ func Module(d ModuleDeps) module.Module {
 					}
 				}
 				if storageBudget && record.EnforcementState != "over_budget" {
-					result, enforced := storageEnforcement[owner.ID]
+					// This is a GET/read model. Retention enforcement runs only from
+					// the scheduler; an inspection request must never delete files.
 					switch {
-					case enforced && result.Error == "" && len(record.Findings) == 0:
+					case record.LastEnforcementTime != nil && record.LastEnforcementError == "" && len(record.Findings) == 0:
 						record.EnforcementState = "governed"
-					case !enforced || result.Error != "":
+					default:
 						// A declared budget that could not be measured or enforced is
 						// not unbounded. Keep the operator-visible distinction explicit.
 						record.EnforcementState = "unenforced"
@@ -591,10 +589,9 @@ func Module(d ModuleDeps) module.Module {
 				out.Confidence = history[0].Confidence
 				out.LatestSnapshot = &history[0]
 				budgetedOwners := map[string]bool{}
-				enforced, _ := (managerRetention.Enforcer{RepoRoot: d.RepoRoot, Platform: corestorage.Platform(runtime.GOOS)}).Enforce(req.Context(), inventory)
-				for ownerID, result := range enforced {
-					if result.Error == "" {
-						budgetedOwners[ownerID] = true
+				for _, owner := range inventory.Owners {
+					if receipt, receiptErr := retention.ReadEnforcementReceipt(owner.ID); receiptErr == nil && receipt.LastEnforcementTime != nil && receipt.LastError == "" {
+						budgetedOwners[owner.ID] = true
 					}
 				}
 				declaredOwners := map[string]bool{}

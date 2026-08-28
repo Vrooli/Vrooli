@@ -22,6 +22,9 @@ var _ ScenarioLocator = (*RepoScenarioLocator)(nil)
 // Locate returns the scenario's root directory, verifying it exists.
 func (l *RepoScenarioLocator) Locate(scenario string) (string, error) {
 	dir := filepath.Join(l.repoRoot, "scenarios", scenario)
+	if scenario == "control-plane" {
+		dir = l.repoRoot
+	}
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
 		return "", ErrScenarioNotFound{Scenario: scenario}

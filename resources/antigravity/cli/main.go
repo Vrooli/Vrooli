@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"resource-antigravity/cli/internal/permissionscli"
-	"resource-antigravity/cli/internal/upstream"
+	"github.com/vrooli/vrooli/resources/antigravity/cli/internal/permissionscli"
+	"github.com/vrooli/vrooli/resources/antigravity/cli/internal/upstream"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"

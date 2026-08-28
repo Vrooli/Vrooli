@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"resource-vault/cli/internal/content"
-	"resource-vault/cli/internal/status"
+	"github.com/vrooli/vrooli/resources/vault/cli/internal/content"
+	"github.com/vrooli/vrooli/resources/vault/cli/internal/status"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

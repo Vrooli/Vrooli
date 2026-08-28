@@ -14,7 +14,13 @@
   },
   "targets": {
     "kinds": ["scenario", "team", "docs"],
-    "selection": "enumerate"
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider resolves documentation ownership through scenario and team manifests; the control plane has no scenario-owned documentation manifest."
+      }
+    ]
   },
   "applicability": {
     "default": "applies"

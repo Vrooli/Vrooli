@@ -16,7 +16,13 @@
     "kinds": [
       "scenario"
     ],
-    "selection": "enumerate"
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires a scenario PRD, requirements registry, and product evidence links; the control plane has no scenario product-intent contract."
+      }
+    ]
   },
   "applicability": {
     "default": "applies"

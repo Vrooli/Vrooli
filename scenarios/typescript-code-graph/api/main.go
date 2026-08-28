@@ -27,6 +27,7 @@ import (
 
 	graphH "typescript-code-graph/handlers/graph"
 	healthH "typescript-code-graph/handlers/health"
+	validationH "typescript-code-graph/handlers/validation"
 )
 
 // resolveSidecarDistPath returns the absolute path to the bundled Node
@@ -123,6 +124,7 @@ func main() {
 		healthH.Module(db, "typescript-code-graph-api", "1.0.0",
 			healthH.FuncProvider(func() string { return string(supervisor.Status()) })),
 		graphH.Module(graphSvc, rewriteSvc, log.Default()),
+		validationH.Module(),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

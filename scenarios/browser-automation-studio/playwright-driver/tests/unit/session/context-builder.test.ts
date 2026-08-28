@@ -272,6 +272,37 @@ describe('ContextBuilder', () => {
   });
 
   describe('viewport source attribution', () => {
+    it('emulates coarse no-hover input for a mobile capture', async () => {
+      const mobileSpec: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 390, height: 844 },
+      };
+
+      await buildContext(mockBrowser, mobileSpec, config);
+
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(expect.objectContaining({ hasTouch: true, isMobile: true }));
+    });
+
+    it('retains mobile input emulation when a phone rotates to landscape', async () => {
+      const mobileLandscapeSpec: SessionSpec = {
+        ...sessionSpec,
+        viewport: { width: 844, height: 390 },
+      };
+
+      await buildContext(mockBrowser, mobileLandscapeSpec, config);
+
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(expect.objectContaining({ hasTouch: true, isMobile: true }));
+    });
+
+    it('retains fine hover input for a desktop capture', async () => {
+      await buildContext(mockBrowser, sessionSpec, config);
+
+      const [options] = mockBrowser.newContext.mock.calls[0] ?? [];
+      expect(options).toEqual(expect.objectContaining({ hasTouch: false, isMobile: false }));
+    });
+
     it('should return actualViewport with requested source when using spec viewport', async () => {
       const result = await buildContext(mockBrowser, sessionSpec, config);
 

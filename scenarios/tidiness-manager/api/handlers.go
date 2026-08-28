@@ -622,6 +622,9 @@ func seamFindings(scenario string, hits []SeamHit) []TidinessFinding {
 			map[string]any{"seam_id": hit.SeamID, "canonical": hit.Canonical, "why": hit.Why, "budget": hit.Budget, "observed": counts[hit.SeamID]},
 			hit.Why, hit.Remediation, "canonical-seam",
 		))
+		if hit.Analyzer != "" {
+			findings[len(findings)-1].Evidence["analyzer"] = hit.Analyzer
+		}
 	}
 	return findings
 }
@@ -673,6 +676,12 @@ func tidinessBudgetFinding(scenario, scenarioPath string, summary TidinessScanSu
 		return nil
 	}
 	budgets := config.Phases.Tidiness.Budgets
+	// A ratchet must describe progress. When the configured budget, recorded
+	// baseline, and current observation are identical, the budget merely
+	// blesses the debt it measured and can never detect that debt returning.
+	if budgets.Ratchet && budgets.declared["duplication_line_debt"] && budgets.declared["baseline_duplication_line_debt"] && budgets.DuplicationLineDebt > 0 && budgets.DuplicationLineDebt == budgets.BaselineDuplicationLineDebt && summary.DuplicationLineDebt == budgets.BaselineDuplicationLineDebt {
+		return ptrFinding(newTidinessFinding(scenario, "tidiness-budget-exceeded", "budget", "high", "", "", 0, "Tidiness budget is frozen at its observation", fmt.Sprintf("%s sets duplication_line_debt budget, baseline, and observed value to %d; the budget cannot detect recurring debt.", filepath.Join(scenarioPath, ".vrooli", "testing.json"), summary.DuplicationLineDebt), map[string]any{"metric": "duplication_line_debt", "budget": budgets.DuplicationLineDebt, "baseline": budgets.BaselineDuplicationLineDebt, "observed": summary.DuplicationLineDebt, "violation": "frozen_budget"}, "A ratcheted budget must be below its recorded observation.", "Reduce the debt and set the budget below the recorded baseline.", "tidiness-budget"))
+	}
 	if budgets.Ratchet && budgets.declared["duplication_line_debt"] && budgets.declared["baseline_duplication_line_debt"] && budgets.DuplicationLineDebt > budgets.BaselineDuplicationLineDebt {
 		return ptrFinding(newTidinessFinding(scenario, "tidiness-budget-exceeded", "budget", "high", "", "", 0, "Tidiness budget loosens recorded baseline", fmt.Sprintf("duplication_line_debt budget is %d; recorded baseline is %d (loosening +%d).", budgets.DuplicationLineDebt, budgets.BaselineDuplicationLineDebt, budgets.DuplicationLineDebt-budgets.BaselineDuplicationLineDebt), map[string]any{"metric": "duplication_line_debt", "budget": budgets.DuplicationLineDebt, "baseline": budgets.BaselineDuplicationLineDebt, "delta": budgets.DuplicationLineDebt - budgets.BaselineDuplicationLineDebt, "violation": "ratchet_loosened_budget"}, "A ratcheted maintainability budget may not be loosened.", "Tighten the configured budget to the recorded baseline or below.", "tidiness-budget"))
 	}

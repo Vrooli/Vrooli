@@ -8,12 +8,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"runtime"
 	"strings"
 	"time"
 
 	coreRetention "github.com/vrooli/api-core/retention"
 	coreStorage "github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/artifactledger"
 )
 
 // Enforcer applies directory budgets from the normalized owner inventory.
@@ -23,6 +27,10 @@ import (
 type Enforcer struct {
 	RepoRoot string
 	Platform coreStorage.Platform
+	// Ledger receives one removal receipt per pruned entry. A nil Ledger keeps
+	// the pruner's default unrecorded os.RemoveAll, which is acceptable only in
+	// tests: production wiring supplies one.
+	Ledger *artifactledger.Ledger
 }
 
 // Result records the outcome for one owner entry. A successful result means
@@ -61,6 +69,15 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 	if platform == "" {
 		platform = coreStorage.Platform(runtime.GOOS)
 	}
+	// Resolving this first, and failing the whole cycle when it cannot be
+	// resolved, is the point. A retention pass that cannot enumerate what it
+	// must not delete has no business deleting anything, and the previous
+	// version returned an empty set on error -- which read as "nothing is
+	// protected" rather than "protection is unavailable".
+	protectedRoots, err := protectedRuntimeRoots(e.RepoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("resolve protected runtime roots: %w", err)
+	}
 	results := make(map[string]Result)
 	for _, owner := range inventory.Owners {
 		for _, entry := range owner.StorageEntries {
@@ -74,6 +91,21 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 					continue
 				}
 				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("resolve storage path: %w", err).Error()})
+				continue
+			}
+			// Contract-protected runtime-home entries are control-plane
+			// substrate shared by every scenario and resource. An owner may
+			// declare a budget over one -- by mistake, or because it
+			// contributes a few files to a shared directory and named the whole
+			// directory -- and that declaration must never become a licence to
+			// prune it. Refusing here catches the ancestor case too: a budget on
+			// ~/.vrooli would otherwise remove ~/.vrooli/bin as one top-level
+			// entry.
+			if coreRetention.ProtectedPathOverlap(path, protectedRoots) {
+				addResult(results, owner.ID, Result{
+					Owner: owner.ID, Entry: entry.Name, Refused: true,
+					Reason: "path overlaps a contract-protected runtime-home entry, which is never retention-managed",
+				})
 				continue
 			}
 			budget := coreRetention.Budget{Name: entry.Name}
@@ -93,9 +125,14 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 			}
 			var pruner budgetPruner
 			if entry.Kind == "dir" {
-				pruner, err = coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{Path: path})
+				pruner, err = coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{
+					Path:              path,
+					ProtectedRoots:    protectedRoots,
+					MaxDeleteFraction: MaxDeleteFraction,
+					RemoveHook:        e.recordRemoval(owner.ID, entry.Name),
+				})
 			} else {
-				pruner, err = coreRetention.NewFilePruner(coreRetention.FileConfig{Path: path})
+				pruner, err = coreRetention.NewFilePruner(coreRetention.FileConfig{Path: path, ProtectedRoots: protectedRoots})
 			}
 			if err != nil {
 				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("build provider: %w", err).Error()})
@@ -126,6 +163,14 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 				addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("enforce: %w", err).Error()})
 				continue
 			}
+			if out.Refused {
+				addResult(results, owner.ID, Result{
+					Owner: owner.ID, Entry: entry.Name, Refused: true,
+					Reason: out.RefusedReason, UsedBytes: out.Before.Bytes,
+					OverBytes: overBytes(out.Before.Bytes, budget.MaxBytes),
+				})
+				continue
+			}
 			addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Deleted: int(out.Deleted), Freed: out.FreedBytes})
 		}
 		var ownerErr error
@@ -139,6 +184,52 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 	return results, nil
 }
 
+// protectedRuntimeRoots returns every runtime-home entry the repository
+// contract marks protected, resolved against the invoking user's home.
+//
+// Two properties matter here, and the previous implementation had neither.
+//
+// It fails closed. Every failure path used to return an empty slice, which is
+// indistinguishable at the call site from "this host has nothing to protect".
+// The caller now cannot proceed without a resolved set.
+//
+// It resolves from the repository root the Enforcer was constructed with,
+// rather than re-deriving one from the process environment and working
+// directory. That asymmetry was the real hazard: the target path resolves from
+// $HOME alone and needs no repository, while the protection needed to locate a
+// contract on disk. A storage-manager process started outside a checkout, or
+// with a working directory that had been deleted under it, therefore kept
+// targeting ~/.vrooli/bin while silently losing every guard on it. One
+// authority for both, or they drift again.
+func protectedRuntimeRoots(repoRoot string) ([]string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("resolve home directory: %w", err)
+	}
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("load repo contract from %s: %w", repoRoot, err)
+	}
+	entries, err := contract.RuntimeHomeEntries(home)
+	if err != nil {
+		return nil, fmt.Errorf("resolve runtime-home entries: %w", err)
+	}
+	roots := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.Protected {
+			continue
+		}
+		roots = append(roots, entry.AbsPath)
+	}
+	if len(roots) == 0 {
+		// The canonical contract marks several entries protected. None at all
+		// means a contract this build does not understand, and guessing is the
+		// wrong direction when the guess authorizes deletion.
+		return nil, fmt.Errorf("repo contract at %s declares no protected runtime-home entries", repoRoot)
+	}
+	return coreRetention.NormalizeProtectedRoots(roots)
+}
+
 func addResult(results map[string]Result, ownerID string, entryResult Result) {
 	rollup, exists := results[ownerID]
 	if !exists {
@@ -149,6 +240,12 @@ func addResult(results map[string]Result, ownerID string, entryResult Result) {
 	rollup.UsedBytes += entryResult.UsedBytes
 	rollup.OverBytes += entryResult.OverBytes
 	rollup.Refused = rollup.Refused || entryResult.Refused
+	// A refusal that reaches the owner level with no reason is the shape this
+	// package exists to avoid: an operator sees "refused" and cannot act on it.
+	// First reason wins; the per-entry detail stays in EntryResults.
+	if rollup.Reason == "" {
+		rollup.Reason = entryResult.Reason
+	}
 	if entryResult.Error != "" {
 		if rollup.Error == "" {
 			rollup.Error = entryResult.Error
@@ -158,4 +255,70 @@ func addResult(results map[string]Result, ownerID string, entryResult Result) {
 	}
 	rollup.EntryResults = append(rollup.EntryResults, entryResult)
 	results[ownerID] = rollup
+}
+
+// MaxDeleteFraction bounds how much of a directory one unattended retention
+// cycle may remove.
+//
+// 0.90 leaves ordinary retention untouched: a budget doing its job trims a
+// tail, and trimming a tail does not remove nine entries in ten. It catches the
+// shape that is never legitimate -- a ceiling so far below the steady-state
+// size that oldest-first pruning walks the whole directory. That shape has a
+// single cause worth acting on, a wrong declaration, and the right response to
+// a wrong declaration is an alarm a human reads, not a directory that empties
+// itself every cycle until someone notices.
+const MaxDeleteFraction = 0.90
+
+// removalPredicate is the rule recorded on every receipt this adapter writes.
+const removalPredicate = "declared storage-entry budget exceeded; oldest top-level entries pruned to the ceiling"
+
+// recordRemoval returns the pruner's removal wrapper, bracketing each deletion
+// with a durable receipt.
+//
+// Retention deleted with no record of any kind. That is the blind spot that
+// makes "what emptied this directory" unanswerable after the fact: the bytes
+// are gone, and so is every trace of which rule decided they should be. A
+// receipt turns that into one grep.
+//
+// The deletion itself stays inside the pruner. This adapter decides only
+// whether a removal is permitted and what is recorded about it, which is also
+// what keeps storage-manager free of its own cleanup side effects
+// ([REQ:CLN-P0-002]).
+//
+// Record rather than Guard: Guard's lock file lands beside its subject, which
+// for bulk retention would mean one lock file per victim inside the very
+// directory being pruned, each becoming an entry the next cycle must account
+// for. Exclusion here comes from the retention scheduler, which runs one cycle
+// at a time.
+//
+// A ledger that cannot record fails the removal rather than proceeding without
+// it. Recording is cheap and local, so an error means the state directory is
+// unwritable -- and deleting while unable to record is exactly the mode this
+// seam exists to prevent.
+func (e Enforcer) recordRemoval(ownerID, entryName string) func(string, func() error) error {
+	if e.Ledger == nil {
+		return nil
+	}
+	component := "storage-manager.retention.Enforcer[" + ownerID + "/" + entryName + "]"
+	return func(path string, remove func() error) error {
+		err := e.Ledger.Record(artifactledger.Removal{
+			Path:      path,
+			Kind:      "retention-entry",
+			Component: component,
+			Predicate: removalPredicate,
+		}, remove)
+		if errors.Is(err, fs.ErrNotExist) {
+			// Already gone is the outcome pruning wanted.
+			return nil
+		}
+		return err
+	}
+}
+
+// overBytes reports how far used exceeds ceiling, or zero when it does not.
+func overBytes(used, ceiling int64) int64 {
+	if ceiling <= 0 || used <= ceiling {
+		return 0
+	}
+	return used - ceiling
 }

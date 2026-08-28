@@ -51,7 +51,6 @@
       "kind": "go_module"
     }
   },
-  "template": "cloud-api",
   "driver": "cloud-api",
   "deployment": {
     "profiles": {

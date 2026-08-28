@@ -77,6 +77,12 @@ func codeFactsTarget(scenarioDir string) *factsv1.CodeTarget {
 	if err != nil {
 		return &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: scenarioDir}
 	}
+	if filepath.Clean(scenarioDir) == filepath.Clean(repoRoot) {
+		return &factsv1.CodeTarget{
+			Kind:     factsv1.TargetKind_TARGET_KIND_CONTROL_PLANE,
+			RepoRoot: repoRoot,
+		}
+	}
 	if rel, err := filepath.Rel(filepath.Join(repoRoot, "scenarios"), scenarioDir); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
 		parts := strings.Split(filepath.ToSlash(rel), "/")
 		if len(parts) > 0 && parts[0] != "" {

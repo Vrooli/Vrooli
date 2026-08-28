@@ -5,14 +5,13 @@ import (
 	"io"
 	"os/exec"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
 
 func TestManagedProcess_NormalEOF(t *testing.T) {
 	cmd := exec.Command("printf", "line1\nline2\nline3\n")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 2*time.Second)
 	if err != nil {
@@ -46,7 +45,7 @@ func TestManagedProcess_NormalEOF(t *testing.T) {
 // consumer's pipe first.
 func TestManagedProcess_StderrRemainsReadableAfterChildExit(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "printf retained >&2")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 2*time.Second)
 	if err != nil {
@@ -72,7 +71,7 @@ func TestManagedProcess_GrandchildPipe(t *testing.T) {
 	// With old StdoutPipe: scanner blocks forever.
 	// With managedProcess: scanner gets EOF promptly after main process exits.
 	cmd := exec.Command("bash", "-c", `bash -c "sleep 300" & echo "done"`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 10*time.Second)
 	if err != nil {
@@ -107,7 +106,7 @@ func TestManagedProcess_GrandchildPipe(t *testing.T) {
 func TestManagedProcess_SafetyTimeout(t *testing.T) {
 	// Process that writes one line then hangs — short timeout fires
 	cmd := exec.Command("bash", "-c", `echo "hello"; sleep 300`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 500*time.Millisecond)
 	if err != nil {
@@ -138,7 +137,7 @@ func TestManagedProcess_SafetyTimeout(t *testing.T) {
 func TestManagedProcess_TimerReset(t *testing.T) {
 	// Process writes a line every 200ms — should NOT time out with 500ms timeout
 	cmd := exec.Command("bash", "-c", `for i in 1 2 3 4 5; do echo "line$i"; sleep 0.2; done`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 500*time.Millisecond)
 	if err != nil {
@@ -165,7 +164,7 @@ func TestManagedProcess_TimerReset(t *testing.T) {
 
 func TestManagedProcess_NoTimeout(t *testing.T) {
 	cmd := exec.Command("printf", "a\nb\n")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 0)
 	if err != nil {
@@ -191,7 +190,7 @@ func TestManagedProcess_NoTimeout(t *testing.T) {
 
 func TestManagedProcess_Kill(t *testing.T) {
 	cmd := exec.Command("bash", "-c", `echo "start"; sleep 300`)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 0) // no timer
 	if err != nil {
@@ -220,7 +219,7 @@ func TestManagedProcess_Kill(t *testing.T) {
 func TestManagedProcess_LargeBuffer(t *testing.T) {
 	longLine := strings.Repeat("x", 100000)
 	cmd := exec.Command("printf", longLine+"\n")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 2*time.Second)
 	if err != nil {
@@ -249,7 +248,7 @@ func TestManagedProcess_LargeBuffer(t *testing.T) {
 
 func TestManagedProcess_WaitIdempotent(t *testing.T) {
 	cmd := exec.Command("true")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.SysProcAttr = managedProcessSysProcAttr()
 
 	mp, err := startManagedProcess(cmd, 2*time.Second)
 	if err != nil {

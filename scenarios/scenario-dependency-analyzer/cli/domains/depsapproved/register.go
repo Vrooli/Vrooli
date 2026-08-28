@@ -137,7 +137,7 @@ func printSearchResults(records []*governancev1.ApprovedDependencyRecord, guidan
 		ResultsHeading: "Dependency Search",
 		Results:        results,
 		RetrievalHints: []string{
-			fmt.Sprintf("Install an approved package: %s deps install <ecosystem>/<package> --scenario <name> --surface <ui|api|cli|playwright-driver|tools/<package>>", support.AppName),
+				fmt.Sprintf("Install an approved package: %s deps install <ecosystem>/<package> --scenario <name> --surface <ui|api|cli|playwright-driver|resource|tools/<package>>", support.AppName),
 			fmt.Sprintf("Propose a new package from observed usage: %s deps approved approve-observed <ecosystem>/<package> --from-findings --apply", support.AppName),
 			fmt.Sprintf("Inspect one record: %s deps approved explain <ecosystem>/<package>", support.AppName),
 		},

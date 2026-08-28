@@ -86,6 +86,13 @@ type Result struct {
 	// Before and After are the measurements bracketing the cycle.
 	Before Usage
 	After  Usage
+	// Refused is true when the pruner measured the target, found it over
+	// budget, and deliberately deleted nothing. A refusal is a governed
+	// outcome, not a failure: the budget keeps working as an alarm, it just
+	// does not work as a deleter this cycle.
+	Refused bool
+	// RefusedReason states why, empty when Refused is false.
+	RefusedReason string
 	// CompactSkipped is true when reclaimable space was left in the file
 	// because compacting it would have needed more free space than the
 	// filesystem had.

@@ -27,6 +27,7 @@ type PlatformVerdict struct {
 	HostOS             deployability.HostOS
 	Status             string
 	Reason             string
+	ReasonCode         string
 	BlockingDependency string
 	Derived            bool
 	Overridden         bool
@@ -98,10 +99,11 @@ func BuildPlatformFleet(scenariosDir, filter string, now time.Time) (PlatformFle
 		}
 		verdict := ScenarioPlatformVerdict{Scenario: name, Platforms: make([]PlatformVerdict, 0, len(platformVerdictOSes))}
 		for _, hostOS := range platformVerdictOSes {
+			var platform PlatformVerdict
 			if override, ok := overrides[hostOS]; ok {
 				verdict.Overridden = true
 				verdict.OverrideReason = "service.platform_capabilities overrides dependency derivation for this scenario"
-				verdict.Platforms = append(verdict.Platforms, override)
+				platform = override
 			} else {
 				resolution := deployability.Resolve(deployability.ResolutionInput{
 					Target: deployability.TargetDeclaration{Name: name, Dependencies: declarations},
@@ -123,8 +125,29 @@ func BuildPlatformFleet(scenariosDir, filter string, now time.Time) (PlatformFle
 				if blocking != "" {
 					reason = "dependency " + blocking + " does not resolve on " + string(hostOS)
 				}
-				verdict.Platforms = append(verdict.Platforms, PlatformVerdict{HostOS: hostOS, Status: status, Reason: reason, BlockingDependency: blocking, Derived: true})
+				platform = PlatformVerdict{HostOS: hostOS, Status: status, Reason: reason, BlockingDependency: blocking, Derived: true}
 			}
+			if source := sourcePlatformVerdict(filepath.Join(scenariosDir, name), hostOS); source != nil {
+				if platform.Reason != "" && !strings.Contains(platform.Reason, source.Reason) {
+					platform.Reason += "; "
+				}
+				if !strings.Contains(platform.Reason, source.Reason) {
+					platform.Reason += source.Reason
+				}
+				if platform.ReasonCode == "" {
+					platform.ReasonCode = source.ReasonCode
+				} else if platform.ReasonCode != source.ReasonCode {
+					platform.ReasonCode = "dependency_and_source_verdict"
+				}
+				if verdictSeverity(source.Status) > verdictSeverity(platform.Status) {
+					platform.Status = source.Status
+				}
+				if platform.BlockingDependency == "" && source.Status == "blocked" {
+					platform.BlockingDependency = source.BlockingDependency
+				}
+				platform.Derived = true
+			}
+			verdict.Platforms = append(verdict.Platforms, platform)
 			desktop := deployability.Resolve(deployability.ResolutionInput{Target: deployability.TargetDeclaration{Name: name, Dependencies: declarations}, Tier: deployability.TierDesktop, OS: hostOS})
 			for _, dependency := range desktop.Dependencies {
 				for _, dependencyReason := range dependency.Reasons {
@@ -139,6 +162,46 @@ func BuildPlatformFleet(scenariosDir, filter string, now time.Time) (PlatformFle
 	}
 	_ = now // computed_at is owned by the transport boundary.
 	return result, nil
+}
+
+func verdictSeverity(status string) int {
+	switch status {
+	case "blocked":
+		return 2
+	case "degraded":
+		return 1
+	default:
+		return 0
+	}
+}
+
+// sourcePlatformVerdict consumes the repository's source portability seams.
+// These are deliberately narrow, named signals: the dependency closure stays
+// SDA-owned, while a scenario's own Linux-only backend must also affect its
+// platform verdict.
+func sourcePlatformVerdict(scenarioRoot string, hostOS deployability.HostOS) *PlatformVerdict {
+	if hostOS == deployability.HostOSLinux {
+		return nil
+	}
+	name := filepath.Base(scenarioRoot)
+	var relative, status, reason string
+	switch name {
+	case "vrooli-emulator":
+		relative, status, reason = "api/livedesktop/platform_unsupported.go", "blocked", "scenario source has no non-Linux desktop backend"
+	case "scenario-to-desktop":
+		relative, status, reason = "api/livedesktop/platform_linux.go", "blocked", "scenario source provides only the Linux desktop backend"
+	case "workspace-sandbox":
+		relative, status, reason = "api/internal/namespace/kernel_linux.go", "blocked", "scenario source requires Linux namespace containment"
+	case "app-monitor":
+		relative, status, reason = "api/services/metrics_service.go", "degraded", "scenario source contains an unguarded bash portability boundary"
+	default:
+		return nil
+	}
+	path := filepath.Join(scenarioRoot, filepath.FromSlash(relative))
+	if _, err := os.Stat(path); err != nil {
+		return nil
+	}
+	return &PlatformVerdict{HostOS: hostOS, Status: status, Reason: fmt.Sprintf("sda_source_verdict: %s: %s", filepath.ToSlash(filepath.Join("scenarios", name, relative)), reason), ReasonCode: "sda_source_verdict", BlockingDependency: "source:" + filepath.ToSlash(filepath.Join("scenarios", name, relative)), Derived: true}
 }
 
 type authoredPlatformCapability struct {

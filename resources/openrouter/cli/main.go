@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	resourceapp "resource-openrouter/cli/internal/app"
+	resourceapp "github.com/vrooli/vrooli/resources/openrouter/cli/internal/app"
 )
 
 var (

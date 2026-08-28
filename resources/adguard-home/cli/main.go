@@ -17,9 +17,9 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
-	"resource-adguard-home/cli/internal/adguard"
-	resourceenv "resource-adguard-home/cli/internal/env"
-	"resource-adguard-home/cli/internal/health"
+	"github.com/vrooli/vrooli/resources/adguard-home/cli/internal/adguard"
+	resourceenv "github.com/vrooli/vrooli/resources/adguard-home/cli/internal/env"
+	"github.com/vrooli/vrooli/resources/adguard-home/cli/internal/health"
 )
 
 const (

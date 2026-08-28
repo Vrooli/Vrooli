@@ -17,7 +17,9 @@
     "kinds": [
       "scenario",
       "package",
-      "control-plane"
+      "control-plane",
+      "tool",
+      "safeguard"
     ],
     "selection": "enumerate"
   },

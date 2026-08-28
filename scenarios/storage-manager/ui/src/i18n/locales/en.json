@@ -1,112 +1,165 @@
 {
+  "$rowKey": "id",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "$text": "Blocked",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Storage Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Storage Manager",
+    "description": "Closed accounting, placement, retention, and safe reclaim for local storage.",
     "eyebrow": "Storage operations",
-    "description": "Closed accounting, placement, retention, and safe reclaim for local storage."
+    "title": "Storage Manager"
   },
+  "aria-label": "locked",
+  "ascending": "descending",
+  "asset": "navigation.page",
+  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
+  "capability": "navigation",
+  "caption": "No rows table",
+  "cleanup": {
+    "audit": {
+      "description": "Recent policy, plan, replay, and apply events with redacted messages.",
+      "title": "Audit"
+    },
+    "overview": {
+      "blocked": "Blocked",
+      "description": "Current preview totals grouped by conservative policy gates.",
+      "providers": "Providers",
+      "reclaimable": "Estimated reclaim",
+      "title": "Disk Pressure Overview"
+    },
+    "plan": {
+      "applyDisabled": "Apply is disabled from the UI until live approval wiring is present.",
+      "description": "Plans are deterministic previews tied to policy and provider versions.",
+      "preview": "Apply requires the exact plan id, policy version, approval mode, and idempotency key.",
+      "title": "Plan Review"
+    },
+    "policy": {
+      "applyGate": "Apply gate",
+      "description": "Conservative defaults keep ambiguous cleanup disabled until explicitly approved.",
+      "profile": "Profile",
+      "replay": "Replay",
+      "title": "Policy"
+    },
+    "providers": {
+      "description": "Provider estimates show safety tier, reclaim estimate, and approval state.",
+      "estimate": "Estimate",
+      "provider": "Provider",
+      "status": "Status",
+      "tier": "Tier",
+      "title": "Providers"
+    }
+  },
+  "clsx": "^2.1.1",
+  "default": "success",
+  "defaultValue": "locked",
+  "desc": "asc",
+  "description": "Icon-leading action that still exposes text.",
+  "dialog": "complementary",
+  "emptyMessage": "No scenarios match",
+  "equals": "Current",
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "example": "icon-start",
+  "export": "LongLabels",
+  "field": "name",
+  "fixture": "fixtures.user-directory",
+  "header": "Scenario",
+  "health": {
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "statusLabel": "Status:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
+  },
+  "id": "danger",
+  "kind": "text",
+  "label": "Label",
   "layout": {
-    "sidebarLabel": "Primary navigation",
-    "sidebarNavLabel": "Primary sidebar navigation",
     "bottomNavLabel": "Primary navigation",
     "nav": {
       "dashboard": "Dashboard",
       "settings": "Settings"
-    }
-  },
-  "theme": {
-    "switcherLabel": "Theme",
-    "choice": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    }
-  },
-  "pages": {
-    "dashboard": {
-      "title": "Storage Console",
-      "description": "See what is attributed, what is not, how much headroom remains, and which actions are safe."
     },
-    "settings": {
-      "title": "Settings",
-      "themeHeading": "Appearance",
-      "localeHeading": "Language"
-    }
-  },
-  "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "cleanup": {
-    "overview": {
-      "title": "Disk Pressure Overview",
-      "description": "Current preview totals grouped by conservative policy gates.",
-      "reclaimable": "Estimated reclaim",
-      "providers": "Providers",
-      "blocked": "Blocked"
-    },
-    "providers": {
-      "title": "Providers",
-      "description": "Provider estimates show safety tier, reclaim estimate, and approval state.",
-      "provider": "Provider",
-      "tier": "Tier",
-      "estimate": "Estimate",
-      "status": "Status"
-    },
-    "policy": {
-      "title": "Policy",
-      "description": "Conservative defaults keep ambiguous cleanup disabled until explicitly approved.",
-      "profile": "Profile",
-      "applyGate": "Apply gate",
-      "replay": "Replay"
-    },
-    "plan": {
-      "title": "Plan Review",
-      "description": "Plans are deterministic previews tied to policy and provider versions.",
-      "preview": "Apply requires the exact plan id, policy version, approval mode, and idempotency key.",
-      "applyDisabled": "Apply is disabled from the UI until live approval wiring is present."
-    },
-    "audit": {
-      "title": "Audit",
-      "description": "Recent policy, plan, replay, and apply events with redacted messages."
-    }
-  },
-  "errors": {
-    "canceled": "Operation canceled.",
-    "unknown": "An unknown error occurred.",
-    "invalid_argument": "Invalid input: {{message}}",
-    "deadline_exceeded": "Operation timed out.",
-    "not_found": "Resource not found.",
-    "already_exists": "Already exists.",
-    "permission_denied": "Permission denied.",
-    "resource_exhausted": "Resource limit reached.",
-    "failed_precondition": "Cannot perform this action: {{message}}",
-    "aborted": "Operation aborted.",
-    "out_of_range": "Out of range.",
-    "unimplemented": "Not yet implemented.",
-    "internal": "Something went wrong. Please try again.",
-    "unavailable": "Service temporarily unavailable.",
-    "data_loss": "Data loss detected.",
-    "unauthenticated": "Please sign in to continue."
+    "sidebarLabel": "Primary navigation",
+    "sidebarNavLabel": "Primary sidebar navigation"
   },
   "locale": {
     "switcherLabel": "Language"
   },
-  "errorBoundary": {
-    "title": "Something went wrong",
-    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
-    "retry": "Try again"
-  }
+  "lucide-react": "^0.424.0",
+  "mode": "pinned",
+  "module": "./story.tsx",
+  "name": "Danger",
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "See what is attributed, what is not, how much headroom remains, and which actions are safe.",
+      "title": "Storage Console"
+    },
+    "settings": {
+      "localeHeading": "Language",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    }
+  },
+  "path": "children",
+  "placeholder": "Choose status",
+  "provenance": "react-component-library/Button@1.2.0",
+  "purpose": "Provide a token-bound action control whose accessible name and variant intent survive reuse across scenario UIs.",
+  "react": "^18",
+  "react-component-library:useEscapeKey": "^1.0.0",
+  "region": "navigation",
+  "role": "button",
+  "schema": "scenario-experience-spec/v1",
+  "schemaVersion": "1.1.0",
+  "selector": "nav",
+  "statement": "The disabled example prevents activation while retaining its visible action label.",
+  "status": "Behind",
+  "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json",
+  "tailwind-merge": "^2.3.0",
+  "testid": "sidebar-shell",
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  },
+  "tier": "manual",
+  "title": "Status Badge",
+  "tone": "danger",
+  "true": "false",
+  "type": "manual-review",
+  "value": "Blocked",
+  "variant": "primary",
+  "version": "1.0.0"
 }

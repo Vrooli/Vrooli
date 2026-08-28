@@ -18,6 +18,10 @@ func (a *derivedBootstrapAuthority) Resolve(_ credentialauthority.Identity, fiel
 	return value, nil
 }
 
+func (a *derivedBootstrapAuthority) Require(id credentialauthority.Identity, field string) (string, error) {
+	return a.Resolve(id, field)
+}
+
 func (a *derivedBootstrapAuthority) Put(_ credentialauthority.Identity, field, value string) error {
 	a.values[field] = value
 	return nil

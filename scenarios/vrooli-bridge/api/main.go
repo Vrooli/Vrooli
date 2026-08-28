@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -50,9 +51,11 @@ import (
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/api-core/trustposture"
+	mdns "github.com/vrooli/mdns-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	_ "modernc.org/sqlite"
+	"vrooli-bridge/pairingwords"
 
 	artifactsH "vrooli-bridge/handlers/artifacts"
 	attachedH "vrooli-bridge/handlers/attached"
@@ -260,6 +263,39 @@ func canonicalControlPlaneEndpoint() (string, string) {
 	return deriveControlPlaneURL(), "derived"
 }
 
+func startMDNSResponder(logger *log.Logger) *mdns.Responder {
+	enabled := true
+	if raw := strings.TrimSpace(os.Getenv("BRIDGE_MDNS_ADVERTISE")); raw != "" {
+		if parsed, err := strconv.ParseBool(raw); err == nil {
+			enabled = parsed
+		}
+	}
+	controlPlaneURL, _ := canonicalControlPlaneEndpoint()
+	responder := mdns.NewResponder(mdns.ResponderConfig{
+		Service:  "_vrooli-bridge._tcp.local",
+		Instance: "vrooli-bridge",
+		Host:     "vrooli-bridge.local",
+		Port:     bridgeAPIPort(),
+		Address:  net.ParseIP(outboundIP()),
+		URL:      controlPlaneURL,
+	})
+	if !enabled {
+		return responder
+	}
+	if err := responder.Start(context.Background()); err != nil {
+		logger.Printf("mDNS advertisement disabled: %v", err)
+	}
+	return responder
+}
+
+func bridgeAPIPort() int {
+	port, err := strconv.Atoi(strings.TrimSpace(os.Getenv("API_PORT")))
+	if err != nil || port <= 0 || port > 65535 {
+		return 18767
+	}
+	return port
+}
+
 // outboundIP returns the IP of the interface holding the default route. The
 // UDP "dial" never sends a packet — it only asks the kernel which source
 // address it would pick for a non-routable TEST-NET-1 destination. Hosts with
@@ -322,6 +358,7 @@ func main() {
 
 	clk := schedule.System()
 	logger := log.Default()
+	mdnsResponder := startMDNSResponder(logger)
 
 	// Owner identity is resolved against scenario-authenticator (the "Owner →
 	// control plane" boundary, SECURITY.md). The resolver finds the
@@ -396,6 +433,7 @@ func main() {
 	}
 	grantCatalog, err := scopecatalog.BuildResilient(repoRoot)
 	var grantValidator func([]string) error
+	pairingDefaultScopes := append([]string(nil), postureDefaults.NodeExecutionScopes...)
 	if err != nil {
 		// A malformed scenario manifest must not take the fleet control plane
 		// down. Registry and health remain available for diagnosis, while all
@@ -403,6 +441,9 @@ func main() {
 		log.Printf("degraded catalog: node grants and dispatch unavailable: %v", err)
 	} else {
 		grantValidator = internalregistry.NewCatalogGrantValidator(grantCatalog)
+		if scopes, ok := internalpairing.ScopesForPreset(grantCatalog, internalpairing.PresetReadOnly); ok {
+			pairingDefaultScopes = scopes
+		}
 	}
 	registryOpts := make([]internalregistry.Option, 0, 1)
 	if grantValidator != nil {
@@ -414,6 +455,21 @@ func main() {
 	if grantValidator != nil {
 		pairingOpts = append(pairingOpts, internalpairing.WithGrantValidator(grantValidator))
 	}
+	pairingOpts = append(pairingOpts, internalpairing.WithConfirmationValidator(func(req internalpairing.PairingRequest, words []string) error {
+		expected, err := pairingwords.Derive(cpKeypair.PublicKeyBase64(), req.PublicKey)
+		if err != nil {
+			return internalpairing.ErrInvalid{Field: "confirmation_words", Reason: "cannot derive confirmation"}
+		}
+		if len(words) != len(expected) {
+			return internalpairing.ErrInvalid{Field: "confirmation_words", Reason: "must contain the three words shown by pair list"}
+		}
+		for i := range expected {
+			if !strings.EqualFold(strings.TrimSpace(words[i]), expected[i]) {
+				return internalpairing.ErrInvalid{Field: "confirmation_words", Reason: "do not match the request"}
+			}
+		}
+		return nil
+	}))
 	pairingSvc := internalpairing.NewService(pairingRepo, registrar, clk, pairingOpts...)
 	// The node mutual-auth verifier reads node public keys from the pairing
 	// repository (a revoked credential reads as absent). Construct it before
@@ -436,7 +492,7 @@ func main() {
 			if err != nil {
 				return "", err
 			}
-			return authority.Resolve(identity, field)
+			return authority.Require(identity, field)
 		},
 	})
 	if _, err := pairingSvc.ReconcileEnrollments(context.Background()); err != nil {
@@ -674,7 +730,7 @@ func main() {
 		machinesH.Module(db, clk, sshSvc, registrySvc, pairingSvc, presenceHub, onboardSvc, logger),
 		// registry RevokeNode performs atomic revocation: durable revoke +
 		// credential destruction (pairingSvc) + live-channel drop (presenceHub).
-		registryH.Module(registrySvc, presenceHub, pairingSvc, presenceHub, logger),
+		registryH.Module(registrySvc, presenceHub, pairingSvc, presenceHub, watchdogConfig.PresenceStaleAfter, logger),
 		attachedH.Module(db.Primary(), logger, presenceHub),
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger,
 			channelH.WithDeliveryAckRecorder(runsSvc), channelH.WithAuditSink(auditStore),
@@ -682,7 +738,7 @@ func main() {
 			channelH.WithRelayResponseSink(relayBroker), channelH.WithCredentialReceiptRecorder(grantSvc)),
 		cleanupH.Module(cleanupSvc, nodeVerifier, logger),
 		credentialgrantH.Module(grantHandler),
-		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), postureDefaults.NodeExecutionScopes, nodeVerifier, logger),
+		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), pairingDefaultScopes, internalpairing.PermissionPresets(grantCatalog), nodeVerifier, logger),
 		// dispatch (OT-P0-004): the allowlist gate. It reads node scopes
 		// (registrySvc), checks presence + protocol compatibility, creates durable
 		// runs (runsSvc), audits (auditStore), and submits typed jobs to the
@@ -765,7 +821,10 @@ func main() {
 		// exercised. Keep the server bound while the handlers' own idle and
 		// lifetime limits remain authoritative.
 		WriteTimeout: 24 * time.Hour,
-		Cleanup:      func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			_ = mdnsResponder.Close()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

@@ -35,7 +35,7 @@ func commitEligibleFiles(ctx context.Context, cmd Commander, scenarioDir string)
 	}
 	// A standalone scenario fixture may not be in a git worktree. Preserve the
 	// same first-party boundary using the repository's generated-dir policy.
-	return walkEvidenceFiles(scenarioDir, true)
+	return walkEvidenceFiles(scenarioDir, true, false)
 }
 
 func prepareCommitEligibleSnapshot(ctx context.Context, cmd Commander, scenarioDir string) (string, func(), error) {

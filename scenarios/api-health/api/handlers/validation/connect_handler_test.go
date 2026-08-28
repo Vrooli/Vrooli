@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/maturity-go/autofix"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -19,10 +20,14 @@ import (
 type stubValidator struct {
 	report           internalvalidation.Report
 	includeExecution bool
+	scenario         string
+	path             string
 }
 
-func (s *stubValidator) ValidateScenario(_ context.Context, _, _ string, includeExecution bool) (internalvalidation.Report, error) {
+func (s *stubValidator) ValidateScenario(_ context.Context, scenario, path string, includeExecution bool) (internalvalidation.Report, error) {
 	s.includeExecution = includeExecution
+	s.scenario = scenario
+	s.path = path
 	return s.report, nil
 }
 
@@ -101,6 +106,30 @@ func TestValidateScenarioMapsTargetFinding(t *testing.T) {
 	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, resp.Msg.GetStatus())
 	require.Len(t, resp.Msg.GetAssessment().GetFindings(), 1)
 	require.Equal(t, internalvalidation.CodeTargetUnresolved, resp.Msg.GetAssessment().GetFindings()[0].GetCode())
+}
+
+func TestValidateTargetPreservesControlPlaneRoot(t *testing.T) {
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join(findRepoRoot(t), "scenarios", "api-health"))
+	require.NoError(t, err)
+	validator := &stubValidator{report: internalvalidation.Report{
+		Scenario: "control-plane",
+		Target:   internalvalidation.Target{Scenario: "control-plane", RootPath: "/repo", Resolution: internalvalidation.ResolutionResolved},
+		Passed:   true,
+	}}
+	h := NewConnectHandler(Deps{Validator: validator, MaturitySpec: spec})
+	target := &commonv1.ValidationTarget{
+		Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE,
+		Id:   "control-plane",
+		Root: "repo",
+	}
+	resp, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: target, Path: "/repo", IncludeExecution: true,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, target, resp.Msg.GetTarget())
+	require.Equal(t, "/repo", validator.path)
+	require.Equal(t, "control-plane", validator.scenario)
+	require.True(t, validator.includeExecution)
 }
 
 func TestPreviewAndApplyFixMapCandidates(t *testing.T) {

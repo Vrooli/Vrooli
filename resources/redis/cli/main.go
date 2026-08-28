@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"resource-redis/cli/internal/backup"
+	"github.com/vrooli/vrooli/resources/redis/cli/internal/backup"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

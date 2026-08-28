@@ -192,6 +192,11 @@ export async function buildContext(
       height: viewportHeight,
     },
     deviceScaleFactor,
+    // A mobile capture must drive the media features applications actually
+    // branch on. A narrow desktop viewport still reports fine/hover and cannot
+    // prove pointer-independent controls or mobile action-sheet behavior.
+    hasTouch: Math.min(viewportWidth, viewportHeight) <= 480,
+    isMobile: Math.min(viewportWidth, viewportHeight) <= 480,
     baseURL: spec.base_url,
     ignoreHTTPSErrors: config.browser.ignoreHTTPSErrors,
     userAgent,

@@ -30,7 +30,7 @@ export default defineConfig(({ mode }): UserConfig => {
       reporters: [
         "default",
         new RequirementReporter({
-          outputFile: "test/artifacts/vitest-requirements.json",
+          outputFile: "coverage/vitest-requirements.json",
         }),
       ],
       coverage: {

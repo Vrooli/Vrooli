@@ -120,7 +120,6 @@
       }
     ]
   },
-  "template": "external-cli",
   "driver": "external-cli",
   "deployment": {
     "profiles": {

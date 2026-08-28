@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -371,6 +372,88 @@ func TestService_AbsentScannerIsSkippedNotFailed(t *testing.T) {
 	}
 	if rep.Summary.Errors != 0 {
 		t.Errorf("no ERROR findings expected, got %d", rep.Summary.Errors)
+	}
+}
+
+func TestValidateScenarioAndValidateTargetReportsAreByteIdentical(t *testing.T) {
+	repoRoot, scenarioDir := newScenarioTree(t, "demo")
+	cmd := stubCommander{
+		present: map[string]bool{"gitleaks": true},
+		out:     map[string]stubOut{"gitleaks": {stdout: []byte(`[]`)}},
+	}
+	svc := New(Deps{RepoRoot: repoRoot, Commander: cmd})
+
+	legacy, err := svc.ValidateScenario(context.Background(), "demo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := svc.ValidateTarget(context.Background(), ValidationTargetScenario, scenarioDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyJSON, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targetJSON, err := json.Marshal(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(legacyJSON) != string(targetJSON) {
+		t.Fatalf("scenario and target reports differ:\nscenario: %s\ntarget:   %s", legacyJSON, targetJSON)
+	}
+}
+
+func TestControlPlaneSubstrateKeepsRootAndPackageModules(t *testing.T) {
+	sub := controlPlaneSubstrate(Substrate{
+		Go:           true,
+		PnpmUI:       true,
+		GoModDirs:    []string{".", "packages/api-core", "scenarios/demo/api", "templates/scenarios/react-vite/api"},
+		PnpmLockDirs: []string{"packages/ui/pnpm-lock.yaml", "scenarios/demo/ui"},
+	})
+	wantRoots := ".,packages/api-core"
+	if got := strings.Join(sub.GoModDirs, ","); got != wantRoots {
+		t.Fatalf("control-plane Go scan roots = %q, want %q", got, wantRoots)
+	}
+	if !sub.Go || sub.PnpmUI || len(sub.PnpmLockDirs) != 0 {
+		t.Fatalf("unexpected control-plane substrate: %+v", sub)
+	}
+	if got := strings.Join(sub.GoPackagePatterns["."], ","); got != "./internal/...,./cmd/..." {
+		t.Fatalf("root module package patterns = %q", got)
+	}
+	for _, name := range []string{"gosec", "govulncheck"} {
+		if !controlPlaneScanner(name) {
+			t.Fatalf("control-plane scanner %q unexpectedly disabled", name)
+		}
+	}
+	for _, name := range []string{"gitleaks", "pnpm-audit", "osv-scanner"} {
+		if controlPlaneScanner(name) {
+			t.Fatalf("control-plane scanner %q unexpectedly enabled", name)
+		}
+	}
+}
+
+func TestControlPlaneErrorBudgetPassesAtBaselineAndFailsRegression(t *testing.T) {
+	budget := ErrorBudget{Limit: 52, Baseline: 52, Ratchet: true, Declared: true}
+	if !budget.allows(52) {
+		t.Fatal("measured baseline must pass")
+	}
+	if budget.allows(53) {
+		t.Fatal("one new blocking finding must fail")
+	}
+	if (ErrorBudget{Limit: 53, Baseline: 52, Ratchet: true, Declared: true}).allows(51) {
+		t.Fatal("loosening a ratcheted budget must fail even below the baseline")
+	}
+	if !(ErrorBudget{Limit: 0, Baseline: 0, Ratchet: true, Declared: true}).allows(0) {
+		t.Fatal("an explicit clean budget must pass a clean scan")
+	}
+}
+
+func TestDedupeControlPlaneFindingsCollapsesOverlappingScanRoots(t *testing.T) {
+	finding := Finding{Scanner: "gosec", RuleID: "gosec.G404", FilePath: "internal/credentialescrow/random.go:12", Description: "weak random number generator"}
+	got := dedupeControlPlaneFindings([]Finding{finding, finding, {Scanner: "gosec", RuleID: "gosec.G401", FilePath: "internal/other.go:3"}})
+	if len(got) != 2 {
+		t.Fatalf("deduplicated findings = %d, want 2: %+v", len(got), got)
 	}
 }
 

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/deployability"
 )
 
 func TestListPlatformVerdictsDerivesBlockingResourceForEveryHostOS(t *testing.T) {
@@ -96,5 +98,40 @@ func TestAuthoredUnsupportedCapabilityDegradesUnlessEssential(t *testing.T) {
 				t.Fatalf("macOS reason = %q, want every unsupported capability named", platform.Reason)
 			}
 		}
+	}
+}
+
+func TestSourcePlatformVerdictCoversStubShellOutAndCleanScenarios(t *testing.T) {
+	root := t.TempDir()
+	cases := []struct {
+		name     string
+		relative string
+		status   string
+	}{
+		{"vrooli-emulator", "api/livedesktop/platform_unsupported.go", "blocked"},
+		{"app-monitor", "api/services/metrics_service.go", "degraded"},
+		{"clean-scenario", "api/main.go", ""},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			scenarioRoot := filepath.Join(root, testCase.name)
+			path := filepath.Join(scenarioRoot, filepath.FromSlash(testCase.relative))
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte("package fixture\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			got := sourcePlatformVerdict(scenarioRoot, deployability.HostOSMacOS)
+			if testCase.status == "" {
+				if got != nil {
+					t.Fatalf("clean scenario produced source signal: %+v", got)
+				}
+				return
+			}
+			if got == nil || got.Status != testCase.status || got.ReasonCode != "sda_source_verdict" {
+				t.Fatalf("source signal = %+v, want status %q with reason code", got, testCase.status)
+			}
+		})
 	}
 }

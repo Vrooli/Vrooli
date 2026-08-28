@@ -2,7 +2,6 @@ package config_test
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
@@ -18,9 +17,13 @@ func (f *fakeAuthority) key(_ credentialauthority.Identity, field string) string
 func (f *fakeAuthority) Resolve(id credentialauthority.Identity, field string) (string, error) {
 	value := f.values[f.key(id, field)]
 	if value == "" {
-		return "", errors.New("credential is not configured")
+		return "", credentialauthority.ErrUnconfigured
 	}
 	return value, nil
+}
+
+func (f *fakeAuthority) Require(id credentialauthority.Identity, field string) (string, error) {
+	return f.Resolve(id, field)
 }
 
 func (f *fakeAuthority) Put(id credentialauthority.Identity, field, value string) error {

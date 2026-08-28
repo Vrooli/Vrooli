@@ -144,8 +144,9 @@ func (p *goGraphProvider) extract(ctx context.Context, unit *factsv1.ParseUnit, 
 		return nil, ProviderUnavailableError{Analyzer: p.AnalyzerName(), Err: err}
 	}
 	resp, err := gographconnect.NewGoCodeGraphServiceClient(p.httpClient, baseURL).Extract(ctx, connect.NewRequest(&gographv1.ExtractRequest{
-		ModulePath: unit.GetRootPath(),
-		Profile:    profile,
+		ModulePath:      unit.GetRootPath(),
+		Profile:         profile,
+		PackagePatterns: unit.GetPackagePatterns(),
 	}))
 	if err != nil {
 		return nil, classifyProviderError(p.AnalyzerName(), err)

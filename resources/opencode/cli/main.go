@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"resource-opencode/cli/internal/configcli"
-	"resource-opencode/cli/internal/permissionscli"
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/configcli"
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/permissionscli"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"resource-codex/cli/internal/permissionscli"
+	"github.com/vrooli/vrooli/resources/codex/cli/internal/permissionscli"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"

@@ -20,7 +20,13 @@
     "kinds": [
       "scenario"
     ],
-    "selection": "enumerate"
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires a scenario experience specification and product interaction surface; the control plane has no scenario experience contract."
+      }
+    ]
   },
   "applicability": {
     "default": "not_applicable",

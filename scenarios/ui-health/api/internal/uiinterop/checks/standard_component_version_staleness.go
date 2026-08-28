@@ -82,6 +82,7 @@ BadExample:
 package checks
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -89,6 +90,7 @@ import (
 	"strconv"
 	"strings"
 
+	"ui-health/integrations/reactcomponentlibrary"
 	"ui-health/internal/uiinterop"
 )
 
@@ -116,7 +118,7 @@ func checkComponentVersionStaleness(ctx uiinterop.CheckContext) uiinterop.RuleRe
 			Message:    "no ui/src directory found; skipping",
 		}
 	}
-	catalog, err := loadRCLCatalog(ctx.ScenarioRoot)
+	catalog, err := loadRCLCatalog(context.Background(), ctx.ScenarioRoot)
 	if err != nil {
 		return uiinterop.RuleResult{
 			RuleID:     ruleID,
@@ -160,12 +162,27 @@ func checkComponentVersionStaleness(ctx uiinterop.CheckContext) uiinterop.RuleRe
 	}
 }
 
-func loadRCLCatalog(scenarioRoot string) (map[string]componentCatalogEntry, error) {
-	repoRoot := findRepoRoot(scenarioRoot)
-	if repoRoot == "" {
-		return nil, fmt.Errorf("repo root not found")
+func loadRCLCatalog(ctx context.Context, scenarioRoot string) (map[string]componentCatalogEntry, error) {
+	// Documentation-rule fixtures intentionally carry a miniature catalog so
+	// their expected latest version remains deterministic. Production scenario
+	// roots do not contain this path and therefore always use the discovered
+	// react-component-library service below.
+	fixtureDir := filepath.Join(scenarioRoot, "scenarios", "react-component-library", "library", "components")
+	if _, err := os.Stat(fixtureDir); err == nil {
+		return loadRCLCatalogDirectory(fixtureDir)
 	}
-	catalogDir := filepath.Join(repoRoot, "scenarios", "react-component-library", "library", "components")
+	client := reactcomponentlibrary.New(
+		reactcomponentlibrary.DefaultResolver(),
+		reactcomponentlibrary.DefaultPolicy(),
+	)
+	entries, err := client.ListCatalog(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("react-component-library catalog unavailable: %w", err)
+	}
+	return catalogEntries(entries)
+}
+
+func loadRCLCatalogDirectory(catalogDir string) (map[string]componentCatalogEntry, error) {
 	entries, err := os.ReadDir(catalogDir)
 	if err != nil {
 		return nil, fmt.Errorf("catalog not found")
@@ -178,6 +195,25 @@ func loadRCLCatalog(scenarioRoot string) (map[string]componentCatalogEntry, erro
 		meta, ok := readComponentCatalogEntry(filepath.Join(catalogDir, entry.Name(), "component.json"), entry.Name())
 		if ok && meta.LibraryID != "" {
 			out[meta.LibraryID] = meta
+		}
+	}
+	return out, nil
+}
+
+func catalogEntries(entries []reactcomponentlibrary.CatalogEntry) (map[string]componentCatalogEntry, error) {
+	out := map[string]componentCatalogEntry{}
+	for _, entry := range entries {
+		libraryID := strings.TrimSpace(entry.LibraryID)
+		if libraryID == "" {
+			continue
+		}
+		deprecated := make(map[string]bool, len(entry.DeprecatedVersions))
+		for _, version := range entry.DeprecatedVersions {
+			deprecated[strings.TrimSpace(version)] = true
+		}
+		out[libraryID] = componentCatalogEntry{
+			LibraryID: libraryID, Latest: strings.TrimSpace(entry.Latest),
+			Draft: strings.TrimSpace(entry.Draft), DeprecatedVersions: deprecated,
 		}
 	}
 	if len(out) == 0 {

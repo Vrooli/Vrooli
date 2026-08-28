@@ -5,6 +5,7 @@ package infra
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -109,6 +110,10 @@ func seat0SessionUser(ctx context.Context, exec checks.CommandExecutor) string {
 }
 
 type hostInventoryCommandRunner struct{ executor checks.CommandExecutor }
+
+func (r hostInventoryCommandRunner) LookPath(name string) (string, error) {
+	return exec.LookPath(name)
+}
 
 func (r hostInventoryCommandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
 	return r.executor.Output(ctx, name, args...)

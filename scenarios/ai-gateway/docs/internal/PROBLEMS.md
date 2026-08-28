@@ -49,6 +49,13 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+## Work ladder
+
+- Rung: W0
+- Evidence: the exact `swarm-manager goals list --json` name/title/description filter returned no goal naming `ai-gateway`; the active user-owned Plan Manager execution `credential-blast-radius-make-minted-secrets-un-losable` explicitly requires migrating its OpenRouter credential read to the shared fail-closed authority seam.
+- Blocker: independent goal-to-PRD reconciliation is unavailable through the swarm-manager gate; continue only under the explicit Plan Manager objective and do not claim the scenario contract is independently reconciled.
+- Measured: 2026-08-27
+
 ### 2026-07-06 — Security Health Hardening Follow-up
 
 **Symptom:** Phase 8 security validation initially reported findings in AI Gateway command execution, path handling, inventory error conversion, scanner file reads, and shared/toolchain surfaces. Focused product security now reports zero findings, while comprehensive Test Genie still includes advisory Go toolchain and pnpm audit observations.

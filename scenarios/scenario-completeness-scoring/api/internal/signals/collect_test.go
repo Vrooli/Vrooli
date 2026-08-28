@@ -87,7 +87,12 @@ func TestServiceCollectFullFixture(t *testing.T) {
 		`{"phase":"unit","status":"passed","updated_at":"2026-06-10T12:00:00Z","findings":[]}`)
 	writeFile(t, root, "ui/src/App.tsx", "export const App = () => fetch('/api/v1/items');\n")
 
-	snap := NewService().Collect("demo", root)
+	snap := newService(
+		serviceCollector{},
+		requirementsCollector{syncSource: fileSyncMetadataSource{}},
+		phasesCollector{source: filesystemPhaseSource{root: root}},
+		uiCollector{},
+	).Collect("demo", root)
 
 	if len(snap.Degradations) != 0 {
 		t.Fatalf("degradations = %+v, want none", snap.Degradations)

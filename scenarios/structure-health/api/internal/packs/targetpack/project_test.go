@@ -27,36 +27,92 @@ func validProjectFixture(t *testing.T) string {
 	return root
 }
 
+func TestProjectConfigInvariantRulesRequireTargetBudgetsAndProviderCoverage(t *testing.T) {
+	root := validProjectFixture(t)
+	contract := projectContract{}
+	contract.Targets.Kinds = map[string]struct {
+		Roots []string `json:"roots"`
+	}{
+		"control-plane": {Roots: []string{"internal"}},
+		"project":       {Roots: []string{"."}},
+	}
+	write(t, root, "internal/.vrooli/testing.json", `{}`)
+	write(t, root, ".vrooli/testing.json", `{}`)
+	write(t, root, "scenarios/api-health/.vrooli/test-genie.json", `{"targets":{"kinds":["scenario"]}}`)
+
+	findings := projectConfigInvariantRules(root, contract)
+	if len(findings) != 1 {
+		t.Fatalf("findings = %v, want one missing provider declaration", findings)
+	}
+	write(t, root, "scenarios/api-health/.vrooli/test-genie.json", `{"targets":{"kinds":["scenario","control-plane"]}}`)
+	for _, scenario := range []string{"architecture-cartographer", "measures-health", "performance-health"} {
+		write(t, root, filepath.Join("scenarios", scenario, ".vrooli", "test-genie.json"), `{"targets":{"notApplicableKinds":[{"kind":"control-plane"}]}}`)
+	}
+	if findings = projectConfigInvariantRules(root, contract); len(findings) != 0 {
+		t.Fatalf("satisfied invariants = %v, want none", findings)
+	}
+	os.Remove(filepath.Join(root, "internal", ".vrooli", "testing.json"))
+	if findings = projectConfigInvariantRules(root, contract); len(findings) != 1 || findings[0].Code != "PROJECT_CONFIG_SURFACE" {
+		t.Fatalf("missing target budget findings = %v", findings)
+	}
+}
+
 func projectFixtureJSON(t *testing.T) string {
 	t.Helper()
+	// Posture is carried explicitly rather than derived from `regenerable`.
+	// The two are independent: `bin` is regenerable in the backup sense and
+	// still protected from every reaper, and `shims` is regenerable and
+	// self-managed. A fixture that derives one from the other cannot express
+	// the contract it is supposed to validate.
 	entries := map[string]any{}
 	for _, item := range []struct {
 		key, path, kind        string
 		regenerable, sensitive bool
+		posture                homeEntryPosture
 	}{
-		{"plans", "plans", "dir", false, false}, {"state", "state", "dir", false, false}, {"config", "config", "dir", false, false}, {"data", "data", "dir", false, false}, {"runtime_db", "state/runtime.db", "file", false, false}, {"secrets", "secrets.json", "file", false, true}, {"secrets_enc", "secrets.enc.json", "file", false, true}, {"bin", "bin", "dir", true, false}, {"cache", "cache", "dir", true, false}, {"logs", "logs", "dir", true, false}, {"metrics", "metrics", "dir", true, false}, {"processes", "processes", "dir", true, false}, {"build", "build", "dir", true, false}, {"test_runs", "test-runs", "dir", true, false}, {"backups", "backups", "dir", false, false}, {"artifacts", "artifacts", "dir", true, false},
+		{"plans", "plans", "dir", false, false, postureProtected},
+		{"state", "state", "dir", false, false, postureProtected},
+		{"config", "config", "dir", false, false, postureProtected},
+		{"data", "data", "dir", false, false, postureProtected},
+		{"runtime_db", "state/runtime.db", "file", false, false, postureProtected},
+		{"secrets", "secrets.json", "file", false, true, postureProtected},
+		{"secrets_enc", "secrets.enc.json", "file", false, true, postureProtected},
+		{"bin", "bin", "dir", true, false, postureProtected},
+		{"shims", "shims", "dir", true, false, postureSelfManaged},
+		{"backups", "backups", "dir", false, false, postureProtected},
+		{"cache", "cache", "dir", true, false, postureManaged},
+		{"logs", "logs", "dir", true, false, postureManaged},
+		{"metrics", "metrics", "dir", true, false, postureManaged},
+		{"processes", "processes", "dir", true, false, postureManaged},
+		{"build", "build", "dir", true, false, postureManaged},
+		{"test_runs", "test-runs", "dir", true, false, postureManaged},
+		{"artifacts", "artifacts", "dir", true, false, postureManaged},
 	} {
-		entries[item.key] = map[string]any{"path": item.path, "kind": item.kind, "regenerable": item.regenerable, "sensitive": item.sensitive}
-	}
-	for _, raw := range entries {
-		entry := raw.(map[string]any)
-		entry["owner"] = "control_plane"
-		if entry["regenerable"].(bool) {
-			entry["cleanup"] = "storage_manager"
-			entry["retention"] = map[string]any{"max_age": "30d", "max_bytes": "10GiB", "keep_count": 3, "protect_active": true}
-		} else {
+		entry := map[string]any{
+			"path": item.path, "kind": item.kind,
+			"regenerable": item.regenerable, "sensitive": item.sensitive,
+			"owner": "control_plane",
+		}
+		switch item.posture {
+		case postureProtected:
 			entry["protected"] = true
 			entry["cleanup"] = "never"
+		case postureManaged:
+			entry["cleanup"] = "storage_manager"
+			entry["retention"] = map[string]any{"max_age": "30d", "max_bytes": "10GiB", "keep_count": 3, "protect_active": true}
+		case postureSelfManaged:
+			entry["cleanup"] = "never"
 		}
+		entries[item.key] = entry
 	}
 	doc := map[string]any{
 		"$schema": "schemas/repo-contract.schema.json", "version": "1.2.0",
 		"platform":     map[string]any{"mode": "cross_platform_go_native", "legacy_project_bash_supported": false},
 		"root":         map[string]any{"markers": map[string]any{"required_dirs": []string{".vrooli", "templates", "scenarios", "resources", "packages", "cmd", "internal"}, "required_files": []string{"go.mod"}}},
 		"layout":       map[string]any{"project_config_dir": ".vrooli", "scenario_dir": "scenarios", "resource_dir": "resources", "template_dir": "templates", "package_dir": "packages", "command_dir": "cmd", "internal_dir": "internal", "docs_dir": "docs", "project_config_allowlist": []string{"build", "repo-contract.json", "resources", "schemas", "service.json"}},
-		"runtime_home": map[string]any{"dir_name": ".vrooli", "env_overrides": []any{}, "entries": entries, "scoped": map[string]string{"scenario_secrets": "scenarios/{scenario}/secrets.json", "project_state": "state/projects/{project_key}"}},
+		"runtime_home": map[string]any{"dir_name": ".vrooli", "env_overrides": []any{}, "entries": entries, "scoped": map[string]string{"scenario_secrets": "scenarios/{scenario}/secrets.json", "project_state": "state/projects/{project_key}", "test_runs_scenario": "test-runs/{scenario}"}},
 		"scenario":     map[string]any{"required_files": []string{".vrooli/service.json"}, "well_known_paths": map[string]string{"service": ".vrooli/service.json", "orientation": ".vrooli/orientation.json", "docs": "docs", "docs_manifest": "docs/manifest.json", "requirements": "requirements", "api": "api", "ui": "ui", "cli": "cli", "cli_manifest": "cli/manifest.json"}},
-		"resource":     map[string]any{"manifest": "resource.json", "well_known_paths": map[string]string{"docs": "docs"}},
+		"resource":     map[string]any{"manifest": "resource.json", "well_known_paths": map[string]string{"manifest": "resource.json", "readme": "README.md", "docs": "docs", "cli": "cli", "config": "config", "test": "test"}},
 		"globs":        map[string]any{"syntax": "doublestar", "root_relative": true, "case_sensitive": true, "allow_absolute": false, "path_format": "slash_normalized"},
 		"environment":  map[string]any{"variables": map[string]string{"repo_root": "VROOLI_ROOT", "source_root": "VROOLI_SOURCE_ROOT", "sandbox_id": "VROOLI_SANDBOX_ID", "sandbox_merged": "VROOLI_SANDBOX_MERGED", "sandbox_scope": "VROOLI_SANDBOX_SCOPE"}},
 		"sandbox":      map[string]any{"full_repo_scopes": []string{"", ".", "/"}, "scenario_scope_prefix": "scenarios/"},

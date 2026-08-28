@@ -16,7 +16,13 @@
     "kinds": [
       "scenario"
     ],
-    "selection": "enumerate"
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires a scenario-owned agent profile and consumer declarations; the control plane has no scenario consumer contract."
+      }
+    ]
   },
   "applicability": {
     "default": "not_applicable",

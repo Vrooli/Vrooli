@@ -15,6 +15,7 @@
 // Package boundaries:
 //
 //   - Resolver: path policy and deterministic path construction
+//   - ArtifactPath: the only function that decides where a logical artifact lives
 //   - Filesystem helpers: directory creation + atomic file writes
 //   - Namespace helpers: variant-aware Redis/Qdrant namespace composition
 //   - Error model: structured errors for caller-facing classification

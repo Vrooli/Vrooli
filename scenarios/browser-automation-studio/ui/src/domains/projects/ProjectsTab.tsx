@@ -20,7 +20,7 @@ import toast from 'react-hot-toast';
 import { selectors } from '@constants/selectors';
 import { TabEmptyState, ProjectsEmptyPreview } from '@/views/DashboardView/previews';
 import { ProjectImportModal } from '@/domains/import';
-import { ExperienceSurface, type ExperienceSurfaceState } from '@vrooli/react-component-library/ExperienceSurface';
+import { ExperienceSurface, type ExperienceSurfaceState } from '@vrooli/react-component-library/ExperienceSurface/1';
 
 interface ProjectsTabProps {
   onProjectSelect: (project: Project) => void;

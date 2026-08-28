@@ -36,7 +36,6 @@
       "kind": "go_module"
     }
   },
-  "template": "managed-service",
   "driver": "managed-service",
   "bundling": "host-required",
   "privilege": "user",

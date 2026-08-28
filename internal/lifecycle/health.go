@@ -3,7 +3,7 @@ package lifecycle
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/logx"
@@ -63,9 +63,12 @@ func (r *Runner) awaitScenarioReadiness(ctx context.Context, item scenario.Scena
 	}
 	names := make([]string, 0, len(item.Manifest.Components))
 	for name := range item.Manifest.Components {
+		if item.Manifest.Components[name].Run.SupervisedBy != "" {
+			continue
+		}
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	lastErrors := make(map[string]error, len(names))
 	err := AwaitContext(ctx, r.awaitClock(), policy, func() (bool, error) {
 		ready := true

@@ -19,7 +19,13 @@
     "kinds": [
       "scenario"
     ],
-    "selection": "enumerate"
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires BAS browser workflow assets and safe execution metadata; the control plane has no browser workflow surface."
+      }
+    ]
   },
   "applicability": {
     "default": "applies"

@@ -10,13 +10,14 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 
 	"workspace-sandbox/internal/types"
 )
 
 func TestBuildBwrapArgs(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("bwrap tests require Linux")
+		repocontracttest.SkipPlatform(t, "bwrap tests require Linux")
 	}
 
 	sandbox := &types.Sandbox{
@@ -49,7 +50,7 @@ func TestBuildBwrapArgs(t *testing.T) {
 
 func TestBwrapNetworkConfig(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("bwrap tests require Linux")
+		repocontracttest.SkipPlatform(t, "bwrap tests require Linux")
 	}
 
 	sandbox := &types.Sandbox{
@@ -73,7 +74,7 @@ func TestBwrapNetworkConfig(t *testing.T) {
 
 func TestBwrapPIDNamespaceConfig(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("bwrap tests require Linux")
+		repocontracttest.SkipPlatform(t, "bwrap tests require Linux")
 	}
 
 	sandbox := &types.Sandbox{
@@ -229,7 +230,7 @@ func TestBuildExecCommand(t *testing.T) {
 // config via the overlay's lower layer.
 func TestBuildBwrapArgs_BindsHomeOverlayAtHostPath(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("bwrap tests require Linux")
+		repocontracttest.SkipPlatform(t, "bwrap tests require Linux")
 	}
 
 	fakeHome := t.TempDir()
@@ -260,7 +261,7 @@ func TestBuildBwrapArgs_BindsHomeOverlayAtHostPath(t *testing.T) {
 // bwrap args, just without the home bind.
 func TestBuildBwrapArgs_NoHomeBindWhenHomeMergedDirEmpty(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("bwrap tests require Linux")
+		repocontracttest.SkipPlatform(t, "bwrap tests require Linux")
 	}
 
 	fakeHome := t.TempDir()
@@ -288,7 +289,7 @@ func TestBuildBwrapArgs_NoHomeBindWhenHomeMergedDirEmpty(t *testing.T) {
 // matches the equivalent run with cfg-supplied values only.
 func TestBuildBwrapArgs_PureNoEnvReads(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("bwrap tests require Linux")
+		repocontracttest.SkipPlatform(t, "bwrap tests require Linux")
 	}
 
 	t.Setenv("HOME", "/process/env/home")
@@ -321,7 +322,7 @@ func TestBuildBwrapArgs_PureNoEnvReads(t *testing.T) {
 // behavior without updating this test is the failure mode we want.
 func TestBuildBwrapArgs_Golden(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("bwrap tests require Linux")
+		repocontracttest.SkipPlatform(t, "bwrap tests require Linux")
 	}
 
 	id := uuid.MustParse("11111111-1111-1111-1111-111111111111")

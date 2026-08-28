@@ -117,3 +117,46 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	}
 	return nil
 }
+
+// EnsureDirectory creates a directory through the reviewed storage seam.
+func EnsureDirectory(path string, perm os.FileMode) error {
+	if perm == 0 {
+		perm = DefaultDirPerm
+	}
+	if err := mkdirAllFn(path, perm); err != nil {
+		return &Error{Kind: ErrIO, Message: "create directory", Details: path, Err: err}
+	}
+	return nil
+}
+
+// OpenAppendFile opens a managed append-only file after creating its parent.
+// Callers remain responsible for closing the returned handle.
+func OpenAppendFile(path string, perm os.FileMode) (*os.File, error) {
+	if err := EnsureDirectory(filepath.Dir(path), DefaultDirPerm); err != nil {
+		return nil, err
+	}
+	if perm == 0 {
+		perm = DefaultFilePerm
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, perm)
+	if err != nil {
+		return nil, &Error{Kind: ErrIO, Message: "open append file", Details: path, Err: err}
+	}
+	return file, nil
+}
+
+// RenameFile and RemoveFile keep managed filesystem mutations behind the
+// storage package's reviewed seam.
+func RenameFile(source, destination string) error {
+	if err := renameFn(source, destination); err != nil {
+		return &Error{Kind: ErrIO, Message: "rename file", Details: source + " -> " + destination, Err: err}
+	}
+	return nil
+}
+
+func RemoveFile(path string) error {
+	if err := removeFn(path); err != nil {
+		return &Error{Kind: ErrIO, Message: "remove file", Details: path, Err: err}
+	}
+	return nil
+}

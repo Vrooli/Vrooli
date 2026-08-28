@@ -38,6 +38,14 @@ func scannerEvidencePlan(ctx context.Context, cmd Commander, scanner, binary, sc
 	writeFingerprintPart(h, scanner)
 	writeFingerprintPart(h, scannerPolicyVersion(scanner))
 	writeFingerprintPart(h, tool)
+	if scanner == "gosec" || scanner == "govulncheck" {
+		for _, moduleDir := range sub.GoModDirs {
+			writeFingerprintPart(h, "module:"+filepath.ToSlash(filepath.Clean(moduleDir)))
+			for _, pattern := range goPackagePatterns(sub, moduleDir) {
+				writeFingerprintPart(h, "pattern:"+pattern)
+			}
+		}
+	}
 	if advisory {
 		writeFingerprintPart(h, now.UTC().Format("2006-01-02"))
 	}
@@ -173,12 +181,15 @@ func walkModuleEvidenceFiles(root string, dirs []string) ([]string, error) {
 	}
 	set := make(map[string]struct{})
 	for _, rel := range dirs {
-		files, err := walkEvidenceFiles(filepath.Join(root, rel), true)
+		moduleRoot := filepath.Join(root, rel)
+		files, err := walkEvidenceFiles(moduleRoot, true, fileExists(filepath.Join(moduleRoot, "go.mod")))
 		if err != nil {
 			return nil, err
 		}
 		for _, path := range files {
-			set[path] = struct{}{}
+			if goEvidenceFile(path) {
+				set[path] = struct{}{}
+			}
 		}
 	}
 	files := make([]string, 0, len(set))
@@ -189,7 +200,20 @@ func walkModuleEvidenceFiles(root string, dirs []string) ([]string, error) {
 	return files, nil
 }
 
-func walkEvidenceFiles(root string, excludeGenerated bool) ([]string, error) {
+func goEvidenceFile(path string) bool {
+	base := filepath.Base(path)
+	if base == "go.mod" || base == "go.sum" {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(base)) {
+	case ".go", ".s", ".c", ".h", ".syso":
+		return true
+	default:
+		return false
+	}
+}
+
+func walkEvidenceFiles(root string, excludeGenerated, stopAtNestedGoModules bool) ([]string, error) {
 	var files []string
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -201,6 +225,13 @@ func walkEvidenceFiles(root string, excludeGenerated bool) ([]string, error) {
 					return filepath.SkipDir
 				}
 				if strings.HasPrefix(entry.Name(), ".") {
+					return filepath.SkipDir
+				}
+				// Go commands scoped to one module do not traverse a nested
+				// module. Keep the evidence fingerprint aligned with the actual
+				// gosec/govulncheck input set, especially for the repository-root
+				// control-plane module.
+				if stopAtNestedGoModules && fileExists(filepath.Join(path, "go.mod")) {
 					return filepath.SkipDir
 				}
 			}
@@ -220,6 +251,11 @@ func walkEvidenceFiles(root string, excludeGenerated bool) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
 }
 
 func scannerToolIdentity(cmd Commander, binary string) (string, error) {

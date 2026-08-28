@@ -17,12 +17,14 @@ import (
 	"time"
 
 	"workspace-sandbox/internal/process"
+
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func skipNonLinux(t *testing.T) {
 	t.Helper()
 	if runtime.GOOS != "linux" {
-		t.Skipf("starter integration test requires linux; have %s", runtime.GOOS)
+		repocontracttest.SkipPlatformf(t, "starter integration test requires linux; have %s", runtime.GOOS)
 	}
 }
 

@@ -39,7 +39,6 @@
       ]
     }
   },
-  "template": "native-cli",
   "driver": "native-cli",
   "platforms": {
     "linux": "supported",

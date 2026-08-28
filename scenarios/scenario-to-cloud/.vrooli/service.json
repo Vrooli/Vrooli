@@ -2,8 +2,35 @@
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "storage": {
-    "entries": {},
-    "rationale": "No scenario-owned persistent directory was found in the canonical repository storage paths; the scenario uses external storage, generated test paths, or ephemeral runtime state."
+    "entries": {
+      "bundles": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "subpath": "bundles",
+        "regenerable": true,
+        "rationale": "Deployment bundles are reproducible build products; 690979788 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "2GiB",
+          "rationale": "The bundle cache measured 690979788 bytes on 2026-08-27; seven days and 2 GiB retain recent deploy candidates."
+        }
+      },
+      "bundle_database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "bundles/database.db",
+        "format": "sqlite",
+        "regenerable": false,
+        "rationale": "The bundle database is durable domain state even when empty; 0 bytes were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "256MiB",
+          "rationale": "The database measured 0 bytes on 2026-08-27; 256 MiB is an alarm ceiling and does not authorize deletion."
+        }
+      }
+    },
+    "rationale": "Storage surfaces separate regenerable deployment bundles from durable bundle metadata."
   },
   "service": {
     "parent": "vrooli",

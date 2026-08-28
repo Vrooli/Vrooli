@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 const defaultAppID = "vrooli"
@@ -60,11 +62,12 @@ func (r *Resolver) Resolve(opts Options) (Paths, error) {
 	}
 
 	p := Paths{
-		ConfigDir: filepath.Join(roots.config, r.appID, scenarioID),
-		DataDir:   filepath.Join(roots.data, r.appID, scenarioID),
-		CacheDir:  filepath.Join(roots.cache, r.appID, scenarioID),
-		LogsDir:   filepath.Join(roots.logs, r.appID, scenarioID),
-		StateDir:  filepath.Join(roots.state, r.appID, scenarioID),
+		ConfigDir:   filepath.Join(roots.config, r.appID, scenarioID),
+		DataDir:     filepath.Join(roots.data, r.appID, scenarioID),
+		CacheDir:    filepath.Join(roots.cache, r.appID, scenarioID),
+		LogsDir:     filepath.Join(roots.logs, r.appID, scenarioID),
+		StateDir:    filepath.Join(roots.state, r.appID, scenarioID),
+		TestRunsDir: filepath.Join(roots.testRuns, scenarioID),
 	}
 
 	return p, nil
@@ -151,6 +154,13 @@ func (r *Resolver) resolveNonScenarioClass(owner OwnerManifest, entry StorageEnt
 		root, err = userLogsDir(platform, identity)
 	case ClassState:
 		root, err = resolvedSeams.UserStateDir()
+	case ClassTestRuns:
+		home, homeErr := resolvedSeams.UserHomeDir()
+		if homeErr != nil {
+			err = homeErr
+		} else {
+			root, err = runtimeHomeEntryPath(home, repocontract.HomeKeyTestRuns)
+		}
 	default:
 		return "", &Error{Kind: ErrInvalidInput, Message: "unknown storage class", Details: string(entry.Class)}
 	}
@@ -158,6 +168,9 @@ func (r *Resolver) resolveNonScenarioClass(owner OwnerManifest, entry StorageEnt
 		return "", fmt.Errorf("resolve %s root: %w", entry.Class, err)
 	}
 	namespace := ownerNamespace(owner.Kind)
+	if entry.Class == ClassTestRuns {
+		return cleanJoin(filepath.Join(root, owner.ID), entry.Subpath)
+	}
 	base := filepath.Join(root, "vrooli", namespace, owner.ID)
 	return cleanJoin(base, entry.Subpath)
 }

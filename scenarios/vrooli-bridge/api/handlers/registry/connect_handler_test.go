@@ -3,6 +3,7 @@ package registry
 import (
 	"context"
 	"testing"
+	"time"
 
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/registry"
@@ -71,7 +72,7 @@ func TestHandler_RemoveNode_DelegatesForOwner(t *testing.T) {
 // (online but not dispatchable) reads NEEDS_UPDATE in the overlay, so the
 // operator/UI sees it is excluded from work until the agent is updated.
 func TestHandler_GetNode_FlaggedNodeReadsNeedsUpdate(t *testing.T) {
-	svc := &mocks.FakeService{GetOut: registry.Node{ID: "n1", Name: "stale", OS: "linux", Arch: "amd64"}}
+	svc := &mocks.FakeService{GetOut: registry.Node{ID: "n1", Name: "stale", OS: "linux", Arch: "amd64", LastSeenAt: time.Now().UTC()}}
 	h := newHarness(svc, fakePresence{
 		online:  map[string]bool{"n1": true},
 		flagged: map[string]bool{"n1": true},
@@ -84,7 +85,7 @@ func TestHandler_GetNode_FlaggedNodeReadsNeedsUpdate(t *testing.T) {
 }
 
 func TestHandler_RegisterNode_PassesInputAndOverlaysPresence(t *testing.T) {
-	svc := &mocks.FakeService{RegisterOut: registry.Node{ID: "n1", Name: "a", OS: "linux", Arch: "amd64"}}
+	svc := &mocks.FakeService{RegisterOut: registry.Node{ID: "n1", Name: "a", OS: "linux", Arch: "amd64", LastSeenAt: time.Now().UTC()}}
 	h := newHarness(svc, fakePresence{online: map[string]bool{"n1": true}})
 
 	resp, err := h.RegisterNode(ownerCtx(), connect.NewRequest(&registryv1.RegisterNodeRequest{
@@ -102,7 +103,7 @@ func TestHandler_RegisterNode_PassesInputAndOverlaysPresence(t *testing.T) {
 
 func TestHandler_ListNodes_OverlaysPerNodePresence(t *testing.T) {
 	svc := &mocks.FakeService{ListOut: []registry.Node{
-		{ID: "on", Name: "online-node", OS: "linux", Arch: "amd64"},
+		{ID: "on", Name: "online-node", OS: "linux", Arch: "amd64", LastSeenAt: time.Now().UTC()},
 		{ID: "off", Name: "offline-node", OS: "linux", Arch: "amd64"},
 	}}
 	h := newHarness(svc, fakePresence{online: map[string]bool{"on": true}})
@@ -119,6 +120,53 @@ func TestHandler_ListNodes_OverlaysPerNodePresence(t *testing.T) {
 	require.Equal(t, registryv1.NodeStatus_NODE_STATUS_ONLINE, byID["on"].Status)
 	require.False(t, byID["off"].Online)
 	require.Equal(t, registryv1.NodeStatus_NODE_STATUS_OFFLINE, byID["off"].Status)
+}
+
+func TestHandler_ListNodes_DoesNotTreatStaleDurableHeartbeatAsFresh(t *testing.T) {
+	svc := &mocks.FakeService{ListOut: []registry.Node{{
+		ID: "old", Name: "old-node", OS: "darwin", Arch: "amd64",
+		LastSeenAt: time.Now().UTC().Add(-7 * 24 * time.Hour),
+	}}}
+	h := newHarness(svc, fakePresence{online: map[string]bool{"old": true}})
+
+	resp, err := h.ListNodes(ownerCtx(), connect.NewRequest(&registryv1.ListNodesRequest{}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.Nodes[0].HeartbeatFresh)
+	require.False(t, resp.Msg.Nodes[0].Online)
+	require.False(t, resp.Msg.Nodes[0].Dispatchable)
+	require.Greater(t, resp.Msg.Nodes[0].HeartbeatAgeSeconds, int64(7*24*60*60-60))
+}
+
+func TestHandler_ListNodes_DoesNotTreatStaleControlPlaneAsFresh(t *testing.T) {
+	svc := &mocks.FakeService{ListOut: []registry.Node{{
+		ID: "control-plane", Name: "swarminator", Kind: registry.KindControlPlane,
+		OS: "linux", Arch: "amd64", LastSeenAt: time.Now().UTC().Add(-7 * 24 * time.Hour),
+	}}}
+	h := newHarness(svc, fakePresence{online: map[string]bool{"control-plane": true}})
+
+	resp, err := h.ListNodes(ownerCtx(), connect.NewRequest(&registryv1.ListNodesRequest{}))
+	require.NoError(t, err)
+	node := resp.Msg.Nodes[0]
+	require.False(t, node.HeartbeatFresh)
+	require.False(t, node.Online)
+	require.False(t, node.Dispatchable)
+	require.Greater(t, node.HeartbeatAgeSeconds, int64(7*24*60*60-60))
+}
+
+func TestHandler_ListNodes_MissingHeartbeatIsNotFresh(t *testing.T) {
+	svc := &mocks.FakeService{ListOut: []registry.Node{{
+		ID: "never-seen", Name: "never-seen", Kind: registry.KindControlPlane,
+		OS: "linux", Arch: "amd64",
+	}}}
+	h := newHarness(svc, fakePresence{online: map[string]bool{"never-seen": true}})
+
+	resp, err := h.ListNodes(ownerCtx(), connect.NewRequest(&registryv1.ListNodesRequest{}))
+	require.NoError(t, err)
+	node := resp.Msg.Nodes[0]
+	require.False(t, node.HeartbeatFresh)
+	require.False(t, node.Online)
+	require.False(t, node.Dispatchable)
+	require.Equal(t, int64(0), node.HeartbeatAgeSeconds)
 }
 
 // [REQ:BRG-P0-001] A revoked node always reads REVOKED, never online, even if a

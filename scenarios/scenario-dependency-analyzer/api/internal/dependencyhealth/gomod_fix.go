@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -99,13 +100,23 @@ func (h *connectHandler) runFix(ctx context.Context, req *connect.Request[scenar
 // deterministic order. Most scenarios use nested surfaces such as api/cli/ui,
 // but some Go scenarios keep the API surface at the scenario root.
 func goSurfaceGoMods(scenarioDir string) []string {
-	matches, err := filepath.Glob(filepath.Join(scenarioDir, "*", "go.mod"))
-	if err != nil {
+	var matches []string
+	_ = filepath.WalkDir(scenarioDir, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if entry.IsDir() {
+			switch entry.Name() {
+			case ".git", "node_modules", "vendor", "data", "dist", "build", ".cache", "phase-cache", "coverage":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if entry.Name() == "go.mod" {
+			matches = append(matches, path)
+		}
 		return nil
-	}
-	if fileExists(filepath.Join(scenarioDir, "go.mod")) {
-		matches = append(matches, filepath.Join(scenarioDir, "go.mod"))
-	}
+	})
 	sort.Strings(matches)
 	return matches
 }

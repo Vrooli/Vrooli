@@ -120,6 +120,11 @@ func findSurface(surfaces []*factsv1.Surface, id string) *factsv1.Surface {
 }
 
 func discoverParseUnits(target *factsv1.TargetContext) []*factsv1.ParseUnit {
+	if target.GetResolvedKind() == factsv1.TargetKind_TARGET_KIND_CONTROL_PLANE {
+		if unit := discoverControlPlaneGoUnit(target); unit != nil {
+			return []*factsv1.ParseUnit{unit}
+		}
+	}
 	if roots := target.GetRootPaths(); len(roots) > 0 {
 		var units []*factsv1.ParseUnit
 		for _, root := range roots {
@@ -134,6 +139,28 @@ func discoverParseUnits(target *factsv1.TargetContext) []*factsv1.ParseUnit {
 		return dedupeParseUnits(units)
 	}
 	return discoverParseUnitsAtRoot(target)
+}
+
+func discoverControlPlaneGoUnit(target *factsv1.TargetContext) *factsv1.ParseUnit {
+	root := target.GetRootPath()
+	gomod := filepath.Join(root, "go.mod")
+	if !fileExists(gomod) {
+		return nil
+	}
+	patterns := make([]string, 0, len(target.GetRootPaths()))
+	for _, path := range target.GetRootPaths() {
+		rel, err := filepath.Rel(root, path)
+		if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		patterns = append(patterns, "./"+filepath.ToSlash(rel)+"/...")
+	}
+	if len(patterns) == 0 {
+		return nil
+	}
+	unit := goParseUnit(root, gomod)
+	unit.PackagePatterns = patterns
+	return unit
 }
 
 func discoverParseUnitsAtRoot(target *factsv1.TargetContext) []*factsv1.ParseUnit {

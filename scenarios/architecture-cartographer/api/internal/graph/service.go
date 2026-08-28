@@ -51,6 +51,10 @@ type ExtractGraphInput struct {
 	// extraction; its name lands in GraphSnapshot.SkippedAdapters so the
 	// audit layer can mark the run as partial.
 	SkipTS bool
+	// SkipPersistence keeps one-off repository-wide control-plane analyses from
+	// materializing a multi-hundred-megabyte snapshot in the scenario cache.
+	// The returned snapshot is still fully normalized for the caller.
+	SkipPersistence bool
 }
 
 type service struct {
@@ -87,23 +91,29 @@ func (s *service) ExtractGraph(ctx context.Context, in ExtractGraphInput) (Graph
 		}
 	}
 
-	sourceFingerprint, err := s.sourceFingerprint(ctx, in)
-	if err != nil {
-		return GraphSnapshot{}, false, err
-	}
-	if sourceFingerprint != "" {
-		existing, err := s.repo.FindBySourceFingerprint(ctx, scenario, sourceFingerprint)
-		switch {
-		case err == nil && len(existing.SkippedAdapters) == 0:
-			return existing, true, nil
-		case err == nil:
-			// Degraded snapshots are persisted for explainability, but they
-			// are not a safe fast-path cache hit because an adapter that was
-			// unreachable or unimplemented may now be healthy.
-		default:
-			var notFound ErrSnapshotNotFound
-			if !errors.As(err, &notFound) {
-				return GraphSnapshot{}, false, err
+	var (
+		sourceFingerprint string
+		err               error
+	)
+	if !in.SkipPersistence {
+		sourceFingerprint, err = s.sourceFingerprint(ctx, in)
+		if err != nil {
+			return GraphSnapshot{}, false, err
+		}
+		if sourceFingerprint != "" {
+			existing, err := s.repo.FindBySourceFingerprint(ctx, scenario, sourceFingerprint)
+			switch {
+			case err == nil && len(existing.SkippedAdapters) == 0:
+				return existing, true, nil
+			case err == nil:
+				// Degraded snapshots are persisted for explainability, but they
+				// are not a safe fast-path cache hit because an adapter that was
+				// unreachable or unimplemented may now be healthy.
+			default:
+				var notFound ErrSnapshotNotFound
+				if !errors.As(err, &notFound) {
+					return GraphSnapshot{}, false, err
+				}
 			}
 		}
 	}
@@ -150,14 +160,19 @@ func (s *service) ExtractGraph(ctx context.Context, in ExtractGraphInput) (Graph
 	snap.SkippedAdapters = skipped
 	snap.SourceFingerprint = sourceFingerprint
 
-	// Cache hit?
-	if existing, err := s.repo.FindByHash(ctx, snap.Scenario, snap.ContentHash); err == nil {
-		return existing, true, nil
-	} else {
-		var notFound ErrSnapshotNotFound
-		if !errors.As(err, &notFound) {
-			return GraphSnapshot{}, false, err
+	if !in.SkipPersistence {
+		// Cache hit?
+		if existing, err := s.repo.FindByHash(ctx, snap.Scenario, snap.ContentHash); err == nil {
+			return existing, true, nil
+		} else {
+			var notFound ErrSnapshotNotFound
+			if !errors.As(err, &notFound) {
+				return GraphSnapshot{}, false, err
+			}
 		}
+	}
+	if in.SkipPersistence {
+		return snap, false, nil
 	}
 
 	persisted, err := s.repo.SaveSnapshot(ctx, snap)

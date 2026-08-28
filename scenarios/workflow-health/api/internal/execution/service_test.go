@@ -32,6 +32,7 @@ func TestRunScenarioStaticOnlyDoesNotCallBAS(t *testing.T) {
 }
 
 func TestRunScenarioExecutesObserverCaseAndWritesArtifacts(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	root := makeExecutionFixture(t, false)
 	client := &fakeBASClient{
 		result: &ExecuteResult{ExecutionID: "exec-1", Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED},
@@ -60,8 +61,8 @@ func TestRunScenarioExecutesObserverCaseAndWritesArtifacts(t *testing.T) {
 	require.True(t, run.Success)
 	require.Equal(t, "exec-1", run.ExecutionID)
 	require.NotEmpty(t, run.Artifact.Latest)
-	require.FileExists(t, filepath.Join(root, run.Artifact.Latest))
-	require.FileExists(t, filepath.Join(root, run.Artifact.Timeline))
+	require.FileExists(t, run.Artifact.Latest)
+	require.FileExists(t, run.Artifact.Timeline)
 }
 
 func TestRunScenarioInstallsIsolationForEveryCaseAndClosesLease(t *testing.T) {
@@ -192,6 +193,7 @@ func TestRunScenarioRefusesDestructiveCaseMissingSafetyMetadataBeforeBAS(t *test
 }
 
 func TestRunScenarioFailedExecutionAddsFinding(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
 	root := makeExecutionFixture(t, false)
 	client := &fakeBASClient{
 		result: &ExecuteResult{
@@ -210,8 +212,8 @@ func TestRunScenarioFailedExecutionAddsFinding(t *testing.T) {
 	require.Equal(t, 1, report.Summary.Failed)
 	require.Len(t, report.Runs, 1)
 	require.NotEmpty(t, report.Runs[0].Artifact.Latest)
-	require.FileExists(t, filepath.Join(root, report.Runs[0].Artifact.Latest))
-	artifact, err := os.ReadFile(filepath.Join(root, report.Runs[0].Artifact.Latest))
+	require.FileExists(t, report.Runs[0].Artifact.Latest)
+	artifact, err := os.ReadFile(report.Runs[0].Artifact.Latest)
 	require.NoError(t, err)
 	require.Contains(t, string(artifact), "button not found")
 	finding := requireFindingCode(t, report.Findings, validation.CodeExecutionFailed)

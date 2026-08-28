@@ -13,9 +13,21 @@
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
+      },
+      "run_artifacts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "run-artifacts",
+        "regenerable": false,
+        "rationale": "Workflow execution summaries and timelines are durable run history; 1004949317 bytes across 67 target stores were measured on 2026-08-27.",
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "The measured fleet was 1004949317 bytes on 2026-08-27; 2 GiB leaves one growth interval and is alarm-only for non-regenerable history."
+        }
       }
     },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+    "rationale": "Storage surfaces include durable scenario data and the owner-scoped workflow run store, keyed by target scenario."
   },
   "service": {
     "parent": "vrooli",

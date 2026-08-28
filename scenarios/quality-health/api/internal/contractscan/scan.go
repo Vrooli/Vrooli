@@ -164,7 +164,7 @@ func skipDir(rel string) bool {
 	case ".git", "node_modules", ".venv", "vendor", "dist", "build", "coverage", ".cache", ".gocache", ".nyc_output", ".claude", "tmp", "temp", "logs", "data", "investigations", "report", ".swarm", "review", "evidence", "captures", "handoff", "gen", "generated":
 		return true
 	}
-	return strings.HasSuffix(rel, "/test/artifacts")
+	return false
 }
 
 func skipPersonal(rel string) bool {

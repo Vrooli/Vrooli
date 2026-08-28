@@ -4,7 +4,7 @@
   "scenario": "scenario-dependency-analyzer",
   "phase": "portability",
   "displayName": "Portability",
-  "description": "Runs the deployability resolver against declared resource inputs and the observed host OS.",
+  "description": "Runs the deployability resolver against declared resource inputs and the observed host OS. Control-plane scope is intentionally excluded because this provider's contract is scenario/resource deployability-specific and does not expose control-plane validation.",
   "source": "validation-provider",
   "timeout": "120s",
   "phaseClass": "architecture",

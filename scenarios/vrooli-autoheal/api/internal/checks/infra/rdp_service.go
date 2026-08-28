@@ -2,6 +2,7 @@ package infra
 
 import (
 	"context"
+	"os/exec"
 	"time"
 
 	sharedhost "github.com/vrooli/vrooli/internal/hostinventory"
@@ -89,6 +90,10 @@ func (c *RDPCheck) detectRDPService(ctx context.Context) RDPServiceInfo {
 }
 
 type remoteDesktopExecutor struct{ executor checks.CommandExecutor }
+
+func (e remoteDesktopExecutor) LookPath(name string) (string, error) {
+	return exec.LookPath(name)
+}
 
 func (e remoteDesktopExecutor) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
 	return e.executor.Output(ctx, name, args...)

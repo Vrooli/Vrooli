@@ -82,6 +82,12 @@ export function createPortResolver(cacheTtlMs = 30_000) {
  *
  * - localhost requests → http://localhost:{port}
  * - tunnel/remote requests → swap first subdomain to scenario name
+ *
+ * Scenarios whose API is written in Go use the peer implementation in
+ * packages/api-core/discovery (BrowserURLForHost / ResolveExternalURL), whose
+ * suite transcribes the cases below. The two must give the same answer: a link
+ * that resolves one way through an Express scenario and another through a Go
+ * one is worse than either rule alone, so a change here belongs in both.
  */
 export function resolveExternalUrl(
   req: Request,

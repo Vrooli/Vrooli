@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"time"
 
 	"connectrpc.com/connect"
@@ -86,55 +87,59 @@ func (h *connectHandler) ListLocalProviders(ctx context.Context, _ *connect.Requ
 // StartProvider wraps ResourceController.Start.
 func (h *connectHandler) StartProvider(ctx context.Context, req *connect.Request[plv1.StartProviderRequest]) (*connect.Response[plv1.StartProviderResponse], error) {
 	id := req.Msg.GetProviderId()
-	slug, err := h.validateLocalProvider(id)
+	result, err := h.runProviderAction(ctx, id, req.Header(), "StartProvider", "started", h.deps.Controller.Start)
 	if err != nil {
 		return nil, err
 	}
-	logIdempotency(h.deps.Logger, "StartProvider", id, req.Header())
-	if isDryRun(req.Header()) {
-		return connect.NewResponse(&plv1.StartProviderResponse{ProviderId: id, DryRun: true, Message: "dry run; no action taken"}), nil
-	}
-	if err := h.deps.Controller.Start(ctx, slug); err != nil {
-		return nil, h.mapControllerErr(ctx, "StartProvider", err)
-	}
-	h.scheduleResolveForce()
-	return connect.NewResponse(&plv1.StartProviderResponse{ProviderId: id, Message: fmt.Sprintf("%s started", id)}), nil
+	return connect.NewResponse(&plv1.StartProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}), nil
 }
 
 // StopProvider wraps ResourceController.Stop.
 func (h *connectHandler) StopProvider(ctx context.Context, req *connect.Request[plv1.StopProviderRequest]) (*connect.Response[plv1.StopProviderResponse], error) {
 	id := req.Msg.GetProviderId()
-	slug, err := h.validateLocalProvider(id)
+	result, err := h.runProviderAction(ctx, id, req.Header(), "StopProvider", "stopped", h.deps.Controller.Stop)
 	if err != nil {
 		return nil, err
 	}
-	logIdempotency(h.deps.Logger, "StopProvider", id, req.Header())
-	if isDryRun(req.Header()) {
-		return connect.NewResponse(&plv1.StopProviderResponse{ProviderId: id, DryRun: true, Message: "dry run; no action taken"}), nil
-	}
-	if err := h.deps.Controller.Stop(ctx, slug); err != nil {
-		return nil, h.mapControllerErr(ctx, "StopProvider", err)
-	}
-	h.scheduleResolveForce()
-	return connect.NewResponse(&plv1.StopProviderResponse{ProviderId: id, Message: fmt.Sprintf("%s stopped", id)}), nil
+	return connect.NewResponse(&plv1.StopProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}), nil
 }
 
 // RestartProvider wraps ResourceController.Restart.
 func (h *connectHandler) RestartProvider(ctx context.Context, req *connect.Request[plv1.RestartProviderRequest]) (*connect.Response[plv1.RestartProviderResponse], error) {
 	id := req.Msg.GetProviderId()
-	slug, err := h.validateLocalProvider(id)
+	result, err := h.runProviderAction(ctx, id, req.Header(), "RestartProvider", "restarted", h.deps.Controller.Restart)
 	if err != nil {
 		return nil, err
 	}
-	logIdempotency(h.deps.Logger, "RestartProvider", id, req.Header())
-	if isDryRun(req.Header()) {
-		return connect.NewResponse(&plv1.RestartProviderResponse{ProviderId: id, DryRun: true, Message: "dry run; no action taken"}), nil
+	return connect.NewResponse(&plv1.RestartProviderResponse{ProviderId: id, DryRun: result.dryRun, Message: result.message(id)}), nil
+}
+
+type providerActionResult struct {
+	dryRun bool
+	verb   string
+}
+
+func (r providerActionResult) message(id string) string {
+	if r.dryRun {
+		return "dry run; no action taken"
 	}
-	if err := h.deps.Controller.Restart(ctx, slug); err != nil {
-		return nil, h.mapControllerErr(ctx, "RestartProvider", err)
+	return fmt.Sprintf("%s %s", id, r.verb)
+}
+
+func (h *connectHandler) runProviderAction(ctx context.Context, id string, headers http.Header, operation, verb string, action func(context.Context, string) error) (providerActionResult, error) {
+	slug, err := h.validateLocalProvider(id)
+	if err != nil {
+		return providerActionResult{}, err
+	}
+	logIdempotency(h.deps.Logger, operation, id, headers)
+	if isDryRun(headers) {
+		return providerActionResult{dryRun: true, verb: verb}, nil
+	}
+	if err := action(ctx, slug); err != nil {
+		return providerActionResult{}, h.mapControllerErr(ctx, operation, err)
 	}
 	h.scheduleResolveForce()
-	return connect.NewResponse(&plv1.RestartProviderResponse{ProviderId: id, Message: fmt.Sprintf("%s restarted", id)}), nil
+	return providerActionResult{verb: verb}, nil
 }
 
 // PullModel is ollama-only.

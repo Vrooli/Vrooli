@@ -2,22 +2,27 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
-
 	"time"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/envkit-go"
 
 	"github.com/gin-gonic/gin"
 	repocontract "github.com/vrooli/repo-contract-go"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
 
 // LighthouseHandler handles Lighthouse audit requests
@@ -117,8 +122,7 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 	}
 
 	// Track phase results timestamp so we can detect freshly generated output
-	phaseResultsPath := h.phaseResultsPath(scenarioName)
-	prevPhaseMod := fileModTime(phaseResultsPath)
+	previousRunID := h.latestRunID(c.Request.Context(), scenarioName)
 
 	// Execute Lighthouse via the Go-native test-genie performance phase
 	cmd := exec.CommandContext(
@@ -145,7 +149,8 @@ func (h *LighthouseHandler) RunLighthouse(c *gin.Context) {
 		output += "\n" + stderr.String()
 	}
 
-	resultsUpdated := fileModTime(phaseResultsPath).After(prevPhaseMod)
+	latestRunID := h.latestRunID(c.Request.Context(), scenarioName)
+	resultsUpdated := latestRunID != "" && latestRunID != previousRunID
 
 	// Load reports whenever the run succeeded or new artifacts were produced
 	var reports []LighthouseReport
@@ -250,16 +255,25 @@ func (h *LighthouseHandler) configPath(name string) string {
 	return filepath.Join(h.scenarioPath(name), lighthouseConfigRelativePath)
 }
 
-func (h *LighthouseHandler) phaseResultsPath(name string) string {
-	return filepath.Join(h.scenarioPath(name), "coverage", "phase-results", "lighthouse.json")
+func (h *LighthouseHandler) runsClient(ctx context.Context) (runsconnect.RunsServiceClient, string, error) {
+	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "test-genie")
+	if err != nil {
+		return nil, "", err
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
+	return runsconnect.NewRunsServiceClient(&http.Client{Timeout: 10 * time.Second}, baseURL), baseURL, nil
 }
 
-func fileModTime(path string) time.Time {
-	info, err := os.Stat(path)
+func (h *LighthouseHandler) latestRunID(ctx context.Context, scenario string) string {
+	client, _, err := h.runsClient(ctx)
 	if err != nil {
-		return time.Time{}
+		return ""
 	}
-	return info.ModTime()
+	response, err := client.ListRuns(ctx, connect.NewRequest(&runspb.ListRunsRequest{Target: scenario, Limit: 1}))
+	if err != nil || len(response.Msg.GetRuns()) == 0 {
+		return ""
+	}
+	return response.Msg.GetRuns()[0].GetRunId()
 }
 
 func (h *LighthouseHandler) respondMissingConfig(c *gin.Context, scenarioName string) {
@@ -318,44 +332,65 @@ func (h *LighthouseHandler) GetLighthouseReport(c *gin.Context) {
 	// Determine report type (html or json)
 	format := c.DefaultQuery("format", "html")
 
-	// Find report file
-	artifactsDir := filepath.Join(h.repoRoot, "scenarios", scenarioName, "test", "artifacts", "lighthouse")
 	ext := ".html"
 	if format == "json" {
 		ext = ".json"
 	}
 
-	// reportID format: pageId_timestamp
-	pattern := reportID + ext
-	reportPath := filepath.Join(artifactsDir, pattern)
-
-	// Check if file exists
-	if _, err := os.Stat(reportPath); os.IsNotExist(err) {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": fmt.Sprintf("Report %s not found", reportID),
-		})
+	client, baseURL, err := h.runsClient(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "test-genie unavailable"})
 		return
 	}
-
-	// Serve file
-	if format == "html" {
-		c.Header("Content-Type", "text/html")
-	} else {
-		c.Header("Content-Type", "application/json")
+	runs, err := client.ListRuns(c.Request.Context(), connect.NewRequest(&runspb.ListRunsRequest{Target: scenarioName}))
+	if err == nil {
+		for _, run := range runs.Msg.GetRuns() {
+			catalog, listErr := client.ListRunArtifacts(c.Request.Context(), connect.NewRequest(&runspb.ListRunArtifactsRequest{Target: scenarioName, RunId: run.GetRunId()}))
+			if listErr != nil {
+				continue
+			}
+			for _, artifact := range catalog.Msg.GetArtifacts() {
+				if !strings.Contains(artifact.GetLabel(), reportID+ext) {
+					continue
+				}
+				request, requestErr := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, baseURL+artifact.GetAccessPath(), nil)
+				if requestErr != nil {
+					continue
+				}
+				response, requestErr := http.DefaultClient.Do(request)
+				if requestErr != nil {
+					continue
+				}
+				defer response.Body.Close()
+				c.Header("Content-Type", artifact.GetMediaType())
+				c.Status(response.StatusCode)
+				_, _ = io.Copy(c.Writer, response.Body)
+				return
+			}
+		}
 	}
-
-	c.File(reportPath)
+	c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("Report %s not found", reportID)})
 }
 
 // loadLatestReports loads the most recent Lighthouse reports for a scenario
 func (h *LighthouseHandler) loadLatestReports(scenarioName string) ([]LighthouseReport, error) {
-	artifactsDir := filepath.Join(h.repoRoot, "scenarios", scenarioName, "test", "artifacts", "lighthouse")
-
-	// Read phase results for structured data
-	phaseResultsPath := filepath.Join(h.repoRoot, "scenarios", scenarioName, "coverage", "phase-results", "lighthouse.json")
-	data, err := os.ReadFile(phaseResultsPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	client, _, err := h.runsClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read lighthouse phase results: %w", err)
+		return nil, err
+	}
+	runs, err := client.ListRuns(ctx, connect.NewRequest(&runspb.ListRunsRequest{Target: scenarioName, Limit: 1}))
+	if err != nil || len(runs.Msg.GetRuns()) == 0 {
+		return nil, fmt.Errorf("no test-genie run available for %s", scenarioName)
+	}
+	return h.loadRunReports(ctx, client, scenarioName, runs.Msg.GetRuns()[0].GetRunId())
+}
+
+func (h *LighthouseHandler) loadRunReports(ctx context.Context, client runsconnect.RunsServiceClient, scenarioName, runID string) ([]LighthouseReport, error) {
+	response, err := client.GetPhaseArtifact(ctx, connect.NewRequest(&runspb.GetPhaseArtifactRequest{Target: scenarioName, RunId: runID, Phase: "lighthouse"}))
+	if err != nil {
+		return nil, fmt.Errorf("read lighthouse phase result from test-genie: %w", err)
 	}
 
 	var phaseResults struct {
@@ -372,7 +407,7 @@ func (h *LighthouseHandler) loadLatestReports(scenarioName string) ([]Lighthouse
 		} `json:"pages"`
 	}
 
-	if err := json.Unmarshal(data, &phaseResults); err != nil {
+	if err := json.Unmarshal([]byte(response.Msg.GetContent()), &phaseResults); err != nil {
 		return nil, fmt.Errorf("failed to parse lighthouse phase results: %w", err)
 	}
 
@@ -395,7 +430,7 @@ func (h *LighthouseHandler) loadLatestReports(scenarioName string) ([]Lighthouse
 			Failures:  page.Failures,
 			Warnings:  page.Warnings,
 			ReportURL: fmt.Sprintf("/api/v1/scenarios/%s/lighthouse/report/%s?format=html", scenarioName, reportID),
-			JSONPath:  filepath.Join(artifactsDir, reportID+".json"),
+			JSONPath:  fmt.Sprintf("test-genie://%s/%s/lighthouse", scenarioName, runID),
 		})
 	}
 
@@ -404,35 +439,22 @@ func (h *LighthouseHandler) loadLatestReports(scenarioName string) ([]Lighthouse
 
 // loadAllReports loads all Lighthouse reports for a scenario (for history)
 func (h *LighthouseHandler) loadAllReports(scenarioName string) ([]LighthouseReport, error) {
-	artifactsDir := filepath.Join(h.repoRoot, "scenarios", scenarioName, "test", "artifacts", "lighthouse")
-
-	// Check if directory exists
-	if _, err := os.Stat(artifactsDir); os.IsNotExist(err) {
-		// Directory doesn't exist - return empty reports (not an error)
-		return []LighthouseReport{}, nil
-	}
-
-	// List all JSON files
-	files, err := os.ReadDir(artifactsDir)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	client, _, err := h.runsClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read artifacts directory: %w", err)
+		return nil, err
 	}
-
+	runs, err := client.ListRuns(ctx, connect.NewRequest(&runspb.ListRunsRequest{Target: scenarioName}))
+	if err != nil {
+		return nil, err
+	}
 	reports := make([]LighthouseReport, 0)
-
-	for _, file := range files {
-		if !strings.HasSuffix(file.Name(), ".json") {
-			continue
+	for _, run := range runs.Msg.GetRuns() {
+		runReports, runErr := h.loadRunReports(ctx, client, scenarioName, run.GetRunId())
+		if runErr == nil {
+			reports = append(reports, runReports...)
 		}
-
-		filePath := filepath.Join(artifactsDir, file.Name())
-		report, err := h.parseReportFile(filePath, scenarioName)
-		if err != nil {
-			// Skip invalid reports
-			continue
-		}
-
-		reports = append(reports, *report)
 	}
 
 	// Sort by timestamp (newest first)
@@ -441,55 +463,6 @@ func (h *LighthouseHandler) loadAllReports(scenarioName string) ([]LighthouseRep
 	})
 
 	return reports, nil
-}
-
-// parseReportFile parses a Lighthouse JSON report file
-func (h *LighthouseHandler) parseReportFile(filePath, scenarioName string) (*LighthouseReport, error) {
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	var lhr struct {
-		FetchTime  string `json:"fetchTime"`
-		FinalURL   string `json:"finalUrl"`
-		Categories map[string]struct {
-			Score float64 `json:"score"`
-		} `json:"categories"`
-		ConfigSettings struct {
-			FormFactor string `json:"formFactor"`
-		} `json:"configSettings"`
-	}
-
-	if err := json.Unmarshal(data, &lhr); err != nil {
-		return nil, err
-	}
-
-	timestamp, _ := time.Parse(time.RFC3339, lhr.FetchTime)
-
-	// Extract page ID and timestamp from filename
-	basename := filepath.Base(filePath)
-	basename = strings.TrimSuffix(basename, ".json")
-	parts := strings.Split(basename, "_")
-	pageID := strings.Join(parts[:len(parts)-1], "_")
-
-	scores := make(map[string]float64)
-	for category, data := range lhr.Categories {
-		scores[category] = data.Score
-	}
-
-	reportID := strings.TrimSuffix(basename, ".json")
-
-	return &LighthouseReport{
-		ID:        reportID,
-		Timestamp: timestamp,
-		PageID:    pageID,
-		URL:       lhr.FinalURL,
-		Viewport:  lhr.ConfigSettings.FormFactor,
-		Scores:    scores,
-		ReportURL: fmt.Sprintf("/api/v1/scenarios/%s/lighthouse/report/%s?format=html", scenarioName, reportID),
-		JSONPath:  filePath,
-	}, nil
 }
 
 // calculateTrends computes performance trends from historical reports

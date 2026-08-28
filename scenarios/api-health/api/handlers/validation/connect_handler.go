@@ -73,6 +73,37 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(resp), nil
 }
 
+// ValidateTarget preserves the target kind and physical root supplied by
+// Test Genie. The legacy scenario validator already accepts an explicit path,
+// so this adapter keeps one validation implementation while allowing API
+// Health to grade repository-level targets such as the control plane.
+func (h *connectHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	if req == nil || req.Msg == nil || req.Msg.GetTarget() == nil || req.Msg.GetTarget().GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	target := req.Msg.GetTarget()
+	path := req.Msg.GetPath()
+	if path == "" {
+		path = target.GetRoot()
+	}
+	legacy, err := h.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario:         target.GetId(),
+		Path:             path,
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:                target,
+		Status:                legacy.Msg.GetStatus(),
+		Assessment:            legacy.Msg.GetAssessment(),
+		NativeDetail:          legacy.Msg.GetNativeDetail(),
+		Metrics:               legacy.Msg.GetMetrics(),
+		FailureClassification: legacy.Msg.GetFailureClassification(),
+	}), nil
+}
+
 func (h *connectHandler) PreviewFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
 	return h.fix(ctx, req.Msg, false)
 }

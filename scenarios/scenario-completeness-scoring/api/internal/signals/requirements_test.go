@@ -1,15 +1,40 @@
 package signals
 
 import (
+	"context"
+	"encoding/json"
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
+type fileSyncMetadataSource struct{}
+
+func (fileSyncMetadataSource) Load(_ context.Context, _ string, root string) (*syncMetadata, error) {
+	paths := []string{
+		filepath.Join(root, "coverage", "requirements-sync", "latest.json"),
+		filepath.Join(root, "coverage", "requirements-sync.json"),
+		filepath.Join(root, "coverage", "sync", "latest.json"),
+	}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var metadata syncMetadata
+		if json.Unmarshal(data, &metadata) == nil && (len(metadata.Requirements) > 0 || len(metadata.OperationalTargets) > 0) {
+			return &metadata, nil
+		}
+	}
+	return nil, nil
+}
+
 func collectRequirements(t *testing.T, root string) (RequirementsSignals, error) {
 	t.Helper()
 	snap := Snapshot{Root: root}
-	err := requirementsCollector{}.Collect(&snap)
+	err := (requirementsCollector{syncSource: fileSyncMetadataSource{}}).Collect(&snap)
 	return snap.Requirements, err
 }
 
@@ -32,7 +57,7 @@ func TestRequirementsMalformedIndexErrors(t *testing.T) {
 	}
 
 	// Via the Service the error becomes a degradation, not a failure.
-	snap := newService(requirementsCollector{}).Collect("demo", root)
+	snap := newService(requirementsCollector{syncSource: fileSyncMetadataSource{}}).Collect("demo", root)
 	if len(snap.Degradations) != 1 || snap.Degradations[0].State != "failed" {
 		t.Fatalf("degradations = %+v, want one failed entry", snap.Degradations)
 	}

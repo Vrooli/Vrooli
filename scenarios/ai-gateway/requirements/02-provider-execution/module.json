@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Provider execution boundaries for Ollama and OpenRouter resources.",
-    "last_validated_at": "2026-08-17T21:31:07-04:00",
+    "last_validated_at": "2026-08-27T21:29:54-04:00",
     "module": "provider-execution",
     "prd_ref": "OT-P0-002",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "AIGW-PROVIDER-CLI-ONLY",
       "title": "Provider calls go through resource gateway commands only",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "provider.execution",
       "criticality": "P0",
@@ -26,14 +26,14 @@
           "type": "test",
           "ref": "api/internal/routing/service_test.go::TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates provider execution uses controlled resource commands and keeps prompt text out of argv and evidence."
         },
         {
           "type": "automation",
           "ref": "bas/cases/operator-ui/route-preview-workflow.json",
           "phase": "workflow",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Exercise a route from UI/API and assert evidence identifies a resource gateway path, not a direct endpoint.",
           "scenario": "browser-automation-studio"
         }
@@ -42,7 +42,7 @@
     {
       "id": "AIGW-PROVIDER-FAILURES",
       "title": "Provider failures are normalized without hiding resource details",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "provider.execution",
       "criticality": "P0",
@@ -57,14 +57,14 @@
           "type": "test",
           "ref": "api/internal/providers/adapter_test.go::TestAdapter_ListRoles_MapsMalformedJSON",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates malformed resource output maps to a typed provider failure."
         },
         {
           "type": "test",
           "ref": "api/internal/providers/adapter_test.go::TestAdapter_Smoke_MapsMissingBinary",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Validates missing resource commands map to typed unavailable smoke status."
         }
       ]
@@ -72,7 +72,7 @@
     {
       "id": "AIGW-PROVIDER-BREAKER",
       "title": "Repeated provider failures open a persisted circuit breaker",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-006",
       "category": "provider.resilience",
       "criticality": "P0",
@@ -87,14 +87,14 @@
           "type": "test",
           "ref": "api/internal/routing/health_test.go::TestBreakerOpensAfterConsecutiveFailures",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Pure breaker transitions: threshold opening, cooldown, half-open success close, half-open failure reopen, failure classification, and repository round-trip."
         },
         {
           "type": "test",
           "ref": "api/internal/routing/breaker_service_test.go::TestExecuteOpensBreakerAfterFailureAndFallsBackToHealthyProvider",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Service-level: preview skips open breakers and probes half-open, execution falls back to a healthy provider, and breakers isolate by provider/role/kind."
         }
       ]
@@ -102,7 +102,7 @@
     {
       "id": "AIGW-PROVIDER-SAMPLING-SUPPORT",
       "title": "Provider sampling capability is declared by the resource, never probed",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "provider.execution",
       "criticality": "P1",
@@ -117,21 +117,21 @@
           "type": "test",
           "ref": "api/internal/providers/adapter_test.go::TestAdapterResolveRoleDecodesSamplingSupportAndCap",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The adapter decodes both resources' declaration shapes, defaults an absent declaration to unknown, and degrades an unfamiliar state to unknown instead of failing the route."
         },
         {
           "type": "test",
           "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositorySkipsUnhonouringCandidateAndContinues",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A candidate that cannot honour the caller's control is skipped by name and the walk continues to one that can."
         },
         {
           "type": "test",
           "ref": "api/internal/inference/resource_repository_test.go::TestResourceRepositoryReportsOutputCapSource",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The response reports what the gateway sent and where the output cap came from, distinguishing an imposed cap from none imposed."
         }
       ]

@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"resource-twilio/cli/internal/health"
+	"github.com/vrooli/vrooli/resources/twilio/cli/internal/health"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

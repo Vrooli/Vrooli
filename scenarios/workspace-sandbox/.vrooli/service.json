@@ -15,6 +15,13 @@
         }
       }
     },
+    "cleanup_providers": [{
+      "id": "workspace-sandbox-retention",
+      "name": "Workspace Sandbox retained sandboxes",
+      "safety_tier": "safe_with_owner",
+      "default_mode": "disabled",
+      "default_approval": "owner"
+    }],
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
   },
   "service": {
@@ -162,7 +169,13 @@
       "role": "api",
       "build": {
         "kind": "go_module",
-        "dir": "api"
+        "dir": "api",
+        "outputs": [
+          {
+            "entry": "./cmd/workspace-sandbox-launcher",
+            "output": "api/workspace-sandbox-launcher"
+          }
+        ]
       },
       "run": {
         "argv": [

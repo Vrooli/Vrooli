@@ -10,11 +10,12 @@ import (
 	"workspace-sandbox/internal/types"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestFuseOverlayfsGetChangedFilesSkipsOpaqueAndMapsWhiteouts(t *testing.T) {
 	if runtime.GOOS != "linux" {
-		t.Skip("fuse-overlayfs tests require Linux")
+		repocontracttest.SkipPlatform(t, "fuse-overlayfs tests require Linux")
 	}
 
 	tmpDir := t.TempDir()

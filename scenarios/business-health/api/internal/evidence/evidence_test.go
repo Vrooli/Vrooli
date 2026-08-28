@@ -108,3 +108,35 @@ func TestReadSnapshot(t *testing.T) {
 	require.Len(t, snap.OperationalTargets, 1)
 	require.Equal(t, "OT-P0-001", snap.OperationalTargets[0].ID)
 }
+
+func TestStoreSeparatesSourceOwnedAndTestGenieEvidenceRoots(t *testing.T) {
+	sourceRoot := t.TempDir()
+	runEvidenceRoot := t.TempDir()
+	writeFile(t, runEvidenceRoot, "coverage/requirements-sync/latest.json", `{
+  "version":"1.0.0",
+  "generated_at":"2026-07-02T12:00:00Z"
+}`)
+	writeFile(t, runEvidenceRoot, "coverage/runs/20260702-130000-example/run.json", `{}`)
+
+	store := newStore(sourceRoot, runEvidenceRoot, fixedNow)
+	snapshot, present, err := store.ReadSnapshot()
+	if err != nil {
+		t.Fatalf("ReadSnapshot() error = %v", err)
+	}
+	if !present || snapshot.Version != "1.0.0" {
+		t.Fatalf("ReadSnapshot() = (%+v, %v), want governed Test Genie snapshot", snapshot, present)
+	}
+	if got := store.LatestRunTime(); !got.Equal(time.Date(2026, 7, 2, 13, 0, 0, 0, time.UTC)) {
+		t.Fatalf("LatestRunTime() = %v", got)
+	}
+
+	if _, err := store.AppendAttestation("demo", "REQ-1", "tester", "checked"); err != nil {
+		t.Fatalf("AppendAttestation() error = %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(sourceRoot, filepath.FromSlash(manualLedgerRelPath))); err != nil {
+		t.Fatalf("manual ledger was not written to its source-owned root: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(runEvidenceRoot, filepath.FromSlash(manualLedgerRelPath))); !os.IsNotExist(err) {
+		t.Fatalf("manual ledger escaped into Test Genie evidence root: %v", err)
+	}
+}

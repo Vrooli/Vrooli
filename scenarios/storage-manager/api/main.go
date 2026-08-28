@@ -26,6 +26,7 @@ import (
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/artifactledger"
 	sharedscheduler "github.com/vrooli/vrooli/packages/scheduler"
 	_ "modernc.org/sqlite"
 
@@ -112,22 +113,16 @@ func main() {
 			}
 		})
 		storageScheduler.Start(schedulerContext)
-		retentionScheduler := managerRetention.NewScheduler(retentionInterval(), func(ctx context.Context) error {
-			inventory, err := storage.LoadOwnerInventory(storage.InventoryOptions{RepoRoot: repoRoot, Platform: storage.Platform(runtime.GOOS)})
-			if err != nil {
-				return err
-			}
-			_, err = (managerRetention.Enforcer{RepoRoot: repoRoot, Platform: storage.Platform(runtime.GOOS)}).Enforce(ctx, inventory)
-			return err
-		}).WithObserver(func(cycle sharedscheduler.Cycle) {
-			if cycle.Err != nil {
-				logger.Printf("retention cycle failed after %s: %v", cycle.Duration.Round(time.Millisecond), cycle.Err)
-			}
-			if cycle.Overran {
-				logger.Printf("retention cycle took %s, at or beyond its %s interval; the next walk waits a full interval", cycle.Duration.Round(time.Second), retentionInterval())
-			}
-		})
-		retentionScheduler.Start(schedulerContext)
+		// Fail closed: retention deletes, so a pass that cannot write receipts
+		// must not start at all. Skipping the scheduler is the right blast
+		// radius -- the API keeps serving, and the one subsystem that would
+		// delete unrecorded stays off until an operator fixes the state
+		// directory.
+		if retentionLedger, ledgerErr := openRetentionLedger(); ledgerErr != nil {
+			logger.Printf("retention scheduler disabled, nothing will be pruned: %v", ledgerErr)
+		} else {
+			startRetentionScheduler(schedulerContext, logger, repoRoot, retentionLedger)
+		}
 	}
 
 	srv := server.New(
@@ -216,4 +211,37 @@ func censusInterval() time.Duration {
 		return defaultInterval
 	}
 	return interval
+}
+
+// openRetentionLedger resolves the removal ledger retention writes receipts to.
+func openRetentionLedger() (*artifactledger.Ledger, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("resolve home directory for retention receipts: %w", err)
+	}
+	ledger, err := artifactledger.New(home)
+	if err != nil {
+		return nil, fmt.Errorf("open removal ledger: %w", err)
+	}
+	return ledger, nil
+}
+
+// startRetentionScheduler runs declared storage-entry budgets on an interval.
+func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot string, ledger *artifactledger.Ledger) {
+	platform := storage.Platform(runtime.GOOS)
+	managerRetention.NewScheduler(retentionInterval(), func(cycleCtx context.Context) error {
+		inventory, err := storage.LoadOwnerInventory(storage.InventoryOptions{RepoRoot: repoRoot, Platform: platform})
+		if err != nil {
+			return err
+		}
+		_, err = (managerRetention.Enforcer{RepoRoot: repoRoot, Platform: platform, Ledger: ledger}).Enforce(cycleCtx, inventory)
+		return err
+	}).WithObserver(func(cycle sharedscheduler.Cycle) {
+		if cycle.Err != nil {
+			logger.Printf("retention cycle failed after %s: %v", cycle.Duration.Round(time.Millisecond), cycle.Err)
+		}
+		if cycle.Overran {
+			logger.Printf("retention cycle took %s, at or beyond its %s interval; the next walk waits a full interval", cycle.Duration.Round(time.Second), retentionInterval())
+		}
+	}).Start(ctx)
 }

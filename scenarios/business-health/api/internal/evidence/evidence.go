@@ -17,6 +17,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 )
 
 // SyncSnapshot is the typed shape of coverage/requirements-sync/latest.json
@@ -75,25 +77,37 @@ func (a Attestation) Expired(now time.Time) bool {
 // (D1): an attended check older than this no longer counts as evidence.
 const DefaultManualValidityWindow = 90 * 24 * time.Hour
 
-const (
-	syncSnapshotRelPath = "coverage/requirements-sync/latest.json"
-	manualLedgerRelPath = "coverage/manual-validations/log.jsonl"
-	runsRelDir          = "coverage/runs"
-)
+const manualLedgerRelPath = "coverage/manual-validations/log.jsonl"
 
 // Store reads a scenario's evidence artifacts.
 type Store struct {
-	scenarioDir string
-	now         func() time.Time
+	scenarioDir     string
+	runEvidenceRoot string
+	now             func() time.Time
 }
 
 // NewStore builds a Store over one scenario tree. now is substitutable for
 // staleness/expiry tests; nil means time.Now.
 func NewStore(scenarioDir string, now func() time.Time) Store {
+	return newStore(scenarioDir, scenarioDir, now)
+}
+
+// NewTargetStore builds the production store for a source scenario. Source-owned
+// manual attestations remain next to the business contract, while Test Genie run
+// evidence is read through its named artifact-authority contract.
+func NewTargetStore(scenarioDir string, now func() time.Time) (Store, error) {
+	runEvidenceRoot, err := artifactpaths.ScenarioRootForDir(scenarioDir)
+	if err != nil {
+		return Store{}, fmt.Errorf("resolve test-genie evidence root: %w", err)
+	}
+	return newStore(scenarioDir, runEvidenceRoot, now), nil
+}
+
+func newStore(scenarioDir, runEvidenceRoot string, now func() time.Time) Store {
 	if now == nil {
 		now = time.Now
 	}
-	return Store{scenarioDir: scenarioDir, now: now}
+	return Store{scenarioDir: scenarioDir, runEvidenceRoot: runEvidenceRoot, now: now}
 }
 
 // LedgerPath is the scenario-relative manual-validations ledger path.
@@ -102,7 +116,8 @@ func (Store) LedgerPath() string { return manualLedgerRelPath }
 // ReadSnapshot loads the sync snapshot. A missing file yields (zero, false,
 // nil) — absence is a finding, not an error.
 func (s Store) ReadSnapshot() (SyncSnapshot, bool, error) {
-	data, err := os.ReadFile(filepath.Join(s.scenarioDir, filepath.FromSlash(syncSnapshotRelPath)))
+	path := artifactpaths.RequirementsSnapshotPath(s.runEvidenceRoot)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return SyncSnapshot{}, false, nil
@@ -111,7 +126,7 @@ func (s Store) ReadSnapshot() (SyncSnapshot, bool, error) {
 	}
 	var snap SyncSnapshot
 	if err := json.Unmarshal(data, &snap); err != nil {
-		return SyncSnapshot{}, false, fmt.Errorf("parse %s: %w", syncSnapshotRelPath, err)
+		return SyncSnapshot{}, false, fmt.Errorf("parse requirements-sync snapshot: %w", err)
 	}
 	return snap, true, nil
 }
@@ -119,7 +134,7 @@ func (s Store) ReadSnapshot() (SyncSnapshot, bool, error) {
 // LatestRunTime derives the newest suite-run timestamp from coverage/runs
 // directory names (`20260702-061719-...`). Zero time when no runs exist.
 func (s Store) LatestRunTime() time.Time {
-	entries, err := os.ReadDir(filepath.Join(s.scenarioDir, filepath.FromSlash(runsRelDir)))
+	entries, err := os.ReadDir(artifactpaths.RunsRootPath(s.runEvidenceRoot))
 	if err != nil {
 		return time.Time{}
 	}

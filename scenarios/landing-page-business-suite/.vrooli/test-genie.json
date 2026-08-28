@@ -11,7 +11,13 @@
   "findingSource": null,
   "validation": { "contract": "scenario-validation/v1" },
   "comparison": { "mode": "additive" },
-  "targets": { "kinds": ["scenario"], "selection": "enumerate" },
+  "targets": { "kinds": ["scenario"], "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires scenario monetization declarations and local metering posture; the control plane has no product monetization contract."
+      }
+    ] },
   "applicability": {
     "default": "not_applicable",
     "any": [

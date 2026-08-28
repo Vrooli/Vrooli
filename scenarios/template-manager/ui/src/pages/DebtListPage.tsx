@@ -6,7 +6,7 @@ import { fetchDebtLedger, type DebtEntry, type TemplateRecord } from "../api/tem
 import { DetailError, DetailLoading } from "../components/detail/DetailStates";
 import { EntityList, EntityRowBody } from "../components/list/EntityList";
 import { Select, type SelectOption } from "@vrooli/react-component-library/Select/1.1.0";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

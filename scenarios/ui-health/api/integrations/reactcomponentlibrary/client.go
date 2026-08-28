@@ -27,6 +27,8 @@ import (
 
 	"connectrpc.com/connect"
 
+	componentsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components"
+	componentsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/components/components_v1connect"
 	inventoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/inventory/inventory_v1connect"
 )
@@ -39,10 +41,11 @@ type Client struct {
 	policy   Policy
 	http     *http.Client
 
-	mu        sync.RWMutex
-	baseURL   string
-	inventory inventory_v1connect.InventoryServiceClient
-	resolved  atomic.Bool
+	mu         sync.RWMutex
+	baseURL    string
+	inventory  inventory_v1connect.InventoryServiceClient
+	components componentsconnect.ComponentsServiceClient
+	resolved   atomic.Bool
 }
 
 // New constructs a Client. The Connect client is built lazily on the first
@@ -69,8 +72,60 @@ func (c *Client) refresh() error {
 	defer c.mu.Unlock()
 	c.baseURL = base
 	c.inventory = inventory_v1connect.NewInventoryServiceClient(c.http, base)
+	c.components = componentsconnect.NewComponentsServiceClient(c.http, base)
 	c.resolved.Store(true)
 	return nil
+}
+
+// CatalogEntry is the minimal catalog projection needed by ui-health's
+// vendored-version rule. The integration owns the wire translation so the
+// rule does not depend on react-component-library's protobuf shape.
+type CatalogEntry struct {
+	LibraryID          string
+	Latest             string
+	Draft              string
+	DeprecatedVersions []string
+}
+
+// ListCatalog resolves the live react-component-library catalog through the
+// discovered ComponentsService. It retries transport failures after dropping
+// the cached scenario URL, matching ScanScenario's lifecycle behavior.
+func (c *Client) ListCatalog(ctx context.Context) ([]CatalogEntry, error) {
+	if err := c.ensure(); err != nil {
+		return nil, fmt.Errorf("react-component-library: resolve base URL: %w", err)
+	}
+	attempts := c.policy.MaxRetries + 1
+	var lastErr error
+	for i := 0; i < attempts; i++ {
+		c.mu.RLock()
+		catalog := c.components
+		c.mu.RUnlock()
+		resp, err := catalog.ListComponents(ctx, connect.NewRequest(&componentsv1.ListComponentsRequest{Limit: 2000}))
+		if err == nil {
+			entries := make([]CatalogEntry, 0, len(resp.Msg.GetComponents()))
+			for _, component := range resp.Msg.GetComponents() {
+				if component == nil {
+					continue
+				}
+				entries = append(entries, CatalogEntry{
+					LibraryID:          component.GetLibraryId(),
+					Latest:             component.GetLatestVersion(),
+					Draft:              component.GetDraftVersion(),
+					DeprecatedVersions: nil,
+				})
+			}
+			return entries, nil
+		}
+		lastErr = err
+		if !isTransportFailure(err) {
+			return nil, err
+		}
+		c.invalidate()
+		if rerr := c.refresh(); rerr != nil {
+			return nil, fmt.Errorf("re-resolve react-component-library: %w (last call: %v)", rerr, err)
+		}
+	}
+	return nil, lastErr
 }
 
 // ensure wires the client if not already resolved.
@@ -118,6 +173,36 @@ func (c *Client) ScanScenario(ctx context.Context, scenario string) (*inventoryv
 		if !isTransportFailure(err) {
 			// Schema/validation/4xx errors aren't worth re-resolving for;
 			// surface them immediately (interop-steer §12 decision flow).
+			return nil, err
+		}
+		c.invalidate()
+		if rerr := c.refresh(); rerr != nil {
+			return nil, fmt.Errorf("re-resolve react-component-library: %w (last call: %v)", rerr, err)
+		}
+	}
+	return nil, lastErr
+}
+
+// ScanSubjects calls the bounded InventoryService.Scan path. It is kept
+// separate from InventoryClient so existing whole-scenario discovery callers
+// remain source-compatible while asset-target validation adopts the subject
+// contract.
+func (c *Client) ScanSubjects(ctx context.Context, subjects []*inventoryv1.Subject) (*inventoryv1.ScanResponse, error) {
+	if err := c.ensure(); err != nil {
+		return nil, fmt.Errorf("react-component-library: resolve base URL: %w", err)
+	}
+	attempts := c.policy.MaxRetries + 1
+	var lastErr error
+	for i := 0; i < attempts; i++ {
+		c.mu.RLock()
+		inv := c.inventory
+		c.mu.RUnlock()
+		resp, err := inv.Scan(ctx, connect.NewRequest(&inventoryv1.ScanRequest{Subjects: subjects}))
+		if err == nil {
+			return resp.Msg, nil
+		}
+		lastErr = err
+		if !isTransportFailure(err) {
 			return nil, err
 		}
 		c.invalidate()

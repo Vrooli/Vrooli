@@ -11,6 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/artifactlease"
+
+	"github.com/vrooli/vrooli/packages/artifactledger"
+
 	"storage-manager/internal/cleanup"
 )
 
@@ -18,6 +22,9 @@ const scenarioBinaryMetadataSuffix = ".build.meta"
 
 type ScenarioBinariesProviderConfig struct {
 	Root string
+	// Ledger records every removal this provider performs. A provider built
+	// without one refuses to delete rather than deleting unrecorded.
+	Ledger *artifactledger.Ledger
 }
 
 type ScenarioBinariesProvider struct {
@@ -26,6 +33,11 @@ type ScenarioBinariesProvider struct {
 	liveness cleanup.ProcessLiveness
 	root     string
 	clock    cleanup.Clock
+	// ledger makes this reaper's removals attributable. This provider deletes
+	// binaries it decided were orphaned, which is the hardest kind of removal
+	// to reconstruct after the fact and therefore the one that most needs a
+	// receipt naming the rule that fired.
+	ledger *artifactledger.Ledger
 }
 
 type scenarioInstallMetadata struct {
@@ -51,6 +63,7 @@ func NewScenarioBinariesProvider(files cleanup.FileSystem, liveness cleanup.Proc
 		liveness: liveness,
 		root:     filepath.Clean(strings.TrimSpace(cfg.Root)),
 		clock:    clock,
+		ledger:   cfg.Ledger,
 	}
 }
 
@@ -125,11 +138,34 @@ func (p *ScenarioBinariesProvider) Preview(ctx context.Context, req cleanup.Prev
 			// reclaimed by the scenario reaper.
 			continue
 		}
+		binaryForLease := strings.TrimSuffix(entry.Path, scenarioBinaryMetadataSuffix)
 		if _, err := p.files.Stat(ctx, metadata.ModulePath); err == nil {
-			// The owning scenario module still exists; this is not an orphan.
+			// The owning scenario module exists. Clearing any recorded absence
+			// here is what makes a scenario that was deleted and recreated keep
+			// its CLI: the grace clock restarts from nothing rather than
+			// carrying a stale observation forward.
+			if clearErr := artifactlease.NoteOwnerPresent(binaryForLease); clearErr != nil {
+				out.Warnings = append(out.Warnings, fmt.Sprintf("%s: recorded absence could not be cleared; skipped", filepath.Base(entry.Path)))
+			}
 			continue
 		} else if !isMissing(err) {
 			out.Warnings = append(out.Warnings, fmt.Sprintf("%s: owner module could not be checked; skipped", filepath.Base(entry.Path)))
+			continue
+		}
+
+		// The owner looks missing. Record that and stop -- an observation is
+		// not authority to delete. Reclamation needs the absence to have
+		// persisted for the grace window and to have been seen more than once,
+		// because a scenario directory can be absent for a moment while another
+		// agent regenerates it.
+		lease, leaseErr := artifactlease.NoteOwnerMissing(binaryForLease, p.now(req.Scope))
+		if leaseErr != nil {
+			out.Warnings = append(out.Warnings, fmt.Sprintf("%s: ownership record unavailable; skipped", filepath.Base(entry.Path)))
+			continue
+		}
+		eligibility := artifactlease.EvaluateReclaim(lease, true, p.now(req.Scope), artifactlease.DefaultGrace)
+		if !eligibility.Reclaimable {
+			out.Warnings = append(out.Warnings, fmt.Sprintf("%s: %s", filepath.Base(entry.Path), eligibility.Reason))
 			continue
 		}
 
@@ -189,6 +225,12 @@ func (p *ScenarioBinariesProvider) Apply(ctx context.Context, req cleanup.ApplyR
 	if p.files == nil || p.liveness == nil {
 		return cleanup.ApplyResult{ProviderID: p.meta.ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"filesystem and liveness seams are required"}}, nil
 	}
+	if p.ledger == nil {
+		// Refusing is the safe direction. An orphan reclamation that leaves no
+		// receipt is indistinguishable from the unexplained removals this
+		// ledger was built to end.
+		return cleanup.ApplyResult{ProviderID: p.meta.ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"no removal ledger is configured; refusing to reclaim unrecorded"}}, nil
+	}
 
 	result := cleanup.ApplyResult{ProviderID: p.meta.ID}
 	for _, item := range req.Preview.Items {
@@ -219,6 +261,7 @@ func (p *ScenarioBinariesProvider) Apply(ctx context.Context, req cleanup.ApplyR
 			artifacts = []string{binaryPath, binaryPath + scenarioBinaryMetadataSuffix, binaryPath + ".manifest.json"}
 		}
 		failed := false
+		abandoned := false
 		var reclaimed int64
 		for _, path := range artifacts {
 			info, statErr := p.files.Stat(ctx, path)
@@ -230,7 +273,24 @@ func (p *ScenarioBinariesProvider) Apply(ctx context.Context, req cleanup.ApplyR
 				result.Warnings = append(result.Warnings, item.ID+": "+cleanup.Redact(statErr.Error()))
 				continue
 			}
-			if err := p.files.RemoveAll(ctx, path); err != nil {
+			leaseForReceipt, _, _ := artifactlease.Load(binaryPath)
+			removeErr := p.ledger.Guard(artifactledger.Removal{
+				Path:       path,
+				Subject:    binaryPath,
+				Generation: leaseForReceipt.Generation,
+				Kind:       artifactKindFor(path),
+				Component:  "storage-manager.ScenarioBinariesProvider",
+				Predicate:  orphanReclaimPredicate,
+				Verify:     func() error { return p.stillOrphaned(ctx, binaryPath, p.now(cleanup.ObservationScope{})) },
+			}, func() error { return p.files.RemoveAll(ctx, path) })
+			if err := removeErr; err != nil {
+				if errors.Is(err, artifactledger.ErrAbandoned) {
+					// The owner came back between plan and apply. Nothing was
+					// removed, so nothing may be counted as reclaimed.
+					abandoned = true
+					result.Warnings = append(result.Warnings, item.ID+": "+cleanup.Redact(err.Error()))
+					continue
+				}
 				if isMissing(err) {
 					continue
 				}
@@ -240,7 +300,7 @@ func (p *ScenarioBinariesProvider) Apply(ctx context.Context, req cleanup.ApplyR
 			}
 			reclaimed += info.Size
 		}
-		if failed {
+		if failed || abandoned {
 			result.SkippedItems = append(result.SkippedItems, item.ID)
 			continue
 		}
@@ -313,4 +373,64 @@ func (p *ScenarioBinariesProvider) now(scope cleanup.ObservationScope) time.Time
 
 func isMissing(err error) bool {
 	return errors.Is(err, fs.ErrNotExist) || strings.Contains(strings.ToLower(err.Error()), "not found") || strings.Contains(strings.ToLower(err.Error()), "does not exist")
+}
+
+// orphanReclaimPredicate is the rule this provider enforces, recorded on every
+// receipt. Unlike the uninstall path, this reaper decides for itself what to
+// delete, so the receipt has to carry the reasoning rather than a plan id.
+const orphanReclaimPredicate = "scenario CLI triple whose owning module path no longer resolves"
+
+// artifactKindFor labels a triple member for the ledger.
+func artifactKindFor(path string) string {
+	switch {
+	case strings.HasSuffix(path, scenarioBinaryMetadataSuffix):
+		return "build-metadata"
+	case strings.HasSuffix(path, ".manifest.json"):
+		return "manifest"
+	default:
+		return "binary"
+	}
+}
+
+// stillOrphaned re-checks, under the artifact lock, the predicate that
+// authorized this reclamation.
+//
+// Preview decided this binary was an orphan. Apply runs later, and between the
+// two another agent may have recreated the scenario that owns it -- concurrent
+// agents in one environment are a design property here, not an edge case. The
+// window was previously unguarded: Apply re-checked liveness but never the
+// orphan predicate, so a freshly rebuilt CLI could be deleted on the strength
+// of a stale observation.
+// The planned generation is deliberately not threaded from Preview to Apply.
+// cleanup.PreviewItem is shared by every provider, and widening it for this one
+// would spread an unused field across all of them -- for a check the lease
+// already makes. A reinstall calls Claim, which clears the recorded absence, so
+// EvaluateReclaim refuses on its own with a reason that names what changed. The
+// generation is still recorded on the receipt, where it aids attribution.
+func (p *ScenarioBinariesProvider) stillOrphaned(ctx context.Context, binaryPath string, now time.Time) error {
+	metadata, err := p.readMetadata(ctx, binaryPath+scenarioBinaryMetadataSuffix)
+	if err != nil {
+		// The metadata that justified the reclamation is unreadable now. That
+		// is not permission to proceed.
+		return fmt.Errorf("owner metadata for %s could not be re-read: %w", filepath.Base(binaryPath), err)
+	}
+	if strings.TrimSpace(metadata.ModulePath) == "" {
+		return fmt.Errorf("owner metadata for %s no longer names a module", filepath.Base(binaryPath))
+	}
+	if _, err := p.files.Stat(ctx, metadata.ModulePath); err == nil {
+		return fmt.Errorf("owner module %s exists again; the artifact is no longer an orphan", metadata.ModulePath)
+	} else if !isMissing(err) {
+		return fmt.Errorf("owner module %s could not be re-checked: %w", metadata.ModulePath, err)
+	}
+
+	lease, found, leaseErr := artifactlease.Load(binaryPath)
+	if leaseErr != nil {
+		// An ownership record that cannot be read is not permission to delete
+		// what it describes.
+		return fmt.Errorf("ownership record for %s could not be re-read: %w", filepath.Base(binaryPath), leaseErr)
+	}
+	if eligibility := artifactlease.EvaluateReclaim(lease, found, now, artifactlease.DefaultGrace); !eligibility.Reclaimable {
+		return errors.New(eligibility.Reason)
+	}
+	return nil
 }

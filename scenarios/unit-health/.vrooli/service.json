@@ -13,9 +13,24 @@
           "max_bytes": "5GiB",
           "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
         }
+      },
+      "coverage_tool_output": {
+        "rung": "pinned",
+        "kind": "dir",
+        "path": "coverage",
+        "regenerable": true,
+        "rationale": "The upstream coverage tool fixes lcov.info and coverage-summary.json beneath coverage; the complete directory measured 72347231 bytes on 2026-08-27.",
+        "reclaim": {
+          "command": "vrooli scenario test cleanup unit-health"
+        },
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "1GiB",
+          "rationale": "Pinned coverage output measured 72347231 bytes on 2026-08-27; seven days and 1 GiB bound reproducible tool output."
+        }
       }
     },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+    "rationale": "Storage surfaces include durable scenario data and pinned upstream coverage-tool output."
   },
   "service": {
     "parent": "vrooli",

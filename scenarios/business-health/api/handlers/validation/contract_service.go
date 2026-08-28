@@ -43,7 +43,10 @@ func (s *contractService) join(scenario, path string) (matrix.Result, error) {
 	if err != nil {
 		return matrix.Result{}, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	store := evidence.NewStore(dir, nil)
+	store, err := evidence.NewTargetStore(dir, nil)
+	if err != nil {
+		return matrix.Result{}, connect.NewError(connect.CodeInternal, err)
+	}
 	snap, hasSnap, err := store.ReadSnapshot()
 	if err != nil {
 		return matrix.Result{}, connect.NewError(connect.CodeInternal, err)

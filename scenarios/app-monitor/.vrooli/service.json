@@ -106,24 +106,6 @@
       "timeout": 5000,
       "interval": 30000,
       "startup_grace_period": 10000
-    },
-    "setup": {
-      "description": "Initialize App Monitor with database schema and automation workflows",
-      "steps": [
-        {
-          "name": "generate-embeddings",
-          "exec": [
-            "vrooli",
-            "resource",
-            "qdrant",
-            "embeddings",
-            "refresh",
-            "--force"
-          ],
-          "on_error": "continue",
-          "description": "Generate code embeddings for AI assistance"
-        }
-      ]
     }
   },
   "dependencies": {

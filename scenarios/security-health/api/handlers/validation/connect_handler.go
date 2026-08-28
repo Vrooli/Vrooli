@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -26,6 +27,10 @@ type Validator interface {
 	ValidateScenario(ctx context.Context, scenario string) (validation.Report, error)
 }
 
+type TargetValidator interface {
+	ValidateTarget(ctx context.Context, kind validation.ValidationTargetKind, path string) (validation.Report, error)
+}
+
 type Fixer interface {
 	PreviewFix(ctx context.Context, scenario, path string, ruleIDs []string) (string, []validation.SecurityHeaderFixCandidate, []string, error)
 	ApplyFix(ctx context.Context, scenario, path string, ruleIDs []string) (string, []validation.SecurityHeaderFixCandidate, []string, error)
@@ -33,10 +38,12 @@ type Fixer interface {
 
 // Deps wires the seams the Connect validation handler needs.
 type Deps struct {
-	Logger       *log.Logger
-	Validator    Validator
-	Fixer        Fixer
-	MaturitySpec *assessment.Spec
+	Logger          *log.Logger
+	Validator       Validator
+	TargetValidator TargetValidator
+	RepoRoot        string
+	Fixer           Fixer
+	MaturitySpec    *assessment.Spec
 	// Environment is the host CaptureEnvironment captured once at module init
 	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
 	// backfills os/arch/num_cpu from the stdlib.
@@ -80,6 +87,66 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// ValidateTarget exposes Security Health's path-first validator to shared
+// validation consumers. The control-plane identity always resolves to the
+// configured repository root; callers cannot substitute an arbitrary path for
+// that privileged repository-wide scan.
+func (h *connectHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	if h.deps.TargetValidator == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation.ValidateTarget: target validator not wired"))
+	}
+	target := req.Msg.GetTarget()
+	if target == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("validation target is required"))
+	}
+
+	var kind validation.ValidationTargetKind
+	var path string
+	switch target.GetKind() {
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO:
+		kind = validation.ValidationTargetScenario
+		if strings.TrimSpace(target.GetId()) == "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario target id is required"))
+		}
+		path = strings.TrimSpace(req.Msg.GetPath())
+		if path == "" {
+			path = strings.TrimSpace(target.GetRoot())
+		}
+		if path == "" {
+			path = filepath.Join(h.deps.RepoRoot, "scenarios", target.GetId())
+		}
+	case commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE:
+		kind = validation.ValidationTargetControlPlane
+		path = h.deps.RepoRoot
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("security-health does not validate target kind %s", target.GetKind().String()))
+	}
+
+	collector := metrics.Start(metrics.WithEnvironment(h.deps.Environment))
+	report, err := h.deps.TargetValidator.ValidateTarget(validation.WithMetrics(ctx, collector), kind, path)
+	if err != nil {
+		collector.Stop()
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	maturityAssessment, err := buildMaturityAssessment(report, h.deps.MaturitySpec)
+	if err != nil {
+		collector.Stop()
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
+	}
+	execMetrics := collector.Stop()
+	responseOptions := []assessment.ValidationResponseOption(nil)
+	if report.Passed {
+		responseOptions = append(responseOptions, assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED))
+	}
+	legacy, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil, execMetrics, responseOptions...)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared target response: %w", err))
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target: target, Status: legacy.GetStatus(), Assessment: legacy.GetAssessment(), NativeDetail: legacy.GetNativeDetail(), Metrics: legacy.GetMetrics(),
+	}), nil
 }
 
 func buildMaturityAssessment(rep validation.Report, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {

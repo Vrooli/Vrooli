@@ -96,7 +96,6 @@
       }
     ]
   },
-  "template": "external-cli",
   "driver": "external-cli",
   "provider_policy": {
     "default_mode": "managed-discovered",

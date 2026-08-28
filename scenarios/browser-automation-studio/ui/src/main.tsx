@@ -1,3 +1,5 @@
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1/1.0.1";
+import { i18n } from "./i18n";
 import React from 'react';
 import { installChunkReloadGuard } from '@vrooli/api-base';
 import { initIframeBridgeChild } from '@vrooli/iframe-bridge';
@@ -66,9 +68,13 @@ if (pathname.startsWith('/export/replay') || pathname.startsWith('/export/compos
   mountApp(container, {
     strictMode: true,
     rootWrapper: (children) => (
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
       <React.Profiler id="App" onRender={onProfilerRender}>
         {children}
       </React.Profiler>
-    ),
+    </LibraryStringsProvider>
+    // vrooli:library-strings-provider end
+  ),
   });
 }

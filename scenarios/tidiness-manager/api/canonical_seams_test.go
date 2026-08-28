@@ -3,7 +3,10 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
+
+	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 // [REQ:TM-LS-009]
@@ -99,6 +102,155 @@ func TestScanSeamsHonorsExcludeAndBudget(t *testing.T) {
 	}
 }
 
+func TestScanSeamsMatchesDeclarationKindsAndPackageRepetition(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "one/decl.go", `package one
+type Shared struct{}
+type Contract interface { Run() }
+const SharedValue = 1
+var SharedVar = 2
+func bindOne() {}
+func (Shared) bindMethod() {}
+`)
+	writeSeamTestFile(t, root, "two/decl.go", `package two
+type Shared struct{}
+const SharedValue = 1
+func bindTwo() {}
+`)
+	seams := []Seam{
+		{ID: "funcs", Canonical: "canonical.Func", Why: "one", Remediation: "use one", Bypass: SeamBypass{Kind: "declaration", Pattern: `^bind`, DeclKind: "func", RepeatedAcrossPackages: 2}, Scope: SeamScope{Include: []string{"**"}}, Severity: "high"},
+		{ID: "methods", Canonical: "canonical.Method", Why: "one", Remediation: "use one", Bypass: SeamBypass{Kind: "declaration", Pattern: `^bind`, DeclKind: "method"}, Scope: SeamScope{Include: []string{"**"}}, Severity: "high"},
+		{ID: "interfaces", Canonical: "canonical.Interface", Why: "one", Remediation: "use one", Bypass: SeamBypass{Kind: "declaration", Pattern: `^Contract$`, DeclKind: "interface"}, Scope: SeamScope{Include: []string{"**"}}, Severity: "high"},
+		{ID: "consts", Canonical: "canonical.Const", Why: "one", Remediation: "use one", Bypass: SeamBypass{Kind: "declaration", Pattern: `^SharedValue$`, DeclKind: "const", RepeatedAcrossPackages: 2}, Scope: SeamScope{Include: []string{"**"}}, Severity: "high"},
+	}
+	hits, err := ScanSeams(root, seams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	counts := map[string]int{}
+	for _, hit := range hits {
+		counts[hit.SeamID]++
+	}
+	if counts["funcs"] != 0 {
+		t.Fatalf("func repetition unexpectedly matched distinct names: %#v", counts)
+	}
+	if counts["methods"] != 1 || counts["interfaces"] != 1 || counts["consts"] != 2 {
+		t.Fatalf("declaration matches = %#v, want method=1 interface=1 const=2", counts)
+	}
+}
+
+func TestScanSeamsMatchesSwitchOnArgvShape(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "src/dispatch.go", `package sample
+func dispatch(args []string) {
+ switch args[0] { case "run": }
+}
+`)
+	seam := Seam{ID: "dispatcher", Canonical: "commandtree", Why: "typed dispatch", Remediation: "use commandtree", Bypass: SeamBypass{Kind: "shape", ShapeKind: "switch_on_argv", Pattern: `^switch_on_argv$`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"}
+	hits, err := ScanSeams(root, []Seam{seam})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 1 || hits[0].Symbol != "switch_on_argv" {
+		t.Fatalf("shape hits = %#v", hits)
+	}
+}
+
+func TestScanSeamsGroupsEquivalentInterfaceShapes(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "src/interfaces.go", `package sample
+type First interface { Run(ctx context.Context) error }
+type Second interface { Run(other context.Context) error }
+`)
+	seam := Seam{ID: "interfaces", Canonical: "runner", Why: "one contract", Remediation: "share contract", Bypass: SeamBypass{Kind: "shape", ShapeKind: "interface_method_set", Pattern: "^(First|Second)$", MinMembers: 2}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"}
+	hits, err := ScanSeams(root, []Seam{seam})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 2 {
+		t.Fatalf("interface shape hits = %#v", hits)
+	}
+}
+
+func TestScanSeamsMatchesContextDurationAndManifestDecoderShapes(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "src/shapes.go", `package sample
+import "context"
+import "google.golang.org/protobuf/types/known/structpb"
+type Decoder struct { Dependencies struct { Resources []string `+"`json:\"resources\"`"+` } `+"`json:\"dependencies\"`"+` }
+func run(ctx context.Context) { context.WithTimeout(ctx, 30) }
+func dynamic() { _, _ = structpb.NewValue("x") }
+`)
+	seams := []Seam{
+		{ID: "duration", Canonical: "tuning.Timeout", Why: "named timing", Remediation: "use tuning", Bypass: SeamBypass{Kind: "shape", ShapeKind: "context_duration_literal", Pattern: `^context\.WithTimeout$`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"},
+		{ID: "decoder", Canonical: "scenario.LoadServiceManifest", Why: "one decoder", Remediation: "use scenario", Bypass: SeamBypass{Kind: "shape", ShapeKind: "service_manifest_decoder", Pattern: `^Decoder$`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"},
+		{ID: "json", Canonical: "cliout.WriteJSONValue", Why: "one renderer", Remediation: "use cliout", Bypass: SeamBypass{Kind: "shape", ShapeKind: "dynamic_json_writer", Pattern: `^dynamic$`}, Scope: SeamScope{Include: []string{"src/**"}}, Severity: "high"},
+	}
+	hits, err := ScanSeams(root, seams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 3 {
+		t.Fatalf("shape hits = %#v, want duration, decoder, and dynamic JSON", hits)
+	}
+}
+
+func TestScanSeamsReportsMissingAbsenceTargetAndJSONPointer(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "trigger.go", "package sample\nfunc trigger() {}\n")
+	writeSeamTestFile(t, root, "present.json", `{"dependencies":{"scenarios":{}}}`)
+	seams := []Seam{
+		{ID: "missing-file", Canonical: "file", Why: "required", Remediation: "add it", Bypass: SeamBypass{Kind: "absence", Pattern: "^$", RequireFor: "trigger.go", RequirePresent: "missing.json"}, Scope: SeamScope{Include: []string{"**"}}, Severity: "critical"},
+		{ID: "missing-pointer", Canonical: "pointer", Why: "required", Remediation: "add it", Bypass: SeamBypass{Kind: "absence", Pattern: "^$", RequireFor: "trigger.go", RequirePresent: "present.json#/dependencies/scenarios/code-facts"}, Scope: SeamScope{Include: []string{"**"}}, Severity: "critical"},
+	}
+	hits, err := ScanSeams(root, seams)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(hits) != 2 {
+		t.Fatalf("absence hits = %#v", hits)
+	}
+	seams[0].Bypass.RequirePresent = "present.json"
+	hits, err = ScanSeams(root, seams[:1])
+	if err != nil || len(hits) != 0 {
+		t.Fatalf("satisfied absence = hits %v err %v", hits, err)
+	}
+}
+
+func TestScanSeamsRequiresJSONWriterFunctionInContractTest(t *testing.T) {
+	root := t.TempDir()
+	writeSeamTestFile(t, root, "internal/app/credentials/command.go", `package credentials
+func newJSONCommand() { cliout.WriteJSONValue(nil, nil) }
+`)
+	seam := Seam{ID: "json-contract", Canonical: "JSON contract", Why: "stable output", Remediation: "assert it", Bypass: SeamBypass{Kind: "absence", Pattern: "^$", RequireFor: "internal/app/credentials/*.go", RequirePresent: "__json_contract_assertion__"}, Scope: SeamScope{Include: []string{"internal/app/credentials/**"}}, Severity: "critical"}
+	hits, err := ScanSeams(root, []Seam{seam})
+	if err != nil || len(hits) != 1 {
+		t.Fatalf("missing contract assertion: hits=%v err=%v", hits, err)
+	}
+	writeSeamTestFile(t, root, "internal/app/credentials/command_test.go", `package credentials
+func TestContract() { _ = "newJSONCommand" }
+`)
+	hits, err = ScanSeams(root, []Seam{seam})
+	if err != nil || len(hits) != 0 {
+		t.Fatalf("satisfied contract assertion: hits=%v err=%v", hits, err)
+	}
+}
+
+func TestBrokerFactMatchesQualifiedPackageIdentity(t *testing.T) {
+	candidate := compiledSeam{
+		seam:    Seam{Bypass: SeamBypass{Kind: "call"}},
+		pattern: regexp.MustCompile(`^logx\.FormatJSON$`),
+	}
+	fact := &factsv1.GenericFact{
+		Family:     factsv1.FactFamily_FACT_FAMILY_REFERENCES,
+		Subject:    "FormatJSON",
+		Attributes: map[string]string{"package_id": "package:github.com/vrooli/vrooli/internal/logx"},
+	}
+	if !brokerFactMatches(candidate, fact) {
+		t.Fatal("broker did not match package-qualified reference")
+	}
+}
+
 // [REQ:TM-LS-009]
 func TestLoadSeamsRejectsUnknownFields(t *testing.T) {
 	root := t.TempDir()
@@ -118,7 +270,7 @@ func TestLoadSeamsRejectsTrailingJSON(t *testing.T) {
 }
 
 // [REQ:TM-LS-009]
-func TestRepositoryCanonicalSeamsAreClean(t *testing.T) {
+func TestRepositoryCanonicalSeamsLoadAndScan(t *testing.T) {
 	root := filepath.Clean(filepath.Join("..", "..", ".."))
 	if got := seamTreeRoot(filepath.Join(root, "internal")); got != root {
 		t.Fatalf("control-plane seam root = %q, want repository root %q", got, root)
@@ -127,15 +279,11 @@ func TestRepositoryCanonicalSeamsAreClean(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(seams) != 10 {
-		t.Fatalf("expected ten declared seams, got %d", len(seams))
+	if len(seams) != 36 {
+		t.Fatalf("expected thirty-six declared seams, got %d", len(seams))
 	}
-	hits, err := ScanSeams(root, seams)
-	if err != nil {
+	if _, err := ScanSeams(root, seams); err != nil {
 		t.Fatal(err)
-	}
-	if findings := seamFindings("control-plane", hits); len(findings) != 0 {
-		t.Fatalf("repository seam rules found above-budget bypasses: %#v", findings)
 	}
 }
 

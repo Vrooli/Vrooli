@@ -12,7 +12,13 @@
   "validation": {
     "contract": "scenario-validation/v1"
   },
-  "targets": {"kinds": ["scenario"], "selection": "enumerate"},
+  "targets": {"kinds": ["scenario"], "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider requires scenario brand manifests, design tokens, and rendered UI assets; the control plane has no product branding surface."
+      }
+    ]},
   "applicability": {
     "default": "applies"
   },

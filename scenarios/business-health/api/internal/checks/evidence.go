@@ -23,7 +23,17 @@ func (evidenceCheck) Run(_ context.Context, c extraction.Contract) []intent.Find
 	if !c.PRDPresent && !c.RegistryPresent {
 		return nil
 	}
-	store := evidence.NewStore(c.ScenarioDir, nil)
+	store, err := evidence.NewTargetStore(c.ScenarioDir, nil)
+	if err != nil {
+		return []intent.Finding{{
+			Code:       "business_evidence_stale",
+			Severity:   "warning",
+			Message:    fmt.Sprintf("test-genie evidence location cannot be resolved: %v", err),
+			Suggestion: "Repair the repository storage contract, then re-run the comprehensive suite.",
+			Locations:  []string{"coverage/requirements-sync/latest.json"},
+			Provenance: "business-health",
+		}}
+	}
 	snap, hasSnap, err := store.ReadSnapshot()
 	if err != nil {
 		return []intent.Finding{{

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"resource-reranker/cli/internal/capacitysync"
-	"resource-reranker/cli/internal/gateway"
-	"resource-reranker/cli/internal/models"
+	"github.com/vrooli/vrooli/resources/reranker/cli/internal/capacitysync"
+	"github.com/vrooli/vrooli/resources/reranker/cli/internal/gateway"
+	"github.com/vrooli/vrooli/resources/reranker/cli/internal/models"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

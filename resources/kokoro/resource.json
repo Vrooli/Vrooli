@@ -6,7 +6,7 @@
     "rationale": "No additional host storage is owned by this resource on the supported lifecycle path; the explicit empty declaration prevents an implicit-storage assumption."
   },
   "display_name": "Kokoro",
-  "description": "Managed Kokoro text-to-speech service with native compose-backed lifecycle and shell-retained voice synthesis workflows.",
+  "description": "Managed Kokoro text-to-speech service composed from a checksum-pinned Python runtime, locked wheels, and the reviewed upstream source tree.",
   "cli": {
     "enabled": true,
     "command": "resource-kokoro",
@@ -43,81 +43,253 @@
       "kind": "go_module"
     }
   },
-  "template": "compose-service",
-  "driver": "compose-service",
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": [
+        "managed-private",
+        "managed-shared",
+        "attach-only",
+        "remote-vrooli",
+        "managed-discovered"
+      ],
+      "shared_reuse_requires_consent": true,
+      "external_management": "forbidden",
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "artifact": {
+      "path": "server/kokoro",
+      "version": "0.8.1-d5d1a695",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python",
+      "sha256_by_platform": {
+        "linux-amd64": "db8375fc431b025f16217596d52973acca595e681c2864cbfeab253a0c075d57"
+      },
+      "bundle_artifact": "kokoro_${os}_${arch}"
+    },
+    "acquisition": {
+      "kind": "composed",
+      "license": "Apache-2.0; CPython PSF-2.0; Kokoro-FastAPI dependencies and model weights retain their upstream licenses",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64",
+            "gpu.cuda_compute": ">=8.9"
+          },
+          "layout": "dir",
+          "artifact_sha256": "db8375fc431b025f16217596d52973acca595e681c2864cbfeab253a0c075d57",
+          "runtime_env": {
+            "USE_GPU": "true",
+            "DEVICE": "gpu"
+          },
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "python-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels",
+              "lockfile": "requirements-gpu.lock",
+              "index_url": "https://download.pytorch.org/whl/cu126",
+              "extra_index_url": [
+                "https://pypi.org/simple"
+              ],
+              "allow_sdists": true
+            },
+            {
+              "role": "application",
+              "kind": "url",
+              "dest": "source",
+              "bin_path": "Kokoro-FastAPI-d5d1a69566c47659b7ae434cf62cafb124660183",
+              "url": "https://github.com/remsky/Kokoro-FastAPI/archive/d5d1a69566c47659b7ae434cf62cafb124660183.tar.gz",
+              "sha256": "a9dce574d5f01d7e2e7fbd7796435914330b3a4b34eaa5e633b415feb2e23e07",
+              "archive": "tar.gz"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "layout": "dir",
+          "artifact_sha256": "deb0268971cae48f88c089f90bf0937c9c321d17f56a1277ed54b1730a241ab8",
+          "runtime_env": {
+            "USE_GPU": "false",
+            "DEVICE": "cpu"
+          },
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "python-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels",
+              "lockfile": "requirements.lock",
+              "index_url": "https://download.pytorch.org/whl/cpu",
+              "extra_index_url": [
+                "https://pypi.org/simple"
+              ],
+              "allow_sdists": true
+            },
+            {
+              "role": "application",
+              "kind": "url",
+              "dest": "source",
+              "bin_path": "Kokoro-FastAPI-d5d1a69566c47659b7ae434cf62cafb124660183",
+              "url": "https://github.com/remsky/Kokoro-FastAPI/archive/d5d1a69566c47659b7ae434cf62cafb124660183.tar.gz",
+              "sha256": "a9dce574d5f01d7e2e7fbd7796435914330b3a4b34eaa5e633b415feb2e23e07",
+              "archive": "tar.gz"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "Kokoro native arm64 wheels are not qualified for this release."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "Kokoro native macOS acquisition is not qualified for this release."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "Kokoro native Windows acquisition is not qualified for this release."
+        }
+      ]
+    },
+    "data_artifacts": [
+      {
+        "name": "kokoro-model",
+        "path": "models/v1_0/kokoro-v1_0.pth",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://github.com/remsky/Kokoro-FastAPI/releases/download/v0.1.4/kokoro-v1_0.pth",
+              "sha256": "496dba118d1a58f5f3db2efc88dbdc216e0483fc89fe6e47ee1f2c53f18ad1e4",
+              "layout": "file"
+            }
+          ]
+        }
+      },
+      {
+        "name": "kokoro-model-config",
+        "path": "models/v1_0/config.json",
+        "acquisition": {
+          "kind": "url",
+          "license": "Apache-2.0",
+          "provenance": {
+            "kind": "none"
+          },
+          "targets": [
+            {
+              "url": "https://github.com/remsky/Kokoro-FastAPI/releases/download/v0.1.4/config.json",
+              "sha256": "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f",
+              "layout": "file"
+            }
+          ]
+        }
+      }
+    ],
+    "arguments": [
+      "-m",
+      "uvicorn",
+      "api.src.main:app",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "${RESOURCE_PORT_HTTP}",
+      "--log-level",
+      "debug"
+    ],
+    "environment": {
+      "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
+      "PYTHONNOUSERSITE": "1",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "MODEL_DIR": "${RESOURCE_DATA_DIR}/models",
+      "VOICES_DIR": "${RESOURCE_ARTIFACT_DIR}/source/api/src/voices/v1_0",
+      "PHONEMIZER_ESPEAK_PATH": "/usr/bin",
+      "PHONEMIZER_ESPEAK_DATA": "/usr/share/espeak-ng-data",
+      "ESPEAK_DATA_PATH": "/usr/share/espeak-ng-data"
+    },
+    "attach_health_path": "/v1/audio/voices",
+    "shutdown": {
+      "signal": "terminate"
+    }
+  },
   "deployment": {
     "profiles": {
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
-          "limitations": [
-            "Compose images, storage, and networking remain host-managed."
-          ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "mode": "bundled-service",
+          "architectures": ["amd64"],
+          "requires": [],
+          "limitations": ["The native Python and wheel trees are checksum-pinned for Linux amd64."],
+          "evidence": ["manifest-validation", "artifact-checksum"]
         },
         "macos": {
-          "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
-          "limitations": [
-            "Docker Desktop must be installed and running."
-          ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "reason": "Kokoro native macOS acquisition is not qualified for this release.",
+          "limitations": ["No native macOS artifact was built or hashed."],
+          "evidence": ["manifest-validation"]
         },
         "windows": {
-          "support": "conditional",
-          "mode": "docker-desktop",
-          "architectures": [
-            "amd64",
-            "arm64"
-          ],
-          "requires": [
-            "docker"
-          ],
-          "limitations": [
-            "Docker Desktop must be installed and running."
-          ],
-          "evidence": [
-            "manifest-validation",
-            "docker-preflight"
-          ]
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "reason": "Kokoro native Windows acquisition is not qualified for this release.",
+          "limitations": ["No native Windows artifact was built or hashed."],
+          "evidence": ["manifest-validation"]
         }
       }
     }
   },
-  "compose_file": "docker/docker-compose.yml",
   "acceleration": {
     "backends": [
       "cuda",
       "cpu"
     ],
     "require": "preferred",
-    "cuda": {
-      "compose_overlay": "docker/docker-compose.gpu.yml",
-      "env": {
-        "KOKORO_IMAGE": "ghcr.io/remsky/kokoro-fastapi-gpu@sha256:79d81c41d8883611291c5785e47db2ba00765e9b89dd59de05d9f28e1945f905"
-      }
-    },
+    "cuda": {},
     "cpu": {},
     "claim": {
       "resource_kind": "vram",
@@ -164,8 +336,8 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "build-verified",
-    "windows": "build-verified"
+    "macos": "unsupported",
+    "windows": "unsupported"
   },
   "ports": [
     {
@@ -212,7 +384,7 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "host-required",
+  "bundling": "vendorable",
   "hostSafeguards": [
     {
       "name": "nvidia_driver",

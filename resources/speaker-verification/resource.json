@@ -84,7 +84,6 @@
       "kind": "go_module"
     }
   },
-  "template": "managed-service",
   "driver": "managed-service",
   "managed_service": {
     "artifact_role": "managed-service",

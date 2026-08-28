@@ -12,6 +12,8 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
+const capacityHeartbeatTTL = 15 * time.Minute
+
 // Verdict describes whether a short-lived operation may consume its requested
 // host capacity. Queue and deny both fall back to serial execution upstream.
 type Verdict struct {
@@ -145,7 +147,7 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 			PreferredBytes: spec.want,
 			FloorBytes:     spec.want,
 			Priority:       internalcapacity.PriorityBatch,
-			TTL:            15 * time.Minute,
+			TTL:            capacityHeartbeatTTL,
 		}
 		verdict := internalcapacity.Decide(req, snapshot, ledger, policy, now)
 		if !verdict.Granted() {
