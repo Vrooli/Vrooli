@@ -148,3 +148,38 @@ a migration handoff with a planned retirement path back into
 - Follow-up evidence: On 2026-08-24 the catalog evidence endpoint was changed from a synthetic visual pass to the BAS-backed component runner. Full-catalog capture initially exceeded the synchronous client deadline after producing a partial manifest; bounded `limit`/`offset` requests, durable manifest continuation, and CLI batch orchestration now keep each request within the lifecycle boundary. A broad run advanced through offset 416 with 479 story rows and no failed rows before being deliberately stopped in accordance with the plan's System Monitor priority. The remaining corpus is resumable and is not evidence of full-catalog visual completion.
 - Follow-up evidence: On 2026-08-24 the same BAS path captured selected Card, DataTable, Dialog, Tabs, List, Text, Chart, Icon, and Button versions with passed individual and review-sheet rows. The generic sheet route was inspected at desktop and mobile widths. Button's mobile long-label specimen initially exposed horizontal overflow; the constrained specimen and shared Pressable ellipsis now produce root `scrollWidth == clientWidth` with the full accessible label preserved.
 - Measured: 2026-08-19.
+
+- Rung: W0
+- Evidence: Goal `react-component-library-adoption-integrity` requires “derive styling contracts from version source,” “block unsafe apply/reapply/reconverge,” and “support atomic batch and lifecycle operations”; the PRD's P0 targets cover indexing/style-affinity projections (`OT-P0-001`), adoption drift status (`OT-P0-006`), and CLI parity (`OT-P0-007`), but no P0 operational target names those three required capabilities. The goal therefore directs capabilities that the contract leaves below P0 or unnamed.
+- Blocker: None operational; the contract mismatch must be repaired through `prd-authoring` before lower-rung validation is authoritative.
+- Measured: 2026-08-28.
+
+- Rung: W0 — pass
+- Evidence: After contract repair, `OT-P0-001` names source-derived styling contracts, `OT-P0-006` names unsafe apply/reapply/reconverge refusal with explicit validated override, `OT-P0-007` names atomic batch and lifecycle operations, and `OT-P0-008` names token-complete templates/adopters. These P0 targets cover the capabilities named by `react-component-library-adoption-integrity`; the reconciled `design-language-foundation` goal's separate generation-gate and design-kit targets are not assigned to this scenario.
+- Blocker: None.
+- Measured: 2026-08-28.
+
+- Rung: W3 / R0
+- Evidence: W0, `business-health validate scenario react-component-library`, and `vrooli scenario requirements validate react-component-library` pass. The server-owned W3 run `20260828-011725-65a34ee0` finished 18/24 phases passed, 5 failed, 1 skipped. Current failures are storage (`STORAGE_PATH_UNCOVERED`, `STORAGE_BUDGET_BELOW_OBSERVED`), workflow (routed isolation unavailable plus an invalid `executionMode: "read_only"` BAS fixture), experience (587 errors including unresolved specimens and historical contract-shape errors), security (`gosec.G702` at `cli/domains/coverage/census.go:380`), and unit (validation RPC deadline exceeded). Plan-specific component-tests, package, API, CLI, and structural checks remain green.
+- Blocker: None operational; repair the actionable implementation-layer findings and retain environmental/provider findings as measured evidence.
+- Measured: 2026-08-28.
+
+- Rung: W3 / R0 — latest re-measurement
+- Evidence: W0, `business-health validate`, and `vrooli scenario requirements validate` remain passing. Comprehensive run `20260828-021659-16f76687` finished 18/24 phases passed, 5 failed, 1 skipped; independent owned component-tests run `20260828-022849-781f0349` passed 1/1. The remaining comprehensive findings include adjacent template-manager dependency setup, provider/unit evidence, historical experience/security/branding debt, and a current `Banner@1.0.11` catalog typecheck failure. Plan-specific package build, API/CLI suites, cache/BAS/AST/self-hosting/artifact checks remain green.
+- Blocker: None operational; the plan DOD suite-green and strict historical byte-equivalence rows remain unproven and are recorded in the plan ledger.
+- Measured: 2026-08-28.
+
+- Rung: W3 / R0 — library unit-suite re-measurement
+- Evidence: `pnpm --dir scenarios/react-component-library/ui run test:library` completed in 238 seconds with 1,076 passing and 143 failing tests across 3 files. A focused Banner story-contract run reproduces the historical-version `banner.icon` crash independently; the broader failures also include LayerManager portal/render errors, Text 1.1.0 restyle/ref failures, and catalog stamp/expectation mismatches. Package-owned typecheck, catalog lint, and the independent component-contract suite remain green.
+- Blocker: None operational; the failures are released component/story-contract debt outside this setup-only plan's explicit scope and are retained as evidence rather than repaired by changing released component behavior.
+- Measured: 2026-08-28.
+
+- Rung: W3 / R0 — generic story-contract harness correction
+- Evidence: The runner's raw-component coverage mount now runs only when a composed story supplies direct arguments; composed stories with empty args use their declared specimen as the valid construction path. The focused Banner contract suite passes 12/12 after this correction. A bounded corpus run then reaches 22 passing stories before exposing AppNavigation Mobile's component/story mismatch (`display: none` labels versus a visible-text expectation).
+- Blocker: None operational; the remaining AppNavigation contract is component behavior debt and remains outside this setup-only plan.
+- Measured: 2026-08-28.
+
+- Rung: W3 / R0 — generic catalog conformance and workflow seam cleanup
+- Evidence: Catalog conformance now type-checks and lints discovered current/draft sources directly, with no disposable-source allowlist, component-name branch, version-specific rewrite, or fixed component injection. The UI production build and `catalog:check` pass; catalog lint retains 13 existing warnings and no errors. The observer preview case now navigates directly to its preview route without a mutating click, and workflow static validation no longer reports `observer_content_unsafe`. Stale experience references were reconciled to materialized story IDs, with a local cross-reference check reporting zero invalid state examples.
+- Outstanding: The full scenario run remains in progress or may expose additional inherited experience-contract debt; the current plan validation must use its terminal result rather than infer from this focused evidence.
+- Measured: 2026-08-28.

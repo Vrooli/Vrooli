@@ -3,6 +3,7 @@ package preview
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -43,6 +44,7 @@ func TestScanImportedSourceDeclarationsFollowsVersionPinnedCatalogImports(t *tes
 	}}, "components/Root/versions/1.0.0/Root.tsx")
 	require.NoError(t, err)
 	require.Len(t, fields, 2)
+	sort.Slice(fields, func(i, j int) bool { return fields[i].DepName < fields[j].DepName })
 	require.Equal(t, "clsx", fields[0].DepName)
 	require.Equal(t, "tailwind-merge", fields[1].DepName)
 }

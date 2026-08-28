@@ -1,0 +1,35 @@
+{
+  "claims": [
+    {
+      "id": "contract-present",
+      "statement": "The service exposes a stable versioned contract with explicit ownership.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "channels-agree",
+      "statement": "Both status-bar channels are written from one resolved value, so the theme-color meta tag and the safe-area strip can never describe different colours.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "services.chrome-theme",
+    "purpose": "Priority-resolved OS status-bar and app-chrome appearance across both platform mechanisms.",
+    "title": "Chrome Theme"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:ChromeTheme@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "The default service contract.",
+      "example": "default",
+      "id": "default"
+    }
+  ]
+}

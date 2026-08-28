@@ -37,3 +37,18 @@ test("tidiness checks fail for reintroduced hash tests and tool residue", () => 
   assert.deepEqual(result.hashNamedTestFiles, ["scenarios/react-component-library/library/components/Fake/versions/1.0.0/Fake.deadbeef.test.tsx"]);
   assert.deepEqual(result.unreferencedToolFiles, ["scenarios/react-component-library/tools/leftover.mjs"]);
 });
+
+test("tidiness checks fail for dated generated artifacts under reserved paths", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "rcl-census-artifact-"));
+  const artifact = path.join(
+    root,
+    "scenarios/react-component-library/docs/evidence/2026-08-28-run.json",
+  );
+  mkdirSync(path.dirname(artifact), { recursive: true });
+  writeFileSync(artifact, "{}\n");
+
+  const result = inspectTidiness(root);
+  assert.deepEqual(result.datedArtifactFiles, [
+    "scenarios/react-component-library/docs/evidence/2026-08-28-run.json",
+  ]);
+});

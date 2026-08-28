@@ -51,6 +51,7 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 			return nil, err
 		}
 	}
+	defer rows.Close()
 	var versions []sourceVersion
 	for rows.Next() {
 		var v sourceVersion

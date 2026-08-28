@@ -236,6 +236,14 @@ function packageStats() {
 export function inspectTidiness(root = repoRoot) {
   const library = path.join(root, "scenarios/react-component-library/library");
   const tools = path.join(root, "scenarios/react-component-library/tools");
+  const generatedRoots = ["captures", "docs/evidence", ".vite"].map((relativePath) =>
+    path.join(root, "scenarios/react-component-library", relativePath),
+  );
+  const datedArtifactFiles = generatedRoots
+    .flatMap((directory) => walk(directory))
+    .filter((file) => /(?:^|\/)(?:20\d{2}-\d{2}-\d{2}|.*\d{4}-\d{2}-\d{2}.*)/.test(file))
+    .map((file) => path.relative(root, file).split(path.sep).join("/"))
+    .sort();
   const hashNamedTestFiles = walk(library)
     .filter((file) => /\.[0-9a-f]{8}\.test\.tsx$/.test(file))
     .map((file) => path.relative(root, file).split(path.sep).join("/"))
@@ -243,11 +251,15 @@ export function inspectTidiness(root = repoRoot) {
   const unreferencedToolFiles = walk(tools)
     .filter((file) => {
       const relativePath = path.relative(tools, file).split(path.sep).join("/");
-      return relativePath !== "capture-assets.sh" && !relativePath.startsWith("preview-runtime-");
+      return (
+        relativePath !== "capture-assets.sh" &&
+        !relativePath.startsWith("preview-runtime-") &&
+        !relativePath.startsWith("testdata/")
+      );
     })
     .map((file) => path.relative(root, file).split(path.sep).join("/"))
     .sort();
-  return { hashNamedTestFiles, unreferencedToolFiles };
+  return { datedArtifactFiles, hashNamedTestFiles, unreferencedToolFiles };
 }
 
 function main() {
@@ -311,7 +323,11 @@ function main() {
     fs.writeFileSync(outputPath, serialized);
   }
   process.stdout.write(serialized);
-  if (result.tidiness.hashNamedTestFiles.length || result.tidiness.unreferencedToolFiles.length) process.exitCode = 1;
+  if (
+    result.tidiness.datedArtifactFiles.length ||
+    result.tidiness.hashNamedTestFiles.length ||
+    result.tidiness.unreferencedToolFiles.length
+  ) process.exitCode = 1;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

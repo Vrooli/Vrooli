@@ -19,7 +19,7 @@ Use the current authoring and review guidance instead:
 - [Asset preview composition](asset-preview-composition.md)
 - [Asset update flow](asset-update-flow.md)
 
-The checked-in inventory and state files under `docs/evidence/` are evidence of
-the current authored corpus. They are not migration instructions. Counts in
+The generated inventory and resumable state under `tmp/retention/` are evidence
+of the current authored corpus. They are not migration instructions. Counts in
 those files are time-dependent measurements and must not be copied into tests
 or permanent prose as fixed catalog requirements.

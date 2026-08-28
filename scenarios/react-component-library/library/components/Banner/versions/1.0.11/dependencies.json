@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:Banner",
+  "version": "1.0.11",
+  "resolvedAt": "2026-08-28T00:00:00.000Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ChromeTheme",
+      "version": "1.0.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.1",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.0.1",
+      "rank": 2
+    }
+  ]
+}

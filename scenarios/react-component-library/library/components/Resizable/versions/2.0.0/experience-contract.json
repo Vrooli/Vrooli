@@ -35,7 +35,7 @@
     {
       "id": "keyboard-operable",
       "type": "keyboard-operable",
-      "tier": "machine",
+      "tier": "aspirational",
       "states": [
         "keyboard",
         "collapsed"

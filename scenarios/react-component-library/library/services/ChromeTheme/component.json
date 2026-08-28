@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "service",
+  "catalogId": "services.chrome-theme",
+  "description": "Scoped runtime service for predictable ChromeTheme behavior.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "ChromeTheme",
+  "kind": "surface",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:ChromeTheme",
+  "tags": [
+    "runtime",
+    "state"
+  ],
+  "draft": "",
+  "deprecatedVersions": []
+}

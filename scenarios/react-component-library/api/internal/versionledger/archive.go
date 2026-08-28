@@ -197,6 +197,7 @@ func (r *Repository) Doctor(ctx context.Context) ([]DoctorIssue, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 	type evictedVersion struct {
 		id, libraryID, version, sourcePath string
 	}

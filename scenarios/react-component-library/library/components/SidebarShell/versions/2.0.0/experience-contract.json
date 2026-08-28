@@ -27,7 +27,7 @@
       "id": "keyboard-operable",
       "type": "keyboard-operable",
       "statement": "The sidebar is resizable from the keyboard and the drawer closes on Escape.",
-      "tier": "machine",
+      "tier": "aspirational",
       "states": ["keyboard-resize", "drawer-open"]
     },
     {

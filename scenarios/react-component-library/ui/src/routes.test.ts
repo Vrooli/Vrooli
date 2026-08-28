@@ -32,13 +32,15 @@ describe("workspace route contract", () => {
     expect(assetPath("asset 42", { tab: "preview", story: "loading" })).toBe(
       "/assets/asset%2042?story=loading",
     );
-    expect(assetTestReportPath("asset 42", "ctr/a")).toBe("/assets/asset%2042");
+    expect(assetTestReportPath("asset 42", "ctr/a")).toBe(
+      "/assets/asset%2042?tab=tests&testReport=ctr%2Fa",
+    );
   });
 
   it("normalizes tab state and keeps removed legacy tabs out of the workspace", () => {
     expect(assetInfoTab(new URLSearchParams("tab=tests"))).toBe("preview");
     expect(assetInfoTab(new URLSearchParams("tab=unknown"))).toBe("preview");
-    expect(assetSearchForTab("overview", "ctr_1")).toBe("?tab=overview");
+    expect(assetSearchForTab("overview", "ctr_1")).toBe("?tab=tests&testReport=ctr_1");
     expect(assetSearchForTab("versions", "ctr_1")).toBe("?tab=versions");
     expect(assetInfoTab(new URLSearchParams("tab=experience"))).toBe("experience");
     expect(assetStory(new URLSearchParams("story=loading"))).toBe("loading");

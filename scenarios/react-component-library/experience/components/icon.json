@@ -11,12 +11,12 @@
   "states": [
     {
       "id": "registry",
-      "example": "name-check",
+      "example": "set",
       "description": "The named icon registry renders with optical sizing."
     },
     {
       "id": "accessible",
-      "example": "name-search",
+      "example": "anatomy",
       "description": "Meaningful icons expose a name while decorative icons remain hidden."
     }
   ],

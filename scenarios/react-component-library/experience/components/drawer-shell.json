@@ -6,7 +6,7 @@
     "id": "drawer-shell",
     "title": "DrawerShell",
     "purpose": "Provide an accessible overlay that names its purpose, exposes a close action, and keeps its dialog content distinct from the underlying workspace.",
-    "storyRef": "../../library/components/DrawerShell/versions/1.0.0/story.json",
+    "storyRef": "../../library/components/DrawerShell/versions/1.1.3/story.json",
     "prd_refs": ["OT-P0-001", "OT-P0-003"]
   },
   "priorities": [
@@ -33,8 +33,8 @@
     },
     {
       "id": "header-actions",
-      "example": "with-header-actions",
-      "description": "Open drawer with an additional header action."
+      "example": "with-header-content",
+      "description": "Open drawer with additional header content."
     }
   ],
   "elements": [
@@ -74,7 +74,7 @@
     {
       "id": "header-action-present",
       "type": "element-present",
-      "statement": "The header-actions example renders its supplied header action.",
+      "statement": "The header-actions example renders its supplied header content.",
       "tier": "machine",
       "elements": ["header-action"],
       "states": ["header-actions"]

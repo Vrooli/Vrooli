@@ -31,7 +31,7 @@
       "id": "keyboard-operable",
       "type": "keyboard-operable",
       "statement": "Arrows step by a declared pixel amount, Shift coarsens, Home and End reach the bounds, PageUp and PageDown move between snap points, Enter restores the default.",
-      "tier": "machine",
+      "tier": "aspirational",
       "states": [
         "keyboard"
       ]

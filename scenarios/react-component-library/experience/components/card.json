@@ -6,7 +6,7 @@
     "id": "primitives-card",
     "title": "Card",
     "purpose": "A structured surface that consumes a shared elevation context and remains flat when rendered standalone.",
-    "storyRef": "../../library/components/Card/versions/1.2.0/story.json"
+    "storyRef": "../../library/components/Card/versions/1.2.2/story.json"
   },
   "states": [
     {
@@ -34,7 +34,7 @@
   ],
   "bindings": {
     "elements": {
-      "card": { "testID": "rcl-card" }
+      "card": { "testid": "rcl-card" }
     }
   }
 }

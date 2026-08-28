@@ -6,7 +6,7 @@
     "id": "asset-detail-shell",
     "title": "AssetDetailShell",
     "purpose": "Keep the primary asset task, supporting activity, actions, and metadata in a clear responsive hierarchy.",
-    "storyRef": "../../library/components/AssetDetailShell/versions/1.1.0/story.json"
+    "storyRef": "../../library/components/AssetDetailShell/versions/1.1.2/story.json"
   },
   "states": [
     { "id": "ready-detail", "example": "ready-detail", "description": "The primary detail is usable." },

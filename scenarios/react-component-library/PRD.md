@@ -14,14 +14,14 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Component registry & header-driven indexing | Disk-walking indexer parses `component.json`, version folders, `@libraryId` / `@version` / `@deps` header comments, and per-version `story.json`, then upserts SQLite-backed registry, version, dependency, style-affinity, and story projections; malformed structural headers reject with a structured, actionable error and non-fatal contract drift is reported as findings.
+- [ ] OT-P0-001 | Component registry & source-derived contracts | Disk-walking indexer parses `component.json`, version folders, `@libraryId` / `@version` / `@deps` header comments, and per-version `story.json`, then upserts SQLite-backed registry, version, dependency, source-derived styling-contract, and story projections; malformed structural headers reject with a structured, actionable error and non-fatal contract drift is reported as findings.
 - [ ] OT-P0-002 | Monaco editor with safe content I/O | TSX editing, save, format-on-type; all reads/writes routed through `package:api-core/storage` with path-traversal rejection.
 - [ ] OT-P0-003 | Live preview executes real React in an isolated iframe | Per-component harness renders the actual component (no placeholder HTML), supports versioned named examples and stable `libraryId` harness URLs, reports preview-ready/error to the host, and reloads on save through cache-busted iframe navigation.
 - [x] OT-P0-004 | Multi-viewport emulator | Device presets (mobile/tablet/desktop and named devices), continuous zoom 10–200%, rotate, reset; state persists across sessions.
 - [x] OT-P0-005 | Search and filter the registry | Name and description substring match plus tag/category facets; p95 query under 100ms on the test corpus.
-- [x] OT-P0-006 | Adoption workflow with drift status | `adoption_records` track scenario, path, adopted version; status = current/behind/modified/unknown computed on refresh.
-- [ ] OT-P0-007 | CLI parity for headless workflows | `react-component-library {components,adoptions,versions} ...` covers list/search/get/index/create/refresh; default human output, `--json` opt-in (per `cli-steer`).
-- [ ] OT-P0-008 | Test coverage meets the template floor | Per-domain SQLite-backed repository tests, handler tests over mocks, UI component tests per page, catalog TypeScript/ESLint gates, real-browser full-catalog preview sweeps, component experience reconciliation, and BAS flows for primary user journeys.
+- [x] OT-P0-006 | Safe adoption workflow with drift status | `adoption_records` track scenario, path, adopted version; refresh computes current/behind/modified/unknown, while apply, reapply, and reconverge refuse unsafe writes unless the caller supplies the explicitly validated confirmation or override.
+- [ ] OT-P0-007 | CLI parity for headless workflows | `react-component-library {components,adoptions,versions} ...` covers list/search/get/index/create/refresh, atomic batch operations, and lifecycle operations; default human output, `--json` opt-in (per `cli-steer`).
+- [ ] OT-P0-008 | Test coverage meets the template floor | Per-domain SQLite-backed repository tests, handler tests over mocks, UI component tests per page, token-complete templates and adopting scenarios, catalog TypeScript/ESLint gates, real-browser full-catalog preview sweeps, component experience reconciliation, and BAS flows for primary user journeys.
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | DevTools-style visual filters | Color-scheme toggle (system/light/dark) and a vision-filter dropdown (blur 0–10px, grayscale, protanopia, deuteranopia, tritanopia) applied to the preview iframe.

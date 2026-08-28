@@ -21,9 +21,7 @@
         "path": "description"
       },
       {
-        "default": {
-          "$text": "Archive Button v1.0.0?"
-        },
+        "default": "Archive Button v1.0.0?",
         "kind": "structured",
         "label": "Children",
         "path": "children"
@@ -56,9 +54,7 @@
   "stories": [
     {
       "args": {
-        "children": {
-          "$text": "Archive Button v1.0.0?"
-        },
+        "children": "Archive Button v1.0.0?",
         "closeLabel": "Close dialog",
         "description": "This keeps prior versions available for audit.",
         "open": false,
@@ -97,9 +93,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Used by 14 scenarios"
-        },
+        "children": "Used by 14 scenarios",
         "closeLabel": "Close details",
         "open": true,
         "title": "Component details"
@@ -140,9 +134,7 @@
     },
     {
       "args": {
-        "children": {
-          "$text": "Short confirmation copy"
-        },
+        "children": "Short confirmation copy",
         "closeLabel": "Close",
         "open": true,
         "title": "Minimal dialog"

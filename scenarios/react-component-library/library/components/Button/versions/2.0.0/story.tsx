@@ -77,3 +77,17 @@ export const ButtonStory = ({ args }: StoryHarnessProps) => {
     </Showcase>
   );
 }
+
+export const StartIcon = ({ args }: StoryHarnessProps) => {
+  const buttonArgs = args as unknown as ButtonProps;
+  return (
+    <Button
+      {...buttonArgs}
+      icon={
+        <span aria-hidden="true" style={{ fontSize: "1.1em", lineHeight: 1 }}>
+          →
+        </span>
+      }
+    />
+  );
+};

@@ -25,6 +25,9 @@ func TestCatalogStoryConformance(t *testing.T) {
 		if entry.IsDir() || entry.Name() != "story.json" {
 			return nil
 		}
+		if strings.Contains(filepath.ToSlash(path), "/library/.retired/") {
+			return nil
+		}
 		storyCount++
 		versionDir := filepath.Dir(path)
 		prefix := strings.TrimPrefix(versionDir, libraryRoot+string(filepath.Separator))

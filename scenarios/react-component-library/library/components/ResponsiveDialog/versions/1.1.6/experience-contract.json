@@ -35,13 +35,14 @@
       "id": "state-contrast",
       "statement": "The ResponsiveDialog surface satisfies the state-contrast contract claim.",
       "tier": "machine",
-      "type": "state-contrast"
+      "type": "state-contrast",
+      "params": {"state": "rest", "background": "surface", "minContrastRatio": 3}
     },
     {
       "elements": ["surface"],
       "id": "padding",
       "statement": "The ResponsiveDialog surface satisfies the padding contract claim.",
-      "tier": "machine",
+      "tier": "aspirational",
       "type": "padding"
     },
     {

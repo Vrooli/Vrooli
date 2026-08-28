@@ -67,14 +67,15 @@ export function assetStory(search: URLSearchParams): string | undefined {
 
 export function assetSearchForTab(tab: AssetInfoTab, reportID?: string, story?: string): string {
   const search = new URLSearchParams();
-  if (tab !== "preview") search.set("tab", tab);
+  if (reportID && tab === "overview") {
+    search.set("tab", "tests");
+    search.set("testReport", reportID);
+  } else if (tab !== "preview") search.set("tab", tab);
   if (story) search.set("story", story);
-  void reportID;
   const serialized = search.toString();
   return serialized ? `?${serialized}` : "";
 }
 
 export function assetTestReportPath(assetID: string, reportID: string): string {
-  void reportID;
-  return assetPath(assetID);
+  return `${assetPath(assetID, { tab: "preview" })}${assetSearchForTab("overview", reportID)}`;
 }

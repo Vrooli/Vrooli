@@ -49,7 +49,7 @@
       "required": true,
       "purpose": "Render and report the lifecycle of the selected component's real preview specimens.",
       "component": {
-        "library": { "component": "experience-surface", "version": "1.0.0" }
+        "library": { "component": "experience-surface", "version": "1.0.2" }
       },
       "lifecycle": {
         "kind": "async",

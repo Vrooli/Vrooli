@@ -6,7 +6,7 @@
     "id": "bounded-meter",
     "title": "BoundedMeter",
     "purpose": "Share one bounded-value surface across score, measurement, and budget views.",
-    "storyRef": "../../library/components/BoundedMeter/versions/1.0.1/story.json"
+    "storyRef": "../../library/components/BoundedMeter/versions/1.0.5/story.json"
   },
   "states": [
     {

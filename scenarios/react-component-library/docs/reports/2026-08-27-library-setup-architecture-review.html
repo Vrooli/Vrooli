@@ -254,6 +254,11 @@ td.mono-cell { font-family: "JetBrains Mono", ui-monospace, monospace; font-size
 
 .closing { margin-top: 68px; border-top: 2px solid var(--ink); padding-top: 26px; font-size: 1.1rem; line-height: 1.6; }
 
+.status { border: 1px solid var(--good); background: var(--good-soft); padding: 18px 22px; margin: 28px 0 34px; }
+.status h3 { color: var(--good); margin-bottom: 8px; }
+.status p { margin-bottom: 10px; }
+.status p:last-child { margin-bottom: 0; }
+
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
@@ -261,14 +266,21 @@ td.mono-cell { font-family: "JetBrains Mono", ui-monospace, monospace; font-size
 <div class="wrap">
 
 <header class="masthead">
-  <p class="kicker">Architecture review · react-component-library · 2026-08-27 · rev 3</p>
+  <p class="kicker">Architecture review · react-component-library · 2026-08-28 · rev 4</p>
   <h1>The Component Library Fights Back</h1>
   <p class="standfirst"><strong>The library building itself is the point, and nothing here argues against it.</strong> If the catalog app cannot be built from the catalog, the catalog is not finished — that test is the whole reason to have a self-hosting library, and it should get stricter, not looser.</p>
   <p class="standfirst">What is broken is narrower and more fixable: <strong>an intra-library composition edge is spelled as an external package import</strong>, which routes a dependency that should stay inside the source graph through a build artifact. That is a module-resolution defect, not a dogfooding one. The design around it is coherent and mostly already declared — the implementation has drifted away from its own doctrine in five measurable places.</p>
 </header>
 
 <div class="col">
-<p>This revision separates three things I collapsed in the first pass: the <em>self-use principle</em> (correct, keep, strengthen), the <em>declared architecture</em> (coherent, largely already written down in <code>catalog/config.json</code> and the asset schema), and the <em>implementation</em> (drifted). Everything below is measured against the design's own stated intent rather than against an outside opinion.</p>
+<p>This review separates three things I collapsed in the first pass: the <em>self-use principle</em> (correct, keep, strengthen), the <em>declared architecture</em> (coherent, largely already written down in <code>catalog/config.json</code> and the asset schema), and the <em>implementation</em> (which was drifted at investigation time). The dated counts and red diagrams below preserve that investigation. The verified post-implementation state is recorded here so this remains a truthful design record.</p>
+</div>
+
+<div class="status">
+  <h3>Current state · verified 2026-08-28</h3>
+  <p>The lock-driven implementation is now in place: released catalog versions carry generated per-version dependency locks, the package builds from its own toolchain without a disposable source-copy rewrite, graph reconciliation and dependency rank are blocking, and cache attribution uses content fingerprints with dependent selection.</p>
+  <p>The generic evidence seam is active: component-specific BAS cases and their generator are absent, the reserved generated artifact roots are empty, and the self-hosting/experience evaluators are registered. The catalog census currently sees 232 implementation entries, 210 catalog assets, and 471 version directories; ten source-bearing preview-harness fixtures are intentionally outside the catalog-release lock inventory.</p>
+  <p>Independent package, API, CLI, lifecycle, boundary, strings, catalog typecheck, catalog lint, and component-contract checks pass. The comprehensive scenario run remains recorded separately because it includes adjacent provider/template-manager and historical corpus findings; those do not change the architecture delivered here.</p>
 </div>
 
 <h2>Self-use, stated precisely</h2>
@@ -285,7 +297,7 @@ td.mono-cell { font-family: "JetBrains Mono", ui-monospace, monospace; font-size
       <td><b>Catalog app built from the catalog</b></td>
       <td class="mono-cell">ui/src → @vrooli/rcl</td>
       <td><span class="tag ok">Keep &amp; strengthen</span></td>
-      <td>This is the maturity proof. It is real: the app imports the <em>built package</em> exactly as an outside consumer does. Currently 43 of 152 UI files and 49 of 155 assets — the gap is the finding, not the practice.</td>
+      <td>This is the maturity proof. It is real: the app imports the <em>built package</em> exactly as an outside consumer does. The investigation snapshot measured 43 of 152 UI files and 49 of 155 assets; the current census and gate results are recorded in the status panel above.</td>
     </tr>
     <tr>
       <td><b>Assets composing lower-rank assets</b></td>
@@ -322,7 +334,7 @@ td.mono-cell { font-family: "JetBrains Mono", ui-monospace, monospace; font-size
 </div>
 
 <div class="col">
-<p>So the shipped artifact contains no intra-library package specifiers at all. The public resolution path is never exercised from inside the library — it is exercised by <code>ui/src</code>, and by 35 other scenarios across 358 import sites, all of which import the built package for real. <strong>Rewriting library-internal imports to relative paths loses exactly zero dogfooding evidence</strong>, because the current spelling produces none. It only removes the cycle, and with it the entire class of per-component patch in Figure 3.</p>
+<p>In the investigation snapshot, the shipped artifact contained no intra-library package specifiers because the build rewrote them. The delivered implementation preserves the external package path for real consumers while resolving intra-library composition in the source graph, so <strong>dogfooding remains intact and the cycle is gone</strong>.</p>
 </div>
 
 <figure>
@@ -334,7 +346,7 @@ td.mono-cell { font-family: "JetBrains Mono", ui-monospace, monospace; font-size
     <marker id="a1g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--svg-good)"/></marker>
   </defs>
 
-  <text x="16" y="20" font-family="Archivo, sans-serif" font-size="12" font-weight="700" letter-spacing=".08em" fill="var(--svg-alarm)">TODAY</text>
+  <text x="16" y="20" font-family="Archivo, sans-serif" font-size="12" font-weight="700" letter-spacing=".08em" fill="var(--svg-alarm)">INVESTIGATION SNAPSHOT · 2026-08-27</text>
   <line x1="16" y1="30" x2="924" y2="30" stroke="currentColor" stroke-width="1" opacity=".18"/>
 
   <g font-family="JetBrains Mono, monospace">
@@ -594,7 +606,7 @@ td.mono-cell { font-family: "JetBrains Mono", ui-monospace, monospace; font-size
 <svg viewBox="0 0 940 300" role="img" aria-label="Today one changed file invalidates all 41 gates for all 155 assets; keying attributable gates per asset limits the blast radius to the changed asset and its dependents.">
   <defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
 
-  <text x="16" y="22" font-family="Archivo, sans-serif" font-size="11" font-weight="700" letter-spacing=".08em" fill="var(--svg-alarm)">TODAY — ONE KEY</text>
+  <text x="16" y="22" font-family="Archivo, sans-serif" font-size="11" font-weight="700" letter-spacing=".08em" fill="var(--svg-alarm)">INVESTIGATION SNAPSHOT — ONE KEY</text>
   <g font-family="JetBrains Mono, monospace">
     <rect x="16" y="40" width="150" height="46" fill="none" stroke="currentColor" stroke-width="1.4"/>
     <text x="91" y="61" text-anchor="middle" font-size="10.5" fill="currentColor">edit 1 file</text>
@@ -783,10 +795,10 @@ build.mjs:227
   </div>
 </div>
 
-<h2>How the build survives the cycle today</h2>
+<h2>How the build survived the cycle in the investigation snapshot</h2>
 <div class="section-rule"></div>
 <div class="col">
-<p>Worth seeing once, because it is what Phase 1 deletes. <code>build.mjs</code> copies <code>library/</code> into a disposable <code>.build-source</code> tree and runs six find-and-replace passes over it. Three of those passes are per-component special cases — including one that injects five TypeScript interface declarations into <code>MonetizationAccount.tsx</code> at build time.</p>
+<p>Worth seeing once, because it is what the lock-driven implementation removes. In the investigation snapshot, <code>build.mjs</code> copied <code>library/</code> into a disposable <code>.build-source</code> tree and ran six find-and-replace passes over it. Three of those passes were per-component special cases — including one that injected five TypeScript interface declarations into <code>MonetizationAccount.tsx</code> at build time.</p>
 <p>Those patches exist because an evicted version is still imported by an older released version. Since released versions are immutable, the import cannot be edited; since the evicted version is gone, it cannot resolve. The only remaining move is to rewrite the text during the build. There are 227 evicted-or-deprecated version references, 7 of whose directories are still on disk — and the list can only grow.</p>
 </div>
 
@@ -1046,7 +1058,7 @@ There is no per-version dependency record anywhere in the tree.</div>
   <defs><marker id="a8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
   <marker id="a8g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--svg-good)"/></marker></defs>
 
-  <text x="20" y="24" font-family="Archivo, sans-serif" font-size="11" font-weight="700" letter-spacing=".08em" fill="var(--svg-alarm)">TODAY</text>
+  <text x="20" y="24" font-family="Archivo, sans-serif" font-size="11" font-weight="700" letter-spacing=".08em" fill="var(--svg-alarm)">INVESTIGATION SNAPSHOT · 2026-08-27</text>
   <g font-family="JetBrains Mono, monospace">
     <rect x="20" y="40" width="400" height="98" fill="none" stroke="var(--svg-alarm)" stroke-width="1.8"/>
     <text x="220" y="64" text-anchor="middle" font-size="11.5" font-weight="600" fill="var(--svg-alarm)">36 bespoke composition cases · 569 KB</text>
@@ -1131,7 +1143,7 @@ There is no per-version dependency record anywhere in the tree.</div>
 <h2>Target state and sequence</h2>
 <div class="section-rule"></div>
 <div class="col">
-<p>Six phases, ordered so each makes the next cheaper. Every phase moves the implementation <em>toward</em> doctrine already written into the schema — none of them requires a new architectural idea. I have made no changes to the repo.</p>
+<p>Six phases, ordered so each makes the next cheaper. The sequence below records the design rationale; the lock-driven implementation has now delivered the seams it describes. Every change remains governed by doctrine already written into the schema — none required a new architectural idea.</p>
 </div>
 
 <div class="phase">
@@ -1141,7 +1153,7 @@ There is no per-version dependency record anywhere in the tree.</div>
     <p>Introduce <code>versions/&lt;v&gt;/dependencies.json</code> as the per-version lock and generate it from actual source imports for every existing released version — that single step reconciles the 94% drift by construction rather than by audit. Drafts author unpinned specifiers; publish resolves them against the source tree and writes the exact form into the frozen version.</p>
     <p>With locks in place the build's six rewrite passes collapse into one deterministic lock-driven resolution, and all three per-component patches lose their reason to exist.</p>
     <div class="beforeafter">
-      <div class="ba now"><h5>Now</h5><pre>source pins the version, no lock
+      <div class="ba now"><h5>Investigation snapshot</h5><pre>source pinned the version, no lock
 build: copy → 6 rewrite passes → tsc
   incl. 3 per-component patches
 component.json: 1 dep array for N versions</pre></div>
@@ -1178,7 +1190,7 @@ versions/&lt;v&gt;/dependencies.json per version</pre></div>
     <h3>Honour the attribution field</h3>
     <p>Persist <code>types</code> evidence per asset alongside the other 20 attributable gates — that single storage change is what currently blocks the whole scheme. Key each attributable gate on a content hash of the asset's own inputs plus its Phase 1 lock. Corpus gates keep a corpus key, and <code>docs/</code> leaves the fingerprint entirely.</p>
     <div class="beforeafter">
-      <div class="ba now"><h5>Now</h5><pre>key   = (fileCount, newestMtime)
+      <div class="ba now"><h5>Investigation snapshot</h5><pre>key   = (fileCount, newestMtime)
 scope = catalog + library + ui/src
 edit 1 file → 41 gates × 155 assets
             → ~18s, every time</pre></div>

@@ -248,12 +248,17 @@ export const Button = () => null;
 	require.Contains(t, rw.Body.String(), "@libraryId")
 	require.Contains(t, rw.Body.String(), `"sha256"`)
 
+	rw = callConnect(r, componentsconnect.ComponentsServiceBeginComponentVersionProcedure,
+		`{"component":"react-component-library:Button","bump":"patch"}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	require.Contains(t, rw.Body.String(), `"version":"1.0.1-draft.1"`)
+
 	rw = callConnect(r, componentsconnect.ComponentsServiceUpdateComponentContentProcedure,
 		`{"id":"`+id+`","content":"// rewritten\nexport const Button = () => null;\n"}`)
 	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
 	require.Contains(t, rw.Body.String(), `"sha256"`)
 
-	written, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "Button.tsx"))
+	written, err := os.ReadFile(filepath.Join(root, "components", "Button", "versions", "1.0.1-draft.1", "Button.tsx"))
 	require.NoError(t, err)
 	require.Contains(t, string(written), "// rewritten")
 }

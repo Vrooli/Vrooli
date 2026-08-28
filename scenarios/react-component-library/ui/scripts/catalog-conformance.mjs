@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -136,12 +136,7 @@ function writeGeneratedTSConfig(outputPath, files) {
           paths: { ...(catalogConfig.compilerOptions?.paths ?? {}), ...packagePaths },
         },
         files: [path.join(uiDir, "src/catalog-story-harness.d.ts"), ...files],
-        include: [
-          path.join(uiDir, "src"),
-          path.join(scenarioDir, "library/components/BottomNav/versions/1.0.0/BottomNav.tsx"),
-          path.join(scenarioDir, "library/components/SidebarShell/versions/1.0.0/SidebarShell.tsx"),
-          path.join(scenarioDir, "library/components/ExperienceSurface/versions/1.0.0/ExperienceSurface.tsx"),
-        ],
+        include: [path.join(uiDir, "src")],
       },
       null,
       2,
@@ -149,132 +144,12 @@ function writeGeneratedTSConfig(outputPath, files) {
   );
 }
 
-function needsDisposableSource(file) {
-  return [
-    "/library/components/BottomNav/versions/1.3.3/",
-    "/library/components/ScoreGauge/versions/1.0.2/",
-    "/library/components/ComputedField/versions/1.0.1/",
-    "/library/components/ConditionalField/versions/1.0.1/",
-    "/library/components/Form/versions/1.0.1/",
-    "/library/components/ObjectField/versions/1.0.2/",
-    "/library/components/ResourceCollection/versions/1.0.2/",
-    "/library/components/VirtualList/versions/1.0.2/",
-    "/library/components/FocusTrapPanel/versions/1.0.1/",
-  ].some((prefix) => file.uiRelative.includes(prefix));
-}
-
-const disposableSources = new Map();
-const disposablePaths = new Map();
-
-function prepareDisposablePaths(files) {
-  for (const file of files.filter(needsDisposableSource)) {
-    const sourcePath = path.resolve(uiDir, file.uiRelative);
-    const generatedPath = path.join(scratchDir, file.scenarioRelative).replace(
-      /\.tsx$/,
-      ".catalog-check.tsx",
-    );
-    mkdirSync(path.dirname(generatedPath), { recursive: true });
-    disposablePaths.set(sourcePath, generatedPath);
-  }
-}
-
-function resolveDisposableImport(sourcePath, specifier) {
-  const resolved = path.resolve(path.dirname(sourcePath), specifier);
-  for (const candidate of [resolved, `${resolved}.tsx`, `${resolved}.ts`]) {
-    const disposablePath = disposablePaths.get(candidate);
-    if (disposablePath) return disposablePath;
-  }
-  return resolved;
-}
-
-function disposableSource(file) {
-  if (!needsDisposableSource(file)) return file;
-  const existing = disposableSources.get(file.uiRelative);
-  if (existing) return existing;
-
-  // Catalog checks use disposable siblings for historical boundary cases.
-  // This keeps conformance tooling honest about released source immutability
-  // while allowing old examples to type-check against the current contract.
-  const sourcePath = path.resolve(uiDir, file.uiRelative);
-  const generatedPath = disposablePaths.get(sourcePath);
-  if (!generatedPath) {
-    throw new Error(`missing scratch path for disposable catalog source ${sourcePath}`);
-  }
-  let source = readFileSync(sourcePath, "utf8");
-  const isBottomNavVersion = file.uiRelative.includes(
-    "/library/components/BottomNav/versions/1.3.3/",
-  );
-  const isRetiredScoreGaugeEdge = file.uiRelative.includes(
-    "/library/components/ScoreGauge/versions/1.0.2/",
-  );
-  if (file.uiRelative.endsWith("/BottomNav.tsx")) {
-    source = source.replaceAll('data-testid="navigation.bottom-navigation"\n', "");
-  } else if (isBottomNavVersion && file.uiRelative.endsWith("/story.tsx")) {
-    source = source.replaceAll('from "./BottomNav"', 'from "./BottomNav.catalog-check"');
-  }
-  if (isRetiredScoreGaugeEdge) {
-    source = source.replaceAll(
-      "../../../BoundedMeter/versions/1.0.1/BoundedMeter",
-      "../../../BoundedMeter/versions/1.0.2/BoundedMeter",
-    );
-  }
-  source = source.replaceAll(
-    "@vrooli/react-component-library/ClassMerge/1.0.1",
-    "@vrooli/react-component-library/ClassMerge/1.0.2",
-  );
-  source = source.replaceAll(
-    "@vrooli/react-component-library/DrawerShell/1.1.3",
-    "@vrooli/react-component-library/useFocusTrap/1.0.0",
-  );
-  source = source.replaceAll(
-    'from "./ComputedField"',
-    'from "@vrooli/react-component-library/ComputedField/1.0.0"',
-  );
-  source = source.replaceAll(
-    'from "./ConditionalField"',
-    'from "@vrooli/react-component-library/ConditionalField/1.0.0"',
-  );
-  source = source.replaceAll(
-    'from "./Form"',
-    'from "@vrooli/react-component-library/Form/1.0.0"',
-  );
-  source = source.replaceAll(
-    'from "./ObjectField"',
-    'from "@vrooli/react-component-library/ObjectField/1.0.0"',
-  );
-  source = source.replaceAll(
-    'from "./ResourceCollection"',
-    'from "@vrooli/react-component-library/ResourceCollection/1.0.1"',
-  );
-  source = source.replaceAll(
-    'from "./VirtualList"',
-    'from "@vrooli/react-component-library/VirtualList/1.0.1"',
-  );
-  source = source.replace(
-    "compute={(values) => values.subtotal * (1 + values.taxRate)}",
-    'compute={(values) => values.subtotal * (1 + (typeof values.taxRate === "number" ? values.taxRate : 0))}',
-  );
-  source = source.replace(
-    /(\b(?:from\s*|import\s*\()\s*)(["'])(\.{1,2}\/[^"']+)\2/g,
-    (_match, prefix, quote, specifier) =>
-      `${prefix}${quote}${resolveDisposableImport(sourcePath, specifier).split(path.sep).join("/")}${quote}`,
-  );
-  writeFileSync(generatedPath, source);
-  const generated = {
-    ...file,
-    uiRelative: path.relative(uiDir, generatedPath).split(path.sep).join("/"),
-    scenarioRelative: path.relative(scenarioDir, generatedPath).split(path.sep).join("/"),
-  };
-  disposableSources.set(file.uiRelative, generated);
-  return generated;
-}
-
 function typeScriptCheckFiles(files) {
-  return files.map((file) => path.resolve(uiDir, disposableSource(file).uiRelative));
+  return files.map((file) => path.resolve(uiDir, file.uiRelative));
 }
 
 function eslintCheckFiles(files) {
-  return files.map((file) => path.resolve(scenarioDir, disposableSource(file).scenarioRelative));
+  return files.map((file) => path.resolve(scenarioDir, file.scenarioRelative));
 }
 
 async function run(command, args, cwd = uiDir, environment = {}) {
@@ -302,7 +177,6 @@ async function run(command, args, cwd = uiDir, environment = {}) {
 
 const mode = process.argv[2] ?? "check";
 const files = catalogFiles();
-prepareDisposablePaths(files);
 const typeScriptFiles = ["type-check", "lint", "check"].includes(mode)
   ? typeScriptCheckFiles(files)
   : files.map((file) => file.uiRelative);

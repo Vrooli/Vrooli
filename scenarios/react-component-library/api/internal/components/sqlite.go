@@ -262,6 +262,7 @@ func (s *sqliteRepository) RestoreEvictedStories(ctx context.Context) (int, erro
 	if err != nil {
 		return 0, fmt.Errorf("list components for evicted story restoration: %w", err)
 	}
+	defer rows.Close()
 	type componentRef struct{ id, libraryID string }
 	var components []componentRef
 	for rows.Next() {
@@ -315,6 +316,7 @@ ORDER BY v.version`, componentID)
 	if err != nil {
 		return nil, fmt.Errorf("find missing evicted story projections for %q: %w", libraryID, err)
 	}
+	defer rows.Close()
 	type mirror struct {
 		version, sourcePath, content string
 	}

@@ -24,6 +24,10 @@
       {
         "asset": "feedback.alert",
         "reason": "Tone, structure, and non-colour treatment are shared."
+      },
+      {
+        "asset": "services.chrome-theme",
+        "reason": "The notice on top owns the OS status bar, and that is two platform mechanisms one surface must not write separately."
       }
     ]
   },

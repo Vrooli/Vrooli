@@ -666,6 +666,10 @@ const dynamicSelectorDefinitions = {
       description: "Preview harness native select control",
       selectorPattern: "select",
     }),
+    captureBoundary: defineDynamicSelector({
+      description: "Generic isolated story capture boundary",
+      selectorPattern: "[data-preview-sheet]",
+    }),
     openDialog: defineDynamicSelector({
       description: "Visible preview dialog",
       selectorPattern: "[role=dialog]",

@@ -1,0 +1,87 @@
+{
+  "claims": [
+    {
+      "id": "one-full-notice",
+      "statement": "Only the highest-priority notice renders in full; every other active notice collapses behind one summary row.",
+      "states": [
+        "stacked"
+      ],
+      "tier": "automated",
+      "type": "story-contract"
+    },
+    {
+      "id": "always-dismissible",
+      "statement": "Every banner offers a close control, and closing hides it without silencing a later recurrence.",
+      "states": [
+        "single",
+        "stacked"
+      ],
+      "tier": "automated",
+      "type": "story-contract"
+    },
+    {
+      "id": "tone-announced",
+      "statement": "Tone determines role and live-region politeness, so an urgent notice is announced assertively rather than shipping silent.",
+      "states": [
+        "single"
+      ],
+      "tier": "automated",
+      "type": "story-contract"
+    },
+    {
+      "id": "non-color-tone",
+      "statement": "Tone is carried by glyph shape as well as palette, so the distinction survives forced-colors and colour-vision differences.",
+      "states": [
+        "single",
+        "stacked"
+      ],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "chrome-single-owner",
+      "statement": "The status bar is tinted from the presented set, so dismissing a notice clears the tint even while its underlying condition still holds.",
+      "states": [
+        "single"
+      ],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "chrome-matches-notice",
+      "statement": "The OS status bar renders the same colour as the notice it is tinted by, measured from what the banner actually painted rather than from a parallel colour table.",
+      "states": [
+        "chrome-match"
+      ],
+      "tier": "automated",
+      "type": "story-contract"
+    }
+  ],
+  "component": {
+    "id": "feedback.banner",
+    "purpose": "Arbitrated application-level notice chrome with deterministic stacking and damped appearance.",
+    "title": "Banner"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:Banner@1.0.11",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "One active notice rendered in full.",
+      "example": "single",
+      "id": "single"
+    },
+    {
+      "description": "Several active notices: one in full, the rest collapsed behind a summary row.",
+      "example": "stacked",
+      "id": "stacked"
+    },
+    {
+      "id": "chrome-match",
+      "example": "chrome-match",
+      "description": "The status bar and the notice beneath it resolve to the same colour."
+    }
+  ]
+}

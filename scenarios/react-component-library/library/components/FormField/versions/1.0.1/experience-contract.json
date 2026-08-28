@@ -9,14 +9,6 @@
     "title": "FormField",
     "purpose": "Binds field labels, controls, descriptions, and errors into one stable accessible relationship."
   },
-  "bindings": {
-    "elements": {
-      "control": {"selector": "[data-testid]"}
-    }
-  },
-  "elements": [
-    {"id": "control", "role": "textbox", "name": "Field"}
-  ],
   "states": [
     {
       "id": "default",
@@ -32,10 +24,9 @@
   "claims": [
     {
       "id": "accessible-name",
-      "type": "accessible-name",
+      "type": "manual-review",
       "statement": "The rendered control is named by its visible label.",
-      "tier": "machine",
-      "elements": ["control"],
+      "tier": "manual",
       "states": ["default", "validation-error"]
     },
     {

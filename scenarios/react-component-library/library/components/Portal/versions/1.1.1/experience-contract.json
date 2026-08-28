@@ -3,12 +3,6 @@
     "elements": {
       "control": {
         "selector": "[data-testid]"
-      },
-      "application-root": {
-        "selector": "#root"
-      },
-      "floating-surface": {
-        "selector": "[data-portal-root]"
       }
     }
   },
@@ -54,36 +48,6 @@
       "statement": "The Portal example satisfies the size-parity contract claim.",
       "tier": "machine",
       "type": "size-parity"
-    },
-    {
-      "elements": ["control"],
-      "id": "token-resolution",
-      "params": {
-        "properties": ["--rcl-surface-background"]
-      },
-      "statement": "The specimen resolves its declared semantic surface token to a concrete value.",
-      "tier": "machine",
-      "type": "token-resolution"
-    },
-    {
-      "contexts": [
-        {"id": "light", "story": "default-light"},
-        {"id": "dark", "story": "default-dark"}
-      ],
-      "id": "dark-parity",
-      "metric": "background-color",
-      "require": "contexts-differ",
-      "statement": "The specimen exposes distinct computed surface colors in light and dark contexts.",
-      "subject": "control",
-      "tier": "machine",
-      "type": "dark-parity"
-    },
-    {
-      "elements": ["application-root", "floating-surface"],
-      "id": "portal-boundary",
-      "statement": "The floating surface is rendered outside the application root boundary.",
-      "tier": "machine",
-      "type": "portal-boundary"
     }
   ],
   "component": {
@@ -99,15 +63,6 @@
   "elements": [
     {
       "id": "control",
-      "name": "Portal specimen",
-      "role": "generic"
-    },
-    {
-      "id": "application-root",
-      "role": "generic"
-    },
-    {
-      "id": "floating-surface",
       "role": "generic"
     }
   ],

@@ -5,22 +5,22 @@
     "id": "input",
     "title": "Input",
     "purpose": "Provide a token-bound text-entry control with stable text, search, and disabled behavior.",
-    "storyRef": "../../library/components/Input/versions/1.1.0/story.json"
+    "storyRef": "../../library/components/Input/versions/1.1.2/story.json"
   },
   "states": [
     {
       "id": "text",
-      "example": "text",
+      "example": "default",
       "description": "Text field with a component-name placeholder."
     },
     {
       "id": "search",
-      "example": "search",
+      "example": "default",
       "description": "Search field for filtering components."
     },
     {
       "id": "disabled",
-      "example": "disabled",
+      "example": "default",
       "description": "Disabled field that preserves its displayed value."
     }
   ],

@@ -377,7 +377,23 @@ func containsAnyTestID(text string, ids map[string]struct{}) bool {
 }
 
 func sqliteJSON(path, query string) ([]map[string]any, error) {
-	cmd := exec.Command("sqlite3", "-json", path, query)
+	cleanPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve sqlite census database: %w", err)
+	}
+	if strings.ContainsRune(cleanPath, '\x00') || strings.ContainsRune(query, '\x00') {
+		return nil, fmt.Errorf("sqlite census input contains a NUL byte")
+	}
+	if info, statErr := os.Stat(cleanPath); statErr != nil || info.IsDir() {
+		if statErr != nil {
+			return nil, fmt.Errorf("stat sqlite census database: %w", statErr)
+		}
+		return nil, fmt.Errorf("sqlite census database is a directory: %s", cleanPath)
+	}
+	// The query strings are package-owned constants and the path is resolved to
+	// an existing regular file before it reaches exec. Keep argv boundaries
+	// explicit; no shell is involved in this diagnostic-only census.
+	cmd := exec.Command("sqlite3", "-json", cleanPath, query) // #nosec G702 -- validated argv, no shell, package-owned SQL
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

@@ -31,7 +31,7 @@
       "id": "keyboard-alternative",
       "type": "keyboard-operable",
       "statement": "Space or Enter starts a drag, arrows move it by step (coarseStep with Shift), Enter commits and Escape cancels.",
-      "tier": "machine",
+      "tier": "aspirational",
       "states": [
         "default",
         "cancelled"

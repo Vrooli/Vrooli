@@ -15,9 +15,11 @@
     { "id": "error", "example": "default", "description": "The relationship service failed and explains the failure." },
     { "id": "success", "example": "default", "description": "Relationships and host obligations are readable." }
   ],
+  "elements": [],
   "claims": [
     { "id": "relationship-panes", "type": "custom", "statement": "The panel exposes named depends-on and used-by regions.", "tier": "manual", "states": ["success"] },
     { "id": "rung-markers", "type": "custom", "statement": "Every related asset is marked with its numeric rung and the closure is presented in rung order.", "tier": "manual", "states": ["success"] },
     { "id": "related-links-keyboard", "type": "custom", "statement": "Every related asset row is reachable as a keyboard link to that asset's relationships tab.", "tier": "manual", "states": ["success"] }
-  ]
+  ],
+  "bindings": {}
 }

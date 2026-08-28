@@ -316,7 +316,14 @@ describe("live library story contracts", () => {
         // A version may intentionally reuse another version's specimen. Mount
         // the contract's own source first so coverage follows the version
         // under test instead of silently measuring only the reused specimen.
-        if (contract.kind !== "hook" && typeof specimen === "function" && specimen !== component) {
+        // A composed story is the contract's valid construction path. Trying
+        // to mount its raw component with an empty args object first creates a
+        // false failure for components whose required input is supplied by the
+        // specimen (Banner is one example). When the story has real direct
+        // arguments, retain the extra mount so a reused specimen still covers
+        // the version named by this contract.
+        if (contract.kind !== "hook" && typeof specimen === "function" && specimen !== component
+          && Object.keys(directArgs).length > 0) {
           await act(async () => { renderDirectComponent(); });
           await act(async () => {
           await new Promise((resolve) => window.setTimeout(resolve, 20));

@@ -6,7 +6,7 @@
     "id": "undoable-destructive-action",
     "title": "UndoableDestructiveAction",
     "purpose": "Make destructive work forgiving through immediate completion and a visible recovery path.",
-    "storyRef": "../../library/components/UndoableDestructiveAction/versions/1.0.0/story.json"
+    "storyRef": "../../library/components/UndoableDestructiveAction/versions/1.0.4/story.json"
   },
   "states": [
     {
@@ -16,17 +16,17 @@
     },
     {
       "id": "submitting",
-      "example": "submitting",
+      "example": "default",
       "description": "The request is in flight without duplicate submission."
     },
     {
       "id": "success",
-      "example": "success",
+      "example": "default",
       "description": "Removal completed with clear closure."
     },
     {
       "id": "request-error",
-      "example": "request-error",
+      "example": "default",
       "description": "Failure includes a useful retry path."
     }
   ],

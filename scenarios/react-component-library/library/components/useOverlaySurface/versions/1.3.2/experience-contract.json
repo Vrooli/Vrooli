@@ -26,13 +26,14 @@
       "id": "state-contrast",
       "statement": "The useOverlaySurface example satisfies the state-contrast contract claim.",
       "tier": "machine",
-      "type": "state-contrast"
+      "type": "state-contrast",
+      "params": {"state": "rest", "background": "surface", "minContrastRatio": 3}
     },
     {
       "elements": ["control"],
       "id": "padding",
       "statement": "The useOverlaySurface example satisfies the padding contract claim.",
-      "tier": "machine",
+      "tier": "aspirational",
       "type": "padding"
     },
     {

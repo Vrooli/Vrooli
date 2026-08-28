@@ -84,7 +84,7 @@
       "id": "capture-story",
       "action": {
         "type": "ACTION_TYPE_SCREENSHOT",
-        "screenshot": { "full_page": false, "selector": "[data-preview-sheet]" },
+        "screenshot": { "full_page": false, "selector": "@selector/preview.captureBoundary" },
         "metadata": { "label": "Capture the supplied story evidence boundary" }
       }
     }

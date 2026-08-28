@@ -6,7 +6,7 @@
     "id": "async-panel",
     "title": "Async Panel",
     "purpose": "Present a meaningful region's loading, ready, empty, partial, or error state while preserving the ExperienceSurface lifecycle contract.",
-    "storyRef": "../../library/components/AsyncPanel/versions/1.0.0/story.json"
+    "storyRef": "../../library/components/AsyncPanel/versions/1.0.2/story.json"
   },
   "states": [
     {

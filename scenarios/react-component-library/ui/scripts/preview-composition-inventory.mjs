@@ -5,7 +5,7 @@ import path from "node:path";
 
 const scenarioRoot = path.resolve(import.meta.dirname, "../..");
 const libraryRoot = path.join(scenarioRoot, "library");
-const inventoryPath = path.join(scenarioRoot, "docs/evidence/preview-composition-inventory.json");
+const inventoryPath = path.join(scenarioRoot, "tmp/retention/preview-composition-inventory.json");
 const canonicalLedgerMetadata = {
   dispositionPolicy: {
     direct:
@@ -94,7 +94,7 @@ function parseArgs(argv) {
   const options = {
     batchSize: 50,
     batchIndex: 0,
-    stateFile: "docs/evidence/preview-composition-state.json",
+    stateFile: "tmp/retention/preview-composition-state.json",
     markComplete: [],
   };
   for (let index = 0; index < argv.length; index += 1) {

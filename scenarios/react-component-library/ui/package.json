@@ -80,7 +80,7 @@
     "lint:preview-assets": "cd ../api && ../ui/node_modules/.bin/eslint --config ../ui/eslint.config.js handlers/preview/assets/*.js",
     "preview": "vite preview",
     "preview:harness:check": "node ./scripts/preview-harness-conformance.mjs",
-    "preview:inventory": "node ./scripts/preview-composition-inventory.mjs > ../docs/evidence/preview-composition-inventory.json",
+    "preview:inventory": "node ./scripts/preview-composition-inventory.mjs > ../tmp/retention/preview-composition-inventory.json",
     "preview:inventory:test": "node --test ./scripts/preview-composition-inventory.nodecheck.mjs",
     "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",

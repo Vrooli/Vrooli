@@ -27,7 +27,7 @@ test("inventory emits unique stable keys and classifies the full corpus", () => 
   assert.equal(report.summary.storyCount, records.length);
   assert.equal(report.summary.batchSize, 50);
   assert.ok(report.summary.batchCount > 1);
-  assert.equal(report.resume.stateFile, "docs/evidence/preview-composition-state.json");
+  assert.equal(report.resume.stateFile, "tmp/retention/preview-composition-state.json");
   assert.equal(new Set(keys).size, keys.length);
   assert.ok(report.summary.contractCount > 0);
   assert.equal(report.summary.contractCount, report.entries.length);

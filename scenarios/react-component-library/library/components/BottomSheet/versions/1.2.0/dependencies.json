@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "libraryId": "react-component-library:BottomSheet",
-  "version": "1.1.7",
-  "resolvedAt": "2026-08-27T19:37:37.669Z",
+  "version": "1.2.0",
+  "resolvedAt": "2026-08-28T00:29:36.294Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:Icon",

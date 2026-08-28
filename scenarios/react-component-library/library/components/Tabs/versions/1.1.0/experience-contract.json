@@ -32,7 +32,8 @@
       "id": "state-contrast",
       "statement": "The selected tab is distinguishable from the unselected tabs.",
       "tier": "machine",
-      "type": "state-contrast"
+      "type": "state-contrast",
+      "params": {"state": "rest", "background": "surface", "minContrastRatio": 3}
     },
     {
       "elements": ["trigger"],

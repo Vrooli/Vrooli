@@ -6,7 +6,7 @@
     "id": "evidence-carousel",
     "title": "EvidenceCarousel",
     "purpose": "Keep machine evidence references visible and selectable in the testing surface.",
-    "storyRef": "../../library/components/EvidenceCarousel/versions/1.0.9/story.json"
+    "storyRef": "../../library/components/EvidenceCarousel/versions/1.0.14/story.json"
   },
   "states": [
     {
@@ -16,7 +16,7 @@
     },
     {
       "id": "empty",
-      "example": "empty",
+      "example": "default",
       "description": "No capture is explicit."
     }
   ],

@@ -7,11 +7,11 @@
     "labels": {
       "reset": "none",
       "surface": "component-preview",
-      "spec_entry_id": "component-preview",
+      "spec_entry_id": "component-preview-workspace",
       "routed_isolation": "true",
       "requirements_json": "[\"PR-001\"]"
     },
-    "execution_mode": "read_only"
+    "execution_mode": "EXECUTION_MODE_OBSERVER"
   },
   "settings": {
     "viewport_width": 1400,
@@ -45,18 +45,6 @@
         },
         "metadata": {
           "label": "Editor panel visible"
-        }
-      }
-    },
-    {
-      "id": "open-preview",
-      "action": {
-        "type": "ACTION_TYPE_CLICK",
-        "click": {
-          "selector": "@selector/assets.componentPreviewTab"
-        },
-        "metadata": {
-          "label": "Open Preview workspace"
         }
       }
     },

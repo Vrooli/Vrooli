@@ -1308,6 +1308,11 @@
       "selectorPattern": "select",
       "params": []
     },
+    "preview.captureBoundary": {
+      "description": "Generic isolated story capture boundary",
+      "selectorPattern": "[data-preview-sheet]",
+      "params": []
+    },
     "preview.openDialog": {
       "description": "Visible preview dialog",
       "selectorPattern": "[role=dialog]",
