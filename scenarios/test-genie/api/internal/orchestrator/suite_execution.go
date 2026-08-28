@@ -829,17 +829,45 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	configurationDigest := ExecutionConfigurationFingerprint(req, descriptorSnapshot.Digest)
 	planCtx.env.DescriptorSnapshotDigest = descriptorSnapshot.Digest
 	planCtx.env.ExecutionConfigurationDigest = configurationDigest
+	persistPlannedRun := func() error {
+		if err := sharedruns.WriteDescriptorSnapshot(planCtx.env.ArtifactRoot, runID, descriptorSnapshot); err != nil {
+			return fmt.Errorf("persist run descriptor snapshot: %w", err)
+		}
+		if err := sharedruns.NewIndex(planCtx.env.ArtifactRoot).Append(sharedruns.RunRecord{
+			RunID:                           runID,
+			Scenario:                        scenario,
+			TargetKind:                      planCtx.env.TargetKind,
+			TargetID:                        planCtx.env.TargetID,
+			StartedAt:                       time.Now().UTC(),
+			Status:                          sharedruns.StatusInProgress,
+			Diagnostics:                     resolveRunDiagnostics(planCtx.env.DiagnosticsPreset),
+			GitSha:                          gitCtx.Sha,
+			GitBranch:                       gitCtx.Branch,
+			GitDirty:                        gitCtx.Dirty,
+			GitDirtySummary:                 gitCtx.DirtySummary,
+			TreeDigest:                      digest,
+			Preset:                          strings.TrimSpace(req.Preset),
+			CaptureProfile:                  strings.TrimSpace(req.CaptureProfile),
+			PlannedPhases:                   plannedPhases,
+			PhaseSetDigest:                  phaseSetDigest,
+			DescriptorSnapshotSchemaVersion: descriptorSnapshot.SchemaVersion,
+			DescriptorSnapshotDigest:        descriptorSnapshot.Digest,
+		}); err != nil {
+			return fmt.Errorf("record run %s in durable index: %w", runID, err)
+		}
+		return nil
+	}
 	admissionMismatches := admissionIdentityMismatches(req, digest, phaseSetDigest, descriptorSnapshot.Digest, configurationDigest)
 	admissionRebased := false
 	if len(admissionMismatches) > 0 {
-		if !req.AdmissionQueued {
-			return nil, fmt.Errorf("admission identity changed (%s); retry to measure the current validation contract", strings.Join(admissionMismatches, ", "))
-		}
-
-		// A queued request was previewed before it acquired a slot. Rebuild the
-		// adaptive selection from the current preset instead of executing the
-		// old ResolvedPhases set. Explicit phase requests retain their exact
-		// operator intent; only planner-resolved selections are cleared.
+		// A durable request may observe a source or descriptor change between its
+		// admission preview and the execution boundary, whether it started
+		// immediately or waited in the queue. Rebuild the adaptive selection from
+		// the current preset exactly once instead of making the external caller
+		// create a second run. Explicit phase requests retain their exact operator
+		// intent; only planner-resolved selections are cleared. Finalization still
+		// rejects any source change that occurs after this execution-boundary
+		// measurement, so the rebase does not weaken provenance.
 		if len(req.Phases) == 0 && len(req.ResolvedPhases) > 0 {
 			req.ResolvedPhases = nil
 			req.PredictedPhaseDurationsMilliseconds = nil
@@ -847,6 +875,12 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 			if err != nil {
 				return nil, fmt.Errorf("rebase queued execution plan: %w", err)
 			}
+			// Rebuilding the plan also rebuilds its workspace environment. Preserve
+			// the execution identity that was bound before admission; phase writers
+			// must never observe an empty run id after a queued rebase.
+			planCtx.env.RunID = runID
+			planCtx.env.CaptureProfile = strings.TrimSpace(req.CaptureProfile)
+			planCtx.env.DiagnosticsPreset = resolveDiagnosticsPreset(req)
 			scenario = planCtx.env.ScenarioName
 			plannedPhases = phaseDefinitionNames(planCtx.plan.Selected)
 			descriptorSnapshot, err = buildRunDescriptorSnapshot(planCtx.plan)
@@ -869,38 +903,16 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		req.AdmissionConfigurationDigest = configurationDigest
 		admissionRebased = true
 	}
+	if err := persistPlannedRun(); err != nil {
+		return nil, err
+	}
 	if req.RequireGateQuality && (digest == "" || digestErr != nil || gitCtx.Dirty || !isLinkedWorktree(planCtx.env.ScenarioDir)) {
 		return nil, fmt.Errorf("gate-quality execution requires an isolated linked Git worktree with a clean, digest-stamped source tree")
-	}
-	if err := sharedruns.WriteDescriptorSnapshot(planCtx.env.ArtifactRoot, runID, descriptorSnapshot); err != nil {
-		return nil, fmt.Errorf("persist run descriptor snapshot: %w", err)
-	}
-	if err := sharedruns.NewIndex(planCtx.env.ArtifactRoot).Append(sharedruns.RunRecord{
-		RunID:                           runID,
-		Scenario:                        scenario,
-		TargetKind:                      planCtx.env.TargetKind,
-		TargetID:                        planCtx.env.TargetID,
-		StartedAt:                       time.Now().UTC(),
-		Status:                          sharedruns.StatusInProgress,
-		Diagnostics:                     resolveRunDiagnostics(planCtx.env.DiagnosticsPreset),
-		GitSha:                          gitCtx.Sha,
-		GitBranch:                       gitCtx.Branch,
-		GitDirty:                        gitCtx.Dirty,
-		GitDirtySummary:                 gitCtx.DirtySummary,
-		TreeDigest:                      digest,
-		Preset:                          strings.TrimSpace(req.Preset),
-		CaptureProfile:                  strings.TrimSpace(req.CaptureProfile),
-		PlannedPhases:                   plannedPhases,
-		PhaseSetDigest:                  phaseSetDigest,
-		DescriptorSnapshotSchemaVersion: descriptorSnapshot.SchemaVersion,
-		DescriptorSnapshotDigest:        descriptorSnapshot.Digest,
-	}); err != nil {
-		return nil, fmt.Errorf("record run %s in durable index: %w", runID, err)
 	}
 
 	warnings := buildPlanWarnings(planCtx.plan)
 	if admissionRebased {
-		warnings = append(warnings, "queued admission identity changed; execution was rebased onto the current validation contract")
+		warnings = append(warnings, "admission identity changed before execution; the run was rebased once onto the current validation contract")
 	}
 
 	return &preparedExecution{
@@ -1126,6 +1138,26 @@ func (o *SuiteOrchestrator) finalizeExecution(
 		result.CampaignNudge = nudge
 		log.Printf("campaign nudge fired for %s: %d findings (%d blocker/error) — %s",
 			result.ScenarioName, nudge.Total, nudge.Severe, nudge.Command)
+	}
+
+	pruneCtx, cancelPrune := context.WithTimeout(context.Background(), 2*time.Minute)
+	pruneResult, pruneErr := phasecache.New(prepared.env.EffectivePhaseCacheRoot()).Prune(pruneCtx, phasecache.DefaultPrunePolicy())
+	cancelPrune()
+	if pruneErr != nil {
+		warning := "phase cache retention failed: " + pruneErr.Error()
+		result.Warnings = append(result.Warnings, warning)
+		log.Printf("%s", warning)
+	} else if pruneResult.Refused {
+		warning := "phase cache retention alarm: " + pruneResult.RefusedReason
+		result.Warnings = append(result.Warnings, warning)
+		log.Printf("%s", warning)
+	} else if len(pruneResult.DeletedEntries) > 0 {
+		log.Printf(
+			"phase cache retention removed %d entries and %d bytes (bound by %s)",
+			len(pruneResult.DeletedEntries),
+			pruneResult.BeforeBytes-pruneResult.AfterBytes,
+			pruneResult.BoundBy,
+		)
 	}
 
 	if emit != nil {
@@ -1464,7 +1496,7 @@ func (o *SuiteOrchestrator) runSelectedPhasesWithRunID(
 							identity, identityOK := phasecacheidentity.Identity(env, phase, readiness)
 							if identityOK {
 								key := phasecache.Key(identity)
-								store := phasecache.New(env.ArtifactRoot)
+								store := phasecache.New(env.EffectivePhaseCacheRoot())
 								if !phasecache.Equivalent(cached, result) {
 									result.CacheAuditMismatch = true
 									// Say WHAT differed. A bare mismatch count
@@ -1970,6 +2002,16 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		Metrics:              report.Metrics,
 		PhasePresentation:    report.PhasePresentation,
 		FindingsSummary:      report.FindingsSummary,
+	}
+	if status == phaseStatusFailed && classification == phases.FailureClassTimeout {
+		result.Findings = append(result.Findings, &architecturev1.ArchitectureFinding{
+			Scenario:   run.definition.ProviderScenario,
+			Code:       "test_genie.phase_timeout",
+			Severity:   architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER,
+			Message:    fmt.Sprintf("phase %s did not complete before its %s deadline", run.definition.Name.String(), run.timeout),
+			Suggestion: fmt.Sprintf("Increase the %s phase timeout or reduce the work in that phase.", run.definition.Name.String()),
+		})
+		result.FindingsSummary = &runspb.PhaseFindingsSummary{Blockers: 1, Total: 1}
 	}
 	// Stamp the phase's finding-source token (empty for phases that emit no
 	// findings) so a downstream campaign reaudit can derive which sources

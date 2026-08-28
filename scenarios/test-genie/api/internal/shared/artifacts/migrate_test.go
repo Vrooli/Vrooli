@@ -31,32 +31,6 @@ func TestEnsureCoverageStructure(t *testing.T) {
 	}
 }
 
-func TestRemoveLegacyArtifactDirs(t *testing.T) {
-	tempDir := t.TempDir()
-	scenarioDir := filepath.Join(tempDir, "scenario")
-
-	// Seed legacy flat directories with a file each.
-	for _, dir := range LegacyArtifactDirs(scenarioDir) {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			t.Fatalf("failed to seed legacy dir: %v", err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "old.json"), []byte("{}"), 0o644); err != nil {
-			t.Fatalf("failed to seed legacy file: %v", err)
-		}
-	}
-
-	// EnsureCoverageStructure performs the one-shot greenfield cleanup.
-	if err := EnsureCoverageStructure(scenarioDir); err != nil {
-		t.Fatalf("ensure structure: %v", err)
-	}
-
-	for _, dir := range LegacyArtifactDirs(scenarioDir) {
-		if _, err := os.Stat(dir); !os.IsNotExist(err) {
-			t.Errorf("expected legacy dir %s to be removed", dir)
-		}
-	}
-}
-
 func TestCleanCoverageArtifacts(t *testing.T) {
 	tempDir := t.TempDir()
 	scenarioDir := filepath.Join(tempDir, "scenario")

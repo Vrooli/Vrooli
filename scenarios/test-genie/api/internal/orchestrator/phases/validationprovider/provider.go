@@ -44,6 +44,7 @@ type Provider struct {
 	Timeout          time.Duration
 	IncludeExecution bool
 	CapabilitySubset []string
+	Exclude          []string
 	DeliveryMode     string
 	GateEnvVar       string
 	DefaultGateMode  GateMode
@@ -259,6 +260,7 @@ func RunTarget(ctx context.Context, provider Provider, target *commonv1.Validati
 		IncludeExecution: provider.IncludeExecution,
 		Path:             strings.TrimSpace(targetPath),
 		CapabilitySubset: append([]string(nil), provider.CapabilitySubset...),
+		Exclude:          append([]string(nil), provider.Exclude...),
 	}))
 	if err != nil {
 		return unavailable(provider, target.GetId(), fmt.Errorf("%s target validation RPC failed: %w", provider.ProviderScenario, err))

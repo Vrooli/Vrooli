@@ -3,6 +3,30 @@
   "version": "1.0.0",
   "storage": {
     "entries": {
+      "run_artifacts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "test_runs",
+        "regenerable": true,
+        "rationale": "Scenario validation output is reproducible by rerunning the suite; 762777637 bytes were observed for test-genie on 2026-08-27.",
+        "budget": {
+          "max_age": "30d",
+          "max_bytes": "20GiB",
+          "rationale": "The repository-wide coverage tree measured 17317434773 bytes on 2026-08-27; 30 days and 20 GiB preserve the existing runtime-home policy."
+        }
+      },
+      "phase_cache": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Content-addressed phase results are reproducible on a cache miss; 69927878 bytes were observed for test-genie on 2026-08-27.",
+        "budget": {
+          "max_age": "7d",
+          "max_bytes": "2GiB",
+          "rationale": "The repository-wide phase cache measured 4613930066 bytes on 2026-08-27; 7 days and 2 GiB match the owner-side eviction policy."
+        }
+      },
       "data": {
         "rung": "owned",
         "kind": "dir",
@@ -15,7 +39,40 @@
         }
       }
     },
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+    "cleanup_providers": [{
+      "id": "test-genie-run-retention",
+      "name": "Test Genie retained runs",
+      "safety_tier": "safe_with_owner",
+      "default_mode": "disabled",
+      "default_approval": "owner"
+    }],
+    "rationale": "Storage surfaces include durable API data plus governed, regenerable test-run and phase-cache artifacts."
+  },
+  "retention": {
+    "budgets": {
+      "run_artifacts": {
+        "target": {
+          "kind": "directory",
+          "class": "test_runs",
+          "path": "."
+        },
+        "max_age": "30d",
+        "max_bytes": "20GiB",
+        "pruner": "builtin",
+        "rationale": "The repository-wide coverage tree measured 17317434773 bytes on 2026-08-27; the existing runtime-home policy bounds regenerable run evidence at 30 days and 20 GiB while preserving active runs."
+      },
+      "phase_cache": {
+        "target": {
+          "kind": "directory",
+          "class": "cache",
+          "path": "."
+        },
+        "max_age": "7d",
+        "max_bytes": "2GiB",
+        "pruner": "builtin",
+        "rationale": "The repository-wide phase cache measured 4613930066 bytes on 2026-08-27; a 7-day, 2 GiB ceiling matches the owner-side eviction policy and keeps recomputation bounded."
+      }
+    }
   },
   "service": {
     "parent": "vrooli",

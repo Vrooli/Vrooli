@@ -37,7 +37,11 @@ func newTestService(t *testing.T) (*Service, string) {
 	root := newFleetRoot(t)
 	// The read-only index RPCs under test need neither the run manager nor the
 	// planner.
-	return NewService(root, nil, nil, nil), root
+	return NewService(root, nil, nil, nil).SetArtifactRootResolver(testArtifactRoot(root)), root
+}
+
+func testArtifactRoot(root string) func(string) (string, error) {
+	return func(scenario string) (string, error) { return filepath.Join(root, scenario), nil }
 }
 
 // TestRunQueryForNonScenarioNameIsNotFoundAndCreatesNothing pins the rule that
@@ -1199,7 +1203,7 @@ func TestGetRunFindingsExplainsPrePhaseFailureWithoutEvidenceManifest(t *testing
 
 	_, err := svc.GetRunFindings(context.Background(), connect.NewRequest(&runspb.GetRunFindingsRequest{
 		Target: "demo",
-		RunId:    "preflight-failed",
+		RunId:  "preflight-failed",
 	}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("GetRunFindings code = %s, want failed precondition; err=%v", connect.CodeOf(err), err)

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/scenariocli"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 )
 
 // TestingCapabilities captures how to run tests for a scenario using Go-native or scenario-local entrypoints.
@@ -45,7 +46,7 @@ func DetectTestingCapabilities(scenarioDir string) TestingCapabilities {
 			Description: "Runs the Go-native test-genie orchestrator (smoke preset).",
 		})
 	}
-	if hasExecutable(filepath.Join(scenarioDir, "coverage", "run-tests.sh")) {
+	if hasExecutable(artifactpaths.ScenarioPath(scenarioDir, artifactpaths.CoverageRoot, "run-tests.sh")) {
 		caps.Phased = true
 		caps.Commands = append(caps.Commands, TestingCommand{
 			Type:        "phased",

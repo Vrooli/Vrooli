@@ -75,7 +75,7 @@ func TestCopiedRunEvidenceRehearsal(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAPSH
 	}
 	manager := runmanager.New(nil, root)
 	defer manager.Shutdown()
-	service := NewService(root, nil, nil, nil)
+	service := NewService(root, nil, nil, nil).SetArtifactRootResolver(testArtifactRoot(root))
 	type counts struct {
 		terminal, canonical, legacy, persistedCatalogs, discoveredCatalogs, artifacts int
 	}

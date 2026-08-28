@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -159,7 +160,7 @@ func TestStartRejectsEmptyScenario(t *testing.T) {
 func TestStartedRunSurvivesWaiterCancellation(t *testing.T) {
 	exec := newFakeExecutor("")
 	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS", CompletedAt: time.Now().UTC()}
-	m := New(exec, "")
+	m := New(exec, t.TempDir())
 
 	runID := startRun(t, m, StartOptions{Input: startInput("demo")})
 	<-exec.started
@@ -199,7 +200,7 @@ func TestPreparationProgressIsVisibleBeforeTheFirstPhase(t *testing.T) {
 		Timestamp: time.Now(),
 	}}
 	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS", CompletedAt: time.Now().UTC()}
-	m := New(exec, "")
+	m := New(exec, t.TempDir())
 
 	runID := startRun(t, m, StartOptions{Input: startInput("demo")})
 	<-exec.started
@@ -249,7 +250,7 @@ func TestMultipleFollowersSeeFullSequence(t *testing.T) {
 		phaseEvent(orchestrator.EventPhaseEnd, "standards", "passed"),
 	}
 	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS", CompletedAt: time.Now().UTC()}
-	m := New(exec, "")
+	m := New(exec, t.TempDir())
 
 	runID := startRun(t, m, StartOptions{Input: startInput("demo")})
 	<-exec.started
@@ -373,7 +374,7 @@ func blockingManager(t *testing.T) (*Manager, *fakeExecutor, func()) {
 	t.Helper()
 	exec := newFakeExecutor("")
 	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS", CompletedAt: time.Now().UTC()}
-	m := New(exec, "")
+	m := New(exec, t.TempDir())
 	released := false
 	return m, exec, func() {
 		if !released {
@@ -464,7 +465,7 @@ func TestStartDifferentScenariosRunConcurrently(t *testing.T) {
 func TestRetireGraceLingererDoesNotBlock(t *testing.T) {
 	exec := newFakeExecutor("")
 	exec.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: true, Verdict: "PASS", CompletedAt: time.Now().UTC()}
-	m := New(exec, "")
+	m := New(exec, t.TempDir())
 
 	first := startRun(t, m, StartOptions{Input: inputWith("demo", "comprehensive")})
 	<-exec.started
@@ -1062,6 +1063,36 @@ func TestFailedRunPersistsExecutorErrorForTerminalWaiters(t *testing.T) {
 	}
 }
 
+func TestImmediateAdmissionPersistsBeforeExecutorPlanning(t *testing.T) {
+	root := t.TempDir()
+	scenario := "demo"
+	exec := newFakeExecutor("") // Fail before the executor can append its own run record.
+	exec.returnErr = errors.New("admission identity changed (source); retry to measure the current validation contract")
+	m := New(exec, root)
+	defer m.Shutdown()
+
+	runID := startRun(t, m, StartOptions{Input: startInput(scenario)})
+	status, err := m.Wait(context.Background(), scenario, runID)
+	if err != nil {
+		t.Fatalf("wait: %v", err)
+	}
+	if status.TerminalSnapshotSchemaVersion == 0 || status.TerminalRecord == nil {
+		t.Fatalf("terminal status = %+v, want canonical persisted snapshot", status)
+	}
+	for _, reason := range status.DegradedReasons {
+		if strings.Contains(reason, "canonical terminal persistence unavailable") {
+			t.Fatalf("terminal status fell back to live-only evidence: %+v", status)
+		}
+	}
+	record, err := sharedruns.NewIndex(filepath.Join(root, scenario)).Find(runID)
+	if err != nil {
+		t.Fatalf("find admitted run: %v", err)
+	}
+	if record.Status != sharedruns.StatusFailed {
+		t.Fatalf("durable status = %q, want failed", record.Status)
+	}
+}
+
 func TestTerminalFailureResultCarriesStableSourceEvidence(t *testing.T) {
 	root := t.TempDir()
 	scenario := "demo"
@@ -1193,5 +1224,25 @@ func TestWaitMarksLegacyTerminalProjectionDegraded(t *testing.T) {
 	}
 	if status.Result != nil || len(status.DegradedReasons) != 2 {
 		t.Fatalf("legacy status must be explicit degraded evidence: %+v", status)
+	}
+}
+
+func TestArtifactRootResolverOwnsLifecycleIndexPath(t *testing.T) {
+	sourceRoot := t.TempDir()
+	artifactRoot := filepath.Join(t.TempDir(), "governed", "demo")
+	m := New(nil, sourceRoot).WithArtifactRootResolver(func(scenario string) (string, error) {
+		if scenario != "demo" {
+			t.Fatalf("resolver scenario = %q, want demo", scenario)
+		}
+		return artifactRoot, nil
+	})
+	if got := m.scenarioDir("demo"); got != artifactRoot {
+		t.Fatalf("scenarioDir = %q, want %q", got, artifactRoot)
+	}
+	if got := sharedruns.NewIndex(m.scenarioDir("demo")).Path(); got != sharedruns.NewIndex(artifactRoot).Path() {
+		t.Fatalf("lifecycle index = %q, want governed root index", got)
+	}
+	if _, err := os.Stat(filepath.Join(sourceRoot, "demo", "coverage")); !os.IsNotExist(err) {
+		t.Fatalf("resolver materialized source coverage: %v", err)
 	}
 }

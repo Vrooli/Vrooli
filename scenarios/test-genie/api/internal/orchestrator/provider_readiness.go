@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/internal/orchestrator/phasepolicy"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/providerreadiness"
@@ -88,9 +90,9 @@ func (o *SuiteOrchestrator) checkProviderReadiness(
 	}
 	// The cooldown window spans runs, so its ledger has to outlive this one.
 	if manager.Ledger == nil {
-		if root := o.repoRoot(); root != "" {
+		if artifactRoot, err := artifactpaths.ScenarioRoot("test-genie"); err == nil {
 			manager.Ledger = providerreadiness.NewRestartLedgerAt(
-				filepath.Join(root, "scenarios", "test-genie", "coverage", "runtime", "provider-restarts.json"))
+				artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "runtime", "provider-restarts.json"))
 		}
 	}
 

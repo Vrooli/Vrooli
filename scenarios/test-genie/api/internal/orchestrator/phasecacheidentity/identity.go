@@ -85,7 +85,7 @@ func Load(projectRoot string, env workspacepkg.Environment, runID, logPath strin
 		return phases.ExecutionResult{}, false, false, 0
 	}
 	key := phasecache.Key(identity)
-	store := phasecache.New(env.ArtifactRoot)
+	store := phasecache.New(env.EffectivePhaseCacheRoot())
 	entry, found, err := store.Load(key)
 	if err != nil || !found {
 		return phases.ExecutionResult{}, false, false, 0
@@ -132,5 +132,5 @@ func Save(env workspacepkg.Environment, runID string, phase phases.Definition, r
 	if err != nil || after != identity.ScopedInputDigest {
 		return
 	}
-	_ = phasecache.New(env.ArtifactRoot).Save(phasecache.Key(identity), runID, result)
+	_ = phasecache.New(env.EffectivePhaseCacheRoot()).Save(phasecache.Key(identity), runID, result)
 }

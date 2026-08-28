@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"test-genie/agentmanager"
@@ -28,6 +29,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/maturity-go/assessment"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 
 	// Register modernc.org/sqlite as the pure-Go "sqlite" driver.
@@ -130,16 +132,23 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 
 	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo)
 	executionSvc.SetRetentionCollector(func(ctx context.Context, scenario string) {
-		scenarioDir := filepath.Join(cfg.ScenariosRoot, scenario)
-		if _, err := sharedruns.NewRetentionService(scenarioDir, sharedruns.DefaultRetentionPolicy()).WithDetailStore(executionRepo).Collect(ctx); err != nil {
+		artifactRoot, resolveErr := artifactpaths.ScenarioRoot(scenario)
+		if resolveErr != nil {
+			log.Printf("run retention path resolution failed for %s: %v", scenario, resolveErr)
+			return
+		}
+		report, err := sharedruns.NewRetentionService(artifactRoot, sharedruns.DefaultRetentionPolicy()).WithDetailStore(executionRepo).Collect(ctx)
+		if err != nil {
 			log.Printf("run retention failed for %s: %v", scenario, err)
+		} else if len(report.Deleted) > 0 {
+			log.Printf("run retention reclaimed %d run(s) for %s; triggered_bounds=%s", len(report.Deleted), scenario, strings.Join(report.TriggeredBounds, ","))
 		}
 	})
 
 	// The run manager owns durable run execution decoupled from any client
 	// request: it is the single engine every door (blocking REST, SSE gateway,
 	// Connect run surface) funnels through, so a run survives client cancellation.
-	runManager := runmanager.New(executionSvc, cfg.ScenariosRoot)
+	runManager := runmanager.New(executionSvc, cfg.ScenariosRoot).WithArtifactRootResolver(artifactpaths.ScenarioRoot)
 	if swept, err := runManager.Sweep(); err != nil {
 		log.Printf("[test-genie] run-index startup sweep failed: %v", err)
 	} else if swept > 0 {

@@ -177,6 +177,9 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 				return StartCollectionCaptureResult{}, fmt.Errorf("collection %q has no failed member to re-anchor", req.Name)
 			}
 			collection = newCollectionManifest(req, branch, s.now().UTC())
+			if err := compatibleReanchorSelection(existing, collection); err != nil {
+				return StartCollectionCaptureResult{}, err
+			}
 			collection.CreatedAt, collection.Generation, collection.Reanchored = existing.CreatedAt, existing.Generation+1, true
 			if collection.Generation < 2 {
 				collection.Generation = 2
@@ -536,6 +539,23 @@ func compatibleCollectionSelection(existing, proposed CollectionManifest) error 
 	return nil
 }
 
+// Re-anchoring may replace the immutable generation, but it must never change
+// what the collection covers. Requiring the caller to submit the same target
+// selection prevents an acknowledgement intended to recover source drift from
+// silently narrowing the validation boundary.
+func compatibleReanchorSelection(existing, proposed CollectionManifest) error {
+	if existing.Name != proposed.Name || existing.Branch != proposed.Branch || len(existing.Members) != len(proposed.Members) || !sameStrings(existing.PathSnapshots, proposed.PathSnapshots) {
+		return fmt.Errorf("collection %q re-anchor must preserve its existing target selection", proposed.Name)
+	}
+	for i, member := range existing.Normalized().Members {
+		want := proposed.Normalized().Members[i]
+		if member.Scenario != want.Scenario || member.Required != want.Required {
+			return fmt.Errorf("collection %q re-anchor must preserve its existing target selection", proposed.Name)
+		}
+	}
+	return nil
+}
+
 func sameStrings(left, right []string) bool {
 	if len(left) != len(right) {
 		return false
@@ -561,6 +581,21 @@ func (s *Service) FinalizeCollectionCapture(ctx context.Context, repoID int64, p
 				return CollectionManifest{}, loadErr
 			}
 			return collection, err
+		}
+		if isTransientAdmissionSaturation(err) {
+			// A child may be admitted far enough to receive a run id and still
+			// terminate because Test Genie admission saturated while the run was
+			// being queued. This is recoverable backpressure, not a baseline
+			// failure. Clear the stale child handoff so the collection retry lease
+			// can dispatch a fresh server-owned run.
+			collection, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, pending.Scenario, func(member *CollectionMember) error {
+				member.Status, member.RunID, member.Error, member.UpdatedAt = CollectionMemberPending, "", "deferred: "+err.Error(), s.now().UTC()
+				return nil
+			})
+			if updateErr != nil {
+				return CollectionManifest{}, updateErr
+			}
+			return collection, nil
 		}
 		collection, updateErr := s.storage.UpdateCollectionMember(repoID, pending.Branch, pending.CollectionName, pending.Scenario, func(member *CollectionMember) error {
 			member.Status, member.Error, member.UpdatedAt = CollectionMemberFailed, err.Error(), s.now().UTC()

@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
 
@@ -78,6 +80,10 @@ type Options struct {
 
 	// ScenarioRoot is the path to the scenario directory.
 	ScenarioRoot string
+
+	// ArtifactRoot is test-genie's governed storage root for this scenario.
+	// It is deliberately distinct from ScenarioRoot, which contains source.
+	ArtifactRoot string
 }
 
 // DefaultOptions returns default sync options.
@@ -135,6 +141,7 @@ type syncer struct {
 	statusUpdater  *StatusUpdater
 	orphanDetector *OrphanDetector
 	fileWriter     *FileWriter
+	artifactRoot   func(string) (string, error)
 }
 
 // New creates a Syncer with the provided dependencies.
@@ -145,6 +152,7 @@ func New(reader Reader, writer Writer) Syncer {
 		statusUpdater:  NewStatusUpdater(),
 		orphanDetector: NewOrphanDetector(reader),
 		fileWriter:     NewFileWriter(writer),
+		artifactRoot:   func(root string) (string, error) { return root, nil },
 	}
 }
 
@@ -152,7 +160,9 @@ func New(reader Reader, writer Writer) Syncer {
 func NewDefault() Syncer {
 	reader := &osReader{}
 	writer := &osWriter{}
-	return New(reader, writer)
+	result := New(reader, writer).(*syncer)
+	result.artifactRoot = artifactpaths.ScenarioRootForDir
+	return result
 }
 
 // Sync updates requirement files based on test evidence.
@@ -208,10 +218,19 @@ func (s *syncer) Sync(ctx context.Context, index *parsing.ModuleIndex, evidence 
 
 		// Write sync metadata
 		if opts.ScenarioRoot != "" {
-			if err := s.writeSyncMetadata(ctx, opts.ScenarioRoot, result); err != nil {
-				result.Errors = append(result.Errors, err)
+			artifactRoot := opts.ArtifactRoot
+			if artifactRoot == "" {
+				artifactRoot, err = s.artifactRoot(opts.ScenarioRoot)
+				if err != nil {
+					result.Errors = append(result.Errors, err)
+				}
 			}
-			if err := s.updatePRDOperationalTargets(ctx, index, opts.ScenarioRoot, result.SyncedAt); err != nil {
+			if artifactRoot != "" {
+				if err := s.writeSyncMetadata(ctx, artifactRoot, result); err != nil {
+					result.Errors = append(result.Errors, err)
+				}
+			}
+			if err := s.updatePRDOperationalTargets(ctx, index, opts.ScenarioRoot, opts.ArtifactRoot, result.SyncedAt); err != nil {
 				result.Errors = append(result.Errors, err)
 			}
 		}
@@ -220,7 +239,7 @@ func (s *syncer) Sync(ctx context.Context, index *parsing.ModuleIndex, evidence 
 	return result, nil
 }
 
-func (s *syncer) updatePRDOperationalTargets(ctx context.Context, index *parsing.ModuleIndex, scenarioRoot string, ts time.Time) error {
+func (s *syncer) updatePRDOperationalTargets(ctx context.Context, index *parsing.ModuleIndex, scenarioRoot, artifactRoot string, ts time.Time) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -253,7 +272,14 @@ func (s *syncer) updatePRDOperationalTargets(ctx context.Context, index *parsing
 		return nil
 	}
 
-	backupDir := filepath.Join(scenarioRoot, "coverage", "requirements-sync", "prd-backups")
+	if artifactRoot == "" {
+		var err error
+		artifactRoot, err = s.artifactRoot(scenarioRoot)
+		if err != nil {
+			return err
+		}
+	}
+	backupDir := artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "requirements-sync", "prd-backups")
 	if err := s.writer.MkdirAll(backupDir, 0o755); err != nil {
 		return err
 	}

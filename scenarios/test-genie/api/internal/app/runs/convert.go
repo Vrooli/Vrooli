@@ -135,6 +135,9 @@ func targetKind(kind string) commonv1.ValidationTargetKind {
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO
 	case "resource":
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE
+	case "asset":
+		// Asset is the descriptor-era alias for a repository-owned resource.
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_RESOURCE
 	case "tool":
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_TOOL
 	case "safeguard":
@@ -147,6 +150,8 @@ func targetKind(kind string) commonv1.ValidationTargetKind {
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE
 	case "docs":
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_DOCS
+	case "project":
+		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT
 	default:
 		return commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_UNSPECIFIED
 	}

@@ -16,7 +16,13 @@
     "kinds": [
       "scenario"
     ],
-    "selection": "enumerate"
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "This provider validates phase descriptors and live validation-provider contracts; the control plane is a target, not a phase-provider scenario."
+      }
+    ]
   },
   "applicability": {
     "default": "not_applicable",

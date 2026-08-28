@@ -69,3 +69,17 @@ func TestResolveTeamAcceptsManifestRootAliasAndUsesOwnerID(t *testing.T) {
 		t.Fatalf("target = %#v, want owner id marketing-crew and root docs/marketing", target)
 	}
 }
+
+func TestResolveCarriesContractTargetExcludes(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := Resolve(root, "control-plane:internal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(target.Exclude) != 2 || target.Exclude[0] != "internal/tools/*" || target.Exclude[1] != "internal/safeguards/*" {
+		t.Fatalf("target excludes = %v, want contract control-plane excludes", target.Exclude)
+	}
+}

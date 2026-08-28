@@ -868,7 +868,7 @@
         },
         "budgets": {
           "type": "object",
-          "description": "Optional phase-owned budgets. Tidiness uses duplication_line_debt, long_files, complexity_over_threshold, coupling_over_threshold, and debt_markers; absent budgets are advisory-only.",
+          "description": "Optional phase-owned budgets. Tidiness uses duplication_line_debt, long_files, complexity_over_threshold, coupling_over_threshold, and debt_markers. Security uses error_findings. Absent budgets are advisory-only.",
           "additionalProperties": false,
           "properties": {
             "duplication_line_debt": {"type": "integer", "minimum": 0},
@@ -877,6 +877,8 @@
             "complexity_over_threshold": {"type": "integer", "minimum": 0},
             "coupling_over_threshold": {"type": "integer", "minimum": 0},
             "debt_markers": {"type": "integer", "minimum": 0},
+            "error_findings": {"type": "integer", "minimum": 0, "description": "Maximum blocking security findings allowed for the target; zero is an explicit clean budget."},
+            "baseline_error_findings": {"type": "integer", "minimum": 0, "description": "Recorded blocking-security-finding baseline enforced when ratchet is true."},
             "ratchet": {"type": "boolean", "default": false, "description": "Budget updates may only tighten recorded values."}
           }
         }

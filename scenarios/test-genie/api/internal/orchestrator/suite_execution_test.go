@@ -160,15 +160,60 @@ func TestRunSelectedPhasesServesCacheBeforeAdmission(t *testing.T) {
 	}
 }
 
-func TestPrepareExecutionRebasesOnlyQueuedAdmissionIdentity(t *testing.T) {
+func TestPrunedPhaseCacheEntryRecomputesIdenticalVerdict(t *testing.T) {
+	t.Setenv("TEST_GENIE_PHASE_CACHE_AUDIT_PERCENT", "0")
+	scenarioDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(scenarioDir, "input.txt"), []byte("stable"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := workspacepkg.Environment{
+		ScenarioName:                 "demo",
+		ScenarioDir:                  scenarioDir,
+		ArtifactRoot:                 scenarioDir,
+		DescriptorSnapshotDigest:     "descriptor:test",
+		ExecutionConfigurationDigest: "config:test",
+	}
+	phase := staticDef(phasespkg.Name("structure"))
+	phase.ProviderScenario = "structure-health"
+	phase.Determinism = phasespkg.Determinism{Default: "file-determined", Inputs: []string{"**"}}
+	identity, ok := phasecacheidentity.Identity(env, phase, nil)
+	if !ok {
+		t.Fatal("phase should be cache eligible")
+	}
+	expected := phasespkg.ExecutionResult{Name: "structure", Status: "failed", Findings: []*architecturev1.ArchitectureFinding{{Code: "stable-finding"}}}
+	store := phasecache.New(env.ArtifactRoot)
+	if err := store.Save(phasecache.Key(identity), "source-run", expected); err != nil {
+		t.Fatal(err)
+	}
+	cached, _, found, _ := phasecacheidentity.Load("", env, "cached-run", filepath.Join(t.TempDir(), "cached.log"), phase, nil)
+	if !found {
+		t.Fatal("expected the seeded cache entry to load")
+	}
+
+	pruned, err := store.Prune(context.Background(), phasecache.PrunePolicy{MaxBytes: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pruned.DeletedEntries) != 1 {
+		t.Fatalf("prune result = %+v", pruned)
+	}
+	if _, _, found, _ := phasecacheidentity.Load("", env, "recompute-run", filepath.Join(t.TempDir(), "recompute.log"), phase, nil); found {
+		t.Fatal("evicted entry must become a cache miss")
+	}
+
+	recomputed := phasespkg.ExecutionResult{Name: "structure", Status: "failed", Findings: []*architecturev1.ArchitectureFinding{{Code: "stable-finding"}}}
+	if !phasecache.Equivalent(cached, recomputed) {
+		t.Fatalf("recomputed verdict differs from cached verdict: cached=%+v recomputed=%+v", cached, recomputed)
+	}
+}
+
+func TestPrepareExecutionRebasesAdmissionIdentityBeforeExecution(t *testing.T) {
 	tests := []struct {
-		name       string
-		queued     bool
-		wantError  bool
-		wantRebase bool
+		name   string
+		queued bool
 	}{
-		{name: "immediate request remains fail closed", queued: false, wantError: true},
-		{name: "queued request uses current plan", queued: true, wantRebase: true},
+		{name: "immediate request uses current plan", queued: false},
+		{name: "queued request uses current plan", queued: true},
 	}
 
 	for _, tt := range tests {
@@ -180,8 +225,12 @@ func TestPrepareExecutionRebasesOnlyQueuedAdmissionIdentity(t *testing.T) {
 				t.Fatalf("NewSuiteOrchestrator: %v", err)
 			}
 
-			prepared, err := o.prepareExecution(SuiteExecutionRequest{
+			const runID = "20260827-queued-rebase"
+			request := SuiteExecutionRequest{
 				ScenarioName:                 "demo",
+				RunID:                        runID,
+				CaptureProfile:               "baseline",
+				DiagnosticsPreset:            "full",
 				Preset:                       "comprehensive",
 				ResolvedPhases:               []string{"structure"},
 				AdmissionTreeDigest:          "stale-tree",
@@ -189,18 +238,10 @@ func TestPrepareExecutionRebasesOnlyQueuedAdmissionIdentity(t *testing.T) {
 				AdmissionDescriptorDigest:    "stale-descriptor",
 				AdmissionConfigurationDigest: "stale-configuration",
 				AdmissionQueued:              tt.queued,
-			})
-			if tt.wantError {
-				if err == nil || !strings.Contains(err.Error(), "source") || !strings.Contains(err.Error(), "phase-set") {
-					t.Fatalf("prepareExecution error = %v, want named admission mismatches", err)
-				}
-				return
 			}
+			prepared, err := o.prepareExecution(request)
 			if err != nil {
 				t.Fatalf("prepareExecution: %v", err)
-			}
-			if !tt.wantRebase {
-				return
 			}
 			if prepared.request.AdmissionTreeDigest == "stale-tree" || prepared.request.AdmissionPhaseSetDigest == "stale-phase-set" || prepared.request.AdmissionDescriptorDigest == "stale-descriptor" || prepared.request.AdmissionConfigurationDigest == "stale-configuration" {
 				t.Fatalf("queued request retained stale admission identity: %+v", prepared.request)
@@ -208,9 +249,12 @@ func TestPrepareExecutionRebasesOnlyQueuedAdmissionIdentity(t *testing.T) {
 			if len(prepared.plan.Selected) <= 1 {
 				t.Fatalf("rebased plan selected %d phases, want current comprehensive selection", len(prepared.plan.Selected))
 			}
+			if prepared.env.RunID != runID || prepared.env.CaptureProfile != "baseline" || prepared.env.DiagnosticsPreset != "full" {
+				t.Fatalf("queued rebase dropped execution environment: %+v", prepared.env)
+			}
 			foundWarning := false
 			for _, warning := range prepared.result.Warnings {
-				if strings.Contains(warning, "queued admission identity changed") {
+				if strings.Contains(warning, "admission identity changed before execution") {
 					foundWarning = true
 					break
 				}
@@ -1267,6 +1311,12 @@ func TestSuiteOrchestratorRespectsPhaseTimeoutOverrides(t *testing.T) {
 		}
 		if !strings.Contains(phase.Error, "timed out") {
 			t.Fatalf("expected timeout message, got %s", phase.Error)
+		}
+		if len(phase.Findings) != 1 || phase.Findings[0].GetSeverity().String() != "FINDING_SEVERITY_BLOCKER" {
+			t.Fatalf("expected one blocking timeout finding, got %#v", phase.Findings)
+		}
+		if !strings.Contains(phase.Findings[0].GetMessage(), "1s deadline") {
+			t.Fatalf("timeout finding must name the deadline, got %q", phase.Findings[0].GetMessage())
 		}
 	})
 }

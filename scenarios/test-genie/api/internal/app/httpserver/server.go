@@ -30,6 +30,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/vrooli/packages/artifactledger"
 
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/eligibility/eligibility_v1connect"
@@ -140,6 +141,9 @@ type Server struct {
 	seedSessions           map[string]*seedSession
 	seedSessionsByScenario map[string]string
 	seedSessionsMu         sync.Mutex
+	cleanupMu              sync.Mutex
+	cleanupResults         map[string]ownerCleanupApplyResponse
+	removalLedger          *artifactledger.Ledger
 }
 
 // New creates a configured HTTP server instance.
@@ -198,6 +202,7 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		repoRoot:               deps.RepoRoot,
 		seedSessions:           make(map[string]*seedSession),
 		seedSessionsByScenario: make(map[string]string),
+		cleanupResults:         make(map[string]ownerCleanupApplyResponse),
 	}
 
 	srv.setupRoutes()
@@ -212,6 +217,9 @@ func (s *Server) setupRoutes() {
 
 	apiRouter := s.router.PathPrefix("/api/v1").Subrouter()
 	apiRouter.HandleFunc("/health", s.handleHealth).Methods("GET")
+	apiRouter.HandleFunc("/cleanup/estimate", s.handleCleanupEstimate).Methods("GET")
+	apiRouter.HandleFunc("/cleanup/preview", s.handleCleanupPreview).Methods("POST")
+	apiRouter.HandleFunc("/cleanup/apply", s.handleCleanupApply).Methods("POST")
 	apiRouter.HandleFunc("/admission", s.handleAdmissionStatus).Methods("GET")
 	apiRouter.HandleFunc("/admission/profile", s.handleAdmissionProfile).Methods("POST")
 	apiRouter.HandleFunc("/config", s.handleGetConfig).Methods("GET")

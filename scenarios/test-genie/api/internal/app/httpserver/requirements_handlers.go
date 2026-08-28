@@ -13,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 )
 
 // RequirementsSnapshot represents the data returned by the requirements endpoint.
@@ -227,11 +228,12 @@ func (s *Server) loadScenarioRequirementsView(scenarioDir, scenarioName string) 
 
 func newRequirementsPaths(scenarioDir string) requirementsPaths {
 	requirementsDir := filepath.Join(scenarioDir, "requirements")
+	artifactRoot, _ := artifactpaths.ScenarioRootForDir(scenarioDir)
 	return requirementsPaths{
 		requirementsDir: requirementsDir,
 		indexPath:       filepath.Join(requirementsDir, "index.json"),
-		snapshotPath:    filepath.Join(scenarioDir, "coverage", "requirements-sync", "latest.json"),
-		syncStatusPath:  filepath.Join(scenarioDir, "coverage", "sync", "latest.json"),
+		snapshotPath:    artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "requirements-sync", "latest.json"),
+		syncStatusPath:  artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "sync", "latest.json"),
 	}
 }
 

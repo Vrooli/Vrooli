@@ -246,6 +246,43 @@ func TestCollectionCaptureAdmissionSaturationRetriesWithoutSibling(t *testing.T)
 	}
 }
 
+func TestFinalizeCollectionCaptureRequeuesAdmissionSaturatedRun(t *testing.T) {
+	svc, exec := collectionService(t)
+	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "terminal-admission-saturation",
+		Targets: []CollectionTarget{{Scenario: "calendar", BaselineName: "terminal-admission-saturation", Required: true}},
+	})
+	if err != nil || len(started.Pending) != 1 {
+		t.Fatalf("capture = %#v err=%v", started, err)
+	}
+
+	// The run already has a durable handoff, but Test Genie reports admission
+	// saturation while that handoff is finalized. The collection must requeue
+	// the member instead of converting transient backpressure into failure.
+	exec.err = errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)")
+	collection, err := svc.FinalizeCollectionCapture(context.Background(), 1, started.Pending[0])
+	if err != nil {
+		t.Fatalf("admission saturation should be recoverable: %v", err)
+	}
+	if collection.Members[0].Status != CollectionMemberPending || collection.Members[0].RunID != "" || collection.Coverage().Failed != 0 {
+		t.Fatalf("admission-saturated run became terminal: %#v", collection)
+	}
+
+	// Once capacity returns and the retry lease expires, status reconciliation
+	// dispatches and finalizes a fresh child run.
+	exec.err = nil
+	if _, err := svc.storage.UpdateCollectionMember(1, "agi", "terminal-admission-saturation", "calendar", func(member *CollectionMember) error {
+		member.UpdatedAt = time.Now().UTC().Add(-collectionCaptureDispatchLease)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := svc.GetCollectionCaptureStatus(context.Background(), 1, "agi", "terminal-admission-saturation")
+	if err != nil || !recovered.Coverage().Complete() {
+		t.Fatalf("requeued capture did not recover: %#v err=%v", recovered, err)
+	}
+}
+
 func TestDeferredCollectionCaptureStopsAfterRequiredFailure(t *testing.T) {
 	svc, exec := collectionService(t)
 	exec.startErrs = []error{
@@ -348,6 +385,42 @@ func TestCollectionCaptureStatusReconcilesTerminalFailureWithoutWait(t *testing.
 	standing := CollectionCaptureStanding(collection)
 	if standing.GetLifecycle() != "terminal" || standing.GetTerminalOutcome() != "failed" || standing.GetDirective() != "inspect" {
 		t.Fatalf("failed capture standing = %#v", standing)
+	}
+}
+
+func TestCollectionReanchorCannotNarrowExistingTargetSelection(t *testing.T) {
+	svc, _ := collectionService(t)
+	_, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
+		Targets: []CollectionTarget{
+			{Scenario: "first", BaselineName: "before", Required: true},
+			{Scenario: "second", BaselineName: "before", Required: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("start collection capture: %v", err)
+	}
+	if _, err := svc.storage.UpdateCollectionMember(1, "agi", "before", "first", func(member *CollectionMember) error {
+		member.Status = CollectionMemberFailed
+		member.Error = "source drift"
+		return nil
+	}); err != nil {
+		t.Fatalf("seed failed member: %v", err)
+	}
+
+	_, err = svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
+		RepoID: 1, RepoDir: t.TempDir(), Name: "before", AcknowledgeReanchor: true,
+		Targets: []CollectionTarget{{Scenario: "first", BaselineName: "before", Required: true}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "must preserve its existing target selection") {
+		t.Fatalf("narrow re-anchor error = %v", err)
+	}
+	collection, err := svc.storage.LoadCollection(1, "agi", "before")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(collection.Members) != 2 || collection.Generation != 1 {
+		t.Fatalf("narrow re-anchor changed collection: %#v", collection)
 	}
 }
 

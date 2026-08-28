@@ -86,7 +86,7 @@ func TestStream_QuietPhaseEmitsPhaseAwareHeartbeat(t *testing.T) {
 	srv := &Server{
 		config:     Config{Port: "0", ServiceName: "Test Genie API"},
 		router:     mux.NewRouter(),
-		runManager: runmanager.New(exec, ""),
+		runManager: runmanager.New(exec, t.TempDir()),
 		logger:     log.New(io.Discard, "", 0),
 	}
 

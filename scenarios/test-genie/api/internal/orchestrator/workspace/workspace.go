@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 	"test-genie/internal/shared"
 	"test-genie/internal/targetmodel"
 
@@ -50,10 +51,13 @@ type Environment struct {
 	TargetKind   string
 	TargetID     string
 	TargetRoot   string
-	ScenarioDir  string
+	// Exclude contains contract-owned repository-relative globs for the target.
+	Exclude     []string
+	ScenarioDir string
 	// ArtifactRoot is the durable evidence owner. It is the source directory
 	// for scenarios and a runtime-home target directory otherwise.
-	ArtifactRoot string
+	ArtifactRoot   string
+	PhaseCacheRoot string
 	// CoverageDir is the testing workspace root. Vrooli no longer requires
 	// scenarios to include a top-level test/ directory; this defaults to
 	// coverage/ to keep all test-related artifacts and optional configs together.
@@ -67,6 +71,12 @@ type Environment struct {
 	UIURL         string // Base URL for the scenario UI (e.g., "http://localhost:3000")
 	APIURL        string // Base URL for the scenario API (e.g., "http://localhost:8080")
 	TargetRuntime TargetRuntime
+}
+
+// EffectivePhaseCacheRoot preserves explicit test seams while production uses
+// the independently resolved cache-class root.
+func (e Environment) EffectivePhaseCacheRoot() string {
+	return firstNonEmpty(e.PhaseCacheRoot, e.ArtifactRoot)
 }
 
 // TargetRuntime manages the lifecycle of the scenario under test when a phase
@@ -83,16 +93,18 @@ type TargetWorkspace struct {
 	TargetKind  string
 	TargetID    string
 	TargetRoot  string
+	Exclude     []string
 	ScenarioDir string
-	// CoverageDir is the target's coverage workspace (coverage/ for scenarios).
+	// CoverageDir is the target's governed test-genie artifact workspace.
 	CoverageDir     string
 	PhaseDir        string
 	AppRoot         string
 	PhysicalAppRoot string
 	Mapping         Mapping
 
-	artifactDir  string
-	artifactRoot string
+	artifactDir    string
+	artifactRoot   string
+	phaseCacheRoot string
 
 	// Runtime URLs (set via SetRuntimeURLs)
 	uiURL         string
@@ -158,15 +170,25 @@ func NewTarget(repoRoot string, target targetmodel.Target) (*TargetWorkspace, er
 	if err != nil {
 		return nil, fmt.Errorf("resolve target artifacts: %w", err)
 	}
+	phaseCacheRoot, err := targetmodel.PhaseCacheRoot(target)
+	if err != nil {
+		return nil, fmt.Errorf("resolve target phase cache: %w", err)
+	}
+	testDir := artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot)
+	if err := os.MkdirAll(testDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create target artifact workspace: %w", err)
+	}
 	return &TargetWorkspace{
 		Name:            target.ID,
 		TargetKind:      targetKindName(target.Kind),
 		TargetID:        target.ID,
 		TargetRoot:      target.Root,
+		Exclude:         append([]string(nil), target.Exclude...),
 		ScenarioDir:     target.Path,
 		artifactRoot:    artifactRoot,
-		CoverageDir:     target.Path,
-		PhaseDir:        filepath.Join(target.Path, "coverage", "phases"),
+		phaseCacheRoot:  phaseCacheRoot,
+		CoverageDir:     testDir,
+		PhaseDir:        artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "phases"),
 		AppRoot:         repoRoot,
 		PhysicalAppRoot: repoRoot,
 		Mapping:         mapping,
@@ -221,20 +243,28 @@ func NewWithOptions(scenariosRoot, scenario string, opts Options) (*TargetWorksp
 		return nil, fmt.Errorf("scenario path is not a directory: %s", scenarioDir)
 	}
 
-	testDir := filepath.Join(scenarioDir, "coverage")
-	if err := os.MkdirAll(testDir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create coverage directory: %w", err)
-	}
-	if err := EnsureDir(testDir); err != nil {
-		return nil, err
-	}
-
-	phaseDir := filepath.Join(testDir, "phases")
 	physicalAppRoot := AppRootFromScenario(scenarioDir)
 	mapping, err := NewMapping(scenarioDir, physicalAppRoot, opts.LogicalRepoRoot, opts.LogicalScenarioRelPath, name)
 	if err != nil {
 		return nil, err
 	}
+	target := targetmodel.Target{Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO, ID: name, Path: scenarioDir}
+	artifactRoot, err := targetmodel.ArtifactRoot(physicalAppRoot, target)
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario artifacts: %w", err)
+	}
+	phaseCacheRoot, err := targetmodel.PhaseCacheRoot(target)
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario phase cache: %w", err)
+	}
+	testDir := artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot)
+	if err := os.MkdirAll(testDir, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create governed artifact directory: %w", err)
+	}
+	if err := EnsureDir(testDir); err != nil {
+		return nil, err
+	}
+	phaseDir := filepath.Join(testDir, "phases")
 
 	return &TargetWorkspace{
 		Name:            name,
@@ -242,7 +272,8 @@ func NewWithOptions(scenariosRoot, scenario string, opts Options) (*TargetWorksp
 		TargetID:        name,
 		TargetRoot:      filepath.ToSlash(filepath.Join("scenarios", name)),
 		ScenarioDir:     scenarioDir,
-		artifactRoot:    scenarioDir,
+		artifactRoot:    artifactRoot,
+		phaseCacheRoot:  phaseCacheRoot,
 		CoverageDir:     testDir,
 		PhaseDir:        phaseDir,
 		AppRoot:         physicalAppRoot,
@@ -261,8 +292,10 @@ func (w *TargetWorkspace) Environment() Environment {
 		TargetKind:      w.TargetKind,
 		TargetID:        w.TargetID,
 		TargetRoot:      w.TargetRoot,
+		Exclude:         append([]string(nil), w.Exclude...),
 		ScenarioDir:     w.ScenarioDir,
 		ArtifactRoot:    firstNonEmpty(w.artifactRoot, w.ScenarioDir),
+		PhaseCacheRoot:  firstNonEmpty(w.phaseCacheRoot, w.artifactRoot, w.ScenarioDir),
 		CoverageDir:     w.CoverageDir,
 		AppRoot:         w.AppRoot,
 		PhysicalAppRoot: w.PhysicalAppRoot,
@@ -300,7 +333,7 @@ func (w *TargetWorkspace) EnsureArtifactDir() (string, error) {
 	if w.artifactDir != "" {
 		return w.artifactDir, nil
 	}
-	dir := filepath.Join(w.ScenarioDir, sharedartifacts.LogsDir)
+	dir := filepath.Join(firstNonEmpty(w.artifactRoot, w.ScenarioDir), sharedartifacts.LogsDir)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", fmt.Errorf("failed to create artifact directory: %w", err)
 	}

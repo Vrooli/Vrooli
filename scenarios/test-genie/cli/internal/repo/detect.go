@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 )
 
 // Paths holds discovered scenario directory paths.
@@ -45,7 +46,7 @@ func DiscoverScenarioPaths(scenario string) Paths {
 	if err != nil || !info.IsDir() {
 		return Paths{}
 	}
-	testDir := filepath.Join(scenarioDir, "coverage")
+	testDir := artifactpaths.ScenarioPath(scenarioDir, artifactpaths.CoverageRoot)
 	if _, err := os.Stat(testDir); err != nil {
 		testDir = ""
 	}

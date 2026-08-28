@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/requirements/discovery"
 	"test-genie/internal/requirements/enrichment"
@@ -33,6 +35,7 @@ type Service struct {
 	enricher        enrichment.Enricher
 	syncer          syncpkg.Syncer
 	snapshotBuilder snapshot.Builder
+	artifactRoot    func(string) (string, error)
 }
 
 // NewService creates a Service with production dependencies.
@@ -49,6 +52,7 @@ func NewService() *Service {
 		enricher:        enrichment.New(),
 		syncer:          syncpkg.NewDefault(),
 		snapshotBuilder: snapshot.New(),
+		artifactRoot:    artifactpaths.ScenarioRootForDir,
 	}
 }
 
@@ -67,6 +71,7 @@ func NewServiceWithDeps(reader Reader, writer Writer) *Service {
 		enricher:        enrichment.New(),
 		syncer:          syncpkg.New(syncReader, syncWriter),
 		snapshotBuilder: snapshot.New(),
+		artifactRoot:    func(scenarioDir string) (string, error) { return scenarioDir, nil },
 	}
 }
 
@@ -143,6 +148,10 @@ type SyncReport struct {
 // report of the resulting counts and status changes. A nil report (with nil
 // error) means there is no requirements directory to sync.
 func (s *Service) Sync(ctx context.Context, input SyncInput) (*SyncReport, error) {
+	artifactRoot, err := s.artifactRoot(input.ScenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve requirement artifact root: %w", err)
+	}
 	// 1. Discover requirement files
 	files, err := s.discoverer.Discover(ctx, input.ScenarioDir)
 	if err != nil {
@@ -190,6 +199,7 @@ func (s *Service) Sync(ctx context.Context, input SyncInput) (*SyncReport, error
 	// 6. Sync files
 	opts := syncpkg.Options{
 		ScenarioRoot:   input.ScenarioDir,
+		ArtifactRoot:   artifactRoot,
 		TestCommands:   input.CommandHistory,
 		UpdateStatuses: true,
 		DiscoverNew:    true,
@@ -206,7 +216,7 @@ func (s *Service) Sync(ctx context.Context, input SyncInput) (*SyncReport, error
 	summary := s.enricher.ComputeSummary(index.Modules)
 	snap, err := s.snapshotBuilder.Build(ctx, index, summary)
 	if err == nil && snap != nil {
-		snapshotPath := filepath.Join(input.ScenarioDir, "coverage", "requirements-sync", "latest.json")
+		snapshotPath := artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "requirements-sync", "latest.json")
 		if err := s.writer.MkdirAll(filepath.Dir(snapshotPath), 0o755); err != nil {
 			return nil, fmt.Errorf("create snapshot dir: %w", err)
 		}
@@ -321,7 +331,11 @@ func (s *Service) readLastSyncedAt(scenarioDir string) *time.Time {
 	if scenarioDir == "" {
 		return nil
 	}
-	raw, err := s.reader.ReadFile(sharedartifacts.SyncMetadataPath(scenarioDir))
+	artifactRoot, err := s.artifactRoot(scenarioDir)
+	if err != nil {
+		return nil
+	}
+	raw, err := s.reader.ReadFile(sharedartifacts.SyncMetadataPath(artifactRoot))
 	if err != nil {
 		return nil
 	}

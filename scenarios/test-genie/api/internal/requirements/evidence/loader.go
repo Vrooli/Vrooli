@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/internal/requirements/types"
 
 	sharedartifacts "test-genie/internal/shared/artifacts"
@@ -49,17 +51,18 @@ type Loader interface {
 
 // loader implements Loader using file system operations.
 type loader struct {
-	reader Reader
+	reader       Reader
+	artifactRoot func(string) (string, error)
 }
 
 // New creates a Loader with the provided Reader.
 func New(reader Reader) Loader {
-	return &loader{reader: reader}
+	return &loader{reader: reader, artifactRoot: func(root string) (string, error) { return root, nil }}
 }
 
 // NewDefault creates a Loader using the real file system.
 func NewDefault() Loader {
-	return &loader{reader: &osReader{}}
+	return &loader{reader: &osReader{}, artifactRoot: artifactpaths.ScenarioRootForDir}
 }
 
 // LoadAll loads evidence from all sources.
@@ -107,12 +110,16 @@ func (l *loader) LoadPhaseResults(ctx context.Context, scenarioRoot string) (typ
 
 	evidenceMap := make(types.EvidenceMap)
 
-	runID := l.latestRunID(scenarioRoot)
+	artifactRoot, err := l.artifactRoot(scenarioRoot)
+	if err != nil {
+		return evidenceMap, err
+	}
+	runID := l.latestRunID(artifactRoot)
 	if runID == "" {
 		return evidenceMap, nil
 	}
 
-	dir := sharedartifacts.RunPhaseResultsDir(scenarioRoot, runID)
+	dir := sharedartifacts.RunPhaseResultsDir(artifactRoot, runID)
 	if l.reader.Exists(dir) {
 		results, err := loadPhaseResultsFromDir(ctx, l.reader, dir)
 		if err == nil {
@@ -179,7 +186,11 @@ func (l *loader) LoadManualValidations(ctx context.Context, scenarioRoot string)
 	default:
 	}
 
-	path := sharedartifacts.ManualValidationsPath(scenarioRoot)
+	artifactRoot, err := l.artifactRoot(scenarioRoot)
+	if err != nil {
+		return nil, err
+	}
+	path := sharedartifacts.ManualValidationsPath(artifactRoot)
 	if !l.reader.Exists(path) {
 		return nil, nil
 	}
@@ -209,8 +220,12 @@ func (l *loader) LoadExternalAutomationEvidence(ctx context.Context, scenarioRoo
 	}
 
 	evidenceMap := make(types.EvidenceMap)
+	artifactRoot, err := l.artifactRoot(scenarioRoot)
+	if err != nil {
+		return nil, err
+	}
 	for _, dir := range []string{
-		filepath.Join(scenarioRoot, "coverage", "external-evidence"),
+		artifactpaths.ScenarioPath(artifactRoot, artifactpaths.CoverageRoot, "external-evidence"),
 		filepath.Join(scenarioRoot, "bas", "evidence"),
 	} {
 		if !l.reader.Exists(dir) {

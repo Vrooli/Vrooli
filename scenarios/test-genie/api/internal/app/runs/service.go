@@ -33,6 +33,7 @@ import (
 	"github.com/vrooli/freshness-go/treedigest"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
 	visualconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth/visualhealth_v1connect"
@@ -49,6 +50,7 @@ type executionPlanner interface {
 // AbortRun/GetRunStatus) by delegating to the run manager.
 type Service struct {
 	scenariosRoot string
+	artifactRoot  func(string) (string, error)
 	runManager    *runmanager.Manager
 	planner       executionPlanner
 	// ledgerSource feeds the GetSelfHealth reliability ledger (compute-on-read
@@ -234,7 +236,17 @@ func (s *Service) phaseProviders() map[string]string {
 // and planner power the durable run-lifecycle RPCs. ledgerSource feeds the
 // GetSelfHealth reliability ledger.
 func NewService(scenariosRoot string, runManager *runmanager.Manager, planner executionPlanner, ledgerSource ledgerSource) *Service {
-	return &Service{scenariosRoot: scenariosRoot, runManager: runManager, planner: planner, ledgerSource: ledgerSource, visualHealth: defaultVisualHealthComparer{repoRoot: filepath.Dir(scenariosRoot)}}
+	return &Service{scenariosRoot: scenariosRoot, artifactRoot: artifactpaths.ScenarioRoot, runManager: runManager, planner: planner, ledgerSource: ledgerSource, visualHealth: defaultVisualHealthComparer{repoRoot: filepath.Dir(scenariosRoot)}}
+}
+
+// SetArtifactRootResolver replaces physical artifact placement while retaining
+// the same logical run contract. It is intended for isolated tests; production
+// construction uses the repository-wide artifactpaths authority.
+func (s *Service) SetArtifactRootResolver(resolve func(string) (string, error)) *Service {
+	if s != nil && resolve != nil {
+		s.artifactRoot = resolve
+	}
+	return s
 }
 
 func (s *Service) SetVisualHealthComparer(comparer visualHealthComparer) *Service {
@@ -318,15 +330,19 @@ func (s *Service) scenarioDir(scenario string) (string, error) {
 	if scenario == "." || scenario == ".." || strings.ContainsAny(scenario, `/\`) || filepath.Clean(scenario) != scenario {
 		return "", connect.NewError(connect.CodeInvalidArgument, errors.New("scenario must be a scenario slug or kind:id target"))
 	}
-	dir := filepath.Join(s.scenariosRoot, scenario)
-	if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(scenarioManifest))); err != nil {
+	sourceDir := filepath.Join(s.scenariosRoot, scenario)
+	if _, err := os.Stat(filepath.Join(sourceDir, filepath.FromSlash(scenarioManifest))); err != nil {
 		// A well-formed name with no manifest is a missing scenario, not a
 		// malformed request. NotFound keeps callers from reading it as a
 		// scenario that merely has no runs yet.
 		return "", connect.NewError(connect.CodeNotFound,
 			fmt.Errorf("no scenario %q under %s (expected %s)", scenario, s.scenariosRoot, scenarioManifest))
 	}
-	return dir, nil
+	artifactRoot, err := s.artifactRoot(scenario)
+	if err != nil {
+		return "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("resolve artifact root for %s: %w", scenario, err))
+	}
+	return artifactRoot, nil
 }
 
 // ListRuns enumerates runs for a scenario, newest-first.

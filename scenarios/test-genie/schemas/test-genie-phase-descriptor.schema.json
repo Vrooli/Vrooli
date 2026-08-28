@@ -108,10 +108,65 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "enum": ["scenario", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] }
+          "items": { "enum": ["scenario", "asset", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] }
         },
+		"notApplicableKinds": {
+		  "type": "array",
+		  "uniqueItems": true,
+		  "items": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["kind", "reason"],
+			"properties": {
+			  "kind": { "enum": ["scenario", "asset", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] },
+			  "reason": { "type": "string", "minLength": 40 }
+			}
+		  }
+		},
         "selection": { "const": "enumerate" }
-      }
+	  },
+	  "allOf": [
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "scenario" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "scenario" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "asset" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "asset" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "resource" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "resource" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "tool" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "tool" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "safeguard" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "safeguard" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "team" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "team" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "package" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "package" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "control-plane" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "control-plane" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "docs" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "docs" } } } } }
+		},
+		{
+		  "if": { "properties": { "notApplicableKinds": { "contains": { "properties": { "kind": { "const": "project" } }, "required": ["kind"] } } }, "required": ["notApplicableKinds"] },
+		  "then": { "properties": { "kinds": { "not": { "contains": { "const": "project" } } } } }
+		}
+	  ]
     },
     "applicability": {
       "type": "object",
@@ -240,7 +295,7 @@
         "scenarioDependency": { "type": "string", "minLength": 1 },
         "serviceCapability": { "type": "string", "minLength": 1 },
         "serviceTag": { "type": "string", "minLength": 1 },
-        "targetKind": { "enum": ["scenario", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] },
+      "targetKind": { "enum": ["scenario", "asset", "resource", "tool", "safeguard", "team", "package", "control-plane", "docs", "project"] },
         "hasUI": { "type": "boolean" },
         "hasAPI": { "type": "boolean" },
         "testingConfigSection": { "type": "string", "minLength": 1 }

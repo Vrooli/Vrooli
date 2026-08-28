@@ -1,6 +1,7 @@
 package phasecache
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -12,10 +13,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"test-genie/internal/orchestrator/phases"
 
 	"github.com/vrooli/freshness-go/treedigest"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
@@ -37,6 +40,58 @@ type Entry struct {
 }
 
 type Store struct{ root string }
+
+// PrunePolicy bounds the content-addressed phase cache. A zero age or byte
+// value disables that individual bound; at least one bound must be positive.
+type PrunePolicy struct {
+	MaxAge            time.Duration
+	MaxBytes          int64
+	MaxDeleteFraction float64
+	Now               func() time.Time
+}
+
+// PruneBound names the constraint that determined the retained cache set.
+type PruneBound string
+
+const (
+	PruneBoundNone  PruneBound = "none"
+	PruneBoundAge   PruneBound = "age"
+	PruneBoundBytes PruneBound = "bytes"
+
+	defaultMaxCacheBytes = int64(2 << 30)
+)
+
+// DefaultPrunePolicy retains one week of phase results while guaranteeing that
+// the cache cannot exceed 2 GiB. The 90% blast-radius ceiling matches the
+// repository's general directory-retention guard.
+func DefaultPrunePolicy() PrunePolicy {
+	return PrunePolicy{
+		MaxAge:            7 * 24 * time.Hour,
+		MaxBytes:          defaultMaxCacheBytes,
+		MaxDeleteFraction: 0.90,
+		Now:               time.Now,
+	}
+}
+
+// PruneResult reports one cache eviction cycle. DeletedEntries is ordered from
+// oldest to newest, matching the actual removal order.
+type PruneResult struct {
+	BeforeEntries  int
+	AfterEntries   int
+	BeforeBytes    int64
+	AfterBytes     int64
+	DeletedEntries []string
+	BoundBy        PruneBound
+	Refused        bool
+	RefusedReason  string
+}
+
+type pruneEntry struct {
+	name    string
+	path    string
+	modTime time.Time
+	bytes   int64
+}
 
 // cacheableStatuses are the phase verdicts the cache may reuse.
 //
@@ -71,7 +126,121 @@ func Cacheable(status string) bool {
 
 var demotionMu sync.Mutex
 
-func New(root string) *Store { return &Store{root: filepath.Join(root, "phase-cache")} }
+func New(root string) *Store { return &Store{root: artifactpaths.PhaseCacheDir(root)} }
+
+// Prune removes cache entries oldest-first until both declared bounds are
+// satisfied. Store metadata and transient writer files are never candidates.
+// Selection completes before deletion so the fraction guard can refuse the
+// entire cycle without partially mutating the cache.
+func (s *Store) Prune(ctx context.Context, policy PrunePolicy) (PruneResult, error) {
+	var result PruneResult
+	if s == nil {
+		return result, nil
+	}
+	if policy.MaxAge < 0 || policy.MaxBytes < 0 {
+		return result, fmt.Errorf("phase cache prune bounds must not be negative")
+	}
+	if policy.MaxAge == 0 && policy.MaxBytes == 0 {
+		return result, fmt.Errorf("phase cache prune requires an age or byte bound")
+	}
+	if policy.MaxDeleteFraction < 0 || policy.MaxDeleteFraction > 1 {
+		return result, fmt.Errorf("phase cache MaxDeleteFraction %.2f must be within [0,1]", policy.MaxDeleteFraction)
+	}
+	if policy.Now == nil {
+		policy.Now = time.Now
+	}
+
+	dirEntries, err := os.ReadDir(s.root)
+	if os.IsNotExist(err) {
+		result.BoundBy = PruneBoundNone
+		return result, nil
+	}
+	if err != nil {
+		return result, fmt.Errorf("read phase cache: %w", err)
+	}
+
+	entries := make([]pruneEntry, 0, len(dirEntries))
+	for _, dirEntry := range dirEntries {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
+		name := dirEntry.Name()
+		if dirEntry.IsDir() || name == "demotions.json" || !strings.HasPrefix(name, "pc_") || !strings.HasSuffix(name, ".json") {
+			continue
+		}
+		info, err := dirEntry.Info()
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			return result, fmt.Errorf("stat phase cache entry %s: %w", name, err)
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		entries = append(entries, pruneEntry{
+			name: name, path: filepath.Join(s.root, name), modTime: info.ModTime(), bytes: info.Size(),
+		})
+		result.BeforeBytes += info.Size()
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if !entries[i].modTime.Equal(entries[j].modTime) {
+			return entries[i].modTime.Before(entries[j].modTime)
+		}
+		return entries[i].name < entries[j].name
+	})
+	result.BeforeEntries = len(entries)
+	result.AfterEntries = len(entries)
+	result.AfterBytes = result.BeforeBytes
+	result.BoundBy = PruneBoundNone
+
+	victims, bound := selectPruneVictims(entries, policy, result.BeforeBytes)
+	if len(victims) == 0 {
+		return result, nil
+	}
+	if policy.MaxDeleteFraction > 0 && float64(len(victims))/float64(len(entries)) > policy.MaxDeleteFraction {
+		result.Refused = true
+		result.RefusedReason = fmt.Sprintf(
+			"cycle would remove %d of %d cache entries (%.0f%%), above the %.0f%% ceiling",
+			len(victims), len(entries), float64(len(victims))/float64(len(entries))*100, policy.MaxDeleteFraction*100,
+		)
+		return result, nil
+	}
+
+	for _, victim := range victims {
+		if err := ctx.Err(); err != nil {
+			return result, err
+		}
+		if err := os.Remove(victim.path); err != nil && !os.IsNotExist(err) {
+			return result, fmt.Errorf("remove phase cache entry %s: %w", victim.name, err)
+		}
+		result.DeletedEntries = append(result.DeletedEntries, victim.name)
+		result.AfterEntries--
+		result.AfterBytes -= victim.bytes
+	}
+	result.BoundBy = bound
+	return result, nil
+}
+
+func selectPruneVictims(entries []pruneEntry, policy PrunePolicy, totalBytes int64) ([]pruneEntry, PruneBound) {
+	remainingBytes := totalBytes
+	cutoff := policy.Now().Add(-policy.MaxAge)
+	bound := PruneBoundNone
+	for i, entry := range entries {
+		overAge := policy.MaxAge > 0 && entry.modTime.Before(cutoff)
+		overBytes := policy.MaxBytes > 0 && remainingBytes > policy.MaxBytes
+		if !overAge && !overBytes {
+			return entries[:i], bound
+		}
+		if overBytes {
+			bound = PruneBoundBytes
+		} else if bound == PruneBoundNone {
+			bound = PruneBoundAge
+		}
+		remainingBytes -= entry.bytes
+	}
+	return entries, bound
+}
 
 func Key(id Identity) string {
 	payload := strings.Join([]string{"v1", id.ScopedInputDigest, id.ProviderBuildIdentity, id.DescriptorSnapshotHash, id.ExecutionConfiguration}, "\n")

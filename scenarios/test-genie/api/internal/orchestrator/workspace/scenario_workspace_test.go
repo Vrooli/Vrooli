@@ -17,6 +17,8 @@ func TestTargetKindNameUsesRepoContractToken(t *testing.T) {
 
 func TestNewTargetWorkspace(t *testing.T) {
 	root := t.TempDir()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 	scenarioDir := filepath.Join(root, "demo")
 	if err := os.MkdirAll(scenarioDir, 0o755); err != nil {
 		t.Fatalf("failed to create scenario dir: %v", err)
@@ -29,10 +31,10 @@ func TestNewTargetWorkspace(t *testing.T) {
 	if workspace.ScenarioDir != scenarioDir {
 		t.Fatalf("unexpected scenario dir %s", workspace.ScenarioDir)
 	}
-	if workspace.CoverageDir != filepath.Join(scenarioDir, "coverage") {
-		t.Fatalf("unexpected test dir %s", workspace.CoverageDir)
+	if workspace.CoverageDir == filepath.Join(scenarioDir, "coverage") {
+		t.Fatalf("artifact workspace must not be created in the scenario tree: %s", workspace.CoverageDir)
 	}
-	expectedPhaseDir := filepath.Join(scenarioDir, "coverage", "phases")
+	expectedPhaseDir := filepath.Join(home, ".vrooli", "test-runs", "demo", "coverage", "phases")
 	if workspace.PhaseDir != expectedPhaseDir {
 		t.Fatalf("unexpected phase dir %s", workspace.PhaseDir)
 	}

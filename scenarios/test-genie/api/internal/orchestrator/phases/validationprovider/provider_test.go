@@ -40,6 +40,16 @@ type capturingClient struct {
 	got  *scenariovalidationv1.ValidateScenarioRequest
 }
 
+type capturingTargetClient struct {
+	resp *scenariovalidationv1.ValidateTargetResponse
+	got  *scenariovalidationv1.ValidateTargetRequest
+}
+
+func (c *capturingTargetClient) ValidateTarget(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	c.got = req.Msg
+	return connect.NewResponse(c.resp), nil
+}
+
 type capturingDurableClient struct {
 	start   *scenariovalidationv1.StartValidationRunRequest
 	wait    *scenariovalidationv1.WaitValidationRunRequest
@@ -113,6 +123,31 @@ func TestRunSendsCapabilitySubset(t *testing.T) {
 	Run(context.Background(), provider, "demo", "/tmp/demo")
 	if got := cap.got.GetCapabilitySubset(); len(got) != 2 || got[0] != "architecture" || got[1] != "contracts" {
 		t.Fatalf("capability subset = %v", got)
+	}
+}
+
+func TestRunTargetSendsContractExcludes(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewTargetClient
+	cap := &capturingTargetClient{resp: &scenariovalidationv1.ValidateTargetResponse{
+		Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		Assessment: testAssessment(""),
+	}}
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewTargetClient = func(time.Duration, string) TargetClient { return cap }
+	t.Cleanup(func() { ResolveBaseURL, NewTargetClient = prevResolve, prevClient })
+
+	provider := testProvider(false)
+	provider.Exclude = []string{"internal/tools/*", "internal/safeguards/*"}
+	result := RunTarget(context.Background(), provider, &commonv1.ValidationTarget{
+		Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE,
+		Id:   "internal",
+		Root: "internal",
+	}, "/repo/internal")
+	if !result.Success {
+		t.Fatalf("RunTarget() failed: %+v", result)
+	}
+	if got := cap.got.GetExclude(); len(got) != 2 || got[0] != "internal/tools/*" || got[1] != "internal/safeguards/*" {
+		t.Fatalf("exclude = %v, want contract excludes", got)
 	}
 }
 

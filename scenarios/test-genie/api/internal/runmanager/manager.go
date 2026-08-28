@@ -125,6 +125,7 @@ type Manager struct {
 	cancelBase          context.CancelFunc
 	exec                Executor
 	scenariosRoot       string
+	artifactRoot        func(string) (string, error)
 	heartbeat           time.Duration
 	maxRunsPerScenario  int
 	maxConcurrentRuns   int
@@ -273,6 +274,16 @@ func New(exec Executor, scenariosRoot string) *Manager {
 		previewByCaller:     make(map[string]int),
 		runs:                make(map[string]*activeRun),
 	}
+}
+
+// WithArtifactRootResolver makes lifecycle bookkeeping use the same physical
+// root as the executor's artifact workspace. Production wires the shared
+// artifactpaths authority; tests may retain an isolated source-shaped root.
+func (m *Manager) WithArtifactRootResolver(resolve func(string) (string, error)) *Manager {
+	if m != nil && resolve != nil {
+		m.artifactRoot = resolve
+	}
+	return m
 }
 
 type SaturatedError struct{ Limit string }
@@ -558,21 +569,35 @@ func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 		ar.setStatus(sharedruns.StatusQueued)
 	}
 	m.runs[runKey(scenario, runID)] = ar
+
+	// Persist admission before publishing the handle or starting the executor.
+	// Immediate runs need the same boundary as queued runs: planning can fail
+	// before the orchestrator writes its richer in-progress record, and a caller
+	// must never receive a run id that is absent from the canonical index.
+	status := sharedruns.StatusInProgress
+	if queued {
+		status = sharedruns.StatusQueued
+	}
+	if err := sharedruns.NewIndex(m.scenarioDir(scenario)).Append(sharedruns.RunRecord{
+		RunID:                    runID,
+		Scenario:                 scenario,
+		StartedAt:                now,
+		Status:                   status,
+		Preset:                   preset,
+		CaptureProfile:           strings.TrimSpace(ar.input.Request.CaptureProfile),
+		PlannedPhases:            append([]string(nil), ar.input.Request.ResolvedPhases...),
+		PhaseSetDigest:           strings.TrimSpace(ar.input.Request.AdmissionPhaseSetDigest),
+		DescriptorSnapshotDigest: strings.TrimSpace(ar.input.Request.AdmissionDescriptorDigest),
+		TreeDigest:               strings.TrimSpace(ar.input.Request.AdmissionTreeDigest),
+	}); err != nil {
+		delete(m.runs, runKey(scenario, runID))
+		m.mu.Unlock()
+		cancel()
+		return StartResult{}, fmt.Errorf("persist admitted run %s/%s: %w", scenario, runID, err)
+	}
 	m.mu.Unlock()
 
 	if queued {
-		// Persist a placeholder so the run is visible in `runs list` while it
-		// waits; the executor's own Append replaces it with the full in_progress
-		// record on promotion (Append is upsert-by-run-id).
-		if err := sharedruns.NewIndex(m.scenarioDir(scenario)).Append(sharedruns.RunRecord{
-			RunID:     runID,
-			Scenario:  scenario,
-			StartedAt: now,
-			Status:    sharedruns.StatusQueued,
-			Preset:    preset,
-		}); err != nil {
-			log.Printf("[runmanager] persist queued record %s/%s: %v", scenario, runID, err)
-		}
 		ar.bc.publish(Event{Kind: EventRunQueued, RunID: runID, Scenario: scenario, Preset: preset})
 		return StartResult{RunID: runID}, nil
 	}
@@ -1415,6 +1440,11 @@ func (m *Manager) scenarioDir(scenario string) string {
 			if artifactRoot, artifactErr := targetmodel.ArtifactRoot(repoRoot, target); artifactErr == nil {
 				return artifactRoot
 			}
+		}
+	}
+	if m.artifactRoot != nil {
+		if artifactRoot, err := m.artifactRoot(value); err == nil {
+			return artifactRoot
 		}
 	}
 	return filepath.Join(m.scenariosRoot, value)

@@ -24,16 +24,17 @@ type RetentionPolicy struct {
 }
 
 func DefaultRetentionPolicy() RetentionPolicy {
-	return RetentionPolicy{KeepMostRecent: 20, KeepMaxAgeDays: 30, KeepMaxSizeMB: 5000}
+	return RetentionPolicy{KeepMostRecent: 10, KeepMaxAgeDays: 30, KeepMaxSizeMB: 20 * 1024}
 }
 
 // RetentionReport makes decisions inspectable before or after cleanup. It
 // deliberately reports complete lifecycle footprints (artifact tree + log
 // tree) rather than only the coverage/runs directory.
 type RetentionReport struct {
-	Eligible []string
-	Deleted  []string
-	Kept     []string
+	Eligible        []string
+	Deleted         []string
+	Kept            []string
+	TriggeredBounds []string
 }
 
 // DetailStore is the persistence side of the evidence lifecycle. The shared
@@ -99,6 +100,11 @@ func (s *RetentionService) Collect(ctx context.Context) (RetentionReport, error)
 			return report, err
 		}
 		size := runFootprintBytes(s.scenarioDir, run.RunID)
+		if run.Status == StatusQueued || run.Status == StatusInProgress {
+			report.Kept = append(report.Kept, run.RunID)
+			keptSize += size
+			continue
+		}
 		leased, err := s.leases.Active(run.RunID, now)
 		if err != nil {
 			return report, fmt.Errorf("check pin lease for %s: %w", run.RunID, err)
@@ -112,6 +118,12 @@ func (s *RetentionService) Collect(ctx context.Context) (RetentionReport, error)
 		tooOld := s.policy.KeepMaxAgeDays > 0 && now.Sub(run.StartedAt) > time.Duration(s.policy.KeepMaxAgeDays)*24*time.Hour
 		overCount := s.policy.KeepMostRecent > 0 && keptUnpinned > s.policy.KeepMostRecent
 		if tooOld || overCount {
+			if tooOld {
+				report.addTriggeredBound("max_age")
+			}
+			if overCount {
+				report.addTriggeredBound("keep_count")
+			}
 			report.Eligible = append(report.Eligible, run.RunID)
 			if err := s.delete(ctx, run.RunID); err != nil {
 				return report, err
@@ -127,6 +139,7 @@ func (s *RetentionService) Collect(ctx context.Context) (RetentionReport, error)
 	if s.policy.KeepMaxSizeMB > 0 {
 		capBytes := int64(s.policy.KeepMaxSizeMB) * 1024 * 1024
 		for i := len(kept) - 1; i >= 0 && keptSize > capBytes; i-- {
+			report.addTriggeredBound("max_bytes")
 			report.Eligible = append(report.Eligible, kept[i].id)
 			if err := s.delete(ctx, kept[i].id); err != nil {
 				return report, err
@@ -136,6 +149,15 @@ func (s *RetentionService) Collect(ctx context.Context) (RetentionReport, error)
 		}
 	}
 	return report, nil
+}
+
+func (r *RetentionReport) addTriggeredBound(bound string) {
+	for _, existing := range r.TriggeredBounds {
+		if existing == bound {
+			return
+		}
+	}
+	r.TriggeredBounds = append(r.TriggeredBounds, bound)
 }
 
 // Delete removes an operator-selected run through the same tombstone and
@@ -283,4 +305,5 @@ func (r *RetentionReport) Sort() {
 	sort.Strings(r.Eligible)
 	sort.Strings(r.Deleted)
 	sort.Strings(r.Kept)
+	sort.Strings(r.TriggeredBounds)
 }

@@ -1,15 +1,113 @@
 package phasecache
 
 import (
+	"context"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"test-genie/internal/orchestrator/phases"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
+
+func writePruneEntry(t *testing.T, store *Store, name string, size int, modTime time.Time) string {
+	t.Helper()
+	if err := os.MkdirAll(store.root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(store.root, name)
+	if err := os.WriteFile(path, []byte(strings.Repeat("x", size)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, modTime, modTime); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestPruneRemovesOldestEntriesFirst(t *testing.T) {
+	store := New(t.TempDir())
+	now := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
+	oldest := writePruneEntry(t, store, "pc_oldest.json", 10, now.Add(-3*time.Hour))
+	middle := writePruneEntry(t, store, "pc_middle.json", 10, now.Add(-2*time.Hour))
+	newest := writePruneEntry(t, store, "pc_newest.json", 10, now.Add(-time.Hour))
+
+	result, err := store.Prune(context.Background(), PrunePolicy{MaxBytes: 10, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.BoundBy != PruneBoundBytes || !reflect.DeepEqual(result.DeletedEntries, []string{"pc_oldest.json", "pc_middle.json"}) {
+		t.Fatalf("prune result = %+v", result)
+	}
+	for _, deleted := range []string{oldest, middle} {
+		if _, err := os.Stat(deleted); !os.IsNotExist(err) {
+			t.Fatalf("old entry %s survived: %v", deleted, err)
+		}
+	}
+	if _, err := os.Stat(newest); err != nil {
+		t.Fatalf("newest entry was removed: %v", err)
+	}
+}
+
+func TestPruneReportsByteBoundWhenAgeDoesNotBind(t *testing.T) {
+	store := New(t.TempDir())
+	now := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
+	writePruneEntry(t, store, "pc_a.json", 8, now.Add(-2*time.Minute))
+	writePruneEntry(t, store, "pc_b.json", 8, now.Add(-time.Minute))
+
+	result, err := store.Prune(context.Background(), PrunePolicy{
+		MaxAge: 24 * time.Hour, MaxBytes: 8, Now: func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.BoundBy != PruneBoundBytes || result.AfterBytes > 8 || result.AfterEntries != 1 {
+		t.Fatalf("byte-bound result = %+v", result)
+	}
+}
+
+func TestPruneAlwaysPreservesDemotionsMetadata(t *testing.T) {
+	store := New(t.TempDir())
+	if err := store.Demote("pc:stale", "audit mismatch"); err != nil {
+		t.Fatal(err)
+	}
+	writePruneEntry(t, store, "pc_entry.json", 8, time.Now().Add(-time.Hour))
+
+	result, err := store.Prune(context.Background(), PrunePolicy{MaxBytes: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.DeletedEntries) != 1 {
+		t.Fatalf("deleted entries = %v", result.DeletedEntries)
+	}
+	if !store.IsDemoted("pc:stale") {
+		t.Fatal("demotions.json did not survive pruning")
+	}
+}
+
+func TestPruneFractionGuardAlarmsWithoutDeleting(t *testing.T) {
+	store := New(t.TempDir())
+	first := writePruneEntry(t, store, "pc_first.json", 8, time.Now().Add(-2*time.Hour))
+	second := writePruneEntry(t, store, "pc_second.json", 8, time.Now().Add(-time.Hour))
+
+	result, err := store.Prune(context.Background(), PrunePolicy{MaxBytes: 1, MaxDeleteFraction: 0.5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Refused || result.RefusedReason == "" || len(result.DeletedEntries) != 0 {
+		t.Fatalf("fraction guard result = %+v", result)
+	}
+	for _, path := range []string{first, second} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("guard deleted %s: %v", path, err)
+		}
+	}
+}
 
 func TestKeyChangesForEachIdentityPart(t *testing.T) {
 	base := Identity{ScopedInputDigest: "input", ProviderBuildIdentity: "provider", DescriptorSnapshotHash: "descriptor", ExecutionConfiguration: "config"}

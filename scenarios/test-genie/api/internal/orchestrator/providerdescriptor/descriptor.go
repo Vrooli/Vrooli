@@ -115,13 +115,19 @@ func (d Descriptor) DeterminismDeclared() bool {
 }
 
 type Targets struct {
-	Kinds     []string `json:"kinds,omitempty"`
-	Selection string   `json:"selection,omitempty"`
+	Kinds              []string            `json:"kinds,omitempty"`
+	NotApplicableKinds []NotApplicableKind `json:"notApplicableKinds,omitempty"`
+	Selection          string              `json:"selection,omitempty"`
+}
+
+type NotApplicableKind struct {
+	Kind   string `json:"kind"`
+	Reason string `json:"reason"`
 }
 
 var validTargetKinds = map[string]struct{}{
 	"scenario": {}, "resource": {}, "tool": {}, "safeguard": {},
-	"team": {}, "package": {}, "control-plane": {}, "docs": {}, "project": {},
+	"team": {}, "package": {}, "control-plane": {}, "docs": {}, "project": {}, "asset": {},
 }
 
 var validHostOS = map[string]struct{}{"linux": {}, "macos": {}, "windows": {}}
@@ -622,6 +628,23 @@ func validateDescriptor(d *Descriptor) []Diagnostic {
 			add("duplicate_target_kind", fmt.Sprintf("targets.kinds contains duplicate %q", kind))
 		}
 		seenTargetKinds[kind] = struct{}{}
+	}
+	seenExcludedKinds := map[string]struct{}{}
+	for _, declaration := range d.Targets.NotApplicableKinds {
+		kind := strings.TrimSpace(declaration.Kind)
+		if _, ok := validTargetKinds[kind]; !ok {
+			add("invalid_not_applicable_target_kind", fmt.Sprintf("targets.notApplicableKinds contains unsupported kind %q", kind))
+		}
+		if _, ok := seenExcludedKinds[kind]; ok {
+			add("duplicate_not_applicable_target_kind", fmt.Sprintf("targets.notApplicableKinds contains duplicate %q", kind))
+		}
+		seenExcludedKinds[kind] = struct{}{}
+		if _, ok := seenTargetKinds[kind]; ok {
+			add("overlapping_target_kind", fmt.Sprintf("target kind %q cannot be both supported and not applicable", kind))
+		}
+		if len(strings.TrimSpace(declaration.Reason)) < 40 {
+			add("short_target_kind_reason", fmt.Sprintf("targets.notApplicableKinds reason for %q must be at least 40 characters", kind))
+		}
 	}
 	normalizeValidationDefaults(&d.Validation)
 	if !oneOf(d.Validation.DeliveryMode, "inline", "durable-run") {

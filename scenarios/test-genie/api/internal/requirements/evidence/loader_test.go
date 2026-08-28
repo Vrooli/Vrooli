@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/artifactpaths"
+
 	"test-genie/internal/requirements/types"
 )
 
@@ -405,9 +407,15 @@ func TestLoader_Integration(t *testing.T) {
 	}
 
 	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
 	scenarioDir := filepath.Join(tmpDir, "scenario")
-	phaseResultsDir := filepath.Join(scenarioDir, "coverage", "phase-results")
-	manualDir := filepath.Join(scenarioDir, "coverage", "manual-validations")
+	artifactRoot, err := artifactpaths.ScenarioRoot("scenario")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID := "20260827-051100-governed"
+	phaseResultsDir := artifactpaths.RunPhaseResultsDir(artifactRoot, runID)
+	manualDir := filepath.Dir(artifactpaths.ManualValidationsPath(artifactRoot))
 	vitestDir := filepath.Join(scenarioDir, "ui", "coverage")
 
 	// Create directories
@@ -415,6 +423,13 @@ func TestLoader_Integration(t *testing.T) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			t.Fatalf("create dir: %v", err)
 		}
+	}
+	latestDir := filepath.Dir(artifactpaths.LatestManifestPath(artifactRoot))
+	if err := os.MkdirAll(latestDir, 0o755); err != nil {
+		t.Fatalf("create latest dir: %v", err)
+	}
+	if err := os.WriteFile(artifactpaths.LatestManifestPath(artifactRoot), []byte(`{"run_id":"`+runID+`"}`), 0o644); err != nil {
+		t.Fatalf("write latest manifest: %v", err)
 	}
 
 	// Write phase result

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
@@ -18,6 +19,10 @@ type Target struct {
 	ID   string
 	Root string
 	Path string
+	// Exclude contains repository-contract globs owned by this target kind.
+	// They remain transport metadata rather than part of ValidationTarget so
+	// target identity stays stable across providers.
+	Exclude []string
 }
 
 // ArtifactRoot returns the durable evidence owner for a target. Scenario
@@ -25,7 +30,7 @@ type Target struct {
 // isolated below the contract-owned runtime state root.
 func ArtifactRoot(repoRoot string, target Target) (string, error) {
 	if target.HasRuntime() {
-		return target.Path, nil
+		return artifactpaths.ScenarioRoot(target.ID)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -41,6 +46,13 @@ func ArtifactRoot(repoRoot string, target Target) (string, error) {
 	}
 	kind := strings.TrimPrefix(strings.ToLower(target.Kind.String()), "validation_target_kind_")
 	return filepath.Join(state.AbsPath, "test-genie", "targets", kind, target.ID), nil
+}
+
+// PhaseCacheRoot resolves a target-keyed namespace beneath test-genie's cache
+// class. The cache is owned and reclaimed by test-genie, never by the target
+// whose inputs produced an entry.
+func PhaseCacheRoot(target Target) (string, error) {
+	return artifactpaths.PhaseCacheRoot(target.ID)
 }
 
 func (t Target) Proto() *commonv1.ValidationTarget {
@@ -89,14 +101,14 @@ func Resolve(repoRoot, expression string) (Target, error) {
 	// still supplies the canonical owner ID used for durable identity.
 	if strings.Contains(id, "/") {
 		if target, lookupErr := contract.Target(repoRoot, repocontract.TargetKind(kind), filepath.ToSlash(filepath.Clean(id))); lookupErr == nil {
-			return fromContractTarget(repoRoot, target), nil
+			return fromContractTarget(repoRoot, contract, target), nil
 		}
 	}
 	target, err := contract.Target(repoRoot, repocontract.TargetKind(kind), id)
 	if err != nil {
 		return Target{}, err
 	}
-	return fromContractTarget(repoRoot, target), nil
+	return fromContractTarget(repoRoot, contract, target), nil
 }
 
 func resolveScenario(contract *repocontract.Contract, repoRoot, value string) (Target, error) {
@@ -115,11 +127,23 @@ func resolveScenario(contract *repocontract.Contract, repoRoot, value string) (T
 	if err != nil {
 		return Target{}, err
 	}
-	return fromContractTarget(repoRoot, target), nil
+	return fromContractTarget(repoRoot, contract, target), nil
 }
 
-func fromContractTarget(repoRoot string, target repocontract.Target) Target {
-	return Target{Kind: targetKind(target.Kind), ID: target.ID, Root: target.Root, Path: filepath.Join(repoRoot, filepath.FromSlash(target.Root))}
+func fromContractTarget(repoRoot string, contract *repocontract.Contract, target repocontract.Target) Target {
+	var excludes []string
+	if contract != nil {
+		if spec, ok := contract.Targets().Kinds[string(target.Kind)]; ok {
+			excludes = append([]string(nil), spec.Exclude...)
+		}
+	}
+	return Target{
+		Kind:    targetKind(target.Kind),
+		ID:      target.ID,
+		Root:    target.Root,
+		Path:    filepath.Join(repoRoot, filepath.FromSlash(target.Root)),
+		Exclude: excludes,
+	}
 }
 
 func targetKind(kind repocontract.TargetKind) commonv1.ValidationTargetKind {

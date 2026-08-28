@@ -54,7 +54,7 @@ regression against a recorded baseline, or an attempted ratchet loosening.
 
 ```bash
 # Current rung, gaps, and next move for every capability:
-tidiness-manager validate scenario <scenario>
+test-genie execute <scenario> --phases tidiness
 
 # Or drive it through Test Genie and read the per-phase scorecard:
 test-genie execute <scenario> --phases tidiness

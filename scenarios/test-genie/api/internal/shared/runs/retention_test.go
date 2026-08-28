@@ -119,6 +119,34 @@ func TestGCNeverDropsActiveLease(t *testing.T) {
 	}
 }
 
+func TestGCKeepsActiveRunAndReportsBindingByteCeiling(t *testing.T) {
+	dir := t.TempDir()
+	idx := NewIndex(dir)
+	base := time.Now().UTC().Add(-time.Hour)
+	seedRun(t, idx, dir, "active", base.Add(-time.Minute), 2*1024*1024, false)
+	if err := idx.Update("active", func(record *RunRecord) error {
+		record.Status = StatusInProgress
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	seedRun(t, idx, dir, "terminal", base, 2*1024*1024, false)
+
+	report, err := NewRetentionService(dir, RetentionPolicy{KeepMaxSizeMB: 3}).Collect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Deleted) != 1 || report.Deleted[0] != "terminal" {
+		t.Fatalf("deleted = %#v, want only terminal run", report.Deleted)
+	}
+	if len(report.TriggeredBounds) != 1 || report.TriggeredBounds[0] != "max_bytes" {
+		t.Fatalf("triggered bounds = %#v, want max_bytes", report.TriggeredBounds)
+	}
+	if _, err := idx.Find("active"); err != nil {
+		t.Fatalf("active run was not protected: %v", err)
+	}
+}
+
 func TestGCEnforcesSizeCap(t *testing.T) {
 	dir := t.TempDir()
 	idx := NewIndex(dir)

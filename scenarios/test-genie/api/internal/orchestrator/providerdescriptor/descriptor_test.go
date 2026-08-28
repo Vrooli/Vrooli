@@ -35,12 +35,43 @@ func TestLoadValidDescriptor(t *testing.T) {
 	}
 }
 
+func TestLoadAcceptsAssetTargetKind(t *testing.T) {
+	body := strings.Replace(validDescriptor("search-hub", "search"), `"kinds":["scenario"]`, `"kinds":["asset"]`, 1)
+	result := Load(LoadOptions{Paths: []string{writeDescriptor(t, "search-hub", body)}})
+	if err := result.Err(); err != nil {
+		t.Fatalf("asset target kind returned diagnostics: %v", err)
+	}
+	if got := result.Descriptors[0].Targets.EffectiveKinds(); len(got) != 1 || got[0] != "asset" {
+		t.Fatalf("target kinds = %v, want [asset]", got)
+	}
+}
+
 func TestLoadRejectsDescriptorWithoutTargetDeclaration(t *testing.T) {
 	body := strings.Replace(validDescriptor("search-hub", "search"),
 		`  "targets":{"kinds":["scenario"],"selection":"enumerate"},`+"\n", "", 1)
 	result := Load(LoadOptions{Paths: []string{writeDescriptor(t, "search-hub", body)}})
 	if !hasDiagnostic(result.Diagnostics, "missing_targets") {
 		t.Fatalf("missing target declaration was accepted: %+v", result.Diagnostics)
+	}
+}
+
+func TestLoadRejectsShortTargetKindExclusionReason(t *testing.T) {
+	body := strings.Replace(validDescriptor("search-hub", "search"),
+		`"targets":{"kinds":["scenario"],"selection":"enumerate"}`,
+		`"targets":{"kinds":["scenario"],"selection":"enumerate","notApplicableKinds":[{"kind":"control-plane","reason":"not supported"}]}`, 1)
+	result := Load(LoadOptions{Paths: []string{writeDescriptor(t, "search-hub", body)}})
+	if !hasDiagnostic(result.Diagnostics, "short_target_kind_reason") {
+		t.Fatalf("short not-applicable reason was accepted: %+v", result.Diagnostics)
+	}
+}
+
+func TestLoadRejectsOverlappingTargetKindDeclaration(t *testing.T) {
+	body := strings.Replace(validDescriptor("search-hub", "search"),
+		`"targets":{"kinds":["scenario"],"selection":"enumerate"}`,
+		`"targets":{"kinds":["scenario","control-plane"],"selection":"enumerate","notApplicableKinds":[{"kind":"control-plane","reason":"This is deliberately long enough to reach schema validation."}]}`, 1)
+	result := Load(LoadOptions{Paths: []string{writeDescriptor(t, "search-hub", body)}})
+	if !hasDiagnostic(result.Diagnostics, "overlapping_target_kind") {
+		t.Fatalf("overlapping target declaration was accepted: %+v", result.Diagnostics)
 	}
 }
 

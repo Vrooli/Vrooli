@@ -47,7 +47,7 @@ func TestOpaqueRunArtifactHandlerStreamsCatalogBytesWithSafeHeaders(t *testing.T
 		t.Fatal(err)
 	}
 	server := &Server{
-		runsService: appruns.NewService(root, nil, nil, nil),
+		runsService: appruns.NewService(root, nil, nil, nil).SetArtifactRootResolver(func(scenario string) (string, error) { return filepath.Join(root, scenario), nil }),
 		logger:      log.New(io.Discard, "", 0),
 	}
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/scenarios/demo/runs/run-safe/artifacts/"+catalog.Artifacts[0].ID, nil)
@@ -76,7 +76,7 @@ func TestOpaqueRunArtifactHandlerRejectsInvalidAndForeignIDs(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "demo", ".vrooli", "service.json"), []byte("{}"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	server := &Server{runsService: appruns.NewService(root, nil, nil, nil), logger: log.New(io.Discard, "", 0)}
+	server := &Server{runsService: appruns.NewService(root, nil, nil, nil).SetArtifactRootResolver(func(scenario string) (string, error) { return filepath.Join(root, scenario), nil }), logger: log.New(io.Discard, "", 0)}
 
 	req := httptest.NewRequest(http.MethodGet, "/artifacts/..%2F..%2Fetc%2Fpasswd", nil)
 	req = mux.SetURLVars(req, map[string]string{"name": "demo", "runId": "run-a", "artifactId": "../../etc/passwd"})

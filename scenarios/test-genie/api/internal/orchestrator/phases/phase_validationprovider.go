@@ -36,6 +36,7 @@ type Delegated struct {
 	Description      string
 	IncludeExecution bool
 	CapabilitySubset []string
+	Exclude          []string
 	DeliveryMode     string
 	GateEnvVar       string
 	DefaultGateMode  validationprovider.GateMode
@@ -173,6 +174,7 @@ func (d Delegated) provider() validationprovider.Provider {
 		Timeout:          d.Timeout,
 		IncludeExecution: d.IncludeExecution,
 		CapabilitySubset: append([]string(nil), d.CapabilitySubset...),
+		Exclude:          append([]string(nil), d.Exclude...),
 		DeliveryMode:     d.DeliveryMode,
 		GateEnvVar:       d.GateEnvVar,
 		DefaultGateMode:  d.DefaultGateMode,
@@ -202,6 +204,7 @@ func defaultDelegatedClient(ctx context.Context, env workspace.Environment, _ io
 		return validationprovider.RunDurable(ctx, provider, env.ScenarioName, env.ScenarioDir, env.RunID)
 	}
 	if env.TargetKind != "" && env.TargetKind != "scenario" {
+		provider.Exclude = append([]string(nil), env.Exclude...)
 		return validationprovider.RunTarget(ctx, provider, &commonv1.ValidationTarget{
 			Kind: targetKindProto(env.TargetKind), Id: env.TargetID, Root: env.TargetRoot,
 		}, env.ScenarioDir)

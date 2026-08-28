@@ -154,7 +154,7 @@ func TestLifecycleRPC_StartWaitStatus(t *testing.T) { // [REQ:TESTGENIE-RUN-SNAP
 		},
 		FindingsSummary: &runspb.PhaseFindingsSummary{Errors: 1, Total: 1},
 	}}
-	svc := NewService(root, runmanager.New(fake, root), nil, nil)
+	svc := NewService(root, runmanager.New(fake, root), nil, nil).SetArtifactRootResolver(testArtifactRoot(root))
 	ctx := context.Background()
 
 	start, err := svc.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{Target: "demo"}))
@@ -250,7 +250,7 @@ func TestLifecycleRPC_StartRunPreviewsOnceForAdmission(t *testing.T) {
 	}}
 	manager := runmanager.New(fake, root)
 	defer manager.Shutdown()
-	svc := NewService(root, manager, planner, nil)
+	svc := NewService(root, manager, planner, nil).SetArtifactRootResolver(testArtifactRoot(root))
 
 	if _, err := svc.StartRun(context.Background(), connect.NewRequest(&runspb.StartRunRequest{Target: "demo"})); err != nil {
 		t.Fatalf("StartRun: %v", err)
@@ -276,7 +276,7 @@ func TestPrepareAdmissionProjectsPlanTimingIntoDurableRequest(t *testing.T) {
 		DescriptorSnapshotDigest: "descriptor:one",
 		ConfigurationFingerprint: "config:one",
 	}}
-	svc := NewService(root, nil, planner, nil)
+	svc := NewService(root, nil, planner, nil).SetArtifactRootResolver(testArtifactRoot(root))
 	req := &orchestrator.SuiteExecutionRequest{ScenarioName: "demo"}
 	if _, _, err := svc.prepareAdmission(context.Background(), req); err != nil {
 		t.Fatalf("prepareAdmission: %v", err)
@@ -304,7 +304,7 @@ func TestPrepareAdmissionHonorsCancellation(t *testing.T) {
 		t.Fatal(err)
 	}
 	planner := &countingRPCPlanner{blockCtx: true}
-	svc := NewService(root, nil, planner, nil)
+	svc := NewService(root, nil, planner, nil).SetArtifactRootResolver(testArtifactRoot(root))
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 	started := time.Now()
@@ -326,7 +326,7 @@ func TestPrepareAdmissionUsesCustomScenarioPathForTreeDigest(t *testing.T) {
 	if err := os.WriteFile(scratch+"/marker.txt", []byte("scratch source"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	svc := NewService(root, nil, nil, nil)
+	svc := NewService(root, nil, nil, nil).SetArtifactRootResolver(testArtifactRoot(root))
 	req := &orchestrator.SuiteExecutionRequest{ScenarioName: "demo", ScenarioPath: scratch}
 	if _, _, err := svc.prepareAdmission(context.Background(), req); err != nil {
 		t.Fatalf("prepareAdmission: %v", err)
@@ -355,7 +355,7 @@ func TestLifecycleRPC_PreservesArtifactCatalogFailureAsDegradedEvidence(t *testi
 	}); err != nil {
 		t.Fatal(err)
 	}
-	svc := NewService(root, nil, nil, nil)
+	svc := NewService(root, nil, nil, nil).SetArtifactRootResolver(testArtifactRoot(root))
 	show, err := svc.GetRun(context.Background(), connect.NewRequest(&runspb.GetRunRequest{Target: "demo", RunId: "catalog-failed"}))
 	if err != nil {
 		t.Fatalf("GetRun: %v", err)
@@ -382,7 +382,7 @@ func TestLifecycleRPC_LegacyTerminalReadIsExplicitlyDegraded(t *testing.T) { // 
 	}); err != nil {
 		t.Fatalf("append legacy run: %v", err)
 	}
-	svc := NewService(root, runmanager.New(nil, root), nil, nil)
+	svc := NewService(root, runmanager.New(nil, root), nil, nil).SetArtifactRootResolver(testArtifactRoot(root))
 	wait, err := svc.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{Target: "demo", RunId: "legacy"}))
 	if err != nil {
 		t.Fatalf("WaitRun legacy: %v", err)
@@ -404,7 +404,7 @@ func TestLifecycleRPC_Abort(t *testing.T) {
 	fake := newRPCFake(root + "/demo")
 	fake.blockOnCtx = true
 	fake.result = &orchestrator.SuiteExecutionResult{ScenarioName: "demo", Success: false, Verdict: "FAIL", CompletedAt: time.Now().UTC()}
-	svc := NewService(root, runmanager.New(fake, root), nil, nil)
+	svc := NewService(root, runmanager.New(fake, root), nil, nil).SetArtifactRootResolver(testArtifactRoot(root))
 	ctx := context.Background()
 
 	start, err := svc.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{Target: "demo"}))

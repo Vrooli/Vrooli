@@ -389,7 +389,7 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 			server := &Server{
 				config:     Config{Port: "0"},
 				router:     mux.NewRouter(),
-				runManager: runmanager.New(tt.executor, ""),
+				runManager: runmanager.New(tt.executor, t.TempDir()),
 				logger:     log.New(io.Discard, "", 0),
 			}
 			if tt.planner != nil {
@@ -417,7 +417,7 @@ func TestServer_handleExecuteSuiteIncludesFailureDetails(t *testing.T) {
 		router: mux.NewRouter(),
 		runManager: runmanager.New(&stubSuiteExecutor{
 			err: errors.New("start target scenario demo: exit status 2"),
-		}, ""),
+		}, t.TempDir()),
 		logger: log.New(io.Discard, "", 0),
 	}
 

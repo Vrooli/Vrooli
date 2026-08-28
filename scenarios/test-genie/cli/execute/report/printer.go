@@ -3,10 +3,11 @@ package report
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/packages/artifactpaths"
 
 	"test-genie/cli/internal/phases"
 	"test-genie/cli/internal/repo"
@@ -931,7 +932,7 @@ func (p *Printer) printArtifacts(resp execTypes.Response) {
 	fmt.Fprintln(p.w, "════════════════════════════════════════")
 
 	if paths := repo.DiscoverScenarioPaths(p.scenario); paths.ScenarioDir != "" {
-		logsDir := filepath.Join(paths.ScenarioDir, "coverage", "logs")
+		logsDir := artifactpaths.ScenarioPath(paths.ScenarioDir, artifactpaths.CoverageRoot, "logs")
 		if repo.Exists(logsDir) {
 			fmt.Fprintf(p.w, "Directory: %s\n", p.color.Cyan(logsDir))
 		}

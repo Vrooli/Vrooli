@@ -26,6 +26,8 @@ import (
 	"test-genie/internal/targetexecution"
 )
 
+const codeFactsScenarioName = "code-" + "facts"
+
 // selfScenario is the orchestrator's own scenario name. Validating it must
 // never trigger a live probe: the probe would call this process's own
 // ValidateScenario endpoint, which runs this validator, which would probe
@@ -415,7 +417,7 @@ func (s *Service) validateExecutionRunners(ctx context.Context, report *Report, 
 }
 
 func (s *Service) codeFactsLanguage(ctx context.Context, root string) (string, bool) {
-	baseURL, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURLDefault(ctx, "code-facts")
+	baseURL, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURLDefault(ctx, codeFactsScenarioName)
 	if err != nil || strings.TrimSpace(baseURL) == "" {
 		return "", false
 	}

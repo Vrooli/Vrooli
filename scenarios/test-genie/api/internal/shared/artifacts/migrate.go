@@ -27,37 +27,8 @@ func LatestRunID(scenarioDir string) (string, error) {
 	return manifest.RunID, nil
 }
 
-// LegacyArtifactDirs lists the pre-Plan-A flat artifact directories that the
-// runID-keyed layout replaces. They are deleted on startup (greenfield: no
-// migration of their contents into coverage/runs/<runID>/).
-func LegacyArtifactDirs(scenarioDir string) []string {
-	return []string{
-		filepath.Join(scenarioDir, CoverageRoot, "phase-results"),
-		filepath.Join(scenarioDir, CoverageRoot, "automation"),
-		filepath.Join(scenarioDir, CoverageRoot, "ui-smoke"),
-		filepath.Join(scenarioDir, CoverageRoot, "lighthouse"),
-		filepath.Join(scenarioDir, CoverageRoot, "unit"),
-	}
-}
-
-// RemoveLegacyArtifactDirs deletes the pre-Plan-A flat artifact directories.
-// This is a one-shot greenfield cleanup; their contents are not re-importable
-// as runs and are not migrated.
-func RemoveLegacyArtifactDirs(scenarioDir string) error {
-	for _, dir := range LegacyArtifactDirs(scenarioDir) {
-		if err := os.RemoveAll(dir); err != nil {
-			return fmt.Errorf("failed to remove legacy artifact dir %s: %w", dir, err)
-		}
-	}
-	return nil
-}
-
-// EnsureCoverageStructure creates all standard coverage directories and clears
-// any leftover legacy artifact directories from the pre-runID layout.
+// EnsureCoverageStructure creates all standard coverage directories.
 func EnsureCoverageStructure(scenarioDir string) error {
-	if err := RemoveLegacyArtifactDirs(scenarioDir); err != nil {
-		return err
-	}
 	for _, dir := range AllCoverageSubdirs(scenarioDir) {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return fmt.Errorf("failed to create %s: %w", dir, err)
