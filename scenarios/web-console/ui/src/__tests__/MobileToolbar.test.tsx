@@ -89,7 +89,11 @@ describe("MobileToolbar — send/ack flow", () => {
   it("keeps the mobile command target at the minimum touch height", () => {
     renderToolbar();
 
-    expect(screen.getByTestId("mobile-command-input")).toHaveClass("min-h-11");
+    // The composer's field shell owns the control's block size now, so the
+    // 44px floor is declared by the size rung (--control-size-lg) rather than
+    // by a utility class on the textarea itself.
+    expect(screen.getByTestId("mobile-command-group")).toHaveAttribute("data-size", "lg");
+    expect(screen.getByTestId("mobile-command-input")).toHaveAttribute("data-rcl-textarea", "true");
   });
 
   it("preserves draft during sending and clears on ok=true", () => {
@@ -460,11 +464,48 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     // The composer's expand affordance is an icon button and owns its own
     // comfortable target; the send key is a toolbar key and declares one.
     expect(screen.getByTestId("expand-toggle")).toHaveAttribute("data-rcl-tap-target", "comfortable");
-    expect(screen.getByTestId("mobile-command-submit")).toHaveClass("min-h-11", "min-w-11");
+    // Send is an icon button inside the field now, so it declares its own
+    // comfortable target the same way the expand affordance beside it does.
+    expect(screen.getByTestId("mobile-command-submit")).toHaveAttribute("data-rcl-tap-target", "comfortable");
     fireEvent.click(screen.getByTestId("toolbar-ai"));
     fireEvent.click(screen.getByTestId("toolbar-upload-image"));
     fireEvent.click(screen.getByTestId("expand-toggle"));
     expect(onExpandComposer).toHaveBeenCalledOnce();
+  });
+
+  it("tells the field shell when it has grown, and when it has shrunk back", () => {
+    renderToolbar();
+    const group = screen.getByTestId("mobile-command-group");
+    const textarea = screen.getByTestId("mobile-command-input") as HTMLTextAreaElement;
+
+    // jsdom performs no layout, so scrollHeight is always 0 and the composer
+    // would never look grown. Stand in for the one measurement the wiring
+    // reads; everything either side of it is the real code path.
+    // One line measures 44, not 36: the group's size rung floors the
+    // control's min-block-size, and scrollHeight reports the floored box.
+    // Stubbing the naive 36 here is what would let the "always grown"
+    // regression through.
+    let measured = 44;
+    Object.defineProperty(textarea, "scrollHeight", { configurable: true, get: () => measured });
+
+    fireEvent.change(textarea, { target: { value: "one line" } });
+    expect(group).not.toHaveAttribute("data-grown");
+
+    measured = 96; // four lines
+    fireEvent.change(textarea, { target: { value: "one\ntwo\nthree\nfour" } });
+    expect(group).toHaveAttribute("data-grown", "true");
+
+    measured = 44;
+    fireEvent.change(textarea, { target: { value: "back to one" } });
+    expect(group).not.toHaveAttribute("data-grown");
+  });
+
+  it("renders the composer as a pill so the round send button sits flush", () => {
+    renderToolbar();
+    // "as round as one row allows" — the shape is declared here; the library
+    // owns the arithmetic that keeps it a capsule at rest and a rounded
+    // rectangle once it grows.
+    expect(screen.getByTestId("mobile-command-group")).toHaveAttribute("data-shape", "pill");
   });
 
   it("uses the shared RCL textarea and icon-control contracts", () => {
@@ -473,7 +514,11 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     expect(screen.getByTestId("mobile-command-input")).toHaveAttribute("data-rcl-textarea", "true");
     // IconButton 3.x owns its own host element rather than forwarding to the
     // shared text-button control, so the icon controls carry their own marker.
-    expect(screen.getByTestId("mobile-command-submit")).toHaveAttribute("data-rcl-control", "true");
+    // Send moved from a toolbar text-button to an icon button inside the
+    // field, so it now carries IconButton's marker; the toolbar keys beside
+    // the field are still ControlBase and carry that one.
+    expect(screen.getByTestId("mobile-command-submit")).toHaveAttribute("data-rcl-icon-button", "");
+    expect(screen.getByTestId("mobile-command-submit").closest("[data-rcl-input-group]")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Arrow up" })).toHaveAttribute("data-rcl-control", "true");
   });
 

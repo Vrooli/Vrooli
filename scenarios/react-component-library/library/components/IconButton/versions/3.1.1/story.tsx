@@ -167,6 +167,9 @@ export function Disabled({ args, log }: StoryProps) {
 export function LegacyVariant({ args, log }: StoryProps) {
   void log;
   return (
+    // The story exists to prove the legacy prop still resolves, so using it is
+    // the point rather than an oversight.
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
     <IconButton {...args} aria-label="Legacy secondary" variant="secondary">
       <BubbleIcon />
     </IconButton>

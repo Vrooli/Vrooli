@@ -32,7 +32,7 @@ function makeTerminalMock() {
     rows: 24,
     options: {},
     buffer: { active: { viewportY: 0, baseY: 0 } },
-    loadAddon: vi.fn(),
+    loadAddon: vi.fn(), attachCustomWheelEventHandler: vi.fn(),
     selectAll: vi.fn(),
     clear: vi.fn(),
     getSelection: vi.fn().mockReturnValue(""),

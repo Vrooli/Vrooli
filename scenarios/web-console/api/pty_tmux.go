@@ -682,6 +682,108 @@ func (p *tmuxPTY) SetMouseMode(enabled bool) error {
 	return nil
 }
 
+// paneInMode reports whether the pane is in copy-mode (or any other tmux
+// mode). `send-keys -X` fails with "not in a mode" outside one, so the
+// forward-scroll path has to ask before it acts.
+func (p *tmuxPTY) paneInMode(ctx context.Context, sessionName string) (bool, error) {
+	out, err := p.tmuxOutput(ctx, "display-message", "-t", sessionName, "-p", "#{pane_in_mode}")
+	if err != nil {
+		return false, fmt.Errorf("tmux display-message pane_in_mode: %w", err)
+	}
+	return strings.TrimSpace(out) == "1", nil
+}
+
+// Scroll moves the pane's copy-mode view through its own history.
+//
+// Negative lines scroll back toward older output, positive scroll forward
+// toward live output, matching the browser's wheel and touch sign convention.
+//
+// This is the only real scrollback a persistent pane has. A tmux client puts
+// the browser terminal into the alternate screen buffer the moment it
+// attaches, so the browser's own scrollback can never hold pane history; the
+// pane's `history-limit` buffer holds all of it.
+func (p *tmuxPTY) Scroll(lines int) error {
+	if lines == 0 {
+		return nil
+	}
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return errPTYClosed
+	}
+	sessionName := p.sessionName
+	p.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+
+	if lines < 0 {
+		// Entering copy-mode when the pane is already in it is a no-op that
+		// preserves the current scroll position, so this needs no probe.
+		if _, err := p.tmuxOutput(ctx, "copy-mode", "-t", sessionName); err != nil {
+			return fmt.Errorf("tmux copy-mode: %w", err)
+		}
+		if _, err := p.tmuxOutput(ctx, "send-keys", "-t", sessionName, "-X",
+			"-N", strconv.Itoa(-lines), "scroll-up"); err != nil {
+			return fmt.Errorf("tmux scroll-up: %w", err)
+		}
+		return nil
+	}
+
+	// Forward scrolling only means something while scrolled back. Entering
+	// copy-mode to scroll down would strand the pane in a mode it was never
+	// in, and would swallow the next keystroke to cancel it.
+	inMode, err := p.paneInMode(ctx, sessionName)
+	if err != nil {
+		return err
+	}
+	if !inMode {
+		return nil
+	}
+	if _, err := p.tmuxOutput(ctx, "send-keys", "-t", sessionName, "-X",
+		"-N", strconv.Itoa(lines), "scroll-down"); err != nil {
+		return fmt.Errorf("tmux scroll-down: %w", err)
+	}
+	// tmux clamps scroll-down at the live edge and stays in copy-mode. Leaving
+	// the pane there would make the next keystroke spend itself cancelling the
+	// mode, so returning to the bottom returns the pane to live.
+	out, err := p.tmuxOutput(ctx, "display-message", "-t", sessionName, "-p", "#{scroll_position}")
+	if err != nil {
+		return fmt.Errorf("tmux display-message scroll_position: %w", err)
+	}
+	if strings.TrimSpace(out) == "0" {
+		if _, err := p.tmuxOutput(ctx, "send-keys", "-t", sessionName, "-X", "cancel"); err != nil {
+			return fmt.Errorf("tmux cancel copy-mode: %w", err)
+		}
+	}
+	return nil
+}
+
+// PaneInAltScreen reports whether the program running *inside* the pane is on
+// the alternate screen.
+//
+// This is deliberately not the emulator's view of the attach stream. tmux
+// emits its own `\x1b[?1049h` on attach, so an emulator reading that stream
+// reports "alternate buffer" for every tmux session no matter what the pane
+// runs. Only the pane's own `alternate_on` distinguishes a full-screen program
+// from a shell.
+func (p *tmuxPTY) PaneInAltScreen() (bool, error) {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return false, errPTYClosed
+	}
+	sessionName := p.sessionName
+	p.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), tmuxCommandTimeout)
+	defer cancel()
+	out, err := p.tmuxOutput(ctx, "display-message", "-t", sessionName, "-p", "#{alternate_on}")
+	if err != nil {
+		return false, fmt.Errorf("tmux display-message alternate_on: %w", err)
+	}
+	return strings.TrimSpace(out) == "1", nil
+}
+
 func tmuxMouseModeValue(enabled bool) string {
 	if enabled {
 		return "on"

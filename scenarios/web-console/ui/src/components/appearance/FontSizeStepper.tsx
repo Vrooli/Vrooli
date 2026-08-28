@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
-import { Plus, Minus } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { FONT_SIZE_MIN, FONT_SIZE_MAX, FONT_SIZE_STEP, clampFontSize } from "../../lib/fontSizeUtils";
+import { NumberField } from "@vrooli/react-component-library/NumberField";
+import { FONT_SIZE_MIN, FONT_SIZE_MAX, FONT_SIZE_STEP } from "../../lib/fontSizeUtils";
 import { strings } from "../../consts/strings";
-import { Button } from "../ui/button";
 
 interface FontSizeStepperProps {
   currentSize: number;
@@ -11,27 +9,19 @@ interface FontSizeStepperProps {
   testIdPrefix?: string;
 }
 
+/**
+ * The clamp, the draft-then-commit editing and the bound-aware steppers now
+ * live in `NumberField`, which was extracted from this component precisely
+ * because two other numeric settings had each re-implemented them and
+ * disagreed. What remains here is the heading, the sample glyph, and the
+ * bounds this particular setting declares.
+ */
 export default function FontSizeStepper({
   currentSize,
   onChangeSize,
   testIdPrefix = "appearance",
 }: FontSizeStepperProps) {
   const { t } = useTranslation();
-  // Draft of the direct-entry field; committed (clamped) on blur/Enter so
-  // half-typed values like "" or "2" don't thrash the live preview.
-  const [draft, setDraft] = useState(String(currentSize));
-  useEffect(() => setDraft(String(currentSize)), [currentSize]);
-
-  const commitDraft = () => {
-    const parsed = Number.parseInt(draft, 10);
-    if (Number.isNaN(parsed)) {
-      setDraft(String(currentSize));
-      return;
-    }
-    const next = clampFontSize(parsed);
-    setDraft(String(next));
-    if (next !== currentSize) onChangeSize(next);
-  };
 
   return (
     <section>
@@ -39,44 +29,20 @@ export default function FontSizeStepper({
         {t(strings.appearance.fontSizeHeading)}
       </h3>
       <div className="flex items-center gap-2">
-        <Button
-          data-testid={`${testIdPrefix}-font-decrease`}
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          disabled={currentSize <= FONT_SIZE_MIN}
-          onClick={() => onChangeSize(currentSize - FONT_SIZE_STEP)}
-        >
-          <Minus className="h-3 w-3" />
-        </Button>
-        <div className="flex items-baseline gap-1">
-          <input
-            data-testid={`${testIdPrefix}-font-value`}
-            type="text"
-            inputMode="numeric"
-            className="h-8 w-12 rounded-md border border-wc-default bg-wc-surface-input text-center font-mono text-sm text-wc-text-primary focus:border-wc-accent focus:outline-none"
-            value={draft}
-            aria-label={t(strings.appearance.fontSizeInputAriaLabel)}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commitDraft}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitDraft();
-            }}
-          />
-          <span className="text-xs text-wc-text-muted">
-            {t(strings.appearance.fontSizeUnit)}
-          </span>
-        </div>
-        <Button
-          data-testid={`${testIdPrefix}-font-increase`}
-          variant="outline"
-          size="icon"
-          className="h-8 w-8"
-          disabled={currentSize >= FONT_SIZE_MAX}
-          onClick={() => onChangeSize(currentSize + FONT_SIZE_STEP)}
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
+        <NumberField
+          testId={`${testIdPrefix}-font`}
+          label={t(strings.appearance.fontSizeInputAriaLabel)}
+          value={currentSize}
+          onChange={onChangeSize}
+          min={FONT_SIZE_MIN}
+          max={FONT_SIZE_MAX}
+          step={FONT_SIZE_STEP}
+          unit={t(strings.appearance.fontSizeUnit)}
+          decreaseLabel={t(strings.appearance.fontSizeDecreaseAriaLabel)}
+          increaseLabel={t(strings.appearance.fontSizeIncreaseAriaLabel)}
+          shape="pill"
+          size="sm"
+        />
         <span
           data-testid={`${testIdPrefix}-font-sample`}
           className="ms-auto font-mono text-wc-text-secondary"

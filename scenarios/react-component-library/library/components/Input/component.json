@@ -24,7 +24,7 @@
   "displayName": "Input",
   "draft": "",
   "kind": "input",
-  "latest": "1.1.2",
+  "latest": "1.3.0",
   "libraryId": "react-component-library:Input",
   "slot": "ui-primitive",
   "tags": [

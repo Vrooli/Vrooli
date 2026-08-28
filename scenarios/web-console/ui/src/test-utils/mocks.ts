@@ -130,6 +130,7 @@ export interface MockTerminal {
   // Scroll APIs
   scrollLines: ReturnType<typeof vi.fn>;
   scrollToBottom: ReturnType<typeof vi.fn>;
+  attachCustomWheelEventHandler: ReturnType<typeof vi.fn>;
   // Terminal control
   clear: ReturnType<typeof vi.fn>;
   reset: ReturnType<typeof vi.fn>;
@@ -179,6 +180,7 @@ export function createMockTerminal(): MockTerminal {
       for (const cb of dataCallbacks) cb(data);
     },
     scrollLines: vi.fn(),
+    attachCustomWheelEventHandler: vi.fn(),
     scrollToBottom: vi.fn(),
     clear: vi.fn(),
     reset: vi.fn(),
@@ -311,6 +313,12 @@ export function createTerminalStub(options: {
   rows?: number;
   mouseTrackingMode?: string;
   screen?: { width: number; height: number } | null;
+  /**
+   * Park the stub on the alternate buffer, which is where every tmux-backed
+   * pane lives: the tmux client emits `\x1b[?1049h` on attach and never
+   * leaves. There is no scrollback in that state, so `scrollLines` is a no-op.
+   */
+  onAltBuffer?: boolean;
 } = {}) {
   const onData = vi.fn();
   onData.mockReturnValue({ dispose: vi.fn() });
@@ -339,13 +347,14 @@ export function createTerminalStub(options: {
     options: {} as { fontSize?: number },
     element,
     modes: { mouseTrackingMode: options.mouseTrackingMode ?? "none" },
-    buffer: { active: normal, normal, alternate, cursorX: 4, cursorY: 5 },
+    buffer: { active: options.onAltBuffer ? alternate : normal, normal, alternate, cursorX: 4, cursorY: 5 },
     reset: vi.fn(),
     clear: vi.fn(),
     write: vi.fn(),
     resize: vi.fn(),
     onData,
     scrollLines: vi.fn(),
+    attachCustomWheelEventHandler: vi.fn(),
   };
 }
 

@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -366,5 +368,227 @@ func TestTmuxPTY_ProbeReady_TimeoutSurfacesCtxErr(t *testing.T) {
 	}
 	if err != context.DeadlineExceeded && !strings.Contains(err.Error(), "deadline") {
 		t.Errorf("expected deadline-exceeded-class error, got %v", err)
+	}
+}
+
+// writeTmuxPaneScript creates an executable script for a pane to run. tmux
+// takes a single command argument, so a multi-step pane program has to live in
+// a file rather than a quoted shell string.
+func writeTmuxPaneScript(t *testing.T, body string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "pane.sh")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o755); err != nil {
+		t.Fatalf("write pane script: %v", err)
+	}
+	return path
+}
+
+// tmuxPaneField reads one tmux format field for a session's active pane.
+func tmuxPaneField(t *testing.T, sessionName, format string) string {
+	t.Helper()
+	out, err := tmuxCmd("display-message", "-t", sessionName, "-p", format).Output()
+	if err != nil {
+		t.Fatalf("tmux display-message %s: %v", format, err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// startScrollablePane brings up a tmux session whose pane has already emitted
+// far more output than fits on screen, so copy-mode has real history to move
+// through.
+func startScrollablePane(t *testing.T, sessionID string) (pty.PTY, string) {
+	t.Helper()
+	script := writeTmuxPaneScript(t, "i=1\nwhile [ $i -le 200 ]; do echo \"line-$i\"; i=$((i+1)); done\nsleep 300\n")
+	p, err := tmuxPTYFactory(pty.LaunchSpec{SessionID: sessionID, Shell: script, Cols: 80, Rows: 10})
+	if err != nil {
+		t.Fatalf("tmuxPTYFactory failed: %v", err)
+	}
+	sessionName := tmuxSessionPrefix + sessionID
+	t.Cleanup(func() {
+		_ = p.Kill()
+		p.Close()
+		_ = tmuxCmd("kill-session", "-t", sessionName).Run()
+	})
+	// Let the pane produce its output before anything tries to scroll it.
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if tmuxPaneField(t, sessionName, "#{history_size}") != "0" {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return p, sessionName
+}
+
+func requireScroller(t *testing.T, p pty.PTY) interface{ Scroll(int) error } {
+	t.Helper()
+	scroller, ok := p.(interface{ Scroll(int) error })
+	if !ok {
+		t.Fatal("tmux PTY does not expose history scrolling")
+	}
+	return scroller
+}
+
+// TestTmuxPTY_Scroll_MovesPaneHistory is the server half of the "wheel does not
+// scroll a Codex pane" fix. A tmux client parks the browser terminal in the
+// alternate screen buffer for the whole session, so the browser has no
+// scrollback to move; the pane's own tmux history is the only history there
+// is, and the server has to walk it on the client's behalf.
+func TestTmuxPTY_Scroll_MovesPaneHistory(t *testing.T) {
+	requireTmux(t)
+	p, sessionName := startScrollablePane(t, "test-scroll-history")
+	scroller := requireScroller(t, p)
+
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "0" {
+		t.Fatalf("precondition: pane already in a mode: %q", got)
+	}
+
+	// Scrolling back enters copy-mode on demand.
+	if err := scroller.Scroll(-5); err != nil {
+		t.Fatalf("Scroll(-5): %v", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "1" {
+		t.Fatalf("pane_in_mode after scroll back = %q, want 1", got)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{scroll_position}"); got != "5" {
+		t.Fatalf("scroll_position after Scroll(-5) = %q, want 5", got)
+	}
+
+	// A second scroll accumulates rather than re-entering copy-mode at the
+	// bottom, which is what makes a continuous gesture work.
+	if err := scroller.Scroll(-5); err != nil {
+		t.Fatalf("second Scroll(-5): %v", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{scroll_position}"); got != "10" {
+		t.Fatalf("scroll_position after two scrolls = %q, want 10", got)
+	}
+
+	// Scrolling forward walks back toward live output.
+	if err := scroller.Scroll(3); err != nil {
+		t.Fatalf("Scroll(3): %v", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{scroll_position}"); got != "7" {
+		t.Fatalf("scroll_position after Scroll(3) = %q, want 7", got)
+	}
+}
+
+// TestTmuxPTY_Scroll_ForwardToBottomReturnsPaneToLive asserts the pane does not
+// get stranded in copy-mode once the operator scrolls back to the bottom.
+// tmux clamps scroll-down at the live edge and stays in the mode; leaving it
+// there would make the operator's next keystroke spend itself cancelling.
+func TestTmuxPTY_Scroll_ForwardToBottomReturnsPaneToLive(t *testing.T) {
+	requireTmux(t)
+	p, sessionName := startScrollablePane(t, "test-scroll-to-live")
+	scroller := requireScroller(t, p)
+
+	if err := scroller.Scroll(-4); err != nil {
+		t.Fatalf("Scroll(-4): %v", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "1" {
+		t.Fatalf("precondition: pane not in copy-mode: %q", got)
+	}
+
+	if err := scroller.Scroll(50); err != nil {
+		t.Fatalf("Scroll(50): %v", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "0" {
+		t.Fatalf("pane_in_mode after scrolling to the bottom = %q, want 0", got)
+	}
+}
+
+// TestTmuxPTY_Scroll_ForwardWhenLiveIsNoop asserts forward scrolling never
+// drags a live pane into copy-mode. Entering a mode the operator did not ask
+// for would swallow their next keystroke to cancel it.
+func TestTmuxPTY_Scroll_ForwardWhenLiveIsNoop(t *testing.T) {
+	requireTmux(t)
+	p, sessionName := startScrollablePane(t, "test-scroll-live-noop")
+	scroller := requireScroller(t, p)
+
+	if err := scroller.Scroll(5); err != nil {
+		t.Fatalf("Scroll(5) on a live pane: %v", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "0" {
+		t.Fatalf("pane_in_mode after forward scroll on a live pane = %q, want 0", got)
+	}
+}
+
+func TestTmuxPTY_Scroll_ZeroIsNoop(t *testing.T) {
+	requireTmux(t)
+	p, sessionName := startScrollablePane(t, "test-scroll-zero")
+	scroller := requireScroller(t, p)
+
+	if err := scroller.Scroll(0); err != nil {
+		t.Fatalf("Scroll(0): %v", err)
+	}
+	if got := tmuxPaneField(t, sessionName, "#{pane_in_mode}"); got != "0" {
+		t.Fatalf("pane_in_mode after Scroll(0) = %q, want 0", got)
+	}
+}
+
+// TestTmuxPTY_PaneInAltScreen_ReportsPaneNotClient locks in the distinction
+// that the terminal emulator cannot make. tmux emits `\x1b[?1049h` to its
+// client on attach, so an emulator reading the attach stream reports
+// "alternate buffer" for every persistent pane regardless of what the pane
+// runs. Only the pane's own alternate_on separates a full-screen program from
+// a shell, and predictive echo is gated on that distinction.
+func TestTmuxPTY_PaneInAltScreen_ReportsPaneNotClient(t *testing.T) {
+	requireTmux(t)
+
+	cases := []struct {
+		name      string
+		sessionID string
+		body      string
+		want      bool
+	}{
+		{
+			name:      "plain program stays on the normal screen",
+			sessionID: "test-alt-screen-normal",
+			body:      "sleep 300\n",
+			want:      false,
+		},
+		{
+			name:      "full-screen program is reported as alternate",
+			sessionID: "test-alt-screen-alternate",
+			body:      "printf '\\033[?1049h'\nsleep 300\n",
+			want:      true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			script := writeTmuxPaneScript(t, tc.body)
+			p, err := tmuxPTYFactory(pty.LaunchSpec{SessionID: tc.sessionID, Shell: script, Cols: 80, Rows: 24})
+			if err != nil {
+				t.Fatalf("tmuxPTYFactory failed: %v", err)
+			}
+			sessionName := tmuxSessionPrefix + tc.sessionID
+			defer func() {
+				_ = p.Kill()
+				p.Close()
+				_ = tmuxCmd("kill-session", "-t", sessionName).Run()
+			}()
+
+			reader, ok := p.(interface{ PaneInAltScreen() (bool, error) })
+			if !ok {
+				t.Fatal("tmux PTY does not expose the pane alternate-screen state")
+			}
+
+			// The pane program needs a moment to emit its mode switch.
+			var got bool
+			deadline := time.Now().Add(5 * time.Second)
+			for time.Now().Before(deadline) {
+				got, err = reader.PaneInAltScreen()
+				if err != nil {
+					t.Fatalf("PaneInAltScreen: %v", err)
+				}
+				if got == tc.want {
+					break
+				}
+				time.Sleep(50 * time.Millisecond)
+			}
+			if got != tc.want {
+				t.Fatalf("PaneInAltScreen() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

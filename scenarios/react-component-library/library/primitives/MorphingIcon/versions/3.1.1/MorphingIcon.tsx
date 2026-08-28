@@ -214,6 +214,9 @@ export const MorphingIcon = withClassName(function MorphingIcon({
   iconKey,
   swapIdentity,
   morph,
+  // Read here so 2.x call sites keep compiling; the mapping onto `morph`
+  // below is the whole reason the deprecated prop is still destructured.
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   strategy,
   duration = 320,
   size = "md",

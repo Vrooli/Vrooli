@@ -1146,7 +1146,19 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]
 	}
 	runners := map[string]gates.Result{}
 	if needed("types") {
-		if runners["types"], err = gates.ValidateTypes(root); err != nil {
+		// Hand the runner the library directories whose evidence is stale. That
+		// set already contains every dependent, because the revision index
+		// folds each asset's dependencies into its hash, so an asset absent
+		// from it cannot have been affected by anything that changed.
+		var scope []string
+		if stale != nil {
+			for assetID := range stale["types"] {
+				if name := implByAsset[assetID].Name; name != "" {
+					scope = append(scope, name)
+				}
+			}
+		}
+		if runners["types"], err = gates.ValidateTypesForAssets(root, scope); err != nil {
 			return nil, err
 		}
 	}

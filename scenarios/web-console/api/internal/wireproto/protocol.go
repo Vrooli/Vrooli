@@ -29,6 +29,7 @@ const (
 	MsgTypeSnapshotNotice        = "snapshot_notice"
 	MsgTypeEchoState             = "echo_state"
 	MsgTypeMouseMode             = "mouse_mode"
+	MsgTypeScroll                = "scroll"
 	MsgTypePresence              = "presence"
 	MsgTypeDeviceState           = "device_state"
 	StdinIntentTyping            = "typing"
@@ -88,4 +89,8 @@ type TerminalMessage struct {
 	CursorAtLineEnd bool `json:"cursor_at_line_end,omitempty"`
 	MouseMode       bool `json:"mouse_mode,omitempty"`
 	MouseModeKnown  bool `json:"mouse_mode_known,omitempty"`
+	// Lines carries a scroll request in terminal rows: negative scrolls back
+	// toward older output, positive scrolls forward toward live output. It is
+	// only meaningful on a `scroll` frame.
+	Lines int `json:"lines,omitempty"`
 }

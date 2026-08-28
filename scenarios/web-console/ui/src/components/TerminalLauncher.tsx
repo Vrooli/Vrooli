@@ -1,12 +1,13 @@
 // DOC: docs/reference/configuration.md#launcher-shortcuts
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
   ChevronDown,
   ChevronRight,
   Info,
   Loader2,
   Monitor,
+  Play,
   Settings2,
   Terminal,
   TriangleAlert,
@@ -14,7 +15,8 @@ import {
   Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Button } from "./ui/button";
+import { Input } from "@vrooli/react-component-library/Input";
+import { InputGroup } from "@vrooli/react-component-library/InputGroup";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { strings } from "../consts/strings";
@@ -500,13 +502,23 @@ export default function TerminalLauncher({
 
           {mode === "one-session" && (
           <section className="space-y-2" aria-label={t(strings.terminalLauncher.customCommand)}>
-            <div className="flex gap-2">
-              <label className="relative min-w-0 flex-1">
-                <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 font-mono text-sm text-wc-text-faint" aria-hidden>$</span>
-                <input data-testid="launcher-custom-input" type="text" aria-label={t(strings.terminalLauncher.customCommand)} value={customCommand} onChange={(event) => { setCustomCommand(event.target.value); }} onKeyDown={(event) => { if (event.key === "Enter") handleLaunchCustom(); }} placeholder={t(strings.terminalLauncher.commandPlaceholder)} className="min-h-11 w-full rounded-lg border border-wc-default bg-wc-surface-input ps-7 pe-3 font-mono text-sm text-wc-text-primary outline-none placeholder:font-sans placeholder:text-wc-text-faint focus:border-wc-accent" />
-              </label>
-              <Button data-testid="launcher-custom-launch" size="sm" className="shrink-0" onClick={handleLaunchCustom} disabled={isCreating || !customCommand.trim() || !selected.available || noBackendAvailable}>{t(strings.terminalLauncher.launch)}</Button>
-            </div>
+            {/* The prompt marker and the launch control both live inside the
+                field's own border, so the row reads as one command bar. The
+                `$` used to be an absolutely-positioned span with a hand-tuned
+                `ps-7` behind it to clear it; the adornment slot supplies its
+                own gutter and collapses the input's padding on that side. */}
+            <InputGroup
+              testId="launcher-custom-group"
+              size="lg"
+            >
+              <InputGroup.Adornment side="leading" className="font-mono text-sm">$</InputGroup.Adornment>
+              <InputGroup.Field>
+                <Input data-testid="launcher-custom-input" type="text" aria-label={t(strings.terminalLauncher.customCommand)} value={customCommand} onChange={(event) => { setCustomCommand(event.target.value); }} onKeyDown={(event) => { if (event.key === "Enter") handleLaunchCustom(); }} placeholder={t(strings.terminalLauncher.commandPlaceholder)} className="font-mono text-sm text-wc-text-primary placeholder:font-sans placeholder:text-wc-text-faint" />
+              </InputGroup.Field>
+              <InputGroup.Segment side="trailing" emphasis="solid" testId="launcher-custom-launch" aria-label={t(strings.terminalLauncher.launch)} title={t(strings.terminalLauncher.launch)} onClick={handleLaunchCustom} disabled={isCreating || !customCommand.trim() || !selected.available || noBackendAvailable}>
+                <Play aria-hidden className="h-4 w-4" />
+              </InputGroup.Segment>
+            </InputGroup>
           </section>
           )}
 

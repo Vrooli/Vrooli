@@ -54,6 +54,7 @@ const (
 	MsgTypeSnapshotNotice         = wireproto.MsgTypeSnapshotNotice
 	MsgTypeEchoState              = wireproto.MsgTypeEchoState
 	MsgTypeMouseMode              = wireproto.MsgTypeMouseMode
+	MsgTypeScroll                 = wireproto.MsgTypeScroll
 	MsgTypePresence               = wireproto.MsgTypePresence
 	MsgTypeDeviceState            = wireproto.MsgTypeDeviceState
 	StdinIntentTyping             = wireproto.StdinIntentTyping
@@ -1345,5 +1346,56 @@ func TestHandleTerminalWS_ReconnectToSameSession(t *testing.T) {
 	}
 	if !gotHistory {
 		t.Error("expected to receive history on reconnect")
+	}
+}
+
+// TestTerminalWS_ScrollFrameIsAnsweredAndNeverFatal covers the wire contract
+// for backend-driven scrolling. A `scroll` frame must always be answered on
+// the same socket — with ok on a backend that owns history, or a typed
+// unsupported when the pane keeps real client-side scrollback — and must never
+// close the connection. A dropped or fatal scroll frame would strand the
+// browser's scroll gate waiting for an acknowledgement that never arrives.
+func TestTerminalWS_ScrollFrameIsAnsweredAndNeverFatal(t *testing.T) {
+	ts, srv := setupWSServer(t)
+	sessionID := createTestSession(t, ts, srv)
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessionID+"/ws"), nil)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	skipHistoryEnd(t, conn)
+
+	// A zero-line scroll carries no intent and must be ignored outright, so
+	// the first reply we see has to belong to the request that followed it.
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeScroll, Lines: 0}); err != nil {
+		t.Fatalf("write empty scroll: %v", err)
+	}
+	if err := conn.WriteJSON(TerminalMessage{Type: MsgTypeScroll, Lines: -3}); err != nil {
+		t.Fatalf("write scroll: %v", err)
+	}
+
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		_ = conn.SetReadDeadline(deadline)
+		var msg TerminalMessage
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read scroll reply: %v", err)
+		}
+		if msg.Type != MsgTypeScroll {
+			continue
+		}
+		switch {
+		case msg.Ok:
+			if msg.Lines != -3 {
+				t.Fatalf("scroll reply echoed %d lines, want -3 (the empty frame must be ignored)", msg.Lines)
+			}
+		case msg.Data == "unsupported":
+			if strings.TrimSpace(msg.Reason) == "" {
+				t.Fatal("unsupported scroll reply carried no reason")
+			}
+		default:
+			t.Fatalf("scroll reply was neither ok nor typed-unsupported: %+v", msg)
+		}
+		return
 	}
 }

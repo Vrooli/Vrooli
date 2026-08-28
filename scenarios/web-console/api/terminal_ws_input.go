@@ -143,6 +143,23 @@ func (s *Server) dispatchInputMessage(
 			break
 		}
 		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{Type: wireproto.MsgTypeMouseMode, Data: mode, Ok: true})
+	case wireproto.MsgTypeScroll:
+		// Scrolling the backend's own history. Like `control` this is
+		// best-effort: it carries no offset, is never acknowledged, and is
+		// never replayed after a reconnect, because a scroll position is a
+		// view of the present rather than a piece of the input stream.
+		if msg.Lines == 0 {
+			break
+		}
+		if err := sess.Scroll(msg.Lines); err != nil {
+			_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
+				Type: wireproto.MsgTypeScroll, Data: "unsupported", Reason: err.Error(),
+			})
+			break
+		}
+		_ = writeTerminalJSON(conn, writeMu, TerminalMessage{
+			Type: wireproto.MsgTypeScroll, Lines: msg.Lines, Ok: true,
+		})
 	case wireproto.MsgTypeResize:
 		if msg.Cols > 0 && msg.Rows > 0 {
 			sess.DeclareSize(client, uint16(msg.Cols), uint16(msg.Rows))

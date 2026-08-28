@@ -111,8 +111,14 @@ ORDER BY v.source_path, f.path;`;
  */
 export async function projectCatalogSource(targetRoot, { label = "react-component-library" } = {}) {
   await rm(targetRoot, { recursive: true, force: true });
-  const materialize = spawnSync("react-component-library", ["versions", "materialize", "--all", "--into", targetRoot], { cwd: packageRoot, stdio: "inherit" });
+  // The materializer narrates one line per version, which is useful when a
+  // projection is being debugged and pure noise in the several hundred lines
+  // it adds ahead of every catalog type-check. Capture it and replay it only
+  // when the projection actually failed, where it is the diagnostic.
+  const materialize = spawnSync("react-component-library", ["versions", "materialize", "--all", "--into", targetRoot], { cwd: packageRoot, encoding: "utf8" });
   if (materialize.status !== 0) {
+    if (materialize.stdout) process.stdout.write(materialize.stdout);
+    if (materialize.stderr) process.stderr.write(materialize.stderr);
     // Scenario lifecycle provisions shared packages before starting the API,
     // so bootstrap has no ledger endpoint yet; the authored tree covers only
     // that phase. A healthy API that still fails is a projection error.

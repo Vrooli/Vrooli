@@ -302,3 +302,19 @@ func TestWarmPassProducesIdenticalEvidenceToColdPass(t *testing.T) {
 	}
 	require.Equal(t, key(cold), key(merged), "warm and cold must agree on every asset and gate")
 }
+
+// The evidence mapper binds a finding to an asset by exact id, so a finding
+// with no AssetID matches nothing and leaves every asset on the default "pass".
+// That is why an unattributable gate failure has to travel as a RunnerError,
+// which the mapper fails closed on, rather than as a corpus finding.
+func TestCorpusFindingMatchesNoAssetSoRunnerErrorCarriesTheFailure(t *testing.T) {
+	corpus := []gates.Finding{{Code: "catalog.types_failed", AssetID: "", Message: "catalog conformance failed"}}
+	require.False(t, hasFinding(corpus, "controls.button", "Button", "types"),
+		"a corpus finding must not be mistaken for evidence about an individual asset")
+
+	attributed := []gates.Finding{{Code: "catalog.types_failed", AssetID: "IconButton", Message: "failed"}}
+	require.True(t, hasFinding(attributed, "controls.icon-button", "IconButton", "types"),
+		"an attributed finding matches by implementation name")
+	require.False(t, hasFinding(attributed, "controls.button", "Button", "types"),
+		"and only the named asset")
+}

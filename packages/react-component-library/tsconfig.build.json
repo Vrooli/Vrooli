@@ -10,40 +10,12 @@
     "declaration": true,
     "declarationMap": false,
     "sourceMap": true,
-    "rootDir": ".build-source",
+    "rootDir": ".",
     "outDir": "dist",
     "noEmitOnError": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
-    "paths": {
-      "react": ["../../scenarios/react-component-library/ui/node_modules/@types/react"],
-      "react/*": ["../../scenarios/react-component-library/ui/node_modules/@types/react/*"],
-      "react/jsx-runtime": ["../../scenarios/react-component-library/ui/node_modules/@types/react/jsx-runtime.d.ts"],
-      "react-dom": ["../../scenarios/react-component-library/ui/node_modules/@types/react-dom/index.d.ts"],
-      "lucide-react": ["../../scenarios/react-component-library/ui/node_modules/lucide-react"],
-      "clsx": ["../../scenarios/react-component-library/ui/node_modules/clsx"],
-      "tailwind-merge": ["../../scenarios/react-component-library/ui/node_modules/tailwind-merge"],
-      "shiki": ["../../scenarios/react-component-library/ui/node_modules/shiki"],
-      "react-markdown": ["../../scenarios/react-component-library/ui/node_modules/react-markdown"],
-      "remark-gfm": ["../../scenarios/react-component-library/ui/node_modules/remark-gfm"],
-      "mermaid": ["../../scenarios/react-component-library/ui/node_modules/mermaid"],
-      "@vrooli/audio-capture-browser": ["../audio-capture-browser/dist/index.d.ts"]
-    }
-  },
-  "include": [
-    ".build-source/**/*.ts",
-    ".build-source/**/*.tsx"
-  ],
-  "exclude": [
-    ".build-source/**/story.tsx",
-    ".build-source/**/story.json",
-    ".build-source/**/*.test.ts",
-    ".build-source/**/*.test.tsx",
-    ".build-source/**/*.spec.ts",
-    ".build-source/**/*.spec.tsx",
-    ".build-source/story-contracts.spec.ts",
-    ".build-source/preview-harnesses/**"
-  ]
+    "baseUrl": "."
+  }
 }

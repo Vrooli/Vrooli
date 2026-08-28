@@ -795,6 +795,83 @@ describe("useTerminalTouch", () => {
     unmount();
   });
 
+  it("scrolls a slow drag the same distance as a fast one", () => {
+    // The regression: `lastY` advanced to the finger on every move, but a
+    // sample whose delta rounded to zero rows was discarded. A drag emitting
+    // 3px per event at a 20px row height therefore discarded 100% of its
+    // travel — the pane did not scroll at all, however far the finger went.
+    const scrollBy = vi.fn();
+    const { unmount } = renderHook(() => useTerminalTouch({
+      ...makeHookArgs(terminal, container),
+      scrollBy,
+    }));
+
+    // 800px tall / 24 rows = 33.33px per row. Drag 300px in 3px steps.
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 500 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 490 });
+    for (let y = 487; y >= 200; y -= 3) {
+      fireTouchEvent(container, "touchmove", { clientX: 100, clientY: y });
+      vi.advanceTimersByTime(16);
+    }
+
+    const scrolled = scrollBy.mock.calls.reduce((sum, call) => sum + (call[0] as number), 0);
+    // 300px of travel over a 33.33px row is 9 rows; allow one row of rounding.
+    expect(scrolled).toBeGreaterThanOrEqual(8);
+    unmount();
+  });
+
+  it("keeps scrolling when a drag slows down without lifting", () => {
+    // Crossing back below the per-sample threshold used to stop the scroll
+    // dead mid-gesture, because each small sample was discarded on its own.
+    const scrollBy = vi.fn();
+    const { unmount } = renderHook(() => useTerminalTouch({
+      ...makeHookArgs(terminal, container),
+      scrollBy,
+    }));
+
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 500 });
+    // The first move only crosses the tap/drag threshold and enters the
+    // scrolling state; scrolling starts from the move after it.
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 490 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 440 }); // fast
+    vi.advanceTimersByTime(16);
+    const afterFast = scrollBy.mock.calls.length;
+    expect(afterFast).toBeGreaterThan(0);
+
+    for (let y = 437; y >= 380; y -= 3) { // slow, same gesture
+      fireTouchEvent(container, "touchmove", { clientX: 100, clientY: y });
+      vi.advanceTimersByTime(16);
+    }
+    expect(scrollBy.mock.calls.length).toBeGreaterThan(afterFast);
+    unmount();
+  });
+
+  it("asks the server to scroll a pane that has neither scrollback nor mouse tracking", () => {
+    // Every tmux-backed pane sits in the alternate screen buffer, so
+    // scrollLines() cannot move it. With no mouse tracking either, the only
+    // history is the backend's, and a touch drag that cannot reach it is a
+    // drag that silently does nothing.
+    const sendScroll = vi.fn().mockReturnValue(true);
+    const altTerminal = createMockTerminal();
+    const alternate = {};
+    (altTerminal as unknown as { modes: { mouseTrackingMode: string } }).modes = { mouseTrackingMode: "none" };
+    (altTerminal as unknown as { buffer: unknown }).buffer = { active: alternate, normal: {}, alternate };
+
+    const { unmount } = renderHook(() => useTerminalTouch({
+      ...makeHookArgs(altTerminal, container),
+      sendScroll,
+    }));
+    fireTouchEvent(container, "touchstart", { clientX: 100, clientY: 200 });
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 160 });
+    vi.advanceTimersByTime(16);
+    fireTouchEvent(container, "touchmove", { clientX: 100, clientY: 120 });
+    vi.advanceTimersByTime(16);
+
+    expect(altTerminal.scrollLines).not.toHaveBeenCalled();
+    expect(sendScroll).toHaveBeenCalled();
+    unmount();
+  });
+
   it("stops momentum cleanly when the injected clock advances past the decay threshold", () => {
     let clock = 0;
     renderHook(() => useTerminalTouch({

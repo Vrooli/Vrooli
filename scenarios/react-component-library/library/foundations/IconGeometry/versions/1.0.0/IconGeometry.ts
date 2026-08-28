@@ -599,11 +599,11 @@ const SHAPE_ATTRS = [
  */
 export function geometryFromElement(svg: Element | null | undefined, sampleCount = SAMPLE_COUNT): IconGeometry | null {
   if (!svg) return null;
-  const root = svg.tagName?.toLowerCase() === "svg" ? svg : svg.querySelector("svg");
+  const root = svg.tagName.toLowerCase() === "svg" ? svg : svg.querySelector("svg");
   if (!root) return null;
   const nodes: SvgNode[] = [];
   for (const child of Array.from(root.querySelectorAll("*"))) {
-    const tag = child.tagName?.toLowerCase() ?? "";
+    const tag = child.tagName.toLowerCase();
     if (!SHAPE_TAGS.has(tag)) continue;
     const attrs: Record<string, string> = {};
     for (const name of SHAPE_ATTRS) {

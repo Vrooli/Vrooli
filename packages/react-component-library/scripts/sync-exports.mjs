@@ -17,7 +17,11 @@ async function filesUnder(root) {
   for (const entry of entries) {
     const path = join(root, entry.name);
     if (entry.isDirectory()) {
-      if (["node_modules", ".git", "dist", ".vite"].includes(entry.name) || entry.name.startsWith(".vrooli-artifact-stage-")) continue;
+      // `.retired` holds source the catalog has already removed from the live
+      // set. A pin inside it can no longer reach a consumer, so scanning it
+      // only produces broken-import reports nobody can act on — the file is
+      // not editable as a released version and not reachable as a live one.
+      if (["node_modules", ".git", "dist", ".vite", ".retired"].includes(entry.name) || entry.name.startsWith(".vrooli-artifact-stage-")) continue;
       files.push(...await filesUnder(path));
     }
     else files.push(path);

@@ -74,3 +74,39 @@ func TestAttributeCatalogDiagnosticsBindsErrorsToAssets(t *testing.T) {
 		t.Fatal("an unparseable report must fail closed")
 	}
 }
+
+func TestInspectedFromReportPrefersTheRealCountAndFailsSafe(t *testing.T) {
+	root := t.TempDir()
+	report := filepath.Join(root, "report.json")
+
+	if err := os.WriteFile(report, []byte(`{"schemaVersion":1,"inspected":3,"diagnostics":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if inspected, ok := inspectedFromReport(report); !ok || inspected != 3 {
+		t.Fatalf("inspected = %d, ok = %v; want 3, true", inspected, ok)
+	}
+
+	// A scoped run that legitimately checked nothing is impossible — the script
+	// refuses an empty scope — but a zero must still be reported as a zero
+	// rather than silently replaced, so the caller's own guard can fire.
+	if err := os.WriteFile(report, []byte(`{"schemaVersion":1,"inspected":0,"diagnostics":[]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if inspected, ok := inspectedFromReport(report); !ok || inspected != 0 {
+		t.Fatalf("inspected = %d, ok = %v; want 0, true", inspected, ok)
+	}
+
+	// An unusable report must leave the caller's corpus count alone rather than
+	// substitute a zero, which would read as "this gate inspected nothing".
+	for _, body := range []string{`not json`, `{"schemaVersion":1,"diagnostics":[]}`} {
+		if err := os.WriteFile(report, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := inspectedFromReport(report); ok {
+			t.Fatalf("report %q should be unusable", body)
+		}
+	}
+	if _, ok := inspectedFromReport(filepath.Join(root, "absent.json")); ok {
+		t.Fatal("a missing report should be unusable")
+	}
+}

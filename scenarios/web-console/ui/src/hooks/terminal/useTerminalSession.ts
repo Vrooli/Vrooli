@@ -172,6 +172,9 @@ export function useTerminalSession({
 	const predictionSentAtRef = useRef(new Map<number, number>());
 	const predictionLatencyEmaRef = useRef(0);
 	const echoStateRef = useRef({ known: false, enabled: false, inAltBuffer: false, cursorAtLineEnd: false });
+	// Latched when the backend answers a scroll frame with `unsupported`, so
+	// the client stops asking a backend that owns no history of its own.
+	const serverScrollUnsupportedRef = useRef(false);
 	const serverSizeRef = useRef<{ cols: number; rows: number } | null>(null);
 	// This is deliberately separate from serverSizeRef. A follower renders the
 	// leader's grid, but must retain its own most recently declared grid so an
@@ -237,6 +240,7 @@ export function useTerminalSession({
   const onTransportOpen = useCallback((wasReconnect: boolean, _gen: number) => {
     sessionReadyRef.current = false;
 		echoStateRef.current = { known: false, enabled: false, inAltBuffer: false, cursorAtLineEnd: false };
+		serverScrollUnsupportedRef.current = false;
     stdin.resetForNewConnection(outputCursorRef.current);
     inSnapshotRef.current = !wasReconnect;
 
@@ -295,6 +299,21 @@ export function useTerminalSession({
     [transport],
   );
 
+  // Ask the backend to scroll its own history. Used only for panes where
+  // neither the client nor the program can scroll: a tmux client holds xterm
+  // in the alternate buffer, so the pane's tmux history is the only scrollback
+  // that exists. Best-effort like `control`: never acknowledged, never replayed.
+  const sendScroll = useCallback(
+    (lines: number): boolean => {
+      if (serverScrollUnsupportedRef.current) return false;
+      return transport.sendJson({ type: "scroll", lines });
+    },
+    [transport],
+  );
+
+  const sendScrollRef = useRef(sendScroll);
+  sendScrollRef.current = sendScroll;
+
   const scrollControllerRef = useRef<ReturnType<typeof createScrollController> | null>(null);
   if (scrollControllerRef.current === null) {
     scrollControllerRef.current = createScrollController(() => terminalRef.current, sendControl, {
@@ -302,6 +321,7 @@ export function useTerminalSession({
         const state = useWorkspaceStore.getState();
         return source === "touch" ? state.touchScrollSensitivity : state.wheelScrollSensitivity;
       },
+      sendScroll: (lines) => sendScrollRef.current(lines),
     });
   }
   const scrollController = scrollControllerRef.current;
@@ -437,6 +457,14 @@ export function useTerminalSession({
 			else if (msg.data === "unsupported") setMouseMode(null);
 			break;
 		}
+		case "scroll": {
+			// A backend with no history of its own can never satisfy a scroll
+			// frame. Latch that once instead of re-sending on every gesture:
+			// each failed frame would otherwise occupy the acknowledgement
+			// gate until the watchdog cleared it.
+			if (msg.data === "unsupported") serverScrollUnsupportedRef.current = true;
+			break;
+		}
         case "stdout": {
           if (!msg.data) break;
           const t = terminalRef.current;
@@ -562,7 +590,7 @@ export function useTerminalSession({
         data.length === 1 &&
         data >= " " &&
         data !== "\x7f" &&
-		  currentTerminal?.buffer.active === currentTerminal?.buffer.normal &&
+		  !echoStateRef.current.inAltBuffer &&
 			echoStateRef.current.known &&
 			echoStateRef.current.enabled &&
 			echoStateRef.current.cursorAtLineEnd

@@ -13,6 +13,10 @@
   --color-background: #f8fafc;
   --color-shell: #020617;
   --color-surface: #ffffff;
+  /* Field surface. Defaults to the panel surface, so a design that does not
+     distinguish them is unaffected; a design that does maps this once instead
+     of overriding --color-surface at every field it mounts. */
+  --color-field: #ffffff;
   --color-surface-muted: #f1f5f9;
   --color-surface-sunken: #e2e8f0;
   --color-surface-raised: #ffffff;
@@ -266,6 +270,7 @@
   --color-background: #020617;
   --color-shell: #020617;
   --color-surface: #0f172a;
+  --color-field: #0f172a;
   --color-surface-muted: #1e293b;
   --color-surface-sunken: #0b1220;
   --color-surface-raised: #172033;
@@ -301,6 +306,7 @@
     --color-background: #020617;
     --color-shell: #020617;
     --color-surface: #0f172a;
+    --color-field: #0f172a;
     --color-surface-muted: #1e293b;
     --color-surface-sunken: #0b1220;
     --color-surface-raised: #172033;

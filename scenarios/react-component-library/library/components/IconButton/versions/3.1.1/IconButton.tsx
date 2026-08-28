@@ -192,6 +192,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
       "aria-label": ariaLabel,
       children,
       surface,
+      // The deprecation shim itself: this is the one place that must still
+      // read `variant`, precisely so 2.x call sites keep working.
+      // eslint-disable-next-line @typescript-eslint/no-deprecated
       variant,
       shape = "circle",
       size = "md",

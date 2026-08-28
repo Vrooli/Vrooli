@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { NumberField } from "@vrooli/react-component-library/NumberField";
 import { Button } from "../ui/button";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { strings } from "../../consts/strings";
@@ -427,25 +428,25 @@ export default function TtsSettingsSection() {
           label={t(strings.settings.voiceOutputSection.wordThreshold)}
           hint={t(strings.settings.voiceOutputSection.wordThresholdHint)}
           control={(
-            <div className="flex items-center gap-2">
-              <input
-                data-testid="summarize-threshold"
-                type="number"
-                min={100}
-                max={10 * 1000}
-                step={100}
-                value={summarizeSettings.config?.charThreshold ?? 500}
-                onChange={(e) => {
-                  const val = Math.max(100, parseInt(e.target.value, 10) || 500);
-                  summarizeSettings.setConfig((prev) => prev ? { ...prev, charThreshold: val } : null);
-                }}
-                onBlur={() => {
-                  void summarizeSettings.save({ charThreshold: summarizeSettings.config?.charThreshold ?? 500 });
-                }}
-                className="w-24 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
-              />
-              <span className="text-xs text-wc-text-faint">{t(strings.settings.voiceOutputSection.chars)}</span>
-            </div>
+            /* Previously a `type="number"` whose onChange ran
+               `Math.max(100, parseInt(...) || 500)`: the floor was enforced,
+               the declared 10000 ceiling never was, and any draft parsing to 0
+               silently jumped to 500. NumberField enforces both bounds on
+               every path and commits on blur rather than per keystroke. */
+            <NumberField
+              testId="summarize-threshold"
+              label={t(strings.settings.voiceOutputSection.wordThreshold)}
+              value={summarizeSettings.config?.charThreshold ?? 500}
+              onChange={(next) => {
+                summarizeSettings.setConfig((prev) => prev ? { ...prev, charThreshold: next } : null);
+                void summarizeSettings.save({ charThreshold: next });
+              }}
+              min={100}
+              max={10 * 1000}
+              step={100}
+              unit={t(strings.settings.voiceOutputSection.chars)}
+              size="sm"
+            />
           )}
         />
 
@@ -521,25 +522,20 @@ export default function TtsSettingsSection() {
           label="Timeout"
           hint="Maximum time to wait for local summarization."
           control={(
-            <div className="flex items-center gap-2">
-              <input
-                data-testid="summarize-timeout"
-                type="number"
-                min={15}
-                max={300}
-                step={5}
-                value={summarizeSettings.config?.timeoutSeconds ?? 120}
-                onChange={(event) => {
-                  const next = Math.min(300, Math.max(15, parseInt(event.target.value, 10) || 120));
-                  summarizeSettings.setConfig((prev) => prev ? { ...prev, timeoutSeconds: next } : null);
-                }}
-                onBlur={() => {
-                  void summarizeSettings.save({ timeoutSeconds: summarizeSettings.config?.timeoutSeconds ?? 120 });
-                }}
-                className="w-20 rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
-              />
-              <span className="text-xs text-wc-text-faint">sec</span>
-            </div>
+            <NumberField
+              testId="summarize-timeout"
+              label="Timeout"
+              value={summarizeSettings.config?.timeoutSeconds ?? 120}
+              onChange={(next) => {
+                summarizeSettings.setConfig((prev) => prev ? { ...prev, timeoutSeconds: next } : null);
+                void summarizeSettings.save({ timeoutSeconds: next });
+              }}
+              min={15}
+              max={300}
+              step={5}
+              unit="sec"
+              size="sm"
+            />
           )}
         />
       </SettingsCard>

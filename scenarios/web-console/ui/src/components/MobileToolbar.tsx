@@ -1,9 +1,9 @@
 // DOC: docs/reference/configuration.md#mobile-toolbar-keys
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
-import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type ReactNode } from "react";
+import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type CSSProperties } from "react";
 import { Loader2, Maximize2, SendHorizontal } from "lucide-react";
-import { Button } from "@vrooli/react-component-library/Button/2";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
+import { InputGroup } from "@vrooli/react-component-library/InputGroup";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 import { useTranslation } from "react-i18next";
 import { ENTER_KEY, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
@@ -29,7 +29,7 @@ import {
 } from "../lib/toolbarLayout";
 import { useElementWidth } from "../hooks/useElementWidth";
 import ToolbarSurface from "./toolbar/ToolbarSurface";
-import { activeToolbarControlStyle, renderToolbarControl, type ToolbarControlContext } from "./toolbar/toolbarControls";
+import { renderToolbarControl, type ToolbarControlContext } from "./toolbar/toolbarControls";
 
 /**
  * Width assumed before the toolbar has been measured. In a browser the real
@@ -42,46 +42,6 @@ const INITIAL_TOOLBAR_WIDTH_PX = 390;
 
 /** The More sheet always uses comfortable targets, whatever the toolbar does. */
 const SHEET_METRICS = toolbarMetrics("large");
-
-interface ToolbarIconButtonProps {
-  testId: string;
-  label: string;
-  onClick: () => void;
-  active?: boolean;
-  className?: string;
-  children: ReactNode;
-}
-
-/**
- * The mobile toolbar has several icon-only actions. Keep their hit target,
- * centering, colour mapping, and accessible naming on the shared RCL control
- * instead of rebuilding those details at each call site.
- */
-function ToolbarIconButton({ testId, label, onClick, active = false, className, children }: ToolbarIconButtonProps) {
-  return (
-    <Button
-      data-testid={testId}
-      data-active={active ? "true" : undefined}
-      aria-pressed={active}
-      tabIndex={-1}
-      type="button"
-      aria-label={label}
-      title={label}
-      variant="secondary"
-      size="sm"
-      density="compact"
-      onPointerDown={(e) => e.preventDefault()}
-      onClick={onClick}
-      className={cn(
-        "flex min-h-11 min-w-11 items-center justify-center rounded border p-0 font-medium transition touch-manipulation",
-        className,
-      )}
-      style={active ? activeToolbarControlStyle : undefined}
-    >
-      {children}
-    </Button>
-  );
-}
 
 /**
  * Wraps AiSuggestBar and applies useDeferredValue to the draft text *here*
@@ -110,8 +70,19 @@ function DeferredAiSuggestBar({
 const MAX_VISIBLE_LINES = 4;
 /** Approximate line height in px for the textarea. */
 const LINE_HEIGHT_PX = 20;
+/** Vertical padding the input group applies to the control, both sides.
+ *  Kept as a number here because the height ceiling below is arithmetic,
+ *  not a style — a token string cannot be added to a line count. */
+const COMPOSER_PAD_BLOCK_PX = 8;
+/** The first height at which the composer genuinely needs a second row.
+ *
+ *  Deliberately two lines, not one. Comparing against a single line looks
+ *  right and is wrong: the control's own `min-block-size` (the group's size
+ *  rung, 44px) floors `scrollHeight` above one line's 36px, so a one-line
+ *  composer measures 44 and would read as grown forever. */
+const GROWN_TEXTAREA_HEIGHT_PX = LINE_HEIGHT_PX * 2 + COMPOSER_PAD_BLOCK_PX * 2;
 /** Max textarea height: MAX_VISIBLE_LINES * line-height + vertical padding. */
-const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + 24;
+const MAX_TEXTAREA_HEIGHT = MAX_VISIBLE_LINES * LINE_HEIGHT_PX + COMPOSER_PAD_BLOCK_PX * 2;
 
 type SendStatus = "sent" | "queued" | "sending" | "failed" | "idle";
 
@@ -268,6 +239,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   const fallbackDraft = useComposerDraft(activeSessionId);
   const draft = draftProp ?? fallbackDraft;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerGroupRef = useRef<HTMLDivElement>(null);
 
   // The textarea is UNCONTROLLED: the DOM owns the live value and the shared
   // draft mirrors it. Typing therefore never calls setState, so a keystroke
@@ -298,6 +270,21 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     const target = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT);
     const next = `${target}px`;
     if (el.style.height !== next) el.style.height = next;
+
+    // Tell the field shell it has grown, so the send and expand actions leave
+    // their fixed lane and take a row beneath the text. The group cannot work
+    // this out for itself — only this component knows what one row means here.
+    //
+    // Written straight to the node rather than through state: this runs on
+    // every keystroke, and a `useState` here would put back exactly the
+    // per-keystroke render the composer was reworked to remove. React never
+    // rendered this attribute, so it leaves it alone on subsequent renders.
+    const group = composerGroupRef.current;
+    if (!group) return;
+    const grown = target >= GROWN_TEXTAREA_HEIGHT_PX;
+    if (grown === (group.getAttribute("data-grown") === "true")) return;
+    if (grown) group.setAttribute("data-grown", "true");
+    else group.removeAttribute("data-grown");
   }, []);
 
   // Track the live value + caret as the user types. No setState in the common
@@ -717,78 +704,136 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Uncontrolled: the DOM owns the value (mirrored into the shared
               draft), so typing and native backspace never re-render the toolbar. */}
-          {/* The surface colour lives on the wrapper, not the textarea: the
-              interim mirror sits behind the textarea, so an opaque textarea
-              would paint over the very text it is meant to reveal. */}
-          <div className="relative flex min-w-0 rounded bg-wc-surface-input">
-            {/* Transparent border of the same width as the textarea's so the
-                mirror's content box lines up with the one it is drawing for. */}
-            <InterimTranscriptOverlay
-              draft={draft}
-              interim={voicePartialTranscript ?? ""}
-              textareaRef={textareaRef}
-              className={cn(
-                "box-border rounded border border-transparent px-2 text-base leading-5 text-wc-text-primary",
-                onExpandComposer ? "pe-14" : "pe-2",
-              )}
-              testId="mobile-interim-overlay"
-            />
-            <Textarea
-              ref={textareaRef}
-              data-testid="mobile-command-input"
-              defaultValue={draft.getValue()}
-              onChange={handleTextareaChange}
-              onSelect={(e) => draft.trackSelection(e.currentTarget)}
-              onBlur={(e) => draft.trackSelection(e.currentTarget)}
-              autoComplete="off"
-              autoCorrect="on"
-              spellCheck={false}
-              rows={1}
-              placeholder={t(strings.mobileToolbar.placeholder)}
-              className={cn(
-                "relative z-10 min-h-11 min-w-0 flex-1 resize-none rounded border border-wc-default bg-transparent px-2 text-base caret-wc-text-primary placeholder:text-wc-text-muted outline-none focus:border-wc-accent",
-                "overflow-y-auto overflow-x-hidden",
-                // Hand the glyphs to the mirror while a hypothesis is on
-                // screen so settled and unsettled text cannot double up.
-                voicePartialTranscript ? "text-transparent" : "text-wc-text-primary",
-                // Reserve room for the corner expand icon so long text never
-                // slides under it.
-                onExpandComposer && "pe-7",
-              )}
-              style={{
-                minHeight: "44px",
-                paddingBlock: "11px",
-                paddingInlineStart: "8px",
-                paddingInlineEnd: onExpandComposer ? "56px" : "8px",
-                background: "transparent",
-                borderColor: "rgb(var(--wc-border-default))",
-                color: voicePartialTranscript ? "transparent" : "rgb(var(--wc-text-primary))",
-                lineHeight: `${LINE_HEIGHT_PX}px`,
-                maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
-              }}
-            />
-            {/* Always-visible, low-emphasis corner icon that expands the draft
-                into the full-screen composer. Keyboard-reachable and shown in
-                both terminal and messages views — the composer is view-agnostic
-                and the long-message pain applies equally when chatting. */}
+          {/* One field, three parts. The group owns the border, the surface
+              and the focus ring; the textarea, the expand affordance and the
+              send action all live inside that single outline.
+              `--rcl-group-pad` is the group's own seam for its inline gutter,
+              so the mirror below and the textarea it draws for read their
+              padding from one value instead of two hand-matched ones. */}
+          <InputGroup
+            ref={composerGroupRef}
+            testId="mobile-command-group"
+            size="lg"
+            // Pill here means "as round as one row allows": clamped to a true
+            // capsule at rest, hugging the circular send button, and a
+            // well-rounded rectangle once the field grows.
+            shape="pill"
+            style={{
+              // Aligns the text with the optical left edge of the action
+              // glyphs, which sit at 18px: 4px of action inset plus half the
+              // difference between the 44px button and its 16px icon. 16px is
+              // the nearest token, and 2px under is imperceptible.
+              //
+              // The old value here was 8px, carried over from the `px-2` the
+              // hand-rolled composer used. That read fine against a square
+              // border and cramped against a pill: a 27px radius puts the
+              // border at x≈7px nine pixels down, so the first line had about
+              // 2px of clearance at the corner.
+              "--rcl-group-pad": "var(--space-sm)",
+            } as CSSProperties}
+          >
+            <InputGroup.Field>
+              {/* The mirror sits behind the textarea, so the textarea stays
+                  transparent — an opaque one would paint over the very text
+                  this is meant to reveal. */}
+              <InterimTranscriptOverlay
+                draft={draft}
+                interim={voicePartialTranscript ?? ""}
+                textareaRef={textareaRef}
+                className="box-border text-base leading-5 text-wc-text-primary"
+                style={{
+                  paddingInline: "var(--rcl-group-pad)",
+                  paddingBlock: "var(--space-2xs)",
+                }}
+                testId="mobile-interim-overlay"
+              />
+              <Textarea
+                ref={textareaRef}
+                data-testid="mobile-command-input"
+                defaultValue={draft.getValue()}
+                onChange={handleTextareaChange}
+                onSelect={(e) => draft.trackSelection(e.currentTarget)}
+                onBlur={(e) => draft.trackSelection(e.currentTarget)}
+                autoComplete="off"
+                autoCorrect="on"
+                spellCheck={false}
+                rows={1}
+                placeholder={t(strings.mobileToolbar.placeholder)}
+                // Border, background, radius and padding are the group's now.
+                // `text-base` stays: 16px is what stops iOS zooming the
+                // viewport on focus, and the group deliberately leaves `font`
+                // alone so this class still wins.
+                className={cn(
+                  "relative z-10 text-base caret-wc-text-primary",
+                  "overflow-y-auto overflow-x-hidden",
+                  // Hand the glyphs to the mirror while a hypothesis is on
+                  // screen so settled and unsettled text cannot double up.
+                  voicePartialTranscript ? "text-transparent" : "text-wc-text-primary",
+                )}
+                style={{
+                  color: voicePartialTranscript ? "transparent" : "rgb(var(--wc-text-primary))",
+                  lineHeight: `${LINE_HEIGHT_PX}px`,
+                  maxHeight: `${MAX_TEXTAREA_HEIGHT}px`,
+                }}
+              />
+            </InputGroup.Field>
+            {/* Always-visible, low-emphasis corner affordance that expands the
+                draft into the full-screen composer. It holds the top corner
+                rather than the vertical centre because a growing field keeps
+                its top edge still — `align="start"` is that decision, stated. */}
             {onExpandComposer && (
+              <InputGroup.Action align="start" testId="expand-toggle-slot">
+                <IconButton
+                  type="button"
+                  data-testid="expand-toggle"
+                  aria-label={t(strings.mobileToolbar.expandComposerTitle)}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={onExpandComposer}
+                  shape="rounded"
+                  surface="ghost"
+                  // `lg` renders a 24px glyph; this affordance has always been a
+                  // 16px icon sitting inside the composer's trailing gutter.
+                  size="sm"
+                  title={t(strings.mobileToolbar.expandComposerTitle)}
+                >
+                  <Maximize2 aria-hidden className="h-4 w-4" />
+                </IconButton>
+              </InputGroup.Action>
+            )}
+            {/* Send lives inside the field rather than beside it, pinned to the
+                bottom: on one line that is indistinguishable from centred, and
+                at four lines it is the only anchor that stays next to the text
+                and the thumb.
+
+                It is filled unconditionally and never dimmed on an empty draft.
+                The chat-app convention would be wrong here — an empty send is
+                not a no-op, it sends Enter (see submitCommand), so dimming it
+                would signal "nothing to do" about a control that does. */}
+            <InputGroup.Action align="end" testId="mobile-command-submit-slot">
               <IconButton
                 type="button"
-                data-testid="expand-toggle"
-                aria-label={t(strings.mobileToolbar.expandComposerTitle)}
-                onPointerDown={(e) => e.preventDefault()}
-                onClick={onExpandComposer}
-                shape="rounded"
-                // `lg` renders a 24px glyph; this affordance has always been a
-                // 16px icon sitting inside the composer's trailing gutter.
+                data-testid="mobile-command-submit"
+                aria-label={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
+                title={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
+                tabIndex={-1}
+                shape="circle"
+                surface="solid"
                 size="sm"
-                className="absolute inset-y-0 end-0 z-20"
-                title={t(strings.mobileToolbar.expandComposerTitle)}
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={submitCommand}
               >
-                <Maximize2 aria-hidden className="h-4 w-4" />
+                {/* "sending" renders as an inline spinner in the button itself
+                    rather than a label below the textarea — the label changed
+                    the toolbar's height on every send, forcing a costly
+                    terminal resize/reflow. */}
+                {sendStatus === "sending" ? (
+                  <Loader2 data-testid="send-status-sending" aria-hidden className="h-4 w-4 animate-spin" />
+                ) : (
+                  <SendHorizontal aria-hidden className="h-4 w-4" />
+                )}
               </IconButton>
-            )}
-          </div>
+            </InputGroup.Action>
+          </InputGroup>
           {sendStatus === "queued" && (
             <span data-testid="send-status-queued" className="px-1 text-[10px] text-yellow-400">
               {t(strings.mobileToolbar.statusQueued)}
@@ -800,23 +845,6 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
             </span>
           )}
         </div>
-        {/* Send button — always enabled so that tapping it with an empty
-             input acts as Enter (see submitCommand for rationale). */}
-        <ToolbarIconButton
-          testId="mobile-command-submit"
-          label={sendStatus === "sending" ? t(strings.mobileToolbar.statusSending) : t(strings.mobileToolbar.sendTitle)}
-          onClick={submitCommand}
-          className="shrink-0"
-        >
-          {/* "sending" renders as an inline spinner in the button itself rather
-              than a label below the textarea — the label changed the toolbar's
-              height on every send, forcing a costly terminal resize/reflow. */}
-          {sendStatus === "sending" ? (
-            <Loader2 data-testid="send-status-sending" aria-hidden className="h-4 w-4 animate-spin" />
-          ) : (
-            <SendHorizontal aria-hidden className="h-4 w-4" />
-          )}
-        </ToolbarIconButton>
       </div>
       {/* Toolbar keys area.
          Focus-preservation strategy (multiple layers to handle browser inconsistencies):

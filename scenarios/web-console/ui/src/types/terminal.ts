@@ -32,6 +32,7 @@ export interface TerminalMessage {
     | "snapshot_notice"
     | "echo_state"
     | "mouse_mode"
+    | "scroll"
     | "presence"
     | "device_state";
 
@@ -109,6 +110,12 @@ export interface TerminalMessage {
 	/** Persistent-pane tmux mouse capture state, when the backend supports it. */
 	mouse_mode?: boolean;
 	mouse_mode_known?: boolean;
+	/**
+	 * Scroll request in terminal rows: negative scrolls back toward older
+	 * output, positive scrolls forward toward live output. Only meaningful on
+	 * a `scroll` frame.
+	 */
+	lines?: number;
 }
 
 /** Typed reason codes for stdin_ack.ok=false frames. */

@@ -8,7 +8,7 @@ const pascalCase = (name) =>
 const compareVersions = (left, right) => left.localeCompare(right, undefined, { numeric: true });
 const isRelease = (version) => /^\d+\.\d+\.\d+$/.test(version);
 
-async function entryForVersion(libraryRoot, kind, name, version) {
+export async function entryForVersion(libraryRoot, kind, name, version) {
   const root = join(libraryRoot, kind, name, "versions", version);
   if (!existsSync(root)) return null;
   const candidates = await readdir(root, { withFileTypes: true });

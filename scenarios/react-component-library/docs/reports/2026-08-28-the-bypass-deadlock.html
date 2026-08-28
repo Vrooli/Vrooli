@@ -1,0 +1,877 @@
+<title>The Bypass Deadlock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F6F8F8;
+  --surface:     #FFFFFF;
+  --surface-2:   #EDF1F1;
+  --ink:         #12191B;
+  --ink-soft:    #46565A;
+  --ink-faint:   #7A8B8F;
+  --rule:        #D6DEDE;
+  --rule-strong: #B4C0C1;
+  --accent:      #0B6E7E;
+  --accent-soft: #E0EEF0;
+  --alarm:       #B33F1B;
+  --alarm-soft:  #F7E7E0;
+  --warn:        #8A6410;
+  --warn-soft:   #F5EDD9;
+  --good:        #1F6B4A;
+  --good-soft:   #DFEEE6;
+  --frozen:      #4A6E8A;
+  --frozen-soft: #E4EBF1;
+  --shadow:      0 1px 2px rgba(18,25,27,.05), 0 8px 24px -14px rgba(18,25,27,.22);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0D1315;
+    --surface:     #141D1F;
+    --surface-2:   #1C2729;
+    --ink:         #E7EEEE;
+    --ink-soft:    #A3B3B5;
+    --ink-faint:   #74868A;
+    --rule:        #263335;
+    --rule-strong: #3A4B4E;
+    --accent:      #56C4D4;
+    --accent-soft: #122C31;
+    --alarm:       #F08355;
+    --alarm-soft:  #2E1A12;
+    --warn:        #D9AE4E;
+    --warn-soft:   #2A2213;
+    --good:        #5FBF92;
+    --good-soft:   #10261C;
+    --frozen:      #8FB0C9;
+    --frozen-soft: #16232D;
+    --shadow:      0 1px 2px rgba(0,0,0,.3), 0 8px 24px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0D1315;
+  --surface:     #141D1F;
+  --surface-2:   #1C2729;
+  --ink:         #E7EEEE;
+  --ink-soft:    #A3B3B5;
+  --ink-faint:   #74868A;
+  --rule:        #263335;
+  --rule-strong: #3A4B4E;
+  --accent:      #56C4D4;
+  --accent-soft: #122C31;
+  --alarm:       #F08355;
+  --alarm-soft:  #2E1A12;
+  --warn:        #D9AE4E;
+  --warn-soft:   #2A2213;
+  --good:        #5FBF92;
+  --good-soft:   #10261C;
+  --frozen:      #8FB0C9;
+  --frozen-soft: #16232D;
+  --shadow:      0 1px 2px rgba(0,0,0,.3), 0 8px 24px -14px rgba(0,0,0,.7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: Newsreader, Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 28px 120px;
+}
+
+/* ---- measure: prose stays narrow, instruments go wide ---- */
+.measure { max-width: 640px; }
+
+h1, h2, h3, .label, .chip, .mono, table, .statline, .stepnum {
+  font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+}
+.mono, code, pre, .num { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; }
+
+h1 {
+  font-size: clamp(38px, 6vw, 60px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+  margin: 0 0 18px;
+  text-wrap: balance;
+}
+h2 {
+  font-size: 27px;
+  line-height: 1.2;
+  letter-spacing: -0.014em;
+  font-weight: 700;
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+h3 {
+  font-size: 19px;
+  line-height: 1.3;
+  letter-spacing: -0.008em;
+  font-weight: 600;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+p { margin: 0 0 16px; }
+a { color: var(--accent); }
+
+.label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 10px;
+}
+
+code {
+  font-size: .84em;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  padding: 64px 0 0;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0;
+}
+.kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: baseline;
+  font-family: Archivo, sans-serif;
+  font-size: 12px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+  margin-bottom: 26px;
+}
+.kicker .sep { color: var(--rule-strong); }
+.standfirst {
+  font-size: 21px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 620px;
+  margin: 0 0 40px;
+}
+
+/* ---- alarm strip ---- */
+.alarmstrip {
+  background: var(--alarm-soft);
+  border: 1px solid var(--alarm);
+  border-left-width: 4px;
+  border-radius: 3px;
+  padding: 20px 24px;
+  margin: 36px 0 0;
+  display: grid;
+  gap: 14px;
+}
+.alarmstrip .statline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--alarm);
+}
+.alarmstrip p { margin: 0; font-size: 16.5px; line-height: 1.55; color: var(--ink); }
+.dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--alarm); display: inline-block;
+}
+
+section { padding: 56px 0 0; }
+section + section { border-top: 1px solid var(--rule); margin-top: 56px; }
+
+/* ---- cycle diagram ---- */
+.cycle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px;
+  margin: 28px 0 0;
+  counter-reset: none;
+}
+.node {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--rule-strong);
+  border-radius: 3px;
+  padding: 16px 18px 18px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.node .stage {
+  font-family: Archivo, sans-serif;
+  font-size: 10.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+.node .what {
+  font-family: Archivo, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.28;
+  letter-spacing: -.006em;
+}
+.node .ev {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  word-break: break-word;
+}
+.node.free    { border-top-color: var(--warn); }
+.node.frozen  { border-top-color: var(--frozen); }
+.node.blocked { border-top-color: var(--alarm); }
+.node.blind   { border-top-color: var(--alarm); }
+.node.flail   { border-top-color: var(--alarm); }
+
+.closes {
+  margin: 16px 0 0;
+  padding: 14px 18px;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 3px;
+  background: var(--surface-2);
+  font-family: Archivo, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+}
+.closes .arrow { color: var(--alarm); font-size: 17px; line-height: 1; }
+
+/* ---- scoreboard ---- */
+.tablewrap { overflow-x: auto; margin: 26px 0 0; }
+table {
+  width: 100%;
+  min-width: 660px;
+  border-collapse: collapse;
+  font-family: Archivo, sans-serif;
+  font-size: 14.5px;
+}
+th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+  padding: 0 14px 9px 0;
+  border-bottom: 1px solid var(--rule-strong);
+  vertical-align: bottom;
+}
+td {
+  padding: 12px 14px 12px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  line-height: 1.45;
+}
+td:last-child, th:last-child { padding-right: 0; }
+.num { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--ink-soft); }
+
+.chip {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.chip.held  { background: var(--good-soft);  color: var(--good);  border: 1px solid var(--good); }
+.chip.part  { background: var(--warn-soft);  color: var(--warn);  border: 1px solid var(--warn); }
+.chip.open  { background: var(--alarm-soft); color: var(--alarm); border: 1px solid var(--alarm); }
+
+/* ---- findings ---- */
+.findings { display: grid; gap: 20px; margin: 28px 0 0; }
+.finding {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 24px 26px 26px;
+  box-shadow: var(--shadow);
+}
+.finding > .label { color: var(--accent); }
+.finding p { max-width: 640px; }
+.finding p:last-child { margin-bottom: 0; }
+.evidence {
+  margin: 16px 0 0;
+  border-left: 3px solid var(--rule-strong);
+  padding: 4px 0 4px 16px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12.5px;
+  line-height: 1.72;
+  color: var(--ink-soft);
+  overflow-x: auto;
+}
+.evidence b { color: var(--ink); font-weight: 600; }
+.evidence.hot { border-left-color: var(--alarm); }
+
+/* ---- ledger of homes ---- */
+.homes { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 26px 0 0; border-radius: 3px; overflow: hidden; }
+.home {
+  background: var(--surface);
+  padding: 13px 18px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+}
+.home .path { font-family: "JetBrains Mono", monospace; font-size: 13px; word-break: break-word; }
+.home .loc  { font-family: "JetBrains Mono", monospace; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.home .bar {
+  grid-column: 1 / -1;
+  height: 3px;
+  background: var(--accent);
+  opacity: .5;
+  border-radius: 2px;
+}
+
+/* ---- repair sequence ---- */
+.steps { display: grid; gap: 2px; margin: 28px 0 0; counter-reset: step; }
+.step {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 20px 24px 22px 68px;
+  position: relative;
+}
+.step::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 24px; top: 20px;
+  font-family: Archivo, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--rule-strong);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.step h3 { margin-bottom: 6px; }
+.step p { margin: 0; max-width: 620px; color: var(--ink-soft); font-size: 17px; }
+.step .cost {
+  font-family: Archivo, sans-serif;
+  font-size: 10.5px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 7px;
+}
+.phase-rule {
+  display: flex; align-items: center; gap: 14px;
+  margin: 26px 0 8px;
+  font-family: Archivo, sans-serif;
+  font-size: 11.5px; letter-spacing: .13em; text-transform: uppercase;
+  font-weight: 600; color: var(--ink-faint);
+}
+.phase-rule::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+  font-family: Archivo, sans-serif;
+  font-size: 13px;
+  color: var(--ink-faint);
+  line-height: 1.7;
+}
+
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  .page { padding: 0 18px 80px; }
+  .step { padding-left: 24px; padding-top: 52px; }
+  .step::before { top: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="page">
+
+<header class="masthead">
+  <div class="kicker">
+    <span>React Component Library</span><span class="sep">/</span>
+    <span>Setup Architecture</span><span class="sep">/</span>
+    <span>Follow-up review</span><span class="sep">/</span>
+    <span>2026-08-28 · branch <span class="mono">agi</span></span>
+  </div>
+  <h1>The Bypass Deadlock</h1>
+  <p class="standfirst">
+    The lock-driven setup plan did real work — five of its seven mechanisms are
+    materially closed. The one that isn't produces everything you have been
+    experiencing, and this morning it took the scenario down.
+  </p>
+</header>
+
+<div class="alarmstrip">
+  <div class="statline"><span class="dot"></span> Live state at time of writing</div>
+  <p>
+    <code>react-component-library</code> is <b>stopped and cannot start</b>.
+    <code>vrooli scenario start</code> fails at <span class="mono">build component ui</span>
+    after 64 seconds with 63 lint errors across four files. All four belong to three
+    assets created on disk between 01:00 and 01:26 this morning. None of the three has
+    a publish record. Because the gate CLI requires a running API, no gate report can
+    be produced to diagnose it.
+  </p>
+</div>
+
+<section>
+  <p class="label">What this review is</p>
+  <div class="measure">
+    <h2>The plan landed. The loop did not close.</h2>
+    <p>
+      Yesterday's pass authored a sixteen-phase plan against seven named mechanisms
+      and marked fifteen phases done. I re-measured every claim in its own
+      end-state table against the tree as it stands today rather than trusting
+      the phase markers.
+    </p>
+    <p>
+      Most of it is honest. <code>.build-source</code> is gone. The three
+      per-component build patches are gone. The 36 bespoke composition cases —
+      569&nbsp;KB — are gone, and no BAS case names a component or a version.
+      19&nbsp;MB of committed generated artifacts is untracked. 483 per-version
+      dependency locks exist where none did. The package no longer reaches into
+      <code>scenarios/**</code>. The new Node tooling is genuinely well built,
+      with explicit guards against vacuous green results.
+    </p>
+    <p>
+      What did not close is the third mechanism: <b>the draft lifecycle exists and
+      is bypassed.</b> Phase 6 was marked done. In practice the flow has never been
+      used — 459 of 462 provenance records are backfills, and there are three real
+      publishes in the entire corpus. Everything below follows from that.
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="label">The mechanism</p>
+  <div class="measure">
+    <h2>A cycle, not a bug</h2>
+    <p>
+      Each step is individually reasonable. Together they form a loop that
+      converts one unvalidated file into a dead scenario and a blind agent.
+    </p>
+  </div>
+
+  <div class="cycle">
+    <div class="node free">
+      <span class="stage">Step one · free</span>
+      <span class="what">A version is created by writing to the filesystem</span>
+      <span class="ev">mkdir versions/1.0.0 — unguarded.<br>Immutability is enforced in <b>api/internal/components/service.go</b>, which only sees API writes.</span>
+    </div>
+    <div class="node free">
+      <span class="stage">Step two · skipped</span>
+      <span class="what">Publish validation never runs</span>
+      <span class="ev"><b>PublishComponentVersion</b> calls <b>CheckComponentVersion</b> and refuses on failure. The filesystem calls nothing. Both produce a <b>latest</b>.</span>
+    </div>
+    <div class="node frozen">
+      <span class="stage">Step three · frozen</span>
+      <span class="what">The unvalidated version becomes immutable</span>
+      <span class="ev">IconGeometry@1.0.0 is <b>latest</b> in its manifest, has no provenance row and no released-version hash — yet is treated as released source.</span>
+    </div>
+    <div class="node blocked">
+      <span class="stage">Step four · blast radius</span>
+      <span class="what">Corpus lint runs inside the app build</span>
+      <span class="ev">build → type-check → catalog:check → lint:catalog → eslint over <b>every version of every asset</b>.</span>
+    </div>
+    <div class="node blocked">
+      <span class="stage">Step five · dead</span>
+      <span class="what">The app build runs inside scenario start</span>
+      <span class="ev"><b>vrooli scenario start</b> → setup → build component ui → exit 1. One bad asset, no scenario.</span>
+    </div>
+    <div class="node blind">
+      <span class="stage">Step six · blind</span>
+      <span class="what">Every gate command needs the API that will not start</span>
+      <span class="ev">"react-component-library is stopped, so its local API is unavailable." 45 gates unreadable at the exact moment they are needed.</span>
+    </div>
+    <div class="node flail">
+      <span class="stage">Step seven · flail</span>
+      <span class="what">With no diagnostic surface, config becomes the only lever</span>
+      <span class="ev">Edit eslint config, add a disable, write a script to find out what broke — the observed behaviour, and the locally rational move.</span>
+    </div>
+    <div class="node free">
+      <span class="stage">Step eight · reset</span>
+      <span class="what">The repair is written to the filesystem too</span>
+      <span class="ev">The draft flow is still the expensive path and still needs the API. The loop re-enters at step one.</span>
+    </div>
+  </div>
+
+  <div class="closes">
+    <span class="arrow">↺</span>
+    <span>Step eight returns to step one. Nothing in the cycle is load-bearing on a person noticing.</span>
+  </div>
+</section>
+
+<section>
+  <p class="label">Promised versus measured</p>
+  <div class="measure">
+    <h2>The scoreboard</h2>
+    <p>
+      Rows are taken verbatim from the plan's own “Observable end state” table.
+      Measured column is this tree, today.
+    </p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30%">Property</th>
+          <th style="width:20%">Target</th>
+          <th style="width:36%">Measured 2026-08-28</th>
+          <th style="width:14%">Verdict</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Disposable build tree</td>
+          <td class="num">deleted</td>
+          <td>absent</td>
+          <td><span class="chip held">held</span></td>
+        </tr>
+        <tr>
+          <td>Build source rewrites, per-component patches</td>
+          <td class="num">0 / 0</td>
+          <td>0 / 0. The 11 remaining <code>.replace</code> calls are path and comment normalisation.</td>
+          <td><span class="chip held">held</span></td>
+        </tr>
+        <tr>
+          <td>Package reaches into <code>scenarios/**</code></td>
+          <td class="num">0</td>
+          <td>0 across all 13 package scripts and <code>tsconfig.build.json</code></td>
+          <td><span class="chip held">held</span></td>
+        </tr>
+        <tr>
+          <td>Per-version dependency locks</td>
+          <td class="num">all versions</td>
+          <td>483 locks; 483 of 493 version directories covered. The 10 gaps are all <code>preview-harnesses</code> — a whole asset kind outside the lock regime.</td>
+          <td><span class="chip held">held</span></td>
+        </tr>
+        <tr>
+          <td>BAS cases naming a component or version</td>
+          <td class="num">0</td>
+          <td>0. Composition cases went 36 files / 569&nbsp;KB → 0; <code>bas/cases</code> is now 7 files / 68&nbsp;KB.</td>
+          <td><span class="chip held">held</span></td>
+        </tr>
+        <tr>
+          <td>Tracked generated artifacts</td>
+          <td class="num">0 MB</td>
+          <td><code>captures/</code>, <code>docs/evidence/</code>, <code>.vite/</code> all gone. <code>docs/reports/</code> 288&nbsp;KB remains by design.</td>
+          <td><span class="chip held">held</span></td>
+        </tr>
+        <tr>
+          <td>Orphaned artifact stages, reaped</td>
+          <td class="num">0</td>
+          <td>0 <code>.vrooli-artifact-stage-*</code>, but one orphaned <code>ui/.catalog-conformance-VcFpEq</code>. The reaper matches a name, so it is itself a special case.</td>
+          <td><span class="chip part">partial</span></td>
+        </tr>
+        <tr>
+          <td>Gate recompute for a one-file change</td>
+          <td class="num">changed asset<br>plus dependents</td>
+          <td>Per-asset staleness is real and well built. But 1 of 44 validators accepts a scope, and 24 of 45 gates are <code>corpus</code>. The code says it: “the runners themselves are whole-corpus by construction, so the saving is the runner's entire cost or nothing.”</td>
+          <td><span class="chip part">partial</span></td>
+        </tr>
+        <tr>
+          <td>Allowlist entries, each with a recorded reason</td>
+          <td class="num">strictly fewer</td>
+          <td>229 → 218. All 218 carry the same identical boilerplate sentence, and none names a gate. The letter, not the intent.</td>
+          <td><span class="chip part">partial</span></td>
+        </tr>
+        <tr>
+          <td>TSX-shaped gates use an AST pass</td>
+          <td class="num">AST</td>
+          <td><code>ast_facts.go</code> exists but is 98 lines carrying one predicate. 47 <code>regexp.MustCompile</code> remain, 39 of them in <code>gates.go</code>.</td>
+          <td><span class="chip part">partial</span></td>
+        </tr>
+        <tr>
+          <td>Components using the draft flow</td>
+          <td class="num">every edit</td>
+          <td>0 active drafts. 459 of 462 provenance rows are <code>backfilled: true</code> — three genuine publishes exist.</td>
+          <td><span class="chip open">open</span></td>
+        </tr>
+        <tr>
+          <td>Creating a release without a draft</td>
+          <td class="num">fails a<br>blocking gate</td>
+          <td>34 version directories have no provenance record. The gate reports; it does not prevent — and it cannot run while the build is down.</td>
+          <td><span class="chip open">open</span></td>
+        </tr>
+        <tr>
+          <td>Version directories</td>
+          <td class="num">425 → fewer</td>
+          <td>493. Sixty-eight net new versions in a single day, 34 of them unpublished.</td>
+          <td><span class="chip open">open</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="label">What remains</p>
+  <div class="measure">
+    <h2>Five structural problems</h2>
+    <p>
+      The first three are the loop. The last two are why the setup stays expensive
+      even when nothing is broken.
+    </p>
+  </div>
+
+  <div class="findings">
+
+    <div class="finding">
+      <p class="label">One</p>
+      <h3>The correct path validates. The free path does not. Both produce a release.</h3>
+      <p>
+        This is the deepest defect and it is a one-line asymmetry. Publishing runs a
+        check and refuses on failure. Creating a directory runs nothing. The
+        manifest's <code>latest</code> field does not care which route produced it,
+        so an unvalidated version is indistinguishable from a released one the
+        moment it lands.
+      </p>
+      <p>
+        The plan's Phase 6 answer was a blocking gate. A gate is a report, and it
+        arrives after the fact, through an API that is down precisely when a bad
+        release has been made. Prevention has to sit at the write, not at the read.
+      </p>
+      <div class="evidence hot">
+        <b>Created on disk 2026-08-28, no provenance, now blocking startup:</b><br>
+        library/foundations/IconGeometry/versions/1.0.0/IconGeometry.ts — 60 errors<br>
+        library/primitives/MorphingIcon/versions/3.1.1/MorphingIcon.tsx — 1 error<br>
+        library/components/IconButton/versions/3.1.1/IconButton.tsx — 1 error<br>
+        library/components/IconButton/versions/3.1.1/story.tsx — 1 error
+      </div>
+    </div>
+
+    <div class="finding">
+      <p class="label">Two</p>
+      <h3>Corpus conformance lint sits on the critical path of process start.</h3>
+      <p>
+        <code>build</code> runs <code>type-check</code>, which runs
+        <code>catalog:check</code>, which lints every version of every asset under
+        <code>strictTypeChecked</code>. That build is a setup step of
+        <code>vrooli scenario start</code>. The consequence is that a lint error in
+        any one of 493 version directories is not a red gate — it is a scenario that
+        will not run, a UI you cannot open, and 45 gates you cannot read.
+      </p>
+      <p>
+        A conformance failure and an inability to boot should not be the same event.
+        The scenario should start with a red gate and tell you which asset is red.
+      </p>
+      <div class="evidence">
+        vrooli scenario start<br>
+        &nbsp;&nbsp;→ setup → build component ui<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;→ pnpm build → pnpm type-check → catalog:check<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ lint:catalog → eslint over library/**<br>
+        <b>✗ 77 problems (63 errors, 14 warnings) → exit 1 → scenario stopped</b>
+      </div>
+    </div>
+
+    <div class="finding">
+      <p class="label">Three</p>
+      <h3>Immutable source is judged by a mutable, type-aware ruleset.</h3>
+      <p>
+        <code>eslint.catalog.config.js</code> applies
+        <code>tseslint.configs.strictTypeChecked</code> to all 493 versions,
+        released ones included. Those rules are type-aware:
+        <code>no-non-null-assertion</code>, <code>no-unnecessary-condition</code> and
+        <code>no-deprecated</code> resolve against the current TypeScript,
+        the current <code>@types/react</code>, and the current dependency graph.
+      </p>
+      <p>
+        So a frozen version's verdict is not frozen. Bump a type dependency and
+        green releases turn red with no source change — and they cannot be repaired,
+        because they are immutable. Today's failure is the mild version of this;
+        the severe version arrives on a toolchain upgrade and hits dozens of assets
+        at once. An immutable artifact should carry an immutable verdict, recorded
+        when it was published.
+      </p>
+      <div class="evidence">
+        rules firing today: no-non-null-assertion <b>57</b> · no-unnecessary-condition <b>3</b> · no-deprecated <b>3</b><br>
+        all three are type-aware and none can be evaluated from the source bytes alone
+      </div>
+    </div>
+
+    <div class="finding">
+      <p class="label">Four</p>
+      <h3><code>root</code> has no single meaning, and a wrong <code>root</code> reads as clean.</h3>
+      <p>
+        <code>resolveScenarioRoot</code> accepts three different things — a
+        <code>library/</code> directory, a scenario root, or the repository root —
+        and guesses which by probing the filesystem. Meanwhile 59 call sites hardcode
+        <code>filepath.Join(root, "scenarios", "react-component-library", …)</code>
+        against only 16 that use the resolver.
+      </p>
+      <p>
+        The residue is on disk: a self-nested
+        <code>scenarios/react-component-library/scenarios/react-component-library/tmp/</code>
+        proves the two conventions have already collided. The dangerous version is
+        quieter — 24 gate globs discard their error, so a wrong root yields
+        <code>Inspected: 0</code>, no findings, and a pass. That includes
+        <code>ValidateDependencyRank</code>, the plan's own new gate for the
+        Doctrine 3 rank rule.
+      </p>
+      <div class="evidence">
+        <b>59</b> × filepath.Join(root, "scenarios", "react-component-library", …)<br>
+        <b>16</b> × resolveScenarioRoot(root)<br>
+        <b>24</b> × filepath.Glob with a discarded error → empty result → Result{Inspected: 0} → clean
+      </div>
+    </div>
+
+    <div class="finding">
+      <p class="label">Five</p>
+      <h3>Validation logic has five homes and no rule for choosing one.</h3>
+      <p>
+        Roughly 16,600 lines of validation machinery serve 158 components, spread
+        across Go gates, Go coverage, Go one-off commands, two separate
+        <code>scripts/</code> directories of <code>.mjs</code>, custom ESLint rules
+        and BAS JSON. Nothing states which home a new check belongs in.
+      </p>
+      <p>
+        That is the direct answer to the <code>.mjs</code> proliferation you have been
+        watching. An agent needing a new check finds two plausible script directories
+        and a Go package it would have to rebuild and restart to exercise. Writing a
+        fresh <code>.mjs</code> is the cheapest move that looks correct — and it is,
+        locally. Twenty-five of them now exist.
+      </p>
+      <div class="homes">
+        <div class="home"><span class="path">api/internal/gates</span><span class="loc">7,018</span><span class="bar" style="width:100%"></span></div>
+        <div class="home"><span class="path">api/internal/catalogcoverage</span><span class="loc">3,166</span><span class="bar" style="width:45%"></span></div>
+        <div class="home"><span class="path">ui/scripts/*.mjs &nbsp;<span style="color:var(--ink-faint)">(11 files)</span></span><span class="loc">2,646</span><span class="bar" style="width:38%"></span></div>
+        <div class="home"><span class="path">packages/react-component-library/scripts/*.mjs &nbsp;<span style="color:var(--ink-faint)">(12 files)</span></span><span class="loc">1,287</span><span class="bar" style="width:18%"></span></div>
+        <div class="home"><span class="path">api/internal/catalogvalidate</span><span class="loc">963</span><span class="bar" style="width:14%"></span></div>
+        <div class="home"><span class="path">bas/**/*.json</span><span class="loc">770</span><span class="bar" style="width:11%"></span></div>
+        <div class="home"><span class="path">ui/eslint-rules</span><span class="loc">730</span><span class="bar" style="width:10%"></span></div>
+        <div class="home"><span class="path">api/cmd &nbsp;<span style="color:var(--ink-faint)">(8 programs, 3 are backfills)</span></span><span class="loc">46</span><span class="bar" style="width:2%"></span></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <p class="label">Sequence</p>
+  <div class="measure">
+    <h2>What to do, cheapest first</h2>
+    <p>
+      The order matters here: the first three turn the loop off, the last three
+      stop it forming again. Nothing below changes a component.
+    </p>
+  </div>
+
+  <div class="phase-rule">Turn the loop off</div>
+  <div class="steps">
+
+    <div class="step">
+      <span class="cost">Minutes · unblocks everything else</span>
+      <h3>Republish the three assets through the flow that would have caught them</h3>
+      <p>
+        IconGeometry, MorphingIcon and IconButton are <code>latest</code> with no
+        publish record. Re-entering them via <code>components draft-begin</code> and
+        <code>draft-publish</code> runs <code>CheckComponentVersion</code>, fixes the
+        lint, and produces the corpus's fourth, fifth and sixth genuine publishes —
+        which is also the first real exercise the flow has ever had.
+      </p>
+    </div>
+
+    <div class="step">
+      <span class="cost">Small · removes the blast radius</span>
+      <h3>Take corpus conformance lint off the scenario-start path</h3>
+      <p>
+        Move <code>catalog:check</code> out of <code>build</code> and into
+        <code>check</code> and the test suite. A conformance failure should make a
+        gate red and leave the scenario running, so the gate report stays readable
+        exactly when someone needs to read it.
+      </p>
+    </div>
+
+    <div class="step">
+      <span class="cost">Small · closes the bypass</span>
+      <h3>Make the filesystem route refuse, not just report</h3>
+      <p>
+        A version directory that appears without a provenance row should fail at the
+        write or at the earliest read that owns it — not only inside a gate that
+        needs a running API. The asymmetry between the two creation routes is the
+        single defect that generates the rest.
+      </p>
+    </div>
+
+  </div>
+
+  <div class="phase-rule">Stop it forming again</div>
+  <div class="steps">
+
+    <div class="step">
+      <span class="cost">Medium · one design decision</span>
+      <h3>Freeze the verdict with the bytes</h3>
+      <p>
+        Record each released version's conformance result at publish time and stop
+        re-linting frozen source under a moving ruleset. Re-lint drafts, and assets
+        whose lock changed. This also removes most of the corpus lint cost, and it
+        removes the class of failure where a dependency bump breaks assets nobody
+        can edit.
+      </p>
+    </div>
+
+    <div class="step">
+      <span class="cost">Medium · mechanical</span>
+      <h3>Give <code>root</code> one meaning and make empty scans fail</h3>
+      <p>
+        Resolve the root once at the process boundary and pass a single named type
+        onward, retiring both conventions. Then make a gate that inspected zero
+        items report unavailable rather than clean — the vacuous-green guard the
+        Node tooling already has, which the Go gates do not.
+      </p>
+    </div>
+
+    <div class="step">
+      <span class="cost">Larger · the remaining speed win</span>
+      <h3>Teach the other 43 validators to accept a scope</h3>
+      <p>
+        The per-asset staleness index already computes the right answer; only
+        <code>ValidateTypesForAssets</code> consumes it. Until the rest take a scope,
+        editing one component still runs 44 gates at full corpus cost, and the
+        feedback loop stays flat no matter how small the change.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  Measured 2026-08-28 on branch <span class="mono">agi</span>, working tree as found.
+  Counts are from the tree itself, not from the plan's records.
+  Companion to <span class="mono">docs/reports/2026-08-27-library-setup-architecture-review.html</span>
+  and the plan <span class="mono">react-component-library-setup-maturity-lock-driven</span>
+  (15 of 16 phases marked done; Phase 16, the Definition of Done sweep, still active).
+</footer>
+
+</div>

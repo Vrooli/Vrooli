@@ -289,13 +289,39 @@ describe("TtsSettingsSection", () => {
     fireEvent.change(screen.getByTestId("tts-voice-select"), { target: { value: "af_heart" } });
     fireEvent.change(screen.getByTestId("tts-rate-slider"), { target: { value: "1.4" } });
     fireEvent.change(screen.getByTestId("tts-pitch-slider"), { target: { value: "0.8" } });
-    fireEvent.change(screen.getByTestId("summarize-threshold"), { target: { value: "800" } });
+    // Both numeric settings are NumberFields now: the base test id names the
+    // field, `-value` the input inside it, and a value commits on blur rather
+    // than per keystroke.
+    fireEvent.change(screen.getByTestId("summarize-threshold-value"), { target: { value: "800" } });
+    fireEvent.blur(screen.getByTestId("summarize-threshold-value"));
     fireEvent.change(screen.getByTestId("summarize-level-select"), { target: { value: "heavy" } });
-    fireEvent.change(screen.getByTestId("summarize-timeout"), { target: { value: "90" } });
+    fireEvent.change(screen.getByTestId("summarize-timeout-value"), { target: { value: "90" } });
+    fireEvent.blur(screen.getByTestId("summarize-timeout-value"));
     expect(mockStoreState.setStartMutedOnLoad).toHaveBeenCalledWith(true);
     expect(mockStoreState.setTtsVoice).toHaveBeenCalledWith("af_heart");
     expect(mockStoreState.setTtsRate).toHaveBeenCalledWith(1.4);
     expect(mockStoreState.setTtsPitch).toHaveBeenCalledWith(0.8);
-    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalled());
+    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalledWith({ charThreshold: 800 }));
+    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalledWith({ timeoutSeconds: 90 }));
+  });
+
+  it("clamps a summarize threshold typed above its declared ceiling", async () => {
+    await renderSection();
+    // The regression: the previous control ran Math.max(100, ...) and declared
+    // a 10000 maximum it never enforced, so 99999 persisted verbatim.
+    fireEvent.change(screen.getByTestId("summarize-threshold-value"), { target: { value: "99999" } });
+    fireEvent.blur(screen.getByTestId("summarize-threshold-value"));
+    await waitFor(() => expect(mockUpdateSummarizeConfig).toHaveBeenCalledWith({ charThreshold: 10000 }));
+  });
+
+  it("reverts an emptied summarize timeout instead of committing zero", async () => {
+    await renderSection();
+    // Number("") is 0, which the previous `|| 120` fallback masked on one path
+    // and the floor clamp would have swallowed on the other.
+    fireEvent.change(screen.getByTestId("summarize-timeout-value"), { target: { value: "" } });
+    fireEvent.blur(screen.getByTestId("summarize-timeout-value"));
+    expect((screen.getByTestId("summarize-timeout-value") as HTMLInputElement).value).toBe("120");
+    expect(mockUpdateSummarizeConfig).not.toHaveBeenCalledWith({ timeoutSeconds: 0 });
+    expect(mockUpdateSummarizeConfig).not.toHaveBeenCalledWith({ timeoutSeconds: 15 });
   });
 });

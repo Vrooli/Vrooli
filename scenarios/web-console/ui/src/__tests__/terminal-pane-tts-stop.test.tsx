@@ -71,7 +71,7 @@ vi.mock("@xterm/xterm", () => ({
     onData: vi.fn().mockReturnValue({ dispose: vi.fn() }),
     write: vi.fn(), cols: 80, rows: 24, options: {},
     buffer: { active: { viewportY: 0, baseY: 0, length: 0, getLine: () => ({ translateToString: () => "" }) } },
-    loadAddon: vi.fn(), selectAll: vi.fn(), clear: vi.fn(),
+    loadAddon: vi.fn(), attachCustomWheelEventHandler: vi.fn(), selectAll: vi.fn(), clear: vi.fn(),
     getSelection: vi.fn().mockReturnValue(""), getSelectionPosition: vi.fn().mockReturnValue(undefined),
     clearSelection: vi.fn(), select: vi.fn(), scrollLines: vi.fn(), textarea: null, reset: vi.fn(),
   })),

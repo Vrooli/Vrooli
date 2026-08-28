@@ -132,6 +132,24 @@ describe("TerminalLauncher", () => {
     expect(onLaunch).not.toHaveBeenCalled();
   });
 
+  it("renders the command bar as one field: prefix, input and launch share a group", () => {
+    render(
+      <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
+    );
+    const input = screen.getByTestId("launcher-custom-input");
+    const group = input.closest("[data-rcl-input-group]");
+    expect(group).not.toBeNull();
+    // Launch is inside the field's border, not a sibling beside it.
+    expect(screen.getByTestId("launcher-custom-launch").closest("[data-rcl-input-group]")).toBe(group);
+    // The `$` is a real adornment now, not an absolutely-positioned span with
+    // a hand-tuned padding on the input behind it.
+    const prefix = group?.querySelector("[data-rcl-input-group-adornment]");
+    expect(prefix?.textContent).toBe("$");
+    expect(prefix).toHaveAttribute("aria-hidden", "true");
+    expect(prefix).toHaveAttribute("data-side", "leading");
+    expect(input).not.toHaveClass("ps-7");
+  });
+
   it("launch button is disabled when custom input is empty", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,

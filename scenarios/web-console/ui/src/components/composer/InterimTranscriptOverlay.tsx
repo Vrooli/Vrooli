@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { transcriptSeparator } from "@vrooli/audio-capture-browser";
 import type { ComposerDraft } from "../../hooks/useComposerDraft";
 
@@ -18,6 +18,13 @@ export interface InterimTranscriptOverlayProps {
    * shows up as text that drifts out of register as the draft grows.
    */
   readonly className: string;
+  /**
+   * Box metrics that cannot be expressed as a class because they read the
+   * host field's own custom properties. The padding here must resolve to the
+   * same values the textarea receives, so both are sourced from one token
+   * rather than hand-matched.
+   */
+  readonly style?: CSSProperties;
   readonly testId?: string;
 }
 
@@ -41,6 +48,7 @@ export default function InterimTranscriptOverlay({
   interim,
   textareaRef,
   className,
+  style,
   testId,
 }: InterimTranscriptOverlayProps) {
   const active = interim.length > 0;
@@ -77,6 +85,7 @@ export default function InterimTranscriptOverlay({
       aria-hidden="true"
       data-testid={testId ?? "composer-interim-overlay"}
       className={`pointer-events-none absolute inset-0 z-0 overflow-hidden whitespace-pre-wrap break-words ${className}`}
+      style={style}
     >
       <span>{value}</span>
       <span

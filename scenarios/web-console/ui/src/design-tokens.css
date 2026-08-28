@@ -76,6 +76,11 @@
    * `scenarios/react-component-library/ui/src/design-tokens.css`.
    */
   --color-border: rgb(var(--wc-border-default));
+  /* Field surface. web-console distinguishes a panel (slate-900) from an
+   * input (slate-800); the library's --color-surface is the panel, so
+   * before this token existed every adopted field had to override it at
+   * the call site. Mapped once here instead. */
+  --color-field: rgb(var(--wc-surface-input));
   --color-muted-foreground: rgb(var(--wc-text-muted));
   --color-surface-muted: rgb(var(--wc-surface-input));
   --color-primary-foreground: rgb(var(--wc-accent-fg));
@@ -222,6 +227,9 @@
   --color-background: #f8fafc;
   --color-foreground: #0f172a;
   --color-surface: #ffffff;
+  /* The :root mapping points at the dark --wc-surface-input, so the light
+     contract has to restate it or every field stays slate-800 here. */
+  --color-field: #ffffff;
   --color-surface-muted: #f1f5f9;
   --color-surface-sunken: #e2e8f0;
   --color-surface-raised: #ffffff;

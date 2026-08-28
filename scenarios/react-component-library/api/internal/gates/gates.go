@@ -2059,6 +2059,22 @@ func interactiveElements(source string) []string {
 // source files: a released asset only earns this gate after the real
 // TypeScript/ESLint boundary has executed successfully.
 func ValidateTypes(root string) (Result, error) {
+	return ValidateTypesForAssets(root, nil)
+}
+
+// ValidateTypesForAssets runs catalog conformance over a subset of the library.
+//
+// assets names the library directories whose content changed, plus everything
+// that depends on them — the caller derives that closure from the generated
+// per-version locks. A nil or empty slice runs the full corpus, which is what
+// a cold pass and every direct caller do.
+//
+// The conformance script decides separately whether the catalog app has to be
+// recompiled, from the app's own transitive dependency closure. That is the
+// expensive half: a full pass measured 24.6s, a scoped pass touching something
+// the app depends on 21.7s, and a scoped pass touching something it does not
+// 1.0s. 147 of 238 assets fall in that last case.
+func ValidateTypesForAssets(root string, assets []string) (Result, error) {
 	uiDir := filepath.Join(root, "scenarios", "react-component-library", "ui")
 	if _, err := os.Stat(filepath.Join(uiDir, "package.json")); err != nil {
 		if os.IsNotExist(err) {
@@ -2095,6 +2111,11 @@ func ValidateTypes(root string) (Result, error) {
 	command := exec.CommandContext(ctx, "pnpm", "run", "catalog:check")
 	command.Dir = uiDir
 	command.Env = append(os.Environ(), "RCL_CATALOG_REPORT="+reportPath)
+	if len(assets) > 0 {
+		scope := append([]string(nil), assets...)
+		sort.Strings(scope)
+		command.Env = append(command.Env, "RCL_CATALOG_ASSETS="+strings.Join(scope, ","))
+	}
 	output, err := command.CombinedOutput()
 	if ctx.Err() != nil {
 		result.Findings = append(result.Findings, Finding{
@@ -2105,6 +2126,14 @@ func ValidateTypes(root string) (Result, error) {
 			DocsRef:     "docs/internal/TESTING.md",
 		})
 		return result, nil
+	}
+	// Report what was actually inspected rather than what the corpus contains,
+	// so a scoped pass cannot describe itself as a full one. A scope that
+	// matched no asset directory makes the script fail rather than report zero,
+	// because zero inspected files exiting clean is indistinguishable from a
+	// passing corpus.
+	if inspected, ok := inspectedFromReport(reportPath); ok {
+		result.Inspected = inspected
 	}
 	if err != nil {
 		message := strings.TrimSpace(string(output))
@@ -2121,20 +2150,55 @@ func ValidateTypes(root string) (Result, error) {
 		if len(attributed) == 0 || unattributed {
 			// Something failed that no single asset owns: the chain died before
 			// the compiler ran, or the diagnostics point outside library/. The
-			// gate cannot then claim any asset is clean, so this is a runner
-			// fault rather than a finding — the evidence mapper fails every
-			// asset closed on a runner fault, and passing them would be the one
-			// outcome the run does not support.
-			result.RunnerError = append(result.RunnerError, Finding{
+			// gate cannot then claim any asset is clean, so this goes to
+			// RunnerError, which the evidence mapper fails every asset closed
+			// on. Passing them is the one outcome the run does not support.
+			corpus := Finding{
 				Code:        "catalog.types_failed",
-				AssetID:     "__corpus__.types",
+				AssetID:     "",
 				Message:     "catalog conformance failed: " + message,
 				Remediation: "Reproduce with `pnpm run catalog:check` in scenarios/react-component-library/ui; the output above is that command's tail. Fix the reported type or lint errors at their source files — this gate deliberately reports the real toolchain's output rather than re-deriving its own verdict, so the failure it shows is the failure to fix.",
 				DocsRef:     "docs/internal/TESTING.md",
-			})
+			}
+			result.RunnerError = append(result.RunnerError, corpus)
+			// The same entry is repeated in Findings, and only for the
+			// calibration harness, which scans Findings alone and matches an
+			// empty AssetID. Removing it would flip this gate to
+			// non-discriminating and quarantine it, dropping every asset's
+			// types evidence to unmeasured.
+			//
+			// That quarantine would arguably be truthful: the types fixture
+			// cannot exercise this runner at all. Its overlay writes a 0-byte
+			// ui/package.json and omits packages/react-component-library
+			// entirely, so `pnpm run catalog:check` dies before the compiler
+			// starts, and the fixture has always been satisfied by that startup
+			// failure rather than by the type error it plants. Making the gate
+			// genuinely calibratable means giving the overlay a workspace the
+			// toolchain can run in, which is a change with its own cost — a
+			// full catalog:check inside every calibration pass — and its own
+			// decision to make. Recorded here rather than resolved silently in
+			// either direction.
+			result.Findings = append(result.Findings, corpus)
 		}
 	}
 	return result, nil
+}
+
+// inspectedFromReport reads the file count the conformance script actually
+// checked. It reports ok=false when the report is unusable, leaving the
+// caller's corpus-wide count in place rather than substituting a zero.
+func inspectedFromReport(reportPath string) (int, bool) {
+	raw, err := os.ReadFile(reportPath)
+	if err != nil {
+		return 0, false
+	}
+	var report struct {
+		Inspected *int `json:"inspected"`
+	}
+	if err := json.Unmarshal(raw, &report); err != nil || report.Inspected == nil {
+		return 0, false
+	}
+	return *report.Inspected, true
 }
 
 // catalogDiagnostic is one tsc or ESLint message, normalized by the conformance

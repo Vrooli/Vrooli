@@ -86,7 +86,7 @@ vi.mock("@xterm/xterm", () => ({
     rows: 24,
     options: {},
     buffer: { active: { viewportY: 0, baseY: 0, length: 0, getLine: () => ({ translateToString: () => "" }) } },
-    loadAddon: vi.fn(),
+    loadAddon: vi.fn(), attachCustomWheelEventHandler: vi.fn(),
     selectAll: vi.fn(),
     clear: vi.fn(),
     getSelection: vi.fn().mockReturnValue(""),

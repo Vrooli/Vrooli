@@ -28,7 +28,7 @@
     "1.0.1"
   ],
   "kind": "input",
-  "latest": "1.0.2",
+  "latest": "1.1.0",
   "libraryId": "react-component-library:Textarea",
   "slot": "ui-primitive",
   "tags": [

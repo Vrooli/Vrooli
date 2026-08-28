@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import type { Terminal } from "@xterm/xterm";
 import { readText } from "../../lib/clipboard";
 import { useTerminalTouch } from "../useTerminalTouch";
+import { useTerminalWheel } from "../useTerminalWheel";
 import { useMobileBackspaceRepeat } from "../useMobileBackspaceRepeat";
+import type { ScrollSource } from "../../lib/terminalScroll";
 import type { GateResult, InputIntent } from "../../components/terminal/inputGate";
 import type { InputSettlementCallback, InputSettledListener } from "./useStdinStream";
 
@@ -12,7 +14,7 @@ export function usePaneSelection(options: {
   terminal: Terminal | null;
   containerRef: RefObject<HTMLDivElement | null>;
   sendControl: (data: string) => boolean;
-  scrollBy: (lines: number, source: "touch" | "programmatic") => void;
+  scrollBy: (lines: number, source: ScrollSource) => void;
   fontSize: number;
   isFollower: boolean;
   onFontSizeCommit: (size: number) => void;
@@ -37,6 +39,7 @@ export function usePaneSelection(options: {
     onFontSizePreview,
     onContextMenu: useCallback((x: number, y: number) => { setContextMenu({ x, y }); }, []),
   });
+  useTerminalWheel({ terminal, containerRef, scrollBy });
   useMobileBackspaceRepeat(terminal);
 
   const closeContextMenu = useCallback(() => {

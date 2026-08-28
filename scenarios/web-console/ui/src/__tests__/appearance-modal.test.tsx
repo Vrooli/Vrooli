@@ -187,6 +187,49 @@ describe("AppearanceModal", () => {
     }
   });
 
+  it("renders the stepper as one field: unit and both steppers share a group", () => {
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    const value = screen.getByTestId("appearance-font-value");
+    const group = value.closest("[data-rcl-input-group]");
+    expect(group).not.toBeNull();
+    expect(screen.getByTestId("appearance-font-decrease").closest("[data-rcl-input-group]")).toBe(group);
+    expect(screen.getByTestId("appearance-font-increase").closest("[data-rcl-input-group]")).toBe(group);
+    // `px` is bound to the value as a suffix, not a loose sibling span.
+    const unit = screen.getByTestId("appearance-font-unit");
+    expect(unit.closest("[data-rcl-input-group-field]")).toBe(value.closest("[data-rcl-input-group-field]"));
+    expect(unit).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("publishes the font size range through the spinbutton role", () => {
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    // A bare text box could not state its own bounds; the previous control
+    // declared a range only in the JavaScript that clamped it.
+    const value = screen.getByTestId("appearance-font-value");
+    expect(value).toHaveAttribute("role", "spinbutton");
+    expect(value).toHaveAttribute("aria-valuemin", "8");
+    expect(value).toHaveAttribute("aria-valuemax", "24");
+    expect(value).toHaveAttribute("aria-valuenow", "14");
+  });
+
+  it("steps the font size from the keyboard", () => {
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    fireEvent.keyDown(screen.getByTestId("appearance-font-value"), { key: "ArrowUp" });
+    expect(mockStoreState.setDeviceFontSize).toHaveBeenCalledWith("sess-1", 15);
+  });
+
+  it("clamps a font size typed above the maximum", () => {
+    mockStoreState.appearanceModalPane = "sess-1";
+    render(<AppearanceModal />);
+    const value = screen.getByTestId("appearance-font-value");
+    fireEvent.focus(value);
+    fireEvent.change(value, { target: { value: "999" } });
+    fireEvent.blur(value);
+    expect(mockStoreState.setDeviceFontSize).toHaveBeenCalledWith("sess-1", 24);
+  });
+
   it("font decrease button calls setDeviceFontSize", () => {
     mockStoreState.appearanceModalPane = "sess-1";
     render(<AppearanceModal />);

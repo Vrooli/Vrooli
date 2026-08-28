@@ -8,7 +8,7 @@ import {
   TOUCH_SCROLL_CANCEL_PX,
   TOUCH_SCROLL_MIN_VELOCITY,
 } from "../consts/config";
-import { createScrollController, decayTouchScrollVelocity, touchScrollVelocity } from "../lib/terminalScroll";
+import { createLineAccumulator, createScrollController, decayTouchScrollVelocity, terminalCellHeight, touchScrollVelocity } from "../lib/terminalScroll";
 import { writeText } from "../lib/clipboard";
 import { clampFontSize } from "../lib/fontSizeUtils";
 
@@ -27,7 +27,18 @@ export interface UseTerminalTouchOptions {
    * deliberately bypass the reliable stdin gate.
    */
   sendControl?: (data: string) => boolean;
+  /**
+   * The production scroll seam, supplied by `useTerminalSession`. Prefer it:
+   * it is the only path wired to every scroll transport.
+   */
   scrollBy?: (lines: number, source: "touch") => void;
+  /**
+   * Server-side scrolling for standalone use without `scrollBy`. Without it a
+   * pane that has no client scrollback and no mouse tracking — which is every
+   * tmux-backed pane running a program that does not request the mouse — has
+   * nothing that can scroll it, and touch drags do nothing at all.
+   */
+  sendScroll?: (lines: number) => boolean;
   fontSize?: number;
   isFollower?: boolean;
   onFontSizeCommit?: (size: number) => void;
@@ -69,6 +80,11 @@ type GestureState =
        *  TOUCH_SCROLL_CANCEL_PX the long-press timer is cancelled — the
        *  gesture is clearly an intentional scroll, not tremor. */
       cumulativeDist: number;
+      /** Sub-row travel not yet converted into a scroll, in rows. Without it
+       *  a slow drag scrolls nothing at all: `lastY` advances to the finger on
+       *  every move, so any sample that rounds to zero rows is discarded, and
+       *  a 3px-per-event drag discards all of its travel forever. */
+      scrollResidual: number;
       /** The long-press timer is kept alive for small movements (hand tremor)
        *  but cancelled once cumulativeDist proves real scroll intent. */
       longPressTimer: ReturnType<typeof setTimeout> | null;
@@ -147,16 +163,6 @@ export function findWordBoundaries(
   return [start, end + 1];
 }
 
-/**
- * Derive cell height from the .xterm-screen element and terminal rows.
- * Returns 0 if the element is missing.
- */
-function getCellHeight(terminal: Terminal, container: HTMLElement): number {
-  const screenEl = container.querySelector<HTMLElement>(".xterm-screen");
-  if (!screenEl) return 0;
-  return screenEl.getBoundingClientRect().height / terminal.rows;
-}
-
 /** Get the tracked touch from changedTouches matching the current gesture. */
 function findGestureTouch(
   e: TouchEvent,
@@ -194,6 +200,7 @@ export function useTerminalTouch({
   onContextMenu,
   sendControl,
   scrollBy,
+  sendScroll,
   fontSize = 14,
   isFollower = false,
   onFontSizeCommit,
@@ -210,6 +217,8 @@ export function useTerminalTouch({
   sendControlRef.current = sendControl;
   const scrollByRef = useRef(scrollBy);
   scrollByRef.current = scrollBy;
+  const sendScrollRef = useRef(sendScroll);
+  sendScrollRef.current = sendScroll;
   const terminalRef = useRef<Terminal | null>(terminal);
   terminalRef.current = terminal;
   const fallbackScrollControllerRef = useRef<ReturnType<typeof createScrollController> | null>(null);
@@ -261,7 +270,7 @@ export function useTerminalTouch({
       screenEl.style.touchAction = "none";
     }
 
-    const cellH = (): number => getCellHeight(term, container);
+    const cellH = (): number => terminalCellHeight(term, container);
 
     function scrollTerminal(lines: number) {
       const providedScrollBy = scrollByRef.current;
@@ -273,6 +282,7 @@ export function useTerminalTouch({
         fallbackScrollControllerRef.current = createScrollController(
           () => terminalRef.current,
           (data) => sendControlRef.current?.(data) ?? false,
+          { sendScroll: (lines) => sendScrollRef.current?.(lines) ?? false },
         );
       }
       fallbackScrollControllerRef.current.scrollBy(lines, "touch");
@@ -283,6 +293,7 @@ export function useTerminalTouch({
       cancelMomentum();
       let v = velocity;
       let lastFrameAt = now();
+      const momentumLines = createLineAccumulator();
       const tick = () => {
         const timestamp = now();
         const elapsed = Math.max(1, timestamp - lastFrameAt);
@@ -294,7 +305,7 @@ export function useTerminalTouch({
         }
         const ch = cellH();
         if (ch > 0) {
-          const lines = Math.round(v / ch);
+          const lines = momentumLines.consume(v / ch);
           if (lines !== 0) scrollTerminal(lines);
         }
         momentumRafRef.current = requestAnimationFrame(tick);
@@ -462,6 +473,7 @@ export function useTerminalTouch({
             lastTime: performance.now(),
             velocity: 0,
             cumulativeDist: dist,
+            scrollResidual: 0,
             longPressTimer: g.longPressTimer,
           };
           e.preventDefault();
@@ -481,7 +493,11 @@ export function useTerminalTouch({
 
         const ch = cellH();
         if (ch > 0) {
-          const lines = Math.round(deltaY / ch);
+          // Work in rows, not pixels, so the carried remainder survives a
+          // font-size change mid-gesture.
+          const total = g.scrollResidual + deltaY / ch;
+          const lines = Math.round(total);
+          g.scrollResidual = total - lines;
           if (lines !== 0) {
             scrollTerminal(lines);
           }

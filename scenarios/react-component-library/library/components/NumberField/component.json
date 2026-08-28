@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "catalogId": "forms.number-field",
+  "category": "forms",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "description": "Bounded numeric input with joined steppers, a bound unit suffix, and draft-then-commit editing.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-command-display"
+    },
+    {
+      "affinity": "compatible",
+      "styleId": "vrooli-conversion-landing"
+    }
+  ],
+  "displayName": "Number Field",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
+  "kind": "input",
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:NumberField",
+  "slot": "ui-primitive",
+  "tags": [
+    "form",
+    "control",
+    "token-bound",
+    "numeric"
+  ]
+}

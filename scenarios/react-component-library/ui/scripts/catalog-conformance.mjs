@@ -150,14 +150,86 @@ function validateVersionLocalImports(filePath) {
   }
 }
 
+// An incremental pass checks only the assets whose content changed and the
+// assets that depend on them. The caller owns that closure — it is derived from
+// the generated per-version locks — and names the asset directories here.
+const scopedAssets = new Set(
+  (process.env.RCL_CATALOG_ASSETS ?? "").split(",").map((name) => name.trim()).filter(Boolean),
+);
+
+// The catalog app is the library's only in-repo consumer, and compiling it is
+// most of this gate's cost — about 16s of a 21s full pass. It only needs to be
+// recompiled when something it depends on changed.
+//
+// "Depends on" is transitive, not just what its own files import. The app
+// imports Button; Button imports ClassMerge; a ClassMerge edit can therefore
+// surface as an app-side error. The closure is read from the same generated
+// per-version locks the build resolves against, so a scope that names only a
+// deep foundation is still handled correctly — the decision does not rely on
+// the caller having closed the set first.
+function appDependencyClosure() {
+  const directlyImported = new Set();
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const child = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(child);
+        continue;
+      }
+      if (!/\.[cm]?[jt]sx?$/.test(entry.name)) continue;
+      for (const match of readFileSync(child, "utf8").matchAll(/@vrooli\/react-component-library\/([A-Za-z0-9_-]+)/g)) {
+        directlyImported.add(match[1]);
+      }
+    }
+  };
+  walk(path.join(uiDir, "src"));
+
+  const requires = new Map();
+  for (const assetRoot of assetRoots) {
+    for (const entry of readdirSync(assetRoot, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name === "shared") continue;
+      const manifestPath = path.join(assetRoot, entry.name, "component.json");
+      if (!existsSync(manifestPath)) continue;
+      const latest = String(readJSON(manifestPath).latest ?? "").trim();
+      const lockPath = path.join(assetRoot, entry.name, "versions", latest, "dependencies.json");
+      if (!latest || !existsSync(lockPath)) continue;
+      requires.set(
+        entry.name,
+        (readJSON(lockPath).dependencies ?? []).map((dependency) => String(dependency.libraryId ?? "").split(":").pop()).filter(Boolean),
+      );
+    }
+  }
+
+  const closure = new Set();
+  const pending = [...directlyImported];
+  while (pending.length > 0) {
+    const name = pending.pop();
+    if (closure.has(name)) continue;
+    closure.add(name);
+    for (const dependency of requires.get(name) ?? []) pending.push(dependency);
+  }
+  return closure;
+}
+
 function catalogFiles() {
-  return assetRoots
+  const files = assetRoots
     .flatMap((assetRoot) =>
       readdirSync(assetRoot, { withFileTypes: true })
         .filter((entry) => entry.isDirectory() && entry.name !== "shared")
+        .filter((entry) => scopedAssets.size === 0 || scopedAssets.has(entry.name))
         .flatMap((entry) => versionPaths(path.join(assetRoot, entry.name, "component.json"))),
     )
     .sort((a, b) => a.uiRelative.localeCompare(b.uiRelative));
+  // A scope that matches nothing would check zero files and exit clean, which
+  // is indistinguishable from a passing corpus — the exact shape of vacuous
+  // green this whole gate exists to avoid. Refuse instead.
+  if (scopedAssets.size > 0 && files.length === 0) {
+    throw new Error(
+      `RCL_CATALOG_ASSETS named ${scopedAssets.size} asset(s) that match no library directory: ` +
+        `${[...scopedAssets].sort().join(", ")}`,
+    );
+  }
+  return files;
 }
 
 function writeGeneratedTSConfig(outputPath, files) {
@@ -208,7 +280,7 @@ function writeGeneratedTSConfig(outputPath, files) {
           paths: { ...(catalogConfig.compilerOptions?.paths ?? {}), ...packagePaths },
         },
         files: [path.join(uiDir, "src/catalog-story-harness.d.ts"), ...files],
-        include: [path.join(uiDir, "src")],
+        include: compileApp ? [path.join(uiDir, "src")] : [],
       },
       null,
       2,
@@ -265,6 +337,19 @@ async function run(command, args, cwd = uiDir, environment = {}) {
 
 const mode = process.argv[2] ?? "check";
 const files = catalogFiles();
+// A full pass always compiles the app. A scoped pass compiles it only when a
+// changed asset is one the app imports — otherwise nothing the app depends on
+// moved, so it cannot newly fail.
+const compileApp = scopedAssets.size === 0 || (() => {
+  const closure = appDependencyClosure();
+  return [...scopedAssets].some((name) => closure.has(name));
+})();
+if (scopedAssets.size > 0) {
+  console.log(
+    `[catalog-conformance] incremental: ${files.length} file(s) across ${scopedAssets.size} changed asset(s); ` +
+      `catalog app ${compileApp ? "recompiled (it depends on one of them)" : "skipped (it depends on none of them)"}`,
+  );
+}
 const typeScriptFiles = ["type-check", "lint", "check"].includes(mode)
   ? typeScriptCheckFiles(files)
   : files.map((file) => file.uiRelative);
@@ -319,7 +404,10 @@ function writeReport() {
       diagnostics.push({ file: eslintFile, line: Number(row[1]), severity: row[3], message: `${row[4]}${row[5] ? ` (${row[5]})` : ""}`, source: "eslint" });
     }
   }
-  writeFileSync(reportPath, `${JSON.stringify({ schemaVersion: 1, mode, diagnostics }, null, 2)}\n`);
+  writeFileSync(
+    reportPath,
+    `${JSON.stringify({ schemaVersion: 1, mode, inspected: files.length, scope: [...scopedAssets].sort(), appCompiled: compileApp, diagnostics }, null, 2)}\n`,
+  );
 }
 
 function absolute(candidate) {

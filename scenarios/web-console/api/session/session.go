@@ -46,6 +46,14 @@ type mouseModeReader interface {
 	MouseMode() (bool, error)
 }
 
+type historyScroller interface {
+	Scroll(lines int) error
+}
+
+type altScreenReader interface {
+	PaneInAltScreen() (bool, error)
+}
+
 // SubscribeResult holds the channels and snapshot returned by Subscribe.
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-snapshot-replay
 type SubscribeResult struct {
@@ -102,20 +110,25 @@ type Session struct {
 	// ptyMu guards only ownership of the replaceable PTY pointer. It is never
 	// held while calling a PTY method; re-attach can therefore swap the
 	// pointer without blocking emulator or client state.
-	ptyMu             sync.RWMutex
-	inputQueue        chan queuedInput
-	inputStopCh       chan struct{}
-	inputStopOnce     sync.Once
-	echoMu            sync.Mutex
-	echoSampleMu      sync.Mutex
-	backendEcho       EchoState
-	backendEchoErr    error
-	echoSampled       bool
-	lastEchoSampleAt  time.Time
-	clients           map[chan []byte]*ClientInfo
-	outputCursor      int64
-	outputFrames      []OutputFrame
-	outputReplayBytes int
+	ptyMu          sync.RWMutex
+	inputQueue     chan queuedInput
+	inputStopCh    chan struct{}
+	inputStopOnce  sync.Once
+	echoMu         sync.Mutex
+	echoSampleMu   sync.Mutex
+	backendEcho    EchoState
+	backendEchoErr error
+	// backendAltScreen caches the pane's own alternate-screen state, sampled
+	// alongside the echo probe. It overrides the emulator's view because a
+	// tmux client puts the emulator in the alternate buffer for every session.
+	backendAltScreen      bool
+	backendAltScreenKnown bool
+	echoSampled           bool
+	lastEchoSampleAt      time.Time
+	clients               map[chan []byte]*ClientInfo
+	outputCursor          int64
+	outputFrames          []OutputFrame
+	outputReplayBytes     int
 	// acceptedThrough is the cumulative UTF-8 byte offset of reliable stdin
 	// accepted by this session. It survives WebSocket reconnects and is
 	// intentionally independent of connection-local sequence numbers.
@@ -244,13 +257,21 @@ const (
 // device and therefore never belong on a WebSocket output path.
 func (s *Session) EchoState() (EchoState, error) {
 	s.emuMu.Lock()
-	inAltBuffer := s.emu.InAltBuffer()
+	emulatorInAltBuffer := s.emu.InAltBuffer()
 	view := s.emu.View()
 	cursorAtLineEnd := view.Cols > 0 && view.Cursor.X >= view.Cols-1
 	s.emuMu.Unlock()
 
 	s.echoMu.Lock()
 	state, err := s.backendEcho, s.backendEchoErr
+	// The emulator reads the attach stream, and a tmux client enters the
+	// alternate screen on attach, so the emulator answers "alternate buffer"
+	// for every persistent pane regardless of what the pane runs. When the
+	// backend can report the pane's own state, that is the real answer.
+	inAltBuffer := emulatorInAltBuffer
+	if s.backendAltScreenKnown {
+		inAltBuffer = s.backendAltScreen
+	}
 	s.echoMu.Unlock()
 	state.InAltBuffer = inAltBuffer
 	state.CursorAtLineEnd = cursorAtLineEnd
@@ -278,16 +299,33 @@ func (s *Session) RefreshEchoState(force bool) bool {
 		changed := s.echoSampled || s.backendEchoErr != ErrEchoStateUnsupported
 		s.backendEcho = EchoState{}
 		s.backendEchoErr = ErrEchoStateUnsupported
+		s.backendAltScreen, s.backendAltScreenKnown = false, false
 		s.echoSampled = true
 		s.echoMu.Unlock()
 		return changed
 	}
 
 	state, err := provider.TerminalEchoState()
+
+	// Sample the pane's own alternate-screen state on the same bounded
+	// cadence. A backend that cannot report it leaves the cache unknown and
+	// EchoState falls back to the emulator.
+	s.ptyMu.RLock()
+	altReader, hasAltReader := s.pty.(altScreenReader)
+	s.ptyMu.RUnlock()
+	altScreen, altScreenKnown := false, false
+	if hasAltReader {
+		if value, altErr := altReader.PaneInAltScreen(); altErr == nil {
+			altScreen, altScreenKnown = value, true
+		}
+	}
+
 	s.echoMu.Lock()
-	changed := !s.echoSampled || state != s.backendEcho || !sameError(s.backendEchoErr, err)
+	changed := !s.echoSampled || state != s.backendEcho || !sameError(s.backendEchoErr, err) ||
+		altScreen != s.backendAltScreen || altScreenKnown != s.backendAltScreenKnown
 	s.backendEcho = state
 	s.backendEchoErr = err
+	s.backendAltScreen, s.backendAltScreenKnown = altScreen, altScreenKnown
 	s.echoSampled = true
 	s.echoMu.Unlock()
 	return changed
@@ -320,6 +358,20 @@ func (s *Session) SetMouseMode(enabled bool) error {
 		return pty.ErrUnsupported
 	}
 	return controller.SetMouseMode(enabled)
+}
+
+// Scroll moves the backend's own scrollback view. It exists because a tmux
+// client keeps the browser terminal in the alternate screen buffer for the
+// whole session, so the browser has no scrollback of its own to move and the
+// pane's tmux history is the only history there is. Backends without their
+// own history return the shared unsupported sentinel; their panes keep real
+// client-side scrollback and never send this.
+func (s *Session) Scroll(lines int) error {
+	scroller, ok := s.currentPTY().(historyScroller)
+	if !ok {
+		return pty.ErrUnsupported
+	}
+	return scroller.Scroll(lines)
 }
 
 // MouseMode reports the current backend-owned mouse capture state. The

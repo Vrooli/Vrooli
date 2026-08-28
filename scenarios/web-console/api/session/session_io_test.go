@@ -2,6 +2,7 @@ package session
 
 import (
 	"bytes"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -80,5 +81,131 @@ func TestEchoStateUsesCachedBackendSample(t *testing.T) {
 	}
 	if state.EchoEnabled {
 		t.Fatal("EchoState returned stale cached echo state")
+	}
+}
+
+// paneAltScreenPTY reports the pane's own alternate-screen state, the way a
+// tmux-backed PTY does. samples counts probes so the test can prove the
+// backend is read on the bounded cadence rather than on every read.
+type paneAltScreenPTY struct {
+	*ptyfake.FakePTYWithOutput
+	samples  atomic.Int32
+	altState atomic.Bool
+	probeErr error
+}
+
+func (p *paneAltScreenPTY) TerminalEchoState() (EchoState, error) {
+	return EchoState{Known: true, EchoEnabled: true}, nil
+}
+
+func (p *paneAltScreenPTY) PaneInAltScreen() (bool, error) {
+	p.samples.Add(1)
+	if p.probeErr != nil {
+		return false, p.probeErr
+	}
+	return p.altState.Load(), nil
+}
+
+// TestEchoStatePrefersPaneAltScreenOverEmulator locks in which artifact is the
+// source of truth for "is the program full-screen".
+//
+// The emulator reads the tmux attach stream, and a tmux client emits
+// `\x1b[?1049h` the moment it attaches. The emulator therefore answers
+// "alternate buffer" for every persistent pane, whether it runs a shell or a
+// full-screen TUI. Predictive echo is gated on this flag, so trusting the
+// emulator silently disabled prediction for every tmux-backed session.
+func TestEchoStatePrefersPaneAltScreenOverEmulator(t *testing.T) {
+	p := &paneAltScreenPTY{FakePTYWithOutput: ptyfake.NewFakePTYWithOutput()}
+	s := &Session{
+		pty: p,
+		emu: terminal.New(terminal.Options{Cols: 80, Rows: 24}),
+	}
+
+	// Put the emulator in the alternate buffer, exactly as a tmux attach does.
+	s.emuMu.Lock()
+	_, _ = s.emu.Feed([]byte("\x1b[?1049h"))
+	emulatorSaysAlt := s.emu.InAltBuffer()
+	s.emuMu.Unlock()
+	if !emulatorSaysAlt {
+		t.Fatal("precondition: emulator did not enter the alternate buffer")
+	}
+
+	// The pane runs an ordinary shell, so the answer must be false despite
+	// the emulator, because the emulator is describing tmux, not the program.
+	s.RefreshEchoState(true)
+	state, err := s.EchoState()
+	if err != nil {
+		t.Fatalf("EchoState(): %v", err)
+	}
+	if state.InAltBuffer {
+		t.Fatal("InAltBuffer reported the tmux client's screen instead of the pane's")
+	}
+
+	// When the pane's program really does go full-screen, the flag follows it.
+	p.altState.Store(true)
+	s.echoSampleMu.Lock()
+	s.lastEchoSampleAt = time.Time{}
+	s.echoSampleMu.Unlock()
+	if !s.RefreshEchoState(false) {
+		t.Fatal("RefreshEchoState did not report the pane entering the alternate screen")
+	}
+	state, err = s.EchoState()
+	if err != nil {
+		t.Fatalf("EchoState() after the pane went full-screen: %v", err)
+	}
+	if !state.InAltBuffer {
+		t.Fatal("InAltBuffer did not follow the pane into the alternate screen")
+	}
+}
+
+// TestEchoStateFallsBackToEmulatorWithoutPaneProbe keeps non-tmux backends
+// working: a PTY that cannot report its pane state must leave the emulator in
+// charge rather than defaulting the answer to false.
+func TestEchoStateFallsBackToEmulatorWithoutPaneProbe(t *testing.T) {
+	p := &echoCountingPTY{
+		FakePTYWithOutput: ptyfake.NewFakePTYWithOutput(),
+		state:             EchoState{Known: true, EchoEnabled: true},
+	}
+	s := &Session{
+		pty: p,
+		emu: terminal.New(terminal.Options{Cols: 80, Rows: 24}),
+	}
+	s.emuMu.Lock()
+	_, _ = s.emu.Feed([]byte("\x1b[?1049h"))
+	s.emuMu.Unlock()
+
+	s.RefreshEchoState(true)
+	state, err := s.EchoState()
+	if err != nil {
+		t.Fatalf("EchoState(): %v", err)
+	}
+	if !state.InAltBuffer {
+		t.Fatal("a backend without a pane probe must keep the emulator's answer")
+	}
+}
+
+// TestEchoStateIgnoresFailedPaneProbe asserts a failing probe does not get
+// mistaken for "the pane is not full-screen". A permission or timeout failure
+// and a genuine false must not share a value.
+func TestEchoStateIgnoresFailedPaneProbe(t *testing.T) {
+	p := &paneAltScreenPTY{
+		FakePTYWithOutput: ptyfake.NewFakePTYWithOutput(),
+		probeErr:          errors.New("tmux unavailable"),
+	}
+	s := &Session{
+		pty: p,
+		emu: terminal.New(terminal.Options{Cols: 80, Rows: 24}),
+	}
+	s.emuMu.Lock()
+	_, _ = s.emu.Feed([]byte("\x1b[?1049h"))
+	s.emuMu.Unlock()
+
+	s.RefreshEchoState(true)
+	state, err := s.EchoState()
+	if err != nil {
+		t.Fatalf("EchoState(): %v", err)
+	}
+	if !state.InAltBuffer {
+		t.Fatal("a failed pane probe was treated as a confident 'not full-screen'")
 	}
 }

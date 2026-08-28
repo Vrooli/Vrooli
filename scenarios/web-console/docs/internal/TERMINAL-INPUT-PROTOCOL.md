@@ -70,7 +70,7 @@ lease transfer or make a single viewer look like a follower.
 | Field | Type | Required | Semantics |
 |---|---|---|---|
 | `mouse_mode_known` | `boolean` | yes | `true` only for a persistent tmux-backed pane that exposes mouse capture. |
-| `mouse_mode` | `boolean` | when known | Current tmux mouse-capture state. `false` is the default and means browser-local scrollback remains in control. |
+| `mouse_mode` | `boolean` | when known | Current tmux mouse-capture state. `false` is the default; it does **not** mean browser-local scrollback is in control — see "Who owns scrolling" below. |
 
 ### `mouse_mode` (client ↔ server)
 
@@ -80,6 +80,55 @@ lease transfer or make a single viewer look like a follower.
 | `data` | `"on"` \| `"off"` \| `"unsupported"` | yes | Client sends `on` or `off`; the server echoes the applied state. Unsupported backends return `unsupported` and do not change terminal input. |
 | `ok` | `boolean` | server response | `true` only when the tmux option was changed successfully. |
 | `reason` | `string` | on unsupported/rejected | Diagnostic detail; it is not written into the terminal buffer. |
+
+### `scroll` (client ↔ server)
+
+| Field | Type | Required | Semantics |
+|---|---|---|---|
+| `type` | `"scroll"` | yes | Asks the backend to move its own scrollback view. |
+| `lines` | `number` | yes | Terminal rows. Negative scrolls back toward older output, positive scrolls forward toward live output. `0` is ignored without a reply. |
+| `ok` | `boolean` | server response | `true` when the backend scrolled; the reply echoes `lines`. |
+| `data` | `"unsupported"` | on rejection | The backend owns no history of its own; the pane keeps real client-side scrollback. |
+| `reason` | `string` | on rejection | Diagnostic detail; it is never written into the terminal buffer. |
+
+Like `control`, this frame is best-effort: it carries no offset, never enters
+the reliable-input offset space, and is never replayed after a reconnect. A
+scroll position is a view of the present, not a piece of the input stream.
+
+## Who owns scrolling
+
+Three different things can move a pane's view, and exactly one of them is
+correct at any moment. Picking the wrong one is not a cosmetic bug: xterm's
+fallback delivers cursor keys as **real stdin**.
+
+| Terminal state | Owner | Mechanism |
+|---|---|---|
+| The program requested mouse tracking | The program | xterm encodes the wheel as a mouse report; the program scrolls itself. |
+| No mouse tracking, xterm holds scrollback | The browser | xterm scrolls its own viewport using `scrollSensitivity`. |
+| No mouse tracking, no scrollback | The **server** | The client sends a `scroll` frame; the backend walks its own history. |
+
+The third row is not an edge case, it is every persistent pane. **A tmux client
+emits `\x1b[?1049h` the moment it attaches**, so the browser terminal sits in
+the alternate screen buffer for the entire life of the session, whatever the
+pane runs. Two consequences follow, and both have bitten us:
+
+- `terminal.scrollLines()` is a guaranteed no-op on such a pane. "Not in mouse
+  tracking mode" therefore never implies "local scrollback is in control".
+- xterm's built-in wheel handler, seeing no scrollback, translates each wheel
+  notch into an `ESC [ A` / `ESC [ B` cursor key and submits it through
+  `onData` as ordinary input. In an interactive agent whose composer binds
+  Up/Down to message history, scrolling silently rewrites the operator's draft.
+
+`useTerminalWheel` therefore claims the wheel through
+`attachCustomWheelEventHandler` for the third row only, and defers to xterm for
+the first two.
+
+The same `\x1b[?1049h` is why `echo_state.in_alt_buffer` is sampled from the
+pane's own `#{alternate_on}` rather than from the server-side emulator: the
+emulator reads the attach stream, so it reports the alternate buffer for every
+tmux session regardless of what the pane runs. Predictive echo is gated on that
+flag, so reading it from the emulator disabled prediction for every persistent
+pane.
 
 ## Input lanes and delivery paths
 
