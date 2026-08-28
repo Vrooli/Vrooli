@@ -15,6 +15,11 @@
     "reason": "The foundation exports icon data and helpers only; it has no DOM-owned root."
   },
   {
+    "asset": "foundations.icon-geometry",
+    "kind": "permanent",
+    "reason": "The foundation exports pure geometry functions only; it renders nothing and has no DOM-owned root."
+  },
+  {
     "asset": "foundations.tokens",
     "kind": "permanent",
     "reason": "The foundation exports token data only; it has no DOM-owned root."

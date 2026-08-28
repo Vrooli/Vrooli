@@ -300,6 +300,30 @@
       "testId": "manage-groups-sort",
       "selector": "[data-testid=\"manage-groups-sort\"]"
     },
+    "groups.closeMenuItem": {
+      "testId": "group-ctx-close-group",
+      "selector": "[data-testid=\"group-ctx-close-group\"]"
+    },
+    "groups.closeConfirm": {
+      "testId": "close-group-confirm",
+      "selector": "[data-testid=\"close-group-confirm\"]"
+    },
+    "groups.closeCancel": {
+      "testId": "close-group-cancel",
+      "selector": "[data-testid=\"close-group-cancel\"]"
+    },
+    "groups.closeAlsoSessions": {
+      "testId": "close-group-also-sessions",
+      "selector": "[data-testid=\"close-group-also-sessions\"]"
+    },
+    "groups.closeSummary": {
+      "testId": "close-group-summary",
+      "selector": "[data-testid=\"close-group-summary\"]"
+    },
+    "groups.closeConsequence": {
+      "testId": "close-group-consequence",
+      "selector": "[data-testid=\"close-group-consequence\"]"
+    },
     "groups.assignPicker": {
       "testId": "group-assign-picker",
       "selector": "[data-testid=\"group-assign-picker\"]"

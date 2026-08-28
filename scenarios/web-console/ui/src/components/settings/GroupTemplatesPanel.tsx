@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { GripVertical, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { MasterDetail } from "@vrooli/react-component-library/MasterDetail/1";
 import { Sortable } from "@vrooli/react-component-library/Sortable/1";
 
@@ -150,16 +151,15 @@ export default function GroupTemplatesPanel() {
               <span className="block truncate text-sm text-wc-text-primary">{item.title}</span>
               <span className="block truncate text-[11px] text-wc-text-faint">{item.summary}</span>
             </button>
-            <button
-              type="button"
+            <IconButton
               data-testid={`group-template-delete-${item.id}`}
               aria-label={t(strings.groupTemplates.delete)}
-              title={t(strings.groupTemplates.delete)}
-              className="shrink-0 rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+              surface="danger"
+              className="shrink-0"
               onClick={() => { void remove(item.id); }}
             >
-              <Trash2 className="h-4 w-4" />
-            </button>
+              <Trash2 />
+            </IconButton>
           </div>
         )}
         renderDetail={() => null}

@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { ErrorInfo } from "../lib/errors";
 import { cn } from "../lib/classnames";
 import { strings } from "../consts/strings";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 
 // Re-export so existing importers of ErrorInfo from this file continue to work.
 export type { ErrorInfo } from "../lib/errors";
@@ -49,13 +50,14 @@ export default function ErrorBanner({
             {t(strings.errorBanner.retry)}
           </button>
         )}
-        <button
+        <IconButton
           onClick={onDismiss}
           aria-label={t(strings.errorBanner.dismiss)}
-          className="shrink-0 p-0.5 hover:text-red-100"
+          size="sm"
+          className="shrink-0"
         >
-          <X className="h-3 w-3" />
-        </button>
+          <X />
+        </IconButton>
       </div>
       {error.recovery && (
         <p data-testid="error-recovery-hint" className="mt-1 text-xs text-wc-error-detail/70 ps-6">

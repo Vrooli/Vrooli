@@ -110,6 +110,7 @@ export default function SessionSidebar({
   const movePaneToIndex = useWorkspaceStore((s) => s.movePaneToIndex);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const setManageGroupsOpen = useWorkspaceStore((s) => s.setManageGroupsOpen);
+  const setCloseGroupTarget = useWorkspaceStore((s) => s.setCloseGroupTarget);
   // Which session the group overlay is open for, if any.
   const [assignPicker, setAssignPicker] = useState<{ sessionId: string } | null>(null);
   const setAppearanceModalPane = useWorkspaceStore((s) => s.setAppearanceModalPane);
@@ -815,6 +816,7 @@ export default function SessionSidebar({
             onNewSession={() => { onNewSessionInGroup(group.id); }}
             onToggleCollapse={() => { toggleGroupCollapsed(group.id); }}
             onManageGroups={() => { setManageGroupsOpen(true); }}
+            onCloseGroup={() => { setCloseGroupTarget(group.id); }}
             onDismiss={() => { setGroupMenu(null); }}
           />
         );

@@ -457,7 +457,9 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     expect(onInput).toHaveBeenCalledWith("\x1b", "typing");
     expect(onFocusTerminal).toHaveBeenCalled();
     expect(screen.getByTestId("expand-toggle")).toBeInTheDocument();
-    expect(screen.getByTestId("expand-toggle")).toHaveClass("min-h-11", "min-w-11");
+    // The composer's expand affordance is an icon button and owns its own
+    // comfortable target; the send key is a toolbar key and declares one.
+    expect(screen.getByTestId("expand-toggle")).toHaveAttribute("data-rcl-tap-target", "comfortable");
     expect(screen.getByTestId("mobile-command-submit")).toHaveClass("min-h-11", "min-w-11");
     fireEvent.click(screen.getByTestId("toolbar-ai"));
     fireEvent.click(screen.getByTestId("toolbar-upload-image"));
@@ -469,6 +471,8 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     renderToolbar({ onOpenAi: vi.fn(), onUploadImage: vi.fn(), onExpandComposer: vi.fn() });
 
     expect(screen.getByTestId("mobile-command-input")).toHaveAttribute("data-rcl-textarea", "true");
+    // IconButton 3.x owns its own host element rather than forwarding to the
+    // shared text-button control, so the icon controls carry their own marker.
     expect(screen.getByTestId("mobile-command-submit")).toHaveAttribute("data-rcl-control", "true");
     expect(screen.getByRole("button", { name: "Arrow up" })).toHaveAttribute("data-rcl-control", "true");
   });
@@ -619,6 +623,7 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     const { rerender } = renderToolbar({ onOpenAi, onUploadImage, voice });
 
     expect(screen.getByTestId("toolbar-ai")).toHaveAttribute("data-active", "true");
+    expect(screen.getByTestId("toolbar-ai")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("toolbar-ai").style.getPropertyValue("--color-surface")).toBe("rgb(var(--wc-accent) / 0.2)");
     expect(screen.getByTestId("toolbar-mod-ctrl")).toHaveAttribute("data-active", "true");
     // The glyph stays the size of its neighbours whatever the density does to

@@ -25,10 +25,12 @@ interface RoleRowProps {
 /**
  * A role that has not started.
  *
- * The dashed border is the whole message: this is a position the operator has
- * reserved, not a session that is running. A solid row would read as a
- * terminal that is merely quiet, which is the one impression this must not
- * give — the operator needs to know nothing is happening here yet.
+ * "Not running" is said by the row's INTERIOR — a hollow accent bar where a
+ * running session has a solid one, a muted ground, faint text and a WAITING
+ * pill — never by its outline. The outline belongs to the group: a waiting
+ * role is a member, and giving it its own dashed box detached it from the
+ * block, so a group with one running session and one waiting role read as two
+ * unrelated things stacked on top of each other.
  */
 export default function RoleRow({
   role,
@@ -66,11 +68,21 @@ export default function RoleRow({
     <div
       data-testid={`sidebar-waiting-role-${role.id}`}
       className={cn(
-        "group relative mb-1 flex w-full items-center gap-2 border border-s border-dashed border-wc-default bg-wc-surface-base/25 px-2 py-2 text-start",
+        // Same container as a pane row in the same block: solid border, the
+        // group's colour on the leading edge, no top border because whatever
+        // sits above already drew it.
+        "group relative flex w-full items-center gap-2 border border-s border-t-0 border-wc-default bg-wc-surface-base/25 px-2 py-2 text-start",
         isLastInGroup ? "mb-2 rounded-b" : "rounded-none",
       )}
-      style={{ borderLeftColor: group.color, borderLeftStyle: "solid" }}
+      style={{ borderLeftColor: group.color }}
     >
+      {/* A hollow twin of the accent bar a running session carries. Same
+          place, same size, drawn rather than filled. */}
+      <span
+        className="h-8 w-1.5 shrink-0 rounded-full border border-dashed"
+        style={{ borderColor: group.color }}
+        aria-hidden
+      />
       <button
         type="button"
         data-testid={`sidebar-waiting-role-start-${role.id}`}

@@ -28,6 +28,7 @@ import { getConversationRange, searchConversation, type ConversationEvent, type 
 import { useFilePreviewController } from "./file-preview/useFilePreviewController";
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { looksLikeFileReference } from "../lib/fileReferences";
 import { MarkdownRenderer } from "./markdown";
 import { useVirtualList } from "../hooks/useVirtualList";
@@ -1167,19 +1168,18 @@ export default function MessagesPane({
         data-testid="messages-control-strip"
         className="z-wc-chrome flex items-center justify-start gap-1.5 bg-wc-surface-base/80 py-1.5 backdrop-blur-sm"
       >
-        <button
+        <IconButton
           data-testid="messages-search-btn"
           onClick={() => { openNavigator("search"); }}
-          aria-pressed={!!searchQuery}
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm",
-            searchQuery && "ring-1 ring-wc-accent/50 text-wc-text-primary",
-          )}
-          title={t(strings.messagesPane.searchMessagesTitle)}
-          type="button"
+          selected={!!searchQuery}
+          surface="soft"
+          size="xs"
+          denseTapTarget
+          className={cn(searchQuery && "ring-1 ring-wc-accent/50")}
+          aria-label={t(strings.messagesPane.searchMessagesTitle)}
         >
-          <Search className="h-3.5 w-3.5" />
-        </button>
+          <Search />
+        </IconButton>
 
         <button
           data-testid="msg-jump-trigger"
@@ -1193,36 +1193,42 @@ export default function MessagesPane({
           <span className="font-mono">{jumpLabel}</span>
         </button>
 
-        <button
+        <IconButton
           data-testid="messages-nav-up"
           onClick={handleNavUp}
           disabled={navIds.length === 0}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-          title={searchQuery ? t(strings.messagesPane.prevMatchTitle) : t(strings.messagesPane.prevMessageTitle)}
-          type="button"
+          surface="soft"
+          size="xs"
+          denseTapTarget
+          aria-label={searchQuery ? t(strings.messagesPane.prevMatchTitle) : t(strings.messagesPane.prevMessageTitle)}
         >
-          <ChevronUp className="h-3.5 w-3.5" />
-        </button>
-        <button
+          <ChevronUp />
+        </IconButton>
+        <IconButton
           data-testid="messages-nav-down"
           onClick={handleNavDown}
           disabled={navIds.length === 0}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-30 disabled:pointer-events-none"
-          title={searchQuery ? t(strings.messagesPane.nextMatchTitle) : t(strings.messagesPane.nextMessageTitle)}
-          type="button"
+          surface="soft"
+          size="xs"
+          denseTapTarget
+          aria-label={searchQuery ? t(strings.messagesPane.nextMatchTitle) : t(strings.messagesPane.nextMessageTitle)}
         >
-          <ChevronDown className="h-3.5 w-3.5" />
-        </button>
-        <button
+          <ChevronDown />
+        </IconButton>
+        <IconButton
           data-testid="messages-refresh-btn"
           onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm disabled:opacity-60 disabled:pointer-events-none"
-          title={t(strings.messagesPane.refreshTitle)}
-          type="button"
+          // The control owns the busy affordance, so the spin is no longer a
+          // class the call site has to remember to add and remove.
+          pending={isRefreshing}
+          pendingLabel={t(strings.messagesPane.refreshTitle)}
+          surface="soft"
+          size="xs"
+          denseTapTarget
+          aria-label={t(strings.messagesPane.refreshTitle)}
         >
-          <RotateCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
-        </button>
+          <RotateCw />
+        </IconButton>
         {toolbarTrailingAction && (
           <div data-testid="messages-control-trailing" className="ms-auto flex items-center">
             {toolbarTrailingAction}
@@ -1340,15 +1346,15 @@ export default function MessagesPane({
       )}
 
       {newMessageCount === 0 && !isNearBottom && events.length > 0 && (
-        <button
+        <IconButton
           data-testid="msg-jump-bottom"
           aria-label={t(strings.messagesPane.jumpToBottomAria)}
           onClick={scrollToBottom}
-          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-wc-chrome-raised -translate-x-1/2 rounded-full border border-wc-default bg-wc-surface-raised/60 p-2 text-wc-text-secondary shadow-lg backdrop-blur-sm transition-all hover:bg-wc-surface-input hover:text-wc-text-primary"
-          type="button"
+          surface="soft"
+          className="absolute bottom-[max(1rem,var(--wc-safe-bottom,0px))] left-1/2 z-wc-chrome-raised -translate-x-1/2 shadow-lg"
         >
-          <ArrowDown className="h-4 w-4" />
-        </button>
+          <ArrowDown />
+        </IconButton>
       )}
 
       <MessagesFileViewer

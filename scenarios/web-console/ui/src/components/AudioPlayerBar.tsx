@@ -12,6 +12,7 @@ import { AudioSettingsContent } from "./tts/AudioSettingsContent";
 import { PlaybackModeControl, type SummarizationLevel } from "./tts/PlaybackModeControl";
 import { getScrubClasses } from "./tts/scrubStyles";
 import MessageJumpList from "./MessageJumpList";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 
 export interface AudioPlayerBarProps {
   isPaused: boolean;
@@ -157,22 +158,18 @@ export default function AudioPlayerBar({
         onChangeLevel={onChangeLevel}
       />
 
-      <button
+      <IconButton
         data-testid="tts-play-pause"
         onClick={handlePlayPause}
         disabled={isLoading || !capabilities.canPause}
-        className={cn(
-          "shrink-0 rounded p-1 transition hover:bg-wc-accent/10",
-          isLoading && "cursor-wait text-wc-accent",
-          (isLoading || !capabilities.canPause) && "opacity-60",
-          !isLoading && !capabilities.canPause && "cursor-not-allowed",
-        )}
-        title={isLoading ? t(strings.app.loading) : isPaused ? t(strings.audioPlayerBar.resume) : t(strings.audioPlayerBar.pause)}
+        size="sm"
+        className={cn("shrink-0", !isLoading && !capabilities.canPause && "cursor-not-allowed")}
+        aria-label={isLoading ? t(strings.app.loading) : isPaused ? t(strings.audioPlayerBar.resume) : t(strings.audioPlayerBar.pause)}
       >
         {isLoading
-          ? <Loader2 data-testid="tts-playback-loading" className="h-4 w-4 animate-spin" />
-          : isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-      </button>
+          ? <Loader2 data-testid="tts-playback-loading" className="animate-spin" />
+          : isPaused ? <Play /> : <Pause />}
+      </IconButton>
 
       {currentMessageLabel && (
         <button
@@ -262,16 +259,15 @@ export default function AudioPlayerBar({
       )}
 
       {onDismiss && (
-        <button
+        <IconButton
           data-testid="tts-dismiss"
-          type="button"
           onClick={onDismiss}
-          className="shrink-0 rounded p-1 text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
-          title={t(strings.audioPlayerBar.closePlayback)}
+          size="sm"
+          className="shrink-0"
           aria-label={t(strings.audioPlayerBar.closePlayback)}
         >
-          <X className="h-4 w-4" />
-        </button>
+          <X />
+        </IconButton>
       )}
 
       {/* Popover / bottom sheet — always rendered via portal to escape terminal touch handlers */}

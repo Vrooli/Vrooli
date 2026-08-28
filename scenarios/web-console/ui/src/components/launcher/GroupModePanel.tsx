@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Clock, GripVertical, Loader2, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
@@ -6,6 +6,7 @@ import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0
 import { listGroupTemplates, type GroupTemplateDTO, type StartMode, type TemplateRoleDTO } from "../../api/grouptemplates";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
+import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { Button } from "../ui/button";
 
 // [REQ:P0-014g] Group Templates
@@ -199,15 +200,39 @@ export default function GroupModePanel({
   const [templateId, setTemplateId] = useState<string>("");
   const [name, setName] = useState("");
   const [roles, setRoles] = useState<TemplateRoleDTO[]>([]);
+  const lastGroupTemplateId = useWorkspaceStore((s) => s.lastGroupTemplateId);
+  const setLastGroupTemplateId = useWorkspaceStore((s) => s.setLastGroupTemplateId);
+  // Restoring is a one-shot: an operator who then picks "No template" has
+  // made a choice, and re-applying the remembered id would undo it.
+  const restoredRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
     listGroupTemplates()
-      .then((next) => { if (!cancelled) setTemplates(next); })
+      .then((next) => {
+        if (cancelled) return;
+        setTemplates(next);
+        // Offer the template chosen last, but only if it still exists — a
+        // deleted template must not preselect a name that resolves to
+        // nothing. Whichever the operator picks next replaces it.
+        if (restoredRef.current) return;
+        restoredRef.current = true;
+        if (lastGroupTemplateId && next.some((tpl) => tpl.id === lastGroupTemplateId)) {
+          setTemplateId(lastGroupTemplateId);
+        }
+      })
       .catch((error: unknown) => { console.error("Failed to load group templates:", error); });
     return () => { cancelled = true; };
+    // lastGroupTemplateId is read once per open, deliberately: this effect
+    // restores a preference, it does not track it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const chooseTemplate = (id: string) => {
+    setTemplateId(id);
+    setLastGroupTemplateId(id || null);
+  };
 
   const template = useMemo(
     () => templates.find((tpl) => tpl.id === templateId) ?? null,
@@ -230,7 +255,7 @@ export default function GroupModePanel({
     <div className="space-y-4">
       {/* Template and machine: the two one-line decisions, on one line. */}
       <div className="flex flex-wrap items-center gap-2">
-        <TemplatePicker templates={templates} templateId={templateId} onSelect={setTemplateId} />
+        <TemplatePicker templates={templates} templateId={templateId} onSelect={chooseTemplate} />
         {machineSlot}
       </div>
 

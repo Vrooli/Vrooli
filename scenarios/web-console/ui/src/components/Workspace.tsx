@@ -71,6 +71,7 @@ import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
 import AppearanceModal from "./AppearanceModal";
 import ManageGroupsDrawer from "./ManageGroupsDrawer";
+import CloseGroupDialog from "./CloseGroupDialog";
 import HandoffComposer from "./handoff/HandoffComposer";
 import type { RoleMeta } from "../stores/useWorkspaceStore";
 import GroupUndoBanner from "./GroupUndoBanner";
@@ -80,6 +81,7 @@ import { useRoleActions } from "../hooks/useRoleActions";
 import { sendHandoff, targetsForSession, type HandoffTarget } from "../hooks/useHandoff";
 import type { GroupCreationRequest } from "./launcher/GroupModePanel";
 import { listGroupTemplates, upsertGroupTemplate } from "../api/grouptemplates";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import WorkspacePaneShell from "./WorkspacePaneShell";
 import TabBar from "./TabBar";
@@ -251,7 +253,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const setActiveWorkspacePane = workspace.setActivePane;
   const vadAutoStop = workspace.vadAutoStop;
   const { syncActivePane, syncPaneUpdate, syncPaneOrder, syncPaneMove } = useWorkspaceSync();
-  const { createNamedGroup, closeGroupIfFinished, restoreClosedGroup, dismissClosedGroupUndo } = useGroupActions();
+  const { createNamedGroup, closeGroup, closeGroupIfFinished, restoreClosedGroup, dismissClosedGroupUndo } = useGroupActions();
   const { createRole, updateRole, removeRole, setRoleSession } = useRoleActions();
   const updateWorkspaceGroup = useWorkspaceStore((s) => s.updateGroup);
   const { syncUpdateGroup } = useWorkspaceSync();
@@ -1305,24 +1307,30 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, []);
 
   const renderViewToggleButton = useCallback(() => (
-    <button
+    <IconButton
       data-testid="workspace-toggle-view"
       data-view-mode={activeViewMode}
-      className="flex h-8 w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 text-wc-text-secondary backdrop-blur-sm transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary"
+      // This one control is rendered from two different parents — floating
+      // over the terminal in one view, inline in the messages toolbar in the
+      // other — so switching views remounts it. Without a stable identity the
+      // new instance has no memory of the icon it replaced and skips the swap.
+      swapIdentity="workspace-view-toggle"
+      surface="soft"
+      size="xs"
+      denseTapTarget
       onClick={() => {
         if (workspace.activePane) {
           handlePaneToggleView(workspace.activePane, activeViewMode);
         }
       }}
-      title={activeViewMode === "terminal" ? t(strings.workspace.switchToMessagesTitle) : t(strings.workspace.switchToTerminalTitle)}
-      type="button"
+      // Dimmed rather than `pending`: the view flips synchronously on click
+      // while the pending window stays open through hydration, so hiding the
+      // glyph would hide the icon swap that is the whole point of the control.
+      disabled={viewSwitchPendingPane === workspace.activePane}
+      aria-label={activeViewMode === "terminal" ? t(strings.workspace.switchToMessagesTitle) : t(strings.workspace.switchToTerminalTitle)}
     >
-      {viewSwitchPendingPane === workspace.activePane
-        ? <Loader2 data-testid="workspace-toggle-view-pending" className="h-3.5 w-3.5 animate-spin" />
-        : activeViewMode === "terminal"
-          ? <MessageSquareText className="h-3.5 w-3.5" />
-          : <TerminalSquare className="h-3.5 w-3.5" />}
-    </button>
+      {activeViewMode === "terminal" ? <MessageSquareText /> : <TerminalSquare />}
+    </IconButton>
   ), [activeViewMode, handlePaneToggleView, t, viewSwitchPendingPane, workspace.activePane]);
 
   const handlePaneTransportSpeakingEvent = useCallback((sessionId: string, eventId: string | null) => {
@@ -2331,6 +2339,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
       {/* Manage Groups drawer (opened from TabBar / SessionSidebar menus) */}
       <ManageGroupsDrawer />
+
+      {/* Rendered once, here: both the sidebar and the tab strip open the
+          group menu, and a dialog owned by whichever one was clicked would
+          be two implementations of the same consequences. Closing a session
+          goes through the SAME handler the tab menu's Close uses, so it
+          archives rather than destroys and the archive drawer can reopen it. */}
+      <CloseGroupDialog onCloseGroup={closeGroup} onCloseSession={(sessionId) => { void handleRequestClose(sessionId); }} />
 
       {/* Handoff: one generic verb, reachable from every surface that has a
           payload worth moving. */}

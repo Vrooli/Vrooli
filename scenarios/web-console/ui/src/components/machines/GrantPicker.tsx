@@ -6,6 +6,7 @@ import { strings } from "../../consts/strings";
 import { machineTestID } from "./testids";
 import type { PermissionPreset } from "../../api/machines";
 import { PresetGrantDetail } from "./grant";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 
 /**
  * Screen 04 — deciding what a machine may do.
@@ -41,15 +42,14 @@ export default function GrantPicker({ name, presets, initialPreset, mode, busy, 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mx-auto flex w-full max-w-2xl items-center gap-2 px-5 pt-5">
-        <button
-          type="button"
+        <IconButton
           data-testid="machines-grant-back"
           onClick={onBack}
           aria-label={t(strings.machines.back)}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+          shape="rounded"
         >
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-        </button>
+          <ArrowLeft aria-hidden />
+        </IconButton>
         <div className="min-w-0">
           <h2 className="truncate text-lg font-semibold text-wc-text-primary">
             {t(strings.machines.permissionsTitle, { name })}

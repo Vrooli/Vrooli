@@ -12,6 +12,7 @@ import {
 import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
 import { SettingsCard, SettingsSectionIntro } from "./primitives";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 
 // [REQ:P0-014h] Handoff Capture Rules
 
@@ -128,16 +129,15 @@ export default function HandoffRulesPanel() {
                   onChange={(event) => { void patch(rule, { name: event.target.value }); }}
                   className="min-h-11 min-w-0 flex-1 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-sm text-wc-text-primary outline-none focus:border-wc-accent"
                 />
-                <button
-                  type="button"
+                <IconButton
                   data-testid={`handoff-rule-delete-${rule.id}`}
                   aria-label={t(strings.handoffRules.delete)}
-                  title={t(strings.handoffRules.delete)}
-                  className="shrink-0 rounded-full p-1.5 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+                  surface="danger"
+                  className="shrink-0"
                   onClick={() => { void remove(rule.id); }}
                 >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                  <Trash2 />
+                </IconButton>
               </div>
 
               <div className="flex flex-col gap-2 sm:flex-row">

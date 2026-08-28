@@ -168,6 +168,24 @@ interface WorkspaceState {
   defaultFontSize: number;
   /** What a quick tap on the + button does: open the launcher or create an empty terminal. */
   plusButtonBehavior: PlusButtonBehavior;
+  /**
+   * The group whose close confirmation is open, if any.
+   *
+   * Lives in the store because BOTH the sidebar and the tab strip open the
+   * group menu, and a dialog owned by whichever one was clicked would be two
+   * dialogs with two implementations of the same consequences.
+   */
+  closeGroupTarget: string | null;
+  /**
+   * The group template chosen last, so the launcher can offer it again.
+   *
+   * A preference, not workspace state: it survives reload and is scoped to
+   * this browser. Null means "no template", which is itself a choice the
+   * operator made and worth remembering. The id is validated against the
+   * live template list before use — a deleted template must not preselect
+   * nothing-shaped-like-something.
+   */
+  lastGroupTemplateId: string | null;
   /** Recently used key combo IDs for the combo picker. Max 5, most recent first. */
   recentCombos: string[];
   /** Recently picked header colors (individual hex values, not pairs). Max 6,
@@ -298,6 +316,8 @@ interface WorkspaceActions {
   setDefaultThemeId: (themeId: string) => void;
   setDefaultFontSize: (size: number) => void;
   setPlusButtonBehavior: (behavior: PlusButtonBehavior) => void;
+  setCloseGroupTarget: (groupId: string | null) => void;
+  setLastGroupTemplateId: (templateId: string | null) => void;
   resetLayout: () => void;
   addRecentCombo: (comboId: string) => void;
   /** Record an explicitly-picked header color into recents (dedup, cap 6). */
@@ -455,6 +475,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       defaultThemeId: DEFAULT_THEME_ID,
       defaultFontSize: TERMINAL_FONT_SIZE,
       plusButtonBehavior: "launcher",
+      closeGroupTarget: null,
+      lastGroupTemplateId: null,
       recentCombos: [],
       recentHeaderColors: [],
       sidebarSortMode: "manual",
@@ -692,6 +714,8 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setDefaultThemeId: (themeId) => set({ defaultThemeId: themeId }),
       setDefaultFontSize: (size) => set({ defaultFontSize: clampFontSize(size) }),
       setPlusButtonBehavior: (behavior) => set({ plusButtonBehavior: behavior }),
+      setCloseGroupTarget: (groupId) => set({ closeGroupTarget: groupId }),
+      setLastGroupTemplateId: (templateId) => set({ lastGroupTemplateId: templateId }),
 
       resetLayout: () =>
         set({ columnFractions: [], rowFractions: [] }),
@@ -792,7 +816,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     }),
     {
       name: "wc-workspace",
-      version: 23,
+      version: 24,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
         if (version < 1) {
@@ -879,6 +903,11 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 22) {
           state.predictionLatencyThresholdMs ??= 20;
         }
+        if (version < 24) {
+          // Null is a meaningful value here ("no template"), so the default
+          // must be applied only when the key is genuinely absent.
+          state.lastGroupTemplateId ??= null;
+        }
         state.toolbarPrefs = migrateToolbarPrefs(state, version);
         delete state.toolbarLayout;
         return state as unknown as WorkspaceState & WorkspaceActions;
@@ -911,6 +940,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         defaultThemeId: state.defaultThemeId,
         defaultFontSize: state.defaultFontSize,
         plusButtonBehavior: state.plusButtonBehavior,
+        lastGroupTemplateId: state.lastGroupTemplateId,
         recentCombos: state.recentCombos,
         recentHeaderColors: state.recentHeaderColors,
         sidebarSortMode: state.sidebarSortMode,

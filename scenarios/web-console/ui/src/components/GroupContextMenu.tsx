@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, FolderCog, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderCog, FolderX, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { ContextMenu } from "@vrooli/react-component-library/ContextMenu/1";
 import { strings } from "../consts/strings";
@@ -10,15 +10,24 @@ interface GroupContextMenuProps {
   group: TabGroupMeta;
   onNewSession?: () => void;
   onToggleCollapse: () => void;
-  /** Open the Manage Groups drawer (rename/recolor/delete live there). */
+  /** Open the Manage Groups drawer (rename/recolor live there). */
   onManageGroups: () => void;
+  /**
+   * Open the close confirmation for this group.
+   *
+   * Closing a group used to be reachable only by opening the manager and
+   * finding the row, so the way it was actually done was closing every
+   * session by hand — which left the group behind anyway, since a group
+   * outlives its members.
+   */
+  onCloseGroup: () => void;
   onDismiss: () => void;
 }
 
 /**
- * Quick ephemeral actions on a group header. Management operations (rename,
- * recolor, ungroup, delete) live in the Manage Groups drawer — this menu only
- * keeps the in-place toggles plus a deep link into that drawer.
+ * Quick actions on a group header. Bulk administration (rename, recolor,
+ * multi-select) stays in the Manage Groups drawer; what lives here is what an
+ * operator wants to do to THIS group without leaving the list it is in.
  */
 export default function GroupContextMenu({
   position,
@@ -26,6 +35,7 @@ export default function GroupContextMenu({
   onNewSession,
   onToggleCollapse,
   onManageGroups,
+  onCloseGroup,
   onDismiss,
 }: GroupContextMenuProps) {
   const { t } = useTranslation();
@@ -58,6 +68,18 @@ export default function GroupContextMenu({
           testId: "group-ctx-manage-groups",
           separatorBefore: true,
           onSelect: onManageGroups,
+        },
+        {
+          id: "close-group",
+          // The ellipsis is a promise: this opens a confirmation, because
+          // the operator may also want the sessions closed, and that half is
+          // not undoable the way closing the group is.
+          label: t(strings.groupContextMenu.closeGroupMenu),
+          icon: <FolderX className="h-4 w-4 shrink-0" />,
+          testId: "group-ctx-close-group",
+          destructive: true,
+          separatorBefore: true,
+          onSelect: onCloseGroup,
         },
       ]}
     />

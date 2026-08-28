@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, Folder, FolderPlus, FolderX, Palette, Pencil, Search, SquareSlash, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 
 import { HEADER_COLORS } from "../../consts/config";
@@ -183,16 +184,16 @@ function GroupEditRow({
 
         <span className="shrink-0 text-[11px] text-wc-text-faint">{summary}</span>
 
-        <button
-          type="button"
+        <IconButton
           data-testid={`group-picker-close-${group.id}`}
           aria-label={t(strings.manageGroups.closeAriaLabelFor, { name: group.name })}
           title={t(strings.manageGroups.closeGroup)}
           onClick={onClose}
-          className="flex h-11 w-9 shrink-0 items-center justify-center rounded-lg text-wc-text-muted transition hover:bg-rose-400/10 hover:text-rose-300"
+          surface="danger"
+          className="shrink-0"
         >
-          <Trash2 className="h-4 w-4" aria-hidden />
-        </button>
+          <Trash2 aria-hidden />
+        </IconButton>
       </div>
 
       {paletteOpen && (

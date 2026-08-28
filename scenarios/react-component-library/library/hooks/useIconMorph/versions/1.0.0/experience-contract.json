@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "hooks.use-icon-morph",
+    "title": "useIconMorph",
+    "purpose": "Own the measurement lifecycle, technique decision, and animation clock for an icon swap, so a renderer never re-implements them.",
+    "storyRef": "../../library/hooks/useIconMorph/versions/1.0.0/story.json"
+  },
+  "states": [
+    { "id": "idle", "example": "default", "description": "No transition is running." },
+    { "id": "swapping", "example": "swap-decides-a-technique", "description": "The icon identity changed and a technique was chosen." }
+  ],
+  "elements": [
+    { "id": "root", "description": "The specimen host." },
+    { "id": "technique", "description": "The technique the hook resolved for the current swap." }
+  ],
+  "claims": [
+    {
+      "id": "idle-by-default",
+      "type": "element-present",
+      "statement": "An unchanged icon runs no transition and measures nothing.",
+      "tier": "machine",
+      "elements": ["technique"],
+      "states": ["idle"]
+    },
+    {
+      "id": "technique-is-resolved",
+      "type": "element-present",
+      "statement": "A swap resolves to a technique chosen from measured geometry.",
+      "tier": "machine",
+      "elements": ["technique"],
+      "states": ["swapping"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "root": { "selector": "[data-testid='hooks.use-icon-morph']" },
+      "technique": { "selector": "[data-testid='hooks.use-icon-morph-technique']" }
+    }
+  }
+}

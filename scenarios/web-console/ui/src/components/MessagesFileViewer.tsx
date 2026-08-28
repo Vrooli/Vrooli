@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { basename as pathBasename, pathCrumbs } from "../lib/paths";
 import { writeText } from "../lib/clipboard";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { rendererForKind } from "./file-preview/renderers";
 import type { DirectorySort, PreviewState } from "./file-preview/types";
@@ -78,16 +79,16 @@ export default function MessagesFileViewer({
   const headerActions = (canGoBack || canHandoff) ? (
     <div className="flex shrink-0 items-center gap-1.5">
       {canGoBack && (
-        <button
-          type="button"
+        <IconButton
           onClick={onNavigateBack}
           data-testid="file-preview-back"
           aria-label={t(strings.messagesFileViewer.directoryBack)}
-          title={t(strings.messagesFileViewer.directoryBack)}
-          className="shrink-0 rounded-lg border border-wc-default bg-wc-surface-input p-1.5 text-wc-text-secondary transition hover:bg-wc-surface-raised hover:text-wc-text-primary"
+          surface="soft"
+          shape="rounded"
+          className="shrink-0"
         >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
+          <ArrowLeft />
+        </IconButton>
       )}
       {canHandoff && (
         <button
@@ -141,15 +142,14 @@ export default function MessagesFileViewer({
             {displayPath || t(strings.messagesFileViewer.loadingFile)}
           </p>
           {displayPath && (
-            <button
-              type="button"
+            <IconButton
               onClick={copyPath}
-              className="shrink-0 rounded p-1 text-wc-text-muted transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+              size="sm"
+              className="shrink-0"
               aria-label={copied ? t(strings.messagesFileViewer.copied) : t(strings.messagesFileViewer.copyPath)}
-              title={copied ? t(strings.messagesFileViewer.copied) : t(strings.messagesFileViewer.copyPath)}
             >
-              {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-            </button>
+              {copied ? <Check className="text-green-400" /> : <Copy />}
+            </IconButton>
           )}
         </div>
       )}

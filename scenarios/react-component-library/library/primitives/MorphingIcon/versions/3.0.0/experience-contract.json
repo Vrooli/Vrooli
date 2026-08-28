@@ -1,0 +1,65 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "motion.morphing-icon",
+    "title": "MorphingIcon",
+    "purpose": "Animate between any two icons, measuring their geometry to choose true path morphing when the shapes correspond and a crossfade when they do not.",
+    "storyRef": "../../library/primitives/MorphingIcon/versions/3.0.0/story.json"
+  },
+  "states": [
+    { "id": "default", "example": "default", "description": "An arbitrary icon child at rest." },
+    { "id": "labelled", "example": "labelled", "description": "Named for assistive technology." },
+    { "id": "registry-glyph", "example": "registry-glyph", "description": "The 2.x registry entry point, unchanged." },
+    { "id": "search-glyph", "example": "search-glyph", "description": "A glyph drawn with arcs, which the previous parser discarded." },
+    { "id": "compatible-swap", "example": "compatible-swap", "description": "A measured-compatible pair, path morphed." },
+    { "id": "incompatible-swap", "example": "incompatible-swap", "description": "A measured-incompatible pair, crossfaded." }
+  ],
+  "elements": [
+    { "id": "root", "description": "The icon slot." },
+    { "id": "current", "description": "The live icon, which is also the geometry source." },
+    { "id": "frame", "description": "The synthesised path frame painted during a morph." }
+  ],
+  "claims": [
+    {
+      "id": "arbitrary-icon",
+      "type": "element-present",
+      "statement": "Any icon component renders, without a registry entry or a geometry table.",
+      "tier": "machine",
+      "elements": ["current"],
+      "states": ["default"]
+    },
+    {
+      "id": "curve-commands-survive",
+      "type": "attribute",
+      "statement": "Glyphs drawn with curve and arc commands render their full geometry.",
+      "tier": "machine",
+      "elements": ["root"],
+      "states": ["search-glyph"]
+    },
+    {
+      "id": "technique-is-measured",
+      "type": "element-present",
+      "statement": "The transition technique is chosen from measured geometry rather than declared by the caller.",
+      "tier": "machine",
+      "elements": ["root", "current"],
+      "states": ["compatible-swap", "incompatible-swap"]
+    },
+    {
+      "id": "accessible-name",
+      "type": "element-present",
+      "statement": "A labelled icon exposes an accessible image name; an unlabelled one is decorative.",
+      "tier": "machine",
+      "elements": ["root"],
+      "states": ["labelled", "default"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "root": { "selector": "[data-rcl-morphing-icon]" },
+      "current": { "selector": "[data-rcl-morphing-icon-current]" },
+      "frame": { "selector": "[data-rcl-morphing-icon-frame]" }
+    }
+  }
+}

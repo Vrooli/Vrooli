@@ -1,13 +1,13 @@
 import { useState, useRef, useCallback } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { GripVertical, Loader2, MessageSquareText, TerminalSquare, Palette, Send, X } from "lucide-react";
+import { GripVertical, MessageSquareText, TerminalSquare, Palette, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { PaneViewMode } from "../stores/useConversationStore";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { paneAccentStyle } from "../lib/paneColor";
-import { Button } from "./ui/button";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 
 interface TerminalHeaderProps {
   sessionId: string;
@@ -163,68 +163,77 @@ export default function TerminalHeader({
       )}
 
       {onToggleView && (
-        <button
+        <IconButton
           data-testid={`terminal-header-toggle-view-${sessionId}`}
-          type="button"
-          className="flex h-11 w-11 md:h-8 md:w-8 items-center justify-center rounded-full border border-wc-default bg-wc-surface-raised/80 shrink-0 text-wc-text-secondary transition-colors hover:bg-wc-surface-input hover:text-wc-text-primary backdrop-blur-sm"
+          // Per pane: the header survives a view switch today, but the pane
+          // itself is unmounted whenever its tab is culled, and the toggle
+          // should still animate when the pane comes back.
+          swapIdentity={`pane-view-toggle-${sessionId}`}
+          // The standing surface this control always had, now expressed once
+          // rather than as six utility classes per call site.
+          surface="soft"
+          size="xs"
+          denseTapTarget
+          className="shrink-0"
           onClick={(e) => {
             e.stopPropagation();
             onToggleView();
           }}
-          title={viewMode === "terminal" ? t(strings.terminalHeader.showMessages) : t(strings.terminalHeader.showTerminal)}
+          // Not `pending`: the view mode flips synchronously on click while
+          // the pending window stays open through hydration, so the icon
+          // changes *inside* that window. Dimming the control is enough
+          // feedback and leaves the swap visible.
+          disabled={isViewSwitchPending}
+          aria-label={viewMode === "terminal" ? t(strings.terminalHeader.showMessages) : t(strings.terminalHeader.showTerminal)}
         >
-          {isViewSwitchPending
-            ? <Loader2 data-testid={`terminal-header-toggle-view-pending-${sessionId}`} className="h-3.5 w-3.5 animate-spin" />
-            : viewMode === "terminal" ? <MessageSquareText className="h-3.5 w-3.5" /> : <TerminalSquare className="h-3.5 w-3.5" />}
-        </button>
+          {viewMode === "terminal" ? <MessageSquareText /> : <TerminalSquare />}
+        </IconButton>
       )}
 
       {/* The control is offered only when the pane's group holds someone to
           hand off TO — a composer with no targets is a dead end. */}
       {onHandoff && canHandoff && (
-        <button
+        <IconButton
           data-testid={`handoff-pane-header-${sessionId}`}
-          type="button"
-          className="flex h-11 w-11 md:h-5 md:w-5 items-center justify-center rounded shrink-0 text-wc-text-faint hover:text-wc-text-secondary"
+          size="sm"
+          className="shrink-0"
           onClick={(e) => {
             e.stopPropagation();
             onHandoff(sessionId);
           }}
-          title={t(strings.terminalHeader.handOff)}
           aria-label={t(strings.terminalHeader.handOff)}
         >
-          <Send className="h-3 w-3" />
-        </button>
+          <Send />
+        </IconButton>
       )}
 
       {/* Appearance button */}
-      <button
+      <IconButton
         data-testid={`terminal-header-appearance-${sessionId}`}
-        type="button"
-        className="flex h-11 w-11 md:h-5 md:w-5 items-center justify-center rounded shrink-0 text-wc-text-faint hover:text-wc-text-secondary"
+        size="sm"
+        className="shrink-0"
         onClick={(e) => {
           e.stopPropagation();
           setAppearanceModalPane(sessionId);
         }}
-        title={t(strings.terminalHeader.appearanceTitle)}
+        aria-label={t(strings.terminalHeader.appearanceTitle)}
       >
-        <Palette className="h-3 w-3" />
-      </button>
+        <Palette />
+      </IconButton>
 
       {/* Close button */}
-      <Button
+      <IconButton
         data-testid={`terminal-close-${sessionId}`}
-        variant="ghost"
-        size="icon"
-        className="h-11 w-11 md:h-5 md:w-5 shrink-0 text-wc-text-faint"
+        size="sm"
+        className="shrink-0"
         onClick={(e) => {
           e.stopPropagation();
           onClose();
         }}
-        title={t(strings.terminalHeader.closeTitle)}
+        aria-label={t(strings.terminalHeader.closeTitle)}
       >
-        <X className="h-3 w-3" />
-      </Button>
+        <X />
+      </IconButton>
     </div>
   );
 }

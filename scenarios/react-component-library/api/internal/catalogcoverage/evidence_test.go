@@ -89,49 +89,102 @@ func TestCurrentRevisionAcceptsRepositoryAndLibraryRoots(t *testing.T) {
 	require.Equal(t, fromRepository, fromLibrary)
 }
 
-func TestFreshTypesEvidenceCompleteSkipsOnlyFullyWarmCorpus(t *testing.T) {
-	root := t.TempDir()
-	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")
-	componentDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button")
-	versionDir := filepath.Join(componentDir, "versions", "1.0.0")
+func writeAsset(t *testing.T, root, name, libraryName, dependencies string) {
+	t.Helper()
+	scenarioRoot := filepath.Join(root, "scenarios", "react-component-library")
+	assetDir := filepath.Join(scenarioRoot, "catalog", "assets", "controls")
+	componentDir := filepath.Join(scenarioRoot, "library", "components", name)
 	require.NoError(t, os.MkdirAll(assetDir, 0o755))
-	require.NoError(t, os.MkdirAll(versionDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","kind":"component"}}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644))
-	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte("export const Button = () => null;"), 0o644))
-	revision, err := CurrentRevision(root, "controls.button")
-	require.NoError(t, err)
-
-	require.False(t, freshTypesEvidenceComplete(root, nil), "cold evidence must retain the toolchain path")
-	require.True(t, freshTypesEvidenceComplete(root, []GateEvidence{{AssetID: "controls.button", Gate: "types", Result: "pass", SourceRevision: revision}}))
-	require.False(t, freshTypesEvidenceComplete(root, []GateEvidence{{AssetID: "controls.button", Gate: "types", Result: "pass", SourceRevision: "stale"}}))
+	require.NoError(t, os.MkdirAll(filepath.Join(componentDir, "versions", "1.0.0"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetDir, name+".json"),
+		[]byte(`{"kind":"catalog-asset","asset":{"id":"controls.`+name+`","kind":"component"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"),
+		[]byte(`{"catalogId":"controls.`+name+`","libraryId":"rcl:`+libraryName+`","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "versions", "1.0.0", libraryName+".tsx"),
+		[]byte("export const "+libraryName+" = () => null;"), 0o644))
+	// Dependency edges live in the generated per-version lock, which is where
+	// the revision index reads them from.
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "versions", "1.0.0", "dependencies.json"),
+		[]byte(`{"schemaVersion":1,"libraryId":"rcl:`+libraryName+`","version":"1.0.0","dependencies":[`+dependencies+`]}`), 0o644))
 }
 
-func TestFreshAttributableGatesRequireEveryBuiltAssetAtCurrentRevision(t *testing.T) {
+// The manifest glob in the original revision hash was one directory short of
+// where manifests live, so neither the manifest nor any version source reached
+// the digest and an edited component kept looking current forever.
+func TestRevisionTracksManifestAndVersionSource(t *testing.T) {
 	root := t.TempDir()
-	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")
-	for _, name := range []string{"button", "card"} {
-		require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "react-component-library", "library", "components", name, "versions", "1.0.0"), 0o755))
-		require.NoError(t, os.MkdirAll(assetDir, 0o755))
-		require.NoError(t, os.WriteFile(filepath.Join(assetDir, name+".json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.`+name+`","kind":"component"}}`), 0o644))
-		libraryName := map[string]string{"button": "Button", "card": "Card"}[name]
-		componentDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", name)
-		require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.`+name+`","latest":"1.0.0"}`), 0o644))
-		require.NoError(t, os.WriteFile(filepath.Join(componentDir, "versions", "1.0.0", libraryName+".tsx"), []byte("export const "+libraryName+" = () => null;"), 0o644))
+	writeAsset(t, root, "button", "Button", "")
+	before, err := CurrentRevision(root, "controls.button")
+	require.NoError(t, err)
+
+	source := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "button", "versions", "1.0.0", "Button.tsx")
+	require.NoError(t, os.WriteFile(source, []byte("export const Button = () => <span />;"), 0o644))
+	afterSource, err := CurrentRevision(root, "controls.button")
+	require.NoError(t, err)
+	require.NotEqual(t, before, afterSource, "editing version source must change the asset revision")
+
+	manifest := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "button", "component.json")
+	require.NoError(t, os.WriteFile(manifest, []byte(`{"catalogId":"controls.button","libraryId":"rcl:Button","latest":"1.0.0","kind":"control"}`), 0o644))
+	afterManifest, err := CurrentRevision(root, "controls.button")
+	require.NoError(t, err)
+	require.NotEqual(t, afterSource, afterManifest, "editing the manifest must change the asset revision")
+}
+
+// Adoption copies a transitive closure, so a dependent's cached verdict cannot
+// outlive a change to what it is built on.
+func TestRevisionFoldsDependencies(t *testing.T) {
+	root := t.TempDir()
+	writeAsset(t, root, "stack", "Stack", "")
+	writeAsset(t, root, "card", "Card", `{"libraryId":"rcl:Stack","version":"1.0.0","rank":3}`)
+
+	before, err := CurrentRevision(root, "controls.card")
+	require.NoError(t, err)
+	independent, err := CurrentRevision(root, "controls.stack")
+	require.NoError(t, err)
+
+	stackSource := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "stack", "versions", "1.0.0", "Stack.tsx")
+	require.NoError(t, os.WriteFile(stackSource, []byte("export const Stack = () => <div />;"), 0o644))
+
+	afterDependent, err := CurrentRevision(root, "controls.card")
+	require.NoError(t, err)
+	afterDependency, err := CurrentRevision(root, "controls.stack")
+	require.NoError(t, err)
+	require.NotEqual(t, before, afterDependent, "a dependency change must invalidate its dependents")
+	require.NotEqual(t, independent, afterDependency)
+}
+
+func TestStaleAssetsByGateReportsOnlyTheChangedAsset(t *testing.T) {
+	root := t.TempDir()
+	writeAsset(t, root, "button", "Button", "")
+	writeAsset(t, root, "card", "Card", "")
+	revisions, err := BuildRevisionIndex(root)
+	require.NoError(t, err)
+	definitions := []GateDefinition{
+		{ID: "types", Attribution: "attributable", AppliesTo: []string{"component"}},
+		{ID: "visual", Attribution: "attributable", AppliesTo: []string{"component"}},
+		{ID: "tokens", Attribution: "corpus", AppliesTo: []string{"component"}},
 	}
-	buttonRevision, err := CurrentRevision(root, "controls.button")
-	require.NoError(t, err)
-	cardRevision, err := CurrentRevision(root, "controls.card")
-	require.NoError(t, err)
-	definitions := []GateDefinition{{ID: "types", Attribution: "attributable", AppliesTo: []string{"component"}}, {ID: "visual", Attribution: "attributable", AppliesTo: []string{"component"}}}
 	persisted := []GateEvidence{
-		{AssetID: "controls.button", Gate: "types", SourceRevision: buttonRevision, RecordedAt: "2026-01-02T00:00:00Z"},
-		{AssetID: "controls.card", Gate: "types", SourceRevision: cardRevision, RecordedAt: "2026-01-02T00:00:00Z"},
-		{AssetID: "controls.button", Gate: "visual", SourceRevision: buttonRevision, RecordedAt: "2026-01-02T00:00:00Z"},
+		{AssetID: "controls.button", Gate: "types", SourceRevision: revisions["controls.button"], RecordedAt: "2026-01-02T00:00:00Z"},
+		{AssetID: "controls.card", Gate: "types", SourceRevision: revisions["controls.card"], RecordedAt: "2026-01-02T00:00:00Z"},
+		{AssetID: "controls.button", Gate: "visual", SourceRevision: revisions["controls.button"], RecordedAt: "2026-01-02T00:00:00Z"},
 	}
-	fresh := freshAttributableGates(root, persisted, definitions)
-	require.True(t, fresh["types"])
-	require.False(t, fresh["visual"], "a gate is warm only when every applicable built asset has current evidence")
+
+	stale := staleAssetsByGate(root, persisted, definitions, revisions)
+	require.Empty(t, stale["types"], "every applicable asset is current, so the runner can be skipped")
+	require.Equal(t, map[string]bool{"controls.card": true}, stale["visual"],
+		"only the asset without current evidence is stale — not the whole corpus")
+	_, corpusTracked := stale["tokens"]
+	require.False(t, corpusTracked, "corpus gates are not attributable and always recompute")
+
+	// Editing one component must make that component stale and leave the other current.
+	source := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "button", "versions", "1.0.0", "Button.tsx")
+	require.NoError(t, os.WriteFile(source, []byte("export const Button = () => <b />;"), 0o644))
+	revisions, err = BuildRevisionIndex(root)
+	require.NoError(t, err)
+	stale = staleAssetsByGate(root, persisted, definitions, revisions)
+	require.Equal(t, map[string]bool{"controls.button": true}, stale["types"],
+		"one edited component must not invalidate the corpus")
 }
 
 func TestRecomputeEvidenceDoesNotFabricateTypesPass(t *testing.T) {
@@ -198,4 +251,54 @@ func TestDeriveExperienceEvidenceRequiresDeclaredCaptureQuality(t *testing.T) {
 	}
 	require.Equal(t, "pass", results["responsive"])
 	require.Equal(t, "pass", results["visual"])
+}
+
+// The whole point of the cache is that only recomputation frequency changes.
+// A warm pass that reuses persisted verdicts must produce the same evidence a
+// cold pass does, asset for asset and gate for gate — including the
+// "unmeasured" rows a catalog asset with no implementation receives, which an
+// earlier draft of this change dropped on warm passes and would have quietly
+// moved every reported rung.
+func TestWarmPassProducesIdenticalEvidenceToColdPass(t *testing.T) {
+	root := t.TempDir()
+	scenarioRoot := filepath.Join(root, "scenarios", "react-component-library")
+	writeAsset(t, root, "stack", "Stack", "")
+	writeAsset(t, root, "card", "Card", `{"libraryId":"rcl:Stack","version":"1.0.0","rank":3}`)
+	// A declared asset nobody has built yet.
+	require.NoError(t, os.WriteFile(filepath.Join(scenarioRoot, "catalog", "assets", "controls", "ghost.json"),
+		[]byte(`{"kind":"catalog-asset","asset":{"id":"controls.ghost","kind":"component"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(scenarioRoot, "catalog", "config.json"),
+		[]byte(`{"gates":[{"id":"rtl","rung":"verified","blocking":true,"attribution":"attributable","appliesTo":["component"]}]}`), 0o644))
+
+	key := func(rows []GateEvidence) map[string]string {
+		out := map[string]string{}
+		for _, row := range rows {
+			out[row.AssetID+"\x00"+row.Gate] = row.Result
+		}
+		return out
+	}
+
+	revisions, err := BuildRevisionIndex(root)
+	require.NoError(t, err)
+	cold, err := recomputeEvidenceWithSkip(root, nil, nil, revisions)
+	require.NoError(t, err)
+	require.NotEmpty(t, cold)
+
+	definitions, err := LoadGateDefinitions(filepath.Join(scenarioRoot, "catalog", "config.json"))
+	require.NoError(t, err)
+	stale := staleAssetsByGate(root, cold, definitions, revisions)
+	require.Empty(t, stale["rtl"], "every asset was just measured, so nothing is stale")
+
+	warm, err := recomputeEvidenceWithSkip(root, nil, stale, revisions)
+	require.NoError(t, err)
+	require.Empty(t, warm, "a fully warm pass recomputes nothing")
+
+	// The served result is the warm recompute merged with the persisted rows.
+	merged := append([]GateEvidence{}, warm...)
+	for _, row := range cold {
+		if revisions[row.AssetID] == row.SourceRevision {
+			merged = append(merged, row)
+		}
+	}
+	require.Equal(t, key(cold), key(merged), "warm and cold must agree on every asset and gate")
 }

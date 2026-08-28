@@ -5,6 +5,7 @@ import { screen, fireEvent, waitFor } from "@testing-library/react";
 import GroupModePanel from "../components/launcher/GroupModePanel";
 import GroupTemplatesPanel from "../components/settings/GroupTemplatesPanel";
 import type { GroupTemplateDTO } from "../api/grouptemplates";
+import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
 // [REQ:P0-014g] Group Templates
 
@@ -44,6 +45,7 @@ describe("GroupModePanel", () => {
     vi.clearAllMocks();
     mockList.mockResolvedValue([threeRoles]);
     mockUpsert.mockResolvedValue(threeRoles);
+    useWorkspaceStore.setState({ lastGroupTemplateId: null });
   });
 
   it("creates a group with no template at all", async () => {
@@ -189,6 +191,37 @@ describe("GroupModePanel", () => {
     expect(screen.getByTestId("launcher-create-group")).toBeDisabled();
   });
 });
+
+  // Most of the time the template you want is the one you used last, so the
+  // panel offers it rather than making you pick again.
+  it("preselects the template chosen last", async () => {
+    useWorkspaceStore.setState({ lastGroupTemplateId: "t1" });
+    render(<GroupModePanel open onCreate={vi.fn()} isCreating={false} disabled={false} />);
+    await waitFor(() => { expect(screen.getByTestId("launcher-group-role-2")).toBeInTheDocument(); });
+    expect(screen.getByTestId("launcher-template-picker")).toHaveTextContent(threeRoles.name);
+  });
+
+  // A remembered id that no longer resolves must not preselect a name that
+  // points at nothing.
+  it("ignores a remembered template that has since been deleted", async () => {
+    useWorkspaceStore.setState({ lastGroupTemplateId: "deleted" });
+    render(<GroupModePanel open onCreate={vi.fn()} isCreating={false} disabled={false} />);
+    await waitFor(() => { expect(mockList).toHaveBeenCalled(); });
+    expect(screen.getByTestId("launcher-group-role-empty")).toBeInTheDocument();
+  });
+
+  it("remembers each choice, including going back to no template", async () => {
+    render(<GroupModePanel open onCreate={vi.fn()} isCreating={false} disabled={false} />);
+    await waitFor(() => { expect(mockList).toHaveBeenCalled(); });
+
+    chooseTemplate("t1");
+    expect(useWorkspaceStore.getState().lastGroupTemplateId).toBe("t1");
+
+    // "No template" is a choice too, so it replaces the memory rather than
+    // leaving the previous pick to reassert itself on the next open.
+    chooseTemplate("none");
+    expect(useWorkspaceStore.getState().lastGroupTemplateId).toBeNull();
+  });
 
 describe("GroupTemplatesPanel", () => {
   beforeEach(() => {

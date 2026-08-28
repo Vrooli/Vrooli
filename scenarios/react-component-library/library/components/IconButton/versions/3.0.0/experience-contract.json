@@ -1,0 +1,65 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "component": {
+    "id": "icon-button",
+    "title": "IconButton",
+    "purpose": "Provide an icon-only action that is legible at rest, gives real feedback on interaction, announces toggle state, and animates its own icon changes.",
+    "storyRef": "../../library/components/IconButton/versions/3.0.0/story.json"
+  },
+  "states": [
+    { "id": "default", "example": "default", "description": "Named icon-only action with no chrome at rest." },
+    { "id": "soft", "example": "surface-soft", "description": "Standing surface for a control that must be findable at rest." },
+    { "id": "selected", "example": "selected", "description": "Toggle in its on state." },
+    { "id": "pending", "example": "pending", "description": "In-flight action." },
+    { "id": "disabled", "example": "disabled", "description": "Unavailable action." },
+    { "id": "icon-swap", "example": "icon-swap", "description": "The icon has changed and the control animated the change." }
+  ],
+  "elements": [
+    { "id": "control", "role": "button", "description": "The native icon button." },
+    { "id": "glyph", "description": "The icon slot, which owns the swap animation." },
+    { "id": "spinner", "description": "The pending indicator that replaces the glyph." }
+  ],
+  "claims": [
+    {
+      "id": "named-action",
+      "type": "element-present",
+      "statement": "The icon button exposes a named action.",
+      "tier": "machine",
+      "elements": ["control"],
+      "states": ["default"]
+    },
+    {
+      "id": "toggle-announced",
+      "type": "attribute",
+      "statement": "A selected icon button announces its pressed state rather than only colouring itself.",
+      "tier": "machine",
+      "elements": ["control"],
+      "states": ["selected"]
+    },
+    {
+      "id": "pending-blocks",
+      "type": "attribute",
+      "statement": "A pending icon button is disabled and marked busy.",
+      "tier": "machine",
+      "elements": ["control", "spinner"],
+      "states": ["pending"]
+    },
+    {
+      "id": "icon-change-animates",
+      "type": "element-present",
+      "statement": "Changing the icon animates the change without call-site motion code.",
+      "tier": "machine",
+      "elements": ["glyph"],
+      "states": ["icon-swap"]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "control": { "selector": "[data-testid='controls.icon-button']" },
+      "glyph": { "selector": "[data-rcl-morphing-icon]" },
+      "spinner": { "selector": "[data-rcl-icon-button-spinner]" }
+    }
+  }
+}

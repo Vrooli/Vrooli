@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { UNDO_WINDOW_MS } from "../hooks/useGroupActions";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 
 // [REQ:P0-014f] Group Auto-Close With Undo
 
@@ -75,15 +76,15 @@ export default function GroupUndoBanner({ onUndo, onDismiss }: GroupUndoBannerPr
         <RotateCcw className="h-4 w-4" aria-hidden />
         {t(strings.undo.undo)}
       </button>
-      <button
-        type="button"
+      <IconButton
         data-testid="group-undo-dismiss"
         onClick={onDismiss}
         aria-label={t(strings.undo.dismiss)}
-        className="shrink-0 rounded-full p-1.5 text-wc-text-faint transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+        size="sm"
+        className="shrink-0"
       >
-        <X className="h-4 w-4" aria-hidden />
-      </button>
+        <X aria-hidden />
+      </IconButton>
     </div>
   );
 }

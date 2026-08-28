@@ -6,6 +6,7 @@ import { strings } from "../../consts/strings";
 import { machineTestID } from "./testids";
 import type { IssuedCode, JoinRequest } from "../../api/machines";
 import { humanAge, humanCountdown } from "./age";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 
 /**
  * Screen 02 — adding a machine.
@@ -156,15 +157,14 @@ export default function AddMachine({ requests, code, issuing, onIssueCode, onRev
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-3 px-5 pt-5">
         <div className="flex items-center gap-2">
-          <button
-            type="button"
+          <IconButton
             data-testid="machines-add-back"
             onClick={onBack}
             aria-label={t(strings.machines.back)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            shape="rounded"
           >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-          </button>
+            <ArrowLeft aria-hidden />
+          </IconButton>
           <h2 className="text-lg font-semibold text-wc-text-primary">{t(strings.machines.addTitle)}</h2>
         </div>
       </div>

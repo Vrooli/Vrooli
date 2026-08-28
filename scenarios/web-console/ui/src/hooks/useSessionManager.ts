@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toErrorInfo, type ErrorInfo } from "../lib/errors";
 import { getWorkspaceLayout, updateWorkspacePane } from "../api/workspace";
+import { roleFromDTO } from "./useRoleActions";
 import { archiveSession, createSession, deleteSession, listSessions, unarchiveSession, type SessionInfo, type BackendID, type PolicyMode, type AgentType } from "../api/sessions";
 import type { TerminalTarget } from "../api/targets";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -205,6 +206,32 @@ export function useSessionManager() {
               isCollapsed: g.is_collapsed,
             })),
           });
+
+          // Roles are workspace layout too, and they ride along in this same
+          // response. Nothing else in the client populates them, so without
+          // this a waiting role vanished on reload while still sitting in the
+          // database — it looked like the feature was never persisted.
+          //
+          // Written OUTSIDE the pane guard above: that guard exists so a
+          // second hydration cannot clobber live pane state, and roles have
+          // no competing source. Anything created locally while this request
+          // was in flight is merged in rather than dropped.
+          const liveSessions = new Set(sessions.map((s) => s.id));
+          const hydratedRoles = layout.roles.map((dto) => {
+            const role = roleFromDTO(dto);
+            // A role pointing at a session that no longer exists comes back
+            // WAITING. Rendering a placeholder is honest; rendering a role
+            // attached to a dead session id is not, and a handoff aimed at it
+            // would go nowhere. Local-only: the server owns the stored value,
+            // and correcting it on every hydrate would turn a transient empty
+            // session list into a write storm.
+            return role.sessionId && !liveSessions.has(role.sessionId)
+              ? { ...role, sessionId: null }
+              : role;
+          });
+          const hydratedIds = new Set(hydratedRoles.map((role) => role.id));
+          const localOnly = useWorkspaceStore.getState().roles.filter((role) => !hydratedIds.has(role.id));
+          useWorkspaceStore.getState().setRoles([...hydratedRoles, ...localOnly]);
         } else if (sessions.length > 0 && store.panes.length === 0) {
           // Fallback: no layout from backend, build from sessions.
           // Without layout data, supportsMessagesView defaults to false.

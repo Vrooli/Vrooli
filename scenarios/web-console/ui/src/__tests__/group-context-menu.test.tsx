@@ -18,6 +18,7 @@ function renderMenu(overrides: Partial<React.ComponentProps<typeof GroupContextM
     onNewSession: vi.fn(),
     onToggleCollapse: vi.fn(),
     onManageGroups: vi.fn(),
+    onCloseGroup: vi.fn(),
     onDismiss: vi.fn(),
     ...overrides,
   };
@@ -26,12 +27,22 @@ function renderMenu(overrides: Partial<React.ComponentProps<typeof GroupContextM
 }
 
 describe("GroupContextMenu", () => {
-  it("is a thin quick-path menu: no rename/recolor/ungroup/delete items", () => {
+  // Bulk administration stays in the manager; what belongs here is what an
+  // operator wants to do to THIS group without leaving the list it is in.
+  it("keeps bulk administration out: no rename/recolor/ungroup items", () => {
     renderMenu();
     expect(screen.queryByTestId("group-ctx-rename")).not.toBeInTheDocument();
     expect(screen.queryByTestId("group-ctx-recolor")).not.toBeInTheDocument();
     expect(screen.queryByTestId("group-ctx-ungroup-all")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("group-ctx-delete")).not.toBeInTheDocument();
+  });
+
+  // Closing a group had no entry point on the group itself, so the way it got
+  // done was closing every session by hand — which left the group behind,
+  // because a group outlives its members.
+  it("offers closing the group from the header itself", () => {
+    const props = renderMenu();
+    fireEvent.click(screen.getByTestId("group-ctx-close-group"));
+    expect(props.onCloseGroup).toHaveBeenCalled();
   });
 
   it("fires collapse toggle", () => {

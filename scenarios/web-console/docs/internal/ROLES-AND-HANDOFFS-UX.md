@@ -144,6 +144,72 @@ Three greps enforce rules 1, 4, and 5; they are listed in
   and claiming option semantics over a set of text fields would lie to a
   screen reader.
 
+- **Closing a group had no entry point on the group.** The header menu
+  carried collapse, new-session and a deep link into the manager; closing was
+  reachable only by opening the manager and finding the row. So the way it
+  actually got done was closing every session by hand — which left the group
+  behind anyway, since a group outlives its members and then shows up as an
+  empty row in the picker.
+
+  The header menu now ends with a destructive **Close group…**, on both the
+  sidebar and the tab strip. The ellipsis is a promise: it opens one
+  confirmation, rendered once in `Workspace` off `closeGroupTarget` in the
+  store, because two surfaces opening two dialogs would be two implementations
+  of the same consequences.
+
+  The dialog's shape follows from what is and is not reversible. Closing the
+  group alone is cheap — the sessions survive as ungrouped panes and the undo
+  banner covers the group — so that is the default and the dialog is mostly a
+  statement of consequences. Closing the sessions too is what the operator
+  usually wants and is a real destruction, so it is an opt-in checkbox, off on
+  every open (a remembered "yes" would turn one deliberate choice into a
+  standing one), and it routes through the SAME handler the tab menu's Close
+  uses — the sessions are archived, not destroyed, and the dialog says so.
+  The group is closed first so its undo snapshot records every member while
+  they are still members; archiving first would let auto-close fire and leave
+  the handler closing a group that no longer exists.
+
+- **Waiting roles were persisted but never read back.** `GetLayout` returns
+  roles alongside panes and groups, and `api/workspace.ts` decoded them — but
+  nothing in the client ever called `setRoles` with the result. The store's
+  `roles` array was only ever written by live actions, so every waiting role
+  vanished on reload while still sitting in `workspace_roles`. It read as a
+  feature that had never been persisted at all; in fact only the last step
+  was missing.
+
+  Hydration now writes them, deliberately OUTSIDE the `store.panes.length === 0`
+  guard: that guard exists so a second hydration cannot clobber live pane
+  state, and roles have no competing source. Two rules ride along. A role
+  whose session is no longer in the live list comes back WAITING rather than
+  pointing at a dead id — a handoff aimed at that id would go nowhere — and
+  the correction is local only, because rewriting it on every hydrate would
+  turn one transient empty session list into a write storm. And any role
+  created locally while the request was in flight is merged in rather than
+  dropped.
+
+- **The launcher remembers the template you used last.** A persisted
+  preference (`lastGroupTemplateId`), validated against the live list on every
+  open so a deleted template cannot preselect a name that resolves to nothing.
+  Restoring is one-shot per open: an operator who then picks "No template" has
+  made a choice, and re-applying the remembered id would undo it — which is
+  also why "No template" is stored as `null` rather than left unrecorded.
+
+- **A waiting role rendered as a detached box under its group.** Two causes,
+  both in the sidebar. `groupPosition` was computed from panes alone, so a
+  group's last *pane* was always marked `last` — which closes the block's
+  border and adds its bottom margin — even when waiting roles still had to be
+  emitted after it. And `RoleRow` drew a fully dashed border of its own plus a
+  `mb-1`, so the roles then formed a second box below the first. The result
+  was that a group with one running session and one waiting role read as two
+  unrelated things stacked on top of each other, which is the opposite of what
+  the mockup's "group at rest" figure shows.
+
+  The block is now one container: header, running sessions, then waiting
+  roles, with only the last member closing it. "Not running" moved entirely
+  into the row's interior — a hollow accent bar where a running session has a
+  solid one, a muted ground, faint text and a WAITING pill — because the
+  outline belongs to the group, not to the member's state.
+
 - **The launcher was rebuilt against the mockup a second time.** The first
   pass kept the old page furniture around the new controls, and the result did
   not look like the design record at any width. Four things were wrong and are

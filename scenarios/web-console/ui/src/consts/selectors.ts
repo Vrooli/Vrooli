@@ -335,6 +335,13 @@ const literalSelectors: LiteralSelectorTree = {
     autoCloseToggle: 'manage-groups-auto-close',
     summary: 'manage-groups-summary',
     sort: 'manage-groups-sort',
+    // Closing a group, reachable from the group header on both surfaces.
+    closeMenuItem: 'group-ctx-close-group',
+    closeConfirm: 'close-group-confirm',
+    closeCancel: 'close-group-cancel',
+    closeAlsoSessions: 'close-group-also-sessions',
+    closeSummary: 'close-group-summary',
+    closeConsequence: 'close-group-consequence',
     // One overlay serves both the launcher destination and the session
     // menu's assign action, so these ids are shared by both entry points.
     assignPicker: 'group-assign-picker',

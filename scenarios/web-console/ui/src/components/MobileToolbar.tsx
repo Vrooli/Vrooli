@@ -2,7 +2,8 @@
 // DOC: docs/internal/SEAMS.md#axis-2-toolbar-keys-key-combos-p0-007
 import { useCallback, useDeferredValue, useMemo, useRef, useState, useEffect, forwardRef, useImperativeHandle, type ReactNode } from "react";
 import { Loader2, Maximize2, SendHorizontal } from "lucide-react";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2/2.0.1";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 import { useTranslation } from "react-i18next";
 import { ENTER_KEY, type ToolbarKey, applyModifiers } from "../consts/toolbar-keys";
@@ -58,24 +59,27 @@ interface ToolbarIconButtonProps {
  */
 function ToolbarIconButton({ testId, label, onClick, active = false, className, children }: ToolbarIconButtonProps) {
   return (
-    <IconButton
+    <Button
       data-testid={testId}
       data-active={active ? "true" : undefined}
+      aria-pressed={active}
       tabIndex={-1}
+      type="button"
       aria-label={label}
       title={label}
-      size="icon"
       variant="secondary"
+      size="sm"
+      density="compact"
       onPointerDown={(e) => e.preventDefault()}
       onClick={onClick}
       className={cn(
-        "flex min-h-11 min-w-11 items-center justify-center p-0 touch-manipulation",
+        "flex min-h-11 min-w-11 items-center justify-center rounded border p-0 font-medium transition touch-manipulation",
         className,
       )}
       style={active ? activeToolbarControlStyle : undefined}
     >
       {children}
-    </IconButton>
+    </Button>
   );
 }
 
@@ -774,10 +778,11 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
                 aria-label={t(strings.mobileToolbar.expandComposerTitle)}
                 onPointerDown={(e) => e.preventDefault()}
                 onClick={onExpandComposer}
-                size="icon"
-                variant="ghost"
-                className="absolute inset-y-0 end-0 z-20 flex min-h-11 min-w-11 items-center justify-center rounded p-0 transition hover:bg-wc-surface-raised hover:text-wc-text-primary"
-                style={{ color: "rgb(var(--wc-text-muted))" }}
+                shape="rounded"
+                // `lg` renders a 24px glyph; this affordance has always been a
+                // 16px icon sitting inside the composer's trailing gutter.
+                size="sm"
+                className="absolute inset-y-0 end-0 z-20"
                 title={t(strings.mobileToolbar.expandComposerTitle)}
               >
                 <Maximize2 aria-hidden className="h-4 w-4" />

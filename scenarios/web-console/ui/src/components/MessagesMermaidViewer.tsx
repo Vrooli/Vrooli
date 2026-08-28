@@ -3,6 +3,7 @@ import { AlertTriangle, Check, Code, Copy, Eye, Loader2, Maximize, Minus, Plus, 
 import { useTranslation } from "react-i18next";
 
 import { strings } from "../consts/strings";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
 import { useCodeCopy } from "./markdown/hooks/useCodeCopy";
 import { useMermaidSvg } from "./markdown/hooks/useMermaidSvg";
@@ -15,9 +16,6 @@ interface MessagesMermaidViewerProps {
   code: string;
   onClose: () => void;
 }
-
-const toolbarButton =
-  "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-wc-default bg-wc-surface-input text-wc-text-secondary transition hover:bg-wc-surface-raised hover:text-wc-text-primary";
 
 /**
  * MessagesMermaidViewer is the full-screen, zoomable Mermaid diagram drawer. It
@@ -45,68 +43,69 @@ export default function MessagesMermaidViewer({ open, code, onClose }: MessagesM
     <div className="flex items-center gap-1.5">
       {showDiagram && (
         <>
-          <button
-            type="button"
+          <IconButton
             onClick={() => surfaceRef.current?.zoomOut()}
-            className={toolbarButton}
+            surface="soft"
+            shape="rounded"
+            size="sm"
             aria-label={t(strings.mermaid.zoomOut)}
-            title={t(strings.mermaid.zoomOut)}
           >
-            <Minus className="h-4 w-4" />
-          </button>
+            <Minus />
+          </IconButton>
           <span className="w-12 text-center font-mono text-xs text-wc-text-muted" data-testid="mermaid-zoom-level">
             {formatScalePercent(scale)}
           </span>
-          <button
-            type="button"
+          <IconButton
             onClick={() => surfaceRef.current?.zoomIn()}
-            className={toolbarButton}
+            surface="soft"
+            shape="rounded"
+            size="sm"
             aria-label={t(strings.mermaid.zoomIn)}
-            title={t(strings.mermaid.zoomIn)}
           >
-            <Plus className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
+            <Plus />
+          </IconButton>
+          <IconButton
             onClick={() => surfaceRef.current?.fit()}
-            className={toolbarButton}
+            surface="soft"
+            shape="rounded"
+            size="sm"
             aria-label={t(strings.mermaid.fitToScreen)}
-            title={t(strings.mermaid.fitToScreen)}
           >
-            <Maximize className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
+            <Maximize />
+          </IconButton>
+          <IconButton
             onClick={() => surfaceRef.current?.reset()}
-            className={toolbarButton}
+            surface="soft"
+            shape="rounded"
+            size="sm"
             aria-label={t(strings.mermaid.resetZoom)}
-            title={t(strings.mermaid.resetZoom)}
           >
-            <RotateCcw className="h-4 w-4" />
-          </button>
+            <RotateCcw />
+          </IconButton>
           <span className="mx-1 h-5 w-px bg-wc-default" aria-hidden="true" />
         </>
       )}
       {!error && (
-        <button
-          type="button"
+        <IconButton
           onClick={() => setShowSource((prev) => !prev)}
-          className={toolbarButton}
+          surface="soft"
+          shape="rounded"
+          size="sm"
+          selected={showSource}
           aria-label={showSource ? t(strings.mermaid.showDiagram) : t(strings.mermaid.showSource)}
-          title={showSource ? t(strings.mermaid.showDiagram) : t(strings.mermaid.showSource)}
         >
-          {showSource ? <Eye className="h-4 w-4" /> : <Code className="h-4 w-4" />}
-        </button>
+          {showSource ? <Eye /> : <Code />}
+        </IconButton>
       )}
-      <button
-        type="button"
+      <IconButton
         onClick={copyCode}
-        className={toolbarButton}
+        surface="soft"
+        shape="rounded"
+        size="sm"
         aria-label={copied ? t(strings.mermaid.copied) : t(strings.mermaid.copySource)}
-        title={copied ? t(strings.mermaid.copied) : t(strings.mermaid.copySource)}
       >
-        {copied ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
-      </button>
+        {copied ? <Check className="text-green-400" /> : <Copy />}
+      </IconButton>
     </div>
   );
 

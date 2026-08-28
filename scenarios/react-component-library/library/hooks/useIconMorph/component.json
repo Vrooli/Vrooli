@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "hook",
+  "catalogId": "hooks.use-icon-morph",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.1.0"
+  ],
+  "description": "Drives an icon swap, choosing path morphing or a crossfade from measured geometry compatibility.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useIconMorph",
+  "draft": "",
+  "entry": "useIconMorph.ts",
+  "kind": "surface",
+  "latest": "1.1.1",
+  "libraryId": "react-component-library:useIconMorph",
+  "tags": [
+    "hook",
+    "motion",
+    "icons",
+    "reduced-motion"
+  ]
+}

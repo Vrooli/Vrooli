@@ -110,7 +110,7 @@ describe("buildWorkspaceNavigationItems with roles", () => {
       ],
       activePane: "s1",
     });
-    const ids = items.filter((i) => i.kind === "waiting-role").map((i) => (i.kind === "waiting-role" ? i.role.id : ""));
+    const ids = items.filter((i) => i.kind === "waiting-role").map((i) => i.role.id);
     expect(ids).toEqual(["ra", "rb", "rc"]);
   });
 
@@ -132,7 +132,7 @@ describe("buildWorkspaceNavigationItems with roles", () => {
       activePane: "s1",
     });
     const roles = items.filter((i) => i.kind === "waiting-role");
-    expect(roles.map((i) => (i.kind === "waiting-role" ? i.isLastInGroup : null))).toEqual([false, true]);
+    expect(roles.map((i) => i.isLastInGroup)).toEqual([false, true]);
   });
 
   it("does not emit a group twice when it has both panes and waiting roles", () => {
@@ -156,5 +156,51 @@ describe("buildWorkspaceNavigationItems with roles", () => {
       "group-label", "pane", "waiting-role",
       "group-label", "pane", "waiting-role",
     ]);
+  });
+
+  // The block is one container: header, running sessions, then waiting roles.
+  // The last PANE is only the last MEMBER when no role follows it — treating
+  // it as last closed the border and added the block's bottom margin, which
+  // rendered a waiting role as a detached box under the group.
+  it("keeps the block open on the last pane when a waiting role follows", () => {
+    const items = buildWorkspaceNavigationItems({
+      panes: [pane("a", "g1")],
+      groups: [group("g1")],
+      roles: [role("r1", "g1")],
+      activePane: "a",
+    });
+
+    expect(items.map((item) => item.kind)).toEqual(["group-label", "pane", "waiting-role"]);
+    const paneItem = items[1];
+    if (paneItem?.kind !== "pane") throw new Error("expected a pane item");
+    expect(paneItem.groupPosition).toBe("first");
+    expect(items[2]).toMatchObject({ kind: "waiting-role", isLastInGroup: true });
+  });
+
+  it("closes the block on the last pane when the group has no waiting roles", () => {
+    const items = buildWorkspaceNavigationItems({
+      panes: [pane("a", "g1")],
+      groups: [group("g1")],
+      roles: [],
+      activePane: "a",
+    });
+    const paneItem = items[1];
+    if (paneItem?.kind !== "pane") throw new Error("expected a pane item");
+    expect(paneItem.groupPosition).toBe("single");
+  });
+
+  it("marks a middle pane as middle when roles follow the last one", () => {
+    const items = buildWorkspaceNavigationItems({
+      panes: [pane("a", "g1"), pane("b", "g1")],
+      groups: [group("g1")],
+      roles: [role("r1", "g1"), role("r2", "g1")],
+      activePane: "a",
+    });
+
+    // Neither pane closes the block: two roles still come after them.
+    expect(items.filter((item) => item.kind === "pane").map((item) => item.groupPosition))
+      .toEqual(["first", "middle"]);
+    expect(items.filter((item) => item.kind === "waiting-role").map((item) => item.isLastInGroup))
+      .toEqual([false, true]);
   });
 });

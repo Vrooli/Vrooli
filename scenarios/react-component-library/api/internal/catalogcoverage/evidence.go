@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"os"
 	"path/filepath"
 	"sort"
@@ -216,14 +217,18 @@ func EvidenceFromResult(ctx context.Context, root string, gate GateDefinition, r
 			versions[impl.CatalogID] = impl.Latest
 		}
 	}
+	revisions, revErr := BuildRevisionIndex(root)
+	if revErr != nil {
+		return nil, revErr
+	}
 	out := make([]GateEvidence, 0, len(ids))
 	for id := range ids {
 		if !ids[id] || versions[id] == "" {
 			continue
 		}
-		revision, revErr := CurrentRevision(root, id)
-		if revErr != nil {
-			return nil, revErr
+		revision, known := revisions[id]
+		if !known {
+			return nil, fmt.Errorf("catalog asset %q not found", id)
 		}
 		resultValue := "pass"
 		if result.Status == "unmeasured" {
@@ -478,66 +483,192 @@ func evidenceID(item GateEvidence) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// CurrentRevision is a content hash for the catalog declaration and its
-// linked implementation. Persisted evidence with another revision is stale.
-func CurrentRevision(root, assetID string) (string, error) {
+// BuildRevisionIndex hashes every catalog asset's own inputs — its catalog
+// declaration, its manifest, and the source and lock of its latest released
+// version — and then folds in the revisions of the assets it depends on.
+//
+// Both halves are load-bearing, and neither used to work. The manifest glob
+// was one directory short of where manifests actually live, so the loop that
+// hashes the manifest and the version source never executed and an asset's
+// revision was a digest of its catalog declaration alone: editing a
+// component's source left every cached per-asset gate verdict looking current.
+// Folding dependencies in is what makes a foundation change invalidate the
+// assets built on it, which the generated per-version locks describe exactly.
+//
+// The fold is memoized and cycle-guarded. The dependency-rank gate already
+// proves the graph is acyclic, so the guard is a safety net rather than an
+// expected path — an asset caught in one falls back to its own digest, which
+// is stale-safe in the only direction that matters: it can force an extra
+// recomputation, never suppress a needed one.
+func BuildRevisionIndex(root string) (map[string]string, error) {
 	scenarioRoot := resolveScenarioRoot(root)
-	paths, err := filepath.Glob(filepath.Join(scenarioRoot, "catalog", "assets", "*", "*.json"))
+
+	own := map[string]hash.Hash{}
+	declarationPaths, err := filepath.Glob(filepath.Join(scenarioRoot, "catalog", "assets", "*", "*.json"))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	sort.Strings(paths)
-	h := sha256.New()
-	matched := false
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
+	sort.Strings(declarationPaths)
+	for _, path := range declarationPaths {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, readErr
 		}
 		var doc struct {
 			Asset struct {
 				ID string `json:"id"`
 			} `json:"asset"`
 		}
-		if err := json.Unmarshal(data, &doc); err != nil || doc.Asset.ID != assetID {
+		if json.Unmarshal(data, &doc) != nil || doc.Asset.ID == "" {
 			continue
 		}
-		matched = true
+		h := sha256.New()
 		h.Write(data)
 		h.Write([]byte{0})
-		break
+		own[doc.Asset.ID] = h
 	}
-	if !matched {
-		return "", fmt.Errorf("catalog asset %q not found", assetID)
+
+	dependencies := map[string][]string{}
+	catalogByLibrary := map[string]string{}
+	type manifestRecord struct {
+		path      string
+		data      []byte
+		latest    string
+		libraryID string
+		requires  []string
 	}
-	manifestPaths, _ := filepath.Glob(filepath.Join(scenarioRoot, "library", "*", "component.json"))
-	sort.Strings(manifestPaths)
-	for _, path := range manifestPaths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
+	var manifests []manifestRecord
+	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
+		paths, globErr := filepath.Glob(filepath.Join(scenarioRoot, "library", kind, "*", "component.json"))
+		if globErr != nil {
+			return nil, globErr
 		}
-		var manifest struct {
-			CatalogID string `json:"catalogId"`
-			Latest    string `json:"latest"`
-		}
-		if err := json.Unmarshal(data, &manifest); err != nil || manifest.CatalogID != assetID {
-			continue
-		}
-		h.Write(data)
-		h.Write([]byte{0})
-		versionPaths := versionSourcePaths(filepath.Join(filepath.Dir(path), "versions", manifest.Latest))
-		for _, versionPath := range versionPaths {
-			versionData, err := os.ReadFile(versionPath)
-			if err != nil {
-				return "", err
+		sort.Strings(paths)
+		for _, path := range paths {
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return nil, readErr
 			}
-			h.Write(versionData)
+			var manifest struct {
+				CatalogID string `json:"catalogId"`
+				LibraryID string `json:"libraryId"`
+				Latest    string `json:"latest"`
+			}
+			if json.Unmarshal(data, &manifest) != nil {
+				continue
+			}
+			record := manifestRecord{path: path, data: data, latest: manifest.Latest, libraryID: manifest.LibraryID}
+			// Edges come from the version's generated lock, never from the
+			// manifest's dependencies array. That array is per-component while
+			// immutability is per-version, and it is empty on all 234 manifests
+			// in the live tree — folding on it would silently produce a graph
+			// with no edges at all. The lock is generated from the version's
+			// real imports, so it is the only per-version dependency record
+			// that exists.
+			if lock, lockErr := os.ReadFile(filepath.Join(filepath.Dir(path), "versions", manifest.Latest, "dependencies.json")); lockErr == nil {
+				var doc struct {
+					Dependencies []struct {
+						LibraryID string `json:"libraryId"`
+					} `json:"dependencies"`
+				}
+				if json.Unmarshal(lock, &doc) == nil {
+					for _, dependency := range doc.Dependencies {
+						record.requires = append(record.requires, dependency.LibraryID)
+					}
+				}
+			}
+			if manifest.CatalogID != "" && manifest.LibraryID != "" {
+				catalogByLibrary[manifest.LibraryID] = manifest.CatalogID
+			}
+			manifests = append(manifests, record)
+			if manifest.CatalogID == "" {
+				continue
+			}
+			h, ok := own[manifest.CatalogID]
+			if !ok {
+				continue
+			}
+			h.Write(data)
+			h.Write([]byte{0})
+			for _, versionPath := range versionSourcePaths(filepath.Join(filepath.Dir(path), "versions", manifest.Latest)) {
+				versionData, versionErr := os.ReadFile(versionPath)
+				if versionErr != nil {
+					return nil, versionErr
+				}
+				h.Write(versionData)
+				h.Write([]byte{0})
+			}
+		}
+	}
+	// The manifest's own requires list is the declared edge. It is resolved to
+	// catalog ids in a second pass because an asset may be declared after the
+	// assets it depends on have already been read.
+	for _, record := range manifests {
+		catalogID := catalogByLibrary[record.libraryID]
+		if catalogID == "" {
+			continue
+		}
+		for _, libraryID := range record.requires {
+			if dependency := catalogByLibrary[libraryID]; dependency != "" && dependency != catalogID {
+				dependencies[catalogID] = append(dependencies[catalogID], dependency)
+			}
+		}
+	}
+
+	digests := make(map[string]string, len(own))
+	for id, h := range own {
+		digests[id] = hex.EncodeToString(h.Sum(nil))
+	}
+
+	index := make(map[string]string, len(digests))
+	visiting := map[string]bool{}
+	var resolve func(string) string
+	resolve = func(id string) string {
+		if revision, ok := index[id]; ok {
+			return revision
+		}
+		if visiting[id] {
+			return digests[id]
+		}
+		visiting[id] = true
+		requires := append([]string(nil), dependencies[id]...)
+		sort.Strings(requires)
+		h := sha256.New()
+		h.Write([]byte(digests[id]))
+		h.Write([]byte{0})
+		seen := map[string]bool{}
+		for _, dependency := range requires {
+			if seen[dependency] || digests[dependency] == "" {
+				continue
+			}
+			seen[dependency] = true
+			h.Write([]byte(resolve(dependency)))
 			h.Write([]byte{0})
 		}
-		break
+		delete(visiting, id)
+		revision := hex.EncodeToString(h.Sum(nil))
+		index[id] = revision
+		return revision
 	}
-	return hex.EncodeToString(h.Sum(nil)), nil
+	for id := range digests {
+		resolve(id)
+	}
+	return index, nil
+}
+
+// CurrentRevision is a content hash for the catalog declaration, its linked
+// implementation, and everything that implementation depends on. Persisted
+// evidence with another revision is stale.
+func CurrentRevision(root, assetID string) (string, error) {
+	index, err := BuildRevisionIndex(root)
+	if err != nil {
+		return "", err
+	}
+	revision, ok := index[assetID]
+	if !ok {
+		return "", fmt.Errorf("catalog asset %q not found", assetID)
+	}
+	return revision, nil
 }
 
 // resolveScenarioRoot accepts the repository root used by API handlers, the
@@ -578,10 +709,16 @@ func versionSourcePaths(versionDir string) []string {
 func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]GateEvidence, error) {
 	var runtimeDB *sql.DB
 	var persisted []GateEvidence
-	skipGates := map[string]bool{}
+	// One revision index serves the whole pass. Every per-asset freshness
+	// decision below is a map lookup against it rather than its own corpus
+	// walk, which is what makes per-asset attribution affordable at all.
+	revisions, err := BuildRevisionIndex(root)
+	if err != nil {
+		return nil, err
+	}
+	var stale map[string]map[string]bool
 	if store != nil {
 		runtimeDB = store.Database()
-		var err error
 		persisted, err = store.List(ctx)
 		if err != nil {
 			return nil, err
@@ -590,9 +727,9 @@ func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]G
 		if definitionErr != nil {
 			return nil, definitionErr
 		}
-		skipGates = freshAttributableGates(root, persisted, definitions)
+		stale = staleAssetsByGate(root, persisted, definitions, revisions)
 	}
-	computed, err := recomputeEvidenceWithSkip(root, runtimeDB, skipGates)
+	computed, err := recomputeEvidenceWithSkip(root, runtimeDB, stale, revisions)
 	if err != nil {
 		return nil, err
 	}
@@ -619,8 +756,7 @@ func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]G
 			computed = append(computed, item)
 			continue
 		}
-		revision, err := CurrentRevision(root, item.AssetID)
-		if err != nil || revision != item.SourceRevision {
+		if revisions[item.AssetID] != item.SourceRevision {
 			continue
 		}
 		computed = append(computed, item)
@@ -628,27 +764,43 @@ func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]G
 	return computed, nil
 }
 
-// freshAttributableGates returns runners whose per-asset evidence is valid for
-// every applicable built asset. These runners can be omitted from the next
-// refresh; corpus runners continue because their result is not attributable to
-// an individual asset.
-func freshAttributableGates(root string, persisted []GateEvidence, definitions []GateDefinition) map[string]bool {
+// staleAssetsByGate returns, for every attributable gate, the assets whose
+// persisted verdict can no longer be trusted: no evidence recorded, or
+// evidence recorded against a different revision. An entry with an empty set
+// means every applicable asset is current and the runner can be skipped
+// outright.
+//
+// This used to be an all-or-nothing question — a gate counted as fresh only if
+// every applicable asset was current, so one edited component re-ran every
+// runner across the whole corpus. Corpus gates are absent from the result
+// because their verdict is not attributable to an individual asset and must
+// always be recomputed.
+func staleAssetsByGate(root string, persisted []GateEvidence, definitions []GateDefinition, revisions map[string]string) map[string]map[string]bool {
 	assets, err := LoadCatalog(filepath.Join(resolveScenarioRoot(root), "catalog"))
 	if err != nil {
-		return map[string]bool{}
+		return nil
 	}
+	// Track exactly the assets the recompute loop will visit, which is the
+	// built ones: that loop skips any catalog asset with no implementation, so
+	// tracking more here would mark a never-emitted row permanently stale and
+	// keep every runner warm-proof. Tracking fewer would drop a row on warm
+	// passes and silently move the reported rungs. The two sets have to be the
+	// same set, and TestWarmPassProducesIdenticalEvidenceToColdPass is what
+	// holds them together.
 	impls, err := LoadImplementations(filepath.Join(resolveScenarioRoot(root), "library"))
 	if err != nil {
-		return map[string]bool{}
-	}
-	kindByAsset := make(map[string]string, len(assets))
-	for _, asset := range assets {
-		kindByAsset[asset.ID] = asset.Kind
+		return nil
 	}
 	built := make(map[string]bool, len(impls))
 	for _, impl := range impls {
 		if impl.CatalogID != "" {
 			built[impl.CatalogID] = true
+		}
+	}
+	kindByAsset := make(map[string]string, len(assets))
+	for _, asset := range assets {
+		if built[asset.ID] {
+			kindByAsset[asset.ID] = asset.Kind
 		}
 	}
 	byGateAsset := map[string]map[string]GateEvidence{}
@@ -663,55 +815,31 @@ func freshAttributableGates(root string, persisted []GateEvidence, definitions [
 			byGateAsset[item.Gate][item.AssetID] = item
 		}
 	}
-	fresh := map[string]bool{}
+	out := map[string]map[string]bool{}
 	for _, definition := range definitions {
 		if definition.Attribution == "corpus" {
 			continue
 		}
-		complete := true
-		for assetID := range built {
+		gateStale := map[string]bool{}
+		for assetID := range kindByAsset {
 			if !containsKind(definition.AppliesTo, kindByAsset[assetID]) {
 				continue
 			}
+			revision, known := revisions[assetID]
+			if !known {
+				// An asset with no computable revision can never be shown to be
+				// current, so it is always recomputed rather than assumed good.
+				gateStale[assetID] = true
+				continue
+			}
 			item, ok := byGateAsset[definition.ID][assetID]
-			if !ok {
-				complete = false
-				break
-			}
-			revision, revisionErr := CurrentRevision(root, assetID)
-			if revisionErr != nil || revision != item.SourceRevision {
-				complete = false
-				break
+			if !ok || revision != item.SourceRevision {
+				gateStale[assetID] = true
 			}
 		}
-		if complete {
-			fresh[definition.ID] = true
-		}
+		out[definition.ID] = gateStale
 	}
-	return fresh
-}
-
-func freshTypesEvidenceComplete(root string, persisted []GateEvidence) bool {
-	impls, err := LoadImplementations(filepath.Join(resolveScenarioRoot(root), "library"))
-	if err != nil {
-		return false
-	}
-	want := map[string]bool{}
-	for _, impl := range impls {
-		if impl.CatalogID != "" {
-			want[impl.CatalogID] = true
-		}
-	}
-	for _, item := range persisted {
-		if item.Gate != "types" || !want[item.AssetID] {
-			continue
-		}
-		revision, revisionErr := CurrentRevision(root, item.AssetID)
-		if revisionErr == nil && revision == item.SourceRevision {
-			delete(want, item.AssetID)
-		}
-	}
-	return len(want) == 0
+	return out
 }
 
 // MergeExperienceEvidence adds only evidence that is both declared by a
@@ -818,6 +946,10 @@ func MergeExperienceEvidence(ctx context.Context, root string, store *EvidenceSt
 }
 
 func deriveExperienceEvidence(root string, captures []ExperienceCapture, definitions []GateDefinition) ([]GateEvidence, error) {
+	revisions, revisionErr := BuildRevisionIndex(root)
+	if revisionErr != nil {
+		return nil, revisionErr
+	}
 	// Experience Manager retains an audit history. Reduce it to the newest
 	// observation for each declared claim/state/example/viewport before a gate
 	// is evaluated; otherwise one old skipped capture can poison a current pass.
@@ -884,9 +1016,9 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 		if definition.minimumViewports() > 0 && len(viewports) < definition.minimumViewports() && result == "pass" {
 			result = "skipped"
 		}
-		revision, err := CurrentRevision(root, assetID)
-		if err != nil {
-			return nil, err
+		revision, known := revisions[assetID]
+		if !known {
+			return nil, fmt.Errorf("catalog asset %q not found", assetID)
 		}
 		out = append(out, GateEvidence{AssetID: assetID, Target: target, Version: group.captures[0].Version, Gate: gateID, Result: result, SourceRevision: revision})
 	}
@@ -931,9 +1063,9 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 			continue
 		}
 		assetID, target := parts[0], parts[1]
-		revision, err := CurrentRevision(root, assetID)
-		if err != nil {
-			return nil, err
+		revision, known := revisions[assetID]
+		if !known {
+			return nil, fmt.Errorf("catalog asset %q not found", assetID)
 		}
 		for _, definition := range definitions {
 			if definition.ID != "visual" && definition.ID != "responsive" {
@@ -968,10 +1100,32 @@ func RecomputeEvidence(root string) ([]GateEvidence, error) {
 }
 
 func recomputeEvidence(root string, runtimeDB *sql.DB) ([]GateEvidence, error) {
-	return recomputeEvidenceWithSkip(root, runtimeDB, nil)
+	revisions, err := BuildRevisionIndex(root)
+	if err != nil {
+		return nil, err
+	}
+	return recomputeEvidenceWithSkip(root, runtimeDB, nil, revisions)
 }
 
-func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, skip map[string]bool) ([]GateEvidence, error) {
+// recomputeEvidenceWithSkip runs the gate corpus. When stale is nil every
+// runner executes, which is the cold path and the path RecomputeEvidence takes.
+// When stale is present a runner is skipped only if no applicable asset needs
+// it; the runners themselves are whole-corpus by construction, so the saving is
+// the runner's entire cost or nothing.
+func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]map[string]bool, revisions map[string]string) ([]GateEvidence, error) {
+	// needed reports whether a runner must execute this pass. A gate the
+	// freshness pass knows nothing about — every corpus gate, and any gate a
+	// stale map does not mention — always runs.
+	needed := func(gate string) bool {
+		if stale == nil {
+			return true
+		}
+		assets, known := stale[gate]
+		if !known {
+			return true
+		}
+		return len(assets) > 0
+	}
 	assets, err := LoadCatalog(filepath.Join(root, "scenarios", "react-component-library", "catalog"))
 	if err != nil {
 		return nil, err
@@ -991,28 +1145,40 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, skip map[string]b
 		return nil, err
 	}
 	runners := map[string]gates.Result{}
-	if !skip["types"] {
+	if needed("types") {
 		if runners["types"], err = gates.ValidateTypes(root); err != nil {
 			return nil, err
 		}
 	}
-	if runners["api"], err = gates.ValidateAPI(root); err != nil {
-		return nil, err
+	if needed("api") {
+		if runners["api"], err = gates.ValidateAPI(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["tokens"], err = gates.ValidateTokens(root); err != nil {
-		return nil, err
+	if needed("tokens") {
+		if runners["tokens"], err = gates.ValidateTokens(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["conformance"], err = gates.ValidateConformance(root); err != nil {
-		return nil, err
+	if needed("conformance") {
+		if runners["conformance"], err = gates.ValidateConformance(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["version-liveness"], err = gates.ValidateVersionLiveness(root); err != nil {
-		return nil, err
+	if needed("version-liveness") {
+		if runners["version-liveness"], err = gates.ValidateVersionLiveness(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["release-provenance"], err = gates.ValidateReleaseProvenance(root); err != nil {
-		return nil, err
+	if needed("release-provenance") {
+		if runners["release-provenance"], err = gates.ValidateReleaseProvenance(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["dependency-rank"], err = gates.ValidateDependencyRank(root); err != nil {
-		return nil, err
+	if needed("dependency-rank") {
+		if runners["dependency-rank"], err = gates.ValidateDependencyRank(root); err != nil {
+			return nil, err
+		}
 	}
 	if runtimeDB != nil {
 		libraryRoot := filepath.Join(resolveScenarioRoot(root), "library")
@@ -1059,26 +1225,40 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, skip map[string]b
 			return nil, err
 		}
 	}
-	if runners["lifecycle"], err = gates.ValidateLifecycle(root); err != nil {
-		return nil, err
+	if needed("lifecycle") {
+		if runners["lifecycle"], err = gates.ValidateLifecycle(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["examples"], err = gates.ValidateExamples(root); err != nil {
-		return nil, err
+	if needed("examples") {
+		if runners["examples"], err = gates.ValidateExamples(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["fixture-adversarial"], err = gates.ValidateFixtures(root); err != nil {
-		return nil, err
+	if needed("fixture-adversarial") {
+		if runners["fixture-adversarial"], err = gates.ValidateFixtures(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["rtl"], err = gates.ValidateRTL(root); err != nil {
-		return nil, err
+	if needed("rtl") {
+		if runners["rtl"], err = gates.ValidateRTL(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["reduced-motion"], err = gates.ValidateReducedMotion(root); err != nil {
-		return nil, err
+	if needed("reduced-motion") {
+		if runners["reduced-motion"], err = gates.ValidateReducedMotion(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["stress"], err = gates.ValidateStress(root); err != nil {
-		return nil, err
+	if needed("stress") {
+		if runners["stress"], err = gates.ValidateStress(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["integration"], err = gates.ValidateIntegration(root); err != nil {
-		return nil, err
+	if needed("integration") {
+		if runners["integration"], err = gates.ValidateIntegration(root); err != nil {
+			return nil, err
+		}
 	}
 	// These corpus gates require the live catalog application and BAS tree.
 	// Sparse unit-test repositories intentionally omit those surfaces; do not
@@ -1095,20 +1275,30 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, skip map[string]b
 			return nil, err
 		}
 	}
-	if runners["surface-discipline"], err = gates.ValidateSurfaceDiscipline(root); err != nil {
-		return nil, err
+	if needed("surface-discipline") {
+		if runners["surface-discipline"], err = gates.ValidateSurfaceDiscipline(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["restyle-contract"], err = gates.ValidateRestyleContract(root); err != nil {
-		return nil, err
+	if needed("restyle-contract") {
+		if runners["restyle-contract"], err = gates.ValidateRestyleContract(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["story-grammar"], err = gates.ValidateStoryGrammar(root); err != nil {
-		return nil, err
+	if needed("story-grammar") {
+		if runners["story-grammar"], err = gates.ValidateStoryGrammar(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["story-distinctness"], err = gates.ValidateStoryDistinctness(root); err != nil {
-		return nil, err
+	if needed("story-distinctness") {
+		if runners["story-distinctness"], err = gates.ValidateStoryDistinctness(root); err != nil {
+			return nil, err
+		}
 	}
-	if runners["evidence-freshness"], err = gates.ValidateEvidenceFreshness(root); err != nil {
-		return nil, err
+	if needed("evidence-freshness") {
+		if runners["evidence-freshness"], err = gates.ValidateEvidenceFreshness(root); err != nil {
+			return nil, err
+		}
 	}
 	for name, runner := range runners {
 		runners[name] = gates.NormalizeResult(root, runner)
@@ -1139,17 +1329,23 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, skip map[string]b
 		if len(asset.Targets) > 0 {
 			target = asset.Targets[0]
 		}
-		revision, err := CurrentRevision(root, asset.ID)
-		if err != nil {
-			return nil, err
+		revision, known := revisions[asset.ID]
+		if !known {
+			return nil, fmt.Errorf("catalog asset %q has no computable revision", asset.ID)
 		}
 		for _, definition := range definitions {
 			if definition.Attribution == "corpus" || !containsKind(definition.AppliesTo, asset.Kind) {
 				continue
 			}
 			gateName := definition.ID
-			if skip[gateName] {
-				continue
+			// An asset the freshness pass found current keeps the verdict
+			// already in the evidence store. Emitting nothing here is what
+			// makes that verdict survive; emitting "unmeasured" would quietly
+			// lower the asset's rung on every warm pass.
+			if stale != nil {
+				if assets, known := stale[gateName]; known && !assets[asset.ID] {
+					continue
+				}
 			}
 			runner, ok := runners[gateName]
 			if !ok || quarantined[gateName] {

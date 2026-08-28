@@ -359,6 +359,24 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 		if file.IsEntry {
 			body = strings.TrimSpace(body)
 			body = ensureHeaderFields(body, c.LibraryID, c.DisplayName, c.Description, version, c.Tags)
+		} else if intent == VersionIntentDraft && file.Path == "dependencies.json" {
+			// A draft inherits the current release's artifacts, but its lock is
+			// still an owned version artifact. Keep the inherited dependency
+			// candidates while rewriting the identity fields so the indexer does
+			// not reject the draft as belonging to the source release.
+			var lock frozenDependencyLock
+			if err := json.Unmarshal([]byte(body), &lock); err != nil {
+				return "", fmt.Errorf("decode draft dependency lock: %w", err)
+			}
+			lock.SchemaVersion = 1
+			lock.LibraryID = c.LibraryID
+			lock.Version = version
+			lock.ResolvedAt = time.Now().UTC().Format(time.RFC3339)
+			formatted, formatErr := json.MarshalIndent(lock, "", "  ")
+			if formatErr != nil {
+				return "", fmt.Errorf("format draft dependency lock: %w", formatErr)
+			}
+			body = string(append(formatted, '\n'))
 		} else if file.Path == "experience-contract.json" {
 			// Experience contracts travel with a version folder. Keep their
 			// story binding local to the copy being created instead of carrying

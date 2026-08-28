@@ -398,6 +398,44 @@ func TestAuthoringCheckRefreshesSelectedManifestBeforeResolvingDependencies(t *t
 	require.Equal(t, "failed", dependencyFailure.Verdict)
 }
 
+func TestAuthoringDraftRewritesInheritedDependencyLockIdentity(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+	created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID:        "react-component-library:Stack",
+		Slug:             "Stack",
+		DisplayName:      "Stack",
+		InitialVersion:   "1.0.0",
+		InitialSource:    `export function Stack() { return <div />; }`,
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Stack", "versions", "1.0.0", "dependencies.json"), []byte(`{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:Stack",
+  "version": "1.0.0",
+  "resolvedAt": "2026-08-27T00:00:00Z",
+  "dependencies": []
+}
+`), 0o600))
+
+	draft, err := svc.(components.AuthoringService).BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{
+		Component: created.Component.LibraryID,
+		Bump:      "patch",
+	})
+	require.NoError(t, err)
+	lockBytes, err := os.ReadFile(filepath.Join(root, "components", "Stack", "versions", draft.Version.Version, "dependencies.json"))
+	require.NoError(t, err)
+	var lock struct {
+		LibraryID string `json:"libraryId"`
+		Version   string `json:"version"`
+	}
+	require.NoError(t, json.Unmarshal(lockBytes, &lock))
+	require.Equal(t, created.Component.LibraryID, lock.LibraryID)
+	require.Equal(t, draft.Version.Version, lock.Version)
+}
+
 func TestAuthoringVersionCopiesRewriteExperienceStoryRef(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()

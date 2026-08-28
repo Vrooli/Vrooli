@@ -94,6 +94,7 @@ function TabBar({
   const setTabContextMenu = useWorkspaceStore((s) => s.setTabContextMenu);
   const toggleGroupCollapsed = useWorkspaceStore((s) => s.toggleGroupCollapsed);
   const setManageGroupsOpen = useWorkspaceStore((s) => s.setManageGroupsOpen);
+  const setCloseGroupTarget = useWorkspaceStore((s) => s.setCloseGroupTarget);
   // Where the anchored assign picker should sit, and for which session.
   const [assignPicker, setAssignPicker] = useState<{ sessionId: string } | null>(null);
   const { syncPaneMove, syncActivePane, syncPaneUpdate } = useWorkspaceSync();
@@ -550,6 +551,7 @@ function TabBar({
             group={group}
             onToggleCollapse={() => { toggleGroupCollapsed(group.id); }}
             onManageGroups={() => { setManageGroupsOpen(true); }}
+            onCloseGroup={() => { setCloseGroupTarget(group.id); }}
             onDismiss={() => { setGroupMenu(null); }}
           />
         );

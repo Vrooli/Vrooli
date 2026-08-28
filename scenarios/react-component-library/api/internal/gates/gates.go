@@ -2082,10 +2082,19 @@ func ValidateTypes(root string) (Result, error) {
 		result.Findings = append(result.Findings, Finding{Code: "catalog.types_runner_unavailable", Message: "pnpm is unavailable; the declared types runner could not execute", Remediation: "Install or expose pnpm through the scenario dependency analyzer before running catalog conformance."})
 		return result, nil
 	}
+	reportFile, reportErr := os.CreateTemp("", "rcl-catalog-report-*.json")
+	if reportErr != nil {
+		return Result{}, reportErr
+	}
+	reportPath := reportFile.Name()
+	_ = reportFile.Close()
+	defer func() { _ = os.Remove(reportPath) }()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	command := exec.CommandContext(ctx, "pnpm", "run", "catalog:check")
 	command.Dir = uiDir
+	command.Env = append(os.Environ(), "RCL_CATALOG_REPORT="+reportPath)
 	output, err := command.CombinedOutput()
 	if ctx.Err() != nil {
 		result.Findings = append(result.Findings, Finding{
@@ -2102,15 +2111,106 @@ func ValidateTypes(root string) (Result, error) {
 		if len(message) > 4000 {
 			message = message[len(message)-4000:]
 		}
-		result.Findings = append(result.Findings, Finding{
-			Code:        "catalog.types_failed",
-			AssetID:     "",
-			Message:     "catalog conformance failed: " + message,
-			Remediation: "Reproduce with `pnpm run catalog:check` in scenarios/react-component-library/ui; the output above is that command's tail. Fix the reported type or lint errors at their source files — this gate deliberately reports the real toolchain's output rather than re-deriving its own verdict, so the failure it shows is the failure to fix.",
-			DocsRef:     "docs/internal/TESTING.md",
-		})
+		// Attribute the toolchain's diagnostics to the assets whose files they
+		// name. Without this every types finding carried an empty AssetID, and
+		// the evidence mapper matches a finding to an asset by exact id — so no
+		// asset ever matched, and a failing catalog:check was recorded as
+		// `types: pass` for the entire corpus.
+		attributed, unattributed := attributeCatalogDiagnostics(root, reportPath)
+		result.Findings = append(result.Findings, attributed...)
+		if len(attributed) == 0 || unattributed {
+			// Something failed that no single asset owns: the chain died before
+			// the compiler ran, or the diagnostics point outside library/. The
+			// gate cannot then claim any asset is clean, so this is a runner
+			// fault rather than a finding — the evidence mapper fails every
+			// asset closed on a runner fault, and passing them would be the one
+			// outcome the run does not support.
+			result.RunnerError = append(result.RunnerError, Finding{
+				Code:        "catalog.types_failed",
+				AssetID:     "__corpus__.types",
+				Message:     "catalog conformance failed: " + message,
+				Remediation: "Reproduce with `pnpm run catalog:check` in scenarios/react-component-library/ui; the output above is that command's tail. Fix the reported type or lint errors at their source files — this gate deliberately reports the real toolchain's output rather than re-deriving its own verdict, so the failure it shows is the failure to fix.",
+				DocsRef:     "docs/internal/TESTING.md",
+			})
+		}
 	}
 	return result, nil
+}
+
+// catalogDiagnostic is one tsc or ESLint message, normalized by the conformance
+// script at the point where its absolute path is still unambiguous.
+type catalogDiagnostic struct {
+	File     string `json:"file"`
+	Line     int    `json:"line"`
+	Severity string `json:"severity"`
+	Message  string `json:"message"`
+	Source   string `json:"source"`
+}
+
+// attributeCatalogDiagnostics maps each error-severity diagnostic onto the
+// library asset that owns its file. It returns one finding per affected asset
+// and reports whether any error could not be attributed, which is what forces
+// the fail-closed corpus path.
+func attributeCatalogDiagnostics(root, reportPath string) ([]Finding, bool) {
+	raw, err := os.ReadFile(reportPath)
+	if err != nil {
+		return nil, true
+	}
+	var report struct {
+		Diagnostics []catalogDiagnostic `json:"diagnostics"`
+	}
+	if err := json.Unmarshal(raw, &report); err != nil {
+		return nil, true
+	}
+	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
+	byAsset := map[string]*Finding{}
+	order := []string{}
+	unattributed := false
+	for _, diagnostic := range report.Diagnostics {
+		// Warnings do not fail the toolchain, so they must not fail an asset.
+		if !strings.EqualFold(diagnostic.Severity, "error") {
+			continue
+		}
+		name := libraryAssetForPath(libraryRoot, diagnostic.File)
+		if name == "" {
+			unattributed = true
+			continue
+		}
+		if _, ok := byAsset[name]; !ok {
+			byAsset[name] = &Finding{
+				Code:        "catalog.types_failed",
+				AssetID:     name,
+				File:        repoRel(root, diagnostic.File),
+				Line:        diagnostic.Line,
+				Message:     fmt.Sprintf("catalog conformance failed for %s: %s", name, diagnostic.Message),
+				Remediation: "Fix the reported type or lint error at its source file, then re-run `pnpm run catalog:check` in scenarios/react-component-library/ui.",
+				DocsRef:     "docs/internal/TESTING.md",
+			}
+			order = append(order, name)
+		}
+	}
+	findings := make([]Finding, 0, len(order))
+	for _, name := range order {
+		findings = append(findings, *byAsset[name])
+	}
+	return findings, unattributed
+}
+
+// libraryAssetForPath returns the asset directory name owning a file under
+// library/<kind>/<name>/…, or "" when the file belongs to something else — the
+// catalog app, a script, a config. The evidence mapper matches a finding to an
+// asset by catalog id or by this implementation name, so returning the
+// directory name is what lets the mapping succeed.
+func libraryAssetForPath(libraryRoot, file string) string {
+	relative, err := filepath.Rel(libraryRoot, filepath.Clean(file))
+	if err != nil || strings.HasPrefix(relative, "..") {
+		return ""
+	}
+	segments := strings.Split(filepath.ToSlash(relative), "/")
+	if len(segments) < 2 {
+		return ""
+	}
+	return segments[1]
 }
 
 func countCatalogSources(root string) int {

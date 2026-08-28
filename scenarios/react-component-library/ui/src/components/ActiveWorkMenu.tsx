@@ -27,7 +27,7 @@ export function ActiveWorkMenu() {
     // React Query owns this bounded lifecycle: terminal history is shown, but
     // polling stops once no run can make progress.
     refetchInterval: (state) =>
-      state.state.data?.workflows.some((workflow) => workflow.canStop) ? 15_000 : false,
+      state.state.data?.workflows?.some((workflow) => workflow.canStop) ? 15_000 : false,
   });
   const stop = useMutation({
     mutationFn: (id: string) => workflowsClient.stopWorkflow({ id }),

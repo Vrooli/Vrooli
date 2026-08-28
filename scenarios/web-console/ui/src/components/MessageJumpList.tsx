@@ -8,6 +8,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { BottomSheet } from "@vrooli/react-component-library/BottomSheet/1";
 import { AlignLeft, CheckSquare, ClipboardCopy, Code, FileText, Pause, Play, Search, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -1074,14 +1075,13 @@ export default function MessageJumpList({
               {t(strings.messageExport.exportAction)}
             </button>
           )}
-          <button
+          <IconButton
             onClick={onClose}
-            className="rounded p-1 text-wc-text-secondary transition hover:bg-wc-surface-input hover:text-wc-text-primary"
+            size="sm"
             aria-label={t(strings.messageJumpList.closeAriaLabel)}
-            type="button"
           >
-            <X className="h-3.5 w-3.5" />
-          </button>
+            <X />
+          </IconButton>
         </span>
       </div>
       {body_node}

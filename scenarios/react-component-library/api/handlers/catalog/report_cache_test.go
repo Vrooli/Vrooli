@@ -180,6 +180,13 @@ func writeAssetCacheFixture(t *testing.T) string {
 		if err := os.WriteFile(filepath.Join(versionRoot, "component.tsx"), []byte("export const "+item.name+" = () => null;\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
+		lock := `{"schemaVersion":1,"libraryId":"` + item.libraryID + `","version":"1.0.0","dependencies":[]}`
+		if item.dependency != "" {
+			lock = `{"schemaVersion":1,"libraryId":"` + item.libraryID + `","version":"1.0.0","dependencies":[{"libraryId":"` + item.dependency + `","version":"1.0.0","rank":4}]}`
+		}
+		if err := os.WriteFile(filepath.Join(versionRoot, "dependencies.json"), []byte(lock), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		if err := os.WriteFile(filepath.Join(scenarioRoot, "library", "components", item.name, "component.json"), []byte(manifest), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -187,9 +194,13 @@ func writeAssetCacheFixture(t *testing.T) string {
 	return root
 }
 
-func TestAssetFingerprintAndDependentsFollowGeneratedLocks(t *testing.T) {
+// The report cache used to carry its own per-asset fingerprint and dependency
+// walk, reachable only from this test. The live revision index in
+// catalogcoverage now owns both, so this asserts the properties the cache
+// actually depends on against the code that is really called.
+func TestRevisionIndexTracksSourceAndDependents(t *testing.T) {
 	root := writeAssetCacheFixture(t)
-	before, err := assetFingerprint(root, "controls.button")
+	before, err := catalogcoverage.BuildRevisionIndex(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,19 +208,14 @@ func TestAssetFingerprintAndDependentsFollowGeneratedLocks(t *testing.T) {
 	if err := os.WriteFile(path, []byte("export const Button = () => 'changed';\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	after, err := assetFingerprint(root, "controls.button")
+	after, err := catalogcoverage.BuildRevisionIndex(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if before == after {
-		t.Fatal("asset fingerprint did not change after source content changed")
+	if before["controls.button"] == after["controls.button"] {
+		t.Fatal("asset revision did not change after its source content changed")
 	}
-	dependents, err := dependentAssetIDs(root, "controls.button")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := []string{"controls.button", "controls.card"}
-	if len(dependents) != len(want) || dependents[0] != want[0] || dependents[1] != want[1] {
-		t.Fatalf("dependent assets = %#v, want %#v", dependents, want)
+	if before["controls.card"] == after["controls.card"] {
+		t.Fatal("dependent revision did not change after its dependency changed")
 	}
 }

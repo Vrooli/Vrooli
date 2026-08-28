@@ -291,6 +291,8 @@ export function buildWorkspaceNavigationItems({
     const nextPane = idx < orderedPanes.length - 1 ? orderedPanes[idx + 1] : undefined;
     const previousInSameGroup = !!group && previousPane?.groupId === groupId;
     const nextInSameGroup = !!group && nextPane?.groupId === groupId;
+    // True when this is the group's last pane but waiting roles still follow.
+    const hasTrailingRoles = !!groupId && !nextInSameGroup && (waitingByGroup.get(groupId)?.length ?? 0) > 0;
 
     // The PREVIOUS group's waiting roles close its block before the next
     // group's label opens the following one. Emitting the label first would
@@ -324,12 +326,17 @@ export function buildWorkspaceNavigationItems({
       pane,
       globalIndex: globalIndexBySession?.[pane.sessionId] ?? idx,
       group,
+      // A group's waiting roles are emitted after its panes, so the last
+      // PANE is only the last MEMBER when the group has no waiting roles.
+      // Treating it as last regardless closed the block's border and added
+      // its bottom margin, which is what made a waiting role read as a
+      // separate box floating under the group rather than part of it.
       groupPosition: group
-        ? previousInSameGroup && nextInSameGroup
+        ? previousInSameGroup && (nextInSameGroup || hasTrailingRoles)
           ? "middle"
           : previousInSameGroup
             ? "last"
-            : nextInSameGroup
+            : nextInSameGroup || hasTrailingRoles
               ? "first"
               : "single"
         : undefined,

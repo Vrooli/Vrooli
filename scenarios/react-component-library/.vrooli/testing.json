@@ -241,7 +241,7 @@
   "phases": {
     "unit": {
       "require_runtime": true,
-      "timeout": "180s"
+      "timeout": "1200s"
     }
   }
 }

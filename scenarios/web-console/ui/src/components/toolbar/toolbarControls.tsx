@@ -23,7 +23,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2/2.0.1";
 import {
   ARROW_DOWN,
   ARROW_LEFT,
@@ -157,19 +156,21 @@ function ArrowButton({
   const Icon = arrowIcon(keyDef);
   const label = arrowLabel(keyDef);
   return (
-    <IconButton
+    <Button
       data-testid={`${testIdPrefix}toolbar-key-${slugify(label)}`}
       tabIndex={-1}
+      type="button"
       aria-label={label}
       title={label}
-      size="icon"
       variant="secondary"
+      size="sm"
+      density="compact"
       {...(inert ? {} : handlers)}
-      className={cn(CONTROL_BASE)}
-      style={boxStyle(m.unit, m)}
+      className={cn(CONTROL_BASE, "rounded border font-medium transition")}
+      style={{ ...boxStyle(m.unit, m), paddingInline: 0 }}
     >
       <Icon aria-hidden className="h-4 w-4" />
-    </IconButton>
+    </Button>
   );
 }
 
@@ -193,21 +194,24 @@ function IconControl({
   inert?: boolean;
 }) {
   return (
-    <IconButton
+    <Button
       data-testid={testId}
       data-active={active ? "true" : undefined}
+      aria-pressed={active}
       tabIndex={-1}
+      type="button"
       aria-label={label}
       title={label}
-      size="icon"
       variant="secondary"
+      size="sm"
+      density="compact"
       onPointerDown={inert ? undefined : (e) => { e.preventDefault(); }}
       onClick={inert ? undefined : onClick}
-      className={cn(CONTROL_BASE)}
-      style={{ ...boxStyle(width, m), ...(active ? activeToolbarControlStyle : undefined) }}
+      className={cn(CONTROL_BASE, "rounded border font-medium transition")}
+      style={{ ...boxStyle(width, m), paddingInline: 0, ...(active ? activeToolbarControlStyle : undefined) }}
     >
       <Icon aria-hidden className="h-4 w-4" />
-    </IconButton>
+    </Button>
   );
 }
 

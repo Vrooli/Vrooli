@@ -39,7 +39,7 @@ vi.mock("../api/sessions", () => ({
 }));
 
 vi.mock("../api/workspace", () => ({
-  getWorkspaceLayout: vi.fn().mockResolvedValue({ active_pane: "", panes: [], groups: [] }),
+  getWorkspaceLayout: vi.fn().mockResolvedValue({ active_pane: "", panes: [], groups: [], roles: [] }),
   updateWorkspacePane: vi.fn().mockResolvedValue({}),
 }));
 
@@ -167,6 +167,7 @@ describe("useSessionManager", () => {
         manually_unread: undefined,
       }],
       groups: [],
+      roles: [],
     });
     useWorkspaceStore.setState({ panes: [], activePane: null });
 
@@ -673,5 +674,78 @@ const handle = {
     resolveCreate(extSession("first"));
     await act(async () => { await first; });
     expect(result.current.panes.map((pane) => pane.session.id)).toEqual(["first"]);
+  });
+
+  // Roles ride along in the layout response and nothing else in the client
+  // populates them. Before this, a waiting role was created server-side,
+  // stored, and then silently dropped on every reload — it read as a feature
+  // that had never been persisted at all.
+  it("hydrates waiting roles from the layout", async () => {
+    const api = await import("../api/workspace");
+    const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
+    mockListSessions.mockResolvedValueOnce([extSession("running")]);
+    mockGetWorkspaceLayout.mockResolvedValueOnce({
+      active_pane: "running",
+      panes: [],
+      groups: [{ id: "g1", name: "Test", color: "#22d3ee", is_collapsed: false }],
+      roles: [
+        { id: "r1", group_id: "g1", label: "Planner", command: "claude", working_dir: "", incoming_prompt: "", backend: "", target_id: "", session_id: "running", sort_order: 0 },
+        { id: "r2", group_id: "g1", label: "Implementer", command: "codex --yolo", working_dir: "", incoming_prompt: "Implement {{payload}}", backend: "", target_id: "", session_id: null, sort_order: 1 },
+      ],
+    });
+    useWorkspaceStore.setState({ panes: [], activePane: null, roles: [] });
+
+    renderHook(() => useSessionManager());
+    await flushHydration();
+
+    const roles = useWorkspaceStore.getState().roles;
+    expect(roles.map((role) => role.label)).toEqual(["Planner", "Implementer"]);
+    expect(roles[1]).toMatchObject({ sessionId: null, incomingPrompt: "Implement {{payload}}" });
+  });
+
+  // A role attached to a session that no longer exists is a placeholder, not
+  // a running position: a handoff aimed at that session id would go nowhere.
+  it("returns a role whose session is gone to waiting", async () => {
+    const api = await import("../api/workspace");
+    const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
+    mockListSessions.mockResolvedValueOnce([extSession("alive")]);
+    mockGetWorkspaceLayout.mockResolvedValueOnce({
+      active_pane: "alive",
+      panes: [],
+      groups: [{ id: "g1", name: "Test", color: "#22d3ee", is_collapsed: false }],
+      roles: [
+        { id: "r1", group_id: "g1", label: "Ghost", command: "claude", working_dir: "", incoming_prompt: "", backend: "", target_id: "", session_id: "reaped", sort_order: 0 },
+      ],
+    });
+    useWorkspaceStore.setState({ panes: [], activePane: null, roles: [] });
+
+    renderHook(() => useSessionManager());
+    await flushHydration();
+
+    expect(useWorkspaceStore.getState().roles[0]).toMatchObject({ label: "Ghost", sessionId: null });
+  });
+
+  it("keeps a role created while hydration was in flight", async () => {
+    const api = await import("../api/workspace");
+    const mockGetWorkspaceLayout = api.getWorkspaceLayout as ReturnType<typeof vi.fn>;
+    mockListSessions.mockResolvedValueOnce([]);
+    mockGetWorkspaceLayout.mockResolvedValueOnce({
+      active_pane: "",
+      panes: [],
+      groups: [{ id: "g1", name: "Test", color: "#22d3ee", is_collapsed: false }],
+      roles: [
+        { id: "r1", group_id: "g1", label: "Stored", command: "claude", working_dir: "", incoming_prompt: "", backend: "", target_id: "", session_id: null, sort_order: 0 },
+      ],
+    });
+    useWorkspaceStore.setState({
+      panes: [],
+      activePane: null,
+      roles: [{ id: "local", groupId: "g1", label: "Local", command: "codex", workingDir: "", incomingPrompt: "", backend: "", targetId: "", sessionId: null, sortOrder: 1 }],
+    });
+
+    renderHook(() => useSessionManager());
+    await flushHydration();
+
+    expect(useWorkspaceStore.getState().roles.map((role) => role.label)).toEqual(["Stored", "Local"]);
   });
 });
