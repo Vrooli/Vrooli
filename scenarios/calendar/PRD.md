@@ -27,11 +27,11 @@
 ### 🔴 P0 – Must ship for viability
 
 - [x] OT-P0-001 | Multi-user event creation | Multi-user event creation with authentication via scenario-authenticator
-- [x] OT-P0-002 | Recurring event patterns | Recurring event patterns (daily, weekly, monthly, custom)
+- [ ] OT-P0-002 | Recurring event patterns | Recurring event patterns (daily, weekly, monthly, custom)
 - [x] OT-P0-003 | Event reminders | Event reminders via notification-hub integration
 - [x] OT-P0-004 | Natural language scheduling | Natural language scheduling through chat interface with Ollama
 - [x] OT-P0-005 | Event-triggered automation | Event-triggered code execution for scenario automation
-- [x] OT-P0-006 | PostgreSQL storage | PostgreSQL storage with full CRUD operations
+- [ ] OT-P0-006 | PostgreSQL storage | PostgreSQL storage with full CRUD operations
 - [x] OT-P0-007 | AI-powered search | AI-powered schedule search using Qdrant embeddings
 - [x] OT-P0-008 | REST API access | REST API for programmatic access by other scenarios
 - [x] OT-P0-009 | Professional UI | Professional calendar UI with week/month/agenda views
@@ -39,9 +39,9 @@
 ### 🟠 P1 – Should have post-launch
 
 - [x] OT-P1-001 | Schedule optimization | Schedule optimization suggestions with AI
-- [x] OT-P1-002 | Conflict detection | Smart conflict detection and resolution
-- [x] OT-P1-003 | Timezone handling | Timezone handling for distributed teams
-- [x] OT-P1-004 | Event categorization | Event categorization and filtering
+- [ ] OT-P1-002 | Conflict detection | Smart conflict detection and resolution
+- [ ] OT-P1-003 | Timezone handling | Timezone handling for distributed teams
+- [ ] OT-P1-004 | Event categorization | Event categorization and filtering
 - [x] OT-P1-005 | Bulk operations | Bulk operations and batch scheduling
 - [x] OT-P1-006 | iCal import/export | iCal import/export for external calendar sync
 - [x] OT-P1-007 | Event templates | Event templates for common meeting types

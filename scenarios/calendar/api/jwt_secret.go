@@ -1,9 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/base64"
-	"errors"
 	"fmt"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
@@ -44,33 +41,13 @@ func resolveJWTSecretFromAuthority() (string, error) {
 		return "", fmt.Errorf("credential authority unavailable: %w", err)
 	}
 
-	secret, err := authority.Resolve(identity, jwtSecretField)
-	switch {
-	case err == nil:
-		return secret, nil
-	case errors.Is(err, credentialauthority.ErrUnconfigured):
-		// First start on this host. Mint one and store it.
-	default:
-		// The store exists but could not answer. Minting a replacement here
-		// would silently invalidate every token issued against the secret that
-		// is still in there, so refuse instead of guessing.
-		return "", fmt.Errorf("resolve %s:%s: %w", jwtSecretIdentity, jwtSecretField, err)
-	}
-
-	generated, err := generateJWTSecret()
-	if err != nil {
-		return "", err
-	}
-	if err := authority.Put(identity, jwtSecretField, generated); err != nil {
-		return "", fmt.Errorf("store generated %s:%s: %w", jwtSecretIdentity, jwtSecretField, err)
-	}
-	return generated, nil
+	return authority.ResolveOrMint(identity, jwtSecretField, nil, generateJWTSecret)
 }
 
 func generateJWTSecret() (string, error) {
-	buffer := make([]byte, jwtSecretBytes)
-	if _, err := rand.Read(buffer); err != nil {
+	secret, err := credentialauthority.RandomBase64(jwtSecretBytes)
+	if err != nil {
 		return "", fmt.Errorf("generate calendar signing secret: %w", err)
 	}
-	return base64.RawURLEncoding.EncodeToString(buffer), nil
+	return secret, nil
 }

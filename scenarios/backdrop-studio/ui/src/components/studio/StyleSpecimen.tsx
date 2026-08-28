@@ -5,7 +5,7 @@ import { qualityTierString } from "../../consts/qualityTier";
 import { strings } from "../../consts/strings";
 import { useRender, useObjectURL } from "../../hooks/useStudio";
 import { useTranslation } from "../../i18n";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 
 /**
  * One style, shown as what it looks like.

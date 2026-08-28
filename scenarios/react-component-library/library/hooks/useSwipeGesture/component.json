@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "hook",
+  "catalogId": "hooks.use-swipe-gesture",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "Staged directional drag with axis locking, resistance, and velocity-aware release, reported in pixels rather than a clamped ratio.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useSwipeGesture",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "kind": "surface",
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:useSwipeGesture",
+  "tags": [
+    "runtime",
+    "gesture",
+    "accessibility"
+  ]
+}

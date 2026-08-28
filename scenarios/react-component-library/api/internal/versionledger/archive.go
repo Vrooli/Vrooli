@@ -14,8 +14,10 @@ import (
 
 const archiveSchemaVersion = 1
 
-var archiveTables = []string{"component_versions", "component_version_files", "version_ledger"}
-var archiveIdentifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+var (
+	archiveTables     = []string{"component_versions", "component_version_files", "version_ledger"}
+	archiveIdentifier = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+)
 
 type archiveTable struct {
 	Columns []string `json:"columns"`

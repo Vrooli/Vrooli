@@ -105,3 +105,61 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+// jsdom implements neither PointerEvent nor the pointer-capture methods, so
+// `fireEvent.pointerMove` silently degrades to a bare Event carrying no
+// coordinates and no pointerId — every pointer-driven assertion then passes
+// vacuously or fails for the wrong reason. Gesture assets are tested through
+// exactly that path, so the environment supplies the missing surface rather
+// than each test faking it.
+//
+// `timeStamp` is writable here on purpose: it is read-only in a real browser,
+// but velocity is a function of it, and a test that cannot control the clock
+// cannot distinguish a flick from a slow drag.
+if (typeof globalThis.PointerEvent === "undefined") {
+  class PointerEventPolyfill extends MouseEvent {
+    readonly pointerId: number;
+    readonly pointerType: string;
+    readonly isPrimary: boolean;
+    readonly width: number;
+    readonly height: number;
+    readonly pressure: number;
+
+    constructor(type: string, init: PointerEventInit & { timeStamp?: number } = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 0;
+      this.pointerType = init.pointerType ?? "";
+      this.isPrimary = init.isPrimary ?? true;
+      this.width = init.width ?? 1;
+      this.height = init.height ?? 1;
+      this.pressure = init.pressure ?? 0;
+      if (init.timeStamp !== undefined) {
+        Object.defineProperty(this, "timeStamp", { value: init.timeStamp, configurable: true });
+      }
+    }
+  }
+  Object.defineProperty(globalThis, "PointerEvent", {
+    value: PointerEventPolyfill,
+    configurable: true,
+    writable: true,
+  });
+}
+
+// Capture is a no-op rather than a throw: the library guards these calls, and a
+// guard that is never exercised because the method is missing proves nothing.
+for (const method of ["setPointerCapture", "releasePointerCapture"] as const) {
+  if (typeof Element.prototype[method] !== "function") {
+    Object.defineProperty(Element.prototype, method, {
+      value: () => {},
+      configurable: true,
+      writable: true,
+    });
+  }
+}
+if (typeof Element.prototype.hasPointerCapture !== "function") {
+  Object.defineProperty(Element.prototype, "hasPointerCapture", {
+    value: () => false,
+    configurable: true,
+    writable: true,
+  });
+}

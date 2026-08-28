@@ -2,7 +2,12 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-direction",
-  "description": "Production-ready useDirection hook with SSR-safe lifecycle behavior.",
+  "deprecatedVersions": [
+    "2.0.0",
+    "2.1.1",
+    "2.1.0"
+  ],
+  "description": "Subscribes to the writing direction in force for a subtree so a direction change re-renders its consumers.",
   "designStyles": [
     {
       "affinity": "native",
@@ -10,11 +15,18 @@
     }
   ],
   "displayName": "useDirection",
+  "draft": "",
+  "evictedVersions": [
+    "2.1.1",
+    "2.1.0",
+    "2.0.0"
+  ],
   "kind": "surface",
-  "latest": "1.0.0",
+  "latest": "2.1.2",
   "libraryId": "react-component-library:useDirection",
   "tags": [
     "runtime",
-    "accessibility"
+    "accessibility",
+    "internationalization"
   ]
 }

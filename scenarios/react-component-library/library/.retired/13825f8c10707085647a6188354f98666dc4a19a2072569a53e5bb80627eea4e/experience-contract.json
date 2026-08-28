@@ -1,0 +1,32 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:useHandedness@1.0.0"
+  },
+  "component": {
+    "id": "use-handedness",
+    "title": "Handedness",
+    "purpose": "Resolves which edge anchored surfaces sit against, and which way their gestures travel."
+  },
+  "states": [
+    { "id": "default", "example": "default", "description": "Anchored to the inline start edge." },
+    { "id": "end-anchored", "example": "end-anchored", "description": "Anchored to the inline end edge." }
+  ],
+  "claims": [
+    {
+      "id": "contract-present",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "The hook exposes its documented public behavior through a stable versioned entrypoint.",
+      "states": ["default", "end-anchored"]
+    },
+    {
+      "id": "independent-of-direction",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "Changing handedness moves the anchored edge without altering the document writing direction.",
+      "states": ["end-anchored"]
+    }
+  ]
+}

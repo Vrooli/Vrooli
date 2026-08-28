@@ -37,7 +37,6 @@ replace github.com/vrooli/scenarioconfig-go => ../../../packages/scenarioconfig-
 require (
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
-	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 )
 

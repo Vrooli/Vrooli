@@ -65,6 +65,7 @@ func Duration(key string, def time.Duration) time.Duration {
 // reads in main.go.
 type Env struct {
 	WhisperURL            string
+	KokoroURL             string
 	KyutaiURL             string
 	SherpaURL             string
 	OllamaURL             string
@@ -87,6 +88,7 @@ type Env struct {
 func Load() Env {
 	return Env{
 		WhisperURL:            ResourceURL("AUDIO_WHISPER_URL", "WHISPER_URL"),
+		KokoroURL:             ResourceURL("AUDIO_KOKORO_URL", "KOKORO_URL"),
 		KyutaiURL:             ResourceURL("AUDIO_KYUTAI_URL", "KYUTAI_URL"),
 		SherpaURL:             ResourceURL("AUDIO_SHERPA_URL", "SHERPA_ONNX_URL"),
 		OllamaURL:             ResourceURL("AUDIO_OLLAMA_URL", "OLLAMA_URL"),

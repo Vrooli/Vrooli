@@ -17,6 +17,15 @@ const typescriptBin = path.join(uiDir, "node_modules", "typescript", "bin", "tsc
 // Keep the isolated project beneath uiDir so TypeScript's normal ancestor-based
 // node_modules lookup remains valid and ESLint can lint disposable sources
 // without treating them as outside the scenario boundary.
+// The `finally` below removes this run's scratch directory, but a kill signal
+// skips it — a terminated build leaves the directory behind forever. Sweeping
+// stale siblings here means the script owns its own residue under every exit
+// path, rather than relying on an external reaper that has to know this name.
+for (const entry of readdirSync(uiDir, { withFileTypes: true })) {
+  if (entry.isDirectory() && entry.name.startsWith(".catalog-conformance-")) {
+    rmSync(path.join(uiDir, entry.name), { force: true, recursive: true });
+  }
+}
 const scratchDir = mkdtempSync(path.join(uiDir, ".catalog-conformance-"));
 const generatedTSConfig = path.join(scratchDir, "catalog-tsconfig.json");
 const packageRoot = path.resolve(uiDir, "../../../packages/react-component-library");

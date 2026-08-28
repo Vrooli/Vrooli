@@ -2,6 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-swipe",
+  "deprecatedVersions": [],
   "description": "Production-ready useSwipe hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {
@@ -10,13 +11,16 @@
     }
   ],
   "displayName": "useSwipe",
+  "draft": "",
+  "evictedVersions": [
+    "2.0.0",
+    "1.0.0"
+  ],
   "kind": "surface",
   "latest": "2.0.2",
   "libraryId": "react-component-library:useSwipe",
   "tags": [
     "runtime",
     "accessibility"
-  ],
-  "draft": "",
-  "deprecatedVersions": []
+  ]
 }

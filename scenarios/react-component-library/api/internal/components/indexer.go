@@ -100,6 +100,12 @@ func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, 
 	if err != nil {
 		return Component{}, err
 	}
+	// Authoring takes this path, so it needs the same attestations the full
+	// walk uses; without them a publish would be refused by a stale index row
+	// that the committed registry already supersedes.
+	if in.ReleaseAttestations, err = loadReleaseAttestations(idx.fs); err != nil {
+		return Component{}, fmt.Errorf("read released version hash registry: %w", err)
+	}
 	component, err := idx.repo.UpsertManifest(ctx, in)
 	if err != nil {
 		return Component{}, fmt.Errorf("upsert %s: %w", path, err)
@@ -134,6 +140,12 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	if _, err := idx.repo.RestoreEvictedStories(ctx); err != nil {
 		return result, fmt.Errorf("restore evicted story projections: %w", err)
 	}
+	// Read once per run rather than per manifest: the registry describes the
+	// whole library and the walk visits 236 manifests.
+	releaseAttestations, err := loadReleaseAttestations(idx.fs)
+	if err != nil {
+		return result, fmt.Errorf("read released version hash registry: %w", err)
+	}
 
 	walkErr := fs.WalkDir(idx.fs, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -157,6 +169,7 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 		}
 		result.Findings = append(result.Findings, in.Findings...)
 		result.Warnings = append(result.Warnings, in.Warnings...)
+		in.ReleaseAttestations = releaseAttestations
 		keepLibraryIDs[in.Manifest.LibraryID] = struct{}{}
 		comp, err := idx.repo.UpsertManifest(ctx, in)
 		if err != nil {
@@ -216,6 +229,28 @@ func (idx *Indexer) registryAssetPath(path string) bool {
 		}
 	}
 	return false
+}
+
+// sortedVersions gives the evicted set a stable order so findings and the
+// version list do not vary between runs over the same tree.
+func sortedVersions(evicted map[string]struct{}) []string {
+	out := make([]string, 0, len(evicted))
+	for version := range evicted {
+		out = append(out, version)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func unrecoverableEvictedFinding(sourcePath, libraryID string, versions []string, detail string) IndexFinding {
+	return IndexFinding{
+		Kind:       IndexFindingUnrecoverableEvictedVersion,
+		SourcePath: sourcePath,
+		Field:      "evictedVersions",
+		Expected:   "a durable file mirror for every declared evicted version",
+		Actual:     strings.Join(versions, ", "),
+		Detail:     fmt.Sprintf("%s: %s (%s); the version is omitted from the index and the rest of the asset is indexed", libraryID, detail, strings.Join(versions, ", ")),
+	}
 }
 
 func registryOrphanFinding(o OrphanVersion) IndexFinding {
@@ -559,18 +594,31 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	// Evicted versions are represented by their durable database mirror. They
 	// are deliberately not reconstructed from the working tree: their absence
 	// is the storage placement being indexed.
+	// A missing mirror row used to fail the whole manifest. That is a deadlock
+	// on first index: the component has no ledger row precisely because it has
+	// never indexed, and refusing keeps it out forever. Eight assets sat in
+	// that state, and because an unindexed asset cannot appear as a referrer,
+	// retention stopped seeing every dependency they declared.
+	//
+	// An evicted version that has no mirror is unrecoverable either way, so it
+	// is reported and omitted. The versions on disk — the ones composition and
+	// retention actually depend on — index normally.
 	if len(evicted) > 0 {
 		component, err := idx.repo.GetByLibraryID(context.Background(), manifest.LibraryID)
 		if err != nil {
-			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "evictedVersions", Reason: "component has no ledger row for declared versions"}
-		}
-		for version := range evicted {
-			stored, err := idx.repo.GetVersion(context.Background(), component.ID, version)
-			if err != nil {
-				return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: path, Field: "evictedVersions", Reason: "no ledger row for " + manifest.LibraryID + "@" + version}
+			findings = append(findings, unrecoverableEvictedFinding(path, manifest.LibraryID, sortedVersions(evicted),
+				"component has no ledger row, so declared evicted versions cannot be restored from a mirror"))
+		} else {
+			for _, version := range sortedVersions(evicted) {
+				stored, err := idx.repo.GetVersion(context.Background(), component.ID, version)
+				if err != nil {
+					findings = append(findings, unrecoverableEvictedFinding(path, manifest.LibraryID, []string{version},
+						"no ledger row for this evicted version, so its mirror cannot be restored"))
+					continue
+				}
+				stored.Presence = "evicted"
+				versions = append(versions, stored)
 			}
-			stored.Presence = "evicted"
-			versions = append(versions, stored)
 		}
 	}
 	if !latestFound {

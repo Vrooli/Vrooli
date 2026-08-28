@@ -390,6 +390,14 @@ func (s *sqliteRepository) checkReleasedVersionHashes(ctx context.Context, in In
 			return fmt.Errorf("check released version %s@%s: %w", in.Manifest.LibraryID, version.Version, err)
 		}
 		if status == string(VersionStatusReleased) && recorded != "" && !releaseHashMatches(recorded, version.Content, version.ContentSHA256) {
+			// The index disagrees with the source. Before refusing, ask the
+			// committed hash registry, which is the tracked record a reviewer
+			// reads and the one a migration updates beside the bytes it
+			// rewrote. When it vouches for these bytes, the stale side is this
+			// projection and the upsert may refresh it.
+			if attestsRelease(in.ReleaseAttestations, version.SourcePath, version.ContentSHA256) {
+				continue
+			}
 			return ErrReleasedVersionMutated{ComponentID: in.Manifest.LibraryID, Version: version.Version, Recorded: recorded, Incoming: version.ContentSHA256}
 		}
 		if status != string(VersionStatusReleased) {

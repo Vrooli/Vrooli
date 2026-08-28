@@ -1,0 +1,61 @@
+{
+ "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+ "args": {
+  "fields": []
+ },
+ "environment": {
+  "fixtures": []
+ },
+ "kind": "hook",
+ "schemaVersion": 5,
+ "stories": [
+  {
+   "args": {},
+   "composition": {
+    "specimen": {
+     "export": "Default",
+     "module": "./story.tsx"
+    }
+   },
+   "expect": [
+    {
+     "kind": "visible",
+     "selector": "[data-testid='hooks.use-direction']"
+    },
+    {
+     "kind": "attribute",
+     "selector": "[data-testid='hooks.use-direction']",
+     "attribute": "data-direction",
+     "value": "ltr"
+    }
+   ],
+   "id": "default",
+   "mode": "live",
+   "name": "Default",
+   "role": "anatomy"
+  },
+  {
+   "args": {},
+   "composition": {
+    "specimen": {
+     "export": "RightToLeft",
+     "module": "./story.tsx"
+    }
+   },
+   "expect": [
+    {
+     "kind": "visible",
+     "selector": "[data-testid='hooks.use-direction.rtl']"
+    }
+   ],
+   "id": "right-to-left",
+   "mode": "live",
+   "name": "Right to left",
+   "role": "boundary",
+   "states": [
+    "rtl"
+   ]
+  }
+ ],
+ "title": "useDirection"
+}

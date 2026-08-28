@@ -6,7 +6,7 @@ import { qualityTierString } from "../consts/qualityTier";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { MockupPreview } from "../components/studio/MockupPreview";
 import { QualityMeters } from "../components/studio/QualityMeters";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useObjectURL, useRender, useStyles, useSurfaces } from "../hooks/useStudio";

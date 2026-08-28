@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "foundation",
+  "catalogId": "foundations.gesture-direction",
+  "deprecatedVersions": [],
+  "description": "Resolves a semantic gesture intent to a physical screen direction from writing direction and anchor edge, which are independent inputs.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Gesture Direction",
+  "draft": "",
+  "evictedVersions": [],
+  "kind": "surface",
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:GestureDirection",
+  "tags": ["foundations", "gesture", "accessibility", "internationalization"]
+}

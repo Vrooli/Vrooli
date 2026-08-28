@@ -778,3 +778,72 @@ func manifest(libraryID, displayName, tags string) string {
 func manifestWithStyles(libraryID, displayName, tags, designStyles string) string {
 	return `{"libraryId":"` + libraryID + `","displayName":"` + displayName + `","description":"","slot":"ui-primitive","tags":` + tags + `,"designStyles":` + designStyles + `,"latest":"1.0.0","deprecatedVersions":[]}`
 }
+
+// An asset that declares evicted versions but has never been indexed used to
+// fail the whole manifest, which is a deadlock: the ledger row it demands can
+// only be created by the index it is blocking. Eight real assets sat in that
+// state, and because an unindexed asset cannot appear as a referrer, retention
+// stopped seeing every dependency they declared.
+func TestIndexer_FirstIndexOfAnAssetDeclaringEvictedVersionsStillIndexes(t *testing.T) {
+	ctx := context.Background()
+	fs := fstest.MapFS{
+		"components/VoiceInputButton/component.json": {Data: []byte(`{"libraryId":"react-component-library:VoiceInputButton","displayName":"Voice Input Button","entry":"VoiceInputButton.tsx","latest":"4.3.1","deprecatedVersions":[],"evictedVersions":["3.0.0","4.1.0"]}`)},
+		"components/VoiceInputButton/versions/4.3.1/VoiceInputButton.tsx": {Data: []byte(`/**
+ * @libraryId react-component-library:VoiceInputButton
+ * @version 4.3.1
+ */
+export const VoiceInputButton = () => null;`)},
+	}
+	repo := mocks.NewFakeRepository()
+	result, err := components.NewIndexer(repo, ".", fs).Run(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Indexed, "the asset must enter the index even though its evicted mirrors are unreadable")
+	require.Empty(t, result.Errors)
+
+	component, err := repo.GetByLibraryID(ctx, "react-component-library:VoiceInputButton")
+	require.NoError(t, err)
+	version, err := repo.GetVersion(ctx, component.ID, "4.3.1")
+	require.NoError(t, err)
+	require.Equal(t, "4.3.1", version.Version)
+
+	// The unrecoverable mirror is reported rather than swallowed.
+	var reported bool
+	for _, finding := range result.Findings {
+		if finding.Kind == components.IndexFindingUnrecoverableEvictedVersion {
+			reported = true
+			require.Contains(t, finding.Detail, "VoiceInputButton")
+		}
+	}
+	require.True(t, reported, "the omitted evicted versions must surface as a finding")
+}
+
+// The committed hash registry outranks a stale index row for released bytes,
+// but only for bytes it actually vouches for.
+func TestIndexer_CommittedHashRegistryReconcilesAStaleIndexRow(t *testing.T) {
+	ctx := context.Background()
+	repo := mocks.NewFakeRepository()
+	_, err := repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{LibraryID: "react-component-library:Portal", Slug: "Portal", DisplayName: "Portal", LatestVersion: "1.1.1", AssetKind: components.AssetKindComponent},
+		Versions: []components.ComponentVersion{
+			{Version: "1.1.1", Status: components.VersionStatusReleased, Presence: "materialized", SourcePath: "components/Portal/versions/1.1.1/Portal.tsx", Content: "stale", ContentSHA256: testDigest("stale"), Files: []components.ComponentVersionFile{{Path: "Portal.tsx", Content: "stale", ContentSHA256: testDigest("stale"), IsEntry: true}}},
+		},
+	})
+	require.NoError(t, err)
+
+	source := `/**
+ * @libraryId react-component-library:Portal
+ * @version 1.1.1
+ */
+export const Portal = () => null;`
+	registry := `{"schemaVersion":1,"entries":[{"path":"components/Portal/versions/1.1.1/Portal.tsx","sha256":"` + testDigest(source) + `"}]}`
+	fs := fstest.MapFS{
+		"released-version-hashes.json":                       {Data: []byte(registry)},
+		"components/Portal/component.json":                   {Data: []byte(`{"libraryId":"react-component-library:Portal","displayName":"Portal","entry":"Portal.tsx","latest":"1.1.1","deprecatedVersions":[]}`)},
+		"components/Portal/versions/1.1.1/Portal.tsx":        {Data: []byte(source)},
+		"components/Portal/versions/1.1.1/dependencies.json": {Data: []byte(`{"schemaVersion":1,"libraryId":"react-component-library:Portal","version":"1.1.1","resolvedAt":"2026-08-27T00:00:00Z","dependencies":[]}`)},
+	}
+	result, err := components.NewIndexer(repo, ".", fs).Run(ctx)
+	require.NoError(t, err)
+	require.Empty(t, result.Errors, "bytes the committed registry attests must not be refused by a stale index row")
+	require.Equal(t, 1, result.Indexed)
+}

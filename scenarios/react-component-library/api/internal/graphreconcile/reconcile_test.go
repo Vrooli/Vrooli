@@ -131,11 +131,44 @@ func TestLiveReconcileReportsEveryCatalogAsset(t *testing.T) {
 			if row.Verdict == ImportsUnavailable {
 				return
 			}
-			if row.Verdict != UndeclaredInManifest && row.Verdict != UnpinnedImport {
-				t.Fatalf("data table verdict=%s", row.Verdict)
+			// Any real verdict is acceptable here; which drift shape an asset
+			// currently shows is corpus state, not gate behaviour. What must
+			// never happen is ManifestEmpty, which is the vacuous answer this
+			// gate returned for every asset while it still read the retired
+			// `component.json.dependencies[]` field.
+			if row.Verdict == ManifestEmpty {
+				t.Fatalf("data table verdict=%s: the reconciler is reading a dependency record that no longer exists", row.Verdict)
 			}
 			return
 		}
 	}
 	t.Fatal("data table row missing")
+}
+
+// The reconciler reads per-version locks. If it ever falls back to the retired
+// manifest field again, every asset collapses to ManifestEmpty and the gate
+// silently stops measuring anything — a green report that proves nothing.
+func TestLiveReconcileIsNotUniformlyManifestEmpty(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Reconcile(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	measured := 0
+	empty := 0
+	for _, row := range report.Assets {
+		switch row.Verdict {
+		case ManifestEmpty:
+			empty++
+		case NotImplemented, ImportsUnavailable:
+		default:
+			measured++
+		}
+	}
+	if measured == 0 {
+		t.Fatalf("no implemented asset produced a measured verdict (manifest-empty=%d of %d): the dependency record the reconciler reads is missing", empty, len(report.Assets))
+	}
 }

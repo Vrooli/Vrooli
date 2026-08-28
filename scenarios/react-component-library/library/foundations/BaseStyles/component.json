@@ -1,11 +1,23 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "catalogId": "foundations.base-styles",
   "assetKind": "foundation",
+  "catalogId": "foundations.base-styles",
   "deprecatedVersions": [],
-  "displayName": "Base Styles",
-  "kind": "surface",
   "description": "Shared control reset, accessibility treatments, and sizing tokens.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Base Styles",
+  "draft": "",
+  "evictedVersions": [
+    "1.1.1",
+    "1.1.0"
+  ],
+  "kind": "surface",
   "latest": "1.2.0",
   "libraryId": "react-component-library:BaseStyles",
   "slot": "foundation",
@@ -13,13 +25,5 @@
     "styles",
     "controls",
     "accessibility"
-  ],
-  "draft": "",
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
   ]
 }

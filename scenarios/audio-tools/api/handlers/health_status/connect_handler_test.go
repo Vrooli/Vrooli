@@ -36,6 +36,7 @@ func testDefs() []capabilities.Def {
 		{ID: "kokoro-tts", DependencyKind: capabilities.DependencyResource, DependencySlug: "kokoro", Features: []string{"voice-output"}},
 		{ID: "ollama", DependencyKind: capabilities.DependencyResource, DependencySlug: "ollama", Features: []string{"ai-command-generation"}},
 		{ID: "openrouter", DependencyKind: capabilities.DependencyResource, DependencySlug: "openrouter", Features: []string{"ai-command-generation"}},
+		{ID: "audio-transcode", DependencyKind: capabilities.DependencyScenario, DependencySlug: "audio-tools", Features: []string{"transcode"}},
 		// Rollup scenario entry — handler MUST skip this.
 		{ID: "audio-tools", DependencyKind: capabilities.DependencyScenario, DependencySlug: "audio-tools", Features: []string{"voice-input", "voice-output"}},
 	}
@@ -52,10 +53,11 @@ func newHandlerHarness(t *testing.T, checkers map[string]capabilities.Checker, t
 
 func TestGetProviderHealth_GroupsByCapabilityAndSkipsRollup(t *testing.T) {
 	checkers := map[string]capabilities.Checker{
-		"whisper-stt": capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
-		"kokoro-tts":  capmocks.NewFakeChecker(capabilities.StatusUnavailable, "kokoro is not responding"),
-		"ollama":      capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
-		"openrouter":  capmocks.NewFakeChecker(capabilities.StatusUnavailable, "no creds"),
+		"whisper-stt":     capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
+		"kokoro-tts":      capmocks.NewFakeChecker(capabilities.StatusUnavailable, "kokoro is not responding"),
+		"ollama":          capmocks.NewFakeChecker(capabilities.StatusAvailable, "ok"),
+		"openrouter":      capmocks.NewFakeChecker(capabilities.StatusUnavailable, "no creds"),
+		"audio-transcode": capmocks.NewFakeChecker(capabilities.StatusAvailable, "ffmpeg available"),
 	}
 	deps, _, _, _ := newHandlerHarness(t, checkers, time.Minute)
 	h := health_status.NewConnectHandler(*deps)
@@ -72,7 +74,7 @@ func TestGetProviderHealth_GroupsByCapabilityAndSkipsRollup(t *testing.T) {
 	require.Contains(t, byCap, diagv1.Capability_CAPABILITY_STT)
 	require.Contains(t, byCap, diagv1.Capability_CAPABILITY_TTS)
 	require.Contains(t, byCap, diagv1.Capability_CAPABILITY_SUMMARIZE)
-	require.NotContains(t, byCap, diagv1.Capability_CAPABILITY_TRANSCODE, "transcode is not a capability provider")
+	require.Contains(t, byCap, diagv1.Capability_CAPABILITY_TRANSCODE)
 
 	// STT: one provider (whisper-stt), AVAILABLE; rollup AVAILABLE.
 	stt := byCap[diagv1.Capability_CAPABILITY_STT]

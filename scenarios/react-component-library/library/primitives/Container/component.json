@@ -21,8 +21,11 @@
     }
   ],
   "displayName": "Container",
-  "kind": "surface",
   "draft": "",
+  "evictedVersions": [
+    "1.1.0"
+  ],
+  "kind": "surface",
   "latest": "1.1.3",
   "libraryId": "react-component-library:Container",
   "tags": [

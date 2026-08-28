@@ -1,18 +1,31 @@
 
 // vrooli:library-selectors start
 export const librarySelectors = {
-  "usevoiceinput": {
+      "usevoiceinput": {
     "root": "usevoiceinput",
   },
-  "voiceinputbutton": {
-    "root": "voice-input-error-dismiss",
-    "id2": "voiceinputbutton",
+
+
+      "voiceinputbutton": {
+    "root": "voiceinputbutton",
+    "voiceInputErrorDismiss": "voiceinputbutton.voice-input-error-dismiss",
   },
-  "controls.icon-button": {
+
+
+      "controls.icon-button": {
     "root": "controls.icon-button",
   },
-  "controlbase": {
+
+
+                "controlbase": {
     "root": "controlbase",
   },
+
+
+
+
+
+
+
 } as const;
 // vrooli:library-selectors end

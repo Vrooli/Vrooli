@@ -1,0 +1,1439 @@
+<title>The Gate With No Asset</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* ============================================================
+   Palette concept: STRUCTURE IS COOL, STATE IS WARM.
+   The accent (slate-cyan) carries architecture: rails, spines,
+   figure frames. Verdicts are warm and never use the accent:
+   moss = fixed, ochre = partial, rust = open.
+   ============================================================ */
+:root {
+  --ground:        #F6F8F8;
+  --surface:       #FFFFFF;
+  --surface-sunk:  #ECF0F0;
+  --ink:           #10201F;
+  --ink-soft:      #46595A;
+  --ink-faint:     #74898A;
+  --rule:          #D3DCDC;
+  --rule-soft:     #E4EAEA;
+
+  --accent:        #1D5B6B;
+  --accent-bright: #2C7F92;
+  --accent-wash:   #E3EFF1;
+
+  --fixed:         #4A7A3E;
+  --fixed-wash:    #E8F0E4;
+  --partial:       #92671A;
+  --partial-wash:  #F5EDDC;
+  --open:          #A8452B;
+  --open-wash:     #F7E7E2;
+
+  --shadow: 0 1px 2px rgba(16,32,31,.05), 0 6px 20px -12px rgba(16,32,31,.22);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:        #0D1413;
+    --surface:       #141C1C;
+    --surface-sunk:  #101817;
+    --ink:           #E2EAE8;
+    --ink-soft:      #A0B2B2;
+    --ink-faint:     #74898A;
+    --rule:          #2A3838;
+    --rule-soft:     #1F2B2B;
+
+    --accent:        #5FB4C6;
+    --accent-bright: #7ECBDA;
+    --accent-wash:   #16292E;
+
+    --fixed:         #8CBE7C;
+    --fixed-wash:    #172514;
+    --partial:       #D6AC5A;
+    --partial-wash:  #261D0D;
+    --open:          #E08668;
+    --open-wash:     #2A140E;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:        #0D1413;
+  --surface:       #141C1C;
+  --surface-sunk:  #101817;
+  --ink:           #E2EAE8;
+  --ink-soft:      #A0B2B2;
+  --ink-faint:     #74898A;
+  --rule:          #2A3838;
+  --rule-soft:     #1F2B2B;
+
+  --accent:        #5FB4C6;
+  --accent-bright: #7ECBDA;
+  --accent-wash:   #16292E;
+
+  --fixed:         #8CBE7C;
+  --fixed-wash:    #172514;
+  --partial:       #D6AC5A;
+  --partial-wash:  #261D0D;
+  --open:          #E08668;
+  --open-wash:     #2A140E;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.62;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 28px 100px;
+}
+
+/* ---------- typography ---------- */
+h1, h2, h3, h4 {
+  font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+  text-wrap: balance;
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+code, .mono { font-family: "IBM Plex Mono", ui-monospace, "SF Mono", monospace; }
+
+code {
+  font-size: .855em;
+  background: var(--surface-sunk);
+  border: 1px solid var(--rule-soft);
+  border-radius: 3px;
+  padding: .08em .34em;
+  word-break: break-word;
+}
+
+/* ---------- masthead ---------- */
+header.masthead {
+  padding: 76px 0 40px;
+  border-bottom: 2px solid var(--ink);
+  margin-bottom: 8px;
+}
+header.masthead h1 {
+  font-size: clamp(40px, 6.6vw, 76px);
+  font-weight: 700;
+  line-height: .98;
+  letter-spacing: -0.035em;
+  margin: 18px 0 0;
+}
+.standfirst {
+  max-width: 62ch;
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin: 22px 0 0;
+}
+.byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin-top: 30px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+/* ---------- verdict strip ---------- */
+.verdict {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin: 34px 0 64px;
+}
+.verdict > div {
+  background: var(--surface);
+  padding: 20px 22px 22px;
+}
+.verdict .n {
+  font-family: Archivo, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.verdict .k {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+.v-fixed   .n { color: var(--fixed); }
+.v-partial .n { color: var(--partial); }
+.v-open    .n { color: var(--open); }
+.v-neutral .n { color: var(--accent); }
+
+/* ---------- sections ---------- */
+section { margin: 0 0 72px; scroll-margin-top: 24px; }
+
+.sec-head {
+  display: grid;
+  grid-template-columns: 46px 1fr;
+  gap: 0 20px;
+  align-items: baseline;
+  border-top: 1px solid var(--ink);
+  padding-top: 18px;
+  margin-bottom: 30px;
+}
+.sec-head .num {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: .05em;
+  padding-top: 6px;
+}
+.sec-head h2 {
+  font-size: clamp(25px, 3.2vw, 35px);
+  font-weight: 600;
+  line-height: 1.14;
+}
+.sec-head .sub {
+  grid-column: 2;
+  color: var(--ink-soft);
+  font-size: 17px;
+  margin-top: 8px;
+  max-width: 66ch;
+}
+
+.prose { max-width: 68ch; }
+.prose p { margin: 0 0 1.05em; }
+.prose h3 {
+  font-size: 19px;
+  font-weight: 600;
+  margin: 2.1em 0 .55em;
+  letter-spacing: -0.005em;
+}
+.prose ul, .prose ol { margin: 0 0 1.05em; padding-left: 1.3em; }
+.prose li { margin-bottom: .42em; }
+.prose strong { font-weight: 600; }
+
+.lede {
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--ink);
+  border-left: 3px solid var(--accent);
+  padding-left: 22px;
+  margin: 0 0 30px;
+  max-width: 64ch;
+}
+
+/* ---------- figures ---------- */
+figure {
+  margin: 34px 0;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  box-shadow: var(--shadow);
+}
+figure .fig-head {
+  padding: 15px 24px 13px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+  justify-content: space-between;
+  background: var(--surface-sunk);
+}
+figure .fig-head .t {
+  font-family: Archivo, sans-serif;
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: .005em;
+}
+figure .fig-head .m {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+figure .fig-body { padding: 26px 24px; overflow-x: auto; }
+figcaption {
+  padding: 0 24px 20px;
+  font-size: 14.5px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+  max-width: 74ch;
+}
+
+/* ---------- the signature hero figure ---------- */
+.sig {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: clamp(13px, 1.9vw, 19px);
+  line-height: 1.9;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.sig .kw { color: var(--accent); }
+.sig .miss {
+  color: var(--open);
+  border-bottom: 2px dashed var(--open);
+  padding-bottom: 2px;
+}
+.sig-note {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  color: var(--open);
+  letter-spacing: .04em;
+  margin-top: 14px;
+  white-space: normal;
+}
+.sig-count {
+  display: flex;
+  gap: 3px;
+  margin: 22px 0 8px;
+  flex-wrap: wrap;
+}
+.sig-count i {
+  width: 15px; height: 26px;
+  background: var(--accent);
+  opacity: .34;
+  display: block;
+}
+.sig-count i.scoped { opacity: 1; background: var(--fixed); }
+
+/* ---------- registration spine ---------- */
+.spine { display: grid; gap: 0; }
+.spine-row {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 0 18px;
+}
+.spine-rail { position: relative; }
+.spine-rail::before {
+  content: "";
+  position: absolute;
+  left: 13px; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--rule);
+}
+.spine-row:first-child .spine-rail::before { top: 16px; }
+.spine-row:last-child  .spine-rail::before { bottom: calc(100% - 16px); }
+.spine-dot {
+  position: absolute;
+  left: 7px; top: 10px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+}
+.spine-row.drift .spine-dot { border-color: var(--open); background: var(--open); }
+.spine-item { padding: 4px 0 26px; }
+.spine-item .f {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  word-break: break-all;
+}
+.spine-item .d {
+  font-size: 14.5px;
+  color: var(--ink-soft);
+  margin-top: 5px;
+  line-height: 1.45;
+  max-width: 62ch;
+}
+.spine-item .warn {
+  display: inline-block;
+  margin-top: 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--open);
+  background: var(--open-wash);
+  border: 1px solid var(--open);
+  padding: 3px 8px;
+}
+
+/* ---------- gate matrix ---------- */
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+  gap: 4px;
+}
+.gcell {
+  border: 1px solid var(--rule);
+  border-left-width: 4px;
+  padding: 8px 10px 9px;
+  background: var(--surface);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+.gcell.attr   { border-left-color: var(--fixed); }
+.gcell.corpus { border-left-color: var(--open); background: var(--open-wash); }
+.gcell .tag {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 4px;
+}
+.gcell.nodet .tag { color: var(--open); font-weight: 600; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin-top: 20px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.legend span { display: flex; align-items: center; gap: 8px; }
+.legend b { width: 13px; height: 13px; display: block; border-radius: 2px; }
+
+/* ---------- ratio bars ---------- */
+.ratio { display: grid; gap: 18px; }
+.ratio-row { display: grid; grid-template-columns: 128px 1fr; gap: 18px; align-items: center; }
+.ratio-row .lab {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: right;
+}
+.bar { display: flex; height: 34px; border: 1px solid var(--rule); }
+.bar .seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+.bar .a { background: var(--fixed); }
+.bar .c { background: var(--open); }
+
+/* ---------- identity figure ---------- */
+.ident { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+.ident-card { border: 1px solid var(--rule); padding: 16px 18px 18px; background: var(--surface); }
+.ident-card h4 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.ident-card .ex {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 13px;
+  display: block;
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+.ident-card .why { font-size: 14px; color: var(--ink-soft); margin-top: 10px; line-height: 1.45; }
+.ident-card.bad { border-color: var(--open); background: var(--open-wash); }
+.ident-card.bad h4 { color: var(--open); }
+
+.overlap {
+  margin-top: 22px;
+  border-top: 1px solid var(--rule);
+  padding-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+.overlap .u { text-align: center; }
+.overlap .u .n {
+  font-family: Archivo, sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.overlap .u .k {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-top: 8px;
+  line-height: 1.45;
+}
+.overlap .u.hit .n { color: var(--open); }
+
+/* ---------- enforcement surfaces ---------- */
+.surfaces { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 4px; }
+.surf {
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  padding: 15px 16px 16px;
+  border-top: 3px solid var(--accent);
+}
+.surf .lang {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.surf .nm { font-family: Archivo, sans-serif; font-weight: 600; font-size: 15px; margin: 7px 0 5px; }
+.surf .sz {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.surf .ex { font-size: 13.5px; color: var(--ink-faint); margin-top: 9px; line-height: 1.4; }
+
+/* ---------- tables ---------- */
+.tbl-wrap { overflow-x: auto; margin: 30px 0; border: 1px solid var(--rule); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; min-width: 620px; }
+th {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ink-faint);
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--ink);
+  background: var(--surface-sunk);
+  white-space: nowrap;
+  font-weight: 500;
+}
+td { padding: 12px 16px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; line-height: 1.45; }
+tr:last-child td { border-bottom: none; }
+td.num { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 13px; }
+td.mono { font-family: "IBM Plex Mono", monospace; font-size: 12.5px; word-break: break-all; }
+
+.pill {
+  display: inline-block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.p-fixed   { color: var(--fixed);   background: var(--fixed-wash);   border: 1px solid var(--fixed); }
+.p-partial { color: var(--partial); background: var(--partial-wash); border: 1px solid var(--partial); }
+.p-open    { color: var(--open);    background: var(--open-wash);    border: 1px solid var(--open); }
+
+/* ---------- callout ---------- */
+.callout {
+  border: 1px solid var(--accent);
+  background: var(--accent-wash);
+  padding: 22px 26px;
+  margin: 32px 0;
+  max-width: 72ch;
+}
+.callout .h {
+  font-family: Archivo, sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--accent);
+  margin-bottom: 9px;
+  letter-spacing: .01em;
+}
+.callout p { margin: 0 0 .8em; font-size: 16px; }
+.callout p:last-child { margin-bottom: 0; }
+
+/* ---------- moves ---------- */
+.move {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 0 22px;
+  border-top: 1px solid var(--rule);
+  padding: 26px 0;
+}
+.move:last-child { border-bottom: 1px solid var(--rule); }
+.move .rank {
+  font-family: Archivo, sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: .9;
+  color: var(--accent);
+  opacity: .32;
+  font-variant-numeric: tabular-nums;
+}
+.move h3 { font-family: Archivo, sans-serif; font-size: 20px; font-weight: 600; margin: 0 0 9px; }
+.move p { margin: 0 0 .8em; max-width: 68ch; }
+.move p:last-child { margin-bottom: 0; }
+.move .unlocks {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: var(--fixed);
+  letter-spacing: .03em;
+  margin-top: 12px;
+  line-height: 1.6;
+}
+.move .unlocks b { color: var(--ink-soft); font-weight: 500; }
+
+/* ---------- footer ---------- */
+footer {
+  border-top: 2px solid var(--ink);
+  margin-top: 30px;
+  padding-top: 26px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px;
+  line-height: 1.9;
+  color: var(--ink-faint);
+  letter-spacing: .03em;
+}
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent-bright); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+@media (max-width: 620px) {
+  body { font-size: 16px; }
+  .page { padding: 0 18px 70px; }
+  .sec-head { grid-template-columns: 1fr; gap: 6px; }
+  .sec-head .num { padding-top: 0; }
+  .sec-head .sub { grid-column: 1; }
+  .ratio-row { grid-template-columns: 1fr; gap: 7px; }
+  .ratio-row .lab { text-align: left; }
+  .move { grid-template-columns: 1fr; gap: 10px; }
+  .move .rank { font-size: 26px; }
+}
+</style>
+
+<div class="page">
+
+<header class="masthead">
+  <div class="eyebrow">React Component Library · Setup Architecture · Second Pass</div>
+  <h1>The Gate With&nbsp;No Asset</h1>
+  <p class="standfirst">
+    The lock-driven plan removed the special cases. It did not remove the
+    mechanism that manufactures them. One missing parameter in one Go type
+    signature explains the caching you cannot get, the five files every new
+    rule must touch, and why agents keep writing <code>.mjs</code> scripts.
+  </p>
+  <div class="byline">
+    <span>Measured 2026-08-28</span>
+    <span>Branch <code>agi</code></span>
+    <span>243 assets · 45 gates · 381 versions</span>
+    <span>API builds clean</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <div class="v-fixed">
+    <div class="n">15/16</div>
+    <div class="k">Plan phases done<br>Phase 16 still active</div>
+  </div>
+  <div class="v-fixed">
+    <div class="n">10</div>
+    <div class="k">Findings verified<br>genuinely fixed</div>
+  </div>
+  <div class="v-open">
+    <div class="n">42<span style="font-size:22px">/44</span></div>
+    <div class="k">Gate runners that<br>cannot see one asset</div>
+  </div>
+  <div class="v-open">
+    <div class="n">5</div>
+    <div class="k">Files touched to<br>add one gate</div>
+  </div>
+  <div class="v-partial">
+    <div class="n">14</div>
+    <div class="k">Gates already drifted<br>out of the cache map</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<section>
+  <div class="sec-head">
+    <div class="num">01</div>
+    <h2>What the last pass actually fixed</h2>
+    <p class="sub">Independently re-measured, not read off the plan's status field. This part worked, and it worked well.</p>
+  </div>
+
+  <div class="prose">
+    <p class="lede">
+      Your instinct that the library got easier to work with is correct and it
+      is measurable. Every headline claim in the lock-driven plan holds up
+      under a fresh count.
+    </p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>What was broken</th><th>Then</th><th>Now</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Dependency lock stored on the component, not the version</td>
+          <td class="num">1 array<br>per component</td>
+          <td class="num">371 <code>dependencies.json</code><br>across 381 version dirs</td>
+          <td><span class="pill p-fixed">Fixed</span></td>
+        </tr>
+        <tr>
+          <td>Build rewrote source through six find-and-replace passes, three of them per-component</td>
+          <td class="num">3 special cases</td>
+          <td class="num">0 — <code>build.mjs</code><br>is 235 lines</td>
+          <td><span class="pill p-fixed">Fixed</span></td>
+        </tr>
+        <tr>
+          <td>Bespoke BAS cases hardcoding a component, a version pin, and a selector each</td>
+          <td class="num">36 files<br>569 KB</td>
+          <td class="num">0 files<br>whole <code>bas/</code> is 164 KB</td>
+          <td><span class="pill p-fixed">Fixed</span></td>
+        </tr>
+        <tr>
+          <td>A new release directory could appear for free, so polish attempts minted permanent versions</td>
+          <td class="num">425 versions<br>9 on AlertDialog</td>
+          <td class="num">381 versions<br>143 assets at exactly 1; max 5</td>
+          <td><span class="pill p-fixed">Fixed</span></td>
+        </tr>
+        <tr>
+          <td>The <code>types</code> gate compiled the whole corpus on every recompute</td>
+          <td class="num">13.5 s of an 18 s pass</td>
+          <td class="num">1.0 s for the 147 of 238<br>assets the app doesn't touch</td>
+          <td><span class="pill p-fixed">Fixed</span></td>
+        </tr>
+        <tr>
+          <td>Utility-class escape hatch</td>
+          <td class="num">open allowlist</td>
+          <td class="num">0 entries, ceiling ratcheted to 0</td>
+          <td><span class="pill p-fixed">Fixed</span></td>
+        </tr>
+        <tr>
+          <td>Generated evidence committed into the source tree</td>
+          <td class="num">18.7 MB<br><code>captures/</code> + <code>docs/evidence/</code></td>
+          <td class="num">Gone and gitignored</td>
+          <td><span class="pill p-fixed">Fixed</span></td>
+        </tr>
+        <tr>
+          <td>The package borrowed the consumer's TypeScript compiler</td>
+          <td class="num">12 <code>paths</code> entries<br>into <code>ui/node_modules</code></td>
+          <td class="num">Own <code>node_modules</code><br>+ 65 KB lockfile</td>
+          <td><span class="pill p-fixed">Fixed</span></td>
+        </tr>
+        <tr>
+          <td>Gates with no proof they detect anything</td>
+          <td class="num">partial</td>
+          <td class="num">45 of 45 gates carry<br>a calibration fixture</td>
+          <td><span class="pill p-fixed">Fixed</span></td>
+        </tr>
+        <tr>
+          <td>Per-asset freshness tracking</td>
+          <td class="num">none</td>
+          <td class="num">Revision index + <code>staleAssetsByGate</code><br>are real and correct</td>
+          <td><span class="pill p-partial">Built, but see §2</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prose">
+    <p>
+      That last row is where this report starts. The freshness machinery was
+      built correctly. It cannot deliver what you asked it for, and the reason
+      is one line above it in the call stack.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <div class="sec-head">
+    <div class="num">02</div>
+    <h2>The root cause is a type signature</h2>
+    <p class="sub">You asked for validation that skips components that haven't changed. For 44 of 45 gates that is not slow — it is impossible.</p>
+  </div>
+
+  <figure>
+    <div class="fig-head">
+      <span class="t">The shape of every gate runner</span>
+      <span class="m">api/internal/gates/*.go</span>
+    </div>
+    <div class="fig-body">
+      <div class="sig">
+        <span class="kw">func</span> Validate<span style="color:var(--ink-faint)">…</span>(root <span class="kw">string</span><span class="miss">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>) (Result, <span class="kw">error</span>)
+      </div>
+      <div class="sig-note">↑ there is no asset parameter here, and that is the whole report</div>
+
+      <div class="sig-count" role="img" aria-label="42 of 44 gate runners take only a root path; 2 take more">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <i class="scoped"></i><i class="scoped"></i>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--ink-soft);letter-spacing:.05em;">
+        42 runners take a repo root and nothing else &nbsp;·&nbsp;
+        <span style="color:var(--fixed)">2 take more, and only <code>ValidateTypesForAssets</code> takes a scope</span>
+      </div>
+    </div>
+    <figcaption>
+      Counted across the whole <code>gates</code> package. A runner that receives
+      only a repo root has no way to answer "is this component still good?" — it
+      can only answer "is the corpus still good?"
+    </figcaption>
+  </figure>
+
+  <div class="prose">
+    <p>
+      The consequence is written into the code by whoever built the skip layer,
+      in a comment on <code>recomputeEvidenceWithSkip</code>:
+    </p>
+  </div>
+
+  <div class="callout">
+    <div class="h">From api/internal/catalogcoverage/evidence.go</div>
+    <p style="font-family:'IBM Plex Mono',monospace;font-size:14px;line-height:1.65;">
+      "When <code>stale</code> is present a runner is skipped only if no
+      applicable asset needs it; <strong>the runners themselves are whole-corpus by
+      construction, so the saving is the runner's entire cost or nothing.</strong>"
+    </p>
+  </div>
+
+  <div class="prose">
+    <p>
+      So the freshness index knows precisely which components changed, computes
+      the dependent closure correctly, and then hands that knowledge to 44
+      functions that cannot accept it. Touch one component and every gate that
+      applies to it re-runs across all 243 assets. The skip is per-gate, not
+      per-asset — and a gate only skips when <em>every</em> asset it covers is
+      already fresh, which after any edit is almost never true.
+    </p>
+    <p>
+      <code>ValidateTypesForAssets</code> is the proof that fixing this works. It
+      is the one runner that was given a scope parameter, and it went from 24.6 s
+      to 1.0 s for 147 of 238 assets. That result is available for the other 43
+      runners and nothing about them makes it harder — they simply were never
+      asked for it.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <div class="sec-head">
+    <div class="num">03</div>
+    <h2>Adding one gate costs five files</h2>
+    <p class="sub">There is no gate registry. Each of the 45 gates is hand-wired at every layer it passes through, and the wiring has already come apart.</p>
+  </div>
+
+  <figure>
+    <div class="fig-head">
+      <span class="t">What a single new gate must be registered in</span>
+      <span class="m">5 locations · 0 of them derived from another</span>
+    </div>
+    <div class="fig-body">
+      <div class="spine">
+        <div class="spine-row">
+          <div class="spine-rail"><div class="spine-dot"></div></div>
+          <div class="spine-item">
+            <div class="f">catalog/config.json</div>
+            <div class="d">Declare the gate: id, rung, blocking, and — by hand — whether it is <code>attributable</code> or <code>corpus</code>. Nothing verifies that claim against the implementation.</div>
+          </div>
+        </div>
+        <div class="spine-row">
+          <div class="spine-rail"><div class="spine-dot"></div></div>
+          <div class="spine-item">
+            <div class="f">api/internal/gates/gates.go</div>
+            <div class="d">Implement it. The file is 3,367 lines / 140 KB and holds 95 functions. Every gate author reads or appends to the same file.</div>
+          </div>
+        </div>
+        <div class="spine-row drift">
+          <div class="spine-rail"><div class="spine-dot"></div></div>
+          <div class="spine-item">
+            <div class="f">api/internal/catalogcoverage/evidence.go</div>
+            <div class="d">Hand-wire the dispatch. A 271-line function containing 19 <code>if needed("…")</code> blocks and 27 <code>runners["…"]</code> assignments, each written out individually.</div>
+            <div class="warn">This is the per-gate special case you keep asking to remove</div>
+          </div>
+        </div>
+        <div class="spine-row drift">
+          <div class="spine-rail"><div class="spine-dot"></div></div>
+          <div class="spine-item">
+            <div class="f">.vrooli/test-genie.json</div>
+            <div class="d">Add a determinism entry so the runner can be cached. Miss it and the gate silently falls back to <code>observational</code>, meaning it never skips and never caches.</div>
+            <div class="warn">14 of 45 gates are missing · 1 entry names a gate that does not exist</div>
+          </div>
+        </div>
+        <div class="spine-row">
+          <div class="spine-rail"><div class="spine-dot"></div></div>
+          <div class="spine-item">
+            <div class="f">catalog/calibration/&lt;gate&gt;/</div>
+            <div class="d">Supply a known-good and known-bad fixture. This one is in excellent shape: 45 of 45 gates have it.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      Five registration points with no single source of truth means drift is a
+      matter of time, not care. Two of the five have already drifted.
+    </figcaption>
+  </figure>
+
+  <div class="prose">
+    <h3>The drift, precisely</h3>
+    <p>
+      <code>catalog/config.json</code> declares 45 gates. The determinism map in
+      <code>.vrooli/test-genie.json</code> covers 32. Fourteen catalog gates —
+      including <code>self-hosting</code>, <code>dependency-rank</code>,
+      <code>release-provenance</code> and <code>consumer-pin</code> — have no
+      entry, so they inherit the file's declared default of
+      <code>observational</code>: not file-determined, therefore never skippable
+      by digest. Meanwhile the map carries one entry,
+      <code>adopter-contracts</code>, for a gate that no longer exists in the
+      catalog at all.
+    </p>
+  </div>
+
+  <figure>
+    <div class="fig-head">
+      <span class="t">All 45 gates by cache eligibility</span>
+      <span class="m">catalog/config.json · attribution field</span>
+    </div>
+    <div class="fig-body">
+      <div class="matrix">
+        <div class="gcell attr">graph-reconciled<span class="tag">attributable</span></div>
+        <div class="gcell corpus nodet">dependency-rank<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">self-hosting<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">bas-genericity<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus">token-vocabulary<span class="tag">corpus</span></div>
+        <div class="gcell corpus">token-ramp-complete<span class="tag">corpus</span></div>
+        <div class="gcell attr">released-version-immutable<span class="tag">attributable</span></div>
+        <div class="gcell corpus nodet">release-provenance<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus">version-liveness<span class="tag">corpus</span></div>
+        <div class="gcell attr">types<span class="tag">attributable · scoped</span></div>
+        <div class="gcell attr">api<span class="tag">attributable</span></div>
+        <div class="gcell attr">unit<span class="tag">attributable</span></div>
+        <div class="gcell attr">interaction<span class="tag">attributable</span></div>
+        <div class="gcell attr">accessibility<span class="tag">attributable</span></div>
+        <div class="gcell attr">responsive<span class="tag">attributable</span></div>
+        <div class="gcell attr">visual<span class="tag">attributable</span></div>
+        <div class="gcell attr">rtl<span class="tag">attributable</span></div>
+        <div class="gcell attr">reduced-motion<span class="tag">attributable</span></div>
+        <div class="gcell corpus">performance<span class="tag">corpus</span></div>
+        <div class="gcell attr">console-clean<span class="tag">attributable</span></div>
+        <div class="gcell attr">surface-discipline<span class="tag">attributable</span></div>
+        <div class="gcell attr">composition<span class="tag">attributable</span></div>
+        <div class="gcell attr">composition-contract<span class="tag">attributable</span></div>
+        <div class="gcell attr">documentation<span class="tag">attributable</span></div>
+        <div class="gcell attr">examples<span class="tag">attributable</span></div>
+        <div class="gcell attr">fixture-adversarial<span class="tag">attributable</span></div>
+        <div class="gcell corpus">tokens<span class="tag">corpus</span></div>
+        <div class="gcell corpus">conformance<span class="tag">corpus</span></div>
+        <div class="gcell attr">lifecycle<span class="tag">attributable</span></div>
+        <div class="gcell attr">i18n<span class="tag">attributable</span></div>
+        <div class="gcell attr">selector-coverage<span class="tag">attributable</span></div>
+        <div class="gcell corpus">restyle-contract<span class="tag">corpus</span></div>
+        <div class="gcell corpus nodet">manifest-identity<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">manifest-metadata<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">overlay-surface-composition<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">shared-style-ownership<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">style-injection<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">foreign-token-classes<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">utility-class<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">consumer-pin<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">deprecated-import<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus nodet">provenance-stamp<span class="tag">corpus · no det.</span></div>
+        <div class="gcell corpus">story-grammar<span class="tag">corpus</span></div>
+        <div class="gcell corpus">story-distinctness<span class="tag">corpus</span></div>
+        <div class="gcell corpus">evidence-freshness<span class="tag">corpus</span></div>
+      </div>
+      <div class="legend">
+        <span><b style="background:var(--fixed)"></b> Attributable — 21</span>
+        <span><b style="background:var(--open)"></b> Corpus — 24, never per-asset</span>
+        <span><b style="background:var(--open);opacity:.45"></b> "no det." — also absent from the cache map</span>
+      </div>
+    </div>
+    <figcaption>
+      A gate marked <code>corpus</code> is one whose verdict is declared not to
+      belong to any single asset. Twenty-four of the forty-five are marked that
+      way — but nothing checks the claim, and it is far easier to write a
+      whole-corpus runner and label it <code>corpus</code> than to make it
+      per-asset.
+    </figcaption>
+  </figure>
+
+  <figure>
+    <div class="fig-head">
+      <span class="t">The ratio moved the wrong way</span>
+      <span class="m">before and after the lock-driven plan</span>
+    </div>
+    <div class="fig-body">
+      <div class="ratio">
+        <div class="ratio-row">
+          <div class="lab">2026-08-27<br>41 gates</div>
+          <div class="bar">
+            <div class="seg a" style="flex:21">21 attributable</div>
+            <div class="seg c" style="flex:20">20 corpus</div>
+          </div>
+        </div>
+        <div class="ratio-row">
+          <div class="lab">2026-08-28<br>45 gates</div>
+          <div class="bar">
+            <div class="seg a" style="flex:21">21 attributable</div>
+            <div class="seg c" style="flex:24">24 corpus</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      Four gates were added during the pass that was meant to make validation
+      cacheable. All four landed on the non-cacheable side, and the attributable
+      count did not move at all. This is the mechanism reproducing itself:
+      whole-corpus is the cheap thing to write, so it is what gets written.
+    </figcaption>
+  </figure>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <div class="sec-head">
+    <div class="num">04</div>
+    <h2>Every asset has two names, and 22 have only one</h2>
+    <p class="sub">The single most mechanical source of friction, and the one with the cleanest fix.</p>
+  </div>
+
+  <figure>
+    <div class="fig-head">
+      <span class="t">Four ways to refer to the same component</span>
+      <span class="m">library/components/Alert/</span>
+    </div>
+    <div class="fig-body">
+      <div class="ident">
+        <div class="ident-card">
+          <h4>catalogId</h4>
+          <span class="ex">feedback.alert</span>
+          <div class="why">Domain-prefixed kebab. What gates, coverage, weights, and calibration key on.</div>
+        </div>
+        <div class="ident-card">
+          <h4>libraryId</h4>
+          <span class="ex">react-component-library:Alert</span>
+          <div class="why">Scenario-prefixed Pascal. What the CLI, adoptions, and drafts key on.</div>
+        </div>
+        <div class="ident-card">
+          <h4>directory</h4>
+          <span class="ex">library/components/Alert</span>
+          <div class="why">What the build, the locks, and the filesystem key on.</div>
+        </div>
+        <div class="ident-card">
+          <h4>export subpath</h4>
+          <span class="ex">@vrooli/…/Alert/1.0.0</span>
+          <div class="why">What 35 consumer scenarios key on across 490 import sites.</div>
+        </div>
+      </div>
+
+      <div class="overlap">
+        <div class="u"><div class="n">22</div><div class="k">of 243 assets have<br><code>catalogId: null</code></div></div>
+        <div class="u"><div class="n">19</div><div class="k">stamp exemptions written<br>in <code>libraryId</code> form</div></div>
+        <div class="u hit"><div class="n">17</div><div class="k">are the same assets<br>— the overlap is the cause</div></div>
+        <div class="u"><div class="n">2</div><div class="k">CLI commands exist only<br>to bridge the two: <code>get</code>,<br><code>get-by-library-id</code></div></div>
+      </div>
+    </div>
+    <figcaption>
+      Seventeen of the nineteen per-asset entries in
+      <code>asset-stamp-exemptions.json</code> are precisely the assets that
+      carry no <code>catalogId</code>. They were not exempted because they are
+      special. They were exempted because the gate keys on an identity they do
+      not have, and adding a line to the exemption file is the cheapest way to
+      make a red thing go green.
+    </figcaption>
+  </figure>
+
+  <div class="prose">
+    <p>
+      This is the clearest example in the codebase of the pattern you described
+      — a special case for a specific component that isn't really about that
+      component at all. Backfilling 22 <code>catalogId</code> values deletes 17
+      exemption entries as a side effect, with no gate changes.
+    </p>
+    <p>
+      The same file also shows the tax in miniature: its 42 entries are written
+      in <em>three</em> different ID formats (<code>foundations.tokens</code>,
+      <code>monetization.auth-section</code>,
+      <code>react-component-library:AssetDetailShell</code>), 41 of the 42 name
+      a specific asset rather than a kind, and 15 are self-labelled
+      <code>backlog</code> rather than <code>permanent</code>.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <div class="sec-head">
+    <div class="num">05</div>
+    <h2>Why agents write .mjs files</h2>
+    <p class="sub">Because thirteen of them already exist, and because a rule can legitimately live in six different places.</p>
+  </div>
+
+  <figure>
+    <div class="fig-head">
+      <span class="t">Where a rule about a component may be enforced</span>
+      <span class="m">six surfaces · three languages · no arbiter</span>
+    </div>
+    <div class="fig-body">
+      <div class="surfaces">
+        <div class="surf">
+          <div class="lang">Go</div>
+          <div class="nm">Catalog gates</div>
+          <div class="sz">7,479 lines · 45 gates</div>
+          <div class="ex">gates.go alone is 3,367 lines and 95 functions</div>
+        </div>
+        <div class="surf">
+          <div class="lang">Node ESM</div>
+          <div class="nm">ui/scripts</div>
+          <div class="sz">13 .mjs · ~110 KB</div>
+          <div class="ex">catalog-conformance, ecosystem-census, preview-harness-conformance, asset-stamp…</div>
+        </div>
+        <div class="surf">
+          <div class="lang">JavaScript</div>
+          <div class="nm">ESLint rules</div>
+          <div class="sz">5 rule files · 20.5 KB config</div>
+          <div class="ex">no-raw-dimensions, no-unused-keys, codegen-fresh</div>
+        </div>
+        <div class="surf">
+          <div class="lang">JSON / TS</div>
+          <div class="nm">Build config</div>
+          <div class="sz">15 files · 55.8 KB</div>
+          <div class="ex">two eslint configs, three tsconfigs, two vite configs, four token files</div>
+        </div>
+        <div class="surf">
+          <div class="lang">TypeScript</div>
+          <div class="nm">Vitest suites</div>
+          <div class="sz">story-contracts.spec.ts</div>
+          <div class="ex">plus a separate vite.library.config.ts runner</div>
+        </div>
+        <div class="surf">
+          <div class="lang">JSON</div>
+          <div class="nm">BAS + schemas</div>
+          <div class="sz">2 flows · 7 cases</div>
+          <div class="ex">now genuinely generic — this surface was fixed</div>
+        </div>
+      </div>
+    </div>
+    <figcaption>
+      An agent asked to enforce something new picks whichever surface is
+      cheapest to reach. Writing a standalone <code>.mjs</code> script is
+      cheapest by a wide margin: no registry, no five-file registration, no Go
+      build, no calibration fixture.
+    </figcaption>
+  </figure>
+
+  <div class="prose">
+    <p>
+      The duplication this produces is not hypothetical, and one of the rules
+      documents it in its own header. <code>ui/eslint-rules/no-raw-dimensions.js</code>
+      opens by explaining that the Go <code>tokens</code> gate globs
+      <code>library/**</code> only, so <code>ui/src</code> drifted to 382 raw
+      dimensions across 36 files while the library stayed clean — and that
+      rather than add a third scope definition in Go, the rule was written again
+      in JavaScript. One design policy, two implementations, two languages, and
+      four config files (<code>token-map.json</code>,
+      <code>tailwind.theme.json</code>, <code>design-token-exceptions.json</code>,
+      <code>utility-class-allowlist.json</code>).
+    </p>
+    <p>
+      That was a reasonable local call. It is also exactly how a setup accretes
+      a second enforcement stack.
+    </p>
+
+    <h3>The gates still read TypeScript as text</h3>
+    <p>
+      Phase 13 promised parsing instead of matching. A parse seam exists —
+      <code>ast_facts.go</code> shells out to <code>resolve-imports.mjs --facts</code>
+      — but it currently answers one predicate (does this element carry an
+      overlay role). <code>gates.go</code> still contains 39 <code>regexp</code>
+      uses and 27 <code>strings.Contains</code> calls against JSX source. While
+      that holds, gates keep producing both false failures and false passes, and
+      an allowlist entry stays the cheapest available repair. The
+      <code>vacuous-allowlist.json</code> is still 218 entries, all carrying the
+      same deferral reason, and it drains only when an asset is next touched.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <div class="sec-head">
+    <div class="num">06</div>
+    <h2>The authoring path has three front doors</h2>
+    <p class="sub">The plan promised a four-step loop. The documented loop is ten steps, and step one has three spellings.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Operation</th><th>Command surface A</th><th>Command surface B</th><th>Underlying RPC</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Open a draft</td>
+          <td class="mono">components draft-begin</td>
+          <td class="mono">catalog draft open</td>
+          <td class="mono">BeginComponentVersion</td>
+        </tr>
+        <tr>
+          <td>Publish a draft</td>
+          <td class="mono">components draft-publish</td>
+          <td class="mono">catalog draft promote</td>
+          <td class="mono">PublishComponentVersion</td>
+        </tr>
+        <tr>
+          <td>Discard a draft</td>
+          <td class="mono">versions cleanup-draft</td>
+          <td class="mono">catalog draft discard</td>
+          <td class="mono">CleanupDraft</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prose">
+    <p>
+      Both families are live, both are documented, and
+      <code>docs/guides/asset-update-flow.md</code> uses the first in its
+      numbered steps and the second in its bulk-migration example — so an agent
+      reading one section and an agent reading another learn different commands
+      for the same operation. The CLI carries 82 commands across 8 groups;
+      <code>components</code> alone offers <code>init</code>,
+      <code>ingest</code>, <code>draft-begin</code> and
+      <code>version-create</code> as four ways in.
+    </p>
+    <p>
+      And the guide itself is the gap between promise and reality. The plan's
+      stated outcome was four steps: open a draft, edit, validate, publish. The
+      guide documents <strong>ten numbered steps plus five follow-on sections</strong>
+      — index, catalog vocabulary gates, ramp-completeness gates, component
+      tests, the full scenario suite, per-target adoption preflight, token sync,
+      adoption refresh, classification, reapply, batch apply, and an evidence
+      record.
+    </p>
+    <p>
+      The instruction agents actually receive is one line in
+      <code>AGENTS.md</code> pointing at <code>components draft-begin</code>.
+      That line is duplicated on consecutive lines, and the whole file is
+      duplicated below itself, so it appears four times — a small thing, but it
+      is the entire briefing an agent gets before touching this library.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <div class="sec-head">
+    <div class="num">07</div>
+    <h2>Smaller things worth fixing</h2>
+    <p class="sub">Each is cheap on its own; together they are most of the day-to-day grit.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Finding</th><th>Evidence</th><th>Cost of leaving it</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Coverage cache re-reads the full content of the corpus on every request</td>
+          <td class="num">SHA-256 over ~2,500 files<br><code>report_cache.go</code></td>
+          <td>Fingerprinting is now a per-request I/O cost even on a warm hit</td>
+        </tr>
+        <tr>
+          <td>The self-hosting floor is pinned to the observed value</td>
+          <td class="num"><code>minimumCovered: 35</code><br><code>baselineCovered: 35</code> of 228</td>
+          <td>The gate passes at 15% self-use because 15% is what was measured; it can only ever ratchet if someone raises it by hand</td>
+        </tr>
+        <tr>
+          <td>Catalog app uses little of its own catalog</td>
+          <td class="num">47 of 253 <code>ui/src</code> files<br>import the library</td>
+          <td>Your stated maturity proof — the library builds its own app — is only lightly exercised</td>
+        </tr>
+        <tr>
+          <td><code>library/.retired/</code> has no ignore rule and no reaper</td>
+          <td class="num">55 hash dirs · 1.6 MB<br>21 showing as untracked</td>
+          <td>Evicted bytes accumulate in the working tree and pollute every status check</td>
+        </tr>
+        <tr>
+          <td>Stale root build fingerprint still tracked</td>
+          <td class="num"><code>.build-fingerprint.json</code><br>11.5 KB, dated May 15</td>
+          <td>Dead file that reads as live build state</td>
+        </tr>
+        <tr>
+          <td>Generated package manifest is committed</td>
+          <td class="num">284 KB · 1,948 export subpaths</td>
+          <td>Every release rewrites a 284 KB tracked file; diffs are unreviewable</td>
+        </tr>
+        <tr>
+          <td>Gate facts are extracted by spawning node per file</td>
+          <td class="num"><code>readSourceFacts</code> execs<br><code>resolve-imports.mjs</code></td>
+          <td>A batch <code>--facts-root</code> mode exists but the per-file path is still the one wired in</td>
+        </tr>
+        <tr>
+          <td>54 plans exist for this one scenario</td>
+          <td class="num">54 in the plan store<br>16 phases in the newest</td>
+          <td>Recall costs more than the work; adjacency has to be re-derived every pass</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <div class="sec-head">
+    <div class="num">08</div>
+    <h2>Four moves, in order</h2>
+    <p class="sub">The first one is load-bearing. The other three get much cheaper once it lands.</p>
+  </div>
+
+  <div class="move">
+    <div class="rank">01</div>
+    <div>
+      <h3>Give the gate interface an asset parameter</h3>
+      <p>
+        Change the runner contract to accept the scope it is meant to judge —
+        <code>Validate(root string, scope []AssetID) (Result, error)</code>, with
+        an empty scope meaning "the whole corpus" so the cold path is unchanged.
+        Then replace the 271-line hand-wired dispatch with a registry: each gate
+        registers its id, its runner, and its applicability once, next to its
+        implementation.
+      </p>
+      <p>
+        This is the move that stops the setup manufacturing special cases,
+        because it makes the per-asset runner the default shape rather than the
+        one exception someone had to fight for.
+      </p>
+      <div class="unlocks">
+        <b>unlocks →</b> per-asset caching for all 45 gates · deletes the
+        <code>if needed(…)</code> chain · makes <code>attributable</code> a
+        property the runner proves instead of a field an author asserts ·
+        collapses five registration points to two
+      </div>
+    </div>
+  </div>
+
+  <div class="move">
+    <div class="rank">02</div>
+    <div>
+      <h3>Collapse the dual identity to one asset ID</h3>
+      <p>
+        Backfill the 22 assets carrying <code>catalogId: null</code>, then pick
+        one identity as canonical and derive the other. Delete
+        <code>get-by-library-id</code> once <code>get</code> resolves either
+        spelling.
+      </p>
+      <div class="unlocks">
+        <b>unlocks →</b> 17 of 19 per-asset stamp exemptions become deletable ·
+        one ID format in exemption and allowlist files instead of three · gates
+        stop silently missing assets they cannot name
+      </div>
+    </div>
+  </div>
+
+  <div class="move">
+    <div class="rank">03</div>
+    <div>
+      <h3>One front door for authoring, and a four-step guide behind it</h3>
+      <p>
+        Keep <code>components draft-begin</code> / <code>draft-publish</code>,
+        retire <code>catalog draft *</code> and <code>versions cleanup-draft</code>
+        as public surfaces, and rewrite
+        <code>docs/guides/asset-update-flow.md</code> to the four steps the plan
+        promised — pushing index, gates, preflight, refresh and reapply behind a
+        single publish command that runs them. Fix the duplicated
+        <code>AGENTS.md</code> line while you are there.
+      </p>
+      <div class="unlocks">
+        <b>unlocks →</b> the agent-facing loop finally matches the designed loop
+        · no more choosing between two documented spellings of step one
+      </div>
+    </div>
+  </div>
+
+  <div class="move">
+    <div class="rank">04</div>
+    <div>
+      <h3>Declare one enforcement home per rule class, then close the others</h3>
+      <p>
+        Write down the rule: structural and cross-asset policy lives in Go
+        gates; single-file source syntax lives in ESLint; nothing lives in a
+        standalone <code>.mjs</code> script. Then audit the 13 existing scripts
+        against it and fold each into the surface that owns it.
+      </p>
+      <p>
+        This only holds if move 01 landed first. Agents write
+        <code>.mjs</code> files because that is the cheapest surface to reach;
+        the way to stop it is to make adding a real gate cheaper than writing a
+        script, not to forbid the script.
+      </p>
+      <div class="unlocks">
+        <b>unlocks →</b> the token rule stops existing twice · the vacuous
+        allowlist can drain because parsed gates stop producing false failures
+      </div>
+    </div>
+  </div>
+
+  <div class="callout" style="margin-top:44px;">
+    <div class="h">The thing to keep in view</div>
+    <p>
+      The lock-driven plan was good work and most of it held. What it treated
+      were the symptoms that had already appeared: the build patches, the
+      bespoke BAS cases, the committed artifacts, the version sprawl. All of
+      those are genuinely gone.
+    </p>
+    <p>
+      What it did not change is the shape that produces them. A gate runner that
+      cannot name an asset must scan everything; a gate that must be registered
+      in five places will drift; and a policy with no declared home will land in
+      whichever file is easiest to open. Until the runner contract changes, the
+      next pass will add gates the same way this one did — four more, all
+      whole-corpus — and you will be asked to drive down the debt again.
+    </p>
+  </div>
+</section>
+
+<footer>
+  Measured 2026-08-28 on branch <code>agi</code> · scenarios/react-component-library + packages/react-component-library<br>
+  243 catalog assets · 381 version directories · 45 declared gates · 82 CLI commands · 35 consumer scenarios · 490 external import sites<br>
+  Predecessor: <code>docs/reports/2026-08-27-library-setup-architecture-review.html</code> · Plan: <code>react-component-library-setup-maturity-lock-driven</code> (15/16 phases done)
+</footer>
+
+</div>

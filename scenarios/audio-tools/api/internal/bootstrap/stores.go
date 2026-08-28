@@ -35,7 +35,7 @@ func BuildStores(db *database.RoutedDB, env Env) (Stores, error) {
 		VrooliEnabled:       env.EnableVrooli,
 		LocalEnabled:        env.EnableLocal,
 		WhisperURL:          env.WhisperURL,
-		KokoroURL:           env.SherpaURL,
+		KokoroURL:           env.KokoroURL,
 		OllamaURL:           env.OllamaURL,
 		LPBSBaseURL:         env.LPBSBaseURL,
 		LPBSAppBundleKey:    env.LPBSAppBundleKey,

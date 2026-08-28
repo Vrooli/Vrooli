@@ -78,25 +78,19 @@ type streamConfigResponse struct {
 
 const audioAdminConfigPath = "/vrooli.swarm_manager.v1.audio_admin.AudioAdminService/"
 
-// PersistEvidence atomically stores the complete run document. A Vrooli
-// checkout keeps qualification artifacts in the scenario coverage directory
-// so the existing evidence tooling can consume them. A standalone bundle has
-// no VROOLI_ROOT, so its mutable evidence is routed through api-core/storage
-// instead of being written beside the deployed binary.
+// PersistEvidence atomically stores the complete run document in audio-tools'
+// governed data class, independent of whether it runs from a checkout or a
+// standalone bundle.
 func PersistEvidence(run conformance.Run) (string, error) {
-	root := strings.TrimSpace(os.Getenv("VROOLI_ROOT"))
-	var dir string
-	if root != "" {
-		dir = filepath.Join(root, "scenarios", "audio-tools", "coverage")
-	} else {
-		resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
-		if err != nil {
-			return "", fmt.Errorf("resolve portable evidence storage: %w", err)
-		}
-		dir, err = resolver.Path(corestorage.Options{ScenarioID: "audio-tools"}, corestorage.ClassData, "coverage")
-		if err != nil {
-			return "", fmt.Errorf("resolve portable evidence path: %w", err)
-		}
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return "", fmt.Errorf("resolve evidence storage: %w", err)
+	}
+	dir, err := resolver.EnsureArtifactDir(corestorage.Options{ScenarioID: "audio-tools"}, corestorage.ArtifactRef{
+		Owner: "audio-tools", Domain: "soak-evidence", Class: corestorage.ClassData,
+	}, 0o750)
+	if err != nil {
+		return "", fmt.Errorf("resolve evidence path: %w", err)
 	}
 	path := filepath.Join(dir, run.RunID+".json")
 	var payload strings.Builder

@@ -1,0 +1,54 @@
+{
+  "claims": [
+    {
+      "id": "contract-present",
+      "statement": "The hook exposes its documented public behavior through a stable versioned entrypoint.",
+      "states": ["default", "auto-commit"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "cancel-aborts",
+      "statement": "A pointercancel abandons the gesture instead of performing the armed action.",
+      "states": ["default", "auto-commit"],
+      "tier": "machine",
+      "type": "machine"
+    },
+    {
+      "id": "pixel-travel",
+      "statement": "Travel is reported in pixels and keeps growing past the final threshold.",
+      "states": ["default"],
+      "tier": "machine",
+      "type": "machine"
+    },
+    {
+      "id": "symmetric-release",
+      "statement": "The release decision is measured from where the gesture began, so closing asks for the same travel that opening did.",
+      "states": ["default"],
+      "tier": "machine",
+      "type": "machine"
+    }
+  ],
+  "component": {
+    "id": "use-swipe-gesture",
+    "purpose": "Turns a pointer stream into staged, axis-locked travel with a velocity-aware release.",
+    "title": "Swipe gesture"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:useSwipeGesture@1.1.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "Rest-open release.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Auto-commit release.",
+      "example": "auto-commit",
+      "id": "auto-commit"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ package components
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -848,13 +849,25 @@ func (h *connectHandler) IndexComponents(ctx context.Context, req *connect.Reque
 			return nil, connect.NewError(connect.CodeInternal, err)
 		}
 	}
+	var deferredPresence error
 	if h.deps.PresenceReconciler != nil && !req.Msg.GetNoReconcile() {
 		if err := h.deps.PresenceReconciler.ReconcilePresence(ctx, "", true); err != nil {
 			h.deps.Logger.Printf("components.IndexComponents: reconcile presence: %v", err)
-			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			// An incomplete tier move leaves the catalog correctly indexed;
+			// only cold-storage placement is unchanged. Failing the response
+			// would discard the index report the caller needs — including the
+			// per-manifest errors that explain why an asset is missing.
+			var incomplete versionledger.ErrPresenceReconciliationIncomplete
+			if !errors.As(err, &incomplete) {
+				return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+			}
+			deferredPresence = err
 		}
 	}
 	errs := make([]string, 0, len(res.Errors))
+	if deferredPresence != nil {
+		errs = append(errs, deferredPresence.Error())
+	}
 	for _, e := range res.Errors {
 		errs = append(errs, e.Error())
 	}

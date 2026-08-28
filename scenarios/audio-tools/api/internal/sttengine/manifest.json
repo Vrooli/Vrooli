@@ -27,20 +27,6 @@
       },
       "requires": { "pcm16kMono": true },
       "strategies": ["passthrough"]
-    },
-    {
-      "id": "sherpa-streaming",
-      "displayName": "sherpa-onnx Zipformer (streaming, local)",
-      "kind": "local_resource",
-      "resource": "sherpa-onnx",
-      "provides": {
-        "nativeStreaming": true,
-        "builtinVad": true,
-        "confidenceSignals": [],
-        "wordTimestamps": false
-      },
-      "requires": { "pcm16kMono": true },
-      "strategies": ["passthrough"]
     }
   ],
   "speakerIsolation": {

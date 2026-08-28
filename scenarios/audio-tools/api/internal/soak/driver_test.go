@@ -347,8 +347,8 @@ func TestRunTimeoutIncludesRealtimeCaptureAndHeadroom(t *testing.T) {
 }
 
 func TestPersistEvidencePublishesOneAtomicRunDocument(t *testing.T) {
-	root := t.TempDir()
-	t.Setenv("VROOLI_ROOT", root)
+	storageRoot := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
 	run := conformance.Run{
 		SchemaVersion: conformance.SchemaVersion,
 		RunID:         "browser-soak-test",
@@ -359,6 +359,7 @@ func TestPersistEvidencePublishesOneAtomicRunDocument(t *testing.T) {
 
 	path, err := PersistEvidence(run)
 	require.NoError(t, err)
+	require.Equal(t, filepath.Join(storageRoot, "data", "vrooli", "audio-tools", "soak-evidence", run.RunID+".json"), path)
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 	var got conformance.Run
@@ -385,7 +386,7 @@ func TestPersistEvidenceUsesPortableStorageOutsideCheckout(t *testing.T) {
 
 	path, err := PersistEvidence(run)
 	require.NoError(t, err)
-	require.Equal(t, filepath.Join(storageRoot, "data", "vrooli", "audio-tools", "coverage", run.RunID+".json"), path)
+	require.Equal(t, filepath.Join(storageRoot, "data", "vrooli", "audio-tools", "soak-evidence", run.RunID+".json"), path)
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 	var got conformance.Run

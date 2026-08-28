@@ -25,6 +25,8 @@ func CapabilityForFeature(feature string) (diagv1.Capability, bool) {
 		return diagv1.Capability_CAPABILITY_TTS, true
 	case "ai-command-generation":
 		return diagv1.Capability_CAPABILITY_SUMMARIZE, true
+	case "transcode":
+		return diagv1.Capability_CAPABILITY_TRANSCODE, true
 	default:
 		return diagv1.Capability_CAPABILITY_UNSPECIFIED, false
 	}

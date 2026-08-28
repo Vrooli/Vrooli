@@ -731,19 +731,25 @@ footer {
         against only 16 that use the resolver.
       </p>
       <p>
-        The residue is on disk: a self-nested
+        The residue was on disk: a self-nested
         <code>scenarios/react-component-library/scenarios/react-component-library/tmp/</code>
-        proves the two conventions have already collided. The dangerous version is
+        proved the two conventions had already collided. The dangerous version is
         quieter — 24 gate globs discard their error, so a wrong root yields
-        <code>Inspected: 0</code>, no findings, and a pass. That includes
-        <code>ValidateDependencyRank</code>, the plan's own new gate for the
-        Doctrine 3 rank rule.
+        <code>Inspected: 0</code>. A shared <code>nonEmpty</code> guard turns that
+        into a runner fault instead of a pass, but five validators did not call
+        it, including <code>graph-reconciled</code> and <code>self-hosting</code> —
+        both of them blocking gates the plan itself added.
       </p>
       <div class="evidence">
         <b>59</b> × filepath.Join(root, "scenarios", "react-component-library", …)<br>
         <b>16</b> × resolveScenarioRoot(root)<br>
-        <b>24</b> × filepath.Glob with a discarded error → empty result → Result{Inspected: 0} → clean
+        <b>5</b> of 44 validators returned a result without the zero-inspected guard
       </div>
+      <p style="margin-top:16px">
+        <b>Corrected 2026-08-28:</b> an earlier draft named
+        <code>ValidateDependencyRank</code> as the vacuous case. It already calls
+        the guard. The five that did not are listed above, and all five now call it.
+      </p>
     </div>
 
     <div class="finding">

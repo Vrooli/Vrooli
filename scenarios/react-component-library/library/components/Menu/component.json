@@ -23,7 +23,10 @@
   "displayName": "Menu",
   "draft": "",
   "evictedVersions": [
-    "1.1.1"
+    "1.1.1",
+    "1.2.1",
+    "1.2.0",
+    "1.1.2"
   ],
   "kind": "overlay",
   "latest": "1.2.2",

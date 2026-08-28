@@ -65,6 +65,11 @@
     "reason": "The foundation exports class composition helpers only; it has no DOM-owned root."
   },
   {
+    "asset": "foundations.gesture-direction",
+    "kind": "permanent",
+    "reason": "The foundation exports pure direction-resolution functions only; it renders nothing and has no DOM-owned root."
+  },
+  {
     "asset": "primitives.slot",
     "kind": "permanent",
     "reason": "Slot clones a consumer-owned element and does not own a DOM root to stamp."
@@ -134,7 +139,6 @@
     "kind": "permanent",
     "reason": "This catalog entry is a re-export alias; it owns no DOM root separate from MonetizationAccount."
   },
-
   {
     "asset": "react-component-library:AssetDetailShell",
     "kind": "backlog",

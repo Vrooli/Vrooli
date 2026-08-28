@@ -6,6 +6,7 @@ package graphreconcile
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path"
@@ -248,8 +249,22 @@ func loadImplementations(dir string) ([]implementation, error) {
 				return nil, err
 			}
 			impl := implementation{Name: filepath.Base(filepath.Dir(path)), Root: root, CatalogID: raw.CatalogID, LibraryID: raw.LibraryID, Latest: raw.Latest, Draft: raw.Draft}
-			for _, dep := range raw.Dependencies {
-				impl.Dependencies = append(impl.Dependencies, dep.LibraryID)
+			// `component.json.dependencies[]` was retired in favour of the
+			// per-version lock, so reading it here reported every asset as
+			// "manifest-empty" and made this blocking gate vacuous across the
+			// whole corpus. The lock beside the latest version is the record
+			// that actually exists.
+			deps, err := latestVersionLockDependencies(filepath.Dir(path), raw.Latest)
+			if err != nil {
+				return nil, err
+			}
+			impl.Dependencies = deps
+			if len(impl.Dependencies) == 0 {
+				// A manifest with no lock is the legacy shape; fall back so a
+				// tree mid-migration still reports what it can.
+				for _, dep := range raw.Dependencies {
+					impl.Dependencies = append(impl.Dependencies, dep.LibraryID)
+				}
 			}
 			out = append(out, impl)
 		}
@@ -415,4 +430,37 @@ func extractionCause(err error, stderr string) string {
 		detail = detail[:limit] + "…"
 	}
 	return "typescript-code-graph could not provide an import graph: " + detail
+}
+
+// latestVersionLockDependencies reads the generated per-version lock beside an
+// asset's latest release and returns the library ids it pins. A missing lock
+// yields no dependencies rather than an error: preview harnesses and fixtures
+// legitimately carry none.
+func latestVersionLockDependencies(assetDir, latest string) ([]string, error) {
+	if strings.TrimSpace(latest) == "" {
+		return nil, nil
+	}
+	lockPath := filepath.Join(assetDir, "versions", latest, "dependencies.json")
+	data, err := os.ReadFile(lockPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read version lock %s: %w", lockPath, err)
+	}
+	var lock struct {
+		Dependencies []struct {
+			LibraryID string `json:"libraryId"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(data, &lock); err != nil {
+		return nil, fmt.Errorf("decode version lock %s: %w", lockPath, err)
+	}
+	out := make([]string, 0, len(lock.Dependencies))
+	for _, dep := range lock.Dependencies {
+		if id := strings.TrimSpace(dep.LibraryID); id != "" {
+			out = append(out, id)
+		}
+	}
+	return out, nil
 }

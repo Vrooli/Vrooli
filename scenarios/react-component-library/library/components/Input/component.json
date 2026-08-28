@@ -23,6 +23,10 @@
   ],
   "displayName": "Input",
   "draft": "",
+  "evictedVersions": [
+    "1.2.0",
+    "1.1.2"
+  ],
   "kind": "input",
   "latest": "1.3.0",
   "libraryId": "react-component-library:Input",

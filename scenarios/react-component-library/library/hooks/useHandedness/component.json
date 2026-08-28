@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "hook",
+  "catalogId": "hooks.use-handedness",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.1.1",
+    "1.1.0"
+  ],
+  "description": "Carries the reach-side preference that decides which edge panels anchor to, independently of the document writing direction.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useHandedness",
+  "draft": "",
+  "evictedVersions": [
+    "1.1.1",
+    "1.1.0",
+    "1.0.0"
+  ],
+  "kind": "surface",
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:useHandedness",
+  "tags": [
+    "runtime",
+    "accessibility",
+    "gesture"
+  ]
+}

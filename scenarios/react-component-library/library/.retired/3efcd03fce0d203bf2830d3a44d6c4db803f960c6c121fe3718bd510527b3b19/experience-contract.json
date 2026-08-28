@@ -1,0 +1,71 @@
+{
+  "claims": [
+    {
+      "id": "contract-present",
+      "statement": "The component exposes its documented public behavior through a stable versioned entrypoint.",
+      "states": ["rows", "auto-commit", "end-anchored", "inside-drawer"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "coexists-with-drawer",
+      "statement": "A row inside a swipe-enabled drawer claims the inline axis without disabling the drawer's own gesture.",
+      "states": ["inside-drawer"],
+      "tier": "machine",
+      "type": "machine"
+    },
+    {
+      "id": "reveal-opposes-dismiss",
+      "statement": "Reveal runs opposite the drawer's dismiss direction in every handedness and writing-direction combination.",
+      "states": ["rows", "end-anchored"],
+      "tier": "machine",
+      "type": "machine"
+    },
+    {
+      "id": "actions-reachable-without-gesture",
+      "statement": "Every swipe action is also reachable without the gesture, through the consuming surface's menu.",
+      "states": ["rows", "auto-commit"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "owns-dismiss-when-open",
+      "statement": "While its actions are showing the row publishes a claim on the inline axis, so putting them away never also dismisses the drawer behind them.",
+      "states": ["rows", "inside-drawer"],
+      "tier": "machine",
+      "type": "machine"
+    }
+  ],
+  "component": {
+    "id": "swipe-actions",
+    "purpose": "Accelerates one or two frequent row actions with a drag, without becoming the only route to them.",
+    "title": "Swipe actions"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:SwipeActions@1.1.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "Rest-open release on a list.",
+      "example": "rows",
+      "id": "rows"
+    },
+    {
+      "description": "Auto-commit release.",
+      "example": "auto-commit",
+      "id": "auto-commit"
+    },
+    {
+      "description": "Reveal mirrored for an end-anchored drawer.",
+      "example": "end-anchored",
+      "id": "end-anchored"
+    },
+    {
+      "description": "Composed inside a swipe-to-close drawer.",
+      "example": "inside-drawer",
+      "id": "inside-drawer"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "hook",
   "catalogId": "hooks.use-disclosure",
+  "deprecatedVersions": [],
   "description": "Production-ready useDisclosure hook with SSR-safe lifecycle behavior.",
   "designStyles": [
     {
@@ -10,13 +11,15 @@
     }
   ],
   "displayName": "useDisclosure",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "kind": "surface",
   "latest": "1.1.0",
   "libraryId": "react-component-library:useDisclosure",
   "tags": [
     "runtime",
     "accessibility"
-  ],
-  "draft": "",
-  "deprecatedVersions": []
+  ]
 }

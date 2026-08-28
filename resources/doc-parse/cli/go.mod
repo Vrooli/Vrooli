@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/tetratelabs/wazero v1.9.0
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/vrooli v0.0.0-00010101000000-000000000000
 )
 
 require (

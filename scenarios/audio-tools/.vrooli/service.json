@@ -159,6 +159,10 @@
         "required": false,
         "description": "Optional Linux/CUDA streaming STT accelerator"
       },
+      "kokoro": {
+        "required": false,
+        "description": "Local TTS tier"
+      },
       "sherpa-onnx": {
         "required": false,
         "description": "Native local TTS, streaming STT, speaker enrollment/verification, and source separation"

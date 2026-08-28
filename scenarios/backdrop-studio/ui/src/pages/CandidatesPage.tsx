@@ -3,7 +3,7 @@ import { useState } from "react";
 import { parseQuality, representativeSurface, type Candidate } from "../api/studio";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { QualityMeters } from "../components/studio/QualityMeters";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useObjectURL, useRender, useStyles, useSurfaces } from "../hooks/useStudio";

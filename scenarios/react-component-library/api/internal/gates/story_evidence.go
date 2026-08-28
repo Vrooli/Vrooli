@@ -42,7 +42,7 @@ func ValidateConsoleClean(root string) (Result, error) {
 	if result.Inspected == 0 {
 		return unmeasuredStoryGate(root), nil
 	}
-	return result, nil
+	return nonEmpty(result, "console-clean"), nil
 }
 
 func ValidatePerformance(root string) (Result, error) {
@@ -60,7 +60,7 @@ func ValidatePerformance(root string) (Result, error) {
 	result.Inspected += observed.Inspected
 	result.InspectedAssets = append(result.InspectedAssets, observed.InspectedAssets...)
 	result.Findings = append(result.Findings, observed.Findings...)
-	return result, nil
+	return nonEmpty(result, "performance"), nil
 }
 
 func validateProductionBuild(root string) (Result, error) {

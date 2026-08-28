@@ -12,6 +12,10 @@ export default defineConfig((env) => {
     test: {
       ...config.test,
       include: ["../library/**/*.{test,spec}.{ts,tsx}"],
+      // `.retired/` holds quarantined asset trees. Their imports are expected
+      // to dangle — that is what retirement means — so running their tests
+      // reports resolution failures for content nothing can reach.
+      exclude: ["../library/.retired/**"],
     },
   };
 });

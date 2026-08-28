@@ -294,6 +294,10 @@ type IndexManifestInput struct {
 	Headers  map[string]string
 	Findings []IndexFinding
 	Warnings []string
+	// ReleaseAttestations carries the committed released-version hash registry
+	// for this run. It lets the immutability check tell a stale index apart
+	// from a genuine rewrite of released bytes; see release_attestations.go.
+	ReleaseAttestations map[string]string
 }
 
 type DesignAffinity string
@@ -357,6 +361,12 @@ const (
 	// renders "No design affinities declared" in the detail view. Soft
 	// conformance signal — it never blocks the reindex.
 	IndexFindingMissingDesignAffinity IndexFindingKind = "missing_design_affinity"
+	// IndexFindingUnrecoverableEvictedVersion is emitted when a manifest
+	// declares an evicted version whose durable mirror cannot be read. The
+	// version is omitted from the index; the rest of the asset still indexes,
+	// because refusing the whole manifest is what kept eight assets — and every
+	// dependency they declared — invisible to retention.
+	IndexFindingUnrecoverableEvictedVersion IndexFindingKind = "unrecoverable_evicted_version"
 )
 
 // OrphanVersion is a component_versions row whose component_id has no

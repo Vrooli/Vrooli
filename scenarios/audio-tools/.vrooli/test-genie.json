@@ -47,7 +47,7 @@
     "requiredResources": []
   },
   "docs": {
-    "path": "../audio-tools/docs/test-genie/soak/README.md"
+    "path": "scenarios/audio-tools/docs/test-genie/soak/README.md"
   },
   "maturity": {
     "version": "1.0.0",
@@ -57,9 +57,9 @@
         "label": "Browser qualification",
         "description": "The browser, capture ledger, server, and virtual-replay provider complete the declared accelerated qualification.",
         "levels": [
-          { "id": "L0", "name": "Unavailable", "description": "The qualification cannot run or has no valid result.", "entry_criteria": [], "exit_criteria": ["A complete conformance artifact is produced by the registered provider phase."] },
-          { "id": "L1", "name": "Measured", "description": "The provider produced a complete conformance artifact.", "entry_criteria": ["A complete conformance artifact is produced by the registered provider phase."], "exit_criteria": ["Every required assertion passes."] },
-          { "id": "L2", "name": "Qualified", "description": "Every required accelerated assertion passes for the exact provider cell.", "entry_criteria": ["Every required accelerated assertion passes."], "exit_criteria": [] }
+          { "id": "L0", "name": "Unavailable", "description": "The qualification cannot run or has no valid result.", "entry_criteria": [], "exit_criteria": ["A complete conformance artifact is produced by the registered provider phase."], "next_unlock": "Produce a complete conformance artifact for the declared provider cell." },
+          { "id": "L1", "name": "Measured", "description": "The provider produced a complete conformance artifact.", "entry_criteria": ["A complete conformance artifact is produced by the registered provider phase."], "exit_criteria": ["Every required assertion passes."], "next_unlock": "Resolve every required assertion in the conformance artifact." },
+          { "id": "L2", "name": "Qualified", "description": "Every required accelerated assertion passes for the exact provider cell.", "entry_criteria": ["Every required accelerated assertion passes."], "exit_criteria": [], "capability_summary": "The exact accelerated dictation qualification is complete and every required assertion passes." }
         ]
       }
     ],

@@ -112,12 +112,14 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	if err := json.Unmarshal(response, &doc); err != nil {
 		return fmt.Errorf("decode conformance run: %w", err)
 	}
-	evidencePath := firstNonEmpty(ctx.Flag("evidence-path"), filepath.Join("coverage", doc.RunID+".json"))
-	if err := os.MkdirAll(filepath.Dir(evidencePath), 0o750); err != nil {
-		return fmt.Errorf("create evidence directory: %w", err)
-	}
-	if err := os.WriteFile(evidencePath, append(response, '\n'), 0o600); err != nil {
-		return fmt.Errorf("write evidence %q: %w", evidencePath, err)
+	evidencePath := strings.TrimSpace(ctx.Flag("evidence-path"))
+	if evidencePath != "" {
+		if err := os.MkdirAll(filepath.Dir(evidencePath), 0o750); err != nil {
+			return fmt.Errorf("create evidence directory: %w", err)
+		}
+		if err := os.WriteFile(evidencePath, append(response, '\n'), 0o600); err != nil {
+			return fmt.Errorf("write evidence %q: %w", evidencePath, err)
+		}
 	}
 	if ctx.JSON() {
 		_, err = ctx.Stdout().Write(response)
@@ -148,7 +150,11 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	if failed > 0 {
 		return fmt.Errorf("soak run %s did not qualify: %d assertion(s) failed or were not measured", doc.RunID, failed)
 	}
-	fmt.Fprintf(ctx.Stdout(), "audio-tools soak qualified: %s (%s); evidence=%s\n", doc.RunID, doc.Lane, evidencePath)
+	message := fmt.Sprintf("audio-tools soak qualified: %s (%s); evidence retained by the API", doc.RunID, doc.Lane)
+	if evidencePath != "" {
+		message += "; exported=" + evidencePath
+	}
+	fmt.Fprintln(ctx.Stdout(), message)
 	return nil
 }
 
@@ -210,6 +216,7 @@ func positiveInt(raw string, def int) (int, error) {
 	}
 	return n, nil
 }
+
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if strings.TrimSpace(value) != "" {

@@ -21,7 +21,7 @@ type VersionLedger struct {
 	FileCount       int
 	LinesOfCode     int
 	DependencyCount int
-	Presence         string
+	Presence        string
 }
 
 type CleanupScope struct {

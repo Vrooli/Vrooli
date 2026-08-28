@@ -231,7 +231,7 @@ func ValidateGraphReconciled(root string) (Result, error) {
 			DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-graph-projection",
 		})
 	}
-	return result, nil
+	return nonEmpty(result, "graph-reconciled"), nil
 }
 
 // ValidateReleaseProvenance rejects release directories that did not pass
@@ -3095,7 +3095,7 @@ func ValidateSelfHosting(root string) (Result, error) {
 			DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-graph-projection",
 		})
 	}
-	return result, nil
+	return nonEmpty(result, "self-hosting"), nil
 }
 
 // ValidateBASGenericity keeps browser workflows capability-driven. Component

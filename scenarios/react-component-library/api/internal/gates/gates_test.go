@@ -266,11 +266,19 @@ func TestValidateOverlaySurfaceCompositionAcceptsSharedCoreAndReasonedOptOut(t *
 	}
 }
 
+// The behaviour under test is that the AST pass sees a role assembled at
+// runtime, which a text match over the source cannot. It is deliberately not
+// pinned to a corpus path: the cold-version tier legitimately moves released
+// version folders into the durable mirror, and a test that reads one directly
+// fails for a storage decision rather than a behaviour change.
 func TestStructuredSourceFactsDetectComputedOverlayRole(t *testing.T) {
 	root := liveRoot(t)
-	path := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "SidebarShell", "versions", "2.2.0", "SidebarShell.tsx")
-	source, err := os.ReadFile(path)
-	if err != nil {
+	source := []byte(`export const Shell = ({ modal }: { modal: boolean }) => (
+  <aside role={modal ? "dialog" : "complementary"} data-rcl-shell="sidebar" />
+);
+`)
+	path := filepath.Join(t.TempDir(), "Shell.tsx")
+	if err := os.WriteFile(path, source, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	got, err := sourceHasOverlayRole(root, path, source)
@@ -278,7 +286,25 @@ func TestStructuredSourceFactsDetectComputedOverlayRole(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !got {
-		t.Fatal("structured AST facts did not detect SidebarShell's computed dialog role")
+		t.Fatal("structured AST facts did not detect the computed dialog role")
+	}
+}
+
+// The same pass must not invent a role that is nowhere in the source.
+func TestStructuredSourceFactsRejectSourceWithNoOverlayRole(t *testing.T) {
+	root := liveRoot(t)
+	source := []byte(`export const Plain = () => <div data-rcl-shell="plain" />;
+`)
+	path := filepath.Join(t.TempDir(), "Plain.tsx")
+	if err := os.WriteFile(path, source, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := sourceHasOverlayRole(root, path, source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got {
+		t.Fatal("structured AST facts reported an overlay role for source that declares none")
 	}
 }
 

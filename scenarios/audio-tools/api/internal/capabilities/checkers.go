@@ -3,6 +3,7 @@ package capabilities
 import (
 	"context"
 	"net/http"
+	"os/exec"
 
 	"audio-tools/internal/httpc"
 )
@@ -14,6 +15,24 @@ import (
 type ResourceChecker struct {
 	URL  string
 	Doer httpc.Doer
+}
+
+// TranscodeChecker verifies the in-process audio conversion dependency. The
+// runner is injectable so registry tests remain hermetic and can model a host
+// where ffmpeg is absent.
+type TranscodeChecker struct {
+	LookPath func(string) (string, error)
+}
+
+func (c *TranscodeChecker) Check(context.Context) (Status, string) {
+	lookPath := c.LookPath
+	if lookPath == nil {
+		lookPath = exec.LookPath
+	}
+	if _, err := lookPath("ffmpeg"); err != nil {
+		return StatusUnavailable, "ffmpeg is not installed (install ffmpeg to enable audio transcoding)"
+	}
+	return StatusAvailable, "ffmpeg is available for audio transcoding"
 }
 
 func (c *ResourceChecker) Check(ctx context.Context) (Status, string) {

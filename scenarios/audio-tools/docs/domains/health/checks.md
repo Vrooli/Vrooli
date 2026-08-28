@@ -149,11 +149,13 @@ truth for what audio-tools advertises:
 | ID | Kind | Features |
 |---|---|---|
 | `whisper-stt` | resource | `voice-input`, `voice-streaming` |
-| `speaker-verification` | logical capability backed by `sherpa-onnx` | `voice-speaker-verification`, `voice-enrollment` |
-| `kokoro-tts` | logical capability backed by `sherpa-onnx` | `voice-output` |
+| `kyutai-stt` | resource | `voice-streaming` |
+| `speaker-verification` | resource | `voice-speaker-verification`, `voice-enrollment` |
+| `kokoro-tts` | resource | `voice-output` |
 | `ollama` | resource | `ai-command-generation` |
 | `openrouter` | resource | `ai-command-generation` |
 | `audio-tools` | scenario | All of the above plus `tts-summarization`, `tts-cache`, `tts-paragraph-split`, `audio-provider-routing` |
+| `audio-transcode` | scenario-local capability | `transcode` |
 
 The `audio-tools` self-entry is intentional: downstream scenarios
 that adopt audio-tools wholesale resolve features via this one entry

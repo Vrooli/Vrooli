@@ -32,6 +32,26 @@ func TestRegistry_SharedContractAndMappings(t *testing.T) {
 	}
 }
 
+func TestKnownCatalogCoversOperatorHealthCapabilities(t *testing.T) {
+	seen := map[string]bool{}
+	for _, def := range capabilities.Known {
+		if seen[def.ID] {
+			t.Fatalf("duplicate known capability %q", def.ID)
+		}
+		seen[def.ID] = true
+	}
+	for _, want := range []string{"whisper-stt", "kyutai-stt", "kokoro-tts", "ollama", "audio-transcode"} {
+		if !seen[want] {
+			t.Errorf("Known catalog does not include %q", want)
+		}
+	}
+	for _, feature := range []string{"voice-input", "voice-output", "ai-command-generation", "transcode"} {
+		if _, ok := capabilities.CapabilityForFeature(feature); !ok {
+			t.Errorf("feature %q is not mapped to an operator capability", feature)
+		}
+	}
+}
+
 func TestRegistry_Resolve(t *testing.T) {
 	defs := []capabilities.Def{
 		{ID: "cap-a", Name: "Cap A"},

@@ -1,0 +1,81 @@
+{
+  "claims": [
+    {
+      "id": "one-navigation-render",
+      "statement": "Desktop panel and mobile drawer are the same element in the same tree, so navigation content is authored and rendered once.",
+      "states": ["default", "drawer-open"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "keyboard-operable",
+      "statement": "The sidebar is resizable from the keyboard and the drawer closes on Escape.",
+      "states": ["keyboard-resize", "drawer-open"],
+      "tier": "aspirational",
+      "type": "keyboard-operable"
+    },
+    {
+      "id": "derived-test-ids",
+      "statement": "Every part's test id derives from one testId prop, so an adopting scenario keeps its selector registry without re-implementing the element.",
+      "states": ["default", "drawer-open", "legacy-handle"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "no-handle-geometry-in-callers",
+      "statement": "Callers pass bounds, not geometry: the hit-target width lives in one token read by both the paint and the clamp arithmetic.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "edge-and-gesture-agree",
+      "statement": "The edge the panel rests against, the edge its closed transform travels through, and the direction of its dismissing drag are all resolved from one value.",
+      "states": ["end-anchored", "right-to-left"],
+      "tier": "machine",
+      "type": "machine"
+    }
+  ],
+  "component": {
+    "id": "navigation.sidebar",
+    "purpose": "One sidebar parent for both the desktop resizable panel and the mobile drawer, so an adopting scenario renders its navigation once.",
+    "title": "Sidebar Shell"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:SidebarShell@2.5.1",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "Persistent desktop panel with the shell-owned resize seam.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Resized entirely from the keyboard.",
+      "example": "keyboard-resize",
+      "id": "keyboard-resize"
+    },
+    {
+      "description": "The same shell as a modal drawer with backdrop and close control.",
+      "example": "drawer-open",
+      "id": "drawer-open"
+    },
+    {
+      "description": "The deprecated caller-supplied handle path.",
+      "example": "legacy-handle",
+      "id": "legacy-handle"
+    },
+    {
+      "description": "Drawer anchored to the inline end edge.",
+      "example": "end-anchored",
+      "id": "end-anchored"
+    },
+    {
+      "description": "Right-to-left locale with a start-anchored drawer.",
+      "example": "right-to-left",
+      "id": "right-to-left"
+    }
+  ]
+}

@@ -2,6 +2,9 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "visualization.overlay-canvas",
+  "deprecatedVersions": [
+    "1.0.10"
+  ],
   "description": "A measured subject overlay that names implicated bounds.",
   "designStyles": [
     {
@@ -10,21 +13,21 @@
     }
   ],
   "displayName": "OverlayCanvas",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.10"
+  ],
   "kind": "overlay",
   "latest": "1.0.11",
   "libraryId": "react-component-library:OverlayCanvas",
-  "tags": [
-    "visualization",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.10"
+  "tags": [
+    "visualization",
+    "token-bound"
   ]
 }

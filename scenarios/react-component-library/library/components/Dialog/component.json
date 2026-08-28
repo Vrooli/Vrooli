@@ -23,7 +23,8 @@
   "displayName": "Dialog",
   "draft": "",
   "evictedVersions": [
-    "1.2.1"
+    "1.2.1",
+    "1.2.2"
   ],
   "kind": "overlay",
   "latest": "1.3.5",

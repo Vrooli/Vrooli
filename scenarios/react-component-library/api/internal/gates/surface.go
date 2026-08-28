@@ -105,7 +105,7 @@ func ValidateSurfaceDiscipline(root string) (Result, error) {
 	result.UnstampedAssets, result.UncapturedAssets = classifyUnmeasured(stampReport, result.UnmeasuredAssets)
 	result.SurfaceCounts["unstamped"] = len(result.UnstampedAssets)
 	result.SurfaceCounts["uncaptured"] = len(result.UncapturedAssets)
-	return result, nil
+	return nonEmpty(result, "surface-discipline"), nil
 }
 
 func sourceUsesSurfaceRamp(source, surface string) bool {

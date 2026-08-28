@@ -35,6 +35,9 @@ func (r *PresenceReconciler) ReconcilePresence(ctx context.Context, componentID 
 	if err != nil {
 		return err
 	}
+	// Per-version tier moves that fail are collected rather than returned, so
+	// one stuck version cannot cost the caller the other 235 assets.
+	var deferred []string
 	candidates, err := r.ledger.RetireCandidates(ctx, componentID)
 	if err != nil {
 		return fmt.Errorf("build presence reachability graph: %w", err)
@@ -75,7 +78,15 @@ func (r *PresenceReconciler) ReconcilePresence(ctx context.Context, componentID 
 					return err
 				}
 				if _, err := r.ledger.Transition(ctx, asset.ID, row.Version, "archived", true, planHash); err != nil {
-					return fmt.Errorf("evict %s@%s: %w", asset.LibraryID, row.Version, err)
+					// Moving a version to cold storage is an optimisation, not
+					// a correctness requirement, and its safety check can
+					// legitimately disagree with this reachability graph. A
+					// refusal here used to abort the whole reindex — and
+					// because reconciliation runs after the walk, it also
+					// discarded the walk's own error report, hiding every
+					// manifest that had failed to index behind one unrelated
+					// eviction. Record it and carry on.
+					deferred = append(deferred, fmt.Sprintf("evict %s@%s: %v", asset.LibraryID, row.Version, err))
 				}
 				_ = items
 				continue
@@ -88,10 +99,24 @@ func (r *PresenceReconciler) ReconcilePresence(ctx context.Context, componentID 
 					return fmt.Errorf("materializer is not configured for %s@%s", asset.LibraryID, row.Version)
 				}
 				if _, err := r.materializer.EnsureMaterialized(ctx, asset.ID, row.Version, ""); err != nil {
-					return fmt.Errorf("materialize %s@%s: %w", asset.LibraryID, row.Version, err)
+					deferred = append(deferred, fmt.Sprintf("materialize %s@%s: %v", asset.LibraryID, row.Version, err))
 				}
 			}
 		}
 	}
+	if len(deferred) > 0 {
+		return ErrPresenceReconciliationIncomplete{Deferred: deferred}
+	}
 	return nil
+}
+
+// ErrPresenceReconciliationIncomplete reports tier moves that did not apply.
+// The catalog is still correctly indexed when this is returned; only the
+// materialized/evicted placement of the named versions is unchanged.
+type ErrPresenceReconciliationIncomplete struct {
+	Deferred []string
+}
+
+func (e ErrPresenceReconciliationIncomplete) Error() string {
+	return fmt.Sprintf("%d version tier move(s) deferred: %s", len(e.Deferred), strings.Join(e.Deferred, "; "))
 }

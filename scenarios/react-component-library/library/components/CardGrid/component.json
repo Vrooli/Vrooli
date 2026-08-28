@@ -24,7 +24,8 @@
   "displayName": "Card Grid",
   "draft": "",
   "evictedVersions": [
-    "1.0.0"
+    "1.0.0",
+    "1.0.1"
   ],
   "kind": "surface",
   "latest": "1.0.2",

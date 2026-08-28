@@ -16,6 +16,9 @@
   "displayName": "useIconMorph",
   "draft": "",
   "entry": "useIconMorph.ts",
+  "evictedVersions": [
+    "1.1.0"
+  ],
   "kind": "surface",
   "latest": "1.1.1",
   "libraryId": "react-component-library:useIconMorph",

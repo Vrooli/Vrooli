@@ -46,7 +46,7 @@ func ResourceSlugForProviderID(id string) (string, bool) {
 	case "whisper-stt":
 		return "whisper", true
 	case "kokoro-tts":
-		return "sherpa-onnx", true
+		return "kokoro", true
 	case "speaker-verification":
 		return "sherpa-onnx", true
 	case "ollama":

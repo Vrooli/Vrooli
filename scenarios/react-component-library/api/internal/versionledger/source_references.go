@@ -210,6 +210,19 @@ func (r *Repository) workbenchSourceReferences(byVersion map[string][]VersionRef
 		}
 		for _, match := range sourceImportRE.FindAllStringSubmatch(string(body), -1) {
 			specifier := match[1]
+			rel, _ := filepath.Rel(filepath.Dir(r.sourceRoot), path)
+			// The workbench pins library versions through the package export
+			// map, not through relative paths. Following only relative imports
+			// left every one of those pins invisible, and cold-tier eviction
+			// then removed version folders the app still imports.
+			if libraryID, version, ok := exactPackageSpecifier(specifier); ok {
+				key := sourceReferenceKey(libraryID, version)
+				byVersion[key] = appendUniqueReference(byVersion[key], VersionReference{
+					Kind: "workbench-source-import", OwnerPath: filepath.ToSlash(rel),
+					ImportSpecifier: specifier, Evidence: "workbench UI pins this version through the package export map",
+				})
+				continue
+			}
 			if !strings.HasPrefix(specifier, ".") {
 				continue
 			}
@@ -219,7 +232,6 @@ func (r *Repository) workbenchSourceReferences(byVersion map[string][]VersionRef
 					continue
 				}
 				key := sourceReferenceKey(targetVersion.libraryID, targetVersion.version)
-				rel, _ := filepath.Rel(filepath.Dir(r.sourceRoot), path)
 				byVersion[key] = appendUniqueReference(byVersion[key], VersionReference{
 					Kind: "workbench-source-import", OwnerPath: filepath.ToSlash(rel),
 					ImportSpecifier: specifier, Evidence: "workbench UI import resolves into a surviving version folder",
@@ -295,6 +307,57 @@ func (r *Repository) adoptedSourceReferences(ctx context.Context) (map[string][]
 		}
 	}
 	return refs, nil
+}
+
+// packageSpecifierPrefix is how everything outside a version folder — the
+// workbench app, adopted files, and library assets themselves — names a library
+// version. The reference scanners originally followed only relative specifiers,
+// which made this entire class of edge invisible to retention.
+const packageSpecifierPrefix = "@vrooli/react-component-library/"
+
+// exactPackageSpecifier reports the library id and version an import pins, and
+// whether it pins one at all.
+//
+// Only exact specifiers count. A bare `@vrooli/react-component-library/Input`
+// follows whatever the manifest calls latest, so it says nothing about any
+// particular version and must not pin one against retirement.
+func exactPackageSpecifier(specifier string) (string, string, bool) {
+	rest, found := strings.CutPrefix(specifier, packageSpecifierPrefix)
+	if !found {
+		return "", "", false
+	}
+	name, version, found := strings.Cut(rest, "/")
+	if !found || name == "" {
+		return "", "", false
+	}
+	// Subpaths below the version (e.g. `Input/1.1.2/styles.css`) still pin the
+	// same version.
+	if index := strings.Index(version, "/"); index >= 0 {
+		version = version[:index]
+	}
+	if !isExactVersion(version) {
+		return "", "", false
+	}
+	return "react-component-library:" + name, version, true
+}
+
+// isExactVersion accepts the `major.minor.patch` shape the export map emits.
+func isExactVersion(version string) bool {
+	parts := strings.Split(version, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func resolveSourceImport(directory, specifier string) string {

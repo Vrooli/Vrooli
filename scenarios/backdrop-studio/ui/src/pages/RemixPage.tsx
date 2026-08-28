@@ -3,10 +3,10 @@ import { useSearchParams } from "react-router-dom";
 
 import { createStyle, representativeSurface, type Style } from "../api/studio";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { Input } from "../components/ui/input";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { axisValues, useObjectURL, useRender, useStyles, useSurfaces } from "../hooks/useStudio";

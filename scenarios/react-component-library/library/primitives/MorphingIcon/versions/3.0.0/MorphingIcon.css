@@ -1,5 +1,0 @@
-[data-rcl-morphing-icon] { display: inline-grid; place-items: center; vertical-align: middle; position: relative; }
-/* Every layer occupies the same cell so a crossfade overlaps rather than stacks. */
-[data-rcl-morphing-icon] > * { grid-area: 1 / 1; inline-size: 100%; block-size: 100%; display: inline-grid; place-items: center; }
-[data-rcl-morphing-icon] > [data-rcl-hidden="true"] { visibility: hidden; }
-[data-rcl-morphing-icon] svg { inline-size: 100%; block-size: 100%; display: block; }

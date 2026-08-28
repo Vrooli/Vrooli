@@ -184,6 +184,17 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 	if err != nil {
 		return nil, "", fmt.Errorf("build source reference graph: %w", err)
 	}
+	// Generated version locks are the authoritative record of what a version
+	// imports, and unlike the scans above they do not depend on the index
+	// having seen the referring asset. Merging them in is what makes an edge
+	// spelled as a package subpath visible to retention at all.
+	lockRefs, err := r.lockReferences(ctx)
+	if err != nil {
+		return nil, "", fmt.Errorf("build version lock reference graph: %w", err)
+	}
+	for key, refs := range lockRefs {
+		sourceRefs[key] = appendUniqueReferences(sourceRefs[key], refs)
+	}
 	var items []CleanupItem
 	for _, raw := range rawRows {
 		var item CleanupItem
@@ -259,6 +270,18 @@ func (r *Repository) CleanupVersions(ctx context.Context, scope CleanupScope, pl
 	}
 	if planHash == "" || planHash != currentHash {
 		return items, currentHash, 0, fmt.Errorf("cleanup plan changed or --plan-hash is missing; review the current dry-run plan")
+	}
+	// Every protection above is a search for evidence that a version is still
+	// needed, so a missing index row reads exactly like an absent reference.
+	// That asymmetry only ever errs toward deleting, which is why an index that
+	// disagrees with the filesystem refuses the destructive pass rather than
+	// warning through it.
+	drift, err := r.IndexDrift(ctx)
+	if err != nil {
+		return items, currentHash, 0, fmt.Errorf("compare index against library tree: %w", err)
+	}
+	if !drift.Empty() {
+		return items, currentHash, 0, fmt.Errorf("refusing to retire versions: %s; run the catalog reindex and re-plan before cleanup", drift.Error())
 	}
 	retired := 0
 	for _, item := range items {

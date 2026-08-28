@@ -1,0 +1,45 @@
+{
+  "claims": [
+    {
+      "id": "contract-present",
+      "statement": "The hook exposes its documented public behavior through a stable versioned entrypoint.",
+      "states": ["default", "end-anchored"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "independent-of-direction",
+      "statement": "Changing handedness moves the anchored edge without altering the document writing direction.",
+      "states": ["end-anchored", "right-to-left"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "use-handedness",
+    "purpose": "Resolves which edge anchored surfaces sit against, and which way their gestures travel.",
+    "title": "Handedness"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:useHandedness@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "Anchored to the inline start edge.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Anchored to the inline end edge.",
+      "example": "end-anchored",
+      "id": "end-anchored"
+    },
+    {
+      "description": "Locale mirrored, reach side unchanged.",
+      "example": "right-to-left",
+      "id": "right-to-left"
+    }
+  ]
+}

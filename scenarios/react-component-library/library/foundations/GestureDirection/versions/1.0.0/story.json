@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "GestureDirection",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='foundations.gesture-direction']"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='rtl-inline-start'] [data-anchor-edge]",
+          "attribute": "data-anchor-edge",
+          "value": "right"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='ltr-inline-end'] [data-anchor-edge]",
+          "attribute": "data-anchor-edge",
+          "value": "right"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-testid='foundations.gesture-direction'] tbody tr",
+          "value": "4"
+        }
+      ],
+      "mode": "live",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      }
+    }
+  ]
+}

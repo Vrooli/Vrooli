@@ -162,7 +162,7 @@ func (h *connectHandler) responseFromResult(ctx context.Context, res *sttchain.R
 		Filtered:         decision.Filtered,
 		FilterReason:     decision.FilterReason,
 	}
-	if len(decision.Stages) > 0 || decision.Filtered {
+	if len(decision.Stages) > 0 || decision.Filtered || (cfg.EngineID != "" && cfg.EngineID != res.ProviderID) {
 		resp.PolicyDetails = map[string]string{
 			"stages":                   strings.Join(decision.Stages, ","),
 			"hallucination_filter":     fmt.Sprintf("%t", cfg.HallucinationFilterEnabled),
@@ -173,6 +173,11 @@ func (h *connectHandler) responseFromResult(ctx context.Context, res *sttchain.R
 			"final_transcript_length":  fmt.Sprintf("%d", len(decision.Text)),
 			"post_recognition_policy":  "stt_egress",
 			"provider_confidence_used": fmt.Sprintf("%t", res.Confidence != nil),
+		}
+		if cfg.EngineID != "" && cfg.EngineID != res.ProviderID {
+			resp.PolicyDetails["selected_engine"] = cfg.EngineID
+			resp.PolicyDetails["served_by_engine"] = res.ProviderID
+			resp.PolicyDetails["engine_substitution"] = "true"
 		}
 	}
 	return resp

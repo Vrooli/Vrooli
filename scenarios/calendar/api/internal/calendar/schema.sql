@@ -6,35 +6,28 @@
 -- ============================================================================
 -- EVENT CATEGORIES TABLE
 -- ============================================================================
--- Stores event categories for organization and filtering
+-- Built-in categories are defined in categorization.go. This table stores only
+-- user-owned categories so users may reuse the same category name independently.
 CREATE TABLE IF NOT EXISTS event_categories (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(50) NOT NULL UNIQUE,
+    id VARCHAR(255) PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    color VARCHAR(7) DEFAULT '#808080',
+    icon VARCHAR(50) DEFAULT 'label',
     description TEXT,
-    color VARCHAR(7) DEFAULT '#4285F4', -- Hex color code
-    icon VARCHAR(50), -- Icon identifier
-    is_system BOOLEAN DEFAULT FALSE,
-    display_order INTEGER DEFAULT 0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_user_category UNIQUE (user_id, name)
 );
 
--- Insert default system categories
-INSERT INTO event_categories (name, description, color, icon, is_system, display_order) VALUES
-('meeting', 'Team meetings and discussions', '#4285F4', 'users', TRUE, 1),
-('appointment', 'Appointments and consultations', '#0F9D58', 'calendar', TRUE, 2),
-('task', 'Tasks and deadlines', '#F4B400', 'check-square', TRUE, 3),
-('personal', 'Personal events and activities', '#DB4437', 'user', TRUE, 4),
-('travel', 'Travel and transportation', '#9C27B0', 'plane', TRUE, 5),
-('reminder', 'Reminders and notifications', '#00ACC1', 'bell', TRUE, 6),
-('focus', 'Focus time and deep work', '#FF6F00', 'brain', TRUE, 7),
-('social', 'Social events and gatherings', '#E91E63', 'heart', TRUE, 8)
-ON CONFLICT (name) DO NOTHING;
+-- Older development databases predate the update trigger below. Converge that
+-- additive column without replacing or deleting user-owned category data.
+ALTER TABLE event_categories
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
 -- Indexes for categories
 CREATE INDEX IF NOT EXISTS idx_categories_name ON event_categories (name);
-CREATE INDEX IF NOT EXISTS idx_categories_is_system ON event_categories (is_system);
-CREATE INDEX IF NOT EXISTS idx_categories_display_order ON event_categories (display_order);
+CREATE INDEX IF NOT EXISTS idx_categories_user_id ON event_categories (user_id);
 
 -- ============================================================================
 -- EVENT TEMPLATES TABLE

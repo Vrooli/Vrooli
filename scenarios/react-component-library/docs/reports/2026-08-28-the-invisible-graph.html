@@ -1,0 +1,592 @@
+<title>The Invisible Graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+:root {
+  --ground:      #F6F8F8;
+  --surface:     #FFFFFF;
+  --surface-2:   #EDF1F1;
+  --ink:         #12191B;
+  --ink-soft:    #46565A;
+  --ink-faint:   #7A8B8F;
+  --rule:        #D6DEDE;
+  --rule-strong: #B4C0C1;
+  --accent:      #0B6E7E;
+  --accent-soft: #E0EEF0;
+  --alarm:       #B33F1B;
+  --alarm-soft:  #F7E7E0;
+  --warn:        #8A6410;
+  --warn-soft:   #F5EDD9;
+  --good:        #1F6B4A;
+  --good-soft:   #DFEEE6;
+  --frozen:      #4A6E8A;
+  --frozen-soft: #E4EBF1;
+  --shadow:      0 1px 2px rgba(18,25,27,.05), 0 8px 24px -14px rgba(18,25,27,.22);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0D1315;
+    --surface:     #141D1F;
+    --surface-2:   #1C2729;
+    --ink:         #E7EEEE;
+    --ink-soft:    #A3B3B5;
+    --ink-faint:   #74868A;
+    --rule:        #263335;
+    --rule-strong: #3A4B4E;
+    --accent:      #56C4D4;
+    --accent-soft: #122C31;
+    --alarm:       #F08355;
+    --alarm-soft:  #2E1A12;
+    --warn:        #D9AE4E;
+    --warn-soft:   #2A2213;
+    --good:        #5FBF92;
+    --good-soft:   #10261C;
+    --frozen:      #8FB0C9;
+    --frozen-soft: #16232D;
+    --shadow:      0 1px 2px rgba(0,0,0,.3), 0 8px 24px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0D1315;
+  --surface:     #141D1F;
+  --surface-2:   #1C2729;
+  --ink:         #E7EEEE;
+  --ink-soft:    #A3B3B5;
+  --ink-faint:   #74868A;
+  --rule:        #263335;
+  --rule-strong: #3A4B4E;
+  --accent:      #56C4D4;
+  --accent-soft: #122C31;
+  --alarm:       #F08355;
+  --alarm-soft:  #2E1A12;
+  --warn:        #D9AE4E;
+  --warn-soft:   #2A2213;
+  --good:        #5FBF92;
+  --good-soft:   #10261C;
+  --frozen:      #8FB0C9;
+  --frozen-soft: #16232D;
+  --shadow:      0 1px 2px rgba(0,0,0,.3), 0 8px 24px -14px rgba(0,0,0,.7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: Newsreader, Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 1080px; margin: 0 auto; padding: 0 28px 120px; }
+.measure { max-width: 640px; }
+
+h1, h2, h3, .label, .chip, .mono, table, .statline, .col-head, .opt-head {
+  font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+}
+.mono, code, pre { font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; }
+
+h1 { font-size: clamp(38px, 6vw, 60px); line-height: 1.02; letter-spacing: -.025em; font-weight: 700; margin: 0 0 18px; text-wrap: balance; }
+h2 { font-size: 27px; line-height: 1.2; letter-spacing: -.014em; font-weight: 700; margin: 0 0 14px; text-wrap: balance; }
+h3 { font-size: 19px; line-height: 1.3; letter-spacing: -.008em; font-weight: 600; margin: 0 0 8px; text-wrap: balance; }
+p { margin: 0 0 16px; }
+a { color: var(--accent); }
+
+.label { font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-faint); margin: 0 0 10px; }
+code { font-size: .84em; background: var(--surface-2); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 5px; word-break: break-word; }
+
+.masthead { padding: 64px 0 0; border-bottom: 1px solid var(--rule); }
+.kicker {
+  display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: baseline;
+  font-family: Archivo, sans-serif; font-size: 12px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-faint); font-weight: 600; margin-bottom: 26px;
+}
+.kicker .sep { color: var(--rule-strong); }
+.standfirst { font-size: 21px; line-height: 1.5; color: var(--ink-soft); max-width: 620px; margin: 0 0 40px; }
+
+.alarmstrip {
+  background: var(--alarm-soft); border: 1px solid var(--alarm); border-left-width: 4px;
+  border-radius: 3px; padding: 20px 24px; margin: 36px 0 0; display: grid; gap: 12px;
+}
+.alarmstrip .statline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--alarm); }
+.alarmstrip p { margin: 0; font-size: 16.5px; line-height: 1.55; color: var(--ink); }
+.alarmstrip .cmd { font-family: "JetBrains Mono", monospace; font-size: 13.5px; background: var(--surface); border: 1px solid var(--alarm); border-radius: 3px; padding: 9px 13px; color: var(--ink); display: inline-block; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--alarm); display: inline-block; }
+
+section { padding: 56px 0 0; }
+section + section { border-top: 1px solid var(--rule); margin-top: 56px; }
+
+/* three protections */
+.guards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 16px; margin: 28px 0 0; }
+.guard {
+  background: var(--surface); border: 1px solid var(--rule); border-top: 3px solid var(--alarm);
+  border-radius: 3px; padding: 20px 22px 22px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 9px;
+}
+.guard .gname { font-family: Archivo, sans-serif; font-size: 15.5px; font-weight: 600; letter-spacing: -.005em; line-height: 1.3; }
+.guard .gwhy { font-size: 15.5px; line-height: 1.5; color: var(--ink-soft); }
+.guard .gev { font-family: "JetBrains Mono", monospace; font-size: 11.5px; line-height: 1.55; color: var(--ink-soft); border-top: 1px solid var(--rule); padding-top: 9px; word-break: break-word; }
+.guard .verdict { font-family: Archivo, sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: .11em; text-transform: uppercase; color: var(--alarm); }
+
+/* cascade ladder */
+.ladder { margin: 26px 0 0; overflow-x: auto; }
+.ladder-inner { min-width: 620px; display: grid; grid-template-columns: 200px 1fr; gap: 0; }
+.col-head { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; padding: 0 0 10px; border-bottom: 1px solid var(--rule-strong); }
+.rung { display: contents; }
+.rung .src, .rung .dst { border-bottom: 1px solid var(--rule); padding: 9px 0; display: flex; align-items: center; gap: 8px; }
+.rung .src { padding-right: 20px; }
+.vchip {
+  font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600;
+  padding: 3px 8px; border-radius: 2px; white-space: nowrap;
+  background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
+}
+.vchip.spawn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); font-weight: 400; }
+.dst { flex-wrap: wrap; }
+.ladder-note { font-family: Archivo, sans-serif; font-size: 13.5px; color: var(--ink-soft); margin-top: 14px; max-width: 640px; }
+
+/* options */
+.options { display: grid; gap: 18px; margin: 28px 0 0; }
+.option { background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 24px 26px 26px; box-shadow: var(--shadow); }
+.option.rec { border-color: var(--good); border-left: 4px solid var(--good); }
+.opt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.opt-head h3 { margin: 0; }
+.tag { font-family: Archivo, sans-serif; font-size: 10.5px; font-weight: 600; letter-spacing: .11em; text-transform: uppercase; padding: 3px 8px; border-radius: 2px; white-space: nowrap; }
+.tag.rec  { background: var(--good-soft);  color: var(--good);  border: 1px solid var(--good); }
+.tag.no   { background: var(--alarm-soft); color: var(--alarm); border: 1px solid var(--alarm); }
+.tag.part { background: var(--warn-soft);  color: var(--warn);  border: 1px solid var(--warn); }
+.option p { max-width: 640px; }
+.option p:last-child { margin-bottom: 0; }
+.tradeoff { margin: 14px 0 0; border-left: 3px solid var(--rule-strong); padding: 3px 0 3px 16px; font-size: 16px; color: var(--ink-soft); }
+.tradeoff b { color: var(--ink); font-weight: 600; }
+
+.evidence {
+  margin: 16px 0 0; border-left: 3px solid var(--rule-strong); padding: 4px 0 4px 16px;
+  font-family: "JetBrains Mono", monospace; font-size: 12.5px; line-height: 1.72; color: var(--ink-soft); overflow-x: auto;
+}
+.evidence b { color: var(--ink); font-weight: 600; }
+.evidence.hot { border-left-color: var(--alarm); }
+
+/* cleanup list */
+.tablewrap { overflow-x: auto; margin: 26px 0 0; }
+table { width: 100%; min-width: 620px; border-collapse: collapse; font-family: Archivo, sans-serif; font-size: 14.5px; }
+th { text-align: left; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; padding: 0 14px 9px 0; border-bottom: 1px solid var(--rule-strong); vertical-align: bottom; }
+td { padding: 12px 14px 12px 0; border-bottom: 1px solid var(--rule); vertical-align: top; line-height: 1.45; }
+td:last-child, th:last-child { padding-right: 0; }
+td.mono { font-size: 12.5px; word-break: break-word; }
+.sz { font-variant-numeric: tabular-nums; color: var(--ink-soft); white-space: nowrap; font-family: "JetBrains Mono", monospace; font-size: 12.5px; }
+
+.steps { display: grid; gap: 2px; margin: 28px 0 0; counter-reset: step; }
+.step { background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 20px 24px 22px 68px; position: relative; }
+.step::before {
+  counter-increment: step; content: counter(step);
+  position: absolute; left: 24px; top: 20px;
+  font-family: Archivo, sans-serif; font-size: 22px; font-weight: 700;
+  color: var(--rule-strong); font-variant-numeric: tabular-nums; line-height: 1;
+}
+.step h3 { margin-bottom: 6px; }
+.step p { margin: 0; max-width: 620px; color: var(--ink-soft); font-size: 17px; }
+.step .cost { font-family: Archivo, sans-serif; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 600; color: var(--ink-faint); display: block; margin-bottom: 7px; }
+
+footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid var(--rule); font-family: Archivo, sans-serif; font-size: 13px; color: var(--ink-faint); line-height: 1.7; }
+
+@media (max-width: 640px) {
+  body { font-size: 17px; }
+  .page { padding: 0 18px 80px; }
+  .step { padding-left: 24px; padding-top: 52px; }
+  .step::before { top: 18px; }
+  .ladder-inner { grid-template-columns: 140px 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="page">
+
+<header class="masthead">
+  <div class="kicker">
+    <span>React Component Library</span><span class="sep">/</span>
+    <span>Retention &amp; dependency model</span><span class="sep">/</span>
+    <span>2026-08-28 · branch <span class="mono">agi</span></span>
+  </div>
+  <h1>The Invisible Graph</h1>
+  <p class="standfirst">
+    The pruner that deleted IconButton is not slightly wrong. Every one of its three
+    protections is blind to the way library components actually reference each other —
+    and the tool meant to propagate updates is blind for the same reason.
+  </p>
+</header>
+
+<div class="alarmstrip" style="background:var(--good-soft);border-color:var(--good)">
+  <div class="statline" style="color:var(--good)"><span class="dot" style="background:var(--good)"></span> Fixed and verified — 2026-08-28</div>
+  <p>
+    When this was written, <code>versions cleanup</code> marked <b>13 versions eligible for
+    deletion that other versions' locks required</b> — IconButton&nbsp;2.0.1 among them,
+    needed by 28. Retention now reads the generated locks, including those mirrored in cold
+    storage, and resolves the package specifiers the workbench uses.
+    <b>That count is now 0</b>, and the repair carries regression tests.
+  </p>
+  <span class="cmd" style="border-color:var(--good)">plan-cleanup: eligible-but-required 13 → 0 · index 138 → 224 of 236 · republish-dependents 0 → 4</span>
+</div>
+
+<div class="alarmstrip" style="margin-top:14px">
+  <div class="statline"><span class="dot"></span> Still open</div>
+  <p>
+    13 released directories were created by the filesystem bypass and still carry no publish
+    record. The <code>release-provenance</code> gate reports them correctly and its test
+    fails on purpose. Clearing them is asset work — <code>IconGeometry@1.0.0</code> alone
+    carries 63 lint errors — and it is the one item below that code could not close.
+  </p>
+</div>
+
+<section>
+  <p class="label">The defect</p>
+  <div class="measure">
+    <h2>Three guards, three ways of missing the same edge</h2>
+    <p style="background:var(--good-soft);border-left:3px solid var(--good);padding:10px 14px;margin:0 0 16px;font-size:16px">
+      <b>All three are now closed.</b> The diagnosis below is kept as written; what changed
+      is recorded at the end of each panel.
+    </p>
+    <p>
+      A version survives cleanup if it is <code>latest</code>, a draft, already retired,
+      externally adopted, or shown to be referenced. The last one is where composition
+      inside the library is supposed to be caught. It is caught by three independent
+      mechanisms, and all three fail on the same import.
+    </p>
+    <p>
+      This is the import that broke:
+    </p>
+    <div class="evidence hot">
+      library/components/VoiceInputButton/versions/4.3.1/VoiceInputButton.tsx:10<br>
+      <b>import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.1";</b>
+    </div>
+  </div>
+
+  <div class="guards">
+    <div class="guard">
+      <span class="verdict">Guard one · blind</span>
+      <span class="gname">The source scan only follows relative imports</span>
+      <span class="gwhy">
+        All three reference scanners — library, workbench UI, and adopted files — skip any
+        specifier that does not begin with a dot. Intra-library composition is spelled as a
+        package subpath, so it is discarded before resolution.
+      </span>
+      <span class="gev">source_references.go<br>if !strings.HasPrefix(specifier, ".") { continue }<br><br><b>562</b> library files import the package specifier<br><b>141</b> relative imports into version folders — the only edges it sees<br><br><b style="color:var(--good)">FIXED:</b> exactPackageSpecifier() resolves the package form; the workbench scanner uses it too.</span>
+    </div>
+
+    <div class="guard">
+      <span class="verdict">Guard two · empty</span>
+      <span class="gname">The pinned-dependency table lost its source</span>
+      <span class="gwhy">
+        <code>component_asset_dependencies</code> is filled from the manifest's
+        <code>dependencies[]</code> array. The setup-maturity plan retired that field in
+        favour of per-version lock files and nothing was rewired, so the guard reads a
+        column nobody writes any more.
+      </span>
+      <span class="gev">manifests carrying dependencies[]: <b>0 of 236</b><br>rows in component_asset_dependencies: 334<br>rows naming IconButton: <b>0</b><br><br><b style="color:var(--good)">FIXED:</b> retention reads the locks directly, so it no longer depends on that table. The table itself refilled to 538 rows once the index was unwedged.</span>
+    </div>
+
+    <div class="guard">
+      <span class="verdict">Guard three · absent</span>
+      <span class="gname">The referring asset is not in the index at all</span>
+      <span class="gwhy">
+        The scan iterates versions found in SQLite, not on disk. VoiceInputButton has no
+        row, so it cannot appear as a referrer under any scanner. Seven other assets are in
+        the same state.
+      </span>
+      <span class="gev">assets on disk <b>236</b> · in index <b>228</b><br>unindexed: AssetDetailShell, BottomSheet, CommandCenterShell, EmptyState, FullPageDrawer, InspectorLayout, ResponsiveDialog, VoiceInputButton<br>versions on disk not indexed: <b>41</b> · indexed but not on disk: <b>246</b><br><br><b style="color:var(--good)">FIXED:</b> the lock graph is read from disk, so it no longer depends on the index at all — and deletion now refuses outright while the index disagrees with the tree.</span>
+    </div>
+  </div>
+
+  <div class="measure" style="margin-top:32px">
+    <p>
+      The authoritative answer already exists and is not consulted. Every version carries
+      <code>dependencies.json</code> — a generated, per-version lock naming exactly what it
+      imports. 483 of them exist. Retention reads none of them; the only code that reads a
+      lock is the <code>dependency-rank</code> gate. Cross-checking the cleanup plan against
+      those locks is how the thirteen unsafe deletions above were found, in one pass.
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="label">The same blindness, the other direction</p>
+  <div class="measure">
+    <h2>The propagation tool reports success by finding nothing</h2>
+    <p>
+      You asked whether a component could follow IconButton's latest release instead of
+      pinning 2.0.1. The command for that already exists —
+      <code>components republish-dependents</code> — and it reads
+      <code>component.Dependencies</code>, which is the same empty table as guard two.
+    </p>
+    <p>
+      So <code>republish-dependents IconButton 3.1.1</code> finds zero dependents and
+      reports a clean dry run. Not an error, not a warning: a confident nothing. Fixing
+      the pruner and fixing propagation are the same fix.
+    </p>
+  </div>
+</section>
+
+<section>
+  <p class="label">The cost of pinning</p>
+  <div class="measure">
+    <h2>Every hook release mints three component releases</h2>
+    <p>
+      Exact pins mean a dependency bump is a source change, and a source change to an
+      immutable version means a new version. The overlay family shows this cleanly:
+      <code>useOverlaySurface</code> has nine versions, and its three consumers have
+      twelve each. They move in lockstep.
+    </p>
+  </div>
+
+  <div class="ladder">
+    <div class="ladder-inner">
+      <div class="col-head">useOverlaySurface</div>
+      <div class="col-head">versions minted downstream to carry the bump</div>
+
+      <div class="rung">
+        <div class="src"><span class="vchip">1.3.0</span></div>
+        <div class="dst"><span class="vchip spawn">FullPageDrawer 1.1.0</span></div>
+      </div>
+      <div class="rung">
+        <div class="src"><span class="vchip">1.3.1</span></div>
+        <div class="dst"><span class="vchip spawn">BottomSheet 1.1.0</span><span class="vchip spawn">FullPageDrawer 1.1.1</span><span class="vchip spawn">ResponsiveDialog 1.1.0</span></div>
+      </div>
+      <div class="rung">
+        <div class="src"><span class="vchip">1.3.2</span></div>
+        <div class="dst"><span class="vchip spawn">BottomSheet 1.1.1</span><span class="vchip spawn">FullPageDrawer 1.1.2</span><span class="vchip spawn">ResponsiveDialog 1.1.1</span></div>
+      </div>
+      <div class="rung">
+        <div class="src"><span class="vchip">1.3.3</span></div>
+        <div class="dst"><span class="vchip spawn">BottomSheet 1.1.2</span><span class="vchip spawn">BottomSheet 1.1.3</span><span class="vchip spawn">FullPageDrawer 1.1.3</span><span class="vchip spawn">FullPageDrawer 1.1.4</span><span class="vchip spawn">ResponsiveDialog 1.1.2</span><span class="vchip spawn">ResponsiveDialog 1.1.3</span></div>
+      </div>
+      <div class="rung">
+        <div class="src"><span class="vchip">1.3.4</span></div>
+        <div class="dst"><span class="vchip spawn">BottomSheet 1.1.4</span><span class="vchip spawn">BottomSheet 1.1.5</span><span class="vchip spawn">ContextMenu 1.2.0</span><span class="vchip spawn">FullPageDrawer 1.1.5</span><span class="vchip spawn">ResponsiveDialog 1.1.4</span><span class="vchip spawn">ResponsiveDialog 1.1.5</span></div>
+      </div>
+      <div class="rung">
+        <div class="src"><span class="vchip">1.3.5</span></div>
+        <div class="dst"><span class="vchip spawn">BottomSheet 1.1.6</span><span class="vchip spawn">ContextMenu 1.2.1</span><span class="vchip spawn">FullPageDrawer 1.1.6</span><span class="vchip spawn">ResponsiveDialog 1.1.6</span></div>
+      </div>
+      <div class="rung">
+        <div class="src"><span class="vchip">1.3.6</span></div>
+        <div class="dst"><span class="vchip spawn">BottomSheet 1.1.7</span><span class="vchip spawn">BottomSheet 1.2.0</span><span class="vchip spawn">FullPageDrawer 1.1.7</span><span class="vchip spawn">FullPageDrawer 1.2.0</span><span class="vchip spawn">ResponsiveDialog 1.1.7</span><span class="vchip spawn">ResponsiveDialog 1.2.0</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="ladder-note">
+    Corpus-wide: 476 versions across 239 assets, median 2 each — but the three overlay
+    components sit at 12 apiece. Most of those exist to carry a dependency bump, not a
+    behaviour change. Each one then has to be linted, gated, locked and retained forever.
+  </p>
+</section>
+
+<section>
+  <p class="label">The decision you raised</p>
+  <div class="measure">
+    <h2>Should a component follow the latest release instead?</h2>
+    <p>
+      Worth doing, but not as stated — "follow latest" is what just broke. IconButton 3.1.1
+      became latest, 2.0.1 stopped being latest, and the pruner treated not-latest as
+      not-needed. Moving that same idea into resolution would make a released version's
+      behaviour change without its bytes changing, which is the one property the whole
+      immutability design buys you.
+    </p>
+    <p>
+      The useful version of your instinct separates three things that are currently one
+      thing: what an author writes, what a release records, and what a consumer resolves.
+    </p>
+  </div>
+
+  <div class="options">
+
+    <div class="option">
+      <div class="opt-head"><h3>Keep exact pins everywhere</h3><span class="tag no">status quo</span></div>
+      <p>
+        Reproducible and safe, and it is why the equivalence proof in the last plan worked.
+        But it makes every dependency bump a version, which is the ladder above, and it
+        makes retention a permanent liability because no old version can ever be released.
+      </p>
+      <div class="tradeoff"><b>Cost:</b> the version explosion, and the cascade tax on every foundation edit.</div>
+    </div>
+
+    <div class="option">
+      <div class="opt-head"><h3>Resolve dependencies at build from the latest release</h3><span class="tag no">not recommended</span></div>
+      <p>
+        Updates propagate for free, and no version is minted to carry a bump. But a frozen
+        version stops being frozen: its rendered output depends on when it was built.
+        <code>released-version-hashes.json</code>, the immutability gate and the equivalence
+        proof all stop meaning anything, and a regression in a foundation silently reaches
+        every consumer at once with no record of which pairing was tested.
+      </p>
+      <div class="tradeoff"><b>Cost:</b> reproducibility, which is the property the library sells to 35 consuming scenarios.</div>
+    </div>
+
+    <div class="option rec">
+      <div class="opt-head"><h3>Record a range beside the resolved pin</h3><span class="tag rec">recommended</span></div>
+      <p>
+        The lock already stores <code>{ libraryId, version, rank }</code> per dependency.
+        Add what the author actually meant — <code>"compatible": "^2"</code> — beside the
+        exact <code>"version": "2.0.1"</code> the build resolved. The exact pin still governs
+        the build, so nothing about reproducibility moves.
+      </p>
+      <p>
+        What changes is that a machine can now answer two questions it cannot answer today:
+        <em>is this dependent still compatible with the new release?</em> and
+        <em>which versions are actually reachable?</em> <code>republish-dependents</code>
+        becomes a real sweep that bumps everything whose range still admits the new version,
+        in dependency-rank order, in one command — the propagation you described, without
+        surrendering the frozen bytes.
+      </p>
+      <div class="tradeoff">
+        <b>Cost:</b> one field in the lock schema and a generator change. The authoring
+        experience is unchanged, because drafts are already meant to be written unpinned.
+      </div>
+    </div>
+
+    <div class="option rec">
+      <div class="opt-head"><h3>Protect by reachability, not by <code>latest</code></h3><span class="tag rec">recommended</span></div>
+      <p>
+        Independent of the above, and the direct fix for the incident. A version is needed
+        if anything reachable still names it — computed as the transitive closure over the
+        483 locks, not as a property of a single manifest field. <code>latest</code> is a
+        pointer for consumers; it was never a statement about what is safe to delete.
+      </p>
+      <p>
+        The concept is already half-built: <code>versions reconcile-presence</code>
+        describes itself as the "reachability-based materialized/evicted tier". Retention
+        should share that graph rather than keeping a second, weaker opinion.
+      </p>
+      <div class="tradeoff"><b>Cost:</b> low. The graph exists in the locks; retention just has to read it.</div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <p class="label">Also found</p>
+  <div class="measure">
+    <h2>Smaller things worth clearing</h2>
+    <p>
+      None of these are urgent. Several are the kind of residue that makes an agent
+      distrust what it is looking at, which has its own cost.
+    </p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:40%">What</th><th style="width:12%">Size</th><th style="width:48%">Why it matters</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="mono">data/react-component-library.db</td>
+          <td class="sz">4 KB</td>
+          <td>An empty stub with zero tables, carrying live <code>-shm</code>/<code>-wal</code> files. The real database is in <code>~/.vrooli/data/vrooli/</code>. Anyone inspecting the obvious path gets an empty answer rather than an error.</td>
+        </tr>
+        <tr>
+          <td class="mono">scenarios/react-component-library/scenarios/react-component-library/tmp/</td>
+          <td class="sz">—</td>
+          <td>A self-nested path: proof that the two <code>root</code> conventions have already collided in production, not just in theory.</td>
+        </tr>
+        <tr>
+          <td class="mono">scenarios/rcl-fixture-positive-1787641498371379912/</td>
+          <td class="sz">368 KB</td>
+          <td>A test fixture that escaped into the scenario registry and has sat at repo root since 25 Aug.</td>
+        </tr>
+        <tr>
+          <td class="mono">ui/.catalog-conformance-VcFpEq/</td>
+          <td class="sz">empty</td>
+          <td>Orphaned scratch directory. The Phase 15 reaper matches <code>.vrooli-artifact-stage-*</code> by name, so it does not see this one — a name-matched reaper is itself the special-case pattern the plan set out to remove.</td>
+        </tr>
+        <tr>
+          <td class="mono">tmp/</td>
+          <td class="sz">55 MB</td>
+          <td>Working files from the last three passes, including a full <code>baseline-2026-setup-maturity/</code> tree that has served its purpose.</td>
+        </tr>
+        <tr>
+          <td class="mono">library/utility-class-allowlist.max</td>
+          <td class="sz">2 bytes</td>
+          <td>Contains <code>0</code>. Its companion allowlist is now empty, so the ratchet ceiling has nothing left to bound.</td>
+        </tr>
+        <tr>
+          <td class="mono">api/cmd/backfill-*</td>
+          <td class="sz">3 programs</td>
+          <td><code>backfill-created-at</code>, <code>backfill-test-rollups</code>, <code>backfill-gate-evidence-versions</code> — completed one-time migrations kept as permanent commands.</td>
+        </tr>
+        <tr>
+          <td class="mono">library/preview-harnesses/*/versions/1.0.0/</td>
+          <td class="sz">10 versions</td>
+          <td>The only source-bearing versions with no <code>dependencies.json</code>. A whole asset kind sits outside the lock regime, so it is invisible to rank checks and to any retention fix built on locks.</td>
+        </tr>
+        <tr>
+          <td class="mono">library/.retired/</td>
+          <td class="sz">940 KB</td>
+          <td>40 retired trees holding the only dangling references in the corpus (5 targets). Harmless while quarantined, but it is the one place a lock-based reachability scan must be told to ignore.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <p class="label">Sequence</p>
+  <div class="measure">
+    <h2>What I would do about it</h2>
+  </div>
+
+  <div class="steps">
+
+    <div class="step">
+      <span class="cost">Now · prevents a repeat</span>
+      <h3>Stop cleanup from running until its reference scan reads locks</h3>
+      <p>
+        Thirteen unsafe deletions are queued behind one confirmation hash. The incident
+        recurs the next time anyone runs it, and it will take more than IconButton with it.
+      </p>
+    </div>
+
+    <div class="step">
+      <span class="cost">Small · the actual fix</span>
+      <h3>Make <code>dependencies.json</code> the reference graph</h3>
+      <p>
+        Build reverse edges from the 483 locks on disk and use them for both retention and
+        <code>republish-dependents</code>. This retires the relative-import filter and the
+        dead <code>component_asset_dependencies</code> read at the same time, and it does
+        not depend on the index being fresh — which is what made all three guards fail
+        together.
+      </p>
+    </div>
+
+    <div class="step">
+      <span class="cost">Small · closes the third guard</span>
+      <h3>Make an incomplete index refuse to authorise deletion</h3>
+      <p>
+        Eight assets on disk are absent from the index and nothing noticed. A retention plan
+        computed from an index that disagrees with the filesystem should report unavailable,
+        not eligible. Deletion is the one operation where a missing row must never read as
+        an absent reference.
+      </p>
+    </div>
+
+    <div class="step">
+      <span class="cost">Medium · your propagation idea</span>
+      <h3>Add <code>compatible</code> to the lock and make the sweep real</h3>
+      <p>
+        Record the author's range beside the resolved pin, then let
+        <code>republish-dependents</code> bump every dependent whose range still admits the
+        new release, in rank order. Updating a foundation becomes one command instead of a
+        hand-walked cascade — and the frozen bytes stay frozen.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  Measured 2026-08-28 on branch <span class="mono">agi</span>, scenario running and healthy.
+  Cleanup figures are from a live <span class="mono">versions plan-cleanup</span> dry run
+  cross-checked against the on-disk locks; index figures from
+  <span class="mono">~/.vrooli/data/vrooli/react-component-library/</span>.
+  Companion to <span class="mono">2026-08-28-the-bypass-deadlock.html</span>.
+</footer>
+
+</div>
