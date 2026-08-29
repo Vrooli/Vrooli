@@ -112,6 +112,14 @@
       "testId": "overlays.bottom-sheet.subheader",
       "selector": "[data-testid=\"overlays.bottom-sheet.subheader\"]"
     },
+    "library.useviewportenvironment.root": {
+      "testId": "useviewportenvironment",
+      "selector": "[data-testid=\"useviewportenvironment\"]"
+    },
+    "library.hooks.use-viewport-environment.root": {
+      "testId": "hooks.use-viewport-environment",
+      "selector": "[data-testid=\"hooks.use-viewport-environment\"]"
+    },
     "workspace.paneGrid": {
       "testId": "pane-grid",
       "selector": "[data-testid=\"pane-grid\"]"

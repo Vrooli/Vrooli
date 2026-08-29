@@ -1,0 +1,118 @@
+{
+  "bindings": {
+    "elements": {
+      "grabber": {
+        "testid": "overlays.context-menu.grabber"
+      },
+      "item": {
+        "selector": "[data-rcl-context-menu-item-wrap] \u003e button"
+      },
+      "surface": {
+        "testid": "overlays.context-menu"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["item"],
+      "id": "tap-target-size",
+      "statement": "The ContextMenu items satisfies the tap-target-size contract claim.",
+      "tier": "machine",
+      "type": "tap-target-size"
+    },
+    {
+      "elements": ["item"],
+      "id": "content-not-clipped",
+      "statement": "The ContextMenu items satisfies the content-not-clipped contract claim.",
+      "tier": "machine",
+      "type": "content-not-clipped"
+    },
+    {
+      "elements": ["item"],
+      "id": "state-contrast",
+      "params": {
+        "background": "surface",
+        "minContrastRatio": 3,
+        "state": "rest"
+      },
+      "statement": "The ContextMenu items satisfies the state-contrast contract claim.",
+      "tier": "machine",
+      "type": "state-contrast"
+    },
+    {
+      "elements": ["item"],
+      "id": "padding",
+      "statement": "The ContextMenu items satisfies the padding contract claim.",
+      "tier": "aspirational",
+      "type": "padding"
+    },
+    {
+      "elements": ["item"],
+      "id": "keyboard-reachable",
+      "statement": "The ContextMenu items satisfies the keyboard-reachable contract claim.",
+      "tier": "machine",
+      "type": "keyboard-reachable"
+    },
+    {
+      "elements": ["item"],
+      "id": "size-parity",
+      "statement": "The ContextMenu items satisfies the size-parity contract claim.",
+      "tier": "machine",
+      "type": "size-parity"
+    }
+  ],
+  "component": {
+    "id": "overlays.context-menu",
+    "purpose": "Commands attached to a trigger or pointer location: an anchored menu above the medium breakpoint, a touch action sheet below it.",
+    "title": "ContextMenu"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:ContextMenu@1.2.2",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "elements": [
+    {
+      "description": "The menu surface.",
+      "id": "surface",
+      "role": "menu"
+    },
+    {
+      "description": "One command.",
+      "id": "item",
+      "role": "menuitem"
+    },
+    {
+      "description": "The drag affordance on the sheet presentation.",
+      "id": "grabber",
+      "role": "button"
+    }
+  ],
+  "states": [
+    {
+      "description": "An open menu with its items.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Placed at a pointer position.",
+      "example": "at-pointer-position",
+      "id": "at-pointer-position"
+    },
+    {
+      "description": "Separators, icons, and shortcut hints.",
+      "example": "grouped-with-shortcuts",
+      "id": "grouped-with-shortcuts"
+    },
+    {
+      "description": "A checkable command reporting its state.",
+      "example": "with-checkable-item",
+      "id": "with-checkable-item"
+    },
+    {
+      "description": "A consequential command marked before it is chosen.",
+      "example": "with-destructive-item",
+      "id": "with-destructive-item"
+    }
+  ]
+}

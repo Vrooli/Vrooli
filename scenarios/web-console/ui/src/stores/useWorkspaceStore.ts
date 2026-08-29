@@ -140,6 +140,19 @@ interface WorkspaceState {
   aiModalOpen: boolean;
   /** Whether the inline AI suggestion bar is active (mobile only). Not persisted. */
   aiSuggestActive: boolean;
+  /**
+   * Has anything in this session actually reached for audio — pressed the
+   * mic, asked for a message to be spoken, opened the audio settings?
+   *
+   * Gates the audio-unavailable notice. An optional side-feature being
+   * down is not news on load: before this flag existed the notice
+   * painted on every open whether or not the reader cared, and it could
+   * not be got rid of, because the condition outlives the dismissal.
+   * Session-scoped and deliberately absent from `partialize` — intent
+   * expires with the tab, so a reader who never touches audio again is
+   * never told about it again.
+   */
+  audioIntent: boolean;
   voiceEnabled: boolean;
   voiceShortcut: string;
   vadAutoStop: boolean;
@@ -305,6 +318,8 @@ interface WorkspaceActions {
   setSettingsInitialTab: (tab: string | null) => void;
   setAiModalOpen: (open: boolean) => void;
   setAiSuggestActive: (active: boolean) => void;
+  /** Latch `audioIntent`. Idempotent — safe to call from every audio entry point. */
+  markAudioIntent: () => void;
   setVoiceEnabled: (enabled: boolean) => void;
   setVoiceShortcut: (shortcut: string) => void;
   setVadAutoStop: (enabled: boolean) => void;
@@ -464,6 +479,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       settingsInitialTab: null,
       aiModalOpen: false,
       aiSuggestActive: false,
+      audioIntent: false,
       voiceEnabled: true,
       voiceShortcut: "Ctrl+Shift+Space",
       vadAutoStop: true,
@@ -705,6 +721,10 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       setSettingsInitialTab: (tab) => set({ settingsInitialTab: tab }),
       setAiModalOpen: (open) => set({ aiModalOpen: open }),
       setAiSuggestActive: (active) => set({ aiSuggestActive: active }),
+      // Guarded so the common case (already latched) writes nothing:
+      // an unconditional `set` on every mic press re-renders every
+      // subscriber for a value that did not change.
+      markAudioIntent: () => { if (!get().audioIntent) set({ audioIntent: true }); },
       setVoiceEnabled: (enabled) => set({ voiceEnabled: enabled }),
       setVoiceShortcut: (shortcut) => set({ voiceShortcut: shortcut }),
       setVadAutoStop: (enabled) => set({ vadAutoStop: enabled }),

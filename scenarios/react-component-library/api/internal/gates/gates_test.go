@@ -603,6 +603,34 @@ export const Watcher = () => {
 	}
 }
 
+func TestLifecycleGateIgnoresBehaviorTests(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "scenarios", "react-component-library", "library", "hooks", "useViewport", "versions", "1.0.0")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	implementation := `export function useViewport() {
+  return typeof window === "undefined" || typeof document === "undefined" ? 0 : window.innerHeight;
+}`
+	if err := os.WriteFile(filepath.Join(source, "useViewport.ts"), []byte(implementation), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testSource := `it("subscribes", () => {
+  window.addEventListener("resize", () => {});
+  document.body.append(document.createElement("input"));
+});`
+	if err := os.WriteFile(filepath.Join(source, "useViewport.behavior.test.tsx"), []byte(testSource), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result, err := ValidateLifecycle(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Inspected != 1 || len(result.Findings) != 0 {
+		t.Fatalf("result = %+v, want behavior test excluded from runtime lifecycle findings", result)
+	}
+}
+
 func TestLifecycleGateRejectsRenderTimeBrowserAccess(t *testing.T) {
 	root := t.TempDir()
 	source := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Watcher", "versions", "1.0.0")

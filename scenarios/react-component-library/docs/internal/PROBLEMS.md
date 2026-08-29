@@ -103,6 +103,16 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
+- Rung: W3 / R0 (overlay keyboard coordinate-system regression)
+- Evidence: `useOverlaySurface` placed visual-viewport variables on the panel while `data-avoid-keyboard` rules read them from the presentation root. The root therefore used fallback geometry while the child panel independently adopted the reduced visible height, producing a severe apparent shrink. Release 1.3.11 exposes root viewport props; the updated presentations use the visual viewport rectangle once and size panels against that root.
+- Blocker: Manual confirmation on the operator's mobile keyboard remains pending; broad automated suites were intentionally not run for this iteration.
+- Measured: 2026-08-29.
+
+- Rung: W3 / R0 (nested overlay layer-order regression)
+- Evidence: `useOverlaySurface` registered the current `close` callback as a layer-effect dependency. An inline controlled callback changed that identity when a parent drawer rendered to mount a child, so the lower parent was removed and pushed above the child. The child's swipe followed the pointer, then failed its top-layer commit check and reset. Release 1.3.10 keeps registration stable and forwards dismissal through a current-callback ref; Web Console rebuilt and reported healthy with the upgraded presentation releases.
+- Blocker: Manual confirmation of the original two-drawer swipe sequence remains with the operator; broad automated suites were intentionally not run for this iteration.
+- Measured: 2026-08-29.
+
 - Rung: W3 / R0 (overlay contract and styling portability execution)
 - Evidence: W0 remains aligned with goals `design-language-foundation` and `react-component-library-adoption-integrity`; `business-health validate scenario react-component-library` and `vrooli scenario requirements validate react-component-library` both pass. Baseline run `20260827-043742-0085352a` is terminal and records the pre-existing red implementation baseline that this plan must compare against while it builds the missing portability and overlay behavior.
 - Blocker: None. The work is implementation and hardening at W3; inherited suite failures remain baseline evidence rather than permission to weaken the plan's acceptance bar.

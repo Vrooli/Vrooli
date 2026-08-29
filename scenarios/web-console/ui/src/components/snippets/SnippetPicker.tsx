@@ -56,7 +56,7 @@ export function SnippetPicker({ open, onClose, onInsert, autoValues = {}, onNew 
   if (!open) return null;
   return (
     <>
-      <ResponsiveDialog open onClose={closePicker} size="md" title={t(strings.snippets.picker.title)} closeLabel={t(strings.snippets.close)} dismissAffordance="close" testId="snippet-picker" avoidKeyboard>
+      <ResponsiveDialog open onClose={closePicker} size="md" title={t(strings.snippets.picker.title)} closeLabel={t(strings.snippets.close)} testId="snippet-picker" avoidKeyboard>
         <div className="flex h-full flex-col gap-3 p-4">
           <div className="flex items-center gap-2">
             <input aria-label={t(strings.snippets.picker.filterAria)} data-testid="snippet-filter" value={filter} onChange={(event) => { setFilter(event.target.value); }} placeholder={t(strings.snippets.picker.filterPlaceholder)} className="min-h-11 min-w-0 flex-1 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-sm text-wc-text-primary" />

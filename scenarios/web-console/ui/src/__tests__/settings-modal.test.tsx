@@ -2,6 +2,7 @@ import { renderWithProviders as render } from "../test-utils";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import SettingsModal from "../components/SettingsModal";
+import { setDesktopViewport, setMobileViewport } from "../test-utils/viewport";
 
 const mockStoreState = {
   settingsModalOpen: true,
@@ -61,6 +62,7 @@ describe("SettingsModal", () => {
     vi.clearAllMocks();
     mockStoreState.settingsModalOpen = true;
     mediaQueryState.isMobile = false;
+    setDesktopViewport();
   });
 
   it("does not render when closed", () => {
@@ -116,6 +118,7 @@ describe("SettingsModal", () => {
 
   it("renders mobile tabs row on mobile", () => {
     mediaQueryState.isMobile = true;
+    setMobileViewport();
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     expect(screen.getByTestId("settings-tabs-row")).toBeTruthy();
     expect(screen.queryByTestId("settings-sidebar")).toBeNull();
@@ -123,12 +126,14 @@ describe("SettingsModal", () => {
 
   it("offers a drag handle on mobile and a close button on desktop", () => {
     mediaQueryState.isMobile = true;
+    setMobileViewport();
     const { unmount } = render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     expect(screen.getByTestId("settings-modal.grabber")).toBeTruthy();
     expect(screen.queryByTestId("settings-modal.close")).toBeNull();
     unmount();
 
     mediaQueryState.isMobile = false;
+    setDesktopViewport();
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     expect(screen.getByTestId("settings-modal.close")).toBeTruthy();
     expect(screen.queryByTestId("settings-modal.grabber")).toBeNull();
@@ -136,6 +141,7 @@ describe("SettingsModal", () => {
 
   it("dismisses when the mobile handle is dragged down", () => {
     mediaQueryState.isMobile = true;
+    setMobileViewport();
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     const grabber = screen.getByTestId("settings-modal.grabber");
     fireEvent.pointerDown(grabber, { pointerId: 1, clientX: 100, clientY: 100 });
@@ -146,6 +152,7 @@ describe("SettingsModal", () => {
 
   it("moves the sheet exactly as far as the finger", () => {
     mediaQueryState.isMobile = true;
+    setMobileViewport();
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     const panel = screen.getByTestId("settings-modal");
     // jsdom lays nothing out, so the surface has to be given a height for the
@@ -164,6 +171,7 @@ describe("SettingsModal", () => {
 
   it("keeps the mobile handle reachable without a pointer", () => {
     mediaQueryState.isMobile = true;
+    setMobileViewport();
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     fireEvent.keyDown(screen.getByTestId("settings-modal.grabber"), { key: "Enter" });
     expect(mockStoreState.setSettingsModalOpen).toHaveBeenCalledWith(false);
@@ -171,6 +179,7 @@ describe("SettingsModal", () => {
 
   it("seats the mobile sheet flush with the bottom edge below a top gap", () => {
     mediaQueryState.isMobile = true;
+    setMobileViewport();
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     // Addressed by prefix: the sheet key carries the stylesheet revision, and
     // pinning the whole key here would turn every unrelated drawer release
@@ -192,6 +201,7 @@ describe("SettingsModal", () => {
 
   it("gives the mobile tab strip the full width instead of the content gutter", () => {
     mediaQueryState.isMobile = true;
+    setMobileViewport();
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     const subheader = screen.getByTestId("settings-modal.subheader");
     expect(subheader.contains(screen.getByTestId("settings-tabs-row"))).toBe(true);
@@ -203,6 +213,7 @@ describe("SettingsModal", () => {
 
   it("moves between mobile tabs with the arrow keys", () => {
     mediaQueryState.isMobile = true;
+    setMobileViewport();
     render(<SettingsModal sessions={[]} onDeleteSession={vi.fn()} />);
     const sessions = screen.getByTestId("settings-tab-sessions");
     sessions.focus();

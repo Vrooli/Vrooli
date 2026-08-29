@@ -89,7 +89,8 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {}

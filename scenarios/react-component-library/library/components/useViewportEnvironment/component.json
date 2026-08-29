@@ -1,0 +1,32 @@
+{
+  "category": "uncategorized",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
+  "description": "Normalizes browser viewport geometry for responsive overlays and keyboard-aware application chrome.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "useViewportEnvironment",
+  "draft": "",
+  "entry": "useViewportEnvironment.ingest.tsx",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
+  "kind": "control",
+  "latest": "1.0.3",
+  "libraryId": "react-component-library:useViewportEnvironment",
+  "slot": "ui-pattern",
+  "tags": [
+    "runtime",
+    "responsive",
+    "accessibility"
+  ],
+  "catalogId": "hooks.use-viewport-environment"
+}

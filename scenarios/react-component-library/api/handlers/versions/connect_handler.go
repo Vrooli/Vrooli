@@ -160,6 +160,14 @@ func (h *connectHandler) MaterializeVersion(ctx context.Context, req *connect.Re
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
 			for _, version := range versions {
+				// Retired versions remain in the durable ledger with an unspecified
+				// catalog status, and drafts are mutable authoring state. Neither is
+				// part of an --all release projection used by package builds.
+				if version.Status != components.VersionStatusReleased &&
+					version.Status != components.VersionStatusDeprecated &&
+					version.Status != components.VersionStatusArchived {
+					continue
+				}
 				targets = append(targets, struct{ componentID, libraryID, version string }{asset.ID, asset.LibraryID, version.Version})
 			}
 		}

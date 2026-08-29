@@ -30,7 +30,6 @@ export type {
  */
 export const BANNER_PRIORITY = {
   connectionLost: 90,
-  audioUnavailable: 70,
   crashRecovery: 65,
   voiceRejection: 60,
   createError: 55,
@@ -42,6 +41,13 @@ export const BANNER_PRIORITY = {
   voiceTranscribing: 25,
   ttsSpeaking: 22,
   enableAudio: 20,
+  // Informational: an optional side-feature is down. It sat at 70
+  // — above `crashRecovery` — which said a degraded speech backend
+  // outranked "sessions of yours survived a crash". Nothing of the
+  // reader's is at risk here, and it is now raised only once they
+  // have asked for audio, so it belongs at the top of the
+  // informational band rather than in the at-risk one.
+  audioUnavailable: 19,
   trackingDegraded: 10,
 } as const;
 

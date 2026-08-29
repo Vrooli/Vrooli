@@ -1,0 +1,44 @@
+{
+  "metadata": {
+    "name": "responsive-overlay-resize-stability",
+    "description": "Keeps one populated ResponsiveDialog mounted, focused, scrolled, bounded, and free of stale drag transforms while the real browser viewport crosses the responsive breakpoint and repeatedly changes orientation.",
+    "requirement": "OVERLAY-COMPOSITION",
+    "version": "1",
+    "labels": { "reset": "none", "surface": "responsive-overlay", "requires_confirmation": "true", "routed_isolation": "true", "requirements_json": "[\"OVERLAY-COMPOSITION\"]" },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": { "viewport_width": 390, "viewport_height": 844 },
+  "nodes": [
+    { "id": "open", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO", "scenario": "react-component-library", "scenario_path": "/preview/react-component-library%3AResponsiveDialog/harness.html?story=preserved-input", "wait_until": "NAVIGATE_WAIT_EVENT_DOMCONTENTLOADED", "timeout_ms": 30000 }, "metadata": { "label": "Open the current preserved-input dialog story" } } },
+    { "id": "ready", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "input[aria-label=\"Pane name\"]", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 30000 }, "metadata": { "label": "Wait for the open dialog" } } },
+    { "id": "type", "action": { "type": "ACTION_TYPE_INPUT", "input": { "selector": "input[aria-label=\"Pane name\"]", "value": "State survives every resize", "clear_first": true }, "metadata": { "label": "Populate and focus the authored controlled input" } } },
+    { "id": "seed-scroll", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const input=document.querySelector('input[aria-label=\"Pane name\"]'); const content=document.querySelector('.rcl-responsive-dialog__content'); window.__basInput=input; content.scrollTop=80; input.focus(); return {scrollTop:content.scrollTop}; })()" }, "metadata": { "label": "Scroll the authored dialog content" } } },
+    { "id": "assert-mobile", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const p=document.querySelector('[data-testid=\"overlays.responsive-dialog\"]'); const input=document.querySelector('input[aria-label=\"Pane name\"]'); const c=document.querySelector('.rcl-responsive-dialog__content'); const root=document.querySelector('[data-rcl-responsive-dialog]'); const r=p?.getBoundingClientRect(); const ok=!!p&&root?.dataset.state==='open'&&root?.dataset.presentation==='sheet'&&input?.value==='State survives every resize'&&document.activeElement===input&&c.scrollTop===80&&p.style.transform===''&&r.top>=0&&r.bottom<=innerHeight+1; document.body.dataset.overlayMobileOk=ok?'yes':'no'; return {ok}; })()" }, "metadata": { "label": "Verify initial mobile state" } } },
+    { "id": "mobile-ok", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-overlay-mobile-ok=\"yes\"]", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "The populated mobile dialog lost state, focus, scroll, bounds, or its resting transform." }, "metadata": { "label": "Initial mobile state is stable" } } },
+    { "id": "landscape", "action": { "type": "ACTION_TYPE_ROTATE", "rotate": { "orientation": "DEVICE_ORIENTATION_LANDSCAPE", "angle": 90 }, "metadata": { "label": "Cross the breakpoint in landscape" } } },
+    { "id": "assert-desktop", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const p=document.querySelector('[data-testid=\"overlays.responsive-dialog\"]'); const input=document.querySelector('input[aria-label=\"Pane name\"]'); const c=document.querySelector('.rcl-responsive-dialog__content'); const root=document.querySelector('[data-rcl-responsive-dialog]'); const r=p?.getBoundingClientRect(); const ok=!!p&&root?.dataset.presentation==='dialog'&&window.__basInput===input&&input?.value==='State survives every resize'&&document.activeElement===input&&c.scrollTop===80&&p.style.transform===''&&r.top>=0&&r.bottom<=innerHeight+1; document.body.dataset.overlayDesktopOk=ok?'yes':'no'; return {ok}; })()" }, "metadata": { "label": "Verify desktop presentation without remounting" } } },
+    { "id": "desktop-ok", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-overlay-desktop-ok=\"yes\"]", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Breakpoint transition remounted or displaced the open dialog." }, "metadata": { "label": "Desktop state is stable" } } },
+    { "id": "portrait", "action": { "type": "ACTION_TYPE_ROTATE", "rotate": { "orientation": "DEVICE_ORIENTATION_PORTRAIT", "angle": 0 }, "metadata": { "label": "Return to portrait mobile" } } },
+    { "id": "landscape-repeat", "action": { "type": "ACTION_TYPE_ROTATE", "rotate": { "orientation": "DEVICE_ORIENTATION_LANDSCAPE", "angle": 90 }, "metadata": { "label": "Repeat the viewport growth" } } },
+    { "id": "portrait-repeat", "action": { "type": "ACTION_TYPE_ROTATE", "rotate": { "orientation": "DEVICE_ORIENTATION_PORTRAIT", "angle": 0 }, "metadata": { "label": "Repeat the viewport shrink" } } },
+    { "id": "settle-final", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "duration_ms": 250 }, "metadata": { "label": "Allow the coalesced viewport frame to commit" } } },
+    { "id": "assert-final", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const p=document.querySelector('[data-testid=\"overlays.responsive-dialog\"]'); const input=document.querySelector('input[aria-label=\"Pane name\"]'); const c=document.querySelector('.rcl-responsive-dialog__content'); const root=document.querySelector('[data-rcl-responsive-dialog]'); const r=p?.getBoundingClientRect(); const facts={present:!!p,sameNode:window.__basInput===input,state:root?.dataset.state,presentation:root?.dataset.presentation,value:input?.value,focused:document.activeElement===input,scrollTop:c?.scrollTop,transform:p?.style.transform,top:r?.top,bottom:r?.bottom,innerHeight}; const ok=facts.present&&facts.sameNode&&facts.state==='open'&&facts.presentation==='sheet'&&facts.value==='State survives every resize'&&facts.focused&&facts.scrollTop===80&&facts.transform===''&&facts.top>=0&&facts.bottom<=facts.innerHeight+1; document.body.dataset.overlayFinalOk=ok?'yes':'no'; return {ok,facts}; })()" }, "metadata": { "label": "Verify repeated responsive transitions" } } },
+    { "id": "final-ok", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-overlay-final-ok=\"yes\"]", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000, "failure_message": "Repeated viewport transitions accumulated geometry or lost dialog state." }, "metadata": { "label": "Repeated resize remains stable" } } }
+  ],
+  "edges": [
+    { "id": "e1", "source": "open", "target": "ready", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e2", "source": "ready", "target": "type", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e3", "source": "type", "target": "seed-scroll", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e4", "source": "seed-scroll", "target": "assert-mobile", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-mobile", "target": "mobile-ok", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "mobile-ok", "target": "landscape", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e7", "source": "landscape", "target": "assert-desktop", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e8", "source": "assert-desktop", "target": "desktop-ok", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e9", "source": "desktop-ok", "target": "portrait", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e10", "source": "portrait", "target": "landscape-repeat", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e11", "source": "landscape-repeat", "target": "portrait-repeat", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e12", "source": "portrait-repeat", "target": "settle-final", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e13", "source": "settle-final", "target": "assert-final", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e14", "source": "assert-final", "target": "final-ok", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+  ]
+}

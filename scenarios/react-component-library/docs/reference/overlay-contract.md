@@ -32,17 +32,42 @@ shape: `<catalog-id>` for the surface, `<catalog-id>.backdrop`, `<catalog-id>.cl
 
 ## Viewport
 
-An overlay resolves the usable viewport through the `BaseStyles` host viewport contract —
-`--rcl-viewport-height`, `--rcl-safe-top`/`-right`/`-bottom`/`-left`, and `--rcl-keyboard-inset` —
-and never through `env(safe-area-inset-*)` or `100dvh` directly. The defaults published by
-`BaseStyles` *are* the raw environment, so a host that says nothing behaves as before; a host that
-manages its own scrolling, keyboard handling, or chrome assigns the six properties on the root
-element and every surface follows it.
+`useViewportEnvironment` owns generic browser measurement. One singleton external store coalesces
+window and VisualViewport resize/scroll signals with `requestAnimationFrame` and exposes layout
+dimensions, visible dimensions, offsets, scale, and qualified keyboard state. Ordinary resizes and
+pinch zoom never become a keyboard: entry requires editable focus, scale 1, a meaningful occlusion,
+and two settled samples. An established keyboard follows its animation and exits immediately when
+focus or occlusion clears. Browsers without VisualViewport use the layout viewport; SSR receives a
+safe zero snapshot until hydration.
+
+`useOverlaySurface` consumes that snapshot and applies `--rcl-viewport-width`,
+`--rcl-viewport-height`, `--rcl-viewport-offset-left`, `--rcl-viewport-offset-top`, and
+`--rcl-keyboard-inset` on the overlay presentation root. A keyboard-aware root uses the visual
+viewport rectangle directly; it does not also subtract the keyboard inset. Its panel sizes against
+that root, so the geometry has one coordinate system and one keyboard adjustment. No generic
+viewport code mutates `html` or scrolls the document. `BaseStyles` keeps dynamic-viewport and safe-area defaults for first paint.
+Embedded and remote hosts can replace browser measurement with `ViewportEnvironmentProvider`
+without changing overlay consumers.
 
 This matters most at the bottom edge. `env(safe-area-inset-bottom)` describes the layout viewport,
 which an application has often already narrowed, so a surface that insets itself by that value can
 end up floating above the edge it slid in from. A sheet reaches the edge; the safe area and the
 keyboard are cleared as padding inside the scroll region and the footer.
+
+## Responsive and gesture transitions
+
+An open responsive overlay keeps one mounted content subtree across breakpoint changes. Every
+viewport transition cancels an in-flight gesture, releases pointer capture, and clears the inline
+progress property, dragging attributes, origin, measured extent, and grabber reference. The same
+reset occurs on commit, pointer cancellation, close, direction change, and swipe-policy change.
+An idle resize must therefore leave the surface at its resting transform; a drag cannot leak into
+the next presentation. A committed drag suppresses its synthetic follow-up click, while an
+unmoved grabber click—including assistive activation—invokes the normal close action.
+
+An open surface keeps its layer registration across ordinary consumer renders. The registry order
+records when overlays opened; changing an inline close callback must not promote a lower parent
+above a nested child. Escape, backdrop, and swipe dismissal therefore resolve the same visually
+topmost surface when two drawers are open.
 
 ## Content and bands
 
@@ -54,4 +79,3 @@ slot rather than nesting a second scroller inside the content.
 An overlay applies no blanket tap-target floor to its descendants. The floor belongs to the
 overlay's own affordances; a dense control rung placed inside an overlay keeps the size its caller
 selected, as [the sizing contract](sizing-contract.md) requires.
-

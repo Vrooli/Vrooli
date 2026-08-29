@@ -409,7 +409,17 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		version := strings.TrimSpace(entry.Name())
 		versionPath := filepath.ToSlash(filepath.Join(versionRoot, version))
 		if _, declaredEvicted := evicted[version]; declaredEvicted {
-			return IndexManifestInput{}, nil, ErrInvalidHeader{SourcePath: versionPath, Field: "evictedVersions", Reason: "version is both materialized on disk and declared evicted"}
+			// Reconciliation needs a component-version row to repair a stale
+			// presence tier. Rejecting the asset here made the state self-locking:
+			// the reconciler could never observe the materialized bytes that prove
+			// the evicted declaration stale.
+			findings = append(findings, headerDisagreementFinding(
+				versionPath,
+				"evictedVersions",
+				"version absent from the authored tree",
+				version,
+				"materialized source is indexed so presence reconciliation can repair the stale tier",
+			))
 		}
 		files, err := fs.ReadDir(idx.fs, versionPath)
 		if err != nil {

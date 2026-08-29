@@ -1,4 +1,4 @@
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders as render } from "../test-utils";
@@ -48,8 +48,8 @@ describe("mobile toolbar snippets", () => {
     fireEvent.change(input, { target: { value: "before" } });
     fireEvent.click(screen.getByTestId("toolbar-snippets"));
     fireEvent.click(screen.getByTestId("snippet-row-s0"));
-    expect(input.value).toBe("before body-0");
-    expect(touch).toHaveBeenCalledWith("s0");
+    await waitFor(() => expect(input.value).toBe("before body-0"));
+    await waitFor(() => expect(touch).toHaveBeenCalledWith("s0"));
   });
 
   it("detours an unresolved variable without changing the draft", () => {

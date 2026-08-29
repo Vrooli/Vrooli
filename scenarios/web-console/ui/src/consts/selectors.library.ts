@@ -88,5 +88,11 @@ export const librarySelectors = {
     "grabber": "overlays.bottom-sheet.grabber",
     "subheader": "overlays.bottom-sheet.subheader",
   },
+  "useviewportenvironment": {
+    "root": "useviewportenvironment",
+  },
+  "hooks.use-viewport-environment": {
+    "root": "hooks.use-viewport-environment",
+  },
 } as const;
 // vrooli:library-selectors end

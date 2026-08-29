@@ -94,6 +94,16 @@ export default function SettingsModal({
     storeTab(activeTab);
   }, [activeTab]);
 
+  // Opening a voice tab is audio intent: the reader is here to
+  // configure the feature, so an unreachable backend is finally
+  // news. Latched here rather than left to the panel so both
+  // tabs are covered by one rule.
+  const markAudioIntent = useWorkspaceStore((state) => state.markAudioIntent);
+  useEffect(() => {
+    if (!settingsModalOpen) return;
+    if (activeTab === "voice-input" || activeTab === "voice-output") markAudioIntent();
+  }, [settingsModalOpen, activeTab, markAudioIntent]);
+
   // Consume a one-shot deep-link request (e.g. "Manage defaults" in the
   // appearance modal) — jump to the requested tab, then clear the request.
   useEffect(() => {
@@ -179,11 +189,6 @@ export default function SettingsModal({
           </div>
         ) : undefined
       }
-      // This app already decided what "mobile" means, once, in `isMobile`.
-      // Leaving the drawer on its own `auto` breakpoint would add a second,
-      // independent read of the viewport that can disagree with the first —
-      // the same class of split-brain the viewport contract exists to close.
-      dismissAffordance={isMobile ? "grabber" : "close"}
       testId="settings-modal"
     >
       {isMobile ? (

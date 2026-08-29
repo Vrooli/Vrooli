@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { recallMemory } from "../../api/recall";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 import { Input } from "../../components/ui/input";
 import { selectors } from "../../consts/selectors";

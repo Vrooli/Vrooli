@@ -163,6 +163,32 @@ func TestIndexer_PreservesDeclaredEvictedVersionFromLedger(t *testing.T) {
 	require.Equal(t, "evicted", version.Presence)
 }
 
+func TestIndexerIndexesMaterializedVersionWithStaleEvictedDeclaration(t *testing.T) {
+	fs := fstest.MapFS{
+		"components/Button/component.json": {Data: []byte(`{"libraryId":"react-component-library:Button","displayName":"Button","entry":"Button.tsx","latest":"1.0.0","deprecatedVersions":["0.9.0"],"evictedVersions":["0.9.0"]}`)},
+		"components/Button/versions/0.9.0/Button.tsx": {Data: []byte(`/**
+ * @libraryId react-component-library:Button
+ * @version 0.9.0
+ */
+export const Button = () => null;`)},
+		"components/Button/versions/1.0.0/Button.tsx": {Data: []byte(`/**
+ * @libraryId react-component-library:Button
+ * @version 1.0.0
+ */
+export const Button = () => null;`)},
+	}
+	repo := mocks.NewFakeRepository()
+	result, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, 1, result.Indexed)
+	component, err := repo.GetByLibraryID(context.Background(), "react-component-library:Button")
+	require.NoError(t, err)
+	version, err := repo.GetVersion(context.Background(), component.ID, "0.9.0")
+	require.NoError(t, err)
+	require.Equal(t, "materialized", version.Presence)
+	require.NotEmpty(t, result.Findings)
+}
+
 func TestIndexerIgnoresLegacyManifestTokenContractAndUsesDerivedTokens(t *testing.T) {
 	fs := fstest.MapFS{
 		"components/TokenBound/component.json": {Data: []byte(`{"libraryId":"react-component-library:TokenBound","displayName":"Token Bound","entry":"TokenBound.tsx","latest":"1.0.0","deprecatedVersions":[],"requiredTokens":["--tap-target-min","--space-sm","--tap-target-min"]}`)},

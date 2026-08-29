@@ -63,6 +63,20 @@ describe("banner arbitration", () => {
     expect(primary?.id).toBe("connection-lost");
   });
 
+  it("ranks recoverable sessions above an unreachable audio backend", () => {
+    // `audioUnavailable` sat at 70, inside the "recoverable, data at
+    // risk" band and above `crashRecovery` — so a degraded speech
+    // backend took the one full slot from "sessions of yours survived
+    // a crash". Nothing of the reader's is at risk when an optional
+    // side-feature is down.
+    const { primary } = arbitrateBanners([
+      banner({ id: "audio-unavailable", priority: BANNER_PRIORITY.audioUnavailable }),
+      banner({ id: "crash-recovery", priority: BANNER_PRIORITY.crashRecovery }),
+    ]);
+    expect(primary?.id).toBe("crash-recovery");
+    expect(BANNER_PRIORITY.audioUnavailable).toBeLessThan(20);
+  });
+
   it("gives every tone both status-bar channels", () => {
     // Both channels exist for every tone: the OS bar reads `statusColor`, the
     // iOS safe-area strip reads `fillColor`. A tone with only one of them would

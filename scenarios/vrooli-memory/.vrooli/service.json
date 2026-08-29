@@ -117,7 +117,8 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "Owns the append-only source ledger and all semantic recall, facet, forest, and classification engine state.",
-        "degraded_behavior": "Harness projection and durable local run status remain readable, while recall and source-backed writes return typed unavailable errors until source-ledger recovers."
+        "degraded_behavior": "Harness projection and durable local run status remain readable, while recall and source-backed writes return typed unavailable errors until source-ledger recovers.",
+        "supervision_precedence": "required"
       },
       "vrooli-events": {
         "enabled": true,

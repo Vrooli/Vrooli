@@ -266,6 +266,7 @@ export default function SnippetsPanel() {
         title={t(strings.snippets.settings.promoteTitle)}
         closeLabel={t(strings.snippets.close)}
         testId="snippet-promote-dialog"
+        avoidKeyboard
       >
         <div className="space-y-4 p-4">
           <p>{t(strings.snippets.settings.promoteFactGoverned)}</p>

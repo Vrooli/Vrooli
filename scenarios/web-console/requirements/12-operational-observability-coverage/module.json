@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-28T18:50:15-04:00"
+    "last_validated_at": "2026-08-28T21:59:09-04:00"
   },
   "requirements": [
     {
@@ -87,7 +87,7 @@
           "type": "test",
           "ref": "api/metrics_test.go:TestMetrics_PerformanceOverhead",
           "phase": "performance",
-          "status": "failing",
+          "status": "implemented",
           "notes": "No performance impact from logging (\u003c1ms overhead)"
         }
       ]
@@ -95,7 +95,7 @@
     {
       "id": "REQ-P1-004b-i",
       "title": "Performance Impact Verification",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "performance",
       "description": "Metrics collection has less than 1ms overhead per operation under concurrent load, verified by benchmark tests.",
@@ -104,7 +104,7 @@
           "type": "test",
           "ref": "api/metrics_test.go:TestMetrics_PerformanceOverhead",
           "phase": "performance",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Performance overhead benchmark passes"
         }
       ]

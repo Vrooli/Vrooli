@@ -28,6 +28,7 @@ const PageFallback = () => {
 
 export default function App() {
   const handedness = useWorkspaceStore((state) => state.handedness);
+  const audioIntent = useWorkspaceStore((state) => state.audioIntent);
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [dismissed, setDismissed] = useState(false);
@@ -45,14 +46,24 @@ export default function App() {
   const audioCapability = capabilitiesQuery.data?.capabilities.find((capability) => capability.id === "audio-tools");
   // The API's own `message` rides along: it covers every reason code, including
   // the ones the UI has no bespoke copy for.
-  const audioUnavailable = capabilitiesQuery.error
-    ? { reason: "discovery_failed" }
-    : audioCapability?.status === "unavailable"
-      ? {
-          reason: audioCapability.reasonCode || "scenario_not_running",
-          message: audioCapability.message,
-        }
-      : null;
+  //
+  // Gated on `audioIntent`: this is a *standing* condition, not an event.
+  // Raising it on load told every reader, on every open, about an
+  // optional feature none of them had asked for — and because the
+  // condition outlives the dismissal, closing it only revealed the next
+  // notice for the same fact. Until something in this session actually
+  // reaches for audio, the state stays where a status belongs: the mic
+  // button's own appearance and the capability list in Settings.
+  const audioUnavailable = !audioIntent
+    ? null
+    : capabilitiesQuery.error
+      ? { reason: "discovery_failed" }
+      : audioCapability?.status === "unavailable"
+        ? {
+            reason: audioCapability.reasonCode || "scenario_not_running",
+            message: audioCapability.message,
+          }
+        : null;
 
   // Reset dismissed state when connection recovers or drops again
   const showBanner = !!error && !dismissed;

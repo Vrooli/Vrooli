@@ -209,18 +209,10 @@
    * and dialog grabbers most visibly — drew an invisible bar: present in the
    * accessibility tree and in the hit area, absent on screen.
    *
-   * The --rcl-* declarations are the pre-hydration frame of the host viewport
-   * contract. useAppViewport() replaces them with measured values on the
-   * document element as soon as it runs; these keep an overlay opened during
-   * the first paint from resolving the library's raw-environment defaults
-   * instead of this app's numbers. */
+   * Viewport geometry is owned by the shared overlay environment and scoped
+   * to each presentation root; Web Console publishes only its --wc-* shell
+   * projection. */
   --color-border-strong: rgb(var(--wc-text-faint));
-  --rcl-viewport-height: var(--wc-app-height, 100dvh);
-  --rcl-keyboard-inset: var(--wc-kb-height, 0px);
-  --rcl-safe-top: var(--wc-safe-top, 0px);
-  --rcl-safe-right: var(--wc-safe-right, 0px);
-  --rcl-safe-bottom: var(--wc-safe-bottom, 0px);
-  --rcl-safe-left: var(--wc-safe-left, 0px);
 }
 
 /* The application defaults to its established dark identity, while preview,

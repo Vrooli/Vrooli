@@ -5,10 +5,10 @@ import { join } from "node:path";
 /**
  * Every overlay states whether it moves for the virtual keyboard.
  *
- * The library implements keyboard avoidance once — BaseStyles publishes the
- * host viewport contract (`--rcl-keyboard-inset`, `--rcl-viewport-height`),
- * `useAppViewport` fills those in from `visualViewport`, and each overlay
- * primitive's CSS consumes them. But the primitive's `avoidKeyboard` prop
+ * The library implements keyboard avoidance once — useViewportEnvironment
+ * normalizes VisualViewport state and useOverlaySurface scopes the resulting
+ * `--rcl-keyboard-inset` and `--rcl-viewport-height` values to each overlay
+ * root. Web Console projects only its own shell variables. But the primitive's `avoidKeyboard` prop
  * defaults to FALSE, so an overlay that simply never mentions it silently
  * gets the wrong behaviour: on a phone the keyboard slides up over the very
  * field the operator is typing into.

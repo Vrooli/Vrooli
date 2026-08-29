@@ -2617,7 +2617,7 @@ func ValidateLifecycle(root string) (Result, error) {
 		// Stories are browser-only specimens, not released runtime. Including
 		// them here makes the lifecycle gate report demo timers and AbortSignal
 		// listeners as component defects.
-		if isStorySource(path) {
+		if isStorySource(path) || isTestSource(path) {
 			continue
 		}
 		data, err := os.ReadFile(path)
@@ -2657,6 +2657,11 @@ func ValidateLifecycle(root string) (Result, error) {
 func isStorySource(path string) bool {
 	base := filepath.Base(path)
 	return base == "story.ts" || base == "story.tsx"
+}
+
+func isTestSource(path string) bool {
+	base := filepath.Base(path)
+	return strings.HasSuffix(base, ".test.ts") || strings.HasSuffix(base, ".test.tsx")
 }
 
 // hasBrowserAccessOutsideEffects keeps the static SSR check conservative while

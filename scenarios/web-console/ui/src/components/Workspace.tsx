@@ -298,6 +298,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Publish this device's keyboard state so each pane can declare it to its
   // session; followers draw the leader's keyboard rather than guessing at it.
   const setKeyboardOpen = useWorkspaceStore((state) => state.setKeyboardOpen);
+  /**
+   * Latched by every entry point that reaches for audio. It is what
+   * lets the audio-unavailable notice stay quiet until the reader
+   * has actually asked for the feature that is down.
+   */
+  const markAudioIntent = useWorkspaceStore((state) => state.markAudioIntent);
   useAppViewport({ onKeyboardChange: setKeyboardOpen });
   const needsTouchControls = useTouchControls();
   const wakeLockStatus = useWakeLock(workspace.keepScreenAwake);
@@ -1043,6 +1049,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const voiceInput = useVoiceInput(handleVoiceTranscript);
 
   const handleVoiceStart = useCallback((opts?: { vadEnabled?: boolean }) => {
+    markAudioIntent();
     // Always stop TTS before starting voice recording — the user wants to
     // speak, so any playing audio should yield.  This is unconditional
     // because the isTtsSpeaking flag can lag behind actual playback due to
@@ -1050,7 +1057,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     // Set state).  Calling stop when nothing is playing is a no-op.
     stopActiveTts(workspace.activePane ?? undefined);
     voiceInput.startRecording({ vadEnabled: vadAutoStop && opts?.vadEnabled });
-  }, [vadAutoStop, workspace.activePane, stopActiveTts, voiceInput]);
+  }, [vadAutoStop, workspace.activePane, stopActiveTts, voiceInput, markAudioIntent]);
 
   const handleVoiceStop = useCallback(() => {
     voiceInput.stopRecording();
@@ -1283,8 +1290,20 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const getSelectedPlaybackVersion = ttsPlaybackController.getSelectedVersion;
   const getPlaybackSummarizeError = ttsPlaybackController.getSummarizeError;
   const clearPlaybackSummarizeError = ttsPlaybackController.clearSummarizeError;
-  const playPaneEvent = ttsPlaybackController.playEvent;
-  const playPaneFromHere = ttsPlaybackController.playFromHere;
+  // Asking for a message to be spoken is audio intent, same as
+  // pressing the mic — it is the other way a reader finds out the
+  // hard way that the backend is down, so it is the other place
+  // that earns the notice.
+  const ttsPlayEvent = ttsPlaybackController.playEvent;
+  const ttsPlayFromHere = ttsPlaybackController.playFromHere;
+  const playPaneEvent = useCallback((sessionId: string, eventId: string) => {
+    markAudioIntent();
+    ttsPlayEvent(sessionId, eventId);
+  }, [ttsPlayEvent, markAudioIntent]);
+  const playPaneFromHere = useCallback((sessionId: string, eventId: string) => {
+    markAudioIntent();
+    ttsPlayFromHere(sessionId, eventId);
+  }, [ttsPlayFromHere, markAudioIntent]);
   const togglePanePlaybackVersion = ttsPlaybackController.toggleVersion;
   const changePaneSummarizeLevel = ttsPlaybackController.changeSummarizeLevel;
   const playbackFocusRequest = ttsPlaybackController.focusRequest;

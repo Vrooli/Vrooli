@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-28T18:50:15-04:00"
+    "last_validated_at": "2026-08-28T21:59:09-04:00"
   },
   "requirements": [
     {
@@ -33,7 +33,7 @@
     {
       "id": "REQ-P1-003b",
       "title": "Provider Health Dashboard",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "ui",
       "description": "Provider health dashboard in drawer shows current status, success/error counts, latency, and enable/disable toggle. Auto-refreshes when drawer opens.",
@@ -52,7 +52,7 @@
           "type": "test",
           "ref": "api/ai_provider_config_test.go:BenchmarkGetHealth",
           "phase": "performance",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Status updates \u003c1s — BenchmarkGetHealth in ai_provider_config_test.go"
         }
       ]

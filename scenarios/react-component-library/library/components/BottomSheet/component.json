@@ -27,10 +27,12 @@
     "1.1.1",
     "1.1.0",
     "1.0.6",
-    "1.0.5"
+    "1.0.5",
+    "1.2.2",
+    "1.2.1"
   ],
   "kind": "control",
-  "latest": "1.2.0",
+  "latest": "1.2.5",
   "libraryId": "react-component-library:BottomSheet",
   "tags": [
     "overlay",

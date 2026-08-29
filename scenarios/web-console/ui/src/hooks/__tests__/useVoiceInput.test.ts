@@ -103,8 +103,14 @@ describe("useVoiceInput", () => {
 
     expect(result.current.backend).toBe("none");
     expect(result.current.supported).toBe(false);
-    expect(result.current.error).toBe("Durable audio path unavailable");
-    expect(result.current.fallbackNotice).toContain("audio-tools cannot be reached");
+    // Readiness only, and deliberately silent: nobody has asked for
+    // audio at mount, so the probe records what it found and raises
+    // nothing. It used to set `error` AND `fallbackNotice` here, which
+    // the host turned into two notices for one unreachable backend —
+    // beside its own capability banner, that was three to dismiss on
+    // every load.
+    expect(result.current.error).toBeNull();
+    expect(result.current.fallbackNotice).toBeNull();
   });
 
   it("uses whisper when available", async () => {

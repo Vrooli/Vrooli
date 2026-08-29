@@ -202,6 +202,14 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 	if err != nil {
 		return "", "", err
 	}
+	// A freshly initialized release is subject to the same immutable dependency
+	// contract as a release promoted from a draft. Generate the lock before the
+	// indexer sees the new version directory; otherwise the global lock gate
+	// rejects the asset after its source files have already been written.
+	files, err = s.freezeReleaseDependencies(Component{LibraryID: libraryID}, version, files)
+	if err != nil {
+		return "", "", err
+	}
 	manifestPath := filepath.ToSlash(filepath.Join("components", slug, "component.json"))
 	sourcePath := filepath.ToSlash(filepath.Join("components", slug, "versions", version, fileName))
 	manifestAbs, err := s.resolveCreatable(manifestPath)

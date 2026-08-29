@@ -1593,13 +1593,15 @@ the future web-console adopter will swap the local implementations for
 
 ## Overlay keyboard avoidance
 
-**The seam.** `useAppViewport` (`ui/src/hooks/useAppViewport.ts`) measures
-`window.visualViewport` and writes `--rcl-viewport-height`,
-`--rcl-keyboard-inset` and `--rcl-safe-top` onto the document element. That is
-the host half of the React Component Library's viewport contract, documented on
-`BaseStyles`: *"a host that knows better assigns these six properties on the
-document element and every library surface follows it."* Each overlay
-primitive's CSS consumes them behind `[data-avoid-keyboard]`.
+**The seam.** React Component Library's `useViewportEnvironment` measures and
+normalizes the browser viewport once for every overlay consumer. Each overlay
+publishes the resulting `--rcl-*` geometry on its own presentation root;
+Web Console does not own or write those variables. `useAppViewport`
+(`ui/src/hooks/useAppViewport.ts`) consumes the same normalized snapshot and
+projects only the application shell's `--wc-app-height`, `--wc-kb-height`,
+safe-area variables, and deduplicated follower keyboard state. Its only scroll
+correction is for a demonstrated non-zero page or visual-viewport offset, so an
+ordinary resize cannot create a VisualViewport scroll feedback loop.
 
 **The trap.** The primitive's `avoidKeyboard` prop defaults to `false`. An
 overlay that never mentions it compiles, renders, and passes review — and then

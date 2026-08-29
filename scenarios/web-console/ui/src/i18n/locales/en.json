@@ -290,8 +290,8 @@
     "handOffToRole": "Hand off to {{label}}",
     "keptText": "The message was kept so you can try again.",
     "message": "Message",
-    "messageFrom": "Message from",
     "messageFor": "Message for {{label}}",
+    "messageFrom": "Message from",
     "newSessionInGroup": "New session in this group…",
     "noPayload": "No payload — the message is sent as typed.",
     "noTargets": "This session is the only member of its group. Add another session or role to hand off.",
@@ -300,12 +300,12 @@
     "resultFailed": "{{label}}: not sent — {{reason}}",
     "resultQueued": "{{label}}: queued — waiting for the terminal",
     "resultSent": "{{label}}: delivered",
-    "send": "Send",
     "sections": {
       "group": "This group",
       "new": "Somewhere new",
       "other": "Other sessions"
     },
+    "send": "Send",
     "sending": "Sending…",
     "startsFirst": "Starts before the message is sent",
     "suggestionAction": "Hand off to {{label}}",
@@ -550,6 +550,18 @@
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out"
   },
+  "messageActions": {
+    "audioSettings": "Play and open audio settings",
+    "copy": "Copy message",
+    "handoff": "Hand off this message",
+    "more": "More message actions",
+    "playbackMode": "Choose playback mode",
+    "readFromHere": "Read from here",
+    "saveAsSnippet": "Save as snippet",
+    "sendToComposer": "Send to active session composer",
+    "viewAsMarkdown": "View as markdown",
+    "viewAsPlainText": "View as plain text"
+  },
   "messageExport": {
     "approxTokens": "≈{{count}} tokens",
     "cancelAction": "Cancel",
@@ -703,18 +715,6 @@
     "unsupportedTitle": "Preview not available",
     "videoPreview": "Video preview",
     "wrap": "Wrap"
-  },
-  "messageActions": {
-    "audioSettings": "Play and open audio settings",
-    "copy": "Copy message",
-    "handoff": "Hand off this message",
-    "more": "More message actions",
-    "playbackMode": "Choose playback mode",
-    "readFromHere": "Read from here",
-    "saveAsSnippet": "Save as snippet",
-    "sendToComposer": "Send to active session composer",
-    "viewAsMarkdown": "View as markdown",
-    "viewAsPlainText": "View as plain text"
   },
   "messagesPane": {
     "audioSettingsHeading": "Audio Settings",
@@ -873,71 +873,6 @@
     "unreadSummary": "{{count}} unread",
     "unreadSummary_one": "1 unread"
   },
-  "snippets": {
-    "body": "Body",
-    "cancel": "Cancel",
-    "close": "Close",
-    "color": "Color",
-    "chooseColor": "Choose {{color}}",
-    "makeVariable": "Make a variable",
-    "name": "Name",
-    "picker": {
-      "all": "All ({{count}})",
-      "filterAria": "Filter snippets",
-      "filterPlaceholder": "Filter by name or text",
-      "loadError": "Snippets could not be loaded.",
-      "loading": "Loading…",
-      "more": "More",
-      "new": "New",
-      "pinned": "Pinned",
-      "recent": "Recent",
-      "title": "Snippets"
-    },
-    "save": {
-      "createdInSettings": "Created in Settings",
-      "error": "The snippet could not be saved. Your text is still here.",
-      "fromDraft": "From your current draft",
-      "fromMessage": "Session {{session}} · message #{{sequence}}",
-      "save": "Save",
-      "saving": "Saving…",
-      "titleCreate": "Save snippet",
-      "titleEdit": "Edit snippet"
-    },
-    "settings": {
-      "delete": "Delete snippet",
-      "deleteConfirm": "Delete “{{name}}”? This cannot be undone.",
-      "deleteError": "The snippet could not be deleted.",
-      "description": "Snippets are reusable text that belong to you. Edit or delete them here; deleting one does not change messages where it was already used.",
-      "empty": "No snippets yet. Save useful text from a message or create one here.",
-      "eyebrow": "Personal text",
-      "new": "New",
-      "pin": "Pin snippet",
-      "pinError": "The pin could not be changed.",
-      "promote": "Promote",
-      "promoteError": "The snippet could not be promoted.",
-      "promoteFactGoverned": "A skill is governed and permanent.",
-      "promoteFactNoSync": "Nothing syncs after promotion.",
-      "promoteFactSnippetStays": "This snippet stays where it is.",
-      "promotePending": "Promoting…",
-      "promoteSuccess": "Created skill {{identifier}}.",
-      "promoteTitle": "Promote to skill",
-      "promptManagerUnavailable": "prompt-manager is not available on this host",
-      "saveError": "The snippet could not be saved. Your changes are still here.",
-      "title": "Snippets",
-      "unpin": "Unpin snippet",
-      "usedCount": "Used {{count}} times",
-      "usedCount_one": "Used {{count}} time"
-    },
-    "variableCount": "{{count}} variables",
-    "variableCount_one": "{{count}} variable",
-    "variables": {
-      "insert": "Insert",
-      "invalidName": "Use a lowercase name beginning with a letter; then use only letters, numbers, or underscores.",
-      "namePrompt": "Variable name (lowercase letters, numbers, and underscores)",
-      "preview": "Preview",
-      "title": "Fill variables · {{name}}"
-    }
-  },
   "settings": {
     "closeAriaLabel": "Close settings",
     "eyebrow": "Settings",
@@ -1015,15 +950,15 @@
         "label": "Sessions",
         "shortLabel": "Sessions"
       },
-      "snippets": {
-        "description": "Personal reusable text for messages, composers, and handoffs.",
-        "label": "Snippets",
-        "shortLabel": "Snippets"
-      },
       "shortcuts": {
         "description": "Saved command presets for new terminal launches.",
         "label": "Shortcut Profiles",
         "shortLabel": "Shortcuts"
+      },
+      "snippets": {
+        "description": "Personal reusable text for messages, composers, and handoffs.",
+        "label": "Snippets",
+        "shortLabel": "Snippets"
       },
       "voiceInput": {
         "description": "Speech recognition, microphone access, and streaming behavior.",
@@ -1356,6 +1291,71 @@
       "wakeLockUnsupported": "Your browser or connection doesn't support screen wake lock. A video-based fallback is being used instead."
     }
   },
+  "snippets": {
+    "body": "Body",
+    "cancel": "Cancel",
+    "chooseColor": "Choose {{color}}",
+    "close": "Close",
+    "color": "Color",
+    "makeVariable": "Make a variable",
+    "name": "Name",
+    "picker": {
+      "all": "All ({{count}})",
+      "filterAria": "Filter snippets",
+      "filterPlaceholder": "Filter by name or text",
+      "loadError": "Snippets could not be loaded.",
+      "loading": "Loading…",
+      "more": "More",
+      "new": "New",
+      "pinned": "Pinned",
+      "recent": "Recent",
+      "title": "Snippets"
+    },
+    "save": {
+      "createdInSettings": "Created in Settings",
+      "error": "The snippet could not be saved. Your text is still here.",
+      "fromDraft": "From your current draft",
+      "fromMessage": "Session {{session}} · message #{{sequence}}",
+      "save": "Save",
+      "saving": "Saving…",
+      "titleCreate": "Save snippet",
+      "titleEdit": "Edit snippet"
+    },
+    "settings": {
+      "delete": "Delete snippet",
+      "deleteConfirm": "Delete “{{name}}”? This cannot be undone.",
+      "deleteError": "The snippet could not be deleted.",
+      "description": "Snippets are reusable text that belong to you. Edit or delete them here; deleting one does not change messages where it was already used.",
+      "empty": "No snippets yet. Save useful text from a message or create one here.",
+      "eyebrow": "Personal text",
+      "new": "New",
+      "pin": "Pin snippet",
+      "pinError": "The pin could not be changed.",
+      "promote": "Promote",
+      "promoteError": "The snippet could not be promoted.",
+      "promoteFactGoverned": "A skill is governed and permanent.",
+      "promoteFactNoSync": "Nothing syncs after promotion.",
+      "promoteFactSnippetStays": "This snippet stays where it is.",
+      "promotePending": "Promoting…",
+      "promoteSuccess": "Created skill {{identifier}}.",
+      "promoteTitle": "Promote to skill",
+      "promptManagerUnavailable": "prompt-manager is not available on this host",
+      "saveError": "The snippet could not be saved. Your changes are still here.",
+      "title": "Snippets",
+      "unpin": "Unpin snippet",
+      "usedCount": "Used {{count}} times",
+      "usedCount_one": "Used {{count}} time"
+    },
+    "variableCount": "{{count}} variables",
+    "variableCount_one": "{{count}} variable",
+    "variables": {
+      "insert": "Insert",
+      "invalidName": "Use a lowercase name beginning with a letter; then use only letters, numbers, or underscores.",
+      "namePrompt": "Variable name (lowercase letters, numbers, and underscores)",
+      "preview": "Preview",
+      "title": "Fill variables · {{name}}"
+    }
+  },
   "summarizeError": {
     "autoFailed": "Auto-summarize failed",
     "dismiss": "Dismiss",
@@ -1504,10 +1504,10 @@
     "emptyDetail": "No words were recognized · {{duration}} kept — retry or record again",
     "emptyRetryTitle": "Try transcribing the kept audio again",
     "emptyTitle": "Couldn't transcribe your speech",
-    "explanatoryDetail": "{{reason}} (score {{score}} < threshold {{threshold}})",
+    "explanatoryDetail": "{{reason}} (score {{score}} \u003c threshold {{threshold}})",
     "retry": "Retry",
     "retryTitle": "Transcribe the audio without speaker verification",
-    "retryableDetail": "Score {{score}} < threshold {{threshold}} · {{duration}} retained",
+    "retryableDetail": "Score {{score}} \u003c threshold {{threshold}} · {{duration}} retained",
     "title": "Speech didn't match your voice",
     "transcribeAnyway": "Transcribe anyway",
     "transcribing": "Transcribing…"

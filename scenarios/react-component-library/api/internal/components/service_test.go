@@ -106,6 +106,25 @@ func extractResolvedAt(t *testing.T, raw []byte) string {
 	return value.ResolvedAt
 }
 
+func TestInitializeComponentCreatesDependencyLockBeforeIndexing(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	root := t.TempDir()
+	svc := components.NewServiceWithContent(repo, components.NewFSContentStore(root))
+
+	created, err := svc.InitializeComponent(context.Background(), components.InitializeComponentInput{
+		LibraryID: "react-component-library:ViewportEnvironment",
+		Slug:      "ViewportEnvironment", DisplayName: "Viewport Environment",
+		InitialVersion: "1.0.0", InitialSource: "export function useViewportEnvironment() { return null; }",
+		ScaffoldExamples: true,
+	})
+	require.NoError(t, err)
+
+	lock, err := os.ReadFile(filepath.Join(root, "components", "ViewportEnvironment", "versions", "1.0.0", "dependencies.json"))
+	require.NoError(t, err)
+	require.JSONEq(t, `{"schemaVersion":1,"libraryId":"react-component-library:ViewportEnvironment","version":"1.0.0","resolvedAt":"`+extractResolvedAt(t, lock)+`","dependencies":[]}`, string(lock))
+	require.Equal(t, "1.0.0", created.Component.LatestVersion)
+}
+
 func TestService_UpdateVersionContentAtFormatsDraftJSONWithoutMutatingRelease(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	root := t.TempDir()

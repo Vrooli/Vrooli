@@ -55,7 +55,7 @@ describe("full-screen composer snippets", () => {
   it("closes the nested snippet picker without closing the composer or inserting text", async () => {
     render(<Harness />);
     fireEvent.click(screen.getByTestId("composer-open-snippets"));
-    fireEvent.click(screen.getByTestId("snippet-picker.close"));
+    fireEvent.click(screen.getByTestId("snippet-picker.grabber"));
     await waitFor(() => expect(screen.queryByTestId("snippet-picker")).toBeNull());
     expect(screen.getByTestId("full-screen-composer")).toBeTruthy();
     expect(screen.getByTestId("composer-input")).toHaveValue("");

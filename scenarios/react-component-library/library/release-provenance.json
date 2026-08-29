@@ -350,6 +350,36 @@
       "backfilled": true
     },
     {
+      "libraryId": "react-component-library:BottomSheet",
+      "version": "1.2.1",
+      "draftVersion": "1.2.1-draft.1",
+      "publishedAt": "2026-08-29T02:53:31Z"
+    },
+    {
+      "libraryId": "react-component-library:BottomSheet",
+      "version": "1.2.2",
+      "draftVersion": "1.2.2-draft.1",
+      "publishedAt": "2026-08-29T03:06:41Z"
+    },
+    {
+      "libraryId": "react-component-library:BottomSheet",
+      "version": "1.2.3",
+      "draftVersion": "1.2.3-draft.1",
+      "publishedAt": "2026-08-29T03:44:52Z"
+    },
+    {
+      "libraryId": "react-component-library:BottomSheet",
+      "version": "1.2.4",
+      "draftVersion": "1.2.4-draft.1",
+      "publishedAt": "2026-08-29T04:25:18Z"
+    },
+    {
+      "libraryId": "react-component-library:BottomSheet",
+      "version": "1.2.5",
+      "draftVersion": "1.2.5-draft.1",
+      "publishedAt": "2026-08-29T04:48:03Z"
+    },
+    {
       "libraryId": "react-component-library:BoundedMeter",
       "version": "1.0.3",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -758,6 +788,42 @@
       "backfilled": true
     },
     {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.2.3",
+      "draftVersion": "1.2.3-draft.1",
+      "publishedAt": "2026-08-29T02:52:40Z"
+    },
+    {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.2.4",
+      "draftVersion": "1.2.4-draft.1",
+      "publishedAt": "2026-08-29T03:06:41Z"
+    },
+    {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.2.5",
+      "draftVersion": "1.2.5-draft.1",
+      "publishedAt": "2026-08-29T03:45:40Z"
+    },
+    {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.2.6",
+      "draftVersion": "1.2.6-draft.1",
+      "publishedAt": "2026-08-29T03:50:54Z"
+    },
+    {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.2.7",
+      "draftVersion": "1.2.7-draft.1",
+      "publishedAt": "2026-08-29T04:25:19Z"
+    },
+    {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.2.8",
+      "draftVersion": "1.2.8-draft.1",
+      "publishedAt": "2026-08-29T04:48:04Z"
+    },
+    {
       "libraryId": "react-component-library:Contracts",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -1146,6 +1212,42 @@
       "version": "1.2.0",
       "publishedAt": "2026-08-27T00:00:00Z",
       "backfilled": true
+    },
+    {
+      "libraryId": "react-component-library:FullPageDrawer",
+      "version": "1.2.1",
+      "draftVersion": "1.2.1-draft.1",
+      "publishedAt": "2026-08-29T02:53:31Z"
+    },
+    {
+      "libraryId": "react-component-library:FullPageDrawer",
+      "version": "1.2.2",
+      "draftVersion": "1.2.2-draft.1",
+      "publishedAt": "2026-08-29T03:06:40Z"
+    },
+    {
+      "libraryId": "react-component-library:FullPageDrawer",
+      "version": "1.2.3",
+      "draftVersion": "1.2.3-draft.1",
+      "publishedAt": "2026-08-29T03:19:33Z"
+    },
+    {
+      "libraryId": "react-component-library:FullPageDrawer",
+      "version": "1.2.4",
+      "draftVersion": "1.2.4-draft.1",
+      "publishedAt": "2026-08-29T03:43:46Z"
+    },
+    {
+      "libraryId": "react-component-library:FullPageDrawer",
+      "version": "1.2.5",
+      "draftVersion": "1.2.5-draft.1",
+      "publishedAt": "2026-08-29T04:25:17Z"
+    },
+    {
+      "libraryId": "react-component-library:FullPageDrawer",
+      "version": "1.2.6",
+      "draftVersion": "1.2.6-draft.1",
+      "publishedAt": "2026-08-29T04:48:02Z"
     },
     {
       "libraryId": "react-component-library:GeneratedForm",
@@ -1824,6 +1926,48 @@
       "version": "1.2.0",
       "publishedAt": "2026-08-27T00:00:00Z",
       "backfilled": true
+    },
+    {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.2.1",
+      "draftVersion": "1.2.1-draft.1",
+      "publishedAt": "2026-08-29T02:53:21Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.2.2",
+      "draftVersion": "1.2.2-draft.1",
+      "publishedAt": "2026-08-29T03:06:39Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.2.3",
+      "draftVersion": "1.2.3-draft.1",
+      "publishedAt": "2026-08-29T03:15:58Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.2.4",
+      "draftVersion": "1.2.4-draft.1",
+      "publishedAt": "2026-08-29T03:19:32Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.2.5",
+      "draftVersion": "1.2.5-draft.1",
+      "publishedAt": "2026-08-29T03:42:30Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.2.6",
+      "draftVersion": "1.2.6-draft.1",
+      "publishedAt": "2026-08-29T04:25:16Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.2.7",
+      "draftVersion": "1.2.7-draft.1",
+      "publishedAt": "2026-08-29T04:48:01Z"
     },
     {
       "libraryId": "react-component-library:ResponsivePanel",
@@ -2888,6 +3032,36 @@
       "backfilled": true
     },
     {
+      "libraryId": "react-component-library:useOverlaySurface",
+      "version": "1.3.7",
+      "draftVersion": "1.3.7-draft.1",
+      "publishedAt": "2026-08-29T02:30:47Z"
+    },
+    {
+      "libraryId": "react-component-library:useOverlaySurface",
+      "version": "1.3.8",
+      "draftVersion": "1.3.8-draft.1",
+      "publishedAt": "2026-08-29T03:06:31Z"
+    },
+    {
+      "libraryId": "react-component-library:useOverlaySurface",
+      "version": "1.3.9",
+      "draftVersion": "1.3.9-draft.1",
+      "publishedAt": "2026-08-29T03:41:12Z"
+    },
+    {
+      "libraryId": "react-component-library:useOverlaySurface",
+      "version": "1.3.10",
+      "draftVersion": "1.3.10-draft.1",
+      "publishedAt": "2026-08-29T04:24:10Z"
+    },
+    {
+      "libraryId": "react-component-library:useOverlaySurface",
+      "version": "1.3.11",
+      "draftVersion": "1.3.11-draft.1",
+      "publishedAt": "2026-08-29T04:39:34Z"
+    },
+    {
       "libraryId": "react-component-library:usePress",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2966,16 +3140,58 @@
       "backfilled": true
     },
     {
+      "libraryId": "react-component-library:useSwipe",
+      "version": "2.0.3",
+      "draftVersion": "2.0.3-draft.1",
+      "publishedAt": "2026-08-29T02:15:06Z"
+    },
+    {
+      "libraryId": "react-component-library:useSwipe",
+      "version": "2.0.4",
+      "draftVersion": "2.0.4-draft.1",
+      "publishedAt": "2026-08-29T02:42:03Z"
+    },
+    {
       "libraryId": "react-component-library:useSwipeGesture",
       "version": "1.1.0",
       "draftVersion": "1.1.0-draft.1",
       "publishedAt": "2026-08-28T21:59:06Z"
     },
     {
+      "libraryId": "react-component-library:useSwipeGesture",
+      "version": "1.1.1",
+      "draftVersion": "1.1.1-draft.1",
+      "publishedAt": "2026-08-29T02:10:02Z"
+    },
+    {
+      "libraryId": "react-component-library:useSwipeGesture",
+      "version": "1.1.2",
+      "draftVersion": "1.1.2-draft.1",
+      "publishedAt": "2026-08-29T02:42:04Z"
+    },
+    {
       "libraryId": "react-component-library:useTypeahead",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
       "backfilled": true
+    },
+    {
+      "libraryId": "react-component-library:useViewportEnvironment",
+      "version": "1.0.1",
+      "draftVersion": "1.0.0-draft.1",
+      "publishedAt": "2026-08-29T02:13:50Z"
+    },
+    {
+      "libraryId": "react-component-library:useViewportEnvironment",
+      "version": "1.0.2",
+      "draftVersion": "1.0.2-draft.1",
+      "publishedAt": "2026-08-29T02:22:22Z"
+    },
+    {
+      "libraryId": "react-component-library:useViewportEnvironment",
+      "version": "1.0.3",
+      "draftVersion": "1.0.3-draft.1",
+      "publishedAt": "2026-08-29T03:39:57Z"
     },
     {
       "libraryId": "react-component-library:useVoiceInput",

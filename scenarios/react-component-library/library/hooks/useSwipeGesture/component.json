@@ -3,7 +3,9 @@
   "assetKind": "hook",
   "catalogId": "hooks.use-swipe-gesture",
   "deprecatedVersions": [
-    "1.0.0"
+    "1.0.0",
+    "1.1.0",
+    "1.1.1"
   ],
   "description": "Staged directional drag with axis locking, resistance, and velocity-aware release, reported in pixels rather than a clamped ratio.",
   "designStyles": [
@@ -15,10 +17,11 @@
   "displayName": "useSwipeGesture",
   "draft": "",
   "evictedVersions": [
-    "1.0.0"
+    "1.0.0",
+    "1.1.1"
   ],
   "kind": "surface",
-  "latest": "1.1.0",
+  "latest": "1.1.2",
   "libraryId": "react-component-library:useSwipeGesture",
   "tags": [
     "runtime",
