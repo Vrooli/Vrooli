@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/operatorstate"
@@ -23,18 +23,19 @@ type ConfigEntry struct {
 }
 
 type Resource struct {
-	Name         string      `json:"name"`
-	Path         string      `json:"path"`
-	Exists       bool        `json:"exists"`
-	Registered   bool        `json:"registered"`
-	Enabled      bool        `json:"enabled"`
-	Required     bool        `json:"required"`
-	HasCLI       bool        `json:"has_cli"`
-	Config       ConfigEntry `json:"config"`
-	ControlMode  string      `json:"control_mode,omitempty"`
-	Driver       string      `json:"driver,omitempty"`
-	Template     string      `json:"template,omitempty"`
-	ManifestPath string      `json:"manifest_path,omitempty"`
+	Name           string      `json:"name"`
+	Path           string      `json:"path"`
+	Exists         bool        `json:"exists"`
+	Registered     bool        `json:"registered"`
+	Enabled        bool        `json:"enabled"`
+	Required       bool        `json:"required"`
+	DeclaresCLI    bool        `json:"declares_cli"`
+	CLIInstalled   bool        `json:"cli_installed"`
+	CLIStateReason string      `json:"cli_state_reason,omitempty"`
+	Config         ConfigEntry `json:"config"`
+	ControlMode    string      `json:"control_mode,omitempty"`
+	Driver         string      `json:"driver,omitempty"`
+	ManifestPath   string      `json:"manifest_path,omitempty"`
 }
 
 type DiscoverOptions struct {
@@ -85,7 +86,7 @@ func (s *Service) DiscoverReport(opts DiscoverOptions) (discovery.Report[Resourc
 		}
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	report := discovery.Report[Resource]{
 		Items:    make([]Resource, 0, len(names)),
@@ -121,18 +122,19 @@ func (s *Service) DiscoverReport(opts DiscoverOptions) (discovery.Report[Resourc
 		}
 
 		item := Resource{
-			Name:       name,
-			Path:       path,
-			Exists:     exists,
-			Registered: registered,
-			Enabled:    configEntry.Enabled,
-			Required:   configEntry.Required,
-			HasCLI:     hasCLI && cliPath != "",
-			Config:     configEntry,
+			Name:           name,
+			Path:           path,
+			Exists:         exists,
+			Registered:     registered,
+			Enabled:        configEntry.Enabled,
+			Required:       configEntry.Required,
+			DeclaresCLI:    hasManifest && manifest.CLI != nil && manifest.CLI.Enabled,
+			CLIInstalled:   hasCLI && cliPath != "",
+			CLIStateReason: censusReason(registered, configEntry.Enabled, hasManifest && manifest.CLI != nil && manifest.CLI.Enabled, hasCLI && cliPath != ""),
+			Config:         configEntry,
 		}
 		if hasManifest {
 			item.Driver = manifest.Driver
-			item.Template = manifest.Template
 			item.ManifestPath = manifestPath
 			item.ControlMode = "manifest-native"
 		}
@@ -165,14 +167,15 @@ func (s *Service) DiscoverOne(name string, opts DiscoverOptions) (*Resource, err
 		cliPath, hasCLI = opts.ResolveCLIPath(name)
 	}
 	item := &Resource{
-		Name:       name,
-		Path:       path,
-		Exists:     exists,
-		Registered: registered,
-		Enabled:    configEntry.Enabled,
-		Required:   configEntry.Required,
-		HasCLI:     hasCLI && cliPath != "",
-		Config:     configEntry,
+		Name:         name,
+		Path:         path,
+		Exists:       exists,
+		Registered:   registered,
+		Enabled:      configEntry.Enabled,
+		Required:     configEntry.Required,
+		DeclaresCLI:  false,
+		CLIInstalled: hasCLI && cliPath != "",
+		Config:       configEntry,
 	}
 	if manifestErr == nil {
 		manifest, err := manifestpkg.Load(manifestPath)
@@ -180,7 +183,8 @@ func (s *Service) DiscoverOne(name string, opts DiscoverOptions) (*Resource, err
 			return nil, err
 		}
 		item.Driver = manifest.Driver
-		item.Template = manifest.Template
+		item.DeclaresCLI = manifest.CLI != nil && manifest.CLI.Enabled
+		item.CLIStateReason = censusReason(registered, configEntry.Enabled, item.DeclaresCLI, item.CLIInstalled)
 		item.ManifestPath = manifestPath
 		item.ControlMode = "manifest-native"
 	}
@@ -239,7 +243,7 @@ func (s *Service) FilesystemNames() ([]string, error) {
 			names = append(names, entry.Name())
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 

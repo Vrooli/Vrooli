@@ -45,6 +45,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
@@ -80,6 +82,11 @@ type Handlers struct {
 	SignalCh <-chan os.Signal
 	// HeartbeatInterval overrides the liveness log interval. Production uses 60s.
 	HeartbeatInterval time.Duration
+	// ParentPID makes the activity edge terminate when its owning process exits.
+	// Zero defaults to the process parent in Run.
+	ParentPID int
+	// ParentAlive is injectable for deterministic parent-death tests.
+	ParentAlive func(int) bool
 	// Now is the wall-clock seam for liveness logs.
 	Now func() time.Time
 	// Native enables the compatibility adapter from the historical /asr form to
@@ -104,9 +111,7 @@ func Default() *Handlers {
 // edge reports idle. It coalesces back-to-back dictation segments so the signal
 // does not flap; the broker still waits its own idle_grace on top of this before
 // the claim becomes reclaim-eligible.
-const defaultDebounce = 5 * time.Second
-
-const defaultHeartbeatInterval = 60 * time.Second
+var defaultDebounce = tuning.ActivityDebounce()
 
 // Command returns the `activity-proxy` command for registration.
 func Command(h *Handlers) cliapp.Command {
@@ -131,6 +136,10 @@ func (h *Handlers) Run(args []string) error {
 	native := fs.Bool("native", h.Native, "adapt the historical /asr multipart contract to whisper.cpp")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	parentPID := h.ParentPID
+	if parentPID == 0 {
+		parentPID = os.Getppid()
 	}
 
 	started := h.now()
@@ -157,26 +166,50 @@ func (h *Handlers) Run(args []string) error {
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve(ln) }()
+	parentTicker := time.NewTicker(h.heartbeatInterval())
+	defer parentTicker.Stop()
 
-	select {
-	case sig := <-sigCh:
-		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		err := srv.Shutdown(shutCtx)
-		if err != nil {
-			fmt.Fprintf(h.Stderr, "activity-edge exit: reason=signal sig=%s shutdown_error=%v\n", sig, err)
+	for {
+		select {
+		case <-parentTicker.C:
+			if h.parentGone(parentPID) {
+				shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				_ = srv.Shutdown(shutCtx)
+				fmt.Fprintln(h.Stderr, "activity-edge exit: reason=parent_gone")
+				return nil
+			}
+			continue
+		case sig := <-sigCh:
+			shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			err := srv.Shutdown(shutCtx)
+			if err != nil {
+				fmt.Fprintf(h.Stderr, "activity-edge exit: reason=signal sig=%s shutdown_error=%v\n", sig, err)
+				return err
+			}
+			fmt.Fprintf(h.Stderr, "activity-edge exit: reason=signal sig=%s\n", sig)
+			return nil
+		case err := <-errCh:
+			if err == http.ErrServerClosed {
+				fmt.Fprintln(h.Stderr, "activity-edge exit: reason=server-closed")
+				return nil
+			}
+			fmt.Fprintf(h.Stderr, "activity-edge exit: reason=serve-error err=%v\n", err)
 			return err
 		}
-		fmt.Fprintf(h.Stderr, "activity-edge exit: reason=signal sig=%s\n", sig)
-		return nil
-	case err := <-errCh:
-		if err == http.ErrServerClosed {
-			fmt.Fprintln(h.Stderr, "activity-edge exit: reason=server-closed")
-			return nil
-		}
-		fmt.Fprintf(h.Stderr, "activity-edge exit: reason=serve-error err=%v\n", err)
-		return err
 	}
+}
+
+func (h *Handlers) parentGone(pid int) bool {
+	if pid <= 1 {
+		return false
+	}
+	if h.ParentAlive != nil {
+		return !h.ParentAlive(pid)
+	}
+	err := syscall.Kill(pid, 0)
+	return err != nil && err != syscall.EPERM
 }
 
 // server builds the transparent reverse proxy + the /asr bracketing handler.
@@ -232,7 +265,7 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 		}
 		proxy.ServeHTTP(w, r)
 	})
-	return &http.Server{Handler: mux, ReadHeaderTimeout: 15 * time.Second}, tr, nil
+	return &http.Server{Handler: mux, ReadHeaderTimeout: tuning.ActivityReadHeaderTimeout()}, tr, nil
 }
 
 // adaptNativeRequest preserves the public audio_file multipart field and
@@ -453,7 +486,7 @@ func (h *Handlers) heartbeatInterval() time.Duration {
 	if h.HeartbeatInterval > 0 {
 		return h.HeartbeatInterval
 	}
-	return defaultHeartbeatInterval
+	return tuning.CompanionHeartbeatInterval()
 }
 
 func (h *Handlers) now() time.Time {

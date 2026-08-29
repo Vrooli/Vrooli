@@ -28,7 +28,7 @@
     "Clear reason to support Haystack specifically instead of framework-neutral patterns"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Future support should be scenario-driven, not framework-enthusiasm-driven.",
     "Keep framework-specific support narrower than generic retrieval capabilities.",

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"resource-openrouter/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policy"
 )
 
 // Config is the scenario-provided payload for `ensure`, routed verbatim from a

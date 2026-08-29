@@ -210,7 +210,6 @@ func newSetupService(deps setupDeps) *setupService {
 	return &setupService{deps: deps}
 }
 
-//nolint:gocyclo // setup orchestrates independent resource, capability, and phase outcomes.
 func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
 	return newSetupService(defaultSetupDeps(root)).RunSetupWithOptions(root, home, opts, stdout, stderr)
 }

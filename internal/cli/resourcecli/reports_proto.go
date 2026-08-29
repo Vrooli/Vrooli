@@ -19,13 +19,15 @@ import (
 // resourceCatalogMessage maps a catalog Resource onto the shared cliv1.Resource.
 func resourceCatalogMessage(item resources.Resource) *cliv1.Resource {
 	return &cliv1.Resource{
-		Name:       item.Name,
-		Path:       item.Path,
-		Exists:     item.Exists,
-		Registered: item.Registered,
-		Enabled:    item.Enabled,
-		Required:   item.Required,
-		HasCli:     item.HasCLI,
+		Name:           item.Name,
+		Path:           item.Path,
+		Exists:         item.Exists,
+		Registered:     item.Registered,
+		Enabled:        item.Enabled,
+		Required:       item.Required,
+		DeclaresCli:    item.DeclaresCLI,
+		CliInstalled:   item.CLIInstalled,
+		CliStateReason: item.CLIStateReason,
 		Config: &cliv1.ResourceConfig{
 			Enabled:     item.Config.Enabled,
 			Required:    item.Config.Required,
@@ -33,7 +35,6 @@ func resourceCatalogMessage(item resources.Resource) *cliv1.Resource {
 		},
 		ControlMode:  item.ControlMode,
 		Driver:       item.Driver,
-		Template:     item.Template,
 		ManifestPath: item.ManifestPath,
 	}
 }
@@ -68,6 +69,10 @@ func rawValue(raw json.RawMessage) *structpb.Value {
 
 // resourceStatusMessage maps the internal resource runtime status onto cliv1.
 func resourceStatusMessage(item resources.Status) *cliv1.ResourceStatus {
+	observedMode := item.ObservedMode
+	if observedMode == "" {
+		observedMode = "not_evaluated"
+	}
 	return &cliv1.ResourceStatus{
 		Resource:   resourceCatalogMessage(item.Resource),
 		Installed:  item.Installed,
@@ -81,7 +86,7 @@ func resourceStatusMessage(item resources.Status) *cliv1.ResourceStatus {
 
 		Serving:      boolValue(item.Serving),
 		DeclaredMode: item.DeclaredMode,
-		ObservedMode: item.ObservedMode,
+		ObservedMode: observedMode,
 		ModeDrift:    item.ModeDrift,
 		ModeReason:   item.ModeReason,
 	}

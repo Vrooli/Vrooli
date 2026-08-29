@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	resourceapp "resource-openrouter/cli/internal/app"
+	resourceapp "github.com/vrooli/vrooli/resources/openrouter/cli/internal/app"
 )
 
 func TestNewConfiguresResourceApp(t *testing.T) {

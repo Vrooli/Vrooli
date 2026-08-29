@@ -15,7 +15,7 @@
     "CFD optimization pipelines",
     "Engineering research services"
   ],
-  "integration_kind": "manual",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "Containerized and host installs are possible, but HPC assumptions and solver complexity make support uneven and Linux-leaning.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Artifact storage and result review path"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should validate a narrow solver workflow with known cases.",
     "Keep preprocessing, optimization, and postprocessing concerns separate.",

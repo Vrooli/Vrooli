@@ -100,7 +100,7 @@ func TestInspectNoDeadRedirects(t *testing.T) {
 		return "/usr/sbin/" + name, nil
 	}
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		if name == "iptables" {
+		if name == "iptables" { //nolint:goconst // command fixture
 			return []byte(iptablesWithRedirects), nil
 		}
 		if name == "ss" {

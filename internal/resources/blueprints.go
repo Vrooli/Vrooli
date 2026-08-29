@@ -62,24 +62,18 @@ type BlueprintValidationReport struct {
 }
 
 var allowedBlueprintTemplateRules = map[string][]string{
-	"docker-service":  {"docker-service"},
-	"compose-service": {"compose-service"},
+	"managed-service": {"managed-service"},
 	"external-cli":    {"external-cli"},
 	"native-cli":      {"native-cli"},
 	"cloud-api":       {"cloud-api"},
-	"desktop-app":     {"desktop-app"},
-	"manual":          {"manual-resource"},
-	"hardware":        {"manual-resource"},
-	"library":         {"manual-resource", "external-cli", "native-cli"},
+	"hardware":        {"native-cli", "managed-service"},
+	"library":         {"external-cli", "native-cli"},
 }
 
 var canonicalResourceTemplateNames = []string{
 	"cloud-api",
-	"compose-service",
-	"desktop-app",
-	"docker-service",
 	"external-cli",
-	"manual-resource",
+	"managed-service",
 	"native-cli",
 }
 
@@ -230,7 +224,7 @@ func validateBlueprint(item Blueprint) error {
 	if len(item.WhenToUse) == 0 {
 		return fmt.Errorf("when_to_use must contain at least one entry")
 	}
-	if !isAllowedValue(item.IntegrationKind, []string{"docker-service", "compose-service", "external-cli", "native-cli", "cloud-api", "library", "desktop-app", "hardware", "manual"}) {
+	if !isAllowedValue(item.IntegrationKind, []string{"managed-service", "external-cli", "native-cli", "cloud-api", "library", "hardware"}) {
 		return fmt.Errorf("integration_kind %q is invalid", item.IntegrationKind)
 	}
 	if !isAllowedValue(item.SuggestedTemplate, AllowedSuggestedTemplates()) {

@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable command fixtures.
 package workspacesandboxuserns
 
 import (

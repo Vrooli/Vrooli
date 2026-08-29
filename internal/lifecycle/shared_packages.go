@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -617,7 +618,7 @@ func declaredOutputFiles(root string, patterns []string) ([]string, error) {
 	for filePath := range seen {
 		result = append(result, filePath)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result, nil
 }
 

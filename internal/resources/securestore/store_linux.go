@@ -30,7 +30,7 @@ type secretToolStore struct {
 	collectionsErr  error
 }
 
-func (*secretToolStore) AdapterName() string { return "libsecret" }
+func (*secretToolStore) AdapterName() string { return secureStoreBackendLibsecret }
 
 // secretToolTimeout bounds every Secret Service call.
 //

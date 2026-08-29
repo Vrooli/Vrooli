@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -818,7 +819,7 @@ func normalizeTargets(paths []string) []string {
 		set[candidate] = struct{}{}
 		targets = append(targets, candidate)
 	}
-	sort.Strings(targets)
+	slices.Sort(targets)
 	return targets
 }
 

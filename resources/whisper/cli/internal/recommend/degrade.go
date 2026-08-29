@@ -12,13 +12,14 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
 // DegradeHandlers owns the dependencies of the `capacity-degrade` verb (the
 // adopter side of the capacity broker's degrade actuation, §8.9). Tests inject
 // the seams; production wires the real shell + pin file.
-type DegradeHandlers struct {
+type CapacityHandlers struct {
 	Stdout io.Writer
 	Stderr io.Writer
 	GetEnv func(string) string
@@ -32,8 +33,8 @@ type DegradeHandlers struct {
 }
 
 // DefaultDegrade returns DegradeHandlers wired to the real shell + pin file.
-func DefaultDegrade() *DegradeHandlers {
-	return &DegradeHandlers{
+func DefaultCapacity() *CapacityHandlers {
+	return &CapacityHandlers{
 		Stdout:     os.Stdout,
 		Stderr:     os.Stderr,
 		GetEnv:     os.Getenv,
@@ -54,27 +55,18 @@ func realExec(ctx context.Context, name string, args ...string) (string, error) 
 // when it needs to reclaim VRAM, and `whisper capacity upshift --to <model>`
 // when headroom returns. The verb and its flags are the fleet-wide contract
 // from packages/capacity/companion; what each rung means is whisper's.
-func CapacityCommand(h *DegradeHandlers) cliapp.Command {
+// CapacityCommands exposes Whisper through the shared fleet capacity verbs.
+// The shared dispatcher owns label validation and the command contract; this
+// adapter retains only Whisper's pinning and in-flight transcription guard.
+func CapacityCommands(h *CapacityHandlers) cliapp.SubcommandGroup {
 	if h == nil {
-		h = DefaultDegrade()
+		h = DefaultCapacity()
 	}
-	verbs := companion.Verbs{
-		Resource: "whisper",
-		Degrade: func(_ context.Context, label string) error {
-			return h.Run([]string{"--to", label})
-		},
-		Upshift: func(_ context.Context, label string) error {
-			return h.Run([]string{"--to", label, "--upshift"})
-		},
-		Stdout: h.Stdout,
-		Stderr: h.Stderr,
-	}
-	return cliapp.Command{
-		Name:        "capacity",
-		Description: "Respond to the capacity broker: resize Whisper to a smaller or larger model",
-		Usage:       "whisper capacity degrade --to <tiny|base|small|medium|large-v3>",
-		Run:         verbs.Run,
-	}
+	labels := []string{"large-v3", "medium", "small"}
+	return companion.CapacityCommands("whisper", labels,
+		func(_ context.Context, label string) error { return h.Apply([]string{"--to", label}) },
+		func(_ context.Context, label string) error { return h.Apply([]string{"--to", label, "--upshift"}) },
+		h.Stdout, h.Stderr)
 }
 
 type degradeResult struct {
@@ -86,7 +78,7 @@ type degradeResult struct {
 }
 
 // Run implements the capacity-degrade verb.
-func (h *DegradeHandlers) Run(args []string) error {
+func (h *CapacityHandlers) Apply(args []string) error {
 	fs := flag.NewFlagSet("capacity-degrade", flag.ContinueOnError)
 	fs.SetOutput(h.Stderr)
 	to := fs.String("to", "", "target Whisper model label (profile step)")
@@ -151,9 +143,7 @@ func (h *DegradeHandlers) Run(args []string) error {
 		res.Message = fmt.Sprintf("whisper upshift to %s (pin cleared)", model)
 	}
 	if *jsonOut {
-		enc := json.NewEncoder(h.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(res)
+		return cliout.NewEncoder(h.Stdout).Encode(res)
 	}
 	_, err := fmt.Fprintln(h.Stdout, res.Message)
 	return err
@@ -163,7 +153,7 @@ func (h *DegradeHandlers) Run(args []string) error {
 // reports whether any is currently transcribing. Best-effort: a query/parse
 // failure returns false (the planner already gates on activity, so this never
 // blocks the broker on a flaky read).
-func (h *DegradeHandlers) transcriptionActive(ctx context.Context) (bool, string) {
+func (h *CapacityHandlers) transcriptionActive(ctx context.Context) (bool, string) {
 	out, err := h.Exec(ctx, "vrooli", "capacity", "list", "--owner", "whisper", "--active", "--json")
 	if err != nil {
 		return false, ""

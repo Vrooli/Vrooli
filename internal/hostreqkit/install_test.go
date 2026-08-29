@@ -10,13 +10,15 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const hostreqkitInstallTestSudoPath = "/usr/bin/sudo"
+
 func TestInstallCommandLinuxManagers(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return hostreqkitInstallTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -26,12 +28,12 @@ func TestInstallCommandLinuxManagers(t *testing.T) {
 		wantCmd    string
 		wantPrefix string
 	}{
-		{"apt-get", "sudo", "apt-get install -y testpkg"},
-		{"apt", "sudo", "apt-get install -y testpkg"},
-		{"dnf", "sudo", "dnf install -y testpkg"},
-		{"yum", "sudo", "yum install -y testpkg"},
-		{"pacman", "sudo", "pacman -S --noconfirm testpkg"},
-		{"apk", "sudo", "apk add testpkg"},
+		{"apt-get", helpersSudo, "apt-get install -y testpkg"},
+		{"apt", helpersSudo, "apt-get install -y testpkg"},
+		{"dnf", helpersSudo, "dnf install -y testpkg"},
+		{"yum", helpersSudo, "yum install -y testpkg"},
+		{"pacman", helpersSudo, "pacman -S --noconfirm testpkg"},
+		{"apk", helpersSudo, "apk add testpkg"},
 		{"brew", "brew", "install testpkg"},
 	}
 
@@ -158,8 +160,8 @@ func TestWithSudoAskMode(t *testing.T) {
 	defer restore()
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return hostreqkitInstallTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -168,7 +170,7 @@ func TestWithSudoAskMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cmd != "sudo" {
+	if cmd != helpersSudo {
 		t.Fatalf("command = %q", cmd)
 	}
 	if args[0] != "apt-get" {
@@ -188,8 +190,8 @@ func TestWithSudoEmptyModeDefaultsToSkip(t *testing.T) {
 	RunningAsRootFn = func() bool { return false }
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return hostreqkitInstallTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -211,8 +213,8 @@ func TestWithSudoRootSkipsWrap(t *testing.T) {
 	RunningAsRootFn = func() bool { return true }
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return hostreqkitInstallTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -313,8 +315,8 @@ func TestWithSudoElevationMatrixNeverFailsOpen(t *testing.T) {
 		wantPrefix string
 	}{
 		{name: "linux elevated skip", facts: ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true}, mode: "skip", wantCmd: "apt-get"},
-		{name: "linux sudo ask", facts: ElevationFacts{Platform: "linux", CanElevate: true, Mechanism: "sudo"}, mode: "ask", wantCmd: "sudo", wantPrefix: "apt-get install"},
-		{name: "linux sudo skip", facts: ElevationFacts{Platform: "linux", CanElevate: true, Mechanism: "sudo"}, mode: "skip", wantErr: ErrSudoSkipped},
+		{name: "linux sudo ask", facts: ElevationFacts{Platform: "linux", CanElevate: true, Mechanism: helpersSudo}, mode: "ask", wantCmd: helpersSudo, wantPrefix: "apt-get install"},
+		{name: "linux sudo skip", facts: ElevationFacts{Platform: "linux", CanElevate: true, Mechanism: helpersSudo}, mode: "skip", wantErr: ErrSudoSkipped},
 		{name: "linux no elevation", facts: ElevationFacts{Platform: "linux", Mechanism: "none"}, mode: "ask", wantErr: ErrElevationUnavailable},
 		{name: "darwin no elevation", facts: ElevationFacts{Platform: "darwin", Mechanism: "none"}, mode: "ask", wantErr: ErrElevationUnavailable},
 		{name: "windows uac", facts: ElevationFacts{Platform: "windows", Mechanism: "windows-uac"}, mode: "ask", wantErr: ErrElevationRequired},
@@ -374,8 +376,8 @@ func TestSudoAvailable(t *testing.T) {
 	defer restore()
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return hostreqkitInstallTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}

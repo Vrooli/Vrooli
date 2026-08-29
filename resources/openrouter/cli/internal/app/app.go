@@ -14,18 +14,19 @@ import (
 	"strings"
 	"time"
 
-	"resource-openrouter/cli/internal/auth"
-	"resource-openrouter/cli/internal/config"
-	"resource-openrouter/cli/internal/ensure"
-	"resource-openrouter/cli/internal/health"
-	"resource-openrouter/cli/internal/policy"
-	"resource-openrouter/cli/internal/policycmd"
+	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/auth"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/config"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/ensure"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/health"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policycmd"
 
 	"github.com/vrooli/cli-core/cliapp"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 
-	resourceenv "resource-openrouter/cli/internal/env"
+	resourceenv "github.com/vrooli/vrooli/resources/openrouter/cli/internal/env"
 )
 
 const (
@@ -339,7 +340,7 @@ func runListModels(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 	}
 
 	if jsonOutput {
-		data, err := json.MarshalIndent(response, "", "  ")
+		data, err := cliout.MarshalIndent(response)
 		if err != nil {
 			return err
 		}
@@ -548,7 +549,7 @@ func runShowConfig(app *cliapp.ResourceApp, args []string, stdout io.Writer) err
 	}
 
 	if jsonOutput {
-		data, err := json.MarshalIndent(payload, "", "  ")
+		data, err := cliout.MarshalIndent(payload)
 		if err != nil {
 			return err
 		}

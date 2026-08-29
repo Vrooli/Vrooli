@@ -76,6 +76,13 @@ message CapacityClaim {
 
   // Last activity report timestamp (RFC3339); empty when never reported.
   string last_active_at = 16;
+
+  // Creation timestamp (RFC3339).
+  string created_at = 17;
+
+  // Last mutation timestamp (RFC3339); terminal claims use their terminal
+  // transition time.
+  string updated_at = 18;
 }
 
 // GpuCapacity is the per-GPU contention picture: live total/used capacity from

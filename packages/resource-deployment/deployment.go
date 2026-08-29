@@ -17,6 +17,19 @@ import (
 	"github.com/vrooli/binaryfetch"
 )
 
+const (
+	deploymentOSLinux              = "linux"
+	deploymentOSMac                = "mac"
+	deploymentOSMacOS              = "macos"
+	deploymentOSDarwin             = "darwin"
+	deploymentOSWin                = "win"
+	deploymentOSWindows            = "windows"
+	deploymentVerificationHostTool = "host-tool"
+	deploymentLayoutDir            = "dir"
+	digestHexMultiplier            = 2
+	platformParts                  = 2
+)
+
 type Deployment struct {
 	Profiles map[string]Profile `json:"profiles,omitempty"`
 }
@@ -414,14 +427,14 @@ func (a ServiceArtifact) Validate() error {
 		return fmt.Errorf("artifact version is required")
 	}
 	verification := strings.ToLower(strings.TrimSpace(a.Verification))
-	if verification != "" && verification != "checksum" && verification != "host-tool" {
+	if verification != "" && verification != "checksum" && verification != deploymentVerificationHostTool {
 		return fmt.Errorf("artifact verification %q is invalid", a.Verification)
 	}
-	if verification == "host-tool" && strings.TrimSpace(a.BundleArtifact) != "" {
+	if verification == deploymentVerificationHostTool && strings.TrimSpace(a.BundleArtifact) != "" {
 		return fmt.Errorf("host-tool artifacts cannot declare bundle_artifact")
 	}
 	layout := strings.ToLower(strings.TrimSpace(a.Layout))
-	if layout != "" && layout != "file" && layout != "dir" {
+	if layout != "" && layout != "file" && layout != deploymentLayoutDir {
 		return fmt.Errorf("artifact layout %q is invalid", a.Layout)
 	}
 	if entry := strings.TrimSpace(a.EntryPath); entry != "" {
@@ -429,11 +442,11 @@ func (a ServiceArtifact) Validate() error {
 		if filepath.IsAbs(entry) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 			return fmt.Errorf("artifact entry_path must be a non-empty relative path")
 		}
-		if layout != "dir" {
+		if layout != deploymentLayoutDir {
 			return fmt.Errorf("artifact entry_path requires dir layout")
 		}
 	}
-	if layout == "dir" && strings.TrimSpace(a.EntryPath) == "" {
+	if layout == deploymentLayoutDir && strings.TrimSpace(a.EntryPath) == "" {
 		return fmt.Errorf("directory artifact entry_path is required")
 	}
 	if template := strings.TrimSpace(a.BundleArtifact); template != "" {
@@ -457,7 +470,7 @@ func (a ServiceArtifact) Validate() error {
 			return err
 		}
 	}
-	if verification != "host-tool" && strings.TrimSpace(a.SHA256) == "" && len(a.SHA256ByPlatform) == 0 {
+	if verification != deploymentVerificationHostTool && strings.TrimSpace(a.SHA256) == "" && len(a.SHA256ByPlatform) == 0 {
 		return fmt.Errorf("artifact sha256 or sha256_by_platform is required")
 	}
 	return nil
@@ -477,7 +490,7 @@ func (a ServiceArtifact) BundleArtifactForPlatform(osName, arch string) (string,
 func validateSHA256(label, value string) error {
 	sum := strings.ToLower(strings.TrimSpace(value))
 	if len(sum) != sha256.Size*2 {
-		return fmt.Errorf("%s must be a %d-character hex digest", label, sha256.Size*2)
+		return fmt.Errorf("%s must be a %d-character hex digest", label, sha256.Size*digestHexMultiplier)
 	}
 	if _, err := hex.DecodeString(sum); err != nil {
 		return fmt.Errorf("%s is invalid: %w", label, err)
@@ -518,7 +531,7 @@ func (a ServiceArtifact) VerifyFile(path string) error {
 	if err := a.Validate(); err != nil {
 		return err
 	}
-	if strings.EqualFold(strings.TrimSpace(a.Verification), "host-tool") {
+	if strings.EqualFold(strings.TrimSpace(a.Verification), deploymentVerificationHostTool) {
 		info, err := os.Stat(path)
 		if err != nil {
 			return fmt.Errorf("resolve managed-service host tool: %w", err)
@@ -528,7 +541,7 @@ func (a ServiceArtifact) VerifyFile(path string) error {
 		}
 		return nil
 	}
-	if strings.EqualFold(strings.TrimSpace(a.Layout), "dir") {
+	if strings.EqualFold(strings.TrimSpace(a.Layout), deploymentLayoutDir) {
 		got, err := binaryfetch.TreeDigest(path)
 		if err != nil {
 			return fmt.Errorf("hash managed-service artifact tree: %w", err)
@@ -558,7 +571,7 @@ func (a ServiceArtifact) LaunchPath(root string) (string, error) {
 	if err := a.Validate(); err != nil {
 		return "", err
 	}
-	if !strings.EqualFold(strings.TrimSpace(a.Layout), "dir") {
+	if !strings.EqualFold(strings.TrimSpace(a.Layout), deploymentLayoutDir) {
 		return root, nil
 	}
 	entry := filepath.Clean(filepath.FromSlash(a.EntryPath))
@@ -720,7 +733,7 @@ type Platform struct {
 // artifact selection must never fall back to "all architectures".
 func ParsePlatform(value string) (Platform, error) {
 	parts := strings.FieldsFunc(strings.ToLower(strings.TrimSpace(value)), func(r rune) bool { return r == '-' || r == '_' || r == '/' })
-	if len(parts) != 2 {
+	if len(parts) != platformParts {
 		return Platform{}, fmt.Errorf("desktop target %q must include OS and architecture (for example linux-amd64)", value)
 	}
 	os, ok := canonicalOS(parts[0])
@@ -747,12 +760,12 @@ func (p Platform) String() string { return p.OS + "-" + p.Arch }
 
 func canonicalOS(platform string) (string, bool) {
 	switch platform {
-	case "linux":
+	case deploymentOSLinux:
 		return "linux", true
-	case "mac", "macos", "darwin":
+	case deploymentOSMac, deploymentOSMacOS, deploymentOSDarwin:
 		return "macos", true
-	case "win", "windows":
-		return "windows", true
+	case deploymentOSWin, deploymentOSWindows:
+		return deploymentOSWindows, true
 	default:
 		return "", false
 	}
@@ -768,11 +781,11 @@ func (d Deployment) Target(profile, platform, arch string) (Target, bool) {
 	}
 	var target *Target
 	switch strings.ToLower(strings.TrimSpace(platform)) {
-	case "linux":
+	case deploymentOSLinux:
 		target = p.Linux
-	case "mac", "macos", "darwin":
+	case deploymentOSMac, deploymentOSMacOS, deploymentOSDarwin:
 		target = p.MacOS
-	case "win", "windows":
+	case deploymentOSWin, deploymentOSWindows:
 		target = p.Windows
 	}
 	if target == nil || (target.Support != "unsupported" && strings.TrimSpace(arch) != "" && !slices.Contains(target.Architectures, arch)) {
@@ -792,11 +805,11 @@ func (d Deployment) ResolveTarget(profile string, platform Platform) (Target, bo
 func ArtifactName(template, platform, arch string) (string, error) {
 	os := strings.ToLower(strings.TrimSpace(platform))
 	switch os {
-	case "mac", "macos", "darwin":
+	case deploymentOSMac, deploymentOSMacOS, deploymentOSDarwin:
 		os = "darwin"
-	case "win", "windows":
+	case deploymentOSWin, deploymentOSWindows:
 		os = "windows"
-	case "linux":
+	case deploymentOSLinux:
 	default:
 		return "", fmt.Errorf("unsupported artifact platform %q", platform)
 	}

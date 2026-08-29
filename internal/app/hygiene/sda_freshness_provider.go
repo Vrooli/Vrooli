@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
+	"github.com/vrooli/vrooli/internal/values"
 )
 
 const dependencyFreshnessProviderID = "dependency_freshness"
@@ -147,8 +148,8 @@ func (p sdaFreshnessProvider) apply(report *Report, freshness sdaFreshnessReport
 			command = "scenario-dependency-analyzer freshness --touched --apply"
 		}
 		actions = append(actions, Action{
-			Code:       firstNonEmpty(next.Code, "fix_dependency_freshness"),
-			Message:    firstNonEmpty(next.Message, "Run SDA-owned package freshness repair for impacted Go surfaces."),
+			Code:       values.FirstNonEmpty(next.Code, "fix_dependency_freshness"),
+			Message:    values.FirstNonEmpty(next.Message, "Run SDA-owned package freshness repair for impacted Go surfaces."),
 			Command:    command,
 			Fixability: dependencyFreshnessActionFixability(next),
 		})
@@ -200,7 +201,7 @@ func dependencyFreshnessActionFixability(action sdaFreshnessAction) Fixability {
 func (p sdaFreshnessProvider) compatSharedDrift(freshness sdaFreshnessReport) DependencyFreshnessCompatReport {
 	out := DependencyFreshnessCompatReport{
 		Clean:           freshness.Clean,
-		Root:            firstNonEmpty(freshness.Root, p.root),
+		Root:            values.FirstNonEmpty(freshness.Root, p.root),
 		TouchedPackages: freshness.Touched,
 		OnlyTouchedUsed: freshness.Mode == "touched",
 		ElapsedMs:       freshness.ElapsedMs,
@@ -268,13 +269,4 @@ func compact(values []string) []string {
 		out = append(out, value)
 	}
 	return out
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }

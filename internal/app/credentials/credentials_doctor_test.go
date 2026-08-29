@@ -17,6 +17,18 @@ import (
 
 const provisionedTestValue = "sk-doctor-must-never-print-this"
 
+func assertJSONKeys(t *testing.T, name string, value map[string]json.RawMessage, want ...string) {
+	t.Helper()
+	if len(value) != len(want) {
+		t.Fatalf("%s keys = %v, want exactly %v", name, sortedJSONKeys(value), want)
+	}
+	for _, key := range want {
+		if _, ok := value[key]; !ok {
+			t.Fatalf("%s missing key %q; got %v", name, key, sortedJSONKeys(value))
+		}
+	}
+}
+
 type doctorTestStore struct{ values map[string]string }
 
 func (s *doctorTestStore) Put(service, key, value string) error {
@@ -175,23 +187,12 @@ func TestCredentialsDoctorJSONContractIncludesRecoveryFields(t *testing.T) {
 	if err := json.Unmarshal([]byte(runCredentials(t, credentialFixtureRoot(t), "doctor", "--format", "json")), &raw); err != nil {
 		t.Fatal(err)
 	}
-	assertJSONKeys := func(name string, value map[string]json.RawMessage, want ...string) {
-		t.Helper()
-		if len(value) != len(want) {
-			t.Fatalf("%s keys = %v, want exactly %v", name, sortedJSONKeys(value), want)
-		}
-		for _, key := range want {
-			if _, ok := value[key]; !ok {
-				t.Fatalf("%s missing key %q; got %v", name, key, sortedJSONKeys(value))
-			}
-		}
-	}
-	assertJSONKeys("doctor", raw, "credentials", "credential_count", "declaration_site_count", "inventory_basis", "managed_instances_included", "provider", "recovery")
+	assertJSONKeys(t, "doctor", raw, "credentials", "credential_count", "declaration_site_count", "inventory_basis", "managed_instances_included", "provider", "recovery")
 	var recovery map[string]json.RawMessage
 	if err := json.Unmarshal(raw["recovery"], &recovery); err != nil {
 		t.Fatal(err)
 	}
-	assertJSONKeys("recovery", recovery, "basis", "entry_count", "exported_at", "managed_instances_included", "path", "receipt_exists", "uncovered", "required_absent", "required_absent_details", "root_copy", "root_copy_issues")
+	assertJSONKeys(t, "recovery", recovery, "basis", "entry_count", "exported_at", "managed_instances_included", "path", "receipt_exists", "uncovered", "required_absent", "required_absent_details", "root_copy", "root_copy_issues")
 	for _, key := range []string{"basis", "receipt_exists", "entry_count", "path", "uncovered", "required_absent", "required_absent_details", "root_copy", "root_copy_issues"} {
 		if len(recovery[key]) == 0 {
 			t.Fatalf("recovery.%s is empty", key)

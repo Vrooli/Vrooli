@@ -532,7 +532,7 @@ class Evidence(_message.Message):
     def __init__(self, status: _Optional[_Union[EvidenceStatus, str]] = ..., confidence: _Optional[float] = ..., range: _Optional[_Union[SourceRange, _Mapping]] = ..., symbol: _Optional[str] = ..., analyzer: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
 
 class ParseUnit(_message.Message):
-    __slots__ = ("id", "language", "root_path", "config_path", "status", "evidence", "toolchain")
+    __slots__ = ("id", "language", "root_path", "config_path", "status", "evidence", "toolchain", "package_patterns")
     ID_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FIELD_NUMBER: _ClassVar[int]
     ROOT_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -540,6 +540,7 @@ class ParseUnit(_message.Message):
     STATUS_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     TOOLCHAIN_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_PATTERNS_FIELD_NUMBER: _ClassVar[int]
     id: str
     language: str
     root_path: str
@@ -547,7 +548,8 @@ class ParseUnit(_message.Message):
     status: EvidenceStatus
     evidence: _containers.RepeatedCompositeFieldContainer[Evidence]
     toolchain: ToolchainObservation
-    def __init__(self, id: _Optional[str] = ..., language: _Optional[str] = ..., root_path: _Optional[str] = ..., config_path: _Optional[str] = ..., status: _Optional[_Union[EvidenceStatus, str]] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., toolchain: _Optional[_Union[ToolchainObservation, _Mapping]] = ...) -> None: ...
+    package_patterns: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., language: _Optional[str] = ..., root_path: _Optional[str] = ..., config_path: _Optional[str] = ..., status: _Optional[_Union[EvidenceStatus, str]] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., toolchain: _Optional[_Union[ToolchainObservation, _Mapping]] = ..., package_patterns: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ToolchainObservation(_message.Message):
     __slots__ = ("ecosystem", "manifest_paths", "lockfile_paths", "build_systems", "runner_indicators", "package_manager", "toolchain_identity", "status", "evidence")

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -47,7 +47,7 @@ func CapabilityVocabulary(root string) ([]string, error) {
 		seen[capability] = struct{}{}
 		values = append(values, capability)
 	}
-	sort.Strings(values)
+	slices.Sort(values)
 	return values, nil
 }
 
@@ -287,8 +287,8 @@ func checkPlatformStatusEnum(path string) error {
 	for _, status := range PlatformStatuses() {
 		want = append(want, string(status))
 	}
-	sort.Strings(got)
-	sort.Strings(want)
+	slices.Sort(got)
+	slices.Sort(want)
 	if !sameStrings(got, want) {
 		return fmt.Errorf("%s platform status enum drifted: got %v want %v", path, got, want)
 	}
@@ -411,7 +411,7 @@ func checkPlatformPolicyEnums(path string) error {
 		return fmt.Errorf("parse %s: %w", path, err)
 	}
 	want := append([]string(nil), platformPolicyValues...)
-	sort.Strings(want)
+	slices.Sort(want)
 	var checkShape func(name string, raw json.RawMessage) error
 	checkShape = func(name string, raw json.RawMessage) error {
 		var shape struct {
@@ -439,7 +439,7 @@ func checkPlatformPolicyEnums(path string) error {
 				continue
 			}
 			got := append([]string(nil), property.Enum...)
-			sort.Strings(got)
+			slices.Sort(got)
 			if !sameStrings(got, want) {
 				return fmt.Errorf("%s platform policy %s enum drifted: got %v want %v", path, propertyName, got, want)
 			}
@@ -449,7 +449,7 @@ func checkPlatformPolicyEnums(path string) error {
 				continue
 			}
 			got := append([]string(nil), property.Enum...)
-			sort.Strings(got)
+			slices.Sort(got)
 			if !sameStrings(got, want) {
 				return fmt.Errorf("%s platform policy %s enum drifted: got %v want %v", path, propertyName, got, want)
 			}
@@ -489,7 +489,7 @@ func capabilitySchemaEnum(path string) ([]string, error) {
 		return nil, fmt.Errorf("parse %s: %w", path, err)
 	}
 	got := append([]string(nil), schema.Properties["capability"].Enum...)
-	sort.Strings(got)
+	slices.Sort(got)
 	return got, nil
 }
 

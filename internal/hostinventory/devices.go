@@ -3,7 +3,7 @@ package hostinventory
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	devicesUnavailable = "unavailable"
+	devicesUnavailable        = "unavailable"
+	devicesUnrecognizedOutput = "unrecognized_output"
 )
 
 // DeviceClass is the applicability-relevant category of a host device. It
@@ -156,7 +157,7 @@ func (c Collector) collectDevices(ctx context.Context, snap *Snapshot, observedA
 		// from "I looked and there is no GPU".
 		snap.ProbeStatuses["device_tree"] = "unimplemented"
 	default:
-		snap.ProbeStatuses["device_tree"] = "unsupported"
+		snap.ProbeStatuses["device_tree"] = string(IntegrityProbeUnsupported)
 	}
 }
 
@@ -171,7 +172,7 @@ func (c Collector) collectWindowsDevices(ctx context.Context, snap *Snapshot, ob
 	out, err := c.Commands.Run(ctx, "wmic", "path", "win32_VideoController", "get", "AdapterCompatibility,DriverVersion,Name,PNPDeviceID", "/Value")
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf("wmic video controllers: %v", err))
-		snap.ProbeStatuses["device_tree"] = "failed"
+		snap.ProbeStatuses["device_tree"] = string(IntegrityProbeFailed)
 		return
 	}
 	devices := ParseWindowsVideoControllers(string(out))
@@ -181,7 +182,7 @@ func (c Collector) collectWindowsDevices(ctx context.Context, snap *Snapshot, ob
 		// instead of reporting a confident empty list.
 		if strings.TrimSpace(string(out)) != "" {
 			snap.Warnings = append(snap.Warnings, "wmic reported video controller output that yielded no identifiable device")
-			snap.ProbeStatuses["device_tree"] = "unrecognized_output"
+			snap.ProbeStatuses["device_tree"] = devicesUnrecognizedOutput
 			return
 		}
 		snap.ProbeStatuses["device_tree"] = collectorNoDevices
@@ -219,7 +220,7 @@ func (c Collector) linkNvidiaDevices(ctx context.Context, snap *Snapshot, observ
 	}
 	addresses := ParseNvidiaPCIBusIDCSV(string(out))
 	if len(addresses) == 0 {
-		snap.ProbeStatuses["device_tree_nvidia_enrichment"] = "unrecognized_output"
+		snap.ProbeStatuses["device_tree_nvidia_enrichment"] = devicesUnrecognizedOutput
 		return
 	}
 	deviceIndex := map[string]int{}
@@ -248,7 +249,7 @@ func (c Collector) linkNvidiaDevices(ctx context.Context, snap *Snapshot, observ
 		matched++
 	}
 	if len(unmatched) > 0 {
-		sort.Strings(unmatched)
+		slices.Sort(unmatched)
 		snap.Warnings = append(snap.Warnings, fmt.Sprintf(
 			"nvidia-smi reported GPUs at addresses the device tree did not enumerate: %s",
 			strings.Join(unmatched, ", ")))

@@ -15,7 +15,7 @@
     "3D asset pipelines",
     "Design visualization tooling"
   ],
-  "integration_kind": "desktop-app",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "Blender is cross-platform, but headless rendering, GPU setup, and Python automation vary by host and driver availability.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Artifact storage plan for renders and exports"
   ],
   "dependencies": [],
-  "suggested_template": "desktop-app",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Keep future support focused on validated automation workflows instead of wrapping every Blender feature.",
     "Headless and GUI-driven use cases should be treated separately.",

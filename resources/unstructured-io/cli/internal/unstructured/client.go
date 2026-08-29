@@ -6,13 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/vrooli/internal/tuning"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type Client struct {
@@ -29,7 +29,7 @@ func (c Client) client() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
 	}
-	return &http.Client{Timeout: 60 * time.Second}
+	return &http.Client{Timeout: tuning.ReachabilityTimeout()}
 }
 
 func (c Client) Health(ctx context.Context) error {

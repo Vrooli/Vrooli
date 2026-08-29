@@ -54,15 +54,45 @@ class GetLayoutRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class Role(_message.Message):
+    __slots__ = ("id", "group_id", "label", "command", "working_dir", "incoming_prompt", "session_id", "sort_order", "backend", "target_id", "created_at", "updated_at")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    GROUP_ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    WORKING_DIR_FIELD_NUMBER: _ClassVar[int]
+    INCOMING_PROMPT_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    SORT_ORDER_FIELD_NUMBER: _ClassVar[int]
+    BACKEND_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    group_id: str
+    label: str
+    command: str
+    working_dir: str
+    incoming_prompt: str
+    session_id: str
+    sort_order: int
+    backend: str
+    target_id: str
+    created_at: str
+    updated_at: str
+    def __init__(self, id: _Optional[str] = ..., group_id: _Optional[str] = ..., label: _Optional[str] = ..., command: _Optional[str] = ..., working_dir: _Optional[str] = ..., incoming_prompt: _Optional[str] = ..., session_id: _Optional[str] = ..., sort_order: _Optional[int] = ..., backend: _Optional[str] = ..., target_id: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+
 class GetLayoutResponse(_message.Message):
-    __slots__ = ("active_pane", "panes", "groups")
+    __slots__ = ("active_pane", "panes", "groups", "roles")
     ACTIVE_PANE_FIELD_NUMBER: _ClassVar[int]
     PANES_FIELD_NUMBER: _ClassVar[int]
     GROUPS_FIELD_NUMBER: _ClassVar[int]
+    ROLES_FIELD_NUMBER: _ClassVar[int]
     active_pane: str
     panes: _containers.RepeatedCompositeFieldContainer[Pane]
     groups: _containers.RepeatedCompositeFieldContainer[Group]
-    def __init__(self, active_pane: _Optional[str] = ..., panes: _Optional[_Iterable[_Union[Pane, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[Group, _Mapping]]] = ...) -> None: ...
+    roles: _containers.RepeatedCompositeFieldContainer[Role]
+    def __init__(self, active_pane: _Optional[str] = ..., panes: _Optional[_Iterable[_Union[Pane, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[Group, _Mapping]]] = ..., roles: _Optional[_Iterable[_Union[Role, _Mapping]]] = ...) -> None: ...
 
 class SaveLayoutRequest(_message.Message):
     __slots__ = ("active_pane", "pane_order")
@@ -175,5 +205,103 @@ class DeleteGroupRequest(_message.Message):
     def __init__(self, id: _Optional[str] = ...) -> None: ...
 
 class DeleteGroupResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListRolesRequest(_message.Message):
+    __slots__ = ("group_id",)
+    GROUP_ID_FIELD_NUMBER: _ClassVar[int]
+    group_id: str
+    def __init__(self, group_id: _Optional[str] = ...) -> None: ...
+
+class ListRolesResponse(_message.Message):
+    __slots__ = ("roles",)
+    ROLES_FIELD_NUMBER: _ClassVar[int]
+    roles: _containers.RepeatedCompositeFieldContainer[Role]
+    def __init__(self, roles: _Optional[_Iterable[_Union[Role, _Mapping]]] = ...) -> None: ...
+
+class CreateRoleRequest(_message.Message):
+    __slots__ = ("group_id", "label", "command", "working_dir", "incoming_prompt", "session_id", "sort_order", "backend", "target_id")
+    GROUP_ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    WORKING_DIR_FIELD_NUMBER: _ClassVar[int]
+    INCOMING_PROMPT_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    SORT_ORDER_FIELD_NUMBER: _ClassVar[int]
+    BACKEND_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    group_id: str
+    label: str
+    command: str
+    working_dir: str
+    incoming_prompt: str
+    session_id: str
+    sort_order: int
+    backend: str
+    target_id: str
+    def __init__(self, group_id: _Optional[str] = ..., label: _Optional[str] = ..., command: _Optional[str] = ..., working_dir: _Optional[str] = ..., incoming_prompt: _Optional[str] = ..., session_id: _Optional[str] = ..., sort_order: _Optional[int] = ..., backend: _Optional[str] = ..., target_id: _Optional[str] = ...) -> None: ...
+
+class CreateRoleResponse(_message.Message):
+    __slots__ = ("role",)
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    role: Role
+    def __init__(self, role: _Optional[_Union[Role, _Mapping]] = ...) -> None: ...
+
+class UpdateRoleRequest(_message.Message):
+    __slots__ = ("id", "label", "has_label", "command", "has_command", "working_dir", "has_working_dir", "incoming_prompt", "has_incoming_prompt", "session_id", "has_session_id", "sort_order", "has_sort_order", "backend", "has_backend", "target_id", "has_target_id", "group_id", "has_group_id")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    HAS_LABEL_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    HAS_COMMAND_FIELD_NUMBER: _ClassVar[int]
+    WORKING_DIR_FIELD_NUMBER: _ClassVar[int]
+    HAS_WORKING_DIR_FIELD_NUMBER: _ClassVar[int]
+    INCOMING_PROMPT_FIELD_NUMBER: _ClassVar[int]
+    HAS_INCOMING_PROMPT_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    HAS_SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    SORT_ORDER_FIELD_NUMBER: _ClassVar[int]
+    HAS_SORT_ORDER_FIELD_NUMBER: _ClassVar[int]
+    BACKEND_FIELD_NUMBER: _ClassVar[int]
+    HAS_BACKEND_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    HAS_TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    GROUP_ID_FIELD_NUMBER: _ClassVar[int]
+    HAS_GROUP_ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    label: str
+    has_label: bool
+    command: str
+    has_command: bool
+    working_dir: str
+    has_working_dir: bool
+    incoming_prompt: str
+    has_incoming_prompt: bool
+    session_id: str
+    has_session_id: bool
+    sort_order: int
+    has_sort_order: bool
+    backend: str
+    has_backend: bool
+    target_id: str
+    has_target_id: bool
+    group_id: str
+    has_group_id: bool
+    def __init__(self, id: _Optional[str] = ..., label: _Optional[str] = ..., has_label: _Optional[bool] = ..., command: _Optional[str] = ..., has_command: _Optional[bool] = ..., working_dir: _Optional[str] = ..., has_working_dir: _Optional[bool] = ..., incoming_prompt: _Optional[str] = ..., has_incoming_prompt: _Optional[bool] = ..., session_id: _Optional[str] = ..., has_session_id: _Optional[bool] = ..., sort_order: _Optional[int] = ..., has_sort_order: _Optional[bool] = ..., backend: _Optional[str] = ..., has_backend: _Optional[bool] = ..., target_id: _Optional[str] = ..., has_target_id: _Optional[bool] = ..., group_id: _Optional[str] = ..., has_group_id: _Optional[bool] = ...) -> None: ...
+
+class UpdateRoleResponse(_message.Message):
+    __slots__ = ("role",)
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    role: Role
+    def __init__(self, role: _Optional[_Union[Role, _Mapping]] = ...) -> None: ...
+
+class DeleteRoleRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class DeleteRoleResponse(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

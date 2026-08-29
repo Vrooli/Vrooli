@@ -54,6 +54,18 @@ const (
 	// WorkspaceServiceDeleteGroupProcedure is the fully-qualified name of the WorkspaceService's
 	// DeleteGroup RPC.
 	WorkspaceServiceDeleteGroupProcedure = "/vrooli.web_console.v1.workspace.WorkspaceService/DeleteGroup"
+	// WorkspaceServiceListRolesProcedure is the fully-qualified name of the WorkspaceService's
+	// ListRoles RPC.
+	WorkspaceServiceListRolesProcedure = "/vrooli.web_console.v1.workspace.WorkspaceService/ListRoles"
+	// WorkspaceServiceCreateRoleProcedure is the fully-qualified name of the WorkspaceService's
+	// CreateRole RPC.
+	WorkspaceServiceCreateRoleProcedure = "/vrooli.web_console.v1.workspace.WorkspaceService/CreateRole"
+	// WorkspaceServiceUpdateRoleProcedure is the fully-qualified name of the WorkspaceService's
+	// UpdateRole RPC.
+	WorkspaceServiceUpdateRoleProcedure = "/vrooli.web_console.v1.workspace.WorkspaceService/UpdateRole"
+	// WorkspaceServiceDeleteRoleProcedure is the fully-qualified name of the WorkspaceService's
+	// DeleteRole RPC.
+	WorkspaceServiceDeleteRoleProcedure = "/vrooli.web_console.v1.workspace.WorkspaceService/DeleteRole"
 )
 
 // WorkspaceServiceClient is a client for the vrooli.web_console.v1.workspace.WorkspaceService
@@ -66,6 +78,12 @@ type WorkspaceServiceClient interface {
 	CreateGroup(context.Context, *connect.Request[workspace.CreateGroupRequest]) (*connect.Response[workspace.CreateGroupResponse], error)
 	UpdateGroup(context.Context, *connect.Request[workspace.UpdateGroupRequest]) (*connect.Response[workspace.UpdateGroupResponse], error)
 	DeleteGroup(context.Context, *connect.Request[workspace.DeleteGroupRequest]) (*connect.Response[workspace.DeleteGroupResponse], error)
+	// Roles are named positions inside a group. They are additive: a group
+	// with no roles behaves exactly as it did before roles existed.
+	ListRoles(context.Context, *connect.Request[workspace.ListRolesRequest]) (*connect.Response[workspace.ListRolesResponse], error)
+	CreateRole(context.Context, *connect.Request[workspace.CreateRoleRequest]) (*connect.Response[workspace.CreateRoleResponse], error)
+	UpdateRole(context.Context, *connect.Request[workspace.UpdateRoleRequest]) (*connect.Response[workspace.UpdateRoleResponse], error)
+	DeleteRole(context.Context, *connect.Request[workspace.DeleteRoleRequest]) (*connect.Response[workspace.DeleteRoleResponse], error)
 }
 
 // NewWorkspaceServiceClient constructs a client for the
@@ -122,6 +140,30 @@ func NewWorkspaceServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(workspaceServiceMethods.ByName("DeleteGroup")),
 			connect.WithClientOptions(opts...),
 		),
+		listRoles: connect.NewClient[workspace.ListRolesRequest, workspace.ListRolesResponse](
+			httpClient,
+			baseURL+WorkspaceServiceListRolesProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("ListRoles")),
+			connect.WithClientOptions(opts...),
+		),
+		createRole: connect.NewClient[workspace.CreateRoleRequest, workspace.CreateRoleResponse](
+			httpClient,
+			baseURL+WorkspaceServiceCreateRoleProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("CreateRole")),
+			connect.WithClientOptions(opts...),
+		),
+		updateRole: connect.NewClient[workspace.UpdateRoleRequest, workspace.UpdateRoleResponse](
+			httpClient,
+			baseURL+WorkspaceServiceUpdateRoleProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("UpdateRole")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteRole: connect.NewClient[workspace.DeleteRoleRequest, workspace.DeleteRoleResponse](
+			httpClient,
+			baseURL+WorkspaceServiceDeleteRoleProcedure,
+			connect.WithSchema(workspaceServiceMethods.ByName("DeleteRole")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -134,6 +176,10 @@ type workspaceServiceClient struct {
 	createGroup *connect.Client[workspace.CreateGroupRequest, workspace.CreateGroupResponse]
 	updateGroup *connect.Client[workspace.UpdateGroupRequest, workspace.UpdateGroupResponse]
 	deleteGroup *connect.Client[workspace.DeleteGroupRequest, workspace.DeleteGroupResponse]
+	listRoles   *connect.Client[workspace.ListRolesRequest, workspace.ListRolesResponse]
+	createRole  *connect.Client[workspace.CreateRoleRequest, workspace.CreateRoleResponse]
+	updateRole  *connect.Client[workspace.UpdateRoleRequest, workspace.UpdateRoleResponse]
+	deleteRole  *connect.Client[workspace.DeleteRoleRequest, workspace.DeleteRoleResponse]
 }
 
 // GetLayout calls vrooli.web_console.v1.workspace.WorkspaceService.GetLayout.
@@ -171,6 +217,26 @@ func (c *workspaceServiceClient) DeleteGroup(ctx context.Context, req *connect.R
 	return c.deleteGroup.CallUnary(ctx, req)
 }
 
+// ListRoles calls vrooli.web_console.v1.workspace.WorkspaceService.ListRoles.
+func (c *workspaceServiceClient) ListRoles(ctx context.Context, req *connect.Request[workspace.ListRolesRequest]) (*connect.Response[workspace.ListRolesResponse], error) {
+	return c.listRoles.CallUnary(ctx, req)
+}
+
+// CreateRole calls vrooli.web_console.v1.workspace.WorkspaceService.CreateRole.
+func (c *workspaceServiceClient) CreateRole(ctx context.Context, req *connect.Request[workspace.CreateRoleRequest]) (*connect.Response[workspace.CreateRoleResponse], error) {
+	return c.createRole.CallUnary(ctx, req)
+}
+
+// UpdateRole calls vrooli.web_console.v1.workspace.WorkspaceService.UpdateRole.
+func (c *workspaceServiceClient) UpdateRole(ctx context.Context, req *connect.Request[workspace.UpdateRoleRequest]) (*connect.Response[workspace.UpdateRoleResponse], error) {
+	return c.updateRole.CallUnary(ctx, req)
+}
+
+// DeleteRole calls vrooli.web_console.v1.workspace.WorkspaceService.DeleteRole.
+func (c *workspaceServiceClient) DeleteRole(ctx context.Context, req *connect.Request[workspace.DeleteRoleRequest]) (*connect.Response[workspace.DeleteRoleResponse], error) {
+	return c.deleteRole.CallUnary(ctx, req)
+}
+
 // WorkspaceServiceHandler is an implementation of the
 // vrooli.web_console.v1.workspace.WorkspaceService service.
 type WorkspaceServiceHandler interface {
@@ -181,6 +247,12 @@ type WorkspaceServiceHandler interface {
 	CreateGroup(context.Context, *connect.Request[workspace.CreateGroupRequest]) (*connect.Response[workspace.CreateGroupResponse], error)
 	UpdateGroup(context.Context, *connect.Request[workspace.UpdateGroupRequest]) (*connect.Response[workspace.UpdateGroupResponse], error)
 	DeleteGroup(context.Context, *connect.Request[workspace.DeleteGroupRequest]) (*connect.Response[workspace.DeleteGroupResponse], error)
+	// Roles are named positions inside a group. They are additive: a group
+	// with no roles behaves exactly as it did before roles existed.
+	ListRoles(context.Context, *connect.Request[workspace.ListRolesRequest]) (*connect.Response[workspace.ListRolesResponse], error)
+	CreateRole(context.Context, *connect.Request[workspace.CreateRoleRequest]) (*connect.Response[workspace.CreateRoleResponse], error)
+	UpdateRole(context.Context, *connect.Request[workspace.UpdateRoleRequest]) (*connect.Response[workspace.UpdateRoleResponse], error)
+	DeleteRole(context.Context, *connect.Request[workspace.DeleteRoleRequest]) (*connect.Response[workspace.DeleteRoleResponse], error)
 }
 
 // NewWorkspaceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -232,6 +304,30 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 		connect.WithSchema(workspaceServiceMethods.ByName("DeleteGroup")),
 		connect.WithHandlerOptions(opts...),
 	)
+	workspaceServiceListRolesHandler := connect.NewUnaryHandler(
+		WorkspaceServiceListRolesProcedure,
+		svc.ListRoles,
+		connect.WithSchema(workspaceServiceMethods.ByName("ListRoles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceCreateRoleHandler := connect.NewUnaryHandler(
+		WorkspaceServiceCreateRoleProcedure,
+		svc.CreateRole,
+		connect.WithSchema(workspaceServiceMethods.ByName("CreateRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceUpdateRoleHandler := connect.NewUnaryHandler(
+		WorkspaceServiceUpdateRoleProcedure,
+		svc.UpdateRole,
+		connect.WithSchema(workspaceServiceMethods.ByName("UpdateRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	workspaceServiceDeleteRoleHandler := connect.NewUnaryHandler(
+		WorkspaceServiceDeleteRoleProcedure,
+		svc.DeleteRole,
+		connect.WithSchema(workspaceServiceMethods.ByName("DeleteRole")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.workspace.WorkspaceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case WorkspaceServiceGetLayoutProcedure:
@@ -248,6 +344,14 @@ func NewWorkspaceServiceHandler(svc WorkspaceServiceHandler, opts ...connect.Han
 			workspaceServiceUpdateGroupHandler.ServeHTTP(w, r)
 		case WorkspaceServiceDeleteGroupProcedure:
 			workspaceServiceDeleteGroupHandler.ServeHTTP(w, r)
+		case WorkspaceServiceListRolesProcedure:
+			workspaceServiceListRolesHandler.ServeHTTP(w, r)
+		case WorkspaceServiceCreateRoleProcedure:
+			workspaceServiceCreateRoleHandler.ServeHTTP(w, r)
+		case WorkspaceServiceUpdateRoleProcedure:
+			workspaceServiceUpdateRoleHandler.ServeHTTP(w, r)
+		case WorkspaceServiceDeleteRoleProcedure:
+			workspaceServiceDeleteRoleHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -283,4 +387,20 @@ func (UnimplementedWorkspaceServiceHandler) UpdateGroup(context.Context, *connec
 
 func (UnimplementedWorkspaceServiceHandler) DeleteGroup(context.Context, *connect.Request[workspace.DeleteGroupRequest]) (*connect.Response[workspace.DeleteGroupResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.workspace.WorkspaceService.DeleteGroup is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) ListRoles(context.Context, *connect.Request[workspace.ListRolesRequest]) (*connect.Response[workspace.ListRolesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.workspace.WorkspaceService.ListRoles is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) CreateRole(context.Context, *connect.Request[workspace.CreateRoleRequest]) (*connect.Response[workspace.CreateRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.workspace.WorkspaceService.CreateRole is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) UpdateRole(context.Context, *connect.Request[workspace.UpdateRoleRequest]) (*connect.Response[workspace.UpdateRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.workspace.WorkspaceService.UpdateRole is not implemented"))
+}
+
+func (UnimplementedWorkspaceServiceHandler) DeleteRole(context.Context, *connect.Request[workspace.DeleteRoleRequest]) (*connect.Response[workspace.DeleteRoleResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.workspace.WorkspaceService.DeleteRole is not implemented"))
 }

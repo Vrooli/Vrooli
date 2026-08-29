@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/daemonreload"
@@ -277,7 +277,7 @@ func preservedKeys(cfg map[string]any) []string {
 		}
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 

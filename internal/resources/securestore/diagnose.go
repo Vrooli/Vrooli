@@ -63,6 +63,11 @@ type Diagnosis struct {
 	Unlocked bool `json:"unlocked,omitempty"`
 }
 
+const (
+	secureStoreBackendLibsecret   = "libsecret"
+	secureStoreConditionAvailable = "available"
+)
+
 // Remediable is an error that names the operator action which clears it.
 //
 // The remedy travels with the error rather than being reassembled by the
@@ -147,7 +152,7 @@ func DiagnoseNativeWritable() Diagnosis {
 func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 	diagnosis := Diagnosis{
 		Platform:      runtime.GOOS,
-		Condition:     "available",
+		Condition:     secureStoreConditionAvailable,
 		Available:     true,
 		SessionRepair: sessionRepairNote(),
 	}
@@ -158,7 +163,7 @@ func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 	diagnosis.Adapter = AdapterName(store)
 	diagnosis.Backend = backendName(store)
 	diagnosis.NativeWrap = nativeWrapDiagnosis()
-	if diagnosis.Backend == "libsecret" {
+	if diagnosis.Backend == secureStoreBackendLibsecret {
 		diagnosis.NativeStorageStrength, diagnosis.NativeStorageCaveat = nativeStorageStrength()
 	}
 	diagnosis.KeyWrap, diagnosis.KeyStore = activeWrap(store)
@@ -206,7 +211,7 @@ func diagnoseStore(store Store, checkWrites bool) Diagnosis {
 	}
 	writeErr := ProbeWritable(store)
 	if writeErr == nil {
-		diagnosis.Writable, diagnosis.WriteCondition = true, "available"
+		diagnosis.Writable, diagnosis.WriteCondition = true, secureStoreConditionAvailable
 		return diagnosis
 	}
 	diagnosis.WriteCondition = conditionFor(writeErr)

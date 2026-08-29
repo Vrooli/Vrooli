@@ -15,7 +15,7 @@
     "Physics-based training environments",
     "Control-system prototypes"
   ],
-  "integration_kind": "manual",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "The Python package is portable, but headless rendering, GPU use, and simulation assumptions vary by host environment.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Clarity on headless versus GUI simulation support"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should validate a specific simulation workflow, not generic package presence.",
     "Keep training-environment support separate from desktop visualization support.",

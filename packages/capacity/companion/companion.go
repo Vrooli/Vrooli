@@ -28,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	platform "github.com/vrooli/platform-go"
 )
 
 // Footprint is one observation of what a resource currently holds.
@@ -99,6 +101,11 @@ type Config struct {
 	LedgerCacheTTL time.Duration
 	// Log receives one line per ledger action. nil discards them.
 	Log io.Writer
+	// ParentPID makes a companion self-terminating when its owning process is
+	// gone. Zero disables the guard; command wrappers normally set it to ppid.
+	ParentPID int
+	// ParentAlive is injectable for deterministic parent-death tests.
+	ParentAlive func(int) bool
 }
 
 // DefaultInterval is the poll cadence when none is declared.
@@ -152,15 +159,33 @@ func New(cfg Config) (*Runner, error) {
 func (r *Runner) Run(ctx context.Context) error {
 	ticker := time.NewTicker(r.cfg.interval())
 	defer ticker.Stop()
+	if r.parentGone() {
+		r.logf("parent_gone: exiting")
+		return nil
+	}
 	r.SyncOnce(ctx)
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
+			if r.parentGone() {
+				r.logf("parent_gone: exiting")
+				return nil
+			}
 			r.SyncOnce(ctx)
 		}
 	}
+}
+
+func (r *Runner) parentGone() bool {
+	if r.cfg.ParentPID <= 1 {
+		return false
+	}
+	if r.cfg.ParentAlive != nil {
+		return !r.cfg.ParentAlive(r.cfg.ParentPID)
+	}
+	return platform.IsPIDRunning(r.cfg.ParentPID)
 }
 
 // SyncOnce reconciles the ledger against one observation. Every step fails

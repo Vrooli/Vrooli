@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "git-control-tower",
-  "input_digest": "sha256:2715e366a12280038cc8e1559fcfffcc44ef348e6f07bac43b608ad46f4a664d",
+  "input_digest": "sha256:93f07e764206893ddf2741e957cea880da9f3dd43c64b7f656d3fa5562f4e289",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/operations.proto",

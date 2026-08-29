@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -14,7 +14,10 @@ import (
 )
 
 const (
-	validationParameterA = 2
+	validationParameterA           = 2
+	scenarioInvokeInstalledCommand = "installed_command"
+	scenarioStatusUnhealthy        = "unhealthy"
+	scenarioStatusRunning          = "running"
 )
 
 func (cfg *CLIConfig) applyDefaults() {
@@ -42,7 +45,7 @@ func (cfg *CLIConfig) applyDefaults() {
 		cfg.Artifacts.BuildMetadata.Location = CLIArtifactLocationSibling
 	}
 	if cfg.Enabled && cfg.Invoke.Kind == "" {
-		cfg.Invoke.Kind = "installed_command"
+		cfg.Invoke.Kind = scenarioInvokeInstalledCommand
 	}
 	if cfg.Enabled && cfg.Invoke.Command == "" {
 		cfg.Invoke.Command = cfg.Command
@@ -545,7 +548,7 @@ func (manifest ServiceManifest) SortedPorts() []PortSummary {
 	for name := range manifest.Ports {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	ports := make([]PortSummary, 0, len(names))
 	for _, name := range names {
@@ -668,7 +671,7 @@ func ExpandHealthTarget(target string, ports map[string]int) (string, error) {
 
 func EvaluateHealth(health *HealthConfig, ports map[string]int) string {
 	if health == nil || len(health.Checks) == 0 {
-		return "running"
+		return scenarioStatusRunning
 	}
 
 	criticalFailure := false
@@ -685,7 +688,7 @@ func EvaluateHealth(health *HealthConfig, ports map[string]int) string {
 
 	switch {
 	case criticalFailure:
-		return "unhealthy"
+		return scenarioStatusUnhealthy
 	case nonCriticalFailure:
 		return "degraded"
 	default:

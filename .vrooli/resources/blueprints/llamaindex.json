@@ -28,7 +28,7 @@
     "Clear reason to prefer LlamaIndex over framework-neutral patterns"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should be driven by a scenario that really depends on LlamaIndex, not generic RAG interest.",
     "Keep framework-specific support narrower than the broader retrieval capability.",

@@ -235,6 +235,18 @@ func TestVerifyPlacementReportsUndeterminedWhenNoWorkloadIsResident(t *testing.T
 	}
 }
 
+func TestVerifyPlacementReportsCPUDriftWhenServingWithoutResidentGPUWorkload(t *testing.T) {
+	placement, err := verifierFor(hostWithCUDA(), nil).VerifyPlacement(context.Background(), "whisper", accel.HostProcess{
+		PID: 4242, Name: "whisper", Serving: true,
+	}, accel.BackendCUDA)
+	if err != nil {
+		t.Fatalf("VerifyPlacement() = %v, want nil", err)
+	}
+	if placement.Observed != accel.BackendCPU || placement.State != accel.StateDrift {
+		t.Fatalf("placement = %+v, want observed cpu and drift", placement)
+	}
+}
+
 // Scenario: Vulkan follows the same absent-workload rule as CUDA and ROCm.
 func TestVerifyPlacementReportsUndeterminedForVulkanWithoutResidentWorkload(t *testing.T) {
 	snapshot := hostWithCUDA()

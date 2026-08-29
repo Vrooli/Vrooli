@@ -3,6 +3,7 @@ package hostreq
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenario"
+	valuespkg "github.com/vrooli/vrooli/internal/values"
 )
 
 type ResolveOptions struct {
@@ -381,11 +383,11 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 			Manual:             declaration.Manual,
 			Privilege:          privilege,
 			Bundling:           bundling,
-			Reasons:            uniqueStrings([]string{strings.TrimSpace(declaration.Reason)}),
-			When:               uniqueStrings(declaration.When),
-			Environments:       uniqueStrings(declaration.Environments),
-			Platforms:          uniqueStrings(platforms),
-			Notes:              uniqueStrings([]string{strings.TrimSpace(declaration.Notes)}),
+			Reasons:            valuespkg.UniqueStrings([]string{strings.TrimSpace(declaration.Reason)}),
+			When:               valuespkg.UniqueStrings(declaration.When),
+			Environments:       valuespkg.UniqueStrings(declaration.Environments),
+			Platforms:          valuespkg.UniqueStrings(platforms),
+			Notes:              valuespkg.UniqueStrings([]string{strings.TrimSpace(declaration.Notes)}),
 			Provenance:         []Provenance{provenance},
 			Requires:           declaration.Requires,
 			Acquisition:        acquisition,
@@ -443,16 +445,16 @@ func sortedRequirements(items map[string]*ResolvedRequirement) []ResolvedRequire
 	for name := range items {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	result := make([]ResolvedRequirement, 0, len(names))
 	for _, name := range names {
 		item := *items[name]
-		item.Reasons = uniqueStrings(item.Reasons)
-		item.When = uniqueStrings(item.When)
-		item.Environments = uniqueStrings(item.Environments)
-		item.Platforms = uniqueStrings(item.Platforms)
-		item.Notes = uniqueStrings(item.Notes)
+		item.Reasons = valuespkg.UniqueStrings(item.Reasons)
+		item.When = valuespkg.UniqueStrings(item.When)
+		item.Environments = valuespkg.UniqueStrings(item.Environments)
+		item.Platforms = valuespkg.UniqueStrings(item.Platforms)
+		item.Notes = valuespkg.UniqueStrings(item.Notes)
 		result = append(result, item)
 	}
 	return result
@@ -470,10 +472,6 @@ func stricterMinimum(candidate, current string) bool {
 	return hostreqkit.CompareVersions(candidate, current) > 0
 }
 
-func uniqueStrings(values []string) []string {
-	return mergeUnique(nil, values)
-}
-
 func mergeUnique(existing, incoming []string) []string {
 	seen := make(map[string]struct{}, len(existing)+len(incoming))
 	result := make([]string, 0, len(existing)+len(incoming))
@@ -488,7 +486,7 @@ func mergeUnique(existing, incoming []string) []string {
 		seen[value] = struct{}{}
 		result = append(result, value)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result
 }
 

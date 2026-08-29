@@ -127,6 +127,7 @@ type ManifestBinding struct {
 	Kind    string `json:"kind"`
 	Service string `json:"service,omitempty"`
 	Method  string `json:"method,omitempty"`
+	Handler string `json:"handler,omitempty"`
 }
 
 type ManifestGovernance struct {
@@ -227,7 +228,26 @@ func validateManifestGroups(manifestName string, groups []ManifestGroup, parentP
 
 // FindGroup returns the named group, or nil if absent.
 func (m *Manifest) FindGroup(name string) *ManifestGroup {
+	if strings.Contains(name, "/") {
+		return findManifestGroupPath(m.Groups, strings.Split(strings.Trim(name, "/"), "/"))
+	}
 	return findManifestGroup(m.Groups, name)
+}
+
+func findManifestGroupPath(groups []ManifestGroup, path []string) *ManifestGroup {
+	if len(path) == 0 {
+		return nil
+	}
+	for i := range groups {
+		if groups[i].Name != path[0] {
+			continue
+		}
+		if len(path) == 1 {
+			return &groups[i]
+		}
+		return findManifestGroupPath(groups[i].Groups, path[1:])
+	}
+	return nil
 }
 
 func findManifestGroup(groups []ManifestGroup, name string) *ManifestGroup {
@@ -310,11 +330,24 @@ func loadFromManifest(raw []byte, groupName string, bindings map[string]boundHan
 
 	used := make(map[string]struct{}, len(bindings))
 	subs := make([]Command, 0, len(group.Commands))
+	needsAPI := false
 	for _, c := range group.Commands {
-		if c.Binding.Kind != "connect-rpc" {
-			return SubcommandGroup{}, fmt.Errorf("cli manifest %q: command %s/%s uses local binding and must be registered by the owning CLI", m.Name, group.Name, c.Name)
-		}
 		key := c.Binding.BindingKey()
+		switch c.Binding.Kind {
+		case "connect-rpc":
+			needsAPI = true
+		case "local":
+			key = strings.TrimSpace(c.Binding.Handler)
+			if key == "" {
+				// The manifest schema deliberately keeps local bindings free of
+				// implementation names. Use the command name as the stable
+				// registration key, while retaining explicit handler support for
+				// older manifests that need one handler behind several commands.
+				key = c.Name
+			}
+		default:
+			return SubcommandGroup{}, fmt.Errorf("cli manifest %q: command %s/%s has unsupported binding kind %q", m.Name, group.Name, c.Name, c.Binding.Kind)
+		}
 		handler, ok := bindings[key]
 		if !ok {
 			return SubcommandGroup{}, fmt.Errorf("cli manifest %q: command %s/%s binding %s has no registered handler", m.Name, group.Name, c.Name, key)
@@ -353,7 +386,7 @@ func loadFromManifest(raw []byte, groupName string, bindings map[string]boundHan
 	return SubcommandGroup{
 		Name:        group.Name,
 		Description: group.Description,
-		NeedsAPI:    true,
+		NeedsAPI:    needsAPI,
 		Subcommands: subs,
 	}, nil
 }

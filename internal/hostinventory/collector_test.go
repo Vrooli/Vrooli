@@ -72,7 +72,7 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 	if got.GPUs[0].UtilizationPercent != 35 || got.GPUs[0].VRAMUsedBytes != 4096*1024*1024 {
 		t.Fatalf("gpu detail = %#v", got.GPUs[0])
 	}
-	if got.GPUs[0].CUDAComputeCapability != "8.9" {
+	if got.GPUs[0].CUDAComputeCapability != acceleratorTestCUDACompute {
 		t.Fatalf("gpu compute capability = %q", got.GPUs[0].CUDAComputeCapability)
 	}
 	if len(got.GPUProcesses) != 1 || got.GPUProcesses[0].PID != 1234 || got.GPUProcesses[0].GPUIndex != 0 {

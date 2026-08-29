@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"resource-openrouter/cli/internal/auth"
-	resourceenv "resource-openrouter/cli/internal/env"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/auth"
+	resourceenv "github.com/vrooli/vrooli/resources/openrouter/cli/internal/env"
 )
 
 type captureHTTPClient struct {

@@ -15,7 +15,7 @@
     "Design optimization pipelines",
     "Fluid-system experimentation"
   ],
-  "integration_kind": "manual",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "Containerization is possible, but HPC assumptions, solver performance, and toolchain complexity still make support uneven across hosts.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Artifact storage for inputs, meshes, and results"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should validate a specific case-running workflow.",
     "Keep preprocessing, solve execution, and postprocessing as separate concerns.",

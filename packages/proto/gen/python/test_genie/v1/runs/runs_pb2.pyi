@@ -10,6 +10,15 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class AdmissionLimitKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ADMISSION_LIMIT_KIND_UNSPECIFIED: _ClassVar[AdmissionLimitKind]
+    ADMISSION_LIMIT_KIND_GLOBAL_QUEUE: _ClassVar[AdmissionLimitKind]
+    ADMISSION_LIMIT_KIND_CALLER_QUEUE: _ClassVar[AdmissionLimitKind]
+    ADMISSION_LIMIT_KIND_GLOBAL_PREVIEW: _ClassVar[AdmissionLimitKind]
+    ADMISSION_LIMIT_KIND_CALLER_PREVIEW: _ClassVar[AdmissionLimitKind]
+    ADMISSION_LIMIT_KIND_RESERVATION_QUEUE: _ClassVar[AdmissionLimitKind]
+
 class PhaseComparisonReasonCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     PHASE_COMPARISON_REASON_CODE_UNSPECIFIED: _ClassVar[PhaseComparisonReasonCode]
@@ -32,6 +41,12 @@ class ArtifactProvenance(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ARTIFACT_PROVENANCE_UNSPECIFIED: _ClassVar[ArtifactProvenance]
     ARTIFACT_PROVENANCE_CATALOG: _ClassVar[ArtifactProvenance]
     ARTIFACT_PROVENANCE_LEGACY_DISCOVERY: _ClassVar[ArtifactProvenance]
+ADMISSION_LIMIT_KIND_UNSPECIFIED: AdmissionLimitKind
+ADMISSION_LIMIT_KIND_GLOBAL_QUEUE: AdmissionLimitKind
+ADMISSION_LIMIT_KIND_CALLER_QUEUE: AdmissionLimitKind
+ADMISSION_LIMIT_KIND_GLOBAL_PREVIEW: AdmissionLimitKind
+ADMISSION_LIMIT_KIND_CALLER_PREVIEW: AdmissionLimitKind
+ADMISSION_LIMIT_KIND_RESERVATION_QUEUE: AdmissionLimitKind
 PHASE_COMPARISON_REASON_CODE_UNSPECIFIED: PhaseComparisonReasonCode
 PHASE_COMPARISON_REASON_CODE_NEW_PHASE: PhaseComparisonReasonCode
 PHASE_COMPARISON_REASON_CODE_RETIRED_PHASE: PhaseComparisonReasonCode
@@ -94,7 +109,7 @@ class RunEvent(_message.Message):
     def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., target: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ..., maturity_standing: _Optional[_Union[PhaseMaturityStanding, _Mapping]] = ..., findings_summary: _Optional[_Union[PhaseFindingsSummary, _Mapping]] = ..., phase_presentation: _Optional[_Union[_maturity_pb2.PhasePresentation, _Mapping]] = ..., sequence: _Optional[int] = ..., target_ref: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
 
 class RunLiveStatus(_message.Message):
-    __slots__ = ("run_id", "target", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries", "degraded_reasons", "terminal_presentations", "standing", "target_ref")
+    __slots__ = ("run_id", "target", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active", "terminal_standings", "terminal_findings_summaries", "degraded_reasons", "terminal_presentations", "standing", "target_ref", "queue_position", "estimated_queue_wait_seconds")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -117,6 +132,8 @@ class RunLiveStatus(_message.Message):
     TERMINAL_PRESENTATIONS_FIELD_NUMBER: _ClassVar[int]
     STANDING_FIELD_NUMBER: _ClassVar[int]
     TARGET_REF_FIELD_NUMBER: _ClassVar[int]
+    QUEUE_POSITION_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_QUEUE_WAIT_SECONDS_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     target: str
     status: str
@@ -139,10 +156,26 @@ class RunLiveStatus(_message.Message):
     terminal_presentations: _containers.RepeatedCompositeFieldContainer[_maturity_pb2.PhasePresentation]
     standing: _operations_pb2.OperationStanding
     target_ref: _validation_target_pb2.ValidationTarget
-    def __init__(self, run_id: _Optional[str] = ..., target: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ..., terminal_presentations: _Optional[_Iterable[_Union[_maturity_pb2.PhasePresentation, _Mapping]]] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ..., target_ref: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
+    queue_position: int
+    estimated_queue_wait_seconds: int
+    def __init__(self, run_id: _Optional[str] = ..., target: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ..., terminal_standings: _Optional[_Iterable[_Union[PhaseMaturityStanding, _Mapping]]] = ..., terminal_findings_summaries: _Optional[_Iterable[_Union[PhaseFindingsSummary, _Mapping]]] = ..., degraded_reasons: _Optional[_Iterable[str]] = ..., terminal_presentations: _Optional[_Iterable[_Union[_maturity_pb2.PhasePresentation, _Mapping]]] = ..., standing: _Optional[_Union[_operations_pb2.OperationStanding, _Mapping]] = ..., target_ref: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., queue_position: _Optional[int] = ..., estimated_queue_wait_seconds: _Optional[int] = ...) -> None: ...
+
+class AdmissionSaturation(_message.Message):
+    __slots__ = ("limit_kind", "occupancy", "configured_limit", "fifo_position", "retry_after_seconds")
+    LIMIT_KIND_FIELD_NUMBER: _ClassVar[int]
+    OCCUPANCY_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURED_LIMIT_FIELD_NUMBER: _ClassVar[int]
+    FIFO_POSITION_FIELD_NUMBER: _ClassVar[int]
+    RETRY_AFTER_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    limit_kind: AdmissionLimitKind
+    occupancy: int
+    configured_limit: int
+    fifo_position: int
+    retry_after_seconds: int
+    def __init__(self, limit_kind: _Optional[_Union[AdmissionLimitKind, str]] = ..., occupancy: _Optional[int] = ..., configured_limit: _Optional[int] = ..., fifo_position: _Optional[int] = ..., retry_after_seconds: _Optional[int] = ...) -> None: ...
 
 class StartRunRequest(_message.Message):
-    __slots__ = ("target", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile", "require_gate_quality", "target_ref")
+    __slots__ = ("target", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile", "require_gate_quality", "target_ref", "collection_reservation_id", "collection_reservation_member_count", "retain_for_evidence", "retention_reason")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     PRESET_FIELD_NUMBER: _ClassVar[int]
     PHASES_FIELD_NUMBER: _ClassVar[int]
@@ -158,6 +191,10 @@ class StartRunRequest(_message.Message):
     CAPTURE_PROFILE_FIELD_NUMBER: _ClassVar[int]
     REQUIRE_GATE_QUALITY_FIELD_NUMBER: _ClassVar[int]
     TARGET_REF_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_RESERVATION_ID_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_RESERVATION_MEMBER_COUNT_FIELD_NUMBER: _ClassVar[int]
+    RETAIN_FOR_EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    RETENTION_REASON_FIELD_NUMBER: _ClassVar[int]
     target: str
     preset: str
     phases: _containers.RepeatedScalarFieldContainer[str]
@@ -173,7 +210,11 @@ class StartRunRequest(_message.Message):
     capture_profile: str
     require_gate_quality: bool
     target_ref: _validation_target_pb2.ValidationTarget
-    def __init__(self, target: _Optional[str] = ..., preset: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., skip: _Optional[_Iterable[str]] = ..., fail_fast: _Optional[bool] = ..., diagnostics_preset: _Optional[str] = ..., ui_url: _Optional[str] = ..., api_url: _Optional[str] = ..., scenario_path: _Optional[str] = ..., logical_repo_root: _Optional[str] = ..., logical_scenario_rel_path: _Optional[str] = ..., suite_request_id: _Optional[str] = ..., capture_profile: _Optional[str] = ..., require_gate_quality: _Optional[bool] = ..., target_ref: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ...) -> None: ...
+    collection_reservation_id: str
+    collection_reservation_member_count: int
+    retain_for_evidence: bool
+    retention_reason: str
+    def __init__(self, target: _Optional[str] = ..., preset: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., skip: _Optional[_Iterable[str]] = ..., fail_fast: _Optional[bool] = ..., diagnostics_preset: _Optional[str] = ..., ui_url: _Optional[str] = ..., api_url: _Optional[str] = ..., scenario_path: _Optional[str] = ..., logical_repo_root: _Optional[str] = ..., logical_scenario_rel_path: _Optional[str] = ..., suite_request_id: _Optional[str] = ..., capture_profile: _Optional[str] = ..., require_gate_quality: _Optional[bool] = ..., target_ref: _Optional[_Union[_validation_target_pb2.ValidationTarget, _Mapping]] = ..., collection_reservation_id: _Optional[str] = ..., collection_reservation_member_count: _Optional[int] = ..., retain_for_evidence: _Optional[bool] = ..., retention_reason: _Optional[str] = ...) -> None: ...
 
 class StartRunResponse(_message.Message):
     __slots__ = ("run_id", "target", "estimated_total_seconds", "eta_known", "coalesced", "target_ref")

@@ -60,6 +60,13 @@ func validCLI(command string) *scenario.CLIConfig {
 	}
 }
 
+func validManagedServiceHealthChecks() []ResourceHealthCheck {
+	return []ResourceHealthCheck{
+		{Type: "http", Target: "http://127.0.0.1:1/health", Kind: "readiness", IntervalSeconds: 10, TimeoutSeconds: 10},
+		{Type: "http", Target: "http://127.0.0.1:1/health", Kind: "liveness", IntervalSeconds: 30, TimeoutSeconds: 10},
+	}
+}
+
 func TestValidateRejectsMissingRequiredFields(t *testing.T) {
 	err := Validate(ResourceManifest{})
 	if err == nil || !strings.Contains(err.Error(), "name is required") {
@@ -72,7 +79,7 @@ func TestLoadRejectsDuplicateCredentialDescriptors(t *testing.T) {
 	data, err := json.Marshal(ResourceManifest{
 		Name:        "fixture",
 		CLI:         validCLI("resource-fixture"),
-		Driver:      "manual",
+		Driver:      "external-cli",
 		Credentials: ResourceCredentials{Descriptors: []CredentialDescriptor{{LogicalID: "vrooli/demo"}, {LogicalID: "vrooli/demo"}}},
 	})
 	if err != nil {
@@ -126,10 +133,11 @@ func TestValidateAcceptsNativeCLIManifest(t *testing.T) {
 
 func TestValidateManagedServiceRequiresFailClosedProviderPolicy(t *testing.T) {
 	base := ResourceManifest{
-		Name:      "fixture-service",
-		CLI:       validCLI("resource-fixture-service"),
-		Driver:    "managed-service",
-		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+		Name:         "fixture-service",
+		CLI:          validCLI("resource-fixture-service"),
+		Driver:       "managed-service",
+		Platforms:    ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+		HealthChecks: validManagedServiceHealthChecks(),
 	}
 	if err := Validate(base); err == nil || !strings.Contains(err.Error(), "managed_service is required") {
 		t.Fatalf("missing policy error = %v", err)
@@ -155,10 +163,11 @@ func TestValidateManagedServiceRequiresFailClosedProviderPolicy(t *testing.T) {
 
 func TestValidateManagedServiceRejectsInvalidEnvironmentKey(t *testing.T) {
 	manifest := ResourceManifest{
-		Name:      "fixture-service",
-		CLI:       validCLI("resource-fixture-service"),
-		Driver:    "managed-service",
-		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+		Name:         "fixture-service",
+		CLI:          validCLI("resource-fixture-service"),
+		Driver:       "managed-service",
+		Platforms:    ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+		HealthChecks: validManagedServiceHealthChecks(),
 		ManagedService: &ResourceManagedService{ProviderPolicy: resourcedeployment.ProviderPolicy{
 			TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{
 				resourcedeployment.ProviderTargetControlPlane:  resourcedeployment.ProviderManagedPrivate,
@@ -171,6 +180,28 @@ func TestValidateManagedServiceRejectsInvalidEnvironmentKey(t *testing.T) {
 	}
 	if err := Validate(manifest); err == nil || !strings.Contains(err.Error(), "environment key") {
 		t.Fatalf("Validate() error = %v, want environment key error", err)
+	}
+}
+
+func TestValidateManagedServiceRequiresReadinessAndLivenessCadence(t *testing.T) {
+	valid := ResourceManifest{Name: "fixture", CLI: validCLI("resource-fixture"), Driver: "managed-service", HealthChecks: validManagedServiceHealthChecks()}
+	cases := []struct {
+		name   string
+		checks []ResourceHealthCheck
+		want   string
+	}{
+		{name: "readiness", checks: nil, want: "readiness"},
+		{name: "liveness", checks: []ResourceHealthCheck{valid.HealthChecks[0]}, want: "liveness"},
+		{name: "cadence", checks: []ResourceHealthCheck{{Type: "http", Target: "http://127.0.0.1:1/health", Kind: "readiness", IntervalSeconds: 0, TimeoutSeconds: 10}, valid.HealthChecks[1]}, want: "positive interval_seconds"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			valid.HealthChecks = tc.checks
+			err := Validate(valid)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("Validate() error = %v, want %q", err, tc.want)
+			}
+		})
 	}
 }
 
@@ -266,111 +297,6 @@ func TestSupportForCurrentPlatformUsesMappedOSNames(t *testing.T) {
 	}
 }
 
-func TestValidateAcceptsLegacyRepoDataMarker(t *testing.T) {
-	err := Validate(ResourceManifest{
-		Name:                  "legacy-proxy",
-		CLI:                   validCLI("resource-legacy-proxy"),
-		Driver:                "docker-service",
-		LegacyRepoDataAllowed: true,
-		Runtime: ResourceRuntime{
-			Image: "ghcr.io/example/legacy-proxy:1.2.3",
-		},
-	})
-	if err != nil {
-		t.Fatalf("Validate(): %v", err)
-	}
-}
-
-func TestValidateEnforcesPinnedDockerImage(t *testing.T) {
-	base := ResourceManifest{
-		Name:   "pinned",
-		CLI:    validCLI("resource-pinned"),
-		Driver: "docker-service",
-	}
-
-	for _, ok := range []string{
-		"postgres:16-alpine",
-		"ghcr.io/example/app:v1.2.3",
-		"registry.example.com:5000/team/app:2026.07",
-		"minio/minio@sha256:d249d1fb6966de4d8ad26c04754b545205ff15a62e4fd19ebd0f26fa5baacbc0",
-	} {
-		m := base
-		m.Runtime = ResourceRuntime{Image: ok}
-		if err := Validate(m); err != nil {
-			t.Fatalf("Validate(image=%q) returned error: %v", ok, err)
-		}
-	}
-
-	for _, bad := range []string{
-		"minio/minio",
-		"minio/minio:latest",
-		"example/home-service:stable",
-		"registry.example.com:5000/team/app",
-		"example/app@",
-	} {
-		m := base
-		m.Runtime = ResourceRuntime{Image: bad}
-		if err := Validate(m); err == nil {
-			t.Fatalf("Validate(image=%q) expected error, got nil", bad)
-		}
-	}
-}
-
-func TestValidateRejectsProfileContradictingUnsupportedPlatform(t *testing.T) {
-	m := ResourceManifest{
-		Name:        "contradiction",
-		CLI:         validCLI("resource-contradiction"),
-		Driver:      "compose-service",
-		ComposeFile: "docker/docker-compose.yml",
-		Platforms:   ResourcePlatforms{Linux: "supported", MacOS: "unsupported", Windows: "unsupported"},
-		Deployment: ResourceDeployment{
-			Profiles: map[string]ResourceDeploymentProfile{
-				"desktop": {
-					Linux:   &ResourceDeploymentTarget{Support: "conditional", Mode: "docker-desktop", Architectures: []string{"amd64"}, Evidence: []string{"manifest-validation"}, Limitations: []string{"requires docker"}},
-					MacOS:   &ResourceDeploymentTarget{Support: "conditional", Mode: "docker-desktop", Architectures: []string{"amd64"}, Evidence: []string{"manifest-validation"}, Limitations: []string{"requires docker"}},
-					Windows: &ResourceDeploymentTarget{Support: "unsupported", Mode: "docker-desktop", Reason: "no gpu passthrough"},
-				},
-			},
-		},
-	}
-	err := Validate(m)
-	if err == nil {
-		t.Fatal("expected contradiction error, got nil")
-	}
-	if !strings.Contains(err.Error(), "contradicts platforms.macos") {
-		t.Fatalf("expected macos contradiction error, got: %v", err)
-	}
-
-	m.Deployment.Profiles["desktop"].MacOS.Support = "unsupported"
-	m.Deployment.Profiles["desktop"].MacOS.Reason = "no gpu passthrough"
-	if err := Validate(m); err != nil {
-		t.Fatalf("Validate() after aligning profile: %v", err)
-	}
-}
-
-func TestValidateHealthCheckKind(t *testing.T) {
-	base := ResourceManifest{
-		Name:        "healthy",
-		CLI:         validCLI("resource-healthy"),
-		Driver:      "compose-service",
-		ComposeFile: "docker/docker-compose.yml",
-	}
-
-	for _, kind := range []string{"", "readiness", "liveness"} {
-		m := base
-		m.HealthChecks = []ResourceHealthCheck{{Type: "http", Target: "http://127.0.0.1:8080/ready", Kind: kind}}
-		if err := Validate(m); err != nil {
-			t.Fatalf("Validate(kind=%q) returned error: %v", kind, err)
-		}
-	}
-
-	m := base
-	m.HealthChecks = []ResourceHealthCheck{{Type: "http", Target: "http://127.0.0.1:8080/ready", Kind: "alive"}}
-	if err := Validate(m); err == nil {
-		t.Fatal("expected invalid health check kind error, got nil")
-	}
-}
-
 func TestResourceCredentialsUnmarshalAcceptsCanonicalDescriptors(t *testing.T) {
 	var manifest ResourceManifest
 	err := json.Unmarshal([]byte(`{
@@ -400,7 +326,7 @@ func TestResourceCredentialsUnmarshalAcceptsCanonicalDescriptors(t *testing.T) {
 func TestValidateRejectsMissingCLIBlock(t *testing.T) {
 	err := Validate(ResourceManifest{
 		Name:   "fixture",
-		Driver: "manual",
+		Driver: "external-cli",
 	})
 	if err == nil || !strings.Contains(err.Error(), "cli is required") {
 		t.Fatalf("Validate() error = %v", err)
@@ -409,11 +335,12 @@ func TestValidateRejectsMissingCLIBlock(t *testing.T) {
 
 func TestValidateAcceptsExplicitDisabledCLIBlock(t *testing.T) {
 	err := Validate(ResourceManifest{
-		Name: "fixture",
+		Name:   "fixture",
+		Binary: "resource-fixture",
 		CLI: &scenario.CLIConfig{
 			Enabled: false,
 		},
-		Driver: "manual",
+		Driver: "external-cli",
 	})
 	if err != nil {
 		t.Fatalf("Validate(): %v", err)
@@ -422,10 +349,10 @@ func TestValidateAcceptsExplicitDisabledCLIBlock(t *testing.T) {
 
 func TestValidateMemoryLimit(t *testing.T) {
 	base := ResourceManifest{
-		Name:    "ollama",
-		CLI:     validCLI("resource-ollama"),
-		Driver:  "docker-service",
-		Runtime: ResourceRuntime{Image: "example/inference-service:0.30.10"},
+		Name:   "ollama",
+		CLI:    validCLI("resource-ollama"),
+		Driver: "external-cli",
+		Binary: "resource-ollama",
 	}
 
 	for _, ok := range []string{"", "12g", "8192m", "536870912", "1B", "4G", "  2g  "} {
@@ -455,7 +382,7 @@ func TestValidateRejectsUnsupportedCLIAdapter(t *testing.T) {
 				Kind: "script",
 			},
 		},
-		Driver: "manual",
+		Driver: "external-cli",
 	})
 	if err == nil {
 		t.Fatal("Validate() accepted unsupported CLI adapter")

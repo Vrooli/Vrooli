@@ -2617,9 +2617,11 @@ type ParseUnit struct {
 	Status     EvidenceStatus         `protobuf:"varint,5,opt,name=status,proto3,enum=vrooli.code_facts.v1.facts.EvidenceStatus" json:"status,omitempty"`
 	Evidence   []*Evidence            `protobuf:"bytes,6,rep,name=evidence,proto3" json:"evidence,omitempty"`
 	// Neutral observations; downstream policy decides adapter correctness.
-	Toolchain     *ToolchainObservation `protobuf:"bytes,7,opt,name=toolchain,proto3" json:"toolchain,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Toolchain *ToolchainObservation `protobuf:"bytes,7,opt,name=toolchain,proto3" json:"toolchain,omitempty"`
+	// Optional module-relative Go package patterns for a bounded control-plane scan.
+	PackagePatterns []string `protobuf:"bytes,8,rep,name=package_patterns,json=packagePatterns,proto3" json:"package_patterns,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ParseUnit) Reset() {
@@ -2697,6 +2699,13 @@ func (x *ParseUnit) GetEvidence() []*Evidence {
 func (x *ParseUnit) GetToolchain() *ToolchainObservation {
 	if x != nil {
 		return x.Toolchain
+	}
+	return nil
+}
+
+func (x *ParseUnit) GetPackagePatterns() []string {
+	if x != nil {
+		return x.PackagePatterns
 	}
 	return nil
 }
@@ -3918,7 +3927,7 @@ const file_code_facts_v1_facts_facts_proto_rawDesc = "" +
 	"\x05range\x18\x03 \x01(\v2'.vrooli.code_facts.v1.facts.SourceRangeR\x05range\x12\x16\n" +
 	"\x06symbol\x18\x04 \x01(\tR\x06symbol\x12\x1a\n" +
 	"\banalyzer\x18\x05 \x01(\tR\banalyzer\x12\x18\n" +
-	"\amessage\x18\x06 \x01(\tR\amessage\"\xcb\x02\n" +
+	"\amessage\x18\x06 \x01(\tR\amessage\"\xf6\x02\n" +
 	"\tParseUnit\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\blanguage\x18\x02 \x01(\tR\blanguage\x12\x1b\n" +
@@ -3927,7 +3936,8 @@ const file_code_facts_v1_facts_facts_proto_rawDesc = "" +
 	"configPath\x12B\n" +
 	"\x06status\x18\x05 \x01(\x0e2*.vrooli.code_facts.v1.facts.EvidenceStatusR\x06status\x12@\n" +
 	"\bevidence\x18\x06 \x03(\v2$.vrooli.code_facts.v1.facts.EvidenceR\bevidence\x12N\n" +
-	"\ttoolchain\x18\a \x01(\v20.vrooli.code_facts.v1.facts.ToolchainObservationR\ttoolchain\"\xb2\x03\n" +
+	"\ttoolchain\x18\a \x01(\v20.vrooli.code_facts.v1.facts.ToolchainObservationR\ttoolchain\x12)\n" +
+	"\x10package_patterns\x18\b \x03(\tR\x0fpackagePatterns\"\xb2\x03\n" +
 	"\x14ToolchainObservation\x12\x1c\n" +
 	"\tecosystem\x18\x01 \x01(\tR\tecosystem\x12%\n" +
 	"\x0emanifest_paths\x18\x02 \x03(\tR\rmanifestPaths\x12%\n" +

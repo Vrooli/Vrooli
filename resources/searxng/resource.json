@@ -247,6 +247,14 @@
       "type": "http",
       "kind": "readiness",
       "target": "http://127.0.0.1:8280/stats",
+    "interval_seconds": 10,
+    "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8280/stats",
+      "kind": "liveness",
+      "interval_seconds": 30,
       "timeout_seconds": 10
     }
   ],

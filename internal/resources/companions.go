@@ -25,7 +25,7 @@ import (
 // the container is already up and the resource's health check surfaces a dead
 // companion (e.g. whisper's edge owns the canonical port, so a down edge fails
 // the health probe). When no companions are declared this is a no-op, keeping the
-// driver byte-identical for every non-adopting compose-service resource.
+// driver byte-identical for every non-adopting managed-service resource.
 func startCompanions(resourceName string, companions []ResourceCompanion, recoveryAttempts int, stderr io.Writer) {
 	for _, c := range companions {
 		if err := startCompanion(resourceName, c, recoveryAttempts); err != nil {
@@ -93,6 +93,9 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 			clearCompanionCrashState(dir, c.Name)
 			return nil
 		}
+		// A dead pidfile is stale state, not evidence that the companion is
+		// still owned. Reap it before attempting recovery.
+		_ = os.Remove(pidPath)
 		if err := recordCompanionCrashAttempt(dir, c.Name, recoveryAttempts); err != nil {
 			return err
 		}
@@ -102,6 +105,7 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 		return fmt.Errorf("resolve %q on PATH: %w", c.Command, err)
 	}
 	logPath := filepath.Join(dir, c.Name+".log")
+	boundCompanionLog(logPath, tuning.CompanionLogMaxBytes())
 	logf, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, tuning.PermFile)
 	if err != nil {
 		return err
@@ -158,6 +162,7 @@ func companionStatuses(resourceName string, companions []ResourceCompanion) ([]C
 	}
 	statuses := make([]CompanionStatus, 0, len(companions))
 	for _, c := range companions {
+		boundCompanionLog(filepath.Join(dir, c.Name+".log"), tuning.CompanionLogMaxBytes())
 		pid, _ := readCompanionPID(filepath.Join(dir, c.Name+".pid"))
 		failed, failure := readCompanionFailure(dir, c.Name)
 		statuses = append(statuses, CompanionStatus{
@@ -168,6 +173,9 @@ func companionStatuses(resourceName string, companions []ResourceCompanion) ([]C
 			Failed:  failed,
 			Failure: failure,
 		})
+		if pid > 0 && !process.IsPIDRunning(pid) {
+			_ = os.Remove(filepath.Join(dir, c.Name+".pid"))
+		}
 	}
 	return statuses, nil
 }
@@ -302,10 +310,36 @@ func clearCompanionFailure(dir, name string) {
 
 func appendCompanionLog(dir, name, line string) {
 	logPath := filepath.Join(dir, name+".log")
+	maxBytes := tuning.CompanionLogMaxBytes()
+	if info, err := os.Stat(logPath); err == nil && info.Size() >= maxBytes {
+		rotated := logPath + ".1"
+		_ = os.Remove(rotated)
+		if err := os.Rename(logPath, rotated); err == nil {
+			boundCompanionLog(rotated, maxBytes)
+		}
+	}
 	logf, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, tuning.PermFile)
 	if err != nil {
 		return
 	}
 	defer logf.Close()
 	_, _ = logf.WriteString(line)
+}
+
+// boundCompanionLog keeps the newest complete lines in a retained log. This
+// matters when the cap is introduced after an old companion has already
+// produced an oversized file: rotation must bound the retained artifact too.
+func boundCompanionLog(path string, maxBytes int64) {
+	if maxBytes <= 0 {
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || int64(len(data)) <= maxBytes {
+		return
+	}
+	data = data[len(data)-int(maxBytes):]
+	if cut := strings.IndexByte(string(data), '\n'); cut >= 0 && cut+1 < len(data) {
+		data = data[cut+1:]
+	}
+	_ = os.WriteFile(path, data, tuning.PermFile)
 }

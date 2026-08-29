@@ -15,17 +15,12 @@ import (
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
-// formatTimePtr maps a *time.Time to RFC3339Nano, returning "" for nil.
-func formatTimePtr(t *time.Time) string {
-	if t == nil {
-		return ""
-	}
-	return t.Format(time.RFC3339Nano)
-}
+const scenarioStatusRunning = "running"
 
-// formatTime maps a time.Time to RFC3339Nano, returning "" for the zero value.
-func formatTime(t time.Time) string {
-	if t.IsZero() {
+// renderTimestampPtr maps a *time.Time to the rendered RFC3339Nano form,
+// returning "" for nil.
+func renderTimestampPtr(t *time.Time) string {
+	if t == nil {
 		return ""
 	}
 	return t.Format(time.RFC3339Nano)
@@ -74,7 +69,7 @@ func scenarioStatusItem(item StatusItemOutput) *cliv1.ScenarioStatusItem {
 		Status:         item.Status,
 		Processes:      int32(item.Processes),
 		Runtime:        item.Runtime,
-		StartedAt:      formatTimePtr(item.StartedAt),
+		StartedAt:      renderTimestampPtr(item.StartedAt),
 		Ports:          copyInt32Map(item.Ports),
 		PortBindings:   scenarioPortMessages(item.PortBindings),
 		HealthStatus:   health,
@@ -212,7 +207,7 @@ func scenarioProcessRecord(r process.Record) *cliv1.ScenarioProcessRecord {
 		WorkingDir: r.WorkingDir,
 		LogFile:    r.LogFile,
 		Port:       int32(r.Port),
-		StartedAt:  formatTime(r.StartedAt),
+		StartedAt:  cliout.FormatTimestamp(r.StartedAt),
 		Status:     r.Status,
 	}
 }
@@ -262,7 +257,7 @@ func scenarioRuntimeData(rt InfoRuntimeData) *cliv1.ScenarioRuntimeData {
 		Status:      rt.Status,
 		Processes:   int32(rt.Processes),
 		Runtime:     rt.Runtime,
-		StartedAt:   formatTimePtr(rt.StartedAt),
+		StartedAt:   renderTimestampPtr(rt.StartedAt),
 		Ports:       copyInt32Map(rt.Ports),
 		ListPorts:   scenarioPortMessages(rt.ListPorts),
 		HealthError: rt.HealthError,
@@ -282,7 +277,7 @@ func scenarioRuntimeData(rt InfoRuntimeData) *cliv1.ScenarioRuntimeData {
 func ScenarioStatusListResponse(items []StatusItemOutput, failures []discovery.Failure) *cliv1.ScenarioStatusListResponse {
 	running := 0
 	for _, item := range items {
-		if item.Status == "running" {
+		if item.Status == scenarioStatusRunning {
 			running++
 		}
 	}

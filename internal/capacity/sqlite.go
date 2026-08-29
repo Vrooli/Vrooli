@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/storagetime"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -588,6 +589,10 @@ func (s *SQLiteStore) ListClaims(ctx context.Context, filter ClaimFilter) ([]Cap
 		clauses = append(clauses, "owner_id = ?")
 		args = append(args, filter.OwnerID)
 	}
+	if filter.OwnerIDPrefix != "" {
+		clauses = append(clauses, "owner_id LIKE ?")
+		args = append(args, filter.OwnerIDPrefix+"%")
+	}
 	if filter.ResourceKind != "" {
 		clauses = append(clauses, "resource_kind = ?")
 		args = append(args, filter.ResourceKind)
@@ -961,16 +966,10 @@ func boolToInt(b bool) int {
 	return 0
 }
 
-func formatTime(t time.Time) string {
-	return t.UTC().Format("2006-01-02T15:04:05.000000000Z07:00")
-}
-
-func formatOptionalTime(t *time.Time) any {
-	if t == nil || t.IsZero() {
-		return nil
-	}
-	return formatTime(*t)
-}
+var (
+	formatTime         = storagetime.FormatUTC
+	formatOptionalTime = storagetime.FormatOptionalUTC
+)
 
 func parseOptionalTime(v sql.NullString) (*time.Time, error) {
 	if !v.Valid || strings.TrimSpace(v.String) == "" {

@@ -44,7 +44,7 @@ func Reconcile(ctx context.Context, snapshot hostinventory.Snapshot, ledger []Ca
 		claim, matched := matchClaim(active, a, proc)
 		if !matched {
 			finding.Class = FindingUnclaimed
-			finding.Severity = "warn"
+			finding.Severity = ActionWarn
 			finding.Message = fmt.Sprintf("unclaimed GPU consumer %q (pid %d) using %s on gpu %d holds no capacity claim",
 				finding.OwnerID, proc.PID, humanBytes(observed), proc.GPUIndex)
 			findings = append(findings, finding)
@@ -58,7 +58,7 @@ func Reconcile(ctx context.Context, snapshot hostinventory.Snapshot, ledger []Ca
 		finding.OwnerID = claim.OwnerID
 		if observed > claim.AmountBytes+policy.ReconcileWarnThreshold {
 			finding.Class = FindingOverClaim
-			finding.Severity = "warn"
+			finding.Severity = ActionWarn
 			finding.Message = fmt.Sprintf("owner %q uses %s on gpu %d but claimed only %s (over-claim drift > %s)",
 				claim.OwnerID, humanBytes(observed), proc.GPUIndex, humanBytes(claim.AmountBytes), humanBytes(policy.ReconcileWarnThreshold))
 		} else {

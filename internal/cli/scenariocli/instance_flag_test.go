@@ -1,8 +1,15 @@
+//nolint:goconst // test data deliberately reuses stable flag fixtures.
 package scenariocli
 
 import (
 	"strings"
 	"testing"
+)
+
+const (
+	instanceFlagScenario = "alpha"
+	instanceFlagVariant  = "alpha@shadow"
+	instanceFlagPort     = "API_PORT"
 )
 
 // TestStartResolvesInstanceFlagAndSuffix proves the `--instance` flag and the
@@ -15,12 +22,12 @@ func TestStartResolvesInstanceFlagAndSuffix(t *testing.T) {
 		want    []string
 		wantErr bool
 	}{
-		{name: "bare live", args: []string{"alpha"}, want: []string{"alpha"}},
-		{name: "instance flag", args: []string{"alpha", "--instance", "shadow"}, want: []string{"alpha@shadow"}},
+		{name: "bare live", args: []string{instanceFlagVariant}, want: []string{instanceFlagVariant}},
+		{name: "instance flag", args: []string{instanceFlagVariant, "--instance", "shadow"}, want: []string{"alpha@shadow"}},
 		{name: "suffix", args: []string{"alpha@shadow"}, want: []string{"alpha@shadow"}},
 		{name: "flag equals suffix", args: []string{"alpha@shadow", "--instance", "shadow"}, want: []string{"alpha@shadow"}},
 		{name: "explicit live flag normalizes to bare", args: []string{"alpha", "--instance", "live"}, want: []string{"alpha"}},
-		{name: "multiple names share flag", args: []string{"alpha", "beta", "--instance", "shadow"}, want: []string{"alpha@shadow", "beta@shadow"}},
+		{name: "multiple names share flag", args: []string{instanceFlagVariant, "beta", "--instance", "shadow"}, want: []string{"alpha@shadow", "beta@shadow"}},
 		{name: "node flag", args: []string{"alpha", "--node", "minimouse"}, want: []string{"minimouse/alpha"}},
 		{name: "address node wins over flag", args: []string{"minimouse/alpha@shadow", "--node", "other"}, want: []string{"minimouse/alpha@shadow"}},
 		{name: "flag disagrees with suffix", args: []string{"alpha@shadow", "--instance", "live"}, wantErr: true},
@@ -46,11 +53,11 @@ func TestStartResolvesInstanceFlagAndSuffix(t *testing.T) {
 
 func TestNodeIsNeverSelectedFromEnvironment(t *testing.T) {
 	t.Setenv("VROOLI_NODE", "minimouse")
-	req, err := ParseStartRequest(false, []string{"alpha"})
+	req, err := ParseStartRequest(false, []string{instanceFlagVariant})
 	if err != nil {
 		t.Fatalf("ParseStartRequest: %v", err)
 	}
-	if got := strings.Join(req.Names, ","); got != "alpha" {
+	if got := strings.Join(req.Names, ","); got != instanceFlagVariant {
 		t.Fatalf("names = %q, want alpha", got)
 	}
 }
@@ -65,7 +72,7 @@ func TestNodeRequiresScenarioAddress(t *testing.T) {
 }
 
 func TestRestartResolvesInstance(t *testing.T) {
-	req, err := ParseRestartRequest(false, []string{"alpha", "--instance", "shadow"})
+	req, err := ParseRestartRequest(false, []string{instanceFlagVariant, "--instance", "shadow"})
 	if err != nil {
 		t.Fatalf("ParseRestartRequest: %v", err)
 	}
@@ -82,7 +89,7 @@ func TestStopResolvesInstance(t *testing.T) {
 	if req.Name != "alpha@shadow" {
 		t.Fatalf("name = %q, want alpha@shadow", req.Name)
 	}
-	flagReq, err := ParseStopRequest(false, []string{"alpha", "--instance", "shadow"})
+	flagReq, err := ParseStopRequest(false, []string{instanceFlagVariant, "--instance", "shadow"})
 	if err != nil {
 		t.Fatalf("ParseStopRequest flag: %v", err)
 	}
@@ -116,14 +123,14 @@ func TestStatusResolvesInstance(t *testing.T) {
 }
 
 func TestPortResolvesInstance(t *testing.T) {
-	req, err := ParsePortRequest(false, []string{"alpha@shadow", "API_PORT"})
+	req, err := ParsePortRequest(false, []string{"alpha@shadow", instanceFlagPort})
 	if err != nil {
 		t.Fatalf("ParsePortRequest suffix: %v", err)
 	}
-	if req.ScenarioName != "alpha@shadow" || req.PortName != "API_PORT" {
+	if req.ScenarioName != "alpha@shadow" || req.PortName != instanceFlagPort {
 		t.Fatalf("port req = %+v, want alpha@shadow/API_PORT", req)
 	}
-	flagReq, err := ParsePortRequest(false, []string{"alpha", "API_PORT", "--instance", "shadow"})
+	flagReq, err := ParsePortRequest(false, []string{instanceFlagVariant, instanceFlagPort, "--instance", "shadow"})
 	if err != nil {
 		t.Fatalf("ParsePortRequest flag: %v", err)
 	}

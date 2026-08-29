@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/resources/unstructured-io/cli/internal/unstructured"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 const (
@@ -98,7 +98,7 @@ func runProcess(args []string) error {
 	if e != nil {
 		return e
 	}
-	b, e := json.MarshalIndent(v, "", "  ")
+	b, e := cliout.MarshalIndent(v)
 	if e != nil {
 		return e
 	}
@@ -110,7 +110,7 @@ func runProcess(args []string) error {
 }
 
 func printJSON(v any) error {
-	b, e := json.MarshalIndent(v, "", "  ")
+	b, e := cliout.MarshalIndent(v)
 	if e == nil {
 		fmt.Println(string(b))
 	}

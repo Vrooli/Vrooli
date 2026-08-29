@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"resource-antigravity/cli/internal/permissions"
+	"github.com/vrooli/vrooli/resources/antigravity/cli/internal/permissions"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"

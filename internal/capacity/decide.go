@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	decideParameterA = 100
-	decideParameterB = 1000
+	percentScale = 100
+	// milliPerCore is the CPU claim unit: one core is 1000 millicores.
+	milliPerCore = 1000
 )
 
 // stepCandidate is one grantable amount considered by Decide.
@@ -191,7 +192,7 @@ func resolveCapacity(req CapacityRequest, snapshot hostinventory.Snapshot) (tota
 		// CPU claims use millicores as the generic amount unit: one logical
 		// core is 1000 units. This keeps the frozen claim schema unchanged while
 		// allowing the same ledger and admission algorithm to enforce CPU.
-		total = int64(snapshot.CPU.Cores) * decideParameterB
+		total = int64(snapshot.CPU.Cores) * milliPerCore
 		used, warn = observedCPUMillis(snapshot)
 		return total, used, true, warn
 	default:
@@ -220,7 +221,7 @@ func resolveCapacity(req CapacityRequest, snapshot hostinventory.Snapshot) (tota
 // the old behaviour, kept only as an explicit, visible degradation rather than
 // as the silent default it used to be.
 func observedCPUMillis(snapshot hostinventory.Snapshot) (int64, string) {
-	total := int64(snapshot.CPU.Cores) * decideParameterB
+	total := int64(snapshot.CPU.Cores) * milliPerCore
 
 	perCore := snapshot.Load.NormalizedLoad1
 	if perCore <= 0 && snapshot.Load.Load1 > 0 && snapshot.CPU.Cores > 0 {
@@ -256,7 +257,7 @@ func SwapPressure(snapshot hostinventory.Snapshot, thresholdPct int) bool {
 	if snapshot.Swap.TotalBytes == 0 {
 		return false // no swap configured is not swap pressure
 	}
-	usedPct := decideParameterA * (1 - float64(snapshot.Swap.FreeBytes)/float64(snapshot.Swap.TotalBytes))
+	usedPct := percentScale * (1 - float64(snapshot.Swap.FreeBytes)/float64(snapshot.Swap.TotalBytes))
 	return usedPct >= float64(thresholdPct)
 }
 

@@ -8,7 +8,7 @@ import (
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 
-	"resource-kopia/cli/internal/credentials"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/credentials"
 )
 
 // FakeStore is an in-memory credential authority. It records failures so

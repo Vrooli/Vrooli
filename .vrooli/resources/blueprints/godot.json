@@ -15,7 +15,7 @@
     "Simulation frontends",
     "Game or XR prototypes"
   ],
-  "integration_kind": "desktop-app",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "Godot is cross-platform, but export targets, desktop runtime behavior, and editor automation vary by host environment.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Clear boundary between engine usage and scenario lifecycle ownership"
   ],
   "dependencies": [],
-  "suggested_template": "desktop-app",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should define whether support is editor-driven, export-driven, or both.",
     "Keep project templates and generated artifacts explicit.",

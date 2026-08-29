@@ -12,6 +12,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
+	"github.com/vrooli/vrooli/internal/values"
 
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -171,7 +172,7 @@ func buildSchemaArtifacts(root string) ([]byte, int, error) {
 			allowSharedResourceConfigProperties(schemaMap, sharedProperties)
 		}
 		if title, _ := schemaMap["title"].(string); strings.TrimSpace(title) == "" {
-			schemaMap["title"] = firstNonEmpty(item.Manifest.DisplayName, item.Manifest.Name, item.Name)
+			schemaMap["title"] = values.FirstNonEmpty(item.Manifest.DisplayName, item.Manifest.Name, item.Name)
 		}
 		if description, _ := schemaMap["description"].(string); strings.TrimSpace(description) == "" {
 			schemaMap["description"] = item.Manifest.Description
@@ -239,7 +240,7 @@ func loadResourceConfigPropertyNames(root string) ([]string, error) {
 	for name := range doc.Definitions.ResourceConfig.Properties {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 
@@ -359,13 +360,4 @@ func findMissingScenarioResourceReferences(root string) ([]ScenarioResourceRefer
 		return missing[i].Scenario < missing[j].Scenario
 	})
 	return missing, nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }

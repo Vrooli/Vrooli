@@ -2,7 +2,7 @@
 
 `kyutai-stt` is organized as a `managed-service` resource. The control plane
 composes a checksum-pinned CPython runtime, governed wheels, and the reviewed
-`docker/server.py` source, then supervises it directly. Docker is not part of
+`server/server.py` source, then supervises it directly. Docker is not part of
 the supported lifecycle.
 
 ## Architecture Boundary
@@ -11,18 +11,16 @@ Keep responsibilities split cleanly:
 
 - `resource.json` owns declarative lifecycle, acquisition, model data, port,
   export, and health metadata.
-- `docker/server.py` owns the stable streaming contract implementation and
-  `docker/requirements.lock` owns its governed wheel set. The directory name
-  is retained for source compatibility; it does not imply a container runtime.
+- `server/server.py` owns the stable streaming contract implementation and
+  `requirements.lock` owns its governed wheel set.
 - `cli/` owns the binary entrypoint, wiring, and delegated command
   registration. Keep `cli/main.go` thin.
 - `cli/internal/` owns Kyutai STT-specific Go logic that cannot be expressed
   through the manifest or shared control-plane packages.
   helpers, install) used by the shared control plane.
 
-Do not turn `cli/main.go` into the implementation surface. Grow
-`cli/internal/{compose,topology,runtime,health,env}` first if specialization is
-needed.
+Do not turn `cli/main.go` into the implementation surface. Keep native lifecycle
+decisions in the manifest and shared managed-service control plane.
 
 ## Hardware & VRAM
 
@@ -113,7 +111,7 @@ Run the opt-in live regression probe after changing the image, CUDA stack, or
 decode configuration:
 
 ```bash
-KYUTAI_STT_LIVE_PROBE=1 python3 -m pytest docker/test_live_throughput.py
+KYUTAI_STT_LIVE_PROBE=1 python3 -m pytest tests/test_live_throughput.py
 ```
 
 It sends 30 seconds of canonical audio as 100 ms WebSocket frames and fails at
@@ -124,9 +122,9 @@ It sends 30 seconds of canonical audio as 100 ms WebSocket frames and fails at
 
 - Keep lifecycle, acquisition, model digests, ports, and health checks declared
   in `resource.json`.
-- Keep mutable state (HF cache) in canonical resource storage paths via the
-  compose bind mount; never repo-local.
-- Pin Python deps in `docker/requirements.lock`; the managed composer installs
+- Keep mutable state (HF cache) in canonical resource storage paths; never
+  repo-local.
+- Pin Python deps in `requirements.lock`; the managed composer installs
   the declared wheels through the control plane's governed dependency path.
 - Prefer shared `vrooli resource ...` lifecycle behavior before adding
   resource-local commands.

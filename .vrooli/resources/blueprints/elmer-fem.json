@@ -15,7 +15,7 @@
     "Scientific experiment orchestration",
     "Parametric design optimization"
   ],
-  "integration_kind": "manual",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "Containerization is possible, but HPC libraries, MPI, and solver performance expectations vary materially by environment.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Validated benchmark and sample problem coverage"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Future support should focus on a narrow simulation workflow with known inputs and outputs.",
     "Promotion should define how jobs are submitted, monitored, and collected.",

@@ -11,6 +11,8 @@ import (
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
+const testSysfsDiscovery = "linux-sysfs-device-tree"
+
 // materializeSysfs builds a sysfs tree in a temporary directory from a
 // checked-in manifest. The manifest form exists because a PCI address contains
 // a colon, which Windows cannot represent in a filename, so the tree cannot be
@@ -99,7 +101,7 @@ func TestEnumerateGraphicsFindsBothControllersOnSwarminator(t *testing.T) {
 		t.Fatalf("graphics devices = %#v, want 2", graphics)
 	}
 	for _, device := range graphics {
-		if device.DiscoveredBy != "linux-sysfs-device-tree" {
+		if device.DiscoveredBy != testSysfsDiscovery {
 			t.Fatalf("device %s discovered by %q; discovery must never come from a vendor tool", device.ID, device.DiscoveredBy)
 		}
 	}
@@ -290,7 +292,7 @@ func TestNvidiaSmiEnrichesRatherThanDiscovers(t *testing.T) {
 		t.Fatalf("gpus = %#v", snapshot.GPUs)
 	}
 	nvidia, _ := snapshot.Device("pci:0000:01:00.0")
-	if nvidia.DiscoveredBy != "linux-sysfs-device-tree" {
+	if nvidia.DiscoveredBy != testSysfsDiscovery {
 		t.Fatalf("discovered by = %q", nvidia.DiscoveredBy)
 	}
 	if nvidia.DriverVersion != "580.65" {

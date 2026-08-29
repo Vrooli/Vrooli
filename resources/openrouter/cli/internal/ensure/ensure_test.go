@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"resource-openrouter/cli/internal/policy"
-	"resource-openrouter/cli/internal/policytest"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policytest"
 )
 
 var errFake = errors.New("fake catalog error")

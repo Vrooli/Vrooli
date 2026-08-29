@@ -16,10 +16,19 @@ class Reliability(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RELIABILITY_RELIABLE: _ClassVar[Reliability]
     RELIABILITY_BEST_EFFORT: _ClassVar[Reliability]
     RELIABILITY_UNAVAILABLE: _ClassVar[Reliability]
+
+class MeasurementScope(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MEASUREMENT_SCOPE_UNSPECIFIED: _ClassVar[MeasurementScope]
+    MEASUREMENT_SCOPE_PROCESS_LIFETIME: _ClassVar[MeasurementScope]
+    MEASUREMENT_SCOPE_OPERATION: _ClassVar[MeasurementScope]
 RELIABILITY_UNSPECIFIED: Reliability
 RELIABILITY_RELIABLE: Reliability
 RELIABILITY_BEST_EFFORT: Reliability
 RELIABILITY_UNAVAILABLE: Reliability
+MEASUREMENT_SCOPE_UNSPECIFIED: MeasurementScope
+MEASUREMENT_SCOPE_PROCESS_LIFETIME: MeasurementScope
+MEASUREMENT_SCOPE_OPERATION: MeasurementScope
 
 class ExecutionMetrics(_message.Message):
     __slots__ = ("wall_clock_ms", "started_at", "completed_at", "stages", "resources", "gauges", "environment")
@@ -68,7 +77,7 @@ class Stage(_message.Message):
     def __init__(self, name: _Optional[str] = ..., duration_ms: _Optional[int] = ..., resources: _Optional[_Union[ResourceUsage, _Mapping]] = ..., gauges: _Optional[_Mapping[str, float]] = ..., children: _Optional[_Iterable[_Union[Stage, _Mapping]]] = ...) -> None: ...
 
 class ResourceUsage(_message.Message):
-    __slots__ = ("cpu_user_ms", "cpu_sys_ms", "cpu", "peak_rss_bytes", "memory", "gpus", "gpu")
+    __slots__ = ("cpu_user_ms", "cpu_sys_ms", "cpu", "peak_rss_bytes", "memory", "gpus", "gpu", "measurement_scope")
     CPU_USER_MS_FIELD_NUMBER: _ClassVar[int]
     CPU_SYS_MS_FIELD_NUMBER: _ClassVar[int]
     CPU_FIELD_NUMBER: _ClassVar[int]
@@ -76,6 +85,7 @@ class ResourceUsage(_message.Message):
     MEMORY_FIELD_NUMBER: _ClassVar[int]
     GPUS_FIELD_NUMBER: _ClassVar[int]
     GPU_FIELD_NUMBER: _ClassVar[int]
+    MEASUREMENT_SCOPE_FIELD_NUMBER: _ClassVar[int]
     cpu_user_ms: int
     cpu_sys_ms: int
     cpu: Reliability
@@ -83,7 +93,8 @@ class ResourceUsage(_message.Message):
     memory: Reliability
     gpus: _containers.RepeatedCompositeFieldContainer[GpuUsage]
     gpu: Reliability
-    def __init__(self, cpu_user_ms: _Optional[int] = ..., cpu_sys_ms: _Optional[int] = ..., cpu: _Optional[_Union[Reliability, str]] = ..., peak_rss_bytes: _Optional[int] = ..., memory: _Optional[_Union[Reliability, str]] = ..., gpus: _Optional[_Iterable[_Union[GpuUsage, _Mapping]]] = ..., gpu: _Optional[_Union[Reliability, str]] = ...) -> None: ...
+    measurement_scope: MeasurementScope
+    def __init__(self, cpu_user_ms: _Optional[int] = ..., cpu_sys_ms: _Optional[int] = ..., cpu: _Optional[_Union[Reliability, str]] = ..., peak_rss_bytes: _Optional[int] = ..., memory: _Optional[_Union[Reliability, str]] = ..., gpus: _Optional[_Iterable[_Union[GpuUsage, _Mapping]]] = ..., gpu: _Optional[_Union[Reliability, str]] = ..., measurement_scope: _Optional[_Union[MeasurementScope, str]] = ...) -> None: ...
 
 class GpuUsage(_message.Message):
     __slots__ = ("index", "name", "vendor", "util_percent", "mem_used_bytes", "mem_total_bytes", "process_scoped")

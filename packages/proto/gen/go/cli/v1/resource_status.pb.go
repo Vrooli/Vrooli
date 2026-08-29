@@ -56,8 +56,8 @@ type ResourceStatus struct {
 	// Accelerator backend the resource asked the platform for ("cuda", "metal",
 	// "rocm", "vulkan", "cpu"); empty when the resource declares no accelerator.
 	DeclaredMode string `protobuf:"bytes,11,opt,name=declared_mode,json=declaredMode,proto3" json:"declared_mode,omitempty"`
-	// Accelerator backend the host says the running resource is on; empty when
-	// placement could not be read, which is never reported as agreement.
+	// Accelerator backend the host says the running resource is on; the CLI
+	// projects not_evaluated when placement was not evaluated.
 	ObservedMode string `protobuf:"bytes,12,opt,name=observed_mode,json=observedMode,proto3" json:"observed_mode,omitempty"`
 	// True when the resource is serving below its declared backend.
 	ModeDrift bool `protobuf:"varint,13,opt,name=mode_drift,json=modeDrift,proto3" json:"mode_drift,omitempty"`

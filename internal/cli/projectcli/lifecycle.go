@@ -16,6 +16,8 @@ import (
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
+const projectLifecycleExplain = "explain"
+
 const (
 	lifecycleHelp   = "--help"
 	lifecycleStatus = "status"
@@ -265,7 +267,7 @@ func ParseSetupOptions(args []string) (projectsetup.Options, error) {
 			}
 			opts.Subcommand = lifecycleStatus
 			return opts, nil
-		case "explain":
+		case projectLifecycleExplain:
 			parsed, err := commandtree.ParseArgs("setup explain", SetupExplainHelpText(), setupExplainArgSchema(), rest)
 			if err != nil {
 				return projectsetup.Options{}, err

@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable command fixtures.
 package remotesessionprotection
 
 import (
@@ -9,6 +10,12 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+)
+
+const (
+	remoteSessionListUnitFiles = "list-unit-files"
+	remoteSessionMkdir         = "mkdir"
+	remoteSessionFstab         = "/etc/fstab"
 )
 
 const procMeminfo = "/proc/meminfo"
@@ -183,7 +190,7 @@ func TestInspectDesktopDetectedAllPresent(t *testing.T) {
 	}
 
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		if name == "systemctl" && len(args) > 0 && args[0] == "list-unit-files" {
+		if name == "systemctl" && len(args) > 0 && args[0] == remoteSessionListUnitFiles {
 			return []byte("gdm3.service enabled enabled\n"), nil
 		}
 		return nil, fmt.Errorf("stubbed")
@@ -226,7 +233,7 @@ func TestInspectDesktopDetectedSliceMissing(t *testing.T) {
 	defer restore()
 
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		if name == "systemctl" && len(args) > 0 && args[0] == "list-unit-files" {
+		if name == "systemctl" && len(args) > 0 && args[0] == remoteSessionListUnitFiles {
 			return []byte("lightdm.service enabled\n"), nil
 		}
 		return nil, fmt.Errorf("stubbed")
@@ -276,7 +283,7 @@ func TestInspectDesktopDetectedInsufficientSwap(t *testing.T) {
 	}
 
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		if name == "systemctl" && len(args) > 0 && args[0] == "list-unit-files" {
+		if name == "systemctl" && len(args) > 0 && args[0] == remoteSessionListUnitFiles {
 			return []byte("gdm.service enabled\n"), nil
 		}
 		return nil, fmt.Errorf("stubbed")
@@ -330,7 +337,7 @@ func TestInspectDesktopDetectedDockerNotConfigured(t *testing.T) {
 	}
 
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		if name == "systemctl" && len(args) > 0 && args[0] == "list-unit-files" {
+		if name == "systemctl" && len(args) > 0 && args[0] == remoteSessionListUnitFiles {
 			return []byte("gdm3.service enabled\n"), nil
 		}
 		return nil, fmt.Errorf("stubbed")
@@ -388,7 +395,7 @@ func TestApplyStaticCommandsNoDesktop(t *testing.T) {
 	defer restore()
 
 	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "sudo" || name == "mkdir" || name == "install" || name == "sysctl" || name == "systemctl" {
+		if name == "sudo" || name == remoteSessionMkdir || name == "install" || name == "sysctl" || name == "systemctl" {
 			return "/usr/bin/" + name, nil
 		}
 		return "", os.ErrNotExist
@@ -443,7 +450,7 @@ func TestApplySysctlOnlyHost(t *testing.T) {
 	defer restore()
 
 	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "sudo" || name == "mkdir" || name == "install" || name == "sysctl" {
+		if name == "sudo" || name == remoteSessionMkdir || name == "install" || name == "sysctl" {
 			return "/usr/bin/" + name, nil
 		}
 		return "", os.ErrNotExist
@@ -484,7 +491,7 @@ func TestApplyMkdirFailure(t *testing.T) {
 
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
 		for _, arg := range args {
-			if arg == "mkdir" {
+			if arg == remoteSessionMkdir {
 				return os.ErrPermission
 			}
 		}
@@ -510,7 +517,7 @@ func TestApplyDesktopFullFlow(t *testing.T) {
 
 	hostreqkit.LookPathFn = func(name string) (string, error) {
 		switch name {
-		case "sudo", "mkdir", "install", "sysctl", "systemctl",
+		case "sudo", remoteSessionMkdir, "install", "sysctl", "systemctl",
 			"fallocate", "chmod", "mkswap", "swapon", "swapoff", "sh":
 			return "/usr/bin/" + name, nil
 		case "docker":
@@ -521,7 +528,7 @@ func TestApplyDesktopFullFlow(t *testing.T) {
 
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
 		if name == "systemctl" {
-			if len(args) > 0 && args[0] == "list-unit-files" {
+			if len(args) > 0 && args[0] == remoteSessionListUnitFiles {
 				return []byte("gdm3.service enabled enabled\n"), nil
 			}
 			if len(args) > 0 && args[0] == "is-active" {
@@ -535,7 +542,7 @@ func TestApplyDesktopFullFlow(t *testing.T) {
 		switch path {
 		case procMeminfo:
 			return []byte(fakeMeminfo(32, 4)), nil // 32GB RAM, 4GB swap (needs more)
-		case "/etc/fstab":
+		case remoteSessionFstab:
 			return []byte("# empty fstab\n"), nil
 		case dockerDaemonJSON:
 			return []byte(`{"log-driver":"json-file"}`), nil
@@ -606,14 +613,14 @@ func TestApplyDesktopSwapSufficient(t *testing.T) {
 
 	hostreqkit.LookPathFn = func(name string) (string, error) {
 		switch name {
-		case "sudo", "mkdir", "install", "sysctl", "systemctl":
+		case "sudo", remoteSessionMkdir, "install", "sysctl", "systemctl":
 			return "/usr/bin/" + name, nil
 		}
 		return "", os.ErrNotExist
 	}
 
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		if name == "systemctl" && len(args) > 0 && args[0] == "list-unit-files" {
+		if name == "systemctl" && len(args) > 0 && args[0] == remoteSessionListUnitFiles {
 			return []byte("gdm3.service enabled\n"), nil
 		}
 		return nil, fmt.Errorf("stubbed")
@@ -623,7 +630,7 @@ func TestApplyDesktopSwapSufficient(t *testing.T) {
 		if path == procMeminfo {
 			return []byte(fakeMeminfo(16, 16)), nil // swap already sufficient
 		}
-		if path == "/etc/fstab" {
+		if path == remoteSessionFstab {
 			return []byte(swapFile + " none swap sw 0 0\n"), nil
 		}
 		return nil, os.ErrNotExist
@@ -658,14 +665,14 @@ func TestApplyDesktopProtectionBestEffort(t *testing.T) {
 	defer restore()
 
 	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "sudo" || name == "mkdir" || name == "install" || name == "sysctl" || name == "systemctl" {
+		if name == "sudo" || name == remoteSessionMkdir || name == "install" || name == "sysctl" || name == "systemctl" {
 			return "/usr/bin/" + name, nil
 		}
 		return "", os.ErrNotExist
 	}
 
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		if name == "systemctl" && len(args) > 0 && args[0] == "list-unit-files" {
+		if name == "systemctl" && len(args) > 0 && args[0] == remoteSessionListUnitFiles {
 			return []byte("sddm.service enabled\n"), nil
 		}
 		return nil, fmt.Errorf("stubbed")
@@ -817,7 +824,7 @@ func TestIsDesktopInstalledDisplayManager(t *testing.T) {
 	defer restore()
 
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		if name == "systemctl" && len(args) > 0 && args[0] == "list-unit-files" {
+		if name == "systemctl" && len(args) > 0 && args[0] == remoteSessionListUnitFiles {
 			return []byte("gdm3.service enabled enabled\nsshd.service enabled enabled\n"), nil
 		}
 		return nil, fmt.Errorf("stubbed")
@@ -833,7 +840,7 @@ func TestIsDesktopInstalledDoesNotClassifyXrdpAsDisplayManager(t *testing.T) {
 	defer restore()
 
 	hostreqkit.CombinedOutputFn = func(name string, args ...string) ([]byte, error) {
-		if name == "systemctl" && len(args) > 0 && args[0] == "list-unit-files" {
+		if name == "systemctl" && len(args) > 0 && args[0] == remoteSessionListUnitFiles {
 			return []byte("xrdp.service enabled\n"), nil
 		}
 		return nil, fmt.Errorf("stubbed")
@@ -955,7 +962,7 @@ func TestDockerConfigMergesExisting(t *testing.T) {
 	defer restore()
 
 	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "sudo" || name == "mkdir" || name == "install" {
+		if name == "sudo" || name == remoteSessionMkdir || name == "install" {
 			return "/usr/bin/" + name, nil
 		}
 		return "", os.ErrNotExist
@@ -1056,7 +1063,7 @@ func TestEnsureSwapFallocateFallbackToDd(t *testing.T) {
 		if path == procMeminfo {
 			return []byte(fakeMeminfo(8, 0)), nil
 		}
-		if path == "/etc/fstab" {
+		if path == remoteSessionFstab {
 			return []byte(swapFile + " none swap sw 0 0\n"), nil // already in fstab
 		}
 		return nil, os.ErrNotExist

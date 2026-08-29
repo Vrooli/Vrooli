@@ -12,6 +12,9 @@ import (
 
 // Environment variable names for agent identity detection.
 const (
+	// HeaderCaller identifies the bounded caller attribution used by scenario
+	// APIs. Keep this shared because producers and consumers span modules.
+	HeaderCaller     = "X-Vrooli-Caller"
 	EnvIdentityToken = "VROOLI_AGENT_IDENTITY_TOKEN"
 
 	// These harness signals identify an execution channel only. They are

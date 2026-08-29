@@ -9,9 +9,16 @@
 // never depends on system-monitor). GPU VRAM is the V1 operational target; the
 // data model is generic across RAM/CPU for the V2 vision.
 //
+// `packages/capacity` is the second entry point for scenario/resource modules
+// that cannot import this repository's internal tree. Its consumers include
+// Test Genie and the ollama, reranker, whisper, kokoro, kyutai-stt, and
+// speaker-verification CLIs. It uses the same ledger and policy and remains
+// advisory: the broker returns verdicts and does not block callers based on
+// the enforce setting; lifecycle handlers own enforcement.
+//
 // This file is the authoritative, frozen contract (plan §8). The schemas,
 // verbs, and protocols below are implemented verbatim by the engine, the
-// `vrooli capacity` CLI, the lifecycle admission hook, and every adopter. A
+// `vrooli capacity` CLI, the lifecycle admission hook, and direct adopters. A
 // human-facing design note lives beside it in DESIGN.md.
 //
 // # Patterns, not shared code
@@ -256,7 +263,7 @@
 //
 // Resident model servers (whisper, kyutai-stt, reranker, speaker-verification)
 // declare a `capacity` block in resource.json; the broker — not the resource's
-// shell — owns their claim lifecycle, because the compose-service driver starts
+// shell — owns their claim lifecycle, because the managed-service driver starts
 // them with `docker compose up` directly and never calls lib/docker.sh:
 //   - CLAIM on start: the lifecycle admission hook (internal/lifecycle
 //     admitResourceCapacity → AdmitResource) records the claim when the resource

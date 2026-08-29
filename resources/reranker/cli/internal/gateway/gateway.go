@@ -8,16 +8,16 @@ package gateway
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	"resource-reranker/cli/internal/client"
+	"github.com/vrooli/vrooli/resources/reranker/cli/internal/client"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // Client is the upstream-facing surface used by the gateway handlers. It is
@@ -123,9 +123,7 @@ func (h *Handlers) Rerank(args []string) error {
 				results[i].Text = ""
 			}
 		}
-		enc := json.NewEncoder(h.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(results)
+		return cliout.NewEncoder(h.Stdout).Encode(results)
 	}
 	for rank, r := range results {
 		text := r.Text
@@ -150,7 +148,7 @@ func (h *Handlers) Health(args []string) error {
 	}
 	err := h.NewClient().Health(context.Background())
 	if *asJSON {
-		_ = json.NewEncoder(h.Stdout).Encode(struct {
+		_ = cliout.NewCompactEncoder(h.Stdout).Encode(struct {
 			Healthy bool   `json:"healthy"`
 			Error   string `json:"error,omitempty"`
 		}{Healthy: err == nil, Error: errString(err)})
@@ -177,9 +175,7 @@ func (h *Handlers) Info(args []string) error {
 		return err
 	}
 	if *asJSON {
-		enc := json.NewEncoder(h.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(info)
+		return cliout.NewEncoder(h.Stdout).Encode(info)
 	}
 	for _, key := range []string{"model_id", "model_type", "model_dtype", "version"} {
 		if v, ok := info[key]; ok {

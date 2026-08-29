@@ -2,10 +2,7 @@
 
 package metrics
 
-import (
-	"runtime"
-	"syscall"
-)
+import "syscall"
 
 // rusageSample is a normalized snapshot of process resource usage. CPU times are
 // in milliseconds; peak RSS is in bytes regardless of the platform's native
@@ -46,12 +43,9 @@ func sampleRusage() rusageSample {
 	if err := syscall.Getrusage(syscall.RUSAGE_CHILDREN, &children); err != nil {
 		return rusageSample{}
 	}
-	maxRSS := int64(self.Maxrss)
-	if childRSS := int64(children.Maxrss); childRSS > maxRSS {
+	maxRSS := rssNativeBytes(int64(self.Maxrss))
+	if childRSS := rssNativeBytes(int64(children.Maxrss)); childRSS > maxRSS {
 		maxRSS = childRSS
-	}
-	if runtime.GOOS == "linux" {
-		maxRSS *= 1024
 	}
 	return rusageSample{
 		cpuUserMs:   timevalMs(int64(self.Utime.Sec), int64(self.Utime.Usec)) + timevalMs(int64(children.Utime.Sec), int64(children.Utime.Usec)),

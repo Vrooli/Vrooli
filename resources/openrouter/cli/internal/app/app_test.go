@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"resource-openrouter/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policy"
 )
 
 func TestResolvePromptPrefersFlag(t *testing.T) {

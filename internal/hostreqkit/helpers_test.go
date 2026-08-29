@@ -10,6 +10,11 @@ import (
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
+const (
+	helperTestSudoPath = "/usr/bin/sudo"
+	helperTestMutated  = "mutated"
+)
+
 func stubLookups(t *testing.T) func() {
 	t.Helper()
 	origLookPath := LookPathFn
@@ -36,8 +41,8 @@ func stubAvailableSudo(t *testing.T) func() {
 	t.Helper()
 	restore := stubLookups(t)
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return helperTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -78,16 +83,16 @@ func TestBaseStatusCopiesSlices(t *testing.T) {
 	}
 
 	// Verify slices are independent copies.
-	req.Reasons[0] = "mutated"
-	if status.Reasons[0] == "mutated" {
+	req.Reasons[0] = helperTestMutated
+	if status.Reasons[0] == helperTestMutated {
 		t.Fatal("BaseStatus must copy Reasons slice")
 	}
-	req.Notes[0] = "mutated"
-	if status.Notes[0] == "mutated" {
+	req.Notes[0] = helperTestMutated
+	if status.Notes[0] == helperTestMutated {
 		t.Fatal("BaseStatus must copy Notes slice")
 	}
-	req.Provenance[0].Name = "mutated"
-	if status.Provenance[0].Name == "mutated" {
+	req.Provenance[0].Name = helperTestMutated
+	if status.Provenance[0].Name == helperTestMutated {
 		t.Fatal("BaseStatus must copy Provenance slice")
 	}
 }
@@ -284,7 +289,7 @@ func TestRunInstallCommandDelegates(t *testing.T) {
 	var called bool
 	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
 		called = true
-		if name != "apt-get" {
+		if name != helpersAptGet {
 			t.Fatalf("command = %q", name)
 		}
 		return nil
@@ -348,8 +353,8 @@ func TestRunPrivilegedCommandAppliesSudo(t *testing.T) {
 	defer restore()
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return helperTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -365,7 +370,7 @@ func TestRunPrivilegedCommandAppliesSudo(t *testing.T) {
 	if err := RunPrivilegedCommand("ask", "sysctl", []string{"-p", "/etc/sysctl.conf"}, EnsureOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if gotName != "sudo" {
+	if gotName != helpersSudo {
 		t.Fatalf("command = %q, want sudo", gotName)
 	}
 	if len(gotArgs) < 2 || gotArgs[0] != "sysctl" {
@@ -378,8 +383,8 @@ func TestRunPrivilegedCommandWithSudoError(t *testing.T) {
 	defer restore()
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return helperTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -416,8 +421,8 @@ func TestEnsureManagedDirRunsMkdir(t *testing.T) {
 	defer restore()
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return helperTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -434,7 +439,7 @@ func TestEnsureManagedDirRunsMkdir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotName != "sudo" {
+	if gotName != helpersSudo {
 		t.Fatalf("command = %q, want sudo", gotName)
 	}
 	joined := strings.Join(gotArgs, " ")
@@ -469,8 +474,8 @@ func TestInstallManagedContentWritesAndInstalls(t *testing.T) {
 	defer restore()
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return helperTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -516,8 +521,8 @@ func TestInstallManagedExecutableUsesMode0755(t *testing.T) {
 	defer restore()
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "sudo" {
-			return "/usr/bin/sudo", nil
+		if name == helpersSudo {
+			return helperTestSudoPath, nil
 		}
 		return "", os.ErrNotExist
 	}

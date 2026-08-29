@@ -11,6 +11,32 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
+type CLISyncRow struct {
+	Name   string `json:"name"`
+	Action string `json:"action"`
+	Reason string `json:"reason"`
+}
+
+func WriteCLISync(w io.Writer, format cliout.Format, rows []CLISyncRow) error {
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, rows) }, func(w io.Writer) error {
+		data := make([][]string, 0, len(rows))
+		for _, row := range rows {
+			data = append(data, []string{row.Name, row.Action, row.Reason})
+		}
+		return cliout.RenderTable(w, []string{"Name", "Action", "Reason"}, data)
+	})
+}
+
+func WriteCensus(w io.Writer, format cliout.Format, rows []resources.CensusRow) error {
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, rows) }, func(w io.Writer) error {
+		data := make([][]string, 0, len(rows))
+		for _, row := range rows {
+			data = append(data, []string{row.Name, row.Driver, cliout.BoolLabel(row.InRootContract), cliout.BoolLabel(row.Enabled), cliout.BoolLabel(row.DeclaresCLI), cliout.BoolLabel(row.CLIInstalled), row.CLIStateReason, fmt.Sprint(row.EmptyDirs), row.ModulePath})
+		}
+		return cliout.RenderTable(w, []string{"Name", "Driver", "Contract", "Enabled", "Declares CLI", "CLI Installed", "Reason", "Empty Dirs", "Module"}, data)
+	})
+}
+
 func WriteList(w io.Writer, format cliout.Format, items []resources.Resource, failures []discovery.Failure) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, ResourceListResponse(items, failures)) }, func(w io.Writer) error {
 		rows := make([][]string, 0, len(items))
@@ -90,7 +116,7 @@ func WriteStatus(w io.Writer, format cliout.Format, item resources.Status) error
 			rows = append(rows, []string{"Declared mode", item.DeclaredMode})
 			observed := item.ObservedMode
 			if observed == "" {
-				observed = "unknown"
+				observed = "not_evaluated"
 			}
 			rows = append(rows, []string{"Observed mode", observed})
 			rows = append(rows, []string{"Mode drift", cliout.BoolLabel(item.ModeDrift)})

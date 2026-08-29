@@ -23,6 +23,8 @@ import (
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
+const apiScenarioRunning = "running"
+
 const (
 	handlersAppsScenarioNotFound = "scenario_not_found"
 )
@@ -106,7 +108,7 @@ func (a *App) ListApps(w http.ResponseWriter, r *http.Request) {
 		}
 		if scenarioData, ok := scenarioMap[entry.Name()]; ok {
 			item.RuntimeStatus = scenarioData.Status
-			if scenarioData.Status == "running" {
+			if scenarioData.Status == apiScenarioRunning {
 				item.Ports = make(map[string]interface{}, len(scenarioData.Ports))
 				for key, value := range scenarioData.Ports {
 					item.Ports[key] = value

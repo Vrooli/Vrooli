@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/storagetime"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -965,16 +966,10 @@ func nullableString(v string) any {
 	return v
 }
 
-func formatTime(t time.Time) string {
-	return t.UTC().Format("2006-01-02T15:04:05.000000000Z07:00")
-}
-
-func formatOptionalTime(t *time.Time) any {
-	if t == nil || t.IsZero() {
-		return nil
-	}
-	return formatTime(*t)
-}
+var (
+	formatTime         = storagetime.FormatUTC
+	formatOptionalTime = storagetime.FormatOptionalUTC
+)
 
 func parseOptionalTime(v sql.NullString) (*time.Time, error) {
 	if !v.Valid || strings.TrimSpace(v.String) == "" {

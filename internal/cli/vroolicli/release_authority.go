@@ -1,15 +1,12 @@
 package vroolicli
 
 import (
-	"flag"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
-	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/releaseauthority"
 )
 
@@ -42,8 +39,7 @@ func (app *App) runReleaseAuthorityCommand(ctx *CommandContext, args []string) e
 }
 
 func releaseAuthorityAddEvidence(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
-	fs := flag.NewFlagSet("release-authority add-evidence", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("release-authority add-evidence")
 	stage, source, name, role, provenance, osName, arch := "", "", "", "", "", "", ""
 	fs.StringVar(&stage, "stage", "", "staged release directory")
 	fs.StringVar(&source, "source", "", "durable evidence file to stage")
@@ -74,8 +70,7 @@ func (app *App) releaseAuthority() (*releaseauthority.Authority, error) {
 }
 
 func releaseAuthorityInit(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
-	fs := flag.NewFlagSet("release-authority init", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("release-authority init")
 	replace := false
 	fs.BoolVar(&replace, "replace-trust-anchor", false, "explicitly replace a mismatched existing public trust anchor")
 	if err := fs.Parse(args); err != nil {
@@ -92,29 +87,27 @@ func releaseAuthorityInit(ctx *CommandContext, authority *releaseauthority.Autho
 }
 
 func releaseAuthorityStatus(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
-	fs := flag.NewFlagSet("release-authority status", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	format := "text"
-	fs.StringVar(&format, "format", "text", "output format: text or json")
+	fs := commandtree.NewFlagSet("release-authority status")
+	format := string(cliout.FormatHuman)
+	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if len(fs.Args()) != 0 || (format != string(logx.FormatText) && format != string(logx.FormatJSON)) {
+	if len(fs.Args()) != 0 || (format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) && format != "text") {
 		return fmt.Errorf("release-authority status accepts only --format text or json")
 	}
 	status, err := authority.Status(ctx.Root)
 	if err != nil {
 		return err
 	}
-	if format == string(logx.FormatJSON) || ctx.Globals.JSON {
+	if format == string(cliout.FormatJSON) || ctx.Globals.JSON {
 		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	return renderReleaseAuthorityStatus(ctx, status)
 }
 
 func releaseAuthoritySign(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
-	fs := flag.NewFlagSet("release-authority sign", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("release-authority sign")
 	stage := ""
 	overwrite := false
 	fs.StringVar(&stage, "stage", "", "staged release directory containing release-manifest.json")
@@ -137,8 +130,7 @@ func releaseAuthoritySign(ctx *CommandContext, authority *releaseauthority.Autho
 }
 
 func releaseAuthorityRegenerate(ctx *CommandContext, authority *releaseauthority.Authority, args []string) error {
-	fs := flag.NewFlagSet("release-authority regenerate", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("release-authority regenerate")
 	replace := false
 	fs.BoolVar(&replace, "replace-trust-anchor", false, "acknowledge destructive release trust-root replacement")
 	if err := fs.Parse(args); err != nil {

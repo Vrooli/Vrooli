@@ -14,7 +14,7 @@
     "Geospatial search and routing",
     "Mapping and GIS data analysis"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The former implementation used Docker Compose. A future owner should reassess that choice against a managed local-service design and state its desktop and platform-support trade-offs explicitly.",
     "linux": "partial",
@@ -29,7 +29,7 @@
   "dependencies": [
     "postgres"
   ],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Start with the resource maturity and migration playbook before restoring an implementation.",
     "Implement lifecycle, configuration, diagnostics, and tests through the Go-native resource surface without Bash dependencies.",

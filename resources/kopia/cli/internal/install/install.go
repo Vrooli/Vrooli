@@ -10,8 +10,8 @@ import (
 	"context"
 	"fmt"
 
-	"resource-kopia/cli/internal/discovery"
-	"resource-kopia/cli/internal/version"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/discovery"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/version"
 )
 
 // EngineReport summarizes the state of the provisioned kopia binary.

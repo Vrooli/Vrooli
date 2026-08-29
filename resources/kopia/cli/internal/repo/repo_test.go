@@ -7,18 +7,18 @@ import (
 	"strings"
 	"testing"
 
-	"resource-kopia/cli/internal/credentials"
-	"resource-kopia/cli/internal/env"
-	"resource-kopia/cli/internal/invariant"
-	"resource-kopia/cli/internal/registry"
-	"resource-kopia/cli/internal/repo"
-	"resource-kopia/cli/internal/repoctx"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/credentials"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/env"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/invariant"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/registry"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repo"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repoctx"
 
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 
-	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
+	kexecmocks "github.com/vrooli/vrooli/resources/kopia/cli/internal/kexec/mocks"
 
-	credentialmocks "resource-kopia/cli/internal/credentials/mocks"
+	credentialmocks "github.com/vrooli/vrooli/resources/kopia/cli/internal/credentials/mocks"
 )
 
 type harness struct {

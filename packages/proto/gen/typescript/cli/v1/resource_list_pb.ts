@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/resource_list.proto.
  */
 export const file_cli_v1_resource_list: GenFile = /*@__PURE__*/
-  fileDesc("ChpjbGkvdjEvcmVzb3VyY2VfbGlzdC5wcm90bxINdnJvb2xpLmNsaS52MSKQAQoUUmVzb3VyY2VMaXN0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIqCglyZXNvdXJjZXMYAiADKAsyFy52cm9vbGkuY2xpLnYxLlJlc291cmNlEjsKEmRpc2NvdmVyeV9mYWlsdXJlcxgDIAMoCzIfLnZyb29saS5jbGkudjEuRGlzY292ZXJ5RmFpbHVyZSKWAgoIUmVzb3VyY2USDAoEbmFtZRgBIAEoCRIMCgRwYXRoGAIgASgJEg4KBmV4aXN0cxgDIAEoCBISCgpyZWdpc3RlcmVkGAQgASgIEg8KB2VuYWJsZWQYBSABKAgSEAoIcmVxdWlyZWQYBiABKAgSDwoHaGFzX2NsaRgHIAEoCBItCgZjb25maWcYCCABKAsyHS52cm9vbGkuY2xpLnYxLlJlc291cmNlQ29uZmlnEhQKDGNvbnRyb2xfbW9kZRgJIAEoCRIOCgZkcml2ZXIYCiABKAkSEAoIdGVtcGxhdGUYCyABKAkSGAoQcG9ydGFiaWxpdHlfdGllchgMIAEoCRIVCg1tYW5pZmVzdF9wYXRoGA0gASgJIkgKDlJlc291cmNlQ29uZmlnEg8KB2VuYWJsZWQYASABKAgSEAoIcmVxdWlyZWQYAiABKAgSEwoLZGVzY3JpcHRpb24YAyABKAlCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw", [file_cli_v1_common]);
+  fileDesc("ChpjbGkvdjEvcmVzb3VyY2VfbGlzdC5wcm90bxINdnJvb2xpLmNsaS52MSKQAQoUUmVzb3VyY2VMaXN0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIqCglyZXNvdXJjZXMYAiADKAsyFy52cm9vbGkuY2xpLnYxLlJlc291cmNlEjsKEmRpc2NvdmVyeV9mYWlsdXJlcxgDIAMoCzIfLnZyb29saS5jbGkudjEuRGlzY292ZXJ5RmFpbHVyZSLbAgoIUmVzb3VyY2USDAoEbmFtZRgBIAEoCRIMCgRwYXRoGAIgASgJEg4KBmV4aXN0cxgDIAEoCBISCgpyZWdpc3RlcmVkGAQgASgIEg8KB2VuYWJsZWQYBSABKAgSEAoIcmVxdWlyZWQYBiABKAgSFAoMZGVjbGFyZXNfY2xpGA4gASgIEhUKDWNsaV9pbnN0YWxsZWQYDyABKAgSGAoQY2xpX3N0YXRlX3JlYXNvbhgQIAEoCRItCgZjb25maWcYCCABKAsyHS52cm9vbGkuY2xpLnYxLlJlc291cmNlQ29uZmlnEhQKDGNvbnRyb2xfbW9kZRgJIAEoCRIOCgZkcml2ZXIYCiABKAkSEAoIdGVtcGxhdGUYCyABKAkSGAoQcG9ydGFiaWxpdHlfdGllchgMIAEoCRIVCg1tYW5pZmVzdF9wYXRoGA0gASgJSgQIBxAIUgdoYXNfY2xpIkgKDlJlc291cmNlQ29uZmlnEg8KB2VuYWJsZWQYASABKAgSEAoIcmVxdWlyZWQYAiABKAgSEwoLZGVzY3JpcHRpb24YAyABKAlCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw", [file_cli_v1_common]);
 
 /**
  * ResourceListResponse is the top-level envelope of `vrooli resource list --json`.
@@ -100,11 +100,25 @@ export type Resource = Message<"vrooli.cli.v1.Resource"> & {
   required: boolean;
 
   /**
-   * True when the resource ships its own CLI surface.
+   * True when the resource declares a CLI in its manifest.
    *
-   * @generated from field: bool has_cli = 7;
+   * @generated from field: bool declares_cli = 14;
    */
-  hasCli: boolean;
+  declaresCli: boolean;
+
+  /**
+   * True when the declared resource CLI resolves on the host PATH.
+   *
+   * @generated from field: bool cli_installed = 15;
+   */
+  cliInstalled: boolean;
+
+  /**
+   * Why the CLI is not installed; empty when installed.
+   *
+   * @generated from field: string cli_state_reason = 16;
+   */
+  cliStateReason: string;
 
   /**
    * Manifest config block for the resource; always present.

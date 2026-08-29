@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"syscall"
 	"testing"
 
 	"github.com/vrooli/repo-contract-go/repocontracttest"
@@ -46,11 +45,10 @@ func TestPeakRSSIncludesChildProcesses(t *testing.T) {
 		t.Fatal("rusage sample failed after running the child")
 	}
 
-	var childRusage syscall.Rusage
-	if err := syscall.Getrusage(syscall.RUSAGE_CHILDREN, &childRusage); err != nil {
-		t.Fatalf("read child rusage: %v", err)
+	childBytes, ok := processPeakRSSBytes(cmd.ProcessState)
+	if !ok {
+		repocontracttest.SkipPlatform(t, "child process peak RSS unavailable on this platform")
 	}
-	childBytes := int64(childRusage.Maxrss) * 1024 // linux units; see sampleRusage
 
 	if childBytes < allocMiB/2*1024*1024 {
 		t.Skipf("the child's peak RSS (%d bytes) is too small to distinguish; "+

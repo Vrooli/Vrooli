@@ -13,7 +13,7 @@
     "Creative asset generation studio",
     "Campaign audio prototyping workflows"
   ],
-  "integration_kind": "manual",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "Future support likely depends on model runtime, GPU expectations, and media pipeline decisions.",
     "linux": "partial",
@@ -25,7 +25,7 @@
     "A clear runtime choice for inference and model storage"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Keep this as blueprint knowledge until there is a concrete scenario and runtime choice.",
     "Promotion should decide whether the support model is local inference, hosted API, or both."

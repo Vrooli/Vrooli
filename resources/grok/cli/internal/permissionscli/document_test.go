@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/cli-core/cliutil"
-	"resource-grok/cli/internal/permissions"
+	"github.com/vrooli/vrooli/resources/grok/cli/internal/permissions"
 )
 
 func TestWholeDocumentPlanAndReconcileAreIdempotent(t *testing.T) {

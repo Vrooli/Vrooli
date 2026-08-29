@@ -15,7 +15,7 @@
     "Multi-tenant app authentication",
     "Identity federation services"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "Containerized deployment is portable, but real support requires clear guidance for realms, persistence, TLS, and identity-provider integration.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined TLS, backup, and operator workflows"
   ],
   "dependencies": [],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should validate one or two identity workflows instead of claiming broad IAM coverage.",
     "Realm bootstrap and config export/import need explicit conventions.",

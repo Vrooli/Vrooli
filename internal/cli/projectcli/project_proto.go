@@ -80,13 +80,15 @@ func projectRawValue(raw []byte) *structpb.Value {
 
 func projectResource(item resources.Resource) *cliv1.Resource {
 	return &cliv1.Resource{
-		Name:       item.Name,
-		Path:       item.Path,
-		Exists:     item.Exists,
-		Registered: item.Registered,
-		Enabled:    item.Enabled,
-		Required:   item.Required,
-		HasCli:     item.HasCLI,
+		Name:           item.Name,
+		Path:           item.Path,
+		Exists:         item.Exists,
+		Registered:     item.Registered,
+		Enabled:        item.Enabled,
+		Required:       item.Required,
+		DeclaresCli:    item.DeclaresCLI,
+		CliInstalled:   item.CLIInstalled,
+		CliStateReason: item.CLIStateReason,
 		Config: &cliv1.ResourceConfig{
 			Enabled:     item.Config.Enabled,
 			Required:    item.Config.Required,
@@ -94,7 +96,6 @@ func projectResource(item resources.Resource) *cliv1.Resource {
 		},
 		ControlMode:  item.ControlMode,
 		Driver:       item.Driver,
-		Template:     item.Template,
 		ManifestPath: item.ManifestPath,
 	}
 }

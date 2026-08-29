@@ -12,6 +12,11 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 )
 
+const (
+	secureStoreFieldValue  = "value"
+	secureStoreFieldSecret = "secret"
+)
+
 // GNOME Keyring stores a passwordless keyring in GKeyFile's textual format,
 // where every value occupies exactly one line. A value carrying a real newline
 // — a PEM private key is the usual way this happens — makes the file
@@ -321,7 +326,7 @@ func keyringAttributes(fields []keyringField) map[string]map[string]string {
 		switch field.name {
 		case "name":
 			entry.name = field.value
-		case "value":
+		case secureStoreFieldValue:
 			entry.value = field.value
 		}
 	}
@@ -456,7 +461,7 @@ func describeKeyringDefect(field keyringField, attributes map[string]map[string]
 	switch {
 	case !strings.HasPrefix(defect.Service, vrooliServicePrefix):
 		defect.Reason = "entry was not written by Vrooli; collapsing it would guess how its owner reads the value back"
-	case field.name != "secret":
+	case field.name != secureStoreFieldSecret:
 		defect.Reason = "only a secret field is rewritten; other fields are metadata this repair does not own"
 	default:
 		defect.Repairable = true

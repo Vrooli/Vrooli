@@ -50,6 +50,7 @@ func RenderList(w io.Writer, format cliout.Format, resp capacityapp.ListOutput) 
 				c.ClaimID, c.OwnerKind + "/" + c.OwnerID, c.ResourceKind, c.Status,
 				"prio=" + c.PriorityTier, fmt.Sprintf("protected=%t", c.Protected), "idle=" + c.IdleReclaimState,
 				"granted=" + humanBytes(c.AmountBytes), "observed=" + humanBytes(c.ObservedBytes), "peak=" + humanBytes(c.ObservedPeakBytes),
+				"created=" + c.CreatedAt, "updated=" + c.UpdatedAt,
 			})
 		}
 		return cliout.WriteSection(w, cliout.Section{Empty: cliout.EmptyLabel("capacity claims"), Rows: rows})

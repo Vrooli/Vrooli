@@ -10,9 +10,9 @@ import (
 	"os"
 	"strings"
 
-	"resource-kopia/cli/internal/cmdutil"
-	"resource-kopia/cli/internal/kexec"
-	"resource-kopia/cli/internal/repoctx"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/cmdutil"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/kexec"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repoctx"
 )
 
 // Service wires the dependencies the maintenance commands need.

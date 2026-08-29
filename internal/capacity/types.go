@@ -171,11 +171,11 @@ func IsActiveClaimStatus(status string) bool {
 func PriorityTierName(priority int) string {
 	switch {
 	case priority >= PriorityInteractive:
-		return "interactive"
+		return policyInteractive
 	case priority >= PriorityService:
-		return "service"
+		return policyService
 	default:
-		return "batch"
+		return policyBatch
 	}
 }
 
@@ -183,11 +183,11 @@ func PriorityTierName(priority int) string {
 // An empty or unknown name defaults to batch (the lowest, safest tier).
 func ParsePriorityTier(name string) int {
 	switch name {
-	case "interactive":
+	case policyInteractive:
 		return PriorityInteractive
-	case "service":
+	case policyService:
 		return PriorityService
-	case "batch", "":
+	case policyBatch, "":
 		return PriorityBatch
 	default:
 		return PriorityBatch
@@ -274,11 +274,12 @@ type CapacityClaim struct {
 
 // ClaimFilter narrows ListClaims.
 type ClaimFilter struct {
-	OwnerKind    string
-	OwnerID      string
-	ResourceKind string
-	GPUIndex     *int
-	Statuses     []string
+	OwnerKind     string
+	OwnerID       string
+	OwnerIDPrefix string
+	ResourceKind  string
+	GPUIndex      *int
+	Statuses      []string
 }
 
 // CapacityRequest is the input to Decide and CreateClaim.

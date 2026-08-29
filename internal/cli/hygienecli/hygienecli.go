@@ -3,7 +3,8 @@ package hygienecli
 import (
 	"fmt"
 	"io"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 
 	hygieneapp "github.com/vrooli/vrooli/internal/app/hygiene"
@@ -377,7 +378,7 @@ func renderPlanSummary(w io.Writer, candidates []hygieneapp.PlanCandidate, mode 
 		}
 	}
 	_, _ = fmt.Fprintf(w, "\nPlan candidates: %d\n", len(candidates))
-	for _, status := range sortedKeys(counts) {
+	for _, status := range slices.Sorted(maps.Keys(counts)) {
 		_, _ = fmt.Fprintf(w, "- %d %s\n", counts[status], status)
 	}
 	if len(modified) > 0 {
@@ -474,13 +475,4 @@ func collectActions(report hygieneapp.Report) []hygieneapp.Action {
 		})
 	}
 	return actions
-}
-
-func sortedKeys(values map[string]int) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }

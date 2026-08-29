@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -46,7 +46,7 @@ func SupportedFilesystems() []string {
 	for name := range supportedFilesystems {
 		out = append(out, name)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 

@@ -47,7 +47,7 @@ func DeclarationsFromRoot(root string) ([]Declaration, error) {
 		if json.Unmarshal(manifestBytes, &manifest) != nil || manifest.Name == "" {
 			continue
 		}
-		if manifest.Driver != "docker-service" && manifest.Driver != "compose-service" {
+		if manifest.Driver != "managed-service" {
 			continue
 		}
 		container := strings.TrimSpace(manifest.Runtime.ContainerName)
@@ -55,13 +55,6 @@ func DeclarationsFromRoot(root string) ([]Declaration, error) {
 			container = "vrooli-" + manifest.Name
 		}
 		declarations = append(declarations, Declaration{Kind: "container", Name: container, Live: true, Evidence: []string{"enabled resource manifest: " + manifestPath}})
-		if manifest.Driver == "compose-service" && strings.TrimSpace(manifest.Runtime.ContainerName) == "" {
-			// Compose resources may deliberately use a project/service name rather
-			// than the control-plane fallback. Include the stable resource label as
-			// a declaration without claiming arbitrary operator containers.
-			declarations = append(declarations, Declaration{Kind: "container", Name: manifest.Name, Live: true, Evidence: []string{"enabled compose resource manifest: " + manifestPath}})
-			declarations = append(declarations, Declaration{Kind: "container", Name: manifest.Name + "-main", Live: true, Evidence: []string{"enabled compose resource manifest: " + manifestPath}})
-		}
 	}
 	for _, unit := range []string{
 		"vrooli-runtime-supervisor.service",

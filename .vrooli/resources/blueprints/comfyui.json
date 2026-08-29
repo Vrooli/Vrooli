@@ -14,7 +14,7 @@
     "Creative-content production",
     "Node-based AI pipelines"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The former implementation depended on Docker and GPU-specific shell handling. A future owner should prefer a managed local-service design where feasible and isolate GPU and host-runtime differences behind explicit platform adapters.",
     "linux": "partial",
@@ -27,7 +27,7 @@
     "An explicit GPU, runtime, desktop-bundling, and platform-support decision."
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Start with the resource maturity and migration playbook before restoring an implementation.",
     "Use a Go-native CLI and control surface; do not reintroduce Bash for lifecycle, configuration, workflows, models, GPU handling, or tests.",

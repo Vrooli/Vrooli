@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	manifestExternalCli = "external-cli"
+	manifestExternalCli    = "external-cli"
+	manifestManagedService = "managed-service"
 )
 
 const (
@@ -34,14 +35,10 @@ const (
 const SchemaPath = ".vrooli/schemas/resource.schema.json"
 
 var AllowedDrivers = []string{
-	"docker-service",
-	"compose-service",
 	manifestExternalCli,
 	"cloud-api",
-	"desktop-app",
-	"manual",
 	manifestNativeCli,
-	"managed-service",
+	manifestManagedService,
 }
 
 var (
@@ -58,7 +55,6 @@ type ResourceManifest struct {
 	LegacyRepoDataAllowed  bool                                   `json:"legacy_repo_data_allowed,omitempty"`
 	Storage                *ResourceStorage                       `json:"storage,omitempty"`
 	DurableData            *ResourceDurableData                   `json:"durable_data,omitempty"`
-	Template               string                                 `json:"template,omitempty"`
 	Driver                 string                                 `json:"driver"`
 	ComposeServiceOverride *ComposeServiceOverride                `json:"compose_service_override,omitempty"`
 	ComposeFile            string                                 `json:"compose_file,omitempty"`
@@ -96,7 +92,7 @@ type ResourceManifest struct {
 	// such as host tools. It has no lifecycle authority and is intentionally
 	// separate from managed_service.provider_policy.
 	ProviderPolicy *resourcedeployment.ProviderPolicy `json:"provider_policy,omitempty"`
-	// Companions are long-lived HOST-side processes the compose-service driver
+	// Companions are long-lived HOST-side processes a managed service
 	// starts after the container(s) come up and stops when the resource stops.
 	// They exist for resources whose container alone cannot do everything on the
 	// host — e.g. whisper's activity edge (a reverse proxy that brackets each
@@ -112,7 +108,7 @@ type ResourceManifest struct {
 }
 
 // ComposeServiceOverride is a temporary, operator-owned exception to the
-// closed resource compose-service policy. It must be explicit and dated; the
+// closed resource managed-service policy. It must be explicit and dated; the
 // deployability declaration gate validates those fields before a resource can
 // claim the exception.
 type ComposeServiceOverride struct {
@@ -158,7 +154,7 @@ type ResourceRuntimeEnvCommand struct {
 }
 
 // ResourceCompanion is one host-side companion process supervised alongside a
-// compose-service resource. It is launched detached (its own session) so it
+// managed-service resource. It is launched detached (its own session) so it
 // survives the short-lived control CLI, tracked by a pidfile under the
 // runtime-home processes dir, and signaled on stop. Start/stop is idempotent and
 // best-effort: a companion that fails to start is a logged warning, not a fatal
@@ -301,7 +297,7 @@ type ResourceRuntime struct {
 	WorkingDir    string            `json:"working_dir,omitempty"`
 	// MemoryLimit, when non-empty, is passed verbatim as `docker run --memory <value>`.
 	// Format: a positive integer optionally followed by a unit suffix b/k/m/g (case-insensitive),
-	// e.g. "12g", "8192m", "536870912". Only honored by the docker-service driver.
+	// e.g. "12g", "8192m", "536870912". Only honored by managed services.
 	MemoryLimit string `json:"memory_limit,omitempty"`
 }
 
@@ -438,6 +434,11 @@ func validateManifestContract(manifest ResourceManifest) error {
 }
 
 func validateManifestFeatures(manifest ResourceManifest) error {
+	if manifest.Driver == manifestManagedService {
+		if err := validateManagedServiceHealthContract(manifest.HealthChecks); err != nil {
+			return err
+		}
+	}
 	for _, check := range manifest.HealthChecks {
 		if err := validateHealthCheck(check); err != nil {
 			return err
@@ -464,6 +465,25 @@ func validateManifestFeatures(manifest ResourceManifest) error {
 	return nil
 }
 
+func validateManagedServiceHealthContract(checks []ResourceHealthCheck) error {
+	seen := map[string]bool{}
+	for _, check := range checks {
+		kind := strings.TrimSpace(check.Kind)
+		if kind == "readiness" || kind == "liveness" {
+			seen[kind] = true
+			if check.IntervalSeconds <= 0 || check.TimeoutSeconds <= 0 {
+				return fmt.Errorf("managed-service %s health check requires positive interval_seconds and timeout_seconds", kind)
+			}
+		}
+	}
+	for _, kind := range []string{"readiness", "liveness"} {
+		if !seen[kind] {
+			return fmt.Errorf("managed-service requires a %s health check", kind)
+		}
+	}
+	return nil
+}
+
 func validateProviderPolicy(manifest ResourceManifest) error {
 	if manifest.ProviderPolicy != nil {
 		if manifest.Driver != manifestExternalCli && manifest.Driver != manifestNativeCli {
@@ -481,17 +501,6 @@ func validateProviderPolicy(manifest ResourceManifest) error {
 
 func validateDriverConfiguration(manifest ResourceManifest) error {
 	switch manifest.Driver {
-	case "docker-service":
-		if strings.TrimSpace(manifest.Runtime.Image) == "" {
-			return fmt.Errorf("runtime.image is required for docker-service resources")
-		}
-		if err := ValidatePinnedImageRef(manifest.Runtime.Image); err != nil {
-			return err
-		}
-	case "compose-service":
-		if strings.TrimSpace(manifest.ComposeFile) == "" {
-			return fmt.Errorf("compose_file is required for compose-service resources")
-		}
 	case manifestExternalCli, manifestNativeCli:
 		if strings.TrimSpace(manifest.Binary) == "" {
 			return fmt.Errorf("binary is required for %s resources", manifest.Driver)
@@ -500,7 +509,7 @@ func validateDriverConfiguration(manifest ResourceManifest) error {
 		if strings.TrimSpace(manifest.Endpoint) == "" {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
-	case "managed-service":
+	case manifestManagedService:
 		return validateManagedService(manifest.ManagedService)
 	}
 	return nil
@@ -765,12 +774,8 @@ func deploymentModeAllowedForDriver(driver, mode string) bool {
 	allowed := map[string][]string{
 		"cloud-api":         {"bundled-client", "remote-service"},
 		manifestNativeCli:   {"native-host-tool", "bundled-client", "manual"},
-		"docker-service":    {"docker-desktop", "manual"},
-		"compose-service":   {"docker-desktop", "manual"},
 		manifestExternalCli: {"native-host-tool", "bundled-client", "manual"},
 		"managed-service":   {"bundled-service", "remote-service", "manual"},
-		"desktop-app":       {"native-host-tool", "manual"},
-		"manual":            {"manual"},
 	}
 	return slices.Contains(allowed[driver], mode)
 }
@@ -784,10 +789,10 @@ func validateDurableData(driver string, dd *ResourceDurableData) error {
 		return nil
 	}
 	switch strings.TrimSpace(driver) {
-	case manifestExternalCli, manifestNativeCli, "desktop-app", "manual", "managed-service":
+	case manifestExternalCli, manifestNativeCli, manifestManagedService:
 		// Host-filesystem-bearing drivers may declare durable host data.
 	default:
-		return fmt.Errorf("durable_data is only valid for host-filesystem drivers (external-cli, native-cli, desktop-app, manual), not %q", driver)
+		return fmt.Errorf("durable_data is only valid for host-filesystem drivers (external-cli, native-cli, managed-service), not %q", driver)
 	}
 	if dd.HostOnly != nil && !*dd.HostOnly {
 		return fmt.Errorf("durable_data.host_only must be true (host-filesystem state only)")
@@ -1068,8 +1073,8 @@ func validateHealthCheck(check ResourceHealthCheck) error {
 // ValidatePinnedImageRef enforces the Pinned Runtime Principle
 // (docs/resources/deployment-contract.md): a container image must be an
 // immutable reference — a version tag or digest — so install/pull can never
-// silently change the running engine. Used for docker-service runtime.image
-// at manifest validation and by the fleet lint over compose-service files.
+// silently change the running engine. Used for managed-service runtime.image
+// at manifest validation and by fleet checks over runtime declarations.
 func ValidatePinnedImageRef(image string) error {
 	ref := strings.TrimSpace(image)
 	if at := strings.Index(ref, "@"); at >= 0 {

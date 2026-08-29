@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/credentialauthority"
+	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
 
 func TestCollectEmptyRootIsValueFreeAndEmpty(t *testing.T) {
@@ -18,6 +21,14 @@ func TestCollectEmptyRootIsValueFreeAndEmpty(t *testing.T) {
 }
 
 func TestCollectFixtureHasNoDiscoveredMinusCollectedAddresses(t *testing.T) {
+	authority, err := credentialauthority.NewAuthority(securestore.Absent("isolated inventory fixture"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := credentialauthority.DefaultAuthority
+	credentialauthority.DefaultAuthority = func() (*credentialauthority.Authority, error) { return authority, nil }
+	t.Cleanup(func() { credentialauthority.DefaultAuthority = previous })
+
 	root := t.TempDir()
 	writeFixtureFile(t, filepath.Join(root, ".vrooli", "service.json"), map[string]any{
 		"credentials": map[string]any{"descriptors": []map[string]any{
@@ -26,8 +37,14 @@ func TestCollectFixtureHasNoDiscoveredMinusCollectedAddresses(t *testing.T) {
 	})
 	writeFixtureFile(t, filepath.Join(root, "resources", "fixture", "resource.json"), map[string]any{
 		"name":   "fixture",
-		"driver": "manual",
-		"cli":    map[string]any{"enabled": false},
+		"driver": "external-cli",
+		"cli": map[string]any{
+			"enabled": true, "command": "fixture",
+			"adapter":      map[string]any{"kind": "go_module", "module_dir": "cli"},
+			"source_build": map[string]any{"kind": "go_module"},
+			"invoke":       map[string]any{"kind": "installed_command", "command": "fixture"},
+			"freshness":    map[string]any{"inputs": []string{"cli/**", "resource.json"}},
+		},
 		"credentials": map[string]any{"descriptors": []map[string]any{
 			{"logical_id": "vrooli/fixture/configured", "field": "token", "required": true},
 			{"logical_id": "vrooli/fixture/absent", "field": "token", "required": true},
@@ -37,6 +54,7 @@ func TestCollectFixtureHasNoDiscoveredMinusCollectedAddresses(t *testing.T) {
 		"service": map[string]any{"name": "fixture-scenario"},
 		"credentials": map[string]any{"descriptors": []map[string]any{
 			{"logical_id": "vrooli/fixture/configured", "field": "token", "required": true},
+			{"logical_id": "vrooli/fixture/absent", "field": "token", "required": true},
 		}},
 	})
 
@@ -44,7 +62,6 @@ func TestCollectFixtureHasNoDiscoveredMinusCollectedAddresses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	collected := make(map[string]struct{}, len(result.Entries))
 	for _, entry := range result.Entries {
 		collected[string(entry.Identity)+":"+entry.Field] = struct{}{}

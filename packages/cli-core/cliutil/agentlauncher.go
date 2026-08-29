@@ -121,6 +121,7 @@ func LaunchCodingAgent(ctx context.Context, request AgentLaunchRequest) error {
 	if environment == nil {
 		environment = os.Environ()
 	}
+	environment = PrepareWebConsoleAgentHome(request.Agent, environment)
 
 	// Deciding this before attaching matters: a launch that replaces its own
 	// process image has no "after" in which to detach, so it reports its pid at

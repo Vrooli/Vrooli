@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable package fixtures.
 package packageapp
 
 import (

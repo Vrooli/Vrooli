@@ -28,7 +28,7 @@
     "Validated proof or library workflows"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should validate one or two concrete proof workflows instead of generic theorem-prover support.",
     "Keep editor tooling separate from CLI proof execution.",

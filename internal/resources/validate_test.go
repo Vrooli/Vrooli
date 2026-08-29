@@ -1,6 +1,9 @@
 package resources
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -9,14 +12,118 @@ import (
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
+func TestValidateResourcesRejectsUnknownManifestField(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{Name: "fixture", Driver: "external-cli", Binary: "bash"})
+	path := filepath.Join(root, "resources", "fixture", "resource.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fields map[string]any
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatal(err)
+	}
+	fields["template"] = "external-cli"
+	data, err = json.Marshal(fields)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	report, err := NewController(root, home).ValidateResources("fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Passed || !strings.Contains(report.Items[0].Issues[0].Message, "unknown_manifest_field") {
+		t.Fatalf("expected unknown field issue, got %#v", report)
+	}
+}
+
+func TestValidateResourcesRejectsUnknownDriver(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{Name: "fixture", Driver: "docker-service", Binary: "bash"})
+	report, err := NewController(root, home).ValidateResources("fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Passed || len(report.Items) != 1 || !strings.Contains(report.Items[0].Issues[0].Message, "unknown_driver") {
+		t.Fatalf("expected unknown driver issue, got %#v", report)
+	}
+}
+
+func TestValidateResourcesRejectsConflictingTestDirectories(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{Name: "fixture", Driver: "external-cli", Binary: "bash"})
+	if err := os.Mkdir(filepath.Join(root, "resources", "fixture", "test"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(root, "resources", "fixture", "tests"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	report, err := NewController(root, home).ValidateResources("fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Passed || !strings.Contains(issueText(report), "conflicting_test_dir") {
+		t.Fatalf("expected conflicting test directory issue, got %#v", report)
+	}
+}
+
+func TestValidateResourcesRejectsEmptyRequiredDirectory(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{Name: "fixture", Driver: "external-cli", Binary: "bash"})
+	if err := os.Remove(filepath.Join(root, "resources", "fixture", "cli", "main.go")); err != nil {
+		t.Fatal(err)
+	}
+	report, err := NewController(root, home).ValidateResources("fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Passed || !strings.Contains(issueText(report), "empty_required_dir") {
+		t.Fatalf("expected empty required directory issue, got %#v", report)
+	}
+}
+
+func TestValidateResourcesRejectsDeclaredCLIWithoutModule(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
+	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{Name: "fixture", Driver: "external-cli", Binary: "bash"})
+	if err := os.RemoveAll(filepath.Join(root, "resources", "fixture", "cli")); err != nil {
+		t.Fatal(err)
+	}
+	report, err := NewController(root, home).ValidateResources("fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Passed || !strings.Contains(issueText(report), "cli_declared_without_module") {
+		t.Fatalf("expected missing CLI module issue, got %#v", report)
+	}
+}
+
+func issueText(report ResourceValidationReport) string {
+	var messages []string
+	for _, item := range report.Items {
+		for _, issue := range item.Issues {
+			messages = append(messages, issue.Message)
+		}
+	}
+	return strings.Join(messages, "\n")
+}
+
 func TestValidateResourcesRejectsRepoLocalDataVolumeSourcesWithoutLegacyMarker(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{
-		Name:     "fixture",
-		Driver:   "docker-service",
-		Template: "docker-service",
+		Name:   "fixture",
+		Driver: "external-cli",
+		Binary: "bash",
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "fixture:1.0.0",
 			Volumes: []manifestpkg.ResourceVolume{
@@ -40,14 +147,37 @@ func TestValidateResourcesRejectsRepoLocalDataVolumeSourcesWithoutLegacyMarker(t
 	}
 }
 
+func TestValidateResourcesRejectsResourceAbsentFromRootContract(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	testscenario.WriteProjectResourceConfig(t, root, "other", true)
+	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{
+		Name: "fixture", Driver: "external-cli", Binary: "bash",
+	})
+
+	report, err := NewController(root, home).ValidateResources("fixture")
+	if err != nil {
+		t.Fatalf("ValidateResources: %v", err)
+	}
+	if report.Passed {
+		t.Fatal("expected validation to fail for resource absent from root contract")
+	}
+	for _, issue := range report.Items[0].Issues {
+		if strings.Contains(issue.Message, "resource_absent_from_contract") {
+			return
+		}
+	}
+	t.Fatalf("missing resource_absent_from_contract issue: %#v", report.Items[0].Issues)
+}
+
 func TestValidateResourcesRejectsRepoLocalResourceInstanceSourcesWithoutLegacyMarker(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	testscenario.WriteProjectResourceConfig(t, root, "postgres", true)
 	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
-		Name:     "postgres",
-		Driver:   "docker-service",
-		Template: "docker-service",
+		Name:   "postgres",
+		Driver: "external-cli",
+		Binary: "bash",
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 			Volumes: []manifestpkg.ResourceVolume{
@@ -77,8 +207,8 @@ func TestValidateResourcesAllowsExplicitLegacyRepoDataVolumeSources(t *testing.T
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	testresource.WriteResourceManifest(t, root, "fixture", manifestpkg.ResourceManifest{
 		Name:                  "fixture",
-		Driver:                "docker-service",
-		Template:              "docker-service",
+		Driver:                "external-cli",
+		Binary:                "bash",
 		LegacyRepoDataAllowed: true,
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "fixture:1.0.0",

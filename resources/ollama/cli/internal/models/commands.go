@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 )
@@ -307,7 +307,5 @@ func (h *Handlers) loadPolicy() (policy.Policy, string, error) {
 }
 
 func writeJSON(w io.Writer, v any) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
+	return cliout.NewEncoder(w).Encode(v)
 }

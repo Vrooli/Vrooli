@@ -77,11 +77,11 @@ func (i AptRepoInstaller) Apply(host Host, status ItemStatus, opts EnsureOptions
 	}
 
 	switch {
-	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == "apt" || host.PackageManager == "apt-get"):
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == helpersApt || host.PackageManager == helpersAptGet):
 		if err := i.installLinux(host, opts); err != nil {
 			return status, err
 		}
-	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == "brew":
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == helpersBrew:
 		packageName := status.PackageName
 		if packageName == "" {
 			packageName = i.Manifest.Packages["brew"]
@@ -93,7 +93,7 @@ func (i AptRepoInstaller) Apply(host Host, status ItemStatus, opts EnsureOptions
 		if err := RunInstallCommand(command, args, opts); err != nil {
 			return status, err
 		}
-	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == "winget":
+	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == helpersWinget:
 		packageName := status.PackageName
 		if packageName == "" {
 			packageName = i.Manifest.Packages["winget"]
@@ -130,11 +130,11 @@ func (i AptRepoInstaller) ApplyWithNotes(host Host, status ItemStatus, opts Ensu
 	if opts.DryRun {
 		status.ExecutionState = ExecutionWouldInstall
 		switch {
-		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == "apt" || host.PackageManager == "apt-get"):
+		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == helpersApt || host.PackageManager == helpersAptGet):
 			status.Notes = append(status.Notes, i.AptDryRunNotes...)
-		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == "brew":
+		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == helpersBrew:
 			status.Notes = append(status.Notes, i.BrewDryRunNote+" "+i.Manifest.Packages["brew"])
-		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == "winget":
+		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == helpersWinget:
 			status.Notes = append(status.Notes, i.WingetDryRunNote+" "+i.Manifest.Packages["winget"])
 		default:
 			status.SupportClass = SupportUnsupported
@@ -228,7 +228,7 @@ func (i AptRepoInstaller) installLinux(host Host, opts EnsureOptions) error {
 	if err := RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", "644", sourceTempPath, i.SourcePath}, opts); err != nil {
 		return err
 	}
-	if err := RunPrivilegedCommand(opts.SudoMode, "apt-get", []string{"update", "-qq"}, opts); err != nil {
+	if err := RunPrivilegedCommand(opts.SudoMode, helpersAptGet, []string{"update", "-qq"}, opts); err != nil {
 		return err
 	}
 	command, args, err := InstallCommand(host, i.AptPackage, opts.SudoMode)

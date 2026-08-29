@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const policyFilesystemFixer = "ntfsfix"
+
 // Validate rejects every request shape outside the immutable v1 registry.
 func Validate(req Request) error {
 	if req.Version != ProtocolVersion {
@@ -116,9 +118,9 @@ func VolumeArgs(req Request) (string, []string, error) {
 	switch family {
 	case "ntfs":
 		if repair {
-			return "ntfsfix", []string{"-d", device}, nil
+			return policyFilesystemFixer, []string{"-d", device}, nil
 		}
-		return "ntfsfix", []string{"-n", device}, nil
+		return policyFilesystemFixer, []string{"-n", device}, nil
 	case "ext":
 		if repair {
 			return "e2fsck", []string{"-f", "-y", device}, nil

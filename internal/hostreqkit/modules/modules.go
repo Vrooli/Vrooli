@@ -18,9 +18,10 @@ package modules
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -128,7 +129,7 @@ func Modprobe(name string, options map[string]string, sudoMode string, opts host
 		return nil
 	}
 	args := []string{name}
-	for _, k := range sortedKeys(options) {
+	for _, k := range slices.Sorted(maps.Keys(options)) {
 		args = append(args, fmt.Sprintf("%s=%s", k, options[k]))
 	}
 	return hostreqkit.RunPrivilegedCommand(sudoMode, "modprobe", args, opts)
@@ -155,7 +156,7 @@ func renderOptionsFile(name string, options map[string]string) string {
 	b.WriteString(ManagedHeader)
 	b.WriteString("\noptions ")
 	b.WriteString(name)
-	for _, k := range sortedKeys(options) {
+	for _, k := range slices.Sorted(maps.Keys(options)) {
 		b.WriteByte(' ')
 		b.WriteString(k)
 		b.WriteByte('=')
@@ -163,13 +164,4 @@ func renderOptionsFile(name string, options map[string]string) string {
 	}
 	b.WriteByte('\n')
 	return b.String()
-}
-
-func sortedKeys(m map[string]string) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }

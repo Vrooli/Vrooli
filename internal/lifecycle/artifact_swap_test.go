@@ -35,6 +35,29 @@ func TestStageArtifactDirectorySwapsWithoutMutatingCurrentTree(t *testing.T) {
 	}
 }
 
+func TestStageArtifactReapsOnlyAbandonedLifecycleStages(t *testing.T) {
+	root := t.TempDir()
+	stale := filepath.Join(root, ".vrooli-artifact-stage-abandoned")
+	ordinary := filepath.Join(root, "ordinary-directory")
+	if err := os.MkdirAll(stale, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(ordinary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, cleanup, err := stageArtifact(filepath.Join(root, "dist"), true); err != nil {
+		t.Fatal(err)
+	} else {
+		cleanup()
+	}
+	if _, err := os.Stat(stale); !os.IsNotExist(err) {
+		t.Fatalf("abandoned stage still exists: %v", err)
+	}
+	if _, err := os.Stat(ordinary); err != nil {
+		t.Fatalf("ordinary sibling was changed: %v", err)
+	}
+}
+
 func TestStageArtifactFileLeavesCurrentArtifactWhenBuildDoesNotPublish(t *testing.T) {
 	root := t.TempDir()
 	target := filepath.Join(root, "app")

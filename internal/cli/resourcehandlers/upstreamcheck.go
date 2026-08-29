@@ -19,6 +19,7 @@ var codingAgentUpstreamEntries = []upstreamcheck.AggregateEntry{
 	{Name: "codex", CheckCmd: []string{"resource-codex", "upstream-check", "--json"}},
 	{Name: "opencode", CheckCmd: []string{"resource-opencode", "upstream-check", "--json"}},
 	{Name: "grok", CheckCmd: []string{"resource-grok", "upstream-check", "--json"}},
+	{Name: "antigravity", CheckCmd: []string{"resource-antigravity", "upstream-check", "--json"}},
 }
 
 func knownCodingAgentResourceNames() string {

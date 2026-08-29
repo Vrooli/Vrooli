@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -267,7 +268,7 @@ func parseInput(input InputDescriptor, data []byte) (validatedInput, error) {
 		if input.Kind == KindPath && strings.IndexByte(value.text, 0) >= 0 {
 			return validatedInput{}, errors.New("path contains a NUL byte")
 		}
-		if input.Kind == KindEnum && !contains(input.Options, value.text) {
+		if input.Kind == KindEnum && !slices.Contains(input.Options, value.text) {
 			return validatedInput{}, fmt.Errorf("%q is not an allowed option", value.text)
 		}
 	case KindBoolean, KindConfirmation:
@@ -296,15 +297,6 @@ func parseInput(input InputDescriptor, data []byte) (validatedInput, error) {
 func strconvQuote(value string) string {
 	data, _ := json.Marshal(value)
 	return string(data)
-}
-
-func contains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }
 
 type EvidenceReference struct {
@@ -483,7 +475,7 @@ func StableIdempotencyKey(capabilityID string, inputs map[string]json.RawMessage
 	for key := range inputs {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		_, _ = h.Write([]byte{'\n'})
 		_, _ = h.Write([]byte(key))

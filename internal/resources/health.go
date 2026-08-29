@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"strings"
 
 	"github.com/vrooli/vrooli/internal/accel"
 	runtimehealth "github.com/vrooli/vrooli/internal/resources/runtime/health"
@@ -72,8 +71,20 @@ func (c *Controller) runResourceHealthChecks(ctx context.Context, manifest Resou
 // Placement never turns a serving resource into a stopped one, and an
 // unreadable placement never demotes anything: unknown is reported as unknown.
 func (c *Controller) foldPlacementIntoHealth(ctx context.Context, manifest ResourceManifest, health HealthResult) HealthResult {
+	declaration := manifest.EffectiveAcceleration()
+	if declaration == nil {
+		return health
+	}
 	spec, accelerated := accelSpecFor(manifest)
 	if !accelerated {
+		// A CPU-only declaration still has a concrete placement contract. Keep
+		// the operator-facing mode fields populated even though no accelerator
+		// probe is required.
+		health.DeclaredMode = string(accel.BackendCPU)
+		if health.Serving {
+			health.ObservedMode = string(accel.BackendCPU)
+			health.ModeReason = "resource declares the cpu backend"
+		}
 		return health
 	}
 	health.DeclaredMode = string(spec.Backends[0])
@@ -90,12 +101,6 @@ func (c *Controller) foldPlacementIntoHealth(ctx context.Context, manifest Resou
 	health.ObservedMode = string(placement.Observed)
 	health.ModeReason = placement.Reason
 	if placement.State == accel.BackendUndetermined {
-		if isPlacementProbeLivenessFailure(manifest, health.LivenessFailed) {
-			health.Healthy = true
-			health.Serving = true
-			health.LivenessFailed = ""
-			health.Message = managedServiceHealthy
-		}
 		health.PlacementUndetermined = true
 		return health
 	}
@@ -109,24 +114,4 @@ func (c *Controller) foldPlacementIntoHealth(ctx context.Context, manifest Resou
 		health.Message = fmt.Sprintf("degraded: declared %s but running on %s", placement.Declared, placement.Observed)
 	}
 	return health
-}
-
-// isPlacementProbeLivenessFailure identifies a liveness command whose failed
-// result is itself the absence of a resident workload. The placement verifier
-// is the authority for that distinction; this helper only connects the
-// resource's declared probe to the tri-state verdict.
-func isPlacementProbeLivenessFailure(manifest ResourceManifest, failed string) bool {
-	failed = strings.TrimSpace(failed)
-	if failed == "" {
-		return false
-	}
-	for _, check := range manifest.HealthChecks {
-		if !strings.EqualFold(strings.TrimSpace(check.Kind), "liveness") || len(check.Command) == 0 {
-			continue
-		}
-		if strings.Join(check.Command, " ") == failed && strings.Contains(strings.ToLower(check.Command[len(check.Command)-1]), "health-gpu") {
-			return true
-		}
-	}
-	return false
 }

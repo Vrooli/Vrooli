@@ -65,7 +65,7 @@ func (a *App) DiscoverScenarioPorts(scenarioName string) map[string]int {
 	if err != nil {
 		return map[string]int{}
 	}
-	if detail.Details.Status != "running" {
+	if detail.Details.Status != apiScenarioRunning {
 		return map[string]int{}
 	}
 	out := make(map[string]int, len(detail.Details.Ports))

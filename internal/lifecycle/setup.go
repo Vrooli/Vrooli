@@ -3,7 +3,7 @@ package lifecycle
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -66,7 +66,7 @@ func (r *Runner) evaluateSetupChecksContext(ctx context.Context, item scenario.S
 	for name := range item.Manifest.Components {
 		componentNames = append(componentNames, name)
 	}
-	sort.Strings(componentNames)
+	slices.Sort(componentNames)
 	deps := defaultHostProbeDeps()
 	for _, name := range componentNames {
 		if err := ctx.Err(); err != nil {

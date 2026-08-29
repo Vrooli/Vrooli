@@ -11,8 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"resource-opencode/cli/internal/config"
-	"resource-opencode/cli/internal/secrets"
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/config"
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/secrets"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

@@ -15,7 +15,7 @@
     "Electronics documentation pipelines",
     "PCB review and export tooling"
   ],
-  "integration_kind": "desktop-app",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "KiCad is cross-platform, but GUI automation, plugin behavior, and packaging differ by host environment.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined automation or export workflows"
   ],
   "dependencies": [],
-  "suggested_template": "desktop-app",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should focus on validated export or analysis workflows rather than full editor control.",
     "Library and footprint management need explicit conventions.",

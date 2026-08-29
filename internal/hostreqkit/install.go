@@ -175,7 +175,7 @@ func WithSudo(mode, command string, args []string) (string, []string, error) {
 		}
 		switch normalized {
 		case "ask":
-			return "sudo", append([]string{command}, args...), nil
+			return helpersSudo, append([]string{command}, args...), nil
 		case "skip":
 			return "", nil, fmt.Errorf("%w: re-run with `vrooli setup --sudo-mode=ask`", ErrSudoSkipped)
 		case "error":

@@ -10,6 +10,8 @@ import (
 
 	"github.com/vrooli/envkit-go"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // Runner executes the supported Vault client contract. Consumers use this
@@ -47,7 +49,7 @@ func NewNativeRunner() Runner {
 		addr:     envOr("VAULT_ADDR", "http://127.0.0.1:8200"),
 		token:    strings.TrimSpace(os.Getenv("VAULT_TOKEN")),
 		provider: strings.TrimSpace(os.Getenv("VROOLI_MANAGED_PROVIDER")),
-		timeout:  30 * time.Second,
+		timeout:  tuning.ResourceMediumHTTPTimeout(),
 	}
 }
 

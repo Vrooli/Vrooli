@@ -23,11 +23,11 @@ func TestWriteListJSONContract(t *testing.T) {
 			Registered:   true,
 			Enabled:      true,
 			Required:     true,
-			HasCLI:       true,
+			DeclaresCLI:  true,
+			CLIInstalled: true,
 			Config:       resources.ConfigEntry{Enabled: true, Required: true, Description: "cache"},
 			ControlMode:  "manifest-native",
-			Driver:       "compose-service",
-			Template:     "compose-service",
+			Driver:       "managed-service",
 			ManifestPath: "/r/redis/resource.json",
 		},
 		// A sparse resource: every optional field empty. EmitUnpopulated means
@@ -58,18 +58,18 @@ func TestWriteListJSONContract(t *testing.T) {
 	}
 
 	// snake_case field names (UseProtoNames=true) — a camelCase regression here
-	// would silently break every consumer that reads has_cli/control_mode.
+	// would silently break every consumer that reads the CLI state/control fields.
 	first := res[0].(map[string]any)
 	for _, key := range []string{
 		"name", "path", "exists", "registered", "enabled", "required",
-		"has_cli", "config", "control_mode", "driver", "template",
+		"declares_cli", "cli_installed", "cli_state_reason", "config", "control_mode", "driver", "template",
 		"portability_tier", "manifest_path",
 	} {
 		if _, ok := first[key]; !ok {
 			t.Errorf("first resource missing key %q (camelCase regression?)", key)
 		}
 	}
-	if first["has_cli"] != true || first["name"] != "redis" {
+	if first["declares_cli"] != true || first["cli_installed"] != true || first["name"] != "redis" {
 		t.Errorf("first resource value mismatch: %v", first)
 	}
 	cfg, ok := first["config"].(map[string]any)

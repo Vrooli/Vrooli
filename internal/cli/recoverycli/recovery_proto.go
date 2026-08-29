@@ -1,20 +1,11 @@
 package recoverycli
 
 import (
-	"time"
-
 	recoveryapp "github.com/vrooli/vrooli/internal/app/recovery"
 	"github.com/vrooli/vrooli/internal/baselinefloor"
+	"github.com/vrooli/vrooli/internal/cliout"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
-
-// formatTime renders an RFC3339Nano timestamp; the zero time maps to "".
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format(time.RFC3339Nano)
-}
 
 // recoveryCopyStats maps the internal copy-ladder tallies onto the wire type.
 func recoveryCopyStats(s baselinefloor.CopyStats) *cliv1.RecoveryCopyStats {
@@ -55,7 +46,7 @@ func RecoveryRestoreResponse(resp recoveryapp.RestoreOutput) *cliv1.RecoveryRest
 func recoveryEngagementView(e recoveryapp.EngagementView) *cliv1.RecoveryEngagementView {
 	expiresAt := ""
 	if e.ExpiresAt != nil {
-		expiresAt = formatTime(*e.ExpiresAt)
+		expiresAt = cliout.FormatTimestamp(*e.ExpiresAt)
 	}
 	return &cliv1.RecoveryEngagementView{
 		Scenario:           e.Manifest.Scenario,
@@ -66,8 +57,8 @@ func recoveryEngagementView(e recoveryapp.EngagementView) *cliv1.RecoveryEngagem
 		AnchorBaselineName: e.Manifest.AnchorBaselineName,
 		AmbientVar:         e.Manifest.AmbientVar,
 		ShadowInstanceKey:  e.Manifest.ShadowInstanceKey,
-		CreatedAt:          formatTime(e.Manifest.CreatedAt),
-		LastTouchedAt:      formatTime(e.Manifest.LastTouchedAt),
+		CreatedAt:          cliout.FormatTimestamp(e.Manifest.CreatedAt),
+		LastTouchedAt:      cliout.FormatTimestamp(e.Manifest.LastTouchedAt),
 		Ttl:                e.Manifest.TTL.String(),
 		ExpiresAt:          expiresAt,
 		Expired:            e.Expired,

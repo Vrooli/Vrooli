@@ -108,7 +108,7 @@ func inspectSelectedBackendWithDiagnosis(backend string, diagnosis Diagnosis) (B
 	status.NativeWritable = diagnosis.Writable
 	status.Explanation = diagnosis.Explanation
 	status.OperatorAction = diagnosis.WriteFix
-	if backend == BackendEncryptedFile && diagnosis.Condition == "absent" {
+	if backend == BackendEncryptedFile && diagnosis.Condition == diagnoseAbsent {
 		status.NeedsOperatorInput = true
 		status.OperatorAction = "complete encrypted credential-store initialization through Vrooli onboarding"
 	}

@@ -14,6 +14,12 @@ import (
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
+const (
+	packageSetupOnly       = "setup_only"
+	packageActionRebuilt   = "rebuilt"
+	packageActionRestarted = "restarted"
+)
+
 type ScenarioRuntime interface {
 	Lookup(name string) (orchestrator.Detail, bool, error)
 	StartDetailed(name string, opts lifecycle.StartOptions) (orchestrator.StartResult, error)
@@ -198,7 +204,7 @@ func (r *refreshRuntime) execute(action packagegov.RefreshAction) (string, error
 			return "", err
 		}
 		if rebuilt {
-			return "rebuilt", nil
+			return packageActionRebuilt, nil
 		}
 		return "no_buildable_target", nil
 	case packagegov.RefreshActionNoRuntimeRefresh:
@@ -234,12 +240,12 @@ func (r *refreshRuntime) setupScenario(name string) (string, error) {
 		if _, err := service.StartDetailed(name, lifecycle.StartOptions{}); err != nil {
 			return "", err
 		}
-		return "restarted", nil
+		return packageActionRestarted, nil
 	}
 	if wasRunning {
 		return "stopped_after_setup", nil
 	}
-	return "setup_only", nil
+	return packageSetupOnly, nil
 }
 
 func (r *refreshRuntime) restartScenario(name string) (string, error) {
@@ -267,7 +273,7 @@ func (r *refreshRuntime) restartScenario(name string) (string, error) {
 	if _, err := service.StartDetailed(name, lifecycle.StartOptions{}); err != nil {
 		return "", err
 	}
-	return "restarted", nil
+	return packageActionRestarted, nil
 }
 
 func (s Service) runLifecycle(name, action string) (RunResponse, error) {

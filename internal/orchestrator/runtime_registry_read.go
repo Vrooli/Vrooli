@@ -14,6 +14,8 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
+const registryRuntimeStatusRunning = "running"
+
 func (s *Service) registryDetailsByScenario(ctx context.Context, items []scenario.Scenario) (map[string]Detail, error) {
 	if len(items) == 0 {
 		return map[string]Detail{}, nil
@@ -390,7 +392,7 @@ func countRunningProcessRefs(refs []scenarioruntime.ProcessRef) int {
 func countRunningRecords(records []process.Record) int {
 	count := 0
 	for _, record := range records {
-		if record.Status == "" || record.Status == "running" {
+		if record.Status == "" || record.Status == scenarioruntime.StatusRunning {
 			count++
 		}
 	}
@@ -402,7 +404,7 @@ func registryHealthStatus(snapshot scenarioruntime.HealthSnapshot) string {
 	case "", scenarioruntime.HealthStatusUnknown:
 		return ""
 	case scenarioruntime.HealthStatusNotConfigured:
-		return "running"
+		return registryRuntimeStatusRunning
 	default:
 		return snapshot.Status
 	}

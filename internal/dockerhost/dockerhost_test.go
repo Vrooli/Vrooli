@@ -26,7 +26,7 @@ func TestSanitizeDaemonConfigRemovesInvalidKeyAndPreservesSettings(t *testing.T)
 }`), nil
 	}
 	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "dockerd" || name == "sudo" {
+		if name == "dockerd" || name == "sudo" { //nolint:goconst // command fixture
 			return "/usr/bin/dockerd", nil
 		}
 		return "", os.ErrNotExist

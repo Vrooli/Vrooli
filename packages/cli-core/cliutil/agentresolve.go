@@ -73,6 +73,7 @@ func ResolveAgentBinaryExcluding(binary, selfPath string) (string, error) {
 	}
 
 	self := resolvedPath(selfPath)
+	selfInfo := statOrNil(selfPath)
 	var skipped bool
 	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
 		if strings.TrimSpace(dir) == "" {
@@ -82,7 +83,7 @@ func ResolveAgentBinaryExcluding(binary, selfPath string) (string, error) {
 			if !isExecutableFile(candidate) {
 				continue
 			}
-			if self != "" && resolvedPath(candidate) == self {
+			if isSelf(candidate, self, selfInfo) {
 				skipped = true
 				continue
 			}
@@ -123,6 +124,46 @@ func ExecAgent(path, argv0 string, args, environment []string) error {
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 	return command.Run()
+}
+
+// isSelf reports whether candidate is this shim, by either of the two ways a
+// shim can be reachable under more than one path.
+//
+// Resolved-path equality covers symlinks, including a stale alias left in
+// another PATH directory: both links resolve to the launcher's real path. It
+// does not cover hard links, which is how the aliases are installed on Windows
+// -- creating a symlink there needs a privilege this safeguard does not ask
+// for. Two hard links to one file are two distinct paths that EvalSymlinks
+// leaves alone, so identity has to be asked of the filesystem instead.
+//
+// Missing either check means the launcher can resolve to a copy of itself and
+// exec in a loop, which is the one failure mode a PATH shim must not have.
+func isSelf(candidate, self string, selfInfo os.FileInfo) bool {
+	if self != "" && resolvedPath(candidate) == self {
+		return true
+	}
+	if selfInfo == nil {
+		return false
+	}
+	info, err := os.Stat(candidate)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(info, selfInfo)
+}
+
+// statOrNil returns path's FileInfo, or nil when it cannot be stat'd. Nil is
+// the safe direction: an identity check that cannot run must never make the
+// resolver skip a real agent.
+func statOrNil(path string) os.FileInfo {
+	if strings.TrimSpace(path) == "" {
+		return nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil
+	}
+	return info
 }
 
 // resolvedPath returns path with symlinks resolved, or "" when it cannot be

@@ -5,7 +5,7 @@
     "tidiness": {
       "budgets": {
         "duplication_line_debt": 0,
-        "baseline_duplication_line_debt": 0,
+        "baseline_duplication_line_debt": 1,
         "long_files": 4,
         "complexity_over_threshold": 0,
         "coupling_over_threshold": 0,

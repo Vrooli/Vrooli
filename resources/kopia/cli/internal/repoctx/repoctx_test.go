@@ -3,9 +3,9 @@ package repoctx_test
 import (
 	"testing"
 
-	"resource-kopia/cli/internal/credentials/mocks"
-	"resource-kopia/cli/internal/registry"
-	"resource-kopia/cli/internal/repoctx"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/credentials/mocks"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/registry"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repoctx"
 )
 
 func TestFilesystemResolutionUsesAuthorityWithoutVault(t *testing.T) {

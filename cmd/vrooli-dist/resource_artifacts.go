@@ -22,8 +22,10 @@ import (
 )
 
 const (
-	literalResourceArtifactsDir     = "dir"
-	literalResourceArtifactsWindows = "windows"
+	literalResourceArtifactsDir            = "dir"
+	literalResourceArtifactsWindows        = "windows"
+	literalResourceArtifactsPrebuilt       = "prebuilt_artifact"
+	literalResourceArtifactsManagedService = "managed-service"
 )
 
 const (
@@ -198,7 +200,7 @@ func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
 		if err := buildResourceController(ctx, resourceDir, target, outDir); err != nil {
 			return err
 		}
-		if target.Driver != "managed-service" {
+		if target.Driver != literalResourceArtifactsManagedService {
 			if target.Resource == "doc-parse" && !docParseStaged {
 				if err := stageDocParseWASI(root, outDir); err != nil {
 					return err
@@ -368,7 +370,7 @@ func resourceArtifactBuildTargets(manifest resourceArtifactManifest) ([]resource
 	if manifest.CLI.Distribution.Kind == "" {
 		return nil, nil
 	}
-	if manifest.CLI.Distribution.Kind != "prebuilt_artifact" || strings.TrimSpace(manifest.CLI.Distribution.ArtifactName) == "" || strings.TrimSpace(manifest.CLI.Adapter.ModuleDir) == "" {
+	if manifest.CLI.Distribution.Kind != literalResourceArtifactsPrebuilt || strings.TrimSpace(manifest.CLI.Distribution.ArtifactName) == "" || strings.TrimSpace(manifest.CLI.Adapter.ModuleDir) == "" {
 		return nil, fmt.Errorf("bundled resource artifacts require prebuilt distribution and Go module adapter")
 	}
 	var targets []resourceBuildTarget
@@ -667,7 +669,7 @@ func updateReleaseArtifactMetadata(outDir, name string, metadata releaseArtifact
 		}
 	}
 	if metadata.Role == "" {
-		metadata.Role = "managed-service"
+		metadata.Role = literalResourceArtifactsManagedService
 	}
 	if metadata.Provenance == "" {
 		metadata.Provenance = "verified-by-vrooli-stager"

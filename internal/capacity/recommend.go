@@ -3,7 +3,7 @@ package capacity
 import "fmt"
 
 const (
-	recommendParameterA = 100
+	recommendPercentScale = 100
 )
 
 // Recommendation is one advisory right-sizing suggestion (§Phase 4, contract C7).
@@ -45,7 +45,7 @@ func Recommend(claims []CapacityClaim, policy Policy) []Recommendation {
 		if c.ObservedAt == nil || c.ObservedPeakBytes <= 0 || c.PreferredBytes <= 0 {
 			continue // no usable sample yet — stay silent
 		}
-		suggested := c.ObservedPeakBytes + c.ObservedPeakBytes*int64(pct)/recommendParameterA
+		suggested := c.ObservedPeakBytes + c.ObservedPeakBytes*int64(pct)/recommendPercentScale
 		if suggested < c.FloorBytes {
 			suggested = c.FloorBytes
 		}

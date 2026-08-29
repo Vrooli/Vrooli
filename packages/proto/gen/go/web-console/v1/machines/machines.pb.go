@@ -493,10 +493,19 @@ func (x *PermissionPreset) GetAppCount() int32 {
 // ControlPlane reports the fleet control plane's own reachability so the
 // machines surface can state where linked machines are registered.
 type ControlPlane struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Reachable     bool                   `protobuf:"varint,1,opt,name=reachable,proto3" json:"reachable,omitempty"`
-	Endpoint      string                 `protobuf:"bytes,2,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	Detail        string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Reachable bool                   `protobuf:"varint,1,opt,name=reachable,proto3" json:"reachable,omitempty"`
+	// The API base this process dials. It identifies the control plane in
+	// diagnostics and must never be used as a link: it is the machine-to-machine
+	// address, resolved on the server, and a browser that opens it gets a 404
+	// from a Connect endpoint.
+	Endpoint string `protobuf:"bytes,2,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	Detail   string `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	// The control plane's own interface, resolved against the origin the calling
+	// browser used, so a link works from a tunnel or another device rather than
+	// only from the machine the server runs on. Empty when the interface cannot
+	// be resolved; a client must hide the affordance rather than link nowhere.
+	ConsoleUrl    string `protobuf:"bytes,4,opt,name=console_url,json=consoleUrl,proto3" json:"console_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -548,6 +557,13 @@ func (x *ControlPlane) GetEndpoint() string {
 func (x *ControlPlane) GetDetail() string {
 	if x != nil {
 		return x.Detail
+	}
+	return ""
+}
+
+func (x *ControlPlane) GetConsoleUrl() string {
+	if x != nil {
+		return x.ConsoleUrl
 	}
 	return ""
 }
@@ -1149,11 +1165,13 @@ const file_web_console_v1_machines_machines_proto_rawDesc = "" +
 	"\twithholds\x18\x05 \x03(\tR\twithholds\x12\x18\n" +
 	"\asummary\x18\x06 \x01(\tR\asummary\x12\x18\n" +
 	"\aeffects\x18\a \x03(\tR\aeffects\x12\x1b\n" +
-	"\tapp_count\x18\b \x01(\x05R\bappCount\"`\n" +
+	"\tapp_count\x18\b \x01(\x05R\bappCount\"\x81\x01\n" +
 	"\fControlPlane\x12\x1c\n" +
 	"\treachable\x18\x01 \x01(\bR\treachable\x12\x1a\n" +
 	"\bendpoint\x18\x02 \x01(\tR\bendpoint\x12\x16\n" +
-	"\x06detail\x18\x03 \x01(\tR\x06detail\"\r\n" +
+	"\x06detail\x18\x03 \x01(\tR\x06detail\x12\x1f\n" +
+	"\vconsole_url\x18\x04 \x01(\tR\n" +
+	"consoleUrl\"\r\n" +
 	"\vListRequest\"\xc9\x03\n" +
 	"\fListResponse\x12@\n" +
 	"\x05state\x18\x01 \x01(\x0e2*.vrooli.web_console.v1.machines.FleetStateR\x05state\x12C\n" +

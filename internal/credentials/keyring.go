@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -74,7 +74,7 @@ func DefaultKeyringPath(path string) (string, error) {
 	if len(matches) == 0 {
 		return "", fmt.Errorf("no keyring files found")
 	}
-	sort.Strings(matches)
+	slices.Sort(matches)
 	return matches[0], nil
 }
 

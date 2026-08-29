@@ -13,11 +13,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/vrooli/internal/tuning"
 	"net/http"
 	"net/url"
 	"sort"
 	"strings"
-	"time"
 )
 
 // Classification buckets for engine-level health.
@@ -73,7 +73,7 @@ func Classify(responsiveEngines int) string {
 // probe.
 func Probe(ctx context.Context, client HTTPClient, baseURL, query string) (Report, error) {
 	if client == nil {
-		client = &http.Client{Timeout: 30 * time.Second}
+		client = &http.Client{Timeout: tuning.PlatformSupportRequestTimeout()}
 	}
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {

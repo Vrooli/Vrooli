@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/vrooli/internal/tuning"
+	"github.com/vrooli/vrooli/internal/values"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -125,7 +126,7 @@ func resultFromResponse(response *scenariovalidationv1.ValidateTargetResponse) R
 				Severity:    finding.GetSeverity(),
 				Location:    finding.GetFilePath(),
 				Message:     finding.GetDescription(),
-				Remediation: firstNonEmpty(finding.GetRemediation(), finding.GetRecommendedRemediation()),
+				Remediation: values.FirstNonEmpty(finding.GetRemediation(), finding.GetRecommendedRemediation()),
 			})
 		}
 	}
@@ -164,13 +165,4 @@ func unmarshalNative(detail *anypb.Any) *validationv1.TidinessScanResponse {
 		return nil
 	}
 	return native
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }

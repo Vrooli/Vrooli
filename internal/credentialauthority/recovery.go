@@ -20,9 +20,10 @@ import (
 )
 
 const (
-	recoveryParameterA = 2
-	recoveryParameterB = 3
-	recoveryParameterC = 32
+	recoveryParameterA      = 2
+	recoveryParameterB      = 3
+	recoveryParameterC      = 32
+	recoveryKDFPBKDF2SHA256 = "pbkdf2-sha256"
 )
 
 // RecoveryEntry identifies a value to include in an encrypted recovery
@@ -160,12 +161,12 @@ func decryptRecovery(bundle []byte, passphrase string) ([]byte, error) {
 	case 1:
 		// Version 1 had no KDF metadata and is fixed to the original policy.
 	case recoveryParameterA:
-		if envelope.KDF != "pbkdf2-sha256" || envelope.Iterations <= 0 {
+		if envelope.KDF != recoveryKDFPBKDF2SHA256 || envelope.Iterations <= 0 {
 			return nil, fmt.Errorf("unsupported recovery KDF policy")
 		}
 		iterations = envelope.Iterations
 	case recoveryParameterB:
-		if envelope.KDF != "pbkdf2-sha256" || envelope.Iterations <= 0 || envelope.Purpose != "recovery-bundle" {
+		if envelope.KDF != recoveryKDFPBKDF2SHA256 || envelope.Iterations <= 0 || envelope.Purpose != "recovery-bundle" {
 			return nil, fmt.Errorf("unsupported recovery envelope policy")
 		}
 		iterations = envelope.Iterations

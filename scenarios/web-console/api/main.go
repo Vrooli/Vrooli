@@ -50,6 +50,7 @@ import (
 
 	intgrouptemplates "web-console/internal/grouptemplates"
 	inthandoffrules "web-console/internal/handoffrules"
+	intsnippets "web-console/internal/snippets"
 	intworkspace "web-console/internal/workspace"
 )
 
@@ -85,6 +86,7 @@ type Server struct {
 	workspace             intworkspace.Store
 	groupTemplates        intgrouptemplates.Store
 	handoffRules          inthandoffrules.Store
+	snippets              intsnippets.Store
 	hookAuthToken         string
 	codexTailer           *CodexTailer
 	claudeTailer          *ClaudeTailer
@@ -292,6 +294,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		workspace:         intworkspace.NewSQLStore(db),
 		groupTemplates:    intgrouptemplates.NewSQLStore(db),
 		handoffRules:      inthandoffrules.NewSQLStore(db),
+		snippets:          intsnippets.NewSQLStore(db),
 		hookAuthToken:     hookToken,
 		ttsHookConfigState: hookConfigState{
 			cfg:  hookCfg,

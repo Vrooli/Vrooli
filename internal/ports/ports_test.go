@@ -1608,10 +1608,9 @@ func ensureTypedResourceMetadata(t *testing.T, root string) {
 		return
 	}
 	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
-		Name:     "postgres",
-		Driver:   "docker-service",
-		Template: "docker-service",
-		Ports:    []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		Name:   "postgres",
+		Driver: "managed-service",
+		Ports:  []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 			Env: map[string]string{

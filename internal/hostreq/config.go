@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
@@ -43,7 +43,7 @@ func resolveSafeguardConfig(name string, manifest hostreqkit.SafeguardManifest, 
 					missing = append(missing, key)
 				}
 			}
-			sort.Strings(missing)
+			slices.Sort(missing)
 			return config, "", fmt.Sprintf("optional safeguard is unconfigured; set %s with `vrooli-onboarding operator set-safeguard-config --name %s --key <name> --value-json <json>`", strings.Join(missing, ", "), name)
 		}
 		return config, "", ""

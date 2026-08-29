@@ -14,7 +14,6 @@ func TestManifestDeclaresOnlyTheSupportedManagedContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	var manifest struct {
-		Template    string `json:"template"`
 		Driver      string `json:"driver"`
 		Description string `json:"description"`
 		CLI         struct {
@@ -36,6 +35,7 @@ func TestManifestDeclaresOnlyTheSupportedManagedContract(t *testing.T) {
 		} `json:"managed_service"`
 		Health []struct {
 			Target string `json:"target"`
+			Kind   string `json:"kind"`
 		} `json:"health_checks"`
 		HostTools []struct {
 			Name     string `json:"name"`
@@ -45,8 +45,8 @@ func TestManifestDeclaresOnlyTheSupportedManagedContract(t *testing.T) {
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if manifest.Template != "managed-service" || manifest.Driver != "managed-service" {
-		t.Fatalf("template/driver = %q/%q", manifest.Template, manifest.Driver)
+	if manifest.Driver != "managed-service" {
+		t.Fatalf("driver = %q", manifest.Driver)
 	}
 	if strings.Contains(strings.ToLower(manifest.Description), "shell") {
 		t.Fatalf("description retains shell-era claim: %q", manifest.Description)
@@ -54,7 +54,7 @@ func TestManifestDeclaresOnlyTheSupportedManagedContract(t *testing.T) {
 	if manifest.ManagedService.Acquisition.Kind != "composed" || manifest.ManagedService.Artifact.Layout != "dir" || manifest.ManagedService.Artifact.EntryPath != "runtime/bin/python" {
 		t.Fatalf("managed service artifact/acquisition = %#v", manifest.ManagedService)
 	}
-	if len(manifest.Health) != 1 || !strings.HasSuffix(manifest.Health[0].Target, "/stats") {
+	if len(manifest.Health) != 2 || !strings.HasSuffix(manifest.Health[0].Target, "/stats") || manifest.Health[0].Kind != "readiness" || manifest.Health[1].Kind != "liveness" {
 		t.Fatalf("health = %#v", manifest.Health)
 	}
 	if len(manifest.HostTools) != 0 {

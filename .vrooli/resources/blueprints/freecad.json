@@ -15,7 +15,7 @@
     "Engineering design automation",
     "CAD-to-manufacturing pipelines"
   ],
-  "integration_kind": "desktop-app",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "FreeCAD is cross-platform, but Python API behavior, GUI automation, and package quality vary by host environment.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Artifact storage conventions for generated models"
   ],
   "dependencies": [],
-  "suggested_template": "desktop-app",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should focus on a few validated CAD automation workflows rather than broad wrapper coverage.",
     "GUI and headless usage need separate support assumptions.",

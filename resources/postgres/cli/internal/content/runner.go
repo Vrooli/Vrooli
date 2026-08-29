@@ -15,6 +15,8 @@ import (
 
 	"github.com/vrooli/envkit-go"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // Runner executes one psql invocation against a running PostgreSQL instance.
@@ -45,7 +47,7 @@ type processRunner struct {
 
 // NewProcessRunner returns the default production runner with a sane timeout.
 func NewProcessRunner() Runner {
-	return &processRunner{timeout: 60 * time.Second, lookPath: LookupPSQL}
+	return &processRunner{timeout: tuning.ResourceHTTPTimeout(), lookPath: LookupPSQL}
 }
 
 func (p *processRunner) Run(ctx context.Context, endpoint Endpoint, args []string, stdin io.Reader, env []string) ([]byte, []byte, error) {

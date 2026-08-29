@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"resource-openrouter/cli/internal/policytest"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policytest"
 )
 
 func testHandlers(t *testing.T) (*Handlers, *bytes.Buffer) {

@@ -2,7 +2,6 @@ package recommend
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
@@ -165,9 +165,7 @@ func writeJSON(w io.Writer, model Model, reason string, caps hostinventory.Snaps
 			VRAMGB: float64(g.VRAMBytes) / float64(1<<30),
 		})
 	}
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(r)
+	return cliout.NewEncoder(w).Encode(r)
 }
 
 // writeEnv emits the KEY=VALUE lines consumed by operator tooling and the

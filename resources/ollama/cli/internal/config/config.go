@@ -5,6 +5,8 @@ package config
 import (
 	"os"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/tuning"
 	"time"
 )
 
@@ -29,7 +31,7 @@ func FromEnv(getenv func(string) string) Runtime {
 			baseURL = host
 		}
 	}
-	return Runtime{BaseURL: baseURL, ReadinessTimeout: 5 * time.Second, RequireModel: true}
+	return Runtime{BaseURL: baseURL, ReadinessTimeout: tuning.ServiceHealthTimeout(), RequireModel: true}
 }
 
 func Default() Runtime { return FromEnv(os.Getenv) }

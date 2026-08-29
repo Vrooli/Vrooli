@@ -193,6 +193,14 @@
       ],
       "interval_seconds": 10,
       "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:3000/",
+      "kind": "liveness",
+      "expected_status": [200, 302, 401],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
     }
   ],
   "managed_service": {

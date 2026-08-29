@@ -15,7 +15,7 @@
     "Operational analytics dashboards",
     "High-frequency event-ingestion pipelines"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The prior implementation used Docker. A future implementation should reassess Docker against a managed local-service design and state the desktop-bundling trade-off explicitly.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "An explicit runtime choice and platform-support plan"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Start from the resource maturity and migration playbook before restoring an implementation.",
     "Prefer the lightest feasible runtime archetype; do not assume Docker is the default for desktop use cases.",

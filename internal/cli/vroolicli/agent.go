@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -44,7 +45,7 @@ func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
 		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch)", args[0])
 	}
 
-	fs := flag.NewFlagSet("vrooli agent launch", flag.ContinueOnError)
+	fs := commandtree.NewFlagSet("vrooli agent launch")
 	fs.SetOutput(ctx.Stderr)
 	runner := fs.String("runner", agentClaude, "coding-agent runner: claude, codex, opencode, or grok")
 	prompt := fs.String("prompt", "", "optional non-interactive prompt")

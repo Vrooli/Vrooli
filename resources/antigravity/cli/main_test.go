@@ -1,8 +1,16 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/vrooli/vrooli/resources/testkit"
+)
 
 func TestNewAppConfiguresResourceApp(t *testing.T) {
+	h := testkit.Handlers(t)
+	if h.Stdout == nil {
+		t.Fatal("test harness must provide stdout")
+	}
 	app, err := newApp()
 	if err != nil {
 		t.Fatalf("newApp() error = %v", err)

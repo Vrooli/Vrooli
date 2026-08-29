@@ -20,6 +20,9 @@ func TestParseFormat(t *testing.T) {
 	if got, err := ParseFormat("json", false); err != nil || got != FormatJSON {
 		t.Fatalf("ParseFormat explicit json = %q, %v", got, err)
 	}
+	if got, err := ParseFormat("text", false); err != nil || got != FormatHuman {
+		t.Fatalf("ParseFormat text alias = %q, %v", got, err)
+	}
 
 	if got, err := ParseFormat("", true); err != nil || got != FormatJSON {
 		t.Fatalf("ParseFormat json flag = %q, %v", got, err)

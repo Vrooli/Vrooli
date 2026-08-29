@@ -105,7 +105,7 @@
       "entry_path": "server/sherpa-onnx-server",
       "bundle_artifact": "sherpa-onnx-server_${os}_${arch}",
       "sha256_by_platform": {
-        "linux-amd64": "49c4aef834f4f45f282e2034ffffb43610006f44f3348310e5a4cb22d15b0e1d"
+      "linux-amd64": "bd90dac5c3f33dfdec4d9df7806c0572f409629d395d288c637c2f370cb1ac5f"
       }
     },
     "acquisition": {
@@ -176,7 +176,7 @@
           "targets": [
             {
               "url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2",
-              "sha256": "75654a84864be26f345f020f4070c2c019e96dd1b7f9bf6e2ffd59efac6aa5a3",
+              "sha256": "c133d26353d776da730870dac7da07dbfc9a5e3bc80cc5e8e83ab6e823be7046",
               "archive": "tar.bz2",
               "layout": "dir",
               "bin_path": "kokoro-int8-multi-lang-v1_0/model.int8.onnx"
@@ -384,6 +384,13 @@
       "target": "http://127.0.0.1:8881/healthz",
       "kind": "readiness",
       "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8881/healthz",
+      "kind": "liveness",
+      "interval_seconds": 30,
       "timeout_seconds": 10
     }
   ],

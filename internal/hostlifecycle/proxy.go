@@ -20,12 +20,13 @@ import (
 const HostLifecycleBaseEnv = "VROOLI_HOST_LIFECYCLE_BASE"
 
 type ScenarioRequest struct {
-	Action     string `json:"action"`
-	Name       string `json:"name"`
-	PortName   string `json:"port_name,omitempty"`
-	BestEffort bool   `json:"best_effort,omitempty"`
-	CleanStale bool   `json:"clean_stale,omitempty"`
-	CustomPath string `json:"custom_path,omitempty"`
+	Action               string `json:"action"`
+	Name                 string `json:"name"`
+	PortName             string `json:"port_name,omitempty"`
+	BestEffort           bool   `json:"best_effort,omitempty"`
+	CleanStale           bool   `json:"clean_stale,omitempty"`
+	AcceptCredentialLoss bool   `json:"accept_credential_loss,omitempty"`
+	CustomPath           string `json:"custom_path,omitempty"`
 }
 
 type ScenarioResponse struct {
@@ -81,11 +82,12 @@ func RunScenario(ctx context.Context, req ScenarioRequest) (ScenarioResponse, er
 
 func StartOptionsRequest(action, name string, opts lifecycle.StartOptions) ScenarioRequest {
 	return ScenarioRequest{
-		Action:     action,
-		Name:       name,
-		BestEffort: opts.BestEffort,
-		CleanStale: opts.CleanStale,
-		CustomPath: opts.CustomPath,
+		Action:               action,
+		Name:                 name,
+		BestEffort:           opts.BestEffort,
+		CleanStale:           opts.CleanStale,
+		AcceptCredentialLoss: opts.AcceptCredentialLoss,
+		CustomPath:           opts.CustomPath,
 	}
 }
 

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -164,7 +164,7 @@ func SuggestableNames[H any](specs []Spec[H]) []string {
 			names = append(names, spec.Name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

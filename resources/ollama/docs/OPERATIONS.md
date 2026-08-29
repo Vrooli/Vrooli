@@ -41,7 +41,7 @@ service reports native host GPU access and `/api/ps` processor placement;
 To inspect the live Ollama `/api/ps` processor placement directly:
 
 ```text
-resource-ollama health-gpu --json
+resource-ollama status --json
 resource-ollama capacity plan --scenario <name> --json
 ```
 

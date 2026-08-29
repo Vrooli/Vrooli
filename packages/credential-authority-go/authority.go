@@ -53,6 +53,9 @@ var (
 	ErrProviderUnavailable = internalcredentialauthority.ErrProviderUnavailable
 	// ErrProviderAbsent: this host has no credential backend at all.
 	ErrProviderAbsent = internalcredentialauthority.ErrProviderAbsent
+	// ErrNotFound is for secure-store adapters implementing the public Store
+	// contract. Consumers normally see this normalized as ErrUnconfigured.
+	ErrNotFound = securestore.ErrNotFound
 )
 
 type Authority struct {

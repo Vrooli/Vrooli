@@ -13,7 +13,10 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/testenv"
+	"github.com/vrooli/vrooli/internal/values"
 )
+
+const hostreqkittestDarwin = "darwin"
 
 // LoadToolManifest loads the manifest owned by a manifest-only tool package.
 // Keeping this small loader here lets each package's conformance case use its
@@ -209,39 +212,12 @@ func runSuite(t suiteT, c Case) {
 		t.Errorf("Name is empty")
 	}
 
-	t.Run("name_and_kind", func(t suiteT) {
-		h := c.NewHandler()
-		if h.Name() != c.Name {
-			t.Errorf("Name() = %q, want %q", h.Name(), c.Name)
-		}
-		if h.Kind() != c.Kind {
-			t.Errorf("Kind() = %q, want %q", h.Kind(), c.Kind)
-		}
-	})
+	runNameAndKind(t, c)
 
-	if enabled(c, "inspect_manual_requirement") {
-		t.Run("inspect_manual_requirement", func(t suiteT) {
-			h := c.NewHandler()
-			status := h.Inspect(LinuxHost(), manualRequirement(c))
-			if status.SupportClass != hostreqkit.SupportManualOnly {
-				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportManualOnly)
-			}
-			if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
-				t.Errorf("ExecutionState = %q, want %q", status.ExecutionState, hostreqkit.ExecutionManualActionRequired)
-			}
-		})
-	}
+	runManualRequirement(t, c)
 
 	unsupported := unsupportedOS(c.SupportedPlatforms)
-	if unsupported != "" && enabled(c, "inspect_unsupported_platform") {
-		t.Run("inspect_unsupported_platform", func(t suiteT) {
-			h := c.NewHandler()
-			status := h.Inspect(hostreqkit.Host{OS: unsupported}, BaseRequirement(c))
-			if status.SupportClass != hostreqkit.SupportUnsupported {
-				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportUnsupported)
-			}
-		})
-	}
+	runUnsupportedPlatform(t, c, unsupported)
 
 	if enabled(c, "inspect_linux_apt_not_installed") {
 		t.Run("inspect_linux_apt_not_installed", func(t suiteT) {
@@ -268,7 +244,7 @@ func runSuite(t suiteT, c Case) {
 		t.Run("inspect_linux_apt_installed", func(t suiteT) {
 			originalLookPath := hostreqkit.LookPathFn
 			originalOutput := hostreqkit.CombinedOutputFn
-			binary := firstNonEmpty(c.ToolBinary, c.Name)
+			binary := values.FirstNonEmpty(c.ToolBinary, c.Name)
 			hostreqkit.LookPathFn = func(name string) (string, error) {
 				if name == binary {
 					return "/usr/bin/" + binary, nil
@@ -437,7 +413,7 @@ func runSuite(t suiteT, c Case) {
 	if enabled(c, "apply_darwin_brew_flow") {
 		runAPTRepoCheck(t, c, "apply_darwin_brew_flow", func(t suiteT, cluster *APTRepoCase) {
 			var commands []string
-			binary := firstNonEmpty(c.ToolBinary, c.Name)
+			binary := values.FirstNonEmpty(c.ToolBinary, c.Name)
 			hostreqkit.LookPathFn = func(name string) (string, error) {
 				if name == binary && len(commands) > 0 {
 					return "/usr/local/bin/" + binary, nil
@@ -477,7 +453,7 @@ func runSuite(t suiteT, c Case) {
 	if enabled(c, "apply_linux_apt_full_flow") {
 		runAPTRepoCheck(t, c, "apply_linux_apt_full_flow", func(t suiteT, cluster *APTRepoCase) {
 			var commands []string
-			binary := firstNonEmpty(c.ToolBinary, c.Name)
+			binary := values.FirstNonEmpty(c.ToolBinary, c.Name)
 			hostreqkit.LookPathFn = func(name string) (string, error) {
 				if name == "gpg" || name == "sudo" {
 					return "/usr/bin/" + name, nil
@@ -493,7 +469,7 @@ func runSuite(t suiteT, c Case) {
 			}
 			hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return []byte(c.VersionOutput), nil }
 			cluster.SetKeyDownload(func() ([]byte, error) { return []byte("fixture-gpg-key"), nil })
-			sudoMode := firstNonEmpty(cluster.SudoMode, "skip")
+			sudoMode := values.FirstNonEmpty(cluster.SudoMode, "skip")
 			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt-get"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true, SudoMode: sudoMode})
 			if err != nil {
 				t.Errorf("Apply() error = %v", err)
@@ -544,6 +520,47 @@ func runSuite(t suiteT, c Case) {
 	}
 }
 
+func runNameAndKind(t suiteT, c Case) {
+	t.Run("name_and_kind", func(t suiteT) {
+		h := c.NewHandler()
+		if h.Name() != c.Name {
+			t.Errorf("Name() = %q, want %q", h.Name(), c.Name)
+		}
+		if h.Kind() != c.Kind {
+			t.Errorf("Kind() = %q, want %q", h.Kind(), c.Kind)
+		}
+	})
+}
+
+func runManualRequirement(t suiteT, c Case) {
+	if !enabled(c, "inspect_manual_requirement") {
+		return
+	}
+	t.Run("inspect_manual_requirement", func(t suiteT) {
+		h := c.NewHandler()
+		status := h.Inspect(LinuxHost(), manualRequirement(c))
+		if status.SupportClass != hostreqkit.SupportManualOnly {
+			t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportManualOnly)
+		}
+		if status.ExecutionState != hostreqkit.ExecutionManualActionRequired {
+			t.Errorf("ExecutionState = %q, want %q", status.ExecutionState, hostreqkit.ExecutionManualActionRequired)
+		}
+	})
+}
+
+func runUnsupportedPlatform(t suiteT, c Case, unsupported string) {
+	if unsupported == "" || !enabled(c, "inspect_unsupported_platform") {
+		return
+	}
+	t.Run("inspect_unsupported_platform", func(t suiteT) {
+		h := c.NewHandler()
+		status := h.Inspect(hostreqkit.Host{OS: unsupported}, BaseRequirement(c))
+		if status.SupportClass != hostreqkit.SupportUnsupported {
+			t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportUnsupported)
+		}
+	})
+}
+
 func runAPTRepoCheck(t suiteT, c Case, name string, check func(suiteT, *APTRepoCase)) {
 	t.Run(name, func(t suiteT) {
 		if c.APTRepo == nil || c.APTRepo.Setup == nil || c.APTRepo.SetKeyDownload == nil {
@@ -573,15 +590,6 @@ func runPackageInspection(t suiteT, c Case, check string, host hostreqkit.Host, 
 			t.Errorf("PackageName = %q, want %q", status.PackageName, want)
 		}
 	})
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 // LoadManifestProperties decodes the shared config.properties shape from a
@@ -841,7 +849,7 @@ func unsupportedOr(fallback, value string) string {
 func containsPlatform(platforms []string, candidate string) bool {
 	for _, platform := range platforms {
 		platform = strings.ToLower(strings.TrimSpace(platform))
-		if platform == candidate || candidate == "darwin" && platform == "macos" {
+		if platform == candidate || candidate == hostreqkittestDarwin && platform == "macos" {
 			return true
 		}
 	}

@@ -32,6 +32,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/vrooli/vrooli/internal/cliout"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -187,7 +189,7 @@ func (a *Adapter) Save(p Policy) error {
 		doc[permissionSectionKey] = section
 	}
 
-	out, err := json.MarshalIndent(doc, "", "  ")
+	out, err := cliout.MarshalIndent(doc)
 	if err != nil {
 		return fmt.Errorf("encode %s: %w", a.SettingsPath, err)
 	}

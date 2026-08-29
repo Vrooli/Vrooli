@@ -15,7 +15,7 @@
     "Asset tracking systems",
     "Location-triggered automation"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The service can run in containers, but useful support depends on device protocols, persistence, and operator workflows around location data.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Clear privacy and retention rules for location data"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should validate one real device or telemetry path.",
     "Keep platform operations distinct from business logic built on top of location data.",

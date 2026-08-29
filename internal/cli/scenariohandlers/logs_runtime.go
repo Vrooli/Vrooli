@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -85,7 +86,7 @@ func cleanScenarioLogs(root, home, name string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 	orphaned := make([]string, 0)
 	for _, path := range files {
 		info, ok := parseScenarioStepLogInfo(name, path)
@@ -122,7 +123,7 @@ func showScenarioRuntimeLogs(home, name string, opts LogOptions, stdout io.Write
 	if err != nil {
 		return err
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	if len(paths) == 0 {
 		return fmt.Errorf("no runtime log files found for scenario %q", name)
 	}
@@ -152,7 +153,7 @@ func showScenarioStepLog(home, name string, opts LogOptions, stdout io.Writer) e
 	if err != nil {
 		return err
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	if len(paths) == 0 {
 		if opts.Previous {
 			return fmt.Errorf("no previous log found for step %q", opts.StepName)
@@ -224,7 +225,7 @@ func writeScenarioLogDiscovery(root, home, name string, stdout, stderr io.Writer
 	if err != nil {
 		return err
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	available := make([]scenarioStepLogInfo, 0, len(paths))
 	seen := make(map[string]struct{}, len(paths))
 	orphaned := make([]scenarioStepLogInfo, 0)
@@ -247,7 +248,7 @@ func writeScenarioLogDiscovery(root, home, name string, stdout, stderr io.Writer
 	for key := range expected {
 		expectedKeys = append(expectedKeys, key)
 	}
-	sort.Strings(expectedKeys)
+	slices.Sort(expectedKeys)
 	_, _ = fmt.Fprintln(stdout)
 	_, _ = fmt.Fprintln(stdout, "Background step logs:")
 	if len(available) == 0 && len(expectedKeys) == 0 {

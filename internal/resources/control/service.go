@@ -58,6 +58,7 @@ type Status struct {
 	// for. Empty when the resource declares no accelerator.
 	DeclaredMode string `json:"declared_mode,omitempty"`
 	// ObservedMode is the backend the host says the running resource is on.
+	// CLI projections use not_evaluated when this is empty.
 	// Empty means the placement could not be read, which is never reported as
 	// agreement.
 	ObservedMode string `json:"observed_mode,omitempty"`
@@ -146,7 +147,7 @@ func (s *Service) ListStatusesReport(fast bool, onlyEnabled bool) (StatusReport,
 		if statusErr != nil {
 			status = Status{
 				Resource:  item,
-				Installed: item.Exists || item.HasCLI,
+				Installed: item.Exists,
 				Message:   statusErr.Error(),
 			}
 		}
@@ -309,7 +310,7 @@ func (s *Service) StopAll(stdout, stderr io.Writer) (batchcontrol.StopReport, er
 	for _, status := range statuses {
 		bestEffort := false
 		if !status.Running {
-			if status.StatusCode == StatusCodeOK || !status.Resource.HasCLI {
+			if status.StatusCode == StatusCodeOK || !status.Resource.DeclaresCLI {
 				continue
 			}
 			bestEffort = true
@@ -345,7 +346,7 @@ func (s *Service) StatusForResource(item catalog.Resource, fast bool) (Status, e
 
 	status := Status{
 		Resource:   item,
-		Installed:  item.Exists || item.HasCLI,
+		Installed:  item.Exists,
 		Running:    false,
 		StatusCode: StatusCodeOK,
 		Message:    "not running",

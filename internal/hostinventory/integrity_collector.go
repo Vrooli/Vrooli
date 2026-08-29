@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -137,7 +138,7 @@ func (c *IntegrityDefaultCollector) Collect(ctx context.Context) (HostInventory,
 				inv.Kernel.InstalledModuleTrees = append(inv.Kernel.InstalledModuleTrees, entry.Name())
 			}
 		}
-		sort.Strings(inv.Kernel.InstalledModuleTrees)
+		slices.Sort(inv.Kernel.InstalledModuleTrees)
 		setIntegrityProbe(&inv, "installedModuleTrees", IntegrityProbeOK, nil)
 	} else {
 		setIntegrityProbe(&inv, "installedModuleTrees", IntegrityProbeDegraded, err)
@@ -213,7 +214,7 @@ func parseIntegrityModules(content string) []string {
 			modules = append(modules, fields[0])
 		}
 	}
-	sort.Strings(modules)
+	slices.Sort(modules)
 	return modules
 }
 
@@ -424,7 +425,7 @@ func integrityHasNVIDIAEvidence(inv HostInventory) bool {
 		}
 	}
 	for _, tool := range inv.Runtimes {
-		if tool.Name == "nvidia-smi" && tool.Path != "" {
+		if tool.Name == ToolNvidiaSMI && tool.Path != "" {
 			return true
 		}
 	}
@@ -446,7 +447,7 @@ func integrityFilterModules(modules, prefixes []string) []string {
 			}
 		}
 	}
-	sort.Strings(filtered)
+	slices.Sort(filtered)
 	return filtered
 }
 

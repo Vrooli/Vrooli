@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -180,7 +179,7 @@ func (a *AccelerationSpec) UnmarshalJSON(data []byte) error {
 		a.Backend[key] = config
 	}
 	if len(unknown) > 0 {
-		sort.Strings(unknown)
+		slices.Sort(unknown)
 		return fmt.Errorf("acceleration has unknown key(s) %v (allowed backends: %v)", unknown, AllowedBackends)
 	}
 	return nil
@@ -274,8 +273,9 @@ func (a AccelerationSpec) Validate() error {
 	return a.validateClaim()
 }
 
-// validateClaim closes the gap that let kokoro and speaker-verification declare
-// a VRAM claim the broker could never step down.
+// validateClaim verifies the broker's claim ladder. A CPU-only declaration may
+// retain a VRAM claim as recorded intent for a future accelerator artifact; the
+// claim still has to be fully degradable before the broker can accept it.
 func (a AccelerationSpec) validateClaim() error {
 	if a.Claim == nil {
 		return nil
@@ -286,9 +286,6 @@ func (a AccelerationSpec) validateClaim() error {
 	}
 	if kind != capacity.ResourceKindVRAM {
 		return nil
-	}
-	if !a.DeclaresAcceleration() {
-		return fmt.Errorf("acceleration.claim declares a %q claim but acceleration.backends names no backend other than %q", capacity.ResourceKindVRAM, BackendCPU)
 	}
 	if a.Claim.Profile == nil || len(a.Claim.Profile.Steps) == 0 {
 		return fmt.Errorf("acceleration.claim.profile with at least one step is required for a %q claim, otherwise the broker can never step the resource down", capacity.ResourceKindVRAM)

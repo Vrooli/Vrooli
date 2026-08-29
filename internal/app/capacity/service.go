@@ -88,22 +88,26 @@ func (s Service) attributor() engine.Attributor {
 
 // ClaimView is the JSON/text projection of a claim.
 type ClaimView struct {
-	ClaimID           string  `json:"claim_id"`
-	OwnerKind         string  `json:"owner_kind"`
-	OwnerID           string  `json:"owner_id"`
-	InstanceID        string  `json:"instance_id,omitempty"`
-	ResourceKind      string  `json:"resource_kind"`
-	GPUIndex          *int    `json:"gpu_index,omitempty"`
-	AmountBytes       int64   `json:"amount_bytes"`
-	PreferredBytes    int64   `json:"preferred_bytes"`
-	FloorBytes        int64   `json:"floor_bytes"`
-	Priority          int     `json:"priority"`
-	PriorityTier      string  `json:"priority_tier"`
-	Protected         bool    `json:"protected"`
-	YieldWhenIdle     bool    `json:"yield_when_idle"`
-	Status            string  `json:"status"`
-	ActivityState     string  `json:"activity_state"`
-	Generation        int64   `json:"generation"`
+	ClaimID        string `json:"claim_id"`
+	OwnerKind      string `json:"owner_kind"`
+	OwnerID        string `json:"owner_id"`
+	InstanceID     string `json:"instance_id,omitempty"`
+	ResourceKind   string `json:"resource_kind"`
+	GPUIndex       *int   `json:"gpu_index,omitempty"`
+	AmountBytes    int64  `json:"amount_bytes"`
+	PreferredBytes int64  `json:"preferred_bytes"`
+	FloorBytes     int64  `json:"floor_bytes"`
+	Priority       int    `json:"priority"`
+	PriorityTier   string `json:"priority_tier"`
+	Protected      bool   `json:"protected"`
+	YieldWhenIdle  bool   `json:"yield_when_idle"`
+	Status         string `json:"status"`
+	ActivityState  string `json:"activity_state"`
+	Generation     int64  `json:"generation"`
+	CreatedAt      string `json:"created_at"`
+	// UpdatedAt is the terminal-transition timestamp for terminal claims;
+	// active claims use it as their last mutation time.
+	UpdatedAt         string  `json:"updated_at"`
 	LastActiveAt      *string `json:"last_active_at,omitempty"`
 	ObservedBytes     int64   `json:"observed_bytes"`
 	ObservedPeakBytes int64   `json:"observed_peak_bytes"`
@@ -126,6 +130,8 @@ func viewClaim(c engine.CapacityClaim, policy engine.Policy, now time.Time) Clai
 		FloorBytes:        c.FloorBytes,
 		Priority:          c.Priority,
 		PriorityTier:      engine.PriorityTierName(c.Priority),
+		CreatedAt:         c.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:         c.UpdatedAt.UTC().Format(time.RFC3339),
 		Protected:         c.Protected,
 		YieldWhenIdle:     c.YieldWhenIdle,
 		Status:            c.Status,

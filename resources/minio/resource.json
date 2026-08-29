@@ -158,6 +158,14 @@
       "type": "http",
       "kind": "readiness",
       "target": "http://127.0.0.1:9000/minio/health/ready",
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "kind": "liveness",
+      "target": "http://127.0.0.1:9000/minio/health/live",
+      "interval_seconds": 30,
       "timeout_seconds": 10
     }
   ],

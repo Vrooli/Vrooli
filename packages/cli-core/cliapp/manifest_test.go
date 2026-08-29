@@ -99,13 +99,26 @@ func TestLoadFromManifestUnknownGroup(t *testing.T) {
 	}
 }
 
-func TestParseManifestAcceptsLocalBindingButDoesNotLoadIt(t *testing.T) {
-	manifest := []byte(`{"name":"demo","groups":[{"name":"status","flat":true,"commands":[{"name":"status","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
+func TestLoadFromManifestBuildsLocalBinding(t *testing.T) {
+	manifest := []byte(`{"name":"demo","groups":[{"name":"status","flat":true,"commands":[{"name":"status","description":"Show status","binding":{"kind":"local","handler":"status"},"governance":{"effect":"read","run_eligible":true}}]}]}`)
 	if _, err := ParseManifest(manifest); err != nil {
 		t.Fatalf("ParseManifest() error = %v", err)
 	}
-	if _, err := LoadFromManifest(manifest, "status", nil); err == nil || !strings.Contains(err.Error(), "local binding") {
-		t.Fatalf("LoadFromManifest() error = %v, want local-binding registration error", err)
+	called := false
+	group, err := LoadFromManifest(manifest, "status", map[string]func(RunContext) error{
+		"status": func(RunContext) error { called = true; return nil },
+	})
+	if err != nil {
+		t.Fatalf("LoadFromManifest() error = %v", err)
+	}
+	if group.NeedsAPI || len(group.Subcommands) != 1 || group.Subcommands[0].Name != "status" {
+		t.Fatalf("local group = %#v, want one API-free status command", group)
+	}
+	if err := group.Subcommands[0].RunCtx(NewTestRunContext(TestRunContextOptions{Schema: ArgSchema{}})); err != nil {
+		t.Fatalf("local command: %v", err)
+	}
+	if !called {
+		t.Fatal("local handler was not invoked")
 	}
 }
 

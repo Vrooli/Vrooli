@@ -14,7 +14,7 @@
     "Programming education exercises",
     "Generated-code verification"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The retired Judge0 CE 1.13.1 implementation was API-healthy but could not execute a sandboxed program on the current Docker host. A future implementation must validate the actual execution path on every supported host; container health alone is insufficient.",
     "linux": "partial",
@@ -30,7 +30,7 @@
     "postgres",
     "redis"
   ],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Do not restore the retired Judge0 1.13.1 Docker Compose stack unchanged: its embedded isolate 1.8.1 failed at runtime with 'Cannot run proxy, clone failed: Operation not permitted' on the verified host.",
     "A source-pinned current isolate build was also evaluated. Judge0 1.13.1 is based on Debian Buster, whose kernel headers cannot compile current isolate (missing io_uring syscall definitions); do not paper over that incompatibility with an unmaintained derivative.",

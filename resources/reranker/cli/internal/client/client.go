@@ -9,11 +9,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/vrooli/internal/tuning"
 	"io"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 )
 
 // Client talks to a TEI server's rerank/health/info endpoints.
@@ -28,7 +28,7 @@ type Client struct {
 func NewClient() *Client {
 	return &Client{
 		BaseURL: ResolveBaseURL(os.Getenv),
-		HTTP:    &http.Client{Timeout: 60 * time.Second},
+		HTTP:    &http.Client{Timeout: tuning.ResourceHTTPTimeout()},
 	}
 }
 

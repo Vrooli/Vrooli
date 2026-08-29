@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/baselinefloor"
@@ -138,7 +138,7 @@ func (s Service) resolveLiveSQLiteDB(scenario string) (string, error) {
 	case 0:
 		return "", fmt.Errorf("recovery: no SQLite database found under %q for %q; pass --db-path", ns.DataDir, scenario)
 	default:
-		sort.Strings(files)
+		slices.Sort(files)
 		return "", fmt.Errorf("recovery: multiple SQLite databases under %q (%s); pass --db-path to choose one",
 			ns.DataDir, strings.Join(baseNames(files), ", "))
 	}

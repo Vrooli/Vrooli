@@ -120,8 +120,8 @@ func TestDiscoverExcludesDeprecatedResources(t *testing.T) {
 		"active",
 		testresource.WithResourceDisplayName("Active"),
 		testresource.WithResourceDescription("Active manifest-backed resource"),
-		testresource.WithResourceDriver("docker-service"),
-		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
 		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
 			MacOS:   "supported",

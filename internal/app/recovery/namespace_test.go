@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable instance fixtures.
 package recovery
 
 import (
@@ -14,7 +15,7 @@ func TestNamespaceShadowDerivesSSOTNames(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Namespace: %v", err)
 	}
-	if out.Variant != "shadow" {
+	if out.Variant != "shadow" { //nolint:goconst // fixture variant
 		t.Fatalf("variant = %q, want shadow", out.Variant)
 	}
 	if out.InstanceKey != "swarm-manager@shadow" {
@@ -51,7 +52,7 @@ func TestNamespaceLiveIsUnsuffixed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Namespace: %v", err)
 	}
-	if out.Variant != "live" {
+	if out.Variant != "live" { //nolint:goconst // fixture variant
 		t.Fatalf("variant = %q, want live", out.Variant)
 	}
 	if out.InstanceKey != "swarm-manager" {

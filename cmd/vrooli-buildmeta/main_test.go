@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable path fixtures.
 package main
 
 import (

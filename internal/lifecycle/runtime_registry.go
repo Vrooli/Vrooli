@@ -555,13 +555,13 @@ func runtimePortURL(portName string, port int) string {
 
 func runtimeHealthStatus(status string) string {
 	switch strings.TrimSpace(status) {
-	case "healthy":
+	case WaitVerdictHealthy:
 		return scenarioruntime.HealthStatusHealthy
 	case scenarioruntime.HealthStatusDegraded:
 		return scenarioruntime.HealthStatusDegraded
-	case "unhealthy":
+	case scenarioruntime.HealthStatusUnhealthy:
 		return scenarioruntime.HealthStatusUnhealthy
-	case "running":
+	case WaitVerdictRunning:
 		return scenarioruntime.HealthStatusNotConfigured
 	default:
 		return scenarioruntime.HealthStatusUnknown

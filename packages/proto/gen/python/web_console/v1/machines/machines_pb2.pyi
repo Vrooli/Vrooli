@@ -95,14 +95,16 @@ class PermissionPreset(_message.Message):
     def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., scopes: _Optional[_Iterable[str]] = ..., withholds: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ..., effects: _Optional[_Iterable[str]] = ..., app_count: _Optional[int] = ...) -> None: ...
 
 class ControlPlane(_message.Message):
-    __slots__ = ("reachable", "endpoint", "detail")
+    __slots__ = ("reachable", "endpoint", "detail", "console_url")
     REACHABLE_FIELD_NUMBER: _ClassVar[int]
     ENDPOINT_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
+    CONSOLE_URL_FIELD_NUMBER: _ClassVar[int]
     reachable: bool
     endpoint: str
     detail: str
-    def __init__(self, reachable: _Optional[bool] = ..., endpoint: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+    console_url: str
+    def __init__(self, reachable: _Optional[bool] = ..., endpoint: _Optional[str] = ..., detail: _Optional[str] = ..., console_url: _Optional[str] = ...) -> None: ...
 
 class ListRequest(_message.Message):
     __slots__ = ()

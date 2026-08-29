@@ -2,7 +2,6 @@ package models
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -13,9 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"resource-reranker/cli/internal/client"
+	"github.com/vrooli/vrooli/resources/reranker/cli/internal/client"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
@@ -291,7 +291,7 @@ func writeActiveModel(path, model string) error {
 
 func writeResult(out io.Writer, jsonOutput bool, payload any, text func()) error {
 	if jsonOutput {
-		return json.NewEncoder(out).Encode(payload)
+		return cliout.NewEncoder(out).Encode(payload)
 	}
 	text()
 	return nil

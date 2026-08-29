@@ -15,7 +15,7 @@
     "Fintech service backends",
     "Loan servicing prototypes"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The platform can be containerized, but real support requires stronger domain validation, persistence, and operational ownership than Vrooli currently provides.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Explicit operator ownership for finance data and compliance-sensitive flows"
   ],
   "dependencies": [],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should start from a narrow validated finance workflow, not the full platform surface.",
     "Keep domain-specific correctness ahead of generic infrastructure support.",

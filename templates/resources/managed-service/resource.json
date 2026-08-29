@@ -54,6 +54,10 @@
   "portability_tier": "{{RESOURCE_PORTABILITY_TIER}}",
   "category": "{{RESOURCE_CATEGORY}}",
   "orchestration": {"startup_order": 500, "startup_timeout_seconds": 30, "startup_time_estimate": "1-3s", "dependencies": [], "recovery_attempts": 2, "priority": "medium"},
+  "health_checks": [
+    {"type": "http", "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health", "kind": "readiness", "interval_seconds": 10, "timeout_seconds": 10},
+    {"type": "http", "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health", "kind": "liveness", "interval_seconds": 30, "timeout_seconds": 10}
+  ],
   "lifecycle": {"start_timeout_seconds": 60, "stop_timeout_seconds": 30, "retries": 2},
   "capabilities": {"supports_logs": true},
   "template_version": "2"

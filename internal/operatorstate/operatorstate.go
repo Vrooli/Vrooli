@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	SchemaPath = ".vrooli/schemas/operator-state.schema.json"
-	StateFile  = "operator-state.json"
+	SchemaPath                    = ".vrooli/schemas/operator-state.schema.json"
+	StateFile                     = "operator-state.json"
+	hostWorkloadPostureVrooliOnly = "vrooli_only"
 )
 
 type ScenarioChoice struct {
@@ -308,7 +309,7 @@ func (s *Service) loadLocked(path string) (Document, error) {
 func Default() Document {
 	return Document{
 		Schema: SchemaPath, Version: "1.0.0",
-		HostWorkloadPosture: "vrooli_only",
+		HostWorkloadPosture: hostWorkloadPostureVrooliOnly,
 		Scenarios:           map[string]ScenarioChoice{}, Resources: map[string]EnabledChoice{},
 		HostTools: map[string]OptInChoice{}, HostSafeguards: map[string]OptInChoice{},
 		RawFields: map[string]json.RawMessage{},
@@ -339,7 +340,7 @@ func unmarshalDocument(data []byte, doc *Document) error {
 	}
 	*doc = Document(decoded)
 	if doc.HostWorkloadPosture == "" {
-		doc.HostWorkloadPosture = "vrooli_only"
+		doc.HostWorkloadPosture = hostWorkloadPostureVrooliOnly
 	}
 	doc.RawFields = raw
 	return nil
@@ -408,7 +409,7 @@ func (s *Service) validate(merged []byte, doc Document) error {
 	if doc.TrustPosture != "" && doc.TrustPosture != "personal" && doc.TrustPosture != "shared" && doc.TrustPosture != "hosted" {
 		return errors.New("operator state validation failed at /trust_posture: must be personal, shared, or hosted")
 	}
-	if doc.HostWorkloadPosture != "" && doc.HostWorkloadPosture != "whole_host" && doc.HostWorkloadPosture != "vrooli_only" {
+	if doc.HostWorkloadPosture != "" && doc.HostWorkloadPosture != "whole_host" && doc.HostWorkloadPosture != hostWorkloadPostureVrooliOnly {
 		return errors.New("operator state validation failed at /host_workload_posture: must be whole_host or vrooli_only")
 	}
 	schemaPath := strings.TrimSpace(s.cfg.SchemaPath)

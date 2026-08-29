@@ -17,7 +17,9 @@ func TestProcess(t *testing.T) {
 		if e := r.ParseMultipartForm(1024); e != nil {
 			t.Fatal(e)
 		}
-		w.Write([]byte(`[{"type":"NarrativeText","text":"hello"}]`))
+		if _, err := w.Write([]byte(`[{"type":"NarrativeText","text":"hello"}]`)); err != nil {
+			t.Fatal(err)
+		}
 	}))
 	defer s.Close()
 	p := filepath.Join(t.TempDir(), "sample.txt")
@@ -45,7 +47,9 @@ func TestReadinessChecksHealthAndPartition(t *testing.T) {
 			if err := r.ParseMultipartForm(1024); err != nil {
 				t.Fatal(err)
 			}
-			w.Write([]byte(`[{"type":"NarrativeText","text":"probe"}]`))
+			if _, err := w.Write([]byte(`[{"type":"NarrativeText","text":"probe"}]`)); err != nil {
+				t.Fatal(err)
+			}
 		default:
 			http.NotFound(w, r)
 		}

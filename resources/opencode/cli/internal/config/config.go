@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // Managed top-level keys.
@@ -229,7 +231,7 @@ func DefaultPayload(in Inputs) ([]byte, error) {
 // marshalDoc emits deterministic, uniformly-indented JSON (Go map marshaling
 // sorts keys), with a trailing newline.
 func marshalDoc(top map[string]json.RawMessage) ([]byte, error) {
-	out, err := json.MarshalIndent(top, "", "  ")
+	out, err := cliout.MarshalIndent(top)
 	if err != nil {
 		return nil, err
 	}

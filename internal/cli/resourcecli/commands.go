@@ -16,6 +16,9 @@ type (
 
 const (
 	CommandList                  CommandID = "list"
+	CommandCensus                CommandID = "census"
+	CommandScaffold              CommandID = "scaffold"
+	CommandCLISync               CommandID = "cli-sync"
 	CommandStatus                CommandID = "status"
 	CommandValidate              CommandID = "validate"
 	CommandInstall               CommandID = "install"
@@ -82,6 +85,9 @@ const (
 func CommandSpecs() []commandtree.Spec[CommandID] {
 	return []commandtree.Spec[CommandID]{
 		{Name: string(CommandList), Summary: "List discovered resources", Handler: CommandList},
+		{Name: string(CommandCensus), Summary: "Report resource declarations and installed CLI state", Handler: CommandCensus},
+		{Name: string(CommandScaffold), Summary: "Generate a resource scaffold", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--name", ValueName: "name", Description: "Resource name"}, {Name: "--driver", ValueName: "archetype", Description: "Resource archetype"}}}, Handler: CommandScaffold},
+		{Name: string(CommandCLISync), Summary: "Reconcile declared resource CLIs", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--dry-run", Description: "Report actions without installing"}}}, Handler: CommandCLISync},
 		{
 			Name:    string(CommandStatus),
 			Summary: "Show resource status",

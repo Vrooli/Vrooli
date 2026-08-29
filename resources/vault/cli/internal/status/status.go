@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cliout"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -75,9 +77,7 @@ func (h *Handlers) Status(args []string) error {
 		return err
 	}
 	if *jsonOut {
-		enc := json.NewEncoder(h.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(report)
+		return cliout.NewEncoder(h.Stdout).Encode(report)
 	}
 	fmt.Fprintf(h.Stdout, "Initialized: %v\n", report.Initialized)
 	fmt.Fprintf(h.Stdout, "Sealed: %v\n", report.Sealed)

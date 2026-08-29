@@ -111,7 +111,7 @@ func preflightDockerResources(root, home string, names []string, setupOpts ...Op
 			continue
 		}
 		switch strings.TrimSpace(manifest.Driver) {
-		case "docker-service", "compose-service":
+		case "managed-service":
 			needsDocker = append(needsDocker, name)
 		}
 	}

@@ -2,6 +2,7 @@ package deployability
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -253,7 +254,7 @@ func resolveAbsentCapability(result CapabilityResolution, implementations []Capa
 		return result
 	}
 	if len(scan.unwired) > 0 {
-		sort.Strings(scan.unwired)
+		slices.Sort(scan.unwired)
 		result.Status = CapabilityUnwired
 		result.Mechanism = scan.unwired[0]
 		result.Since = scan.unwiredSince
@@ -339,8 +340,8 @@ func absentByRole(implementations []CapabilityImplementation, capability string,
 			providers = append(providers, name)
 		}
 	}
-	sort.Strings(controls)
-	sort.Strings(providers)
+	slices.Sort(controls)
+	slices.Sort(providers)
 	return controls, providers
 }
 
@@ -349,7 +350,7 @@ func sortedNames(candidates []capabilityCandidate) []string {
 	for _, candidate := range candidates {
 		names = append(names, strings.TrimSpace(candidate.implementation.Name))
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 
@@ -366,6 +367,6 @@ func absentNames(declarers []string, resolved map[string]bool) []string {
 		seen[name] = struct{}{}
 		absent = append(absent, name)
 	}
-	sort.Strings(absent)
+	slices.Sort(absent)
 	return absent
 }

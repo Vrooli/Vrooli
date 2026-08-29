@@ -62,6 +62,25 @@ func TestDerivedReadinessUsesPortWithoutLeadingGraceSleep(t *testing.T) {
 	}
 }
 
+func TestSupervisedComponentsAreExcludedFromIndependentReadiness(t *testing.T) {
+	item := readinessTestItem()
+	item.Manifest.Components["sidecar"] = scenario.Component{Run: scenario.ComponentRun{
+		Argv:         []string{"node", "sidecar.js"},
+		SupervisedBy: "api",
+	}}
+	now := time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
+	var sleeps []time.Duration
+	runner := readinessTestRunner(t.TempDir(), &now, &sleeps)
+	listener, err := listenTestPort()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	if err := runner.awaitScenarioReadiness(context.Background(), item, map[string]string{"API_PORT": listenerPort(listener)}); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestExplicitProcessReadinessOverridesDerivedPort(t *testing.T) {
 	item := readinessTestItem()
 	item.Manifest.Components["api"] = scenario.Component{Run: scenario.ComponentRun{

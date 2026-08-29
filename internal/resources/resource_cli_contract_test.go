@@ -12,6 +12,8 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
+const resourceCLIGoModule = "go_module"
+
 func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 	root := testkitgo.ProjectRoot(t)
 
@@ -66,7 +68,7 @@ func TestEnabledResourcesDeclareExplicitCLIContract(t *testing.T) {
 			if !strings.Contains(manifest.CLI.Distribution.ArtifactName, "${os}") || !strings.Contains(manifest.CLI.Distribution.ArtifactName, "${arch}") {
 				t.Fatalf("cli.distribution.artifact_name = %q, want OS and arch placeholders", manifest.CLI.Distribution.ArtifactName)
 			}
-			if manifest.CLI.SourceBuild == nil || manifest.CLI.SourceBuild.Kind != "go_module" {
+			if manifest.CLI.SourceBuild == nil || manifest.CLI.SourceBuild.Kind != resourceCLIGoModule {
 				t.Fatal("expected explicit cli.source_build.kind=go_module")
 			}
 			if manifest.CLI.Freshness == nil || len(manifest.CLI.Freshness.Inputs) == 0 {
@@ -124,7 +126,7 @@ func TestAllResourcesDeclareDesktopDeploymentContract(t *testing.T) {
 			if manifest.CLI == nil || manifest.CLI.Distribution == nil || manifest.CLI.Distribution.Kind != "prebuilt_artifact" {
 				t.Fatal("every resource must declare a prebuilt CLI distribution")
 			}
-			if manifest.CLI.SourceBuild == nil || manifest.CLI.SourceBuild.Kind != "go_module" || manifest.CLI.Freshness == nil || len(manifest.CLI.Freshness.Inputs) == 0 {
+			if manifest.CLI.SourceBuild == nil || manifest.CLI.SourceBuild.Kind != resourceCLIGoModule || manifest.CLI.Freshness == nil || len(manifest.CLI.Freshness.Inputs) == 0 {
 				t.Fatal("every resource must declare a Go-native cli.source_build contract")
 			}
 			for platform, target := range map[string]*manifestpkg.ResourceDeploymentTarget{
@@ -152,12 +154,22 @@ func requireDeclaredCLIAssets(t *testing.T, root, name string, manifest manifest
 
 	base := filepath.Join(root, "resources", name)
 	switch manifest.CLI.Adapter.Kind {
-	case "go_module":
+	case resourceCLIGoModule:
 		if got := manifest.CLI.Adapter.ModuleDir; got != "cli" {
 			t.Fatalf("cli.adapter.module_dir = %q, want cli", got)
 		}
 		moduleDir := filepath.Join(base, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
-		requireFile(t, filepath.Join(moduleDir, "go.mod"))
+		moduleRoot := moduleDir
+		for {
+			if _, err := os.Stat(filepath.Join(moduleRoot, "go.mod")); err == nil {
+				break
+			}
+			parent := filepath.Dir(moduleRoot)
+			if parent == moduleRoot {
+				t.Fatalf("expected go.mod at or above %s", moduleDir)
+			}
+			moduleRoot = parent
+		}
 		entries, err := filepath.Glob(filepath.Join(moduleDir, "*.go"))
 		if err != nil {
 			t.Fatalf("glob Go sources in %s: %v", moduleDir, err)
@@ -167,12 +179,5 @@ func requireDeclaredCLIAssets(t *testing.T, root, name string, manifest manifest
 		}
 	default:
 		t.Fatalf("unsupported cli.adapter.kind %q", manifest.CLI.Adapter.Kind)
-	}
-}
-
-func requireFile(t *testing.T, path string) {
-	t.Helper()
-	if _, err := os.Stat(path); err != nil {
-		t.Fatalf("expected %s: %v", path, err)
 	}
 }

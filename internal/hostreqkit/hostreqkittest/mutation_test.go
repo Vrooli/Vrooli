@@ -10,17 +10,23 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const (
+	mutationFixture = "fixture"
+	mutationMutant  = "mutant"
+	mutationLinux   = "linux"
+)
+
 type goodHandler struct{}
 
-func (goodHandler) Name() string           { return "fixture" }
+func (goodHandler) Name() string           { return mutationFixture }
 func (goodHandler) Kind() hostreqspec.Kind { return hostreqspec.KindTool }
 
 func (goodHandler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
-	status := hostreqkit.ItemStatus{Name: "fixture", Kind: hostreqspec.KindTool, SupportClass: hostreqkit.SupportSupported}
+	status := hostreqkit.ItemStatus{Name: mutationFixture, Kind: hostreqspec.KindTool, SupportClass: hostreqkit.SupportSupported}
 	if requirement.Manual {
 		status.SupportClass = hostreqkit.SupportManualOnly
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
-	} else if host.OS != "linux" {
+	} else if host.OS != mutationLinux {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 	}
@@ -54,7 +60,7 @@ type mutant struct {
 
 func (m mutant) Name() string {
 	if m.rule == "wrong_name" {
-		return "mutant"
+		return mutationMutant
 	}
 	return goodHandler{}.Name()
 }
@@ -143,7 +149,7 @@ func fixtureCase(rule string) Case {
 
 type matrixHandler struct{ rule string }
 
-func (matrixHandler) Name() string           { return "fixture" }
+func (matrixHandler) Name() string           { return mutationFixture }
 func (matrixHandler) Kind() hostreqspec.Kind { return hostreqspec.KindTool }
 
 func (h matrixHandler) Inspect(host hostreqkit.Host, _ hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
@@ -166,7 +172,7 @@ func (h matrixHandler) Inspect(host hostreqkit.Host, _ hostreqspec.ResolvedRequi
 			output, _ := hostreqkit.CombinedOutputFn("fixture", "version")
 			status.Version = strings.TrimSpace(string(output))
 		}
-	case host.OS == "darwin" && host.PackageManager == "brew":
+	case host.OS == hostreqkittestDarwin && host.PackageManager == "brew":
 		status.SupportClass = hostreqkit.SupportSupported
 		status.InstallSupported = true
 		status.PackageName = "brew-fixture"
@@ -182,7 +188,7 @@ func (h matrixHandler) Inspect(host hostreqkit.Host, _ hostreqspec.ResolvedRequi
 	case "inspect_linux_apt_not_installed":
 		status.InstallSupported = false
 	case "inspect_linux_apt_installed":
-		status.Version = "mutant"
+		status.Version = mutationMutant
 	case "inspect_darwin_brew":
 		if host.OS == "darwin" {
 			status.PackageName = "mutant"

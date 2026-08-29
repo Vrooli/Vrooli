@@ -2,7 +2,6 @@ package credentials
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -13,10 +12,20 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
-	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
+
+type credentialStoreEntriesReport struct {
+	Basis   string                 `json:"basis"`
+	Entries []securestore.EntryRef `json:"entries"`
+}
+
+type credentialStoreDeleteEntryReport struct {
+	Service string `json:"service"`
+	Key     string `json:"key"`
+	Deleted bool   `json:"deleted"`
+}
 
 const (
 	credentialsStoreS3AccessKeyId     = "s3-access-key-id"
@@ -95,8 +104,7 @@ func credentialsStore(ctx *CommandContext, args []string, input io.Reader) error
 
 //nolint:gocyclo // store-copy execution handles source discovery, destination policy, and verification outcomes.
 func credentialsStoreCopy(ctx *CommandContext, args []string) error {
-	fs := flag.NewFlagSet("credentials store copy", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("credentials store copy")
 	sink := strings.TrimSpace(os.Getenv("VROOLI_CREDENTIAL_COPY_SINK"))
 	objectStoreCredentialID := strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_CREDENTIAL_IDENTITY"))
 	objectStoreRegion := strings.TrimSpace(os.Getenv("VROOLI_OBJECT_STORE_REGION"))
@@ -105,7 +113,7 @@ func credentialsStoreCopy(ctx *CommandContext, args []string) error {
 	objectStoreSecretKeyField := credentialsStoreS3SecretAccessKey
 	objectStoreSessionField := credentialsStoreS3SessionToken
 	configured := false
-	format := credentialsText
+	format := string(cliout.FormatHuman)
 	fs.StringVar(&sink, "sink", sink, "directory or s3://bucket/prefix outside every kopia repository")
 	fs.StringVar(&objectStoreCredentialID, "object-store-credential-identity", objectStoreCredentialID, "credential identity for S3 access")
 	fs.StringVar(&objectStoreRegion, "object-store-region", objectStoreRegion, "S3 region")
@@ -137,7 +145,7 @@ func credentialsStoreCopy(ctx *CommandContext, args []string) error {
 	if len(fs.Args()) != 0 || sink == "" {
 		return fmt.Errorf("credentials store copy requires --sink <directory>, --configured, or VROOLI_CREDENTIAL_COPY_SINK")
 	}
-	if format != credentialsText && format != string(logx.FormatJSON) {
+	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return fmt.Errorf("credentials store copy format must be text or json")
 	}
 	status, err := securestore.DescribeStore()
@@ -191,7 +199,7 @@ func credentialsStoreCopy(ctx *CommandContext, args []string) error {
 	if err != nil {
 		return err
 	}
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, copyStatus)
 	}
 	_, err = fmt.Fprintf(ctx.Stdout, "Encrypted credential store copied to %s (generation %s).\n", copyStatus.Path, copyStatus.Generation)
@@ -212,8 +220,7 @@ func readCredentialCopyConfig() (securestore.CopyConfig, error) {
 
 //nolint:gocyclo // store-copy configuration preserves backend, scope, overwrite, and validation decisions.
 func credentialsStoreCopyConfigure(ctx *CommandContext, args []string) error {
-	fs := flag.NewFlagSet("credentials store copy configure", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("credentials store copy configure")
 	sink := ""
 	interval := securestore.DefaultCopyInterval
 	objectStoreCredentialID := ""
@@ -223,7 +230,7 @@ func credentialsStoreCopyConfigure(ctx *CommandContext, args []string) error {
 	objectStoreSecretKeyField := credentialsStoreS3SecretAccessKey
 	objectStoreSessionField := credentialsStoreS3SessionToken
 	enabled := true
-	format := credentialsText
+	format := string(cliout.FormatHuman)
 	fs.StringVar(&sink, "sink", sink, "directory or s3://bucket/prefix outside every kopia repository")
 	fs.DurationVar(&interval, "interval", interval, "refresh interval")
 	fs.StringVar(&objectStoreCredentialID, "object-store-credential-identity", objectStoreCredentialID, "credential identity for S3 access")
@@ -277,7 +284,7 @@ func credentialsStoreCopyConfigure(ctx *CommandContext, args []string) error {
 	if strings.TrimSpace(sink) == "" {
 		return fmt.Errorf("credentials store copy configure requires --sink <directory|s3://bucket/prefix> when enabling")
 	}
-	if format != credentialsText && format != string(logx.FormatJSON) {
+	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return fmt.Errorf("credentials store copy configure format must be text or json")
 	}
 	config := securestore.CopyConfig{
@@ -300,7 +307,7 @@ func credentialsStoreCopyConfigure(ctx *CommandContext, args []string) error {
 	if err := installCredentialCopySchedule(executable, config.Interval, config.Enabled); err != nil {
 		return err
 	}
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, config)
 	}
 	_, err = fmt.Fprintf(ctx.Stdout, "Encrypted credential-store copy configured at %s; refresh interval %s.\n", config.Sink, config.Interval)
@@ -387,7 +394,7 @@ func credentialsStoreReselect(ctx *CommandContext, args []string) error {
 		return err
 	}
 	receipt, err := securestore.ReselectBackend(entries)
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		encodeErr := cliout.WriteJSONValue(ctx.Stdout, receipt)
 		if err != nil {
 			return err
@@ -407,8 +414,7 @@ func credentialsStoreReselect(ctx *CommandContext, args []string) error {
 }
 
 func credentialsStoreRetire(ctx *CommandContext, args []string) error {
-	fs := flag.NewFlagSet("credentials store retire", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("credentials store retire")
 	backend := ""
 	fs.StringVar(&backend, "backend", "", "backend to retire")
 	if err := fs.Parse(args); err != nil {
@@ -494,10 +500,9 @@ func optionalStorePassphrase(input io.Reader) (string, error) {
 }
 
 func storeFormatFlag(name string, args []string) (string, error) {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	format := credentialsText
-	fs.StringVar(&format, "format", "text", "output format: text or json")
+	fs := commandtree.NewFlagSet(name)
+	format := string(cliout.FormatHuman)
+	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return "", err
 	}
@@ -505,7 +510,7 @@ func storeFormatFlag(name string, args []string) (string, error) {
 		return "", fmt.Errorf("%s accepts no positional arguments", name)
 	}
 	format = strings.TrimSpace(format)
-	if format != credentialsText && format != string(logx.FormatJSON) {
+	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return "", fmt.Errorf("%s format must be text or json", name)
 	}
 	return format, nil
@@ -520,7 +525,7 @@ func credentialsStoreStatus(ctx *CommandContext, args []string) error {
 	if err != nil {
 		return err
 	}
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	writeStoreStatus(ctx, status)
@@ -536,11 +541,8 @@ func credentialsStoreEntries(ctx *CommandContext, args []string) error {
 	if err != nil {
 		return err
 	}
-	if format == string(logx.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, struct {
-			Basis   string                 `json:"basis"`
-			Entries []securestore.EntryRef `json:"entries"`
-		}{Basis: "sealed_store_metadata; values_not_read", Entries: entries})
+	if format == string(cliout.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, credentialStoreEntriesReport{Basis: "sealed_store_metadata; values_not_read", Entries: entries})
 	}
 	fmt.Fprintf(ctx.Stdout, "Encrypted credential store entries (%d; basis=sealed_store_metadata; values_not_read)\n", len(entries))
 	for _, entry := range entries {
@@ -550,12 +552,11 @@ func credentialsStoreEntries(ctx *CommandContext, args []string) error {
 }
 
 func credentialsStoreDeleteEntry(ctx *CommandContext, args []string) error {
-	fs := flag.NewFlagSet("credentials store entries delete", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("credentials store entries delete")
 	service := fs.String("service", "", "cleartext store service name")
 	key := fs.String("key", "", "cleartext store key name")
 	yes := fs.Bool("yes", false, "confirm deletion")
-	format := fs.String("format", "text", "output format: text or json")
+	format := fs.String("format", string(cliout.FormatHuman), "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -565,19 +566,15 @@ func credentialsStoreDeleteEntry(ctx *CommandContext, args []string) error {
 	if !*yes {
 		return fmt.Errorf("refusing to delete store entry without explicit --yes confirmation")
 	}
-	if *format != credentialsText && *format != string(logx.FormatJSON) {
+	if *format != string(cliout.FormatHuman) && *format != string(cliout.FormatJSON) {
 		return fmt.Errorf("credentials store entries delete format must be text or json")
 	}
 	deleted, err := securestore.DeleteEntryRef(strings.TrimSpace(*service), strings.TrimSpace(*key))
 	if err != nil {
 		return err
 	}
-	result := struct {
-		Service string `json:"service"`
-		Key     string `json:"key"`
-		Deleted bool   `json:"deleted"`
-	}{Service: strings.TrimSpace(*service), Key: strings.TrimSpace(*key), Deleted: deleted}
-	if *format == string(logx.FormatJSON) {
+	result := credentialStoreDeleteEntryReport{Service: strings.TrimSpace(*service), Key: strings.TrimSpace(*key), Deleted: deleted}
+	if *format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, result)
 	}
 	if deleted {
@@ -676,7 +673,7 @@ func credentialsStoreInit(ctx *CommandContext, args []string, input io.Reader) e
 	if err != nil {
 		return err
 	}
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	fmt.Fprintf(ctx.Stdout, "Encrypted credential store created at %s.\n\n", status.Path)
@@ -754,7 +751,7 @@ func credentialsStoreRewrap(ctx *CommandContext, args []string, input io.Reader)
 	// rather than only a non-zero exit. Setup depends on that: it reports the
 	// blocked reason to the operator instead of failing the whole run over a
 	// host that simply has no TPM.
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		if encodeErr := cliout.WriteJSONValue(ctx.Stdout, status); encodeErr != nil {
 			return encodeErr
 		}

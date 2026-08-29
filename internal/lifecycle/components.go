@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -205,7 +205,7 @@ func RegisteredBuilderKinds() []string {
 	for kind := range builderRegistry {
 		kinds = append(kinds, kind)
 	}
-	sort.Strings(kinds)
+	slices.Sort(kinds)
 	return kinds
 }
 

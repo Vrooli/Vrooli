@@ -7,7 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -92,7 +92,7 @@ func changedFacts(installed, current map[string]string) []string {
 	for key := range keys {
 		ordered = append(ordered, key)
 	}
-	sort.Strings(ordered)
+	slices.Sort(ordered)
 
 	var changes []string
 	for _, key := range ordered {

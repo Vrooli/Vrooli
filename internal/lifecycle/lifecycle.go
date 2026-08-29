@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,6 +43,12 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioenv"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+)
+
+const (
+	lifecycleOperationRestart     = "restart"
+	runtimeEnvironmentDevelopment = "development"
+	runtimeEnvironmentProduction  = "production"
 )
 
 const (
@@ -277,7 +284,12 @@ type StartOptions struct {
 	BestEffort         bool
 	ForceSetup         bool
 	ForceSetupScenario string
-	Operation          string
+	// AcceptCredentialLoss explicitly permits a generated credential to be
+	// replaced after its data-owned mint witness reports that the original was
+	// lost. The lifecycle passes this as a process-scoped environment marker;
+	// scenarios decide which generated credentials, if any, honor it.
+	AcceptCredentialLoss bool
+	Operation            string
 	// Variant selects which instance to start ("" / "live" for the canonical
 	// primary, "shadow" etc. for an alternate). It is sugar for a "name@variant"
 	// argument; both are resolved through scenarioruntime.ParseInstanceKey at the
@@ -343,7 +355,7 @@ func newRunnerWithDeps(root, home string, stdout, stderr io.Writer, deps lifecyc
 	}
 	environment := strings.TrimSpace(os.Getenv(lifecycleEnvironmentEnv))
 	if environment == "" {
-		environment = "development"
+		environment = runtimeEnvironmentDevelopment
 	}
 	return &Runner{
 		Root:        filepath.Clean(root),
@@ -741,6 +753,9 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	if err != nil {
 		return Result{}, err
 	}
+	if opts.AcceptCredentialLoss {
+		env.EnvVars["VROOLI_ACCEPT_CREDENTIAL_LOSS"] = "1"
+	}
 	if err := runtimeSession.adoptOrReservePorts(ctx, item, env); err != nil {
 		return Result{}, err
 	}
@@ -1065,7 +1080,7 @@ func (r *Runner) Restart(name string, opts StartOptions) (Result, error) {
 	if opts.ForceSetup {
 		opts.ForceSetupScenario = key.Scenario
 	}
-	opts.Operation = "restart"
+	opts.Operation = lifecycleOperationRestart
 	opts.stopFirst = true
 	result, err := r.startLocked(key.Scenario, opts, newStartSession(opts.Context))
 	if err != nil {
@@ -1115,7 +1130,7 @@ func (r *Runner) startTreeScenarioPaths(root scenario.Scenario) ([]string, error
 	if err := visit(root); err != nil {
 		return nil, err
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths, nil
 }
 

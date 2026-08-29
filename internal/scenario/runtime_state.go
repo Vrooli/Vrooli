@@ -1,6 +1,7 @@
 package scenario
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,7 +48,7 @@ func DescribeRuntime(manifest ServiceManifest, runtime process.ScenarioRuntime) 
 	status := "stopped"
 	health := ""
 	if runtime.ProcessCount > 0 {
-		status = "running"
+		status = scenarioStatusRunning
 		health = EvaluateHealth(manifest.HealthConfig(), ports)
 	}
 
@@ -100,7 +101,7 @@ func RuntimeEndpoints(manifest ServiceManifest, ports map[string]int) []RuntimeE
 		}
 		extraKeys = append(extraKeys, key)
 	}
-	sort.Strings(extraKeys)
+	slices.Sort(extraKeys)
 	for _, key := range extraKeys {
 		port := ports[key]
 		endpoints = append(endpoints, RuntimeEndpoint{

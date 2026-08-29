@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable health fixtures.
 package lifecycle
 
 import (

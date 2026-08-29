@@ -38,7 +38,7 @@ func discoverAndQueueCapabilities(
 		// Preserve the pre-contract queue ID while older setup producers are
 		// still present. It maps to the same generic store-access action and
 		// must not cause a duplicate prompt.
-		if request.ID == "credential-store-passphrase" {
+		if request.ID == setupCredentialStorePassphrase {
 			existing["credential-store-access:passphrase"] = struct{}{}
 			legacyStorePassphrasePending = true
 		}

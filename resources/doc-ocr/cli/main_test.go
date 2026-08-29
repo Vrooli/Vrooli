@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	resourceapp "resource-doc-ocr/cli/internal/app"
+	resourceapp "github.com/vrooli/vrooli/resources/doc-ocr/cli/internal/app"
 )
 
 func TestBuildCommandAppConfiguresCLI(t *testing.T) {

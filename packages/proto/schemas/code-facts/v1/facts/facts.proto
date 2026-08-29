@@ -397,6 +397,8 @@ message ParseUnit {
   repeated Evidence evidence = 6;
   // Neutral observations; downstream policy decides adapter correctness.
   ToolchainObservation toolchain = 7;
+  // Optional module-relative Go package patterns for a bounded control-plane scan.
+  repeated string package_patterns = 8;
 }
 
 message ToolchainObservation {

@@ -56,7 +56,12 @@ type CapacityClaim struct {
 	// Optimistic-concurrency generation.
 	Generation int64 `protobuf:"varint,15,opt,name=generation,proto3" json:"generation,omitempty"`
 	// Last activity report timestamp (RFC3339); empty when never reported.
-	LastActiveAt  string `protobuf:"bytes,16,opt,name=last_active_at,json=lastActiveAt,proto3" json:"last_active_at,omitempty"`
+	LastActiveAt string `protobuf:"bytes,16,opt,name=last_active_at,json=lastActiveAt,proto3" json:"last_active_at,omitempty"`
+	// Creation timestamp (RFC3339).
+	CreatedAt string `protobuf:"bytes,17,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Last mutation timestamp (RFC3339); terminal claims use their terminal
+	// transition time.
+	UpdatedAt     string `protobuf:"bytes,18,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -199,6 +204,20 @@ func (x *CapacityClaim) GetGeneration() int64 {
 func (x *CapacityClaim) GetLastActiveAt() string {
 	if x != nil {
 		return x.LastActiveAt
+	}
+	return ""
+}
+
+func (x *CapacityClaim) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *CapacityClaim) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
 	}
 	return ""
 }
@@ -1066,7 +1085,7 @@ var File_system_monitor_v1_capacity_capacity_proto protoreflect.FileDescriptor
 
 const file_system_monitor_v1_capacity_capacity_proto_rawDesc = "" +
 	"\n" +
-	")system-monitor/v1/capacity/capacity.proto\x12!vrooli.system_monitor.v1.capacity\x1a\x1cgoogle/api/annotations.proto\"\xab\x04\n" +
+	")system-monitor/v1/capacity/capacity.proto\x12!vrooli.system_monitor.v1.capacity\x1a\x1cgoogle/api/annotations.proto\"\xe9\x04\n" +
 	"\rCapacityClaim\x12\x19\n" +
 	"\bclaim_id\x18\x01 \x01(\tR\aclaimId\x12\x1d\n" +
 	"\n" +
@@ -1089,7 +1108,11 @@ const file_system_monitor_v1_capacity_capacity_proto_rawDesc = "" +
 	"\n" +
 	"generation\x18\x0f \x01(\x03R\n" +
 	"generation\x12$\n" +
-	"\x0elast_active_at\x18\x10 \x01(\tR\flastActiveAtB\f\n" +
+	"\x0elast_active_at\x18\x10 \x01(\tR\flastActiveAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x11 \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x12 \x01(\tR\tupdatedAtB\f\n" +
 	"\n" +
 	"_gpu_index\"\xf9\x01\n" +
 	"\vGpuCapacity\x12\x14\n" +

@@ -5,14 +5,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"resource-kopia/cli/internal/invariant"
-	"resource-kopia/cli/internal/policy"
-	"resource-kopia/cli/internal/registry"
-	"resource-kopia/cli/internal/repoctx"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/invariant"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/registry"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repoctx"
 
-	kexecmocks "resource-kopia/cli/internal/kexec/mocks"
+	kexecmocks "github.com/vrooli/vrooli/resources/kopia/cli/internal/kexec/mocks"
 
-	credentialmocks "resource-kopia/cli/internal/credentials/mocks"
+	credentialmocks "github.com/vrooli/vrooli/resources/kopia/cli/internal/credentials/mocks"
 )
 
 const cfg = "/cfg/offsite/repository.config"

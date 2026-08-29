@@ -335,6 +335,13 @@
       "kind": "readiness",
       "interval_seconds": 10,
       "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:11452/ready",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
     }
   ],
   "capabilities": {

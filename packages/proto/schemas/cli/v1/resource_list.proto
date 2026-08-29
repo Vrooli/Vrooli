@@ -58,8 +58,17 @@ message Resource {
   // True when the resource is required (not optional).
   bool required = 6;
 
-  // True when the resource ships its own CLI surface.
-  bool has_cli = 7;
+  reserved 7;
+  reserved "has_cli";
+
+  // True when the resource declares a CLI in its manifest.
+  bool declares_cli = 14;
+
+  // True when the declared resource CLI resolves on the host PATH.
+  bool cli_installed = 15;
+
+  // Why the CLI is not installed; empty when installed.
+  string cli_state_reason = 16;
 
   // Manifest config block for the resource; always present.
   ResourceConfig config = 8;

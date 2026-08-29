@@ -15,7 +15,7 @@
     "Documentation portals",
     "Operational runbook systems"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The app is containerizable, but real support depends on persistence, auth, and content-backup workflows.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined content backup and restore workflow"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should validate a real documentation workflow, not only basic startup.",
     "Keep content-management support narrower than broad wiki customizations.",

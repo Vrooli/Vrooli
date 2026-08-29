@@ -15,7 +15,7 @@
     "Local privacy appliances",
     "Controlled family or office network deployments"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The software can run in containers, but practical usefulness depends heavily on host networking control and local DNS topology.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Clear deployment boundary for appliance-like use"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Document networking assumptions explicitly if this is ever promoted.",
     "Avoid representing this as a general-purpose developer dependency.",

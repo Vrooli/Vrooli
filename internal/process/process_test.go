@@ -65,7 +65,7 @@ func TestReadAndSummarizeScenarioRecords(t *testing.T) {
 	if len(live) != 1 {
 		t.Fatalf("live count = %d, want 1", len(live))
 	}
-	if live[0].Step != "start-api" {
+	if live[0].Step != "start-api" { //nolint:goconst // fixture lifecycle step
 		t.Fatalf("live step = %q", live[0].Step)
 	}
 
@@ -115,7 +115,7 @@ func TestDiscoverRunningScenariosFiltersStopped(t *testing.T) {
 	if len(runtimes) != 1 {
 		t.Fatalf("runtime count = %d, want 1", len(runtimes))
 	}
-	if runtimes[0].Name != "alpha" {
+	if runtimes[0].Name != "alpha" { //nolint:goconst // fixture runtime name
 		t.Fatalf("runtime name = %q", runtimes[0].Name)
 	}
 }

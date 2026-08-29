@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable fixture values.
 package ports
 
 import (

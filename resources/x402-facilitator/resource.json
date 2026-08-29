@@ -129,6 +129,13 @@
       "target": "http://127.0.0.1:14020/health",
       "interval_seconds": 10,
       "timeout_seconds": 5
+    },
+    {
+      "type": "http",
+      "kind": "liveness",
+      "target": "http://127.0.0.1:14020/health",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
     }
   ],
   "managed_service": {

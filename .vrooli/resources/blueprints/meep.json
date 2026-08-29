@@ -15,7 +15,7 @@
     "Electromagnetic analysis pipelines",
     "Simulation-backed research tooling"
   ],
-  "integration_kind": "manual",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "The stack can be containerized or installed natively, but HPC and scientific package expectations vary sharply by host environment.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Artifact storage for outputs and plots"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should validate a specific research workflow rather than generic solver availability.",
     "Define job submission and result collection clearly.",

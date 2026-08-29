@@ -6,7 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -25,6 +25,8 @@ import (
 const (
 	rootcliParameterA = 2
 	rootcliParameterB = 4
+	quietFlag         = "--quiet"
+	rootHelpCommand   = "help"
 )
 
 const (
@@ -131,7 +133,7 @@ func ParseArgs(args []string) (ParsedArgs, error) {
 		case "--verbose":
 			parsed.Globals.Verbose = true
 			args = args[1:]
-		case "--quiet", "-q":
+		case quietFlag, "-q":
 			parsed.Globals.Quiet = true
 			args = args[1:]
 		case "--no-color":
@@ -299,7 +301,7 @@ func (r *Registry[C]) SuggestScenario(command string) []string {
 
 func (r *Registry[C]) CanRunWithoutRoot(parsed ParsedArgs) bool {
 	switch parsed.Command {
-	case "help", "version":
+	case rootHelpCommand, "version":
 		return true
 	}
 	descriptor, ok := r.topSpecs[commandtree.NormalizeName(parsed.Command)]
@@ -342,7 +344,7 @@ func SuggestCommandNames(command string, names []string) []string {
 			candidates = append(candidates, candidate)
 		}
 	}
-	sort.Strings(candidates)
+	slices.Sort(candidates)
 	return candidates
 }
 

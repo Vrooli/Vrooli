@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const acceleratorTestCUDACompute = "8.9"
+
 // Feature: accelerator facts describe every platform, not just NVIDIA on Linux
 //
 //	As the acquisition resolver
@@ -81,7 +83,7 @@ func TestAcceleratorFactsOnNvidiaHostReportCUDA(t *testing.T) {
 		t.Fatalf("accel.backends = %v, want [cuda cpu]", got)
 	}
 	// And the highest compute capability wins, not the first or the last
-	if got := facts[FactAccelCUDACompute]; got != "8.9" {
+	if got := facts[FactAccelCUDACompute]; got != acceleratorTestCUDACompute {
 		t.Fatalf("accel.cuda_compute = %q, want 8.9", got)
 	}
 	// And the original fact keeps the same value for the manifests that read it
@@ -92,7 +94,7 @@ func TestAcceleratorFactsOnNvidiaHostReportCUDA(t *testing.T) {
 	if got, want := facts[FactAccelVRAMBytes], "17179869184"; got != want {
 		t.Fatalf("accel.vram_bytes = %q, want %q (largest single device, not the sum)", got, want)
 	}
-	if got := facts[FactAccelVendor]; got != "nvidia" {
+	if got := facts[FactAccelVendor]; got != vendorNVIDIA {
 		t.Fatalf("accel.vendor = %q, want nvidia", got)
 	}
 }

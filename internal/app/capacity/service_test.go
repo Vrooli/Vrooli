@@ -65,6 +65,12 @@ func TestServiceClaimGrantAndList(t *testing.T) {
 	if len(list.Claims) != 1 || list.Claims[0].OwnerID != "whisper" {
 		t.Fatalf("list = %+v, want one whisper claim", list.Claims)
 	}
+	if got, want := list.Claims[0].CreatedAt, "2026-06-22T12:00:00Z"; got != want {
+		t.Fatalf("created_at = %q, want %q", got, want)
+	}
+	if got, want := list.Claims[0].UpdatedAt, "2026-06-22T12:00:00Z"; got != want {
+		t.Fatalf("updated_at = %q, want %q", got, want)
+	}
 }
 
 func TestServiceListShowsWarmAndColdIdleState(t *testing.T) {

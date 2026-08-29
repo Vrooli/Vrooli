@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable device fixtures.
 package tpmcredentialaccess
 
 import (

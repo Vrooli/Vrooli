@@ -2,7 +2,7 @@ package setup
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/credentialinventory"
@@ -78,7 +78,7 @@ func setupReadinessVerdict(inventory credentialinventory.Result, inventoryErr er
 		for name := range blockers {
 			verdict.Blockers = append(verdict.Blockers, name)
 		}
-		sort.Strings(verdict.Blockers)
+		slices.Sort(verdict.Blockers)
 		return verdict
 	}
 	if len(inventory.RequiredAbsent) == 0 && len(report.MissingOptional) > 0 {

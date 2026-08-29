@@ -16,7 +16,7 @@ import (
 	"sort"
 	"strings"
 
-	"resource-openrouter/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policy"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

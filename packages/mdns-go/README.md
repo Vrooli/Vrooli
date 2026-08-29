@@ -1,11 +1,12 @@
 # mdns-go
 
-`mdns-go` is a read-only DNS-SD browser. It sends multicast `PTR` queries,
-resolves returned instances through `SRV`, `TXT`, `A`, and `AAAA` records, and
-returns merged service-instance observations with their host, addresses, port,
-and TXT keys.
+`mdns-go` provides dependency-free DNS-SD browsing and service advertisement.
+The browser sends multicast `PTR` queries, resolves returned instances through
+`SRV`, `TXT`, `A`, and `AAAA` records, and returns merged service-instance
+observations with their host, addresses, port, and TXT keys. The responder
+answers `PTR`, `SRV`, `TXT`, and address queries for a caller-supplied service
+without knowing any device, vendor, or service-specific semantics.
 
-The package browses; it does not advertise services, publish records, answer
-queries, or contain knowledge of any device, vendor, or service type. Callers
-provide the service types to `Browse` and may select the browse window and
-interfaces via `Options`.
+Callers provide the service type to `Browse` or `Responder`, and may select the
+browse window and interfaces via `Options`. Discovery remains best-effort:
+callers must retain their manual endpoint fallback when multicast is blocked.

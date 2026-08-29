@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable resource fixtures.
 package resources
 
 import (
@@ -678,6 +679,10 @@ func managedServiceTestManifest(checksum string) ResourceManifest {
 		CLI:       &scenario.CLIConfig{Enabled: false},
 		Driver:    "managed-service",
 		Platforms: ResourcePlatforms{Linux: "supported", MacOS: "supported", Windows: "supported"},
+		HealthChecks: []ResourceHealthCheck{
+			{Type: "command", Command: []string{"true"}, Kind: "readiness", IntervalSeconds: 10, TimeoutSeconds: 10},
+			{Type: "command", Command: []string{"true"}, Kind: "liveness", IntervalSeconds: 30, TimeoutSeconds: 10},
+		},
 		ManagedService: &resourcedeployment.ManagedService{
 			ProviderPolicy: resourcedeployment.ProviderPolicy{
 				TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{

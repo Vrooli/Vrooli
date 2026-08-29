@@ -1,5 +1,6 @@
 //go:build linux
 
+//nolint:goconst // test data deliberately reuses stable protocol fixtures.
 package securestore
 
 import (

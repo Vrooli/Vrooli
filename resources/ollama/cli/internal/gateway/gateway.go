@@ -20,6 +20,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 
@@ -27,9 +30,9 @@ import (
 	"github.com/vrooli/cli-core/cliutil/hostsem"
 )
 
-const (
+var (
 	defaultParallel      = 4
-	defaultAcquire       = 60 * time.Second
+	defaultAcquire       = tuning.ResourceHTTPTimeout()
 	charsPerToken        = 4
 	envNumParallel       = "OLLAMA_NUM_PARALLEL"
 	envAcquireTO         = "OLLAMA_GATEWAY_ACQUIRE_TIMEOUT"
@@ -156,7 +159,7 @@ func (h *Handlers) Embed(args []string) error {
 		return err
 	}
 	if *asJSON {
-		return json.NewEncoder(h.Stdout).Encode(struct {
+		return cliout.NewCompactEncoder(h.Stdout).Encode(struct {
 			Embedding []float64 `json:"embedding"`
 		}{Embedding: vec})
 	}
@@ -244,7 +247,7 @@ func (h *Handlers) Generate(args []string) error {
 		return err
 	}
 	if *asJSON {
-		return json.NewEncoder(h.Stdout).Encode(struct {
+		return cliout.NewCompactEncoder(h.Stdout).Encode(struct {
 			Response  string `json:"response"`
 			EvalCount int    `json:"eval_count"`
 		}{Response: out.Response, EvalCount: out.EvalCount})
@@ -307,7 +310,7 @@ func (h *Handlers) Chat(args []string) error {
 	}
 	response := out.Message.Content
 	if *asJSON {
-		return json.NewEncoder(h.Stdout).Encode(struct {
+		return cliout.NewCompactEncoder(h.Stdout).Encode(struct {
 			Response   string `json:"response"`
 			DoneReason string `json:"done_reason"`
 			EvalCount  int    `json:"eval_count"`

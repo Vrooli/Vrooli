@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/deployability"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/tuning"
+	"github.com/vrooli/vrooli/internal/values"
 	portabilityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/portability"
 	"google.golang.org/protobuf/proto"
 )
@@ -163,7 +164,7 @@ func renderCapabilityGrid(ctx *CommandContext, jsonOutput bool, grid *portabilit
 				platform.GetArchitecture(),
 				enumToken(platform.GetStatus().String(), "RESOLUTION_STATUS_"),
 				enumToken(platform.GetQualification().String(), "QUALIFICATION_"),
-				firstNonEmpty(platform.GetImplementer(), platform.GetMechanism(), platform.GetReason()))
+				values.FirstNonEmpty(platform.GetImplementer(), platform.GetMechanism(), platform.GetReason()))
 			if len(platform.GetControls()) > 0 {
 				fmt.Fprintf(ctx.Stdout, "    controls: %s\n", strings.Join(platform.GetControls(), ", "))
 			}
@@ -255,7 +256,7 @@ func (app *App) runCapabilityWorkflow(ctx *CommandContext, args []string) error 
 		}
 		rows := make([][]string, 0, len(statuses))
 		for _, status := range statuses {
-			rows = append(rows, []string{status.Descriptor.ID, string(status.State), firstNonEmpty(status.Remediation, status.Descriptor.Remediation)})
+			rows = append(rows, []string{status.Descriptor.ID, string(status.State), values.FirstNonEmpty(status.Remediation, status.Descriptor.Remediation)})
 		}
 		return cliout.WriteSection(ctx.Stdout, cliout.Section{Rows: rows})
 	}
@@ -298,13 +299,4 @@ func workflowOutcome(value any) string {
 	default:
 		return "capability action completed"
 	}
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }

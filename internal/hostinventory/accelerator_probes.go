@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -105,7 +105,7 @@ func (c Collector) collectVulkanICDs(snap *Snapshot, observedAt time.Time) {
 		}
 		manifests = append(manifests, matches...)
 	}
-	sort.Strings(manifests)
+	slices.Sort(manifests)
 	snap.VulkanICDs = manifests
 	if len(manifests) == 0 {
 		snap.ProbeStatuses["vulkan"] = acceleratorProbesNoDevices

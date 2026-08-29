@@ -49,7 +49,7 @@ func FinalizeStuckInstance(ctx context.Context, store FinalizerStore, instance I
 	}
 	endedAt := at
 	for _, ref := range refs {
-		if ref.Status != "running" {
+		if ref.Status != SupervisorStatusRunning {
 			continue
 		}
 		if _, err := store.UpdateProcessRefStatus(ctx, ref.RefID, "exited", &endedAt); err != nil && !errors.Is(err, ErrNotFound) {

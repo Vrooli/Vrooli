@@ -4,11 +4,12 @@
 package cmdutil
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 // NewFlagSet returns a ContinueOnError flag set that discards its own usage
@@ -55,7 +56,7 @@ func RequireName(name string) error {
 
 // WriteJSON marshals v as indented JSON to w with a trailing newline.
 func WriteJSON(w io.Writer, v any) error {
-	data, err := json.MarshalIndent(v, "", "  ")
+	data, err := cliout.MarshalIndent(v)
 	if err != nil {
 		return err
 	}

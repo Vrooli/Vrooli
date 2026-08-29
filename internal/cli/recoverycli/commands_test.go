@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable parser fixtures.
 package recoverycli
 
 import (
@@ -10,7 +11,7 @@ func TestParseCaptureRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	if req.Scenario != "demo" || req.Slug != "abc" || req.Source != "/tmp/x" || !req.NoReflink {
+	if req.Scenario != "demo" || req.Slug != "abc" || req.Source != "/tmp/x" || !req.NoReflink { //nolint:goconst // parser fixture
 		t.Fatalf("unexpected capture request: %+v", req)
 	}
 }

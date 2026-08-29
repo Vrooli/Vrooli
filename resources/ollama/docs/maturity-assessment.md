@@ -17,7 +17,7 @@ system.
 | Archetype | 2 | The resource uses the shared `managed-service` template and provider policy; the native Ollama server is the runtime. |
 | Operator surface | 2 | `resource-ollama` and `vrooli resource ... ollama` own install, lifecycle, status, logs, health, model ensuring, gateway, policy, and capacity operations. |
 | Configuration | 2 | `model-policy.json`, typed dependency validation, role resolution, relocation keys, and the Go `ensure`/policy commands preserve existing model state while migrating callers to roles. |
-| Runtime and health | 2 | The server artifact is version- and checksum-pinned; `/api/tags` is readiness and `health-gpu` reports processor placement rather than trusting a scheduler hint. |
+| Runtime and health | 2 | The server artifact is version- and checksum-pinned; `/api/tags` is readiness and the control plane reports processor placement rather than trusting a scheduler hint. |
 | Tests | 2 | `resources/ollama/Makefile` Go gates pass; focused capacity, health, policy, gateway, and ensure tests pass; Search Hub consumer smoke passed with the native service and Docker stopped. |
 | Portability | 2 | Linux amd64 and Windows amd64 have staged, checksum-verified bundles; macOS amd64/arm64 remains conditional pending target smoke. |
 | Legacy debt | 2 | No resource shell layer or Docker fallback is present in the manifest or normal operator path. Historical migration notes remain explicitly historical. |
@@ -79,7 +79,7 @@ stays under the same relocation key throughout.
 |---|---|
 | Manifest and artifact | Fleet manifest validation; pinned artifact metadata and checksum tests. |
 | Unit/type/lint | `make check` in `resources/ollama`. |
-| Runtime | Native managed-service restart, `/api/tags` readiness, `health-gpu`, and status processor mode. |
+| Runtime | Native managed-service restart, `/api/tags` readiness, and status processor mode. |
 | Capacity | `vrooli capacity reconcile`; multi-step VRAM degradation profile and zero-claim finding tests. |
 | Consumer | Search Hub server-owned suite and native Ollama smoke with Docker stopped. |
 | Platform gates | Explicit Linux amd64, macOS conditional, Linux arm64 conditional, Windows amd64 build-verified, and Windows arm64 unsupported profiles. |

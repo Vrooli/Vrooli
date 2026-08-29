@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	storageCandidatesRejected = "rejected"
+	storageCandidatesRejected           = "rejected"
+	storagePhysicalIndependenceObserved = "observed"
 )
 
 type StorageCandidate struct {
@@ -82,7 +83,7 @@ func inspectStorageMount(mount storageMount, policy StoragePolicy) StorageCandid
 	device, known := physicalDeviceIdentity(location)
 	candidate.DeviceIdentity = device
 	if known {
-		candidate.PhysicalIndependence = "observed"
+		candidate.PhysicalIndependence = storagePhysicalIndependenceObserved
 		// Repository roots are containment boundaries, not the source whose
 		// physical independence this candidate must prove. A removable volume
 		// may already contain a Kopia repository and still be a valid escrow

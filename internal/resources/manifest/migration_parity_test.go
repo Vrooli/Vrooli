@@ -66,6 +66,10 @@ func TestMigrationParityAgainstTheNormalisedLegacyForm(t *testing.T) {
 		// sherpa-onnx declared an empty requirements.gpu but ships no GPU
 		// artifact and no overlay. It now declares nothing, honestly.
 		"sherpa-onnx": "declared an empty requirements.gpu but does no accelerated work; it now declares none",
+		// whisper's prior cuda/cpu preference was deliberately reduced to the
+		// CPU backend because its pinned Linux artifact is CPU-only and this host
+		// has no CUDA build toolchain.
+		"whisper": "the pinned Linux artifact and host toolchain cannot provide CUDA; CPU is now declared and CUDA intent is documented",
 	}
 
 	for name, surfaces := range before {

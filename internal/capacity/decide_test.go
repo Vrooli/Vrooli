@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable capacity fixtures.
 package capacity
 
 import (

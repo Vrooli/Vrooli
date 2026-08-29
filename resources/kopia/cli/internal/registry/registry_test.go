@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"resource-kopia/cli/internal/registry"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/registry"
 )
 
 func newRegistry(t *testing.T) *registry.Registry {

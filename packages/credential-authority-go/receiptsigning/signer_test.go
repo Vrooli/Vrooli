@@ -12,7 +12,7 @@ import (
 
 type memoryStore struct{ values map[string]string }
 
-func (s *memoryStore) Resolve(identity credentialauthority.Identity, field string) (string, error) {
+func (s *memoryStore) Require(identity credentialauthority.Identity, field string) (string, error) {
 	value, ok := s.values[string(identity)+"/"+field]
 	if !ok {
 		return "", credentialauthority.ErrUnconfigured

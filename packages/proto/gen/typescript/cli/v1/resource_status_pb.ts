@@ -111,8 +111,8 @@ export type ResourceStatus = Message<"vrooli.cli.v1.ResourceStatus"> & {
   declaredMode: string;
 
   /**
-   * Accelerator backend the host says the running resource is on; empty when
-   * placement could not be read, which is never reported as agreement.
+   * Accelerator backend the host says the running resource is on; the CLI
+   * projects not_evaluated when placement was not evaluated.
    *
    * @generated from field: string observed_mode = 12;
    */

@@ -15,7 +15,7 @@
     "IoT device orchestration",
     "Webhook and notification routing"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "Containerized execution is portable, but plugin lifecycle, persistence, and scenario integration patterns need deliberate design before support is claimed.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined boundary between Node-RED workflows and scenario-owned logic"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Treat old Node-RED artifacts as historical prototypes only.",
     "Any future implementation should define export/import conventions for flows.",

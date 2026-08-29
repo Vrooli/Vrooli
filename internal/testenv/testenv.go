@@ -3,7 +3,7 @@ package testenv
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -27,7 +27,7 @@ func SetIdentityEnv(t *testing.T, values map[string]string) {
 		}
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		t.Setenv(key, values[key])
 	}

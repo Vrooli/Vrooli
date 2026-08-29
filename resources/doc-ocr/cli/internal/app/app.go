@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"resource-doc-ocr/cli/internal/discovery"
-	"resource-doc-ocr/cli/internal/domain"
-	"resource-doc-ocr/cli/internal/env"
+	"github.com/vrooli/vrooli/resources/doc-ocr/cli/internal/discovery"
+	"github.com/vrooli/vrooli/resources/doc-ocr/cli/internal/domain"
+	"github.com/vrooli/vrooli/resources/doc-ocr/cli/internal/env"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"

@@ -2,7 +2,7 @@ package hostreq
 
 import (
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -50,7 +50,7 @@ func normalizeCSV(value string) []string {
 		seen[part] = struct{}{}
 		names = append(names, part)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

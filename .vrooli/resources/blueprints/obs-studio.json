@@ -15,7 +15,7 @@
     "Screen capture pipelines",
     "Virtual studio tooling"
   ],
-  "integration_kind": "desktop-app",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "OBS is cross-platform, but capture permissions, plugins, and GPU/desktop behavior differ substantially across host environments.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined scene/source configuration storage"
   ],
   "dependencies": [],
-  "suggested_template": "desktop-app",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should validate a real scene automation workflow instead of generic app lifecycle control.",
     "Keep desktop capture support separate from streaming destination support.",

@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -228,7 +229,7 @@ func (r *Runner) FreshnessReport(item scenario.Scenario) (FreshnessReport, error
 	for name := range item.Manifest.Components {
 		componentNames = append(componentNames, name)
 	}
-	sort.Strings(componentNames)
+	slices.Sort(componentNames)
 	for _, name := range componentNames {
 		component := item.Manifest.Components[name]
 		if strings.TrimSpace(component.Build.Reuse) != "" {
@@ -461,7 +462,7 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 	if len(inputs) == 0 {
 		return nil, false
 	}
-	sort.Strings(inputs)
+	slices.Sort(inputs)
 	return inputs, true
 }
 
@@ -593,7 +594,7 @@ func protoTypesFreshnessInputsContext(ctx context.Context, repoRoot, sourceDir, 
 	for path := range seen {
 		inputs = append(inputs, relUnder(repoRoot, path))
 	}
-	sort.Strings(inputs)
+	slices.Sort(inputs)
 	return inputs, true
 }
 
@@ -767,7 +768,7 @@ func nodeEnvOrDefault(deps hostProbeDeps) string {
 	if v := strings.TrimSpace(deps.getenv("NODE_ENV")); v != "" {
 		return v
 	}
-	return "development"
+	return runtimeEnvironmentDevelopment
 }
 
 var (
@@ -949,7 +950,7 @@ func normalizeTagList(raw string) string {
 	if len(fields) == 0 {
 		return ""
 	}
-	sort.Strings(fields)
+	slices.Sort(fields)
 	return strings.Join(fields, ",")
 }
 

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "performance-health",
-  "input_digest": "sha256:439a8f85f28777a3499510875c54cc29b57d709fdaa41614248aea92f0a2c911",
+  "input_digest": "sha256:cc92568e6aa7b66140176f4bd5d9b308d3b655d47bf1b10d7863caaade59db49",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/metrics.proto",

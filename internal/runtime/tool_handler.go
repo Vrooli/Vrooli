@@ -7,10 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/tuning"
+	"github.com/vrooli/vrooli/internal/values"
 
 	"github.com/vrooli/binaryfetch"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -434,7 +435,7 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 		status.Notes = append(status.Notes, err.Error())
 		return status, nil
 	}
-	binName := firstNonEmpty(h.manifest.Commands)
+	binName := values.FirstNonEmpty(h.manifest.Commands...)
 	if opts.DryRun {
 		status.ExecutionState = hostreqkit.ExecutionWouldInstall
 		if target.IsDir() {
@@ -616,7 +617,7 @@ func sortedEnvKeys(values map[string]string) []string {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	return keys
 }
 
@@ -686,7 +687,7 @@ func resolveFetchCommand(candidates []string) (string, bool) {
 	if cmd, ok := hostreqkit.ResolveCommand(candidates); ok {
 		return cmd, true
 	}
-	return firstNonEmpty(candidates), false
+	return values.FirstNonEmpty(candidates...), false
 }
 
 func localFetchCommandPath(binDir, command string) string {
@@ -819,15 +820,6 @@ func launcherEnvironmentAssignment(key, value string) string {
 		return fmt.Sprintf("set \"%s=%s\"", key, value)
 	}
 	return "export " + key + "=" + shellSingleQuote(value)
-}
-
-func firstNonEmpty(values []string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 // fetchProgress adapts download progress to human-readable stage lines on w,

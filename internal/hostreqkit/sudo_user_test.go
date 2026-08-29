@@ -10,6 +10,8 @@ import (
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
+const hostreqkitTestProtocGenGo = "protoc-gen-go"
+
 func TestInvokingUserPrefersSudoUserWhenRoot(t *testing.T) {
 	origRoot := RunningAsRootFn
 	defer func() { RunningAsRootFn = origRoot }()
@@ -269,7 +271,7 @@ func TestResolveCommandForInvokingUserPrefersPATH(t *testing.T) {
 	defer restore()
 
 	LookPathFn = func(name string) (string, error) {
-		if name == "protoc-gen-go" {
+		if name == hostreqkitTestProtocGenGo {
 			return "/usr/bin/protoc-gen-go", nil
 		}
 		return "", os.ErrNotExist

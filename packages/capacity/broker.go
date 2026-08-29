@@ -5,6 +5,7 @@ package capacity
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,15 @@ const capacityHeartbeatTTL = 15 * time.Minute
 type Verdict struct {
 	Kind   string
 	Reason string
+}
+
+// HostObservation is the read-only host state used by callers that need to
+// explain an admission decision. It is sourced through the same short-lived
+// snapshot cache as Acquire, so observing it does not perform a second probe.
+type HostObservation struct {
+	AvailableRAMBytes uint64  `json:"availableRamBytes"`
+	Load1             float64 `json:"load1"`
+	SwapUsedPercent   float64 `json:"swapUsedPercent"`
 }
 
 // Lease releases all claims acquired for one operation.
@@ -61,6 +71,47 @@ type Broker struct {
 	cachedAt       time.Time
 	// now is a clock seam so the TTL is testable without sleeping.
 	now func() time.Time
+}
+
+// OwnerIDFor formats an operation claim identity as scenario:run:phase. Colons
+// delimit components; callers must provide components without colons.
+func OwnerIDFor(scenario, runID, phase string) string {
+	if strings.Contains(scenario, ":") || strings.Contains(runID, ":") || strings.Contains(phase, ":") {
+		return ""
+	}
+	return scenario + ":" + runID + ":" + phase
+}
+
+// RunOwnerPrefix returns the prefix selecting all phase claims for one run.
+// The returned format is scenario:run: and components must not contain colons.
+func RunOwnerPrefix(scenario, runID string) string {
+	if strings.Contains(scenario, ":") || strings.Contains(runID, ":") {
+		return ""
+	}
+	return scenario + ":" + runID + ":"
+}
+
+// ReleaseRun releases every operation claim belonging to one run.
+func (b *Broker) ReleaseRun(ctx context.Context, scenario, runID string) error {
+	if b == nil || b.store == nil {
+		return nil
+	}
+	prefix := RunOwnerPrefix(scenario, runID)
+	if prefix == "" {
+		return fmt.Errorf("invalid run owner identity")
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	claims, err := b.store.ListClaims(ctx, internalcapacity.ClaimFilter{OwnerKind: internalcapacity.OwnerKindOp, OwnerIDPrefix: prefix, Statuses: internalcapacity.ActiveClaimStatuses()})
+	if err != nil {
+		return err
+	}
+	for _, claim := range claims {
+		if _, err := b.store.ReleaseClaim(ctx, claim.ClaimID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // NewBroker opens the shared capacity ledger. An empty dbPath uses the normal
@@ -175,6 +226,34 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 		claimIDs = append(claimIDs, claim.ClaimID)
 	}
 	return &lease{broker: b, claimIDs: claimIDs}, Verdict{Kind: internalcapacity.VerdictGrant}, nil
+}
+
+// ObserveHostState returns the latest host reading without creating a claim.
+// It is intentionally separate from Acquire so shadow instrumentation can
+// record the context of a verdict without changing ledger state.
+func (b *Broker) ObserveHostState(ctx context.Context) (HostObservation, error) {
+	if b == nil || b.source == nil {
+		return HostObservation{}, fmt.Errorf("capacity broker is unavailable")
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	snapshot, err := b.snapshot(ctx)
+	if err != nil {
+		return HostObservation{}, err
+	}
+	used := uint64(0)
+	if snapshot.Swap.TotalBytes > snapshot.Swap.FreeBytes {
+		used = snapshot.Swap.TotalBytes - snapshot.Swap.FreeBytes
+	}
+	percent := 0.0
+	if snapshot.Swap.TotalBytes > 0 {
+		percent = float64(used) * 100 / float64(snapshot.Swap.TotalBytes)
+	}
+	return HostObservation{
+		AvailableRAMBytes: snapshot.Memory.AvailableBytes,
+		Load1:             snapshot.Load.Load1,
+		SwapUsedPercent:   percent,
+	}, nil
 }
 
 // snapshot returns a host reading no older than snapshotTTL, collecting a fresh

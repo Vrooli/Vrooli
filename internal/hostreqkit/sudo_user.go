@@ -157,7 +157,7 @@ func InvokingUserCommand(name string, args ...string) (string, []string) {
 		name = "env"
 	}
 	if RunningAsRootFn() && user != "" && user != sudoUserRoot {
-		return "sudo", append([]string{"-u", user, "-H", "--", name}, commandArgs...)
+		return helpersSudo, append([]string{"-u", user, "-H", "--", name}, commandArgs...)
 	}
 	return name, commandArgs
 }
@@ -206,7 +206,7 @@ func RunAsInvokingUser(name string, args []string, opts EnsureOptions) error {
 		return RunCommandFn(name, args, opts)
 	}
 	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
-	return RunCommandFn("sudo", wrapped, opts)
+	return RunCommandFn(helpersSudo, wrapped, opts)
 }
 
 // RunAsInvokingUserWithInput is the secret-safe form of RunAsInvokingUser.
@@ -218,5 +218,5 @@ func RunAsInvokingUserWithInput(name string, args []string, input string, opts E
 		return RunCommandInputFn(name, args, input, opts)
 	}
 	wrapped := append([]string{"-u", user, "-H", "--", name}, args...)
-	return RunCommandInputFn("sudo", wrapped, input, opts)
+	return RunCommandInputFn(helpersSudo, wrapped, input, opts)
 }

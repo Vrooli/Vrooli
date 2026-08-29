@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -54,6 +54,11 @@ import (
 	"github.com/vrooli/vrooli/internal/tools/rasdaemon"
 	"github.com/vrooli/vrooli/internal/tools/stripe"
 	"github.com/vrooli/vrooli/internal/tools/vault"
+)
+
+const (
+	runtimeToolManifestFile      = "tool.json"
+	runtimeSafeguardManifestFile = "safeguard.json"
 )
 
 // customToolHandlers must stay in sync with every tool.json "handler" field
@@ -156,7 +161,7 @@ func (r registry) names(kind hostreq.Kind) []string {
 	for name := range target {
 		result = append(result, name)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result
 }
 
@@ -207,7 +212,7 @@ func loadTools(r *registry, fsys fs.FS) error {
 			loadErr = fmt.Errorf("walk tool manifests at %s: %w", path, walkErr)
 			return fs.SkipAll
 		}
-		if d.IsDir() || d.Name() != "tool.json" {
+		if d.IsDir() || d.Name() != runtimeToolManifestFile {
 			return nil
 		}
 		data, readErr := fs.ReadFile(fsys, path)
@@ -254,7 +259,7 @@ func loadSafeguards(r *registry, fsys fs.FS) error {
 			loadErr = fmt.Errorf("walk safeguard manifests at %s: %w", path, walkErr)
 			return fs.SkipAll
 		}
-		if d.IsDir() || d.Name() != "safeguard.json" {
+		if d.IsDir() || d.Name() != runtimeSafeguardManifestFile {
 			return nil
 		}
 		data, readErr := fs.ReadFile(fsys, path)

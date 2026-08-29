@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 
 	"github.com/vrooli/vrooli/resources/searxng/cli/internal/config"
 	resourceenv "github.com/vrooli/vrooli/resources/searxng/cli/internal/env"
@@ -101,7 +101,7 @@ func runConfigShow(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return json.NewEncoder(stdout).Encode(config.RedactedSummary(document))
+	return cliout.WriteJSON(stdout, config.RedactedSummary(document))
 }
 
 func runConfigValidate(args []string, stdout io.Writer) error {
@@ -153,7 +153,7 @@ func runConfigApply(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return json.NewEncoder(stdout).Encode(report)
+	return cliout.WriteJSON(stdout, report)
 }
 
 // runEngineHealth surfaces the signal the liveness healthcheck cannot see:
@@ -180,9 +180,7 @@ func runEngineHealth(args []string, stdout io.Writer) error {
 	}
 
 	if *jsonOut {
-		encoder := json.NewEncoder(stdout)
-		encoder.SetIndent("", "  ")
-		if err := encoder.Encode(report); err != nil {
+		if err := cliout.WriteJSON(stdout, report); err != nil {
 			return err
 		}
 	} else {

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"resource-openrouter/cli/internal/policy"
-	"resource-openrouter/cli/internal/policytest"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policytest"
 )
 
 func writeFixture(t *testing.T, body string) string {

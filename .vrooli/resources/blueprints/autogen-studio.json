@@ -14,7 +14,7 @@
     "Agent workflow design studio",
     "Multi-agent debugging workbench"
   ],
-  "integration_kind": "desktop-app",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "The capability likely depends on Python and UI packaging choices, so future support should be explicit about install and runtime assumptions.",
     "linux": "partial",
@@ -26,7 +26,7 @@
     "Clear support boundary relative to Vrooli-native agent tooling"
   ],
   "dependencies": [],
-  "suggested_template": "desktop-app",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Treat this as capability knowledge, not an implied endorsement of a specific historical wrapper.",
     "A future promotion should start from explicit install and detection semantics rather than registry metadata alone.",

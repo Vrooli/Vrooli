@@ -256,15 +256,15 @@ func writeBlueprintArchiveFixture(t *testing.T, root, name string) {
   "summary": "Fixture resource",
   "why_it_matters": "Used in tests.",
   "when_to_use": ["Testing archive lifecycle"],
-  "integration_kind": "docker-service",
+  "integration_kind": "external-cli",
   "platform_support": {
     "notes": "Fixture",
     "linux": "supported",
     "macos": "supported",
     "windows": "partial"
   },
-  "suggested_template": "docker-service",
-  "implementation_notes": ["Implement with a docker-service template."],
+  "suggested_template": "external-cli",
+  "implementation_notes": ["Implement with a external-cli template."],
   "operational_notes": ["Keep archived until needed again."],
   "risks": ["Stale if not reviewed."],
   "status": "candidate",

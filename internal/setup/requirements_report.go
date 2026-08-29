@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 
@@ -59,11 +60,11 @@ var (
 // no worse than the status quo and keeps the hint readable.
 func vrooliInvocation() string {
 	if _, err := vrooliLauncherStatFn(); err == nil {
-		return "vrooli"
+		return setupOwnerVrooli
 	}
 	exe, err := vrooliExecutableFn()
 	if err != nil || strings.TrimSpace(exe) == "" {
-		return "vrooli"
+		return setupOwnerVrooli
 	}
 	return exe
 }
@@ -513,7 +514,7 @@ func summarizeExecutionStates(items []vrooliruntime.ItemStatus, executed bool) s
 	for label := range counts {
 		labels = append(labels, label)
 	}
-	sort.Strings(labels)
+	slices.Sort(labels)
 
 	parts := make([]string, 0, len(labels))
 	for _, label := range labels {

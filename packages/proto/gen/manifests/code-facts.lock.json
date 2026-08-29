@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "code-facts",
-  "input_digest": "sha256:874eea3525cd081b68c5e5b95f8bae0361e1184ef33a1c5c8e310df694a6328b",
+  "input_digest": "sha256:eda196fe2cd88c5152c07c87477e7a88bb4eb6cb92337315379f963a7c32589e",
   "input_files": [
     "schemas/code-facts/v1/facts/facts.proto",
     "schemas/code-facts/v1/health/health.proto",
@@ -18,13 +18,13 @@
     }
   },
   "outputs": {
-    "gen/go/code-facts/v1/facts/facts.pb.go": "sha256:619db32160d2504726be329d1085828e20fdad6f9ac8333cac9570917c2f72af",
+    "gen/go/code-facts/v1/facts/facts.pb.go": "sha256:6c745cd474b6a596799268aefd05469528dbb73bd3097fc06085d9b81cf9b766",
     "gen/go/code-facts/v1/facts/facts_v1connect/facts.connect.go": "sha256:0cbd92b3aa498be501070a63e3b1f3abd858e4eba3b124e0f618545fd2d50948",
     "gen/go/code-facts/v1/health/health.pb.go": "sha256:0723dac786de47c1befa815fe078903e56c9ad44371dfce5e02bc192285f9241",
     "gen/go/code-facts/v1/shared/errors.pb.go": "sha256:97e188f6e153ed85cdec31692ef55e81580d236676f0ae7ea2852ca9ec2eb320",
     "gen/python/code_facts/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/code_facts/v1/facts/facts_pb2.py": "sha256:96f4a937f21fcd0d05b0160624836a5e036aa0c010663aacb8339738d0f988b9",
-    "gen/python/code_facts/v1/facts/facts_pb2.pyi": "sha256:ee4346becc43f377158ae21d85dc47fe66fd84c13e99b7021d042fa08078db3f",
+    "gen/python/code_facts/v1/facts/facts_pb2.py": "sha256:dcbab976551a69c4f50763c6091e1da7cd202bc042a84c7bbe31c4a1dd72ca6d",
+    "gen/python/code_facts/v1/facts/facts_pb2.pyi": "sha256:7b019198600c5e0b611ba13de96529b25ad2a88a6df8790354f3f57a546f9962",
     "gen/python/code_facts/v1/facts/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/code_facts/v1/health/health_pb2.py": "sha256:ee67cdec6b7368fe839c24177f4b82fd3911f9bc3ae937ae7f43585b2665fb15",
     "gen/python/code_facts/v1/health/health_pb2.pyi": "sha256:3facac76d31a8649cdcabcc0b4d62e86a715b85a9ba687a7fd9330ab5702d1ec",
@@ -33,7 +33,7 @@
     "gen/python/code_facts/v1/shared/errors_pb2.py": "sha256:9e0ac4d154be260720413ba74ed4457c5c5459953e615c97cf67a4c0180fcb3a",
     "gen/python/code_facts/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
     "gen/python/code_facts/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/code-facts/v1/facts/facts_pb.ts": "sha256:f9119e4e430e17a7e7e746f21981f7a0fd75ff319b8072ffa28c754e31f8a48c",
+    "gen/typescript/code-facts/v1/facts/facts_pb.ts": "sha256:3277866e9c9986bc1299c719be725432a63fed18e074d82faebcfdce0e6335c2",
     "gen/typescript/code-facts/v1/health/health_pb.ts": "sha256:2cd62b00610915b1c55a861aa31d6326ae7163f0ec66cd30e9bb1878054026f8",
     "gen/typescript/code-facts/v1/shared/errors_pb.ts": "sha256:f402712d6674259ca82bb669247521aa6a0237bbf5fe846444190f5338e1dbcf"
   }

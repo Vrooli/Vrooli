@@ -148,7 +148,7 @@ func (a *App) StopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
 		code := "scenario_stop_failed"
 		if errors.Is(err, scenario.ErrNotFound) {
 			status = http.StatusNotFound
-			code = "scenario_not_found"
+			code = handlersAppsScenarioNotFound
 		}
 		a.logError("Scenario stop request failed", err, logx.AttrScenario, name)
 		respondError(w, newAPIError(status, code, fmt.Sprintf("failed to stop scenario %s", name), err))

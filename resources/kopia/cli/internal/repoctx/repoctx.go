@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"strings"
 
-	"resource-kopia/cli/internal/credentials"
-	"resource-kopia/cli/internal/registry"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/credentials"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/registry"
 )
 
 // Env var names kopia reads for the passphrase and S3 credentials. Secrets are

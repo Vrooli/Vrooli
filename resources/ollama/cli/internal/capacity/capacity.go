@@ -16,7 +16,9 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/packages/capacity/companion"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 )
@@ -71,20 +73,16 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{
 		Name:        "capacity",
 		Description: "Plan Ollama model demand against host and runtime capacity",
-		Subcommands: []cliapp.Command{
+		Subcommands: append([]cliapp.Command{
 			{
 				Name:        "plan",
 				Description: "Estimate scenario Ollama model demand and residency pressure",
 				Usage:       "resource-ollama capacity plan --scenario <name> [--all-scenarios] [--json]",
 				Run:         h.Plan,
 			},
-			{
-				Name:        "degrade",
-				Description: "Unload the Nth-largest loaded model to free VRAM at the capacity broker's request",
-				Usage:       "resource-ollama capacity degrade [--to <model>] [--nth N] [--json]",
-				Run:         h.Degrade,
-			},
-		},
+		}, companion.CapacitySubcommands("ollama", []string{"qwen3.5:9b", "qwen3.5:4b", "qwen3:4b", "qwen3:1.7b"},
+			func(_ context.Context, label string) error { return h.Degrade([]string{"--to", label}) },
+			func(_ context.Context, label string) error { return h.Degrade([]string{"--to", label}) }, h.Stdout, h.Stderr)...),
 	}
 }
 
@@ -195,9 +193,7 @@ func (h *Handlers) targetBytes(label string) (int64, error) {
 
 func (h *Handlers) writeDegrade(jsonOut bool, result degradeResult) error {
 	if jsonOut {
-		enc := json.NewEncoder(h.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(result)
+		return cliout.NewEncoder(h.Stdout).Encode(result)
 	}
 	_, err := fmt.Fprintln(h.Stdout, result.Message)
 	return err
@@ -230,7 +226,7 @@ func (h *Handlers) Plan(args []string) error {
 		return err
 	}
 	if *asJSON {
-		if err := json.NewEncoder(h.Stdout).Encode(report); err != nil {
+		if err := cliout.NewEncoder(h.Stdout).Encode(report); err != nil {
 			return err
 		}
 	} else {

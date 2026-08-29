@@ -1,0 +1,661 @@
+// Package nodeclient is the one provider-facing reach for trusted Vrooli
+// nodes. It owns Bridge location, authentication headers, bounded timeouts,
+// typed relay arguments, and admission errors; consumers choose a node and
+// render the result for their product surface.
+package nodeclient
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/gorilla/websocket"
+	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/scopecatalog"
+	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
+	dispatchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch/dispatch_v1connect"
+	gatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate"
+	gateconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate/gate_v1connect"
+	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
+	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
+	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
+	relayconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay/relayv1connect"
+	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
+	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
+	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
+	"google.golang.org/protobuf/proto"
+)
+
+const bridgeURLOverride = "BRIDGE_URL"
+
+// ErrorKind classifies node-client failures for product surfaces and logs.
+type ErrorKind string
+
+const (
+	ErrBridgeUnavailable ErrorKind = "bridge_unavailable"
+	ErrNodeNotFound      ErrorKind = "node_not_found"
+	ErrNodeUnavailable   ErrorKind = "node_unavailable"
+	ErrMissingScope      ErrorKind = "missing_scope"
+	ErrTransport         ErrorKind = "transport"
+	ErrStreaming         ErrorKind = "streaming_unavailable"
+	// ErrInvalidRequest covers a caller-side mistake the control plane
+	// refused, including an enrollment approval whose confirmation words do
+	// not match the derived value.
+	ErrInvalidRequest ErrorKind = "invalid_request"
+)
+
+// Error retains the address, verb, and missing grant that caused a failed
+// operation. It is safe to expose after redacting transport credentials.
+type Error struct {
+	Kind  ErrorKind
+	Node  string
+	Verb  string
+	Scope string
+	Err   error
+}
+
+func (e *Error) Error() string {
+	parts := []string{fmt.Sprintf("node client %s", e.Kind)}
+	if e.Node != "" {
+		parts = append(parts, fmt.Sprintf("node=%q", e.Node))
+	}
+	if e.Verb != "" {
+		parts = append(parts, fmt.Sprintf("verb=%q", e.Verb))
+	}
+	if e.Scope != "" {
+		parts = append(parts, fmt.Sprintf("missing_scope=%q", e.Scope))
+	}
+	if e.Err != nil {
+		parts = append(parts, e.Err.Error())
+	}
+	return strings.Join(parts, " ")
+}
+
+func (e *Error) Unwrap() error { return e.Err }
+
+// IsKind reports whether err is a node-client error of kind.
+func IsKind(err error, kind ErrorKind) bool {
+	var target *Error
+	return errors.As(err, &target) && target.Kind == kind
+}
+
+// Config controls Bridge discovery and authentication. BridgeURL is a test or
+// operator override; production discovery remains slug-based per request.
+type Config struct {
+	HTTPClient       *http.Client
+	BridgeURL        string
+	ResolveBridgeURL func(context.Context) (string, error)
+	Token            string
+	// TokenProvider supplies a short-lived owner credential when Token is
+	// empty. The returned value may include an authorization scheme, such as
+	// "LocalSession <credential>"; the node client owns header formatting.
+	TokenProvider func(context.Context) (string, error)
+	ReauthToken   string
+	ScopeResolver func(string) (string, bool)
+}
+
+// Client is safe for concurrent use. It does not cache Bridge addresses so a
+// restarted local Bridge is found on the next request.
+type Client struct {
+	httpClient       *http.Client
+	bridgeURL        string
+	resolveBridgeURL func(context.Context) (string, error)
+	token            string
+	tokenProvider    func(context.Context) (string, error)
+	reauthToken      string
+	scopeResolver    func(string) (string, bool)
+}
+
+// New constructs a node client. The BRIDGE_URL environment variable is read as
+// an override at request time, while the default source remains scenario slug
+// discovery through api-core.
+func New(cfg Config) *Client {
+	httpClient := cfg.HTTPClient
+	if httpClient == nil {
+		httpClient = &http.Client{}
+	}
+	resolver := cfg.ResolveBridgeURL
+	if resolver == nil {
+		resolver = func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "vrooli-bridge")
+		}
+	}
+	return &Client{
+		httpClient: httpClient, bridgeURL: strings.TrimRight(strings.TrimSpace(cfg.BridgeURL), "/"),
+		resolveBridgeURL: resolver, token: strings.TrimSpace(cfg.Token), tokenProvider: cfg.TokenProvider, scopeResolver: cfg.ScopeResolver,
+		reauthToken: strings.TrimSpace(cfg.ReauthToken),
+	}
+}
+
+func (c *Client) endpoint(ctx context.Context) (string, error) {
+	if override := strings.TrimRight(strings.TrimSpace(os.Getenv(bridgeURLOverride)), "/"); override != "" {
+		return override, nil
+	}
+	if c.bridgeURL != "" {
+		return c.bridgeURL, nil
+	}
+	url, err := c.resolveBridgeURL(ctx)
+	if err != nil {
+		return "", &Error{Kind: ErrBridgeUnavailable, Err: err}
+	}
+	if strings.TrimSpace(url) == "" {
+		return "", &Error{Kind: ErrBridgeUnavailable, Err: errors.New("Bridge URL resolver returned an empty address")}
+	}
+	return strings.TrimRight(strings.TrimSpace(url), "/"), nil
+}
+
+// ResolveURL returns the Bridge endpoint selected for one operation. Consumers
+// that need to construct a second protocol on the same control plane (for
+// example the session upgrade) may use this value, while discovery and env
+// policy remain owned by this package.
+func (c *Client) ResolveURL(ctx context.Context) (string, error) {
+	return c.endpoint(ctx)
+}
+
+func (c *Client) requestContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout > 0 {
+		return context.WithTimeout(ctx, timeout)
+	}
+	return ctx, func() {}
+}
+
+func (c *Client) transport(ctx context.Context, baseURL string) connect.HTTPClient {
+	return &authTransport{base: c.httpClient, token: c.token, tokenProvider: c.tokenProvider, ctx: ctx}
+}
+
+// List returns the current owner-visible fleet snapshot.
+func (c *Client) List(ctx context.Context, timeout time.Duration) ([]*registryv1.Node, error) {
+	callCtx, cancel := c.requestContext(ctx, timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	client := registryconnect.NewNodeRegistryServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.ListNodes(callCtx, connect.NewRequest(&registryv1.ListNodesRequest{}))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Err: errors.New("Bridge returned no node list")}
+	}
+	return append([]*registryv1.Node(nil), resp.Msg.GetNodes()...), nil
+}
+
+// ListMachines returns Bridge's durable machine/lineage inventory. It is
+// separate from List because a machine may have a current node identity that
+// changes over time.
+func (c *Client) ListMachines(ctx context.Context, timeout time.Duration) ([]*machinesv1.Machine, error) {
+	callCtx, cancel := c.requestContext(ctx, timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	client := machinesconnect.NewMachineServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.ListMachines(callCtx, connect.NewRequest(&machinesv1.ListMachinesRequest{}))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Err: errors.New("Bridge returned no machine list")}
+	}
+	return append([]*machinesv1.Machine(nil), resp.Msg.GetMachines()...), nil
+}
+
+// CallRequest is a typed short-lived relay request. Args are never flattened
+// into CSV; an empty element and commas are preserved as separate protobuf
+// repeated-string values.
+type CallRequest struct {
+	NodeID        string
+	Scenario      string
+	Command       string
+	Args          []string
+	Timeout       time.Duration
+	MaxResponse   uint64
+	RequiredScope string
+	Scopes        []string
+}
+
+type CallResponse struct {
+	CorrelationID string
+	Outcome       relayv1.RelayCallOutcome
+	Data          []byte
+	Reason        string
+	ExitCode      int32
+	TotalBytes    uint64
+}
+
+// Call relays one admitted command to a node.
+func (c *Client) Call(ctx context.Context, req CallRequest) (CallResponse, error) {
+	if err := c.validateRequest(req.NodeID, req.Command, req.RequiredScope, req.Scopes); err != nil {
+		return CallResponse{}, err
+	}
+	callCtx, cancel := c.requestContext(ctx, req.Timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return CallResponse{}, err
+	}
+	client := relayconnect.NewRelayServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.Call(callCtx, connect.NewRequest(&relayv1.RelayCallRequest{
+		NodeId: req.NodeID, Scenario: req.Scenario, Command: req.Command,
+		Args: append([]string(nil), req.Args...), TimeoutSeconds: seconds(req.Timeout), MaxResponseBytes: req.MaxResponse,
+	}))
+	if err != nil {
+		return CallResponse{}, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Command, Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return CallResponse{}, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Command, Err: errors.New("Bridge returned no relay response")}
+	}
+	return CallResponse{CorrelationID: resp.Msg.GetCorrelationId(), Outcome: resp.Msg.GetOutcome(), Data: append([]byte(nil), resp.Msg.GetData()...), Reason: resp.Msg.GetReason(), ExitCode: resp.Msg.GetExitCode(), TotalBytes: resp.Msg.GetTotalBytes()}, nil
+}
+
+type DispatchRequest struct {
+	NodeID   string
+	Scenario string
+	Verb     string
+	Args     []string
+	Timeout  time.Duration
+}
+
+type DispatchResponse struct {
+	RunID  string
+	Detail string
+}
+
+// Dispatch queues a typed job on a node.
+func (c *Client) Dispatch(ctx context.Context, req DispatchRequest) (DispatchResponse, error) {
+	if strings.TrimSpace(req.NodeID) == "" || strings.TrimSpace(req.Verb) == "" {
+		return DispatchResponse{}, &Error{Kind: ErrNodeNotFound, Node: req.NodeID, Verb: req.Verb, Err: errors.New("node id and verb are required")}
+	}
+	callCtx, cancel := c.requestContext(ctx, req.Timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return DispatchResponse{}, err
+	}
+	client := dispatchconnect.NewDispatchServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.DispatchJob(callCtx, connect.NewRequest(&dispatchv1.DispatchJobRequest{NodeId: req.NodeID, Scenario: req.Scenario, Verb: req.Verb, Args: append([]string(nil), req.Args...), TimeoutSeconds: seconds(req.Timeout)}))
+	if err != nil {
+		return DispatchResponse{}, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Verb, Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return DispatchResponse{}, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Verb, Err: errors.New("Bridge returned no dispatch response")}
+	}
+	return DispatchResponse{RunID: resp.Msg.GetRunId()}, nil
+}
+
+// Wait blocks once on a durable Bridge run and returns its latest run state.
+// Consumers must use the returned state instead of polling the control plane.
+func (c *Client) Wait(ctx context.Context, runID string, timeout time.Duration) (*runsv1.Run, bool, error) {
+	if strings.TrimSpace(runID) == "" {
+		return nil, false, &Error{Kind: ErrTransport, Err: errors.New("run id is required")}
+	}
+	callCtx, cancel := c.requestContext(ctx, timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, false, err
+	}
+	client := runsconnect.NewRunsServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.WaitRun(callCtx, connect.NewRequest(&runsv1.WaitRunRequest{Id: runID, TimeoutSeconds: seconds(timeout)}))
+	if err != nil {
+		return nil, false, &Error{Kind: ErrTransport, Err: err}
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetRun() == nil {
+		return nil, false, &Error{Kind: ErrTransport, Err: errors.New("Bridge returned no run state")}
+	}
+	return resp.Msg.GetRun(), resp.Msg.GetTimedOut(), nil
+}
+
+// Get retrieves a durable run and its state after a client disconnect.
+func (c *Client) Get(ctx context.Context, runID string, timeout time.Duration) (*runsv1.Run, error) {
+	if strings.TrimSpace(runID) == "" {
+		return nil, &Error{Kind: ErrTransport, Err: errors.New("run id is required")}
+	}
+	callCtx, cancel := c.requestContext(ctx, timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	client := runsconnect.NewRunsServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.GetRun(callCtx, connect.NewRequest(&runsv1.GetRunRequest{Id: runID}))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Err: err}
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetRun() == nil {
+		return nil, &Error{Kind: ErrTransport, Err: errors.New("Bridge returned no run state")}
+	}
+	return resp.Msg.GetRun(), nil
+}
+
+// RunGate starts a durable cross-platform validation gate.
+func (c *Client) RunGate(ctx context.Context, req *gatev1.RunGateRequest, timeout time.Duration) (*gatev1.RunGateResponse, error) {
+	callCtx, cancel := c.requestContext(ctx, timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	client := gateconnect.NewGateServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.RunGate(callCtx, connect.NewRequest(req))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Err: errors.New("Bridge returned no gate response")}
+	}
+	return resp.Msg, nil
+}
+
+// WaitGate blocks once for a durable cross-platform validation gate.
+func (c *Client) WaitGate(ctx context.Context, req *gatev1.WaitGateRequest, timeout time.Duration) (*gatev1.WaitGateResponse, error) {
+	callCtx, cancel := c.requestContext(ctx, timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	client := gateconnect.NewGateServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.WaitGate(callCtx, connect.NewRequest(req))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Err: errors.New("Bridge returned no gate result")}
+	}
+	return resp.Msg, nil
+}
+
+// OpenRequest describes a typed interactive session. The frame stream is
+// introduced in the streaming phase; keeping the operation typed now prevents
+// consumers from inventing private WebSocket contracts.
+type OpenRequest struct {
+	NodeID     string
+	Command    string
+	Args       []string
+	SessionID  string
+	Shell      string
+	WorkingDir string
+	Width      uint32
+	Height     uint32
+}
+
+// Session is the typed bidirectional Bridge channel. Frames are translated
+// here, keeping protobuf and WebSocket details out of product consumers.
+type Session struct {
+	conn    *websocket.Conn
+	mu      sync.Mutex
+	readCh  chan []byte
+	doneCh  chan struct{}
+	readyCh chan error
+	closed  bool
+	seq     uint64
+	pending []byte
+}
+
+// Open connects to a node's interactive session endpoint and waits for the
+// server's open frame before returning. Credentials are sent only as a server
+// side authorization header.
+func (c *Client) Open(ctx context.Context, req OpenRequest, timeout time.Duration) (*Session, error) {
+	if strings.TrimSpace(req.NodeID) == "" {
+		return nil, &Error{Kind: ErrNodeNotFound, Node: req.NodeID, Verb: req.Command, Err: errors.New("node id is required")}
+	}
+	callCtx, cancel := c.requestContext(ctx, timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	u, err := url.Parse(baseURL)
+	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return nil, &Error{Kind: ErrStreaming, Node: req.NodeID, Verb: req.Command, Err: fmt.Errorf("invalid Bridge URL %q", baseURL)}
+	}
+	u.Scheme = websocketScheme(u.Scheme)
+	u.Path = strings.TrimRight(u.Path, "/") + "/api/v1/channel/session"
+	query := u.Query()
+	query.Set("node", req.NodeID)
+	query.Set("scopes", "vrooli-bridge:session")
+	if req.SessionID != "" {
+		query.Set("session_id", req.SessionID)
+	}
+	if req.Shell != "" {
+		query.Set("shell", req.Shell)
+	}
+	if req.WorkingDir != "" {
+		query.Set("working_dir", req.WorkingDir)
+	}
+	if req.Command != "" {
+		query.Set("command", req.Command)
+	}
+	u.RawQuery = query.Encode()
+	header := http.Header{}
+	token, tokenErr := c.resolveToken(callCtx)
+	if tokenErr != nil {
+		return nil, &Error{Kind: ErrStreaming, Node: req.NodeID, Verb: req.Command, Err: fmt.Errorf("resolve Bridge owner credential: %w", tokenErr)}
+	}
+	if token != "" {
+		header.Set("Authorization", authHeader(token))
+	}
+	if c.reauthToken != "" {
+		header.Set("X-Bridge-Owner-Reauth", c.reauthToken)
+	}
+	conn, _, err := websocket.DefaultDialer.DialContext(callCtx, u.String(), header)
+	if err != nil {
+		kind := ErrTransport
+		if errors.Is(callCtx.Err(), context.DeadlineExceeded) {
+			kind = ErrStreaming
+		}
+		return nil, &Error{Kind: kind, Node: req.NodeID, Verb: req.Command, Err: err}
+	}
+	session := &Session{conn: conn, readCh: make(chan []byte, 64), doneCh: make(chan struct{}), readyCh: make(chan error, 1)}
+	go session.readLoop()
+	select {
+	case readyErr := <-session.readyCh:
+		if readyErr != nil {
+			_ = session.Close()
+			return nil, &Error{Kind: ErrStreaming, Node: req.NodeID, Verb: req.Command, Err: readyErr}
+		}
+		return session, nil
+	case <-callCtx.Done():
+		_ = session.Close()
+		return nil, &Error{Kind: ErrStreaming, Node: req.NodeID, Verb: req.Command, Err: callCtx.Err()}
+	}
+}
+
+func (s *Session) readLoop() {
+	defer close(s.doneCh)
+	defer close(s.readCh)
+	for {
+		kind, payload, err := s.conn.ReadMessage()
+		if err != nil {
+			signalReady(s.readyCh, err)
+			return
+		}
+		if kind != websocket.BinaryMessage {
+			continue
+		}
+		var frame sessionv1.Frame
+		if err := (proto.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(payload, &frame); err != nil {
+			signalReady(s.readyCh, fmt.Errorf("decode Bridge session frame: %w", err))
+			return
+		}
+		switch payload := frame.Payload.(type) {
+		case *sessionv1.Frame_Open:
+			signalReady(s.readyCh, nil)
+		case *sessionv1.Frame_Data:
+			if data := append([]byte(nil), payload.Data.GetData()...); len(data) > 0 {
+				select {
+				case s.readCh <- data:
+				case <-s.doneCh:
+					return
+				}
+			}
+		case *sessionv1.Frame_Close:
+			signalReady(s.readyCh, errors.New(payload.Close.GetReason()))
+			return
+		}
+	}
+}
+
+func signalReady(ch chan error, err error) {
+	select {
+	case ch <- err:
+	default:
+	}
+}
+
+func (s *Session) Read(dst []byte) (int, error) {
+	if len(dst) == 0 {
+		return 0, nil
+	}
+	if len(s.pending) > 0 {
+		n := copy(dst, s.pending)
+		s.pending = s.pending[n:]
+		return n, nil
+	}
+	select {
+	case data, ok := <-s.readCh:
+		if !ok {
+			return 0, io.EOF
+		}
+		n := copy(dst, data)
+		s.pending = data[n:]
+		return n, nil
+	case <-s.doneCh:
+		return 0, io.EOF
+	}
+}
+
+func (s *Session) Write(data []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return 0, io.ErrClosedPipe
+	}
+	err := s.writeFrame(&sessionv1.Frame{Payload: &sessionv1.Frame_Data{Data: &sessionv1.Data{Sequence: s.seq, Data: append([]byte(nil), data...)}}})
+	s.seq++
+	if err != nil {
+		return 0, err
+	}
+	return len(data), nil
+}
+
+func (s *Session) Resize(width, height uint32) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return io.ErrClosedPipe
+	}
+	return s.writeFrame(&sessionv1.Frame{Payload: &sessionv1.Frame_Resize{Resize: &sessionv1.Resize{Columns: width, Rows: height}}})
+}
+
+func (s *Session) writeFrame(frame *sessionv1.Frame) error {
+	payload, err := proto.Marshal(frame)
+	if err != nil {
+		return err
+	}
+	if err := s.conn.SetWriteDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		return err
+	}
+	return s.conn.WriteMessage(websocket.BinaryMessage, payload)
+}
+
+func (s *Session) Close() error {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil
+	}
+	s.closed = true
+	_ = s.writeFrame(&sessionv1.Frame{Payload: &sessionv1.Frame_Close{Close: &sessionv1.Close{Code: "close", Reason: "node client session closed"}}})
+	err := s.conn.Close()
+	s.mu.Unlock()
+	return err
+}
+
+func authHeader(token string) string {
+	if strings.HasPrefix(token, "Bearer ") || strings.HasPrefix(token, "LocalSession ") {
+		return token
+	}
+	return "Bearer " + token
+}
+
+func (c *Client) resolveToken(ctx context.Context) (string, error) {
+	if token := strings.TrimSpace(c.token); token != "" || c.tokenProvider == nil {
+		return strings.TrimSpace(c.token), nil
+	}
+	token, err := c.tokenProvider(ctx)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(token), nil
+}
+
+func websocketScheme(scheme string) string {
+	if scheme == "https" {
+		return "wss"
+	}
+	return "ws"
+}
+
+func (c *Client) validateRequest(node, verb, requiredScope string, heldScopes []string) error {
+	if strings.TrimSpace(node) == "" {
+		return &Error{Kind: ErrNodeNotFound, Node: node, Verb: verb, Err: errors.New("node id is required")}
+	}
+	if strings.TrimSpace(verb) == "" {
+		return &Error{Kind: ErrTransport, Node: node, Err: errors.New("command is required")}
+	}
+	if c.scopeResolver != nil && strings.TrimSpace(requiredScope) == "" {
+		if scope, ok := c.scopeResolver(verb); ok {
+			requiredScope = scope
+		}
+	}
+	if requiredScope != "" && len(heldScopes) > 0 && !scopecatalog.Resolve(heldScopes, requiredScope) {
+		return &Error{Kind: ErrMissingScope, Node: node, Verb: verb, Scope: requiredScope, Err: errors.New("node does not hold the required scope")}
+	}
+	return nil
+}
+
+func seconds(d time.Duration) int64 {
+	if d <= 0 {
+		return 0
+	}
+	return int64((d + time.Second - 1) / time.Second)
+}
+
+type authTransport struct {
+	base          *http.Client
+	token         string
+	tokenProvider func(context.Context) (string, error)
+	ctx           context.Context
+}
+
+func (t *authTransport) Do(req *http.Request) (*http.Response, error) {
+	request := req.Clone(t.ctx)
+	token := strings.TrimSpace(t.token)
+	if token == "" && t.tokenProvider != nil {
+		var err error
+		token, err = t.tokenProvider(t.ctx)
+		if err != nil {
+			return nil, fmt.Errorf("resolve Bridge owner credential: %w", err)
+		}
+		token = strings.TrimSpace(token)
+	}
+	if token != "" {
+		request.Header.Set("Authorization", authHeader(token))
+	}
+	return t.base.Do(request)
+}

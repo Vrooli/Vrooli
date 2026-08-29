@@ -1,8 +1,6 @@
 package resources
 
 import (
-	"bytes"
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,11 +9,8 @@ import (
 	"testing"
 	"time"
 
-	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	"github.com/vrooli/vrooli/internal/process"
-	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
-	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
-	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // TestStartCompanionsDormant proves the supervisor is a no-op (byte-identical)
@@ -156,70 +151,25 @@ func TestCompanionStatusesReportAliveAndDeadPidfiles(t *testing.T) {
 	}
 }
 
-func TestComposeStatusReportsDeadCompanion(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	companionDir := t.TempDir()
-	defer withCompanionDir(t, func(string) (string, error) { return companionDir, nil })()
-
-	testscenario.WriteProjectResourceConfig(t, root, "whisper", true)
-	testresource.WriteResourceManifest(t, root, "whisper", testresource.ResourceManifest(
-		"whisper",
-		testresource.WithResourceDriver("compose-service"),
-		testresource.WithResourceTemplate("compose-service"),
-		testresource.WithResourceDescription("Whisper compose resource"),
-		testresource.WithResourceComposeFile("compose.yaml"),
-		func(manifest *manifestpkg.ResourceManifest) {
-			manifest.Companions = []manifestpkg.ResourceCompanion{{Name: "activity-edge", Command: "resource-whisper", Port: 8090}}
-		},
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "whisper", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
-	stateFile := writeFakeDocker(t)
-	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
-		t.Fatalf("write state: %v", err)
+func TestAppendCompanionLogBoundsActiveAndRetainedFiles(t *testing.T) {
+	dir := t.TempDir()
+	line := strings.Repeat("x", int(tuning.CompanionLogMaxBytes()/2)) + "\n"
+	appendCompanionLog(dir, "edge", line)
+	appendCompanionLog(dir, "edge", line)
+	appendCompanionLog(dir, "edge", "latest-state\n")
+	for _, suffix := range []string{"", ".1"} {
+		path := filepath.Join(dir, "edge.log"+suffix)
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat %s: %v", path, err)
+		}
+		if info.Size() > tuning.CompanionLogMaxBytes() {
+			t.Fatalf("%s size = %d, cap = %d", path, info.Size(), tuning.CompanionLogMaxBytes())
+		}
 	}
-	if err := os.WriteFile(filepath.Join(companionDir, "activity-edge.pid"), []byte("99999999"), 0o644); err != nil {
-		t.Fatalf("write companion pidfile: %v", err)
-	}
-
-	controller := NewController(root, home)
-	status, err := controller.Status("whisper", true)
-	if err != nil {
-		t.Fatalf("Status: %v", err)
-	}
-	if status.Healthy == nil || *status.Healthy {
-		t.Fatalf("Healthy = %#v, want false", status.Healthy)
-	}
-	if want := "running; activity-edge companion down (port 8090) - STT unavailable, capacity reporting blind"; status.Message != want {
-		t.Fatalf("Message = %q, want %q", status.Message, want)
-	}
-	var raw struct {
-		Companions []CompanionStatus `json:"companions"`
-	}
-	if err := json.Unmarshal(status.Raw, &raw); err != nil {
-		t.Fatalf("decode status raw: %v", err)
-	}
-	if len(raw.Companions) != 1 || raw.Companions[0].Name != "activity-edge" || raw.Companions[0].Alive {
-		t.Fatalf("status raw companions = %#v", raw.Companions)
-	}
-
-	var stdout bytes.Buffer
-	if err := controller.Run("whisper", []string{"status", "--format", "json"}, &stdout, ioDiscard{}); err != nil {
-		t.Fatalf("Run(status --format json): %v", err)
-	}
-	var payload struct {
-		Companions []CompanionStatus `json:"companions"`
-	}
-	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
-		t.Fatalf("decode json status: %v", err)
-	}
-	if len(payload.Companions) != 1 || payload.Companions[0].Name != "activity-edge" || payload.Companions[0].Alive {
-		t.Fatalf("companions json = %#v", payload.Companions)
+	data, err := os.ReadFile(filepath.Join(dir, "edge.log"))
+	if err != nil || !strings.Contains(string(data), "latest-state") {
+		t.Fatalf("active log = %q, err=%v; newest line was not retained", string(data), err)
 	}
 }
 

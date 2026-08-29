@@ -34,7 +34,7 @@ func (m declaredResourceManifest) declaresAccelerator() bool {
 		return false
 	}
 	for _, backend := range m.Acceleration.Backends {
-		if strings.TrimSpace(strings.ToLower(backend)) != "cpu" {
+		if strings.TrimSpace(strings.ToLower(backend)) != ResourceKindCPU {
 			return true
 		}
 	}

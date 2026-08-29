@@ -66,8 +66,8 @@ message ResourceStatus {
   // "rocm", "vulkan", "cpu"); empty when the resource declares no accelerator.
   string declared_mode = 11;
 
-  // Accelerator backend the host says the running resource is on; empty when
-  // placement could not be read, which is never reported as agreement.
+  // Accelerator backend the host says the running resource is on; the CLI
+  // projects not_evaluated when placement was not evaluated.
   string observed_mode = 12;
 
   // True when the resource is serving below its declared backend.

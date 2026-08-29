@@ -82,20 +82,30 @@ const (
 	defaultPrivilegeBrokerOperationTimeout   = 2 * time.Minute
 	defaultStructureProviderExtendedBudget   = 2 * time.Minute
 	// ProviderBudget bounds a provider's work budget.
-	defaultProviderBudget               = 3 * time.Minute
-	defaultSupervisorRecoveryCooldown   = 5 * time.Minute
-	defaultEmergencyWatchdogInterval    = 5 * time.Minute
-	defaultVaultBootstrapLease          = 5 * time.Minute
-	defaultScenarioReservedClaimTTL     = 5 * time.Minute
-	defaultSetupProgressStaleThreshold  = 5 * time.Minute
-	defaultHostPlatformInventoryTTL     = 5 * time.Minute
-	defaultHostWorkloadInventoryTTL     = 5 * time.Minute
-	defaultCapacityObservedPeakHalflife = 10 * time.Minute
-	defaultScenarioWaitTimeout          = 10 * time.Minute
-	defaultCredentialEscrowRetention    = 10 * time.Minute
-	defaultResourceCommandTimeout       = 10 * time.Minute
-	defaultCompanionCrashWindow         = 10 * time.Minute
-	defaultAgentInstallDownloadTimeout  = 10 * time.Minute
+	defaultProviderBudget                = 3 * time.Minute
+	defaultSupervisorRecoveryCooldown    = 5 * time.Minute
+	defaultEmergencyWatchdogInterval     = 5 * time.Minute
+	defaultVaultBootstrapLease           = 5 * time.Minute
+	defaultScenarioReservedClaimTTL      = 5 * time.Minute
+	defaultSetupProgressStaleThreshold   = 5 * time.Minute
+	defaultHostPlatformInventoryTTL      = 5 * time.Minute
+	defaultHostWorkloadInventoryTTL      = 5 * time.Minute
+	defaultCapacityObservedPeakHalflife  = 10 * time.Minute
+	defaultScenarioWaitTimeout           = 10 * time.Minute
+	defaultCredentialEscrowRetention     = 10 * time.Minute
+	defaultResourceCommandTimeout        = 10 * time.Minute
+	defaultCompanionCrashWindow          = 10 * time.Minute
+	defaultCompanionHeartbeatInterval    = 60 * time.Second
+	defaultCompanionCapacitySyncInterval = 15 * time.Second
+	defaultResourceHTTPTimeout           = 60 * time.Second
+	defaultResourceShortHTTPTimeout      = 10 * time.Second
+	defaultResourceMediumHTTPTimeout     = 30 * time.Second
+	defaultResourceLongHTTPTimeout       = 15 * time.Minute
+	defaultActivityDebounce              = 5 * time.Second
+	defaultActivityReadHeaderTimeout     = 15 * time.Second
+	defaultProgressDisplayResolution     = 100 * time.Millisecond
+	defaultAgentInstallDownloadTimeout   = 10 * time.Minute
+	defaultCompanionLogMaxBytes          = int64(1 << 20)
 	// CopyRetentionWindow bounds credential-copy retention behavior.
 	defaultCopyRetentionWindow = 15 * time.Minute
 	// RepairDeadline bounds a repair request deadline.
@@ -390,6 +400,42 @@ func ResourceCommandTimeout() time.Duration {
 
 func CompanionCrashWindow() time.Duration {
 	return Duration("CompanionCrashWindow", defaultCompanionCrashWindow)
+}
+
+func CompanionHeartbeatInterval() time.Duration {
+	return Duration("CompanionHeartbeatInterval", defaultCompanionHeartbeatInterval)
+}
+
+func CompanionCapacitySyncInterval() time.Duration {
+	return Duration("CompanionCapacitySyncInterval", defaultCompanionCapacitySyncInterval)
+}
+
+func ResourceHTTPTimeout() time.Duration {
+	return Duration("ResourceHTTPTimeout", defaultResourceHTTPTimeout)
+}
+
+func ResourceShortHTTPTimeout() time.Duration {
+	return Duration("ResourceShortHTTPTimeout", defaultResourceShortHTTPTimeout)
+}
+
+func ResourceMediumHTTPTimeout() time.Duration {
+	return Duration("ResourceMediumHTTPTimeout", defaultResourceMediumHTTPTimeout)
+}
+
+func ResourceLongHTTPTimeout() time.Duration {
+	return Duration("ResourceLongHTTPTimeout", defaultResourceLongHTTPTimeout)
+}
+func ActivityDebounce() time.Duration { return Duration("ActivityDebounce", defaultActivityDebounce) }
+func ActivityReadHeaderTimeout() time.Duration {
+	return Duration("ActivityReadHeaderTimeout", defaultActivityReadHeaderTimeout)
+}
+
+func ProgressDisplayResolution() time.Duration {
+	return Duration("ProgressDisplayResolution", defaultProgressDisplayResolution)
+}
+
+func CompanionLogMaxBytes() int64 {
+	return defaultCompanionLogMaxBytes
 }
 
 func AgentInstallDownloadTimeout() time.Duration {

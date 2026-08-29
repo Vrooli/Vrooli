@@ -32,6 +32,8 @@ const (
 	groupAddressing   = "Addressing"
 )
 
+const recoveryDefaultVariant = "shadow"
+
 func scenarioOption() commandtree.OptionArg {
 	return commandtree.OptionArg{Name: "--scenario", ValueName: "name", Description: "Target scenario slug"}
 }
@@ -268,7 +270,7 @@ func ParseNamespaceRequest(args []string) (recoveryapp.NamespaceRequest, error) 
 	// --variant defaults to "shadow" rather than the InstanceKey "live" default.
 	variant := parsed.FlagValue("--variant")
 	if variant == "" {
-		variant = "shadow"
+		variant = recoveryDefaultVariant
 	}
 	return recoveryapp.NamespaceRequest{
 		Scenario: parsed.FlagValue("--scenario"),

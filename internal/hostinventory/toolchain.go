@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -213,6 +213,6 @@ func ParseSimulatorRuntimes(output string) []string {
 		seen[runtime] = struct{}{}
 		runtimes = append(runtimes, runtime)
 	}
-	sort.Strings(runtimes)
+	slices.Sort(runtimes)
 	return runtimes
 }

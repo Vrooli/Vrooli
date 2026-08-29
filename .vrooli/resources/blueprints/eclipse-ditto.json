@@ -15,7 +15,7 @@
     "Smart building twins",
     "Connected product control planes"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "Containers are portable, but the surrounding messaging, auth, and policy stack increases operational complexity across platforms.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Clear twin model and ownership boundaries"
   ],
   "dependencies": [],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should define a narrow Vrooli-facing twin workflow rather than exposing the full platform surface.",
     "Device onboarding and policy management need explicit support boundaries.",

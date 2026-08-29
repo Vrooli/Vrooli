@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"resource-kopia/cli/internal/version"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/version"
 )
 
 // Locator finds the kopia binary on the host.

@@ -7,6 +7,8 @@ import (
 	"github.com/vrooli/binaryfetch"
 )
 
+const acquisitionDarwin = "darwin"
+
 // AcquisitionCoverageDeclaration is the manifest subset needed to prove that
 // a tool has a deterministic path on every platform it claims. The path may
 // be a checksum-verified acquisition target, a package fallback, a custom
@@ -85,7 +87,7 @@ func normalizeHostOS(value HostOS) HostOS {
 
 func normalizeFactOS(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "darwin", "mac", "macos":
+	case acquisitionDarwin, "mac", string(HostOSMacOS):
 		return string(HostOSMacOS)
 	case "linux":
 		return string(HostOSLinux)

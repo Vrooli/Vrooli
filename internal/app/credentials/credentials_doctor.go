@@ -2,7 +2,6 @@ package credentials
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -12,12 +11,22 @@ import (
 	"github.com/vrooli/vrooli/internal/credentialspec"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
-	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
+
+type credentialDoctorReport struct {
+	Provider                 securestore.Diagnosis `json:"provider"`
+	Credentials              []credentialEntry     `json:"credentials"`
+	CredentialCount          int                   `json:"credential_count"`
+	DeclarationSiteCount     int                   `json:"declaration_site_count"`
+	InventoryBasis           string                `json:"inventory_basis"`
+	ManagedInstancesIncluded bool                  `json:"managed_instances_included"`
+	Recovery                 recoveryStatus        `json:"recovery"`
+}
 
 type recoveryStatus struct {
 	ReceiptExists bool       `json:"receipt_exists"`
@@ -293,11 +302,10 @@ func credentialLabelFor(entry credentialEntry) string {
 //
 //nolint:gocyclo // credential diagnosis combines selection, provider, repair, and report-output branches.
 func credentialsDoctor(ctx *CommandContext, args []string) error {
-	fs := flag.NewFlagSet("credentials doctor", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	format := credentialsText
+	fs := commandtree.NewFlagSet("credentials doctor")
+	format := string(cliout.FormatHuman)
 	checkWrites := false
-	fs.StringVar(&format, "format", "text", "output format: text or json")
+	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
 	// Opt-in because the probe writes to the operator's real credential store.
 	// A diagnostic that mutates what it is diagnosing is the wrong default, and
 	// on a keyring already in trouble the write is what raises an unlock prompt
@@ -311,7 +319,7 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 		return fmt.Errorf("credentials doctor accepts no positional arguments")
 	}
 	format = strings.TrimSpace(format)
-	if format != credentialsText && format != string(logx.FormatJSON) {
+	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return fmt.Errorf("credentials doctor format must be text or json")
 	}
 
@@ -324,16 +332,8 @@ func credentialsDoctor(ctx *CommandContext, args []string) error {
 		return err
 	}
 
-	if format == string(logx.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, struct {
-			Provider                 securestore.Diagnosis `json:"provider"`
-			Credentials              []credentialEntry     `json:"credentials"`
-			CredentialCount          int                   `json:"credential_count"`
-			DeclarationSiteCount     int                   `json:"declaration_site_count"`
-			InventoryBasis           string                `json:"inventory_basis"`
-			ManagedInstancesIncluded bool                  `json:"managed_instances_included"`
-			Recovery                 recoveryStatus        `json:"recovery"`
-		}{Provider: diagnosis, Credentials: entries, CredentialCount: distinctCredentialCount(entries), DeclarationSiteCount: len(entries), InventoryBasis: "distinct_addresses", ManagedInstancesIncluded: true, Recovery: computeRecoveryStatus(entries)})
+	if format == string(cliout.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, credentialDoctorReport{Provider: diagnosis, Credentials: entries, CredentialCount: distinctCredentialCount(entries), DeclarationSiteCount: len(entries), InventoryBasis: "distinct_addresses", ManagedInstancesIncluded: true, Recovery: computeRecoveryStatus(entries)})
 	}
 
 	fmt.Fprintf(ctx.Stdout, "Credential provider\n")

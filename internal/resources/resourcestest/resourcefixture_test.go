@@ -74,11 +74,11 @@ func TestWriteExternalCLIResourceFixtureCreatesManifestAndBinary(t *testing.T) {
 }
 
 func TestResourceTemplateUsesTypedDefaults(t *testing.T) {
-	manifest := ResourceTemplate("docker-service")
-	if manifest.Name != "docker-service" {
+	manifest := ResourceTemplate("external-cli")
+	if manifest.Name != "external-cli" {
 		t.Fatalf("name = %q", manifest.Name)
 	}
-	if manifest.Driver != "docker-service" {
+	if manifest.Driver != "managed-service" {
 		t.Fatalf("driver = %q", manifest.Driver)
 	}
 	if manifest.RequiredVars["RESOURCE_NAME"].Flag != "name" {
@@ -88,14 +88,14 @@ func TestResourceTemplateUsesTypedDefaults(t *testing.T) {
 
 func TestWriteResourceTemplateManifestPersistsCanonicalPath(t *testing.T) {
 	root := t.TempDir()
-	WriteResourceTemplateManifest(t, root, "docker-service", ResourceTemplate(
-		"docker-service",
-		WithTemplateDisplayName("Docker Service"),
+	WriteResourceTemplateManifest(t, root, "external-cli", ResourceTemplate(
+		"external-cli",
+		WithTemplateDisplayName("External CLI"),
 		WithTemplateDocs(map[string]string{"operations": "docs/OPERATIONS.md"}),
 	))
 
-	manifest := testkitgo.ReadJSONFile(t, filepath.Join(root, "templates", "resources", "docker-service", "template.json"))
-	if manifest["displayName"] != "Docker Service" {
+	manifest := testkitgo.ReadJSONFile(t, filepath.Join(root, "templates", "resources", "external-cli", "template.json"))
+	if manifest["displayName"] != "External CLI" {
 		t.Fatalf("displayName = %v", manifest["displayName"])
 	}
 	docs := manifest["docs"].(map[string]any)

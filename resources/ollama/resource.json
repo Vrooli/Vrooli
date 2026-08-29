@@ -373,12 +373,9 @@
       "timeout_seconds": 10
     },
     {
-      "type": "command",
+      "type": "http",
       "kind": "liveness",
-      "command": [
-        "resource-ollama",
-        "health-gpu"
-      ],
+      "target": "http://127.0.0.1:11434/api/tags",
       "interval_seconds": 30,
       "timeout_seconds": 10
     }

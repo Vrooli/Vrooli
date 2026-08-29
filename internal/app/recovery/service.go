@@ -24,6 +24,11 @@ import (
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
+const (
+	recoveryVariantShadow = "shadow"
+	recoveryVariantLive   = "live"
+)
+
 // Service composes the recovery-floor primitives for the CLI. Root is the
 // repository root used to resolve a scenario's working tree when a caller does
 // not pass an explicit source/destination; Store is the floor manifest store
@@ -191,9 +196,9 @@ func (s Service) WriteEngagement(req WriteRequest) (EngagementView, error) {
 	variant := strings.TrimSpace(req.Variant)
 	if variant == "" {
 		if mode == baselinefloor.ModeShadow {
-			variant = "shadow"
+			variant = recoveryVariantShadow
 		} else {
-			variant = "live"
+			variant = recoveryVariantLive
 		}
 	}
 	now := s.now()

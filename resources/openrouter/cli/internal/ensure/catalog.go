@@ -4,15 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/vrooli/internal/tuning"
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
-	"resource-openrouter/cli/internal/auth"
-	"resource-openrouter/cli/internal/config"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/auth"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/config"
 
-	resourceenv "resource-openrouter/cli/internal/env"
+	resourceenv "github.com/vrooli/vrooli/resources/openrouter/cli/internal/env"
 )
 
 // liveCatalogChecker probes the live OpenRouter catalog. It hits /models for
@@ -35,7 +35,7 @@ func NewCatalogChecker(ctx context.Context) CatalogChecker {
 		return nil
 	}
 	return &liveCatalogChecker{
-		httpClient: &http.Client{Timeout: 15 * time.Second},
+		httpClient: &http.Client{Timeout: tuning.CredentialServiceTimeout()},
 		runtime:    runtime,
 		resolveKey: func(ctx context.Context) (auth.Credentials, error) {
 			r := auth.NewResolver()

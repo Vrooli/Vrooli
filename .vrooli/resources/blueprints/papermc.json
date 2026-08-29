@@ -15,7 +15,7 @@
     "Community game servers",
     "Minecraft automation experiments"
   ],
-  "integration_kind": "manual",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "The Java server is portable, but support quality depends on plugin management, world persistence, and host performance expectations.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Clear plugin and admin model"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should validate a narrow server lifecycle and automation workflow.",
     "Keep server provisioning distinct from RCON or gameplay automations.",

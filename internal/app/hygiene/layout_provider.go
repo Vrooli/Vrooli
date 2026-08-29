@@ -8,6 +8,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -56,7 +57,11 @@ func (p layoutProvider) Run(_ context.Context, req Request, report *Report) erro
 	}
 	report.addCheck("repo_layout_internal_package_docs", len(undocumented) == 0, SeverityError, fmt.Sprintf("%d internal packages lack package documentation", len(undocumented)))
 
-	roots := []string{layout.InternalDir, layout.PackageDir}
+	// The general contract roots cover internal/ and packages/. Test Genie is
+	// also governed explicitly: its empty package directories are scenario
+	// residue and must fail hygiene even though scenarios are not part of the
+	// repository-wide package layout roots.
+	roots := []string{layout.InternalDir, layout.PackageDir, filepath.Join("scenarios", "test-genie")}
 	empty, err := findEmptyDirectories(p.root, roots)
 	if err != nil {
 		return err
@@ -161,7 +166,7 @@ func findUndocumentedInternalPackages(root string) ([]string, error) {
 		}
 		missing = append(missing, filepath.ToSlash(rel))
 	}
-	sort.Strings(missing)
+	slices.Sort(missing)
 	return missing, nil
 }
 

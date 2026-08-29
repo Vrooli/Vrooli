@@ -316,6 +316,13 @@
       "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health",
       "interval_seconds": 10,
       "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/health",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 10
     }
   ],
   "capabilities": {

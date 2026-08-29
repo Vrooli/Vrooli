@@ -5,7 +5,6 @@
 package policycmd
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -14,9 +13,10 @@ import (
 	"strconv"
 	"strings"
 
-	"resource-openrouter/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/openrouter/cli/internal/policy"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 type Handlers struct {
@@ -268,7 +268,5 @@ func fieldValue(report resolveReport, name string) (string, error) {
 }
 
 func writeJSON(w io.Writer, v any) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
+	return cliout.NewEncoder(w).Encode(v)
 }

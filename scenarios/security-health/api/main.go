@@ -13,6 +13,7 @@ import (
 	"security-health/internal/dependencies/aisearch"
 	"security-health/internal/modules"
 	"security-health/internal/server"
+	validation "security-health/internal/validation"
 	"security-health/internal/validationcache"
 
 	"github.com/vrooli/api-core/schedule"
@@ -67,6 +68,10 @@ func main() {
 		Store:    depStore,
 		Clock:    schedule.System(),
 	}
+	coordinator := validation.NewEvidenceCoordinator(validation.EvidenceCoordinatorDeps{
+		Store: validationcache.New(db), Capacity: validationH.ScannerCapacity(logger),
+	})
+	depDeps.Coordinator = coordinator
 	// The semantic index is the optional AI-ranking overlay (Ollama embeddings +
 	// Qdrant). NewFromConfig returns nil when disabled; only attach a non-nil
 	// index so the service's nil-check (TEXT-only) stays correct (avoid the
@@ -93,7 +98,7 @@ func main() {
 		healthH.Module(db, "security-health-api", "1.0.0"),
 		validationH.Module(validationH.ModuleDeps{
 			Logger: logger, RepoRoot: repoRoot,
-			EvidenceStore: validationcache.New(db), OSVReportCache: depStore,
+			EvidenceStore: validationcache.New(db), OSVReportCache: depStore, Coordinator: coordinator,
 		}),
 		dependenciesH.Module(logger, depService),
 		reindexH.Module(logger, depService),
@@ -139,10 +144,15 @@ func main() {
 // "5m", "10m"). Falls back to defaultReconcileInterval when unset/invalid.
 const EnvReconcileInterval = "SECURITY_HEALTH_RECONCILE_INTERVAL"
 
+// EnvReconcileMaxInterval caps exponential backoff for unchanged fleet passes.
+const EnvReconcileMaxInterval = "SECURITY_HEALTH_RECONCILE_MAX_INTERVAL"
+
 // defaultReconcileInterval is the periodic fleet-reconcile cadence. The actual
 // wait is this plus a per-tick jitter so a fleet of self-monitoring scenarios
 // doesn't burst on an aligned boundary.
 const defaultReconcileInterval = 5 * time.Minute
+
+const defaultReconcileMaxInterval = time.Hour
 
 // runReconcileLoop drives a periodic fleet reconcile. It runs once shortly
 // after boot (so a freshly-started scenario has an index) and then every
@@ -153,7 +163,10 @@ const defaultReconcileInterval = 5 * time.Minute
 // Reconcile failures are logged and retried on the next tick — a transient
 // scanner hiccup must never crash the server.
 func runReconcileLoop(ctx context.Context, svc *dependencies.Service, logger *log.Logger) {
-	interval := loadReconcileInterval(logger)
+	baseInterval := loadReconcileInterval(logger)
+	maxInterval := loadReconcileMaxInterval(logger, baseInterval)
+	interval := baseInterval
+	noChangePasses := 0
 	// Small initial delay so boot isn't competing with the first reconcile's
 	// fleet walk + osv-scanner calls.
 	timer := time.NewTimer(30 * time.Second)
@@ -163,12 +176,57 @@ func runReconcileLoop(ctx context.Context, svc *dependencies.Service, logger *lo
 		case <-ctx.Done():
 			return
 		case <-timer.C:
+			changed := false
 			if err := svc.RunReconcileOnce(ctx); err != nil && ctx.Err() == nil {
 				logger.Printf("[security-health] dependency reconcile failed (will retry): %v", err)
+				noChangePasses = 0
+				interval = baseInterval
+			} else {
+				stats := svc.LastScanStats()
+				changed = stats.ScansRun > 0
+				previous := interval
+				interval, noChangePasses = nextReconcileInterval(baseInterval, maxInterval, interval, noChangePasses, changed)
+				if interval != previous {
+					logger.Printf("[security-health] reconcile interval changed to %s (unchanged passes=%d)", interval, noChangePasses)
+				}
 			}
 			timer.Reset(interval + reconcileJitter(interval))
 		}
 	}
+}
+
+func loadReconcileMaxInterval(logger *log.Logger, base time.Duration) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(EnvReconcileMaxInterval))
+	if raw == "" {
+		if defaultReconcileMaxInterval < base {
+			return base
+		}
+		return defaultReconcileMaxInterval
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		logger.Printf("[security-health] invalid %s=%q, using default %s", EnvReconcileMaxInterval, raw, defaultReconcileMaxInterval)
+		d = defaultReconcileMaxInterval
+	}
+	if d < base {
+		return base
+	}
+	return d
+}
+
+func nextReconcileInterval(base, ceiling, current time.Duration, unchanged int, changed bool) (time.Duration, int) {
+	if changed {
+		return base, 0
+	}
+	unchanged++
+	if current <= 0 {
+		current = base
+	}
+	next := current * 2
+	if next > ceiling || next < current {
+		next = ceiling
+	}
+	return next, unchanged
 }
 
 // loadReconcileInterval reads the cadence from the environment, falling back to

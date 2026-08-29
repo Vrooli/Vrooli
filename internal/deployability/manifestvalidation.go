@@ -2,7 +2,8 @@ package deployability
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 	"strings"
 	"time"
 )
@@ -54,7 +55,7 @@ func ValidateManifestDeclarations(declarations []ManifestDeclaration, vocabulary
 		default:
 			return fmt.Errorf("%s: capability manifest %q has invalid capability_role %q", location, item.Name, item.Role)
 		}
-		for _, osName := range sortedKeys(item.Platforms) {
+		for _, osName := range slices.Sorted(maps.Keys(item.Platforms)) {
 			declaration := item.Platforms[osName]
 			status, err := ParsePlatformStatus(declaration.Status)
 			if err != nil {
@@ -118,13 +119,4 @@ func declarationLocation(item ManifestDeclaration) string {
 		return path
 	}
 	return "<unknown manifest path>"
-}
-
-func sortedKeys(platforms map[string]PlatformDeclaration) []string {
-	keys := make([]string, 0, len(platforms))
-	for key := range platforms {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }

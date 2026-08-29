@@ -14,7 +14,7 @@
     "Dependency analysis",
     "Recommendation systems"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The former implementation used Docker. Reassess whether Docker is appropriate for the future owner's deployment and desktop requirements.",
     "linux": "supported",
@@ -27,7 +27,7 @@
     "A retention, backup, and operational plan"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Start with the resource maturity migration playbook.",
     "Implement the selected lifecycle and integration surface in Go without Bash dependencies.",

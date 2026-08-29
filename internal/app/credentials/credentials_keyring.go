@@ -2,7 +2,6 @@ package credentials
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -15,7 +14,6 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	keyring "github.com/vrooli/vrooli/internal/credentials"
 	"github.com/vrooli/vrooli/internal/hostinventory"
-	"github.com/vrooli/vrooli/internal/logx"
 )
 
 const (
@@ -61,11 +59,10 @@ func credentialsKeyring(ctx *CommandContext, args []string, input io.Reader) err
 }
 
 func keyringFormatAndPath(name string, args []string) (string, string, error) {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	path, format := "", credentialsText
+	fs := commandtree.NewFlagSet(name)
+	path, format := "", string(cliout.FormatHuman)
 	fs.StringVar(&path, "path", "", "keyring path")
-	fs.StringVar(&format, "format", "text", "output format: text or json")
+	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return "", "", err
 	}
@@ -73,7 +70,7 @@ func keyringFormatAndPath(name string, args []string) (string, string, error) {
 		return "", "", fmt.Errorf("%s accepts no positional arguments", name)
 	}
 	format = strings.TrimSpace(format)
-	if format != credentialsText && format != string(logx.FormatJSON) {
+	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return "", "", fmt.Errorf("%s format must be text or json", name)
 	}
 	return path, format, nil
@@ -94,7 +91,7 @@ func credentialsKeyringStatusCommand(ctx *CommandContext, args []string) error {
 		State: string(verdict.State), Cause: verdict.Reason, Support: capability.Supported,
 		Remedy: credentialKeyringRemedy(string(verdict.State)),
 	}
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	fmt.Fprintf(ctx.Stdout, "Credential keyring: %s\n", status.State)
@@ -161,7 +158,7 @@ func credentialsKeyringFile(ctx *CommandContext, args []string, repair bool) err
 	verdict := keyring.DeriveKeyringVerdict(report, capability)
 	report.Verdict = string(verdict.State)
 	report.VerdictReason = verdict.Reason
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, report)
 	}
 	fmt.Fprintf(ctx.Stdout, "Keyring: %s\n  Format:   %s\n", report.Path, keyringFormatLabel(report.Format))
@@ -231,11 +228,10 @@ func keyringDaemonLabel(report keyring.KeyringReport) string {
 // success. The previous file-only repair exited zero on a host whose credential
 // daemon had been wedged for four days.
 func credentialsKeyringRepair(ctx *CommandContext, args []string) error {
-	fs := flag.NewFlagSet("credentials keyring repair", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	path, format, retireBackup, offerOlderThan := "", credentialsText, "", ""
+	fs := commandtree.NewFlagSet("credentials keyring repair")
+	path, format, retireBackup, offerOlderThan := "", string(cliout.FormatHuman), "", ""
 	fs.StringVar(&path, "path", "", "keyring path")
-	fs.StringVar(&format, "format", "text", "output format: text or json")
+	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
 	fs.StringVar(&retireBackup, "retire-backup", "", "explicit keyring backup path to retire after the repair")
 	fs.StringVar(&offerOlderThan, "offer-retire-older-than", "", "offer explicit Vrooli retire commands for backups older than this duration (for example 720h)")
 	if err := fs.Parse(args); err != nil {
@@ -245,7 +241,7 @@ func credentialsKeyringRepair(ctx *CommandContext, args []string) error {
 		return fmt.Errorf("credentials keyring repair accepts no positional arguments")
 	}
 	format = strings.TrimSpace(format)
-	if format != credentialsText && format != string(logx.FormatJSON) {
+	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return fmt.Errorf("credentials keyring repair format must be text or json")
 	}
 	var retirementThreshold time.Duration
@@ -269,7 +265,7 @@ func credentialsKeyringRepair(ctx *CommandContext, args []string) error {
 		report.Rungs = append(report.Rungs, keyring.Rung{Name: "retire_explicit_backup", Status: "repaired", Detail: "retired the explicitly named keyring backup"})
 	}
 	report.RetirementOffers = keyringRetirementOffers(report, retirementThreshold)
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		if err := cliout.WriteJSONValue(ctx.Stdout, report); err != nil {
 			return err
 		}

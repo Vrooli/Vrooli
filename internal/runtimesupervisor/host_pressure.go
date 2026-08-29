@@ -13,6 +13,7 @@ import (
 
 const (
 	hostPressureParameterA = 2
+	hostPressureLinux      = "linux"
 )
 
 // HostPressureProvider reads the kernel's bounded pressure evidence for both
@@ -65,7 +66,7 @@ func NewHostPressureProviderWithCPU(someAvg10Threshold, cpuSomeAvg10Threshold fl
 }
 
 func (p *HostPressureProvider) Snapshot(context.Context) PressureState {
-	if p == nil || p.goos != "linux" {
+	if p == nil || p.goos != hostPressureLinux {
 		return PressureState{Source: "host-psi", Reason: "memory PSI is unavailable on this host"}
 	}
 	psiRaw, err := p.readFile("/proc/pressure/memory")

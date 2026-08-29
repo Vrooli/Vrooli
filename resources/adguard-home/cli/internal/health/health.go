@@ -5,9 +5,9 @@ package health
 import (
 	"context"
 	"fmt"
+	"github.com/vrooli/vrooli/internal/tuning"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/vrooli/vrooli/resources/adguard-home/cli/internal/adguard"
 )
@@ -48,7 +48,7 @@ func Probe(ctx context.Context, httpClient adguard.HTTPClient, baseURL string, c
 	}
 	if httpClient == nil {
 		httpClient = &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: tuning.ControlPlaneClientTimeout(),
 			CheckRedirect: func(*http.Request, []*http.Request) error {
 				return http.ErrUseLastResponse
 			},

@@ -41,6 +41,10 @@ type LifecycleVerbsConfig struct {
 	Steps    []LifecycleStep
 	// Exec runs the control-plane command. nil shells the on-PATH vrooli.
 	Exec func(ctx context.Context, env []string, name string, args ...string) error
+	// Apply optionally handles a step after validation. It is used when a
+	// resource has a small resource-specific guard or pin operation before the
+	// shared lifecycle action.
+	Apply StepHandler
 }
 
 // LifecycleCapacityCommands builds the `capacity` subcommand group for a
@@ -53,14 +57,18 @@ func LifecycleCapacityCommands(cfg LifecycleVerbsConfig) cliapp.SubcommandGroup 
 		byLabel[step.Label] = step
 	}
 
-	apply := StepsFromLabels(labels, func(ctx context.Context, label string) error {
+	applyStep := func(ctx context.Context, label string) error {
+		if cfg.Apply != nil {
+			return cfg.Apply(ctx, label)
+		}
 		step := byLabel[label]
 		run := cfg.Exec
 		if run == nil {
 			run = runLifecycleAction
 		}
 		return run(ctx, step.Env, "vrooli", "resource", step.Action, cfg.Resource)
-	})
+	}
+	apply := StepsFromLabels(labels, applyStep)
 
 	verbs := Verbs{Resource: cfg.Resource, Degrade: apply}
 	usage := fmt.Sprintf("resource-%s capacity degrade --to <%s>", cfg.Resource, strings.Join(labels, "|"))

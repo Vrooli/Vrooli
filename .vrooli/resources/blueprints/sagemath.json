@@ -14,7 +14,7 @@
     "Scientific modeling",
     "Educational mathematics workflows"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The former implementation depended on Docker. A future owner should evaluate a native or managed approach before choosing Docker for desktop-oriented use.",
     "linux": "supported",
@@ -27,7 +27,7 @@
     "A platform-support and runtime decision"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Start with the resource maturity migration playbook.",
     "Use Go-native lifecycle, configuration, diagnostics, and tests; do not reintroduce Bash as the control surface.",

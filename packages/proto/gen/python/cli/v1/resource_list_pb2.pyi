@@ -18,14 +18,16 @@ class ResourceListResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., resources: _Optional[_Iterable[_Union[Resource, _Mapping]]] = ..., discovery_failures: _Optional[_Iterable[_Union[_common_pb2.DiscoveryFailure, _Mapping]]] = ...) -> None: ...
 
 class Resource(_message.Message):
-    __slots__ = ("name", "path", "exists", "registered", "enabled", "required", "has_cli", "config", "control_mode", "driver", "template", "portability_tier", "manifest_path")
+    __slots__ = ("name", "path", "exists", "registered", "enabled", "required", "declares_cli", "cli_installed", "cli_state_reason", "config", "control_mode", "driver", "template", "portability_tier", "manifest_path")
     NAME_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     EXISTS_FIELD_NUMBER: _ClassVar[int]
     REGISTERED_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_FIELD_NUMBER: _ClassVar[int]
-    HAS_CLI_FIELD_NUMBER: _ClassVar[int]
+    DECLARES_CLI_FIELD_NUMBER: _ClassVar[int]
+    CLI_INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    CLI_STATE_REASON_FIELD_NUMBER: _ClassVar[int]
     CONFIG_FIELD_NUMBER: _ClassVar[int]
     CONTROL_MODE_FIELD_NUMBER: _ClassVar[int]
     DRIVER_FIELD_NUMBER: _ClassVar[int]
@@ -38,14 +40,16 @@ class Resource(_message.Message):
     registered: bool
     enabled: bool
     required: bool
-    has_cli: bool
+    declares_cli: bool
+    cli_installed: bool
+    cli_state_reason: str
     config: ResourceConfig
     control_mode: str
     driver: str
     template: str
     portability_tier: str
     manifest_path: str
-    def __init__(self, name: _Optional[str] = ..., path: _Optional[str] = ..., exists: _Optional[bool] = ..., registered: _Optional[bool] = ..., enabled: _Optional[bool] = ..., required: _Optional[bool] = ..., has_cli: _Optional[bool] = ..., config: _Optional[_Union[ResourceConfig, _Mapping]] = ..., control_mode: _Optional[str] = ..., driver: _Optional[str] = ..., template: _Optional[str] = ..., portability_tier: _Optional[str] = ..., manifest_path: _Optional[str] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., path: _Optional[str] = ..., exists: _Optional[bool] = ..., registered: _Optional[bool] = ..., enabled: _Optional[bool] = ..., required: _Optional[bool] = ..., declares_cli: _Optional[bool] = ..., cli_installed: _Optional[bool] = ..., cli_state_reason: _Optional[str] = ..., config: _Optional[_Union[ResourceConfig, _Mapping]] = ..., control_mode: _Optional[str] = ..., driver: _Optional[str] = ..., template: _Optional[str] = ..., portability_tier: _Optional[str] = ..., manifest_path: _Optional[str] = ...) -> None: ...
 
 class ResourceConfig(_message.Message):
     __slots__ = ("enabled", "required", "description")

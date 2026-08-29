@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -92,7 +93,7 @@ func (e sysfsDeviceEnumerator) enumerateGraphics() deviceEnumerationResult {
 	devicesDir := e.devicesDir()
 	entries, err := os.ReadDir(devicesDir)
 	if err != nil {
-		result.Status = "unavailable"
+		result.Status = devicesUnavailable
 		result.Warnings = append(result.Warnings, fmt.Sprintf("read %s: %v", devicesDir, err))
 		return result
 	}
@@ -112,7 +113,7 @@ func (e sysfsDeviceEnumerator) enumerateGraphics() deviceEnumerationResult {
 		result.Status = "no_devices"
 		return result
 	}
-	sort.Strings(busRoots)
+	slices.Sort(busRoots)
 
 	devices := make([]Device, 0, devicesSysfsParameterD)
 	for _, busRoot := range busRoots {
@@ -295,7 +296,7 @@ func readDRMNodes(path string) []string {
 	if len(nodes) == 0 {
 		return nil
 	}
-	sort.Strings(nodes)
+	slices.Sort(nodes)
 	return nodes
 }
 
@@ -358,7 +359,7 @@ func (e sysfsDeviceEnumerator) resolveNames(result *deviceEnumerationResult) {
 		result.NamesFile = candidate
 		return
 	}
-	result.NamesStatus = "unavailable"
+	result.NamesStatus = devicesUnavailable
 }
 
 // readPCIIDs scans the pci.ids database for exactly the vendor and device

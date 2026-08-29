@@ -15,7 +15,7 @@
     "Grid resilience analysis",
     "Distributed energy optimization"
   ],
-  "integration_kind": "manual",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "Scientific tooling and packaging vary by OS, and realistic usage depends on validated datasets and models rather than simple lifecycle support.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined artifact storage and result interpretation path"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Promotion should validate a specific energy-system workflow instead of generic solver support.",
     "Keep data/model preparation separate from solver execution.",

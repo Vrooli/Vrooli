@@ -185,6 +185,13 @@
       "target": "127.0.0.1:5433",
       "interval_seconds": 10,
       "timeout_seconds": 5
+    },
+    {
+      "type": "tcp",
+      "target": "127.0.0.1:5433",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
     }
   ],
   "managed_service": {

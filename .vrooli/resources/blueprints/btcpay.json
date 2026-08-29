@@ -15,7 +15,7 @@
     "Donation and tipping flows",
     "Crypto payment portals"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "Containerized deployment is portable, but payment node setup, networking, and wallet operations add significant operational complexity.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined operational ownership for keys, backups, and settlement"
   ],
   "dependencies": [],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Future support should scope the supported payment rails instead of exposing the entire BTCPay surface.",
     "Promotion should define secret management and wallet backup semantics early.",

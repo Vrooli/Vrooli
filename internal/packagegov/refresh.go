@@ -1,6 +1,6 @@
 package packagegov
 
-import "sort"
+import "slices"
 
 type RefreshActionKind string
 
@@ -43,7 +43,7 @@ func PlanRefresh(pkg Package, dependents []Dependent, target string) []RefreshAc
 		}
 		action.Dependents = append(action.Dependents, dep)
 	}
-	sort.Strings(order)
+	slices.Sort(order)
 
 	actions := make([]RefreshAction, 0, len(order))
 	for _, key := range order {

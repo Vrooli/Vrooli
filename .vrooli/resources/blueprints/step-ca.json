@@ -15,7 +15,7 @@
     "Device certificate provisioning",
     "Private service mesh bootstrapping"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The CA can run in containers, but useful support depends on key custody, trust distribution, and TLS integration across the environment.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined certificate policy and renewal workflow"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should begin with a narrow internal certificate workflow.",
     "Keep CA operation separate from application-specific TLS automation.",

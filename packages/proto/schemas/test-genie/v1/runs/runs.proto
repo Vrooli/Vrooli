@@ -219,6 +219,27 @@ message RunLiveStatus {
   // this standing rather than infer state from them.
   common.v1.OperationStanding standing = 21;
   common.v1.ValidationTarget target_ref = 22;
+  int32 queue_position = 23;
+  int32 estimated_queue_wait_seconds = 24;
+}
+
+// AdmissionSaturation explains a temporary capacity rejection without making
+// consumers parse the human-readable error string.
+enum AdmissionLimitKind {
+  ADMISSION_LIMIT_KIND_UNSPECIFIED = 0;
+  ADMISSION_LIMIT_KIND_GLOBAL_QUEUE = 1;
+  ADMISSION_LIMIT_KIND_CALLER_QUEUE = 2;
+  ADMISSION_LIMIT_KIND_GLOBAL_PREVIEW = 3;
+  ADMISSION_LIMIT_KIND_CALLER_PREVIEW = 4;
+  ADMISSION_LIMIT_KIND_RESERVATION_QUEUE = 5;
+}
+
+message AdmissionSaturation {
+  AdmissionLimitKind limit_kind = 1;
+  int32 occupancy = 2;
+  int32 configured_limit = 3;
+  int32 fifo_position = 4;
+  int32 retry_after_seconds = 5;
 }
 
 message StartRunRequest {
@@ -248,6 +269,13 @@ message StartRunRequest {
   // declared inputs remain stable.
   bool require_gate_quality = 15;
   common.v1.ValidationTarget target_ref = 16;
+  string collection_reservation_id = 17;
+  int32 collection_reservation_member_count = 18;
+  // Retain this run's artifacts and compact phase measurements under a
+  // server-owned, expiring lease. Intended for calibration/evidence runs;
+  // ordinary executions remain subject to normal retention.
+  bool retain_for_evidence = 19;
+  string retention_reason = 20;
 }
 
 message StartRunResponse {

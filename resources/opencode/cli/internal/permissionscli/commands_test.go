@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"resource-opencode/cli/internal/permissions"
+	"github.com/vrooli/vrooli/resources/opencode/cli/internal/permissions"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliutil"

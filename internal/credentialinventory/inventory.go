@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -196,7 +197,7 @@ func Collect(root string) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("discover resource manifests: %w", err)
 	}
-	sort.Strings(resourceNames)
+	slices.Sort(resourceNames)
 	for _, name := range resourceNames {
 		manifest, err := manifestpkg.Load(manifestpkg.DefaultPath(root, name))
 		if err != nil || len(manifest.Credentials.All()) == 0 {
@@ -242,7 +243,7 @@ func Collect(root string) (Result, error) {
 		right := string(result.Entries[j].Identity) + ":" + result.Entries[j].Field
 		return left < right
 	})
-	sort.Strings(result.RequiredAbsent)
+	slices.Sort(result.RequiredAbsent)
 	sort.Slice(result.Declared, func(i, j int) bool {
 		left := string(result.Declared[i].Identity) + ":" + result.Declared[i].Field
 		right := string(result.Declared[j].Identity) + ":" + result.Declared[j].Field

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 // renderForSandbox rewrites the collector's absolute paths to temporary ones and
@@ -22,12 +23,12 @@ func renderForSandbox(t *testing.T, retain int, src, dst, shimBin string) string
 	script := collectorContent(retain)
 	script = strings.Replace(script, `src="`+crashSourceDir+`"`, `src="`+src+`"`, 1)
 	script = strings.Replace(script, `dst="`+crashExportDir+`"`, `dst="`+dst+`"`, 1)
-	script = strings.Replace(script, "#!/bin/sh\nset -eu\n", "#!/bin/sh\nset -eu\nPATH=\""+shimBin+":$PATH\"\n", 1)
+	script = strings.Replace(script, shelltest.POSIXShebang()+"set -eu\n", shelltest.POSIXShebang()+"set -eu\nPATH=\""+shimBin+":$PATH\"\n", 1)
 
 	// chown needs root; ownership is not what this test is proving.
-	write(t, filepath.Join(shimBin, "chown"), "#!/bin/sh\nexit 0\n")
+	write(t, filepath.Join(shimBin, "chown"), shelltest.POSIXShebang()+"exit 0\n")
 	// install -d -o root -g <group> -m <mode> <dir> likewise; keep the mkdir.
-	write(t, filepath.Join(shimBin, "install"), "#!/bin/sh\nfor a in \"$@\"; do d=\"$a\"; done\nmkdir -p \"$d\"\n")
+	write(t, filepath.Join(shimBin, "install"), shelltest.POSIXShebang()+"for a in \"$@\"; do d=\"$a\"; done\nmkdir -p \"$d\"\n")
 
 	path := filepath.Join(t.TempDir(), "kdump-collector")
 	write(t, path, script)

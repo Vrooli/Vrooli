@@ -1,6 +1,7 @@
 package companion_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"slices"
@@ -10,6 +11,48 @@ import (
 
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
+
+func TestCapacityCommandsAcceptBrokerJSONFlagAndDeclaredLabels(t *testing.T) {
+	var calls []string
+	commands := companion.CapacityCommands("demo", []string{"large", "small"}, func(_ context.Context, label string) error {
+		calls = append(calls, "degrade:"+label)
+		return nil
+	}, nil, &bytes.Buffer{}, &bytes.Buffer{})
+	if err := commands.Subcommands[0].Run([]string{"--to", "small", "--json"}); err != nil {
+		t.Fatalf("shared degrade command rejected broker JSON contract: %v", err)
+	}
+	if len(calls) != 1 || calls[0] != "degrade:small" {
+		t.Fatalf("calls = %v, want one validated application", calls)
+	}
+	if err := commands.Subcommands[0].Run([]string{"--to", "unknown"}); err == nil {
+		t.Fatal("unknown label unexpectedly accepted")
+	}
+}
+
+func TestRunnerStopsAfterParentDeath(t *testing.T) {
+	var log bytes.Buffer
+	runner, err := companion.New(companion.Config{
+		Resource: "demo",
+		Observer: companion.ObserverFunc(func(context.Context) (companion.Footprint, error) {
+			t.Fatal("observer ran after parent death")
+			return companion.Footprint{}, nil
+		}),
+		Exec:        func(context.Context, string, ...string) ([]byte, error) { return []byte(`{"claims":[]}`), nil },
+		ParentPID:   4242,
+		ParentAlive: func(pid int) bool { return pid != 4242 },
+		Interval:    time.Millisecond,
+		Log:         &log,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	if err := runner.Run(context.Background()); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if !strings.Contains(log.String(), "parent_gone") {
+		t.Fatalf("log = %q, want one typed parent_gone state", log.String())
+	}
+}
 
 // Feature: one reporting loop, three observations
 //

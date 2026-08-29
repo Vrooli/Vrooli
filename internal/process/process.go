@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -177,7 +178,7 @@ func ReadScenarioRecords(home, name string) ([]Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(files)
+	slices.Sort(files)
 
 	records := make([]Record, 0, len(files))
 	for _, file := range files {

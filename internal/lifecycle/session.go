@@ -86,7 +86,7 @@ func (s *startSession) setupNeeded(item string, force bool, evaluate func() (boo
 
 func boolString(value bool) string {
 	if value {
-		return "true"
+		return phasesTrue
 	}
 	return "false"
 }

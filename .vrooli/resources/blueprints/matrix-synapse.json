@@ -15,7 +15,7 @@
     "Agent coordination chat services",
     "Internal messaging systems"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The service is containerizable, but federation, persistence, and auth create operational complexity beyond basic startup.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined backup and admin model"
   ],
   "dependencies": [],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should define whether support covers local-only use or federation as well.",
     "Keep bot/application integration separate from homeserver operations.",

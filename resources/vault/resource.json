@@ -267,6 +267,14 @@
       ],
       "interval_seconds": 10,
       "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "kind": "liveness",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/v1/sys/health",
+      "expected_status": [200, 429, 472, 473],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
     }
   ],
   "environment_exports": {

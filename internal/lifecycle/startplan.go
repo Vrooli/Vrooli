@@ -2,6 +2,8 @@ package lifecycle
 
 import "github.com/vrooli/vrooli/internal/scenario"
 
+const lifecycleHealthUnhealthy = "unhealthy"
+
 // Plan → execute decomposition of startScenario (plan Phase 2). The runtime
 // state is OBSERVED once (observeRuntime, all the IO), the start decision is
 // PLANNED purely (planStart, table-tested without processes), and the steps
@@ -100,7 +102,7 @@ func planStart(in startPlanInput) startPlan {
 		}
 		reason := ""
 		if !in.Healthy {
-			reason = "unhealthy"
+			reason = lifecycleHealthUnhealthy
 		}
 		if in.FreshnessStale {
 			if reason != "" {

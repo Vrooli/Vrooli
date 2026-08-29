@@ -8,7 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -112,7 +112,7 @@ func VerifyRuntimeClosure(artifactPath string, extraDirs []string) ClosureVerdic
 	}
 	if len(result.Unresolved) > 0 {
 		result.State = ClosureUnresolved
-		sort.Strings(result.Unresolved)
+		slices.Sort(result.Unresolved)
 	}
 	return result
 }

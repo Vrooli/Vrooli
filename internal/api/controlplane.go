@@ -196,7 +196,7 @@ func lifecycleResponse(items []scenarioapp.LifecycleItemOutput) *cliv1.ScenarioL
 
 func statusSingleMessage(output scenarioapp.StatusSingleOutput) *cliv1.ScenarioStatusSingle {
 	item := output.Scenario
-	startedAt := formatTimestamp(item.StartedAt)
+	startedAt := renderTimestamp(item.StartedAt)
 	ports := make(map[string]int32, len(item.Ports))
 	for key, port := range item.Ports {
 		ports[key] = int32(port)
@@ -219,7 +219,7 @@ func statusSingleMessage(output scenarioapp.StatusSingleOutput) *cliv1.ScenarioS
 			Pid: int32(record.PID), Pgid: int32(record.PGID), ProcessId: record.ProcessID,
 			Phase: record.Phase, Scenario: record.Scenario, Step: record.Step,
 			Command: record.Command, WorkingDir: record.WorkingDir, LogFile: record.LogFile,
-			Port: int32(record.Port), StartedAt: formatTimestampValue(record.StartedAt), Status: record.Status,
+			Port: int32(record.Port), StartedAt: renderTimestampValue(record.StartedAt), Status: record.Status,
 		})
 	}
 	return &cliv1.ScenarioStatusSingle{
@@ -230,18 +230,18 @@ func statusSingleMessage(output scenarioapp.StatusSingleOutput) *cliv1.ScenarioS
 			Ports: ports, PortBindings: portBindings, HealthStatus: health,
 		},
 		Info:    &cliv1.ScenarioInfoData{Name: output.Info.Name, DisplayName: output.Info.DisplayName, Description: output.Info.Description, Version: output.Info.Version, Type: output.Info.Type, Category: output.Info.Category, Tags: output.Info.Tags, Path: output.Info.Path, ServicePath: output.Info.ServicePath, SandboxRedirected: output.Info.SandboxRedirect, ConfigVersion: output.Info.ConfigVersion, LifecycleVersion: output.Info.LifecycleVersion},
-		Runtime: &cliv1.ScenarioRuntimeData{Status: output.Runtime.Status, Processes: int32(output.Runtime.Processes), Runtime: output.Runtime.Runtime, StartedAt: formatTimestamp(output.Runtime.StartedAt), Ports: ports, ProcessRecords: processRecords, ListPorts: portBindings},
+		Runtime: &cliv1.ScenarioRuntimeData{Status: output.Runtime.Status, Processes: int32(output.Runtime.Processes), Runtime: output.Runtime.Runtime, StartedAt: renderTimestamp(output.Runtime.StartedAt), Ports: ports, ProcessRecords: processRecords, ListPorts: portBindings},
 	}
 }
 
-func formatTimestamp(value *time.Time) string {
+func renderTimestamp(value *time.Time) string {
 	if value == nil {
 		return ""
 	}
-	return formatTimestampValue(*value)
+	return renderTimestampValue(*value)
 }
 
-func formatTimestampValue(value time.Time) string {
+func renderTimestampValue(value time.Time) string {
 	if value.IsZero() {
 		return ""
 	}

@@ -150,7 +150,7 @@ func (p plansProvider) applyReconcile(report *Report, _ Request, reconcile PlanR
 						Reason: invalidSourceReason(item),
 					})
 				}
-			case "imported", "mirror_repaired", "already_canonical", "skipped_duplicate":
+			case planmanagerReconcilerImported, planmanagerReconcilerMirrorRepaired, "already_canonical", planmanagerReconcilerSkippedDuplicate:
 				if item.Error != "" {
 					invalidSources = append(invalidSources, item)
 				}

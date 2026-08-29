@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -110,6 +111,53 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 				}, nil
 			},
 			renderResourceListResponse,
+		),
+		resourcecli.CommandCensus: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
+			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceCensusRequest(args) },
+			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) ([]resources.CensusRow, error) {
+				_ = req
+				return controller.Census()
+			},
+			resourcecli.WriteCensus,
+		),
+		resourcecli.CommandScaffold: func(ctx C, controller *resources.Controller, args []string) error {
+			req, err := resourcecli.ParseScaffoldRequest(args)
+			if err != nil {
+				return err
+			}
+			return controller.Scaffold(req.Name, req.Driver)
+		},
+		resourcecli.CommandCLISync: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
+			func(args []string) (resourcecli.CLISyncRequest, error) { return parseResourceCLISyncRequest(args) },
+			func(ctx C, controller *resources.Controller, req resourcecli.CLISyncRequest) ([]resourcecli.CLISyncRow, error) {
+				report, err := controller.DiscoverReport()
+				if err != nil {
+					return nil, err
+				}
+				rows := make([]resourcecli.CLISyncRow, 0, len(report.Items))
+				for _, item := range report.Items {
+					if !item.Enabled || !item.DeclaresCLI {
+						continue
+					}
+					if item.CLIInstalled {
+						rows = append(rows, resourcecli.CLISyncRow{Name: item.Name, Action: "skip", Reason: "cli_installed"})
+						continue
+					}
+					if req.DryRun {
+						rows = append(rows, resourcecli.CLISyncRow{Name: item.Name, Action: "install", Reason: item.CLIStateReason})
+						continue
+					}
+					if deps.EnsureCLI == nil {
+						return nil, fmt.Errorf("resource CLI installer is unavailable")
+					}
+					if err := deps.EnsureCLI(ctx, item.Name); err != nil {
+						return nil, err
+					}
+					rows = append(rows, resourcecli.CLISyncRow{Name: item.Name, Action: "installed", Reason: item.CLIStateReason})
+				}
+				return rows, nil
+			},
+			resourcecli.WriteCLISync,
 		),
 		resourcecli.CommandStatus: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.StatusRequest, error) { return parseResourceStatusRequest(args) },
@@ -455,7 +503,7 @@ func writeAccelerationExplanation(w io.Writer, format cliout.Format, result reso
 		}
 		_, _ = fmt.Fprintf(w, "Host backends:     %s\n", strings.Join(result.HostBackends, ", "))
 		_, _ = fmt.Fprintln(w, "Host facts:")
-		for _, key := range sortedKeys(result.Facts) {
+		for _, key := range slices.Sorted(maps.Keys(result.Facts)) {
 			_, _ = fmt.Fprintf(w, "- %s=%s\n", key, result.Facts[key])
 		}
 		if len(result.Considered) > 0 {
@@ -491,15 +539,6 @@ func orUnknown(value string) string {
 		return "unknown"
 	}
 	return value
-}
-
-func sortedKeys(values map[string]string) []string {
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
 }
 
 func buildResourceAcquisitionCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[rootcli.ResourceHandler[C]] {
@@ -860,6 +899,11 @@ func resourceToggleHandler[C any](deps HandlerDeps[C], enabled bool) rootcli.Res
 		if err := controller.SetEnabled(args[0], enabled); err != nil {
 			return err
 		}
+		if enabled && deps.EnsureCLI != nil {
+			if err := deps.EnsureCLI(ctx, args[0]); err != nil {
+				return err
+			}
+		}
 		_, _ = fmt.Fprintf(deps.Stdout(ctx), "Updated %s: enabled=%t\n", args[0], enabled)
 		return nil
 	}
@@ -868,6 +912,16 @@ func resourceToggleHandler[C any](deps HandlerDeps[C], enabled bool) rootcli.Res
 func parseResourceListRequest(args []string) (resourcecli.NoArgsRequest, error) {
 	req, err := resourcecli.ParseListRequest(args)
 	return req, mapResourceParseError("resource list", err)
+}
+
+func parseResourceCensusRequest(args []string) (resourcecli.NoArgsRequest, error) {
+	req, err := resourcecli.ParseCensusRequest(args)
+	return req, mapResourceParseError("resource census", err)
+}
+
+func parseResourceCLISyncRequest(args []string) (resourcecli.CLISyncRequest, error) {
+	req, err := resourcecli.ParseCLISyncRequest(args)
+	return req, mapResourceParseError("resource cli-sync", err)
 }
 
 func parseResourceValidateRequest(args []string) (resourcecli.ValidateRequest, error) {

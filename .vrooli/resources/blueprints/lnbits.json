@@ -15,7 +15,7 @@
     "Tip jars and paywalls",
     "Wallet-backed commerce experiments"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The app is containerizable, but real support depends on Lightning backends, wallet security, and operational ownership.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Backup and recovery plan"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should define supported backends and wallet flows explicitly.",
     "Keep payment application logic separate from wallet infrastructure support.",

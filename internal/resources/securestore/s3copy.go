@@ -16,7 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 )
@@ -291,7 +291,7 @@ func canonicalS3Headers(req *http.Request) (string, string) {
 	for key := range values {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	var canonical strings.Builder
 	for _, key := range keys {
 		canonical.WriteString(key)

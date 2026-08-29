@@ -19,11 +19,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/vrooli/internal/tuning"
 	"io"
 	"net/http"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/vrooli/cli-core/upstreamcheck"
 )
@@ -98,7 +98,7 @@ func FetchLatest(ctx context.Context, client *http.Client, base, platform string
 		return "", fmt.Errorf("no Antigravity build published for %s/%s", runtime.GOOS, runtime.GOARCH)
 	}
 	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
+		client = &http.Client{Timeout: tuning.ControlPlaneClientTimeout()}
 	}
 	url := strings.TrimRight(base, "/") + "/manifests/" + platform + ".json"
 	m, err := getManifest(ctx, client, url)

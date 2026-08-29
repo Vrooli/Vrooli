@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable operation fixtures.
 package securestore
 
 import (

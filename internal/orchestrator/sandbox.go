@@ -2,7 +2,7 @@ package orchestrator
 
 import (
 	"context"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
@@ -47,6 +47,6 @@ func (s *Service) SandboxAffectedScenarios(ctx context.Context, mergedPath strin
 		seen[instance.Scenario] = struct{}{}
 		affected = append(affected, instance.Scenario)
 	}
-	sort.Strings(affected)
+	slices.Sort(affected)
 	return affected, nil
 }

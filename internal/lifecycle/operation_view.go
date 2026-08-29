@@ -211,7 +211,7 @@ func estimateRemaining(steps []scenarioruntime.StartOperationStep, op scenarioru
 		if seen && step.Status != scenarioruntime.StartStepRunning {
 			continue // already finished
 		}
-		if phase == startStepSetup && !seen && op.Operation != "restart" {
+		if phase == startStepSetup && !seen && op.Operation != lifecycleOperationRestart {
 			continue // may legitimately be skipped; do not guess
 		}
 		estimate, ok := estimates[phase]

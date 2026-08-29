@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -592,7 +592,7 @@ func DiscoverReport(root string, env SandboxEnv) (discovery.Report[Scenario], er
 	for name := range names {
 		ordered = append(ordered, name)
 	}
-	sort.Strings(ordered)
+	slices.Sort(ordered)
 
 	report := discovery.Report[Scenario]{
 		Items:    make([]Scenario, 0, len(ordered)),

@@ -15,7 +15,7 @@
     "Environmental monitoring dashboards",
     "Geospatial collaboration systems"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The stack is containerizable, but its multiple services, storage needs, and GIS-specific operational assumptions make support non-trivial.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Clear ownership for datasets, uploads, and backups"
   ],
   "dependencies": [],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should validate a concrete dataset ingest and map-serving workflow.",
     "Keep portal concerns and raw geospatial processing concerns separate.",

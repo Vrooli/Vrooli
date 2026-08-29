@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable protocol fixtures.
 package packagecli
 
 import (

@@ -13,10 +13,10 @@ package upstream
 import (
 	"context"
 	"fmt"
+	"github.com/vrooli/vrooli/internal/tuning"
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/vrooli/cli-core/upstreamcheck"
 )
@@ -63,7 +63,7 @@ func FetchLatest(ctx context.Context, client *http.Client, bases []string, chann
 		channel = DefaultChannel
 	}
 	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Second}
+		client = &http.Client{Timeout: tuning.ControlPlaneClientTimeout()}
 	}
 	var lastErr error
 	for _, base := range bases {

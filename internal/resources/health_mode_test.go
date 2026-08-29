@@ -147,21 +147,6 @@ func TestApplyHealthToStatusKeepsReadinessFailureWithUndeterminedPlacement(t *te
 	}
 }
 
-func TestIsPlacementProbeLivenessFailureMatchesOnlyDeclaredGPUProbe(t *testing.T) {
-	manifest := ResourceManifest{HealthChecks: []ResourceHealthCheck{
-		{Kind: "liveness", Type: "command", Command: []string{"resource-ollama", "health-gpu"}},
-	}}
-	if !isPlacementProbeLivenessFailure(manifest, "resource-ollama health-gpu") {
-		t.Fatal("declared health-gpu liveness was not recognized")
-	}
-	if isPlacementProbeLivenessFailure(manifest, "resource-ollama health-ready") {
-		t.Fatal("readiness command was recognized as a placement probe")
-	}
-	if isPlacementProbeLivenessFailure(ResourceManifest{}, "resource-ollama health-gpu") {
-		t.Fatal("undeclared health-gpu command was recognized")
-	}
-}
-
 // Feature: the control plane runs both declared check kinds
 //
 // Before this, a liveness check could be declared and was never executed, so

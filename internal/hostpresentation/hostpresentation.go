@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/tuning"
+	"github.com/vrooli/vrooli/internal/values"
 
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -139,7 +140,7 @@ func detectLinuxWithUID(ctx context.Context, p Probe, uid int) Capability {
 	if wslErr != nil && isTimeout(wslErr) {
 		return degraded(KindHeadless, "WSL probe timed out", evidence)
 	}
-	display := firstNonEmpty(p.Env("DISPLAY"), p.Env("WAYLAND_DISPLAY"))
+	display := values.FirstNonEmpty(p.Env("DISPLAY"), p.Env("WAYLAND_DISPLAY"))
 	sshConnection := p.Env("SSH_CONNECTION")
 	sshTTY := p.Env("SSH_TTY")
 	evidence = append(evidence, "DISPLAY="+p.Env("DISPLAY"), "WAYLAND_DISPLAY="+p.Env("WAYLAND_DISPLAY"), "SSH_CONNECTION="+sshConnection, "SSH_TTY="+sshTTY)
@@ -247,15 +248,6 @@ func probeRun(ctx context.Context, p Probe, name string, args ...string) ([]byte
 
 func isTimeout(err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 func isTruthy(value string) bool {

@@ -296,6 +296,13 @@
       ],
       "interval_seconds": 10,
       "timeout_seconds": 10
+    },
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": ["resource-unstructured-io", "health"],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
     }
   ],
   "dependency_schema": {

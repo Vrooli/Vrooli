@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -90,7 +90,7 @@ func LoadScripts(dir string) ([]Script, error) {
 			names = append(names, e.Name())
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	scripts := make([]Script, 0, len(names))
 	for _, name := range names {
 		data, err := os.ReadFile(filepath.Join(dir, name))

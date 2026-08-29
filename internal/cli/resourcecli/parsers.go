@@ -1,10 +1,16 @@
 package resourcecli
 
-import "github.com/vrooli/vrooli/internal/cli/commandtree"
+import (
+	"fmt"
+
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
+)
 
 type (
-	NoArgsRequest struct{}
-	NameRequest   struct {
+	NoArgsRequest   struct{}
+	ScaffoldRequest struct{ Name, Driver string }
+	CLISyncRequest  struct{ DryRun bool }
+	NameRequest     struct {
 		Name string
 	}
 	StatusRequest struct {
@@ -28,6 +34,35 @@ func ParseListRequest(args []string) (NoArgsRequest, error) {
 		return NoArgsRequest{}, err
 	}
 	return NoArgsRequest{}, nil
+}
+
+func ParseCensusRequest(args []string) (NoArgsRequest, error) {
+	if err := commandtree.ParseNoArgs("resource census", CommandHelpText(CommandCensus), args); err != nil {
+		return NoArgsRequest{}, err
+	}
+	return NoArgsRequest{}, nil
+}
+
+func ParseScaffoldRequest(args []string) (ScaffoldRequest, error) {
+	spec := commandSpec(CommandScaffold)
+	parsed, err := commandtree.ParseArgs("resource scaffold", CommandHelpText(CommandScaffold), spec.Args, args)
+	if err != nil {
+		return ScaffoldRequest{}, err
+	}
+	name, driver := parsed.FlagValue("--name"), parsed.FlagValue("--driver")
+	if name == "" || driver == "" {
+		return ScaffoldRequest{}, fmt.Errorf("resource scaffold: --name and --driver are required")
+	}
+	return ScaffoldRequest{Name: name, Driver: driver}, nil
+}
+
+func ParseCLISyncRequest(args []string) (CLISyncRequest, error) {
+	spec := commandSpec(CommandCLISync)
+	parsed, err := commandtree.ParseArgs("resource cli-sync", CommandHelpText(CommandCLISync), spec.Args, args)
+	if err != nil {
+		return CLISyncRequest{}, err
+	}
+	return CLISyncRequest{DryRun: parsed.HasFlag("--dry-run")}, nil
 }
 
 func ParseValidateRequest(args []string) (ValidateRequest, error) {

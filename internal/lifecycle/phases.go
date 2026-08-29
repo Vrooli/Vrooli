@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -61,6 +62,10 @@ type PhaseResult struct {
 	Status        PhaseExecutionStatus `json:"status"`
 	ExecutedSteps int                  `json:"executed_steps"`
 	SkippedSteps  int                  `json:"skipped_steps"`
+	// FailedTolerated counts steps that failed but declared on_error=continue.
+	// The phase succeeded; something in it did not. Callers that report "all
+	// steps ran" would otherwise be quietly wrong.
+	FailedTolerated int `json:"failed_tolerated,omitempty"`
 	// Run-lifecycle bookkeeping, populated by RunPhaseDetailed so callers can
 	// build a typed run result / persist a run record. RunID is the same id
 	// written to the lifecycle log markers. ExitCode/Failed reflect the phase
@@ -331,7 +336,7 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 		}
 
 		sink := newStepSink(childWriter)
-		stepErr := r.runForegroundStep(ctx, item, phaseName, step, env, sink)
+		stepErr := r.runStepWithRetry(ctx, item, phaseName, step, env, childWriter, sink, logWriter)
 		sink.Flush()
 		if stepErr != nil {
 			if phaseName == "stop" {
@@ -342,6 +347,22 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 					logx.AttrStep, step.Name,
 				)
 				result.ExecutedSteps++
+				result.Status = PhaseExecutionCompleted
+				continue
+			}
+			// A step may declare that its own failure is not the phase's
+			// failure. Honour that before treating the error as fatal. A
+			// cancelled context is never tolerable: the operator asked to stop.
+			if stepOnError(step) == onErrorContinue && !errors.Is(stepErr, context.Canceled) {
+				r.warnf(logWriter, "Step %s failed but declares on_error=continue: %v", step.Name, stepErr)
+				r.logWarn("Lifecycle step failed but declares on_error=continue",
+					logx.AttrScenario, item.Slug,
+					logx.AttrPhase, phaseName,
+					logx.AttrStep, step.Name,
+					logx.AttrError, stepErr,
+				)
+				result.ExecutedSteps++
+				result.FailedTolerated++
 				result.Status = PhaseExecutionCompleted
 				continue
 			}
@@ -361,6 +382,118 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 	return result, nil
 }
 
+// Step error policy. The manifest schema has always accepted on_error and
+// retry, and the executor never read either: a step declaring itself tolerable
+// still aborted its phase. These give the declared contract an implementation.
+const (
+	onErrorStop     = "stop"
+	onErrorContinue = "continue"
+	onErrorRetry    = "retry"
+
+	// defaultRetryAttempts applies when a step asks to retry without saying
+	// how many times.
+	defaultRetryAttempts = 3
+	// defaultRetryDelay is the pause before a second attempt when none is
+	// declared.
+	defaultRetryDelay = 500 * time.Millisecond
+	// maxRetryDelay caps exponential growth so a mis-declared backoff cannot
+	// stall a phase indefinitely.
+	maxRetryDelay = 30 * time.Second
+)
+
+// stepOnError resolves a step's declared policy. An unset or unrecognised
+// value is "stop", which is both the safe default and the historical behaviour.
+func stepOnError(step scenario.PhaseStep) string {
+	switch step.OnError {
+	case onErrorContinue:
+		return onErrorContinue
+	case onErrorRetry:
+		return onErrorRetry
+	default:
+		return onErrorStop
+	}
+}
+
+// retryAttempts is the total number of attempts a retrying step gets,
+// including the first.
+func retryAttempts(step scenario.PhaseStep) int {
+	if step.Retry != nil && step.Retry.MaxAttempts > 0 {
+		return step.Retry.MaxAttempts
+	}
+	return defaultRetryAttempts
+}
+
+// retryDelay is the pause before the attempt numbered `attempt` (1-based, so
+// attempt 2 is the first retry). Delay is declared in milliseconds.
+func retryDelay(step scenario.PhaseStep, attempt int) time.Duration {
+	base := defaultRetryDelay
+	if step.Retry != nil && step.Retry.Delay > 0 {
+		base = time.Duration(step.Retry.Delay) * time.Millisecond
+	}
+	delay := base
+	if step.Retry != nil && step.Retry.Backoff == "exponential" {
+		for i := 2; i < attempt; i++ {
+			delay *= 2
+			if delay >= maxRetryDelay {
+				return maxRetryDelay
+			}
+		}
+	}
+	if delay > maxRetryDelay {
+		return maxRetryDelay
+	}
+	return delay
+}
+
+// runStepWithRetry runs one foreground step, re-running it while its declared
+// policy says to. It returns the final attempt's error.
+func (r *Runner) runStepWithRetry(
+	ctx context.Context,
+	item scenario.Scenario,
+	phaseName string,
+	step scenario.PhaseStep,
+	env map[string]string,
+	childWriter io.Writer,
+	sink *stepSink,
+	logWriter io.Writer,
+) error {
+	stepErr := r.runForegroundStep(ctx, item, phaseName, step, env, sink)
+	if stepErr == nil || stepOnError(step) != onErrorRetry {
+		return stepErr
+	}
+
+	attempts := retryAttempts(step)
+	for attempt := 2; attempt <= attempts; attempt++ {
+		// An operator interrupt is not a transient fault.
+		if errors.Is(stepErr, context.Canceled) || ctx.Err() != nil {
+			return stepErr
+		}
+		delay := retryDelay(step, attempt)
+		r.warnf(logWriter, "Step %s failed (attempt %d/%d); retrying in %s", step.Name, attempt-1, attempts, delay)
+		r.logWarn("Retrying lifecycle step",
+			logx.AttrScenario, item.Slug,
+			logx.AttrPhase, phaseName,
+			logx.AttrStep, step.Name,
+			"attempt", attempt,
+			"max_attempts", attempts,
+			logx.AttrError, stepErr,
+		)
+		select {
+		case <-ctx.Done():
+			return stepErr
+		case <-time.After(delay):
+		}
+		// Each attempt gets a clean sink so a replayed tail shows the attempt
+		// that actually failed, not every attempt concatenated.
+		sink.Reset()
+		stepErr = r.runForegroundStep(ctx, item, phaseName, step, env, sink)
+		if stepErr == nil {
+			return nil
+		}
+	}
+	return stepErr
+}
+
 // declaredPhaseSteps makes components the sole authority for process launch.
 // Setup shell mirrors are ignored because buildDeclaredComponents derives the
 // same work from build.kind. Develop shell mirrors are replaced by one typed
@@ -377,6 +510,13 @@ func declaredPhaseSteps(manifest scenario.ServiceManifest, phaseName string, aut
 	}
 	for _, name := range orderedComponentNames(manifest.Components) {
 		component := manifest.Components[name]
+		// A supervised component is launched and owned by its supervisor
+		// (normally the API). Launching it as an independent lifecycle step
+		// closes its stdin/ownership channel and can make a healthy parent
+		// fail readiness, as with protocol sidecars.
+		if component.Run.SupervisedBy != "" {
+			continue
+		}
 		steps = append(steps, scenario.PhaseStep{
 			Name:       "start-" + name,
 			Exec:       append([]string(nil), component.Run.Argv...),
@@ -401,7 +541,7 @@ func orderedComponentNames(components map[string]scenario.Component) []string {
 		if component.Run.SupervisedBy != "" {
 			dependencies = append(dependencies, component.Run.SupervisedBy)
 		}
-		for _, dependency := range uniqueStrings(dependencies) {
+		for _, dependency := range slices.Compact(slices.Sorted(slices.Values(dependencies))) {
 			if _, ok := components[dependency]; !ok {
 				continue
 			}
@@ -576,19 +716,6 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 		}
 	}
 	return executed, nil
-}
-
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		if _, exists := seen[value]; exists {
-			continue
-		}
-		seen[value] = struct{}{}
-		result = append(result, value)
-	}
-	return result
 }
 
 func componentPublishTarget(target string, directory bool) string {
@@ -975,7 +1102,7 @@ func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, bas
 		for key := range component.Run.Env {
 			keys = append(keys, key)
 		}
-		sort.Strings(keys)
+		slices.Sort(keys)
 		for _, key := range keys {
 			value, err := ports.ExpandTemplate(component.Run.Env[key], environment)
 			if err != nil {
@@ -1012,7 +1139,7 @@ func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, bas
 	for key := range step.Env {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	for _, key := range keys {
 		value, err := ports.ExpandTemplate(step.Env[key], environment)
 		if err != nil {
@@ -1085,7 +1212,7 @@ func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter,
 		ctx.Scenario = scenarioruntime.HealthStatusUnknown
 	}
 	if strings.TrimSpace(ctx.Operation) == "" {
-		ctx.Operation = "start"
+		ctx.Operation = operationViewStart
 	}
 	if strings.TrimSpace(ctx.Phase) == "" {
 		ctx.Phase = scenarioruntime.HealthStatusUnknown
@@ -1201,7 +1328,7 @@ func lookupPhase(manifest scenario.ServiceManifest, phaseName string) (scenario.
 		return manifest.Lifecycle.Backup, true
 	case "restore":
 		return manifest.Lifecycle.Restore, true
-	case "production":
+	case runtimeEnvironmentProduction:
 		return manifest.Lifecycle.Production, true
 	case "stop":
 		return manifest.Lifecycle.Stop, true

@@ -15,13 +15,15 @@ func ResourceListResponse(items []resources.Resource, failures []discovery.Failu
 	resp := &cliv1.ResourceListResponse{Success: true}
 	for _, item := range items {
 		resp.Resources = append(resp.Resources, &cliv1.Resource{
-			Name:       item.Name,
-			Path:       item.Path,
-			Exists:     item.Exists,
-			Registered: item.Registered,
-			Enabled:    item.Enabled,
-			Required:   item.Required,
-			HasCli:     item.HasCLI,
+			Name:           item.Name,
+			Path:           item.Path,
+			Exists:         item.Exists,
+			Registered:     item.Registered,
+			Enabled:        item.Enabled,
+			Required:       item.Required,
+			DeclaresCli:    item.DeclaresCLI,
+			CliInstalled:   item.CLIInstalled,
+			CliStateReason: item.CLIStateReason,
 			Config: &cliv1.ResourceConfig{
 				Enabled:     item.Config.Enabled,
 				Required:    item.Config.Required,
@@ -29,7 +31,6 @@ func ResourceListResponse(items []resources.Resource, failures []discovery.Failu
 			},
 			ControlMode:  item.ControlMode,
 			Driver:       item.Driver,
-			Template:     item.Template,
 			ManifestPath: item.ManifestPath,
 		})
 	}

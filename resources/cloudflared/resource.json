@@ -143,6 +143,13 @@
       "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/ready",
       "interval_seconds": 5,
       "timeout_seconds": 5
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:${RESOURCE_PORT_HTTP}/ready",
+      "kind": "liveness",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
     }
   ],
   "deployment": {

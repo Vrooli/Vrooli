@@ -12,6 +12,8 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const netconsoleModprobe = "modprobe"
+
 type capturedCommand struct {
 	Name string
 	Args []string
@@ -211,7 +213,7 @@ func checkApplyInstallsAndLoadsNetconsole(t *testing.T) {
 		if c.Name == "install" {
 			sawInstall = true
 		}
-		if c.Name == "modprobe" {
+		if c.Name == netconsoleModprobe {
 			sawModprobe = true
 		}
 	}
@@ -264,7 +266,7 @@ func TestApplyModprobeFailureSurfacedAsFailed(t *testing.T) {
 	env[TargetEnvVar] = "x"
 
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
-		if name == "modprobe" {
+		if name == netconsoleModprobe {
 			return errors.New("synthetic modprobe failure")
 		}
 		// Allow installs through (they don't matter for this test).
@@ -307,7 +309,7 @@ func TestApplySkipsModprobeWhenAlreadyLoaded(t *testing.T) {
 	}
 
 	for _, c := range *cmds {
-		if c.Name == "modprobe" {
+		if c.Name == netconsoleModprobe {
 			t.Errorf("modprobe should be skipped when module already loaded; commands=%v", *cmds)
 		}
 	}

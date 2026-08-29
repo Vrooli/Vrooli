@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -99,7 +100,7 @@ func RelocationArtifactPaths(relocationTargets []string) []string {
 			add(path)
 		}
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths
 }
 
@@ -233,7 +234,7 @@ func findMarkerPaths(searchRoots []string) []string {
 			paths = append(paths, markerPath)
 		}
 	}
-	sort.Strings(paths)
+	slices.Sort(paths)
 	return paths
 }
 

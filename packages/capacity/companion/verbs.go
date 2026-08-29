@@ -8,6 +8,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 // One broker contract had four call signatures across the fleet: `capacity
@@ -55,6 +57,26 @@ type Verbs struct {
 	// defaults.
 	Stdout io.Writer
 	Stderr io.Writer
+}
+
+// CapacityCommands builds the common capacity command group for resources
+// whose step application is resource-specific. It centralizes the broker
+// contract while allowing adapters to retain only domain-specific work.
+func CapacityCommands(resource string, labels []string, degrade, upshift StepHandler, stdout, stderr io.Writer) cliapp.SubcommandGroup {
+	return cliapp.SubcommandGroup{Name: "capacity", Description: "Respond to the capacity broker", Subcommands: CapacitySubcommands(resource, labels, degrade, upshift, stdout, stderr)}
+}
+
+// CapacitySubcommands returns the common broker verbs for a group that also
+// exposes resource-specific capacity commands.
+func CapacitySubcommands(resource string, labels []string, degrade, upshift StepHandler, stdout, stderr io.Writer) []cliapp.Command {
+	if upshift == nil {
+		upshift = degrade
+	}
+	verbs := Verbs{Resource: resource, Degrade: StepsFromLabels(labels, degrade), Upshift: StepsFromLabels(labels, upshift), Stdout: stdout, Stderr: stderr}
+	return []cliapp.Command{
+		{Name: "degrade", Description: "Move to a declared capacity rung", Usage: resource + " capacity degrade --to <label>", Run: func(args []string) error { return verbs.Run(append([]string{"degrade"}, args...)) }},
+		{Name: "upshift", Description: "Return to a larger capacity rung", Usage: resource + " capacity upshift --to <label>", Run: func(args []string) error { return verbs.Run(append([]string{"upshift"}, args...)) }},
+	}
 }
 
 // Run dispatches `capacity <subcommand>` for a resource CLI.
@@ -123,6 +145,11 @@ func parseStepFlags(name string, args []string, stderr io.Writer) (string, error
 	set := flag.NewFlagSet("capacity "+name, flag.ContinueOnError)
 	set.SetOutput(stderr)
 	to := set.String("to", "", "target profile step label")
+	// Broker probes commonly request JSON from every resource CLI. The shared
+	// contract accepts the flag even when the confirmation is intentionally
+	// human-readable; resource-specific result payloads remain available from
+	// their domain commands.
+	_ = set.Bool("json", false, "emit a machine-readable result when supported")
 	if err := set.Parse(args); err != nil {
 		return "", err
 	}

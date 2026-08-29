@@ -1,14 +1,14 @@
 package permissionscli
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
-	"resource-claude-code/cli/internal/permissions"
+	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissions"
 
 	"github.com/vrooli/agentharness"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 var claudePermissionPosture = agentharness.EnforcementPosture{Permissions: "hook_verified", Caveats: []string{"Claude native permission denials remain active; the source-controlled PreToolUse matcher is verified by data-only replay and a non-mutating live probe."}}
@@ -103,7 +103,7 @@ func claudePortablePatterns(patterns []string) []string {
 
 func (h *Handlers) writePlan(result agentharness.PermissionPlanResult, asJSON bool) error {
 	if asJSON {
-		data, err := json.MarshalIndent(result, "", "  ")
+		data, err := cliout.MarshalIndent(result)
 		if err != nil {
 			return err
 		}

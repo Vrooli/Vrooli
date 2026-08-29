@@ -125,7 +125,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandStart), Group: "Lifecycle and Utility Commands", Summary: "Start a scenario", Handler: CommandStart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true, Repeatable: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole start (not the expected duration); on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -140,7 +140,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -377,10 +377,11 @@ func ParseScenarioStartArgs(defaultJSON bool, args []string) (ScenarioStartArgs,
 	}
 	out := ScenarioStartArgs{
 		Options: lifecycle.StartOptions{
-			BestEffort: parsed.HasFlag("--best-effort"),
-			CleanStale: parsed.HasFlag("--clean-stale"),
-			ForceSetup: parsed.HasFlag("--force"),
-			CustomPath: parsed.FlagValue("--path"),
+			BestEffort:           parsed.HasFlag("--best-effort"),
+			CleanStale:           parsed.HasFlag("--clean-stale"),
+			ForceSetup:           parsed.HasFlag("--force"),
+			AcceptCredentialLoss: parsed.HasFlag("--accept-credential-loss"),
+			CustomPath:           parsed.FlagValue("--path"),
 		},
 		JSON:      defaultJSON || parsed.HasFlag("--json"),
 		OpenAfter: parsed.HasFlag("--open"),

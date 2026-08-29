@@ -11,6 +11,46 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
+func TestOwnerIdentityHelpersRejectColonComponents(t *testing.T) {
+	if got := OwnerIDFor("test-genie", "run-1", "unit"); got != "test-genie:run-1:unit" {
+		t.Fatalf("OwnerIDFor = %q", got)
+	}
+	if got := RunOwnerPrefix("test-genie", "run-1"); got != "test-genie:run-1:" {
+		t.Fatalf("RunOwnerPrefix = %q", got)
+	}
+	if got := OwnerIDFor("test:genie", "run-1", "unit"); got != "" {
+		t.Fatalf("OwnerIDFor accepted colon component: %q", got)
+	}
+	if got := RunOwnerPrefix("test-genie", "run:1"); got != "" {
+		t.Fatalf("RunOwnerPrefix accepted colon component: %q", got)
+	}
+}
+
+func TestReleaseRunReleasesOnlyThatRun(t *testing.T) {
+	ctx := context.Background()
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(t.TempDir(), "capacity.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	for _, owner := range []string{OwnerIDFor("test-genie", "run-1", "unit"), OwnerIDFor("test-genie", "run-1", "contracts"), OwnerIDFor("test-genie", "run-2", "unit")} {
+		if _, err := store.CreateClaim(ctx, internalcapacity.CapacityClaim{OwnerKind: internalcapacity.OwnerKindOp, OwnerID: owner, ResourceKind: internalcapacity.ResourceKindCPU, AmountBytes: 1, PreferredBytes: 1, FloorBytes: 1, Priority: internalcapacity.PriorityBatch}, 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+	broker := NewBrokerWithSource(store, &countingSource{cores: 4, memory: hostinventory.Memory{TotalBytes: 1 << 30, AvailableBytes: 1 << 30}})
+	if err := broker.ReleaseRun(ctx, "test-genie", "run-1"); err != nil {
+		t.Fatal(err)
+	}
+	claims, err := store.ListClaims(ctx, internalcapacity.ClaimFilter{OwnerKind: internalcapacity.OwnerKindOp, Statuses: internalcapacity.ActiveClaimStatuses()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(claims) != 1 || claims[0].OwnerID != OwnerIDFor("test-genie", "run-2", "unit") {
+		t.Fatalf("active claims after release = %#v, want only run-2", claims)
+	}
+}
+
 // countingSource records how many host collections a run actually performed.
 // The count is the whole point: on 2026-08-08 Test Genie made roughly 49 of
 // these per suite, and each one shelled out to a probe set that a single wedged
@@ -20,6 +60,8 @@ type countingSource struct {
 	err    error
 	cores  int
 	memory hostinventory.Memory
+	load   hostinventory.Load
+	swap   hostinventory.Swap
 }
 
 func (s *countingSource) Snapshot(context.Context) (hostinventory.Snapshot, error) {
@@ -27,7 +69,7 @@ func (s *countingSource) Snapshot(context.Context) (hostinventory.Snapshot, erro
 	if s.err != nil {
 		return hostinventory.Snapshot{}, s.err
 	}
-	return hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: s.cores}, Memory: s.memory}, nil
+	return hostinventory.Snapshot{CPU: hostinventory.CPU{Cores: s.cores}, Memory: s.memory, Load: s.load, Swap: s.swap}, nil
 }
 
 // fakeClock advances only when a test says so, so the TTL is exercised without
@@ -73,6 +115,27 @@ func TestSnapshotRefreshedAfterTTL(t *testing.T) {
 	}
 	if source.calls != 2 {
 		t.Fatalf("calls = %d, want 2 — a reading older than the TTL must be recollected", source.calls)
+	}
+}
+
+func TestObserveHostStateUsesCachedReadingAndReportsSwap(t *testing.T) {
+	source := &countingSource{
+		cores:  4,
+		memory: hostinventory.Memory{AvailableBytes: 8 << 30},
+		load:   hostinventory.Load{Load1: 1.5},
+		swap:   hostinventory.Swap{TotalBytes: 100, FreeBytes: 25},
+	}
+	clock := &fakeClock{at: time.Unix(1000, 0)}
+	broker := newTestBroker(source, clock)
+	observation, err := broker.ObserveHostState(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if observation.AvailableRAMBytes != 8<<30 || observation.Load1 != 1.5 || observation.SwapUsedPercent != 75 {
+		t.Fatalf("observation = %#v, want available RAM 8GiB, load 1.5, swap 75%%", observation)
+	}
+	if source.calls != 1 {
+		t.Fatalf("host collections = %d, want cached single collection", source.calls)
 	}
 }
 

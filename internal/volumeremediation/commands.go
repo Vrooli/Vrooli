@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const volumeFilesystemExfat = "exfat"
+
 const (
 	commandsNtfs = "ntfs"
 )
@@ -120,7 +122,7 @@ func checkArgs(family, device string) ([]string, error) {
 		return []string{"ntfsfix", "-n", device}, nil
 	case "ext":
 		return []string{"e2fsck", "-f", "-n", device}, nil
-	case "exfat":
+	case volumeFilesystemExfat:
 		return []string{"fsck.exfat", "-n", device}, nil
 	case "vfat":
 		return []string{"fsck.fat", "-n", device}, nil

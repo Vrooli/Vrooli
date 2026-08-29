@@ -6,11 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/tuning"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 const (
@@ -59,13 +60,13 @@ func NewClient(baseURL string, creds Credentials, opts ...Option) (*Client, erro
 	c := &Client{
 		baseURL: baseURL,
 		creds:   creds,
-		http:    &http.Client{Timeout: 10 * time.Second},
+		http:    &http.Client{Timeout: tuning.ControlPlaneClientTimeout()},
 	}
 	for _, opt := range opts {
 		opt(c)
 	}
 	if c.http == nil {
-		c.http = &http.Client{Timeout: 10 * time.Second}
+		c.http = &http.Client{Timeout: tuning.ControlPlaneClientTimeout()}
 	}
 	return c, nil
 }
@@ -325,7 +326,7 @@ func (c *Client) do(ctx context.Context, method, endpoint string, body any) (*ht
 	var reader io.Reader
 	if body != nil {
 		var buf bytes.Buffer
-		if err := json.NewEncoder(&buf).Encode(body); err != nil {
+		if err := cliout.NewEncoder(&buf).Encode(body); err != nil {
 			return nil, fmt.Errorf("encode request body: %w", err)
 		}
 		reader = &buf

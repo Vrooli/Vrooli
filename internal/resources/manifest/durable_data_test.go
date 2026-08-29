@@ -45,15 +45,6 @@ func TestValidateAcceptsDurableDataOnExternalCLI(t *testing.T) {
 	}
 }
 
-func TestValidateRejectsDurableDataOnContainerDriver(t *testing.T) {
-	assertDurableDataRejected(t, func(m *ResourceManifest) {
-		m.Driver = "docker-service"
-		m.DurableData = &ResourceDurableData{
-			Entries: map[string]DurableDataEntry{"x": {Path: "x", Kind: "dir"}},
-		}
-	}, "durable_data is only valid for host-filesystem drivers")
-}
-
 func TestValidateRejectsDurableDataEmptyEntries(t *testing.T) {
 	assertDurableDataRejected(t, func(m *ResourceManifest) {
 		m.DurableData = &ResourceDurableData{Base: "$HOME/.claude", Entries: map[string]DurableDataEntry{}}

@@ -50,7 +50,7 @@ func TestObserveLinuxReadsMountAndDirtyEvidence(t *testing.T) {
 		t.Fatalf("Observe: %v", err)
 	}
 
-	if !state.Mounted || state.Device.Mountpoint != "/media/user/Elements" {
+	if !state.Mounted || state.Device.Mountpoint != "/media/user/Elements" { //nolint:goconst // fixture mountpoint is intentionally reused
 		t.Fatalf("mount not observed: %+v", state)
 	}
 	if !state.ReadOnly {

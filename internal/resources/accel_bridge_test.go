@@ -47,7 +47,7 @@ func TestAccelSpecForReadsTheOneDeclaration(t *testing.T) {
 	}{
 		{
 			scenario:       "Given an authored acceleration block, Then the spec carries its backends in order",
-			manifest:       acceleratedManifest("kyutai-stt", "compose-service"),
+			manifest:       acceleratedManifest("kyutai-stt", "managed-service"),
 			wantAccelerate: true,
 			wantBackends:   []accel.Backend{accel.BackendCUDA, accel.BackendCPU},
 		},
@@ -297,8 +297,6 @@ func TestVerifyStartedPlacementReportsDriftDistinctlyFromUnknown(t *testing.T) {
 func TestEveryAcceleratorCapableDriverVerifiesPlacement(t *testing.T) {
 	// Given the start path of every driver that can run an accelerated resource
 	wantCallers := map[string]string{
-		"composeServiceDriver.Run":        "compose-service",
-		"startDockerService":              "docker-service",
 		"nativeCLIDriver.Run":             "native-cli",
 		"managedServiceDriver.runPrivate": "managed-service",
 	}

@@ -6,7 +6,6 @@ package snapshot
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -16,9 +15,10 @@ import (
 	"strconv"
 	"strings"
 
-	"resource-kopia/cli/internal/cmdutil"
-	"resource-kopia/cli/internal/kexec"
-	"resource-kopia/cli/internal/repoctx"
+	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/cmdutil"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/kexec"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repoctx"
 )
 
 // Service wires the dependencies the snapshot commands need.
@@ -167,8 +167,7 @@ func (s Service) Browse(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	enc := json.NewEncoder(s.out())
-	return enc.Encode(entries)
+	return cliout.NewCompactEncoder(s.out()).Encode(entries)
 }
 
 // Verify checks snapshot/content integrity. With --snapshot it verifies a

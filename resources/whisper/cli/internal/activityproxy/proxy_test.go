@@ -309,6 +309,16 @@ func TestHeartbeatFormatting(t *testing.T) {
 	}
 }
 
+func TestParentGoneIsDetected(t *testing.T) {
+	h := &Handlers{ParentAlive: func(pid int) bool { return pid != 42 }}
+	if !h.parentGone(42) {
+		t.Fatal("dead parent was not detected")
+	}
+	if h.parentGone(1) {
+		t.Fatal("init parent must disable the guard")
+	}
+}
+
 func snapshot(mu *sync.Mutex, states *[]string) []string {
 	mu.Lock()
 	defer mu.Unlock()

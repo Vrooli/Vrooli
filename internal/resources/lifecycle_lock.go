@@ -30,7 +30,7 @@ func acquireManagedServiceLifecycleLock(resource string) (func(), error) {
 
 func managedServiceLifecycleAction(action string) bool {
 	switch action {
-	case "start", "restart", "stop", "uninstall":
+	case "start", "restart", brokerTransportStop, "uninstall":
 		return true
 	default:
 		return false

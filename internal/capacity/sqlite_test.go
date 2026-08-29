@@ -273,10 +273,16 @@ func TestListClaimsFilter(t *testing.T) {
 	w.OwnerID = "whisper"
 	o := sampleClaim()
 	o.OwnerID = "ollama"
+	r := sampleClaim()
+	r.OwnerID = "test-genie:run-1:phase"
+	r.ResourceKind = ResourceKindRAM
 	if _, err := store.CreateClaim(ctx, w, 0); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.CreateClaim(ctx, o, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.CreateClaim(ctx, r, 0); err != nil {
 		t.Fatal(err)
 	}
 
@@ -293,6 +299,14 @@ func TestListClaimsFilter(t *testing.T) {
 	}
 	if len(only) != 1 || only[0].OwnerID != "ollama" {
 		t.Errorf("owner filter = %+v, want only ollama", only)
+	}
+	prefixed, err := store.ListClaims(ctx, ClaimFilter{OwnerIDPrefix: "test-genie:run-1:"})
+	if err != nil || len(prefixed) != 1 || prefixed[0].OwnerID != r.OwnerID {
+		t.Fatalf("owner prefix filter = %+v err=%v, want run-1 claim", prefixed, err)
+	}
+	other, err := store.ListClaims(ctx, ClaimFilter{OwnerIDPrefix: "test-genie:run-2:"})
+	if err != nil || len(other) != 0 {
+		t.Fatalf("other owner prefix = %+v err=%v, want no claims", other, err)
 	}
 }
 

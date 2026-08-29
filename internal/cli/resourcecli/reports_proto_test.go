@@ -53,7 +53,7 @@ func TestWriteStatusesJSONContract(t *testing.T) {
 	}
 	first := resources_[0].(map[string]any)
 	res := first["resource"].(map[string]any)
-	if res["name"] != "redis" {
+	if res["name"] != "redis" { //nolint:goconst // fixture resource name
 		t.Errorf("resource.name: %v", res["name"])
 	}
 	if res["control_mode"] != "manifest-native" {

@@ -9,7 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	resourceenv "resource-openrouter/cli/internal/env"
+	"github.com/vrooli/vrooli/internal/cliout"
+
+	resourceenv "github.com/vrooli/vrooli/resources/openrouter/cli/internal/env"
 )
 
 var ErrContentNotFound = errors.New("openrouter content not found")
@@ -153,7 +155,7 @@ func SaveCredentialsFile(path, apiKey string) error {
 			APIKey string `json:"apiKey"`
 		}{APIKey: apiKey},
 	}
-	data, err := json.MarshalIndent(payload, "", "  ")
+	data, err := cliout.MarshalIndent(payload)
 	if err != nil {
 		return err
 	}

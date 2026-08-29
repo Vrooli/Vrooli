@@ -1,8 +1,0 @@
-{
-  "targets": {
-    "kinds": {
-      "control-plane": {"roots": ["cmd", "internal"]},
-      "project": {"roots": ["."]}
-    }
-  }
-}

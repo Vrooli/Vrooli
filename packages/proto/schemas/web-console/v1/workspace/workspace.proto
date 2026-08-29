@@ -30,6 +30,13 @@ service WorkspaceService {
   rpc CreateGroup(CreateGroupRequest) returns (CreateGroupResponse);
   rpc UpdateGroup(UpdateGroupRequest) returns (UpdateGroupResponse);
   rpc DeleteGroup(DeleteGroupRequest) returns (DeleteGroupResponse);
+
+  // Roles are named positions inside a group. They are additive: a group
+  // with no roles behaves exactly as it did before roles existed.
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
 }
 
 // Pane is one terminal pane's persisted metadata. session_id is the
@@ -66,10 +73,40 @@ message Group {
 
 message GetLayoutRequest {}
 
+// Role is a named position inside a group.
+//
+// session_id is EMPTY while the role is waiting: the role holds a command
+// and no process, costs no PTY, and renders as a placeholder. When the
+// operator starts the role, session_id names the session it now runs as.
+//
+// A role stores a command string, never an enum of known agents, so any
+// executable an operator can type is expressible as a role.
+message Role {
+  string id = 1;
+  string group_id = 2;
+  string label = 3;
+  string command = 4;
+  string working_dir = 5;
+  // incoming_prompt may contain at most one {{payload}} placeholder. It is
+  // stored on the RECEIVING role, so any sender that hands off to this role
+  // gets this role's framing. Empty means "compose the message by hand".
+  string incoming_prompt = 6;
+  // session_id is empty while the role is waiting.
+  string session_id = 7;
+  int32 sort_order = 8;
+  string backend = 9;
+  string target_id = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+// GetLayoutResponse returns the whole workspace in one round trip. `roles`
+// was added after `groups`; an older client ignores the unknown field.
 message GetLayoutResponse {
   string active_pane = 1;
   repeated Pane panes = 2;
   repeated Group groups = 3;
+  repeated Role roles = 4;
 }
 
 // SaveLayoutRequest persists pane ordering and the active pane selection.
@@ -159,3 +196,77 @@ message DeleteGroupRequest {
 }
 
 message DeleteGroupResponse {}
+
+// ListRolesRequest returns every role, ordered by group then sort_order.
+// group_id filters to one group when non-empty.
+message ListRolesRequest {
+  string group_id = 1;
+}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
+}
+
+// CreateRoleRequest adds a role to a group. group_id is required; a blank
+// group_id returns invalid_argument. session_id is empty for a waiting role.
+message CreateRoleRequest {
+  string group_id = 1;
+  string label = 2;
+  string command = 3;
+  string working_dir = 4;
+  string incoming_prompt = 5;
+  string session_id = 6;
+  int32 sort_order = 7;
+  string backend = 8;
+  string target_id = 9;
+}
+
+message CreateRoleResponse {
+  Role role = 1;
+}
+
+// UpdateRoleRequest modifies a role. Only fields with has_* = true are
+// applied; the rest are left unchanged. Returns role_not_found if id does
+// not exist. Clearing session_id (has_session_id = true, session_id = "")
+// returns the role to waiting.
+message UpdateRoleRequest {
+  string id = 1;
+
+  string label = 2;
+  bool has_label = 3;
+
+  string command = 4;
+  bool has_command = 5;
+
+  string working_dir = 6;
+  bool has_working_dir = 7;
+
+  string incoming_prompt = 8;
+  bool has_incoming_prompt = 9;
+
+  string session_id = 10;
+  bool has_session_id = 11;
+
+  int32 sort_order = 12;
+  bool has_sort_order = 13;
+
+  string backend = 14;
+  bool has_backend = 15;
+
+  string target_id = 16;
+  bool has_target_id = 17;
+
+  string group_id = 18;
+  bool has_group_id = 19;
+}
+
+message UpdateRoleResponse {
+  Role role = 1;
+}
+
+// DeleteRoleRequest is idempotent: deleting a missing id succeeds.
+message DeleteRoleRequest {
+  string id = 1;
+}
+
+message DeleteRoleResponse {}

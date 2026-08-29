@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/workspace/workspace.proto.
  */
 export const file_web_console_v1_workspace_workspace: GenFile = /*@__PURE__*/
-  fileDesc("Cih3ZWItY29uc29sZS92MS93b3Jrc3BhY2Uvd29ya3NwYWNlLnByb3RvEh92cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlIuoBCgRQYW5lEhIKCnNlc3Npb25faWQYASABKAkSDAoEbmFtZRgCIAEoCRIUCgxoZWFkZXJfY29sb3IYAyABKAkSEAoIdGhlbWVfaWQYBCABKAkSEQoJZm9udF9zaXplGAUgASgFEhIKCnNvcnRfb3JkZXIYBiABKAUSEAoIZ3JvdXBfaWQYByABKAkSHgoWc3VwcG9ydHNfbWVzc2FnZXNfdmlldxgIIAEoCBIXCg9tYW51YWxseV91bnJlYWQYCyABKAgSEgoKY3JlYXRlZF9hdBgJIAEoCRISCgp1cGRhdGVkX2F0GAogASgJIoIBCgVHcm91cBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBWNvbG9yGAMgASgJEhIKCnNvcnRfb3JkZXIYBCABKAUSFAoMaXNfY29sbGFwc2VkGAUgASgIEhIKCmNyZWF0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCSISChBHZXRMYXlvdXRSZXF1ZXN0IpYBChFHZXRMYXlvdXRSZXNwb25zZRITCgthY3RpdmVfcGFuZRgBIAEoCRI0CgVwYW5lcxgCIAMoCzIlLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuUGFuZRI2CgZncm91cHMYAyADKAsyJi52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkdyb3VwIjwKEVNhdmVMYXlvdXRSZXF1ZXN0EhMKC2FjdGl2ZV9wYW5lGAEgASgJEhIKCnBhbmVfb3JkZXIYAiADKAkiFAoSU2F2ZUxheW91dFJlc3BvbnNlIpcDChFVcGRhdGVQYW5lUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSEAoIaGFzX25hbWUYAyABKAgSFAoMaGVhZGVyX2NvbG9yGAQgASgJEhgKEGhhc19oZWFkZXJfY29sb3IYBSABKAgSEAoIdGhlbWVfaWQYBiABKAkSFAoMaGFzX3RoZW1lX2lkGAcgASgIEhEKCWZvbnRfc2l6ZRgIIAEoBRIVCg1oYXNfZm9udF9zaXplGAkgASgIEhIKCnNvcnRfb3JkZXIYCiABKAUSFgoOaGFzX3NvcnRfb3JkZXIYCyABKAgSEAoIZ3JvdXBfaWQYDCABKAkSFAoMaGFzX2dyb3VwX2lkGA0gASgIEh4KFnN1cHBvcnRzX21lc3NhZ2VzX3ZpZXcYDiABKAgSIgoaaGFzX3N1cHBvcnRzX21lc3NhZ2VzX3ZpZXcYDyABKAgSFwoPbWFudWFsbHlfdW5yZWFkGBAgASgIEhsKE2hhc19tYW51YWxseV91bnJlYWQYESABKAgiSQoSVXBkYXRlUGFuZVJlc3BvbnNlEjMKBHBhbmUYASABKAsyJS52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLlBhbmUiJwoRRGVsZXRlUGFuZVJlcXVlc3QSEgoKc2Vzc2lvbl9pZBgBIAEoCSIUChJEZWxldGVQYW5lUmVzcG9uc2UiMQoSQ3JlYXRlR3JvdXBSZXF1ZXN0EgwKBG5hbWUYASABKAkSDQoFY29sb3IYAiABKAkiTAoTQ3JlYXRlR3JvdXBSZXNwb25zZRI1CgVncm91cBgBIAEoCzImLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuR3JvdXAikgEKElVwZGF0ZUdyb3VwUmVxdWVzdBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhAKCGhhc19uYW1lGAMgASgIEg0KBWNvbG9yGAQgASgJEhEKCWhhc19jb2xvchgFIAEoCBIUCgxpc19jb2xsYXBzZWQYBiABKAgSGAoQaGFzX2lzX2NvbGxhcHNlZBgHIAEoCCJMChNVcGRhdGVHcm91cFJlc3BvbnNlEjUKBWdyb3VwGAEgASgLMiYudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5Hcm91cCIgChJEZWxldGVHcm91cFJlcXVlc3QSCgoCaWQYASABKAkiFQoTRGVsZXRlR3JvdXBSZXNwb25zZTLZBgoQV29ya3NwYWNlU2VydmljZRJyCglHZXRMYXlvdXQSMS52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkdldExheW91dFJlcXVlc3QaMi52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkdldExheW91dFJlc3BvbnNlEnUKClNhdmVMYXlvdXQSMi52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLlNhdmVMYXlvdXRSZXF1ZXN0GjMudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5TYXZlTGF5b3V0UmVzcG9uc2USdQoKVXBkYXRlUGFuZRIyLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuVXBkYXRlUGFuZVJlcXVlc3QaMy52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLlVwZGF0ZVBhbmVSZXNwb25zZRJ1CgpEZWxldGVQYW5lEjIudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5EZWxldGVQYW5lUmVxdWVzdBozLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuRGVsZXRlUGFuZVJlc3BvbnNlEngKC0NyZWF0ZUdyb3VwEjMudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5DcmVhdGVHcm91cFJlcXVlc3QaNC52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkNyZWF0ZUdyb3VwUmVzcG9uc2USeAoLVXBkYXRlR3JvdXASMy52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLlVwZGF0ZUdyb3VwUmVxdWVzdBo0LnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuVXBkYXRlR3JvdXBSZXNwb25zZRJ4CgtEZWxldGVHcm91cBIzLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuRGVsZXRlR3JvdXBSZXF1ZXN0GjQudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5EZWxldGVHcm91cFJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvd29ya3NwYWNlO3dvcmtzcGFjZV92MWIGcHJvdG8z");
+  fileDesc("Cih3ZWItY29uc29sZS92MS93b3Jrc3BhY2Uvd29ya3NwYWNlLnByb3RvEh92cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlIuoBCgRQYW5lEhIKCnNlc3Npb25faWQYASABKAkSDAoEbmFtZRgCIAEoCRIUCgxoZWFkZXJfY29sb3IYAyABKAkSEAoIdGhlbWVfaWQYBCABKAkSEQoJZm9udF9zaXplGAUgASgFEhIKCnNvcnRfb3JkZXIYBiABKAUSEAoIZ3JvdXBfaWQYByABKAkSHgoWc3VwcG9ydHNfbWVzc2FnZXNfdmlldxgIIAEoCBIXCg9tYW51YWxseV91bnJlYWQYCyABKAgSEgoKY3JlYXRlZF9hdBgJIAEoCRISCgp1cGRhdGVkX2F0GAogASgJIoIBCgVHcm91cBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBWNvbG9yGAMgASgJEhIKCnNvcnRfb3JkZXIYBCABKAUSFAoMaXNfY29sbGFwc2VkGAUgASgIEhIKCmNyZWF0ZWRfYXQYBiABKAkSEgoKdXBkYXRlZF9hdBgHIAEoCSISChBHZXRMYXlvdXRSZXF1ZXN0IuYBCgRSb2xlEgoKAmlkGAEgASgJEhAKCGdyb3VwX2lkGAIgASgJEg0KBWxhYmVsGAMgASgJEg8KB2NvbW1hbmQYBCABKAkSEwoLd29ya2luZ19kaXIYBSABKAkSFwoPaW5jb21pbmdfcHJvbXB0GAYgASgJEhIKCnNlc3Npb25faWQYByABKAkSEgoKc29ydF9vcmRlchgIIAEoBRIPCgdiYWNrZW5kGAkgASgJEhEKCXRhcmdldF9pZBgKIAEoCRISCgpjcmVhdGVkX2F0GAsgASgJEhIKCnVwZGF0ZWRfYXQYDCABKAkizAEKEUdldExheW91dFJlc3BvbnNlEhMKC2FjdGl2ZV9wYW5lGAEgASgJEjQKBXBhbmVzGAIgAygLMiUudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5QYW5lEjYKBmdyb3VwcxgDIAMoCzImLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuR3JvdXASNAoFcm9sZXMYBCADKAsyJS52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLlJvbGUiPAoRU2F2ZUxheW91dFJlcXVlc3QSEwoLYWN0aXZlX3BhbmUYASABKAkSEgoKcGFuZV9vcmRlchgCIAMoCSIUChJTYXZlTGF5b3V0UmVzcG9uc2UilwMKEVVwZGF0ZVBhbmVSZXF1ZXN0EhIKCnNlc3Npb25faWQYASABKAkSDAoEbmFtZRgCIAEoCRIQCghoYXNfbmFtZRgDIAEoCBIUCgxoZWFkZXJfY29sb3IYBCABKAkSGAoQaGFzX2hlYWRlcl9jb2xvchgFIAEoCBIQCgh0aGVtZV9pZBgGIAEoCRIUCgxoYXNfdGhlbWVfaWQYByABKAgSEQoJZm9udF9zaXplGAggASgFEhUKDWhhc19mb250X3NpemUYCSABKAgSEgoKc29ydF9vcmRlchgKIAEoBRIWCg5oYXNfc29ydF9vcmRlchgLIAEoCBIQCghncm91cF9pZBgMIAEoCRIUCgxoYXNfZ3JvdXBfaWQYDSABKAgSHgoWc3VwcG9ydHNfbWVzc2FnZXNfdmlldxgOIAEoCBIiChpoYXNfc3VwcG9ydHNfbWVzc2FnZXNfdmlldxgPIAEoCBIXCg9tYW51YWxseV91bnJlYWQYECABKAgSGwoTaGFzX21hbnVhbGx5X3VucmVhZBgRIAEoCCJJChJVcGRhdGVQYW5lUmVzcG9uc2USMwoEcGFuZRgBIAEoCzIlLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuUGFuZSInChFEZWxldGVQYW5lUmVxdWVzdBISCgpzZXNzaW9uX2lkGAEgASgJIhQKEkRlbGV0ZVBhbmVSZXNwb25zZSIxChJDcmVhdGVHcm91cFJlcXVlc3QSDAoEbmFtZRgBIAEoCRINCgVjb2xvchgCIAEoCSJMChNDcmVhdGVHcm91cFJlc3BvbnNlEjUKBWdyb3VwGAEgASgLMiYudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5Hcm91cCKSAQoSVXBkYXRlR3JvdXBSZXF1ZXN0EgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEAoIaGFzX25hbWUYAyABKAgSDQoFY29sb3IYBCABKAkSEQoJaGFzX2NvbG9yGAUgASgIEhQKDGlzX2NvbGxhcHNlZBgGIAEoCBIYChBoYXNfaXNfY29sbGFwc2VkGAcgASgIIkwKE1VwZGF0ZUdyb3VwUmVzcG9uc2USNQoFZ3JvdXAYASABKAsyJi52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkdyb3VwIiAKEkRlbGV0ZUdyb3VwUmVxdWVzdBIKCgJpZBgBIAEoCSIVChNEZWxldGVHcm91cFJlc3BvbnNlIiQKEExpc3RSb2xlc1JlcXVlc3QSEAoIZ3JvdXBfaWQYASABKAkiSQoRTGlzdFJvbGVzUmVzcG9uc2USNAoFcm9sZXMYASADKAsyJS52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLlJvbGUivwEKEUNyZWF0ZVJvbGVSZXF1ZXN0EhAKCGdyb3VwX2lkGAEgASgJEg0KBWxhYmVsGAIgASgJEg8KB2NvbW1hbmQYAyABKAkSEwoLd29ya2luZ19kaXIYBCABKAkSFwoPaW5jb21pbmdfcHJvbXB0GAUgASgJEhIKCnNlc3Npb25faWQYBiABKAkSEgoKc29ydF9vcmRlchgHIAEoBRIPCgdiYWNrZW5kGAggASgJEhEKCXRhcmdldF9pZBgJIAEoCSJJChJDcmVhdGVSb2xlUmVzcG9uc2USMwoEcm9sZRgBIAEoCzIlLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuUm9sZSKbAwoRVXBkYXRlUm9sZVJlcXVlc3QSCgoCaWQYASABKAkSDQoFbGFiZWwYAiABKAkSEQoJaGFzX2xhYmVsGAMgASgIEg8KB2NvbW1hbmQYBCABKAkSEwoLaGFzX2NvbW1hbmQYBSABKAgSEwoLd29ya2luZ19kaXIYBiABKAkSFwoPaGFzX3dvcmtpbmdfZGlyGAcgASgIEhcKD2luY29taW5nX3Byb21wdBgIIAEoCRIbChNoYXNfaW5jb21pbmdfcHJvbXB0GAkgASgIEhIKCnNlc3Npb25faWQYCiABKAkSFgoOaGFzX3Nlc3Npb25faWQYCyABKAgSEgoKc29ydF9vcmRlchgMIAEoBRIWCg5oYXNfc29ydF9vcmRlchgNIAEoCBIPCgdiYWNrZW5kGA4gASgJEhMKC2hhc19iYWNrZW5kGA8gASgIEhEKCXRhcmdldF9pZBgQIAEoCRIVCg1oYXNfdGFyZ2V0X2lkGBEgASgIEhAKCGdyb3VwX2lkGBIgASgJEhQKDGhhc19ncm91cF9pZBgTIAEoCCJJChJVcGRhdGVSb2xlUmVzcG9uc2USMwoEcm9sZRgBIAEoCzIlLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuUm9sZSIfChFEZWxldGVSb2xlUmVxdWVzdBIKCgJpZBgBIAEoCSIUChJEZWxldGVSb2xlUmVzcG9uc2UysgoKEFdvcmtzcGFjZVNlcnZpY2UScgoJR2V0TGF5b3V0EjEudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5HZXRMYXlvdXRSZXF1ZXN0GjIudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5HZXRMYXlvdXRSZXNwb25zZRJ1CgpTYXZlTGF5b3V0EjIudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5TYXZlTGF5b3V0UmVxdWVzdBozLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuU2F2ZUxheW91dFJlc3BvbnNlEnUKClVwZGF0ZVBhbmUSMi52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLlVwZGF0ZVBhbmVSZXF1ZXN0GjMudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5VcGRhdGVQYW5lUmVzcG9uc2USdQoKRGVsZXRlUGFuZRIyLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuRGVsZXRlUGFuZVJlcXVlc3QaMy52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkRlbGV0ZVBhbmVSZXNwb25zZRJ4CgtDcmVhdGVHcm91cBIzLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuQ3JlYXRlR3JvdXBSZXF1ZXN0GjQudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5DcmVhdGVHcm91cFJlc3BvbnNlEngKC1VwZGF0ZUdyb3VwEjMudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5VcGRhdGVHcm91cFJlcXVlc3QaNC52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLlVwZGF0ZUdyb3VwUmVzcG9uc2USeAoLRGVsZXRlR3JvdXASMy52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkRlbGV0ZUdyb3VwUmVxdWVzdBo0LnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuRGVsZXRlR3JvdXBSZXNwb25zZRJyCglMaXN0Um9sZXMSMS52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkxpc3RSb2xlc1JlcXVlc3QaMi52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkxpc3RSb2xlc1Jlc3BvbnNlEnUKCkNyZWF0ZVJvbGUSMi52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLkNyZWF0ZVJvbGVSZXF1ZXN0GjMudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5DcmVhdGVSb2xlUmVzcG9uc2USdQoKVXBkYXRlUm9sZRIyLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuVXBkYXRlUm9sZVJlcXVlc3QaMy52cm9vbGkud2ViX2NvbnNvbGUudjEud29ya3NwYWNlLlVwZGF0ZVJvbGVSZXNwb25zZRJ1CgpEZWxldGVSb2xlEjIudnJvb2xpLndlYl9jb25zb2xlLnYxLndvcmtzcGFjZS5EZWxldGVSb2xlUmVxdWVzdBozLnZyb29saS53ZWJfY29uc29sZS52MS53b3Jrc3BhY2UuRGVsZXRlUm9sZVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvd29ya3NwYWNlO3dvcmtzcGFjZV92MWIGcHJvdG8z");
 
 /**
  * Pane is one terminal pane's persisted metadata. session_id is the
@@ -151,6 +151,96 @@ export const GetLayoutRequestSchema: GenMessage<GetLayoutRequest> = /*@__PURE__*
   messageDesc(file_web_console_v1_workspace_workspace, 2);
 
 /**
+ * Role is a named position inside a group.
+ *
+ * session_id is EMPTY while the role is waiting: the role holds a command
+ * and no process, costs no PTY, and renders as a placeholder. When the
+ * operator starts the role, session_id names the session it now runs as.
+ *
+ * A role stores a command string, never an enum of known agents, so any
+ * executable an operator can type is expressible as a role.
+ *
+ * @generated from message vrooli.web_console.v1.workspace.Role
+ */
+export type Role = Message<"vrooli.web_console.v1.workspace.Role"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string group_id = 2;
+   */
+  groupId: string;
+
+  /**
+   * @generated from field: string label = 3;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string command = 4;
+   */
+  command: string;
+
+  /**
+   * @generated from field: string working_dir = 5;
+   */
+  workingDir: string;
+
+  /**
+   * incoming_prompt may contain at most one {{payload}} placeholder. It is
+   * stored on the RECEIVING role, so any sender that hands off to this role
+   * gets this role's framing. Empty means "compose the message by hand".
+   *
+   * @generated from field: string incoming_prompt = 6;
+   */
+  incomingPrompt: string;
+
+  /**
+   * session_id is empty while the role is waiting.
+   *
+   * @generated from field: string session_id = 7;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: int32 sort_order = 8;
+   */
+  sortOrder: number;
+
+  /**
+   * @generated from field: string backend = 9;
+   */
+  backend: string;
+
+  /**
+   * @generated from field: string target_id = 10;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: string created_at = 11;
+   */
+  createdAt: string;
+
+  /**
+   * @generated from field: string updated_at = 12;
+   */
+  updatedAt: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.workspace.Role.
+ * Use `create(RoleSchema)` to create a new message.
+ */
+export const RoleSchema: GenMessage<Role> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_workspace_workspace, 3);
+
+/**
+ * GetLayoutResponse returns the whole workspace in one round trip. `roles`
+ * was added after `groups`; an older client ignores the unknown field.
+ *
  * @generated from message vrooli.web_console.v1.workspace.GetLayoutResponse
  */
 export type GetLayoutResponse = Message<"vrooli.web_console.v1.workspace.GetLayoutResponse"> & {
@@ -168,6 +258,11 @@ export type GetLayoutResponse = Message<"vrooli.web_console.v1.workspace.GetLayo
    * @generated from field: repeated vrooli.web_console.v1.workspace.Group groups = 3;
    */
   groups: Group[];
+
+  /**
+   * @generated from field: repeated vrooli.web_console.v1.workspace.Role roles = 4;
+   */
+  roles: Role[];
 };
 
 /**
@@ -175,7 +270,7 @@ export type GetLayoutResponse = Message<"vrooli.web_console.v1.workspace.GetLayo
  * Use `create(GetLayoutResponseSchema)` to create a new message.
  */
 export const GetLayoutResponseSchema: GenMessage<GetLayoutResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 3);
+  messageDesc(file_web_console_v1_workspace_workspace, 4);
 
 /**
  * SaveLayoutRequest persists pane ordering and the active pane selection.
@@ -200,7 +295,7 @@ export type SaveLayoutRequest = Message<"vrooli.web_console.v1.workspace.SaveLay
  * Use `create(SaveLayoutRequestSchema)` to create a new message.
  */
 export const SaveLayoutRequestSchema: GenMessage<SaveLayoutRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 4);
+  messageDesc(file_web_console_v1_workspace_workspace, 5);
 
 /**
  * @generated from message vrooli.web_console.v1.workspace.SaveLayoutResponse
@@ -213,7 +308,7 @@ export type SaveLayoutResponse = Message<"vrooli.web_console.v1.workspace.SaveLa
  * Use `create(SaveLayoutResponseSchema)` to create a new message.
  */
 export const SaveLayoutResponseSchema: GenMessage<SaveLayoutResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 5);
+  messageDesc(file_web_console_v1_workspace_workspace, 6);
 
 /**
  * UpdatePaneRequest creates or updates a single pane. Only fields with
@@ -314,7 +409,7 @@ export type UpdatePaneRequest = Message<"vrooli.web_console.v1.workspace.UpdateP
  * Use `create(UpdatePaneRequestSchema)` to create a new message.
  */
 export const UpdatePaneRequestSchema: GenMessage<UpdatePaneRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 6);
+  messageDesc(file_web_console_v1_workspace_workspace, 7);
 
 /**
  * @generated from message vrooli.web_console.v1.workspace.UpdatePaneResponse
@@ -331,7 +426,7 @@ export type UpdatePaneResponse = Message<"vrooli.web_console.v1.workspace.Update
  * Use `create(UpdatePaneResponseSchema)` to create a new message.
  */
 export const UpdatePaneResponseSchema: GenMessage<UpdatePaneResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 7);
+  messageDesc(file_web_console_v1_workspace_workspace, 8);
 
 /**
  * DeletePaneRequest is idempotent: deleting a missing session_id succeeds.
@@ -350,7 +445,7 @@ export type DeletePaneRequest = Message<"vrooli.web_console.v1.workspace.DeleteP
  * Use `create(DeletePaneRequestSchema)` to create a new message.
  */
 export const DeletePaneRequestSchema: GenMessage<DeletePaneRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 8);
+  messageDesc(file_web_console_v1_workspace_workspace, 9);
 
 /**
  * @generated from message vrooli.web_console.v1.workspace.DeletePaneResponse
@@ -363,7 +458,7 @@ export type DeletePaneResponse = Message<"vrooli.web_console.v1.workspace.Delete
  * Use `create(DeletePaneResponseSchema)` to create a new message.
  */
 export const DeletePaneResponseSchema: GenMessage<DeletePaneResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 9);
+  messageDesc(file_web_console_v1_workspace_workspace, 10);
 
 /**
  * @generated from message vrooli.web_console.v1.workspace.CreateGroupRequest
@@ -385,7 +480,7 @@ export type CreateGroupRequest = Message<"vrooli.web_console.v1.workspace.Create
  * Use `create(CreateGroupRequestSchema)` to create a new message.
  */
 export const CreateGroupRequestSchema: GenMessage<CreateGroupRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 10);
+  messageDesc(file_web_console_v1_workspace_workspace, 11);
 
 /**
  * @generated from message vrooli.web_console.v1.workspace.CreateGroupResponse
@@ -402,7 +497,7 @@ export type CreateGroupResponse = Message<"vrooli.web_console.v1.workspace.Creat
  * Use `create(CreateGroupResponseSchema)` to create a new message.
  */
 export const CreateGroupResponseSchema: GenMessage<CreateGroupResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 11);
+  messageDesc(file_web_console_v1_workspace_workspace, 12);
 
 /**
  * UpdateGroupRequest modifies a group. Only fields with has_* = true are
@@ -453,7 +548,7 @@ export type UpdateGroupRequest = Message<"vrooli.web_console.v1.workspace.Update
  * Use `create(UpdateGroupRequestSchema)` to create a new message.
  */
 export const UpdateGroupRequestSchema: GenMessage<UpdateGroupRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 12);
+  messageDesc(file_web_console_v1_workspace_workspace, 13);
 
 /**
  * @generated from message vrooli.web_console.v1.workspace.UpdateGroupResponse
@@ -470,7 +565,7 @@ export type UpdateGroupResponse = Message<"vrooli.web_console.v1.workspace.Updat
  * Use `create(UpdateGroupResponseSchema)` to create a new message.
  */
 export const UpdateGroupResponseSchema: GenMessage<UpdateGroupResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 13);
+  messageDesc(file_web_console_v1_workspace_workspace, 14);
 
 /**
  * DeleteGroupRequest is idempotent. Panes in the group get group_id
@@ -490,7 +585,7 @@ export type DeleteGroupRequest = Message<"vrooli.web_console.v1.workspace.Delete
  * Use `create(DeleteGroupRequestSchema)` to create a new message.
  */
 export const DeleteGroupRequestSchema: GenMessage<DeleteGroupRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 14);
+  messageDesc(file_web_console_v1_workspace_workspace, 15);
 
 /**
  * @generated from message vrooli.web_console.v1.workspace.DeleteGroupResponse
@@ -503,7 +598,282 @@ export type DeleteGroupResponse = Message<"vrooli.web_console.v1.workspace.Delet
  * Use `create(DeleteGroupResponseSchema)` to create a new message.
  */
 export const DeleteGroupResponseSchema: GenMessage<DeleteGroupResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_workspace_workspace, 15);
+  messageDesc(file_web_console_v1_workspace_workspace, 16);
+
+/**
+ * ListRolesRequest returns every role, ordered by group then sort_order.
+ * group_id filters to one group when non-empty.
+ *
+ * @generated from message vrooli.web_console.v1.workspace.ListRolesRequest
+ */
+export type ListRolesRequest = Message<"vrooli.web_console.v1.workspace.ListRolesRequest"> & {
+  /**
+   * @generated from field: string group_id = 1;
+   */
+  groupId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.workspace.ListRolesRequest.
+ * Use `create(ListRolesRequestSchema)` to create a new message.
+ */
+export const ListRolesRequestSchema: GenMessage<ListRolesRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_workspace_workspace, 17);
+
+/**
+ * @generated from message vrooli.web_console.v1.workspace.ListRolesResponse
+ */
+export type ListRolesResponse = Message<"vrooli.web_console.v1.workspace.ListRolesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.web_console.v1.workspace.Role roles = 1;
+   */
+  roles: Role[];
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.workspace.ListRolesResponse.
+ * Use `create(ListRolesResponseSchema)` to create a new message.
+ */
+export const ListRolesResponseSchema: GenMessage<ListRolesResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_workspace_workspace, 18);
+
+/**
+ * CreateRoleRequest adds a role to a group. group_id is required; a blank
+ * group_id returns invalid_argument. session_id is empty for a waiting role.
+ *
+ * @generated from message vrooli.web_console.v1.workspace.CreateRoleRequest
+ */
+export type CreateRoleRequest = Message<"vrooli.web_console.v1.workspace.CreateRoleRequest"> & {
+  /**
+   * @generated from field: string group_id = 1;
+   */
+  groupId: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: string command = 3;
+   */
+  command: string;
+
+  /**
+   * @generated from field: string working_dir = 4;
+   */
+  workingDir: string;
+
+  /**
+   * @generated from field: string incoming_prompt = 5;
+   */
+  incomingPrompt: string;
+
+  /**
+   * @generated from field: string session_id = 6;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: int32 sort_order = 7;
+   */
+  sortOrder: number;
+
+  /**
+   * @generated from field: string backend = 8;
+   */
+  backend: string;
+
+  /**
+   * @generated from field: string target_id = 9;
+   */
+  targetId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.workspace.CreateRoleRequest.
+ * Use `create(CreateRoleRequestSchema)` to create a new message.
+ */
+export const CreateRoleRequestSchema: GenMessage<CreateRoleRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_workspace_workspace, 19);
+
+/**
+ * @generated from message vrooli.web_console.v1.workspace.CreateRoleResponse
+ */
+export type CreateRoleResponse = Message<"vrooli.web_console.v1.workspace.CreateRoleResponse"> & {
+  /**
+   * @generated from field: vrooli.web_console.v1.workspace.Role role = 1;
+   */
+  role?: Role | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.workspace.CreateRoleResponse.
+ * Use `create(CreateRoleResponseSchema)` to create a new message.
+ */
+export const CreateRoleResponseSchema: GenMessage<CreateRoleResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_workspace_workspace, 20);
+
+/**
+ * UpdateRoleRequest modifies a role. Only fields with has_* = true are
+ * applied; the rest are left unchanged. Returns role_not_found if id does
+ * not exist. Clearing session_id (has_session_id = true, session_id = "")
+ * returns the role to waiting.
+ *
+ * @generated from message vrooli.web_console.v1.workspace.UpdateRoleRequest
+ */
+export type UpdateRoleRequest = Message<"vrooli.web_console.v1.workspace.UpdateRoleRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * @generated from field: bool has_label = 3;
+   */
+  hasLabel: boolean;
+
+  /**
+   * @generated from field: string command = 4;
+   */
+  command: string;
+
+  /**
+   * @generated from field: bool has_command = 5;
+   */
+  hasCommand: boolean;
+
+  /**
+   * @generated from field: string working_dir = 6;
+   */
+  workingDir: string;
+
+  /**
+   * @generated from field: bool has_working_dir = 7;
+   */
+  hasWorkingDir: boolean;
+
+  /**
+   * @generated from field: string incoming_prompt = 8;
+   */
+  incomingPrompt: string;
+
+  /**
+   * @generated from field: bool has_incoming_prompt = 9;
+   */
+  hasIncomingPrompt: boolean;
+
+  /**
+   * @generated from field: string session_id = 10;
+   */
+  sessionId: string;
+
+  /**
+   * @generated from field: bool has_session_id = 11;
+   */
+  hasSessionId: boolean;
+
+  /**
+   * @generated from field: int32 sort_order = 12;
+   */
+  sortOrder: number;
+
+  /**
+   * @generated from field: bool has_sort_order = 13;
+   */
+  hasSortOrder: boolean;
+
+  /**
+   * @generated from field: string backend = 14;
+   */
+  backend: string;
+
+  /**
+   * @generated from field: bool has_backend = 15;
+   */
+  hasBackend: boolean;
+
+  /**
+   * @generated from field: string target_id = 16;
+   */
+  targetId: string;
+
+  /**
+   * @generated from field: bool has_target_id = 17;
+   */
+  hasTargetId: boolean;
+
+  /**
+   * @generated from field: string group_id = 18;
+   */
+  groupId: string;
+
+  /**
+   * @generated from field: bool has_group_id = 19;
+   */
+  hasGroupId: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.workspace.UpdateRoleRequest.
+ * Use `create(UpdateRoleRequestSchema)` to create a new message.
+ */
+export const UpdateRoleRequestSchema: GenMessage<UpdateRoleRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_workspace_workspace, 21);
+
+/**
+ * @generated from message vrooli.web_console.v1.workspace.UpdateRoleResponse
+ */
+export type UpdateRoleResponse = Message<"vrooli.web_console.v1.workspace.UpdateRoleResponse"> & {
+  /**
+   * @generated from field: vrooli.web_console.v1.workspace.Role role = 1;
+   */
+  role?: Role | undefined;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.workspace.UpdateRoleResponse.
+ * Use `create(UpdateRoleResponseSchema)` to create a new message.
+ */
+export const UpdateRoleResponseSchema: GenMessage<UpdateRoleResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_workspace_workspace, 22);
+
+/**
+ * DeleteRoleRequest is idempotent: deleting a missing id succeeds.
+ *
+ * @generated from message vrooli.web_console.v1.workspace.DeleteRoleRequest
+ */
+export type DeleteRoleRequest = Message<"vrooli.web_console.v1.workspace.DeleteRoleRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.workspace.DeleteRoleRequest.
+ * Use `create(DeleteRoleRequestSchema)` to create a new message.
+ */
+export const DeleteRoleRequestSchema: GenMessage<DeleteRoleRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_workspace_workspace, 23);
+
+/**
+ * @generated from message vrooli.web_console.v1.workspace.DeleteRoleResponse
+ */
+export type DeleteRoleResponse = Message<"vrooli.web_console.v1.workspace.DeleteRoleResponse"> & {
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.workspace.DeleteRoleResponse.
+ * Use `create(DeleteRoleResponseSchema)` to create a new message.
+ */
+export const DeleteRoleResponseSchema: GenMessage<DeleteRoleResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_workspace_workspace, 24);
 
 /**
  * @generated from service vrooli.web_console.v1.workspace.WorkspaceService
@@ -564,6 +934,41 @@ export const WorkspaceService: GenService<{
     methodKind: "unary";
     input: typeof DeleteGroupRequestSchema;
     output: typeof DeleteGroupResponseSchema;
+  },
+  /**
+   * Roles are named positions inside a group. They are additive: a group
+   * with no roles behaves exactly as it did before roles existed.
+   *
+   * @generated from rpc vrooli.web_console.v1.workspace.WorkspaceService.ListRoles
+   */
+  listRoles: {
+    methodKind: "unary";
+    input: typeof ListRolesRequestSchema;
+    output: typeof ListRolesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.workspace.WorkspaceService.CreateRole
+   */
+  createRole: {
+    methodKind: "unary";
+    input: typeof CreateRoleRequestSchema;
+    output: typeof CreateRoleResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.workspace.WorkspaceService.UpdateRole
+   */
+  updateRole: {
+    methodKind: "unary";
+    input: typeof UpdateRoleRequestSchema;
+    output: typeof UpdateRoleResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.workspace.WorkspaceService.DeleteRole
+   */
+  deleteRole: {
+    methodKind: "unary";
+    input: typeof DeleteRoleRequestSchema;
+    output: typeof DeleteRoleResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_workspace_workspace, 0);

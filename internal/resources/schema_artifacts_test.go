@@ -22,8 +22,8 @@ func TestSyncAndValidateSchemaArtifacts(t *testing.T) {
 	testresource.WriteResourcesSchema(t, root)
 	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDriver("external-cli"),
 		testresource.WithResourceDisplayName("PostgreSQL"),
 		testresource.WithResourceDescription("Database"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
@@ -109,8 +109,8 @@ func TestGeneratedCatalogAcceptsSharedDependencyKeys(t *testing.T) {
 	testresource.WriteResourcesSchema(t, root)
 	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDriver("external-cli"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{Image: "postgres:16-alpine"}),
 		testresource.WithResourceDependencySchema(json.RawMessage(`{
   "type": "object",
@@ -189,8 +189,8 @@ func TestValidateSchemaArtifactsDetectsMissingScenarioResourceReferences(t *test
 	testresource.WriteResourcesSchema(t, root)
 	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDriver("external-cli"),
 		testresource.WithResourceDisplayName("PostgreSQL"),
 		testresource.WithResourceDescription("Database"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
@@ -251,8 +251,8 @@ func TestValidateSchemaArtifactsDetectsStaleFiles(t *testing.T) {
 	testresource.WriteResourcesSchema(t, root)
 	testresource.WriteResourceManifest(t, root, "postgres", testresource.ResourceManifest(
 		"postgres",
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceTemplate("external-cli"),
+		testresource.WithResourceDriver("external-cli"),
 		testresource.WithResourceDisplayName("PostgreSQL"),
 		testresource.WithResourceDescription("Database"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{

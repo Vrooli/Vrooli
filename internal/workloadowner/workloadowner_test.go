@@ -18,7 +18,7 @@ func TestDeclarationsFromRootToleratesUnknownServiceManifestFields(t *testing.T)
 }`)
 	testkitgo.WriteFile(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{
   "name": "postgres",
-  "driver": "docker-service",
+  "driver": "managed-service",
   "runtime": {"container_name": "postgres-main"}
 }`)
 

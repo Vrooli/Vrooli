@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	samplingParameterA = 0.5
+	halfLifeDecayBase = 0.5
 )
 
 // DecayedPeak folds a new observed sample into a decaying high-water mark
@@ -22,7 +22,7 @@ const (
 func DecayedPeak(prevPeak, observed int64, prevAt, now time.Time, halflife time.Duration) int64 {
 	decayed := prevPeak
 	if halflife > 0 && !prevAt.IsZero() && now.After(prevAt) {
-		factor := math.Pow(samplingParameterA, float64(now.Sub(prevAt))/float64(halflife))
+		factor := math.Pow(halfLifeDecayBase, float64(now.Sub(prevAt))/float64(halflife))
 		decayed = int64(float64(prevPeak) * factor)
 	}
 	if decayed < 0 {

@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cliinstall"
@@ -30,9 +30,10 @@ import (
 )
 
 const (
-	projectParameterA = 3
-	projectParameterB = 400
-	projectParameterC = 8
+	projectParameterA      = 3
+	projectParameterB      = 400
+	projectParameterC      = 8
+	projectSeverityWarning = "warning"
 )
 
 type Controller struct {
@@ -486,7 +487,7 @@ func summarizeCLIInstallStatuses(name string, statuses []cliinstall.InstallLocat
 	if notOnPath > 0 {
 		parts = append(parts, fmt.Sprintf("%d canonical installs are not on PATH", notOnPath))
 	}
-	sort.Strings(samples)
+	slices.Sort(samples)
 
 	message := strings.Join(parts, "; ")
 	if len(samples) > 0 {
@@ -515,7 +516,7 @@ func summarizeDiscoveryFailures(name string, failures []discovery.Failure) Docto
 
 func countStatus(count int) string {
 	if count > 0 {
-		return "warning"
+		return projectSeverityWarning
 	}
 	return "ok"
 }

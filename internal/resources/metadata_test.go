@@ -41,7 +41,7 @@ func TestLoadResourceEnvironmentIgnoresRetiredFileStores(t *testing.T) {
 	})
 	testresource.WriteResourceManifest(t, root, "postgres", manifestpkg.ResourceManifest{
 		Name:   "postgres",
-		Driver: "docker-service",
+		Driver: "external-cli",
 		Ports:  []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
@@ -62,7 +62,7 @@ func TestLoadResourceEnvironmentIgnoresRetiredFileStores(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "fixturehttp", manifestpkg.ResourceManifest{
 		Name:    "fixturehttp",
-		Driver:  "docker-service",
+		Driver:  "external-cli",
 		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 3000, Host: 4110}},
 		Runtime: manifestpkg.ResourceRuntime{Image: "example/fixturehttp:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -143,7 +143,7 @@ func TestLoadResourceEnvironmentKeepsManifestRuntimeValuesOverRetiredStores(t *t
 	})
 	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
 		Name:   "postgres",
-		Driver: "docker-service",
+		Driver: "external-cli",
 		Ports:  []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
@@ -252,7 +252,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "redis", manifestpkg.ResourceManifest{
 		Name:    "redis",
-		Driver:  "docker-service",
+		Driver:  "external-cli",
 		Ports:   []manifestpkg.ResourcePort{{Name: "redis", Container: 6379, Host: 6380}},
 		Runtime: manifestpkg.ResourceRuntime{Image: "redis:7-alpine"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -267,7 +267,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "qdrant", manifestpkg.ResourceManifest{
 		Name:   "qdrant",
-		Driver: "docker-service",
+		Driver: "external-cli",
 		Ports: []manifestpkg.ResourcePort{
 			{Name: "http", Container: 6333, Host: 6333},
 			{Name: "grpc", Container: 6334, Host: 6334},
@@ -285,7 +285,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "ollama", manifestpkg.ResourceManifest{
 		Name:    "ollama",
-		Driver:  "docker-service",
+		Driver:  "external-cli",
 		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 11434, Host: 11434}},
 		Runtime: manifestpkg.ResourceRuntime{Image: "example/inference-service:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -299,7 +299,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "minio", manifestpkg.ResourceManifest{
 		Name:   "minio",
-		Driver: "docker-service",
+		Driver: "external-cli",
 		Ports: []manifestpkg.ResourcePort{
 			{Name: "api", Container: 9000, Host: 9000},
 			{Name: "console", Container: 9001, Host: 9001},
@@ -326,7 +326,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "vault", manifestpkg.ResourceManifest{
 		Name:    "vault",
-		Driver:  "docker-service",
+		Driver:  "external-cli",
 		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 8200, Host: 8200}},
 		Runtime: manifestpkg.ResourceRuntime{Image: "hashicorp/vault:1.17"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -340,7 +340,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "timeseries-fixture", manifestpkg.ResourceManifest{
 		Name:   "timeseries-fixture",
-		Driver: "docker-service",
+		Driver: "external-cli",
 		Ports: []manifestpkg.ResourcePort{
 			{Name: "http", Container: 9000, Host: 9009},
 			{Name: "postgresql", Container: 8812, Host: 8812},
@@ -374,7 +374,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "searxng", manifestpkg.ResourceManifest{
 		Name:    "searxng",
-		Driver:  "docker-service",
+		Driver:  "external-cli",
 		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 8080, Host: 8280}},
 		Runtime: manifestpkg.ResourceRuntime{Image: "example/searxng:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -388,7 +388,7 @@ func TestLoadResourceEnvironmentSupportsNativeDerivedURLs(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "unstructured-io", manifestpkg.ResourceManifest{
 		Name:    "unstructured-io",
-		Driver:  "docker-service",
+		Driver:  "external-cli",
 		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 8000, Host: 11450}},
 		Runtime: manifestpkg.ResourceRuntime{Image: "downloads.unstructured.io/unstructured-api:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -486,7 +486,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "fixture-rest", manifestpkg.ResourceManifest{
 		Name:    "fixture-rest",
-		Driver:  "docker-service",
+		Driver:  "external-cli",
 		Ports:   []manifestpkg.ResourcePort{{Name: "http", Container: 8123, Host: 8123}},
 		Runtime: manifestpkg.ResourceRuntime{Image: "example/fixture-rest:1.0.0"},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -501,7 +501,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "whisper", manifestpkg.ResourceManifest{
 		Name:        "whisper",
-		Driver:      "compose-service",
+		Driver:      "external-cli",
 		ComposeFile: "docker/docker-compose.yml",
 		Ports:       []manifestpkg.ResourcePort{{Name: "http", Container: 9000, Host: 8090}},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -516,7 +516,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "kokoro", manifestpkg.ResourceManifest{
 		Name:        "kokoro",
-		Driver:      "compose-service",
+		Driver:      "external-cli",
 		ComposeFile: "docker/docker-compose.yml",
 		Ports:       []manifestpkg.ResourcePort{{Name: "http", Container: 8880, Host: 8880}},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -530,7 +530,7 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	})
 	writeEnvManifestFixture(t, root, "fixtureexec", manifestpkg.ResourceManifest{
 		Name:        "fixtureexec",
-		Driver:      "compose-service",
+		Driver:      "external-cli",
 		ComposeFile: "compose.yaml",
 		Ports:       []manifestpkg.ResourcePort{{Name: "http", Container: 9999, Host: 9999}},
 		EnvironmentExports: manifestpkg.ResourceEnvironmentExports{
@@ -799,7 +799,7 @@ func writePostgresManifestFixture(t *testing.T, root string) {
 	t.Helper()
 	writeEnvManifestFixture(t, root, "postgres", manifestpkg.ResourceManifest{
 		Name:   "postgres",
-		Driver: "docker-service",
+		Driver: "external-cli",
 		Ports:  []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",

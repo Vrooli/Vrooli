@@ -15,7 +15,7 @@
     "Event-driven analytics backplanes",
     "High-volume audit log aggregation"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "Cross-platform via containers is plausible, but local developer ergonomics and operational complexity are materially higher than simpler queueing options.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Scenario-level need for durable event streams"
   ],
   "dependencies": [],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Prefer a compose-style template because realistic Kafka setups often need companion services or multiple containers.",
     "Keep the future implementation honest about resource costs and startup time.",

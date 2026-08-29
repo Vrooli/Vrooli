@@ -1,14 +1,14 @@
 package permissionscli
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
-	"resource-grok/cli/internal/permissions"
+	"github.com/vrooli/vrooli/resources/grok/cli/internal/permissions"
 
 	"github.com/vrooli/agentharness"
+	"github.com/vrooli/vrooli/internal/cliout"
 )
 
 var grokPermissionPosture = agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Grok native permission rules remain active; the portable PreToolUse runner requires an installed-version canary before it is considered verified."}}
@@ -108,7 +108,7 @@ func grokPortablePatterns(patterns []string) []string {
 
 func (h *Handlers) writePlan(result agentharness.PermissionPlanResult, asJSON bool) error {
 	if asJSON {
-		data, err := json.MarshalIndent(result, "", "  ")
+		data, err := cliout.MarshalIndent(result)
 		if err != nil {
 			return err
 		}

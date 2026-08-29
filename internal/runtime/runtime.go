@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	goruntime "runtime"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -48,7 +49,7 @@ func SafeguardPortabilityBacklog() (PortabilityBacklogReport, error) {
 			report.Entries = append(report.Entries, manifest.Name+"/"+platform)
 		}
 	}
-	sort.Strings(report.Entries)
+	slices.Sort(report.Entries)
 	return report, nil
 }
 

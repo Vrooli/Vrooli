@@ -16,6 +16,12 @@ type capturedCommand struct {
 	Args []string
 }
 
+const (
+	modulesTestInstall  = "install"
+	modulesTestSudo     = "sudo"
+	modulesTestModprobe = "modprobe"
+)
+
 // stubAll swaps every package-level seam used by EnsureLoadAtBoot/Modprobe
 // for capturing fakes and returns a restore func plus accessors.
 var stubAll = modulesStubAll
@@ -47,7 +53,7 @@ func modulesStubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]str
 		// Simulate `install -m 644 <tmp> <dst>` by capturing the tempfile
 		// contents under the destination path. This lets later FileContentMatches
 		// calls observe the write.
-		if name == "install" && len(args) >= 4 {
+		if name == modulesTestInstall && len(args) >= 4 {
 			tmp := args[len(args)-2]
 			dst := args[len(args)-1]
 			if c, ok := tempContents[tmp]; ok {
@@ -64,7 +70,7 @@ func modulesStubAll(t *testing.T) (cmds *[]capturedCommand, files map[string]str
 		// Disable sudo wrapping in tests — without sudo on PATH, WithSudo
 		// returns the unwrapped command and the captured Name field is the
 		// real command (install / modprobe / mkdir), making assertions clean.
-		if name == "sudo" {
+		if name == modulesTestSudo {
 			return "", fs.ErrNotExist
 		}
 		return "/usr/bin/" + name, nil
@@ -155,7 +161,7 @@ func TestEnsureLoadAtBootWritesBothFiles(t *testing.T) {
 		if c.Name == "mkdir" {
 			mkdirCount++
 		}
-		if c.Name == "install" {
+		if c.Name == modulesTestInstall {
 			installCount++
 		}
 	}
@@ -183,7 +189,7 @@ func TestEnsureLoadAtBootNilOptionsSkipsModprobeFile(t *testing.T) {
 	}
 	installCount := 0
 	for _, c := range *cmds {
-		if c.Name == "install" {
+		if c.Name == modulesTestInstall {
 			installCount++
 		}
 	}
@@ -320,10 +326,10 @@ func TestModprobePassesOptionsAsKVArgs(t *testing.T) {
 	// One modprobe call expected (sudo wrapping is internal to RunPrivilegedCommand).
 	found := false
 	for _, c := range *cmds {
-		if c.Name == "modprobe" || (c.Name == "sudo" && len(c.Args) > 0 && c.Args[0] == "modprobe") {
+		if c.Name == modulesTestModprobe || (c.Name == modulesTestSudo && len(c.Args) > 0 && c.Args[0] == modulesTestModprobe) {
 			found = true
 			args := c.Args
-			if c.Name == "sudo" {
+			if c.Name == modulesTestSudo {
 				args = c.Args[1:]
 			}
 			// Expect: ["netconsole", "netconsole=x"]

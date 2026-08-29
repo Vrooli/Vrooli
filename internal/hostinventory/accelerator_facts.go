@@ -2,7 +2,7 @@ package hostinventory
 
 import (
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -20,6 +20,12 @@ const (
 	BackendROCm   = "rocm"
 	BackendVulkan = "vulkan"
 	BackendCPU    = "cpu"
+)
+
+const (
+	vendorNVIDIA = "nvidia"
+	vendorAMD    = "amd"
+	vendorApple  = "apple"
 )
 
 // Vendor tool names. hostinventory owns the vendor-tool vocabulary along with
@@ -298,7 +304,7 @@ func (s Snapshot) acceleratorVendors() []string {
 	for vendor := range seen {
 		out = append(out, vendor)
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out
 }
 
@@ -307,11 +313,11 @@ func (s Snapshot) acceleratorVendors() []string {
 func vendorFromGPU(gpu GPU) string {
 	switch gpu.Source {
 	case SourceNvidiaSMI:
-		return "nvidia"
+		return vendorNVIDIA
 	case SourceROCmSMI:
-		return "amd"
+		return vendorAMD
 	case SourceDarwinUnifiedMemory:
-		return "apple"
+		return vendorApple
 	}
 	return normaliseVendor(gpu.Name)
 }
@@ -324,9 +330,9 @@ func normaliseVendor(raw string) string {
 	case lowered == "":
 		return ""
 	case strings.Contains(lowered, "nvidia"):
-		return "nvidia"
+		return vendorNVIDIA
 	case isAMDVendor(lowered):
-		return "amd"
+		return vendorAMD
 	case strings.Contains(lowered, "intel"):
 		return "intel"
 	case strings.Contains(lowered, "apple"):
@@ -343,7 +349,7 @@ func (s Snapshot) AcceleratorFactSummary() []string {
 	for key := range facts {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	out := make([]string, 0, len(keys))
 	for _, key := range keys {
 		out = append(out, fmt.Sprintf("%s=%s", key, facts[key]))

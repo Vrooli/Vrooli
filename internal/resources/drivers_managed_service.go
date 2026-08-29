@@ -28,6 +28,11 @@ import (
 
 type managedServiceDriver struct{}
 
+const (
+	managedServiceHealthy   = "healthy"
+	managedServiceUnhealthy = "unhealthy"
+)
+
 func (managedServiceDriver) Name() string { return accelBridgeManagedService }
 
 // ManagedServiceOwnerLifecycle binds the broker's owner-only management
@@ -152,6 +157,13 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 	if raw, err := json.Marshal(state); err == nil {
 		status.Raw = raw
 	}
+	if declaration := manifest.EffectiveAcceleration(); declaration != nil && len(declaration.Backends) > 0 {
+		// A stopped resource cannot have placement evidence, but its declared
+		// mode remains known. The explicit sentinel distinguishes that state
+		// from a resource that has no acceleration declaration.
+		status.DeclaredMode = declaration.Backends[0]
+		status.ObservedMode = "not_evaluated"
+	}
 	if !running {
 		healthy := false
 		status.Healthy = &healthy
@@ -164,6 +176,14 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 	status.Health = "running"
 	status.Message = "running"
 	if fast || len(manifest.HealthChecks) == 0 {
+		// Placement is a cheap, independent observation. Keep the expensive
+		// readiness/liveness checks out of the fast path, but never leave
+		// accelerator fields blank merely because those checks were skipped.
+		health := controller.foldPlacementIntoHealth(ctx, manifest, HealthResult{
+			Healthy: true,
+			Serving: true,
+		})
+		status = applyHealthToStatus(status, health)
 		return d.withCompanionStatus(status, manifest)
 	}
 	health, err := controller.runResourceHealthChecks(ctx, manifest)
@@ -176,9 +196,9 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 	status = applyHealthToStatus(status, health)
 	if status.Message == "" {
 		if health.Healthy {
-			status.Message = "healthy"
+			status.Message = managedServiceHealthy
 		} else {
-			status.Message = "unhealthy"
+			status.Message = managedServiceUnhealthy
 		}
 	}
 	return d.withCompanionStatus(status, manifest)
@@ -199,7 +219,7 @@ func (d managedServiceDriver) withCompanionStatus(status Status, manifest Resour
 	if down := downCompanions(companions); len(down) > 0 {
 		healthy := false
 		status.Healthy = &healthy
-		status.Health = "unhealthy"
+		status.Health = managedServiceUnhealthy
 		status.Message = companionDownMessage(manifest.Name, down)
 	}
 	return status, nil
@@ -468,7 +488,7 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 			return err
 		}
 		return verifyStartedPlacement(ctx, controller, manifest, os.Stderr)
-	case "stop", "uninstall":
+	case brokerTransportStop, "uninstall":
 		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		defer cancel()
@@ -732,7 +752,7 @@ func (d managedServiceDriver) runDiscovered(ctx context.Context, controller *Con
 			return fmt.Errorf("reconcile managed-discovered ownership before start: %w", err)
 		}
 	}
-	if action == "restart" {
+	if action == brokerTransportRestart {
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		err = stopManagedService(stopCtx, manifest, supervisor)
 		cancel()

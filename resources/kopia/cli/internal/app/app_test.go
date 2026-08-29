@@ -3,10 +3,10 @@ package app
 import (
 	"testing"
 
-	"resource-kopia/cli/internal/maintenance"
-	"resource-kopia/cli/internal/policy"
-	"resource-kopia/cli/internal/repo"
-	"resource-kopia/cli/internal/snapshot"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/maintenance"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repo"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/snapshot"
 )
 
 func TestNewBuildsResourceApp(t *testing.T) {

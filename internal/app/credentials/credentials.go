@@ -2,12 +2,13 @@ package credentials
 
 import (
 	"context"
-	"flag"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -24,7 +25,6 @@ import (
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/credentialinventory"
 	"github.com/vrooli/vrooli/internal/credentialspec"
-	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/resources/catalog"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
@@ -32,10 +32,6 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	grantv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
 	grantv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant/credentialgrant_v1connect"
-)
-
-const (
-	credentialsText = "text"
 )
 
 const (
@@ -81,14 +77,18 @@ type credentialListReport struct {
 	Credentials      []credentialEntry `json:"credentials"`
 }
 
+type credentialRecoveryExportReport struct {
+	Written int      `json:"written"`
+	Skipped []string `json:"skipped"`
+}
+
 func listCredentials(ctx *CommandContext, args []string) error {
-	fs := flag.NewFlagSet("credentials list", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	format := fs.String("format", credentialsText, "output format: text or json")
+	fs := commandtree.NewFlagSet("credentials list")
+	format := fs.String("format", string(cliout.FormatHuman), "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if len(fs.Args()) != 0 || (*format != credentialsText && *format != string(logx.FormatJSON)) {
+	if len(fs.Args()) != 0 || (*format != string(cliout.FormatHuman) && *format != string(cliout.FormatJSON)) {
 		return fmt.Errorf("credentials list accepts only --format text|json")
 	}
 	entries, err := collectCredentialEntries(ctx.Root)
@@ -105,7 +105,7 @@ func listCredentials(ctx *CommandContext, args []string) error {
 		RequiredAbsent:   recovery.RequiredAbsent,
 		Credentials:      entries,
 	}
-	if *format == string(logx.FormatJSON) {
+	if *format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, report)
 	}
 	fmt.Fprintf(ctx.Stdout, "Credential addresses (%d; basis=distinct_addresses; managed_instances_included=true)\n", report.CredentialCount)
@@ -117,15 +117,24 @@ func listCredentials(ctx *CommandContext, args []string) error {
 }
 
 func deleteCredential(ctx *CommandContext, args []string) error {
-	identity, field, _, err := credentialSelectorFlags("credentials delete", args, false)
-	if err != nil {
-		return err
-	}
-	fs := flag.NewFlagSet("credentials delete", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("credentials delete")
+	identityRaw, field := "", "value"
+	fs.StringVar(&identityRaw, "identity", "", "logical credential identity")
+	fs.StringVar(&field, "field", "value", "credential field")
 	yes := fs.Bool("yes", false, "confirm deletion")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	if len(fs.Args()) != 0 {
+		return errors.New("credentials delete accepts no positional arguments")
+	}
+	identity, err := credentialauthority.ParseIdentity(identityRaw)
+	if err != nil {
+		return err
+	}
+	field = strings.TrimSpace(field)
+	if field == "" {
+		return errors.New("credential field is required")
 	}
 	if !*yes {
 		return fmt.Errorf("refusing to delete %s:%s without explicit --yes confirmation", identity, field)
@@ -178,13 +187,12 @@ func credentialAuthority() (*credentialauthority.Authority, error) {
 // ones add. Three near-identical copies of this had already drifted apart in
 // how they reported a bad field.
 func credentialSelectorFlags(name string, args []string, withFormat bool) (credentialauthority.Identity, string, string, error) {
-	fs := flag.NewFlagSet(name, flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	identityRaw, field, format := "", "", credentialsText
+	fs := commandtree.NewFlagSet(name)
+	identityRaw, field, format := "", "", string(cliout.FormatHuman)
 	fs.StringVar(&identityRaw, "identity", "", "logical credential identity")
 	fs.StringVar(&field, "field", "value", "credential field")
 	if withFormat {
-		fs.StringVar(&format, "format", credentialsText, "output format: text or json")
+		fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
 	}
 	if err := fs.Parse(args); err != nil {
 		return "", "", "", err
@@ -201,7 +209,7 @@ func credentialSelectorFlags(name string, args []string, withFormat bool) (crede
 		return "", "", "", fmt.Errorf("credential field is required")
 	}
 	format = strings.TrimSpace(format)
-	if format != credentialsText && format != string(logx.FormatJSON) {
+	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return "", "", "", fmt.Errorf("%s format must be text or json", name)
 	}
 	return identity, field, format, nil
@@ -308,7 +316,7 @@ func credentialStatus(ctx *CommandContext, args []string) error {
 		return err
 	}
 	status := authority.Status(identity, field)
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, status)
 	}
 	// The provider state travels with the answer so `configured: false` can
@@ -432,7 +440,7 @@ func collectCredentialEntries(root string) ([]credentialEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("discover resource manifests: %w", err)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		resourceManifest, err := manifestpkg.Load(manifestpkg.DefaultPath(root, name))
 		if err != nil {
@@ -615,16 +623,15 @@ func recoveryPassphrase(input io.Reader, prompt io.Writer) (string, error) {
 
 //nolint:gocyclo // recovery export branches by provider, encryption, and artifact verification state.
 func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reader) error {
-	fs := flag.NewFlagSet("credentials recovery export", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("credentials recovery export")
 	var entries credentialEntries
 	output := ""
 	all := false
-	format := credentialsText
+	format := string(cliout.FormatHuman)
 	fs.Var(&entries, "entry", "credential entry in identity:field form; repeat for each entry")
 	fs.StringVar(&output, "output", "", "new encrypted recovery bundle path")
 	fs.BoolVar(&all, "all", false, "include every configured credential declared by a resource manifest")
-	fs.StringVar(&format, "format", credentialsText, "output format: text or json")
+	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -638,7 +645,7 @@ func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 		return fmt.Errorf("recovery export requires at least one --entry or --all")
 	}
 	format = strings.TrimSpace(format)
-	if format != credentialsText && format != string(logx.FormatJSON) {
+	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return fmt.Errorf("credentials recovery export format must be text or json")
 	}
 	selected := make([]credentialauthority.RecoveryEntry, 0, len(entries))
@@ -721,11 +728,8 @@ func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 		_ = credentialauthority.WriteRecoveryReceipt(stateDir, output, selected, time.Now())
 	}
 
-	if format == string(logx.FormatJSON) {
-		return cliout.WriteJSONValue(ctx.Stdout, struct {
-			Written int      `json:"written"`
-			Skipped []string `json:"skipped"`
-		}{Written: len(selected), Skipped: skipped})
+	if format == string(cliout.FormatJSON) {
+		return cliout.WriteJSONValue(ctx.Stdout, credentialRecoveryExportReport{Written: len(selected), Skipped: skipped})
 	}
 	if _, err = fmt.Fprintf(ctx.Stdout, "Encrypted recovery bundle created for %d credential entries.\n", len(selected)); err != nil {
 		return err
@@ -749,11 +753,10 @@ func exportCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 // nothing, so it is safe to run anywhere, including on the machine that will
 // hold the backup rather than the one that made it.
 func verifyCredentialRecovery(ctx *CommandContext, args []string, input io.Reader) error {
-	fs := flag.NewFlagSet("credentials recovery verify", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	path, format := "", credentialsText
+	fs := commandtree.NewFlagSet("credentials recovery verify")
+	path, format := "", string(cliout.FormatHuman)
 	fs.StringVar(&path, "input", "", "encrypted recovery bundle path")
-	fs.StringVar(&format, "format", credentialsText, "output format: text or json")
+	fs.StringVar(&format, "format", string(cliout.FormatHuman), "output format: text or json")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -761,7 +764,7 @@ func verifyCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 		return fmt.Errorf("recovery verify requires --input")
 	}
 	format = strings.TrimSpace(format)
-	if format != credentialsText && format != string(logx.FormatJSON) {
+	if format != string(cliout.FormatHuman) && format != string(cliout.FormatJSON) {
 		return fmt.Errorf("credentials recovery verify format must be text or json")
 	}
 	passphrase, err := recoveryPassphrase(input, ctx.Stderr)
@@ -776,7 +779,7 @@ func verifyCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 	if err != nil {
 		return err
 	}
-	if format == string(logx.FormatJSON) {
+	if format == string(cliout.FormatJSON) {
 		return cliout.WriteJSONValue(ctx.Stdout, manifest)
 	}
 	if _, err := fmt.Fprintf(ctx.Stdout,
@@ -793,8 +796,7 @@ func verifyCredentialRecovery(ctx *CommandContext, args []string, input io.Reade
 }
 
 func restoreCredentialRecovery(ctx *CommandContext, args []string, input io.Reader) error {
-	fs := flag.NewFlagSet("credentials recovery restore", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs := commandtree.NewFlagSet("credentials recovery restore")
 	path := ""
 	fs.StringVar(&path, "input", "", "encrypted recovery bundle path")
 	if err := fs.Parse(args); err != nil {

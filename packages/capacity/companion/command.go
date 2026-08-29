@@ -49,6 +49,9 @@ func Run(options CommandOptions, args []string) error {
 	if cfg.Log == nil {
 		cfg.Log = stderr
 	}
+	if cfg.ParentPID == 0 {
+		cfg.ParentPID = os.Getppid()
+	}
 
 	set := flag.NewFlagSet("capacity-sync", flag.ContinueOnError)
 	set.SetOutput(stderr)

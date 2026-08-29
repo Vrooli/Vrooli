@@ -47,6 +47,29 @@ func TestCoverageProfileChurnDoesNotMakeBinaryStale(t *testing.T) {
 	}
 }
 
+// The installed-CLI stale checker still uses the legacy content fingerprint,
+// not the stat-cache manifest above. Pin the same build-output exclusion there
+// because a mismatch causes an auto-rebuild and can restart a scenario API.
+func TestCoverageProfileChurnDoesNotChangeDeclaredInputFingerprint(t *testing.T) {
+	root := t.TempDir()
+	writeOutputTestFile(t, filepath.Join(root, "api", "main.go"), "package main\nfunc main(){}\n")
+	writeOutputTestFile(t, filepath.Join(root, "api", "coverage.out"), "mode: set\n")
+	spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: []string{"api/**"}}
+
+	before, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatalf("compute before: %v", err)
+	}
+	writeOutputTestFile(t, filepath.Join(root, "api", "coverage.out"), "mode: set\nmain.go:1.1,2.2 1 1\n")
+	after, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatalf("compute after: %v", err)
+	}
+	if before != after {
+		t.Fatalf("coverage churn changed declared-input fingerprint: before=%s after=%s", before, after)
+	}
+}
+
 func TestBuildOutputsAreExcludedFromInputs(t *testing.T) {
 	root := t.TempDir()
 	writeOutputTestFile(t, filepath.Join(root, "main.go"), "package main\n")

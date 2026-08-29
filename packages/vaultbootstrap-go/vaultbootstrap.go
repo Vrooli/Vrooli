@@ -87,7 +87,7 @@ func (c Client) httpClient() *http.Client {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return &http.Client{Timeout: 30 * time.Second}
+	return &http.Client{Timeout: 30 * time.Second} //nolint:mnd // Vault bootstrap deadline is an operational contract
 }
 
 // Request performs one Vault API call. Body and response are JSON; the token,
@@ -138,7 +138,7 @@ func (c Client) WaitReachable(parent context.Context, timeout time.Duration) err
 		select {
 		case <-ctx.Done():
 			return fmt.Errorf("wait for Vault reachability at %s: %w", c.Endpoint, ctx.Err())
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(100 * time.Millisecond): //nolint:mnd // polling interval bounds bootstrap readiness latency
 		}
 	}
 }

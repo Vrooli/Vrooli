@@ -1,8 +1,7 @@
 package hostapp
 
 import (
-	"time"
-
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
@@ -123,7 +122,7 @@ func hostSnapshotResponse(s hostinventory.Snapshot) *cliv1.CliHostSnapshot {
 			out.FieldProvenance[field] = &cliv1.CliHostProvenance{
 				SourceKind: string(prov.SourceKind),
 				Source:     prov.Source,
-				ObservedAt: formatTime(prov.ObservedAt),
+				ObservedAt: cliout.FormatTimestamp(prov.ObservedAt),
 				Confidence: prov.Confidence,
 				Command:    prov.Command,
 				File:       prov.File,
@@ -139,13 +138,6 @@ func derefFloat(p *float64) float64 {
 		return 0
 	}
 	return *p
-}
-
-func formatTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format(time.RFC3339Nano)
 }
 
 // hostDeviceResponses maps the device-tree enumeration onto the wire contract.

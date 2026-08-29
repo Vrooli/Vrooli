@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"resource-kopia/cli/internal/version"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/version"
 
-	resourceapp "resource-kopia/cli/internal/app"
+	resourceapp "github.com/vrooli/vrooli/resources/kopia/cli/internal/app"
 )
 
 func TestNewAppConfiguresResourceApp(t *testing.T) {

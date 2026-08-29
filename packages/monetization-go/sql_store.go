@@ -19,6 +19,12 @@ const (
 	SQLDialectPostgres SQLDialect = "postgres"
 )
 
+const (
+	sqlPlaceholderFirst  = 1
+	sqlPlaceholderSecond = 2
+	sqlPlaceholderThird  = 3
+)
+
 // SQLExecutor is the narrow database seam needed by SQLStore. It deliberately
 // excludes transactions because each state transition is one atomic SQL
 // statement guarded by the operation id.
@@ -62,7 +68,7 @@ func (s *SQLStore) Append(ctx context.Context, usage Usage) (bool, error) {
 		INSERT INTO monetization_usage_outbox (operation_id, user_identity, payload, status, next_attempt_at)
 		VALUES (%s, %s, %s, 'pending', CURRENT_TIMESTAMP)
 		ON CONFLICT(operation_id) DO NOTHING
-	`, s.placeholder(1), s.placeholder(2), s.placeholder(3))
+	`, s.placeholder(sqlPlaceholderFirst), s.placeholder(sqlPlaceholderSecond), s.placeholder(sqlPlaceholderThird))
 	result, err := s.db.ExecContext(ctx, query, usage.OperationID, usage.UserIdentity, string(payload))
 	if err != nil {
 		return false, fmt.Errorf("persist monetization usage: %w", err)
@@ -82,7 +88,7 @@ func (s *SQLStore) Pending(ctx context.Context, limit int, now time.Time) ([]Out
 		WHERE status = 'pending' AND next_attempt_at <= %s
 		ORDER BY created_at
 		LIMIT %s
-	`, s.placeholder(1), s.placeholder(2))
+	`, s.placeholder(sqlPlaceholderFirst), s.placeholder(sqlPlaceholderSecond))
 	rows, err := s.db.QueryContext(ctx, query, now.UTC(), limit)
 	if err != nil {
 		return nil, fmt.Errorf("query pending monetization usage: %w", err)
@@ -121,7 +127,7 @@ func (s *SQLStore) MarkDelivered(ctx context.Context, operationID string, at tim
 	if s == nil || s.db == nil {
 		return ErrNilOutbox
 	}
-	query := fmt.Sprintf(`UPDATE monetization_usage_outbox SET status = 'delivered', delivered_at = %s, updated_at = CURRENT_TIMESTAMP WHERE operation_id = %s`, s.placeholder(1), s.placeholder(2))
+	query := fmt.Sprintf(`UPDATE monetization_usage_outbox SET status = 'delivered', delivered_at = %s, updated_at = CURRENT_TIMESTAMP WHERE operation_id = %s`, s.placeholder(sqlPlaceholderFirst), s.placeholder(sqlPlaceholderSecond))
 	_, err := s.db.ExecContext(ctx, query, at, operationID)
 	return err
 }
@@ -132,7 +138,7 @@ func (s *SQLStore) MarkRetry(ctx context.Context, operationID string, next time.
 	if s == nil || s.db == nil {
 		return ErrNilOutbox
 	}
-	query := fmt.Sprintf(`UPDATE monetization_usage_outbox SET attempts = attempts + 1, last_error = %s, next_attempt_at = %s, updated_at = CURRENT_TIMESTAMP WHERE operation_id = %s`, s.placeholder(1), s.placeholder(2), s.placeholder(3))
+	query := fmt.Sprintf(`UPDATE monetization_usage_outbox SET attempts = attempts + 1, last_error = %s, next_attempt_at = %s, updated_at = CURRENT_TIMESTAMP WHERE operation_id = %s`, s.placeholder(sqlPlaceholderFirst), s.placeholder(sqlPlaceholderSecond), s.placeholder(sqlPlaceholderThird))
 	_, err := s.db.ExecContext(ctx, query, reason, next, operationID)
 	return err
 }

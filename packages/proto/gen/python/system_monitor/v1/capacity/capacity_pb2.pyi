@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class CapacityClaim(_message.Message):
-    __slots__ = ("claim_id", "owner_kind", "owner_id", "instance_id", "resource_kind", "gpu_index", "amount_bytes", "preferred_bytes", "floor_bytes", "priority", "priority_tier", "protected", "status", "activity_state", "generation", "last_active_at")
+    __slots__ = ("claim_id", "owner_kind", "owner_id", "instance_id", "resource_kind", "gpu_index", "amount_bytes", "preferred_bytes", "floor_bytes", "priority", "priority_tier", "protected", "status", "activity_state", "generation", "last_active_at", "created_at", "updated_at")
     CLAIM_ID_FIELD_NUMBER: _ClassVar[int]
     OWNER_KIND_FIELD_NUMBER: _ClassVar[int]
     OWNER_ID_FIELD_NUMBER: _ClassVar[int]
@@ -25,6 +25,8 @@ class CapacityClaim(_message.Message):
     ACTIVITY_STATE_FIELD_NUMBER: _ClassVar[int]
     GENERATION_FIELD_NUMBER: _ClassVar[int]
     LAST_ACTIVE_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
     claim_id: str
     owner_kind: str
     owner_id: str
@@ -41,7 +43,9 @@ class CapacityClaim(_message.Message):
     activity_state: str
     generation: int
     last_active_at: str
-    def __init__(self, claim_id: _Optional[str] = ..., owner_kind: _Optional[str] = ..., owner_id: _Optional[str] = ..., instance_id: _Optional[str] = ..., resource_kind: _Optional[str] = ..., gpu_index: _Optional[int] = ..., amount_bytes: _Optional[int] = ..., preferred_bytes: _Optional[int] = ..., floor_bytes: _Optional[int] = ..., priority: _Optional[int] = ..., priority_tier: _Optional[str] = ..., protected: _Optional[bool] = ..., status: _Optional[str] = ..., activity_state: _Optional[str] = ..., generation: _Optional[int] = ..., last_active_at: _Optional[str] = ...) -> None: ...
+    created_at: str
+    updated_at: str
+    def __init__(self, claim_id: _Optional[str] = ..., owner_kind: _Optional[str] = ..., owner_id: _Optional[str] = ..., instance_id: _Optional[str] = ..., resource_kind: _Optional[str] = ..., gpu_index: _Optional[int] = ..., amount_bytes: _Optional[int] = ..., preferred_bytes: _Optional[int] = ..., floor_bytes: _Optional[int] = ..., priority: _Optional[int] = ..., priority_tier: _Optional[str] = ..., protected: _Optional[bool] = ..., status: _Optional[str] = ..., activity_state: _Optional[str] = ..., generation: _Optional[int] = ..., last_active_at: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class GpuCapacity(_message.Message):
     __slots__ = ("index", "name", "total_bytes", "used_bytes", "free_bytes", "claimed_bytes", "memory_utilization_percent")

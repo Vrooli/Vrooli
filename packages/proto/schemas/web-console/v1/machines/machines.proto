@@ -156,8 +156,20 @@ message PermissionPreset {
 // machines surface can state where linked machines are registered.
 message ControlPlane {
   bool reachable = 1;
+
+  // The API base this process dials. It identifies the control plane in
+  // diagnostics and must never be used as a link: it is the machine-to-machine
+  // address, resolved on the server, and a browser that opens it gets a 404
+  // from a Connect endpoint.
   string endpoint = 2;
+
   string detail = 3;
+
+  // The control plane's own interface, resolved against the origin the calling
+  // browser used, so a link works from a tunnel or another device rather than
+  // only from the machine the server runs on. Empty when the interface cannot
+  // be resolved; a client must hide the affordance rather than link nowhere.
+  string console_url = 4;
 }
 
 message ListRequest {}

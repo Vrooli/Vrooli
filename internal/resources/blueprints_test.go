@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable template fixtures.
 package resources
 
 import (
@@ -132,7 +133,7 @@ func TestValidateBlueprintsRejectsTemplateRuleMismatch(t *testing.T) {
     "macos": "supported",
     "windows": "supported"
   },
-  "suggested_template": "manual-resource",
+  "suggested_template": "external-cli",
   "implementation_notes": ["Implement me"],
   "operational_notes": ["Operate me"],
   "risks": ["Risk"],

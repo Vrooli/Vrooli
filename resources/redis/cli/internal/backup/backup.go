@@ -12,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // Entry is one Redis DUMP payload and its remaining lifetime in milliseconds.
@@ -34,7 +37,7 @@ type Client struct {
 
 func (c Client) timeout() time.Duration {
 	if c.Timeout == 0 {
-		return 15 * time.Second
+		return tuning.CredentialServiceTimeout()
 	}
 	return c.Timeout
 }
@@ -203,5 +206,5 @@ func (c Client) Restore(ctx context.Context, archive Archive, prefix string) err
 	}
 	return nil
 }
-func Encode(a Archive) ([]byte, error) { return json.MarshalIndent(a, "", "  ") }
+func Encode(a Archive) ([]byte, error) { return cliout.MarshalIndent(a) }
 func Decode(b []byte) (Archive, error) { var a Archive; err := json.Unmarshal(b, &a); return a, err }

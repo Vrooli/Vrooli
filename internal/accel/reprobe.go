@@ -3,7 +3,6 @@ package accel
 import (
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 )
 
@@ -119,8 +118,8 @@ func (w *ReadinessWatcher) Observe(mode string, reachable []Backend, drifted []D
 		}
 		action.Restart = append(action.Restart, resource.Name)
 	}
-	sort.Strings(action.Restart)
-	sort.Strings(action.Deferred)
+	slices.Sort(action.Restart)
+	slices.Sort(action.Deferred)
 
 	if action.Mode == ReprobeReport {
 		// Report mode records the list and restarts nothing. Restarting is a
@@ -141,7 +140,7 @@ func driftedNames(drifted []DriftedResource) []string {
 	for _, resource := range drifted {
 		names = append(names, resource.Name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names
 }
 

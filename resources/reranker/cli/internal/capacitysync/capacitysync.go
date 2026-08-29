@@ -14,12 +14,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
-const (
+var (
 	resourceName    = "reranker"
-	defaultInterval = 15 * time.Second
+	defaultInterval = tuning.CompanionCapacitySyncInterval()
 	// intervalEnv lets an operator slow the companion down without a rebuild.
 	intervalEnv = "RERANKER_CAPACITY_SYNC_INTERVAL"
 )

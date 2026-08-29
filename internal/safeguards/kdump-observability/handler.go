@@ -34,6 +34,8 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const kdumpLinux = "linux"
+
 const (
 	observabilityGroup = "vrooli-observability"
 	exportRoot         = "/var/lib/vrooli/host-observability"
@@ -94,7 +96,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		return status
 	}
-	if host.OS != "linux" {
+	if host.OS != kdumpLinux {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "kdump summary export is Linux-only")

@@ -14,6 +14,8 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
+const serviceInstallWindows = "windows"
+
 // LogFileName is the supervisor's log basename inside the standard Vrooli log
 // tree. Every scenario already gets <home>/.vrooli/logs/<name>.log; the control
 // plane's own daemon uses the same tree so operators have one place to look.
@@ -74,7 +76,7 @@ func ExecutablePath(homeDir, requested string) (string, bool, error) {
 	binDir, err := repocontract.RuntimeHomeEntryPath(homeDir, repocontract.HomeKeyBin)
 	if err == nil {
 		installed := filepath.Join(binDir, cliBinaryName)
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS == serviceInstallWindows {
 			installed += ".exe"
 		}
 		if isExecutableFile(installed) {
@@ -99,7 +101,7 @@ func isExecutableFile(path string) bool {
 		return false
 	}
 	// Windows has no executable bit; existence of the file is the signal there.
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == serviceInstallWindows {
 		return true
 	}
 	return info.Mode().Perm()&tuning.PermExecuteMask != 0

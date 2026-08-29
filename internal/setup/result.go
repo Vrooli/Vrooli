@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -70,7 +70,7 @@ func setupTerminalResult(stage SetupPhase, report runtime.Report, runErr error, 
 	if runErr == nil {
 		result.Status = SetupStatusSuccess
 		result.Category = SetupCategorySuccess
-		result.Stage = "complete"
+		result.Stage = setupStageComplete
 		result.Remediation = "Setup completed successfully."
 		if len(degraded) > 0 && len(degraded[0]) > 0 {
 			result.Status = SetupStatusDegraded
@@ -139,7 +139,7 @@ func phaseResultCategory(phase SetupPhase) string {
 
 func blockedRequirementNames(report runtime.Report) []string {
 	blocked := append([]string(nil), report.MissingRequired...)
-	sort.Strings(blocked)
+	slices.Sort(blocked)
 	return blocked
 }
 

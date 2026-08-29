@@ -13,7 +13,7 @@
     "Operations management suite",
     "Internal ERP augmentation services"
   ],
-  "integration_kind": "compose-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "ERPNext usually runs as a multi-service stack and should only be supported if Vrooli wants to own its operational complexity.",
     "linux": "supported",
@@ -27,7 +27,7 @@
   "dependencies": [
     "postgres"
   ],
-  "suggested_template": "compose-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should start from a compose-style deployment with honest operational expectations.",
     "Do not revive the old registry entry as if it represented a supported integration.",

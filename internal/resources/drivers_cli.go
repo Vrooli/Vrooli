@@ -17,8 +17,8 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/artifactlease"
 	"github.com/vrooli/vrooli/internal/artifactledger"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
-	"github.com/vrooli/vrooli/internal/logx"
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -33,6 +33,7 @@ const (
 
 const (
 	driversCliHealthChecksFailed = "health checks failed"
+	driversCliCloudAPI           = "cloud-api"
 	driversCliInstall            = "install"
 	driversCliStatus             = "status"
 	driversCliUninstall          = "uninstall"
@@ -46,22 +47,13 @@ const (
 	driversCliParameterB = 16
 )
 
-func volumeSourceLooksLikeFile(volume ResourceVolume) bool {
-	sourceBase := filepath.Base(filepath.FromSlash(volume.Source))
-	targetBase := filepath.Base(filepath.FromSlash(volume.Target))
-	if strings.HasPrefix(sourceBase, ".") || strings.HasPrefix(targetBase, ".") {
-		return true
-	}
-	return strings.Contains(sourceBase, ".") || strings.Contains(targetBase, ".")
-}
-
 type externalCLIDriver struct{}
 
-func (externalCLIDriver) Name() string { return "external-cli" }
+func (externalCLIDriver) Name() string { return accelBridgeExternalCli }
 
 type nativeCLIDriver struct{}
 
-func (nativeCLIDriver) Name() string { return "native-cli" }
+func (nativeCLIDriver) Name() string { return accelBridgeNativeCli }
 
 func (d externalCLIDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
 	status := Status{
@@ -141,7 +133,7 @@ func (d externalCLIDriver) Run(ctx context.Context, controller *Controller, item
 		if err != nil {
 			return err
 		}
-		if containsString(args, "--format") && nextArgValue(args, "--format") == string(logx.FormatJSON) {
+		if containsString(args, "--format") && nextArgValue(args, "--format") == string(cliout.FormatJSON) {
 			return json.NewEncoder(stdout).Encode(map[string]any{
 				"installed": status.Installed,
 				"running":   status.Running,
@@ -290,7 +282,7 @@ func credentialGapMessage(gaps resourceenv.CredentialResolution) string {
 
 type cloudAPIDriver struct{}
 
-func (cloudAPIDriver) Name() string { return "cloud-api" }
+func (cloudAPIDriver) Name() string { return driversCliCloudAPI }
 
 func (d cloudAPIDriver) Status(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, fast bool) (Status, error) {
 	status := Status{
@@ -376,7 +368,7 @@ func (d cloudAPIDriver) Run(ctx context.Context, controller *Controller, item Re
 		if err != nil {
 			return err
 		}
-		if containsString(args, "--format") && nextArgValue(args, "--format") == string(logx.FormatJSON) {
+		if containsString(args, "--format") && nextArgValue(args, "--format") == string(cliout.FormatJSON) {
 			return json.NewEncoder(stdout).Encode(map[string]any{
 				"installed": status.Installed,
 				"running":   status.Running,

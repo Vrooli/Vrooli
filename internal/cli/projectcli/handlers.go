@@ -11,6 +11,8 @@ import (
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
 )
 
+const projectCleanupTemplateValidation = "template-validation"
+
 func SetupHandler[C any](stdout func(C) io.Writer, run func(C, projectsetup.Options) error) rootcli.Handler[C] {
 	return func(ctx C, args []string) error {
 		opts, err := ParseSetupOptions(args)
@@ -76,7 +78,7 @@ func CleanupHandler[C any](stdout func(C) io.Writer, runOrphans func(C, []string
 			return runOrphans(ctx, append([]string{"kill"}, req.Args...))
 		case "locks":
 			return runLocks(ctx, append([]string{"clean"}, req.Args...))
-		case "template-validation":
+		case projectCleanupTemplateValidation:
 			return runTemplateValidation(ctx, req.Args)
 		default:
 			return nil

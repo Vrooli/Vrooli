@@ -53,7 +53,7 @@ test-go: ## Run Go tests
 
 test-python: ## Run the dependency-light Kyutai server tests
 	@if command -v python3 >/dev/null && python3 -c 'import pytest' >/dev/null 2>&1; then \
-		python3 -m pytest docker/test_server.py docker/test_server_backpressure.py; \
+		python3 -m pytest tests/test_server.py tests/test_server_backpressure.py; \
 	else \
 		echo "python3 with pytest is required for Kyutai server tests"; \
 		exit 1; \

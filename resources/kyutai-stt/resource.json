@@ -399,6 +399,14 @@
       ],
       "interval_seconds": 10,
       "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8094/ready",
+      "kind": "liveness",
+      "expected_status": [200],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
     }
   ],
   "capabilities": {

@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -26,6 +26,12 @@ import (
 	"github.com/vrooli/vrooli/internal/discovery"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
+)
+
+const (
+	cliInstallWindows = "windows"
+	cliInstallDarwin  = "darwin"
+	cliInstallLinux   = "linux"
 )
 
 const (
@@ -314,13 +320,28 @@ func (m *Manager) DiscoverResourceCLI(name string) (InstallableCLI, error) {
 	switch manifest.CLI.Adapter.Kind {
 	case managerGoModule:
 		item.ModulePath = filepath.Join(resourceRoot, filepath.FromSlash(manifest.CLI.Adapter.ModuleDir))
-		if err := requireFile(filepath.Join(item.ModulePath, "go.mod")); err != nil {
+		if _, err := findNearestGoModule(item.ModulePath); err != nil {
 			return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: %w", name, err)
 		}
 	default:
 		return InstallableCLI{}, fmt.Errorf("discover resource CLI %q: unsupported adapter kind %q", name, manifest.CLI.Adapter.Kind)
 	}
 	return item, nil
+}
+
+func findNearestGoModule(start string) (string, error) {
+	dir := filepath.Clean(start)
+	for {
+		candidate := filepath.Join(dir, "go.mod")
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("go.mod not found at or above %s", start)
+		}
+		dir = parent
+	}
 }
 
 func (m *Manager) DiscoverScenarioCLIs() ([]InstallableCLI, error) {
@@ -515,7 +536,7 @@ func (m *Manager) InstalledScenarioCLINames() ([]string, error) {
 		if _, isRoot := rootBinaryNames[name]; isRoot {
 			continue
 		}
-		if runtime.GOOS != "windows" {
+		if runtime.GOOS != cliInstallWindows {
 			info, err := entry.Info()
 			if err != nil {
 				continue
@@ -526,7 +547,7 @@ func (m *Manager) InstalledScenarioCLINames() ([]string, error) {
 		}
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 
@@ -640,11 +661,11 @@ func installedBinaryLooksRunnable(path string, item InstallableCLI) (bool, error
 		return false, nil
 	}
 	switch runtime.GOOS {
-	case "linux", "freebsd", "openbsd", "netbsd":
+	case cliInstallLinux, "freebsd", "openbsd", "netbsd":
 		return string(header) == "\x7fELF", nil
-	case "darwin":
+	case cliInstallDarwin:
 		return isMachOMagic(header), nil
-	case "windows":
+	case cliInstallWindows:
 		return header[0] == 'M' && header[1] == 'Z', nil
 	default:
 		return true, nil

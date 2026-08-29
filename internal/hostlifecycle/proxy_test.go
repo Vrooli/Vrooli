@@ -55,14 +55,15 @@ func TestRunScenarioUsesDedicatedTransport(t *testing.T) {
 
 func TestStartOptionsRequest(t *testing.T) {
 	req := StartOptionsRequest("restart", "prompt-manager", lifecycle.StartOptions{
-		BestEffort: true,
-		CleanStale: true,
-		CustomPath: "/tmp/scenario",
+		BestEffort:           true,
+		CleanStale:           true,
+		AcceptCredentialLoss: true,
+		CustomPath:           "/tmp/scenario",
 	})
 	if req.Action != "restart" || req.Name != "prompt-manager" {
 		t.Fatalf("unexpected action/name: %+v", req)
 	}
-	if !req.BestEffort || !req.CleanStale || req.CustomPath != "/tmp/scenario" {
+	if !req.BestEffort || !req.CleanStale || !req.AcceptCredentialLoss || req.CustomPath != "/tmp/scenario" {
 		t.Fatalf("options not copied: %+v", req)
 	}
 }

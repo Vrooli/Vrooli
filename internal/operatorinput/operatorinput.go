@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -230,7 +231,7 @@ func ResolveWith(answers []Answer, apply func(map[string]string) error) (map[str
 		if request.Required && strings.TrimSpace(value) == "" {
 			return nil, fmt.Errorf("operator input %q is required", request.ID)
 		}
-		if (request.Kind == KindChoice || request.Kind == KindEnum) && value != "" && !contains(request.Options, value) {
+		if (request.Kind == KindChoice || request.Kind == KindEnum) && value != "" && !slices.Contains(request.Options, value) {
 			return nil, fmt.Errorf("operator input %q has invalid choice %q", request.ID, value)
 		}
 		if (request.Kind == KindConfirm || request.Kind == KindConfirmation) && value != "" && value != "true" && value != "false" {
@@ -264,13 +265,4 @@ func ResolveWith(answers []Answer, apply func(map[string]string) error) (map[str
 	// a passphrase cannot survive in a caller-owned result after resolution.
 	clear(values)
 	return nil, nil
-}
-
-func contains(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
 }

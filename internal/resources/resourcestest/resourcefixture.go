@@ -18,9 +18,19 @@ import (
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 type ResourceManifestOption func(*manifestpkg.ResourceManifest)
+
+const (
+	fixtureDriverExternalCLI    = "external-cli"
+	fixtureDriverManagedService = "managed-service"
+	fixtureDigestLength         = 64
+	fixtureReadinessInterval    = 10
+	fixtureLivenessInterval     = 30
+	fixtureHealthTimeout        = 10
+)
 
 type ResourceTemplateVar struct {
 	Flag        string `json:"flag,omitempty"`
@@ -48,8 +58,7 @@ func ResourceManifest(name string, opts ...ResourceManifestOption) manifestpkg.R
 		DisplayName: repocontracttest.DefaultDisplayName(name),
 		Description: fmt.Sprintf("%s fixture", repocontracttest.DefaultDisplayName(name)),
 		CLI:         defaultResourceCLIConfig(name),
-		Driver:      "external-cli",
-		Template:    "external-cli",
+		Driver:      fixtureDriverExternalCLI,
 		Binary:      "bash",
 		Platforms: manifestpkg.ResourcePlatforms{
 			Linux:   "supported",
@@ -60,6 +69,28 @@ func ResourceManifest(name string, opts ...ResourceManifestOption) manifestpkg.R
 	for _, opt := range opts {
 		opt(&manifest)
 	}
+	if manifest.Driver == fixtureDriverManagedService && manifest.ManagedService == nil {
+		manifest.HealthChecks = []manifestpkg.ResourceHealthCheck{
+			{Type: "http", Target: "http://127.0.0.1:1/health", Kind: "readiness", IntervalSeconds: fixtureReadinessInterval, TimeoutSeconds: fixtureHealthTimeout},
+			{Type: "http", Target: "http://127.0.0.1:1/health", Kind: "liveness", IntervalSeconds: fixtureLivenessInterval, TimeoutSeconds: fixtureHealthTimeout},
+		}
+		manifest.ManagedService = &resourcedeployment.ManagedService{
+			ProviderPolicy: resourcedeployment.ProviderPolicy{
+				TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{
+					resourcedeployment.ProviderTargetControlPlane:  resourcedeployment.ProviderManagedShared,
+					resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate,
+				},
+				AllowedModes: []resourcedeployment.ProviderMode{
+					resourcedeployment.ProviderManagedPrivate,
+					resourcedeployment.ProviderManagedShared,
+				},
+				ExternalManagement: "forbidden",
+			},
+			Artifact: resourcedeployment.ServiceArtifact{
+				Path: "server/" + name, Version: "1.0.0", SHA256: strings.Repeat("a", fixtureDigestLength),
+			},
+		}
+	}
 	return manifest
 }
 
@@ -68,7 +99,7 @@ func ResourceTemplate(name string, opts ...ResourceTemplateOption) ResourceTempl
 		Name:        name,
 		DisplayName: repocontracttest.DefaultDisplayName(name),
 		Description: fmt.Sprintf("%s fixture template", repocontracttest.DefaultDisplayName(name)),
-		Driver:      "docker-service",
+		Driver:      fixtureDriverManagedService,
 		RequiredVars: map[string]ResourceTemplateVar{
 			"RESOURCE_NAME": {Flag: "name", Description: "Fixture resource name"},
 		},
@@ -135,7 +166,7 @@ func WithTemplateTransitional(enabled bool) ResourceTemplateOption {
 
 func WithResourceTemplate(template string) ResourceManifestOption {
 	return func(manifest *manifestpkg.ResourceManifest) {
-		manifest.Template = template
+		manifest.Driver = template
 	}
 }
 
@@ -237,7 +268,30 @@ func WriteResourceManifest(t *testing.T, root, name string, manifest manifestpkg
 	if manifest.CLI == nil {
 		manifest.CLI = defaultResourceCLIConfig(name)
 	}
+	if manifest.Driver == fixtureDriverExternalCLI && strings.TrimSpace(manifest.Binary) == "" {
+		manifest.Binary = "bash"
+	}
+	if manifest.Driver == fixtureDriverManagedService && manifest.ManagedService == nil {
+		manifest.ManagedService = &resourcedeployment.ManagedService{
+			ProviderPolicy: resourcedeployment.ProviderPolicy{
+				TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{
+					resourcedeployment.ProviderTargetControlPlane:  resourcedeployment.ProviderManagedShared,
+					resourcedeployment.ProviderTargetDesktopBundle: resourcedeployment.ProviderManagedPrivate,
+				},
+				AllowedModes: []resourcedeployment.ProviderMode{
+					resourcedeployment.ProviderManagedPrivate,
+					resourcedeployment.ProviderManagedShared,
+				},
+				ExternalManagement: "forbidden",
+			},
+			Artifact: resourcedeployment.ServiceArtifact{
+				Path: "server/" + name, Version: "1.0.0", SHA256: strings.Repeat("a", fixtureDigestLength),
+			},
+		}
+	}
 	testkitgo.WriteJSON(t, manifestpkg.DefaultPath(root, name), manifest)
+	testkitgo.WriteFile(t, filepath.Join(root, "resources", name, "README.md"), "# "+name+"\n")
+	testkitgo.WriteFile(t, filepath.Join(root, "resources", name, "cli", "main.go"), "package main\n")
 }
 
 func WriteResourceTemplateManifest(t *testing.T, root, name string, manifest ResourceTemplateManifest) {

@@ -14,13 +14,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/tuning"
+
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-const (
-	defaultPerModelTimeout = 10 * time.Minute
+var (
+	defaultPerModelTimeout = tuning.ResourceLongHTTPTimeout()
 	logPrefix              = "ollama-ensure:"
 )
 
@@ -167,7 +169,7 @@ func Run(ctx context.Context, cfg Config, client *Client, stdout io.Writer, vali
 			reportProgress(stdout, ref, p)
 		})
 		cancel()
-		elapsed := time.Since(start).Round(100 * time.Millisecond)
+		elapsed := time.Since(start).Round(tuning.ProgressDisplayResolution())
 		if err != nil {
 			fmt.Fprintf(stdout, "%s pull %s FAILED after %s: %v\n", logPrefix, ref, elapsed, err)
 			errs = append(errs, err)

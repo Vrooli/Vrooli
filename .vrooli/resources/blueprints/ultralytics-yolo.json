@@ -15,7 +15,7 @@
     "Media processing pipelines",
     "Perception helpers for robotics"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "Inference can run across platforms, but GPU acceleration, model packaging, and throughput differ substantially by environment.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined output schema and downstream consumer workflow"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should validate a concrete detection workflow with representative inputs.",
     "Keep model lifecycle explicit and version-pinned.",

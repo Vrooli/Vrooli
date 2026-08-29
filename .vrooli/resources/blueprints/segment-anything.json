@@ -15,7 +15,7 @@
     "Vision preprocessing pipelines",
     "Media analysis workflows"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The service can run in containers, but model size, GPU acceleration, and runtime dependencies make support uneven across environments.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined prompt and output conventions"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should validate a real segmentation workflow with representative inputs.",
     "Keep model lifecycle and artifact handling explicit.",

@@ -16,6 +16,12 @@ var (
 	ErrNilOutbox    = errors.New("monetization outbox is nil")
 )
 
+const (
+	outboxDefaultMaxRetries = 8
+	outboxDefaultMaxDelay   = 5 * time.Minute
+	outboxDurationShiftBits = 62
+)
+
 // Usage is the immutable event submitted to the billing authority. OperationID
 // is the idempotency key and must be preserved by every transport adapter.
 type Usage struct {
@@ -83,9 +89,9 @@ func NewOutbox(store OutboxStore, transport UsageTransport) *Outbox {
 		Store:      store,
 		Transport:  transport,
 		Now:        time.Now,
-		MaxRetries: 8,
+		MaxRetries: outboxDefaultMaxRetries,
 		BaseDelay:  time.Second,
-		MaxDelay:   5 * time.Minute,
+		MaxDelay:   outboxDefaultMaxDelay,
 	}
 }
 
@@ -180,7 +186,7 @@ func (o *Outbox) retryDelay(attempt int) time.Duration {
 	}
 	delay := base
 	for i := 1; i < attempt; i++ {
-		if delay > time.Duration(1<<62)/2 {
+		if delay > time.Duration(1<<outboxDurationShiftBits)/2 {
 			break
 		}
 		delay *= 2

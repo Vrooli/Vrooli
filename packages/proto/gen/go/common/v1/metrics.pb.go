@@ -76,6 +76,57 @@ func (Reliability) EnumDescriptor() ([]byte, []int) {
 	return file_common_v1_metrics_proto_rawDescGZIP(), []int{0}
 }
 
+// MeasurementScope identifies the collector generation that produced a
+// resource measurement.
+type MeasurementScope int32
+
+const (
+	MeasurementScope_MEASUREMENT_SCOPE_UNSPECIFIED      MeasurementScope = 0 // collector predates per-operation attribution
+	MeasurementScope_MEASUREMENT_SCOPE_PROCESS_LIFETIME MeasurementScope = 1
+	MeasurementScope_MEASUREMENT_SCOPE_OPERATION        MeasurementScope = 2
+)
+
+// Enum value maps for MeasurementScope.
+var (
+	MeasurementScope_name = map[int32]string{
+		0: "MEASUREMENT_SCOPE_UNSPECIFIED",
+		1: "MEASUREMENT_SCOPE_PROCESS_LIFETIME",
+		2: "MEASUREMENT_SCOPE_OPERATION",
+	}
+	MeasurementScope_value = map[string]int32{
+		"MEASUREMENT_SCOPE_UNSPECIFIED":      0,
+		"MEASUREMENT_SCOPE_PROCESS_LIFETIME": 1,
+		"MEASUREMENT_SCOPE_OPERATION":        2,
+	}
+)
+
+func (x MeasurementScope) Enum() *MeasurementScope {
+	p := new(MeasurementScope)
+	*p = x
+	return p
+}
+
+func (x MeasurementScope) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (MeasurementScope) Descriptor() protoreflect.EnumDescriptor {
+	return file_common_v1_metrics_proto_enumTypes[1].Descriptor()
+}
+
+func (MeasurementScope) Type() protoreflect.EnumType {
+	return &file_common_v1_metrics_proto_enumTypes[1]
+}
+
+func (x MeasurementScope) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use MeasurementScope.Descriptor instead.
+func (MeasurementScope) EnumDescriptor() ([]byte, []int) {
+	return file_common_v1_metrics_proto_rawDescGZIP(), []int{1}
+}
+
 // ExecutionMetrics captures timing, stage attribution, resource usage, and the
 // host environment for one unit of work.
 type ExecutionMetrics struct {
@@ -263,16 +314,17 @@ func (x *Stage) GetChildren() []*Stage {
 // ResourceUsage is best-effort CPU/memory/GPU usage for a window (whole-op or
 // per-stage). Each area carries its own Reliability.
 type ResourceUsage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	CpuUserMs     int64                  `protobuf:"varint,1,opt,name=cpu_user_ms,json=cpuUserMs,proto3" json:"cpu_user_ms,omitempty"` // user CPU time consumed by the process
-	CpuSysMs      int64                  `protobuf:"varint,2,opt,name=cpu_sys_ms,json=cpuSysMs,proto3" json:"cpu_sys_ms,omitempty"`    // system CPU time
-	Cpu           Reliability            `protobuf:"varint,3,opt,name=cpu,proto3,enum=common.v1.Reliability" json:"cpu,omitempty"`
-	PeakRssBytes  int64                  `protobuf:"varint,4,opt,name=peak_rss_bytes,json=peakRssBytes,proto3" json:"peak_rss_bytes,omitempty"` // peak resident set size
-	Memory        Reliability            `protobuf:"varint,5,opt,name=memory,proto3,enum=common.v1.Reliability" json:"memory,omitempty"`
-	Gpus          []*GpuUsage            `protobuf:"bytes,6,rep,name=gpus,proto3" json:"gpus,omitempty"` // per-device GPU usage during the window
-	Gpu           Reliability            `protobuf:"varint,7,opt,name=gpu,proto3,enum=common.v1.Reliability" json:"gpu,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	CpuUserMs        int64                  `protobuf:"varint,1,opt,name=cpu_user_ms,json=cpuUserMs,proto3" json:"cpu_user_ms,omitempty"` // user CPU time consumed by the process
+	CpuSysMs         int64                  `protobuf:"varint,2,opt,name=cpu_sys_ms,json=cpuSysMs,proto3" json:"cpu_sys_ms,omitempty"`    // system CPU time
+	Cpu              Reliability            `protobuf:"varint,3,opt,name=cpu,proto3,enum=common.v1.Reliability" json:"cpu,omitempty"`
+	PeakRssBytes     int64                  `protobuf:"varint,4,opt,name=peak_rss_bytes,json=peakRssBytes,proto3" json:"peak_rss_bytes,omitempty"` // peak resident set size
+	Memory           Reliability            `protobuf:"varint,5,opt,name=memory,proto3,enum=common.v1.Reliability" json:"memory,omitempty"`
+	Gpus             []*GpuUsage            `protobuf:"bytes,6,rep,name=gpus,proto3" json:"gpus,omitempty"` // per-device GPU usage during the window
+	Gpu              Reliability            `protobuf:"varint,7,opt,name=gpu,proto3,enum=common.v1.Reliability" json:"gpu,omitempty"`
+	MeasurementScope MeasurementScope       `protobuf:"varint,8,opt,name=measurement_scope,json=measurementScope,proto3,enum=common.v1.MeasurementScope" json:"measurement_scope,omitempty"` // collector generation; outcome may still be UNAVAILABLE
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ResourceUsage) Reset() {
@@ -352,6 +404,13 @@ func (x *ResourceUsage) GetGpu() Reliability {
 		return x.Gpu
 	}
 	return Reliability_RELIABILITY_UNSPECIFIED
+}
+
+func (x *ResourceUsage) GetMeasurementScope() MeasurementScope {
+	if x != nil {
+		return x.MeasurementScope
+	}
+	return MeasurementScope_MEASUREMENT_SCOPE_UNSPECIFIED
 }
 
 // GpuUsage is device-level (and, when attributable, process-level) GPU usage.
@@ -638,7 +697,7 @@ const file_common_v1_metrics_proto_rawDesc = "" +
 	"\bchildren\x18\x05 \x03(\v2\x10.common.v1.StageR\bchildren\x1a9\n" +
 	"\vGaugesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"\xa0\x02\n" +
+	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"\xea\x02\n" +
 	"\rResourceUsage\x12\x1e\n" +
 	"\vcpu_user_ms\x18\x01 \x01(\x03R\tcpuUserMs\x12\x1c\n" +
 	"\n" +
@@ -647,7 +706,8 @@ const file_common_v1_metrics_proto_rawDesc = "" +
 	"\x0epeak_rss_bytes\x18\x04 \x01(\x03R\fpeakRssBytes\x12.\n" +
 	"\x06memory\x18\x05 \x01(\x0e2\x16.common.v1.ReliabilityR\x06memory\x12'\n" +
 	"\x04gpus\x18\x06 \x03(\v2\x13.common.v1.GpuUsageR\x04gpus\x12(\n" +
-	"\x03gpu\x18\a \x01(\x0e2\x16.common.v1.ReliabilityR\x03gpu\"\xe4\x01\n" +
+	"\x03gpu\x18\a \x01(\x0e2\x16.common.v1.ReliabilityR\x03gpu\x12H\n" +
+	"\x11measurement_scope\x18\b \x01(\x0e2\x1b.common.v1.MeasurementScopeR\x10measurementScope\"\xe4\x01\n" +
 	"\bGpuUsage\x12\x14\n" +
 	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -673,7 +733,11 @@ const file_common_v1_metrics_proto_rawDesc = "" +
 	"\x17RELIABILITY_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14RELIABILITY_RELIABLE\x10\x01\x12\x1b\n" +
 	"\x17RELIABILITY_BEST_EFFORT\x10\x02\x12\x1b\n" +
-	"\x17RELIABILITY_UNAVAILABLE\x10\x03BCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
+	"\x17RELIABILITY_UNAVAILABLE\x10\x03*~\n" +
+	"\x10MeasurementScope\x12!\n" +
+	"\x1dMEASUREMENT_SCOPE_UNSPECIFIED\x10\x00\x12&\n" +
+	"\"MEASUREMENT_SCOPE_PROCESS_LIFETIME\x10\x01\x12\x1f\n" +
+	"\x1bMEASUREMENT_SCOPE_OPERATION\x10\x02BCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
 
 var (
 	file_common_v1_metrics_proto_rawDescOnce sync.Once
@@ -687,40 +751,42 @@ func file_common_v1_metrics_proto_rawDescGZIP() []byte {
 	return file_common_v1_metrics_proto_rawDescData
 }
 
-var file_common_v1_metrics_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_common_v1_metrics_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_common_v1_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_common_v1_metrics_proto_goTypes = []any{
 	(Reliability)(0),              // 0: common.v1.Reliability
-	(*ExecutionMetrics)(nil),      // 1: common.v1.ExecutionMetrics
-	(*Stage)(nil),                 // 2: common.v1.Stage
-	(*ResourceUsage)(nil),         // 3: common.v1.ResourceUsage
-	(*GpuUsage)(nil),              // 4: common.v1.GpuUsage
-	(*CaptureEnvironment)(nil),    // 5: common.v1.CaptureEnvironment
-	(*GpuInfo)(nil),               // 6: common.v1.GpuInfo
-	nil,                           // 7: common.v1.ExecutionMetrics.GaugesEntry
-	nil,                           // 8: common.v1.Stage.GaugesEntry
-	(*timestamppb.Timestamp)(nil), // 9: google.protobuf.Timestamp
+	(MeasurementScope)(0),         // 1: common.v1.MeasurementScope
+	(*ExecutionMetrics)(nil),      // 2: common.v1.ExecutionMetrics
+	(*Stage)(nil),                 // 3: common.v1.Stage
+	(*ResourceUsage)(nil),         // 4: common.v1.ResourceUsage
+	(*GpuUsage)(nil),              // 5: common.v1.GpuUsage
+	(*CaptureEnvironment)(nil),    // 6: common.v1.CaptureEnvironment
+	(*GpuInfo)(nil),               // 7: common.v1.GpuInfo
+	nil,                           // 8: common.v1.ExecutionMetrics.GaugesEntry
+	nil,                           // 9: common.v1.Stage.GaugesEntry
+	(*timestamppb.Timestamp)(nil), // 10: google.protobuf.Timestamp
 }
 var file_common_v1_metrics_proto_depIdxs = []int32{
-	9,  // 0: common.v1.ExecutionMetrics.started_at:type_name -> google.protobuf.Timestamp
-	9,  // 1: common.v1.ExecutionMetrics.completed_at:type_name -> google.protobuf.Timestamp
-	2,  // 2: common.v1.ExecutionMetrics.stages:type_name -> common.v1.Stage
-	3,  // 3: common.v1.ExecutionMetrics.resources:type_name -> common.v1.ResourceUsage
-	7,  // 4: common.v1.ExecutionMetrics.gauges:type_name -> common.v1.ExecutionMetrics.GaugesEntry
-	5,  // 5: common.v1.ExecutionMetrics.environment:type_name -> common.v1.CaptureEnvironment
-	3,  // 6: common.v1.Stage.resources:type_name -> common.v1.ResourceUsage
-	8,  // 7: common.v1.Stage.gauges:type_name -> common.v1.Stage.GaugesEntry
-	2,  // 8: common.v1.Stage.children:type_name -> common.v1.Stage
+	10, // 0: common.v1.ExecutionMetrics.started_at:type_name -> google.protobuf.Timestamp
+	10, // 1: common.v1.ExecutionMetrics.completed_at:type_name -> google.protobuf.Timestamp
+	3,  // 2: common.v1.ExecutionMetrics.stages:type_name -> common.v1.Stage
+	4,  // 3: common.v1.ExecutionMetrics.resources:type_name -> common.v1.ResourceUsage
+	8,  // 4: common.v1.ExecutionMetrics.gauges:type_name -> common.v1.ExecutionMetrics.GaugesEntry
+	6,  // 5: common.v1.ExecutionMetrics.environment:type_name -> common.v1.CaptureEnvironment
+	4,  // 6: common.v1.Stage.resources:type_name -> common.v1.ResourceUsage
+	9,  // 7: common.v1.Stage.gauges:type_name -> common.v1.Stage.GaugesEntry
+	3,  // 8: common.v1.Stage.children:type_name -> common.v1.Stage
 	0,  // 9: common.v1.ResourceUsage.cpu:type_name -> common.v1.Reliability
 	0,  // 10: common.v1.ResourceUsage.memory:type_name -> common.v1.Reliability
-	4,  // 11: common.v1.ResourceUsage.gpus:type_name -> common.v1.GpuUsage
+	5,  // 11: common.v1.ResourceUsage.gpus:type_name -> common.v1.GpuUsage
 	0,  // 12: common.v1.ResourceUsage.gpu:type_name -> common.v1.Reliability
-	6,  // 13: common.v1.CaptureEnvironment.gpus:type_name -> common.v1.GpuInfo
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	1,  // 13: common.v1.ResourceUsage.measurement_scope:type_name -> common.v1.MeasurementScope
+	7,  // 14: common.v1.CaptureEnvironment.gpus:type_name -> common.v1.GpuInfo
+	15, // [15:15] is the sub-list for method output_type
+	15, // [15:15] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_common_v1_metrics_proto_init() }
@@ -733,7 +799,7 @@ func file_common_v1_metrics_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_metrics_proto_rawDesc), len(file_common_v1_metrics_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,

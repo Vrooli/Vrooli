@@ -23,9 +23,9 @@ func pinEnv(t *testing.T) (func(string) string, string) {
 	return getEnv, path
 }
 
-func newDegradeHandlers(getEnv func(string) string, exec func(context.Context, string, ...string) (string, error)) (*DegradeHandlers, *bytes.Buffer) {
+func newDegradeHandlers(getEnv func(string) string, exec func(context.Context, string, ...string) (string, error)) (*CapacityHandlers, *bytes.Buffer) {
 	out := &bytes.Buffer{}
-	return &DegradeHandlers{
+	return &CapacityHandlers{
 		Stdout: out,
 		Stderr: &bytes.Buffer{},
 		GetEnv: getEnv,
@@ -48,7 +48,7 @@ func TestDegradeWritesPinAndRecreates(t *testing.T) {
 	}
 	h, _ := newDegradeHandlers(getEnv, exec)
 
-	if err := h.Run([]string{"--to", "medium"}); err != nil {
+	if err := h.Apply([]string{"--to", "medium"}); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 	data, err := os.ReadFile(pinPath)
@@ -74,7 +74,7 @@ func TestDegradeRefusesWhileActive(t *testing.T) {
 	}
 	h, _ := newDegradeHandlers(getEnv, exec)
 
-	err := h.Run([]string{"--to", "small"})
+	err := h.Apply([]string{"--to", "small"})
 	if err == nil || !strings.Contains(err.Error(), "active") {
 		t.Fatalf("Run() error = %v, want refusal-while-active", err)
 	}
@@ -96,7 +96,7 @@ func TestDegradeUpshiftClearsPin(t *testing.T) {
 	}
 	h, _ := newDegradeHandlers(getEnv, exec)
 
-	if err := h.Run([]string{"--upshift", "--to", "large-v3"}); err != nil {
+	if err := h.Apply([]string{"--upshift", "--to", "large-v3"}); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 	if _, statErr := os.Stat(pinPath); statErr == nil {
@@ -107,7 +107,7 @@ func TestDegradeUpshiftClearsPin(t *testing.T) {
 func TestDegradeRejectsUnknownModel(t *testing.T) {
 	getEnv, _ := pinEnv(t)
 	h, _ := newDegradeHandlers(getEnv, func(context.Context, string, ...string) (string, error) { return "", nil })
-	if err := h.Run([]string{"--to", "ginormous"}); err == nil {
+	if err := h.Apply([]string{"--to", "ginormous"}); err == nil {
 		t.Fatal("Run() accepted an invalid model")
 	}
 }

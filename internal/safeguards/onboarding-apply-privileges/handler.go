@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -156,7 +156,7 @@ func policyContent(user string, config map[string]any) (string, error) {
 	if len(entries) == 0 {
 		return "", fmt.Errorf("onboarding apply grant has no elevated commands")
 	}
-	sort.Strings(entries)
+	slices.Sort(entries)
 	return fmt.Sprintf("# Managed by Vrooli -- do not edit manually\n%s ALL=(root) NOPASSWD: %s\n", user, strings.Join(entries, ", ")), nil
 }
 
@@ -189,6 +189,6 @@ func configTokens(value any) ([]string, error) {
 		seen[value] = struct{}{}
 		result = append(result, value)
 	}
-	sort.Strings(result)
+	slices.Sort(result)
 	return result, nil
 }

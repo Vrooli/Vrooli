@@ -19,6 +19,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -331,7 +332,7 @@ func computeBinarySignature(scenarioDir string) (string, int, error) {
 			count++
 		}
 	}
-	sort.Strings(parts)
+	slices.Sort(parts)
 	h := sha256.New()
 	for _, p := range parts {
 		h.Write([]byte(p))
@@ -378,6 +379,6 @@ func diffFileHashes(stored, current map[string]string) []string {
 			changed = append(changed, path)
 		}
 	}
-	sort.Strings(changed)
+	slices.Sort(changed)
 	return changed
 }

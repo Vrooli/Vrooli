@@ -17,6 +17,11 @@ import (
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
+const (
+	buildTargetWindows = "windows"
+	buildTargetUnknown = "unknown"
+)
+
 // distributionTargetDarwinOS is the external release-artifact spelling. It
 // remains "darwin" because Go toolchains, release assets, and the keychain
 // cross-build contract use GOOS names rather than deployment manifest names.
@@ -46,7 +51,7 @@ func DistributionTargets() []DistributionTarget {
 // DistributionAssetName returns the canonical release asset name.
 func DistributionAssetName(target DistributionTarget) string {
 	suffix := ""
-	if target.OS == "windows" {
+	if target.OS == buildTargetWindows {
 		suffix = ".exe"
 	}
 	return fmt.Sprintf("vrooli_%s_%s%s", target.OS, target.Arch, suffix)
@@ -276,7 +281,7 @@ func isDistributionTarget(target DistributionTarget) bool {
 func resolveDistributionGitCommit(root string) string {
 	out, err := shell.Output(shell.Spec{Name: "git", Args: []string{"rev-parse", "HEAD"}, Dir: root})
 	if err != nil || strings.TrimSpace(string(out)) == "" {
-		return "unknown"
+		return buildTargetUnknown
 	}
 	return strings.TrimSpace(string(out))
 }

@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -458,7 +458,7 @@ func linuxNvidiaDeviceNodes() []string {
 			nodes = append(nodes, path)
 		}
 	}
-	sort.Strings(nodes)
+	slices.Sort(nodes)
 	return nodes
 }
 

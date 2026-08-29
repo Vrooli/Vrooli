@@ -234,9 +234,9 @@ func TestAccelerationValidateRejectsUnsteppableVRAMClaim(t *testing.T) {
 	}
 }
 
-// Scenario: a VRAM claim requires a non-CPU backend.
-func TestAccelerationValidateRejectsVRAMClaimWithoutAccelerator(t *testing.T) {
-	// Given a CPU-only resource that reserves VRAM
+// Scenario: a CPU-only declaration may retain a complete VRAM claim as future intent.
+func TestAccelerationValidateAllowsVRAMClaimAsFutureIntent(t *testing.T) {
+	// Given a CPU-only resource with a complete broker-degradable VRAM claim
 	spec := AccelerationSpec{
 		Backends: []string{BackendCPU},
 		Backend:  map[string]BackendConfig{BackendCPU: {}},
@@ -245,10 +245,9 @@ func TestAccelerationValidateRejectsVRAMClaimWithoutAccelerator(t *testing.T) {
 
 	// When the contract validates it
 	err := spec.Validate()
-
-	// Then it is rejected, because VRAM cannot be claimed without a device
-	if err == nil || !strings.Contains(err.Error(), "names no backend other than") {
-		t.Fatalf("Validate() = %v, want a VRAM-without-accelerator rejection", err)
+	// Then the complete claim remains valid as recorded future intent
+	if err != nil {
+		t.Fatalf("Validate() = %v, want CPU declaration with future VRAM intent to validate", err)
 	}
 }
 

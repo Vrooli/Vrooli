@@ -15,7 +15,7 @@
     "Fixture and enclosure generators",
     "Manufacturing-ready geometry pipelines"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "OpenSCAD itself is portable and can run in containers, but rendering and file workflows still vary by host setup.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Defined script input and output conventions"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should focus on validated render/export workflows instead of full editor support.",
     "Keep script execution and artifact handling explicit.",

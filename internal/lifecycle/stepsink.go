@@ -89,6 +89,17 @@ func (s *stepSink) Flush() {
 // header naming the step and a footer pointing at the full log path. If the
 // ring is empty, ReplayTo is a no-op so we don't add noise when a step fails
 // before emitting any output.
+// Reset clears the buffered tail so a retried step replays only the attempt
+// that finally failed, rather than every attempt concatenated. The inner
+// writer keeps receiving everything: the full log is the record.
+func (s *stepSink) Reset() {
+	if s == nil {
+		return
+	}
+	s.ring = newLineRing(defaultStepRingCap)
+	s.leftov = nil
+}
+
 func (s *stepSink) ReplayTo(w io.Writer, stepName, logPath string) {
 	if s == nil || w == nil || s.ring.empty() {
 		return

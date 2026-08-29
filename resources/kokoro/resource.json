@@ -348,7 +348,7 @@
   ],
   "orchestration": {
     "startup_order": 560,
-    "startup_timeout_seconds": 120,
+    "startup_timeout_seconds": 180,
     "startup_time_estimate": "cold image pull and model load up to 2 min; then 20-45s",
     "dependencies": [],
     "recovery_attempts": 2,
@@ -376,6 +376,13 @@
       "target": "http://127.0.0.1:8880/v1/audio/voices",
       "kind": "readiness",
       "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8880/v1/audio/voices",
+      "kind": "liveness",
+      "interval_seconds": 30,
       "timeout_seconds": 10
     }
   ],

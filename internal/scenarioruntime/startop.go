@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -486,7 +487,7 @@ func buildTimingSummaries(scenario string, byScenario map[string]map[string]*tim
 		for name := range byScenario {
 			scenarios = append(scenarios, name)
 		}
-		sort.Strings(scenarios)
+		slices.Sort(scenarios)
 		for _, name := range scenarios {
 			result = append(result, summarizeTimingMap(byScenario[name])...)
 		}
@@ -551,6 +552,9 @@ func summarizeTimingSamples(values []*timingSamples) []StartTimingSummary {
 	return result
 }
 
+// percentile uses linear interpolation for startup telemetry. This is a
+// descriptive timing summary, not a scheduler admission input, so it does not
+// adopt Test Genie's observed-value nearest-rank convention.
 func percentile(sorted []float64, fraction float64) float64 {
 	if len(sorted) == 0 {
 		return 0

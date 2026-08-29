@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/safeguards"
@@ -147,7 +148,7 @@ func NvidiaModulePackagePrefix(driverPackage string) (string, bool) {
 
 func resolveLinuxInvariant(invariant Invariant, facts Facts) Result {
 	result := Result{InvariantID: invariant.ID, Verdict: NotImplemented}
-	if platforms := invariant.Applicability["platforms"]; platforms != "" && !contains(strings.Split(platforms, ","), facts.OS) {
+	if platforms := invariant.Applicability["platforms"]; platforms != "" && !slices.Contains(strings.Split(platforms, ","), facts.OS) {
 		result.Verdict = NotApplicable
 		result.Reason = "the invariant does not apply to this platform"
 		return result
@@ -166,13 +167,13 @@ func resolveLinuxInvariant(invariant Invariant, facts Facts) Result {
 		return result
 	}
 	result.Evidence = map[string]any{"expectedPackage": expected, "runningKernel": facts.KernelRelease}
-	installed := contains(facts.PackageNames, expected)
+	installed := slices.Contains(facts.PackageNames, expected)
 	if installed {
 		result.Verdict = Satisfied
 		result.Reason = "the invariant is satisfied by the observed package set"
 		return result
 	}
-	if contains(facts.CandidatePackageNames, expected) {
+	if slices.Contains(facts.CandidatePackageNames, expected) {
 		result.Verdict = Failed
 		result.Reason = "the required coupled package is absent and a candidate is available"
 		return result
@@ -180,15 +181,6 @@ func resolveLinuxInvariant(invariant Invariant, facts Facts) Result {
 	result.Verdict = Undetermined
 	result.Reason = "the platform provider can derive the coupled package, but package availability is not observable"
 	return result
-}
-
-func contains(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
 }
 
 // EmbeddedSafeguardInvariants reads declaration data without exposing the

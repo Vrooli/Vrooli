@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.grouptemplates;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/grouptemplates;grouptemplates_v1";
+
+// =============================================================================
+// GROUP TEMPLATES DOMAIN — saved role lists
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain grouptemplates
+// @stability stable
+//
+// Wire contract for the GroupTemplatesService Connect-RPC service. A template
+// is a saved list of role definitions: creating a group from one creates the
+// group and its roles in a single action.
+//
+// A template carries no privilege. Shipped examples are ordinary rows written
+// through UpsertTemplate — the same call the UI uses — so deleting one leaves
+// every capability working. There is deliberately no is_builtin field.
+//
+// Consumed by:
+//   - API: handlers/grouptemplates/connect_handler.go implements
+//          GroupTemplatesServiceHandler.
+//   - UI:  ui/src/api/grouptemplates.ts (Connect-Web client).
+//   - CLI: cli/domains/grouptemplates/register.go (Connect-Go client).
+// =============================================================================
+
+service GroupTemplatesService {
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse);
+  rpc UpsertTemplate(UpsertTemplateRequest) returns (UpsertTemplateResponse);
+  rpc DeleteTemplate(DeleteTemplateRequest) returns (DeleteTemplateResponse);
+}
+
+// TemplateRole is one role definition inside a template.
+//
+// start_mode is one of "eager" or "waiting", validated server-side. Only an
+// eager role starts a process when the group is created; a waiting role
+// becomes a placeholder the operator (or a handoff) starts later.
+message TemplateRole {
+  string label = 1;
+  string command = 2;
+  string working_dir = 3;
+  string incoming_prompt = 4;
+  string backend = 5;
+  string target_id = 6;
+  string start_mode = 7;
+}
+
+// Template is a named, colour-tagged list of roles.
+message Template {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+  repeated TemplateRole roles = 4;
+  int32 use_count = 5;
+  string created_at = 6;
+  string updated_at = 7;
+}
+
+message ListTemplatesRequest {}
+
+message ListTemplatesResponse {
+  repeated Template templates = 1;
+}
+
+// UpsertTemplateRequest creates or updates a template by id. A blank id is
+// assigned server-side. The service rejects a blank name and an unknown
+// start_mode with invalid_argument.
+message UpsertTemplateRequest {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+  repeated TemplateRole roles = 4;
+  int32 use_count = 5;
+  bool has_use_count = 6;
+}
+
+message UpsertTemplateResponse {
+  Template template = 1;
+}
+
+// DeleteTemplateRequest is idempotent: deleting a missing id succeeds. Every
+// template is deletable, including a seeded example.
+message DeleteTemplateRequest {
+  string id = 1;
+}
+
+message DeleteTemplateResponse {}

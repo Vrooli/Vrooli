@@ -14,6 +14,11 @@ import (
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
+const (
+	protocgenESNPM     = "npm"
+	protocgenESNPMPath = "/usr/bin/npm"
+)
+
 var testManifest = hostreqkit.ToolManifest{
 	Name:        "protoc-gen-es",
 	Description: "TS/JS protoc plugin",
@@ -73,8 +78,8 @@ func TestInspectNpmPresentEnablesInstall(t *testing.T) {
 	defer restore()
 	hostreqkittest.RunInstallSupportedProbe(t, func() {
 		hostreqkit.LookPathFn = func(name string) (string, error) {
-			if name == "npm" {
-				return "/usr/bin/npm", nil
+			if name == protocgenESNPM {
+				return protocgenESNPMPath, nil
 			}
 			return "", os.ErrNotExist
 		}
@@ -88,8 +93,8 @@ func TestApplyDryRunMentionsNpmInstall(t *testing.T) {
 	defer restore()
 	testenv.SetIdentityEnv(t, map[string]string{"XDG_CACHE_HOME": ""})
 	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "npm" {
-			return "/usr/bin/npm", nil
+		if name == protocgenESNPM {
+			return protocgenESNPMPath, nil
 		}
 		return "", os.ErrNotExist
 	}
@@ -110,8 +115,8 @@ func TestApplyInstallsAndSymlinks(t *testing.T) {
 	binPath := filepath.Join(binDir, "protoc-gen-es")
 
 	hostreqkit.LookPathFn = func(name string) (string, error) {
-		if name == "npm" {
-			return "/usr/bin/npm", nil
+		if name == protocgenESNPM {
+			return protocgenESNPMPath, nil
 		}
 		// LookPath always misses for the plugin; the user-dir probe in
 		// ResolveCommandForInvokingUser finds the symlink.
@@ -121,7 +126,7 @@ func TestApplyInstallsAndSymlinks(t *testing.T) {
 		return []byte("v2.12.0\n"), nil
 	}
 	hostreqkit.RunCommandFn = func(name string, args []string, opts hostreqkit.EnsureOptions) error {
-		if name == "npm" {
+		if name == protocgenESNPM {
 			// Simulate npm placing the binary.
 			if err := os.MkdirAll(binDir, 0o755); err != nil {
 				return err

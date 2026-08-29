@@ -11,6 +11,45 @@ import (
 	"github.com/vrooli/api-core/scenario"
 )
 
+func TestNewUsesProcessStartAcrossBuilders(t *testing.T) {
+	original := processStart
+	t.Cleanup(func() { processStart = original })
+	processStart = time.Date(2026, 8, 28, 10, 0, 0, 0, time.UTC)
+
+	first := New("first")
+	time.Sleep(time.Millisecond)
+	second := New("second")
+	if !first.startTime.Equal(processStart) || !second.startTime.Equal(processStart) {
+		t.Fatalf("builder start times = %s and %s, want process start %s", first.startTime, second.startTime, processStart)
+	}
+}
+
+func TestHandlerUptimeIncreasesFromStableProcessStart(t *testing.T) {
+	start := time.Date(2026, 8, 28, 10, 0, 0, 0, time.UTC)
+	now := start.Add(10 * time.Second)
+	b := New("test-service")
+	b.startTime = start
+	b.nowFunc = func() time.Time { return now }
+	handler := b.Handler()
+
+	read := func() Response {
+		req := httptest.NewRequest(http.MethodGet, "/health", nil)
+		w := httptest.NewRecorder()
+		handler(w, req)
+		var response Response
+		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+			t.Fatalf("decode health response: %v", err)
+		}
+		return response
+	}
+	first := read()
+	now = now.Add(5 * time.Second)
+	second := read()
+	if first.UptimeSeconds != 10 || second.UptimeSeconds != 15 {
+		t.Fatalf("uptime readings = %v and %v, want 10 and 15 seconds", first.UptimeSeconds, second.UptimeSeconds)
+	}
+}
+
 func TestHandler_Minimal(t *testing.T) {
 	// Create handler with no checks
 	b := New("test-service")

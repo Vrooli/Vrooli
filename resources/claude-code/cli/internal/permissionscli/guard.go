@@ -3,7 +3,7 @@ package permissionscli
 import (
 	"os"
 
-	"resource-claude-code/cli/internal/permissions"
+	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissions"
 
 	"github.com/vrooli/cli-core/cliapp"
 )

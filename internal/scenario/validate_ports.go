@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -66,7 +66,7 @@ func validateManifestPorts(path string, ports map[string]Port) error {
 	for name := range ports {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	var issues []string
 	for _, name := range names {

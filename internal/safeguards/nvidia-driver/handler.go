@@ -21,7 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -420,7 +420,7 @@ func repairPackages() ([]string, error) {
 			packages = append(packages, pkg)
 		}
 	}
-	sort.Strings(packages)
+	slices.Sort(packages)
 	return unique(packages), nil
 }
 

@@ -19,6 +19,7 @@ package metrics
 
 import (
 	"context"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -41,6 +42,8 @@ type GpuSampler func(context.Context) []*commonv1.GpuUsage
 
 // Option customizes a Collector at Start.
 type Option func(*Collector)
+
+type collectorContextKey struct{}
 
 // WithEnvironment overrides the stdlib baseline CaptureEnvironment with richer
 // host facts (full memory total, present GPUs, host id). os/arch/num_cpu are
@@ -75,8 +78,10 @@ type Collector struct {
 	stages []*Stage
 	gauges map[string]float64
 
-	mu        sync.Mutex
-	maxActive int64
+	mu             sync.Mutex
+	maxActive      int64
+	childPeakBytes int64
+	sawChild       bool
 
 	stopped bool
 	result  *commonv1.ExecutionMetrics
@@ -96,8 +101,63 @@ func Start(opts ...Option) *Collector {
 			opt(c)
 		}
 	}
+	c.ctx = context.WithValue(c.ctx, collectorContextKey{}, c)
 	c.observeActive(activeCollectors.Add(1))
 	return c
+}
+
+// Context returns a context carrying this collector for child-process
+// attribution.
+func (c *Collector) Context() context.Context {
+	if c == nil {
+		return context.Background()
+	}
+	return c.ctx
+}
+
+// FromContext returns the collector carried by ctx, if any.
+func FromContext(ctx context.Context) *Collector {
+	if ctx == nil {
+		return nil
+	}
+	c, _ := ctx.Value(collectorContextKey{}).(*Collector)
+	return c
+}
+
+// ObserveProcess attributes a waited child process to the collector in ctx.
+func ObserveProcess(ctx context.Context, state *os.ProcessState) {
+	if c := FromContext(ctx); c != nil {
+		c.ObserveProcess(state)
+	}
+}
+
+// ObserveProcess records the largest resident size reported by a completed
+// child process. Unsupported platforms are ignored and report memory as
+// UNAVAILABLE at Stop.
+func (c *Collector) ObserveProcess(state *os.ProcessState) {
+	if c == nil {
+		return
+	}
+	peak, ok := processPeakRSSBytes(state)
+	if !ok || peak <= 0 {
+		return
+	}
+	c.mu.Lock()
+	if peak > c.childPeakBytes {
+		c.childPeakBytes = peak
+	}
+	c.sawChild = true
+	c.mu.Unlock()
+}
+
+// ChildPeakRSSBytes returns the largest observed completed child-process peak.
+func (c *Collector) ChildPeakRSSBytes() int64 {
+	if c == nil {
+		return 0
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.childPeakBytes
 }
 
 // Gauge attaches a whole-operation domain number (io bytes, gc count, tokens,
@@ -161,12 +221,14 @@ func (c *Collector) Stop() *commonv1.ExecutionMetrics {
 
 // Stage is one measured scope of work — the profiling-span / flamegraph model.
 type Stage struct {
-	c          *Collector
-	name       string
-	startedAt  time.Time
-	baseRusage rusageSample
-	gauges     map[string]float64
-	children   []*Stage
+	c              *Collector
+	name           string
+	startedAt      time.Time
+	baseRusage     rusageSample
+	gauges         map[string]float64
+	children       []*Stage
+	childPeakBytes int64
+	sawChild       bool
 
 	ended bool
 	proto *commonv1.Stage
@@ -201,6 +263,23 @@ func (s *Stage) Stage(name string) *Stage {
 	return child
 }
 
+// ObserveProcess attributes a completed child to both this stage and its
+// enclosing operation.
+func (s *Stage) ObserveProcess(state *os.ProcessState) {
+	if s == nil {
+		return
+	}
+	peak, ok := processPeakRSSBytes(state)
+	if !ok || peak <= 0 {
+		return
+	}
+	s.c.ObserveProcess(state)
+	if peak > s.childPeakBytes {
+		s.childPeakBytes = peak
+	}
+	s.sawChild = true
+}
+
 // End closes the stage, recording duration_ms and a best-effort per-stage
 // ResourceUsage. It is idempotent.
 func (s *Stage) End() *Stage {
@@ -214,7 +293,7 @@ func (s *Stage) End() *Stage {
 	s.proto = &commonv1.Stage{
 		Name:       s.name,
 		DurationMs: duration.Milliseconds(),
-		Resources:  s.c.resourceUsage(s.baseRusage, end),
+		Resources:  s.c.resourceUsageFor(s.baseRusage, end, s.childPeakBytes, s.sawChild),
 		Gauges:     copyGauges(s.gauges),
 	}
 	for _, child := range s.children {
@@ -229,27 +308,33 @@ func (s *Stage) End() *Stage {
 	return s
 }
 
-// resourceUsage builds a ResourceUsage from a start/end rusage pair, stamping
-// per-area Reliability. CPU/RSS are RELIABLE when single-flight and measurable,
-// BEST_EFFORT when another collector is concurrently active, UNAVAILABLE when
-// the platform cannot sample rusage. peak_rss_bytes is the provider process's
-// lifetime high-water mark, not a windowed peak. GPU is sampled only when a
-// sampler is wired.
+// resourceUsage builds a ResourceUsage from a start/end rusage pair. CPU is a
+// process-wide delta; memory is attributable only after a child is observed.
 func (c *Collector) resourceUsage(start, end rusageSample) *commonv1.ResourceUsage {
+	c.mu.Lock()
+	peak, sawChild := c.childPeakBytes, c.sawChild
+	c.mu.Unlock()
+	return c.resourceUsageFor(start, end, peak, sawChild)
+}
+
+func (c *Collector) resourceUsageFor(start, end rusageSample, childPeakBytes int64, sawChild bool) *commonv1.ResourceUsage {
 	usage := &commonv1.ResourceUsage{}
-	rel := c.cpuMemReliability(start, end)
-	if rel != commonv1.Reliability_RELIABILITY_UNAVAILABLE {
+	usage.MeasurementScope = commonv1.MeasurementScope_MEASUREMENT_SCOPE_OPERATION
+	cpuRel := c.cpuReliability(start, end)
+	if cpuRel != commonv1.Reliability_RELIABILITY_UNAVAILABLE {
 		usage.CpuUserMs = end.cpuUserMs - start.cpuUserMs
 		usage.CpuSysMs = end.cpuSysMs - start.cpuSysMs
-		usage.PeakRssBytes = end.maxRSSBytes
 	}
-	usage.Cpu = rel
-	usage.Memory = rel
+	usage.Cpu = cpuRel
+	usage.Memory = c.memoryReliability(sawChild)
+	if usage.Memory != commonv1.Reliability_RELIABILITY_UNAVAILABLE {
+		usage.PeakRssBytes = childPeakBytes
+	}
 	usage.Gpu, usage.Gpus = c.gpuUsage()
 	return usage
 }
 
-func (c *Collector) cpuMemReliability(start, end rusageSample) commonv1.Reliability {
+func (c *Collector) cpuReliability(start, end rusageSample) commonv1.Reliability {
 	if !start.ok || !end.ok {
 		return commonv1.Reliability_RELIABILITY_UNAVAILABLE
 	}
@@ -257,6 +342,18 @@ func (c *Collector) cpuMemReliability(start, end rusageSample) commonv1.Reliabil
 	concurrent := c.maxActive > 1
 	c.mu.Unlock()
 	if concurrent {
+		return commonv1.Reliability_RELIABILITY_BEST_EFFORT
+	}
+	return commonv1.Reliability_RELIABILITY_RELIABLE
+}
+
+func (c *Collector) memoryReliability(sawChild bool) commonv1.Reliability {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !sawChild {
+		return commonv1.Reliability_RELIABILITY_UNAVAILABLE
+	}
+	if c.maxActive > 1 {
 		return commonv1.Reliability_RELIABILITY_BEST_EFFORT
 	}
 	return commonv1.Reliability_RELIABILITY_RELIABLE

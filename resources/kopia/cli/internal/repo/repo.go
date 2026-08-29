@@ -22,12 +22,12 @@ import (
 	"strconv"
 	"strings"
 
-	"resource-kopia/cli/internal/cmdutil"
-	"resource-kopia/cli/internal/credentials"
-	"resource-kopia/cli/internal/env"
-	"resource-kopia/cli/internal/kexec"
-	"resource-kopia/cli/internal/registry"
-	"resource-kopia/cli/internal/repoctx"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/cmdutil"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/credentials"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/env"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/kexec"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/registry"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repoctx"
 
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )

@@ -28,6 +28,10 @@ type PlacementTarget interface{ isPlacementTarget() }
 type HostProcess struct {
 	// PID is the process the control plane supervises.
 	PID int
+	// Serving indicates that the supervised resource has a live workload
+	// surface. An accelerator host with a serving process and no resident GPU
+	// row is therefore an observed CPU placement, not an absent workload.
+	Serving bool
 	// Name is the process name, used only in messages.
 	Name string
 	// ExecutablePrefix is the directory the resource's own executables live
@@ -335,6 +339,9 @@ func observeCUDAProcess(snapshot hostinventory.Snapshot, process HostProcess) (B
 		return BackendCPU, AccessUnknown, "the host reports no CUDA device", nil
 	}
 	if len(snapshot.GPUProcesses) == 0 {
+		if process.Serving {
+			return BackendCPU, AccessUnknown, fmt.Sprintf("%s lists no compute process for serving pid %d, so it is running on the CPU", hostinventory.ToolNvidiaSMI, process.PID), nil
+		}
 		return "", AccessUnknown, noWorkloadReason(process), nil
 	}
 	return BackendCPU, AccessUnknown, fmt.Sprintf("%s lists no compute process for pid %d, so it is running on the CPU", hostinventory.ToolNvidiaSMI, process.PID), nil

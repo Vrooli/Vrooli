@@ -10,6 +10,11 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
+const (
+	kernelInotifyWatches   = "/proc/sys/fs/inotify/max_user_watches"
+	kernelInotifyInstances = "/proc/sys/fs/inotify/max_user_instances"
+)
+
 var stubLookups = kernelConfigStubLookups
 
 func kernelConfigStubLookups(t *testing.T) func() {
@@ -61,9 +66,9 @@ func TestInspectAllParametersMet(t *testing.T) {
 
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		switch path {
-		case "/proc/sys/fs/inotify/max_user_watches":
+		case kernelInotifyWatches:
 			return []byte("1048576\n"), nil
-		case "/proc/sys/fs/inotify/max_user_instances":
+		case kernelInotifyInstances:
 			return []byte("2048\n"), nil
 		case configPath:
 			return []byte(buildConfigContent()), nil
@@ -87,9 +92,9 @@ func TestInspectParametersBelowMinimum(t *testing.T) {
 
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		switch path {
-		case "/proc/sys/fs/inotify/max_user_watches":
+		case kernelInotifyWatches:
 			return []byte("8192\n"), nil
-		case "/proc/sys/fs/inotify/max_user_instances":
+		case kernelInotifyInstances:
 			return []byte("128\n"), nil
 		}
 		return nil, os.ErrNotExist
@@ -118,9 +123,9 @@ func TestInspectConfigFileMismatch(t *testing.T) {
 
 	hostreqkit.ReadFileFn = func(path string) ([]byte, error) {
 		switch path {
-		case "/proc/sys/fs/inotify/max_user_watches":
+		case kernelInotifyWatches:
 			return []byte("1048576\n"), nil
-		case "/proc/sys/fs/inotify/max_user_instances":
+		case kernelInotifyInstances:
 			return []byte("2048\n"), nil
 		case configPath:
 			return []byte("# wrong content\n"), nil

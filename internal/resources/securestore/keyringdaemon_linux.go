@@ -14,6 +14,8 @@ import (
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
+const secureStoreStaleDaemonChecked = "checked"
+
 const (
 	keyringdaemonLinuxParameterA = 19
 )
@@ -124,7 +126,7 @@ func addStaleDaemonReport(report *KeyringReport, info os.FileInfo) {
 		report.StaleDaemonCheck = "not-run"
 		return
 	}
-	report.StaleDaemonCheck = "checked"
+	report.StaleDaemonCheck = secureStoreStaleDaemonChecked
 	if !info.ModTime().After(start) {
 		return
 	}

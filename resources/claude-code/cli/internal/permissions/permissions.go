@@ -20,6 +20,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/vrooli/vrooli/internal/cliout"
 	"sort"
 	"strings"
 
@@ -421,7 +423,7 @@ func prettifyJSON(in json.RawMessage) ([]byte, error) {
 	if err := json.Unmarshal(in, &v); err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(v, "", "  ")
+	out, err := cliout.MarshalIndent(v)
 	if err != nil {
 		return nil, err
 	}

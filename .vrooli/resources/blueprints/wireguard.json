@@ -15,7 +15,7 @@
     "Remote edge node connectivity",
     "Private service mesh bootstrap"
   ],
-  "integration_kind": "manual",
+  "integration_kind": "native-cli",
   "platform_support": {
     "notes": "The underlying technology is cross-platform, but install and routing semantics are highly host-specific and should fail honestly unless a target platform is explicitly supported.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Explicit routing and firewall decisions"
   ],
   "dependencies": [],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Model this as a manual or heavily platform-gated resource if promoted.",
     "Do not imply identical behavior across OSes.",

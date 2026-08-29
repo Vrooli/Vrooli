@@ -14,11 +14,12 @@ const (
 )
 
 const (
-	policyService = "service"
+	policyService           = "service"
+	policyKeyIdleYieldFloor = "idle_yield_floor"
 )
 
 const (
-	policyParameterA = 1024
+	bytesPerKiB = 1024
 )
 
 // Enforce modes (plan §8.5, §7 Phase 3). The lifecycle admission hook keys off
@@ -126,10 +127,10 @@ var AccelReprobeModes = []string{AccelReprobeOff, AccelReprobeReport, AccelRepro
 // preempt disabled, auto-stop off.
 func DefaultPolicy() Policy {
 	return Policy{
-		TrackingThreshold:      256 * 1024 * policyParameterA, // 256 MiB
+		TrackingThreshold:      256 * 1024 * bytesPerKiB, // 256 MiB
 		IdleGrace:              DefaultIdleGrace,
 		DefaultHeartbeatTTL:    DefaultHeartbeatTTL,
-		ReconcileWarnThreshold: 512 * 1024 * policyParameterA, // 512 MiB drift
+		ReconcileWarnThreshold: 512 * 1024 * bytesPerKiB, // 512 MiB drift
 		Enforce:                EnforceAdvisory,
 		PreemptEnabled:         false,
 		AutoStopAllowlist:      nil,
@@ -158,7 +159,7 @@ var PolicyKeys = []string{
 	"sweep_interval",
 	"degrade_debounce",
 	"upshift_headroom",
-	"idle_yield_floor",
+	policyKeyIdleYieldFloor,
 	"terminal_retention",
 	"observed_peak_halflife",
 	"default_idle_unload_ttl",
@@ -190,7 +191,7 @@ func (p Policy) Get(key string) (string, error) {
 		return p.DegradeDebounce.String(), nil
 	case "upshift_headroom":
 		return strconv.FormatInt(p.UpshiftHeadroom, 10), nil
-	case "idle_yield_floor":
+	case policyKeyIdleYieldFloor:
 		return PriorityTierName(p.IdleYieldFloor), nil
 	case "terminal_retention":
 		return p.TerminalRetention.String(), nil
@@ -272,7 +273,7 @@ func (p Policy) withKey(key, value string) (Policy, error) {
 			return p, fmt.Errorf("%w: upshift_headroom must be a non-negative integer", ErrInvalidClaim)
 		}
 		out.UpshiftHeadroom = n
-	case "idle_yield_floor":
+	case policyKeyIdleYieldFloor:
 		v := strings.TrimSpace(value)
 		switch v {
 		case policyInteractive, policyService, policyBatch:

@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -249,7 +249,7 @@ func newProgressCoordinator(w io.Writer, opts progressOptions) *progressCoordina
 		every = tuning.SetupProgressObservationInterval()
 	}
 	format := strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_SETUP_PROGRESS_FORMAT")))
-	jsonOutput := opts.JSON || format == string(logx.FormatJSON) || format == "ndjson"
+	jsonOutput := opts.JSON || format == string(cliout.FormatJSON) || format == "ndjson"
 	quiet := format == "quiet" || strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_SETUP_PROGRESS")), "quiet")
 	host, _ := os.Hostname()
 	return &progressCoordinator{sink: &writerSink{w: w, json: jsonOutput, quiet: quiet}, now: now, firstHeartbeat: first, heartbeatEvery: every, dryRun: opts.DryRun, statePath: opts.StatePath, runID: fmt.Sprintf("setup-%d-%d", os.Getpid(), now().UnixNano()), host: host, pid: os.Getpid(), phase: setupPhases[0]}

@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -90,7 +90,7 @@ func ShowLogsUsage(w io.Writer) error {
 			names = append(names, entry.Name())
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	_, _ = fmt.Fprintln(w)
 	_, _ = fmt.Fprintln(w, "Available scenarios with logs:")
 	if len(names) == 0 {

@@ -27,7 +27,7 @@ type VaultCredentialIssuer struct {
 }
 
 func (i VaultCredentialIssuer) IssueScopedCredential(instance ManagedInstance, lease Lease) (ScopedCredential, error) {
-	if instance.Resource != "vault" {
+	if instance.Resource != vaultBootstrapVault {
 		return ScopedCredential{}, fmt.Errorf("Vault credential issuer cannot issue credentials for %s", instance.Resource)
 	}
 	if !isLoopbackManagedEndpoint(instance.Endpoint) {

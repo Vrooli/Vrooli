@@ -15,7 +15,7 @@
     "Media ingestion filters",
     "Safety review pipelines"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The service can be containerized, but GPU acceleration and model quality vary by environment and model choice.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Clear moderation review workflow"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should focus on a tested moderation workflow with clear thresholds and outputs.",
     "Keep model lifecycle and calibration explicit.",

@@ -13,7 +13,6 @@ import (
 	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/gpuaccess"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
-	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -22,9 +21,9 @@ const (
 )
 
 const (
-	accelBridgeComposeService = "compose-service"
-	accelBridgeDockerService  = "docker-service"
-	accelBridgeNativeCli      = "native-cli"
+	accelBridgeExternalCli = "external-cli"
+	accelBridgeNativeCli   = "native-cli"
+	accelBridgeNoWorkload  = "no workload is resident, so placement cannot be read yet"
 )
 
 // This file is the only place internal/resources and internal/accel meet.
@@ -110,30 +109,6 @@ func resourceArtifactPrefix(manifest ResourceManifest) string {
 // has no placement to read.
 func placementTargetFor(ctx context.Context, controller *Controller, manifest ResourceManifest) (accel.PlacementTarget, bool, error) {
 	switch manifest.Driver {
-	case accelBridgeComposeService:
-		services, err := inspectComposeServices(ctx, controller, manifest)
-		if err != nil {
-			return nil, false, fmt.Errorf("verify accelerator placement for %s: inspect compose services: %w", manifest.Name, err)
-		}
-		target := accel.ComposeService{Project: manifest.Name, Service: manifest.Name}
-		for _, service := range services {
-			if strings.EqualFold(strings.TrimSpace(service.State), "running") && strings.TrimSpace(service.Name) != "" {
-				target.Container = strings.TrimSpace(service.Name)
-				break
-			}
-		}
-		return target, true, nil
-
-	case accelBridgeDockerService:
-		state, exists, err := inspectDockerContainer(ctx, controller, manifest)
-		if err != nil {
-			return nil, false, fmt.Errorf("verify accelerator placement for %s: inspect container: %w", manifest.Name, err)
-		}
-		if !exists || !state.Running {
-			return accel.Container{}, true, nil
-		}
-		return accel.Container{Name: dockerContainerName(manifest)}, true, nil
-
 	case accelBridgeManagedService, accelBridgeNativeCli:
 		process := accel.HostProcess{
 			Name:             manifest.Name,
@@ -144,6 +119,7 @@ func placementTargetFor(ctx context.Context, controller *Controller, manifest Re
 		if err == nil {
 			if state, running, statusErr := supervisor.Status(); statusErr == nil && running {
 				process.PID = state.PID
+				process.Serving = true
 			}
 		}
 		return process, true, nil
@@ -152,7 +128,7 @@ func placementTargetFor(ctx context.Context, controller *Controller, manifest Re
 }
 
 func noWorkloadReasonFor(manifest ResourceManifest) string {
-	return "no workload is resident, so placement cannot be read yet"
+	return accelBridgeNoWorkload
 }
 
 // verifyStartedPlacement is the single post-start placement check for every
@@ -434,43 +410,4 @@ func gateAcceleratorReadiness(ctx context.Context, manifest ResourceManifest, wa
 	}
 	_, _ = fmt.Fprintf(warning, "warning: resource %q declared %s but this host can only give it %s: %s\n", manifest.Name, readiness.Declared, readiness.Selected, reason)
 	return nil
-}
-
-// selectedAcceleratedBackend resolves which backend this host can give the
-// resource, and that backend's config.
-//
-// It is the single answer the drivers ask before they apply a compose overlay
-// or an env override: previously each driver re-derived it from the `gpu` block
-// and a probe, so "which backend" and "is this resource accelerated" could
-// disagree between the start path and the status path.
-func selectedAcceleratedBackend(ctx context.Context, manifest ResourceManifest) (accel.Backend, manifestpkg.BackendConfig, bool) {
-	declaration := manifest.EffectiveAcceleration()
-	spec, accelerated := accelSpecFor(manifest)
-	if declaration == nil || !accelerated {
-		return "", manifestpkg.BackendConfig{}, false
-	}
-	snapshot, err := accelFactSource.Snapshot(ctx)
-	if err != nil {
-		return "", manifestpkg.BackendConfig{}, false
-	}
-	readiness, err := accel.ReadinessFromSnapshot(snapshot, spec)
-	if err != nil {
-		return "", manifestpkg.BackendConfig{}, false
-	}
-	readiness, _ = applyGPUOverride(readiness, spec)
-	config, ok := declaration.Config(string(readiness.Selected))
-	if !ok {
-		return readiness.Selected, manifestpkg.BackendConfig{}, true
-	}
-	return readiness.Selected, config, true
-}
-
-// acceleratedBackendEnv is the env the selected backend declares. An empty map
-// means the resource runs with no backend-specific environment.
-func acceleratedBackendEnv(ctx context.Context, manifest ResourceManifest) map[string]string {
-	_, config, ok := selectedAcceleratedBackend(ctx, manifest)
-	if !ok {
-		return nil
-	}
-	return config.Env
 }

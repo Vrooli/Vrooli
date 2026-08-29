@@ -24,10 +24,10 @@ func TestUpstreamEntriesUseResourceOwnedCLIs(t *testing.T) {
 		}
 		gotCommands = append(gotCommands, entry.CheckCmd[0])
 	}
-	if want := []string{"claude-code", "codex", "opencode", "grok"}; !reflect.DeepEqual(gotNames, want) {
+	if want := []string{"claude-code", "codex", "opencode", "grok", "antigravity"}; !reflect.DeepEqual(gotNames, want) {
 		t.Fatalf("upstream entry names = %v, want %v", gotNames, want)
 	}
-	if want := []string{"resource-claude-code", "resource-codex", "resource-opencode", "resource-grok"}; !reflect.DeepEqual(gotCommands, want) {
+	if want := []string{"resource-claude-code", "resource-codex", "resource-opencode", "resource-grok", "resource-antigravity"}; !reflect.DeepEqual(gotCommands, want) {
 		t.Fatalf("upstream entry commands = %v, want %v", gotCommands, want)
 	}
 }

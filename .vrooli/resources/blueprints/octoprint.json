@@ -15,7 +15,7 @@
     "Rapid prototyping dashboards",
     "Manufacturing automation helpers"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The application can run in containers, but useful operation depends on host access to printer hardware and related peripherals.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Camera and file storage strategy"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Promotion should target one or two validated printer workflows.",
     "Keep hardware control boundaries explicit and safety-aware.",

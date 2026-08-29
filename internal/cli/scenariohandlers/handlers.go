@@ -711,6 +711,9 @@ func remoteStartArgs(options lifecycle.StartOptions, openAfter bool, timeoutSeco
 	if options.ForceSetup {
 		args = append(args, "--force")
 	}
+	if options.AcceptCredentialLoss {
+		args = append(args, "--accept-credential-loss")
+	}
 	if openAfter {
 		args = append(args, "--open")
 	}

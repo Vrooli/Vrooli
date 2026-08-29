@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
@@ -18,6 +18,7 @@ import (
 
 const (
 	fleetContractUnsupported = "unsupported"
+	fleetContractWindows     = "windows"
 )
 
 const fleetContractDir = "dir"
@@ -167,7 +168,7 @@ func checkPlatformClaims(resourceRoot string, names []string) error {
 	if len(violations) == 0 {
 		return nil
 	}
-	sort.Strings(violations)
+	slices.Sort(violations)
 	return fmt.Errorf("resource platform claims are unsupported by acquisition: %s", strings.Join(violations, "; "))
 }
 
@@ -203,7 +204,7 @@ func platformClaim(platforms manifestpkg.ResourcePlatforms, osName string) strin
 		return platforms.Linux
 	case string(hostreqspec.PlatformMacOS):
 		return platforms.MacOS
-	case "windows":
+	case fleetContractWindows:
 		return platforms.Windows
 	}
 	return ""
@@ -247,7 +248,7 @@ func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) er
 		// Managed-service artifacts may be composed on the host from a
 		// hardware-predicated target and still be bundled after acquisition.
 		// Other vendorable surfaces must remain build-time deterministic.
-		if manifest.Bundling == "vendorable" && manifest.Driver != "managed-service" {
+		if manifest.Bundling == "vendorable" && manifest.Driver != accelBridgeManagedService {
 			for index, candidate := range service.Acquisition.Targets {
 				if !binaryfetch.UsesOnlyBuildTimeFacts(candidate) {
 					return fmt.Errorf("resource %s vendorable acquisition target %d for %s uses runtime facts", name, index, osName)
@@ -283,7 +284,7 @@ func checkManagedArtifact(name string, manifest manifestpkg.ResourceManifest) er
 			if acquired.Layout != fleetContractDir && acquired.Archive == "none" && !strings.EqualFold(strings.TrimSpace(acquired.SHA256), strings.TrimSpace(artifact.SHA256)) {
 				return fmt.Errorf("resource %s download/artifact digest mismatch for %s", name, platform)
 			}
-			if !binaryfetch.UsesOnlyBuildTimeFacts(acquired) && manifest.Bundling == "vendorable" && manifest.Driver != "managed-service" {
+			if !binaryfetch.UsesOnlyBuildTimeFacts(acquired) && manifest.Bundling == "vendorable" && manifest.Driver != accelBridgeManagedService {
 				return fmt.Errorf("resource %s vendorable acquisition for %s uses runtime facts", name, platform)
 			}
 		}
@@ -410,7 +411,7 @@ func checkResourceShellPolicy(resourceRoot string, names []string) error {
 	if len(violations) == 0 {
 		return nil
 	}
-	sort.Strings(violations)
+	slices.Sort(violations)
 	return fmt.Errorf("resource shell files are forbidden: %s", strings.Join(violations, ", "))
 }
 

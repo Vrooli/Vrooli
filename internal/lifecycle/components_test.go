@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable environment fixtures.
 package lifecycle
 
 import (
@@ -295,12 +296,16 @@ func TestDeclaredDevelopPhaseRetainsComponentArgv(t *testing.T) {
 				Role: "ui",
 				Run:  scenario.ComponentRun{Argv: []string{"node", "server.js"}},
 			},
+			"sidecar": {
+				Role: "sidecar",
+				Run:  scenario.ComponentRun{Argv: []string{"node", "sidecar.js"}, SupervisedBy: "api"},
+			},
 		},
 	}
 
 	steps := declaredPhaseSteps(manifest, "develop", nil)
 	if len(steps) != 2 {
-		t.Fatalf("develop step count = %d, want 2", len(steps))
+		t.Fatalf("develop step count = %d, want 2 unsupervised components", len(steps))
 	}
 	for _, step := range steps {
 		if len(step.Exec) == 0 {

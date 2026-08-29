@@ -18,18 +18,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"resource-kopia/cli/internal/env"
-	"resource-kopia/cli/internal/kexec"
-	"resource-kopia/cli/internal/maintenance"
-	"resource-kopia/cli/internal/policy"
-	"resource-kopia/cli/internal/registry"
-	"resource-kopia/cli/internal/repo"
-	"resource-kopia/cli/internal/repoctx"
-	"resource-kopia/cli/internal/snapshot"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/env"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/kexec"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/maintenance"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/policy"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/registry"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repo"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repoctx"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/snapshot"
 
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 
-	credentialmocks "resource-kopia/cli/internal/credentials/mocks"
+	credentialmocks "github.com/vrooli/vrooli/resources/kopia/cli/internal/credentials/mocks"
 )
 
 // rig is a fully-wired set of services backed by the real kopia binary plus an

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"resource-reranker/cli/internal/client"
+	"github.com/vrooli/vrooli/resources/reranker/cli/internal/client"
 )
 
 type fakeClient struct {

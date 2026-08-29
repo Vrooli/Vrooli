@@ -537,6 +537,9 @@ func buildinfoSkipDir(path string) bool {
 // read time; this function handles only path-based exclusions.
 func buildinfoSkipFile(path string, extra []string) bool {
 	path = strings.ReplaceAll(filepath.ToSlash(path), "\\", "/")
+	if isBuildOutput(path) {
+		return true
+	}
 	for _, skip := range []string{"build.meta"} {
 		if pathHasComponent(path, skip) {
 			return true

@@ -77,6 +77,11 @@ const (
 	Critical
 )
 
+// processStart is captured once when the health package is initialized. Health
+// uptime describes service age, so it must not be reset when a handler builder
+// is constructed inside a request.
+var processStart = time.Now()
+
 // Response is the standardized health check response matching the Vrooli schema.
 type Response struct {
 	// Status is the overall health: healthy, degraded, or unhealthy.
@@ -198,7 +203,8 @@ func Handler(checks ...Checker) http.HandlerFunc {
 	return b.Handler()
 }
 
-// New creates a new health check builder.
+// New creates a new health check builder. Uptime is measured from the process
+// start captured by this package, never from handler-construction time.
 // If no service name is provided, it's auto-detected from directory structure or SCENARIO_NAME env.
 //
 // Usage:
@@ -213,7 +219,7 @@ func New(service ...string) *Builder {
 	return &Builder{
 		service:   svc,
 		timeout:   5 * time.Second,
-		startTime: time.Now(),
+		startTime: processStart,
 		nowFunc:   time.Now,
 	}
 }

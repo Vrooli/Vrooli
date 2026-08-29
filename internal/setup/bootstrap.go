@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/envkit-go"
@@ -17,14 +17,18 @@ import (
 )
 
 const (
-	bootstrapParameterA = 2
+	bootstrapParameterA            = 2
+	setupDockerTool                = "docker"
+	setupCredentialStorePassphrase = "credential-store-passphrase"
+	setupOwnerVrooli               = "vrooli"
+	setupStageComplete             = "complete"
 )
 
 func bootstrapAwareRequirements(resolution hostreq.Resolution) hostreq.Resolution {
 	byName := make(map[string]hostreq.ResolvedRequirement, len(resolution.Tools)+bootstrapParameterA)
 	for _, requirement := range resolution.Tools {
 		name := strings.ToLower(strings.TrimSpace(requirement.Name))
-		if name == "" || name == "docker" {
+		if name == "" || name == setupDockerTool {
 			continue
 		}
 		byName[name] = requirement
@@ -62,7 +66,7 @@ func bootstrapAwareRequirements(resolution hostreq.Resolution) hostreq.Resolutio
 	for name := range byName {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	for _, name := range names {
 		ordered = append(ordered, byName[name])
 	}

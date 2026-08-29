@@ -1,7 +1,7 @@
+//nolint:goconst // test data deliberately reuses stable manifest fixtures.
 package resources
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -61,10 +61,11 @@ func TestStatusForResourceCategorizesProbeFailures(t *testing.T) {
 	})
 
 	item := Resource{
-		Name:   "fixture",
-		Path:   filepath.Join(root, "resources", "fixture"),
-		Exists: true,
-		HasCLI: true,
+		Name:         "fixture",
+		Path:         filepath.Join(root, "resources", "fixture"),
+		Exists:       true,
+		DeclaresCLI:  true,
+		CLIInstalled: true,
 	}
 
 	t.Run("timeout", func(t *testing.T) {
@@ -113,51 +114,6 @@ func TestStatusForResourceCategorizesProbeFailures(t *testing.T) {
 	})
 }
 
-func TestNormalizeComposePSOutputIgnoresWarnings(t *testing.T) {
-	output := []byte(`time="2026-04-12T00:04:48-04:00" level=warning msg="compose warning"
-{"Service":"fixture","State":"running","Health":"healthy"}`)
-
-	normalized := normalizeComposePSOutput(output)
-	if normalized != `{"Service":"fixture","State":"running","Health":"healthy"}` {
-		t.Fatalf("normalizeComposePSOutput() = %q", normalized)
-	}
-}
-
-func TestInspectDockerContainerUsesContainerInspectBoundary(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	controller := NewController(root, home)
-	manifest := manifestpkg.ResourceManifest{
-		Name: "ollama",
-		Runtime: manifestpkg.ResourceRuntime{
-			ContainerName: "ollama",
-		},
-	}
-
-	originalRun := runCommandResource
-	t.Cleanup(func() {
-		runCommandResource = originalRun
-	})
-
-	runCommandResource = func(ctx context.Context, cmd *exec.Cmd) commandResult {
-		if got := strings.Join(cmd.Args[:3], " "); got != "docker container inspect" {
-			t.Fatalf("inspect command = %q, want docker container inspect", got)
-		}
-		return commandResult{
-			output: []byte("Error: No such container: ollama"),
-			err:    errors.New("exit status 1"),
-		}
-	}
-
-	_, exists, err := inspectDockerContainer(context.Background(), controller, manifest)
-	if err != nil {
-		t.Fatalf("inspectDockerContainer: %v", err)
-	}
-	if exists {
-		t.Fatal("expected missing container to report exists=false")
-	}
-}
-
 func TestStatusForResourceParsesStructuredPayload(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
@@ -173,10 +129,11 @@ func TestStatusForResourceParsesStructuredPayload(t *testing.T) {
 	}
 
 	item := Resource{
-		Name:   "fixture",
-		Path:   filepath.Join(root, "resources", "fixture"),
-		Exists: true,
-		HasCLI: true,
+		Name:         "fixture",
+		Path:         filepath.Join(root, "resources", "fixture"),
+		Exists:       true,
+		DeclaresCLI:  true,
+		CLIInstalled: true,
 	}
 
 	status, err := controller.statusForResource(item, true)
@@ -228,8 +185,8 @@ func TestDiscoverMarksManifestNativeResources(t *testing.T) {
 	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
 	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
 		"fixture",
-		testresource.WithResourceDriver("docker-service"),
-		testresource.WithResourceTemplate("docker-service"),
+		testresource.WithResourceDriver("external-cli"),
+		testresource.WithResourceTemplate("external-cli"),
 		testresource.WithResourceDescription("Fixture resource"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
 			Image:         "fixture:1.0.0",
@@ -252,8 +209,8 @@ func TestDiscoverMarksManifestNativeResources(t *testing.T) {
 	if items[0].ControlMode != "manifest-native" {
 		t.Fatalf("ControlMode = %q, want manifest-native", items[0].ControlMode)
 	}
-	if items[0].Driver != "docker-service" {
-		t.Fatalf("Driver = %q, want docker-service", items[0].Driver)
+	if items[0].Driver != "external-cli" {
+		t.Fatalf("Driver = %q, want external-cli", items[0].Driver)
 	}
 }
 
@@ -268,408 +225,6 @@ func TestDiscoverHidesConfigOnlyResourcesWithoutManifest(t *testing.T) {
 	}
 	if len(items) != 0 {
 		t.Fatalf("len(items) = %d, want 0: %#v", len(items), items)
-	}
-}
-
-func TestStatusForManifestNativeDockerResource(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("docker-service"),
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDescription("Fixture resource"),
-		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:1.0.0",
-			ContainerName: "vrooli-fixture",
-		}),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	stateFile := writeFakeDocker(t)
-	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
-		t.Fatalf("write state: %v", err)
-	}
-
-	status, err := NewController(root, home).Status("fixture", true)
-	if err != nil {
-		t.Fatalf("Status: %v", err)
-	}
-	if !status.Running {
-		t.Fatal("expected running resource")
-	}
-	if status.Healthy == nil || !*status.Healthy {
-		t.Fatalf("Healthy = %#v, want true", status.Healthy)
-	}
-	if status.Resource.ControlMode != "manifest-native" {
-		t.Fatalf("ControlMode = %q", status.Resource.ControlMode)
-	}
-}
-
-func TestRunManifestNativeDockerLifecycle(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("docker-service"),
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDescription("Fixture resource"),
-		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:1.0.0",
-			ContainerName: "vrooli-fixture",
-		}),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	stateFile := writeFakeDocker(t)
-
-	controller := NewController(root, home)
-	if err := controller.Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
-		t.Fatalf("Run(start): %v", err)
-	}
-	data, err := os.ReadFile(stateFile)
-	if err != nil {
-		t.Fatalf("read state: %v", err)
-	}
-	if strings.TrimSpace(string(data)) != "running" {
-		t.Fatalf("state after start = %q, want running", string(data))
-	}
-
-	var stdout bytes.Buffer
-	if err := controller.Run("fixture", []string{"logs"}, &stdout, ioDiscard{}); err != nil {
-		t.Fatalf("Run(logs): %v", err)
-	}
-	if !strings.Contains(stdout.String(), "fixture logs") {
-		t.Fatalf("logs output = %q", stdout.String())
-	}
-
-	if err := controller.Run("fixture", []string{"stop"}, ioDiscard{}, ioDiscard{}); err != nil {
-		t.Fatalf("Run(stop): %v", err)
-	}
-	data, err = os.ReadFile(stateFile)
-	if err != nil {
-		t.Fatalf("read state: %v", err)
-	}
-	if strings.TrimSpace(string(data)) != "stopped" {
-		t.Fatalf("state after stop = %q, want stopped", string(data))
-	}
-}
-
-func TestStatusForManifestNativeDockerResourceAcceptsExternalHealthyService(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	port := mustAllocatePort(t)
-	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(port), func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	defer server.Shutdown(context.Background())
-
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("docker-service"),
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDescription("Fixture resource"),
-		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:1.0.0",
-			ContainerName: "vrooli-fixture",
-		}),
-		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
-			Type:           "http",
-			Target:         "http://127.0.0.1:" + strconv.Itoa(port) + "/health",
-			ExpectedStatus: []int{200},
-			TimeoutSeconds: 5,
-		}),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	writeFakeDocker(t)
-
-	status, err := NewController(root, home).Status("fixture", false)
-	if err != nil {
-		t.Fatalf("Status: %v", err)
-	}
-	if !status.Running {
-		t.Fatal("expected external healthy service to satisfy running status")
-	}
-	if status.Healthy == nil || !*status.Healthy {
-		t.Fatalf("Healthy = %#v, want true", status.Healthy)
-	}
-	if status.Message != "healthy (external)" {
-		t.Fatalf("Message = %q, want healthy (external)", status.Message)
-	}
-}
-
-func TestRunManifestNativeDockerStartNoopsWhenExternalServiceIsHealthy(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	port := mustAllocatePort(t)
-	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(port), func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	defer server.Shutdown(context.Background())
-
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("docker-service"),
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDescription("Fixture resource"),
-		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:1.0.0",
-			ContainerName: "vrooli-fixture",
-		}),
-		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
-			Type:           "http",
-			Target:         "http://127.0.0.1:" + strconv.Itoa(port) + "/health",
-			ExpectedStatus: []int{200},
-			TimeoutSeconds: 5,
-		}),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	stateFile := writeFakeDocker(t)
-
-	controller := NewController(root, home)
-	if err := controller.Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
-		t.Fatalf("Run(start): %v", err)
-	}
-	if _, err := os.Stat(stateFile); !os.IsNotExist(err) {
-		t.Fatalf("expected no managed container state file, got err=%v", err)
-	}
-}
-
-func TestRunManifestNativeDockerStartPrefersExternalHealthyServiceOverStoppedContainer(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	port := mustAllocatePort(t)
-	server := startHTTPServer(t, "127.0.0.1:"+strconv.Itoa(port), func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-	defer server.Shutdown(context.Background())
-
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("docker-service"),
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDescription("Fixture resource"),
-		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image:         "fixture:1.0.0",
-			ContainerName: "vrooli-fixture",
-		}),
-		testresource.WithResourceHealthChecks(manifestpkg.ResourceHealthCheck{
-			Type:           "http",
-			Target:         "http://127.0.0.1:" + strconv.Itoa(port) + "/health",
-			ExpectedStatus: []int{200},
-			TimeoutSeconds: 5,
-		}),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	stateFile := writeFakeDocker(t)
-	if err := os.WriteFile(stateFile, []byte("stopped\n"), 0o644); err != nil {
-		t.Fatalf("write fake docker state: %v", err)
-	}
-
-	controller := NewController(root, home)
-	if err := controller.Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
-		t.Fatalf("Run(start): %v", err)
-	}
-	data, err := os.ReadFile(stateFile)
-	if err != nil {
-		t.Fatalf("read state: %v", err)
-	}
-	if strings.TrimSpace(string(data)) != "stopped" {
-		t.Fatalf("state after external-preferred start = %q, want stopped", string(data))
-	}
-}
-
-func TestStatusForManifestNativeComposeResource(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("compose-service"),
-		testresource.WithResourceTemplate("compose-service"),
-		testresource.WithResourceDescription("Fixture compose resource"),
-		testresource.WithResourceComposeFile("compose.yaml"),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
-	stateFile := writeFakeDocker(t)
-	if err := os.WriteFile(stateFile, []byte("running\n"), 0o644); err != nil {
-		t.Fatalf("write state: %v", err)
-	}
-
-	status, err := NewController(root, home).Status("fixture", true)
-	if err != nil {
-		t.Fatalf("Status: %v", err)
-	}
-	if !status.Installed || !status.Running {
-		t.Fatalf("status = %#v, expected installed/running", status)
-	}
-	if status.Healthy == nil || !*status.Healthy {
-		t.Fatalf("Healthy = %#v, want true", status.Healthy)
-	}
-}
-
-func TestStatusForManifestNativeComposeResourceAcceptsLegacyNamedContainer(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("compose-service"),
-		testresource.WithResourceTemplate("compose-service"),
-		testresource.WithResourceDescription("Fixture compose resource"),
-		testresource.WithResourceComposeFile("compose.yaml"),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
-	writeFakeDockerWithLegacyComposeContainer(t)
-
-	status, err := NewController(root, home).Status("fixture", true)
-	if err != nil {
-		t.Fatalf("Status: %v", err)
-	}
-	if !status.Installed || !status.Running {
-		t.Fatalf("status = %#v, expected installed/running", status)
-	}
-	if status.Healthy == nil || !*status.Healthy {
-		t.Fatalf("Healthy = %#v, want true", status.Healthy)
-	}
-}
-
-func TestRunManifestNativeComposeLifecycle(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("compose-service"),
-		testresource.WithResourceTemplate("compose-service"),
-		testresource.WithResourceDescription("Fixture compose resource"),
-		testresource.WithResourceComposeFile("compose.yaml"),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
-	stateFile := writeFakeDocker(t)
-
-	controller := NewController(root, home)
-	if err := controller.Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
-		t.Fatalf("Run(start): %v", err)
-	}
-	data, err := os.ReadFile(stateFile)
-	if err != nil {
-		t.Fatalf("read state: %v", err)
-	}
-	if strings.TrimSpace(string(data)) != "running" {
-		t.Fatalf("state after start = %q, want running", string(data))
-	}
-
-	var stdout bytes.Buffer
-	if err := controller.Run("fixture", []string{"logs"}, &stdout, ioDiscard{}); err != nil {
-		t.Fatalf("Run(logs): %v", err)
-	}
-	if !strings.Contains(stdout.String(), "fixture logs") {
-		t.Fatalf("logs output = %q", stdout.String())
-	}
-
-	if err := controller.Run("fixture", []string{"stop"}, ioDiscard{}, ioDiscard{}); err != nil {
-		t.Fatalf("Run(stop): %v", err)
-	}
-	data, err = os.ReadFile(stateFile)
-	if err != nil {
-		t.Fatalf("read state: %v", err)
-	}
-	if strings.TrimSpace(string(data)) != "stopped" {
-		t.Fatalf("state after stop = %q, want stopped", string(data))
-	}
-}
-
-func TestRunManifestNativeComposeStartNoopsForHealthyLegacyNamedContainer(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("compose-service"),
-		testresource.WithResourceTemplate("compose-service"),
-		testresource.WithResourceDescription("Fixture compose resource"),
-		testresource.WithResourceComposeFile("compose.yaml"),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "partial",
-		}),
-	))
-	testkitgo.WriteRelativeFile(t, root, filepath.Join("resources", "fixture", "compose.yaml"), "services:\n  app:\n    image: fixture:1.0.0\n")
-	composeUpFile := writeFakeDockerWithLegacyComposeContainer(t)
-
-	if err := NewController(root, home).Run("fixture", []string{"start"}, ioDiscard{}, ioDiscard{}); err != nil {
-		t.Fatalf("Run(start): %v", err)
-	}
-	if _, err := os.Stat(composeUpFile); !os.IsNotExist(err) {
-		t.Fatalf("compose up marker exists after start no-op: err=%v", err)
-	}
-}
-
-func TestStatusForManifestNativeUnsupportedPlatform(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	testscenario.WriteProjectResourceConfig(t, root, "fixture", true)
-	testresource.WriteResourceManifest(t, root, "fixture", testresource.ResourceManifest(
-		"fixture",
-		testresource.WithResourceDriver("docker-service"),
-		testresource.WithResourceTemplate("docker-service"),
-		testresource.WithResourceDescription("Fixture resource"),
-		testresource.WithResourcePlatforms(manifestpkg.ResourcePlatforms{
-			Linux:   "unsupported",
-			MacOS:   "unsupported",
-			Windows: "unsupported",
-		}),
-		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{
-			Image: "fixture:1.0.0",
-		}),
-	))
-
-	status, err := NewController(root, home).Status("fixture", true)
-	if err != nil {
-		t.Fatalf("Status: %v", err)
-	}
-	if status.StatusCode != StatusCodeUnsupportedPlatform {
-		t.Fatalf("StatusCode = %q, want %q", status.StatusCode, StatusCodeUnsupportedPlatform)
 	}
 }
 
@@ -1267,75 +822,6 @@ func writeExecutableOnPath(t *testing.T, name, contents string) string {
 	testresource.UseSystemLookPath(t, &lookPathCommandFn)
 	testresource.UseSystemLookPath(t, &lookPathResourceFn)
 	return path
-}
-
-func writeFakeDocker(t *testing.T) string {
-	t.Helper()
-	stateFile := testresource.WriteFakeDocker(t)
-	testresource.UseSystemLookPath(t, &lookPathCommandFn)
-	return stateFile
-}
-
-func writeFakeDockerWithLegacyComposeContainer(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	composeUpFile := filepath.Join(dir, "compose-up-called")
-	scriptPath := filepath.Join(dir, "docker")
-	script := shelltest.BashShebang() + fmt.Sprintf(`
-set -e
-cmd="${1:-}"
-shift || true
-
-case "$cmd" in
-  compose)
-    while [[ $# -gt 0 ]]; do
-      case "$1" in
-        -f|--project-name)
-          shift 2
-          ;;
-        *)
-          break
-          ;;
-      esac
-    done
-    subcmd="${1:-}"
-    case "$subcmd" in
-      ps)
-        printf '[]'
-        exit 0
-        ;;
-      up)
-        touch %q
-        echo "compose up should not be called" >&2
-        exit 42
-        ;;
-      logs)
-        echo "fixture logs"
-        exit 0
-        ;;
-    esac
-    ;;
-  container)
-    if [[ "${1:-}" == "inspect" && "${2:-}" == "fixture" ]]; then
-      printf '{"Running":true}'
-      exit 0
-    fi
-    echo "Error: No such container" >&2
-    exit 1
-    ;;
-  network)
-    echo "Error: No such network" >&2
-    exit 1
-    ;;
-esac
-
-echo "unexpected docker invocation: $cmd $*" >&2
-exit 1
-`, composeUpFile)
-	testkitgo.WriteExecutable(t, scriptPath, script)
-	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	testresource.UseSystemLookPath(t, &lookPathCommandFn)
-	return composeUpFile
 }
 
 func projectRootForResourcesTest(t *testing.T) string {

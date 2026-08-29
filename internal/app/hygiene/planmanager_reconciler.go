@@ -19,10 +19,11 @@ import (
 )
 
 const (
-	planmanagerReconcilerConflict       = "conflict"
-	planmanagerReconcilerImported       = "imported"
-	planmanagerReconcilerMirrorRepaired = "mirror_repaired"
-	planmanagerReconcilerParseFailed    = "parse_failed"
+	planmanagerReconcilerConflict         = "conflict"
+	planmanagerReconcilerImported         = "imported"
+	planmanagerReconcilerMirrorRepaired   = "mirror_repaired"
+	planmanagerReconcilerParseFailed      = "parse_failed"
+	planmanagerReconcilerSkippedDuplicate = "skipped_duplicate"
 )
 
 const planManagerScenario = "plan-manager"
@@ -134,7 +135,7 @@ func reconcileActionString(action plansv1.ReconcileAction) string {
 	case plansv1.ReconcileAction_RECONCILE_ACTION_IMPORTED:
 		return planmanagerReconcilerImported
 	case plansv1.ReconcileAction_RECONCILE_ACTION_SKIPPED_DUPLICATE:
-		return "skipped_duplicate"
+		return planmanagerReconcilerSkippedDuplicate
 	case plansv1.ReconcileAction_RECONCILE_ACTION_PARSE_FAILED:
 		return planmanagerReconcilerParseFailed
 	case plansv1.ReconcileAction_RECONCILE_ACTION_CONFLICT:

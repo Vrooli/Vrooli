@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable API fixture values.
 package api
 
 import (

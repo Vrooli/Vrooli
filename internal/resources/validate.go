@@ -1,9 +1,11 @@
 package resources
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -37,9 +39,35 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 		Items:  []ResourceValidationItem{},
 		Issues: []ValidationIssue{},
 	}
+	if strings.TrimSpace(name) != "" {
+		path := filepath.Join(c.Root, "resources", name, "resource.json")
+		if data, readErr := os.ReadFile(path); readErr == nil {
+			var fields map[string]json.RawMessage
+			if json.Unmarshal(data, &fields) == nil {
+				if raw, present := fields["driver"]; present {
+					var driver string
+					if json.Unmarshal(raw, &driver) == nil && !slices.Contains([]string{"managed-service", "external-cli", "cloud-api", "native-cli"}, strings.TrimSpace(driver)) {
+						var runtimeFields map[string]json.RawMessage
+						_ = json.Unmarshal(data, &runtimeFields)
+						if runtime, hasRuntime := runtimeFields["runtime"]; !hasRuntime || string(runtime) == "{}" {
+							return ResourceValidationReport{Count: 1, Passed: false, Items: []ResourceValidationItem{{Name: name, ManifestPath: path, Driver: driver, Issues: []ValidationIssue{{Severity: "error", Message: fmt.Sprintf("unknown_driver: driver %q is not in the managed resource archetype enum", driver)}}}}}, nil
+						}
+					}
+				}
+			}
+		}
+	}
 
 	items, err := c.Discover()
 	if err != nil {
+		message := err.Error()
+		if strings.Contains(message, "driver ") && strings.Contains(message, " is invalid") {
+			return ResourceValidationReport{
+				Count:  1,
+				Passed: false,
+				Items:  []ResourceValidationItem{{Name: name, ManifestPath: filepath.Join(c.Root, "resources", name, "resource.json"), Issues: []ValidationIssue{{Severity: "error", Message: "unknown_driver: " + message}}}},
+			}, nil
+		}
 		return ResourceValidationReport{}, err
 	}
 	if strings.TrimSpace(name) != "" {
@@ -52,6 +80,10 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 		items = filtered
 	}
 	report.Count = len(items)
+	rootContract, err := scenario.LoadServiceManifest(filepath.Join(c.Root, ".vrooli", "service.json"))
+	if err != nil {
+		return ResourceValidationReport{}, err
+	}
 
 	portOwners := map[string]string{}
 	for _, item := range items {
@@ -67,6 +99,42 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 			ManifestPath: item.ManifestPath,
 			Driver:       manifest.Driver,
 			Issues:       []ValidationIssue{},
+		}
+		for _, requiredFile := range []string{"resource.json", "README.md"} {
+			path := filepath.Join(c.Root, "resources", item.Name, requiredFile)
+			if info, statErr := os.Stat(path); statErr != nil || info.IsDir() {
+				entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: "missing_required_file: " + requiredFile})
+			}
+		}
+		resourceDir := filepath.Join(c.Root, "resources", item.Name)
+		cliDir := filepath.Join(resourceDir, "cli")
+		if info, statErr := os.Stat(cliDir); statErr != nil || !info.IsDir() {
+			if manifest.CLI != nil && manifest.CLI.Enabled {
+				entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: "cli_declared_without_module: cli.enabled requires a cli/ directory"})
+			} else {
+				entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: "missing_required_dir: cli"})
+			}
+		} else if entries, readErr := os.ReadDir(cliDir); readErr == nil && len(entries) == 0 {
+			entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: "empty_required_dir: cli"})
+		}
+		_, hasTestDir := statDir(resourceDir, "test")
+		_, hasTestsDir := statDir(resourceDir, "tests")
+		if hasTestDir && hasTestsDir {
+			entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: "conflicting_test_dir: use either test/ or tests/, not both"})
+		}
+		if data, readErr := os.ReadFile(item.ManifestPath); readErr == nil {
+			var fields map[string]json.RawMessage
+			if json.Unmarshal(data, &fields) == nil {
+				if _, present := fields["template"]; present {
+					entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: "unknown_manifest_field: template is not a resource archetype field"})
+				}
+			}
+		}
+		if _, registeredInRoot := rootContract.Dependencies.Resources[item.Name]; !registeredInRoot {
+			entry.Issues = append(entry.Issues, ValidationIssue{
+				Severity: "error",
+				Message:  "resource_absent_from_contract: resource is not declared in .vrooli/service.json",
+			})
 		}
 		for _, issue := range resourceenv.ValidateResourceManifest(c.Root, manifest) {
 			entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: issue})
@@ -128,6 +196,11 @@ func resourcePortOwnerKey(port manifestpkg.ResourcePort, hostPort int) string {
 		protocol = "tcp"
 	}
 	return fmt.Sprintf("%s:%d/%s", hostIP, hostPort, protocol)
+}
+
+func statDir(parent, name string) (os.FileInfo, bool) {
+	info, err := os.Stat(filepath.Join(parent, name))
+	return info, err == nil && info.IsDir()
 }
 
 func usesSingleManifestContract(manifest ResourceManifest) bool {

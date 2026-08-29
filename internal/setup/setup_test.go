@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable command fixtures.
 package setup
 
 import (
@@ -962,7 +963,7 @@ func TestDockerIsDemandedOnlyBySelectedContainerResources(t *testing.T) {
 	))
 	testresource.WriteResourceManifest(t, root, "containerized", testresource.ResourceManifest(
 		"containerized",
-		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceDriver("managed-service"),
 		testresource.WithResourceComposeFile("docker-compose.yml"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{Image: "fixture:1.0.0"}),
 	))
@@ -970,7 +971,7 @@ func TestDockerIsDemandedOnlyBySelectedContainerResources(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load container fixture: %v", err)
 	}
-	if manifest.Driver != "docker-service" {
+	if manifest.Driver != "managed-service" {
 		t.Fatalf("container fixture driver = %q", manifest.Driver)
 	}
 
@@ -1065,7 +1066,7 @@ func TestPreflightSelectedContainerResourceUsesRuntimeProviderLadder(t *testing.
 	home := t.TempDir()
 	testresource.WriteResourceManifest(t, root, "containerized", testresource.ResourceManifest(
 		"containerized",
-		testresource.WithResourceDriver("docker-service"),
+		testresource.WithResourceDriver("managed-service"),
 		testresource.WithResourceRuntime(manifestpkg.ResourceRuntime{Image: "fixture:1.0.0"}),
 	))
 

@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/buildinfo"
@@ -45,6 +45,7 @@ type Controller struct {
 
 type (
 	ConfigEntry     = catalogpkg.ConfigEntry
+	CensusRow       = catalogpkg.CensusRow
 	Error           = vroolierr.Error
 	Resource        = catalogpkg.Resource
 	Status          = resourcecontrol.Status
@@ -106,6 +107,15 @@ func (c *Controller) DiscoverReport() (DiscoveryReport, error) {
 		DeprecatedNames: deprecated,
 		ResolveCLIPath:  c.resolveCLIPath,
 	})
+}
+
+func (c *Controller) Census() ([]CensusRow, error) {
+	deprecated, err := c.deprecatedNameSet()
+	if err != nil {
+		return nil, err
+	}
+	_ = deprecated
+	return catalogpkg.New(c.Root).Census(catalogpkg.DiscoverOptions{ResolveCLIPath: c.resolveCLIPath})
 }
 
 func (c *Controller) discoverResource(name string) (*Resource, error) {
@@ -191,7 +201,7 @@ func (c *Controller) EnabledResourceNames() ([]string, error) {
 			names = append(names, name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return names, nil
 }
 

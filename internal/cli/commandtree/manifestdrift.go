@@ -1,12 +1,8 @@
 package commandtree
 
 import (
-	"sort"
+	"slices"
 	"strings"
-)
-
-const (
-	manifestdriftParameterA = 2
 )
 
 // CommandNode is a command-tree registration node. A node with children is a
@@ -39,8 +35,8 @@ func WalkCommandTree(roots []CommandNode) []string {
 		}
 	}
 	walk(roots, nil)
-	sort.Strings(paths)
-	return uniqueStrings(paths)
+	slices.Sort(paths)
+	return slices.Compact(paths)
 }
 
 // CommandTreeFromPaths turns already-registered command paths into a tree.
@@ -77,17 +73,4 @@ func insertCommandPath(nodes []CommandNode, parts []string) []CommandNode {
 		node.Children = insertCommandPath(nil, parts[1:])
 	}
 	return append(nodes, node)
-}
-
-func uniqueStrings(values []string) []string {
-	if len(values) < manifestdriftParameterA {
-		return values
-	}
-	out := values[:1]
-	for _, value := range values[1:] {
-		if value != out[len(out)-1] {
-			out = append(out, value)
-		}
-	}
-	return out
 }

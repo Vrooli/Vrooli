@@ -13,11 +13,57 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
 	legacyDockerMigrationParameterA = 3
 )
+
+var runDockerLifecycleCommand = runDockerLifecycleCommandReal
+
+func runDockerLifecycleCommandReal(ctx context.Context, controller *Controller, stdout, stderr io.Writer, args ...string) error {
+	cmd := shell.Command(shell.Spec{
+		Name: "docker", Args: args, Dir: controller.Root,
+		Env: resourceEnv(controller.Root, controller.Home), Stdout: stdout, Stderr: stderr,
+	})
+	runCtx, cancel := context.WithTimeout(ctx, tuning.DockerRuntimeOperationTimeout())
+	defer cancel()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	waitErr := cmd.Wait()
+	if runCtx.Err() != nil {
+		return runCtx.Err()
+	}
+	return waitErr
+}
+
+func dockerCommand(ctx context.Context, controller *Controller, stdout, stderr io.Writer, args ...string) error {
+	return runDockerLifecycleCommand(ctx, controller, stdout, stderr, args...)
+}
+
+func dockerOutput(ctx context.Context, controller *Controller, args ...string) ([]byte, error) {
+	cmd := shell.Command(shell.Spec{
+		Name: "docker", Args: args, Dir: controller.Root,
+		Env: resourceEnv(controller.Root, controller.Home),
+	})
+	result := runCommandResource(ctx, cmd)
+	if result.err != nil {
+		return nil, fmt.Errorf("%w: %s", result.err, strings.TrimSpace(string(result.output)))
+	}
+	return result.output, nil
+}
+
+func isMissingDockerArtifact(err error) bool {
+	message := strings.ToLower(strings.TrimSpace(err.Error()))
+	for _, marker := range []string{"no such object", "no such image", "no such volume", "no such network", "no such container", "not found", "does not exist"} {
+		if strings.Contains(message, marker) {
+			return true
+		}
+	}
+	return false
+}
 
 // legacyDockerContainer is intentionally smaller than Docker's full inspect
 // document. The migration is allowed to act only when the container identity

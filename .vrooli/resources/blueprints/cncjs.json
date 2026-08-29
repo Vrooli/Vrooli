@@ -15,7 +15,7 @@
     "CNC job orchestration",
     "Workshop automation"
   ],
-  "integration_kind": "docker-service",
+  "integration_kind": "managed-service",
   "platform_support": {
     "notes": "The web app can run in containers across platforms, but useful operation depends on USB or serial access to host-connected CNC hardware.",
     "linux": "partial",
@@ -28,7 +28,7 @@
     "Clear operator safety and machine ownership model"
   ],
   "dependencies": [],
-  "suggested_template": "docker-service",
+  "suggested_template": "managed-service",
   "implementation_notes": [
     "Keep any future support narrow and hardware-tested.",
     "Promotion should define how machine profiles and macros are stored.",

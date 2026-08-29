@@ -2,10 +2,11 @@ package health
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/vrooli/vrooli/resources/testkit"
 )
 
 func TestProbeHealthyWithProtectionAndMinimalQueryLog(t *testing.T) {
@@ -142,9 +143,5 @@ func requireBasicAuth(t *testing.T, r *http.Request) {
 }
 
 func writeJSON(t *testing.T, w http.ResponseWriter, value any) {
-	t.Helper()
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(value); err != nil {
-		t.Fatalf("encode response: %v", err)
-	}
+	testkit.WriteJSONResponse(t, w, value)
 }

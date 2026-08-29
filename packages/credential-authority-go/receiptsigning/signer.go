@@ -39,7 +39,7 @@ var allowedPurposes = []receiptsigning.Purpose{
 // the signer straightforward to test without allowing callers to substitute a
 // plaintext or environment-backed implementation in production code.
 type Store interface {
-	Resolve(credentialauthority.Identity, string) (string, error)
+	Require(credentialauthority.Identity, string) (string, error)
 	Put(credentialauthority.Identity, string, string) error
 }
 
@@ -271,7 +271,7 @@ func (s *Signer) load() (keyRing, error) {
 }
 
 func (s *Signer) loadOptional() (keyRing, error) {
-	encoded, err := s.store.Resolve(s.identity, s.field)
+	encoded, err := s.store.Require(s.identity, s.field)
 	if err != nil {
 		if errors.Is(err, credentialauthority.ErrUnconfigured) {
 			return keyRing{Version: keyRingVersion}, nil

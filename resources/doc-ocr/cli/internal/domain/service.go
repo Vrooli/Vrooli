@@ -1,15 +1,15 @@
 package domain
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 
-	"resource-doc-ocr/cli/internal/artifact"
-	"resource-doc-ocr/cli/internal/discovery"
-	"resource-doc-ocr/cli/internal/env"
-	"resource-doc-ocr/cli/internal/ocr"
-	"resource-doc-ocr/cli/internal/version"
+	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/resources/doc-ocr/cli/internal/artifact"
+	"github.com/vrooli/vrooli/resources/doc-ocr/cli/internal/discovery"
+	"github.com/vrooli/vrooli/resources/doc-ocr/cli/internal/env"
+	"github.com/vrooli/vrooli/resources/doc-ocr/cli/internal/ocr"
+	"github.com/vrooli/vrooli/resources/doc-ocr/cli/internal/version"
 )
 
 type Service struct {
@@ -93,7 +93,7 @@ func (s Service) OCR(input, language string) error {
 }
 
 func printJSON(value any) error {
-	data, err := json.MarshalIndent(value, "", "  ")
+	data, err := cliout.MarshalIndent(value)
 	if err != nil {
 		return err
 	}

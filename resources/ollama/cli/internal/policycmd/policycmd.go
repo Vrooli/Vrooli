@@ -2,7 +2,6 @@
 package policycmd
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 )
 
@@ -395,7 +395,5 @@ func fieldValue(report resolveReport, name string) (string, error) {
 }
 
 func writeJSON(w io.Writer, v any) error {
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	return enc.Encode(v)
+	return cliout.NewEncoder(w).Encode(v)
 }

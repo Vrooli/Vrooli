@@ -102,8 +102,12 @@ type Resource struct {
 	Enabled bool `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// True when the resource is required (not optional).
 	Required bool `protobuf:"varint,6,opt,name=required,proto3" json:"required,omitempty"`
-	// True when the resource ships its own CLI surface.
-	HasCli bool `protobuf:"varint,7,opt,name=has_cli,json=hasCli,proto3" json:"has_cli,omitempty"`
+	// True when the resource declares a CLI in its manifest.
+	DeclaresCli bool `protobuf:"varint,14,opt,name=declares_cli,json=declaresCli,proto3" json:"declares_cli,omitempty"`
+	// True when the declared resource CLI resolves on the host PATH.
+	CliInstalled bool `protobuf:"varint,15,opt,name=cli_installed,json=cliInstalled,proto3" json:"cli_installed,omitempty"`
+	// Why the CLI is not installed; empty when installed.
+	CliStateReason string `protobuf:"bytes,16,opt,name=cli_state_reason,json=cliStateReason,proto3" json:"cli_state_reason,omitempty"`
 	// Manifest config block for the resource; always present.
 	Config *ResourceConfig `protobuf:"bytes,8,opt,name=config,proto3" json:"config,omitempty"`
 	// Lifecycle control mode (e.g. "manifest-native", "external"); empty if unset.
@@ -192,11 +196,25 @@ func (x *Resource) GetRequired() bool {
 	return false
 }
 
-func (x *Resource) GetHasCli() bool {
+func (x *Resource) GetDeclaresCli() bool {
 	if x != nil {
-		return x.HasCli
+		return x.DeclaresCli
 	}
 	return false
+}
+
+func (x *Resource) GetCliInstalled() bool {
+	if x != nil {
+		return x.CliInstalled
+	}
+	return false
+}
+
+func (x *Resource) GetCliStateReason() string {
+	if x != nil {
+		return x.CliStateReason
+	}
+	return ""
 }
 
 func (x *Resource) GetConfig() *ResourceConfig {
@@ -313,7 +331,7 @@ const file_cli_v1_resource_list_proto_rawDesc = "" +
 	"\x14ResourceListResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x125\n" +
 	"\tresources\x18\x02 \x03(\v2\x17.vrooli.cli.v1.ResourceR\tresources\x12N\n" +
-	"\x12discovery_failures\x18\x03 \x03(\v2\x1f.vrooli.cli.v1.DiscoveryFailureR\x11discoveryFailures\"\x97\x03\n" +
+	"\x12discovery_failures\x18\x03 \x03(\v2\x1f.vrooli.cli.v1.DiscoveryFailureR\x11discoveryFailures\"\xff\x03\n" +
 	"\bResource\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
@@ -322,15 +340,17 @@ const file_cli_v1_resource_list_proto_rawDesc = "" +
 	"registered\x18\x04 \x01(\bR\n" +
 	"registered\x12\x18\n" +
 	"\aenabled\x18\x05 \x01(\bR\aenabled\x12\x1a\n" +
-	"\brequired\x18\x06 \x01(\bR\brequired\x12\x17\n" +
-	"\ahas_cli\x18\a \x01(\bR\x06hasCli\x125\n" +
+	"\brequired\x18\x06 \x01(\bR\brequired\x12!\n" +
+	"\fdeclares_cli\x18\x0e \x01(\bR\vdeclaresCli\x12#\n" +
+	"\rcli_installed\x18\x0f \x01(\bR\fcliInstalled\x12(\n" +
+	"\x10cli_state_reason\x18\x10 \x01(\tR\x0ecliStateReason\x125\n" +
 	"\x06config\x18\b \x01(\v2\x1d.vrooli.cli.v1.ResourceConfigR\x06config\x12!\n" +
 	"\fcontrol_mode\x18\t \x01(\tR\vcontrolMode\x12\x16\n" +
 	"\x06driver\x18\n" +
 	" \x01(\tR\x06driver\x12\x1a\n" +
 	"\btemplate\x18\v \x01(\tR\btemplate\x12)\n" +
 	"\x10portability_tier\x18\f \x01(\tR\x0fportabilityTier\x12#\n" +
-	"\rmanifest_path\x18\r \x01(\tR\fmanifestPath\"h\n" +
+	"\rmanifest_path\x18\r \x01(\tR\fmanifestPathJ\x04\b\a\x10\bR\ahas_cli\"h\n" +
 	"\x0eResourceConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1a\n" +
 	"\brequired\x18\x02 \x01(\bR\brequired\x12 \n" +

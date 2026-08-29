@@ -7,7 +7,9 @@ import (
 )
 
 const (
-	attributionParameterA = 12
+	maxAttributionIDLength = 12
+	ownerOllama            = "ollama"
+	ownerReranker          = "reranker"
 )
 
 // Attribution maps an observed PID to the owner (container/scenario/resource)
@@ -29,11 +31,11 @@ type Attribution struct {
 func NormalizeProcessOwner(processName string) string {
 	base := strings.ToLower(filepath.Base(strings.TrimSpace(processName)))
 	switch base {
-	case "ollama", "llama-server":
-		return "ollama"
+	case ownerOllama, "llama-server":
+		return ownerOllama
 	default:
-		if strings.HasPrefix(base, "reranker_") || base == "reranker" {
-			return "reranker"
+		if strings.HasPrefix(base, ownerReranker+"_") || base == ownerReranker {
+			return ownerReranker
 		}
 		return ""
 	}
@@ -143,7 +145,7 @@ func isAllDigits(s string) bool {
 
 func shortContainerID(id string) string {
 	id = strings.TrimSpace(id)
-	if len(id) > attributionParameterA {
+	if len(id) > maxAttributionIDLength {
 		return id[:12]
 	}
 	return id

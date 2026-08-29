@@ -186,11 +186,11 @@ func (r *Runner) resolveWaitVerdict(outcome *WaitOutcome, item scenario.Scenario
 	health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), registryView.Ports)
 	outcome.Ports = registryView.Ports
 	switch health {
-	case "healthy":
+	case WaitVerdictHealthy:
 		outcome.Verdict = WaitVerdictHealthy
-	case "degraded":
+	case WaitVerdictDegraded:
 		outcome.Verdict = WaitVerdictDegraded
-	case "unknown", "running", "":
+	case "unknown", WaitVerdictRunning, "":
 		// No health checks configured: registry authority is the best truth.
 		outcome.Verdict = WaitVerdictRunning
 	default:

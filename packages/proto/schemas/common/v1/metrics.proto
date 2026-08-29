@@ -65,6 +65,14 @@ enum Reliability {
   RELIABILITY_UNAVAILABLE = 3; // not measurable on this OS / no probe tool
 }
 
+// MeasurementScope identifies the collector generation that produced a
+// resource measurement.
+enum MeasurementScope {
+	MEASUREMENT_SCOPE_UNSPECIFIED = 0; // collector predates per-operation attribution
+	MEASUREMENT_SCOPE_PROCESS_LIFETIME = 1;
+	MEASUREMENT_SCOPE_OPERATION = 2;
+}
+
 // ResourceUsage is best-effort CPU/memory/GPU usage for a window (whole-op or
 // per-stage). Each area carries its own Reliability.
 message ResourceUsage {
@@ -75,6 +83,7 @@ message ResourceUsage {
   Reliability memory = 5;
   repeated GpuUsage gpus = 6; // per-device GPU usage during the window
   Reliability gpu = 7;
+  MeasurementScope measurement_scope = 8; // collector generation; outcome may still be UNAVAILABLE
 }
 
 // GpuUsage is device-level (and, when attributable, process-level) GPU usage.

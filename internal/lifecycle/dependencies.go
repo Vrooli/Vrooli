@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -84,7 +84,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, s
 	for name := range item.Manifest.Dependencies.Scenarios {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	fanoutCtx, cancel := context.WithCancel(session.context())
 	defer cancel()
@@ -132,7 +132,7 @@ func (r *Runner) ensureDependencies(item scenario.Scenario, opts StartOptions, s
 	if err := fanoutCtx.Err(); err != nil {
 		return nil, err
 	}
-	sort.Strings(failed)
+	slices.Sort(failed)
 	return failed, nil
 }
 
@@ -581,7 +581,7 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 	for name := range item.Manifest.Dependencies.Resources {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	for _, resourceName := range names {
 		dependency := item.Manifest.Dependencies.Resources[resourceName]

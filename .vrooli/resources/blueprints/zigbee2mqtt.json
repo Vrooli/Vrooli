@@ -30,7 +30,7 @@
   "dependencies": [
     "mqtt-broker"
   ],
-  "suggested_template": "manual-resource",
+  "suggested_template": "native-cli",
   "implementation_notes": [
     "Any future implementation should capture hardware requirements explicitly.",
     "Treat MQTT dependency and coordinator passthrough as first-class manifest concerns.",

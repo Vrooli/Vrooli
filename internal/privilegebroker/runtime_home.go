@@ -13,7 +13,9 @@ import (
 )
 
 const (
-	runtimeHomeParameterA = 100_000
+	runtimeHomeParameterA    = 100_000
+	runtimeHomeStatusFailed  = "failed"
+	runtimeHomeStatusChanged = "changed"
 )
 
 func executeRuntimeHomeRepair(ctx context.Context, subject RuntimeHomeSubject) Result {
@@ -44,10 +46,10 @@ func executeRuntimeHomeRepairAt(ctx context.Context, subject RuntimeHomeSubject,
 	}
 	out := Result{Version: ProtocolVersion, Action: ActionRuntimeHomeOwnershipRepair, Status: "unchanged", Evidence: Evidence{Scanned: result.Scanned, Repaired: result.Repaired, Failed: result.Failed}}
 	if result.Status != config.RepairComplete || result.Failed > 0 {
-		out.Status = "failed"
+		out.Status = runtimeHomeStatusFailed
 		out.Code = "runtime_home_repair_partial"
 	} else if result.Repaired > 0 {
-		out.Status = "changed"
+		out.Status = runtimeHomeStatusChanged
 		out.Changed = true
 	}
 	return out

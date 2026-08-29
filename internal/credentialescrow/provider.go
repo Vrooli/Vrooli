@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -653,7 +654,7 @@ func recoveryCoverage(entries []credentialauthority.RecoveryEntry) []string {
 	for _, entry := range entries {
 		coverage = append(coverage, string(entry.Identity)+":"+entry.Field)
 	}
-	sort.Strings(coverage)
+	slices.Sort(coverage)
 	return coverage
 }
 
@@ -673,7 +674,7 @@ func (p *Provider) repositoryRoots() ([]string, error) {
 			roots = append(roots, entry.Path)
 		}
 	}
-	sort.Strings(roots)
+	slices.Sort(roots)
 	return roots, nil
 }
 

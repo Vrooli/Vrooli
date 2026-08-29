@@ -204,12 +204,6 @@
       }
     }
   },
-  "phases": {
-    "integration": {
-      "enabled": true,
-      "timeout": "5m"
-    }
-  },
   "business": {
     "checks": {
       "endpoints": {

@@ -6,7 +6,7 @@ package mocks
 import (
 	"context"
 
-	"resource-kopia/cli/internal/kexec"
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/kexec"
 )
 
 // FakeRunner records calls and returns canned output keyed by a matcher, so

@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"text/tabwriter"
+	"time"
 )
 
 // RenderJSONOr selects the JSON wire renderer or the human-readable renderer
@@ -39,13 +40,26 @@ func ParseFormat(format string, jsonFlag bool) (Format, error) {
 	}
 
 	switch strings.ToLower(strings.TrimSpace(format)) {
-	case "", string(FormatHuman):
+	case "", string(FormatHuman), "text":
 		return FormatHuman, nil
 	case string(FormatJSON):
 		return FormatJSON, nil
 	default:
 		return "", fmt.Errorf("unsupported output format %q", format)
 	}
+}
+
+// FormatTimestamp is for rendered output only. It must never be used for a
+// SQL bind position; use internal/storagetime.FormatUTC there.
+func FormatTimestamp(t time.Time) string {
+	return formatTime(t)
+}
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.Format(time.RFC3339Nano)
 }
 
 // DefaultColorEnabled returns whether ANSI color should be used for a stream.
@@ -84,6 +98,23 @@ func WriteJSON(w io.Writer, value any) error {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(value)
+}
+
+// NewEncoder returns the shared JSON encoder used by resource CLIs. Keeping
+// encoder construction here makes indentation and newline behavior uniform.
+func NewEncoder(w io.Writer) *json.Encoder {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder
+}
+
+// NewCompactEncoder returns the shared JSON encoder without indentation for
+// protocol responses whose existing wire contract is compact JSON.
+func NewCompactEncoder(w io.Writer) *json.Encoder { return json.NewEncoder(w) }
+
+// MarshalIndent is the CLI-facing equivalent of encoding/json.MarshalIndent.
+func MarshalIndent(value any) ([]byte, error) {
+	return json.MarshalIndent(value, "", "  ")
 }
 
 // Section describes one human-or-JSON output section. JSON is kept as a

@@ -236,7 +236,7 @@
           ],
           "requires": [],
           "limitations": [
-            "Native whisper.cpp server and medium model are checksum-pinned; CUDA acceleration is not yet declared in this resource cell."
+            "Native whisper.cpp server and medium model are checksum-pinned; CPU is declared because v1.9.2 publishes no Linux CUDA server and this host has no CUDA build toolchain. CUDA remains wanted until a signed Linux CUDA artifact is available."
           ],
           "evidence": [
             "manifest-validation",
@@ -279,11 +279,9 @@
   },
   "acceleration": {
     "backends": [
-      "cuda",
       "cpu"
     ],
     "require": "preferred",
-    "cuda": {},
     "cpu": {},
     "claim": {
       "resource_kind": "vram",
@@ -422,6 +420,13 @@
       "target": "http://127.0.0.1:8090/",
       "kind": "readiness",
       "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8090/",
+      "kind": "liveness",
+      "interval_seconds": 30,
       "timeout_seconds": 10
     }
   ],
