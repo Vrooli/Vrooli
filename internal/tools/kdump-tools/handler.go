@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	handlerParameterI = 200
+	diagnosticOutputCharacterLimit = 200
 )
 
 const (
@@ -127,7 +127,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "kdump-tools is a Linux-only Debian/Ubuntu package")
@@ -185,7 +185,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		// forcing a setup failure — the next vmcore attempt will tell us.
 		note := "kdump-tools service is active but `kdump-config status` reports not-ready; run `sudo kdump-config status` to diagnose"
 		if raw != "" {
-			note += " (output: " + truncate(raw, handlerParameterI) + ")"
+			note += " (output: " + truncate(raw, diagnosticOutputCharacterLimit) + ")"
 		}
 		status.Notes = append(status.Notes, note)
 	}
@@ -318,7 +318,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		// fixed by a reboot after crashkernel changes.
 		note := fmt.Sprintf("kdump-tools service active but `kdump-config status` reports not-ready; run `sudo %s-config status` after the next reboot to confirm", ServiceName)
 		if raw != "" {
-			note += " (output: " + truncate(raw, handlerParameterI) + ")"
+			note += " (output: " + truncate(raw, diagnosticOutputCharacterLimit) + ")"
 		}
 		status.Notes = append(status.Notes, note)
 	}

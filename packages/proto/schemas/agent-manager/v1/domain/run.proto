@@ -603,6 +603,36 @@ message RunnerCapabilities {
 
   // Canonical tool name to runner-native name. Empty when unsupported.
   map<string, string> tool_restriction_mappings = 11;
+
+  // Supports an engine-owned completion test across continuations.
+  bool supports_warm_iteration = 12;
+
+  // Supports image file attachments.
+  bool supports_image_attachments = 13;
+
+  // Supports canonical reasoning-effort controls.
+  bool supports_effort = 14;
+
+  // Canonical effort name to runner-native value.
+  map<string, string> effort_mappings = 15;
+
+  // Effort support depends on the selected provider/model.
+  bool effort_model_specific = 16;
+
+  // Omitting the model is a valid runner choice.
+  bool supports_runner_default = 17;
+
+  // Runtime-discovered model namespace prefixes.
+  repeated string dynamic_model_prefixes = 18;
+
+  // Verified execution-mode and sandbox-mode combinations.
+  repeated SpawnCapability spawn_capabilities = 19;
+}
+
+message SpawnCapability {
+  string execution_mode = 1;
+  repeated string sandbox_modes = 2;
+  bool native_objective = 3;
 }
 
 // =============================================================================

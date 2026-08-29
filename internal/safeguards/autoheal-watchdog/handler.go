@@ -171,7 +171,9 @@ func supported(host hostreqkit.Host) bool {
 	return isMacOS(host.OS) || hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows || (hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && host.SupportsSystemd)
 }
 
-func isMacOS(osName string) bool { return osName == "darwin" || osName == "macos" }
+func isMacOS(osName string) bool {
+	return osName == string(hostreqspec.PlatformDarwin) || osName == "macos"
+}
 
 func guiLaunchdAvailable() bool {
 	uid := "0"

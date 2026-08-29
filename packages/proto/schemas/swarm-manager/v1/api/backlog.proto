@@ -641,6 +641,9 @@ message ExportBacklogRequest {
 
   // Whether to include the new-item template in the export (default true).
   optional bool include_template = 11;
+
+  // Include archived records. Archived records are excluded by default.
+  bool include_archived = 12;
 }
 
 // ImportBacklogResponse reports the results of importing an edited markdown export.

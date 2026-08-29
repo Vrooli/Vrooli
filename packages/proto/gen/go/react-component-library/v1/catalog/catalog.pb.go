@@ -2214,6 +2214,7 @@ type RunGateRequest struct {
 	Gate            string                 `protobuf:"bytes,1,opt,name=gate,proto3" json:"gate,omitempty"`
 	All             bool                   `protobuf:"varint,2,opt,name=all,proto3" json:"all,omitempty"`
 	CalibrationOnly bool                   `protobuf:"varint,3,opt,name=calibration_only,json=calibrationOnly,proto3" json:"calibration_only,omitempty"`
+	AssetId         string                 `protobuf:"bytes,4,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2269,6 +2270,13 @@ func (x *RunGateRequest) GetCalibrationOnly() bool {
 	return false
 }
 
+func (x *RunGateRequest) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
 type GateFinding struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Code  string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
@@ -2287,9 +2295,11 @@ type GateFinding struct {
 	// so a consumer can act without re-deriving the fix.
 	Remediation string `protobuf:"bytes,7,opt,name=remediation,proto3" json:"remediation,omitempty"`
 	// Repository-relative doc path giving the fuller rule context.
-	DocsRef       string `protobuf:"bytes,8,opt,name=docs_ref,json=docsRef,proto3" json:"docs_ref,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	DocsRef        string `protobuf:"bytes,8,opt,name=docs_ref,json=docsRef,proto3" json:"docs_ref,omitempty"`
+	RuleSource     string `protobuf:"bytes,9,opt,name=rule_source,json=ruleSource,proto3" json:"rule_source,omitempty"`
+	RuleDeclaredIn string `protobuf:"bytes,10,opt,name=rule_declared_in,json=ruleDeclaredIn,proto3" json:"rule_declared_in,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GateFinding) Reset() {
@@ -2374,6 +2384,20 @@ func (x *GateFinding) GetRemediation() string {
 func (x *GateFinding) GetDocsRef() string {
 	if x != nil {
 		return x.DocsRef
+	}
+	return ""
+}
+
+func (x *GateFinding) GetRuleSource() string {
+	if x != nil {
+		return x.RuleSource
+	}
+	return ""
+}
+
+func (x *GateFinding) GetRuleDeclaredIn() string {
+	if x != nil {
+		return x.RuleDeclaredIn
 	}
 	return ""
 }
@@ -4061,11 +4085,12 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\bmaturity\x18\x02 \x01(\v2:.vrooli.react_component_library.v1.catalog.MaturitySummaryR\bmaturity\x12\x12\n" +
 	"\x04lane\x18\x03 \x01(\tR\x04lane\x12P\n" +
 	"\apromote\x18\x04 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\apromote\x12L\n" +
-	"\x05build\x18\x05 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\x05build\"a\n" +
+	"\x05build\x18\x05 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\x05build\"|\n" +
 	"\x0eRunGateRequest\x12\x12\n" +
 	"\x04gate\x18\x01 \x01(\tR\x04gate\x12\x10\n" +
 	"\x03all\x18\x02 \x01(\bR\x03all\x12)\n" +
-	"\x10calibration_only\x18\x03 \x01(\bR\x0fcalibrationOnly\"\xd7\x01\n" +
+	"\x10calibration_only\x18\x03 \x01(\bR\x0fcalibrationOnly\x12\x19\n" +
+	"\basset_id\x18\x04 \x01(\tR\aassetId\"\xa2\x02\n" +
 	"\vGateFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x19\n" +
@@ -4074,7 +4099,11 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\x04file\x18\x05 \x01(\tR\x04file\x12\x12\n" +
 	"\x04line\x18\x06 \x01(\x05R\x04line\x12 \n" +
 	"\vremediation\x18\a \x01(\tR\vremediation\x12\x19\n" +
-	"\bdocs_ref\x18\b \x01(\tR\adocsRef\"\xb1\b\n" +
+	"\bdocs_ref\x18\b \x01(\tR\adocsRef\x12\x1f\n" +
+	"\vrule_source\x18\t \x01(\tR\n" +
+	"ruleSource\x12(\n" +
+	"\x10rule_declared_in\x18\n" +
+	" \x01(\tR\x0eruleDeclaredIn\"\xb1\b\n" +
 	"\x0fRunGateResponse\x12\x12\n" +
 	"\x04gate\x18\x01 \x01(\tR\x04gate\x12R\n" +
 	"\bfindings\x18\x02 \x03(\v26.vrooli.react_component_library.v1.catalog.GateFindingR\bfindings\x12'\n" +

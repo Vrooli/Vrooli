@@ -17,8 +17,11 @@ import (
 )
 
 const (
-	handlerParameterA = 100
-	handlerParameterB = 1024
+	percentDivisor = 100
+	bytesPerKiB    = 1024
+	bytesPerMiB    = bytesPerKiB * bytesPerKiB
+	bytesPerGiB    = bytesPerMiB * bytesPerKiB
+	miBPerGiB      = 1024
 )
 
 // ── Static protection files (always applied on Linux with sysctl/systemd) ────
@@ -87,7 +90,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		return status
 	}
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "remote session protection is only supported on Linux hosts")
@@ -301,8 +304,8 @@ func applyDesktopProtection(host hostreqkit.Host, opts hostreqkit.EnsureOptions)
 	// a single write of the new value — stream the bytes via tee with
 	// stderr suppressed and skip the call entirely if the file is missing.
 	cgroupPath := fmt.Sprintf("/sys/fs/cgroup/user.slice/user-%d.slice", desktopUID)
-	minBytes := strconv.Itoa(alloc.desktopMinMB * 1024 * handlerParameterB)
-	lowBytes := strconv.Itoa(alloc.desktopLowMB * 1024 * handlerParameterB)
+	minBytes := strconv.Itoa(alloc.desktopMinMB * bytesPerMiB)
+	lowBytes := strconv.Itoa(alloc.desktopLowMB * bytesPerMiB)
 	writeCgroupValue := func(path, value string) {
 		if _, err := os.Stat(path); err != nil {
 			return
@@ -370,18 +373,18 @@ func calculateMemory() (memoryAllocation, error) {
 		return memoryAllocation{}, fmt.Errorf("host inventory reported no total memory")
 	}
 
-	memMB := int(snapshot.Memory.TotalBytes / 1024 / handlerParameterB)
+	memMB := int(snapshot.Memory.TotalBytes / bytesPerMiB)
 
-	dMin := memMB * desktopMinPercent / handlerParameterA
+	dMin := memMB * desktopMinPercent / percentDivisor
 	if dMin < desktopMinMB {
 		dMin = desktopMinMB
 	}
 	dLow := dMin + desktopBufferMB
 
-	wHigh := memMB * workloadHighPercent / handlerParameterA
-	wMax := memMB * workloadMaxPercent / handlerParameterA
+	wHigh := memMB * workloadHighPercent / percentDivisor
+	wMax := memMB * workloadMaxPercent / percentDivisor
 
-	swapGB := memMB / handlerParameterB
+	swapGB := memMB / miBPerGiB
 	if swapGB > maxSwapGB {
 		swapGB = maxSwapGB
 	}
@@ -401,14 +404,14 @@ func readCurrentSwapGB() int {
 	if err != nil {
 		return 0
 	}
-	return int(snapshot.Swap.TotalBytes / 1024 / 1024 / handlerParameterB)
+	return int(snapshot.Swap.TotalBytes / bytesPerGiB)
 }
 
 func hostSnapshot() (hostinventory.Snapshot, error) {
 	collector := hostinventory.SystemCollector()
 	collector.Commands = &shelltest.Fake{}
 	collector.Files = hostReqFileReader{}
-	collector.GOOS = "linux"
+	collector.GOOS = string(hostreqspec.PlatformLinux)
 	return collector.Collect(context.Background())
 }
 

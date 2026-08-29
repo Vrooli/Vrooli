@@ -190,7 +190,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	// equivalent and would need its own design (likely a .cmd file in a
 	// user-PATH directory plus UAC manifest); flag as Unsupported so this
 	// safeguard cleanly disappears on Windows hosts instead of failing.
-	if host.OS != "linux" && host.OS != "darwin" {
+	if host.OS != string(hostreqspec.PlatformLinux) && host.OS != string(hostreqspec.PlatformDarwin) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "vrooli launcher shim is POSIX-only (Linux + macOS); Windows needs a separate design")

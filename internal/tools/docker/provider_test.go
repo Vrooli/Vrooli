@@ -1,3 +1,4 @@
+//nolint:goconst // test data deliberately reuses stable provider fixtures.
 package docker
 
 import (

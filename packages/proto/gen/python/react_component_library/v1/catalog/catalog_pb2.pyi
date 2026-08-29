@@ -427,17 +427,19 @@ class ListNextWorkResponse(_message.Message):
     def __init__(self, rows: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., lane: _Optional[str] = ..., promote: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., build: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ...) -> None: ...
 
 class RunGateRequest(_message.Message):
-    __slots__ = ("gate", "all", "calibration_only")
+    __slots__ = ("gate", "all", "calibration_only", "asset_id")
     GATE_FIELD_NUMBER: _ClassVar[int]
     ALL_FIELD_NUMBER: _ClassVar[int]
     CALIBRATION_ONLY_FIELD_NUMBER: _ClassVar[int]
+    ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     gate: str
     all: bool
     calibration_only: bool
-    def __init__(self, gate: _Optional[str] = ..., all: _Optional[bool] = ..., calibration_only: _Optional[bool] = ...) -> None: ...
+    asset_id: str
+    def __init__(self, gate: _Optional[str] = ..., all: _Optional[bool] = ..., calibration_only: _Optional[bool] = ..., asset_id: _Optional[str] = ...) -> None: ...
 
 class GateFinding(_message.Message):
-    __slots__ = ("code", "message", "asset_id", "severity", "file", "line", "remediation", "docs_ref")
+    __slots__ = ("code", "message", "asset_id", "severity", "file", "line", "remediation", "docs_ref", "rule_source", "rule_declared_in")
     CODE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
@@ -446,6 +448,8 @@ class GateFinding(_message.Message):
     LINE_FIELD_NUMBER: _ClassVar[int]
     REMEDIATION_FIELD_NUMBER: _ClassVar[int]
     DOCS_REF_FIELD_NUMBER: _ClassVar[int]
+    RULE_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    RULE_DECLARED_IN_FIELD_NUMBER: _ClassVar[int]
     code: str
     message: str
     asset_id: str
@@ -454,7 +458,9 @@ class GateFinding(_message.Message):
     line: int
     remediation: str
     docs_ref: str
-    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., asset_id: _Optional[str] = ..., severity: _Optional[str] = ..., file: _Optional[str] = ..., line: _Optional[int] = ..., remediation: _Optional[str] = ..., docs_ref: _Optional[str] = ...) -> None: ...
+    rule_source: str
+    rule_declared_in: str
+    def __init__(self, code: _Optional[str] = ..., message: _Optional[str] = ..., asset_id: _Optional[str] = ..., severity: _Optional[str] = ..., file: _Optional[str] = ..., line: _Optional[int] = ..., remediation: _Optional[str] = ..., docs_ref: _Optional[str] = ..., rule_source: _Optional[str] = ..., rule_declared_in: _Optional[str] = ...) -> None: ...
 
 class RunGateResponse(_message.Message):
     __slots__ = ("gate", "findings", "inspected_files", "runner_errors", "evidence_rows_written", "calibration", "non_discriminating", "surface_verdict_counts", "composition_scores", "composition_median", "bespoke_escape_count", "composition_escapes")

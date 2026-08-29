@@ -452,8 +452,15 @@ class RunnerStatus(_message.Message):
     def __init__(self, runner_type: _Optional[_Union[_types_pb2.RunnerType, str]] = ..., available: _Optional[bool] = ..., message: _Optional[str] = ..., install_hint: _Optional[str] = ..., supported_models: _Optional[_Iterable[str]] = ..., capabilities: _Optional[_Union[RunnerCapabilities, _Mapping]] = ...) -> None: ...
 
 class RunnerCapabilities(_message.Message):
-    __slots__ = ("supports_streaming", "supports_messages", "supports_tool_events", "supports_cost_tracking", "supports_cancellation", "max_turns", "supports_continuation", "supported_features", "allowed_extra_flags", "supports_tool_restriction", "tool_restriction_mappings")
+    __slots__ = ("supports_streaming", "supports_messages", "supports_tool_events", "supports_cost_tracking", "supports_cancellation", "max_turns", "supports_continuation", "supported_features", "allowed_extra_flags", "supports_tool_restriction", "tool_restriction_mappings", "supports_warm_iteration", "supports_image_attachments", "supports_effort", "effort_mappings", "effort_model_specific", "supports_runner_default", "dynamic_model_prefixes", "spawn_capabilities")
     class ToolRestrictionMappingsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    class EffortMappingsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
@@ -471,6 +478,14 @@ class RunnerCapabilities(_message.Message):
     ALLOWED_EXTRA_FLAGS_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_TOOL_RESTRICTION_FIELD_NUMBER: _ClassVar[int]
     TOOL_RESTRICTION_MAPPINGS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_WARM_ITERATION_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_IMAGE_ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_EFFORT_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_MAPPINGS_FIELD_NUMBER: _ClassVar[int]
+    EFFORT_MODEL_SPECIFIC_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_RUNNER_DEFAULT_FIELD_NUMBER: _ClassVar[int]
+    DYNAMIC_MODEL_PREFIXES_FIELD_NUMBER: _ClassVar[int]
+    SPAWN_CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     supports_streaming: bool
     supports_messages: bool
     supports_tool_events: bool
@@ -482,7 +497,25 @@ class RunnerCapabilities(_message.Message):
     allowed_extra_flags: _containers.RepeatedScalarFieldContainer[str]
     supports_tool_restriction: bool
     tool_restriction_mappings: _containers.ScalarMap[str, str]
-    def __init__(self, supports_streaming: _Optional[bool] = ..., supports_messages: _Optional[bool] = ..., supports_tool_events: _Optional[bool] = ..., supports_cost_tracking: _Optional[bool] = ..., supports_cancellation: _Optional[bool] = ..., max_turns: _Optional[int] = ..., supports_continuation: _Optional[bool] = ..., supported_features: _Optional[_Iterable[str]] = ..., allowed_extra_flags: _Optional[_Iterable[str]] = ..., supports_tool_restriction: _Optional[bool] = ..., tool_restriction_mappings: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    supports_warm_iteration: bool
+    supports_image_attachments: bool
+    supports_effort: bool
+    effort_mappings: _containers.ScalarMap[str, str]
+    effort_model_specific: bool
+    supports_runner_default: bool
+    dynamic_model_prefixes: _containers.RepeatedScalarFieldContainer[str]
+    spawn_capabilities: _containers.RepeatedCompositeFieldContainer[SpawnCapability]
+    def __init__(self, supports_streaming: _Optional[bool] = ..., supports_messages: _Optional[bool] = ..., supports_tool_events: _Optional[bool] = ..., supports_cost_tracking: _Optional[bool] = ..., supports_cancellation: _Optional[bool] = ..., max_turns: _Optional[int] = ..., supports_continuation: _Optional[bool] = ..., supported_features: _Optional[_Iterable[str]] = ..., allowed_extra_flags: _Optional[_Iterable[str]] = ..., supports_tool_restriction: _Optional[bool] = ..., tool_restriction_mappings: _Optional[_Mapping[str, str]] = ..., supports_warm_iteration: _Optional[bool] = ..., supports_image_attachments: _Optional[bool] = ..., supports_effort: _Optional[bool] = ..., effort_mappings: _Optional[_Mapping[str, str]] = ..., effort_model_specific: _Optional[bool] = ..., supports_runner_default: _Optional[bool] = ..., dynamic_model_prefixes: _Optional[_Iterable[str]] = ..., spawn_capabilities: _Optional[_Iterable[_Union[SpawnCapability, _Mapping]]] = ...) -> None: ...
+
+class SpawnCapability(_message.Message):
+    __slots__ = ("execution_mode", "sandbox_modes", "native_objective")
+    EXECUTION_MODE_FIELD_NUMBER: _ClassVar[int]
+    SANDBOX_MODES_FIELD_NUMBER: _ClassVar[int]
+    NATIVE_OBJECTIVE_FIELD_NUMBER: _ClassVar[int]
+    execution_mode: str
+    sandbox_modes: _containers.RepeatedScalarFieldContainer[str]
+    native_objective: bool
+    def __init__(self, execution_mode: _Optional[str] = ..., sandbox_modes: _Optional[_Iterable[str]] = ..., native_objective: _Optional[bool] = ...) -> None: ...
 
 class ProbeResult(_message.Message):
     __slots__ = ("success", "latency_ms", "error", "details")

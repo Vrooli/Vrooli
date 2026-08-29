@@ -14,6 +14,7 @@ service MeasuresService {
   rpc GetRestartCount(GetRestartCountRequest) returns (GetRestartCountResponse);
   rpc GetHealOutcomes(GetHealOutcomesRequest) returns (GetHealOutcomesResponse);
   rpc GetCriticalCount(GetCriticalCountRequest) returns (GetCriticalCountResponse);
+  rpc GetOutageSummary(GetOutageSummaryRequest) returns (GetOutageSummaryResponse);
 }
 
 message GetUptimeByCheckRequest {
@@ -65,3 +66,20 @@ message CriticalCount {
 }
 
 message GetCriticalCountResponse { CriticalCount critical = 1; }
+
+message GetOutageSummaryRequest {
+  string member_id = 1;
+  int32 window_hours = 2;
+}
+
+message OutageSummary {
+  string member_id = 1;
+  double total_unavailable_seconds = 2;
+  int32 distinct_outage_count = 3;
+  int32 open_outage_count = 4;
+  google.protobuf.Timestamp window_start = 5;
+  google.protobuf.Timestamp window_end = 6;
+  google.protobuf.Timestamp computed_at = 7;
+}
+
+message GetOutageSummaryResponse { OutageSummary outage = 1; }

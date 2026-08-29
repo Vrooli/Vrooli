@@ -27,6 +27,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions", h.Create).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Get).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/kind", h.ChangeKind).Methods(http.MethodPatch)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/context", h.AttachContext).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Delete).Methods(http.MethodDelete)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/startup-brief", h.StartupBrief).Methods(http.MethodGet, http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/attachments", h.UploadAttachments).Methods(http.MethodPost)
@@ -239,6 +240,26 @@ func (h *Handler) ChangeKind(w http.ResponseWriter, r *http.Request) {
 		Session: SessionToProto(result.Session), DroppedContextRefs: contextRefsToProto(result.DroppedContext), StarterJobCleared: result.StarterJobCleared,
 	}); err != nil {
 		apierr.MapError(w, "[agent-sessions] change kind", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) AttachContext(w http.ResponseWriter, r *http.Request) {
+	var req apipb.AttachAgentSessionContextRequest
+	if err := httputil.DecodeProtoJSONStrict(r, &req); err != nil {
+		apierr.MapError(w, "[agent-sessions] attach context", apierr.BadRequest("invalid request body: %s", err))
+		return
+	}
+	req.SessionId = mux.Vars(r)["session_id"]
+	if !httputil.ValidateProtoRequest(w, "[agent-sessions] attach context", "invalid agent session context request", &req) {
+		return
+	}
+	session, err := h.service.AttachContext(r.Context(), req.SessionId, contextRefsFromProto(req.ContextRefs))
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] attach context", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, &apipb.AttachAgentSessionContextResponse{Session: SessionToProto(session)}); err != nil {
+		apierr.MapError(w, "[agent-sessions] attach context", apierr.Internal("failed to encode response"))
 	}
 }
 
@@ -468,6 +489,24 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ApplyProposal(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
+	var decision mutationProposalDecisionRequest
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&decision); err != nil {
+			apierr.MapError(w, "[agent-sessions] apply-proposal", apierr.BadRequest("invalid request body"))
+			return
+		}
+	}
+	if len(decision.AcceptedMutationIDs) > 0 {
+		session, err := h.service.DecideMutationListProposal(r.Context(), vars["session_id"], vars["proposal_id"], decision.AcceptedMutationIDs, decision.Note)
+		if err != nil {
+			apierr.MapError(w, "[agent-sessions] apply-proposal", err)
+			return
+		}
+		if err := httputil.ProtoJSON(w, &apipb.ApplyAgentSessionProposalResponse{Session: SessionToProto(session)}); err != nil {
+			apierr.MapError(w, "[agent-sessions] apply-proposal", apierr.Internal("failed to encode response"))
+		}
+		return
+	}
 	session, artifacts, err := h.service.ApplyProposal(r.Context(), vars["session_id"], vars["proposal_id"])
 	if err != nil {
 		apierr.MapError(w, "[agent-sessions] apply-proposal", err)

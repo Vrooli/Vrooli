@@ -50,7 +50,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		return status
 	}
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
 		status.Notes = append(status.Notes, "workspace-sandbox user namespace launch safeguard is Linux-only")

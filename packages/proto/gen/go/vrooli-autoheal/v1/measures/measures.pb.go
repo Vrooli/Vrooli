@@ -662,6 +662,194 @@ func (x *GetCriticalCountResponse) GetCritical() *CriticalCount {
 	return nil
 }
 
+type GetOutageSummaryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	MemberId      string                 `protobuf:"bytes,1,opt,name=member_id,json=memberId,proto3" json:"member_id,omitempty"`
+	WindowHours   int32                  `protobuf:"varint,2,opt,name=window_hours,json=windowHours,proto3" json:"window_hours,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOutageSummaryRequest) Reset() {
+	*x = GetOutageSummaryRequest{}
+	mi := &file_vrooli_autoheal_v1_measures_measures_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOutageSummaryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOutageSummaryRequest) ProtoMessage() {}
+
+func (x *GetOutageSummaryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_measures_measures_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOutageSummaryRequest.ProtoReflect.Descriptor instead.
+func (*GetOutageSummaryRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_measures_measures_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetOutageSummaryRequest) GetMemberId() string {
+	if x != nil {
+		return x.MemberId
+	}
+	return ""
+}
+
+func (x *GetOutageSummaryRequest) GetWindowHours() int32 {
+	if x != nil {
+		return x.WindowHours
+	}
+	return 0
+}
+
+type OutageSummary struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	MemberId                string                 `protobuf:"bytes,1,opt,name=member_id,json=memberId,proto3" json:"member_id,omitempty"`
+	TotalUnavailableSeconds float64                `protobuf:"fixed64,2,opt,name=total_unavailable_seconds,json=totalUnavailableSeconds,proto3" json:"total_unavailable_seconds,omitempty"`
+	DistinctOutageCount     int32                  `protobuf:"varint,3,opt,name=distinct_outage_count,json=distinctOutageCount,proto3" json:"distinct_outage_count,omitempty"`
+	OpenOutageCount         int32                  `protobuf:"varint,4,opt,name=open_outage_count,json=openOutageCount,proto3" json:"open_outage_count,omitempty"`
+	WindowStart             *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=window_start,json=windowStart,proto3" json:"window_start,omitempty"`
+	WindowEnd               *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=window_end,json=windowEnd,proto3" json:"window_end,omitempty"`
+	ComputedAt              *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *OutageSummary) Reset() {
+	*x = OutageSummary{}
+	mi := &file_vrooli_autoheal_v1_measures_measures_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OutageSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OutageSummary) ProtoMessage() {}
+
+func (x *OutageSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_measures_measures_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OutageSummary.ProtoReflect.Descriptor instead.
+func (*OutageSummary) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_measures_measures_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *OutageSummary) GetMemberId() string {
+	if x != nil {
+		return x.MemberId
+	}
+	return ""
+}
+
+func (x *OutageSummary) GetTotalUnavailableSeconds() float64 {
+	if x != nil {
+		return x.TotalUnavailableSeconds
+	}
+	return 0
+}
+
+func (x *OutageSummary) GetDistinctOutageCount() int32 {
+	if x != nil {
+		return x.DistinctOutageCount
+	}
+	return 0
+}
+
+func (x *OutageSummary) GetOpenOutageCount() int32 {
+	if x != nil {
+		return x.OpenOutageCount
+	}
+	return 0
+}
+
+func (x *OutageSummary) GetWindowStart() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WindowStart
+	}
+	return nil
+}
+
+func (x *OutageSummary) GetWindowEnd() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WindowEnd
+	}
+	return nil
+}
+
+func (x *OutageSummary) GetComputedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ComputedAt
+	}
+	return nil
+}
+
+type GetOutageSummaryResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Outage        *OutageSummary         `protobuf:"bytes,1,opt,name=outage,proto3" json:"outage,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetOutageSummaryResponse) Reset() {
+	*x = GetOutageSummaryResponse{}
+	mi := &file_vrooli_autoheal_v1_measures_measures_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetOutageSummaryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetOutageSummaryResponse) ProtoMessage() {}
+
+func (x *GetOutageSummaryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_autoheal_v1_measures_measures_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetOutageSummaryResponse.ProtoReflect.Descriptor instead.
+func (*GetOutageSummaryResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_autoheal_v1_measures_measures_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *GetOutageSummaryResponse) GetOutage() *OutageSummary {
+	if x != nil {
+		return x.Outage
+	}
+	return nil
+}
+
 var File_vrooli_autoheal_v1_measures_measures_proto protoreflect.FileDescriptor
 
 const file_vrooli_autoheal_v1_measures_measures_proto_rawDesc = "" +
@@ -708,12 +896,28 @@ const file_vrooli_autoheal_v1_measures_measures_proto_rawDesc = "" +
 	"\vcomputed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"computedAt\"i\n" +
 	"\x18GetCriticalCountResponse\x12M\n" +
-	"\bcritical\x18\x01 \x01(\v21.vrooli.vrooli_autoheal.v1.measures.CriticalCountR\bcritical2\xcb\x04\n" +
+	"\bcritical\x18\x01 \x01(\v21.vrooli.vrooli_autoheal.v1.measures.CriticalCountR\bcritical\"Y\n" +
+	"\x17GetOutageSummaryRequest\x12\x1b\n" +
+	"\tmember_id\x18\x01 \x01(\tR\bmemberId\x12!\n" +
+	"\fwindow_hours\x18\x02 \x01(\x05R\vwindowHours\"\xff\x02\n" +
+	"\rOutageSummary\x12\x1b\n" +
+	"\tmember_id\x18\x01 \x01(\tR\bmemberId\x12:\n" +
+	"\x19total_unavailable_seconds\x18\x02 \x01(\x01R\x17totalUnavailableSeconds\x122\n" +
+	"\x15distinct_outage_count\x18\x03 \x01(\x05R\x13distinctOutageCount\x12*\n" +
+	"\x11open_outage_count\x18\x04 \x01(\x05R\x0fopenOutageCount\x12=\n" +
+	"\fwindow_start\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vwindowStart\x129\n" +
+	"\n" +
+	"window_end\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\twindowEnd\x12;\n" +
+	"\vcomputed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"computedAt\"e\n" +
+	"\x18GetOutageSummaryResponse\x12I\n" +
+	"\x06outage\x18\x01 \x01(\v21.vrooli.vrooli_autoheal.v1.measures.OutageSummaryR\x06outage2\xdb\x05\n" +
 	"\x0fMeasuresService\x12\x8d\x01\n" +
 	"\x10GetUptimeByCheck\x12;.vrooli.vrooli_autoheal.v1.measures.GetUptimeByCheckRequest\x1a<.vrooli.vrooli_autoheal.v1.measures.GetUptimeByCheckResponse\x12\x8a\x01\n" +
 	"\x0fGetRestartCount\x12:.vrooli.vrooli_autoheal.v1.measures.GetRestartCountRequest\x1a;.vrooli.vrooli_autoheal.v1.measures.GetRestartCountResponse\x12\x8a\x01\n" +
 	"\x0fGetHealOutcomes\x12:.vrooli.vrooli_autoheal.v1.measures.GetHealOutcomesRequest\x1a;.vrooli.vrooli_autoheal.v1.measures.GetHealOutcomesResponse\x12\x8d\x01\n" +
-	"\x10GetCriticalCount\x12;.vrooli.vrooli_autoheal.v1.measures.GetCriticalCountRequest\x1a<.vrooli.vrooli_autoheal.v1.measures.GetCriticalCountResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/measures;measures_v1b\x06proto3"
+	"\x10GetCriticalCount\x12;.vrooli.vrooli_autoheal.v1.measures.GetCriticalCountRequest\x1a<.vrooli.vrooli_autoheal.v1.measures.GetCriticalCountResponse\x12\x8d\x01\n" +
+	"\x10GetOutageSummary\x12;.vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryRequest\x1a<.vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/measures;measures_v1b\x06proto3"
 
 var (
 	file_vrooli_autoheal_v1_measures_measures_proto_rawDescOnce sync.Once
@@ -727,7 +931,7 @@ func file_vrooli_autoheal_v1_measures_measures_proto_rawDescGZIP() []byte {
 	return file_vrooli_autoheal_v1_measures_measures_proto_rawDescData
 }
 
-var file_vrooli_autoheal_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_vrooli_autoheal_v1_measures_measures_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_vrooli_autoheal_v1_measures_measures_proto_goTypes = []any{
 	(*GetUptimeByCheckRequest)(nil),  // 0: vrooli.vrooli_autoheal.v1.measures.GetUptimeByCheckRequest
 	(*UptimeByCheck)(nil),            // 1: vrooli.vrooli_autoheal.v1.measures.UptimeByCheck
@@ -741,30 +945,39 @@ var file_vrooli_autoheal_v1_measures_measures_proto_goTypes = []any{
 	(*GetCriticalCountRequest)(nil),  // 9: vrooli.vrooli_autoheal.v1.measures.GetCriticalCountRequest
 	(*CriticalCount)(nil),            // 10: vrooli.vrooli_autoheal.v1.measures.CriticalCount
 	(*GetCriticalCountResponse)(nil), // 11: vrooli.vrooli_autoheal.v1.measures.GetCriticalCountResponse
-	(*timestamppb.Timestamp)(nil),    // 12: google.protobuf.Timestamp
+	(*GetOutageSummaryRequest)(nil),  // 12: vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryRequest
+	(*OutageSummary)(nil),            // 13: vrooli.vrooli_autoheal.v1.measures.OutageSummary
+	(*GetOutageSummaryResponse)(nil), // 14: vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryResponse
+	(*timestamppb.Timestamp)(nil),    // 15: google.protobuf.Timestamp
 }
 var file_vrooli_autoheal_v1_measures_measures_proto_depIdxs = []int32{
-	12, // 0: vrooli.vrooli_autoheal.v1.measures.UptimeByCheck.computed_at:type_name -> google.protobuf.Timestamp
+	15, // 0: vrooli.vrooli_autoheal.v1.measures.UptimeByCheck.computed_at:type_name -> google.protobuf.Timestamp
 	1,  // 1: vrooli.vrooli_autoheal.v1.measures.GetUptimeByCheckResponse.uptime:type_name -> vrooli.vrooli_autoheal.v1.measures.UptimeByCheck
-	12, // 2: vrooli.vrooli_autoheal.v1.measures.RestartCount.computed_at:type_name -> google.protobuf.Timestamp
+	15, // 2: vrooli.vrooli_autoheal.v1.measures.RestartCount.computed_at:type_name -> google.protobuf.Timestamp
 	4,  // 3: vrooli.vrooli_autoheal.v1.measures.GetRestartCountResponse.restarts:type_name -> vrooli.vrooli_autoheal.v1.measures.RestartCount
 	7,  // 4: vrooli.vrooli_autoheal.v1.measures.GetHealOutcomesResponse.outcomes:type_name -> vrooli.vrooli_autoheal.v1.measures.HealOutcomeCount
-	12, // 5: vrooli.vrooli_autoheal.v1.measures.GetHealOutcomesResponse.computed_at:type_name -> google.protobuf.Timestamp
-	12, // 6: vrooli.vrooli_autoheal.v1.measures.CriticalCount.computed_at:type_name -> google.protobuf.Timestamp
+	15, // 5: vrooli.vrooli_autoheal.v1.measures.GetHealOutcomesResponse.computed_at:type_name -> google.protobuf.Timestamp
+	15, // 6: vrooli.vrooli_autoheal.v1.measures.CriticalCount.computed_at:type_name -> google.protobuf.Timestamp
 	10, // 7: vrooli.vrooli_autoheal.v1.measures.GetCriticalCountResponse.critical:type_name -> vrooli.vrooli_autoheal.v1.measures.CriticalCount
-	0,  // 8: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetUptimeByCheck:input_type -> vrooli.vrooli_autoheal.v1.measures.GetUptimeByCheckRequest
-	3,  // 9: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetRestartCount:input_type -> vrooli.vrooli_autoheal.v1.measures.GetRestartCountRequest
-	6,  // 10: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetHealOutcomes:input_type -> vrooli.vrooli_autoheal.v1.measures.GetHealOutcomesRequest
-	9,  // 11: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetCriticalCount:input_type -> vrooli.vrooli_autoheal.v1.measures.GetCriticalCountRequest
-	2,  // 12: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetUptimeByCheck:output_type -> vrooli.vrooli_autoheal.v1.measures.GetUptimeByCheckResponse
-	5,  // 13: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetRestartCount:output_type -> vrooli.vrooli_autoheal.v1.measures.GetRestartCountResponse
-	8,  // 14: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetHealOutcomes:output_type -> vrooli.vrooli_autoheal.v1.measures.GetHealOutcomesResponse
-	11, // 15: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetCriticalCount:output_type -> vrooli.vrooli_autoheal.v1.measures.GetCriticalCountResponse
-	12, // [12:16] is the sub-list for method output_type
-	8,  // [8:12] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	15, // 8: vrooli.vrooli_autoheal.v1.measures.OutageSummary.window_start:type_name -> google.protobuf.Timestamp
+	15, // 9: vrooli.vrooli_autoheal.v1.measures.OutageSummary.window_end:type_name -> google.protobuf.Timestamp
+	15, // 10: vrooli.vrooli_autoheal.v1.measures.OutageSummary.computed_at:type_name -> google.protobuf.Timestamp
+	13, // 11: vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryResponse.outage:type_name -> vrooli.vrooli_autoheal.v1.measures.OutageSummary
+	0,  // 12: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetUptimeByCheck:input_type -> vrooli.vrooli_autoheal.v1.measures.GetUptimeByCheckRequest
+	3,  // 13: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetRestartCount:input_type -> vrooli.vrooli_autoheal.v1.measures.GetRestartCountRequest
+	6,  // 14: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetHealOutcomes:input_type -> vrooli.vrooli_autoheal.v1.measures.GetHealOutcomesRequest
+	9,  // 15: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetCriticalCount:input_type -> vrooli.vrooli_autoheal.v1.measures.GetCriticalCountRequest
+	12, // 16: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetOutageSummary:input_type -> vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryRequest
+	2,  // 17: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetUptimeByCheck:output_type -> vrooli.vrooli_autoheal.v1.measures.GetUptimeByCheckResponse
+	5,  // 18: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetRestartCount:output_type -> vrooli.vrooli_autoheal.v1.measures.GetRestartCountResponse
+	8,  // 19: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetHealOutcomes:output_type -> vrooli.vrooli_autoheal.v1.measures.GetHealOutcomesResponse
+	11, // 20: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetCriticalCount:output_type -> vrooli.vrooli_autoheal.v1.measures.GetCriticalCountResponse
+	14, // 21: vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetOutageSummary:output_type -> vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_autoheal_v1_measures_measures_proto_init() }
@@ -778,7 +991,7 @@ func file_vrooli_autoheal_v1_measures_measures_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_autoheal_v1_measures_measures_proto_rawDesc), len(file_vrooli_autoheal_v1_measures_measures_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

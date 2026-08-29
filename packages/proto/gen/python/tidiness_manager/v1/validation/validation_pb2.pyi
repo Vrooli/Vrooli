@@ -9,20 +9,22 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class TidinessScanResponse(_message.Message):
-    __slots__ = ("scenario", "status", "findings", "violations", "summary", "assessment")
+    __slots__ = ("scenario", "status", "findings", "violations", "summary", "assessment", "seam_files")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
     VIOLATIONS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
     ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
+    SEAM_FILES_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     status: str
     findings: _containers.RepeatedCompositeFieldContainer[TidinessFinding]
     violations: _containers.RepeatedCompositeFieldContainer[TidinessFinding]
     summary: TidinessScanSummary
     assessment: _maturity_pb2.MaturityAssessment
-    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[TidinessFinding, _Mapping]]] = ..., violations: _Optional[_Iterable[_Union[TidinessFinding, _Mapping]]] = ..., summary: _Optional[_Union[TidinessScanSummary, _Mapping]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...
+    seam_files: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[TidinessFinding, _Mapping]]] = ..., violations: _Optional[_Iterable[_Union[TidinessFinding, _Mapping]]] = ..., summary: _Optional[_Union[TidinessScanSummary, _Mapping]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., seam_files: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class TidinessScanSummary(_message.Message):
     __slots__ = ("total_findings", "long_files", "complexity", "duplication", "tech_debt", "coupling", "duplication_line_debt")

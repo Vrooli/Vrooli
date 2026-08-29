@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	handlerParameterH = 24
+	hoursPerDay = 24
 )
 
 var runners = []string{"codex", "claude-code", "opencode", "grok"}
@@ -116,7 +116,7 @@ func validateAgainstLive(ctx context.Context, runner, path string, config ...map
 	if err != nil {
 		findings = append(findings, finding{Type: "invalid_observed_at", Message: "policy provenance observed_at is missing or invalid", Severity: "error"})
 	} else {
-		age := int(time.Since(observed).Hours() / handlerParameterH)
+		age := int(time.Since(observed).Hours() / hoursPerDay)
 		if age > budget*2 {
 			findings = append(findings, finding{Type: "catalog_stale", Message: fmt.Sprintf("catalog age is %d days; staleness budget is %d days", age, budget), Severity: "error"})
 		} else if age > budget {

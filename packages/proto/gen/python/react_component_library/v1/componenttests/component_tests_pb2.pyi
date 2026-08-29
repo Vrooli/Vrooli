@@ -20,7 +20,7 @@ class RunComponentTestRequest(_message.Message):
     def __init__(self, component_id: _Optional[str] = ..., version: _Optional[str] = ..., include_closure: _Optional[bool] = ...) -> None: ...
 
 class ComponentTestResult(_message.Message):
-    __slots__ = ("stage", "asset_library_id", "version", "subject", "verdict", "message", "remediation", "evidence")
+    __slots__ = ("stage", "asset_library_id", "version", "subject", "verdict", "message", "remediation", "evidence", "rule_source", "rule_declared_in")
     STAGE_FIELD_NUMBER: _ClassVar[int]
     ASSET_LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -29,6 +29,8 @@ class ComponentTestResult(_message.Message):
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
     REMEDIATION_FIELD_NUMBER: _ClassVar[int]
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    RULE_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    RULE_DECLARED_IN_FIELD_NUMBER: _ClassVar[int]
     stage: str
     asset_library_id: str
     version: str
@@ -37,7 +39,9 @@ class ComponentTestResult(_message.Message):
     message: str
     remediation: str
     evidence: _containers.RepeatedCompositeFieldContainer[ComponentTestEvidence]
-    def __init__(self, stage: _Optional[str] = ..., asset_library_id: _Optional[str] = ..., version: _Optional[str] = ..., subject: _Optional[str] = ..., verdict: _Optional[str] = ..., message: _Optional[str] = ..., remediation: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[ComponentTestEvidence, _Mapping]]] = ...) -> None: ...
+    rule_source: str
+    rule_declared_in: str
+    def __init__(self, stage: _Optional[str] = ..., asset_library_id: _Optional[str] = ..., version: _Optional[str] = ..., subject: _Optional[str] = ..., verdict: _Optional[str] = ..., message: _Optional[str] = ..., remediation: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[ComponentTestEvidence, _Mapping]]] = ..., rule_source: _Optional[str] = ..., rule_declared_in: _Optional[str] = ...) -> None: ...
 
 class ComponentTestEvidence(_message.Message):
     __slots__ = ("kind", "json")

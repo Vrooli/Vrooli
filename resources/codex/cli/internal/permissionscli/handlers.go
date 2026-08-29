@@ -13,7 +13,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"resource-codex/cli/internal/permissions"
+	"github.com/vrooli/vrooli/resources/codex/cli/internal/permissions"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"

@@ -26,13 +26,17 @@ import (
 )
 
 const (
-	mndMainNumberOctal600  = 0o600
-	mndMainNumberOctal700  = 0o700
-	mndMainNumberValue1024 = 1024
-	mndMainNumberValue120  = 120
-	mndMainNumberValue2    = 2
-	mndMainNumberValue5    = 5
-	mndMainNumberValue60   = 60
+	mndMainNumberOctal600      = 0o600
+	mndMainNumberOctal700      = 0o700
+	bytesPerKiB                = 1024
+	diskFailureSustain         = 120 * time.Second
+	invalidInvocationExitCode  = 2
+	reclaimSwapToResidentRatio = 2
+	unitProbeTimeout           = 5 * time.Second
+	pressureFailureSustain     = 60 * time.Second
+	strandedIdleSampleLimit    = 2
+	fixtureFieldLimit          = 2
+	processFixtureFieldCount   = 5
 )
 
 type output struct {
@@ -81,11 +85,11 @@ func main() {
 	}
 	if !*reportOnly && !*reclaim {
 		fmt.Fprintln(os.Stderr, "choose --report-only or the explicit operator action --reclaim")
-		os.Exit(mndMainNumberValue2)
+		os.Exit(invalidInvocationExitCode)
 	}
 	if *reportOnly && *reclaim {
 		fmt.Fprintln(os.Stderr, "--report-only and --reclaim are mutually exclusive")
-		os.Exit(mndMainNumberValue2)
+		os.Exit(invalidInvocationExitCode)
 	}
 	thresholds := readThresholds()
 	o := output{CapturedAt: time.Now().UTC(), Evidence: map[string][]string{}, Thresholds: thresholds}
@@ -99,7 +103,7 @@ func main() {
 	} else {
 		if *reclaim {
 			fmt.Fprintln(os.Stderr, "--reclaim requires live host readings; fixtures are report-only")
-			os.Exit(mndMainNumberValue2)
+			os.Exit(invalidInvocationExitCode)
 		}
 		if err := fromFixture(*fixtures, &o); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -149,7 +153,7 @@ func reclaimOne(ctx context.Context, snapshot hostpressure.PressureSnapshot, thr
 		}
 	}
 	decision, err := hostpressure.ReclaimOne(ctx, snapshot.Processes, candidates, hostpressure.ReclaimPolicy{
-		SwapToResident: mndMainNumberValue2,
+		SwapToResident: reclaimSwapToResidentRatio,
 		MinimumSwapped: minimumReclaimSwapBytes,
 		Saturated: func(context.Context) (bool, error) {
 			value, ok := snapshot.CPUPressure.Number()
@@ -310,7 +314,7 @@ var buildVersion = "dev"
 func addLiveWatchdogFindings(o *output, thresholds thresholdSource) {
 	if available, used, err := diskSpace(); err != nil {
 		o.Evidence["disk-space"] = []string{"disk space probe: " + err.Error()}
-	} else if sustainedFailure("last-disk", available < maxDiskFloorMB, mndMainNumberValue120*time.Second) {
+	} else if sustainedFailure("last-disk", available < maxDiskFloorMB, diskFailureSustain) {
 		add(o, "disk-space", fmt.Sprintf("%d MB available is below the %d MB emergency floor", available, maxDiskFloorMB), []string{"statfs:" + watchMount(), fmt.Sprintf("used_percent=%.1f", used)})
 	}
 
@@ -343,7 +347,7 @@ func declaredUnits() []string {
 }
 
 func unitActive(unit string) (bool, string) {
-	ctx, cancel := context.WithTimeout(context.Background(), mndMainNumberValue5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), unitProbeTimeout)
 	defer cancel()
 	switch current := strings.ToLower(runtimeGOOS()); current {
 	case "linux":
@@ -418,32 +422,32 @@ func saveForkState(snapshot hostpressure.PressureSnapshot) {
 func addLiveFindings(o *output, thresholds thresholdSource) {
 	cpuFinding := false
 	if v, ok := o.Readings.CPUPressure.Number(); ok && v >= thresholds.CPUPressurePercent {
-		cpuFinding = sustainedFailure("last-cpu-pressure", true, mndMainNumberValue60*time.Second)
+		cpuFinding = sustainedFailure("last-cpu-pressure", true, pressureFailureSustain)
 	}
 	if cpuFinding {
 		v, _ := o.Readings.CPUPressure.Number()
 		add(o, "cpu-pressure", fmt.Sprintf("CPU pressure %.1f%% meets or exceeds SB14 bar", v), []string{o.Readings.CPUPressure.Provenance})
 	} else if _, ok := o.Readings.CPUPressure.Number(); ok {
-		_ = sustainedFailure("last-cpu-pressure", false, mndMainNumberValue60*time.Second)
+		_ = sustainedFailure("last-cpu-pressure", false, pressureFailureSustain)
 	}
 	forkFinding := false
 	if v, ok := o.Readings.ForkRate.Number(); ok && v >= thresholds.ForksPerSecond {
-		forkFinding = sustainedFailure("last-fork-rate", true, mndMainNumberValue60*time.Second)
+		forkFinding = sustainedFailure("last-fork-rate", true, pressureFailureSustain)
 	}
 	if forkFinding {
 		v, _ := o.Readings.ForkRate.Number()
 		add(o, "fork-rate", fmt.Sprintf("%.1f forks/s exceeds SB16 bar", v), []string{o.Readings.ForkRate.Provenance})
 	} else if _, ok := o.Readings.ForkRate.Number(); ok {
-		_ = sustainedFailure("last-fork-rate", false, mndMainNumberValue60*time.Second)
+		_ = sustainedFailure("last-fork-rate", false, pressureFailureSustain)
 	}
-	stranded := hostpressure.Stranded(o.Readings.Processes, mndMainNumberValue2)
+	stranded := hostpressure.Stranded(o.Readings.Processes, strandedIdleSampleLimit)
 	var strandedBytes uint64
 	for _, p := range stranded {
 		strandedBytes += p.Swapped
 	}
-	strandedFinding := float64(strandedBytes)/(mndMainNumberValue1024*mndMainNumberValue1024) >= thresholds.StrandedMemoryMB && len(stranded) > 0
-	if sustainedFailure("last-stranded-memory", strandedFinding, mndMainNumberValue60*time.Second) {
-		add(o, "stranded-memory", fmt.Sprintf("%.0f MB stranded across %d idle processes; top holder %s", float64(strandedBytes)/(mndMainNumberValue1024*mndMainNumberValue1024), len(stranded), stranded[0].Name), []string{"/proc/*/status"})
+	strandedFinding := float64(strandedBytes)/(bytesPerKiB*bytesPerKiB) >= thresholds.StrandedMemoryMB && len(stranded) > 0
+	if sustainedFailure("last-stranded-memory", strandedFinding, pressureFailureSustain) {
+		add(o, "stranded-memory", fmt.Sprintf("%.0f MB stranded across %d idle processes; top holder %s", float64(strandedBytes)/(bytesPerKiB*bytesPerKiB), len(stranded), stranded[0].Name), []string{"/proc/*/status"})
 	}
 }
 
@@ -614,7 +618,7 @@ func fromFixture(root string, o *output) error {
 		report := workloadowner.Classify(observed, declarations, workloadowner.WholeHost, o.Thresholds.CrashLoopsPerHour)
 		o.Workloads = &report
 	}
-	stranded := hostpressure.Stranded(o.Readings.Processes, mndMainNumberValue2)
+	stranded := hostpressure.Stranded(o.Readings.Processes, strandedIdleSampleLimit)
 	if len(stranded) > 0 {
 		add(o, "stranded-memory", fmt.Sprintf("%s holds %d swapped bytes", stranded[0].Name, stranded[0].Swapped), []string{"procs.tsv"})
 	}
@@ -654,7 +658,7 @@ func fixtureCounter(path, key string) (uint64, bool) {
 		return 0, false
 	}
 	for _, field := range strings.Fields(string(b)) {
-		parts := strings.SplitN(field, "=", mndMainNumberValue2)
+		parts := strings.SplitN(field, "=", fixtureFieldLimit)
 		if len(parts) == 2 && parts[0] == key {
 			n, parseErr := strconv.ParseUint(parts[1], 10, 64)
 			return n, parseErr == nil
@@ -671,7 +675,7 @@ func loadProcesses(path string) ([]hostpressure.Process, error) {
 	var out []hostpressure.Process
 	for _, l := range strings.Split(strings.TrimSpace(string(b)), "\n") {
 		f := strings.Split(l, "\t")
-		if len(f) != mndMainNumberValue5 {
+		if len(f) != processFixtureFieldCount {
 			continue
 		}
 		pid, _ := strconv.ParseInt(f[0], 10, 64)

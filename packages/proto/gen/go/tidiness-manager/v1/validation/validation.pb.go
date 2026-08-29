@@ -31,6 +31,7 @@ type TidinessScanResponse struct {
 	Violations    []*TidinessFinding     `protobuf:"bytes,4,rep,name=violations,proto3" json:"violations,omitempty"`
 	Summary       *TidinessScanSummary   `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
 	Assessment    *v1.MaturityAssessment `protobuf:"bytes,6,opt,name=assessment,proto3" json:"assessment,omitempty"`
+	SeamFiles     []string               `protobuf:"bytes,7,rep,name=seam_files,json=seamFiles,proto3" json:"seam_files,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -103,6 +104,13 @@ func (x *TidinessScanResponse) GetSummary() *TidinessScanSummary {
 func (x *TidinessScanResponse) GetAssessment() *v1.MaturityAssessment {
 	if x != nil {
 		return x.Assessment
+	}
+	return nil
+}
+
+func (x *TidinessScanResponse) GetSeamFiles() []string {
+	if x != nil {
+		return x.SeamFiles
 	}
 	return nil
 }
@@ -359,7 +367,7 @@ var File_tidiness_manager_v1_validation_validation_proto protoreflect.FileDescri
 
 const file_tidiness_manager_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
-	"/tidiness-manager/v1/validation/validation.proto\x12%vrooli.tidiness_manager.v1.validation\x1a\x18common/v1/maturity.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x8b\x03\n" +
+	"/tidiness-manager/v1/validation/validation.proto\x12%vrooli.tidiness_manager.v1.validation\x1a\x18common/v1/maturity.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xaa\x03\n" +
 	"\x14TidinessScanResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12R\n" +
@@ -370,7 +378,9 @@ const file_tidiness_manager_v1_validation_validation_proto_rawDesc = "" +
 	"\asummary\x18\x05 \x01(\v2:.vrooli.tidiness_manager.v1.validation.TidinessScanSummaryR\asummary\x12=\n" +
 	"\n" +
 	"assessment\x18\x06 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
-	"assessment\"\x8a\x02\n" +
+	"assessment\x12\x1d\n" +
+	"\n" +
+	"seam_files\x18\a \x03(\tR\tseamFiles\"\x8a\x02\n" +
 	"\x13TidinessScanSummary\x12%\n" +
 	"\x0etotal_findings\x18\x01 \x01(\x05R\rtotalFindings\x12\x1d\n" +
 	"\n" +

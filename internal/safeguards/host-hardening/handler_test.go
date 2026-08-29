@@ -8,24 +8,11 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-var stubLookups = hostHardeningStubLookups
-
-func hostHardeningStubLookups(t *testing.T) func() {
-	t.Helper()
-	origLookPath := hostreqkit.LookPathFn
-	origReadFile := hostreqkit.ReadFileFn
-	origCombinedOutput := hostreqkit.CombinedOutputFn
-	origRunCommand := hostreqkit.RunCommandFn
-	return func() {
-		hostreqkit.LookPathFn = origLookPath
-		hostreqkit.ReadFileFn = origReadFile
-		hostreqkit.CombinedOutputFn = origCombinedOutput
-		hostreqkit.RunCommandFn = origRunCommand
-	}
-}
+var stubLookups = hostreqkittest.StubLookups
 
 var newTestHandler = hostHardeningTestHandler
 

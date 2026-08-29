@@ -15,6 +15,14 @@ import (
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
+const (
+	credentialBundleDirMode  = 0o700
+	credentialBundleFileMode = 0o600
+	credentialTokenBytes     = 32
+	credentialHTTPTimeout    = 15 * time.Second
+	credentialResponseLimit  = 1 << 20
+)
+
 type InProcessOptions struct {
 	Authority   *credentialauthority.Authority
 	Root        string
@@ -61,7 +69,7 @@ func (c *inProcessClient) Resolve(_ context.Context, identity, field string) (st
 	if err != nil {
 		return "", err
 	}
-	return c.authority.Resolve(parsed, field)
+	return c.authority.Require(parsed, field)
 }
 
 func (c *inProcessClient) Delete(_ context.Context, identity, field string) error {
@@ -239,10 +247,10 @@ func (c *inProcessClient) RecoveryExport(_ context.Context, request RecoveryExpo
 	if strings.TrimSpace(request.OutputPath) == "" {
 		return RecoveryExportResponse{}, fmt.Errorf("recovery output path is required")
 	}
-	if err := os.MkdirAll(filepath.Dir(request.OutputPath), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(request.OutputPath), credentialBundleDirMode); err != nil { //nolint:mnd // credential bundle directory mode is a security contract
 		return RecoveryExportResponse{}, err
 	}
-	if err := os.WriteFile(request.OutputPath, bundle, 0o600); err != nil {
+	if err := os.WriteFile(request.OutputPath, bundle, credentialBundleFileMode); err != nil {
 		return RecoveryExportResponse{}, err
 	}
 	if c.stateDir != "" {

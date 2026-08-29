@@ -43,14 +43,16 @@ func writeScopeFixture(t *testing.T) string {
 }`)
 	write(filepath.Join(root, "resources", "one", "resource.json"), `{
   "name": "one", "display_name": "One", "description": "One", "category": "general",
-  "driver": "manual",
-  "cli": {"enabled": false},
+  "driver": "external-cli",
+  "binary": "one",
+  "cli": {"enabled": true, "command": "one", "adapter": {"kind": "go_module", "module_dir": "cli"}, "source_build": {"kind": "go_module"}, "invoke": {"kind": "installed_command", "command": "one"}, "freshness": {"inputs": ["cli/**", "resource.json"]}},
   "credentials": {"descriptors": [{"logical_id": "vrooli/one", "field": "password", "required": true}]}
 }`)
 	write(filepath.Join(root, "resources", "two", "resource.json"), `{
   "name": "two", "display_name": "Two", "description": "Two", "category": "general",
-  "driver": "manual",
-  "cli": {"enabled": false},
+  "driver": "external-cli",
+  "binary": "two",
+  "cli": {"enabled": true, "command": "two", "adapter": {"kind": "go_module", "module_dir": "cli"}, "source_build": {"kind": "go_module"}, "invoke": {"kind": "installed_command", "command": "two"}, "freshness": {"inputs": ["cli/**", "resource.json"]}},
   "credentials": {"descriptors": [{"logical_id": "vrooli/two", "field": "password", "required": false}]}
 }`)
 	return root

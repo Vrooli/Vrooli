@@ -75,6 +75,20 @@ class ChangeAgentSessionKindResponse(_message.Message):
     starter_job_cleared: bool
     def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ..., dropped_context_refs: _Optional[_Iterable[_Union[AgentSessionContextRef, _Mapping]]] = ..., starter_job_cleared: _Optional[bool] = ...) -> None: ...
 
+class AttachAgentSessionContextRequest(_message.Message):
+    __slots__ = ("session_id", "context_refs")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    CONTEXT_REFS_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    context_refs: _containers.RepeatedCompositeFieldContainer[AgentSessionContextRef]
+    def __init__(self, session_id: _Optional[str] = ..., context_refs: _Optional[_Iterable[_Union[AgentSessionContextRef, _Mapping]]] = ...) -> None: ...
+
+class AttachAgentSessionContextResponse(_message.Message):
+    __slots__ = ("session",)
+    SESSION_FIELD_NUMBER: _ClassVar[int]
+    session: _agent_session_pb2.AgentSession
+    def __init__(self, session: _Optional[_Union[_agent_session_pb2.AgentSession, _Mapping]] = ...) -> None: ...
+
 class StartAgentSessionRequest(_message.Message):
     __slots__ = ("session_id", "message", "attachment_ids", "context_refs", "auto_context_policy", "starter_job_id")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]

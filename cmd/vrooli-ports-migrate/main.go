@@ -25,14 +25,15 @@ import (
 )
 
 const (
-	mndMainNumberValue9 = 9
+	portKeyColumnWidth = 9
 )
 
 const (
 	mndMainNumberOctal644 = 0o644
-	mndMainNumberValue2   = 2
-	mndMainNumberValue3   = 3
-	mndMainNumberValue41  = 41
+	invalidRootExitCode   = 2
+	collisionExitCode     = 3
+	scenarioColumnWidth   = 41
+	rangeBoundCount       = 2
 )
 
 const (
@@ -79,7 +80,7 @@ func main() {
 	root, err := resolveRepoRoot(*repoRoot)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(mndMainNumberValue2)
+		os.Exit(invalidRootExitCode)
 	}
 
 	rep, err := runMigration(root, *apply)
@@ -100,7 +101,7 @@ func main() {
 	}
 
 	if len(rep.Collisions) > 0 {
-		os.Exit(mndMainNumberValue3)
+		os.Exit(collisionExitCode)
 	}
 }
 
@@ -295,7 +296,7 @@ func collectChanges(scenario, path string, ports map[string]map[string]json.RawM
 
 func shiftRange(raw string) (string, bool) {
 	parts := strings.Split(strings.TrimSpace(raw), "-")
-	if len(parts) != mndMainNumberValue2 {
+	if len(parts) != rangeBoundCount {
 		return raw, false
 	}
 	lo, err := strconv.Atoi(strings.TrimSpace(parts[0]))
@@ -556,7 +557,7 @@ func printHumanReport(out *os.File, rep report, applied bool) {
 				flag = "yes"
 			}
 			fmt.Fprintf(out, "%-41s %-9s %-6s %-14s %-14s %s\n",
-				truncate(m.Scenario, mndMainNumberValue41), truncate(ch.PortKey, mndMainNumberValue9), ch.Field, ch.OldValue, ch.NewValue, flag)
+				truncate(m.Scenario, scenarioColumnWidth), truncate(ch.PortKey, portKeyColumnWidth), ch.Field, ch.OldValue, ch.NewValue, flag)
 		}
 	}
 

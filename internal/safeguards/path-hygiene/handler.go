@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	handlerParameterF = 2
-	handlerParameterE = 3
+	pathNoteCapacity = 2
+	worstPathLimit   = 3
 )
 
 // startupFiles are the shell startup files the safeguard manages, in the
@@ -70,7 +70,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	// not shell startup files, so this safeguard has nothing to manage
 	// there. Report Unsupported so it disappears cleanly rather than
 	// failing.
-	if host.OS != "linux" && host.OS != "darwin" {
+	if host.OS != string(hostreqspec.PlatformLinux) && host.OS != string(hostreqspec.PlatformDarwin) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes,
@@ -183,13 +183,13 @@ func (h handler) observePath(home string) []string {
 	if strings.TrimSpace(pathEnv) == "" {
 		return nil
 	}
-	notes := make([]string, 0, handlerParameterF)
+	notes := make([]string, 0, pathNoteCapacity)
 
 	if total, unique := EntryCount(pathEnv), UniqueEntryCount(pathEnv); total > unique {
 		dups := DuplicateEntries(pathEnv)
-		worst := make([]string, 0, handlerParameterE)
+		worst := make([]string, 0, worstPathLimit)
 		for i, d := range dups {
-			if i == handlerParameterE {
+			if i == worstPathLimit {
 				break
 			}
 			worst = append(worst, fmt.Sprintf("%s x%d", d.Dir, d.Count))
@@ -201,7 +201,7 @@ func (h handler) observePath(home string) []string {
 
 	canonical := filepath.Join(home, filepath.FromSlash(CanonicalBinSuffix))
 	if shadows := ShadowingBinaries(pathEnv, canonical, "vrooli"); len(shadows) > 0 {
-		sort.Strings(shadows)
+		slices.Sort(shadows)
 		notes = append(notes, fmt.Sprintf(
 			"another vrooli binary precedes %s on PATH: %s — a bare `vrooli` may run a stale build; remove it or let the managed block take the front",
 			canonical, strings.Join(shadows, ", ")))

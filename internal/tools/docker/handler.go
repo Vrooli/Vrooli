@@ -336,7 +336,7 @@ func dockerHealthNotes(host hostreqkit.Host, health dockerhost.Health) []string 
 	switch {
 	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && host.SupportsSystemd:
 		notes = append(notes, "Re-run as `sudo vrooli setup` or pass --sudo-mode=ask to repair and start Docker")
-	case host.OS == "darwin" || host.OS == "windows":
+	case host.OS == string(hostreqspec.PlatformDarwin) || host.OS == string(hostreqspec.PlatformWindows):
 		notes = append(notes, "Start a Docker-compatible container runtime, then re-run `vrooli setup`")
 	default:
 		notes = append(notes, "Start the Docker daemon, then re-run `vrooli setup`")

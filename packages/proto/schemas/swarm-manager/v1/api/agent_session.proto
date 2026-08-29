@@ -122,6 +122,18 @@ message ChangeAgentSessionKindResponse {
   bool starter_job_cleared = 3;
 }
 
+// AttachAgentSessionContextRequest durably stages typed entities on a draft.
+message AttachAgentSessionContextRequest {
+  string session_id = 1 [(buf.validate.field).string.min_len = 1];
+  repeated AgentSessionContextRef context_refs = 2 [(buf.validate.field).repeated.min_items = 1];
+}
+
+// AttachAgentSessionContextResponse returns the draft with the merged,
+// deduplicated context selection.
+message AttachAgentSessionContextResponse {
+  domain.AgentSession session = 1;
+}
+
 // StartAgentSessionRequest sends the first real operator prompt and spawns
 // the Agent Manager run for a draft session.
 message StartAgentSessionRequest {

@@ -11,11 +11,11 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/vrooli/internal/buildinfo"
-	"github.com/vrooli/vrooli/internal/cli/rootcli"
+	"github.com/vrooli/vrooli/internal/cli/vroolicli"
 )
 
 const (
-	mndMainNumberValue2 = 2
+	minimumUniqueValues = 2
 )
 
 func main() {
@@ -39,8 +39,19 @@ func run() error {
 		return err
 	}
 	want := manifestCommandPaths(manifest)
-	got := rootcli.WalkCommandTree()
+	got, err := vroolicli.RegisteredLeafPaths()
+	if err != nil {
+		return fmt.Errorf("walk bound root CLI registry: %w", err)
+	}
 
+	differences := manifestDrift(got, want)
+	if len(differences) > 0 {
+		return fmt.Errorf("root CLI manifest drift:\n%s", strings.Join(differences, "\n"))
+	}
+	return nil
+}
+
+func manifestDrift(got, want []string) []string {
 	var differences []string
 	for _, path := range difference(got, want) {
 		differences = append(differences, "tree-only: "+path)
@@ -48,11 +59,8 @@ func run() error {
 	for _, path := range difference(want, got) {
 		differences = append(differences, "manifest-only: "+path)
 	}
-	if len(differences) > 0 {
-		sort.Strings(differences)
-		return fmt.Errorf("root CLI manifest drift:\n%s", strings.Join(differences, "\n"))
-	}
-	return nil
+	sort.Strings(differences)
+	return differences
 }
 
 func manifestCommandPaths(manifest *cliapp.Manifest) []string {
@@ -101,7 +109,7 @@ func difference(left, right []string) []string {
 }
 
 func unique(values []string) []string {
-	if len(values) < mndMainNumberValue2 {
+	if len(values) < minimumUniqueValues {
 		return values
 	}
 	out := values[:1]

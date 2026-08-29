@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	handlerParameterF = 2
+	promptPathComponentCount = 2
 )
 
 var (
@@ -60,7 +60,7 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		return hostreqkit.NotApplicableRequirementStatus(requirement, "the login-keyring unlock safeguard is Linux-only")
 	}
 	if requirement.OperatorChoice != hostreqspec.OperatorChoiceOptedIn {
@@ -108,7 +108,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		return status, nil
 	}
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
 		return status, nil
@@ -146,7 +146,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 	promptPath := keyringPromptPathPattern.FindStringSubmatch(string(promptOutput))
-	if len(promptPath) != handlerParameterF {
+	if len(promptPath) != promptPathComponentCount {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, "login-keyring password-change prompt returned no valid prompt object")
 		return status, nil

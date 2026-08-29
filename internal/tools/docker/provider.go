@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 const (
@@ -103,7 +104,7 @@ func resolveProvider(host hostreqkit.Host, health dockerhost.Health) ProviderDec
 
 func platformProviderDecision(host hostreqkit.Host, presence providerPresence) (ProviderDecision, bool) {
 	switch strings.ToLower(strings.TrimSpace(host.OS)) {
-	case "darwin", "macos":
+	case string(hostreqspec.PlatformDarwin), "macos":
 		switch {
 		case presence.OrbStack:
 			return ProviderDecision{Provider: ProviderOrbStack, Endpoint: "docker://orbstack", Reason: ReasonProviderPresent, ManualAction: "start OrbStack once, then retry", ObservedBefore: cliinstall.ObservedPresent, Action: cliinstall.ActionAdopted}, true
@@ -114,9 +115,9 @@ func platformProviderDecision(host hostreqkit.Host, presence providerPresence) (
 		default:
 			return ProviderDecision{Provider: ProviderColima, Endpoint: "docker://colima", Reason: ReasonColimaProvision, ObservedBefore: cliinstall.ObservedAbsent, Action: cliinstall.ActionInstalled}, true
 		}
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		return ProviderDecision{Provider: ProviderLinuxEngine, Endpoint: "docker://local", Reason: ReasonLinuxRepair, ObservedBefore: cliinstall.ObservedPresent, Action: cliinstall.ActionAdopted}, true
-	case "windows":
+	case string(hostreqspec.PlatformWindows):
 		return ProviderDecision{Provider: ProviderWindowsManual, Endpoint: "manual://container-runtime", Reason: ReasonWindowsManual, ManualAction: "install and start Docker Desktop or another Docker-compatible runtime, then retry"}, true
 	default:
 		return ProviderDecision{}, false

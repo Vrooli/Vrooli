@@ -16,33 +16,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestHandlerCreateUsesProtoJSONContract(t *testing.T) {
-	restoreClock := freezeAgentSessionClock(t)
-	defer restoreClock()
-
-	router := mux.NewRouter()
-	NewHandler(newTestService(t, &fakeSessionSpawner{})).RegisterRoutes(router)
-
-	body := marshalAgentSessionProto(t, &apipb.CreateAgentSessionRequest{
-		Kind:  string(KindMetaOrchestration),
-		Title: "Plan work",
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/agent-sessions", bytes.NewReader(body))
-	rec := httptest.NewRecorder()
-
-	router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), `"kind":"meta_orchestration"`) {
-		t.Fatalf("response did not use proto field contract: %s", rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), `"status":"draft"`) {
-		t.Fatalf("response missing draft status: %s", rec.Body.String())
-	}
-}
-
 func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	restoreClock := freezeAgentSessionClock(t)
 	defer restoreClock()
@@ -52,6 +25,7 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 		Summary: "Session final handoff.",
 	}}
 	svc := newTestService(t, spawner)
+	svc.contextResolver = fakeContextResolver{}
 	router := mux.NewRouter()
 	NewHandler(svc).RegisterRoutes(router)
 
@@ -69,8 +43,22 @@ func TestHandlerLifecycleEndpointsUseProtoJSONContracts(t *testing.T) {
 	if sessionID == "" {
 		t.Fatalf("created session id is empty: %+v", createResp.GetSession())
 	}
-	if createResp.GetSession().GetRunId() != "" || createResp.GetSession().GetStatus() != string(StatusDraft) {
+	if createResp.GetSession().GetRunId() != "" || createResp.GetSession().GetStatus() != string(StatusDraft) || createResp.GetSession().GetKind() != string(KindSwarmOperations) {
 		t.Fatalf("created session should be draft without run: %+v", createResp.GetSession())
+	}
+	attachBody := marshalAgentSessionProto(t, &apipb.AttachAgentSessionContextRequest{ContextRefs: []*apipb.AgentSessionContextRef{
+		{Type: string(ContextBacklogItem), Ref: "chore/first"},
+		{Type: string(ContextGoal), Ref: "delivery"},
+	}})
+	attachRec := serveAgentSessionRequest(router, http.MethodPost, "/api/v1/agent-sessions/"+sessionID+"/context", attachBody)
+	if attachRec.Code != http.StatusOK {
+		t.Fatalf("attach status = %d, body = %s", attachRec.Code, attachRec.Body.String())
+	}
+	var attachResp apipb.AttachAgentSessionContextResponse
+	unmarshalAgentSessionProto(t, attachRec, &attachResp)
+	refs := attachResp.GetSession().GetStagedContextRefs()
+	if len(refs) != 2 || refs[0].GetType() != string(ContextBacklogItem) || refs[1].GetRef() != "delivery" {
+		t.Fatalf("staged refs = %+v", refs)
 	}
 
 	listRec := serveAgentSessionRequest(router, http.MethodGet, "/api/v1/agent-sessions?kind=swarm_operations&active_only=true&limit=10", nil)

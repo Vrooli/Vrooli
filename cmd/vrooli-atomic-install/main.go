@@ -8,14 +8,14 @@ import (
 )
 
 const (
-	mndMainNumberValue2 = 2
-	mndMainNumberValue3 = 3
+	usageExitCode         = 2
+	expectedArgumentCount = 3
 )
 
 func main() {
-	if len(os.Args) != mndMainNumberValue3 {
+	if len(os.Args) != expectedArgumentCount {
 		fmt.Fprintln(os.Stderr, "usage: vrooli-atomic-install SOURCE DEST")
-		os.Exit(mndMainNumberValue2)
+		os.Exit(usageExitCode)
 	}
 	if err := cliinstall.AtomicInstall(os.Args[1], os.Args[2]); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -160,7 +160,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Notes = append(status.Notes, "the emergency watchdog requires systemd user service/timer support")
 		return status
 	}
-	if host.OS == "darwin" && !guiLaunchdAvailable() {
+	if host.OS == string(hostreqspec.PlatformDarwin) && !guiLaunchdAvailable() {
 		status.SupportClass = hostreqkit.SupportNotApplicable
 		status.ExecutionState = hostreqkit.ExecutionNotApplicable
 		status.Notes = append(status.Notes, "the invoking user's GUI launchd domain is unavailable; this user LaunchAgent is not applicable to the current SSH/headless session")

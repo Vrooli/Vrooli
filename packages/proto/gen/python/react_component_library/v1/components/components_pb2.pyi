@@ -31,6 +31,14 @@ class ComponentVersionStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COMPONENT_VERSION_STATUS_DEPRECATED: _ClassVar[ComponentVersionStatus]
     COMPONENT_VERSION_STATUS_ARCHIVED: _ClassVar[ComponentVersionStatus]
 
+class ComponentKitCompatibilityVerdict(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSPECIFIED: _ClassVar[ComponentKitCompatibilityVerdict]
+    COMPONENT_KIT_COMPATIBILITY_VERDICT_UNIVERSAL: _ClassVar[ComponentKitCompatibilityVerdict]
+    COMPONENT_KIT_COMPATIBILITY_VERDICT_RESTRICTED: _ClassVar[ComponentKitCompatibilityVerdict]
+    COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSATISFIABLE: _ClassVar[ComponentKitCompatibilityVerdict]
+    COMPONENT_KIT_COMPATIBILITY_VERDICT_UNDEFINED_VOCABULARY: _ClassVar[ComponentKitCompatibilityVerdict]
+
 class DesignAffinity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     DESIGN_AFFINITY_UNSPECIFIED: _ClassVar[DesignAffinity]
@@ -55,6 +63,11 @@ COMPONENT_VERSION_STATUS_DRAFT: ComponentVersionStatus
 COMPONENT_VERSION_STATUS_RELEASED: ComponentVersionStatus
 COMPONENT_VERSION_STATUS_DEPRECATED: ComponentVersionStatus
 COMPONENT_VERSION_STATUS_ARCHIVED: ComponentVersionStatus
+COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSPECIFIED: ComponentKitCompatibilityVerdict
+COMPONENT_KIT_COMPATIBILITY_VERDICT_UNIVERSAL: ComponentKitCompatibilityVerdict
+COMPONENT_KIT_COMPATIBILITY_VERDICT_RESTRICTED: ComponentKitCompatibilityVerdict
+COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSATISFIABLE: ComponentKitCompatibilityVerdict
+COMPONENT_KIT_COMPATIBILITY_VERDICT_UNDEFINED_VOCABULARY: ComponentKitCompatibilityVerdict
 DESIGN_AFFINITY_UNSPECIFIED: DesignAffinity
 DESIGN_AFFINITY_NATIVE: DesignAffinity
 DESIGN_AFFINITY_COMPATIBLE: DesignAffinity
@@ -95,7 +108,7 @@ class VersionAdoptionMetric(_message.Message):
     def __init__(self, version: _Optional[str] = ..., current_count: _Optional[int] = ..., peak_count: _Optional[int] = ...) -> None: ...
 
 class Component(_message.Message):
-    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category", "asset_kind", "dependencies", "metrics", "catalog_domain", "catalog_domain_order", "catalog_rung", "catalog_rung_name", "transitive_dependent_count", "catalog_id")
+    __slots__ = ("id", "library_id", "display_name", "description", "source_path", "version", "tags", "indexed_at", "updated_at", "headers", "slug", "manifest_path", "draft_version", "latest_version", "slot", "design_styles", "category", "asset_kind", "dependencies", "metrics", "catalog_domain", "catalog_domain_order", "catalog_rung", "catalog_rung_name", "transitive_dependent_count", "catalog_id", "kit_compatibility")
     class HeadersEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -129,6 +142,7 @@ class Component(_message.Message):
     CATALOG_RUNG_NAME_FIELD_NUMBER: _ClassVar[int]
     TRANSITIVE_DEPENDENT_COUNT_FIELD_NUMBER: _ClassVar[int]
     CATALOG_ID_FIELD_NUMBER: _ClassVar[int]
+    KIT_COMPATIBILITY_FIELD_NUMBER: _ClassVar[int]
     id: str
     library_id: str
     display_name: str
@@ -155,7 +169,8 @@ class Component(_message.Message):
     catalog_rung_name: str
     transitive_dependent_count: int
     catalog_id: str
-    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ..., category: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ..., metrics: _Optional[_Union[AssetMetrics, _Mapping]] = ..., catalog_domain: _Optional[str] = ..., catalog_domain_order: _Optional[int] = ..., catalog_rung: _Optional[int] = ..., catalog_rung_name: _Optional[str] = ..., transitive_dependent_count: _Optional[int] = ..., catalog_id: _Optional[str] = ...) -> None: ...
+    kit_compatibility: ComponentKitCompatibility
+    def __init__(self, id: _Optional[str] = ..., library_id: _Optional[str] = ..., display_name: _Optional[str] = ..., description: _Optional[str] = ..., source_path: _Optional[str] = ..., version: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., headers: _Optional[_Mapping[str, str]] = ..., slug: _Optional[str] = ..., manifest_path: _Optional[str] = ..., draft_version: _Optional[str] = ..., latest_version: _Optional[str] = ..., slot: _Optional[str] = ..., design_styles: _Optional[_Iterable[_Union[ComponentDesignAffinity, _Mapping]]] = ..., category: _Optional[str] = ..., asset_kind: _Optional[_Union[AssetKind, str]] = ..., dependencies: _Optional[_Iterable[_Union[AssetDependency, _Mapping]]] = ..., metrics: _Optional[_Union[AssetMetrics, _Mapping]] = ..., catalog_domain: _Optional[str] = ..., catalog_domain_order: _Optional[int] = ..., catalog_rung: _Optional[int] = ..., catalog_rung_name: _Optional[str] = ..., transitive_dependent_count: _Optional[int] = ..., catalog_id: _Optional[str] = ..., kit_compatibility: _Optional[_Union[ComponentKitCompatibility, _Mapping]] = ...) -> None: ...
 
 class ListComponentsRequest(_message.Message):
     __slots__ = ("match", "tag", "limit", "tags", "category", "style_id", "affinity", "asset_kind")
@@ -598,7 +613,7 @@ class UpdateComponentContentResponse(_message.Message):
     def __init__(self, sha256: _Optional[str] = ..., source_path: _Optional[str] = ...) -> None: ...
 
 class ComponentVersion(_message.Message):
-    __slots__ = ("id", "component_id", "library_id", "version", "status", "source_path", "content_sha256", "changelog_md", "indexed_at", "released_at", "files", "parity_report")
+    __slots__ = ("id", "component_id", "library_id", "version", "status", "source_path", "content_sha256", "changelog_md", "indexed_at", "released_at", "files", "parity_report", "kit_compatibility")
     ID_FIELD_NUMBER: _ClassVar[int]
     COMPONENT_ID_FIELD_NUMBER: _ClassVar[int]
     LIBRARY_ID_FIELD_NUMBER: _ClassVar[int]
@@ -611,6 +626,7 @@ class ComponentVersion(_message.Message):
     RELEASED_AT_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
     PARITY_REPORT_FIELD_NUMBER: _ClassVar[int]
+    KIT_COMPATIBILITY_FIELD_NUMBER: _ClassVar[int]
     id: str
     component_id: str
     library_id: str
@@ -623,7 +639,18 @@ class ComponentVersion(_message.Message):
     released_at: _timestamp_pb2.Timestamp
     files: _containers.RepeatedCompositeFieldContainer[ComponentVersionFile]
     parity_report: IngestParityReport
-    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., status: _Optional[_Union[ComponentVersionStatus, str]] = ..., source_path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., files: _Optional[_Iterable[_Union[ComponentVersionFile, _Mapping]]] = ..., parity_report: _Optional[_Union[IngestParityReport, _Mapping]] = ...) -> None: ...
+    kit_compatibility: ComponentKitCompatibility
+    def __init__(self, id: _Optional[str] = ..., component_id: _Optional[str] = ..., library_id: _Optional[str] = ..., version: _Optional[str] = ..., status: _Optional[_Union[ComponentVersionStatus, str]] = ..., source_path: _Optional[str] = ..., content_sha256: _Optional[str] = ..., changelog_md: _Optional[str] = ..., indexed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., released_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., files: _Optional[_Iterable[_Union[ComponentVersionFile, _Mapping]]] = ..., parity_report: _Optional[_Union[IngestParityReport, _Mapping]] = ..., kit_compatibility: _Optional[_Union[ComponentKitCompatibility, _Mapping]] = ...) -> None: ...
+
+class ComponentKitCompatibility(_message.Message):
+    __slots__ = ("verdict", "compatible_kit_ids", "unsatisfied_properties")
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    COMPATIBLE_KIT_IDS_FIELD_NUMBER: _ClassVar[int]
+    UNSATISFIED_PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    verdict: ComponentKitCompatibilityVerdict
+    compatible_kit_ids: _containers.RepeatedScalarFieldContainer[str]
+    unsatisfied_properties: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, verdict: _Optional[_Union[ComponentKitCompatibilityVerdict, str]] = ..., compatible_kit_ids: _Optional[_Iterable[str]] = ..., unsatisfied_properties: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ComponentVersionFile(_message.Message):
     __slots__ = ("path", "content_sha256", "is_entry", "slot")

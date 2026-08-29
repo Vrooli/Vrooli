@@ -6,10 +6,14 @@
       "budgets": {
         "duplication_line_debt": 0,
         "baseline_duplication_line_debt": 1,
-        "long_files": 4,
+        "long_files": 3,
+        "baseline_long_files": 4,
         "complexity_over_threshold": 0,
+        "baseline_complexity_over_threshold": 0,
         "coupling_over_threshold": 0,
+        "baseline_coupling_over_threshold": 0,
         "debt_markers": 0,
+        "baseline_debt_markers": 0,
         "ratchet": true
       }
     }

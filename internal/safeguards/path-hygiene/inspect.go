@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"sort"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -74,7 +75,7 @@ func isExecutableFile(path string) bool {
 	if err != nil || info.IsDir() {
 		return false
 	}
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == string(hostreqspec.PlatformWindows) {
 		return true
 	}
 	return info.Mode().Perm()&tuning.PermExecuteMask != 0
@@ -101,7 +102,7 @@ func ShadowingBinaries(pathEnv, canonicalDir, name string) []string {
 			return shadows
 		}
 		candidate := filepath.Join(clean, name)
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS == string(hostreqspec.PlatformWindows) {
 			candidate += ".exe"
 		}
 		if isExecutableFileFn(candidate) {

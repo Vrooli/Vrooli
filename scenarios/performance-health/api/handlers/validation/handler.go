@@ -357,6 +357,37 @@ func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(resp), nil
 }
 
+// ValidateTarget keeps the generalized target identity and physical root while
+// reusing the readiness engine's path-aware scenario adapter. This is the
+// control-plane entry point used by Test Genie; no target is silently relabeled
+// as a scenario-only request.
+func (h *SharedHandler) ValidateTarget(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateTargetRequest]) (*connect.Response[scenariovalidationv1.ValidateTargetResponse], error) {
+	if req == nil || req.Msg == nil || req.Msg.GetTarget() == nil || req.Msg.GetTarget().GetId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("target is required"))
+	}
+	target := req.Msg.GetTarget()
+	path := req.Msg.GetPath()
+	if path == "" {
+		path = target.GetRoot()
+	}
+	legacy, err := h.ValidateScenario(ctx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario:         target.GetId(),
+		Path:             path,
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&scenariovalidationv1.ValidateTargetResponse{
+		Target:                target,
+		Status:                legacy.Msg.GetStatus(),
+		Assessment:            legacy.Msg.GetAssessment(),
+		NativeDetail:          legacy.Msg.GetNativeDetail(),
+		Metrics:               legacy.Msg.GetMetrics(),
+		FailureClassification: legacy.Msg.GetFailureClassification(),
+	}), nil
+}
+
 // PreviewFix exposes readiness's deterministic fixes through the shared Fix RPC.
 func (h *SharedHandler) PreviewFix(ctx context.Context, req *connect.Request[scenariovalidationv1.FixRequest]) (*connect.Response[scenariovalidationv1.FixResponse], error) {
 	return h.sharedFix(ctx, req.Msg.GetScenario(), req.Msg.GetPath(), req.Msg.GetRuleIds(), false)

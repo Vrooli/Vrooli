@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-autoheal/v1/measures/measures.proto.
  */
 export const file_vrooli_autoheal_v1_measures_measures: GenFile = /*@__PURE__*/
-  fileDesc("Cip2cm9vbGktYXV0b2hlYWwvdjEvbWVhc3VyZXMvbWVhc3VyZXMucHJvdG8SInZyb29saS52cm9vbGlfYXV0b2hlYWwudjEubWVhc3VyZXMiQQoXR2V0VXB0aW1lQnlDaGVja1JlcXVlc3QSEAoIY2hlY2tfaWQYASABKAkSFAoMd2luZG93X2hvdXJzGAIgASgFIqgBCg1VcHRpbWVCeUNoZWNrEhAKCGNoZWNrX2lkGAEgASgJEhYKDnVwdGltZV9wZXJjZW50GAIgASgBEg0KBXRvdGFsGAMgASgFEgoKAm9rGAQgASgFEg8KB3dhcm5pbmcYBSABKAUSEAoIY3JpdGljYWwYBiABKAUSLwoLY29tcHV0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIl0KGEdldFVwdGltZUJ5Q2hlY2tSZXNwb25zZRJBCgZ1cHRpbWUYASABKAsyMS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLlVwdGltZUJ5Q2hlY2siLgoWR2V0UmVzdGFydENvdW50UmVxdWVzdBIUCgx3aW5kb3dfaG91cnMYASABKAUiZAoMUmVzdGFydENvdW50Eg0KBWNvdW50GAEgASgFEhQKDHdpbmRvd19ob3VycxgCIAEoBRIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiXQoXR2V0UmVzdGFydENvdW50UmVzcG9uc2USQgoIcmVzdGFydHMYASABKAsyMC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLlJlc3RhcnRDb3VudCIuChZHZXRIZWFsT3V0Y29tZXNSZXF1ZXN0EhQKDHdpbmRvd19ob3VycxgBIAEoBSIyChBIZWFsT3V0Y29tZUNvdW50Eg8KB291dGNvbWUYASABKAkSDQoFY291bnQYAiABKAUiqAEKF0dldEhlYWxPdXRjb21lc1Jlc3BvbnNlEkYKCG91dGNvbWVzGAEgAygLMjQudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5tZWFzdXJlcy5IZWFsT3V0Y29tZUNvdW50EhQKDHdpbmRvd19ob3VycxgCIAEoBRIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiLwoXR2V0Q3JpdGljYWxDb3VudFJlcXVlc3QSFAoMd2luZG93X2hvdXJzGAEgASgFImUKDUNyaXRpY2FsQ291bnQSDQoFY291bnQYASABKAUSFAoMd2luZG93X2hvdXJzGAIgASgFEi8KC2NvbXB1dGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJfChhHZXRDcml0aWNhbENvdW50UmVzcG9uc2USQwoIY3JpdGljYWwYASABKAsyMS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLkNyaXRpY2FsQ291bnQyywQKD01lYXN1cmVzU2VydmljZRKNAQoQR2V0VXB0aW1lQnlDaGVjaxI7LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEubWVhc3VyZXMuR2V0VXB0aW1lQnlDaGVja1JlcXVlc3QaPC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLkdldFVwdGltZUJ5Q2hlY2tSZXNwb25zZRKKAQoPR2V0UmVzdGFydENvdW50EjoudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5tZWFzdXJlcy5HZXRSZXN0YXJ0Q291bnRSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5tZWFzdXJlcy5HZXRSZXN0YXJ0Q291bnRSZXNwb25zZRKKAQoPR2V0SGVhbE91dGNvbWVzEjoudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5tZWFzdXJlcy5HZXRIZWFsT3V0Y29tZXNSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5tZWFzdXJlcy5HZXRIZWFsT3V0Y29tZXNSZXNwb25zZRKNAQoQR2V0Q3JpdGljYWxDb3VudBI7LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEubWVhc3VyZXMuR2V0Q3JpdGljYWxDb3VudFJlcXVlc3QaPC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLkdldENyaXRpY2FsQ291bnRSZXNwb25zZUJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1hdXRvaGVhbC92MS9tZWFzdXJlczttZWFzdXJlc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("Cip2cm9vbGktYXV0b2hlYWwvdjEvbWVhc3VyZXMvbWVhc3VyZXMucHJvdG8SInZyb29saS52cm9vbGlfYXV0b2hlYWwudjEubWVhc3VyZXMiQQoXR2V0VXB0aW1lQnlDaGVja1JlcXVlc3QSEAoIY2hlY2tfaWQYASABKAkSFAoMd2luZG93X2hvdXJzGAIgASgFIqgBCg1VcHRpbWVCeUNoZWNrEhAKCGNoZWNrX2lkGAEgASgJEhYKDnVwdGltZV9wZXJjZW50GAIgASgBEg0KBXRvdGFsGAMgASgFEgoKAm9rGAQgASgFEg8KB3dhcm5pbmcYBSABKAUSEAoIY3JpdGljYWwYBiABKAUSLwoLY29tcHV0ZWRfYXQYByABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIl0KGEdldFVwdGltZUJ5Q2hlY2tSZXNwb25zZRJBCgZ1cHRpbWUYASABKAsyMS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLlVwdGltZUJ5Q2hlY2siLgoWR2V0UmVzdGFydENvdW50UmVxdWVzdBIUCgx3aW5kb3dfaG91cnMYASABKAUiZAoMUmVzdGFydENvdW50Eg0KBWNvdW50GAEgASgFEhQKDHdpbmRvd19ob3VycxgCIAEoBRIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiXQoXR2V0UmVzdGFydENvdW50UmVzcG9uc2USQgoIcmVzdGFydHMYASABKAsyMC52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLlJlc3RhcnRDb3VudCIuChZHZXRIZWFsT3V0Y29tZXNSZXF1ZXN0EhQKDHdpbmRvd19ob3VycxgBIAEoBSIyChBIZWFsT3V0Y29tZUNvdW50Eg8KB291dGNvbWUYASABKAkSDQoFY291bnQYAiABKAUiqAEKF0dldEhlYWxPdXRjb21lc1Jlc3BvbnNlEkYKCG91dGNvbWVzGAEgAygLMjQudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5tZWFzdXJlcy5IZWFsT3V0Y29tZUNvdW50EhQKDHdpbmRvd19ob3VycxgCIAEoBRIvCgtjb21wdXRlZF9hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiLwoXR2V0Q3JpdGljYWxDb3VudFJlcXVlc3QSFAoMd2luZG93X2hvdXJzGAEgASgFImUKDUNyaXRpY2FsQ291bnQSDQoFY291bnQYASABKAUSFAoMd2luZG93X2hvdXJzGAIgASgFEi8KC2NvbXB1dGVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJfChhHZXRDcml0aWNhbENvdW50UmVzcG9uc2USQwoIY3JpdGljYWwYASABKAsyMS52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLkNyaXRpY2FsQ291bnQiQgoXR2V0T3V0YWdlU3VtbWFyeVJlcXVlc3QSEQoJbWVtYmVyX2lkGAEgASgJEhQKDHdpbmRvd19ob3VycxgCIAEoBSKSAgoNT3V0YWdlU3VtbWFyeRIRCgltZW1iZXJfaWQYASABKAkSIQoZdG90YWxfdW5hdmFpbGFibGVfc2Vjb25kcxgCIAEoARIdChVkaXN0aW5jdF9vdXRhZ2VfY291bnQYAyABKAUSGQoRb3Blbl9vdXRhZ2VfY291bnQYBCABKAUSMAoMd2luZG93X3N0YXJ0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp3aW5kb3dfZW5kGAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgtjb21wdXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiXQoYR2V0T3V0YWdlU3VtbWFyeVJlc3BvbnNlEkEKBm91dGFnZRgBIAEoCzIxLnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEubWVhc3VyZXMuT3V0YWdlU3VtbWFyeTLbBQoPTWVhc3VyZXNTZXJ2aWNlEo0BChBHZXRVcHRpbWVCeUNoZWNrEjsudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5tZWFzdXJlcy5HZXRVcHRpbWVCeUNoZWNrUmVxdWVzdBo8LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEubWVhc3VyZXMuR2V0VXB0aW1lQnlDaGVja1Jlc3BvbnNlEooBCg9HZXRSZXN0YXJ0Q291bnQSOi52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLkdldFJlc3RhcnRDb3VudFJlcXVlc3QaOy52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLkdldFJlc3RhcnRDb3VudFJlc3BvbnNlEooBCg9HZXRIZWFsT3V0Y29tZXMSOi52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLkdldEhlYWxPdXRjb21lc1JlcXVlc3QaOy52cm9vbGkudnJvb2xpX2F1dG9oZWFsLnYxLm1lYXN1cmVzLkdldEhlYWxPdXRjb21lc1Jlc3BvbnNlEo0BChBHZXRDcml0aWNhbENvdW50EjsudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5tZWFzdXJlcy5HZXRDcml0aWNhbENvdW50UmVxdWVzdBo8LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEubWVhc3VyZXMuR2V0Q3JpdGljYWxDb3VudFJlc3BvbnNlEo0BChBHZXRPdXRhZ2VTdW1tYXJ5EjsudnJvb2xpLnZyb29saV9hdXRvaGVhbC52MS5tZWFzdXJlcy5HZXRPdXRhZ2VTdW1tYXJ5UmVxdWVzdBo8LnZyb29saS52cm9vbGlfYXV0b2hlYWwudjEubWVhc3VyZXMuR2V0T3V0YWdlU3VtbWFyeVJlc3BvbnNlQlhaVmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWF1dG9oZWFsL3YxL21lYXN1cmVzO21lYXN1cmVzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_autoheal.v1.measures.GetUptimeByCheckRequest
@@ -289,6 +289,92 @@ export const GetCriticalCountResponseSchema: GenMessage<GetCriticalCountResponse
   messageDesc(file_vrooli_autoheal_v1_measures_measures, 11);
 
 /**
+ * @generated from message vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryRequest
+ */
+export type GetOutageSummaryRequest = Message<"vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryRequest"> & {
+  /**
+   * @generated from field: string member_id = 1;
+   */
+  memberId: string;
+
+  /**
+   * @generated from field: int32 window_hours = 2;
+   */
+  windowHours: number;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryRequest.
+ * Use `create(GetOutageSummaryRequestSchema)` to create a new message.
+ */
+export const GetOutageSummaryRequestSchema: GenMessage<GetOutageSummaryRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_measures_measures, 12);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.measures.OutageSummary
+ */
+export type OutageSummary = Message<"vrooli.vrooli_autoheal.v1.measures.OutageSummary"> & {
+  /**
+   * @generated from field: string member_id = 1;
+   */
+  memberId: string;
+
+  /**
+   * @generated from field: double total_unavailable_seconds = 2;
+   */
+  totalUnavailableSeconds: number;
+
+  /**
+   * @generated from field: int32 distinct_outage_count = 3;
+   */
+  distinctOutageCount: number;
+
+  /**
+   * @generated from field: int32 open_outage_count = 4;
+   */
+  openOutageCount: number;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp window_start = 5;
+   */
+  windowStart?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp window_end = 6;
+   */
+  windowEnd?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp computed_at = 7;
+   */
+  computedAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.measures.OutageSummary.
+ * Use `create(OutageSummarySchema)` to create a new message.
+ */
+export const OutageSummarySchema: GenMessage<OutageSummary> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_measures_measures, 13);
+
+/**
+ * @generated from message vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryResponse
+ */
+export type GetOutageSummaryResponse = Message<"vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryResponse"> & {
+  /**
+   * @generated from field: vrooli.vrooli_autoheal.v1.measures.OutageSummary outage = 1;
+   */
+  outage?: OutageSummary | undefined;
+};
+
+/**
+ * Describes the message vrooli.vrooli_autoheal.v1.measures.GetOutageSummaryResponse.
+ * Use `create(GetOutageSummaryResponseSchema)` to create a new message.
+ */
+export const GetOutageSummaryResponseSchema: GenMessage<GetOutageSummaryResponse> = /*@__PURE__*/
+  messageDesc(file_vrooli_autoheal_v1_measures_measures, 14);
+
+/**
  * MeasuresService exposes read-only analytical projections over autoheal's
  * persisted check, restart, and recovery histories. It never starts a check,
  * restarts a process, or changes monitoring configuration.
@@ -327,6 +413,14 @@ export const MeasuresService: GenService<{
     methodKind: "unary";
     input: typeof GetCriticalCountRequestSchema;
     output: typeof GetCriticalCountResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetOutageSummary
+   */
+  getOutageSummary: {
+    methodKind: "unary";
+    input: typeof GetOutageSummaryRequestSchema;
+    output: typeof GetOutageSummaryResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_vrooli_autoheal_v1_measures_measures, 0);

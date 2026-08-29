@@ -7,8 +7,7 @@ import (
 )
 
 const (
-	mndDiskUnixNumberValue100  = 100
-	mndDiskUnixNumberValue1024 = 1024
+	percentDivisor = 100
 )
 
 func diskSpace() (availableMB int64, usedPercent float64, err error) {
@@ -23,7 +22,7 @@ func diskSpace() (availableMB int64, usedPercent float64, err error) {
 	total := uint64(stat.Blocks) * uint64(stat.Bsize)
 	used := total - uint64(stat.Bfree)*uint64(stat.Bsize)
 	if total > 0 {
-		usedPercent = float64(used) * mndDiskUnixNumberValue100 / float64(total)
+		usedPercent = float64(used) * percentDivisor / float64(total)
 	}
-	return int64(available / (mndDiskUnixNumberValue1024 * mndDiskUnixNumberValue1024)), usedPercent, nil
+	return int64(available / (bytesPerKiB * bytesPerKiB)), usedPercent, nil
 }

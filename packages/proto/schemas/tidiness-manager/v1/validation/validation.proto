@@ -29,6 +29,7 @@ message TidinessScanResponse {
   repeated TidinessFinding violations = 4;
   TidinessScanSummary summary = 5;
   common.v1.MaturityAssessment assessment = 6;
+  repeated string seam_files = 7;
 }
 
 message TidinessScanSummary {

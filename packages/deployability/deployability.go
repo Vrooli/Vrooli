@@ -27,6 +27,9 @@ type (
 	ConformanceFinding             = core.ConformanceFinding
 	ConformanceReport              = core.ConformanceReport
 	ConformanceTarget              = core.ConformanceTarget
+	Evidence                       = core.Evidence
+	ManifestRule                   = core.ManifestRule
+	ScenarioManifestReport         = core.ScenarioManifestReport
 	InstanceLiteral                = core.InstanceLiteral
 	ManifestDeclaration            = core.ManifestDeclaration
 	PlatformObservation            = core.PlatformObservation

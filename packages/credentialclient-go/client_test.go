@@ -41,6 +41,29 @@ func TestInProcessProvisionAndStatusNeverNeedsSubprocess(t *testing.T) {
 	if !status.Configured || status.ProviderState != "available" {
 		t.Fatalf("status = %+v", status)
 	}
+	value, err := client.Resolve(context.Background(), "vrooli/test", "api-key")
+	if err != nil || value != "value-not-output" {
+		t.Fatalf("Resolve() = %q, %v", value, err)
+	}
+}
+
+func TestInProcessResolvePreservesUnconfiguredTaxonomy(t *testing.T) {
+	authority, err := credentialauthority.NewAuthority(&testStore{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := NewInProcess(InProcessOptions{Authority: authority})
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := client.Resolve(context.Background(), "vrooli/test", "api-key")
+	if value != "" || !errors.Is(err, credentialauthority.ErrUnconfigured) {
+		t.Fatalf("Resolve() = %q, %v, want empty and ErrUnconfigured", value, err)
+	}
+	var resolutionErr *credentialauthority.ResolutionError
+	if !errors.As(err, &resolutionErr) {
+		t.Fatalf("Resolve() error type = %T, want *ResolutionError", err)
+	}
 }
 
 func TestIPCTransportReturnsTypedUnavailableError(t *testing.T) {

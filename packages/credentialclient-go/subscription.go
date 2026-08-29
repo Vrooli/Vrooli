@@ -126,7 +126,7 @@ func (r *ConsumerSessionResolver) resolve(ctx context.Context, lpbsBaseURL strin
 	request.Header.Set("Content-Type", "application/json")
 	client := r.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 15 * time.Second}
+		client = &http.Client{Timeout: credentialHTTPTimeout} //nolint:mnd // bounded credential transport timeout
 	}
 	response, err := client.Do(request)
 	if err != nil {

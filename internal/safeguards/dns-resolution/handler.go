@@ -38,7 +38,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "DNS resolution management is only supported on Linux")

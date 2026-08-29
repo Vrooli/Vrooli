@@ -34,7 +34,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-const kdumpLinux = "linux"
+const kdumpLinux = string(hostreqspec.PlatformLinux)
 
 const (
 	observabilityGroup = "vrooli-observability"

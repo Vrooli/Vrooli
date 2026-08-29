@@ -111,6 +111,13 @@ message AgentSessionProposalTarget {
   string name = 3 [(buf.validate.field).string.min_len = 1];
 }
 
+// AgentSessionStagedContextRef is a typed entity selected on a draft before
+// the first message starts the backing agent run.
+message AgentSessionStagedContextRef {
+  string type = 1 [(buf.validate.field).string.min_len = 1];
+  string ref = 2 [(buf.validate.field).string.min_len = 1];
+}
+
 // AgentSession stores the indexable session snapshot. Messages, proposals,
 // and artifacts may also be streamed from append-only logs.
 message AgentSession {
@@ -190,4 +197,7 @@ message AgentSession {
 
   // Server-declared starter framing selected for this draft session.
   optional string starter_job_id = 18;
+
+  // Durable typed context staged on an unstarted draft.
+  repeated AgentSessionStagedContextRef staged_context_refs = 19;
 }

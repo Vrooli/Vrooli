@@ -465,7 +465,7 @@ class BacklogResearchResponse(_message.Message):
     def __init__(self, task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., base_url: _Optional[str] = ..., created: _Optional[str] = ..., dry_run: _Optional[bool] = ..., started: _Optional[bool] = ..., message: _Optional[str] = ..., blocking_reasons: _Optional[_Iterable[_Union[BlockingReason, _Mapping]]] = ...) -> None: ...
 
 class ExportBacklogRequest(_message.Message):
-    __slots__ = ("kinds", "statuses", "names", "priority_max", "tags", "include_prd", "include_requirements", "include_clarify_questions", "include_suggestions", "include_notes", "include_template")
+    __slots__ = ("kinds", "statuses", "names", "priority_max", "tags", "include_prd", "include_requirements", "include_clarify_questions", "include_suggestions", "include_notes", "include_template", "include_archived")
     KINDS_FIELD_NUMBER: _ClassVar[int]
     STATUSES_FIELD_NUMBER: _ClassVar[int]
     NAMES_FIELD_NUMBER: _ClassVar[int]
@@ -477,6 +477,7 @@ class ExportBacklogRequest(_message.Message):
     INCLUDE_SUGGESTIONS_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_NOTES_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_TEMPLATE_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_ARCHIVED_FIELD_NUMBER: _ClassVar[int]
     kinds: _containers.RepeatedScalarFieldContainer[str]
     statuses: _containers.RepeatedScalarFieldContainer[str]
     names: _containers.RepeatedScalarFieldContainer[str]
@@ -488,7 +489,8 @@ class ExportBacklogRequest(_message.Message):
     include_suggestions: bool
     include_notes: bool
     include_template: bool
-    def __init__(self, kinds: _Optional[_Iterable[str]] = ..., statuses: _Optional[_Iterable[str]] = ..., names: _Optional[_Iterable[str]] = ..., priority_max: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., include_prd: _Optional[bool] = ..., include_requirements: _Optional[bool] = ..., include_clarify_questions: _Optional[bool] = ..., include_suggestions: _Optional[bool] = ..., include_notes: _Optional[bool] = ..., include_template: _Optional[bool] = ...) -> None: ...
+    include_archived: bool
+    def __init__(self, kinds: _Optional[_Iterable[str]] = ..., statuses: _Optional[_Iterable[str]] = ..., names: _Optional[_Iterable[str]] = ..., priority_max: _Optional[int] = ..., tags: _Optional[_Iterable[str]] = ..., include_prd: _Optional[bool] = ..., include_requirements: _Optional[bool] = ..., include_clarify_questions: _Optional[bool] = ..., include_suggestions: _Optional[bool] = ..., include_notes: _Optional[bool] = ..., include_template: _Optional[bool] = ..., include_archived: _Optional[bool] = ...) -> None: ...
 
 class ImportBacklogResponse(_message.Message):
     __slots__ = ("dry_run", "changes", "errors", "summary")

@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	handlerParameterF = 2
+	commandArgumentsPerUnit = 2
 )
 
 const (
@@ -30,7 +30,7 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		return unsupported(status, "autoheal recovery privileges use Linux sudoers; use the native service mechanism on this platform")
 	}
 	user := hostreqkit.InvokingUser()
@@ -109,7 +109,7 @@ func buildSudoersContent(user string) string {
 		"systemd-networkd", "systemd-timesyncd", "gnome-remote-desktop",
 		"gnome-remote-desktop.service", "xrdp", "gdm", "gdm3", "lightdm", "sddm",
 	}
-	commands := make([]string, 0, len(units)*handlerParameterF)
+	commands := make([]string, 0, len(units)*commandArgumentsPerUnit)
 	for _, unit := range units {
 		commands = append(commands,
 			fmt.Sprintf("%s start %s", systemctlPath, unit),

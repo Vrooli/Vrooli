@@ -156,7 +156,7 @@ func (c *ipcClient) RecoveryExport(ctx context.Context, request RecoveryExportRe
 	if strings.TrimSpace(request.OutputPath) == "" {
 		return RecoveryExportResponse{}, fmt.Errorf("recovery output path is required")
 	}
-	if err := os.WriteFile(request.OutputPath, bundle, 0o600); err != nil {
+	if err := os.WriteFile(request.OutputPath, bundle, credentialBundleFileMode); err != nil { //nolint:mnd // credential bundle file mode is a security contract
 		return RecoveryExportResponse{}, err
 	}
 	return RecoveryExportResponse{Path: request.OutputPath, EntryCount: response.EntryCount}, nil
@@ -240,7 +240,7 @@ func (c *ipcClient) request(ctx context.Context, method, path string, payload an
 		return fmt.Errorf("desktop IPC request: %w", err)
 	}
 	defer resp.Body.Close()
-	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	responseBody, err := io.ReadAll(io.LimitReader(resp.Body, credentialResponseLimit)) //nolint:mnd // response cap is a transport safety contract
 	if err != nil {
 		return fmt.Errorf("read desktop IPC response: %w", err)
 	}

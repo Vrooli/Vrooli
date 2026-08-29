@@ -16,6 +16,47 @@ type Authority struct {
 	TrustedBase []string `json:"trusted_base"`
 }
 
+const (
+	MemberKindScenario = "scenario"
+	MemberKindResource = "resource"
+
+	IntentMustStart = "must_start"
+	IntentTryStart  = "try_start"
+)
+
+// AttributionStep explains one link from a supervision-set member back to the
+// operator-granted seed that caused it to be included. Chains are ordered from
+// the member toward authority, so the final step always has Source=core.seed.
+type AttributionStep struct {
+	Name              string `json:"name"`
+	Kind              string `json:"kind"`
+	DeclaredBy        string `json:"declared_by,omitempty"`
+	SupervisionIntent string `json:"supervision_intent"`
+	Source            string `json:"source"`
+}
+
+// Member is one scenario or resource in the computed supervision closure.
+type Member struct {
+	Name              string            `json:"name"`
+	Kind              string            `json:"kind"`
+	SupervisionIntent string            `json:"supervision_intent"`
+	AttributionChain  []AttributionStep `json:"attribution_chain"`
+}
+
+// Report is the database-free supervision closure computed from operator
+// authority and canonical scenario manifests.
+type Report struct {
+	Source                string              `json:"source"`
+	CoreSet               []string            `json:"core_set"`
+	Seed                  []string            `json:"seed"`
+	AddedByClosure        []string            `json:"added_by_closure"`
+	TrustedBase           []string            `json:"trusted_base"`
+	Members               []Member            `json:"members"`
+	MemberCounts          map[string]int      `json:"member_counts"`
+	LoadErrors            map[string]string   `json:"load_errors,omitempty"`
+	TrustedBaseViolations map[string][]string `json:"trusted_base_violations,omitempty"`
+}
+
 // Validate checks the structural invariants of operator-granted core
 // authority. A trusted-base grant cannot name a scenario outside the seed
 // authority: doing so would grant protection to an object that is not part of

@@ -31,7 +31,7 @@ const (
 const (
 	mndResourceArtifactsNumberOctal644 = 0o644
 	mndResourceArtifactsNumberOctal755 = 0o755
-	mndResourceArtifactsNumberValue3   = 3
+	resourceCoordinatePartCount        = 3
 )
 
 // resourceArtifactManifest contains only the release-facing parts of a
@@ -341,7 +341,7 @@ func writeReleaseChecksumManifest(outDir string) error {
 func releaseArtifactPlatform(name string) (string, string) {
 	stem := strings.TrimSuffix(name, ".exe")
 	parts := strings.Split(stem, "_")
-	if len(parts) < mndResourceArtifactsNumberValue3 {
+	if len(parts) < resourceCoordinatePartCount {
 		return "", ""
 	}
 	osName, arch := parts[len(parts)-2], parts[len(parts)-1]

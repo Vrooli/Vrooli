@@ -181,7 +181,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.SupportClass, status.ExecutionState = hostreqkit.SupportManualOnly, hostreqkit.ExecutionManualActionRequired
 		return status
 	}
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass, status.ExecutionState = hostreqkit.SupportUnsupported, hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "NVIDIA kernel-driver repair is currently implemented for Ubuntu/Linux hosts")
 		return status

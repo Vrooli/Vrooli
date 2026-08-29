@@ -54,8 +54,16 @@ class AgentSessionProposalTarget(_message.Message):
     name: str
     def __init__(self, type: _Optional[str] = ..., ref: _Optional[str] = ..., name: _Optional[str] = ...) -> None: ...
 
+class AgentSessionStagedContextRef(_message.Message):
+    __slots__ = ("type", "ref")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    REF_FIELD_NUMBER: _ClassVar[int]
+    type: str
+    ref: str
+    def __init__(self, type: _Optional[str] = ..., ref: _Optional[str] = ...) -> None: ...
+
 class AgentSession(_message.Message):
-    __slots__ = ("id", "title", "kind", "status", "skill_id", "task_id", "run_id", "profile_key", "failure_reason", "created_at", "updated_at", "messages", "proposals", "artifacts", "created_by", "attachments", "proposal_target", "starter_job_id")
+    __slots__ = ("id", "title", "kind", "status", "skill_id", "task_id", "run_id", "profile_key", "failure_reason", "created_at", "updated_at", "messages", "proposals", "artifacts", "created_by", "attachments", "proposal_target", "starter_job_id", "staged_context_refs")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -74,6 +82,7 @@ class AgentSession(_message.Message):
     ATTACHMENTS_FIELD_NUMBER: _ClassVar[int]
     PROPOSAL_TARGET_FIELD_NUMBER: _ClassVar[int]
     STARTER_JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    STAGED_CONTEXT_REFS_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     kind: str
@@ -92,4 +101,5 @@ class AgentSession(_message.Message):
     attachments: _containers.RepeatedCompositeFieldContainer[_agent_session_pb2.AgentSessionAttachment]
     proposal_target: AgentSessionProposalTarget
     starter_job_id: str
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., kind: _Optional[str] = ..., status: _Optional[str] = ..., skill_id: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., failure_reason: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[AgentSessionMessage, _Mapping]]] = ..., proposals: _Optional[_Iterable[_Union[AgentSessionProposal, _Mapping]]] = ..., artifacts: _Optional[_Iterable[_Union[_agent_session_pb2.AgentSessionArtifact, _Mapping]]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ..., attachments: _Optional[_Iterable[_Union[_agent_session_pb2.AgentSessionAttachment, _Mapping]]] = ..., proposal_target: _Optional[_Union[AgentSessionProposalTarget, _Mapping]] = ..., starter_job_id: _Optional[str] = ...) -> None: ...
+    staged_context_refs: _containers.RepeatedCompositeFieldContainer[AgentSessionStagedContextRef]
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., kind: _Optional[str] = ..., status: _Optional[str] = ..., skill_id: _Optional[str] = ..., task_id: _Optional[str] = ..., run_id: _Optional[str] = ..., profile_key: _Optional[str] = ..., failure_reason: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ..., messages: _Optional[_Iterable[_Union[AgentSessionMessage, _Mapping]]] = ..., proposals: _Optional[_Iterable[_Union[AgentSessionProposal, _Mapping]]] = ..., artifacts: _Optional[_Iterable[_Union[_agent_session_pb2.AgentSessionArtifact, _Mapping]]] = ..., created_by: _Optional[_Union[_agent_session_pb2.AgentSessionAttribution, _Mapping]] = ..., attachments: _Optional[_Iterable[_Union[_agent_session_pb2.AgentSessionAttachment, _Mapping]]] = ..., proposal_target: _Optional[_Union[AgentSessionProposalTarget, _Mapping]] = ..., starter_job_id: _Optional[str] = ..., staged_context_refs: _Optional[_Iterable[_Union[AgentSessionStagedContextRef, _Mapping]]] = ...) -> None: ...

@@ -45,6 +45,9 @@ const (
 	// MeasuresServiceGetCriticalCountProcedure is the fully-qualified name of the MeasuresService's
 	// GetCriticalCount RPC.
 	MeasuresServiceGetCriticalCountProcedure = "/vrooli.vrooli_autoheal.v1.measures.MeasuresService/GetCriticalCount"
+	// MeasuresServiceGetOutageSummaryProcedure is the fully-qualified name of the MeasuresService's
+	// GetOutageSummary RPC.
+	MeasuresServiceGetOutageSummaryProcedure = "/vrooli.vrooli_autoheal.v1.measures.MeasuresService/GetOutageSummary"
 )
 
 // MeasuresServiceClient is a client for the vrooli.vrooli_autoheal.v1.measures.MeasuresService
@@ -54,6 +57,7 @@ type MeasuresServiceClient interface {
 	GetRestartCount(context.Context, *connect.Request[measures.GetRestartCountRequest]) (*connect.Response[measures.GetRestartCountResponse], error)
 	GetHealOutcomes(context.Context, *connect.Request[measures.GetHealOutcomesRequest]) (*connect.Response[measures.GetHealOutcomesResponse], error)
 	GetCriticalCount(context.Context, *connect.Request[measures.GetCriticalCountRequest]) (*connect.Response[measures.GetCriticalCountResponse], error)
+	GetOutageSummary(context.Context, *connect.Request[measures.GetOutageSummaryRequest]) (*connect.Response[measures.GetOutageSummaryResponse], error)
 }
 
 // NewMeasuresServiceClient constructs a client for the
@@ -92,6 +96,12 @@ func NewMeasuresServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(measuresServiceMethods.ByName("GetCriticalCount")),
 			connect.WithClientOptions(opts...),
 		),
+		getOutageSummary: connect.NewClient[measures.GetOutageSummaryRequest, measures.GetOutageSummaryResponse](
+			httpClient,
+			baseURL+MeasuresServiceGetOutageSummaryProcedure,
+			connect.WithSchema(measuresServiceMethods.ByName("GetOutageSummary")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -101,6 +111,7 @@ type measuresServiceClient struct {
 	getRestartCount  *connect.Client[measures.GetRestartCountRequest, measures.GetRestartCountResponse]
 	getHealOutcomes  *connect.Client[measures.GetHealOutcomesRequest, measures.GetHealOutcomesResponse]
 	getCriticalCount *connect.Client[measures.GetCriticalCountRequest, measures.GetCriticalCountResponse]
+	getOutageSummary *connect.Client[measures.GetOutageSummaryRequest, measures.GetOutageSummaryResponse]
 }
 
 // GetUptimeByCheck calls vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetUptimeByCheck.
@@ -123,6 +134,11 @@ func (c *measuresServiceClient) GetCriticalCount(ctx context.Context, req *conne
 	return c.getCriticalCount.CallUnary(ctx, req)
 }
 
+// GetOutageSummary calls vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetOutageSummary.
+func (c *measuresServiceClient) GetOutageSummary(ctx context.Context, req *connect.Request[measures.GetOutageSummaryRequest]) (*connect.Response[measures.GetOutageSummaryResponse], error) {
+	return c.getOutageSummary.CallUnary(ctx, req)
+}
+
 // MeasuresServiceHandler is an implementation of the
 // vrooli.vrooli_autoheal.v1.measures.MeasuresService service.
 type MeasuresServiceHandler interface {
@@ -130,6 +146,7 @@ type MeasuresServiceHandler interface {
 	GetRestartCount(context.Context, *connect.Request[measures.GetRestartCountRequest]) (*connect.Response[measures.GetRestartCountResponse], error)
 	GetHealOutcomes(context.Context, *connect.Request[measures.GetHealOutcomesRequest]) (*connect.Response[measures.GetHealOutcomesResponse], error)
 	GetCriticalCount(context.Context, *connect.Request[measures.GetCriticalCountRequest]) (*connect.Response[measures.GetCriticalCountResponse], error)
+	GetOutageSummary(context.Context, *connect.Request[measures.GetOutageSummaryRequest]) (*connect.Response[measures.GetOutageSummaryResponse], error)
 }
 
 // NewMeasuresServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -163,6 +180,12 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 		connect.WithSchema(measuresServiceMethods.ByName("GetCriticalCount")),
 		connect.WithHandlerOptions(opts...),
 	)
+	measuresServiceGetOutageSummaryHandler := connect.NewUnaryHandler(
+		MeasuresServiceGetOutageSummaryProcedure,
+		svc.GetOutageSummary,
+		connect.WithSchema(measuresServiceMethods.ByName("GetOutageSummary")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.vrooli_autoheal.v1.measures.MeasuresService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MeasuresServiceGetUptimeByCheckProcedure:
@@ -173,6 +196,8 @@ func NewMeasuresServiceHandler(svc MeasuresServiceHandler, opts ...connect.Handl
 			measuresServiceGetHealOutcomesHandler.ServeHTTP(w, r)
 		case MeasuresServiceGetCriticalCountProcedure:
 			measuresServiceGetCriticalCountHandler.ServeHTTP(w, r)
+		case MeasuresServiceGetOutageSummaryProcedure:
+			measuresServiceGetOutageSummaryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -196,4 +221,8 @@ func (UnimplementedMeasuresServiceHandler) GetHealOutcomes(context.Context, *con
 
 func (UnimplementedMeasuresServiceHandler) GetCriticalCount(context.Context, *connect.Request[measures.GetCriticalCountRequest]) (*connect.Response[measures.GetCriticalCountResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetCriticalCount is not implemented"))
+}
+
+func (UnimplementedMeasuresServiceHandler) GetOutageSummary(context.Context, *connect.Request[measures.GetOutageSummaryRequest]) (*connect.Response[measures.GetOutageSummaryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_autoheal.v1.measures.MeasuresService.GetOutageSummary is not implemented"))
 }

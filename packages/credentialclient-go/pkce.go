@@ -28,11 +28,11 @@ type PKCEChallenge struct {
 
 // NewPKCEChallenge creates an RFC 7636 S256 challenge and CSRF state.
 func NewPKCEChallenge() (PKCEChallenge, error) {
-	verifier, err := randomURLToken(32)
+	verifier, err := randomURLToken(credentialTokenBytes)
 	if err != nil {
 		return PKCEChallenge{}, fmt.Errorf("generate PKCE verifier: %w", err)
 	}
-	state, err := randomURLToken(32)
+	state, err := randomURLToken(credentialTokenBytes)
 	if err != nil {
 		return PKCEChallenge{}, fmt.Errorf("generate authorization state: %w", err)
 	}
@@ -141,7 +141,7 @@ func exchangeAuthorizationCode(ctx context.Context, httpClient *http.Client, aut
 	}
 	request.Header.Set("Content-Type", "application/json")
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 15 * time.Second}
+		httpClient = &http.Client{Timeout: credentialHTTPTimeout} //nolint:mnd // bounded credential transport timeout
 	}
 	response, err := httpClient.Do(request)
 	if err != nil {

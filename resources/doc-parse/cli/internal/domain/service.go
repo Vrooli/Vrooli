@@ -3,12 +3,12 @@ package domain
 import (
 	"context"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/cliout"
 	"resource-doc-parse/cli/internal/artifact"
 	"resource-doc-parse/cli/internal/discovery"
 	"resource-doc-parse/cli/internal/env"
@@ -194,7 +194,7 @@ func printRaw(raw json.RawMessage) error {
 }
 
 func printJSON(value any) error {
-	data, err := json.MarshalIndent(value, "", "  ")
+	data, err := cliout.MarshalIndent(value)
 	if err != nil {
 		return err
 	}

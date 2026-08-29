@@ -209,6 +209,7 @@ message RunGateRequest {
   string gate = 1;
   bool all = 2;
 	bool calibration_only = 3;
+	string asset_id = 4;
 }
 message GateFinding {
   string code = 1;
@@ -227,7 +228,9 @@ message GateFinding {
   // so a consumer can act without re-deriving the fix.
   string remediation = 7;
   // Repository-relative doc path giving the fuller rule context.
-  string docs_ref = 8;
+	string docs_ref = 8;
+	string rule_source = 9;
+	string rule_declared_in = 10;
 }
 message RunGateResponse {
   string gate = 1;

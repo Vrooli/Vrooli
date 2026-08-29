@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package vrooli.web_console.v1.devices;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/devices;devices_v1";
+
+// @stability beta
+
+// DeviceService is the live roster of browser devices viewing Web Console.
+// It is intentionally separate from the machine enrollment surface: a device
+// is a connected screen, while a machine is a terminal target.
+service DeviceService {
+  rpc List(ListRequest) returns (ListResponse);
+  rpc Disconnect(DisconnectRequest) returns (DisconnectResponse);
+}
+
+message ListRequest {
+  // The caller's browser-local identity. It is a display hint, never an
+  // authorization credential.
+  string self_device_id = 1;
+}
+
+message ListResponse {
+  repeated Device devices = 1;
+}
+
+message SessionAttachment {
+  string session_id = 1;
+  string session_name = 2;
+  bool holds_lease = 3;
+}
+
+message Device {
+  string device_id = 1;
+  string device_label = 2;
+  string device_class = 3;
+  int32 connection_count = 4;
+  google.protobuf.Timestamp first_seen_at = 5;
+  repeated SessionAttachment sessions = 6;
+  bool is_self = 7;
+  bool reconnecting = 8;
+}
+
+message DisconnectRequest {
+  string device_id = 1;
+  string connection_id = 2;
+}
+
+message DisconnectResponse {
+  int32 closed_connections = 1;
+}

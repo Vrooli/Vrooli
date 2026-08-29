@@ -57,7 +57,7 @@ import (
 )
 
 const (
-	handlerParameterG = 120
+	hungTaskTimeoutSeconds = 120
 )
 
 const (
@@ -91,7 +91,7 @@ func resolvePolicy(config map[string]any) policy {
 	p := policy{
 		OopsPolicy:       oopsPolicyPanicAndDump,
 		SoftlockupPolicy: softlockupPolicyWarn,
-		HungTaskTimeout:  handlerParameterG,
+		HungTaskTimeout:  hungTaskTimeoutSeconds,
 	}
 	if config == nil {
 		return p
@@ -172,7 +172,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "host hardening sysctls + journald drop-in are Linux-only")

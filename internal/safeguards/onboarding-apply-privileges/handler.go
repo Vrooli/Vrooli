@@ -29,7 +29,7 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindSafeguard }
 
 func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement) hostreqkit.ItemStatus {
 	status := hostreqkit.BaseStatus(requirement)
-	if host.OS != "linux" && host.OS != "darwin" {
+	if host.OS != string(hostreqspec.PlatformLinux) && host.OS != string(hostreqspec.PlatformDarwin) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "onboarding apply grants are supported only on Linux and macOS")

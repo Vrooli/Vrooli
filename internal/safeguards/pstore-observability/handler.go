@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	handlerParameterE = 3
+	minimumMountInfoFields = 3
 )
 
 const (
@@ -58,7 +58,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.ExecutionState = hostreqkit.ExecutionManualActionRequired
 		return status
 	}
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "pstore observability export is Linux-only")
@@ -262,7 +262,7 @@ func groupGID() (uint32, bool) {
 		return 0, false
 	}
 	fields := strings.Split(strings.TrimSpace(string(out)), ":")
-	if len(fields) < handlerParameterE {
+	if len(fields) < minimumMountInfoFields {
 		return 0, false
 	}
 	var gid uint64

@@ -24,7 +24,7 @@ const Suffix = lease.Suffix
 
 // DefaultGrace is how long an owner must have been continuously missing before
 // its artifact may be reclaimed.
-const DefaultGrace = lease.DefaultGrace
+var DefaultGrace = lease.DefaultGrace
 
 // MinObservations is how many independent sightings of an absence are required
 // before it may be acted on.

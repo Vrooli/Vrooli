@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	handlerParameterF = 2
+	pendingFirewallRuleCapacity = 2
 )
 
 const (
@@ -37,7 +37,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "Docker host firewall management is only supported on Linux")
@@ -68,7 +68,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		return status
 	}
 
-	pending := make([]string, 0, handlerParameterF)
+	pending := make([]string, 0, pendingFirewallRuleCapacity)
 	if !chainOK {
 		pending = append(pending, "create "+chainName+" chain")
 	}

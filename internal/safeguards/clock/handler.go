@@ -74,7 +74,7 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 
 	status.Notes = append(status.Notes, fmt.Sprintf("system clock drift is %.0fs (tolerance: %ds)", math.Abs(drift), toleranceSeconds))
 
-	if host.OS != "linux" {
+	if host.OS != string(hostreqspec.PlatformLinux) {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		status.Notes = append(status.Notes, "automatic clock sync is only supported on Linux")

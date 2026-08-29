@@ -92,6 +92,8 @@ type ComponentTestResult struct {
 	Message        string                   `protobuf:"bytes,6,opt,name=message,proto3" json:"message,omitempty"`
 	Remediation    string                   `protobuf:"bytes,7,opt,name=remediation,proto3" json:"remediation,omitempty"`
 	Evidence       []*ComponentTestEvidence `protobuf:"bytes,8,rep,name=evidence,proto3" json:"evidence,omitempty"`
+	RuleSource     string                   `protobuf:"bytes,9,opt,name=rule_source,json=ruleSource,proto3" json:"rule_source,omitempty"`
+	RuleDeclaredIn string                   `protobuf:"bytes,10,opt,name=rule_declared_in,json=ruleDeclaredIn,proto3" json:"rule_declared_in,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -180,6 +182,20 @@ func (x *ComponentTestResult) GetEvidence() []*ComponentTestEvidence {
 		return x.Evidence
 	}
 	return nil
+}
+
+func (x *ComponentTestResult) GetRuleSource() string {
+	if x != nil {
+		return x.RuleSource
+	}
+	return ""
+}
+
+func (x *ComponentTestResult) GetRuleDeclaredIn() string {
+	if x != nil {
+		return x.RuleDeclaredIn
+	}
+	return ""
 }
 
 type ComponentTestEvidence struct {
@@ -922,7 +938,7 @@ const file_react_component_library_v1_componenttests_component_tests_proto_rawDe
 	"\x17RunComponentTestRequest\x12!\n" +
 	"\fcomponent_id\x18\x01 \x01(\tR\vcomponentId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12'\n" +
-	"\x0finclude_closure\x18\x03 \x01(\bR\x0eincludeClosure\"\xc4\x02\n" +
+	"\x0finclude_closure\x18\x03 \x01(\bR\x0eincludeClosure\"\x8f\x03\n" +
 	"\x13ComponentTestResult\x12\x14\n" +
 	"\x05stage\x18\x01 \x01(\tR\x05stage\x12(\n" +
 	"\x10asset_library_id\x18\x02 \x01(\tR\x0eassetLibraryId\x12\x18\n" +
@@ -931,7 +947,11 @@ const file_react_component_library_v1_componenttests_component_tests_proto_rawDe
 	"\averdict\x18\x05 \x01(\tR\averdict\x12\x18\n" +
 	"\amessage\x18\x06 \x01(\tR\amessage\x12 \n" +
 	"\vremediation\x18\a \x01(\tR\vremediation\x12c\n" +
-	"\bevidence\x18\b \x03(\v2G.vrooli.react_component_library.v1.componenttests.ComponentTestEvidenceR\bevidence\"?\n" +
+	"\bevidence\x18\b \x03(\v2G.vrooli.react_component_library.v1.componenttests.ComponentTestEvidenceR\bevidence\x12\x1f\n" +
+	"\vrule_source\x18\t \x01(\tR\n" +
+	"ruleSource\x12(\n" +
+	"\x10rule_declared_in\x18\n" +
+	" \x01(\tR\x0eruleDeclaredIn\"?\n" +
 	"\x15ComponentTestEvidence\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
 	"\x04json\x18\x02 \x01(\tR\x04json\"\xbe\x01\n" +

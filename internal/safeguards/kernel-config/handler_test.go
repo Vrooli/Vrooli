@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
@@ -15,21 +16,7 @@ const (
 	kernelInotifyInstances = "/proc/sys/fs/inotify/max_user_instances"
 )
 
-var stubLookups = kernelConfigStubLookups
-
-func kernelConfigStubLookups(t *testing.T) func() {
-	t.Helper()
-	origLookPath := hostreqkit.LookPathFn
-	origReadFile := hostreqkit.ReadFileFn
-	origCombinedOutput := hostreqkit.CombinedOutputFn
-	origRunCommand := hostreqkit.RunCommandFn
-	return func() {
-		hostreqkit.LookPathFn = origLookPath
-		hostreqkit.ReadFileFn = origReadFile
-		hostreqkit.CombinedOutputFn = origCombinedOutput
-		hostreqkit.RunCommandFn = origRunCommand
-	}
-}
+var stubLookups = hostreqkittest.StubLookups
 
 var newTestHandler = kernelConfigTestHandler
 

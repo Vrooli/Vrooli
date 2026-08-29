@@ -7,26 +7,11 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqkit/hostreqkittest"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-var stubLookups = dnsResolutionStubLookups
-
-func dnsResolutionStubLookups(t *testing.T) func() {
-	t.Helper()
-	origLookPath := hostreqkit.LookPathFn
-	origReadFile := hostreqkit.ReadFileFn
-	origCombinedOutput := hostreqkit.CombinedOutputFn
-	origRunCommand := hostreqkit.RunCommandFn
-	origResolve := ResolveFn
-	return func() {
-		hostreqkit.LookPathFn = origLookPath
-		hostreqkit.ReadFileFn = origReadFile
-		hostreqkit.CombinedOutputFn = origCombinedOutput
-		hostreqkit.RunCommandFn = origRunCommand
-		ResolveFn = origResolve
-	}
-}
+var stubLookups = hostreqkittest.StubLookups
 
 var newTestHandler = dnsResolutionTestHandler
 
@@ -89,6 +74,8 @@ func TestInspectConfigPresent(t *testing.T) {
 func TestInspectConfigMissing(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
+	origResolve := ResolveFn
+	t.Cleanup(func() { ResolveFn = origResolve })
 
 	hostreqkit.ReadFileFn = func(string) ([]byte, error) {
 		return nil, os.ErrNotExist
@@ -115,6 +102,8 @@ func TestInspectConfigMissing(t *testing.T) {
 func TestInspectConfigMissingDNSFailing(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
+	origResolve := ResolveFn
+	t.Cleanup(func() { ResolveFn = origResolve })
 
 	hostreqkit.ReadFileFn = func(string) ([]byte, error) {
 		return nil, os.ErrNotExist

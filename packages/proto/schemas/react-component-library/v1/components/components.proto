@@ -163,6 +163,11 @@ message Component {
   string catalog_rung_name = 24;
   int32 transitive_dependent_count = 25;
   string catalog_id = 26;
+
+  // Derived from the latest released version's external token requirements
+  // and the registered design-kit vocabularies. This is capability, not taste;
+  // design_styles remains the separately authored aesthetic-fit signal.
+  ComponentKitCompatibility kit_compatibility = 27;
 }
 
 // ListComponentsRequest filters the registry view.
@@ -538,6 +543,21 @@ message ComponentVersion {
   google.protobuf.Timestamp released_at = 10;
   repeated ComponentVersionFile files = 11;
   IngestParityReport parity_report = 12;
+  ComponentKitCompatibility kit_compatibility = 13;
+}
+
+enum ComponentKitCompatibilityVerdict {
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSPECIFIED = 0;
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_UNIVERSAL = 1;
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_RESTRICTED = 2;
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSATISFIABLE = 3;
+  COMPONENT_KIT_COMPATIBILITY_VERDICT_UNDEFINED_VOCABULARY = 4;
+}
+
+message ComponentKitCompatibility {
+  ComponentKitCompatibilityVerdict verdict = 1;
+  repeated string compatible_kit_ids = 2;
+  repeated string unsatisfied_properties = 3;
 }
 
 message ComponentVersionFile {

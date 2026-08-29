@@ -30,7 +30,9 @@ message ComponentTestResult {
   string verdict = 5;
   string message = 6;
   string remediation = 7;
-  repeated ComponentTestEvidence evidence = 8;
+	repeated ComponentTestEvidence evidence = 8;
+	string rule_source = 9;
+	string rule_declared_in = 10;
 }
 message ComponentTestEvidence {
   string kind = 1;

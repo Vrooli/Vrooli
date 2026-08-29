@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	mndMainNumberValue2 = 2
+	workingDirectoryFallbackCapacity = 2
 )
 
 const cliVersion = "1.0.0"
@@ -120,7 +120,7 @@ func ensureUsableWorkingDirectoryWith(seams workingDirSeams, stderr io.Writer) {
 }
 
 func reportUnusableWorkingDirectory(seams workingDirSeams, stderr io.Writer) {
-	candidates := make([]string, 0, mndMainNumberValue2)
+	candidates := make([]string, 0, workingDirectoryFallbackCapacity)
 	if home, err := seams.homeDir(); err == nil && strings.TrimSpace(home) != "" {
 		candidates = append(candidates, home)
 	}
