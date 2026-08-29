@@ -1,0 +1,48 @@
+{
+  "artboards": [
+    { "file": "Toolbar.dc.html",     "title": "Reach without leaving the terminal", "x": 0,    "y": 0,    "w": 390, "h": 844 },
+    { "file": "Main.dc.html",        "title": "Composer + snippet sheet",           "x": 510,  "y": 0,    "w": 390, "h": 844 },
+    { "file": "Variables.dc.html",   "title": "Fill the variables",                 "x": 1020, "y": 0,    "w": 390, "h": 844 },
+    { "file": "Handoff.dc.html",     "title": "Handoff, past the group boundary",   "x": 0,    "y": 1250, "w": 390, "h": 844 },
+    { "file": "SaveSnippet.dc.html", "title": "Capture where it was earned",        "x": 510,  "y": 1250, "w": 390, "h": 844 },
+    { "file": "Settings.dc.html",    "title": "Manage and promote",                 "x": 1020, "y": 1250, "w": 390, "h": 844 }
+  ],
+  "annotations": [
+    {
+      "id": "lead",
+      "x": 0, "y": -420, "w": 810,
+      "text": "Snippet layer — six screens.\n\nReusable message text that belongs to no group, no role and no receiver. Matched to web-console's real tokens: slate-950/900/800 surfaces, cyan-400 accent, 1px white/10 borders, 8px radii, lucide icons, the same 8-swatch HEADER_COLORS used for panes and groups.\n\nTop row is the everyday loop. Bottom row is handoff, capture and management."
+    },
+    {
+      "id": "n-toolbar",
+      "x": 0, "y": -190, "w": 390,
+      "text": "The cheapest reach: a most-recently-used rail above the toolbar, opened by one control in the existing key row. No dialog, no trip to settings."
+    },
+    {
+      "id": "n-composer",
+      "x": 510, "y": -190, "w": 390,
+      "text": "The primary home. Tap inserts at the cursor via draft.appendAtCaret — the seam voice dictation already uses. Recent / Pinned / All, and filtering matches body text, not just names."
+    },
+    {
+      "id": "n-variables",
+      "x": 1020, "y": -190, "w": 390,
+      "text": "S4, made visible. One field per distinct name, no parser and no expressions. {{cwd}} and {{session}} are filled by the console from a closed list. An unfilled name stays in the text instead of leaving a silent gap — the opposite of what renderHandoffPrompt does with an empty payload today."
+    },
+    {
+      "id": "n-handoff",
+      "x": 0, "y": 1060, "w": 390,
+      "text": "The change you called out. Three sections replace `if (!groupId) return []`: the group stays the default scope, other sessions become reachable, and a new session is a target in its own right.\n\nAnd the message can now come from any snippet, not only the receiving role's incoming_prompt. The role's prompt stays the default when it has one — a snippet just overrides it, exactly like the per-target edit field already does."
+    },
+    {
+      "id": "n-save",
+      "x": 510, "y": 1060, "w": 390,
+      "text": "The affordance that makes the store fill itself. Selecting a phrase turns it into a variable, so a snippet gets its holes at the moment you already know which words change."
+    },
+    {
+      "id": "n-settings",
+      "x": 1020, "y": 1060, "w": 390,
+      "text": "A tenth tab beside Templates and Handoff rules. Promote writes a governed skill in prompt-manager and then stops — one direction, no sync, snippet stays put."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

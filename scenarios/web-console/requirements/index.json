@@ -20,6 +20,7 @@
     "12-operational-observability-coverage/module.json",
     "13-remote-terminal-targets/module.json",
     "14-session-groups-roles-and-handoffs/module.json",
+    "15-message-snippets-and-actions/module.json",
     "90-uncovered-targets/module.json"
   ],
   "modules": [
@@ -106,6 +107,12 @@
       "path": "14-session-groups-roles-and-handoffs",
       "priority": "P0",
       "title": "Session Groups, Roles, And Handoffs"
+    },
+    {
+      "id": "MOD-P0-015",
+      "path": "15-message-snippets-and-actions",
+      "priority": "P0",
+      "title": "Message Snippets And Actions"
     }
   ]
 }

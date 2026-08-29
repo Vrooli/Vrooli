@@ -99,6 +99,7 @@
     "state_nothing_to_restore": "復元するものなし",
     "state_read_only": "読み取り専用",
     "state_reopenable": "再開可能",
+    "swipeActionsAria": "{{name}} のクイック操作",
     "textSearch": "テキスト",
     "title": "セッションアーカイブ",
     "you": "あなた"
@@ -284,6 +285,7 @@
     "handOffToRole": "Hand off to {{label}}",
     "keptText": "The message was kept so you can try again.",
     "message": "Message",
+    "messageFrom": "メッセージの元",
     "messageFor": "Message for {{label}}",
     "newSessionInGroup": "New session in this group…",
     "noPayload": "No payload — the message is sent as typed.",
@@ -294,6 +296,11 @@
     "resultQueued": "{{label}}: queued — waiting for the terminal",
     "resultSent": "{{label}}: delivered",
     "send": "Send",
+    "sections": {
+      "group": "このグループ",
+      "new": "新しい場所",
+      "other": "その他のセッション"
+    },
     "sending": "Sending…",
     "startsFirst": "Starts before the message is sent",
     "suggestionAction": "Hand off to {{label}}",
@@ -301,7 +308,8 @@
     "suggestionOpen": "Hand off…",
     "suggestionTitle": "{{rule}} matched",
     "targets": "Send to",
-    "waitingChip": "waiting"
+    "waitingChip": "waiting",
+    "writeByHand": "手動で作成"
   },
   "handoffRules": {
     "create": "New rule",
@@ -685,6 +693,18 @@
     "videoPreview": "動画プレビュー",
     "wrap": "折返し"
   },
+  "messageActions": {
+    "audioSettings": "音声を再生して設定を開く",
+    "copy": "メッセージをコピー",
+    "handoff": "このメッセージを引き継ぐ",
+    "more": "その他のメッセージ操作",
+    "playbackMode": "再生モードを選択",
+    "readFromHere": "ここから読み上げる",
+    "saveAsSnippet": "スニペットとして保存",
+    "sendToComposer": "アクティブなセッションの作成欄へ送る",
+    "viewAsMarkdown": "Markdownで表示",
+    "viewAsPlainText": "プレーンテキストで表示"
+  },
   "messagesPane": {
     "audioSettingsHeading": "音声設定",
     "copyMessageTitle": "メッセージをコピー",
@@ -832,9 +852,77 @@
     "sortManual": "Manual",
     "sortName": "Name",
     "sortUnread": "Unread",
+    "swipeActionsAria": "{{name}} のクイック操作",
+    "swipeMarkRead": "既読",
+    "swipeMarkUnread": "未読",
     "title": "セッション",
     "unreadSummary": "{{count}}件未読",
     "unreadSummary_one": "1件未読"
+  },
+  "snippets": {
+    "body": "本文",
+    "cancel": "キャンセル",
+    "close": "閉じる",
+    "color": "色",
+    "chooseColor": "{{color}}を選択",
+    "makeVariable": "変数にする",
+    "name": "名前",
+    "picker": {
+      "all": "すべて（{{count}}）",
+      "filterAria": "スニペットを絞り込む",
+      "filterPlaceholder": "名前または本文で絞り込む",
+      "loadError": "スニペットを読み込めませんでした。",
+      "loading": "読み込み中…",
+      "more": "その他",
+      "new": "新規",
+      "pinned": "固定済み",
+      "recent": "最近",
+      "title": "スニペット"
+    },
+    "save": {
+      "createdInSettings": "設定で作成",
+      "error": "スニペットを保存できませんでした。入力内容は保持されています。",
+      "fromDraft": "現在の下書きから",
+      "fromMessage": "セッション {{session}} · メッセージ #{{sequence}}",
+      "save": "保存",
+      "saving": "保存中…",
+      "titleCreate": "スニペットを保存",
+      "titleEdit": "スニペットを編集"
+    },
+    "settings": {
+      "delete": "スニペットを削除",
+      "deleteConfirm": "「{{name}}」を削除しますか？この操作は取り消せません。",
+      "deleteError": "スニペットを削除できませんでした。",
+      "description": "スニペットは自分専用の再利用可能なテキストです。ここで編集または削除しても、使用済みのメッセージは変わりません。",
+      "empty": "スニペットはまだありません。メッセージから便利な文を保存するか、ここで作成してください。",
+      "eyebrow": "個人用テキスト",
+      "new": "新規",
+      "pin": "スニペットを固定",
+      "pinError": "固定状態を変更できませんでした。",
+      "promote": "昇格",
+      "promoteError": "スニペットを昇格できませんでした。",
+      "promoteFactGoverned": "スキルは管理対象で永続的です。",
+      "promoteFactNoSync": "昇格後は同期されません。",
+      "promoteFactSnippetStays": "このスニペットはそのまま残ります。",
+      "promotePending": "昇格中…",
+      "promoteSuccess": "スキル {{identifier}} を作成しました。",
+      "promoteTitle": "スキルに昇格",
+      "promptManagerUnavailable": "このホストでは prompt-manager を利用できません",
+      "saveError": "スニペットを保存できませんでした。変更内容は保持されています。",
+      "title": "スニペット",
+      "unpin": "スニペットの固定を解除",
+      "usedCount": "{{count}}回使用",
+      "usedCount_one": "{{count}}回使用"
+    },
+    "variableCount": "{{count}}個の変数",
+    "variableCount_one": "{{count}}個の変数",
+    "variables": {
+      "insert": "挿入",
+      "invalidName": "小文字の英字で始め、以降は小文字、数字、アンダースコアだけを使用してください。",
+      "namePrompt": "変数名（小文字、数字、アンダースコア）",
+      "preview": "プレビュー",
+      "title": "変数を入力 · {{name}}"
+    }
   },
   "settings": {
     "closeAriaLabel": "設定を閉じる",
@@ -912,6 +1000,11 @@
         "description": "開いているターミナル、ポリシー、順序、フォーカスを管理。",
         "label": "セッション",
         "shortLabel": "セッション"
+      },
+      "snippets": {
+        "description": "メッセージ、作成欄、引き継ぎで再利用できる個人用テキストです。",
+        "label": "スニペット",
+        "shortLabel": "スニペット"
       },
       "shortcuts": {
         "description": "新規ターミナル起動用の保存済みコマンドプリセット。",
@@ -1190,6 +1283,10 @@
       "description": "ターミナル全体のレイアウトと、限られた画面でのモバイル操作の使い方を調整します。",
       "eyebrow": "レイアウト",
       "grid": "グリッド",
+      "handednessEnd": "右",
+      "handednessHint": "メニューやドロワーが開く辺と、スワイプ操作の向きを決めます。文字の方向は変わりません。",
+      "handednessLabel": "ドロワーの位置",
+      "handednessStart": "左",
       "keepAwakeLabel": "画面をスリープさせない",
       "localeHint": "UI の言語を設定します。右から左に書く言語はレイアウト方向が反転します。",
       "localeLabel": "言語",

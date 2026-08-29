@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ImagePlus, Loader2, SendHorizontal } from "lucide-react";
+import { BookmarkPlus, ImagePlus, Library, Loader2, SendHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
@@ -11,6 +11,8 @@ import { composeComposerPayload } from "../lib/composerPayload";
 import type { ComposerDraft } from "../hooks/useComposerDraft";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
 import type { InputSettlementCallback } from "../hooks/terminal/useStdinStream";
+import { SnippetPicker } from "./snippets/SnippetPicker";
+import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
 
 type ComposerSendStatus = "idle" | "uploading" | "sending" | "queued" | "failed";
 
@@ -52,6 +54,8 @@ interface FullScreenComposerProps {
   resolveAttachmentPaths?: () => Promise<string[]>;
   /** Clear the staged attachments after a successful send. */
   onClearAttachments?: () => void;
+  /** Default colour when capturing the current draft as a snippet. */
+  headerColor?: string;
 }
 
 /**
@@ -79,6 +83,7 @@ export default function FullScreenComposer({
   onRemoveAttachment,
   resolveAttachmentPaths,
   onClearAttachments,
+  headerColor,
 }: FullScreenComposerProps) {
   const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -86,6 +91,8 @@ export default function FullScreenComposer({
   const [status, setStatus] = useState<ComposerSendStatus>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showDiscardPrompt, setShowDiscardPrompt] = useState(false);
+  const [showSnippetPicker, setShowSnippetPicker] = useState(false);
+  const [showSnippetSave, setShowSnippetSave] = useState(false);
   const settlementUnsubRef = useRef<(() => void) | null>(null);
 
   // Bind the uncontrolled textarea to the shared draft: reseed on peer changes
@@ -266,6 +273,10 @@ export default function FullScreenComposer({
       avoidKeyboard
     >
       <div className="relative flex h-full flex-col">
+        <div className="flex min-h-11 items-center gap-1 border-b border-wc-default px-3">
+          <button type="button" data-testid="composer-open-snippets" onClick={() => setShowSnippetPicker(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-wc-text-secondary hover:bg-wc-surface-input hover:text-wc-text-primary"><Library className="h-4 w-4" />{t(strings.snippets.picker.title)}</button>
+          <button type="button" data-testid="composer-save-snippet" onClick={() => setShowSnippetSave(true)} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs text-wc-text-secondary hover:bg-wc-surface-input hover:text-wc-text-primary"><BookmarkPlus className="h-4 w-4" />{t(strings.messageActions.saveAsSnippet)}</button>
+        </div>
         {/* The overlay is absolutely positioned against this box, so its
             metrics must match the textarea's exactly — same padding, same
             type scale, same leading. */}
@@ -383,6 +394,21 @@ export default function FullScreenComposer({
           onConfirm={confirmDiscard}
           testIdPrefix="composer-discard"
         />
+        {showSnippetPicker && <SnippetPicker
+          open={showSnippetPicker}
+          onClose={() => setShowSnippetPicker(false)}
+          autoValues={{ session: draft.getSessionId() ?? "" }}
+          onInsert={async (text) => { draft.appendAtCaret(text); }}
+          onNew={() => { setShowSnippetPicker(false); setShowSnippetSave(true); }}
+        />}
+        {showSnippetSave && <SnippetSaveSheet
+          open={showSnippetSave}
+          onClose={() => setShowSnippetSave(false)}
+          mode="create"
+          initialBody={draft.getValue()}
+          initialColor={headerColor}
+          sourceLabel={t(strings.snippets.save.fromDraft)}
+        />}
       </div>
     </FullPageDrawer>
   );

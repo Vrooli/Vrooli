@@ -78,7 +78,7 @@ import GroupUndoBanner from "./GroupUndoBanner";
 import RoleMenu from "./RoleMenu";
 import { useGroupActions } from "../hooks/useGroupActions";
 import { useRoleActions } from "../hooks/useRoleActions";
-import { sendHandoff, targetsForSession, type HandoffTarget } from "../hooks/useHandoff";
+import { handoffTargetSections, sendHandoff, type HandoffTarget } from "../hooks/useHandoff";
 import type { GroupCreationRequest } from "./launcher/GroupModePanel";
 import { listGroupTemplates, upsertGroupTemplate } from "../api/grouptemplates";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
@@ -334,13 +334,17 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     }
   }, []));
 
-  const sendArchivedMessageToComposer = useCallback((text: string) => {
+  const stageMessageInComposer = useCallback((text: string) => {
     const target = composerDraft.getSessionId();
     if (!target || target !== useWorkspaceStore.getState().activePane) return;
     composerDraft.appendAtCaret(text);
-    setArchiveDrawerOpen(false);
     setComposerOpen(true);
   }, [composerDraft]);
+
+  const sendArchivedMessageToComposer = useCallback((text: string) => {
+    stageMessageInComposer(text);
+    setArchiveDrawerOpen(false);
+  }, [stageMessageInComposer]);
 
   const handleArchiveReopened = useCallback((result: RecoverResult) => {
     pendingActivePaneRef.current = result.new_session_id;
@@ -635,10 +639,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     });
   }, []);
 
-  const handoffTargets = useMemo(() => {
+  const handoffTargetSectionsForSource = useMemo(() => {
     if (!handoffState) return [];
     const pane = workspacePanes.find((p) => p.sessionId === handoffState.sourceSessionId);
-    return targetsForSession(handoffState.sourceSessionId, pane?.groupId ?? null);
+    return handoffTargetSections(handoffState.sourceSessionId, pane?.groupId ?? null);
   }, [handoffState, workspacePanes]);
 
   /**
@@ -661,9 +665,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             target: options.targetId ? availableTargets.find((c) => c.id === options.targetId) : undefined,
           });
           if (!session) return null;
-          const sourceGroupId = useWorkspaceStore.getState().panes
-            .find((p) => p.sessionId === handoffState?.sourceSessionId)?.groupId;
-          if (sourceGroupId) pendingGroupBySessionRef.current.set(session.id, sourceGroupId);
+          if (options.groupId) pendingGroupBySessionRef.current.set(session.id, options.groupId);
           return session.id;
         },
         queueForSession: (sessionId, text) => {
@@ -1783,6 +1785,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onActivate={activatePane}
         onRequestClose={handleRequestClose}
         onHandoff={openHandoff}
+        onSendToComposer={stageMessageInComposer}
         onToggleView={handlePaneToggleView}
         onViewSwitchPendingChange={handleViewSwitchPendingChange}
         onStartArrangeDrag={startArrangeDrag}
@@ -2068,6 +2071,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   onActivate={activatePane}
                   onRequestClose={handleRequestClose}
                   onHandoff={openHandoff}
+                  onSendToComposer={stageMessageInComposer}
                   onToggleView={handlePaneToggleView}
                   onViewSwitchPendingChange={handleViewSwitchPendingChange}
                   messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? renderViewToggleButton() : undefined}
@@ -2354,7 +2358,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onClose={() => { setHandoffState(null); }}
         sourceLabel={handoffState?.sourceLabel ?? ""}
         payload={handoffState?.payload ?? ""}
-        targets={handoffTargets}
+        targets={handoffTargetSectionsForSource}
+        sourceSessionId={handoffState?.sourceSessionId}
         initialSelection={handoffState?.initialSelection}
         onSend={runHandoff}
       />

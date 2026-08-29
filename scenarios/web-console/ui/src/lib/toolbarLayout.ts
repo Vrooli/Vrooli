@@ -22,6 +22,7 @@
  *  (`shortcut:<id>`) can join later without a schema change. */
 export type KnownToolbarControlId =
   | "more"
+  | "snippets"
   | "modifiers"
   | "special"
   | "arrows"
@@ -83,6 +84,7 @@ export interface ToolbarControlSpec {
  */
 export const TOOLBAR_CONTROLS: readonly ToolbarControlSpec[] = [
   { id: "more", kind: "icon", pinned: true, overflowHost: true },
+  { id: "snippets", kind: "icon" },
   { id: "modifiers", kind: "keys", keys: ["Ctrl", "Alt", "Shift"], terminalOnly: true },
   { id: "special", kind: "keys", keys: ["Esc", "Tab", "Enter"], terminalOnly: true },
   { id: "arrows", kind: "arrows", terminalOnly: true },
@@ -410,21 +412,21 @@ export const TOOLBAR_PRESETS: Record<Exclude<ToolbarPresetId, "custom">, Omit<To
     arrows: "inline",
     maxRows: 2,
     overflow: "strip",
-    enabled: { more: true, modifiers: true, special: true, arrows: true, mic: true, image: true, ai: false },
+    enabled: { more: true, snippets: true, modifiers: true, special: true, arrows: true, mic: true, image: true, ai: false },
   },
   balanced: {
     density: "standard",
     arrows: "dpad",
     maxRows: 2,
     overflow: "strip",
-    enabled: { more: true, modifiers: true, special: true, arrows: true, mic: true, image: true, ai: false },
+    enabled: { more: true, snippets: true, modifiers: true, special: true, arrows: true, mic: true, image: true, ai: false },
   },
   essential: {
     density: "large",
     arrows: "dpad",
     maxRows: 2,
     overflow: "more",
-    enabled: { more: true, modifiers: true, special: false, arrows: true, mic: true, image: true, ai: false },
+    enabled: { more: true, snippets: true, modifiers: true, special: false, arrows: true, mic: true, image: true, ai: false },
   },
 };
 

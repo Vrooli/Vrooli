@@ -5,10 +5,12 @@
     "labels": {
       "intent": "performance",
       "reset": "none",
-      "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the drag handle (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"dy\",\"type\":\"number\",\"required\":false,\"default\":240,\"description\":\"Vertical drag distance in pixels (positive drags downward)\"},{\"name\":\"steps\",\"type\":\"number\",\"required\":false,\"default\":40,\"description\":\"Number of intermediate pointer moves, one per animation frame\"},{\"name\":\"release\",\"type\":\"string\",\"required\":false,\"default\":\"commit\",\"description\":\"'commit' ends with pointerup (the surface dismisses); 'hold' skips pointerup so the drag frames are traced without the surface unmounting\"}]"
+      "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the drag handle (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"dy\",\"type\":\"number\",\"required\":false,\"default\":240,\"description\":\"Vertical drag distance in pixels (positive drags downward)\"},{\"name\":\"steps\",\"type\":\"number\",\"required\":false,\"default\":40,\"description\":\"Number of intermediate pointer moves, one per animation frame\"},{\"name\":\"release\",\"type\":\"string\",\"required\":false,\"default\":\"commit\",\"description\":\"'commit' ends with pointerup (the surface dismisses); 'hold' skips pointerup so the drag frames are traced without the surface unmounting\"}]",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
     "version": "1",
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {},
   "nodes": [

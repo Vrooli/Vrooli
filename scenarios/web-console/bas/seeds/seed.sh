@@ -136,6 +136,27 @@ seed_message_navigator_conversation() {
 seed_message_navigator_conversation || true
 
 # ---------------------------------------------------------------------------
+# Snippet workflow seeds — fixed ids make this idempotent across cases while
+# still exercising the public CLI contract required by the snippet scenarios.
+seed_snippets() {
+  local snippet_seed_dir
+  snippet_seed_dir="$(mktemp -d)" || return 0
+  trap 'rm -rf "${snippet_seed_dir}"' RETURN
+
+  printf '%s\n' '{"id":"ba500000-0000-4000-8000-000000000001","name":"BAS Plain Snippet","body":"BAS_PLAIN_BODY ready for insertion","color":"#38bdf8","pinned":true,"sort_order":10}' > "${snippet_seed_dir}/plain.json"
+  printf '%s\n' '{"id":"ba500000-0000-4000-8000-000000000002","name":"BAS Variable Snippet","body":"Investigate {{topic}} and preserve {{missing}}","color":"#a78bfa","pinned":true,"sort_order":20}' > "${snippet_seed_dir}/variables.json"
+
+  web-console snippet upsert --body-file "${snippet_seed_dir}/plain.json" >/dev/null || {
+    echo "[seed] Warning: failed to seed the plain snippet through the CLI." >&2
+  }
+  web-console snippet upsert --body-file "${snippet_seed_dir}/variables.json" >/dev/null || {
+    echo "[seed] Warning: failed to seed the variable snippet through the CLI." >&2
+  }
+}
+
+seed_snippets || true
+
+# ---------------------------------------------------------------------------
 # File-preview seed — writes deterministic fixture files (markdown + SVG) to a
 # stable host path and posts an assistant message whose markdown links point at
 # them by ABSOLUTE path (so resolution never depends on the session cwd). The

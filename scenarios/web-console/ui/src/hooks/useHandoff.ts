@@ -4,6 +4,8 @@ import type { GateResult } from "../components/terminal/inputGate";
 import { renderHandoffPrompt, type HandoffResult } from "../lib/handoff";
 import { useWorkspaceStore, type RoleMeta } from "../stores/useWorkspaceStore";
 
+// DOC: docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.md
+
 // [REQ:P0-014d] Handoff Between Sessions In A Group
 //
 // This module is the SEND path. It imports nothing from the capture-rule
@@ -23,13 +25,22 @@ export type HandoffTarget =
   | { kind: "session"; sessionId: string; label: string; incomingPrompt: string }
   | { kind: "role"; role: RoleMeta; label: string; incomingPrompt: string }
   /** Create a session in the group, then send to it. */
-  | { kind: "new-session"; groupId: string; label: string; incomingPrompt: string };
+  | { kind: "new-session"; groupId: string | null; label: string; incomingPrompt: string };
+
+export type HandoffTargetSectionKind = "group" | "other" | "new";
+
+export interface HandoffTargetSection {
+  kind: HandoffTargetSectionKind;
+  /** i18n key for the section heading. */
+  labelKey: string;
+  targets: HandoffTarget[];
+}
 
 /** A stable id for a target, used for result keys and test ids. */
 export function targetKey(target: HandoffTarget): string {
   if (target.kind === "session") return target.sessionId;
   if (target.kind === "role") return target.role.id;
-  return `new-${target.groupId}`;
+  return `new-${target.groupId ?? "ungrouped"}`;
 }
 
 /** The exact text one target will receive, before the operator edits it. */
@@ -41,7 +52,7 @@ export interface SendHandoffDeps {
   /** Deliver text to a specific session's terminal. */
   submit: (data: string, intent: "bulk_text", targetId: string) => GateResult;
   /** Start a command and resolve to the new session id, or null on failure. */
-  launch: (options: { command?: string; workingDir?: string; backend?: string; targetId?: string }) => Promise<string | null>;
+  launch: (options: { command?: string; workingDir?: string; backend?: string; targetId?: string; groupId?: string | null }) => Promise<string | null>;
   /** Queue text under a session id that has no mounted terminal yet. */
   queueForSession: (sessionId: string, text: string) => void;
   /** Attach a started role to its new session. */
@@ -91,7 +102,7 @@ export async function sendHandoff(
           backend: target.role.backend || undefined,
           targetId: target.role.targetId || undefined,
         }
-      : {};
+      : { groupId: target.groupId };
 
     let sessionId: string | null = null;
     try {
@@ -148,7 +159,7 @@ function deliver(
  * Excludes the source, and excludes running roles whose session is already
  * listed as a pane, so a session never appears twice.
  */
-export function targetsForSession(
+function groupTargetsForSession(
   sourceSessionId: string,
   groupId: string | null,
 ): HandoffTarget[] {
@@ -176,6 +187,43 @@ export function targetsForSession(
     targets.push({ kind: "role", role, label: role.label, incomingPrompt: role.incomingPrompt });
   }
   return targets;
+}
+
+/** Ordered handoff choices: the source group, other live panes, then a new session. */
+export function handoffTargetSections(
+  sourceSessionId: string,
+  groupId: string | null,
+): HandoffTargetSection[] {
+  const { panes, roles } = useWorkspaceStore.getState();
+  const groupTargets = groupTargetsForSession(sourceSessionId, groupId);
+  const groupedSessionIds = new Set(
+    groupTargets.flatMap((target) => target.kind === "session" ? [target.sessionId] : []),
+  );
+  const roleBySession = new Map(
+    roles.filter((role) => role.sessionId !== null).map((role) => [role.sessionId as string, role]),
+  );
+  const otherTargets: HandoffTarget[] = panes.flatMap((pane) => {
+    if (pane.sessionId === sourceSessionId || groupedSessionIds.has(pane.sessionId)) return [];
+    const role = roleBySession.get(pane.sessionId);
+    return [{
+      kind: "session" as const,
+      sessionId: pane.sessionId,
+      label: role?.label ?? pane.name,
+      incomingPrompt: role?.incomingPrompt ?? "",
+    }];
+  });
+
+  return [
+    ...(groupId && groupTargets.length > 0
+      ? [{ kind: "group" as const, labelKey: "handoff.sections.group", targets: groupTargets }]
+      : []),
+    { kind: "other", labelKey: "handoff.sections.other", targets: otherTargets },
+    {
+      kind: "new",
+      labelKey: "handoff.sections.new",
+      targets: [{ kind: "new-session", groupId, label: "New session", incomingPrompt: "" }],
+    },
+  ];
 }
 
 /** Bind sendHandoff to the app's seams. */

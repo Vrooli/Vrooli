@@ -1,0 +1,118 @@
+{
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "schema": "scenario-experience-spec/v1",
+    "provenance": "react-component-library:Slider@1.0.0"
+  },
+  "component": {
+    "id": "controls.slider",
+    "title": "Slider",
+    "purpose": "Set a value along a continuous range, with the committed write separated from the live one."
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "Track, fill, thumb, and a formatted inline readout \u2014 the whole default surface."
+    },
+    {
+      "id": "ticked",
+      "example": "ticked",
+      "description": "Ticks mark every step and a taller notch marks the origin value, making drift visible."
+    },
+    {
+      "id": "marked",
+      "example": "marked",
+      "description": "Named marks label positions a bare number would not explain; the readout moves into a tooltip."
+    },
+    {
+      "id": "bare",
+      "example": "bare",
+      "description": "A host row owns the label, so the control renders none and is named by aria-label."
+    },
+    {
+      "id": "disabled",
+      "example": "disabled",
+      "description": "An unavailable slider keeps its value legible rather than hiding it."
+    }
+  ],
+  "elements": [
+    {
+      "id": "control",
+      "role": "slider"
+    },
+    {
+      "id": "thumb",
+      "role": "generic"
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "control": {
+        "selector": "[data-rcl-slider-input]"
+      },
+      "thumb": {
+        "selector": "[data-rcl-slider-thumb]"
+      }
+    }
+  },
+  "claims": [
+    {
+      "id": "tap-target-size",
+      "type": "tap-target-size",
+      "tier": "machine",
+      "statement": "The slider's pointer target spans the full tap-target minimum even though the painted track is thinner.",
+      "elements": [
+        "control"
+      ]
+    },
+    {
+      "id": "keyboard-reachable",
+      "type": "keyboard-reachable",
+      "tier": "machine",
+      "statement": "The slider is reachable and operable from the keyboard through its native range control.",
+      "elements": [
+        "control"
+      ]
+    },
+    {
+      "id": "content-not-clipped",
+      "type": "content-not-clipped",
+      "tier": "machine",
+      "statement": "The thumb stays within the track at both ends of travel.",
+      "elements": [
+        "thumb"
+      ]
+    },
+    {
+      "id": "committed-write-separation",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "onChange fires for every movement and onChangeCommit fires once when the interaction ends, so a drag produces one persisted write rather than one per step.",
+      "states": [
+        "default",
+        "ticked"
+      ]
+    },
+    {
+      "id": "spoken-value",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "aria-valuetext carries the formatted value, so assistive technology speaks the unit shown on screen.",
+      "states": [
+        "ticked",
+        "marked"
+      ]
+    },
+    {
+      "id": "origin-reference",
+      "type": "manual-review",
+      "tier": "manual",
+      "statement": "The default marker is visually distinct from a step tick so the origin reads as a reference, not a stop.",
+      "states": [
+        "ticked",
+        "marked"
+      ]
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { cn } from "../../lib/classnames";
 
 /**
@@ -33,4 +34,14 @@ export function getScrubClasses({
     getAccentClasses(isSummarized),
     extra,
   );
+}
+
+/**
+ * The summarized-vs-original accent, for a library Slider rather than a bare
+ * range input. `accent-color` only reaches a native control; a token-bound one
+ * is retinted by pointing its primary token at the summarized hue.
+ */
+export function getSliderAccentStyle(isSummarized: boolean): CSSProperties | undefined {
+  // Tailwind amber-400, matching the `accent-amber-400` used above.
+  return isSummarized ? ({ "--color-primary": "#fbbf24" } as CSSProperties) : undefined;
 }

@@ -41,6 +41,8 @@ interface WorkspacePaneShellProps {
   onRequestClose: (sessionId: string) => void;
   /** Open the handoff composer from this pane, with a payload. */
   onHandoff: (sessionId: string, payload: string) => void;
+  /** Stage message text in the active live session's full-screen composer. */
+  onSendToComposer?: (text: string) => void;
   onToggleView: (sessionId: string, viewMode: PaneViewMode) => void;
   /** Notifies when this pane is mid view-switch so a shared toolbar button
    *  (e.g. the tabs-mode floating toggle) can show a loading indicator. */
@@ -91,6 +93,7 @@ function WorkspacePaneShell({
   onActivate,
   onRequestClose,
   onHandoff,
+  onSendToComposer,
   onToggleView,
   onViewSwitchPendingChange,
   messagesToolbarTrailingAction,
@@ -215,6 +218,7 @@ function WorkspacePaneShell({
             <MessagesPane
               sessionId={sessionId}
               onHandoff={onHandoff}
+              onSendToComposer={onSendToComposer}
               onPlayFromHere={handlePlayFromHere}
               onPlayEvent={handlePlayEvent}
               activeSpeakingEventId={activeSpeakingEventId}

@@ -1,10 +1,11 @@
-import { useCallback, type ChangeEvent } from "react";
+import { useCallback } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Slider } from "@vrooli/react-component-library/Slider";
 import type { TTSPlaybackCapabilities } from "../../audio-integration";
 import { cn } from "../../lib/classnames";
 import { strings } from "../../consts/strings";
-import { getAccentClasses } from "./scrubStyles";
+import { getSliderAccentStyle } from "./scrubStyles";
 
 const SPEED_PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
@@ -42,12 +43,12 @@ export function AudioSettingsContent({
 }: AudioSettingsContentProps) {
   const { t } = useTranslation();
   const handleVolumeChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
+    (next: number) => {
       // Dragging the slider while muted auto-unmutes. Order matters: clear the
       // mute flag first so the provider doesn't briefly receive the new
       // configured volume while the hook still treats the session as muted.
       if (isMuted && onSetMuted) onSetMuted(false);
-      onVolumeChange(Number(e.target.value));
+      onVolumeChange(next);
     },
     [isMuted, onSetMuted, onVolumeChange],
   );
@@ -80,20 +81,22 @@ export function AudioSettingsContent({
               </button>
             )}
           </div>
-          <input
-            data-testid={`${testIdPrefix}-volume-slider`}
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={volume}
-            onChange={handleVolumeChange}
-            className={cn(
-              "h-1.5 w-full cursor-pointer rounded-full",
-              isMuted && "opacity-50",
-              getAccentClasses(isSummarized),
-            )}
-          />
+          {/* Volume is applied to the running audio, not persisted per step, so
+              it follows the finger through onChange rather than waiting for a
+              commit. */}
+          <div style={getSliderAccentStyle(isSummarized)}>
+            <Slider
+              data-testid={`${testIdPrefix}-volume-slider`}
+              min={0}
+              max={1}
+              step={0.05}
+              value={volume}
+              onChange={handleVolumeChange}
+              showValue="none"
+              aria-label={t(strings.audioSettings.volume)}
+              className={cn(isMuted && "opacity-50")}
+            />
+          </div>
           <div className="mt-0.5 flex justify-between text-[10px] text-wc-text-faint">
             <span>0</span>
             <span>{Math.round(volume * 100)}%</span>

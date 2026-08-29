@@ -71,6 +71,15 @@ describe("ToolbarCustomizer", () => {
     expect(more).toBeChecked();
   });
 
+  it("governs the snippet control through the same visibility settings", () => {
+    openPanel();
+    const snippets = screen.getByTestId("toolbar-control-snippets");
+    expect(snippets).toBeChecked();
+    fireEvent.click(snippets);
+    expect(prefs().enabled.snippets).toBe(false);
+    expect(prefs().preset).toBe("custom");
+  });
+
   it("switches the arrows off through the same control that styles them", () => {
     openPanel();
     fireEvent.click(screen.getByTestId("toolbar-arrows-off"));

@@ -107,7 +107,8 @@ and all three must return nothing:
 
 ```bash
 # 1. Nothing in the shipped surface is named for one workflow.
-grep -rn "plan_path\|planPath\|plan_file\|implementer_id\|planner_id\|critic_id" \
+grep -rn --exclude=web-console-api --exclude=cli \
+  "plan_path\|planPath\|plan_file\|implementer_id\|planner_id\|critic_id" \
   scenarios/web-console/api scenarios/web-console/ui/src \
   scenarios/web-console/cli packages/proto/schemas/web-console
 
@@ -119,6 +120,38 @@ grep -rn "captureRules" scenarios/web-console/ui/src/lib/handoff.ts \
 grep -rn "is_builtin\|isBuiltin\|builtin" \
   scenarios/web-console/api/internal/grouptemplates \
   scenarios/web-console/api/internal/handoffrules
+```
+
+## The snippet seam (added 2026-08-28)
+
+The mechanism record is
+[SNIPPETS-AND-MESSAGE-ACTIONS-UX.md](SNIPPETS-AND-MESSAGE-ACTIONS-UX.md).
+`ui/src/lib/snippetVars.ts` is the only text transformation for a snippet. It
+recognizes only lowercase named tokens and supplied string values, and it has
+no imports. Promotion is a one-way command call; neither the snippet row nor
+any role, template, or skill stores a link back to the other surface.
+
+These four greps must return no match:
+
+```bash
+# 1. No workflow- or skill-link field entered the snippet surface.
+grep -rn --exclude=web-console-api --exclude=cli \
+  "plan_path\|planPath\|plan_file\|snippet_skill_id\|skill_id" \
+  scenarios/web-console/api scenarios/web-console/ui/src \
+  scenarios/web-console/cli packages/proto/schemas/web-console
+
+# 2. Neither text transformation nor the send path can reach the matcher.
+grep -rn "captureRules" scenarios/web-console/ui/src/lib/handoff.ts \
+  scenarios/web-console/ui/src/lib/snippetVars.ts \
+  scenarios/web-console/ui/src/hooks/useHandoff.ts
+
+# 3. Seeded snippets are ordinary rows, never privileged built-ins.
+grep -rn "is_builtin\|isBuiltin\|SeedSnippetID" \
+  scenarios/web-console/api scenarios/web-console/ui/src \
+  | grep -v "api/internal/snippets/seed.go"
+
+# 4. Substitution stays dependency-free.
+grep -n "^import" scenarios/web-console/ui/src/lib/snippetVars.ts
 ```
 
 ### Delivery, and why a handoff is never dropped

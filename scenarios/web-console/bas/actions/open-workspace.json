@@ -68,6 +68,19 @@
         }
       },
       {
+        "id": "assert-workspace-shell",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "[data-testid='workspace-top-edge']",
+            "failure_message": "Expected the workspace shell experience region"
+          },
+          "metadata": {
+            "label": "Verify workspace shell"
+          }
+        }
+      },
+      {
         "id": "install-ws-tracker",
         "action": {
           "type": "ACTION_TYPE_EVALUATE",
@@ -96,6 +109,12 @@
       {
         "id": "e3",
         "source": "wait-launch-control",
+        "target": "assert-workspace-shell",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "assert-workspace-shell",
         "target": "install-ws-tracker",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }

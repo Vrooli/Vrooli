@@ -1,10 +1,11 @@
 # Web Console Storage Architecture Audit
 
 ## Last Updated
-2026-08-26
+2026-08-28
 
 ## Resource Configuration Status
 - [x] SQLite declared in service.json
+- [x] SQLite WAL/SHM sidecars, recovery snapshots, deployment evidence, routed run metadata, and routed identity material declared with explicit lifecycle and sensitivity semantics
 - [x] Database file resolved via `api-core/storage` (ClassData)
 - [x] Domain-owned embedded schema and seed (`api/internal/sessions/schema.sql`, `seed.sql`)
 - [x] Schema initialized on startup via `database.EnsureSchemas` in `main.go`
@@ -48,6 +49,7 @@
 | `SQLShortcutStore` | `shortcut_profiles_sql.go` | Launch shortcut profiles | **SQLite** (`shortcut_profiles` table) |
 | `SQLAIConfigStore` | `ai_provider_config_sql.go` | Provider config (SQLite) + health tracking (memory) | **Hybrid**: config in SQLite, health in-memory |
 | `SQLWorkspaceStore` | `workspace_store_sql.go` | Workspace layout (panes, groups, ordering) | **SQLite** (`workspace_panes`, `tab_groups` tables) |
+| `SQLStore` (snippets) | `internal/snippets/store_sql.go` | Sender-owned reusable message text | **SQLite** (`message_snippets` table) |
 | `SessionManager` | `session.go` | Terminal sessions + PTY processes | In-memory (process-bound) |
 | `EventLogger` | `events.go` | Structured lifecycle events (ring buffer) | In-memory (cap 1000) |
 | `Metrics` | `metrics.go` | Operational counters | In-memory (atomic) |
@@ -70,7 +72,21 @@ AIConfigStore (repository.go)
 WorkspaceStore (workspace_store.go)
 ├── MemWorkspaceStore (workspace_store_mem.go)      — in-memory, used in tests
 └── SQLWorkspaceStore (workspace_store_sql.go)      — SQLite, used in production
+
+snippets.Store (internal/snippets/store.go)
+├── MemStore (internal/snippets/store_mem.go)       — in-memory, used in tests
+└── SQLStore (internal/snippets/store_sql.go)        — SQLite, used in production
 ```
+
+### Message snippets
+
+`message_snippets` stores `id`, `name`, `body`, `color`, `pinned`,
+`use_count`, `last_used_at`, `sort_order`, `created_at`, and `updated_at`.
+Rows grow only when the operator captures or creates a snippet; use updates
+change counters and timestamps rather than adding rows. Snippets have no
+retention policy and no background sweep. They are operator-created only and
+their growth is bounded by operator behavior; every row remains freely
+deletable through the public API and CLI.
 
 ## Portability
 - [x] Pure Go SQLite driver (`modernc.org/sqlite`) — CGO_ENABLED=0 compatible
@@ -89,3 +105,5 @@ WorkspaceStore (workspace_store.go)
 - Agent runtime entries are symlinked to the shared user home where supported and are not recreated for shells that never launch an agent.
 - `api/internal/sessions/schema.sql` remains the domain-owned declarative schema; the boot migration code only repairs existing local databases and removes the retired Codex-only checkpoint table.
 - No host cleanup implementation was added. The `/api/v1/cleanup/orphans` endpoint reports filesystem/database drift for storage-manager or operator approval.
+- Routed isolation is independently proven by `storage-manager validate prove-isolation web-console`; browser workflow safety uses that dedicated classification plus lease-installation evidence rather than treating unrelated storage findings as missing isolation.
+- Two historical root-level SQLite recovery files created before the current `recovery-snapshots/` convention remain visible as `STORAGE_PATH_UNCOVERED`. They are protected operator data, not an isolation failure, and were not moved or deleted as part of the snippet/message-action change.

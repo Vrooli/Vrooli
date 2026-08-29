@@ -319,6 +319,7 @@ The API uses a **hybrid organization** strategy:
 - **Feature modules (AI, shortcuts, metrics)** are organized by feature: each file owns its domain types, validation, store, and HTTP handlers together. This keeps related code co-located and makes each feature self-contained.
 - **AI generation** (`api/handlers/ai/adapter.go` and `api/internal/ai/service.go`) owns the generation pipeline — providers, prompt building, extraction, and config-aware orchestration. The internal config stores own provider configuration and health tracking.
 - **Policy handlers** are co-located with the session Connect handlers because they operate on session sub-resource endpoints (`/sessions/{id}/policy`). Policy domain logic and the expiration sweeper live in `api/session/session_policy.go`.
+- **Message snippets** are a self-contained feature module under `api/internal/snippets/` and `api/handlers/snippets/`. The repository interface hides the in-memory and SQLite stores; the UI consumes only the generated Connect contract through `ui/src/api/snippets.ts`.
 
 The UI uses **component-per-file** with hooks extracted into `hooks/`, constants into `consts/`, and utilities into `lib/`. The app now ships as a single workspace surface with feature-local section modules under `components/settings/` for the unified settings experience. Shared domain constants (policy options, shortcuts, toolbar keys) live in `consts/` and are imported by multiple components to avoid duplication.
 
@@ -347,6 +348,8 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `api/shortcut_profiles_sql.go` | SQLite shortcut profile store |
 | `api/internal/events/events.go` | Structured event logging (session lifecycle, AI) |
 | `api/internal/metrics/metrics.go` | Operational metrics collection |
+| `api/internal/snippets/` | Snippet types, validation, seed data, and in-memory/SQLite repository implementations |
+| `api/handlers/snippets/` | Connect-RPC snippet CRUD, touch, and one-way skill-promotion adapter |
 | `ui/src/App.tsx` | Entry point — health check gate + workspace shell |
 | `ui/src/components/Workspace.tsx` | Pane grid layout |
 | `ui/src/components/SettingsModal.tsx` | Unified responsive settings shell (desktop modal, mobile drawer) |
@@ -363,6 +366,9 @@ The UI uses **component-per-file** with hooks extracted into `hooks/`, constants
 | `ui/src/hooks/useCountdown.ts` | Policy countdown timer (shared by SessionDrawer + SessionsPage) |
 | `ui/src/components/TerminalPane.tsx` | xterm.js rendering |
 | `ui/src/components/MessagesPane.tsx` | Semantic messages-mode rendering for a single session |
+| `ui/src/components/snippets/` | Shared picker, variable completion, body editor, and save sheet |
+| `ui/src/components/messages/messageActions.ts` | Declared, capability-gated message action registry |
+| `ui/src/lib/snippetVars.ts` | Import-free named-variable substitution |
 | `ui/src/components/TerminalLauncher.tsx` | New-terminal modal with shortcuts |
 | `ui/src/components/MobileToolbar.tsx` | Floating keyboard toolbar |
 | `ui/src/components/AiInput.tsx` | AI command input with generate/execute flow |

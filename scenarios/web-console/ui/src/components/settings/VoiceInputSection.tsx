@@ -54,7 +54,13 @@ import {
 } from "../../audio-integration";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
-import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
+import {
+  SettingsCard,
+  SettingsRow,
+  SettingsSectionIntro,
+  SettingsSlider,
+  SettingsToggle,
+} from "./primitives";
 
 /** Lease reasons meaning the page/OS pulled the mic, so an in-flight settings
  *  capture must be cancelled (not processed/uploaded). */
@@ -68,6 +74,10 @@ export default function VoiceInputSection() {
   const setVoiceShortcut = useWorkspaceStore((state) => state.setVoiceShortcut);
   const vadAutoStop = useWorkspaceStore((state) => state.vadAutoStop);
   const setVadAutoStop = useWorkspaceStore((state) => state.setVadAutoStop);
+  // Subscribed rather than read through getState(): the threshold is rendered
+  // in two places, and a getState() read never re-renders when it changes.
+  const wakeWordThreshold = useWorkspaceStore((state) => state.wakeWordThreshold);
+  const setWakeWordThreshold = useWorkspaceStore((state) => state.setWakeWordThreshold);
   const vadSilenceTimeoutMs = useWorkspaceStore((state) => state.vadSilenceTimeoutMs);
   const setStoreVadSilenceTimeoutMs = useWorkspaceStore((state) => state.setVadSilenceTimeoutMs);
   const voiceLanguage = useWorkspaceStore((state) => state.voiceLanguage);
@@ -792,7 +802,7 @@ export default function VoiceInputSection() {
             <SettingsToggle
               testId="voice-enabled-toggle"
               checked={voiceEnabled}
-              onClick={() => setVoiceEnabled(!voiceEnabled)}
+              onCheckedChange={setVoiceEnabled}
             />
           )}
         />
@@ -806,7 +816,7 @@ export default function VoiceInputSection() {
                 <SettingsToggle
                   testId="vad-auto-stop-toggle"
                   checked={vadAutoStop}
-                  onClick={() => setVadAutoStop(!vadAutoStop)}
+                  onCheckedChange={setVadAutoStop}
                 />
               )}
             />
@@ -816,25 +826,22 @@ export default function VoiceInputSection() {
                 label={t(strings.settings.voiceInputSection.silenceTimeoutLabel)}
                 hint={t(strings.settings.voiceInputSection.silenceTimeoutHint)}
                 control={(
-                  <div className="flex items-center gap-2">
-                    <input
-                      data-testid="vad-silence-timeout-slider"
-                      type="range"
-                      min={200}
-                      max={3000}
-                      step={100}
-                      value={vadSilenceTimeoutMs}
-                      // Write-through: audio-tools' stt_stream_config.vad_silence_ms
-                      // is the single source of truth. Range matches the
-                      // server-side validation [200, 3000] in stream_config.go.
-                      onChange={(event) => handleVsConfigChange({ vadSilenceMs: Number(event.target.value) })}
-                      disabled={!vsConfig || vsConfigLoading}
-                      className="w-24 accent-wc-accent disabled:opacity-50"
-                    />
-                    <span className="w-9 text-end text-xs text-wc-text-muted">
-                      {t(strings.settings.voiceInputSection.secondsShort, { value: (vadSilenceTimeoutMs / 1000).toFixed(1) })}
-                    </span>
-                  </div>
+                  // Write-through: audio-tools' stt_stream_config.vad_silence_ms
+                  // is the single source of truth. Range matches the
+                  // server-side validation [200, 3000] in stream_config.go.
+                  // The write happens on commit, so one drag is one request.
+                  <SettingsSlider
+                    testId="vad-silence-timeout-slider"
+                    value={vadSilenceTimeoutMs}
+                    onCommit={(next) => handleVsConfigChange({ vadSilenceMs: next })}
+                    min={200}
+                    max={3000}
+                    step={100}
+                    disabled={!vsConfig || vsConfigLoading}
+                    formatValue={(value) =>
+                      t(strings.settings.voiceInputSection.secondsShort, { value: (value / 1000).toFixed(1) })
+                    }
+                  />
                 )}
               />
             )}
@@ -884,7 +891,7 @@ export default function VoiceInputSection() {
                   <SettingsToggle
                     testId="persistent-mode-toggle"
                     checked={vsConfig.persistentMode}
-                    onClick={() => handleVsConfigChange({ persistentMode: !vsConfig.persistentMode })}
+                    onCheckedChange={(next) => handleVsConfigChange({ persistentMode: next })}
                   />
                 )}
               />
@@ -895,26 +902,22 @@ export default function VoiceInputSection() {
                     label={t(strings.settings.voiceInputSection.segmentSilenceLabel)}
                     hint={t(strings.settings.voiceInputSection.segmentSilenceHint)}
                     control={(
-                      <div className="flex items-center gap-2">
-                        <input
-                          data-testid="segment-silence-slider"
-                          type="range"
-                          min={200}
-                          max={3000}
-                          step={100}
-                          // Reads from vad_silence_ms (with legacy fall-back),
-                          // writes to vad_silence_ms. Both this slider and
-                          // the silence-timeout slider above map to the same
-                          // server field — they are two UI views on one knob.
-                          value={vsConfig.vadSilenceMs > 0 ? vsConfig.vadSilenceMs : vsConfig.segmentSilenceMs}
-                          onChange={(event) => handleVsConfigChange({ vadSilenceMs: Number(event.target.value) })}
-                          disabled={vsConfigLoading}
-                          className="w-24 accent-wc-accent disabled:opacity-50"
-                        />
-                        <span className="w-9 text-end text-xs text-wc-text-muted">
-                          {t(strings.settings.voiceInputSection.secondsShort, { value: ((vsConfig.vadSilenceMs > 0 ? vsConfig.vadSilenceMs : vsConfig.segmentSilenceMs) / 1000).toFixed(1) })}
-                        </span>
-                      </div>
+                      // Reads from vad_silence_ms (with legacy fall-back),
+                      // writes to vad_silence_ms. Both this slider and
+                      // the silence-timeout slider above map to the same
+                      // server field — they are two UI views on one knob.
+                      <SettingsSlider
+                        testId="segment-silence-slider"
+                        value={vsConfig.vadSilenceMs > 0 ? vsConfig.vadSilenceMs : vsConfig.segmentSilenceMs}
+                        onCommit={(next) => handleVsConfigChange({ vadSilenceMs: next })}
+                        min={200}
+                        max={3000}
+                        step={100}
+                        disabled={vsConfigLoading}
+                        formatValue={(value) =>
+                          t(strings.settings.voiceInputSection.secondsShort, { value: (value / 1000).toFixed(1) })
+                        }
+                      />
                     )}
                   />
 
@@ -964,12 +967,12 @@ export default function VoiceInputSection() {
               <SettingsToggle
                 testId="wake-word-toggle"
                 checked={vsConfig.wakeWordEnabled}
-                onClick={() => {
-                  if (!vsConfig.wakeWordEnabled && !wakeWordConfig?.configured) {
+                onCheckedChange={(next) => {
+                  if (next && !wakeWordConfig?.configured) {
                     setWakeWordError(t(strings.settings.voiceInputSection.wakeWordRequireSaveFirst));
                     return;
                   }
-                  handleVsConfigChange({ wakeWordEnabled: !vsConfig.wakeWordEnabled });
+                  handleVsConfigChange({ wakeWordEnabled: next });
                 }}
               />
             )}
@@ -1078,25 +1081,18 @@ export default function VoiceInputSection() {
               label={t(strings.settings.voiceInputSection.sensitivityLabel)}
               hint={t(strings.settings.voiceInputSection.sensitivityHint)}
               control={(
-                <div className="flex items-center gap-2">
-                  <input
-                    data-testid="wake-word-threshold-slider"
-                    type="range"
-                    min={0.1}
-                    max={0.95}
-                    step={0.05}
-                    value={useWorkspaceStore.getState().wakeWordThreshold}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      useWorkspaceStore.getState().setWakeWordThreshold(val);
-                      handleVsConfigChange({ wakeWordThreshold: val });
-                    }}
-                    className="w-24 accent-wc-accent"
-                  />
-                  <span className="w-10 text-end text-xs text-wc-text-muted">
-                    {useWorkspaceStore.getState().wakeWordThreshold.toFixed(2)}
-                  </span>
-                </div>
+                <SettingsSlider
+                  testId="wake-word-threshold-slider"
+                  value={wakeWordThreshold}
+                  onCommit={(next) => {
+                    setWakeWordThreshold(next);
+                    handleVsConfigChange({ wakeWordThreshold: next });
+                  }}
+                  min={0.1}
+                  max={0.95}
+                  step={0.05}
+                  formatValue={(value) => value.toFixed(2)}
+                />
               )}
             />
 
@@ -1214,8 +1210,8 @@ export default function VoiceInputSection() {
                       />
                       <div
                         className="absolute top-0 h-full w-0.5 bg-wc-text-secondary"
-                        style={{ left: `${useWorkspaceStore.getState().wakeWordThreshold * 100}%` }}
-                        title={t(strings.settings.voiceInputSection.thresholdTooltip, { threshold: useWorkspaceStore.getState().wakeWordThreshold.toFixed(2) })}
+                        style={{ left: `${wakeWordThreshold * 100}%` }}
+                        title={t(strings.settings.voiceInputSection.thresholdTooltip, { threshold: wakeWordThreshold.toFixed(2) })}
                       />
                     </div>
                   </div>
@@ -1237,7 +1233,7 @@ export default function VoiceInputSection() {
                             />
                             <div
                               className="absolute top-0 h-full w-px bg-wc-text-faint"
-                              style={{ left: `${useWorkspaceStore.getState().wakeWordThreshold * 100}%` }}
+                              style={{ left: `${wakeWordThreshold * 100}%` }}
                             />
                           </div>
                           <span className="w-10 text-end text-wc-text-faint">{attempt.score.toFixed(2)}</span>
@@ -1304,8 +1300,7 @@ export default function VoiceInputSection() {
               <SettingsToggle
                 testId="speaker-verification-toggle"
                 checked={speakerStatus?.config.enabled ?? false}
-                onClick={() => {
-                  const next = !(speakerStatus?.config.enabled ?? false);
+                onCheckedChange={(next) => {
                   const ids = speakerStatus?.config.profileIds ?? [];
                   if (next && ids.length === 0 && !speakerStatus?.profiles?.length) {
                     setSpeakerError(t(strings.settings.voiceInputSection.enrollFirst));
@@ -1374,23 +1369,17 @@ export default function VoiceInputSection() {
             label={t(strings.settings.voiceInputSection.thresholdLabel)}
             hint={t(strings.settings.voiceInputSection.thresholdHint)}
             control={(
-              <div className="flex items-center gap-2">
-                <input
-                  data-testid="speaker-threshold-slider"
-                  type="range"
-                  min={0.1}
-                  max={0.99}
-                  step={0.01}
-                  value={speakerStatus?.config.threshold ?? 0.35}
-                  onChange={(event) => {
-                    void persistSpeakerConfig({ threshold: Number(event.target.value) });
-                  }}
-                  className="w-24 accent-wc-accent"
-                />
-                <span className="w-10 text-end text-xs text-wc-text-muted">
-                  {(speakerStatus?.config.threshold ?? 0.35).toFixed(2)}
-                </span>
-              </div>
+              <SettingsSlider
+                testId="speaker-threshold-slider"
+                value={speakerStatus?.config.threshold ?? 0.35}
+                onCommit={(next) => {
+                  void persistSpeakerConfig({ threshold: next });
+                }}
+                min={0.1}
+                max={0.99}
+                step={0.01}
+                formatValue={(value) => value.toFixed(2)}
+              />
             )}
           />
 
@@ -1739,19 +1728,17 @@ export default function VoiceInputSection() {
                     label={t(strings.settings.voiceInputSection.flushIntervalLabel)}
                     hint={t(strings.settings.voiceInputSection.flushIntervalHint)}
                     control={(
-                      <div className="flex items-center gap-2">
-                        <input
-                          data-testid="vs-flush-interval"
-                          type="range"
-                          min={100}
-                          max={5000}
-                          step={50}
-                          value={vsConfig.flushIntervalMs}
-                          onChange={(event) => handleVsConfigChange({ flushIntervalMs: Number(event.target.value) })}
-                          className="w-24 accent-wc-accent"
-                        />
-                        <span className="w-12 text-end text-xs text-wc-text-muted">{t(strings.settings.voiceInputSection.msSuffix, { value: vsConfig.flushIntervalMs })}</span>
-                      </div>
+                      <SettingsSlider
+                        testId="vs-flush-interval"
+                        value={vsConfig.flushIntervalMs}
+                        onCommit={(next) => handleVsConfigChange({ flushIntervalMs: next })}
+                        min={100}
+                        max={5000}
+                        step={50}
+                        formatValue={(value) =>
+                          t(strings.settings.voiceInputSection.msSuffix, { value })
+                        }
+                      />
                     )}
                   />
 
@@ -1759,21 +1746,17 @@ export default function VoiceInputSection() {
                     label={t(strings.settings.voiceInputSection.minChunkLabel)}
                     hint={t(strings.settings.voiceInputSection.minChunkHint)}
                     control={(
-                      <div className="flex items-center gap-2">
-                        <input
-                          data-testid="vs-min-delta"
-                          type="range"
-                          min={512}
-                          max={32768}
-                          step={512}
-                          value={vsConfig.minDeltaBytes}
-                          onChange={(event) => handleVsConfigChange({ minDeltaBytes: Number(event.target.value) })}
-                          className="w-24 accent-wc-accent"
-                        />
-                        <span className="w-12 text-end text-xs text-wc-text-muted">
-                          {t(strings.settings.voiceInputSection.kbSuffix, { value: (vsConfig.minDeltaBytes / 1024).toFixed(1) })}
-                        </span>
-                      </div>
+                      <SettingsSlider
+                        testId="vs-min-delta"
+                        value={vsConfig.minDeltaBytes}
+                        onCommit={(next) => handleVsConfigChange({ minDeltaBytes: next })}
+                        min={512}
+                        max={32768}
+                        step={512}
+                        formatValue={(value) =>
+                          t(strings.settings.voiceInputSection.kbSuffix, { value: (value / 1024).toFixed(1) })
+                        }
+                      />
                     )}
                   />
 
@@ -1781,21 +1764,17 @@ export default function VoiceInputSection() {
                     label={t(strings.settings.voiceInputSection.overlapLabel)}
                     hint={t(strings.settings.voiceInputSection.overlapHint)}
                     control={(
-                      <div className="flex items-center gap-2">
-                        <input
-                          data-testid="vs-overlap"
-                          type="range"
-                          min={0}
-                          max={16384}
-                          step={256}
-                          value={vsConfig.overlapBytes}
-                          onChange={(event) => handleVsConfigChange({ overlapBytes: Number(event.target.value) })}
-                          className="w-24 accent-wc-accent"
-                        />
-                        <span className="w-12 text-end text-xs text-wc-text-muted">
-                          {t(strings.settings.voiceInputSection.kbSuffix, { value: (vsConfig.overlapBytes / 1024).toFixed(1) })}
-                        </span>
-                      </div>
+                      <SettingsSlider
+                        testId="vs-overlap"
+                        value={vsConfig.overlapBytes}
+                        onCommit={(next) => handleVsConfigChange({ overlapBytes: next })}
+                        min={0}
+                        max={16384}
+                        step={256}
+                        formatValue={(value) =>
+                          t(strings.settings.voiceInputSection.kbSuffix, { value: (value / 1024).toFixed(1) })
+                        }
+                      />
                     )}
                   />
 

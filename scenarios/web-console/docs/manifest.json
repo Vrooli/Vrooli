@@ -1043,6 +1043,18 @@
           "completion": "optional"
         },
         {
+          "path": "internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.md",
+          "docType": "design-note",
+          "title": "Snippets and Message Actions UX",
+          "description": "Mechanism and design record for sender-owned snippets, cross-group handoffs, and the governed message-action model",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "maturity": "active",
+          "completion": "optional"
+        },
+        {
           "path": "internal/INTEROP_AUDIT.md",
           "docType": "integration-audit",
           "title": "Interop Audit",

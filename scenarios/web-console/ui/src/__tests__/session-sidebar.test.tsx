@@ -419,3 +419,111 @@ describe("SessionSidebar", () => {
     await waitFor(() => { expect(useWorkspaceStore.getState().groups.map((g) => g.id)).toEqual(["g1"]); });
   });
 });
+
+describe("SessionSidebar swipe actions", () => {
+  const mobileProps = { ...baseProps, isMobile: true };
+
+  const renderRow = (overrides: Partial<typeof baseProps> = {}) => {
+    const items = buildWorkspaceNavigationItems({
+      panes: [pane("a", "transparent")],
+      groups: [],
+      activePane: "a",
+    });
+    return render(
+      <SessionSidebar {...mobileProps} {...overrides} buckets={asBuckets(items)} />,
+    );
+  };
+
+  /** Drives the reveal the way the browser delivers it: down on the face, the
+   *  rest on the window, far enough to pass the final threshold. */
+  const revealRow = () => {
+    const face = screen.getByTestId("sidebar-swipe-a.face");
+    fireEvent.pointerDown(face, {
+      pointerId: 1, clientX: 0, clientY: 0, button: 0, pointerType: "touch", timeStamp: 1,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 1, clientX: 260, clientY: 0, pointerType: "touch", timeStamp: 300,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 1, clientX: 260, clientY: 0, pointerType: "touch", timeStamp: 400,
+    });
+  };
+
+  it("wraps rows on touch", () => {
+    renderRow();
+    expect(screen.getByTestId("sidebar-swipe-a")).toBeInTheDocument();
+  });
+
+  // On a fine pointer the hover cluster already offers these, and a drag there
+  // would compete with text selection.
+  it("leaves rows unwrapped on a fine pointer", () => {
+    const items = buildWorkspaceNavigationItems({
+      panes: [pane("a", "transparent")],
+      groups: [],
+      activePane: "a",
+    });
+    render(<SessionSidebar {...baseProps} buckets={asBuckets(items)} />);
+    expect(screen.queryByTestId("sidebar-swipe-a")).toBeNull();
+  });
+
+  // The escape hatch SidebarShell publishes: without it every ancestor rule
+  // pins the row to pan-y and the browser cancels the drag as a scroll.
+  it("claims the inline axis so the drawer's own gesture does not swallow it", () => {
+    renderRow();
+    expect(screen.getByTestId("sidebar-swipe-a").hasAttribute("data-rcl-pan-x")).toBe(true);
+  });
+
+  it("reveals away from a start-anchored drawer", () => {
+    renderRow();
+    expect(screen.getByTestId("sidebar-swipe-a").getAttribute("data-reveal")).toBe("right");
+  });
+
+  it("offers exactly the three accelerated actions", () => {
+    renderRow();
+    for (const id of ["unread", "rename", "close"]) {
+      expect(screen.getByTestId(`sidebar-swipe-a.action.${id}`)).toBeInTheDocument();
+    }
+    expect(screen.queryByTestId("sidebar-swipe-a.action.delete")).toBeNull();
+  });
+
+  it("rests open rather than firing on release", () => {
+    const onClosePane = vi.fn();
+    renderRow({ onClosePane });
+    revealRow();
+    expect(screen.getByTestId("sidebar-swipe-a").getAttribute("data-open")).toBe("true");
+    expect(onClosePane).not.toHaveBeenCalled();
+  });
+
+  it("closes the pane when the revealed action is tapped", () => {
+    const onClosePane = vi.fn();
+    renderRow({ onClosePane });
+    revealRow();
+    fireEvent.click(screen.getByTestId("sidebar-swipe-a.action.close"));
+    expect(onClosePane).toHaveBeenCalledWith("a");
+  });
+
+  it("toggles unread through the store", () => {
+    // The unread flag lives on the store's pane record, not on the navigation
+    // item the sidebar renders from, so the record has to exist to be flipped.
+    useWorkspaceStore.setState({ panes: [pane("a", "transparent")] });
+    renderRow();
+    revealRow();
+    fireEvent.click(screen.getByTestId("sidebar-swipe-a.action.unread"));
+    expect(useWorkspaceStore.getState().panes.find((p) => p.sessionId === "a")?.manuallyUnread).toBe(true);
+  });
+
+  it("starts a rename in place", () => {
+    renderRow();
+    revealRow();
+    fireEvent.click(screen.getByTestId("sidebar-swipe-a.action.rename"));
+    expect(screen.getByTestId("sidebar-rename-input-a")).toBeInTheDocument();
+  });
+
+  // Every accelerated action must stay reachable without the gesture; the
+  // long-press menu is the complete surface the swipe is only a shortcut to.
+  it("keeps the long-press menu reachable alongside the gesture", () => {
+    renderRow();
+    fireEvent.contextMenu(screen.getByTestId("sidebar-session-a"));
+    expect(useWorkspaceStore.getState().tabContextMenu?.sessionId).toBe("a");
+  });
+});

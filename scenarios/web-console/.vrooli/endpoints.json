@@ -1328,6 +1328,78 @@
       ]
     },
     {
+      "id": "snippets_list",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/ListSnippets",
+      "method": "POST",
+      "summary": "List message snippets",
+      "description": "Returns snippets in pinned and recent-use order.",
+      "category": "snippets",
+      "response": {
+        "type": "object",
+        "properties": {
+          "snippets": "[]Snippet"
+        }
+      }
+    },
+    {
+      "id": "snippets_upsert",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/UpsertSnippet",
+      "method": "POST",
+      "summary": "Create or update a message snippet",
+      "description": "Upserts sender-owned reusable text by id and rejects a blank name.",
+      "category": "snippets",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank snippet name"
+        }
+      ]
+    },
+    {
+      "id": "snippets_delete",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/DeleteSnippet",
+      "method": "POST",
+      "summary": "Delete a message snippet",
+      "description": "Idempotently removes an ordinary snippet row.",
+      "category": "snippets"
+    },
+    {
+      "id": "snippets_touch",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/TouchSnippet",
+      "method": "POST",
+      "summary": "Record a snippet use",
+      "description": "Atomically increments use count and records the latest use time without rewriting content.",
+      "category": "snippets",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Snippet id does not exist"
+        }
+      ]
+    },
+    {
+      "id": "snippets_promote",
+      "path": "/vrooli.web_console.v1.snippets.SnippetsService/PromoteSnippet",
+      "method": "POST",
+      "summary": "Promote a snippet to a governed skill",
+      "description": "Copies the snippet name and body one way into prompt-manager without linking the records.",
+      "category": "snippets",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Snippet id does not exist"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "prompt-manager binary is not available"
+        }
+      ]
+    },
+    {
       "id": "shortcuts_get_effective",
       "path": "/vrooli.web_console.v1.shortcuts.ShortcutsService/GetEffective",
       "method": "POST",

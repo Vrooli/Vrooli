@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, GripVertical, MessageSquareText, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
+import { Archive, ArrowDownUp, ArrowLeft, ChevronRight, Circle, GripVertical, MessageSquareText, Pencil, Plus, Search, Settings, TerminalSquare, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import { cn } from "../lib/classnames";
 import { paneAccentStyle } from "../lib/paneColor";
 import type { OriginBucketNavigation } from "../lib/workspaceNavigation";
-import type { RoleMeta, SidebarOriginTab } from "../stores/useWorkspaceStore";
+import type { PaneMetadata, RoleMeta, SidebarOriginTab } from "../stores/useWorkspaceStore";
+import { SwipeActions, type SwipeAction } from "@vrooli/react-component-library/SwipeActions";
 import { useLongPress } from "../hooks/useLongPress";
 import { usePressGesture } from "../hooks/usePressGesture";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
@@ -134,6 +135,52 @@ export default function SessionSidebar({
     setPaneManuallyUnread(sessionId, next);
     syncPaneUpdate(sessionId, { manually_unread: next });
   }, [setPaneManuallyUnread, syncPaneUpdate]);
+  // Only one row rests open at a time; opening another closes the last.
+  const [swipeOpenPaneId, setSwipeOpenPaneId] = useState<string | null>(null);
+  /**
+   * The swipe track, drawn from the same set the long-press menu offers.
+   *
+   * Three at most: the track stops being readable past that, and every entry
+   * here must also be reachable without the gesture — a swipe is an accelerator
+   * over the menu, never the only route to an action. Ordered nearest-first, so
+   * the cheapest reversible action arms soonest and Close sits furthest away.
+   *
+   * Close is not guarded by a confirmation. It archives the session, and the
+   * archive view reopens it, so the destructive-looking action is already
+   * reversible through a first-class path; permanent deletion stays menu-only.
+   */
+  const swipeActionsFor = useCallback(
+    (pane: PaneMetadata): SwipeAction[] => [
+      {
+        id: "unread",
+        label: t(
+          pane.manuallyUnread
+            ? strings.sessionSidebar.swipeMarkRead
+            : strings.sessionSidebar.swipeMarkUnread,
+        ),
+        icon: <Circle className="h-4 w-4" aria-hidden />,
+        onSelect: () => { toggleManualUnread(pane.sessionId); },
+      },
+      {
+        id: "rename",
+        label: t(strings.tabContextMenu.rename),
+        icon: <Pencil className="h-4 w-4" aria-hidden />,
+        onSelect: () => {
+          setEditingPaneId(pane.sessionId);
+          setEditingPaneName(pane.name);
+        },
+      },
+      {
+        id: "close",
+        label: t(strings.tabContextMenu.closeTab),
+        icon: <X className="h-4 w-4" aria-hidden />,
+        tone: "destructive",
+        onSelect: () => { onClosePane(pane.sessionId); },
+      },
+    ],
+    [onClosePane, t, toggleManualUnread],
+  );
+
   const [editingPaneId, setEditingPaneId] = useState<string | null>(null);
   const [editingPaneName, setEditingPaneName] = useState("");
   const editingInputRef = useRef<HTMLInputElement>(null);
@@ -525,9 +572,8 @@ export default function SessionSidebar({
               </span>
             </>
           );
-          return (
+          const rowNode = (
             <div
-              key={pane.sessionId}
               data-pane-index={globalIndex}
               data-group-id={group?.id}
               className={cn(
@@ -608,6 +654,35 @@ export default function SessionSidebar({
                 </button>
               </div>
             </div>
+          );
+
+          // Touch only. On a fine pointer the hover cluster already offers
+          // these, and a drag there would compete with text selection.
+          if (!isMobile) return <div key={pane.sessionId}>{rowNode}</div>;
+
+          return (
+            <SwipeActions
+              key={pane.sessionId}
+              testId={`sidebar-swipe-${pane.sessionId}`}
+              // The wrapper clips the action track, so its corners must match
+              // the row's. A grouped row squares off the edges it shares with
+              // its neighbours, and a flat `rounded` here would let the track
+              // show through the corners the row does not actually round.
+              actions={swipeActionsFor(pane)}
+              label={t(strings.sessionSidebar.swipeActionsAria, { name: pane.name })}
+              open={swipeOpenPaneId === pane.sessionId}
+              onOpenChange={(next) => {
+                setSwipeOpenPaneId(next ? pane.sessionId : null);
+              }}
+              className={cn(
+                "rounded",
+                groupPosition === "first" && "rounded-t-none",
+                groupPosition === "middle" && "rounded-none",
+                (groupPosition === "last" || groupPosition === "single") && "rounded-t-none",
+              )}
+            >
+              {rowNode}
+            </SwipeActions>
           );
         })}
       </div> : (

@@ -12,7 +12,9 @@ import (
 	"web-console/internal/dbx"
 	"web-console/internal/grouptemplates"
 	"web-console/internal/handoffrules"
+	"web-console/internal/modules"
 	intsessions "web-console/internal/sessions"
+	"web-console/internal/snippets"
 
 	"github.com/vrooli/api-core/database"
 )
@@ -23,10 +25,12 @@ import (
 // test pool installed at runtime, which is what makes a test-mode request find
 // tables.
 func schemaProviders() ([]database.SchemaProvider, error) {
-	return []database.SchemaProvider{
+	providers := []database.SchemaProvider{
 		database.SchemaProviderFunc(intsessions.Schema),
 		database.SchemaProviderFunc(intsessions.Seed),
-	}, nil
+	}
+	providers = append(providers, modules.AllSchemas()...)
+	return providers, nil
 }
 
 // initSchema applies the schema, seed, and forward-only migrations to db.
@@ -106,6 +110,9 @@ func seedExampleContent(ctx context.Context, db dbx.Handle) error {
 	}
 	if err := handoffrules.SeedExamples(ctx, handoffrules.NewSQLStore(db)); err != nil {
 		log.Printf("seed: handoff rule example: %v", err)
+	}
+	if err := snippets.SeedExamples(ctx, snippets.NewSQLStore(db)); err != nil {
+		log.Printf("seed: snippet examples: %v", err)
 	}
 	return nil
 }

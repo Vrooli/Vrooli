@@ -73,9 +73,18 @@ describe("AudioSettingsContent", () => {
   });
 
   it("uses amber accent on volume slider when summarized", () => {
-    renderContent({ isSummarized: true });
-    const slider = screen.getByTestId("x-volume-slider");
-    expect(slider.className).toMatch(/accent-amber-400/);
+    const { container } = renderContent({ isSummarized: true });
+    // The control is token-bound, so the summarized hue arrives by retinting
+    // its primary token rather than by a Tailwind accent-color class.
+    const tinted = container.querySelector<HTMLElement>('[style*="--color-primary"]');
+    expect(tinted).not.toBeNull();
+    expect(tinted?.style.getPropertyValue("--color-primary")).toBe("#fbbf24");
+    expect(tinted?.contains(screen.getByTestId("x-volume-slider"))).toBe(true);
+  });
+
+  it("leaves the volume slider on the standard accent when not summarized", () => {
+    const { container } = renderContent({ isSummarized: false });
+    expect(container.querySelector('[style*="--color-primary"]')).toBeNull();
   });
 
   it("does NOT render a summarized/original toggle (that moved to PlaybackModeControl)", () => {

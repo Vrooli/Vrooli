@@ -6,6 +6,7 @@ import { groupIdForDropPosition, orderPanesByGroupBlocks } from "../lib/workspac
 import type { ClosedGroupSnapshot } from "../lib/groupLifecycle";
 import { DEFAULT_THEME_ID, TERMINAL_FONT_SIZE } from "../consts/config";
 import { DEFAULT_WAKE_WORD_THRESHOLD } from "../audio-integration/hooks/voice/wakeword/types";
+import type { AnchorEdge } from "@vrooli/react-component-library/useHandedness";
 // Auto-stop / segment silence defaults come from the audio-integration package
 // so the store can never carry a value that disagrees with the client VAD
 // fallback (or, transitively, the audio-tools server). See vad.ts.
@@ -193,6 +194,15 @@ interface WorkspaceState {
   recentHeaderColors: string[];
   /** Sidebar session ordering mode. View-only except "manual". */
   sidebarSortMode: SidebarSortMode;
+  /**
+   * Which edge drawers anchor to, and therefore which way their gestures run.
+   *
+   * An ergonomic preference, not a locale one: it moves the drawer within thumb
+   * reach without mirroring the interface's text, which is what changing the
+   * writing direction would do instead.
+   */
+  handedness: AnchorEdge;
+  setHandedness: (value: AnchorEdge) => void;
   /** Lifecycle view; archive is separate from the provenance tab axis. */
   sidebarView: SidebarView;
   /** Active origin tab in the sidebar. Only meaningful while the tab strip is
@@ -480,6 +490,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
       recentCombos: [],
       recentHeaderColors: [],
       sidebarSortMode: "manual",
+      handedness: "inline-start",
       sidebarView: "list",
       sidebarOriginTab: "ui",
       adaptiveChrome: true,
@@ -517,6 +528,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         }),
 
       setSidebarSortMode: (mode) => set({ sidebarSortMode: mode }),
+      setHandedness: (value) => { set({ handedness: value }); },
       setSidebarView: (view) => set({ sidebarView: view }),
       setSidebarOriginTab: (tab) => set({ sidebarOriginTab: tab }),
       setAdaptiveChrome: (enabled) => set({ adaptiveChrome: enabled }),
@@ -883,6 +895,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         if (version < 15) {
           state.recentHeaderColors ??= [];
           state.sidebarSortMode ??= "manual";
+          state.handedness ??= "inline-start";
         }
         if (version < 16) {
           state.adaptiveChrome ??= true;
@@ -944,6 +957,7 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         recentCombos: state.recentCombos,
         recentHeaderColors: state.recentHeaderColors,
         sidebarSortMode: state.sidebarSortMode,
+        handedness: state.handedness,
         sidebarView: state.sidebarView,
         sidebarOriginTab: state.sidebarOriginTab,
         adaptiveChrome: state.adaptiveChrome,

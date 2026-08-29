@@ -381,6 +381,93 @@
       ]
     },
     {
+      "name": "snippet",
+      "description": "Manage sender-owned reusable message snippets",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List saved snippets",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SnippetsService",
+            "method": "ListSnippets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "upsert",
+          "description": "Create or update a snippet (--body-file PATH)",
+          "flags": [
+            {
+              "name": "body-file",
+              "description": "Path to a JSON body (required)"
+            },
+            {
+              "name": "pinned",
+              "bool": true,
+              "description": "Explicitly pin the snippet"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SnippetsService",
+            "method": "UpsertSnippet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a snippet idempotently",
+          "positionals": [
+            {
+              "name": "snippet-id",
+              "required": true,
+              "description": "Snippet ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SnippetsService",
+            "method": "DeleteSnippet"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "touch",
+          "description": "Record that a snippet was used",
+          "positionals": [
+            {
+              "name": "snippet-id",
+              "required": true,
+              "description": "Snippet ID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SnippetsService",
+            "method": "TouchSnippet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "group-template",
       "description": "Manage saved group templates (role recipes)",
       "commands": [
@@ -1599,6 +1686,11 @@
     }
   ],
   "omitted": [
+    {
+      "service": "SnippetsService",
+      "method": "PromoteSnippet",
+      "reason": "Promotion is an explicit settings UI flow with a three-fact confirmation; the ordinary snippet CLI intentionally does not bypass that confirmation."
+    },
     {
       "service": "ConversationService",
       "method": "GetRange",

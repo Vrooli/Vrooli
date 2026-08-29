@@ -35,6 +35,11 @@ Requirements are linked to PRD operational targets using the `prd_ref` field.
 | P2 | OT-P2-001 | Collaborative Session Modes | 0 |
 | P2 | OT-P2-002 | Persisted Workspace Presets | 0 |
 
+Module 15 adds eight cross-cutting requirements for message snippets, handoff
+reach, and governed message actions. They link to the existing pane, mobile
+toolbar, and controls-surface targets rather than introducing a parallel PRD
+target hierarchy.
+
 ## Auto-sync Behavior
 
 Requirements are linked to PRD operational targets via the `prd_ref` field. When operational targets are updated in the PRD:

@@ -95,6 +95,7 @@ export default function ToolbarCustomizer() {
     mic: t(strings.mobileToolbar.controls.mic),
     image: t(strings.mobileToolbar.uploadImageTitle),
     ai: t(strings.mobileToolbar.aiCommandTitle),
+    snippets: t(strings.snippets.picker.title),
   }), [t]);
 
   /**

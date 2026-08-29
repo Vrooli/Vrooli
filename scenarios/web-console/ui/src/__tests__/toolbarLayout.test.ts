@@ -262,10 +262,11 @@ describe("toolbar presets", () => {
     }
   });
 
-  it("keep More and image upload on, and AI off, by default", () => {
+  it("keeps More, snippets, and image upload on, and AI off, by default", () => {
     for (const preset of PRESETS) {
       const { enabled } = TOOLBAR_PRESETS[preset];
       expect(enabled.more).toBe(true);
+      expect(enabled.snippets).toBe(true);
       expect(enabled.image).toBe(true);
       expect(enabled.ai).toBe(false);
     }
@@ -305,6 +306,12 @@ describe("normalizeToolbarPrefs", () => {
     const result = normalizeToolbarPrefs({ enabled: { ai: true, "shortcut:ghost": true } });
     expect(result.enabled.ai).toBe(true);
     expect(result.enabled["shortcut:ghost"]).toBeUndefined();
+  });
+
+  it("enables a newly registered snippet control for older persisted preferences", () => {
+    const result = normalizeToolbarPrefs({ enabled: { image: false } });
+    expect(result.enabled.snippets).toBe(true);
+    expect(result.enabled.image).toBe(false);
   });
 });
 

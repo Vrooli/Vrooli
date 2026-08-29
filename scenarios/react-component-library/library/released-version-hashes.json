@@ -5150,6 +5150,66 @@
       "sha256": "0825a7e1c2e01e7fa1ff6f7643fb69456d28074dd76e064a61ae1e476e068fdf"
     },
     {
+      "path": "components/Slider/versions/1.0.1/Slider.tsx",
+      "sha256": "9596fdc3363c838a65527146781d6c420073816c88f5db10c6daf5def98373db"
+    },
+    {
+      "path": "components/Slider/versions/1.0.1/dependencies.json",
+      "sha256": "dd4b558d49954cb8009d57478957ae3c0d46b3dfddf65184cb5530669479caab"
+    },
+    {
+      "path": "components/Slider/versions/1.0.1/experience-contract.json",
+      "sha256": "f2bd2ccdfc858615b85186cabceda78bf397f9e94b06d2fe63eca7e664c10222"
+    },
+    {
+      "path": "components/Slider/versions/1.0.1/story.json",
+      "sha256": "0a302d6d1c3ff50bccb40ec1e955da1fdb857ff4428ea7fa43130bef42205886"
+    },
+    {
+      "path": "components/Slider/versions/1.0.1/story.tsx",
+      "sha256": "0b6787d622273c9ae4173324f755627f1666a825ceab41ada078e70aa4b0a713"
+    },
+    {
+      "path": "components/Slider/versions/1.0.2/Slider.tsx",
+      "sha256": "f08a168753ed4897651b4fec46cd207af6a6ac6644ddf55f0ba7acf2e1ea04c6"
+    },
+    {
+      "path": "components/Slider/versions/1.0.2/dependencies.json",
+      "sha256": "c3f59b1be84b354d6a174c59f87101896b6cb86a600d3f2db07015a62a88c9b4"
+    },
+    {
+      "path": "components/Slider/versions/1.0.2/experience-contract.json",
+      "sha256": "f2bd2ccdfc858615b85186cabceda78bf397f9e94b06d2fe63eca7e664c10222"
+    },
+    {
+      "path": "components/Slider/versions/1.0.2/story.json",
+      "sha256": "0a302d6d1c3ff50bccb40ec1e955da1fdb857ff4428ea7fa43130bef42205886"
+    },
+    {
+      "path": "components/Slider/versions/1.0.2/story.tsx",
+      "sha256": "0b6787d622273c9ae4173324f755627f1666a825ceab41ada078e70aa4b0a713"
+    },
+    {
+      "path": "components/Slider/versions/1.1.0/Slider.tsx",
+      "sha256": "0065e9b6aa68ee7f6105cf9d5551eb67fbc726b5ca9f466aea8d61aad4370f4e"
+    },
+    {
+      "path": "components/Slider/versions/1.1.0/dependencies.json",
+      "sha256": "741ff379c8606eb2478390da0ea489b55ddb8b5ff1ffdee76cd2332858bef64b"
+    },
+    {
+      "path": "components/Slider/versions/1.1.0/experience-contract.json",
+      "sha256": "f2bd2ccdfc858615b85186cabceda78bf397f9e94b06d2fe63eca7e664c10222"
+    },
+    {
+      "path": "components/Slider/versions/1.1.0/story.json",
+      "sha256": "0a302d6d1c3ff50bccb40ec1e955da1fdb857ff4428ea7fa43130bef42205886"
+    },
+    {
+      "path": "components/Slider/versions/1.1.0/story.tsx",
+      "sha256": "0b6787d622273c9ae4173324f755627f1666a825ceab41ada078e70aa4b0a713"
+    },
+    {
       "path": "components/Sortable/versions/1.0.4/Sortable.strings.ts",
       "sha256": "15c60dc11f51d3b4872b2ca31f1fb1f0d7d63add0c6613f24ecba92cd351bd76"
     },
@@ -5574,6 +5634,54 @@
       "sha256": "f16a9332f4951aab7e31a0d1d64462a333393379ec01e258885a10b99fd84893"
     },
     {
+      "path": "components/Switch/versions/1.0.10/Switch.strings.ts",
+      "sha256": "d7762e3f1187340f085a48102d1ce5ffc59153ff2d42a1b59c3104163e0389d1"
+    },
+    {
+      "path": "components/Switch/versions/1.0.10/Switch.tsx",
+      "sha256": "ba192ad4ca561200607f47c89d730a32e34cafd103c99ef013f90a30da09998f"
+    },
+    {
+      "path": "components/Switch/versions/1.0.10/dependencies.json",
+      "sha256": "47857258d9483709d68bf66ebbea9f90b1d453dad1a319cc0cd61c9692899b22"
+    },
+    {
+      "path": "components/Switch/versions/1.0.10/experience-contract.json",
+      "sha256": "8137a4586beb56f22df65707e280f93272819fb5cc0c249ccfa416e11455d7a3"
+    },
+    {
+      "path": "components/Switch/versions/1.0.10/story.json",
+      "sha256": "10871b0ff7113a777f25b9b83d578b53da1d82eb0693d118df7a202295fb6060"
+    },
+    {
+      "path": "components/Switch/versions/1.0.10/story.tsx",
+      "sha256": "a9b826fa08baec96946187751b8ff0b5874fec61c346c96d0a6ab74d50f09c02"
+    },
+    {
+      "path": "components/Switch/versions/1.0.11/Switch.strings.ts",
+      "sha256": "d7762e3f1187340f085a48102d1ce5ffc59153ff2d42a1b59c3104163e0389d1"
+    },
+    {
+      "path": "components/Switch/versions/1.0.11/Switch.tsx",
+      "sha256": "42f379ebd6b73091fdb561fc91d55374bbb9f0491e6da17b875a604ad478771e"
+    },
+    {
+      "path": "components/Switch/versions/1.0.11/dependencies.json",
+      "sha256": "7aa46d8bfda89621feab8641b91d4de8e756dde5bc490313f072cec32689cc9f"
+    },
+    {
+      "path": "components/Switch/versions/1.0.11/experience-contract.json",
+      "sha256": "8137a4586beb56f22df65707e280f93272819fb5cc0c249ccfa416e11455d7a3"
+    },
+    {
+      "path": "components/Switch/versions/1.0.11/story.json",
+      "sha256": "10871b0ff7113a777f25b9b83d578b53da1d82eb0693d118df7a202295fb6060"
+    },
+    {
+      "path": "components/Switch/versions/1.0.11/story.tsx",
+      "sha256": "a9b826fa08baec96946187751b8ff0b5874fec61c346c96d0a6ab74d50f09c02"
+    },
+    {
       "path": "components/Switch/versions/1.0.5/Switch.strings.ts",
       "sha256": "b8bfc75113c9d107eeff45e2b82a83ba7b2e3efe06623eb1bc5607d78df41f87"
     },
@@ -5592,6 +5700,102 @@
     {
       "path": "components/Switch/versions/1.0.5/story.tsx",
       "sha256": "270e8eb1f758cb67705c70a9a2423c637bc60222c41cee5222ac733167fcb6ab"
+    },
+    {
+      "path": "components/Switch/versions/1.0.6/Switch.strings.ts",
+      "sha256": "d7762e3f1187340f085a48102d1ce5ffc59153ff2d42a1b59c3104163e0389d1"
+    },
+    {
+      "path": "components/Switch/versions/1.0.6/Switch.tsx",
+      "sha256": "18640999a0928123ece8b3b7edee569ea276be619fedd7b80fbe47b3e62828ed"
+    },
+    {
+      "path": "components/Switch/versions/1.0.6/dependencies.json",
+      "sha256": "576e7a115560a6d1072d7e5c52255326188ef3a8e5329d204c20b12dc93aeb41"
+    },
+    {
+      "path": "components/Switch/versions/1.0.6/experience-contract.json",
+      "sha256": "f935d57f4a5c7f9c2d7d234b26141dcc31bb1cdee8fda06d7c939e33c14dd306"
+    },
+    {
+      "path": "components/Switch/versions/1.0.6/story.json",
+      "sha256": "10871b0ff7113a777f25b9b83d578b53da1d82eb0693d118df7a202295fb6060"
+    },
+    {
+      "path": "components/Switch/versions/1.0.6/story.tsx",
+      "sha256": "402a2be5a69c25f39c0457cb5ce04a106faed33fa06b7e3323afd5fd30318b03"
+    },
+    {
+      "path": "components/Switch/versions/1.0.7/Switch.strings.ts",
+      "sha256": "d7762e3f1187340f085a48102d1ce5ffc59153ff2d42a1b59c3104163e0389d1"
+    },
+    {
+      "path": "components/Switch/versions/1.0.7/Switch.tsx",
+      "sha256": "211b2d48986de98b7e2fb146ea89828b33fa36e687543670fe3a93fbd522d317"
+    },
+    {
+      "path": "components/Switch/versions/1.0.7/dependencies.json",
+      "sha256": "97e793a36a5f1943e8479b07ce55003915785a0764ae902cfdfc0502c25484f0"
+    },
+    {
+      "path": "components/Switch/versions/1.0.7/experience-contract.json",
+      "sha256": "4cbc5f0aa77ae7355abbd7742ed1a551a1e4cd1dad5697a0fc35476c178abe60"
+    },
+    {
+      "path": "components/Switch/versions/1.0.7/story.json",
+      "sha256": "10871b0ff7113a777f25b9b83d578b53da1d82eb0693d118df7a202295fb6060"
+    },
+    {
+      "path": "components/Switch/versions/1.0.7/story.tsx",
+      "sha256": "a9b826fa08baec96946187751b8ff0b5874fec61c346c96d0a6ab74d50f09c02"
+    },
+    {
+      "path": "components/Switch/versions/1.0.8/Switch.strings.ts",
+      "sha256": "d7762e3f1187340f085a48102d1ce5ffc59153ff2d42a1b59c3104163e0389d1"
+    },
+    {
+      "path": "components/Switch/versions/1.0.8/Switch.tsx",
+      "sha256": "06e3c8a07d84e60f36d77cc69ad3b740e60b61735786f3f093ac8403d5fad961"
+    },
+    {
+      "path": "components/Switch/versions/1.0.8/dependencies.json",
+      "sha256": "82a19768f6a72c2b8d33166271592cbef2a1c0b14831596d7e13d19ee9182768"
+    },
+    {
+      "path": "components/Switch/versions/1.0.8/experience-contract.json",
+      "sha256": "8137a4586beb56f22df65707e280f93272819fb5cc0c249ccfa416e11455d7a3"
+    },
+    {
+      "path": "components/Switch/versions/1.0.8/story.json",
+      "sha256": "10871b0ff7113a777f25b9b83d578b53da1d82eb0693d118df7a202295fb6060"
+    },
+    {
+      "path": "components/Switch/versions/1.0.8/story.tsx",
+      "sha256": "a9b826fa08baec96946187751b8ff0b5874fec61c346c96d0a6ab74d50f09c02"
+    },
+    {
+      "path": "components/Switch/versions/1.0.9/Switch.strings.ts",
+      "sha256": "d7762e3f1187340f085a48102d1ce5ffc59153ff2d42a1b59c3104163e0389d1"
+    },
+    {
+      "path": "components/Switch/versions/1.0.9/Switch.tsx",
+      "sha256": "47253816ed1831c9f38ab1fcce83021fcf7f36426eeac141c941b3833ded89c5"
+    },
+    {
+      "path": "components/Switch/versions/1.0.9/dependencies.json",
+      "sha256": "564b82bb6a3503f6a24cd778fc5d85b8f7894dd431dca34d71eb54c54f2d8fcd"
+    },
+    {
+      "path": "components/Switch/versions/1.0.9/experience-contract.json",
+      "sha256": "8137a4586beb56f22df65707e280f93272819fb5cc0c249ccfa416e11455d7a3"
+    },
+    {
+      "path": "components/Switch/versions/1.0.9/story.json",
+      "sha256": "10871b0ff7113a777f25b9b83d578b53da1d82eb0693d118df7a202295fb6060"
+    },
+    {
+      "path": "components/Switch/versions/1.0.9/story.tsx",
+      "sha256": "a9b826fa08baec96946187751b8ff0b5874fec61c346c96d0a6ab74d50f09c02"
     },
     {
       "path": "components/Table/versions/1.0.0/Table.tsx",
@@ -8228,6 +8432,126 @@
     {
       "path": "primitives/SelectionControl/versions/1.0.1/story.tsx",
       "sha256": "c52aa15dd84f74790b26fa0e40efa5e3d6c3e48e4c1c53e94bae566901fec695"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.2/SelectionControl.tsx",
+      "sha256": "520d3dfdd4de59b9447f029a457cb3e20c57f402925586fad80eee41a175cadd"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.2/dependencies.json",
+      "sha256": "c069b96f861c5a26f8f5548a8deac956a13af66d353f6649a63c21c1fc28629e"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.2/experience-contract.json",
+      "sha256": "4795019030ae8e6ac2513c45491029b09fad85a639a138158a71e3887771894b"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.2/story.json",
+      "sha256": "0eacc3fecd39da23a00e2474647a6a2399d995939f4a67fece872cf48d79b7aa"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.2/story.tsx",
+      "sha256": "49e60e1f01eb2809175195fc633990fb7c7693d51856e34b0dc7e4f458d8fd46"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.3/SelectionControl.tsx",
+      "sha256": "d934a190221a3db628049c1bdccda14ab8f847dc3a7886215ce88b90f4ef8882"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.3/dependencies.json",
+      "sha256": "23008324947b90fad2593d7e5d88bcf7cffd9e24b4e0b7f2049b3b3238fb565d"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.3/experience-contract.json",
+      "sha256": "6ff32d20f6801eb7d33b8768a10aae25298c5bd31d6b452e46a6e4cbe04b9ed6"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.3/story.json",
+      "sha256": "1ac933aa82f6f79ad6ab688c520d8da21cddd0c75673231942aed96965fa21a3"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.3/story.tsx",
+      "sha256": "a841cc55b204aa1be18ca0bdf0ead5bb2f04db62a3879ec2f07452eabfc8fa3e"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.4/SelectionControl.tsx",
+      "sha256": "e56cf0f9637d4174f3b348c276e285a0441fa2afcea26eb0c8cfcacdfe421f23"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.4/dependencies.json",
+      "sha256": "fe61efa629a1df0ab6442c93a9ad520d8d4106054643dbc5b670aebb822061f3"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.4/experience-contract.json",
+      "sha256": "6ff32d20f6801eb7d33b8768a10aae25298c5bd31d6b452e46a6e4cbe04b9ed6"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.4/story.json",
+      "sha256": "1ac933aa82f6f79ad6ab688c520d8da21cddd0c75673231942aed96965fa21a3"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.4/story.tsx",
+      "sha256": "a841cc55b204aa1be18ca0bdf0ead5bb2f04db62a3879ec2f07452eabfc8fa3e"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.5/SelectionControl.tsx",
+      "sha256": "d92dea6fa0a89f0cdd9f9b5fd8cba3767dca9ada901709d3400bcf093b0a9982"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.5/dependencies.json",
+      "sha256": "cc5bbb9d004a6f2bb5c73a7c3be5f683e303fbfcabbc56267c263588ab568511"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.5/experience-contract.json",
+      "sha256": "6ff32d20f6801eb7d33b8768a10aae25298c5bd31d6b452e46a6e4cbe04b9ed6"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.5/story.json",
+      "sha256": "1ac933aa82f6f79ad6ab688c520d8da21cddd0c75673231942aed96965fa21a3"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.5/story.tsx",
+      "sha256": "a841cc55b204aa1be18ca0bdf0ead5bb2f04db62a3879ec2f07452eabfc8fa3e"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.6/SelectionControl.tsx",
+      "sha256": "d4e1e43db6f18cf4ca7d1290227327fc48f20ff2e3813ab8972ec990577c5ef4"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.6/dependencies.json",
+      "sha256": "f1eb9f99fec8e4a398177c369d29c63541eab8b4d16394d64fa3055d082da95d"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.6/experience-contract.json",
+      "sha256": "6ff32d20f6801eb7d33b8768a10aae25298c5bd31d6b452e46a6e4cbe04b9ed6"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.6/story.json",
+      "sha256": "1ac933aa82f6f79ad6ab688c520d8da21cddd0c75673231942aed96965fa21a3"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.6/story.tsx",
+      "sha256": "a841cc55b204aa1be18ca0bdf0ead5bb2f04db62a3879ec2f07452eabfc8fa3e"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.7/SelectionControl.tsx",
+      "sha256": "beb4bfedfac4f34c7de83ae8b5993f296133e0f94fdc96d65d6044c995677437"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.7/dependencies.json",
+      "sha256": "6fcf263da99e51de874f3da1da62e91e78ed2877c2c5f91afcc8c4d56ca6cd79"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.7/experience-contract.json",
+      "sha256": "6ff32d20f6801eb7d33b8768a10aae25298c5bd31d6b452e46a6e4cbe04b9ed6"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.7/story.json",
+      "sha256": "1ac933aa82f6f79ad6ab688c520d8da21cddd0c75673231942aed96965fa21a3"
+    },
+    {
+      "path": "primitives/SelectionControl/versions/1.0.7/story.tsx",
+      "sha256": "a841cc55b204aa1be18ca0bdf0ead5bb2f04db62a3879ec2f07452eabfc8fa3e"
     },
     {
       "path": "primitives/Separator/versions/1.0.1/Separator.css",

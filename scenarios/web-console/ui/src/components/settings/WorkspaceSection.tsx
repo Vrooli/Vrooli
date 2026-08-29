@@ -1,11 +1,17 @@
-import { LayoutGrid, LayoutList, PanelLeft } from "lucide-react";
+import { LayoutGrid, LayoutList, PanelLeft, PanelRight } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useWakeLockStatus } from "../../stores/useWakeLockStatus";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
-import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
+import {
+  SettingsCard,
+  SettingsRow,
+  SettingsSectionIntro,
+  SettingsSlider,
+  SettingsToggle,
+} from "./primitives";
 import LocaleSwitcher from "../LocaleSwitcher";
 import ToolbarCustomizer from "./ToolbarCustomizer";
 import { deviceIdentity, setDeviceLabel } from "../../lib/deviceIdentity";
@@ -33,6 +39,8 @@ export default function WorkspaceSection() {
   const setDisplayMode = useWorkspaceStore((state) => state.setDisplayMode);
   const keepScreenAwake = useWorkspaceStore((state) => state.keepScreenAwake);
   const setKeepScreenAwake = useWorkspaceStore((state) => state.setKeepScreenAwake);
+  const handedness = useWorkspaceStore((state) => state.handedness);
+  const setHandedness = useWorkspaceStore((state) => state.setHandedness);
   const adaptiveChrome = useWorkspaceStore((state) => state.adaptiveChrome);
   const setAdaptiveChrome = useWorkspaceStore((state) => state.setAdaptiveChrome);
   const touchScrollSensitivity = useWorkspaceStore((state) => state.touchScrollSensitivity);
@@ -113,6 +121,41 @@ export default function WorkspaceSection() {
           )}
         />
 
+        {/* Which edge drawers open from, and therefore which way their
+            gestures run. This is a reach preference, not a language one: it
+            moves the drawer without mirroring any text. Changing the interface
+            language is what mirrors text, and it is applied on top of this. */}
+        <SettingsRow
+          label={t(strings.settings.workspaceSection.handednessLabel)}
+          hint={t(strings.settings.workspaceSection.handednessHint)}
+          control={(
+            <div className="flex gap-1">
+              <Button
+                data-testid="handedness-inline-start"
+                variant={handedness === "inline-start" ? "default" : "outline"}
+                size="sm"
+                className="h-8 px-3"
+                aria-pressed={handedness === "inline-start"}
+                onClick={() => { setHandedness("inline-start"); }}
+              >
+                <PanelLeft className="me-1 h-3.5 w-3.5" />
+                {t(strings.settings.workspaceSection.handednessStart)}
+              </Button>
+              <Button
+                data-testid="handedness-inline-end"
+                variant={handedness === "inline-end" ? "default" : "outline"}
+                size="sm"
+                className="h-8 px-3"
+                aria-pressed={handedness === "inline-end"}
+                onClick={() => { setHandedness("inline-end"); }}
+              >
+                <PanelRight className="me-1 h-3.5 w-3.5" />
+                {t(strings.settings.workspaceSection.handednessEnd)}
+              </Button>
+            </div>
+          )}
+        />
+
         {/* The toolbar has three independent choices — which controls, how
             large, how many rows — so it gets a block of its own rather than a
             SettingsRow's single control slot. */}
@@ -136,7 +179,7 @@ export default function WorkspaceSection() {
               <SettingsToggle
                 testId="minimap-toggle"
                 checked={isMinimapVisible}
-                onClick={() => setMinimapVisible(!isMinimapVisible)}
+                onCheckedChange={setMinimapVisible}
               />
             )}
           />
@@ -148,7 +191,7 @@ export default function WorkspaceSection() {
             <SettingsToggle
               testId="adaptive-chrome-toggle"
               checked={adaptiveChrome}
-              onClick={() => setAdaptiveChrome(!adaptiveChrome)}
+              onCheckedChange={setAdaptiveChrome}
             />
           )}
         />
@@ -156,20 +199,32 @@ export default function WorkspaceSection() {
           label="Touch scroll sensitivity"
           hint="Adjust finger and trackpad scrolling independently."
           control={(
-            <label className="flex items-center gap-2 text-xs text-wc-text-secondary">
-              <input aria-label="Touch scroll sensitivity" type="range" min="0.1" max="4" step="0.1" value={touchScrollSensitivity} onChange={(event) => setTouchScrollSensitivity(Number(event.target.value))} />
-              {touchScrollSensitivity.toFixed(1)}
-            </label>
+            <SettingsSlider
+              testId="touch-scroll-sensitivity"
+              value={touchScrollSensitivity}
+              onCommit={setTouchScrollSensitivity}
+              min={0.1}
+              max={4}
+              step={0.1}
+              defaultMarker={1}
+              formatValue={(value) => value.toFixed(1)}
+            />
           )}
         />
         <SettingsRow
           label="Wheel scroll sensitivity"
           hint="Adjust mouse-wheel scrolling independently."
           control={(
-            <label className="flex items-center gap-2 text-xs text-wc-text-secondary">
-              <input aria-label="Wheel scroll sensitivity" type="range" min="0.1" max="4" step="0.1" value={wheelScrollSensitivity} onChange={(event) => setWheelScrollSensitivity(Number(event.target.value))} />
-              {wheelScrollSensitivity.toFixed(1)}
-            </label>
+            <SettingsSlider
+              testId="wheel-scroll-sensitivity"
+              value={wheelScrollSensitivity}
+              onCommit={setWheelScrollSensitivity}
+              min={0.1}
+              max={4}
+              step={0.1}
+              defaultMarker={1}
+              formatValue={(value) => value.toFixed(1)}
+            />
           )}
         />
         <div className="flex justify-end">
@@ -184,7 +239,7 @@ export default function WorkspaceSection() {
             <SettingsToggle
               testId="tmux-mouse-mode-default-toggle"
               checked={tmuxMouseMode}
-              onClick={() => setTmuxMouseMode(!tmuxMouseMode)}
+              onCheckedChange={setTmuxMouseMode}
             />
           )}
         />
@@ -192,10 +247,15 @@ export default function WorkspaceSection() {
           label="Prediction latency threshold"
           hint="Underline speculative characters only when round-trip latency exceeds this value."
           control={(
-            <label className="flex items-center gap-2 text-xs text-wc-text-secondary">
-              <input aria-label="Prediction latency threshold" type="range" min="0" max="1000" step="5" value={predictionLatencyThresholdMs} onChange={(event) => setPredictionLatencyThresholdMs(Number(event.target.value))} />
-              {predictionLatencyThresholdMs} ms
-            </label>
+            <SettingsSlider
+              testId="prediction-latency-threshold"
+              value={predictionLatencyThresholdMs}
+              onCommit={setPredictionLatencyThresholdMs}
+              min={0}
+              max={1000}
+              step={5}
+              formatValue={(value) => `${String(value)} ms`}
+            />
           )}
         />
         <SettingsRow
@@ -216,7 +276,7 @@ export default function WorkspaceSection() {
             <SettingsToggle
               testId="keep-screen-awake-toggle"
               checked={keepScreenAwake}
-              onClick={() => setKeepScreenAwake(!keepScreenAwake)}
+              onCheckedChange={setKeepScreenAwake}
             />
           )}
         />

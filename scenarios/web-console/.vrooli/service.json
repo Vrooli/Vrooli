@@ -3,6 +3,100 @@
   "version": "1.0.0",
   "storage": {
     "entries": {
+      "web-console-db": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "web-console.db",
+        "format": "sqlite",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "2GiB",
+          "rationale": "Conversation history, workspace state, shortcuts, provider configuration, and sender-owned snippets share the scenario database; 2 GiB bounds unexpected growth without making durable operator data reclaimable."
+        },
+        "rationale": "Primary durable SQLite database owned by Web Console."
+      },
+      "web-console-db-wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "web-console.db-wal",
+        "format": "sqlite",
+        "regenerable": true,
+        "rationale": "SQLite write-ahead log sidecar for the durable Web Console database."
+      },
+      "web-console-db-shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "web-console.db-shm",
+        "format": "sqlite",
+        "regenerable": true,
+        "rationale": "SQLite shared-memory sidecar for the durable Web Console database."
+      },
+      "recovery-snapshots": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "recovery-snapshots",
+        "regenerable": false,
+        "budget": {
+          "max_bytes": "1GiB",
+          "rationale": "Recovery snapshots preserve operator data across hardening and repair operations; the ceiling detects runaway snapshot accumulation without authorizing automatic deletion."
+        },
+        "rationale": "Protected SQLite recovery copies created before potentially destructive repair."
+      },
+      "deployment-report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "deployment/deployment-report.json",
+        "format": "json",
+        "regenerable": false,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Retain the most recent deployment evidence for operational review."
+        },
+        "rationale": "Lifecycle deployment evidence written beneath the scenario data root."
+      },
+      "routed-agent-runs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "runs",
+        "regenerable": false,
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Run metadata supports recovery and attribution for programmatic sessions and follows the transcript review window."
+        },
+        "rationale": "Run metadata created by bounded agent-manager operations routed through Web Console's scenario storage lease."
+      },
+      "routed-control-plane-keys": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "subpath": "control-plane-keys",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {
+          "max_bytes": "4KiB",
+          "rationale": "The routed Ed25519 keypair is a small stable secret; this bound catches unrelated writes without rotating identity."
+        },
+        "rationale": "Control-plane signing identity created inside Web Console's routed storage boundary."
+      },
+      "routed-agent-identity": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "subpath": "identity-secret.key",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {
+          "max_bytes": "1KiB",
+          "rationale": "The routed agent identity secret is a single small stable key; this bound detects unrelated content without rotating identity."
+        },
+        "rationale": "Agent identity secret created inside Web Console's routed storage boundary."
+      },
       "session-rollouts": {
         "rung": "owned",
         "kind": "dir",

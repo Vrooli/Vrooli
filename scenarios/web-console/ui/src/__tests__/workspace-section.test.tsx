@@ -126,8 +126,12 @@ describe("WorkspaceSection", () => {
     fireEvent.click(screen.getByTestId("minimap-toggle"));
     fireEvent.click(screen.getByTestId("adaptive-chrome-toggle"));
     fireEvent.click(screen.getByTestId("keep-screen-awake-toggle"));
-    fireEvent.change(screen.getByLabelText("Touch scroll sensitivity"), { target: { value: "1.5" } });
-    fireEvent.change(screen.getByLabelText("Wheel scroll sensitivity"), { target: { value: "2.0" } });
+    const touch = screen.getByLabelText("Touch scroll sensitivity");
+    fireEvent.change(touch, { target: { value: "1.5" } });
+    fireEvent.blur(touch);
+    const wheel = screen.getByLabelText("Wheel scroll sensitivity");
+    fireEvent.change(wheel, { target: { value: "2.0" } });
+    fireEvent.blur(wheel);
     const deviceInput = screen.getByRole("textbox");
     fireEvent.change(deviceInput, { target: { value: "phone" } });
 
@@ -137,6 +141,31 @@ describe("WorkspaceSection", () => {
     expect(mockStoreState.setAdaptiveChrome).toHaveBeenCalledWith(false);
     expect(mockStoreState.setTouchScrollSensitivity).toHaveBeenCalledWith(1.5);
     expect(mockStoreState.setWheelScrollSensitivity).toHaveBeenCalledWith(2);
+  });
+
+  // A sensitivity slider writes into the persisted store, so a drag across the
+  // track must not turn into one write per step.
+  it("commits a sensitivity slider once per interaction, not once per step", () => {
+    render(<WorkspaceSection />);
+    const touch = screen.getByLabelText("Touch scroll sensitivity");
+
+    for (const value of ["1.1", "1.2", "1.3", "1.4", "1.5"]) {
+      fireEvent.change(touch, { target: { value } });
+    }
+    expect(mockStoreState.setTouchScrollSensitivity).not.toHaveBeenCalled();
+
+    fireEvent.blur(touch);
+    expect(mockStoreState.setTouchScrollSensitivity).toHaveBeenCalledTimes(1);
+    expect(mockStoreState.setTouchScrollSensitivity).toHaveBeenCalledWith(1.5);
+  });
+
+  it("shows the sensitivity slider's live value while it is being moved", () => {
+    render(<WorkspaceSection />);
+    const touch = screen.getByLabelText("Touch scroll sensitivity");
+
+    fireEvent.change(touch, { target: { value: "2.4" } });
+    // Uncommitted, but the person moving it must still see where it is.
+    expect(touch).toHaveAttribute("aria-valuetext", "2.4");
   });
 
   it("exposes the off-by-default tmux mouse choice and reset control", () => {

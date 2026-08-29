@@ -1,0 +1,199 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Slider",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Touch scroll sensitivity",
+          "role": "slider"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-slider-input]",
+          "attribute": "aria-valuetext",
+          "value": "1.0"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-slider]",
+          "attribute": "data-show-value",
+          "value": "inline"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Ticked",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Prediction latency threshold",
+          "role": "slider"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-slider-input]",
+          "attribute": "aria-valuetext",
+          "value": "250 ms"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-slider-tick]",
+          "value": "21"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-slider-origin]"
+        }
+      ],
+      "id": "ticked",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Ticked",
+      "role": "axis",
+      "axis": "ticks"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Marked",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Speech rate",
+          "role": "slider"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-slider]",
+          "attribute": "data-show-value",
+          "value": "tooltip"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-slider-mark]",
+          "value": "3"
+        },
+        {
+          "kind": "text",
+          "value": "Slower"
+        }
+      ],
+      "id": "marked",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Marked",
+      "role": "axis",
+      "axis": "showValue"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Bare",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Output volume",
+          "role": "slider"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-slider-label]",
+          "value": "0"
+        }
+      ],
+      "id": "bare",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Bare",
+      "role": "axis",
+      "axis": "label"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Disabled",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Output volume",
+          "role": "slider"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-slider]",
+          "attribute": "data-disabled",
+          "value": "true"
+        },
+        {
+          "kind": "text",
+          "value": "40%"
+        }
+      ],
+      "id": "disabled",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Disabled",
+      "role": "boundary"
+    }
+  ]
+}

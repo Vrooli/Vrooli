@@ -1,0 +1,85 @@
+{
+  "claims": [
+    {
+      "id": "native-switch-semantics",
+      "statement": "Switch uses a native checkbox input with an explicit switch role and aria-checked state.",
+      "states": ["default", "enabled"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "contextual-label",
+      "statement": "The switch keeps supporting description in the accessible description relationship.",
+      "states": ["default", "enabled"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "host-owned-labelling",
+      "statement": "A bare switch renders no copy of its own so a host row's label is never duplicated.",
+      "states": ["bare"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "drag-to-toggle",
+      "statement": "The thumb follows a horizontal drag 1:1 and commits by release position; a pointercancel abandons the gesture.",
+      "states": ["bare", "trailing-label"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "host-labelling-preserved",
+      "statement": "A caller-supplied aria-labelledby survives to the native control, so a bare switch in a labelled row has an accessible name.",
+      "states": ["bare"],
+      "tier": "story",
+      "type": "automated"
+    },
+    {
+      "id": "no-tick-on-switch",
+      "statement": "A switch renders no tick: the shared checked-state mark belongs to checkbox and radio, and on a track it reads as a defect.",
+      "states": ["default", "enabled", "bare", "trailing-label"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "owns-horizontal-drag",
+      "statement": "The indicator sets touch-action:none so the browser cannot reclaim a horizontal drag that drifts off-axis, including one that ends outside the control.",
+      "states": ["bare", "trailing-label"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "controls.switch",
+    "purpose": "Expose an immediate binary setting with an explicit switch role and calm state transition.",
+    "title": "Switch"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:Switch@1.0.8",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "An available setting is off.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "An available setting is on.",
+      "example": "enabled",
+      "id": "enabled"
+    },
+    {
+      "description": "A bare switch inside a host row that owns the label, adopted by id.",
+      "example": "bare",
+      "id": "bare"
+    },
+    {
+      "description": "The switch sits on the trailing edge for settings-row conventions.",
+      "example": "trailing-label",
+      "id": "trailing-label"
+    }
+  ]
+}

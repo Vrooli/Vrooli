@@ -242,7 +242,11 @@ describe("TtsSettingsSection", () => {
   it("changing kokoro speed persists to audio-tools via updateTTSConfig", async () => {
     mockStoreState.ttsBackendPreference = "kokoro";
     await renderSection();
-    fireEvent.change(screen.getByTestId("kokoro-speed-slider"), { target: { value: "1.6" } });
+    // A slider commits on release, so a persisted write follows the blur —
+    // the same contract the numeric fields below already use.
+    const speed = screen.getByTestId("kokoro-speed-slider");
+    fireEvent.change(speed, { target: { value: "1.6" } });
+    fireEvent.blur(speed);
     expect(mockStoreState.setKokoroSpeed).toHaveBeenCalledWith(1.6);
     await waitFor(() => {
       expect(mockUpdateVoiceConfig).toHaveBeenCalledWith({ defaultSpeed: 1.6 });
@@ -287,8 +291,12 @@ describe("TtsSettingsSection", () => {
     fireEvent.click(screen.getByTestId("tts-refresh"));
     fireEvent.click(screen.getByTestId("tts-test-button"));
     fireEvent.change(screen.getByTestId("tts-voice-select"), { target: { value: "af_heart" } });
-    fireEvent.change(screen.getByTestId("tts-rate-slider"), { target: { value: "1.4" } });
-    fireEvent.change(screen.getByTestId("tts-pitch-slider"), { target: { value: "0.8" } });
+    const rate = screen.getByTestId("tts-rate-slider");
+    fireEvent.change(rate, { target: { value: "1.4" } });
+    fireEvent.blur(rate);
+    const pitch = screen.getByTestId("tts-pitch-slider");
+    fireEvent.change(pitch, { target: { value: "0.8" } });
+    fireEvent.blur(pitch);
     // Both numeric settings are NumberFields now: the base test id names the
     // field, `-value` the input inside it, and a value commits on blur rather
     // than per keystroke.

@@ -184,7 +184,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_workspace_roles_session
 -- shortcut_profiles.shortcuts, so this scenario has ONE storage idiom for a
 -- configuration row that owns an ordered child list.
 --
--- There is deliberately no is_builtin column. A seeded example is an ordinary
+-- There is deliberately no privileged-row column. A seeded example is an ordinary
 -- row written through the public upsert path and is deletable like any other.
 CREATE TABLE IF NOT EXISTS group_templates (
     id TEXT PRIMARY KEY,

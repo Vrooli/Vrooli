@@ -13,7 +13,13 @@ import {
 import type { TTSVoiceInfo } from "../../audio-integration";
 import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
-import { SettingsCard, SettingsRow, SettingsSectionIntro, SettingsToggle } from "./primitives";
+import {
+  SettingsCard,
+  SettingsRow,
+  SettingsSectionIntro,
+  SettingsSlider,
+  SettingsToggle,
+} from "./primitives";
 import { useSummarizeSettings } from "./useSummarizeSettings";
 
 // TtsSettingsSection split-of-concerns:
@@ -235,8 +241,7 @@ export default function TtsSettingsSection() {
             <SettingsToggle
               testId="auto-tts-toggle"
               checked={autoTtsEnabled}
-              onClick={() => {
-                const next = !autoTtsEnabled;
+              onCheckedChange={(next) => {
                 setAutoTtsEnabled(next);
                 void persistHookConfig({ autoEnabled: next });
               }}
@@ -251,8 +256,7 @@ export default function TtsSettingsSection() {
             <SettingsToggle
               testId="start-muted-toggle"
               checked={startMutedOnLoad}
-              onClick={() => {
-                const next = !startMutedOnLoad;
+              onCheckedChange={(next) => {
                 setStartMutedOnLoad(next);
                 void persistHookConfig({ startMuted: next });
               }}
@@ -375,23 +379,19 @@ export default function TtsSettingsSection() {
             label={t(strings.settings.voiceOutputSection.kokoroSpeed)}
             hint={t(strings.settings.voiceOutputSection.kokoroSpeedHint)}
             control={(
-              <div className="flex items-center gap-2">
-                <input
-                  data-testid="kokoro-speed-slider"
-                  type="range"
-                  min="0.5"
-                  max="4"
-                  step="0.1"
-                  value={kokoroSpeed}
-                  onChange={(event) => {
-                    const next = parseFloat(event.target.value);
-                    setKokoroSpeed(next);
-                    void persistVoiceConfig({ defaultSpeed: next });
-                  }}
-                  className="w-24 accent-[rgb(var(--wc-accent))]"
-                />
-                <span className="w-7 text-end text-xs text-wc-text-muted">{kokoroSpeed.toFixed(1)}</span>
-              </div>
+              <SettingsSlider
+                testId="kokoro-speed-slider"
+                value={kokoroSpeed}
+                onCommit={(next) => {
+                  setKokoroSpeed(next);
+                  void persistVoiceConfig({ defaultSpeed: next });
+                }}
+                min={0.5}
+                max={4}
+                step={0.1}
+                defaultMarker={1}
+                formatValue={(value) => value.toFixed(1)}
+              />
             )}
           />
         </SettingsCard>
@@ -416,8 +416,7 @@ export default function TtsSettingsSection() {
             <SettingsToggle
               testId="summarize-toggle"
               checked={summarizeSettings.config?.enabled ?? false}
-              onClick={() => {
-                const next = !(summarizeSettings.config?.enabled ?? false);
+              onCheckedChange={(next) => {
                 void summarizeSettings.save({ enabled: next });
               }}
             />
@@ -564,19 +563,16 @@ export default function TtsSettingsSection() {
             label={t(strings.settings.voiceOutputSection.browserRate)}
             hint={t(strings.settings.voiceOutputSection.browserRateHint)}
             control={(
-              <div className="flex items-center gap-2">
-                <input
-                  data-testid="tts-rate-slider"
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={ttsRate}
-                  onChange={(event) => setTtsRate(parseFloat(event.target.value))}
-                  className="w-24 accent-[rgb(var(--wc-accent))]"
-                />
-                <span className="w-7 text-end text-xs text-wc-text-muted">{ttsRate.toFixed(1)}</span>
-              </div>
+              <SettingsSlider
+                testId="tts-rate-slider"
+                value={ttsRate}
+                onCommit={setTtsRate}
+                min={0.5}
+                max={2}
+                step={0.1}
+                defaultMarker={1}
+                formatValue={(value) => value.toFixed(1)}
+              />
             )}
           />
 
@@ -584,19 +580,16 @@ export default function TtsSettingsSection() {
             label={t(strings.settings.voiceOutputSection.browserPitch)}
             hint={t(strings.settings.voiceOutputSection.browserPitchHint)}
             control={(
-              <div className="flex items-center gap-2">
-                <input
-                  data-testid="tts-pitch-slider"
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={ttsPitch}
-                  onChange={(event) => setTtsPitch(parseFloat(event.target.value))}
-                  className="w-24 accent-[rgb(var(--wc-accent))]"
-                />
-                <span className="w-7 text-end text-xs text-wc-text-muted">{ttsPitch.toFixed(1)}</span>
-              </div>
+              <SettingsSlider
+                testId="tts-pitch-slider"
+                value={ttsPitch}
+                onCommit={setTtsPitch}
+                min={0.5}
+                max={2}
+                step={0.1}
+                defaultMarker={1}
+                formatValue={(value) => value.toFixed(1)}
+              />
             )}
           />
         </SettingsCard>

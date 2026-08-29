@@ -143,6 +143,13 @@ const defaultProps = {
   playbackFocusRequest: null,
 };
 
+function overflowAction(eventId: string, testId: string): HTMLElement {
+  const existing = screen.queryByTestId(testId);
+  if (existing) return existing;
+  fireEvent.click(screen.getByTestId(`msg-actions-more-${eventId}`));
+  return screen.getByTestId(testId);
+}
+
 describe("MessagesPane", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -194,9 +201,9 @@ describe("MessagesPane", () => {
     render(<MessagesPane {...defaultProps} />);
 
     expect(screen.getByTestId("msg-speak-from-e1")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-audio-e1")).toBeInTheDocument();
+    expect(overflowAction("e1", "msg-audio-e1")).toBeInTheDocument();
     expect(screen.getByTestId("msg-speak-from-e2")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-audio-e2")).toBeInTheDocument();
+    expect(overflowAction("e2", "msg-audio-e2")).toBeInTheDocument();
   });
 
   it("read-only mode hides transcript-mutating controls and can stage a message", () => {
@@ -207,10 +214,10 @@ describe("MessagesPane", () => {
     expect(screen.queryByTestId("msg-speak-from-e1")).not.toBeInTheDocument();
     expect(screen.queryByTestId("msg-audio-e1")).not.toBeInTheDocument();
     expect(screen.getByTestId("msg-copy-e1")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-render-toggle-e1")).toBeInTheDocument();
+    expect(overflowAction("e1", "msg-render-toggle-e1")).toBeInTheDocument();
     expect(screen.getByTestId("messages-search-btn")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId("msg-send-to-composer-e1"));
+    fireEvent.click(overflowAction("e1", "msg-send-to-composer-e1"));
     expect(onSendToComposer).toHaveBeenCalledWith("Reusable context");
   });
 
@@ -236,7 +243,7 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world", speechParagraphs: ["Hello world"] })]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("msg-audio-e1"));
+    fireEvent.click(overflowAction("e1", "msg-audio-e1"));
     expect(defaultProps.onPlayEvent).toHaveBeenCalledWith("e1");
     expect(screen.getByTestId("audio-popover-e1")).toBeInTheDocument();
   });
@@ -245,7 +252,7 @@ describe("MessagesPane", () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "Hello world", speechParagraphs: ["Hello world"] })]);
     render(<MessagesPane {...defaultProps} loadingEventId="e1" />);
 
-    expect(screen.getByTestId("msg-audio-loading-e1")).toBeInTheDocument();
+    expect(overflowAction("e1", "msg-audio-loading-e1")).toBeInTheDocument();
     expect(screen.getByTestId("msg-audio-e1")).toBeDisabled();
     expect(screen.getByTestId("msg-speak-from-e1")).toBeDisabled();
   });
@@ -336,7 +343,7 @@ describe("MessagesPane", () => {
     expect(screen.queryByTestId("msg-speak-from-e1")).toBeNull();
     expect(screen.queryByTestId("msg-audio-e1")).toBeNull();
     expect(screen.getByTestId("msg-speak-from-e2")).toBeInTheDocument();
-    expect(screen.getByTestId("msg-audio-e2")).toBeInTheDocument();
+    expect(overflowAction("e2", "msg-audio-e2")).toBeInTheDocument();
   });
 
   // --- Layout: full-width accent bars ---
@@ -390,7 +397,7 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("mock-markdown")).toBeInTheDocument();
     expect(screen.queryByTestId("msg-plaintext-e1")).toBeNull();
 
-    const toggle = screen.getByTestId("msg-render-toggle-e1");
+    const toggle = overflowAction("e1", "msg-render-toggle-e1");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
 
     fireEvent.click(toggle);
@@ -398,9 +405,9 @@ describe("MessagesPane", () => {
     const plain = screen.getByTestId("msg-plaintext-e1");
     expect(plain).toBeInTheDocument();
     expect(plain.textContent).toBe("# Heading");
-    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(overflowAction("e1", "msg-render-toggle-e1").getAttribute("aria-pressed")).toBe("true");
 
-    fireEvent.click(toggle);
+    fireEvent.click(screen.getByTestId("msg-render-toggle-e1"));
     expect(screen.getByTestId("mock-markdown")).toBeInTheDocument();
     expect(screen.queryByTestId("msg-plaintext-e1")).toBeNull();
   });
@@ -412,12 +419,12 @@ describe("MessagesPane", () => {
     ]);
     render(<MessagesPane {...defaultProps} />);
 
-    fireEvent.click(screen.getByTestId("msg-render-toggle-e1"));
+    fireEvent.click(overflowAction("e1", "msg-render-toggle-e1"));
     expect(screen.getByTestId("msg-plaintext-e1")).toBeInTheDocument();
     expect(screen.queryByTestId("msg-plaintext-e2")).toBeNull();
   });
 
-  it("opens the Mermaid viewer from a diagram open action and closes it", () => {
+  it("opens the Mermaid viewer from a diagram open action and closes it", async () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "diagram here" })]);
     render(<MessagesPane {...defaultProps} />);
 
@@ -431,11 +438,11 @@ describe("MessagesPane", () => {
     expect(screen.getByLabelText(strings.mermaid.zoomIn)).toBeInTheDocument();
     expect(screen.getByLabelText(strings.mermaid.showSource)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText(strings.mermaid.closeViewer));
-    expect(screen.queryByTestId("messages-mermaid-viewer-panel")).toBeNull();
+    fireEvent.pointerDown(screen.getByTestId("messages-mermaid-viewer-panel.backdrop"));
+    await waitFor(() => expect(screen.queryByTestId("messages-mermaid-viewer-panel")).toBeNull());
   });
 
-  it("closes the Mermaid viewer with Escape", () => {
+  it("closes the Mermaid viewer with Escape", async () => {
     seedEvents([makeEvent({ id: "e1", sequence: 1, text: "diagram here" })]);
     render(<MessagesPane {...defaultProps} />);
 
@@ -443,7 +450,7 @@ describe("MessagesPane", () => {
     expect(screen.getByTestId("messages-mermaid-viewer-panel")).toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByTestId("messages-mermaid-viewer-panel")).toBeNull();
+    await waitFor(() => expect(screen.queryByTestId("messages-mermaid-viewer-panel")).toBeNull());
   });
 
   it("search updates row state without pushing query into markdown renderer props", () => {
@@ -483,7 +490,7 @@ describe("MessagesPane", () => {
       expect(screen.getByText("messagesFileViewer.linePrefix")).toBeInTheDocument();
       expect(screen.getByText("const x = 1;")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("messages-file-viewer-panel").className).toContain("--wc-safe-top");
+    expect(screen.getByTestId("messages-file-viewer-panel").closest("[data-rcl-full-page-drawer]")).not.toBeNull();
     expect(mockResolveFilePreview).toHaveBeenCalledWith("sess-1", "/tmp/example.ts:12", "message_link");
     expect(mockGetFilePreviewText).toHaveBeenCalledWith("sess-1", "pv-1");
   });
@@ -720,7 +727,7 @@ describe("MessagesPane", () => {
       />,
     );
 
-    fireEvent.click(screen.getByTestId("msg-e1-mode-control"));
+    fireEvent.click(overflowAction("e1", "msg-e1-mode-control"));
     expect(screen.getByTestId("msg-e1-mode-option-original")).toBeInTheDocument();
     expect(screen.getByTestId("msg-e1-mode-option-light")).toBeInTheDocument();
     expect(screen.getByTestId("msg-e1-mode-option-moderate")).toBeInTheDocument();
@@ -736,7 +743,7 @@ describe("MessagesPane", () => {
       />,
     );
 
-    fireEvent.click(screen.getByTestId("msg-audio-e1"));
+    fireEvent.click(overflowAction("e1", "msg-audio-e1"));
     await waitFor(() => {
       expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
       expect(screen.getByTestId("msg-summarize-error-e1").textContent).toContain("model not found");
@@ -754,7 +761,7 @@ describe("MessagesPane", () => {
       />,
     );
 
-    fireEvent.click(screen.getByTestId("msg-audio-e1"));
+    fireEvent.click(overflowAction("e1", "msg-audio-e1"));
     await waitFor(() => {
       expect(screen.getByTestId("msg-summarize-error-e1")).toBeInTheDocument();
     });
@@ -1160,7 +1167,7 @@ describe("MessagesPane", () => {
       expect(preview).not.toContain("unselected reply");
     });
 
-    it("closing the drawer keeps the navigator selection for another pass", () => {
+    it("closing the drawer keeps the navigator selection for another pass", async () => {
       seedEvents([
         makeEvent({ id: "e1", sequence: 1, text: "keep me" }),
         makeEvent({ id: "e2", sequence: 2, text: "other" }),
@@ -1171,8 +1178,8 @@ describe("MessagesPane", () => {
       fireEvent.click(screen.getByTestId("msg-export-continue"));
       expect(screen.getByTestId("msg-export-drawer")).toBeInTheDocument();
 
-      fireEvent.click(screen.getByLabelText("messageExport.closeAriaLabel"));
-      expect(screen.queryByTestId("msg-export-drawer")).toBeNull();
+      fireEvent.pointerDown(screen.getByTestId("msg-export-drawer.backdrop"));
+      await waitFor(() => expect(screen.queryByTestId("msg-export-drawer")).toBeNull());
       // Navigator is still open in selection mode with the selection intact.
       expect(screen.getByTestId("msg-jump-item-e1").getAttribute("aria-checked")).toBe("true");
       fireEvent.click(screen.getByTestId("msg-export-continue"));

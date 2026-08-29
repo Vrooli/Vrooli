@@ -4,10 +4,12 @@
     "description": "Perf-capture flow (intent:performance). Assertion-free. Mobile viewport: open the Settings full-page drawer, then pointer-drag its grabber downward one move per animation frame. This traces the swipe-to-dismiss gesture the library's useOverlaySurface owns, so a regression in per-frame drag cost is attributable. NEVER bind as a requirement automation case.",
     "labels": {
       "intent": "performance",
-      "reset": "none"
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
     "version": "1",
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 390,

@@ -9,6 +9,9 @@ import { cn } from "../../lib/classnames";
 import type { HandoffResult } from "../../lib/handoff";
 import { targetKey, textForTarget, type HandoffTarget } from "../../hooks/useHandoff";
 import { Button } from "../ui/button";
+import { SnippetPicker } from "../snippets/SnippetPicker";
+import type { SnippetDTO } from "../../api/snippets";
+import type { HandoffTargetSection } from "../../hooks/useHandoff";
 
 // [REQ:P0-014d] Handoff Between Sessions In A Group
 //
@@ -23,7 +26,10 @@ export interface HandoffComposerProps {
   sourceLabel: string;
   /** The text being carried: a path, a passage, or empty. Never classified. */
   payload: string;
-  targets: HandoffTarget[];
+  targets: HandoffTargetSection[];
+  sourceSessionId?: string;
+  cwd?: string;
+  selection?: string;
   /** Pre-select these target keys — a suggestion chip names one. */
   initialSelection?: string[];
   onSend: (targets: HandoffTarget[], textFor: (target: HandoffTarget) => string) => Promise<HandoffResult[]>;
@@ -46,6 +52,9 @@ export default function HandoffComposer({
   sourceLabel,
   payload,
   targets,
+  sourceSessionId,
+  cwd = "",
+  selection = "",
   initialSelection,
   onSend,
 }: HandoffComposerProps) {
@@ -57,27 +66,32 @@ export default function HandoffComposer({
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [results, setResults] = useState<HandoffResult[] | null>(null);
+  const [snippetPickerOpen, setSnippetPickerOpen] = useState(false);
+  const [messageSource, setMessageSource] = useState<{ snippet: SnippetDTO; rendered: string } | null>(null);
+  const flatTargets = useMemo(() => targets.flatMap((section) => section.targets), [targets]);
 
   useEffect(() => {
     if (!open) return;
     // Default to the only target when there is exactly one: the common case
     // should not cost a selection click.
-    const only = targets.length === 1 ? targets[0] : undefined;
+    const only = flatTargets.length === 1 ? flatTargets[0] : undefined;
     const preset = initialSelection ?? (only ? [targetKey(only)] : []);
     setSelected(preset);
     setEdited({});
     setResults(null);
     setSending(false);
-  }, [open, initialSelection, targets]);
+    setMessageSource(null);
+    setSnippetPickerOpen(false);
+  }, [open, initialSelection, flatTargets]);
 
   const selectedTargets = useMemo(
-    () => targets.filter((target) => selected.includes(targetKey(target))),
-    [selected, targets],
+    () => flatTargets.filter((target) => selected.includes(targetKey(target))),
+    [selected, flatTargets],
   );
 
   const textFor = (target: HandoffTarget): string => {
     const key = targetKey(target);
-    return edited[key] ?? textForTarget(target, payload);
+    return edited[key] ?? messageSource?.rendered ?? textForTarget(target, payload);
   };
 
   const toggle = (key: string) => {
@@ -121,18 +135,31 @@ export default function HandoffComposer({
             </div>
           </div>
 
-          {targets.length === 0 ? (
+          <button
+            type="button"
+            data-testid="handoff-message-source"
+            onClick={() => { setSnippetPickerOpen(true); }}
+            className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-start text-sm text-wc-text-primary"
+          >
+            {messageSource && <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: messageSource.snippet.color || "currentColor" }} />}
+            <span className="text-wc-text-muted">{t(strings.handoff.messageFrom)}</span>
+            <span className="min-w-0 flex-1 truncate text-end">{messageSource?.snippet.name ?? t(strings.handoff.writeByHand)}</span>
+          </button>
+
+          {flatTargets.length === 0 ? (
             <p data-testid="handoff-no-targets" className="py-6 text-center text-sm text-wc-text-muted">
               {t(strings.handoff.noTargets)}
             </p>
           ) : (
             <>
-              <section className="space-y-2">
-                <div className="text-xs font-semibold uppercase tracking-wider text-wc-text-faint">
-                  {t(strings.handoff.targets)}
-                </div>
-                <div data-testid="handoff-targets" className="space-y-1.5">
-                  {targets.map((target) => {
+              <div data-testid="handoff-targets" className="space-y-4">
+                {targets.filter((section) => section.targets.length > 0).map((section) => (
+                  <section key={section.kind} data-testid={`handoff-section-${section.kind}`} className="space-y-2">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-wc-text-faint">
+                      {t(section.labelKey as never)}
+                    </div>
+                    <div className="space-y-1.5">
+                  {section.targets.map((target) => {
                     const key = targetKey(target);
                     const isWaiting = target.kind !== "session";
                     return (
@@ -167,8 +194,10 @@ export default function HandoffComposer({
                       </label>
                     );
                   })}
-                </div>
-              </section>
+                    </div>
+                  </section>
+                ))}
+              </div>
 
               {/* One field for the common single-target case; one per target
                   only when the selected targets carry different prompts, so
@@ -239,7 +268,7 @@ export default function HandoffComposer({
             data-testid="handoff-send"
             size="sm"
             onClick={() => { void handleSend(); }}
-            disabled={selectedTargets.length === 0 || sending}
+            disabled={selectedTargets.length === 0 || sending || snippetPickerOpen}
           >
             {sending
               ? <Loader2 className="me-1.5 h-4 w-4 animate-spin" aria-hidden />
@@ -248,6 +277,12 @@ export default function HandoffComposer({
           </Button>
         </div>
       </div>
+      <SnippetPicker
+        open={snippetPickerOpen}
+        onClose={() => { setSnippetPickerOpen(false); }}
+        autoValues={{ payload, cwd, session: sourceSessionId ?? sourceLabel, selection }}
+        onInsert={(rendered, snippet) => { setMessageSource({ rendered, snippet }); }}
+      />
     </ResponsiveDialog>
   );
 }

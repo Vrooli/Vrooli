@@ -4,18 +4,13 @@ import { useTranslation } from "react-i18next";
 import { strings } from "../consts/strings";
 import {
   ArrowDown,
-  ArrowUpRight,
-  Check,
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
-  Copy,
-  FileCode2,
   Loader2,
-  Play,
+  MoreHorizontal,
   RotateCw,
   Search,
-  Volume2,
 } from "lucide-react";
 import { useConversationStore, getSessionConversationEvents, getSessionSlice, resolveConversationView } from "../stores/useConversationStore";
 import { loadConversationPageContaining, loadOlderConversationPage, refreshConversationSession } from "../hooks/useConversationSession";
@@ -29,6 +24,7 @@ import { useFilePreviewController } from "./file-preview/useFilePreviewControlle
 import { TERMINAL_FONT_SIZE } from "../consts/config";
 import { cn } from "../lib/classnames";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
+import { ContextMenu, type ContextMenuItem } from "@vrooli/react-component-library/ContextMenu/1";
 import { looksLikeFileReference } from "../lib/fileReferences";
 import { MarkdownRenderer } from "./markdown";
 import { useVirtualList } from "../hooks/useVirtualList";
@@ -47,6 +43,16 @@ import MessagesMermaidViewer from "./MessagesMermaidViewer";
 import MessagesPaneState from "./MessagesPaneState";
 import MessagesPaneStatusLine from "./MessagesPaneStatusLine";
 import { resolveMessagesPaneStatus } from "../lib/messagesPaneStatus";
+import { SnippetSaveSheet } from "./snippets/SnippetSaveSheet";
+import {
+  MESSAGE_ACTIONS,
+  actionIcon,
+  actionLabelKey,
+  actionPlacement,
+  type MessageAction,
+  type MessageActionContext,
+  type MessageAudioSettings,
+} from "./messages/messageActions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -137,105 +143,71 @@ function writeScrollSnapshot(sessionId: string, snapshot: ScrollSnapshot): void 
 // MessagesPane
 // ---------------------------------------------------------------------------
 
-// The subset of TTSPlaybackState a message row's audio-settings popover needs.
-// We deliberately exclude the high-frequency fields (currentTime/duration/
-// isPaused) that the player polls at ~10 Hz during playback — including them
-// would re-render every visible row on each poll. The parent memoizes this
-// object so its identity is stable until one of these four values changes.
-type MessageAudioSettings = Pick<
-  TTSPlaybackState,
-  "volume" | "isMuted" | "playbackRate" | "capabilities"
->;
-
 interface MessageRowProps {
-  event: ConversationEvent;
+  actionContext: MessageActionContext;
   index: number;
   registerItem: (index: number, node: HTMLElement | null) => void;
   fontSize: number;
-  copiedEventId: string | null;
-  onCopy: (eventId: string, text: string) => void;
-  onPlayFromHere: (eventId: string) => void;
-  onPlayEvent: (eventId: string) => void;
-  isTtsSpeaking: boolean;
-  activeSpeakingEventId: string | null;
-  loadingEventId: string | null;
-  summarizeLevel: SummarizationLevel;
-  selectedVersionForEvent: (event: ConversationEvent) => PlaybackVersion;
-  summarizingEventId: string | null;
-  getSummarizeError: (eventId: string) => string | null;
-  onClearSummarizeError: (eventId: string) => void;
-  onToggleSummarized: (eventId: string, useSummarized: boolean) => void;
-  onChangeLevel: (eventId: string, level: SummarizationLevel) => void;
-  audioSettings: MessageAudioSettings;
-  onSetPlaybackRate: (rate: number) => void;
-  onSetVolume: (level: number) => void;
-  onSetMuted: (next: boolean) => void;
-  isMobile: boolean;
   isFocused: boolean;
   isSearchFocused: boolean;
   isDimmed: boolean;
   isExpanded: boolean;
   onToggleExpanded: (eventId: string) => void;
-  isPlaintext: boolean;
-  onToggleRenderMode: (eventId: string) => void;
   onLinkClick: (href: string, event: React.MouseEvent<HTMLAnchorElement>) => void;
   onFileReferenceClick: (path: string) => void;
   onMermaidOpen: (code: string) => void;
-  readOnly: boolean;
-  onSendToComposer?: (text: string) => void;
 }
 
 /** Anchored placement order for popovers opening below their trigger. */
 const BELOW_ANCHOR_PLACEMENTS: FloatingPlacement[] = ["bottom-end", "bottom-start", "top-end", "top-start"];
 
 const MessageRow = memo(function MessageRow({
-  event,
+  actionContext,
   index,
   registerItem,
   fontSize,
-  copiedEventId,
-  onCopy,
-  onPlayFromHere,
-  onPlayEvent,
-  isTtsSpeaking,
-  activeSpeakingEventId,
-  loadingEventId,
-  summarizeLevel,
-  selectedVersionForEvent,
-  summarizingEventId,
-  getSummarizeError,
-  onClearSummarizeError,
-  onToggleSummarized,
-  onChangeLevel,
-  audioSettings,
-  onSetPlaybackRate,
-  onSetVolume,
-  onSetMuted,
-  isMobile,
   isFocused,
   isSearchFocused,
   isDimmed,
   isExpanded,
   onToggleExpanded,
-  isPlaintext,
-  onToggleRenderMode,
   onLinkClick,
   onFileReferenceClick,
   onMermaidOpen,
-  readOnly,
-  onSendToComposer,
 }: MessageRowProps) {
+  const {
+    event,
+    isTtsSpeaking,
+    activeSpeakingEventId,
+    isAudioLoading,
+    summarizeLevel,
+    selectedVersion,
+    summarizingEventId,
+    getSummarizeError,
+    onClearSummarizeError,
+    onToggleSummarized,
+    onChangeLevel,
+    audioSettings,
+    onSetPlaybackRate,
+    onSetVolume,
+    onSetMuted,
+    isMobile,
+    isPlaintext,
+    onPlayEvent,
+  } = actionContext;
   const { t } = useTranslation();
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const [playbackModeOpen, setPlaybackModeOpen] = useState(false);
   const [isTall, setIsTall] = useState(false);
-  const audioButtonRef = useRef<HTMLButtonElement | null>(null);
+  const moreButtonRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   // Desktop audio popover anchors below the per-message audio button,
   // end-aligned, via the shared anchored-floating math.
   const audioPopoverRef = useRef<HTMLDivElement | null>(null);
   const audioPopoverStyle = useAnchoredPopoverPosition(
     openPopoverId === event.id && !isMobile,
-    audioButtonRef,
+    moreButtonRef,
     audioPopoverRef,
     BELOW_ANCHOR_PLACEMENTS,
   );
@@ -255,12 +227,61 @@ const MessageRow = memo(function MessageRow({
 
   const isUser = event.role === "user";
   const isTtsActive = !isUser && isTtsSpeaking && activeSpeakingEventId === event.id;
-  const isAudioLoading = !isUser && loadingEventId === event.id;
   const hasSummary = event.summarized && event.originalSpeechParagraphs != null && event.originalSpeechParagraphs.length > 0;
-  const selectedVersion = selectedVersionForEvent(event);
   const useSummarized = selectedVersion === "active" && hasSummary;
   const isPopoverOpen = openPopoverId === event.id;
   const isCollapsed = isTall && !isExpanded;
+  const resolvedActionContext: MessageActionContext = {
+    ...actionContext,
+    onOpenPlaybackMode: () => { setPlaybackModeOpen(true); },
+    onOpenAudio: () => {
+      onPlayEvent(event.id);
+      setOpenPopoverId(isPopoverOpen ? null : event.id);
+    },
+    renderPlaybackAction: () => (
+      <PlaybackModeControl
+        testIdPrefix={`msg-${event.id}`}
+        isSummarized={useSummarized && hasSummary}
+        hasOriginalVersion={hasSummary}
+        canSummarize
+        isSummarizing={summarizingEventId === event.id}
+        currentLevel={summarizeLevel}
+        onToggleSummarized={(use) => { onToggleSummarized(event.id, use); }}
+        onChangeLevel={(level) => { onChangeLevel(event.id, level); }}
+        open={playbackModeOpen}
+        onOpenChange={setPlaybackModeOpen}
+        hideTrigger
+        anchorRef={moreButtonRef}
+      />
+    ),
+  };
+  const applicableActions = MESSAGE_ACTIONS.filter((action) => action.appliesTo(resolvedActionContext));
+  const inlineActions = applicableActions.filter((action) => actionPlacement(action, resolvedActionContext) === "primary").slice(0, 3);
+  const inlineIds = new Set(inlineActions.map((action) => action.id));
+  const overflowActions = applicableActions.filter((action) => !inlineIds.has(action.id));
+  const overflowItems: ContextMenuItem[] = overflowActions.map((action) => {
+    const ActionIcon = actionIcon(action, resolvedActionContext);
+    return {
+      id: action.id,
+      label: t(actionLabelKey(action, resolvedActionContext) as never),
+      icon: action.id === "render-mode"
+        ? (
+          <span
+            data-testid={action.testId(resolvedActionContext)}
+            aria-pressed={action.pressed?.(resolvedActionContext)}
+          >
+            <ActionIcon className="h-3.5 w-3.5" />
+          </span>
+        )
+        : action.id === "audio-settings" && isAudioLoading
+        ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="h-3.5 w-3.5 animate-spin" />
+        : <ActionIcon className="h-3.5 w-3.5" />,
+      testId: action.id === "render-mode" ? undefined : action.testId(resolvedActionContext),
+      disabled: action.disabled?.(resolvedActionContext),
+      pressed: action.pressed?.(resolvedActionContext),
+      onSelect: () => { action.run(resolvedActionContext); },
+    };
+  });
   const accentColor = isTtsActive
     ? "border-l-wc-accent"
     : isUser
@@ -280,80 +301,65 @@ const MessageRow = memo(function MessageRow({
       )}
     >
       <div className="mb-1.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.12em] text-wc-text-faint">
-        <button
-          data-testid={`msg-copy-${event.id}`}
-          onClick={() => { onCopy(event.id, event.text); }}
-          className="rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10"
-          title={t(strings.messagesPane.copyMessageTitle)}
-          type="button"
-        >
-          {copiedEventId === event.id
-            ? <Check className="h-3.5 w-3.5 text-green-400" />
-            : <Copy className="h-3.5 w-3.5" />}
-        </button>
+        {inlineActions.map((action) => {
+          const ActionIcon = actionIcon(action, resolvedActionContext);
+          return (
+            <button
+              key={action.id}
+              data-message-action-inline
+              data-testid={action.testId(resolvedActionContext)}
+              onClick={() => { action.run(resolvedActionContext); }}
+              disabled={action.disabled?.(resolvedActionContext)}
+              aria-pressed={action.pressed?.(resolvedActionContext)}
+              className={cn(
+                "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary",
+                action.pressed?.(resolvedActionContext) && "text-wc-accent",
+                action.disabled?.(resolvedActionContext) && "cursor-wait opacity-60",
+              )}
+              title={t(actionLabelKey(action, resolvedActionContext) as never)}
+              aria-label={t(actionLabelKey(action, resolvedActionContext) as never)}
+              type="button"
+            >
+              {action.id === "audio-settings" && isAudioLoading
+                ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="h-3.5 w-3.5 animate-spin" />
+                : <ActionIcon className={cn("h-3.5 w-3.5", action.id === "copy" && actionContext.copied && "text-green-400")} />}
+            </button>
+          );
+        })}
 
-        <button
-          data-testid={`msg-render-toggle-${event.id}`}
-          onClick={() => { onToggleRenderMode(event.id); }}
-          aria-pressed={isPlaintext}
-          className={cn(
-            "rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10",
-            isPlaintext && "text-wc-accent",
-          )}
-          title={isPlaintext
-            ? t(strings.messagesPane.viewAsMarkdownTitle)
-            : t(strings.messagesPane.viewAsPlainTextTitle)}
-          type="button"
-        >
-          <FileCode2 className="h-3.5 w-3.5" />
-        </button>
-
-        {!readOnly && !isUser && (
+        {overflowActions.length > 0 && (
           <>
             <button
-              data-testid={`msg-speak-from-${event.id}`}
-              onClick={() => { onPlayFromHere(event.id); }}
-              disabled={isAudioLoading}
-              className={cn(
-                "rounded p-0.5 text-wc-text-muted transition hover:text-wc-text-primary hover:bg-wc-accent/10",
-                isAudioLoading && "cursor-wait opacity-60",
-              )}
-              title={t(strings.messagesPane.readFromHereTitle)}
+              ref={moreButtonRef}
+              data-message-action-inline
+              data-testid={`msg-actions-more-${event.id}`}
               type="button"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
+              aria-label={t(strings.messageActions.more)}
+              aria-haspopup="menu"
+              aria-expanded={overflowOpen}
+              onClick={() => { setOverflowOpen((open) => !open); }}
             >
-              <Play className="h-3.5 w-3.5" />
+              <MoreHorizontal className="h-3.5 w-3.5" />
             </button>
-            <PlaybackModeControl
-              testIdPrefix={`msg-${event.id}`}
-              isSummarized={useSummarized && hasSummary}
-              hasOriginalVersion={hasSummary}
-              canSummarize
-              isSummarizing={summarizingEventId === event.id}
-              currentLevel={summarizeLevel}
-              onToggleSummarized={(use) => { onToggleSummarized(event.id, use); }}
-              onChangeLevel={(level) => { onChangeLevel(event.id, level); }}
+            <ContextMenu
+              open={overflowOpen}
+              onOpenChange={setOverflowOpen}
+              anchorRef={moreButtonRef}
+              placement="bottom-end"
+              title={t(strings.messageActions.more)}
+              closeLabel={t(strings.handoff.close)}
+              testId={`msg-actions-menu-${event.id}`}
+              items={overflowItems}
             />
-            <button
-              ref={audioButtonRef}
-              data-testid={`msg-audio-${event.id}`}
-              onClick={() => {
-                onPlayEvent(event.id);
-                setOpenPopoverId(isPopoverOpen ? null : event.id);
-              }}
-              disabled={isAudioLoading}
-              className={cn(
-                "rounded p-0.5 text-wc-text-faint transition hover:text-wc-text-muted hover:bg-wc-accent/10",
-                isAudioLoading && "cursor-wait text-wc-accent opacity-80",
-              )}
-              title={t(strings.messagesPane.playAudioSettingsTitle)}
-              type="button"
-            >
-              {isAudioLoading
-                ? <Loader2 data-testid={`msg-audio-loading-${event.id}`} className="h-3 w-3 animate-spin" />
-                : <Volume2 className="h-3 w-3" />}
-            </button>
+          </>
+        )}
 
-            {isPopoverOpen && createPortal(
+        {MESSAGE_ACTIONS.filter((action) => action.render && action.appliesTo(resolvedActionContext)).map((action) => (
+          <span key={`${action.id}-composite`}>{action.render?.(resolvedActionContext)}</span>
+        ))}
+
+        {isPopoverOpen && createPortal(
               isMobile ? (
                 <div className="fixed inset-0 z-wc-popover-backdrop" onMouseDown={(e) => { e.preventDefault(); }}>
                   <div className="absolute inset-0 bg-wc-backdrop" onClick={() => { setOpenPopoverId(null); }} />
@@ -449,20 +455,6 @@ const MessageRow = memo(function MessageRow({
               ),
               document.body,
             )}
-          </>
-        )}
-
-        {onSendToComposer && (
-          <button
-            data-testid={`msg-send-to-composer-${event.id}`}
-            onClick={() => { onSendToComposer(event.text); }}
-            className="rounded p-0.5 text-wc-text-muted transition hover:bg-wc-accent/10 hover:text-wc-text-primary"
-            title={t(strings.messagesPane.sendToComposerTitle)}
-            type="button"
-          >
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </button>
-        )}
 
         <span className="flex-1" />
         <span>#{event.sequence}</span>
@@ -505,23 +497,15 @@ const MessageRow = memo(function MessageRow({
     </article>
   );
 }, (prevProps, nextProps) => (
-  prevProps.event === nextProps.event &&
+  Object.keys(prevProps.actionContext).length === Object.keys(nextProps.actionContext).length &&
+  Object.entries(prevProps.actionContext).every(([key, value]) => (
+    value === (nextProps.actionContext as unknown as Record<string, unknown>)[key]
+  )) &&
   prevProps.fontSize === nextProps.fontSize &&
-  prevProps.copiedEventId === nextProps.copiedEventId &&
-  prevProps.isTtsSpeaking === nextProps.isTtsSpeaking &&
-  prevProps.activeSpeakingEventId === nextProps.activeSpeakingEventId &&
-  prevProps.loadingEventId === nextProps.loadingEventId &&
-  prevProps.summarizeLevel === nextProps.summarizeLevel &&
-  prevProps.summarizingEventId === nextProps.summarizingEventId &&
-  prevProps.audioSettings === nextProps.audioSettings &&
-  prevProps.isMobile === nextProps.isMobile &&
   prevProps.isFocused === nextProps.isFocused &&
   prevProps.isSearchFocused === nextProps.isSearchFocused &&
   prevProps.isDimmed === nextProps.isDimmed &&
   prevProps.isExpanded === nextProps.isExpanded &&
-  prevProps.isPlaintext === nextProps.isPlaintext &&
-  prevProps.readOnly === nextProps.readOnly &&
-  prevProps.onSendToComposer === nextProps.onSendToComposer &&
   prevProps.onLinkClick === nextProps.onLinkClick &&
   prevProps.onFileReferenceClick === nextProps.onFileReferenceClick &&
   prevProps.onMermaidOpen === nextProps.onMermaidOpen
@@ -584,6 +568,7 @@ export default function MessagesPane({
 
   // --- Copy ---
   const [copiedEventId, setCopiedEventId] = useState<string | null>(null);
+  const [snippetSaveSource, setSnippetSaveSource] = useState<{ body: string; sourceLabel: string } | null>(null);
   const handleCopy = useCallback((eventId: string, text: string) => {
     void writeText(text);
     setCopiedEventId(eventId);
@@ -1279,41 +1264,51 @@ export default function MessagesPane({
               return (
                 <div key={event.id} data-event-id={event.id} className="absolute left-0 right-0" style={{ top: `${start}px` }}>
                   <MessageRow
-                    event={event}
+                    actionContext={{
+                      event,
+                      sessionId,
+                      readOnly,
+                      copied: copiedEventId === event.id,
+                      isPlaintext: plaintextIds.has(event.id),
+                      isAudioLoading: event.role !== "user" && loadingEventId === event.id,
+                      isTtsSpeaking,
+                      activeSpeakingEventId,
+                      summarizeLevel,
+                      selectedVersion: selectedVersionForEvent(event),
+                      summarizingEventId,
+                      getSummarizeError,
+                      onClearSummarizeError,
+                      onToggleSummarized,
+                      onChangeLevel,
+                      audioSettings,
+                      onSetPlaybackRate,
+                      onSetVolume,
+                      onSetMuted,
+                      isMobile,
+                      onCopy: handleCopy,
+                      onPlayFromHere,
+                      onPlayEvent,
+                      onToggleRenderMode: toggleRenderMode,
+                      onSendToComposer,
+                      onSaveAsSnippet: (text) => {
+                        setSnippetSaveSource({
+                          body: text,
+                          sourceLabel: t(strings.snippets.save.fromMessage, { session: sessionId, sequence: event.sequence }),
+                        });
+                      },
+                      onHandoff: readOnly ? undefined : onHandoff,
+                    }}
                     index={index}
                     registerItem={registerItem}
                     fontSize={fontSize}
-                    copiedEventId={copiedEventId}
-                    onCopy={handleCopy}
-                    onPlayFromHere={onPlayFromHere}
-                    onPlayEvent={onPlayEvent}
-                    isTtsSpeaking={isTtsSpeaking}
-                    activeSpeakingEventId={activeSpeakingEventId}
-                    loadingEventId={loadingEventId}
-                    summarizeLevel={summarizeLevel}
-                    selectedVersionForEvent={selectedVersionForEvent}
-                    summarizingEventId={summarizingEventId}
-                    getSummarizeError={getSummarizeError}
-                    onClearSummarizeError={onClearSummarizeError}
-                    onToggleSummarized={onToggleSummarized}
-                    onChangeLevel={onChangeLevel}
-                    audioSettings={audioSettings}
-                    onSetPlaybackRate={onSetPlaybackRate}
-                    onSetVolume={onSetVolume}
-                    onSetMuted={onSetMuted}
-                    isMobile={isMobile}
                     isFocused={focusedEventId === event.id}
                     isSearchFocused={searchMatchSet.has(event.id) && currentMatchIndex >= 0 && searchMatchIds[currentMatchIndex] === event.id}
                     isDimmed={!!searchQuery && !searchMatchSet.has(event.id)}
                     isExpanded={expandedIds.has(event.id)}
                     onToggleExpanded={toggleExpanded}
-                    isPlaintext={plaintextIds.has(event.id)}
-                    onToggleRenderMode={toggleRenderMode}
                     onLinkClick={handleMarkdownLinkClick}
                     onFileReferenceClick={handleInlineCodeFileClick}
                     onMermaidOpen={handleMermaidOpen}
-                    readOnly={readOnly}
-                    onSendToComposer={onSendToComposer}
                   />
                   {/* Suggestions render INSIDE the message's own block, so
                       offering one never moves the transcript the operator is
@@ -1373,6 +1368,14 @@ export default function MessagesPane({
         open={mermaidViewer !== null}
         code={mermaidViewer?.code ?? ""}
         onClose={closeMermaidViewer}
+      />
+
+      <SnippetSaveSheet
+        open={snippetSaveSource !== null}
+        onClose={() => { setSnippetSaveSource(null); }}
+        mode="create"
+        initialBody={snippetSaveSource?.body ?? ""}
+        sourceLabel={snippetSaveSource?.sourceLabel}
       />
     </div>
   );

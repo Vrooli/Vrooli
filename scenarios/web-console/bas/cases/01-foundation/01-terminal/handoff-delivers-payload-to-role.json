@@ -47,8 +47,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid='new-terminal-button']",
-            "timeout_ms": 10000
+            "selector": "[data-testid='new-terminal-button']"
           },
           "metadata": {
             "label": "Open the new-session dialog"
@@ -60,8 +59,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid='launcher-mode-group']",
-            "timeout_ms": 10000
+            "selector": "[data-testid='launcher-mode-group']"
           },
           "metadata": {
             "label": "Switch to group mode"
@@ -74,8 +72,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "[data-testid='launcher-template-picker']",
-            "failure_message": "Expected group mode to render its template picker",
-            "timeout_ms": 15000
+            "failure_message": "Expected group mode to render its template picker"
           },
           "metadata": {
             "label": "Verify group mode is showing"
@@ -121,10 +118,11 @@
       {
         "id": "name-the-group",
         "action": {
-          "type": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
             "selector": "[data-testid='launcher-group-name']",
-            "text": "BAS_HANDOFF_GROUP",
-            "timeout_ms": 10000
+            "value": "BAS_HANDOFF_GROUP",
+            "clear_first": true
           },
           "metadata": {
             "label": "Name the group"
@@ -136,8 +134,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid='launcher-create-group']",
-            "timeout_ms": 10000
+            "selector": "[data-testid='launcher-create-group']"
           },
           "metadata": {
             "label": "Create the group and start both roles"
@@ -174,8 +171,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "body[data-bas-handoff-pair='true']",
-            "failure_message": "Expected two sessions in the group before handing off",
-            "timeout_ms": 15000
+            "failure_message": "Expected two sessions in the group before handing off"
           },
           "metadata": {
             "label": "Verify both roles started"
@@ -200,8 +196,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "body[data-bas-handoff-control='true']",
-            "failure_message": "Expected a handoff control on a pane whose group holds another member",
-            "timeout_ms": 15000
+            "failure_message": "Expected a handoff control on a pane whose group holds another member"
           },
           "metadata": {
             "label": "Verify the handoff control is offered"
@@ -214,8 +209,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "[data-testid='handoff-composer']",
-            "failure_message": "Expected the handoff composer to open",
-            "timeout_ms": 15000
+            "failure_message": "Expected the handoff composer to open"
           },
           "metadata": {
             "label": "Verify the composer opened"
@@ -239,8 +233,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid='handoff-send']",
-            "timeout_ms": 10000
+            "selector": "[data-testid='handoff-send']"
           },
           "metadata": {
             "label": "Send the handoff"
@@ -277,8 +270,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "body[data-bas-handoff-delivered='true']",
-            "failure_message": "Expected the handoff payload to arrive in another session's terminal output",
-            "timeout_ms": 15000
+            "failure_message": "Expected the handoff payload to arrive in another session's terminal output"
           },
           "metadata": {
             "label": "Verify the payload crossed sessions"

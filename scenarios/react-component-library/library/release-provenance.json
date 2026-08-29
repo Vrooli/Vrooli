@@ -1922,6 +1922,42 @@
       "backfilled": true
     },
     {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.2",
+      "draftVersion": "1.0.2-draft.1",
+      "publishedAt": "2026-08-28T22:59:50Z"
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.3",
+      "draftVersion": "1.0.3-draft.1",
+      "publishedAt": "2026-08-28T23:17:09Z"
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.4",
+      "draftVersion": "1.0.4-draft.1",
+      "publishedAt": "2026-08-28T23:43:44Z"
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-08-28T23:51:06Z"
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-08-29T00:19:05Z"
+    },
+    {
+      "libraryId": "react-component-library:SelectionControl",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-08-29T00:49:20Z"
+    },
+    {
       "libraryId": "react-component-library:SelectionStore",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2022,6 +2058,24 @@
       "version": "1.0.4",
       "publishedAt": "2026-08-27T00:00:00Z",
       "backfilled": true
+    },
+    {
+      "libraryId": "react-component-library:Slider",
+      "version": "1.0.1",
+      "draftVersion": "1.0.1-draft.1",
+      "publishedAt": "2026-08-28T23:17:09Z"
+    },
+    {
+      "libraryId": "react-component-library:Slider",
+      "version": "1.0.2",
+      "draftVersion": "1.0.2-draft.1",
+      "publishedAt": "2026-08-28T23:43:44Z"
+    },
+    {
+      "libraryId": "react-component-library:Slider",
+      "version": "1.1.0",
+      "draftVersion": "1.1.0-draft.1",
+      "publishedAt": "2026-08-29T00:19:06Z"
     },
     {
       "libraryId": "react-component-library:Slot",
@@ -2208,6 +2262,42 @@
       "version": "1.0.5",
       "publishedAt": "2026-08-27T00:00:00Z",
       "backfilled": true
+    },
+    {
+      "libraryId": "react-component-library:Switch",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-08-28T23:01:01Z"
+    },
+    {
+      "libraryId": "react-component-library:Switch",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-08-28T23:17:37Z"
+    },
+    {
+      "libraryId": "react-component-library:Switch",
+      "version": "1.0.8",
+      "draftVersion": "1.0.8-draft.1",
+      "publishedAt": "2026-08-28T23:44:14Z"
+    },
+    {
+      "libraryId": "react-component-library:Switch",
+      "version": "1.0.9",
+      "draftVersion": "1.0.9-draft.1",
+      "publishedAt": "2026-08-28T23:51:37Z"
+    },
+    {
+      "libraryId": "react-component-library:Switch",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-08-29T00:19:36Z"
+    },
+    {
+      "libraryId": "react-component-library:Switch",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-08-29T00:49:30Z"
     },
     {
       "libraryId": "react-component-library:Table",

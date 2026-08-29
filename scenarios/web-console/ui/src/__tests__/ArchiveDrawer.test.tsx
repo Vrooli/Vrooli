@@ -257,3 +257,79 @@ describe("ArchiveDrawer", () => {
     expect(screen.getAllByTestId(/recoverable-row-session-\d+$/)).toHaveLength(20);
   });
 });
+
+describe("ArchiveDrawer swipe actions", () => {
+  const REOPENABLE = {
+    id: "archive-2",
+    archived_at: "2026-08-17T12:00:00Z",
+    created_at: "2026-08-16T12:00:00Z",
+    agent_type: "claude",
+    cwd: "/workspace/project",
+    pane_name: "release planning",
+    message_count: 4,
+    restore_state: "reopenable" as const,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.listRecoverableSessions.mockResolvedValue([]);
+    // The gesture is touch-only, and jsdom reports no matches by default.
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes("max-width: 767px"),
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+  });
+
+  const renderDrawer = () =>
+    render(
+      <ArchiveDrawer open onClose={vi.fn()} activeSessionId="live-1" onSendToComposer={vi.fn()} onReopened={vi.fn()} />,
+    );
+
+  it("offers a reopen gesture on a reopenable row", async () => {
+    mocks.listArchivedSessions.mockResolvedValue({ total: 1, sessions: [REOPENABLE] });
+    renderDrawer();
+    expect(await screen.findByTestId("archive-swipe-archive-2")).toBeInTheDocument();
+  });
+
+  // A row that cannot be reopened gets no gesture rather than a disabled one,
+  // so the affordance never promises something it cannot do.
+  it("offers no gesture on a row that cannot be reopened", async () => {
+    mocks.listArchivedSessions.mockResolvedValue({
+      total: 1,
+      sessions: [{ ...REOPENABLE, id: "archive-3", restore_state: "read_only" as const }],
+    });
+    renderDrawer();
+    await screen.findByTestId("archive-session-archive-3");
+    expect(screen.queryByTestId("archive-swipe-archive-3")).toBeNull();
+  });
+
+  it("reopens the row the gesture was performed on, not the selected one", async () => {
+    mocks.listArchivedSessions.mockResolvedValue({ total: 1, sessions: [REOPENABLE] });
+    mocks.reopenSession.mockResolvedValue({ id: "archive-2" });
+    renderDrawer();
+    await screen.findByTestId("archive-swipe-archive-2");
+
+    const face = screen.getByTestId("archive-swipe-archive-2.face");
+    fireEvent.pointerDown(face, {
+      pointerId: 1, clientX: 0, clientY: 0, button: 0, pointerType: "touch", timeStamp: 1,
+    });
+    fireEvent.pointerMove(window, {
+      pointerId: 1, clientX: 200, clientY: 0, pointerType: "touch", timeStamp: 300,
+    });
+    fireEvent.pointerUp(window, {
+      pointerId: 1, clientX: 200, clientY: 0, pointerType: "touch", timeStamp: 400,
+    });
+
+    fireEvent.click(screen.getByTestId("archive-swipe-archive-2.action.reopen"));
+    // The row the gesture ran on, not whichever row happens to be selected.
+    await waitFor(() => {
+      expect(mocks.reopenSession).toHaveBeenCalledWith("archive-2", expect.any(String));
+    });
+  });
+});

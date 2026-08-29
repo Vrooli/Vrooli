@@ -18,6 +18,7 @@ import (
 	sessionsH "web-console/handlers/sessions"
 	settingsH "web-console/handlers/settings"
 	shortcutsH "web-console/handlers/shortcuts"
+	snippetsH "web-console/handlers/snippets"
 	terminalH "web-console/handlers/terminal"
 	workspaceH "web-console/handlers/workspace"
 
@@ -86,6 +87,7 @@ func (s *Server) setupRoutes() {
 	// satisfies the handler's Service seam, so there is no adapter to add.
 	groupTemplatesH.Module(s.groupTemplates, nil).Mount(s.router)
 	handoffRulesH.Module(s.handoffRules, nil).Mount(s.router)
+	snippetsH.Module(s.snippets, nil).Mount(s.router)
 	conversationH.Module(newConversationAdapter(s), nil).Mount(s.router)
 	filePreviewH.Module(newFilePreviewAdapter(s), nil).Mount(s.router)
 	s.router.HandleFunc("/api/v1/sessions/{id}/file-previews/{previewId}/blob", s.handleFilePreviewBlob).Methods("GET", "HEAD")

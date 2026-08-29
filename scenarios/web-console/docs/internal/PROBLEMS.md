@@ -3,9 +3,9 @@
 ## Work ladder
 
 - Rung: W3
-- Evidence: W0 contract comparison passes against `hosted-cloud-tier-foundation` and `portal-front-door`; W1 `business-health validate scenario web-console` and W2 `vrooli scenario requirements validate web-console` pass. The failed restart was an implementation-layer UI type-check failure: group-management consumers referenced `manageGroupsTarget` / `setManageGroupsTarget` that were absent from the current store contract. After the in-progress UI changes settled, `vrooli scenario restart web-console` completed healthy on 2026-08-27.
-- Blocker: none for the reported restart failure.
-- Measured: 2026-08-27
+- Evidence: W0's snippet/message-action mechanism is recorded in `docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.md`; W1 and W2 pass through `vrooli scenario requirements validate web-console` and `business-health validate scenario web-console`. At W3, the snippet stores/handlers, generated contract, CLI, UI, localization, and 86 focused UI tests pass. Six BAS cases are registered under `bas/cases/03-snippets/`; Workflow Health static validation is L5 after experience-region, safety-metadata, and case/flow classification repairs. `storage-manager validate prove-isolation web-console` proves the routed seam independently of historical storage-accountability debt. Durable Workflow Health run `a110ffcf-91b7-440e-b974-d0ab23961068` installed routed isolation, selected all 16 cases, executed seven, passed three, and observed zero primary-root writes during test-mode requests.
+- Blocker: Real-browser proof for the six snippet cases remains incomplete because three separate concurrent agent processes restarted Web Console while Workflow Health held its target lease (restart starts at 2026-08-28 23:45:47Z, 23:52:49Z, and 2026-08-29 00:20:46Z). The latest collision removed API port 16382 after seven cases and correctly refused the remaining nine, including all snippet cases. The durable plan bug is `857cd066-6756-4457-a50e-b2c5552a4a6f`; retry the workflow-only phase when no other session owns Web Console lifecycle. Global UI lint retains broad pre-existing debt; plan-owned files are checked separately.
+- Measured: 2026-08-28
 
 ## 1. Interactive CLI Fidelity Edge Cases
 

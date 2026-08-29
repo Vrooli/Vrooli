@@ -1,0 +1,178 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Keep me signed in",
+          "role": "checkbox"
+        },
+        {
+          "kind": "text",
+          "value": "private device"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Checkbox",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "States",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Quiet hours",
+          "role": "switch"
+        },
+        {
+          "kind": "role",
+          "role": "alert"
+        }
+      ],
+      "id": "states",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Selection states",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Bare",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Adaptive chrome",
+          "role": "switch"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-selection-row]",
+          "attribute": "data-bare",
+          "value": "true"
+        }
+      ],
+      "id": "bare",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Bare",
+      "role": "axis",
+      "axis": "label"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "TrailingLabel",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Adaptive chrome",
+          "role": "switch"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-selection-row]",
+          "attribute": "data-label-placement",
+          "value": "end"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-selection-row]",
+          "attribute": "data-bare",
+          "value": "false"
+        }
+      ],
+      "id": "trailing-label",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Trailing label",
+      "role": "axis",
+      "axis": "labelPlacement"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Activation",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-selection-input]",
+          "attribute": "aria-checked",
+          "value": "true"
+        }
+      ],
+      "id": "activation",
+      "interactions": [
+        {
+          "kind": "settle"
+        },
+        {
+          "kind": "click",
+          "target": {
+            "name": "Quiet hours",
+            "role": "switch"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Activation",
+      "role": "boundary"
+    }
+  ],
+  "title": "SelectionControl"
+}

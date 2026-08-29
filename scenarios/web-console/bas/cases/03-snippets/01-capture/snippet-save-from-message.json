@@ -1,0 +1,56 @@
+{
+  "id": "ba510000-0000-4000-8000-000000000001",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "snippet-save-from-message",
+  "folder_path": "/bas/cases/03-snippets/01-capture",
+  "description": "Save an assistant message as a snippet and verify it appears in Settings",
+  "metadata": {
+    "name": "snippet-save-from-message",
+    "description": "Save an assistant message as a snippet and verify it appears in Settings",
+    "execution_mode": "mutating",
+    "reset": "full",
+    "labels": {
+      "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "requirements_json": "[\"REQ-P0-015c\",\"REQ-P0-015g\"]"
+    }
+  },
+  "tags": ["reset:full", "requirements_json:[\"REQ-P0-015c\",\"REQ-P0-015g\"]"],
+  "version": 1,
+  "created_at": "2026-08-28T22:20:00.000000000Z",
+  "updated_at": "2026-08-28T22:20:00.000000000Z",
+  "flow_definition": {
+    "settings": {"viewport_width": 1440, "viewport_height": 900},
+    "nodes": [
+      {"id":"open","action":{"type":"ACTION_TYPE_SUBFLOW","subflow":{"workflow_path":"actions/open-workspace.json"},"metadata":{"label":"Open workspace"}}},
+      {"id":"hydrate","action":{"type":"ACTION_TYPE_WAIT","wait":{"duration_ms":2000},"metadata":{"label":"Allow seeded messages to hydrate"}}},
+      {"id":"activate","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(async () => { const sleep=(ms)=>new Promise(r=>setTimeout(r,ms)); const tabs=Array.from(document.querySelectorAll('[data-testid^=\\\"tab-\\\"]')).filter(el=>{const id=el.getAttribute('data-testid')||'';return id!=='tab-bar'&&id!=='tab-bar-new'&&!id.startsWith('tab-group-')&&!id.startsWith('tab-rename-input-');}); let ok=false; for(const tab of tabs){tab.click();await sleep(350);const toggle=document.querySelector('[data-testid=\\\"workspace-toggle-view\\\"]');if(toggle instanceof HTMLElement){toggle.click();await sleep(500);if(document.querySelector('[data-testid^=\\\"messages-pane-\\\"]')){ok=true;break;}}} document.body.setAttribute('data-bas-messages-active',ok?'true':'false');})()"},"metadata":{"label":"Activate seeded Messages session"}}},
+      {"id":"assert-messages","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-bas-messages-active='true']","failure_message":"Expected a seeded Messages session"},"metadata":{"label":"Verify Messages view"}}},
+      {"id":"open-save","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(() => { const cards=Array.from(document.querySelectorAll('[data-testid^=\\\"msg-card-\\\"]')); let opened=false; for(const card of cards){const more=card.querySelector('[data-testid^=\\\"msg-actions-more-\\\"]'); if(!(more instanceof HTMLElement)) continue; more.click(); const save=card.querySelector('[data-testid^=\\\"msg-save-snippet-\\\"]')||document.querySelector('[data-testid^=\\\"msg-save-snippet-\\\"]'); if(save instanceof HTMLElement){save.click();opened=true;break;}} document.body.setAttribute('data-bas-save-opened',opened?'true':'false');})()"},"metadata":{"label":"Open Save as snippet from message overflow"}}},
+      {"id":"assert-save","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"[data-testid='snippet-save-name']","failure_message":"Expected the Save snippet sheet"},"metadata":{"label":"Verify save sheet"}}},
+      {"id":"name","action":{"type":"ACTION_TYPE_INPUT","input":{"selector":"[data-testid='snippet-save-name']","value":"BAS Captured Message","clear_first":true},"metadata":{"label":"Name captured snippet"}}},
+      {"id":"submit","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"[data-testid='snippet-save-submit']"},"metadata":{"label":"Save snippet"}}},
+      {"id":"settle-save","action":{"type":"ACTION_TYPE_WAIT","wait":{"duration_ms":800},"metadata":{"label":"Allow save to complete"}}},
+      {"id":"settings","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"[data-testid='toolbar-settings']"},"metadata":{"label":"Open Settings"}}},
+      {"id":"snippets-tab","action":{"type":"ACTION_TYPE_CLICK","click":{"selector":"[data-testid='settings-tab-snippets']"},"metadata":{"label":"Open Snippets settings"}}},
+      {"id":"find-captured","action":{"type":"ACTION_TYPE_EVALUATE","evaluate":{"expression":"(() => { const found=Array.from(document.querySelectorAll('[data-testid^=\\\"snippet-settings-row-\\\"]')).some(el=>(el.textContent||'').includes('BAS Captured Message')); document.body.setAttribute('data-bas-captured-visible',found?'true':'false');})()"},"metadata":{"label":"Find captured snippet"}}},
+      {"id":"assert-captured","action":{"type":"ACTION_TYPE_ASSERT","assert":{"selector":"body[data-bas-captured-visible='true']","failure_message":"Expected captured message in Snippets settings"},"metadata":{"label":"Verify captured snippet is manageable"}}}
+    ],
+    "edges": [
+      {"id":"e1","source":"open","target":"hydrate","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e2","source":"hydrate","target":"activate","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e3","source":"activate","target":"assert-messages","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e4","source":"assert-messages","target":"open-save","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e5","source":"open-save","target":"assert-save","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e6","source":"assert-save","target":"name","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e7","source":"name","target":"submit","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e8","source":"submit","target":"settle-save","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e9","source":"settle-save","target":"settings","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e10","source":"settings","target":"snippets-tab","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e11","source":"snippets-tab","target":"find-captured","type":"WORKFLOW_EDGE_TYPE_DEFAULT"},
+      {"id":"e12","source":"find-captured","target":"assert-captured","type":"WORKFLOW_EDGE_TYPE_DEFAULT"}
+    ]
+  }
+}

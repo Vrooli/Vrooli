@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive, Download, Search, Trash2 } from "lucide-react";
+import { Archive, Download, RotateCcw, Search, Trash2 } from "lucide-react";
+import { SwipeActions } from "@vrooli/react-component-library/SwipeActions";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -82,6 +84,9 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
   const reopenKeys = useRef(new Map<string, string>());
   const recoveryKeys = useRef(new Map<string, string>());
   const orphanFilterInitialized = useRef(false);
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  // Only one row rests open at a time; opening another closes the last.
+  const [swipeOpenArchiveId, setSwipeOpenArchiveId] = useState<string | null>(null);
   const [archive, setArchive] = useState<ArchivedSession[]>([]);
   const [recoverable, setRecoverable] = useState<RecoverableSession[]>([]);
   const [orphansOnly, setOrphansOnly] = useState(false);
@@ -219,9 +224,7 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     }
   }, [deleteTarget, refreshArchive]);
 
-  const reopenSelected = useCallback(async () => {
-    if (!selectedSession || selectedSession.restore_state !== "reopenable") return;
-    const id = selectedSession.id;
+  const reopenById = useCallback(async (id: string) => {
     const key = reopenKeys.current.get(id) ?? crypto.randomUUID();
     reopenKeys.current.set(id, key);
     setReopeningId(id);
@@ -236,7 +239,12 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
     } finally {
       setReopeningId(null);
     }
-  }, [onClose, onReopened, selectedSession]);
+  }, [onClose, onReopened]);
+
+  const reopenSelected = useCallback(async () => {
+    if (!selectedSession || selectedSession.restore_state !== "reopenable") return;
+    await reopenById(selectedSession.id);
+  }, [reopenById, selectedSession]);
 
   const recoverOne = useCallback(async (id: string) => {
     const key = recoveryKeys.current.get(id) ?? crypto.randomUUID();
@@ -349,9 +357,9 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
             ) : !query.trim() ? (
               browseRows.length === 0 ? (
                 <div className="p-5 text-sm text-wc-text-muted"><Archive className="mb-3 h-7 w-7" />{t(strings.archiveDrawer.noResults)}</div>
-              ) : browseRows.map((row) => (
+              ) : browseRows.map((row) => {
+                const rowButton = (
                 <button
-                  key={row.id}
                   type="button"
                   data-testid={`archive-session-${row.id}`}
                   onClick={() => { setSelected(null); setSelectedArchiveId(row.id); }}
@@ -370,7 +378,37 @@ export default function ArchiveDrawer({ open, initialSessionId = null, onClose, 
                     </span>
                   </div>
                 </button>
-              ))
+                );
+
+                // Reopen is the only action worth accelerating here: it is the
+                // reason the drawer is open, and the detail pane already offers
+                // export and permanent deletion behind their own confirmations.
+                // A row that cannot be reopened gets no gesture rather than a
+                // disabled one, so the affordance never lies.
+                if (!isMobile || row.restore_state !== "reopenable") {
+                  return <div key={row.id}>{rowButton}</div>;
+                }
+                return (
+                  <SwipeActions
+                    key={row.id}
+                    testId={`archive-swipe-${row.id}`}
+                    label={t(strings.archiveDrawer.swipeActionsAria, { name: row.pane_name })}
+                    open={swipeOpenArchiveId === row.id}
+                    onOpenChange={(next) => { setSwipeOpenArchiveId(next ? row.id : null); }}
+                    actions={[
+                      {
+                        id: "reopen",
+                        label: t(strings.archiveDrawer.reopen),
+                        icon: <RotateCcw className="h-4 w-4" aria-hidden />,
+                        tone: "primary",
+                        onSelect: () => { void reopenById(row.id); },
+                      },
+                    ]}
+                  >
+                    {rowButton}
+                  </SwipeActions>
+                );
+              })
             ) : loading ? (
               <div className="p-5 text-sm text-wc-text-muted">{t(strings.archiveDrawer.searching)}</div>
             ) : matches.length === 0 ? (

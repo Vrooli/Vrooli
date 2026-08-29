@@ -26,6 +26,7 @@ persistence remains Unix-only. Platform claims and evidence live in
 6. Configurable new-terminal launcher with empty shell and shortcut options.
 7. Sidebar/drawer for operational controls and status.
 8. Non-destructive session archive with cross-session transcript retrieval and bounded retention.
+9. Sender-owned reusable message snippets with named variables, capture from messages/composers, and explicit one-way promotion to governed skills.
 
 ## Single-User Design
 
@@ -78,6 +79,22 @@ Web Console is designed for personal server use — a single operator running th
 Shipped templates and rules are ordinary editable rows. Deleting them leaves
 every capability working. Design record:
 `docs/internal/ROLES-AND-HANDOFFS-UX.md`.
+
+### Snippets and Message Actions
+
+- Snippets are flat, sender-owned reusable text with optional lowercase named
+  variables. They have no receiver, group, role, or privileged built-in state.
+- Operators can capture message or composer text, insert snippets from desktop
+  and mobile composer surfaces, and manage, pin, recolor, or delete them in
+  Settings.
+- Handoffs can target the current group, other live sessions, or a new
+  ungrouped session. Message text resolves by per-target edit, selected
+  snippet, receiver role prompt, then payload.
+- Message actions come from one declared registry with at most three actions
+  inline; remaining actions use one overflow menu with 44-pixel hit targets.
+- Promotion copies a snippet into prompt-manager once. No identifier or sync
+  link is retained. Design record:
+  `docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.md`.
 
 ### Conversation Messages
 

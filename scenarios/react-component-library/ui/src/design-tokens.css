@@ -249,6 +249,10 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter: cubic-bezier(0, 0, 0, 1);
   --ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  /* Overshoots slightly before settling. For direct-manipulation controls
+     whose travel should read as physical — a switch thumb, a snapping sheet.
+     Never for opacity or colour, where an overshoot has nowhere to go. */
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
   --spring-subtle: cubic-bezier(0.2, 0.8, 0.2, 1.05);
   --spring-expressive: cubic-bezier(0.16, 1.2, 0.3, 1.05);
   --touch-target: 44px;

@@ -1,0 +1,730 @@
+<title>The Snippet Layer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+:root {
+  --ground:      #f2f5f4;
+  --surface:     #ffffff;
+  --surface-sub: #e9eeed;
+  --line:        #d3dcda;
+  --line-soft:   #e3eae8;
+  --ink:         #101817;
+  --ink-2:       #3d4b49;
+  --ink-3:       #667875;
+  --accent:      #0e8878;
+  --accent-soft: #d6efeb;
+  --violet:      #6f4fd8;
+  --violet-soft: #e8e1fb;
+  --blue:        #1f7fce;
+  --blue-soft:   #dcecfa;
+  --amber:       #a06400;
+  --amber-soft:  #f7ead0;
+  --rose:        #b83a3a;
+  --rose-soft:   #f8e0de;
+
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body:    "Source Serif 4", Georgia, "Times New Roman", serif;
+  --f-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --measure: 68ch;
+  --pad: clamp(1.15rem, 4vw, 2.5rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #0b1110;
+    --surface:     #131b1a;
+    --surface-sub: #1a2423;
+    --line:        #2a3735;
+    --line-soft:   #202b2a;
+    --ink:         #e4ecea;
+    --ink-2:       #b3c3c0;
+    --ink-3:       #7d918e;
+    --accent:      #3ed6c0;
+    --accent-soft: #10312d;
+    --violet:      #a78bfa;
+    --violet-soft: #241d3d;
+    --blue:        #5fb2f0;
+    --blue-soft:   #14293a;
+    --amber:       #e0a444;
+    --amber-soft:  #2f2413;
+    --rose:        #f0837e;
+    --rose-soft:   #35191a;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:      #0b1110;
+  --surface:     #131b1a;
+  --surface-sub: #1a2423;
+  --line:        #2a3735;
+  --line-soft:   #202b2a;
+  --ink:         #e4ecea;
+  --ink-2:       #b3c3c0;
+  --ink-3:       #7d918e;
+  --accent:      #3ed6c0;
+  --accent-soft: #10312d;
+  --violet:      #a78bfa;
+  --violet-soft: #241d3d;
+  --blue:        #5fb2f0;
+  --blue-soft:   #14293a;
+  --amber:       #e0a444;
+  --amber-soft:  #2f2413;
+  --rose:        #f0837e;
+  --rose-soft:   #35191a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 17px;
+  line-height: 1.62;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: var(--pad);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(2.5rem, 6vw, 4.25rem);
+}
+
+.prose { max-width: var(--measure); }
+.prose > * + * { margin-top: 0.95em; }
+p { margin: 0; }
+
+/* ---- masthead ---- */
+.masthead {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding-top: clamp(1rem, 4vw, 2.5rem);
+}
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+.eyebrow .dot { color: var(--ink-3); }
+h1 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(2.35rem, 7vw, 4rem);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  margin: 0;
+  text-wrap: balance;
+  max-width: 16ch;
+}
+.deck {
+  font-size: clamp(1.1rem, 2.4vw, 1.32rem);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: 56ch;
+  text-wrap: pretty;
+}
+.deck strong { color: var(--ink); font-weight: 600; }
+.sourced {
+  font-family: var(--f-mono);
+  font-size: 0.76rem;
+  line-height: 1.7;
+  color: var(--ink-3);
+  border-left: 2px solid var(--line);
+  padding-left: 0.9rem;
+  max-width: 62ch;
+}
+
+/* ---- section chrome ---- */
+section { display: flex; flex-direction: column; gap: 1.35rem; }
+.sec-head { display: flex; flex-direction: column; gap: 0.5rem; }
+.sec-label {
+  font-family: var(--f-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+h2 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: clamp(1.55rem, 3.4vw, 2.05rem);
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+  margin: 0;
+  text-wrap: balance;
+  max-width: 24ch;
+}
+h3 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 1.06rem;
+  letter-spacing: -0.005em;
+  margin: 0;
+  text-wrap: balance;
+}
+hr.rule {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0;
+}
+
+code, .mono {
+  font-family: var(--f-mono);
+  font-size: 0.855em;
+  font-weight: 500;
+}
+code {
+  background: var(--surface-sub);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  padding: 0.08em 0.34em;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+/* ---- findings ---- */
+.findings { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); }
+.finding {
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  gap: 0 1.5rem;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid var(--line-soft);
+  align-items: start;
+}
+.finding .k {
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-top: 0.32em;
+}
+.finding .v { font-size: 0.97rem; color: var(--ink-2); }
+.finding .v strong { color: var(--ink); font-weight: 600; }
+@media (max-width: 620px) {
+  .finding { grid-template-columns: 1fr; gap: 0.35rem; }
+  .finding .k { padding-top: 0; }
+}
+
+/* ---- tier table ---- */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-family: var(--f-display); font-size: 0.9rem; }
+th, td { text-align: left; padding: 0.85rem 1.05rem; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+thead th {
+  font-family: var(--f-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  background: var(--surface-sub);
+  border-bottom: 1px solid var(--line);
+}
+tbody tr:last-child td { border-bottom: 0; }
+td { color: var(--ink-2); }
+td.name { color: var(--ink); font-weight: 600; }
+.tier-chip {
+  display: inline-flex; align-items: center; gap: 0.42rem;
+  font-family: var(--f-mono); font-size: 0.7rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0.2rem 0.5rem; border-radius: 999px; white-space: nowrap;
+}
+.t-draft   { background: var(--blue-soft);   color: var(--blue); }
+.t-snip    { background: var(--accent-soft); color: var(--accent); }
+.t-skill   { background: var(--violet-soft); color: var(--violet); }
+
+/* ---- diagram ---- */
+figure { margin: 0; display: flex; flex-direction: column; gap: 0.8rem; }
+.diagram {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1.1rem;
+  overflow-x: auto;
+}
+.diagram svg { display: block; width: 100%; min-width: 560px; height: auto; }
+figcaption { font-size: 0.86rem; color: var(--ink-3); max-width: var(--measure); }
+.svg-box { fill: var(--surface-sub); stroke: var(--line); stroke-width: 1; }
+.svg-box-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.svg-box-dead { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+.svg-t { font-family: var(--f-mono); font-size: 11.5px; fill: var(--ink-2); }
+.svg-t-strong { font-family: var(--f-display); font-size: 13px; font-weight: 600; fill: var(--ink); }
+.svg-t-faint { font-family: var(--f-mono); font-size: 10.5px; fill: var(--ink-3); }
+.svg-t-accent { font-family: var(--f-display); font-size: 13px; font-weight: 700; fill: var(--accent); }
+.svg-link { stroke: var(--ink-3); stroke-width: 1.2; fill: none; }
+.svg-link-accent { stroke: var(--accent); stroke-width: 1.6; fill: none; }
+.svg-link-dead { stroke: var(--rose); stroke-width: 1.2; fill: none; stroke-dasharray: 4 3; }
+.svg-panel-label { font-family: var(--f-mono); font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; fill: var(--ink-3); }
+
+/* ---- recommendation cards ---- */
+.recs { display: flex; flex-direction: column; gap: 1rem; }
+.rec {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1.25rem 1.35rem;
+  display: grid;
+  grid-template-columns: 3.2rem 1fr;
+  gap: 0.55rem 1.2rem;
+}
+.rec .id {
+  font-family: var(--f-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  padding-top: 0.18em;
+  letter-spacing: 0.04em;
+}
+.rec .body { grid-column: 2; display: flex; flex-direction: column; gap: 0.6rem; }
+.rec .body p { font-size: 0.97rem; color: var(--ink-2); }
+.rec .body p strong { color: var(--ink); font-weight: 600; }
+.rec .head { grid-column: 2; }
+.rec .touch {
+  font-family: var(--f-mono);
+  font-size: 0.74rem;
+  color: var(--ink-3);
+  line-height: 1.75;
+  border-top: 1px dashed var(--line);
+  padding-top: 0.55rem;
+  word-break: break-word;
+}
+.rec .touch b { color: var(--ink-2); font-weight: 500; }
+@media (max-width: 560px) {
+  .rec { grid-template-columns: 1fr; }
+  .rec .head, .rec .body { grid-column: 1; }
+}
+
+/* ---- ordered build steps ---- */
+ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; counter-reset: step; border-top: 1px solid var(--line); }
+ol.steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 2.6rem 1fr auto;
+  gap: 0 1rem;
+  align-items: baseline;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 0.97rem;
+  color: var(--ink-2);
+}
+ol.steps li::before {
+  content: counter(step);
+  font-family: var(--f-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+ol.steps li b { color: var(--ink); font-weight: 600; font-family: var(--f-display); }
+ol.steps .gate {
+  font-family: var(--f-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  ol.steps li { grid-template-columns: 2rem 1fr; }
+  ol.steps .gate { grid-column: 2; }
+}
+
+/* ---- avoid list ---- */
+.avoid { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); }
+.avoid-row {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr;
+  gap: 0 0.85rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 0.96rem;
+  color: var(--ink-2);
+}
+.avoid-row .x { color: var(--rose); font-family: var(--f-mono); font-weight: 700; font-size: 0.9rem; line-height: 1.7; }
+.avoid-row b { color: var(--ink); font-weight: 600; font-family: var(--f-display); }
+
+/* ---- open questions ---- */
+.qs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.9rem; }
+.q {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--amber);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  display: flex; flex-direction: column; gap: 0.45rem;
+}
+.q .qt { font-family: var(--f-display); font-weight: 600; font-size: 0.97rem; color: var(--ink); text-wrap: balance; }
+.q .qa { font-size: 0.9rem; color: var(--ink-2); }
+.q .qa em { color: var(--amber); font-style: normal; font-family: var(--f-mono); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 0.15rem; }
+
+/* ---- callout ---- */
+.callout {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 1.2rem 1.35rem;
+  display: flex; flex-direction: column; gap: 0.55rem;
+  max-width: var(--measure);
+}
+.callout .ct {
+  font-family: var(--f-mono);
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--accent);
+}
+.callout p { font-size: 1.02rem; color: var(--ink); }
+
+footer {
+  border-top: 1px solid var(--line);
+  padding: 1.5rem 0 3rem;
+  font-family: var(--f-mono);
+  font-size: 0.74rem;
+  color: var(--ink-3);
+  line-height: 1.8;
+}
+
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">
+      <span>web-console</span><span class="dot">/</span><span>design memo</span><span class="dot">/</span><span>2026-08-28</span>
+    </div>
+    <h1>The Snippet Layer</h1>
+    <p class="deck">Session groups gave the console a way to hand a plan from a planner to an implementer. What it did <strong>not</strong> give you is a reusable message that belongs to nobody — no group, no role, no handoff. That is the missing noun, and it is smaller than it looks.</p>
+    <p class="sourced">Read on branch <span class="mono">agi</span> before writing: api/internal/grouptemplates/{types,seed}.go · api/internal/handoffrules/types.go · api/internal/sessions/schema.sql · ui/src/lib/handoff.ts · ui/src/hooks/useHandoff.ts · ui/src/hooks/useComposerDraft.ts · ui/src/components/{FullScreenComposer,MobileToolbar}.tsx · ui/src/components/handoff/HandoffComposer.tsx · ui/src/components/settings/{tabs,GroupTemplatesPanel}.tsx · docs/internal/ROLES-AND-HANDOFFS-UX.md · docs/internal/SEAMS.md</p>
+  </header>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-label">What is actually there</div>
+      <h2>Your memory of the template is right, and the design around it is better than you think</h2>
+    </div>
+    <div class="prose">
+      <p>The default group template really does say almost nothing. In <code>api/internal/grouptemplates/seed.go</code>, the shipped “Plan → Implement” template is two roles: an eager <em>Planner</em> running Claude Code, and a waiting <em>Implementer</em> running <code>codex --yolo</code> whose entire prompt is <code>Implement the plan at {{payload}}</code>.</p>
+      <p>But the terseness is not laziness — it is a deliberate constraint, and it is worth knowing before you expand on it. The design record lists <strong>ten prohibitions</strong>, three of them enforced by greps in <code>SEAMS.md</code>, whose collective point is that <em>nothing in the data model may know what a plan is</em>. No <code>plan_path</code> field, no pair-shaped model, no parser in the template language. That is why the seed prompt is one line: a richer default would have smuggled one workflow into shipped content.</p>
+    </div>
+
+    <div class="findings">
+      <div class="finding">
+        <div class="k">Prompts live</div>
+        <div class="v">On the <strong>receiving</strong> role (<code>workspace_roles.incoming_prompt</code>), never on the sender. Decision D3. A running session and a waiting placeholder both supply their own framing, so handoffs compose.</div>
+      </div>
+      <div class="finding">
+        <div class="k">Template language</div>
+        <div class="v">Exactly one placeholder, <code>{{payload}}</code>, and three cases in <code>renderHandoffPrompt</code>: empty template → payload alone; no placeholder → template, blank line, payload; placeholder → substituted. Decision D4: <strong>no parser, no escaping, no error states</strong>.</div>
+      </div>
+      <div class="finding">
+        <div class="k">Storage</div>
+        <div class="v">Three tables already carry operator-authored text: <code>group_templates</code>, <code>handoff_rules</code>, <code>shortcut_profiles</code>. All three seed a deletable example through the same public write path the UI uses. No <code>is_builtin</code> column anywhere.</div>
+      </div>
+      <div class="finding">
+        <div class="k">The blocker</div>
+        <div class="v"><code>targetsForSession()</code> in <code>ui/src/hooks/useHandoff.ts:151</code> opens with <code>if (!groupId) return []</code>. <strong>A session outside a group has zero handoff targets.</strong> That is your “I made a plan outside a group and now I can’t hand it off” — one line, one real design decision behind it.</div>
+      </div>
+      <div class="finding">
+        <div class="k">Already built</div>
+        <div class="v"><code>useComposerDraft</code> exposes <code>appendAtCaret(text)</code>. The insert mechanic you need exists and is used by voice dictation today. <code>HandoffComposer</code> already does multi-select with per-target editable text. <code>HEADER_COLORS</code> is an 8-swatch palette shared by panes and groups.</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-label">The diagnosis</div>
+      <h2>You don’t need a better role prompt. You need a text that belongs to the sender.</h2>
+    </div>
+    <div class="prose">
+      <p>Every reusable string in the console today is addressed by <em>who receives it</em>. That is correct for handoffs and wrong for the thing you keep describing: the message you are about to type, again, for the fourth time this week, in the middle of an investigation. It has no receiver yet. It has no group. It may never be sent twice to the same agent.</p>
+      <p>So the new noun is a <strong>snippet</strong>: a named, colour-tagged body of text with no owner and no destination. Not a role. Not a template. Not a rule. And critically — as you spotted yourself — not a skill.</p>
+    </div>
+
+    <div class="callout">
+      <div class="ct">The distinction worth writing down</div>
+      <p>A skill is authored, reviewed, indexed, and read by <em>agents</em> through discovery. A snippet is jotted, reused, edited in place, and read by <em>your thumbs</em>. Forcing the second through the machinery of the first is exactly what kills it — the moment capturing a phrase costs a spec-conformant <span class="mono">SKILL.md</span>, you go back to your notes app.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Tier</th><th>Lives in</th><th>Lifetime</th><th>Governance</th><th>Consumer</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="name"><span class="tier-chip t-draft">Draft</span></td>
+            <td>useComposerDraft + localStorage</td>
+            <td>One session, one message</td>
+            <td>None</td>
+            <td>You, right now</td>
+          </tr>
+          <tr>
+            <td class="name"><span class="tier-chip t-snip">Snippet</span></td>
+            <td>web-console SQLite <span class="mono">message_snippets</span></td>
+            <td>Days to weeks — disposable by design</td>
+            <td>None. Personal. Delete freely.</td>
+            <td>You, across sessions</td>
+          </tr>
+          <tr>
+            <td class="name"><span class="tier-chip t-skill">Skill</span></td>
+            <td>prompt-manager registry (SKILL.md)</td>
+            <td>Permanent capability</td>
+            <td>Spec-conformant, indexed, publishable</td>
+            <td>Agents, via discovery</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="prose" style="font-size:0.93rem;color:var(--ink-3)">One caveat I’d want checked rather than assumed: prompt-manager currently carries <em>two</em> different <span class="mono">Skill</span> structs. The live API store model (<span class="mono">api/internal/store/models.go</span>) is the SKILL.md registry. But <span class="mono">cli/internal/types/types.go</span> holds an older shape with <span class="mono">Variables</span>, <span class="mono">UsageCount</span>, <span class="mono">IsFavorite</span>, <span class="mono">QuickAccessKey</span> — which is almost exactly the snippet model described here. It looks like legacy, but if it is live, that is a naming collision worth resolving before you ship a second one.</p>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-label">Reach</div>
+      <h2>Four surfaces compose text. Only one of them can reach a saved prompt.</h2>
+    </div>
+    <figure>
+      <div class="diagram">
+        <svg viewBox="0 0 720 300" role="img" aria-label="Diagram: today four composing surfaces reach almost no stored prompt text; proposed, all four read and write one snippet store.">
+          <text x="0" y="12" class="svg-panel-label">TODAY</text>
+
+          <rect x="0" y="28" width="196" height="30" rx="5" class="svg-box-dead"/>
+          <text x="12" y="47" class="svg-t">MobileToolbar input</text>
+          <rect x="0" y="66" width="196" height="30" rx="5" class="svg-box-dead"/>
+          <text x="12" y="85" class="svg-t">FullScreenComposer</text>
+          <rect x="0" y="104" width="196" height="30" rx="5" class="svg-box"/>
+          <text x="12" y="123" class="svg-t">HandoffComposer</text>
+          <rect x="0" y="142" width="196" height="30" rx="5" class="svg-box"/>
+          <text x="12" y="161" class="svg-t">GroupTemplatesPanel</text>
+
+          <path d="M196 119 H 268" class="svg-link"/>
+          <path d="M196 157 H 268" class="svg-link"/>
+          <path d="M196 43 H 240" class="svg-link-dead"/>
+          <path d="M196 81 H 240" class="svg-link-dead"/>
+          <text x="246" y="47" class="svg-t-faint">nothing</text>
+          <text x="246" y="85" class="svg-t-faint">nothing</text>
+
+          <rect x="268" y="104" width="180" height="68" rx="6" class="svg-box"/>
+          <text x="280" y="128" class="svg-t-strong">role.incoming_prompt</text>
+          <text x="280" y="147" class="svg-t-faint">requires a group,</text>
+          <text x="280" y="162" class="svg-t-faint">a role, and a handoff</text>
+
+          <text x="470" y="12" class="svg-panel-label">PROPOSED</text>
+          <path d="M462 24 V 290" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4" fill="none"/>
+
+          <rect x="486" y="28" width="120" height="26" rx="5" class="svg-box"/>
+          <text x="496" y="45" class="svg-t">toolbar</text>
+          <rect x="486" y="62" width="120" height="26" rx="5" class="svg-box"/>
+          <text x="496" y="79" class="svg-t">composer</text>
+          <rect x="486" y="96" width="120" height="26" rx="5" class="svg-box"/>
+          <text x="496" y="113" class="svg-t">handoff</text>
+          <rect x="486" y="130" width="120" height="26" rx="5" class="svg-box"/>
+          <text x="496" y="147" class="svg-t">templates</text>
+          <rect x="486" y="164" width="120" height="26" rx="5" class="svg-box"/>
+          <text x="496" y="181" class="svg-t">sent message</text>
+
+          <path d="M606 41 H 632 V 224" class="svg-link-accent"/>
+          <path d="M606 75 H 626 V 224" class="svg-link-accent"/>
+          <path d="M606 109 H 620 V 224" class="svg-link-accent"/>
+          <path d="M606 143 H 614 V 224" class="svg-link-accent"/>
+          <path d="M606 177 H 608 V 224" class="svg-link-accent"/>
+
+          <rect x="486" y="224" width="200" height="54" rx="6" class="svg-box-accent"/>
+          <text x="498" y="246" class="svg-t-accent">message_snippets</text>
+          <text x="498" y="266" class="svg-t-faint">one picker · one hook · MRU</text>
+
+          <path d="M268 200 H 448" class="svg-link"/>
+          <text x="0" y="204" class="svg-t-faint">a role prompt becomes a snippet</text>
+          <text x="0" y="220" class="svg-t-faint">copied into place — same type,</text>
+          <text x="0" y="236" class="svg-t-faint">no live reference</text>
+        </svg>
+      </div>
+      <figcaption>Build the picker into only the full-screen composer and you hit the same wall in a month, from a different direction. The cost of mounting it in all five places is one shared hook — the other four are each a few lines.</figcaption>
+    </figure>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-label">Recommendations</div>
+      <h2>Eight moves, ordered by how much they buy per line changed</h2>
+    </div>
+
+    <div class="recs">
+
+      <div class="rec">
+        <div class="id">S1</div>
+        <div class="head"><h3>Add <span class="mono">message_snippets</span> as an ordinary row, copying the idioms already in the schema</h3></div>
+        <div class="body">
+          <p>Columns: <code>id</code>, <code>name</code>, <code>body</code>, <code>color</code>, <code>pinned</code>, <code>use_count</code>, <code>last_used_at</code>, <code>sort_order</code>, timestamps. That is <code>group_templates</code> plus <code>handoff_rules</code> with nothing invented — same <code>use_count</code>, same <code>sort_order</code>, same seed-into-empty-store-only pattern, same absence of an <code>is_builtin</code> marker.</p>
+          <p><strong>No JSON child column.</strong> D10 chose JSON for templates because roles are a list; a snippet’s body is one string, so the reason doesn’t apply and a plain column keeps it searchable with <code>LIKE</code>.</p>
+          <p class="touch"><b>touches</b> api/internal/sessions/schema.sql · new api/internal/snippets/{types,store,store_sql,store_mem,seed}.go · api/handlers/snippets/ · packages/proto/schemas/web-console · cli/domains/snippets/</p>
+        </div>
+      </div>
+
+      <div class="rec">
+        <div class="id">S2</div>
+        <div class="head"><h3>One <span class="mono">&lt;SnippetPicker&gt;</span>, one <span class="mono">useSnippets()</span>, mounted on every surface that composes text</h3></div>
+        <div class="body">
+          <p>Insert-at-caret is the <strong>only</strong> default action, and it already exists: <code>draft.appendAtCaret(text)</code>. Replace is destructive against an uncontrolled textarea with no undo — make it a secondary action or leave it out of v1 entirely. Send-immediately is a third, deliberate control; do not let it share a tap target with insert.</p>
+          <p>Your instinct to put it in the full-screen composer overlay is right as the <em>primary</em> home. Just don’t make it the only one.</p>
+          <p class="touch"><b>touches</b> ui/src/hooks/useSnippets.ts · ui/src/components/snippets/SnippetPicker.tsx · FullScreenComposer.tsx · MobileToolbar.tsx · handoff/HandoffComposer.tsx · settings/GroupTemplatesPanel.tsx</p>
+        </div>
+      </div>
+
+      <div class="rec">
+        <div class="id">S3</div>
+        <div class="head"><h3>Capture where the value is discovered — not in a settings form</h3></div>
+        <div class="body">
+          <p>This is the highest-leverage single affordance in the whole memo. Your real workflow is not “open settings and author a prompt.” It is “<em>that</em> one worked, I’ll want it again.” So put <strong>Save as snippet</strong> on a message you already sent in <code>MessagesPane</code>, and on the current composer draft.</p>
+          <p>The conversation store already holds your sent messages in <code>conversation_events</code> and the pane already renders them. Settings becomes the place you go to tidy up, not the place you go to create — same relationship the group picker now has with the manager drawer.</p>
+          <p class="touch"><b>touches</b> ui/src/components/MessagesPane.tsx · FullScreenComposer.tsx · a tenth settings tab beside <span class="mono">templates</span> and <span class="mono">handoff-rules</span></p>
+        </div>
+      </div>
+
+      <div class="rec">
+        <div class="id">S4</div>
+        <div class="head"><h3>Generalize <span class="mono">{{payload}}</span> to named variables — without growing a grammar</h3></div>
+        <div class="body">
+          <p>Keep D4’s discipline and change only the noun. Scan for distinct <code>{{token}}</code> occurrences, render one text field per distinct token, substitute. Still no parser, no conditionals, no computation, no escaping rules. <code>{{payload}}</code> simply becomes one reserved variable name among several — which is what makes a role’s <code>incoming_prompt</code> and a snippet <strong>the same type</strong>.</p>
+          <p>Allow a <em>closed</em> set of auto-resolved names the console can fill without asking — <code>{{cwd}}</code>, <code>{{session}}</code>, <code>{{selection}}</code> — and nothing else. Everything unrecognised prompts you. Resist adding to that list later; an open resolver is a template language wearing a disguise.</p>
+          <p>One behaviour to change deliberately: <code>renderHandoffPrompt</code> today silently blanks an empty payload (<code>"Review {{payload}} now"</code> → <code>"Review  now"</code>, asserted in <code>handoff.test.ts</code>). For a <em>named</em> variable that is the wrong default — leave the token visible so a half-filled snippet fails loudly instead of shipping a sentence with a hole in it.</p>
+          <p class="touch"><b>touches</b> ui/src/lib/handoff.ts (which currently imports nothing — keep it that way) · handoff.test.ts</p>
+        </div>
+      </div>
+
+      <div class="rec">
+        <div class="id">S5</div>
+        <div class="head"><h3>Unify snippet and role prompt by <em>copy</em>, not reference</h3></div>
+        <div class="body">
+          <p>Inserting a snippet into a role’s <code>incoming_prompt</code> copies the text. It does not store a snippet id. Referencing would buy “edit once, every role updates” and cost “delete a snippet, a template silently breaks” — and it would put a foreign key into a table whose whole doctrine is that every row is an ordinary, freely deletable row.</p>
+          <p><code>group_templates</code> already copies its roles into a group rather than referencing them. Follow that.</p>
+        </div>
+      </div>
+
+      <div class="rec">
+        <div class="id">S6</div>
+        <div class="head"><h3>Widen handoff targets past the group boundary</h3></div>
+        <div class="body">
+          <p>This is your “I planned outside a group” case, and it is separable from snippets entirely — ship it independently if you want a quick win. Replace <code>if (!groupId) return []</code> with a two-section target list: <strong>this group</strong> first, then <strong>other sessions</strong> below it. The group stays the default scope; it stops being a hard gate.</p>
+          <p>The model barely resists: <code>HandoffTarget</code>’s <code>kind: "session"</code> variant carries no group at all. Only <code>kind: "new-session"</code> needs work, since it takes a <code>groupId</code> — make it nullable, or drop that option when there is no group.</p>
+          <p class="touch"><b>touches</b> ui/src/hooks/useHandoff.ts:151 · handoff/HandoffComposer.tsx (section headings in the target list)</p>
+        </div>
+      </div>
+
+      <div class="rec">
+        <div class="id">S7</div>
+        <div class="head"><h3>Colour, yes — but recency and filtering are what actually make it findable</h3></div>
+        <div class="body">
+          <p>Reuse <code>HEADER_COLORS</code> verbatim. A third palette in the same app is how design systems rot, and a snippet tinted the same teal as the session you use it in is a real association.</p>
+          <p>But colour stops scaling at eight and is useless for search. Order the picker by <strong>most-recently-used</strong> (<code>last_used_at</code>, with <code>use_count</code> as tiebreak), give it type-to-filter over name <em>and</em> body, and allow pinning. That combination handles fifty snippets; colour alone handles six.</p>
+        </div>
+      </div>
+
+      <div class="rec">
+        <div class="id">S8</div>
+        <div class="head"><h3>Build one <em>one-way</em> promotion path to a skill, and no sync</h3></div>
+        <div class="body">
+          <p>When a snippet earns permanence, offer <strong>Promote to skill</strong> — shell out to <code>prompt-manager skill create</code> with the body prefilled. Explicit, one direction, no ongoing coupling, and the snippet stays where it is afterwards.</p>
+          <p>That is the honest way to respect “skills are the official ones” without taxing the throwaway case. It also gives you a real signal for which snippets deserve promoting: <code>use_count</code>.</p>
+          <p>Worth noting this connects to something you’ve wanted before — skills that become <em>part of a prompt</em> rather than a tool call an agent may skip. Substitution exists; the resolver hook never got built. A snippet resolver in the console is the smallest honest first implementation of it.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-label">Sequence</div>
+      <h2>Build order, and where each step is independently useful</h2>
+    </div>
+    <p class="prose">Genuinely ordered — each step is shippable on its own, and steps 1–3 already deliver the thing you asked for. S6 has no dependency on any of them and can go first if the handoff-outside-a-group friction is biting today.</p>
+    <ol class="steps">
+      <li><b>Store + thin settings CRUD</b> — table, Go domain, proto, a settings tab that lists and edits. <span class="gate">S1</span></li>
+      <li><b>Picker in composer and toolbar</b> — insert-at-caret only, MRU ordered, type-to-filter. <span class="gate">S2 · S7</span></li>
+      <li><b>Save-from-sent-message</b> — the capture affordance that makes the store fill itself. <span class="gate">S3</span></li>
+      <li><b>Handoff targets past the group</b> — independent; ship any time. <span class="gate">S6</span></li>
+      <li><b>Named variables</b> — generalize the placeholder, keep the grammar closed. <span class="gate">S4</span></li>
+      <li><b>Picker in handoff and template panels</b> — nearly free once the picker exists; this is where a snippet and a role prompt visibly become one thing. <span class="gate">S2 · S5</span></li>
+      <li><b>Promote to skill</b> — last, driven by whichever snippets actually accumulated a <span class="mono">use_count</span>. <span class="gate">S8</span></li>
+    </ol>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-label">Restraint</div>
+      <h2>What I’d actively not build</h2>
+    </div>
+    <div class="avoid">
+      <div class="avoid-row"><span class="x">✕</span><div><b>A tag taxonomy.</b> Everyone builds it, nobody maintains it. Colour plus MRU plus text filter covers the range a personal store ever reaches.</div></div>
+      <div class="avoid-row"><span class="x">✕</span><div><b>Auto-suggesting snippets as you type.</b> This is the capture-rule mistake in a new costume. D6 and D13 say suggestion is the part that can be wrong in a way that annoys daily, and it ships last. If you ever do it, route it through the existing <span class="mono">handoff_rules</span> <span class="mono">message_text</span> source rather than inventing a second matcher — and keep prohibition 4 intact: the send path must never be able to reach the matcher.</div></div>
+      <div class="avoid-row"><span class="x">✕</span><div><b>A scope hierarchy in v1.</b> <span class="mono">shortcut_profiles</span> has service → workspace → parent. Snippets don’t need it yet. Expect to be asked for it; don’t pre-build it.</div></div>
+      <div class="avoid-row"><span class="x">✕</span><div><b>Routing snippets through prompt-manager.</b> Different lifecycle, different consumer, different governance. web-console already owns four kinds of personal convenience state in its own DB; this is the fifth.</div></div>
+      <div class="avoid-row"><span class="x">✕</span><div><b>Sending snippet insertion through the AI provider.</b> <span class="mono">AiSuggestBar</span> exists and is a different feature. A snippet must be instant, offline, and exactly what you saved.</div></div>
+      <div class="avoid-row"><span class="x">✕</span><div><b>Hanging snippets off the group template.</b> Orthogonal. Coupling them re-creates the group dependency you are trying to escape.</div></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-label">Your call</div>
+      <h2>Four decisions I’d rather you made than I assumed</h2>
+    </div>
+    <div class="qs">
+      <div class="q">
+        <div class="qt">Should a snippet be able to send itself, or only fill the box?</div>
+        <div class="qa"><em>my lean</em> Fill only, in v1. A one-tap send from a picker list is a mis-tap away from delivering the wrong prompt to a running agent, and you lose the chance to tweak the few words you always tweak.</div>
+      </div>
+      <div class="q">
+        <div class="qt">Per-machine or shared across remote targets?</div>
+        <div class="qa"><em>my lean</em> Wherever the console’s DB lives, same as templates and rules. But you do drive remote targets, so if your snippets should follow you across machines that is a different — and much larger — feature.</div>
+      </div>
+      <div class="q">
+        <div class="qt">A tenth settings tab, or folded into “Templates”?</div>
+        <div class="qa"><em>my lean</em> Its own tab. Folding a sender-owned text into a panel about role recipes muddies exactly the distinction this memo is drawing.</div>
+      </div>
+      <div class="q">
+        <div class="qt">Does “replace the draft” earn its place?</div>
+        <div class="qa"><em>my lean</em> No, not at first. It is destructive with no undo path on an uncontrolled textarea. If you want it, it needs a real undo, which is more work than the whole picker.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Design memo · web-console snippet layer · sources read on branch <span class="mono">agi</span>, 2026-08-28<br>
+    Prior art this builds on: <span class="mono">docs/internal/ROLES-AND-HANDOFFS-UX.md</span> (ten prohibitions, decisions D1–D15) and <span class="mono">docs/internal/SEAMS.md#the-handoff-seam</span> (three greps that must return nothing).
+  </footer>
+
+</div>

@@ -14,6 +14,7 @@ import IntegrationsSection from "./settings/IntegrationsSection";
 import NewPaneDefaultsSection from "./settings/NewPaneDefaultsSection";
 import SessionManagementSection from "./settings/SessionManagementSection";
 import ShortcutProfilesSection from "./settings/ShortcutProfilesSection";
+import SnippetsPanel from "./settings/SnippetsPanel";
 import TtsSettingsSection from "./settings/TtsSettingsSection";
 import VoiceInputSection from "./settings/VoiceInputSection";
 import WorkspaceSection from "./settings/WorkspaceSection";
@@ -63,6 +64,7 @@ const SECTION_COMPONENTS: Record<SettingsTabId, SettingsSectionComponent> = {
   shortcuts: ShortcutProfilesSection as SettingsSectionComponent,
   "new-pane-defaults": NewPaneDefaultsSection as SettingsSectionComponent,
   templates: GroupTemplatesPanel as SettingsSectionComponent,
+  snippets: SnippetsPanel as SettingsSectionComponent,
   "handoff-rules": HandoffRulesPanel as SettingsSectionComponent,
   integrations: IntegrationsSection as SettingsSectionComponent,
 };

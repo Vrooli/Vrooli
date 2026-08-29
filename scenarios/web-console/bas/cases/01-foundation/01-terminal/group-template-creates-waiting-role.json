@@ -47,8 +47,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid='new-terminal-button']",
-            "timeout_ms": 10000
+            "selector": "[data-testid='new-terminal-button']"
           },
           "metadata": {
             "label": "Open the new-session dialog"
@@ -61,8 +60,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "[data-testid='terminal-launcher']",
-            "failure_message": "Expected the launcher dialog to open",
-            "timeout_ms": 15000
+            "failure_message": "Expected the launcher dialog to open"
           },
           "metadata": {
             "label": "Verify the launcher is open"
@@ -74,8 +72,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid='launcher-mode-group']",
-            "timeout_ms": 10000
+            "selector": "[data-testid='launcher-mode-group']"
           },
           "metadata": {
             "label": "Switch to group mode"
@@ -88,8 +85,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "[data-testid='launcher-template-picker']",
-            "failure_message": "Expected a template picker in group mode",
-            "timeout_ms": 15000
+            "failure_message": "Expected a template picker in group mode"
           },
           "metadata": {
             "label": "Verify group mode rendered"
@@ -111,10 +107,11 @@
       {
         "id": "name-the-group",
         "action": {
-          "type": {
+          "type": "ACTION_TYPE_INPUT",
+          "input": {
             "selector": "[data-testid='launcher-group-name']",
-            "text": "BAS_TEMPLATE_GROUP",
-            "timeout_ms": 10000
+            "value": "BAS_TEMPLATE_GROUP",
+            "clear_first": true
           },
           "metadata": {
             "label": "Name the group"
@@ -126,8 +123,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid='launcher-create-group']",
-            "timeout_ms": 10000
+            "selector": "[data-testid='launcher-create-group']"
           },
           "metadata": {
             "label": "Create the group and its roles"
@@ -152,8 +148,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "[data-testid^='sidebar-waiting-role-']",
-            "failure_message": "Expected a waiting role placeholder after creating a group from a two-role template",
-            "timeout_ms": 15000
+            "failure_message": "Expected a waiting role placeholder after creating a group from a two-role template"
           },
           "metadata": {
             "label": "Verify one role is waiting, not running"
@@ -178,8 +173,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "body[data-bas-waiting-before='1']",
-            "failure_message": "Expected exactly one waiting role from a two-role template",
-            "timeout_ms": 15000
+            "failure_message": "Expected exactly one waiting role from a two-role template"
           },
           "metadata": {
             "label": "Verify exactly one placeholder"
@@ -228,8 +222,7 @@
           "type": "ACTION_TYPE_ASSERT",
           "assert": {
             "selector": "body[data-bas-second-session='true']",
-            "failure_message": "Expected starting the waiting role to create a second session",
-            "timeout_ms": 15000
+            "failure_message": "Expected starting the waiting role to create a second session"
           },
           "metadata": {
             "label": "Verify the started role produced a session"

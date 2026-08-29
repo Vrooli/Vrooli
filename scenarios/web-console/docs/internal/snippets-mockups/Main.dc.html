@@ -1,0 +1,150 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    :root{
+      --base:#020617; --raised:#0f172a; --input:#1e293b;
+      --tp:#f8fafc; --ts:#e2e8f0; --tm:#94a3b8; --tf:#64748b;
+      --bd:rgba(255,255,255,0.1);
+      --acc:#22d3ee;
+      --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+      --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#020617;color:#f8fafc;font-family:var(--sans);-webkit-font-smoothing:antialiased}
+    a{color:#22d3ee}
+    a:hover{color:#67e8f9}
+    .tok{font-family:var(--mono);color:#fcd34d}
+    .tok::before{content:"\00007B\00007B";opacity:.55}
+    .tok::after{content:"\00007D\00007D";opacity:.55}
+    .tr{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  </style>
+</helmet>
+
+<div style="width:390px;height:844px;background:#020617;display:flex;flex-direction:column;overflow:hidden">
+
+  <div style="height:26px;flex-shrink:0"></div>
+
+  <!-- Composer header -->
+  <div style="display:flex;align-items:center;gap:12px;height:52px;flex-shrink:0;padding:0 12px;border-bottom:1px solid rgba(255,255,255,0.1)">
+    <div style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#94a3b8">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+    </div>
+    <div style="flex:1;min-width:0;font-size:15px;font-weight:600;color:#f8fafc">Message</div>
+    <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;border-radius:999px;background:#22d3ee;color:#0f172a;font-size:14px;font-weight:600">
+      Send
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h16"></path><path d="m13 6 6 6-6 6"></path></svg>
+    </div>
+  </div>
+
+  <!-- Destination -->
+  <div style="display:flex;align-items:center;gap:8px;height:34px;flex-shrink:0;padding:0 16px;border-bottom:1px solid rgba(255,255,255,0.06)">
+    <div style="width:8px;height:8px;border-radius:999px;background:#4dabf7"></div>
+    <div style="font-family:var(--mono);font-size:12px;color:#94a3b8">claude · web-console</div>
+  </div>
+
+  <!-- Draft -->
+  <div style="flex:1;min-height:0;padding:16px;font-size:16px;line-height:24px;color:#f8fafc">
+    <span>The tmux pane is dropping wheel events again&nbsp;— </span><span style="display:inline-block;width:2px;height:19px;background:#22d3ee;vertical-align:-4px"></span>
+  </div>
+
+  <!-- Snippet sheet -->
+  <div style="flex-shrink:0;height:452px;background:#0f172a;border-top:1px solid rgba(255,255,255,0.1);border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden">
+
+    <div style="display:flex;justify-content:center;padding:8px 0 2px">
+      <div style="width:36px;height:4px;border-radius:999px;background:rgba(255,255,255,0.18)"></div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 14px 10px">
+      <div style="flex:1;min-width:0;font-size:15px;font-weight:600;color:#f8fafc">Snippets</div>
+      <div style="display:flex;align-items:center;gap:6px;height:30px;padding:0 11px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;font-size:13px;font-weight:500">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+        New
+      </div>
+    </div>
+
+    <div style="padding:0 14px 10px">
+      <div style="display:flex;align-items:center;gap:9px;height:38px;padding:0 12px;border-radius:999px;background:#1e293b;border:1px solid rgba(255,255,255,0.1);color:#64748b">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <span style="font-size:14px">Filter by name or text</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;padding:0 14px 10px">
+      <div style="height:26px;padding:0 12px;border-radius:999px;background:rgba(34,211,238,0.10);border:1px solid rgba(6,182,212,0.4);color:#22d3ee;font-size:12px;font-weight:600;display:flex;align-items:center">Recent</div>
+      <div style="height:26px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-size:12px;font-weight:500;display:flex;align-items:center">Pinned</div>
+      <div style="height:26px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-size:12px;font-weight:500;display:flex;align-items:center">All 23</div>
+    </div>
+
+    <div style="flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden">
+
+      <div style="display:flex;align-items:flex-start;gap:11px;padding:11px 14px;background:rgba(34,211,238,0.08);border-top:1px solid rgba(6,182,212,0.35);border-bottom:1px solid rgba(6,182,212,0.35)">
+        <div style="width:9px;height:9px;border-radius:999px;background:#38d9c0;margin-top:5px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:14px;font-weight:600;color:#f8fafc">Scientific debug</div>
+          <div class="tr" style="font-size:12px;color:#64748b">Generate three falsifiable hypotheses for <span class="tok">symptom</span>, then…</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+          <div style="font-family:var(--mono);font-size:11px;color:#64748b">24×</div>
+          <div style="font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#22d3ee">Insert</div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:flex-start;gap:11px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:9px;height:9px;border-radius:999px;background:#4dabf7;margin-top:5px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:14px;font-weight:600;color:#f8fafc">Plan handoff</div>
+          <div class="tr" style="font-size:12px;color:#64748b">Implement the plan at <span class="tok">payload</span>. Follow it to intent…</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;padding-top:2px">
+          <div style="font-family:var(--mono);font-size:11px;color:#64748b">18×</div>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"></path><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"></path></svg>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:flex-start;gap:11px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:9px;height:9px;border-radius:999px;background:#9775fa;margin-top:5px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:14px;font-weight:600;color:#f8fafc">No workarounds</div>
+          <div class="tr" style="font-size:12px;color:#64748b">Extend the change boundary instead of writing a workaround…</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:11px;color:#64748b;flex-shrink:0;padding-top:2px">11×</div>
+      </div>
+
+      <div style="display:flex;align-items:flex-start;gap:11px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:9px;height:9px;border-radius:999px;background:#ffa94d;margin-top:5px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:14px;font-weight:600;color:#f8fafc">Show the output</div>
+          <div class="tr" style="font-size:12px;color:#64748b">Paste the command you ran and its real output. Do not summarise…</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:11px;color:#64748b;flex-shrink:0;padding-top:2px">9×</div>
+      </div>
+
+      <div style="display:flex;align-items:flex-start;gap:11px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.06)">
+        <div style="width:9px;height:9px;border-radius:999px;background:#69db7c;margin-top:5px;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+          <div style="font-size:14px;font-weight:600;color:#f8fafc">Name the seam first</div>
+          <div class="tr" style="font-size:12px;color:#64748b">Before editing, name the seam that owns this behaviour in <span class="tok">scenario</span>…</div>
+        </div>
+        <div style="font-family:var(--mono);font-size:11px;color:#64748b;flex-shrink:0;padding-top:2px">6×</div>
+      </div>
+
+    </div>
+
+    <div style="flex-shrink:0;padding:10px 14px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:#64748b">
+      Tap inserts at the cursor. Nothing is sent until you press Send.
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

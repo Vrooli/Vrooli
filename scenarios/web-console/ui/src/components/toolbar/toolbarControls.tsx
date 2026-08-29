@@ -18,6 +18,7 @@ import {
   ArrowRight as ArrowRightIcon,
   ArrowUp as ArrowUpIcon,
   Image,
+  Library,
   MoreHorizontal,
   Sparkles,
   type LucideIcon,
@@ -62,6 +63,8 @@ export interface ToolbarControlContext {
   onOpenAi?: () => void;
   aiSuggestActive?: boolean;
   onUploadImage?: () => void;
+  /** Open the sender-owned snippet picker. */
+  onOpenSnippets?: () => void;
   /** Rendered in the `more` slot. Owns its own sheet. */
   moreTrigger?: (props: { className: string; style: CSSProperties; label: string }) => ReactNode;
   voice?: Omit<VoiceMicButtonProps, "size" | "className" | "buttonClassName">;
@@ -360,6 +363,19 @@ export function renderToolbarControl(
           label={label}
           icon={Image}
           onClick={ctx.onUploadImage}
+          width={slot.width}
+          m={m}
+          inert={inert}
+        />
+      );
+
+    case "snippets":
+      return (
+        <IconControl
+          testId={tid("toolbar-snippets")}
+          label={label}
+          icon={Library}
+          onClick={ctx.onOpenSnippets}
           width={slot.width}
           m={m}
           inert={inert}

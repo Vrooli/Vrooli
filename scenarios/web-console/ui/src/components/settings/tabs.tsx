@@ -7,6 +7,7 @@ import {
   LayoutTemplate,
   Send,
   Settings2,
+  StickyNote,
   TerminalSquare,
   Volume2,
   Waves,
@@ -22,6 +23,7 @@ export const SETTINGS_TAB_IDS = [
   "shortcuts",
   "new-pane-defaults",
   "templates",
+  "snippets",
   "handoff-rules",
   "integrations",
 ] as const;
@@ -44,6 +46,7 @@ const TAB_ICONS: Record<SettingsTabId, typeof TerminalSquare> = {
   shortcuts: Keyboard,
   "new-pane-defaults": Blocks,
   templates: LayoutTemplate,
+  snippets: StickyNote,
   "handoff-rules": Send,
   integrations: PlugZap,
 };
@@ -83,6 +86,11 @@ const TAB_STRING_KEYS = {
     label: strings.settings.tabTemplates,
     shortLabel: strings.settings.tabTemplates,
     description: strings.groupTemplates.title,
+  },
+  snippets: {
+    label: strings.settings.tabs.snippets.label,
+    shortLabel: strings.settings.tabs.snippets.shortLabel,
+    description: strings.settings.tabs.snippets.description,
   },
   "handoff-rules": {
     label: strings.settings.tabHandoffRules,

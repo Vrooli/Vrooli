@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+  <style>
+    :root{
+      --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+      --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#020617;color:#f8fafc;font-family:var(--sans);-webkit-font-smoothing:antialiased}
+    a{color:#22d3ee}
+    a:hover{color:#67e8f9}
+    .tok{font-family:var(--mono);color:#fcd34d}
+    .tok::before{content:"\00007B\00007B";opacity:.55}
+    .tok::after{content:"\00007D\00007D";opacity:.55}
+    .tr{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lbl{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:#64748b}
+  </style>
+</helmet>
+
+<div style="width:390px;height:844px;background:#020617;display:flex;flex-direction:column;overflow:hidden">
+
+  <div style="height:26px;flex-shrink:0"></div>
+
+  <div style="display:flex;align-items:center;gap:12px;height:52px;flex-shrink:0;padding:0 14px;border-bottom:1px solid rgba(255,255,255,0.1)">
+    <div style="flex:1;min-width:0;font-size:15px;font-weight:600;color:#f8fafc">Hand off from Planner</div>
+    <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:#94a3b8">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:0;padding:14px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+
+    <!-- Payload -->
+    <div style="border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:rgba(2,6,23,0.5);padding:9px 12px;display:flex;flex-direction:column;gap:3px">
+      <div class="lbl">Payload</div>
+      <div class="tr" style="font-family:var(--mono);font-size:12px;color:#e2e8f0">~/.vrooli/plans/snippet-layer.md</div>
+    </div>
+
+    <!-- Snippet source -->
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div class="lbl">Message from</div>
+      <div style="display:flex;align-items:center;gap:9px;height:40px;padding:0 12px;border-radius:8px;border:1px solid rgba(6,182,212,0.4);background:rgba(34,211,238,0.10)">
+        <div style="width:9px;height:9px;border-radius:999px;background:#4dabf7;flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#f8fafc">Plan handoff</div>
+        <div style="font-size:12px;color:#94a3b8">Snippet</div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+      </div>
+    </div>
+
+    <!-- Targets -->
+    <div style="display:flex;flex-direction:column;gap:6px;min-height:0">
+
+      <div class="lbl">This group · Roles &amp; handoffs</div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #22d3ee;background:rgba(34,211,238,0.10)">
+        <div style="width:18px;height:18px;border-radius:4px;background:#22d3ee;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"></path></svg>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+          <div class="tr" style="font-size:14px;color:#f8fafc">Implementer</div>
+          <div style="font-size:11px;color:#64748b">Starts <span style="font-family:var(--mono)">codex --yolo</span> first</div>
+        </div>
+        <div style="flex-shrink:0;border:1px dashed rgba(255,255,255,0.1);border-radius:4px;padding:2px 6px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#64748b">Waiting</div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1e293b">
+        <div style="width:18px;height:18px;border-radius:4px;border:1px solid rgba(255,255,255,0.3);flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+          <div class="tr" style="font-size:14px;color:#f8fafc">Critic</div>
+          <div style="font-size:11px;color:#64748b">Starts <span style="font-family:var(--mono)">claude</span> first</div>
+        </div>
+        <div style="flex-shrink:0;border:1px dashed rgba(255,255,255,0.1);border-radius:4px;padding:2px 6px;font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#64748b">Waiting</div>
+      </div>
+
+      <div class="lbl" style="margin-top:6px">Other sessions</div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid #22d3ee;background:rgba(34,211,238,0.10)">
+        <div style="width:18px;height:18px;border-radius:4px;background:#22d3ee;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"></path></svg>
+        </div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+          <div class="tr" style="font-size:14px;color:#f8fafc">codex · scenarios/notes</div>
+          <div style="font-size:11px;color:#64748b">Ungrouped · running</div>
+        </div>
+        <div style="width:8px;height:8px;border-radius:999px;background:#69db7c;flex-shrink:0"></div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#1e293b">
+        <div style="width:18px;height:18px;border-radius:4px;border:1px solid rgba(255,255,255,0.3);flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+          <div class="tr" style="font-size:14px;color:#f8fafc">claude · RCL cleanup</div>
+          <div style="font-size:11px;color:#64748b">In another group · running</div>
+        </div>
+        <div style="width:8px;height:8px;border-radius:999px;background:#69db7c;flex-shrink:0"></div>
+      </div>
+
+      <div class="lbl" style="margin-top:6px">Somewhere new</div>
+
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;border:1px dashed rgba(255,255,255,0.18);background:transparent">
+        <div style="width:18px;height:18px;border-radius:4px;border:1px solid rgba(255,255,255,0.3);flex-shrink:0"></div>
+        <div style="flex:1;min-width:0;font-size:14px;color:#e2e8f0">Start a new session…</div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg>
+      </div>
+
+    </div>
+
+    <!-- Message -->
+    <div style="display:flex;flex-direction:column;gap:7px;min-height:0">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <div class="lbl">Message</div>
+        <div style="font-size:11px;color:#64748b">· 2 targets, same text</div>
+      </div>
+      <div style="border:1px solid rgba(255,255,255,0.1);border-radius:8px;background:#1e293b;padding:9px 12px;font-size:14px;line-height:21px;color:#f8fafc">
+        Implement the plan at ~/.vrooli/plans/snippet-layer.md. Follow it to intent, not letter — if the plan is wrong, say so and extend the boundary.
+      </div>
+    </div>
+
+  </div>
+
+  <div style="flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px;border-top:1px solid rgba(255,255,255,0.1)">
+    <div style="display:flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);color:#e2e8f0;font-size:14px;font-weight:500">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+      Close
+    </div>
+    <div style="display:flex;align-items:center;gap:7px;height:34px;padding:0 15px;border-radius:8px;background:#22d3ee;color:#0f172a;font-size:14px;font-weight:600">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h16"></path><path d="m13 6 6 6-6 6"></path></svg>
+      Send to 2
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

@@ -215,7 +215,7 @@ property and should be treated as a defect.
 ### Defaults
 
 Three presets ship — `dense`, `balanced` (the default), `essential` — plus `custom`,
-which any individual edit switches to. All three keep **More** and **image upload** on
+which any individual edit switches to. All three keep **More**, **Snippets**, and **image upload** on
 (screenshots are how coding agents are usually driven) and leave **AI suggest** off.
 Densities below 44px warn about the recommended touch target but are never blocked:
 trading target size for more controls per row is a legitimate preference.

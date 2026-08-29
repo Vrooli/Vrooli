@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { sendHandoff, targetKey, targetsForSession, textForTarget, type HandoffTarget } from "../hooks/useHandoff";
+import { handoffTargetSections, sendHandoff, targetKey, textForTarget, type HandoffTarget } from "../hooks/useHandoff";
 import { useWorkspaceStore, type RoleMeta } from "../stores/useWorkspaceStore";
 
 function role(overrides: Partial<RoleMeta> & { id: string; groupId: string }): RoleMeta {
@@ -144,15 +144,26 @@ describe("sendHandoff", () => {
     await sendHandoff([sessionTarget("s1")], () => "hello", d);
     expect(d.launch).not.toHaveBeenCalled();
   });
+
+  it.each([null, "g1"])("passes a new session's nullable group assignment to launch (%s)", async (groupId) => {
+    const d = deps();
+    const target: HandoffTarget = { kind: "new-session", groupId, label: "New session", incomingPrompt: "" };
+    await sendHandoff([target], () => "hello", d);
+    expect(d.launch).toHaveBeenCalledWith({ groupId });
+  });
 });
 
-describe("targetsForSession", () => {
+describe("handoffTargetSections", () => {
   beforeEach(() => {
     useWorkspaceStore.setState({ panes: [], groups: [], roles: [] });
   });
 
-  it("returns nothing for an ungrouped session", () => {
-    expect(targetsForSession("s1", null)).toEqual([]);
+  it("returns useful sections but no group section for an ungrouped session", () => {
+    const sections = handoffTargetSections("s1", null);
+    expect(sections.map(({ kind }) => kind)).toEqual(["other", "new"]);
+    expect(sections.find(({ kind }) => kind === "new")?.targets).toEqual([
+      { kind: "new-session", groupId: null, label: "New session", incomingPrompt: "" },
+    ]);
   });
 
   it("lists the other panes in the group and excludes the source", () => {
@@ -163,7 +174,7 @@ describe("targetsForSession", () => {
         { sessionId: "s3", name: "elsewhere", groupId: "g2" },
       ] as never,
     });
-    const targets = targetsForSession("s1", "g1");
+    const targets = handoffTargetSections("s1", "g1").find(({ kind }) => kind === "group")?.targets ?? [];
     expect(targets.map(targetKey)).toEqual(["s2"]);
   });
 
@@ -172,7 +183,7 @@ describe("targetsForSession", () => {
       panes: [{ sessionId: "s1", name: "planner", groupId: "g1" }] as never,
       roles: [role({ id: "r1", groupId: "g1", label: "Implementer", incomingPrompt: "Do {{payload}}" })],
     });
-    const targets = targetsForSession("s1", "g1");
+    const targets = handoffTargetSections("s1", "g1").find(({ kind }) => kind === "group")?.targets ?? [];
     expect(targets).toHaveLength(1);
     expect(targets[0]?.kind).toBe("role");
     expect(targets[0]?.incomingPrompt).toBe("Do {{payload}}");
@@ -188,17 +199,35 @@ describe("targetsForSession", () => {
       ] as never,
       roles: [role({ id: "r1", groupId: "g1", label: "Implementer", sessionId: "s2", incomingPrompt: "Do {{payload}}" })],
     });
-    const targets = targetsForSession("s1", "g1");
+    const targets = handoffTargetSections("s1", "g1").find(({ kind }) => kind === "group")?.targets ?? [];
     expect(targets).toHaveLength(1);
     expect(targets[0]?.label).toBe("Implementer");
     expect(targets[0]?.incomingPrompt).toBe("Do {{payload}}");
   });
 
-  it("excludes members of other groups", () => {
+  it("puts members of other groups in the other section", () => {
     useWorkspaceStore.setState({
-      panes: [{ sessionId: "s1", name: "a", groupId: "g1" }] as never,
-      roles: [role({ id: "r1", groupId: "g2", label: "Elsewhere" })],
+      panes: [
+        { sessionId: "s1", name: "a", groupId: "g1" },
+        { sessionId: "s2", name: "elsewhere", groupId: "g2" },
+      ] as never,
     });
-    expect(targetsForSession("s1", "g1")).toEqual([]);
+    const sections = handoffTargetSections("s1", "g1");
+    expect(sections.find(({ kind }) => kind === "group")).toBeUndefined();
+    expect(sections.find(({ kind }) => kind === "other")?.targets.map(targetKey)).toEqual(["s2"]);
+  });
+
+  it("keeps group content and order while excluding those panes from other", () => {
+    useWorkspaceStore.setState({
+      panes: [
+        { sessionId: "s1", name: "source", groupId: "g1" },
+        { sessionId: "s2", name: "group pane", groupId: "g1" },
+        { sessionId: "s3", name: "other pane", groupId: null },
+      ] as never,
+      roles: [role({ id: "r1", groupId: "g1", label: "Waiting role" })],
+    });
+    const sections = handoffTargetSections("s1", "g1");
+    expect(sections.find(({ kind }) => kind === "group")?.targets.map(targetKey)).toEqual(["s2", "r1"]);
+    expect(sections.find(({ kind }) => kind === "other")?.targets.map(targetKey)).toEqual(["s3"]);
   });
 });

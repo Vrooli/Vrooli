@@ -14,6 +14,7 @@ import (
 	"web-console/cli/domains/session"
 	"web-console/cli/domains/settings"
 	"web-console/cli/domains/shortcuts"
+	"web-console/cli/domains/snippets"
 	targets "web-console/cli/domains/targets"
 	"web-console/cli/domains/terminal"
 	"web-console/cli/domains/workspace"
@@ -99,6 +100,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	snippetGroup, err := snippets.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	return []cliapp.SubcommandGroup{
 		sessionGroup,
 		targetGroup,
@@ -108,6 +113,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		workspaceGroup,
 		groupTemplateGroup,
 		handoffRuleGroup,
+		snippetGroup,
 		settingsGroup,
 		shortcutsGroup,
 		aiGroup,

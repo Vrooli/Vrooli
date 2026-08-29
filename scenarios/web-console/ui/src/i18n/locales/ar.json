@@ -102,6 +102,7 @@
     "state_nothing_to_restore": "لا شيء لاستعادته",
     "state_read_only": "للقراءة فقط",
     "state_reopenable": "قابلة لإعادة الفتح",
+    "swipeActionsAria": "إجراءات سريعة لـ {{name}}",
     "textSearch": "نصي",
     "title": "أرشيف الجلسات",
     "you": "أنت"
@@ -287,6 +288,7 @@
     "handOffToRole": "Hand off to {{label}}",
     "keptText": "The message was kept so you can try again.",
     "message": "Message",
+    "messageFrom": "مصدر الرسالة",
     "messageFor": "Message for {{label}}",
     "newSessionInGroup": "New session in this group…",
     "noPayload": "No payload — the message is sent as typed.",
@@ -297,6 +299,11 @@
     "resultQueued": "{{label}}: queued — waiting for the terminal",
     "resultSent": "{{label}}: delivered",
     "send": "Send",
+    "sections": {
+      "group": "هذه المجموعة",
+      "new": "جلسة جديدة",
+      "other": "جلسات أخرى"
+    },
     "sending": "Sending…",
     "startsFirst": "Starts before the message is sent",
     "suggestionAction": "Hand off to {{label}}",
@@ -304,7 +311,8 @@
     "suggestionOpen": "Hand off…",
     "suggestionTitle": "{{rule}} matched",
     "targets": "Send to",
-    "waitingChip": "waiting"
+    "waitingChip": "waiting",
+    "writeByHand": "اكتبها يدويًا"
   },
   "handoffRules": {
     "create": "New rule",
@@ -694,6 +702,18 @@
     "videoPreview": "معاينة فيديو",
     "wrap": "التفاف"
   },
+  "messageActions": {
+    "audioSettings": "تشغيل الصوت وفتح إعداداته",
+    "copy": "نسخ الرسالة",
+    "handoff": "تسليم هذه الرسالة",
+    "more": "المزيد من إجراءات الرسالة",
+    "playbackMode": "اختيار وضع التشغيل",
+    "readFromHere": "القراءة من هنا",
+    "saveAsSnippet": "حفظ كمقتطف",
+    "sendToComposer": "إرسال إلى محرر الجلسة النشطة",
+    "viewAsMarkdown": "عرض بصيغة Markdown",
+    "viewAsPlainText": "عرض كنص عادي"
+  },
   "messagesPane": {
     "audioSettingsHeading": "إعدادات الصوت",
     "copyMessageTitle": "نسخ الرسالة",
@@ -843,9 +863,77 @@
     "sortManual": "Manual",
     "sortName": "Name",
     "sortUnread": "Unread",
+    "swipeActionsAria": "إجراءات سريعة لـ {{name}}",
+    "swipeMarkRead": "مقروء",
+    "swipeMarkUnread": "غير مقروء",
     "title": "الجلسات",
     "unreadSummary": "{{count}} غير مقروءة",
     "unreadSummary_one": "واحدة غير مقروءة"
+  },
+  "snippets": {
+    "body": "المحتوى",
+    "cancel": "إلغاء",
+    "close": "إغلاق",
+    "color": "اللون",
+    "chooseColor": "اختيار اللون {{color}}",
+    "makeVariable": "تحويل إلى متغير",
+    "name": "الاسم",
+    "picker": {
+      "all": "الكل ({{count}})",
+      "filterAria": "تصفية المقتطفات",
+      "filterPlaceholder": "تصفية حسب الاسم أو النص",
+      "loadError": "تعذر تحميل المقتطفات.",
+      "loading": "جارٍ التحميل…",
+      "more": "المزيد",
+      "new": "جديد",
+      "pinned": "المثبتة",
+      "recent": "الأخيرة",
+      "title": "المقتطفات"
+    },
+    "save": {
+      "createdInSettings": "أُنشئ في الإعدادات",
+      "error": "تعذر حفظ المقتطف. ما زال نصك موجودًا هنا.",
+      "fromDraft": "من مسودتك الحالية",
+      "fromMessage": "الجلسة {{session}} · الرسالة رقم {{sequence}}",
+      "save": "حفظ",
+      "saving": "جارٍ الحفظ…",
+      "titleCreate": "حفظ مقتطف",
+      "titleEdit": "تعديل المقتطف"
+    },
+    "settings": {
+      "delete": "حذف المقتطف",
+      "deleteConfirm": "حذف «{{name}}»؟ لا يمكن التراجع عن ذلك.",
+      "deleteError": "تعذر حذف المقتطف.",
+      "description": "المقتطفات نصوص قابلة لإعادة الاستخدام تخصك. عدّلها أو احذفها هنا؛ حذفها لا يغيّر الرسائل التي استُخدمت فيها.",
+      "empty": "لا توجد مقتطفات بعد. احفظ نصًا مفيدًا من رسالة أو أنشئ واحدًا هنا.",
+      "eyebrow": "نص شخصي",
+      "new": "جديد",
+      "pin": "تثبيت المقتطف",
+      "pinError": "تعذر تغيير حالة التثبيت.",
+      "promote": "ترقية",
+      "promoteError": "تعذرت ترقية المقتطف.",
+      "promoteFactGoverned": "المهارة محكومة ودائمة.",
+      "promoteFactNoSync": "لن تتم مزامنة أي تغييرات لاحقًا.",
+      "promoteFactSnippetStays": "يبقى هذا المقتطف في مكانه.",
+      "promotePending": "جارٍ الترقية…",
+      "promoteSuccess": "أُنشئت المهارة {{identifier}}.",
+      "promoteTitle": "ترقية إلى مهارة",
+      "promptManagerUnavailable": "prompt-manager غير متوفر على هذا المضيف",
+      "saveError": "تعذر حفظ المقتطف. ما زالت تغييراتك موجودة هنا.",
+      "title": "المقتطفات",
+      "unpin": "إلغاء تثبيت المقتطف",
+      "usedCount": "استُخدم {{count}} مرات",
+      "usedCount_one": "استُخدم مرة واحدة"
+    },
+    "variableCount": "{{count}} متغيرات",
+    "variableCount_one": "متغير واحد",
+    "variables": {
+      "insert": "إدراج",
+      "invalidName": "استخدم اسمًا بأحرف صغيرة يبدأ بحرف، ثم استخدم الأحرف أو الأرقام أو الشرطة السفلية فقط.",
+      "namePrompt": "اسم المتغير (أحرف صغيرة وأرقام وشرطة سفلية)",
+      "preview": "معاينة",
+      "title": "ملء المتغيرات · {{name}}"
+    }
   },
   "settings": {
     "closeAriaLabel": "إغلاق الإعدادات",
@@ -923,6 +1011,11 @@
         "description": "إدارة الطرفيات المفتوحة والسياسات والترتيب والتركيز.",
         "label": "الجلسات",
         "shortLabel": "الجلسات"
+      },
+      "snippets": {
+        "description": "نص شخصي قابل لإعادة الاستخدام للرسائل والمحررات وعمليات التسليم.",
+        "label": "المقتطفات",
+        "shortLabel": "المقتطفات"
       },
       "shortcuts": {
         "description": "إعدادات أوامر محفوظة لإطلاق طرفيات جديدة.",
@@ -1201,6 +1294,10 @@
       "description": "اضبط التخطيط الإجمالي للطرفية وكيفية استخدام عناصر التحكم في الجوال لمساحة الشاشة المحدودة.",
       "eyebrow": "التخطيط",
       "grid": "شبكة",
+      "handednessEnd": "يسار",
+      "handednessHint": "الحافة التي تُفتح منها القوائم واللوحات، واتجاه إيماءات السحب. لا يغيّر اتجاه النص.",
+      "handednessLabel": "جانب اللوحة",
+      "handednessStart": "يمين",
       "keepAwakeLabel": "إبقاء الشاشة نشطة",
       "localeHint": "يحدّد لغة الواجهة. اللغات التي تُكتب من اليمين إلى اليسار تعكس اتجاه التخطيط.",
       "localeLabel": "اللغة",

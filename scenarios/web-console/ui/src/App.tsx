@@ -5,7 +5,9 @@ import { useTranslation } from "react-i18next";
 import { fetchHealth } from "./api/health";
 import { HEALTH_RETRY_COUNT, HEALTH_RETRY_DELAY_MS } from "./consts/config";
 import { strings } from "./consts/strings";
+import { HandednessProvider } from "@vrooli/react-component-library/useHandedness";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { useWorkspaceStore } from "./stores/useWorkspaceStore";
 import {
   audioUnavailableBanner,
   connectionBanner,
@@ -25,6 +27,7 @@ const PageFallback = () => {
 };
 
 export default function App() {
+  const handedness = useWorkspaceStore((state) => state.handedness);
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [dismissed, setDismissed] = useState(false);
@@ -74,6 +77,10 @@ export default function App() {
   ];
 
   return (
+    // The reach-side preference is published once, at the root, so every
+    // anchored surface below resolves the same answer. Writing direction is
+    // applied on top of it by the library and is not this setting's concern.
+    <HandednessProvider value={handedness}>
     <ErrorBoundary region="app">
       <div className="wc-ios-tint-edge wc-ios-tint-edge-bottom" aria-hidden="true" />
 
@@ -86,5 +93,6 @@ export default function App() {
         )}
       </Suspense>
     </ErrorBoundary>
+    </HandednessProvider>
   );
 }

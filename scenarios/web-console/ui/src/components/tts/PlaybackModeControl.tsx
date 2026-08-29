@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -32,6 +32,11 @@ export interface PlaybackModeControlProps {
   disabled?: boolean;
   onToggleSummarized?: (useSummarized: boolean) => void;
   onChangeLevel?: (level: SummarizationLevel) => void;
+  /** Optional controlled mode lets a declared parent action own the trigger. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
+  anchorRef?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -55,9 +60,19 @@ export function PlaybackModeControl({
   disabled: disabledProp = false,
   onToggleSummarized,
   onChangeLevel,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
+  anchorRef,
 }: PlaybackModeControlProps) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (next: boolean | ((previous: boolean) => boolean)) => {
+    const resolved = typeof next === "function" ? next(open) : next;
+    if (controlledOpen === undefined) setInternalOpen(resolved);
+    onOpenChange?.(resolved);
+  };
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEscapeKey(open, () => setOpen(false));
@@ -65,8 +80,9 @@ export function PlaybackModeControl({
   // The menu anchors above the trigger, start-aligned, via the shared
   // anchored-floating math; it never renders narrower than the trigger.
   const menuRef = useRef<HTMLDivElement>(null);
-  const anchoredStyle = useAnchoredPopoverPosition(open, buttonRef, menuRef, MENU_PLACEMENTS);
-  const menuMinWidth = Math.max(180, buttonRef.current?.getBoundingClientRect().width ?? 0);
+  const effectiveAnchorRef = anchorRef ?? buttonRef;
+  const anchoredStyle = useAnchoredPopoverPosition(open, effectiveAnchorRef, menuRef, MENU_PLACEMENTS);
+  const menuMinWidth = Math.max(180, effectiveAnchorRef.current?.getBoundingClientRect().width ?? 0);
 
   // No control when there's neither a summary nor a way to get one.
   if (!hasOriginalVersion && !canSummarize) return null;
@@ -100,7 +116,7 @@ export function PlaybackModeControl({
 
   return (
     <>
-      <button
+      {!hideTrigger && <button
         ref={buttonRef}
         type="button"
         data-testid={`${testIdPrefix}-mode-control`}
@@ -122,7 +138,7 @@ export function PlaybackModeControl({
           ? <Loader2 className="h-3 w-3 animate-spin" />
           : <ChevronDown className="h-3 w-3" />}
         <span>{label}</span>
-      </button>
+      </button>}
 
       {open && createPortal(
         <>

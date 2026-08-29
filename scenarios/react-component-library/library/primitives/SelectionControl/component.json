@@ -13,9 +13,12 @@
     }
   ],
   "displayName": "SelectionControl",
-  "kind": "input",
   "draft": "",
-  "latest": "1.0.1",
+  "evictedVersions": [
+    "1.0.1"
+  ],
+  "kind": "input",
+  "latest": "1.0.7",
   "libraryId": "react-component-library:SelectionControl",
   "slot": "ui-primitive",
   "tags": [

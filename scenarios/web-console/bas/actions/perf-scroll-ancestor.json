@@ -5,10 +5,12 @@
     "labels": {
       "intent": "performance",
       "reset": "none",
-      "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the element inside the scrollable region (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"deltaY\",\"type\":\"number\",\"required\":false,\"default\":600,\"description\":\"Vertical scroll delta in pixels\"}]"
+      "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the element inside the scrollable region (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"deltaY\",\"type\":\"number\",\"required\":false,\"default\":600,\"description\":\"Vertical scroll delta in pixels\"}]",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
     "version": "1",
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {},
   "nodes": [

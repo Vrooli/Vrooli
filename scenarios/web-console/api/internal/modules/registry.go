@@ -18,6 +18,8 @@
 package modules
 
 import (
+	"github.com/vrooli/api-core/database"
+
 	"web-console/internal/module"
 
 	aiH "web-console/handlers/ai"
@@ -36,6 +38,7 @@ import (
 	sessionsH "web-console/handlers/sessions"
 	settingsH "web-console/handlers/settings"
 	shortcutsH "web-console/handlers/shortcuts"
+	snippetsH "web-console/handlers/snippets"
 	targetsH "web-console/handlers/targets"
 	terminalH "web-console/handlers/terminal"
 	workspaceH "web-console/handlers/workspace"
@@ -62,9 +65,15 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, metricsH.Endpoints...)
 	out = append(out, sessionsH.Endpoints...)
 	out = append(out, settingsH.Endpoints...)
+	out = append(out, snippetsH.Endpoints...)
 	out = append(out, shortcutsH.Endpoints...)
 	out = append(out, targetsH.Endpoints...)
 	out = append(out, terminalH.Endpoints...)
 	out = append(out, workspaceH.Endpoints...)
 	return out
+}
+
+// AllSchemas returns domain-owned schema providers in stable order.
+func AllSchemas() []database.SchemaProvider {
+	return []database.SchemaProvider{database.SchemaProviderFunc(snippetsH.Schema)}
 }

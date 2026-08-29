@@ -30,6 +30,7 @@ import {
 import { useElementWidth } from "../hooks/useElementWidth";
 import ToolbarSurface from "./toolbar/ToolbarSurface";
 import { renderToolbarControl, type ToolbarControlContext } from "./toolbar/toolbarControls";
+import { SnippetPicker } from "./snippets/SnippetPicker";
 
 /**
  * Width assumed before the toolbar has been measured. In a browser the real
@@ -335,6 +336,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     },
   }), [draft]);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
+  const [snippetPickerOpen, setSnippetPickerOpen] = useState(false);
   /** Draft snapshot taken at submit time; restored on ack failure. */
   const pendingSendRef = useRef<{ draft: string } | null>(null);
   /** Unsubscribe for the current in-flight settlement subscription. */
@@ -538,6 +540,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     mic: t(strings.mobileToolbar.controls.mic),
     image: t(strings.mobileToolbar.uploadImageTitle),
     ai: t(strings.mobileToolbar.aiCommandTitle),
+    snippets: t(strings.snippets.picker.title),
   }), [t]);
 
   const voiceProps = useMemo(() => (voiceAvailable && onVoiceStart && onVoiceStop ? {
@@ -585,6 +588,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     onOpenAi,
     aiSuggestActive,
     onUploadImage,
+    onOpenSnippets: () => { setSnippetPickerOpen(true); },
     voice: voiceProps,
     labels: controlLabels,
   }), [handleKey, modifiers, toggleModifier, onOpenAi, aiSuggestActive, onUploadImage, voiceProps, controlLabels]);
@@ -618,6 +622,10 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     ),
   }), [baseControlContext, onInput, onFocusTerminal, offToolbarControls, viewMode]);
 
+  const snippetAutoValues = useMemo<Record<string, string>>(
+    () => ({ session: activeSessionId ?? "" }),
+    [activeSessionId],
+  );
   if (!visible) return null;
 
   return (
@@ -855,7 +863,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
          4. select-none: prevents double-tap text selection which can blur the terminal.
          5. handleKey calls onFocusTerminal: restores terminal focus as a safety net
             in case the browser still manages to blur the terminal despite layers 1-4. */}
-      <div ref={keysAreaRef} className="min-w-0">
+      <div ref={keysAreaRef} className="relative min-w-0">
         <ToolbarSurface
           testId={viewMode === "messages" ? "messages-toolbar-actions" : "toolbar-keys-area"}
           layout={layout}
@@ -863,6 +871,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
           onMouseDown={(e) => e.preventDefault()}
         />
       </div>
+      {snippetPickerOpen && <SnippetPicker open onClose={() => setSnippetPickerOpen(false)} autoValues={snippetAutoValues} onInsert={async (text) => { draft.appendAtCaret(text); }} />}
     </div>
   );
 });
