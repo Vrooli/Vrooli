@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Terminal } from "@xterm/xterm";
+
+const INTERACTIVE_TOUCH_TARGET = "button, a[href], input, textarea, select, [role='button'], [role='menuitem'], [contenteditable='true']";
 import {
   TOUCH_MOVE_THRESHOLD_PX,
   TOUCH_LONG_PRESS_MS,
@@ -353,13 +355,10 @@ export function useTerminalTouch({
       const touch = e.touches[0] as Touch | undefined;
       if (!touch) return;
 
-      // Don't intercept touches on the context menu or its backdrop — let
-      // their native click handlers fire so buttons work and the backdrop
-      // dismisses the menu.
+      // The gesture layer owns touches on the terminal surface. Controls
+      // drawn over it own their touches so the browser can dispatch click.
       const target = e.target as HTMLElement | null;
-      if (target?.closest("[data-testid='terminal-context-menu'], [data-testid='ctx-backdrop']")) {
-        return;
-      }
+      if (target?.closest(INTERACTIVE_TOUCH_TARGET)) return;
 
       // Cancel any running momentum
       cancelMomentum();

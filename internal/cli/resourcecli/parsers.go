@@ -3,30 +3,19 @@ package resourcecli
 import (
 	"fmt"
 
+	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 )
 
 type (
-	NoArgsRequest   struct{}
-	ScaffoldRequest struct{ Name, Driver string }
-	CLISyncRequest  struct{ DryRun bool }
-	NameRequest     struct {
-		Name string
-	}
-	StatusRequest struct {
-		Name string
-		Fast bool
-	}
-	ValidateRequest struct {
-		Name string
-	}
-	UpstreamCheckRequest struct {
-		Name string // empty means all coding-agent resources
-		All  bool
-	}
-	BlueprintSearchRequest struct {
-		Query string
-	}
+	NoArgsRequest          = resourceapp.NoArgsRequest
+	ScaffoldRequest        = resourceapp.ScaffoldRequest
+	CLISyncRequest         = resourceapp.CLISyncRequest
+	NameRequest            = resourceapp.NameRequest
+	StatusRequest          = resourceapp.StatusRequest
+	ValidateRequest        = resourceapp.ValidateRequest
+	UpstreamCheckRequest   = resourceapp.UpstreamCheckRequest
+	BlueprintSearchRequest = resourceapp.BlueprintSearchRequest
 )
 
 func ParseListRequest(args []string) (NoArgsRequest, error) {

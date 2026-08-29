@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // snapshotWithGPU0 builds a single-GPU host snapshot with the given total/used GiB.
@@ -168,8 +169,10 @@ func TestPlanUpshiftAllNoHeadroom(t *testing.T) {
 // raises amount_bytes, and bumps the generation.
 func TestActuateUpshiftRestoresClaim(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	// Seed a degraded whisper claim at small.
 	created, err := store.CreateClaim(ctx, CapacityClaim{
@@ -217,8 +220,10 @@ func TestActuateUpshiftRestoresClaim(t *testing.T) {
 // ledger when the container did not actually grow).
 func TestActuateUpshiftFailureLeavesClaim(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	created, _ := store.CreateClaim(ctx, CapacityClaim{
 		OwnerKind: OwnerKindResource, OwnerID: "whisper", ResourceKind: ResourceKindVRAM,
 		GPUIndex: gpu(0), AmountBytes: 8 * gib, PreferredBytes: 8 * gib, FloorBytes: 2 * gib,
@@ -249,8 +254,10 @@ func TestActuateUpshiftFailureLeavesClaim(t *testing.T) {
 // Within the debounce window an upshift is skipped (anti-thrash with degrade).
 func TestActuateUpshiftDebounced(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	created, _ := store.CreateClaim(ctx, CapacityClaim{
 		OwnerKind: OwnerKindResource, OwnerID: "whisper", ResourceKind: ResourceKindVRAM,
 		GPUIndex: gpu(0), AmountBytes: 8 * gib, PreferredBytes: 8 * gib, FloorBytes: 2 * gib,
@@ -280,8 +287,10 @@ func TestActuateUpshiftDebounced(t *testing.T) {
 // touching the executor.
 func TestRunUpshiftGatedByEnforce(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	created, _ := store.CreateClaim(ctx, CapacityClaim{
 		OwnerKind: OwnerKindResource, OwnerID: "whisper", ResourceKind: ResourceKindVRAM,
 		GPUIndex: gpu(0), AmountBytes: 8 * gib, PreferredBytes: 8 * gib, FloorBytes: 2 * gib,

@@ -242,7 +242,7 @@ func renderTimestamp(value *time.Time) string {
 }
 
 func renderTimestampValue(value time.Time) string {
-	if value.IsZero() {
+	if value.Equal(time.Time{}) {
 		return ""
 	}
 	return value.UTC().Format(time.RFC3339Nano)

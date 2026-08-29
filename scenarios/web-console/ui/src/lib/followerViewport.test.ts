@@ -2,10 +2,8 @@ import { describe, expect, it } from "vitest";
 import { DEVICE_ARCHETYPES, type DeviceArchetype } from "./deviceArchetype";
 import { DEVICE_GEOMETRY, KEYBOARD_MAX_SCREEN_SHARE, screenBox } from "./deviceGeometry";
 import {
-  chromeTier,
-  deviceControlsLane,
-  fitFollowerPresentation,
-  fitGrid,
+	deviceControlsLane,
+	fitFollowerPresentation,
   FRAME_ASPECT,
   MIN_LEGIBLE_FONT_PX,
   MIN_SILHOUETTE_HEIGHT_PX,
@@ -22,27 +20,6 @@ const CELL_ASPECT = 0.5;
 function present(archetype: DeviceArchetype, cols: number, rows: number, paneWidth = 1200, paneHeight = 800, kbOpen = false) {
   return fitFollowerPresentation({ archetype, gridCols: cols, gridRows: rows, paneWidth, paneHeight, cellAspect: CELL_ASPECT, kbOpen });
 }
-
-describe("fitGrid", () => {
-  it.each([
-    [45, 30, 1600, 900, "full", 1],
-    [200, 50, 390, 700, "hairline", 0],
-    [80, 24, 1440, 900, "full", 1],
-    [35, 50, 1000, 1000, "hairline", 1],
-    [120, 40, 768, 1024, "full", 1],
-    [24, 80, 900, 600, "hairline", 0],
-    [100, 30, 1280, 720, "full", 1],
-    [60, 40, 320, 568, "full", 1],
-  ])("fits %ix%i inside %ix%i", (cols, rows, width, height, tier, expectedScale) => {
-    const rect = fitGrid(cols, rows, width, height, CELL_ASPECT);
-    expect(rect.x).toBeGreaterThanOrEqual(0); expect(rect.y).toBeGreaterThanOrEqual(0);
-    expect(rect.x + rect.width).toBeLessThanOrEqual(width); expect(rect.y + rect.height).toBeLessThanOrEqual(height);
-    expect(rect.width / rect.height).toBeCloseTo((cols * CELL_ASPECT) / rows, 4);
-    expect(chromeTier(surplusRatio(rect, width, height), rect.scale)).toBe(tier);
-    if (expectedScale === 1) expect(rect.scale).toBe(1); else expect(rect.scale).toBeLessThan(1);
-    expect(rect.fontSize).toBeGreaterThanOrEqual(MIN_LEGIBLE_FONT_PX);
-  });
-});
 
 describe("geometry is one source of truth", () => {
   it("derives the frame aspect from the drawn enclosure", () => {

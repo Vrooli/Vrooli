@@ -5,6 +5,7 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { Loader2, Menu, MessageSquareText, MonitorSmartphone, Plus, Settings, TerminalSquare, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import { strings } from "../consts/strings";
 import { SPLITTER_SIZE_PX, MIN_COLUMN_PX, MIN_ROW_PX, TERMINAL_THEMES, DEFAULT_THEME_ID } from "../consts/config";
 import { chromeTheme } from "../lib/chromeTheme";
@@ -38,7 +39,7 @@ import type { LaunchOptions } from "./TerminalLauncher";
 import ErrorBanner from "./ErrorBanner";
 import GridSplitter from "./GridSplitter";
 import TerminalLauncher from "./TerminalLauncher";
-import MachinesDrawer from "./machines/MachinesDrawer";
+import FleetDrawer from "./fleet/FleetDrawer";
 import MobileToolbar from "./MobileToolbar";
 import type { MobileToolbarHandle } from "./MobileToolbar";
 import AiInput from "./AiInput";
@@ -103,7 +104,7 @@ const FALLBACK_TTS_PLAYBACK: Omit<TTSPlaybackState, "isMuted"> = {
 };
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
-import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
+import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, buildSessionActivity, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
 import { useTabLikeNavigationShortcuts } from "../hooks/useTabLikeNavigationShortcuts";
 
 type ActiveResize = {
@@ -143,6 +144,7 @@ interface WorkspaceProps {
  */
 export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [targetCatalog, setTargetCatalog] = useState<TargetCatalog>({
     status: "ready",
     targets: [],
@@ -648,8 +650,15 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const handoffTargetSectionsForSource = useMemo(() => {
     if (!handoffState) return [];
     const pane = workspacePanes.find((p) => p.sessionId === handoffState.sourceSessionId);
-    return handoffTargetSections(handoffState.sourceSessionId, pane?.groupId ?? null);
-  }, [handoffState, workspacePanes]);
+    // Activity is computed here rather than inside the builder because it
+    // lives in THIS component's state, not the workspace store — the builder
+    // reading the store alone is why every target row used to be a bare name.
+    return handoffTargetSections(
+      handoffState.sourceSessionId,
+      pane?.groupId ?? null,
+      buildSessionActivity(workspacePanes, conversationSessions, lastVisitedBySession),
+    );
+  }, [handoffState, workspacePanes, conversationSessions, lastVisitedBySession]);
 
   /**
    * Deliver a handoff.
@@ -1495,6 +1504,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     onSummarizeError: handlePaneSummarizeError,
     onSessionCreated: mergeExternalSession,
     onSessionEnded: endExternalSession,
+    onDeviceStatus: () => {
+      void queryClient.invalidateQueries({ queryKey: ["devices", "roster"] });
+    },
   });
   // Keep every session's conversation hydrated for badges even when its
   // terminal pane is unmounted (offscreen panes no longer hydrate themselves).
@@ -1917,7 +1929,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 size="icon"
                 className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
                 onClick={() => { setMachinesOpen(true); }}
-                title={t(strings.machines.openAriaLabel)}
+                aria-label={t(strings.fleet.openAriaLabel)}
+                title={t(strings.fleet.openAriaLabel)}
               >
                 <MonitorSmartphone className="h-4 w-4" />
               </Button>
@@ -2002,7 +2015,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               size="icon"
               className="h-8 w-8"
               onClick={() => { setMachinesOpen(true); }}
-              title={t(strings.machines.openAriaLabel)}
+                aria-label={t(strings.fleet.openAriaLabel)}
+                title={t(strings.fleet.openAriaLabel)}
             >
               <MonitorSmartphone className="h-4 w-4" />
             </Button>
@@ -2349,7 +2363,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onEditTemplates={openTemplateSettings}
       />
 
-      <MachinesDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} />
+      <FleetDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} />
 
       {/* Settings Modal */}
       <SettingsModal

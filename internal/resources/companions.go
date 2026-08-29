@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -55,6 +56,71 @@ type CompanionStatus struct {
 	Alive   bool   `json:"alive"`
 	Failed  bool   `json:"failed,omitempty"`
 	Failure string `json:"failure,omitempty"`
+}
+
+// ResourceProcessRecord is the durable ownership projection written for a
+// detached resource companion. The PID-file modification time bounds process
+// creation because startCompanion writes the file immediately after Start.
+type ResourceProcessRecord struct {
+	Resource  string
+	Name      string
+	PID       int
+	StartedAt time.Time
+}
+
+// ReadResourceProcessRecords reads the companion PID authority under the
+// runtime-home processes tree. Malformed individual files are stale evidence
+// and are skipped; an unreadable authority root is returned as an error.
+func ReadResourceProcessRecords(home string) ([]ResourceProcessRecord, error) {
+	root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyProcesses)
+	if err != nil {
+		return nil, err
+	}
+	resourceRoot := filepath.Join(root, "resources")
+	resourcesEntries, err := os.ReadDir(resourceRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []ResourceProcessRecord{}, nil
+		}
+		return nil, err
+	}
+	records := make([]ResourceProcessRecord, 0)
+	for _, resourceEntry := range resourcesEntries {
+		if !resourceEntry.IsDir() {
+			continue
+		}
+		companionEntries, err := os.ReadDir(filepath.Join(resourceRoot, resourceEntry.Name()))
+		if err != nil {
+			continue
+		}
+		for _, companionEntry := range companionEntries {
+			if companionEntry.IsDir() || filepath.Ext(companionEntry.Name()) != ".pid" {
+				continue
+			}
+			pidPath := filepath.Join(resourceRoot, resourceEntry.Name(), companionEntry.Name())
+			pid, ok := readCompanionPID(pidPath)
+			if !ok {
+				continue
+			}
+			info, err := companionEntry.Info()
+			if err != nil {
+				continue
+			}
+			records = append(records, ResourceProcessRecord{
+				Resource:  resourceEntry.Name(),
+				Name:      strings.TrimSuffix(companionEntry.Name(), ".pid"),
+				PID:       pid,
+				StartedAt: info.ModTime(),
+			})
+		}
+	}
+	sort.Slice(records, func(i, j int) bool {
+		if records[i].Resource == records[j].Resource {
+			return records[i].Name < records[j].Name
+		}
+		return records[i].Resource < records[j].Resource
+	})
+	return records, nil
 }
 
 var companionCrashWindow = tuning.CompanionCrashWindow()

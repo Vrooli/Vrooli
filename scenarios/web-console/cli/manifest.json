@@ -1687,6 +1687,21 @@
   ],
   "omitted": [
     {
+      "service": "DeviceService",
+      "method": "List",
+      "reason": "Connected device roster is an operator UI surface; no stable CLI command is exposed today."
+    },
+    {
+      "service": "DeviceService",
+      "method": "Disconnect",
+      "reason": "Disconnecting a browser device is an operator UI action with caller-identity safeguards; no CLI command is exposed today."
+    },
+    {
+      "service": "DeviceService",
+      "method": "GiveControl",
+      "reason": "Transferring browser terminal control is an operator UI action; no CLI command is exposed today."
+    },
+    {
       "service": "SnippetsService",
       "method": "PromoteSnippet",
       "reason": "Promotion is an explicit settings UI flow with a three-fact confirmation; the ordinary snippet CLI intentionally does not bypass that confirmation."

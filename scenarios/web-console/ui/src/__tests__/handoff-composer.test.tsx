@@ -55,6 +55,25 @@ const sections = (...targets: HandoffTarget[]): HandoffTargetSection[] => (
   targets.length === 0 ? [] : [{ kind: "group", labelKey: "handoff.sections.group", targets }]
 );
 
+const described = (
+  id: string,
+  label: string,
+  meta: NonNullable<HandoffTarget["meta"]>,
+): HandoffTarget => ({ kind: "session", sessionId: id, label, incomingPrompt: "", meta });
+
+const manySections = (count: number): HandoffTargetSection[] => [
+  {
+    kind: "other",
+    labelKey: "handoff.sections.other",
+    targets: Array.from({ length: count }, (_, i) => session(`s${String(i)}`, `session ${String(i)}`)),
+  },
+  {
+    kind: "new",
+    labelKey: "handoff.sections.new",
+    targets: [{ kind: "new-session", groupId: null, label: "New session", incomingPrompt: "" }],
+  },
+];
+
 describe("HandoffComposer", () => {
   const onClose = vi.fn();
 
@@ -333,5 +352,181 @@ describe("HandoffComposer", () => {
     fireEvent.click(screen.getByTestId("snippet-variable-insert"));
     await waitFor(() => expect(screen.getByTestId("handoff-message")).toHaveValue("Hello Ada"));
     expect(screen.getByTestId("handoff-send")).not.toBeDisabled();
+  });
+  // The complaint this whole pass answers: four terminals launched the same
+  // way all render "/bin/bash", and the row carried nothing else at all.
+  it("describes a session by more than its name", () => {
+    render(
+      <HandoffComposer
+        open
+        onClose={onClose}
+        sourceLabel="planner"
+        payload=""
+        targets={[{
+          kind: "other",
+          labelKey: "handoff.sections.other",
+          targets: [described("s2", "/bin/bash", {
+            color: "#38d9c0",
+            groupName: "Backend",
+            activityLabel: "2m",
+            activityAt: 20,
+            unreadCount: 3,
+          })],
+        }]}
+        onSend={vi.fn()}
+      />,
+    );
+    const row = screen.getByTestId("handoff-target-s2");
+    expect(row).toHaveTextContent("2m");
+    expect(row).toHaveTextContent("Backend");
+    expect(within(row).getByLabelText("handoff.unreadAria")).toHaveTextContent("3");
+  });
+
+  // Inside "this group" every row shares the one group, so repeating its name
+  // on each line is noise rather than information.
+  it("names the group only where it distinguishes one row from another", () => {
+    const meta = { groupName: "Backend", activityLabel: "2m", activityAt: 20 };
+    render(
+      <HandoffComposer
+        open
+        onClose={onClose}
+        sourceLabel="planner"
+        payload=""
+        targets={[
+          { kind: "group", labelKey: "handoff.sections.group", targets: [described("s2", "one", meta)] },
+          { kind: "other", labelKey: "handoff.sections.other", targets: [described("s3", "two", meta)] },
+        ]}
+        onSend={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("handoff-target-s2")).not.toHaveTextContent("Backend");
+    expect(screen.getByTestId("handoff-target-s3")).toHaveTextContent("Backend");
+  });
+
+  // The row IS the shared selection control. Nesting it inside a second
+  // <label> was invalid markup and reserved a whole empty 44px copy column,
+  // which is what made every row stand 84px tall over one line of text.
+  it("builds a target row from one label, not a label inside a label", () => {
+    render(
+      <HandoffComposer open onClose={onClose} sourceLabel="planner" payload="" targets={sections(session("s2", "builder"))} onSend={vi.fn()} />,
+    );
+    const row = screen.getByTestId("handoff-target-s2");
+    expect(row.querySelectorAll("label")).toHaveLength(1);
+    expect(row.querySelector("[data-rcl-selection-row]")).not.toBeNull();
+    // Still one real checkbox, reflecting the sole target's preselection —
+    // the markup fix must not cost the control the row is built around.
+    expect(within(row).getByRole("checkbox")).toBeChecked();
+  });
+
+  it("holds the filter back until the list is too long to scan", () => {
+    const { unmount } = render(
+      <HandoffComposer open onClose={onClose} sourceLabel="planner" payload="" targets={manySections(3)} onSend={vi.fn()} />,
+    );
+    expect(screen.queryByTestId("handoff-filter")).toBeNull();
+    unmount();
+    render(
+      <HandoffComposer open onClose={onClose} sourceLabel="planner" payload="" targets={manySections(9)} onSend={vi.fn()} />,
+    );
+    expect(screen.getByTestId("handoff-filter")).toBeInTheDocument();
+  });
+
+  // "Somewhere new" is the escape hatch FROM a list too long to read, so a
+  // query nothing matched must not take it away.
+  it("narrows the list without ever filtering away somewhere new", () => {
+    render(
+      <HandoffComposer open onClose={onClose} sourceLabel="planner" payload="" targets={manySections(9)} onSend={vi.fn()} />,
+    );
+    fireEvent.change(screen.getByTestId("handoff-filter"), { target: { value: "session 4" } });
+    expect(screen.getByTestId("handoff-target-s4")).toBeInTheDocument();
+    expect(screen.queryByTestId("handoff-target-s5")).toBeNull();
+    expect(screen.getByTestId("handoff-section-new")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId("handoff-filter"), { target: { value: "nothing matches" } });
+    expect(screen.getByTestId("handoff-no-matches")).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-section-new")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("handoff-filter-clear"));
+    expect(screen.getByTestId("handoff-target-s5")).toBeInTheDocument();
+  });
+
+  // A real session name wrapped the interpolated title onto two lines and
+  // pushed the list off the screen. The source is context, not the heading.
+  it("keeps the source out of the heading and states it once below", () => {
+    render(
+      <HandoffComposer
+        open
+        onClose={onClose}
+        sourceLabel="Session group templates and prompt management"
+        payload=""
+        targets={sections(session("s2", "builder"))}
+        onSend={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("heading")).toHaveTextContent("handoff.handOff");
+    expect(screen.getByRole("heading")).not.toHaveTextContent("Session group templates");
+    const band = screen.getByTestId("handoff-composer.subheader");
+    expect(within(band).getByTestId("handoff-source")).toBeInTheDocument();
+  });
+
+  it("seats the snippet control on the message it rewrites", async () => {
+    render(
+      <HandoffComposer open onClose={onClose} sourceLabel="planner" payload="plan.md" targets={sections(session("s2", "builder"))} onSend={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByTestId("handoff-message-source"));
+    fireEvent.click(screen.getByTestId("snippet-row-payload-snippet"));
+    await waitFor(() => { expect(screen.getByTestId("handoff-message")).toHaveValue("Snippet says: plan.md") });
+    // Once chosen, the control names the snippet rather than staying a
+    // generic "message source" row three sections away from the text.
+    expect(screen.getByTestId("handoff-message-source")).toHaveTextContent("Payload wrapper");
+  });
+
+  // `textFor` prefers an operator edit over the snippet, so choosing one
+  // after typing used to change nothing at all and read as a dead control.
+  it("applies a snippet chosen after the message was already typed into", async () => {
+    render(
+      <HandoffComposer open onClose={onClose} sourceLabel="planner" payload="plan.md" targets={sections(session("s2", "builder"))} onSend={vi.fn()} />,
+    );
+    fireEvent.change(screen.getByTestId("handoff-message"), { target: { value: "typed first" } });
+    fireEvent.click(screen.getByTestId("handoff-message-source"));
+    fireEvent.click(screen.getByTestId("snippet-row-payload-snippet"));
+    await waitFor(() => { expect(screen.getByTestId("handoff-message")).toHaveValue("Snippet says: plan.md") });
+  });
+
+  it("restores the target's own prompt when the snippet is cleared", async () => {
+    render(
+      <HandoffComposer
+        open
+        onClose={onClose}
+        sourceLabel="planner"
+        payload="plan.md"
+        targets={sections(session("s2", "builder", "Role says: {{payload}}"))}
+        onSend={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("handoff-message")).toHaveValue("Role says: plan.md");
+    fireEvent.click(screen.getByTestId("handoff-message-source"));
+    fireEvent.click(screen.getByTestId("snippet-row-payload-snippet"));
+    await waitFor(() => { expect(screen.getByTestId("handoff-message")).toHaveValue("Snippet says: plan.md") });
+    fireEvent.click(screen.getByTestId("handoff-message-source-clear"));
+    expect(screen.getByTestId("handoff-message")).toHaveValue("Role says: plan.md");
+    expect(screen.queryByTestId("handoff-message-source-clear")).toBeNull();
+  });
+
+  // Fanning out to three sessions at once should not be something you
+  // discover from the results panel after pressing the button.
+  it("says how many targets Send will reach", () => {
+    render(
+      <HandoffComposer
+        open
+        onClose={onClose}
+        sourceLabel="planner"
+        payload=""
+        targets={sections(session("s2", "one"), session("s3", "two"))}
+        onSend={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId("handoff-send")).toHaveTextContent("handoff.send");
+    fireEvent.click(within(screen.getByTestId("handoff-target-s2")).getByRole("checkbox"));
+    fireEvent.click(within(screen.getByTestId("handoff-target-s3")).getByRole("checkbox"));
+    expect(screen.getByTestId("handoff-send")).toHaveTextContent("handoff.sendTo");
   });
 });

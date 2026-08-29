@@ -23,6 +23,7 @@ import { usePaneSpeech, type PaneSpeechPlaybackHandle } from "../hooks/terminal/
 import { usePaneSelection } from "../hooks/terminal/usePaneSelection";
 import { DeviceFrame } from "./terminal/DeviceFrame";
 import { useFollowerViewportLayout } from "../hooks/terminal/useFollowerViewportLayout";
+import type { FollowerMode } from "../lib/terminalProtocol";
 
 interface TerminalPaneProps {
   sessionId: string;
@@ -46,6 +47,7 @@ interface TerminalPaneProps {
    * call `enable()` on click — a successful return replays pending events.
    */
   onNeedsUnlock?: (payload: { sessionId: string; enable: () => Promise<boolean> } | null) => void;
+	viewMode?: "terminal" | "messages";
 }
 
 // [REQ:P0-007b] Terminal Key/Chord Mapping - expose grouped pane operations.
@@ -76,7 +78,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-  function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived }, ref) {
+	function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived, viewMode = "terminal" }, ref) {
     const { t } = useTranslation();
     const paneStatus = useWorkspaceStore((state) => state.paneStatuses?.[sessionId] ?? null);
     const updatePaneStatus = useWorkspaceStore((state) => state.setPaneStatus);
@@ -110,8 +112,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const screenClipRef = useRef<HTMLDivElement>(null);
     const sendResizeRef = useRef<(cols: number, rows: number) => void>(() => {});
     const serverSizeRef = useRef<{ cols: number; rows: number } | null>(null);
-    const isFollowerRef = useRef(false);
-    const isFollowerForLifecycle = useCallback(() => isFollowerRef.current, []);
+	const [followerMode, setFollowerMode] = useState<FollowerMode>("leader");
     const sendResizeToSession = useCallback((cols: number, rows: number) => { sendResizeRef.current(cols, rows); }, []);
     const getServerSizeFromSession = useCallback(() => serverSizeRef.current, []);
     const renamePaneById = useWorkspaceStore((state) => state.renamePaneById);
@@ -122,8 +123,8 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       paneTheme,
       wheelScrollSensitivity,
       sendResize: sendResizeToSession,
-      getServerSize: getServerSizeFromSession,
-      isFollower: isFollowerForLifecycle,
+	  getServerSize: getServerSizeFromSession,
+	  followerMode,
       renamePaneById,
       syncPaneUpdate,
     });
@@ -131,7 +132,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // Delegate all WebSocket protocol handling to the session hook
   const {
     submitInput, sendControl, setMouseMode, mouseMode, scrollBy, sendResize,
-    serverSize, isFollower, leaderDevice, leaderClass, leaderKbOpen, viewerCount,
+	serverSize, followerMode: sessionFollowerMode, leaderDevice, leaderClass, leaderKbOpen,
     takeLease, setKeyboardOpen, subscribeInputSettled, awaitOffset,
     subscribePendingInput, getPendingInputSnapshot, discardPendingInput,
     discardAllPendingInput, flushPendingInputNow, sendConversationAck,
@@ -140,6 +141,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       terminal,
       predictionContainer: containerRef.current,
       onStatus: setPaneStatus,
+      onFollowerModeChange: setFollowerMode,
       onExit,
       onReady: () => {
         // After socket connects and snapshot replay completes, re-fit to
@@ -175,8 +177,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     useEffect(() => {
       sendResizeRef.current = sendResize;
       serverSizeRef.current = serverSize;
-      isFollowerRef.current = isFollower;
-    }, [sendResize, serverSize, isFollower]);
+	    }, [sendResize, serverSize]);
 
     // Declare this device's keyboard to the session. Only the leader's state
     // is presented, but every pane declares so a lease handover is immediate.
@@ -186,9 +187,10 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     const followerFrame = useFollowerPresentation({
       terminal,
       serverSize,
-      isFollower,
+	  followerMode,
+	  viewMode,
       paneSize,
-      leaderClass,
+	  leaderClass,
       leaderKbOpen,
     });
 
@@ -196,7 +198,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
     // the letterboxing must agree: gating only the chrome left a solo viewer
     // who had lost the lease with an inset, resized terminal and no frame to
     // explain it.
-    const presentsFollowerDevice = followerFrame !== null && viewerCount > 1;
+	const presentsFollowerDevice = followerFrame !== null && viewMode === "terminal";
     const appliedFrame = presentsFollowerDevice ? followerFrame : null;
 
     const fitToHost = useCallback(() => { fitRef.current?.fit(); }, [fitRef]);
@@ -244,7 +246,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       sendControl,
       scrollBy,
       fontSize: paneFontSize,
-      isFollower,
+	  isFollower: sessionFollowerMode === "follower",
       onFontSizeCommit: commitPinchFontSize,
       onFontSizePreview: setPinchPreviewFontSize,
       submitInput,
@@ -309,7 +311,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
         // large enough for xterm's rendered DOM to exceed the container bounds.
         // That phantom outer scrollbar captures touch/wheel events on mobile,
         // making the terminal unscrollable unless the user carefully avoids it.
-        className={`h-full w-full overflow-hidden relative p-1${dragOver ? " ring-2 ring-inset ring-blue-400/60" : ""}`}
+		className={`h-full w-full overflow-hidden relative isolate p-1${dragOver ? " ring-2 ring-inset ring-blue-400/60" : ""}`}
         onPasteCapture={handlePaste}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}

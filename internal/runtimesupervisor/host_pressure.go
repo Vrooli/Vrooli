@@ -9,11 +9,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 const (
 	hostPressureParameterA = 2
-	hostPressureLinux      = "linux"
+	hostPressureLinux      = string(hostreqspec.PlatformLinux)
 )
 
 // HostPressureProvider reads the kernel's bounded pressure evidence for both

@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // stubListenerSnapshot pins the snapshot seam so ticks read controlled
@@ -30,27 +31,6 @@ func stubListenerSnapshot(t *testing.T, snapshot network.TCPListenerSnapshot, on
 		return snapshot
 	}
 	return &captures
-}
-
-type fixedClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func newFixedClock(t time.Time) *fixedClock {
-	return &fixedClock{now: t.UTC()}
-}
-
-func (c *fixedClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *fixedClock) Advance(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = c.now.Add(d)
 }
 
 type fakeHostProvider struct {
@@ -78,7 +58,7 @@ func TestModeFromEnvDefaultsToAuto(t *testing.T) {
 
 func TestServiceStatusExposesDurableRecoveryContract(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -112,7 +92,7 @@ func TestServiceStatusExposesDurableRecoveryContract(t *testing.T) {
 
 func TestServiceRecoveryWaitsForPressureClearAndRestoresOnlyDeclaredCriticalWorkload(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -190,7 +170,7 @@ func TestServiceRecoveryWaitsForPressureClearAndRestoresOnlyDeclaredCriticalWork
 
 func TestServiceTickAdoptsAndRenewsRunningInstance(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -249,7 +229,7 @@ func TestServiceTickAdoptsAndRenewsRunningInstance(t *testing.T) {
 
 func TestServiceTickPersistsListenerEvidenceForBoundClaims(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -337,7 +317,7 @@ func TestServiceTickPersistsListenerEvidenceForBoundClaims(t *testing.T) {
 // snapshot degrades to Known:false (never false-"not listening").
 func TestServiceTickRealSnapshotBranchConvertsAndCapturesOnce(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -423,7 +403,7 @@ func TestServiceTickRealSnapshotBranchConvertsAndCapturesOnce(t *testing.T) {
 // evidence that predates its bind — the false-expiry race.
 func TestServiceTickCapturesSnapshotAfterClaimReads(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -490,7 +470,7 @@ func TestServiceTickCapturesSnapshotAfterClaimReads(t *testing.T) {
 
 func TestServiceTickReconcilesLiveStartingInstance(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -598,7 +578,7 @@ func TestServiceTickReconcilesLiveStartingInstance(t *testing.T) {
 
 func TestServiceTickExpiresPreviousBootInstance(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -650,7 +630,7 @@ func TestServiceTickExpiresPreviousBootInstance(t *testing.T) {
 
 func TestServiceTickRunsHealthProbesWithBoundedConcurrency(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -739,7 +719,7 @@ func TestServiceTickRunsHealthProbesWithBoundedConcurrency(t *testing.T) {
 
 func TestServiceStatusReportsDeadWhenRecordedPIDIsMissing(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -785,7 +765,7 @@ func TestServiceStatusReportsDeadWhenRecordedPIDIsMissing(t *testing.T) {
 
 func TestServiceStatusReportsStaleWhenHeartbeatExpired(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -827,7 +807,7 @@ func TestServiceStatusReportsStaleWhenHeartbeatExpired(t *testing.T) {
 
 func TestServiceStatusReportsRunningOnlyForFreshLiveSession(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
@@ -888,7 +868,7 @@ func (f *flakyStore) HeartbeatSupervisorSession(ctx context.Context, supervisorI
 // so every scenario's lease expired because one store call blipped.
 func TestRunSurvivesTransientTickFailures(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 
 	var flaky *flakyStore
@@ -936,7 +916,7 @@ func TestRunSurvivesTransientTickFailures(t *testing.T) {
 func TestRunExitsAfterSustainedTickFailures(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 
 	cfg := Config{
@@ -970,7 +950,7 @@ func TestRunExitsAfterSustainedTickFailures(t *testing.T) {
 // before they could record their own shutdown.
 func TestSupervisorStartupRetiresDeadPredecessorSessions(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/vrooli/envkit-go"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -82,12 +83,12 @@ func DiscoverConformanceTargets(root string) ([]ConformanceTarget, error) {
 			}
 			seenModules[key] = struct{}{}
 			for _, targetPlatform := range []struct{ hostOS, architecture string }{
-				{hostOS: "linux", architecture: "amd64"},
-				{hostOS: "linux", architecture: "arm64"},
+				{hostOS: string(hostreqspec.PlatformLinux), architecture: "amd64"},
+				{hostOS: string(hostreqspec.PlatformLinux), architecture: "arm64"},
 				{hostOS: "macos", architecture: "amd64"},
 				{hostOS: "macos", architecture: "arm64"},
-				{hostOS: "windows", architecture: "amd64"},
-				{hostOS: "windows", architecture: "arm64"},
+				{hostOS: string(hostreqspec.PlatformWindows), architecture: "amd64"},
+				{hostOS: string(hostreqspec.PlatformWindows), architecture: "arm64"},
 			} {
 				targets = append(targets, ConformanceTarget{
 					ManifestPath: conformanceManifest(root, target, module),
@@ -187,7 +188,7 @@ func crossCompile(ctx context.Context, module string, hostOS HostOS, architectur
 	arch := architecture
 	goos := string(hostOS)
 	if hostOS == HostOSMacOS {
-		goos = "darwin"
+		goos = string(hostreqspec.PlatformDarwin)
 	}
 	cmd := shell.NewCommandContext(ctx, "go", "vet", "./...")
 	cmd.Dir = module

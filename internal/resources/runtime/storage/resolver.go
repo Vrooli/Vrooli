@@ -65,3 +65,29 @@ func (r *Resolver) Path(opts Options, class Class, rel string) (string, error) {
 	}
 	return cleanJoin(base, rel)
 }
+
+// ResourcesRoot resolves the engine-independent root that contains every
+// resource directory for one storage class. Callers that need to enumerate
+// resources must use this authority rather than reconstructing XDG paths.
+func (r *Resolver) ResourcesRoot(class Class, rootOverride string) (string, error) {
+	roots, err := resolveClassRoots(r.profile, r.env, rootOverride)
+	if err != nil {
+		return "", err
+	}
+	var root string
+	switch class {
+	case ClassConfig:
+		root = roots.config
+	case ClassData:
+		root = roots.data
+	case ClassCache:
+		root = roots.cache
+	case ClassLogs:
+		root = roots.logs
+	case ClassState:
+		root = roots.state
+	default:
+		return "", &Error{Kind: ErrInvalidInput, Message: "unknown storage class", Details: string(class)}
+	}
+	return filepath.Join(root, r.appID, "resources"), nil
+}

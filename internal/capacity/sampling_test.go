@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestDecayedPeak(t *testing.T) {
@@ -39,8 +40,10 @@ func TestDecayedPeak(t *testing.T) {
 func TestSampleObservedUsagePersistsAndDecays(t *testing.T) {
 	ctx := context.Background()
 	t0 := time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC)
-	clk := newFixedClock(t0)
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(t0)
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	c := sampleClaim() // owner whisper, gpu 0
 	created, err := store.CreateClaim(ctx, c, time.Hour)

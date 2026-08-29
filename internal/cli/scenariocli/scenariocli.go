@@ -8,12 +8,9 @@ import (
 	"strings"
 	"time"
 
+	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/lifecycle"
-	"github.com/vrooli/vrooli/internal/orchestrator"
-	"github.com/vrooli/vrooli/internal/process"
-	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -43,264 +40,25 @@ func isQuietOutput() bool {
 	return strings.ToLower(strings.TrimSpace(os.Getenv("VROOLI_OUTPUT"))) == "quiet"
 }
 
-type ListPortOutput struct {
-	Key            string `json:"key"`
-	Step           string `json:"step,omitempty"`
-	Port           int    `json:"port"`
-	ListenerStatus string `json:"listener_status,omitempty"`
-}
-
-type ListItemOutput struct {
-	Name        string           `json:"name"`
-	Description string           `json:"description,omitempty"`
-	Version     string           `json:"version,omitempty"`
-	Status      string           `json:"status"`
-	Tags        []string         `json:"tags"`
-	Path        string           `json:"path"`
-	Ports       []ListPortOutput `json:"ports"`
-}
-
-type StatusItemOutput struct {
-	Name         string           `json:"name"`
-	DisplayName  string           `json:"display_name,omitempty"`
-	Description  string           `json:"description,omitempty"`
-	Tags         []string         `json:"tags"`
-	Status       string           `json:"status"`
-	Processes    int              `json:"processes"`
-	Runtime      string           `json:"runtime"`
-	StartedAt    *time.Time       `json:"started_at,omitempty"`
-	Ports        map[string]int   `json:"ports"`
-	PortBindings []ListPortOutput `json:"port_bindings,omitempty"`
-	Health       any              `json:"health_status"`
-	HealthError  string           `json:"health_error,omitempty"`
-	// StartOperation mirrors scenarioapp.StatusItemOutput.StartOperation.
-	StartOperation *lifecycle.StartOperationView `json:"start_operation,omitempty"`
-}
-
-type InfoOutput struct {
-	Success  bool             `json:"success"`
-	Scenario InfoScenarioData `json:"scenario"`
-	Runtime  InfoRuntimeData  `json:"runtime"`
-}
-
-type InfoScenarioData struct {
-	Name             string                            `json:"name"`
-	DisplayName      string                            `json:"display_name,omitempty"`
-	Description      string                            `json:"description,omitempty"`
-	Version          string                            `json:"version,omitempty"`
-	Type             string                            `json:"type,omitempty"`
-	Category         string                            `json:"category,omitempty"`
-	Tags             []string                          `json:"tags"`
-	Path             string                            `json:"path"`
-	ServicePath      string                            `json:"service_path"`
-	SandboxRedirect  bool                              `json:"sandbox_redirected"`
-	ConfigVersion    string                            `json:"config_version,omitempty"`
-	LifecycleVersion string                            `json:"lifecycle_version,omitempty"`
-	Ports            []scenariomodel.PortSummary       `json:"ports"`
-	Phases           []scenariomodel.PhaseSummary      `json:"phases"`
-	Generation       *scenariomodel.GenerationMetadata `json:"generation,omitempty"`
-}
-
-type InfoRuntimeData struct {
-	Status      string           `json:"status"`
-	Processes   int              `json:"processes"`
-	Runtime     string           `json:"runtime"`
-	StartedAt   *time.Time       `json:"started_at,omitempty"`
-	Ports       map[string]int   `json:"ports"`
-	ProcessInfo []process.Record `json:"process_records"`
-	ListPorts   []ListPortOutput `json:"list_ports"`
-	HealthError string           `json:"health_error,omitempty"`
-}
-
-type StatusSingleOutput struct {
-	Success  bool             `json:"success"`
-	Scenario StatusItemOutput `json:"scenario"`
-	Info     InfoScenarioData `json:"info"`
-	Runtime  InfoRuntimeData  `json:"runtime"`
-}
-
-type LifecycleItemOutput struct {
-	Name               string           `json:"name"`
-	Status             string           `json:"status"`
-	Health             string           `json:"health,omitempty"`
-	Ports              map[string]int   `json:"ports,omitempty"`
-	Endpoints          []EndpointOutput `json:"endpoints,omitempty"`
-	FailedDependencies []string         `json:"failed_dependencies,omitempty"`
-	FailedResources    []string         `json:"failed_resources,omitempty"`
-	// Verdict backs the exit-code contract (healthy | degraded | running);
-	// degraded exits 2 in --json mode (text mode keeps exit 0 for
-	// compatibility with existing callers).
-	Verdict string `json:"verdict,omitempty"`
-	// Operation is the durable start-operation record for this item.
-	Operation *lifecycle.StartOperationView `json:"operation,omitempty"`
-}
-
-type EndpointOutput struct {
-	Name        string `json:"name"`
-	Key         string `json:"key"`
-	Description string `json:"description,omitempty"`
-	Port        int    `json:"port"`
-	URL         string `json:"url"`
-}
-
-type BatchFailure struct {
-	Name  string `json:"name"`
-	Error string `json:"error"`
-}
-
-type BatchResponse struct {
-	Verb    string
-	Started []LifecycleItemOutput
-	Stopped []string
-	Failed  []BatchFailure
-}
-
-type ListResponse struct {
-	Items        []ListItemOutput
-	RunningCount int
-	Failures     []discovery.Failure `json:"failures,omitempty"`
-}
-
-type StatusResponse struct {
-	Single   *StatusSingleOutput
-	List     []StatusItemOutput
-	Failures []discovery.Failure `json:"failures,omitempty"`
-	// Raw carries a response already rendered by an explicitly addressed
-	// remote node. It bypasses local status reconstruction while preserving
-	// the command's stdout contract.
-	Raw []byte `json:"-"`
-}
-
-type PortSingleOutput struct {
-	Success  bool   `json:"success"`
-	Scenario string `json:"scenario"`
-	PortName string `json:"port_name"`
-	Step     string `json:"step,omitempty"`
-	Port     int    `json:"port,omitempty"`
-	Error    string `json:"error,omitempty"`
-}
-
-type PortListOutput struct {
-	Success  bool             `json:"success"`
-	Scenario string           `json:"scenario"`
-	Ports    []ListPortOutput `json:"ports"`
-	Metadata map[string]int   `json:"metadata,omitempty"`
-	Error    string           `json:"error,omitempty"`
-}
-
-type PortResponse struct {
-	Single *PortSingleOutput
-	List   *PortListOutput
-}
-
-type OpenOutput struct {
-	Success  bool   `json:"success"`
-	Scenario string `json:"scenario"`
-	PortName string `json:"port_name"`
-	Port     int    `json:"port"`
-	URL      string `json:"url"`
-}
-
-func BuildStatusItem(item scenariomodel.Scenario, runtime process.ScenarioRuntime) StatusItemOutput {
-	return BuildStatusDetail(orchestrator.Detail{
-		Scenario: item,
-		Runtime:  runtime,
-		Details:  scenariomodel.DescribeRuntime(item.Manifest, runtime),
-	})
-}
-
-func BuildStatusDetail(detail orchestrator.Detail) StatusItemOutput {
-	health := any(nil)
-	if detail.Details.Health != "" {
-		health = detail.Details.Health
-	}
-	return StatusItemOutput{
-		Name:           detail.Scenario.Slug,
-		DisplayName:    detail.Scenario.Manifest.Service.DisplayName,
-		Description:    detail.Scenario.Manifest.Service.Description,
-		Tags:           CopyStrings(detail.Scenario.Manifest.Service.Tags),
-		Status:         detail.Details.Status,
-		Processes:      detail.Details.Processes,
-		Runtime:        detail.Details.Runtime,
-		StartedAt:      detail.Details.StartedAt,
-		Ports:          CopyIntMap(detail.Details.Ports),
-		PortBindings:   RuntimePortOutputs(detail.Details.PortBindings),
-		Health:         health,
-		HealthError:    detail.Details.HealthError,
-		StartOperation: detail.StartOperation,
-	}
-}
-
-func BuildInfoData(item scenariomodel.Scenario) InfoScenarioData {
-	return InfoScenarioData{
-		Name:             item.Slug,
-		DisplayName:      item.Manifest.Service.DisplayName,
-		Description:      item.Manifest.Service.Description,
-		Version:          item.Manifest.Service.Version,
-		Type:             item.Manifest.Service.Type,
-		Category:         item.Manifest.Service.Category,
-		Tags:             CopyStrings(item.Manifest.Service.Tags),
-		Path:             item.Path,
-		ServicePath:      item.ServicePath,
-		SandboxRedirect:  item.Redirected,
-		ConfigVersion:    item.Manifest.Version,
-		LifecycleVersion: item.Manifest.Lifecycle.Version,
-		Ports:            item.Manifest.SortedPorts(),
-		Phases:           item.Manifest.PhaseSummaries(),
-		Generation:       item.Manifest.Generation,
-	}
-}
-
-func BuildRuntimeData(manifest scenariomodel.ServiceManifest, runtime process.ScenarioRuntime) InfoRuntimeData {
-	details := scenariomodel.DescribeRuntime(manifest, runtime)
-	return InfoRuntimeData{
-		Status:      details.Status,
-		Processes:   details.Processes,
-		Runtime:     details.Runtime,
-		StartedAt:   details.StartedAt,
-		Ports:       CopyIntMap(details.Ports),
-		ProcessInfo: CopyProcessRecords(details.ProcessInfo),
-		ListPorts:   RuntimePortOutputs(details.PortBindings),
-		HealthError: details.HealthError,
-	}
-}
-
-func RuntimePortOutputs(bindings []scenariomodel.RuntimePortBinding) []ListPortOutput {
-	listPorts := make([]ListPortOutput, 0, len(bindings))
-	for _, binding := range bindings {
-		listPorts = append(listPorts, ListPortOutput{
-			Key:            binding.Key,
-			Step:           binding.Step,
-			Port:           binding.Port,
-			ListenerStatus: binding.ListenerStatus,
-		})
-	}
-	return listPorts
-}
-
-func BuildListPorts(manifest scenariomodel.ServiceManifest, records []process.Record) ([]ListPortOutput, map[string]int) {
-	bindings, ports := scenariomodel.RuntimePortBindings(manifest, records)
-	return RuntimePortOutputs(bindings), CopyIntMap(ports)
-}
-
-func CopyIntMap(src map[string]int) map[string]int {
-	if len(src) == 0 {
-		return map[string]int{}
-	}
-	dup := make(map[string]int, len(src))
-	for key, value := range src {
-		dup[key] = value
-	}
-	return dup
-}
-
-func CopyStrings(values []string) []string {
-	return append([]string(nil), values...)
-}
-
-func CopyProcessRecords(values []process.Record) []process.Record {
-	return append([]process.Record(nil), values...)
-}
+type (
+	ListPortOutput      = scenarioapp.ListPortOutput
+	ListItemOutput      = scenarioapp.ListItemOutput
+	StatusItemOutput    = scenarioapp.StatusItemOutput
+	InfoOutput          = scenarioapp.InfoOutput
+	InfoScenarioData    = scenarioapp.InfoScenarioData
+	InfoRuntimeData     = scenarioapp.InfoRuntimeData
+	StatusSingleOutput  = scenarioapp.StatusSingleOutput
+	LifecycleItemOutput = scenarioapp.LifecycleItemOutput
+	EndpointOutput      = scenarioapp.EndpointOutput
+	BatchFailure        = scenarioapp.BatchFailure
+	BatchResponse       = scenarioapp.BatchResponse
+	ListResponse        = scenarioapp.ListResponse
+	StatusResponse      = scenarioapp.StatusResponse
+	PortSingleOutput    = scenarioapp.PortSingleOutput
+	PortListOutput      = scenarioapp.PortListOutput
+	PortResponse        = scenarioapp.PortResponse
+	OpenOutput          = scenarioapp.OpenOutput
+)
 
 func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleItemOutput) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error {

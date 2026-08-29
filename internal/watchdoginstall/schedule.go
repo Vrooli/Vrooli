@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -34,12 +35,12 @@ func For(goos string, interval time.Duration) Schedule {
 	normalized := strings.ToLower(strings.TrimSpace(goos))
 	switch normalized {
 	case "macos":
-		normalized = "darwin"
+		normalized = string(hostreqspec.PlatformDarwin)
 	}
 	backend := map[string]string{
-		"linux":   "systemd-user-timer",
-		"darwin":  "launchd-user-agent",
-		"windows": "windows-task-scheduler",
+		string(hostreqspec.PlatformLinux):   "systemd-user-timer",
+		string(hostreqspec.PlatformDarwin):  "launchd-user-agent",
+		string(hostreqspec.PlatformWindows): "windows-task-scheduler",
 	}[normalized]
 	if backend == "" {
 		return Schedule{

@@ -165,21 +165,27 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	}
 	conn.SetPongHandler(func(string) error { return resetReadDeadline() })
 
-	// [REQ:P1-004a] Emit connection event
-	s.events.Emit(events.SessionConnected, sessionID, nil)
 	s.metrics.ConnectionsTotal.Add(1)
 	s.metrics.ActiveConnections.Add(1)
-	defer func() {
-		s.events.Emit(events.SessionDisconnected, sessionID, nil)
-		s.metrics.ActiveConnections.Add(-1)
-	}()
 
 	// Subscribe to PTY output. Subscribe atomically captures the current
 	// emulator snapshot before registering the live channel; live frames
 	// are applied on top of the snapshot on the receiver.
-	sub := sess.Subscribe()
+	deviceID := r.URL.Query().Get("deviceId")
+	deviceLabel := r.URL.Query().Get("deviceLabel")
+	deviceClass := r.URL.Query().Get("deviceClass")
+	sub := sess.Subscribe(deviceID, deviceLabel, deviceClass)
 	defer sess.Unsubscribe(sub.OutputCh)
-	sess.SetClientDevice(sub.OutputCh, r.URL.Query().Get("deviceId"), r.URL.Query().Get("deviceLabel"), r.URL.Query().Get("deviceClass"))
+	deviceDetails := map[string]string{
+		"deviceId": deviceID, "deviceLabel": deviceLabel, "deviceClass": deviceClass, "connId": sub.ConnID,
+	}
+	// [REQ:P1-004a] Emit connection events with the same display-only identity
+	// the roster receives from the live session projection.
+	s.events.Emit(events.SessionConnected, sessionID, deviceDetails)
+	defer func() {
+		s.events.Emit(events.SessionDisconnected, sessionID, deviceDetails)
+		s.metrics.ActiveConnections.Add(-1)
+	}()
 
 	// Assign this connection a fresh generation so clients can detect
 	// reconnect boundaries on their stdin-ack write barrier.
@@ -188,6 +194,23 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 	// writeMu serializes WebSocket writes from the output forwarder goroutine
 	// and the inline input loop (which also writes pong/error responses).
 	var writeMu sync.Mutex
+	sess.SetClientProbe(sub.OutputCh, func() {
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		_ = conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))
+	})
+	conn.SetPongHandler(func(string) error {
+		sess.MarkClientPong(sub.OutputCh)
+		return resetReadDeadline()
+	})
+	if sub.ReclaimClient != nil {
+		prior := sub.ReclaimClient
+		go func() {
+			if !sess.ProbeClient(prior) {
+				sess.Supersede(prior)
+			}
+		}()
+	}
 	readyCh := make(chan struct{})
 	resumeCh := make(chan terminalResumeRequest, 1)
 
@@ -306,6 +329,8 @@ func (s *Server) handleTerminalWS(w http.ResponseWriter, r *http.Request) {
 
 		for {
 			select {
+			case <-sub.SupersedeCh:
+				return
 			case <-pingTicker.C:
 				writeMu.Lock()
 				err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(5*time.Second))

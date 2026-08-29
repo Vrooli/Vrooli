@@ -2,9 +2,11 @@ package artifactledger
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -304,6 +306,23 @@ func TestReadOnMissingLedgerIsNotAnError(t *testing.T) {
 	}
 	if len(receipts) != 0 {
 		t.Fatalf("got %d receipts from an absent ledger", len(receipts))
+	}
+}
+
+func TestReadUsesLexicographicLedgerFileOrder(t *testing.T) {
+	dir := t.TempDir()
+	for name, id := range map[string]string{"z-last.jsonl": "last", "a-first.jsonl": "first", "m-middle.jsonl": "middle"} {
+		data := []byte(fmt.Sprintf("{\"id\":%q}\n", id))
+		if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	receipts, err := NewAt(dir).Read()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := []string{receipts[0].ID, receipts[1].ID, receipts[2].ID}; !slices.Equal(got, []string{"first", "middle", "last"}) {
+		t.Fatalf("receipt order = %v", got)
 	}
 }
 

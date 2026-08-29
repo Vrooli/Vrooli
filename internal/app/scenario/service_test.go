@@ -101,6 +101,24 @@ func TestStartUsesScenarioOperationsInterface(t *testing.T) {
 	}
 }
 
+func TestStatusBuildersPreserveHealthError(t *testing.T) {
+	detail := orchestrator.Detail{
+		Scenario: scenariomodel.Scenario{Slug: "demo"},
+		Details: scenariomodel.RuntimeDetails{
+			Status:      "running",
+			HealthError: "api_endpoint: invalid health response schema",
+		},
+	}
+	status := BuildStatusDetail(detail)
+	if status.HealthError != detail.Details.HealthError {
+		t.Fatalf("status HealthError = %q", status.HealthError)
+	}
+	runtime := BuildRuntimeDataFromDetail(detail)
+	if runtime.HealthError != detail.Details.HealthError {
+		t.Fatalf("runtime HealthError = %q", runtime.HealthError)
+	}
+}
+
 func TestPortRejectsSpecificPortWhenRuntimeIsNotRunning(t *testing.T) {
 	ops := &fakeScenarioOps{detail: portDetail("starting", 18080)}
 	svc := Service{Scenarios: ops, Runner: fakeRunner{}}

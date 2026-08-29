@@ -26,7 +26,7 @@ func Duration(name string, fallback time.Duration) time.Duration {
 	entry, _ := durationCache.LoadOrStore(name, &cachedDuration{})
 	cached := entry.(*cachedDuration)
 	cached.once.Do(func() {
-		key := environmentPrefix + upperSnake(name)
+		key := EnvironmentVariable(name)
 		raw, ok := os.LookupEnv(key)
 		if !ok || strings.TrimSpace(raw) == "" {
 			return
@@ -47,6 +47,14 @@ func Duration(name string, fallback time.Duration) time.Duration {
 		return *cached.override
 	}
 	return fallback
+}
+
+func durationHasOverride(name string) bool {
+	entry, ok := durationCache.Load(name)
+	if !ok {
+		return false
+	}
+	return entry.(*cachedDuration).override != nil
 }
 
 func upperSnake(name string) string {

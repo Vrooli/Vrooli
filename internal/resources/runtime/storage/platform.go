@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 const (
@@ -155,7 +157,7 @@ func defaultUserClassRoots(e env) (classRoots, error) {
 	}
 
 	switch e.os {
-	case "windows":
+	case string(hostreqspec.PlatformWindows):
 		localAppData := strings.TrimSpace(e.get("LOCALAPPDATA"))
 		if localAppData == "" {
 			localAppData = filepath.Join(homeDir, "AppData", "Local")
@@ -167,7 +169,7 @@ func defaultUserClassRoots(e env) (classRoots, error) {
 			logs:   filepath.Join(localAppData, "Logs"),
 			state:  filepath.Join(localAppData, "State"),
 		}, nil
-	case "darwin":
+	case string(hostreqspec.PlatformDarwin):
 		library := filepath.Join(homeDir, "Library")
 		return classRoots{
 			config: filepath.Join(library, "Application Support"),

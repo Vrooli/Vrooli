@@ -25,6 +25,37 @@ type credentialService struct {
 	run func([]string) error
 }
 
+var (
+	credentialRootNames  = []string{"doctor", "list", "delete", "provision", "status"}
+	credentialGroupNames = map[string][]string{
+		"store":    {"status", "init", "unlock", "lock", "rewrap", "change-passphrase"},
+		"keyring":  {"status", "inspect", "repair", "unlock"},
+		"recovery": {"export", "verify", "restore"},
+	}
+	breakGlassCommandNames = []string{"provision", "issue", "status", "rotate", "reset"}
+)
+
+// RegisteredCommandPaths returns the child paths bound by the credential handlers.
+func RegisteredCommandPaths() []string {
+	groupCommandCount := 0
+	for _, names := range credentialGroupNames {
+		groupCommandCount += len(names)
+	}
+	paths := make([]string, 0, len(credentialRootNames)+len(breakGlassCommandNames)+groupCommandCount)
+	for _, name := range credentialRootNames {
+		paths = append(paths, "credentials "+name)
+	}
+	for _, group := range []string{"store", "keyring", "recovery"} {
+		for _, name := range credentialGroupNames[group] {
+			paths = append(paths, "credentials "+group+" "+name)
+		}
+	}
+	for _, name := range breakGlassCommandNames {
+		paths = append(paths, "break-glass "+name)
+	}
+	return paths
+}
+
 // RootHandler dispatches `vrooli credentials`.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
@@ -87,18 +118,14 @@ type credentialGroupsResult struct {
 }
 
 func credentialGroups(app *credentialsapp.App, ctx *credentialscli.Context) (credentialGroupsResult, error) {
-	root, err := cliapp.LoadFromManifest(climanifest.Bytes(), "credentials", credentialBindings(app, ctx, nil, []string{"doctor", "list", "delete", "provision", "status"}))
+	root, err := cliapp.LoadFromManifest(climanifest.Bytes(), "credentials", credentialBindings(app, ctx, nil, credentialRootNames))
 	if err != nil {
 		return credentialGroupsResult{}, err
 	}
 	paths := []string{"store", "keyring", "recovery"}
 	result := credentialGroupsResult{root: root, subgroups: make([]cliapp.SubcommandGroup, 0, len(paths))}
 	for _, path := range paths {
-		names := map[string][]string{
-			"store":    {"status", "init", "unlock", "lock", "rewrap", "change-passphrase"},
-			"keyring":  {"status", "inspect", "repair", "unlock"},
-			"recovery": {"export", "verify", "restore"},
-		}[path]
+		names := credentialGroupNames[path]
 		group, loadErr := cliapp.LoadFromManifest(climanifest.Bytes(), "credentials/"+path, credentialBindings(app, ctx, []string{path}, names))
 		if loadErr != nil {
 			return credentialGroupsResult{}, loadErr
@@ -127,7 +154,7 @@ func credentialBindings(app *credentialsapp.App, ctx *credentialscli.Context, pr
 
 func breakGlassBindings(app *credentialsapp.App, ctx *credentialscli.Context) map[string]func(cliapp.RunContext) error {
 	bindings := map[string]func(cliapp.RunContext) error{}
-	for _, name := range []string{"provision", "issue", "status", "rotate", "reset"} {
+	for _, name := range breakGlassCommandNames {
 		command := name
 		bindings[name] = func(runCtx cliapp.RunContext) error {
 			globals := ctx.Globals

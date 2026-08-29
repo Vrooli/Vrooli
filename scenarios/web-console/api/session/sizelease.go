@@ -2,9 +2,73 @@ package session
 
 import (
 	"errors"
+	"sort"
+	"time"
 
 	"web-console/internal/pty"
 )
+
+// DeviceConnection is one live socket belonging to a device.
+type DeviceConnection struct {
+	ConnID       string
+	SubscribedAt time.Time
+	HoldsLease   bool
+}
+
+// DeviceView is a session-local projection of live connections grouped by
+// browser-local device identity.
+type DeviceView struct {
+	DeviceID    string
+	DeviceLabel string
+	DeviceClass string
+	KbOpen      bool
+	HoldsLease  bool
+	Connections []DeviceConnection
+}
+
+// leaseHolderForDeviceLocked returns the current lease holder for a device,
+// excluding the arriving connection. The caller must hold clientsMu.
+func (s *Session) leaseHolderForDeviceLocked(deviceID string, exclude chan []byte) chan []byte {
+	if deviceID == "" {
+		return nil
+	}
+	if holder := s.clients[s.leaseOwner]; holder != nil && s.leaseOwner != exclude && holder.DeviceID == deviceID {
+		return s.leaseOwner
+	}
+	return nil
+}
+
+// ConnectedDevices projects this session's live clients without retaining a
+// second roster state. Connections without an identity remain distinct.
+func (s *Session) ConnectedDevices() []DeviceView {
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+	groups := make(map[string]*DeviceView)
+	for ch, info := range s.clients {
+		key := info.DeviceID
+		if key == "" {
+			key = "\x00" + info.ConnID
+		}
+		view := groups[key]
+		if view == nil {
+			view = &DeviceView{DeviceID: info.DeviceID, DeviceLabel: info.DeviceLabel, DeviceClass: info.DeviceClass, KbOpen: info.KbOpen, HoldsLease: ch == s.leaseOwner}
+			groups[key] = view
+		}
+		view.Connections = append(view.Connections, DeviceConnection{ConnID: info.ConnID, SubscribedAt: info.SubscribedAt, HoldsLease: ch == s.leaseOwner})
+	}
+	result := make([]DeviceView, 0, len(groups))
+	for _, view := range groups {
+		sort.Slice(view.Connections, func(i, j int) bool { return view.Connections[i].SubscribedAt.Before(view.Connections[j].SubscribedAt) })
+		result = append(result, *view)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if len(result[i].Connections) == 0 || len(result[j].Connections) == 0 {
+			return len(result[i].Connections) > len(result[j].Connections)
+		}
+		return result[i].Connections[0].SubscribedAt.Before(result[j].Connections[0].SubscribedAt)
+	})
+	return result
+}
 
 // LeaseReason records why the terminal-size authority last moved.
 type LeaseReason string
@@ -14,7 +78,10 @@ const (
 	LeaseReasonInput            LeaseReason = "input"
 	LeaseReasonExplicit         LeaseReason = "explicit"
 	LeaseReasonLeaderDisconnect LeaseReason = "leader_disconnect"
+	LeaseReasonDeviceReclaim    LeaseReason = "device_reclaim"
 )
+
+const deviceReclaimGrace = 2 * time.Second
 
 var ErrLeaseNotHeld = errors.New("terminal size lease is not held by this connection")
 
@@ -46,6 +113,55 @@ func (s *Session) SetClientDevice(client chan []byte, id, label, class string) {
 	}
 	s.emuMu.Unlock()
 	s.clientsMu.Unlock()
+}
+
+// SetClientProbe installs the transport-owned liveness probe for a client.
+func (s *Session) SetClientProbe(client chan []byte, probe func()) {
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+	if info := s.clients[client]; info != nil {
+		info.probe = probe
+	}
+}
+
+// MarkClientPong records a successful WebSocket liveness response.
+func (s *Session) MarkClientPong(client chan []byte) {
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+	if info := s.clients[client]; info != nil && info.pongCh != nil {
+		select {
+		case info.pongCh <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// ProbeClient asks the transport to probe a connection and waits briefly for
+// its pong. The transport callback is invoked without the session lock held.
+func (s *Session) ProbeClient(client chan []byte) bool {
+	s.clientsMu.Lock()
+	info := s.clients[client]
+	if info == nil || info.probe == nil || info.pongCh == nil {
+		s.clientsMu.Unlock()
+		return false
+	}
+	probe, pongCh := info.probe, info.pongCh
+	for {
+		select {
+		case <-pongCh:
+		default:
+			goto drained
+		}
+	}
+drained:
+	s.clientsMu.Unlock()
+	probe()
+	select {
+	case <-pongCh:
+		return true
+	case <-time.After(deviceReclaimGrace):
+		return false
+	}
 }
 
 // SetClientKeyboard records whether this connection's virtual keyboard covers

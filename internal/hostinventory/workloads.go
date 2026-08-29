@@ -116,7 +116,7 @@ func (c Collector) CollectWorkloads(ctx context.Context) (WorkloadSnapshot, erro
 			if runErr != nil {
 				out.Unread = append(out.Unread, "listeners: netstat query failed: "+runErr.Error())
 			} else {
-				out.Listening = parseNetstat(data, "darwin")
+				out.Listening = parseNetstat(data, string(hostreqspec.PlatformDarwin))
 				out.Evidence = append(out.Evidence, "netstat -anv -p tcp")
 			}
 		} else {
@@ -151,7 +151,7 @@ func (c Collector) CollectWorkloads(ctx context.Context) (WorkloadSnapshot, erro
 			if runErr != nil {
 				out.Unread = append(out.Unread, "listeners: netstat.exe query failed: "+runErr.Error())
 			} else {
-				out.Listening = parseNetstat(data, "windows")
+				out.Listening = parseNetstat(data, string(hostreqspec.PlatformWindows))
 				out.Evidence = append(out.Evidence, "netstat.exe -ano -p tcp")
 			}
 		} else {
@@ -229,9 +229,9 @@ func parseNetstat(data []byte, platform string) []ListeningPort {
 			continue
 		}
 		endpointIndex := stateIndex - 1
-		if platform == "darwin" {
+		if platform == string(hostreqspec.PlatformDarwin) {
 			endpointIndex = 3
-		} else if platform == "windows" {
+		} else if platform == string(hostreqspec.PlatformWindows) {
 			endpointIndex = 1
 		}
 		if endpointIndex < 0 || endpointIndex >= len(fields) {
@@ -239,7 +239,7 @@ func parseNetstat(data []byte, platform string) []ListeningPort {
 		}
 		endpoint := fields[endpointIndex]
 		address, port, ok := splitEndpoint(endpoint)
-		if !ok && platform == "darwin" {
+		if !ok && platform == string(hostreqspec.PlatformDarwin) {
 			idx := strings.LastIndex(endpoint, ".")
 			if idx >= 0 {
 				parsedPort, err := strconv.Atoi(endpoint[idx+1:])
@@ -252,7 +252,7 @@ func parseNetstat(data []byte, platform string) []ListeningPort {
 			continue
 		}
 		process := ""
-		if platform == "windows" && len(fields) > stateIndex+1 {
+		if platform == string(hostreqspec.PlatformWindows) && len(fields) > stateIndex+1 {
 			process = fields[stateIndex+1]
 		}
 		out = append(out, ListeningPort{Protocol: "tcp", Address: address, Port: port, Process: process, Evidence: "native netstat"})

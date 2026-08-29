@@ -12,6 +12,7 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // The degradation contract under test: credential resolution returns an error
@@ -50,29 +51,6 @@ func withAuthority(t *testing.T, store securestore.Store) {
 	t.Cleanup(func() { credentialauthority.DefaultAuthority = previous })
 }
 
-type memoryStore struct{ values map[string]string }
-
-func (s *memoryStore) Put(service, key, value string) error {
-	if s.values == nil {
-		s.values = map[string]string{}
-	}
-	s.values[service+"/"+key] = value
-	return nil
-}
-
-func (s *memoryStore) Get(service, key string) (string, error) {
-	value, ok := s.values[service+"/"+key]
-	if !ok {
-		return "", securestore.ErrNotFound
-	}
-	return value, nil
-}
-
-func (s *memoryStore) Delete(service, key string) error {
-	delete(s.values, service+"/"+key)
-	return nil
-}
-
 func TestResolveCredentialValuesReportsHostConditionsWithoutFailing(t *testing.T) {
 	for _, testCase := range []struct {
 		name     string
@@ -97,7 +75,7 @@ func TestResolveCredentialValuesReportsHostConditionsWithoutFailing(t *testing.T
 		},
 		{
 			name:     "unset required value on a working provider",
-			store:    &memoryStore{},
+			store:    testenv.NewCredentialStore(securestore.ErrNotFound),
 			reason:   GapUnconfigured,
 			provider: credentialauthority.ProviderAvailable,
 			remedy:   "vrooli credentials provision --identity vrooli/openrouter --field api-key",
@@ -137,7 +115,7 @@ func TestResolveCredentialValuesReportsHostConditionsWithoutFailing(t *testing.T
 }
 
 func TestResolveCredentialValuesResolvesAProvisionedValue(t *testing.T) {
-	store := &memoryStore{}
+	store := testenv.NewCredentialStore(securestore.ErrNotFound)
 	withAuthority(t, store)
 	authority, err := credentialauthority.DefaultAuthority()
 	if err != nil {
@@ -166,7 +144,7 @@ func TestResolveCredentialValuesResolvesAProvisionedValue(t *testing.T) {
 // difference is how a consumer ranks it, not whether it is survivable — that
 // distinction is what used to abort the start.
 func TestResolveCredentialValuesReportsOptionalGapsToo(t *testing.T) {
-	withAuthority(t, &memoryStore{})
+	withAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	descriptor := openrouterDescriptor()
 	descriptor.Required = false
 
@@ -180,7 +158,7 @@ func TestResolveCredentialValuesReportsOptionalGapsToo(t *testing.T) {
 }
 
 func TestResolveCredentialValuesErrorsOnlyForManifestDefects(t *testing.T) {
-	withAuthority(t, &memoryStore{})
+	withAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	for _, testCase := range []struct {
 		name        string
 		descriptors []manifestpkg.CredentialDescriptor
@@ -235,7 +213,7 @@ func TestResolveCredentialValuesErrorsOnlyForManifestDefects(t *testing.T) {
 // /proc/<pid>/environ and inherited by every subprocess — but it must still be
 // declared, diagnosed, and therefore captured by a recovery bundle.
 func TestDescriptorWithoutEnvIsDeclaredButNeverInjected(t *testing.T) {
-	store := &memoryStore{}
+	store := testenv.NewCredentialStore(securestore.ErrNotFound)
 	withAuthority(t, store)
 	direct := manifestpkg.CredentialDescriptor{
 		LogicalID: "vrooli/tunnel-manager",
@@ -281,7 +259,7 @@ func TestDescriptorWithoutEnvIsDeclaredButNeverInjected(t *testing.T) {
 // `recovery export --all` — a credential nothing declares is a credential no
 // backup captures.
 func TestScenarioDeclaredCredentialsAreDiagnosed(t *testing.T) {
-	withAuthority(t, &memoryStore{})
+	withAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	declaration := credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{
 		LogicalID: "vrooli/tunnel-manager",
 		Field:     "cloudflare-api-token",
@@ -306,7 +284,7 @@ func TestScenarioDeclaredCredentialsAreDiagnosed(t *testing.T) {
 // ResolveCredentialGaps is the presence path. It must answer the same question
 // as ResolveCredentialValues without ever materializing a value.
 func TestResolveCredentialGapsNeverMaterializesValues(t *testing.T) {
-	store := &memoryStore{}
+	store := testenv.NewCredentialStore(securestore.ErrNotFound)
 	withAuthority(t, store)
 	authority, err := credentialauthority.DefaultAuthority()
 	if err != nil {
@@ -337,7 +315,7 @@ func TestResolveCredentialGapsNeverMaterializesValues(t *testing.T) {
 }
 
 func TestResolveCredentialGapsReportsUnsetAndUnreachableSeparately(t *testing.T) {
-	withAuthority(t, &memoryStore{})
+	withAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	gaps, err := ResolveCredentialGaps(credentialManifest(openrouterDescriptor()))
 	if err != nil {
 		t.Fatal(err)
@@ -384,7 +362,7 @@ func TestProviderOutageReportsEveryDescriptorOnce(t *testing.T) {
 // Deleting the variable would hand postgres an empty password rather than no
 // password, which is strictly worse than the pre-credential behavior.
 func TestUnresolvedCredentialKeepsManifestDefaultAndWarns(t *testing.T) {
-	withAuthority(t, &memoryStore{})
+	withAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	root := t.TempDir()
 	writeResourceManifest(t, root, "postgres", map[string]any{
 		"name":     "postgres",
@@ -421,7 +399,7 @@ func TestUnresolvedCredentialKeepsManifestDefaultAndWarns(t *testing.T) {
 // A credential that has no other source is omitted rather than injected empty,
 // so a consumer checking presence never sees a configured-but-blank value.
 func TestUnresolvedCredentialWithNoOtherSourceIsOmitted(t *testing.T) {
-	withAuthority(t, &memoryStore{})
+	withAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	root := t.TempDir()
 	writeResourceManifest(t, root, "openrouter", map[string]any{
 		"name":     "openrouter",
@@ -451,7 +429,7 @@ func TestUnresolvedCredentialWithNoOtherSourceIsOmitted(t *testing.T) {
 }
 
 func TestResolveScenarioAllowsOneSharedCredentialButRejectsDifferentCredentialsForOneEnv(t *testing.T) {
-	withAuthority(t, &memoryStore{})
+	withAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	root := t.TempDir()
 	writeResourceManifest(t, root, "first-runner", map[string]any{
 		"name": "first-runner", "driver": "cloud-api", "endpoint": "https://first.invalid",

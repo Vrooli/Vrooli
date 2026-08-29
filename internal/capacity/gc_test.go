@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // TestGCTerminalClaimsRetentionBoundary proves GC prunes terminal claims strictly
@@ -13,8 +15,10 @@ import (
 func TestGCTerminalClaimsRetentionBoundary(t *testing.T) {
 	ctx := context.Background()
 	t0 := time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC)
-	clk := newFixedClock(t0)
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(t0)
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	// A terminal claim, released at t0.
 	term, err := store.CreateClaim(ctx, sampleClaim(), time.Hour)
@@ -64,8 +68,10 @@ func TestGCTerminalClaimsRetentionBoundary(t *testing.T) {
 // GC regardless of how old their updated_at is.
 func TestGCNeverPrunesActiveStatuses(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	if _, err := store.CreateClaim(ctx, sampleClaim(), time.Hour); err != nil {
 		t.Fatalf("create: %v", err)
 	}

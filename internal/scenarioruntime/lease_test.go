@@ -5,12 +5,16 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestSQLiteStoreLeaseHeartbeatAndStop(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	created, err := store.CreateLease(ctx, Instance{
 		InstanceID: "inst-alpha",
@@ -59,8 +63,10 @@ func TestSQLiteStoreLeaseHeartbeatAndStop(t *testing.T) {
 
 func TestSQLiteStoreFreshLeaseActiveWithUnknownHealth(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	created, err := store.CreateLease(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"}, time.Minute)
 	if err != nil {
@@ -80,8 +86,10 @@ func TestSQLiteStoreFreshLeaseActiveWithUnknownHealth(t *testing.T) {
 
 func TestSQLiteStoreExpireStaleLeasesDoesNotInspectPorts(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateLease(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"}, time.Minute)
 	if err != nil {
 		t.Fatalf("CreateLease() error = %v", err)
@@ -122,8 +130,10 @@ func TestSQLiteStoreExpireStaleLeasesDoesNotInspectPorts(t *testing.T) {
 
 func TestSQLiteStoreExpireStaleStartingLeasesLeavesRunningLeasesForSupervisorMigration(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	starting, err := store.CreateLease(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"}, time.Minute)
 	if err != nil {
@@ -155,8 +165,10 @@ func TestSQLiteStoreExpireStaleStartingLeasesLeavesRunningLeasesForSupervisorMig
 // it makes the owner's next lease write fail and rolls back a healthy start.
 func TestSQLiteStoreExpireStaleStartingLeasesSparesLiveOwner(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	livePID := 4242
 	starting, err := store.CreateLease(ctx, Instance{
@@ -199,7 +211,7 @@ func TestSQLiteStoreExpireStaleStartingLeasesSparesLiveOwner(t *testing.T) {
 
 func TestSQLiteStoreExpireStaleStartingLeasesReapsAbandonedOwners(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
 
 	deadPID := 999001
 	otherBootPID := 999002
@@ -227,7 +239,9 @@ func TestSQLiteStoreExpireStaleStartingLeasesReapsAbandonedOwners(t *testing.T) 
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			store := newTestStore(t, clk)
+			store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+				return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+			})
 			if _, err := store.CreateLease(ctx, tc.instance, 30*time.Second); err != nil {
 				t.Fatalf("CreateLease() error = %v", err)
 			}
@@ -286,7 +300,9 @@ func TestStaleStartingTriggerIgnoresLeasesBeforeDeadline(t *testing.T) {
 
 func TestSQLiteStoreHeartbeatLeaseRejectsStaleGeneration(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))})
+	})
 	instance, err := store.CreateLease(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"}, time.Minute)
 	if err != nil {
 		t.Fatalf("CreateLease() error = %v", err)

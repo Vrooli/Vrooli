@@ -282,15 +282,19 @@
     "usedCount_one": "Used {{count}} time"
   },
   "handoff": {
+    "clearFilter": "مسح عامل التصفية",
+    "clearSnippet": "استخدام موجّه كل وجهة",
     "close": "Close",
+    "filterAria": "تصفية وجهات التسليم",
+    "filterPlaceholder": "تصفية الجلسات",
+    "fromSource": "من {{name}}",
     "handOff": "Hand off",
-    "handOffTitle": "Hand off from {{name}}",
     "handOffToRole": "Hand off to {{label}}",
     "keptText": "The message was kept so you can try again.",
     "message": "Message",
-    "messageFrom": "مصدر الرسالة",
     "messageFor": "Message for {{label}}",
     "newSessionInGroup": "New session in this group…",
+    "noMatches": "لا توجد جلسة مطابقة.",
     "noPayload": "No payload — the message is sent as typed.",
     "noTargets": "This session is the only member of its group. Add another session or role to hand off.",
     "notGrouped": "Put this session in a group to hand off to another session.",
@@ -298,12 +302,13 @@
     "resultFailed": "{{label}}: not sent — {{reason}}",
     "resultQueued": "{{label}}: queued — waiting for the terminal",
     "resultSent": "{{label}}: delivered",
-    "send": "Send",
     "sections": {
       "group": "هذه المجموعة",
       "new": "جلسة جديدة",
       "other": "جلسات أخرى"
     },
+    "send": "Send",
+    "sendTo": "إرسال إلى {{total}}",
     "sending": "Sending…",
     "startsFirst": "Starts before the message is sent",
     "suggestionAction": "Hand off to {{label}}",
@@ -311,8 +316,9 @@
     "suggestionOpen": "Hand off…",
     "suggestionTitle": "{{rule}} matched",
     "targets": "Send to",
-    "waitingChip": "waiting",
-    "writeByHand": "اكتبها يدويًا"
+    "unreadAria": "{{total}} غير مقروء",
+    "useSnippet": "استخدام مقتطف",
+    "waitingChip": "waiting"
   },
   "handoffRules": {
     "create": "New rule",
@@ -482,6 +488,29 @@
     "unenrolledTitle": "هذا الحاسوب ليس جزءًا من أسطول",
     "withholds": "يحجب",
     "wordsMatch": "الكلمات متطابقة › متابعة"
+  },
+  "fleet": {
+    "openAriaLabel": "فتح الأجهزة والأجهزة الحاسوبية",
+    "title": "الأجهزة والحواسيب",
+    "subtitle": "من أين تعمل وما يمكنك العمل عليه.",
+    "devices": "الأجهزة",
+    "devicesDescription": "الشاشات التي تستخدم منها وحدة التحكم",
+    "machines": "الحواسيب",
+    "machinesDescription": "الحواسيب التي يمكنك تشغيل الطرفيات عليها",
+    "unnamedDevice": "جهاز بلا اسم",
+    "you": "أنت",
+    "inControl": "تحت التحكم",
+    "following": "متابع",
+    "idle": "خامل",
+    "reconnecting": "إعادة الاتصال",
+    "notConnected": "غير متصل",
+    "giveControl": "منح التحكم",
+    "dropOld": "إسقاط القديم",
+    "forgetDevice": "نسيان هذا الجهاز",
+    "rename": "إعادة تسمية",
+    "noSession": "لا توجد جلسة مفتوحة",
+    "driving": "يقود {{session}}",
+    "alsoDevice": "جهاز أيضًا"
   },
   "manageGroups": {
     "assignSession": "إضافة الجلسة الحالية",
@@ -881,6 +910,7 @@
     "picker": {
       "all": "الكل",
       "clearFilter": "مسح التصفية",
+      "delete": "حذف",
       "edit": "تحرير",
       "empty": "لا توجد مقتطفات بعد",
       "emptyDescription": "احفظ نصًا مفيدًا من رسالة، أو أنشئ مقتطفًا الآن.",
@@ -894,11 +924,13 @@
       "newAria": "مقتطف جديد",
       "noMatches": "لا توجد مقتطفات مطابقة",
       "noMatchesDescription": "جرّب كلمات أقل، أو امسح التصفية.",
+      "pin": "تثبيت",
       "pinned": "المثبتة",
       "recent": "الأخيرة",
       "swipeActionsAria": "إجراءات {{name}}",
       "tabsAria": "قوائم المقتطفات",
-      "title": "المقتطفات"
+      "title": "المقتطفات",
+      "unpin": "إلغاء التثبيت"
     },
     "save": {
       "createdInSettings": "أُنشئ في الإعدادات",

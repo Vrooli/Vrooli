@@ -105,6 +105,84 @@ func TestRemoteDispatchForwardsArgumentsAndPreservesVariant(t *testing.T) {
 	}
 }
 
+func TestManifestLifecycleDispatchPreservesLegacyArguments(t *testing.T) {
+	ctx := &remoteDispatchCtx{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+	var invoked string
+	var received []string
+	handlers := make(map[string]rootcli.Handler[*remoteDispatchCtx])
+	for _, spec := range CommandSpecs() {
+		command := spec.Name
+		handlers[command] = func(_ *remoteDispatchCtx, args []string) error {
+			invoked = command
+			received = append([]string(nil), args...)
+			return nil
+		}
+	}
+	lookup := func(name string) (rootcli.Handler[*remoteDispatchCtx], bool) {
+		handler, ok := handlers[name]
+		return handler, ok
+	}
+	root := RootHandler(
+		func(ctx *remoteDispatchCtx) io.Writer { return ctx.stdout },
+		func(ctx *remoteDispatchCtx) io.Writer { return ctx.stderr },
+		func(*remoteDispatchCtx) rootcli.GlobalOptions { return rootcli.GlobalOptions{JSON: true} },
+		lookup,
+		func(string) []string { return nil },
+	)
+
+	tests := []struct {
+		args []string
+		want []string
+	}{
+		{[]string{"status", "alpha", "--instance", "blue"}, []string{"alpha", "--instance", "blue", "--json"}},
+		{[]string{"logs", "alpha", "-f", "--tail", "20"}, []string{"alpha", "--follow", "--tail", "20", "--json"}},
+		{[]string{"start", "alpha", "beta", "--best-effort", "--timeout", "17"}, []string{"alpha", "beta", "--best-effort", "--timeout", "17", "--json"}},
+		{[]string{"stop", "alpha", "--node", "node-a"}, []string{"alpha", "--node", "node-a", "--json"}},
+		{[]string{"restart", "alpha", "--force", "--path", "/tmp/alpha"}, []string{"alpha", "--path", "/tmp/alpha", "--force", "--json"}},
+		{[]string{"setup", "alpha", "--path", "/tmp/alpha"}, []string{"alpha", "--path", "/tmp/alpha", "--json"}},
+	}
+	for _, test := range tests {
+		invoked = ""
+		received = nil
+		if err := root(ctx, test.args); err != nil {
+			t.Fatalf("%v: dispatch failed: %v", test.args, err)
+		}
+		if invoked != test.args[0] {
+			t.Errorf("%v invoked %q", test.args, invoked)
+		}
+		if !reflect.DeepEqual(received, test.want) {
+			t.Errorf("%v forwarded %#v, want %#v", test.args, received, test.want)
+		}
+	}
+}
+
+func TestManifestLifecycleDispatchPreservesLeafHelp(t *testing.T) {
+	ctx := &remoteDispatchCtx{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+	var received []string
+	lookup := func(name string) (rootcli.Handler[*remoteDispatchCtx], bool) {
+		if name != "start" {
+			return nil, false
+		}
+		return func(_ *remoteDispatchCtx, args []string) error {
+			received = append([]string(nil), args...)
+			return nil
+		}, true
+	}
+	root := RootHandler(
+		func(ctx *remoteDispatchCtx) io.Writer { return ctx.stdout },
+		func(ctx *remoteDispatchCtx) io.Writer { return ctx.stderr },
+		func(*remoteDispatchCtx) rootcli.GlobalOptions { return rootcli.GlobalOptions{} },
+		lookup,
+		func(string) []string { return nil },
+	)
+	if err := root(ctx, []string{"start", "--help"}); err != nil {
+		t.Fatalf("help dispatch failed: %v", err)
+	}
+	if !reflect.DeepEqual(received, []string{"--help"}) {
+		t.Fatalf("help args = %#v", received)
+	}
+}
+
 func TestRemoteDispatchFailuresHaveTriageForEveryExplicitNodeVerb(t *testing.T) {
 	var calls []remoteDispatchCall
 	deps := remoteDispatchDeps(&calls)

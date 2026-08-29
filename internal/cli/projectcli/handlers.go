@@ -14,21 +14,16 @@ import (
 const projectCleanupTemplateValidation = "template-validation"
 
 func SetupHandler[C any](stdout func(C) io.Writer, run func(C, projectsetup.Options) error) rootcli.Handler[C] {
-	return func(ctx C, args []string) error {
-		opts, err := ParseSetupOptions(args)
-		if err != nil {
-			if renderHelp(stdout(ctx), err) {
-				return nil
-			}
-			return err
-		}
-		return run(ctx, opts)
-	}
+	return setupPhaseHandler(stdout, ParseSetupOptions, run)
 }
 
 func DevelopHandler[C any](stdout func(C) io.Writer, run func(C, projectsetup.Options) error) rootcli.Handler[C] {
+	return setupPhaseHandler(stdout, ParseDevelopOptions, run)
+}
+
+func setupPhaseHandler[C any](stdout func(C) io.Writer, parse func([]string) (projectsetup.Options, error), run func(C, projectsetup.Options) error) rootcli.Handler[C] {
 	return func(ctx C, args []string) error {
-		opts, err := ParseDevelopOptions(args)
+		opts, err := parse(args)
 		if err != nil {
 			if renderHelp(stdout(ctx), err) {
 				return nil

@@ -508,6 +508,50 @@
       "testId": "mobile-toolbar",
       "selector": "[data-testid=\"mobile-toolbar\"]"
     },
+    "fleet.drawer": {
+      "testId": "machines-drawer",
+      "selector": "[data-testid=\"machines-drawer\"]"
+    },
+    "fleet.railDevices": {
+      "testId": "fleet-rail-devices",
+      "selector": "[data-testid=\"fleet-rail-devices\"]"
+    },
+    "fleet.railMachines": {
+      "testId": "fleet-rail-machines",
+      "selector": "[data-testid=\"fleet-rail-machines\"]"
+    },
+    "fleet.card": {
+      "testId": "fleet-card",
+      "selector": "[data-testid=\"fleet-card\"]"
+    },
+    "fleet.deviceCard": {
+      "testId": "[data-testid^=\"fleet-card-device-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"fleet-card-device-\"]\"]"
+    },
+    "fleet.machineCard": {
+      "testId": "[data-testid^=\"fleet-card-machine-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"fleet-card-machine-\"]\"]"
+    },
+    "fleet.deviceSilhouette": {
+      "testId": "[data-testid^=\"fleet-card-device-\"] [data-testid=\"device-silhouette\"]",
+      "selector": "[data-testid=\"[data-testid^=\"fleet-card-device-\"] [data-testid=\"device-silhouette\"]\"]"
+    },
+    "fleet.machineSilhouette": {
+      "testId": "[data-testid^=\"fleet-card-machine-\"] [data-testid=\"machine-silhouette\"]",
+      "selector": "[data-testid=\"[data-testid^=\"fleet-card-machine-\"] [data-testid=\"machine-silhouette\"]\"]"
+    },
+    "fleet.deviceFrame": {
+      "testId": "[data-testid^=\"device-frame-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"device-frame-\"]\"]"
+    },
+    "fleet.deviceCaption": {
+      "testId": "[data-testid^=\"device-caption-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"device-caption-\"]\"]"
+    },
+    "fleet.takeOver": {
+      "testId": "device-frame-take-over",
+      "selector": "[data-testid=\"device-frame-take-over\"]"
+    },
     "voice.micButton": {
       "testId": "voice-mic-btn",
       "selector": "[data-testid=\"voice-mic-btn\"]"

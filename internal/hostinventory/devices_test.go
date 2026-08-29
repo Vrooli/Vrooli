@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 const testSysfsDiscovery = "linux-sysfs-device-tree"
@@ -74,7 +75,7 @@ func linuxDeviceCollector(t *testing.T, manifest string, commands CommandRunner)
 	return Collector{
 		Commands: commands,
 		Files:    fakeFileReader{},
-		Clock:    fixedClock(time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC)),
+		Clock:    testenv.NewClock(time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC)),
 		GOOS:     "linux",
 		GOARCH:   "amd64",
 		CPUCount: func() int { return 8 },

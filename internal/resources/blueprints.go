@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 type Blueprint struct {
@@ -286,9 +288,9 @@ func validatePlatformSupport(item BlueprintPlatformSupport) error {
 		return fmt.Errorf("platform_support.notes is required")
 	}
 	for field, value := range map[string]string{
-		"linux":   item.Linux,
-		"macos":   item.MacOS,
-		"windows": item.Windows,
+		string(hostreqspec.PlatformLinux):   item.Linux,
+		"macos":                             item.MacOS,
+		string(hostreqspec.PlatformWindows): item.Windows,
 	} {
 		if !isAllowedValue(value, []string{"supported", "partial", "unsupported", "unknown"}) {
 			return fmt.Errorf("platform_support.%s %q is invalid", field, value)

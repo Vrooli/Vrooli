@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // countingSource records how many times Snapshot is called so a test can prove
@@ -31,8 +32,10 @@ func observedWhisper() (hostinventory.Snapshot, Attributor) {
 // runs again once the interval elapses.
 func TestSweepIfDueDebouncesWithinInterval(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	snap, attr := observedWhisper()
 	policy := DefaultPolicy() // SweepInterval == 15s
 
@@ -65,8 +68,10 @@ func TestSweepIfDueDebouncesWithinInterval(t *testing.T) {
 // reads do not shell out to nvidia-smi on every call).
 func TestMaybeSweepSkipsSnapshotWhenDebounced(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	snap, attr := observedWhisper()
 	src := &countingSource{snap: snap}
 	policy := DefaultPolicy()
@@ -97,8 +102,10 @@ func TestMaybeSweepSkipsSnapshotWhenDebounced(t *testing.T) {
 // entirely so a transient nvidia-smi hiccup cannot strand a live resident.
 func TestMaybeSweepSensingDownNeverExpires(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	created, err := store.CreateClaim(ctx, residentClaim("whisper"), DefaultHeartbeatTTL)
 	if err != nil {
 		t.Fatalf("CreateClaim() error = %v", err)
@@ -123,8 +130,10 @@ func TestMaybeSweepSensingDownNeverExpires(t *testing.T) {
 // 30s deadline.
 func TestSweepKeepsResidentAliveAcrossManyTicks(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	snap, attr := observedWhisper()
 
 	created, err := store.CreateClaim(ctx, residentClaim("whisper"), DefaultHeartbeatTTL)

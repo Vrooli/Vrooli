@@ -156,7 +156,7 @@ func (c Collector) collectAndroidToolchain(ctx context.Context, snap *Snapshot, 
 // emulator. Presence of the device node is not sufficient — the invoking user
 // must be able to open it read-write — so the probe records effective access.
 func (c Collector) collectKVM(snap *Snapshot, observedAt time.Time) {
-	if snap.OS != "linux" {
+	if snap.OS != string(hostreqspec.PlatformLinux) {
 		// macOS and Windows accelerate through their own hypervisors; absence
 		// of /dev/kvm there is not a finding.
 		return

@@ -13,6 +13,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
 	"github.com/vrooli/vrooli/internal/values"
 
@@ -102,11 +103,11 @@ func detectWithOS(ctx context.Context, p Probe, goos string) Capability {
 		return result
 	}
 	switch goos {
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		return detectLinux(ctx, p)
-	case "darwin":
+	case string(hostreqspec.PlatformDarwin):
 		return detectDarwin(ctx, p)
-	case "windows":
+	case string(hostreqspec.PlatformWindows):
 		return detectWindows(ctx, p)
 	default:
 		return capability(KindUnknown, false, "unsupported operating system", "GOOS="+goos)

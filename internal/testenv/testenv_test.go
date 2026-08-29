@@ -1,12 +1,79 @@
 package testenv
 
 import (
+	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	_ "modernc.org/sqlite" // Registers the driver exercised by the SQLite fixture tests.
 )
+
+func TestCredentialStoreSupportsValuesAndFailureInjection(t *testing.T) {
+	notFound := errors.New("not found")
+	store := NewCredentialStore(notFound)
+	if _, err := store.Get("service", "missing"); !errors.Is(err, notFound) {
+		t.Fatalf("Get(missing) error = %v, want injected sentinel", err)
+	}
+	if err := store.Put("service", "key", "value"); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := store.Get("service", "key"); err != nil || got != "value" {
+		t.Fatalf("Get() = %q, %v", got, err)
+	}
+	store.GetError = errors.New("backend unavailable")
+	if _, err := store.Get("service", "key"); err == nil || err.Error() != "backend unavailable" {
+		t.Fatalf("Get() error = %v, want injected backend failure", err)
+	}
+}
+
+func TestClockAdvancesDeterministically(t *testing.T) {
+	start := time.Date(2026, 8, 29, 12, 0, 0, 0, time.FixedZone("fixture", -4*60*60))
+	clock := NewClock(start)
+	clock.Advance(90 * time.Second)
+	if got, want := clock.Now(), start.UTC().Add(90*time.Second); !got.Equal(want) {
+		t.Fatalf("Now() = %s, want %s", got, want)
+	}
+}
+
+func TestDecodeJSONReturnsTypedFixture(t *testing.T) {
+	got := DecodeJSON[struct {
+		Name string `json:"name"`
+	}](t, []byte(`{"name":"fixture"}`))
+	if got.Name != "fixture" {
+		t.Fatalf("Name = %q", got.Name)
+	}
+}
+
+func TestSQLiteHarnessOwnsPathCleanupAndSchemaStamp(t *testing.T) {
+	var dbPath string
+	db := NewSQLiteStore(t, "fixture.db", func(path string) (*sql.DB, error) {
+		dbPath = path
+		opened, err := sql.Open("sqlite", path)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := opened.Exec(`CREATE TABLE fixture (id INTEGER PRIMARY KEY)`); err != nil {
+			_ = opened.Close()
+			return nil, err
+		}
+		return opened, nil
+	})
+	if err := db.Ping(); err != nil {
+		t.Fatal(err)
+	}
+	StampSQLiteUserVersion(t, dbPath, 7)
+	var version int
+	if err := db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if version != 7 {
+		t.Fatalf("user_version = %d, want 7", version)
+	}
+}
 
 func TestAsSudoUserSetsCompleteIdentity(t *testing.T) {
 	AsSudoUser(t, "alice")

@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-26T09:02:31-04:00"
+    "last_validated_at": "2026-08-29T14:07:00-04:00"
   },
   "requirements": [
     {
@@ -33,6 +33,23 @@
           "phase": "unit",
           "status": "failing"
         }
+      ]
+    },
+    {
+      "id": "REQ-P1-013c",
+      "title": "Live devices and machines roster",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-013",
+      "category": "ui",
+      "description": "Web Console presents connected browser devices and linked terminal machines together, with live device identity, lease state, and safe disconnect actions.",
+      "validation": [
+        { "type": "test", "ref": "api/handlers/devices/module_test.go", "phase": "unit", "status": "passing" },
+        { "type": "test", "ref": "ui/src/components/fleet/__tests__/FleetDrawer.test.tsx", "phase": "unit", "status": "passing" },
+        { "type": "test", "ref": "ui/src/components/fleet/__tests__/DeviceCard.test.tsx", "phase": "unit", "status": "passing" },
+        { "type": "test", "ref": "ui/src/components/fleet/__tests__/MachineCard.test.tsx", "phase": "unit", "status": "passing" },
+        { "type": "test", "ref": "ui/src/__tests__/machines-drawer.test.tsx", "phase": "unit", "status": "passing" },
+        { "type": "automation", "ref": "bas/cases/01-foundation/02-devices/two-viewers-lease-handover.json", "phase": "integration", "status": "implemented" },
+        { "type": "automation", "ref": "bas/cases/01-foundation/02-devices/devices-and-machines-overlay.json", "phase": "integration", "status": "implemented" }
       ]
     }
   ]

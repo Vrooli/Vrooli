@@ -279,15 +279,19 @@
     "usedCount_one": "Used {{count}} time"
   },
   "handoff": {
+    "clearFilter": "フィルターをクリア",
+    "clearSnippet": "各送信先のプロンプトを使う",
     "close": "Close",
+    "filterAria": "引き継ぎ先を絞り込む",
+    "filterPlaceholder": "セッションを絞り込む",
+    "fromSource": "{{name}} から",
     "handOff": "Hand off",
-    "handOffTitle": "Hand off from {{name}}",
     "handOffToRole": "Hand off to {{label}}",
     "keptText": "The message was kept so you can try again.",
     "message": "Message",
-    "messageFrom": "メッセージの元",
     "messageFor": "Message for {{label}}",
     "newSessionInGroup": "New session in this group…",
+    "noMatches": "一致するセッションはありません。",
     "noPayload": "No payload — the message is sent as typed.",
     "noTargets": "This session is the only member of its group. Add another session or role to hand off.",
     "notGrouped": "Put this session in a group to hand off to another session.",
@@ -295,12 +299,13 @@
     "resultFailed": "{{label}}: not sent — {{reason}}",
     "resultQueued": "{{label}}: queued — waiting for the terminal",
     "resultSent": "{{label}}: delivered",
-    "send": "Send",
     "sections": {
       "group": "このグループ",
       "new": "新しい場所",
       "other": "その他のセッション"
     },
+    "send": "Send",
+    "sendTo": "{{total}} 件に送信",
     "sending": "Sending…",
     "startsFirst": "Starts before the message is sent",
     "suggestionAction": "Hand off to {{label}}",
@@ -308,8 +313,9 @@
     "suggestionOpen": "Hand off…",
     "suggestionTitle": "{{rule}} matched",
     "targets": "Send to",
-    "waitingChip": "waiting",
-    "writeByHand": "手動で作成"
+    "unreadAria": "未読 {{total}} 件",
+    "useSnippet": "スニペットを使う",
+    "waitingChip": "waiting"
   },
   "handoffRules": {
     "create": "New rule",
@@ -479,6 +485,29 @@
     "unenrolledTitle": "このコンピューターはフリートに参加していません",
     "withholds": "付与しない権限",
     "wordsMatch": "ワードが一致 › 続行"
+  },
+  "fleet": {
+    "openAriaLabel": "デバイスとマシンを開く",
+    "title": "デバイスとマシン",
+    "subtitle": "どこから作業しているか、何に取り組めるか。",
+    "devices": "デバイス",
+    "devicesDescription": "このコンソールを使用している画面",
+    "machines": "マシン",
+    "machinesDescription": "ターミナルを実行できるコンピューター",
+    "unnamedDevice": "名前のないデバイス",
+    "you": "あなた",
+    "inControl": "制御中",
+    "following": "フォロー中",
+    "idle": "待機中",
+    "reconnecting": "再接続中",
+    "notConnected": "未接続",
+    "giveControl": "制御を渡す",
+    "dropOld": "古い接続を切断",
+    "forgetDevice": "このデバイスを忘れる",
+    "rename": "名前を変更",
+    "noSession": "開いているセッションはありません",
+    "driving": "{{session}} を操作中",
+    "alsoDevice": "デバイスでもあります"
   },
   "manageGroups": {
     "assignSession": "現在のセッションを追加",
@@ -870,6 +899,7 @@
     "picker": {
       "all": "すべて",
       "clearFilter": "絞り込みをクリア",
+      "delete": "削除",
       "edit": "編集",
       "empty": "スニペットはまだありません",
       "emptyDescription": "メッセージから便利な文を保存するか、今すぐ作成してください。",
@@ -883,11 +913,13 @@
       "newAria": "新しいスニペット",
       "noMatches": "一致するスニペットはありません",
       "noMatchesDescription": "語句を減らすか、絞り込みをクリアしてください。",
+      "pin": "固定",
       "pinned": "固定済み",
       "recent": "最近",
       "swipeActionsAria": "{{name}} の操作",
       "tabsAria": "スニペットの一覧",
-      "title": "スニペット"
+      "title": "スニペット",
+      "unpin": "固定解除"
     },
     "save": {
       "createdInSettings": "設定で作成",

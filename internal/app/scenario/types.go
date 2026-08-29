@@ -51,9 +51,10 @@ type StatusRequest struct {
 }
 
 type FreshnessRequest struct {
-	Name string
-	Path string
-	JSON bool
+	Name    string
+	Path    string
+	JSON    bool
+	Explain bool
 }
 
 type ValidateEnvRequest struct {
@@ -110,6 +111,7 @@ type ValidateEnvResponse struct {
 // start operation (see Service.Wait).
 type WaitRequest struct {
 	Name string
+	JSON bool
 	// TimeoutSeconds is the wait CEILING (not the expected duration); 0
 	// applies the lifecycle default. On expiry the response carries the
 	// timeout verdict/exit 124 and the awaited start is unaffected.
@@ -129,6 +131,9 @@ type WaitResponse struct {
 	WaitedSeconds int                           `json:"waited_seconds"`
 	Error         string                        `json:"error,omitempty"`
 	Operation     *lifecycle.StartOperationView `json:"operation,omitempty"`
+	// ParkedMessage, when set, means agent-manager parked the run instead of
+	// this process blocking. The CLI renderer prints exactly this message.
+	ParkedMessage string `json:"-"`
 }
 
 type ListPortOutput struct {
@@ -160,6 +165,7 @@ type StatusItemOutput struct {
 	Ports        map[string]int   `json:"ports"`
 	PortBindings []ListPortOutput `json:"port_bindings,omitempty"`
 	Health       any              `json:"health_status"`
+	HealthError  string           `json:"health_error,omitempty"`
 	// StartOperation is the latest start/restart operation record (in-flight
 	// progress with ETA + recommended_next_check_seconds, or the last
 	// terminal outcome); nil when never started or the registry is
@@ -199,6 +205,7 @@ type InfoRuntimeData struct {
 	Ports       map[string]int   `json:"ports"`
 	ProcessInfo []process.Record `json:"process_records"`
 	ListPorts   []ListPortOutput `json:"list_ports"`
+	HealthError string           `json:"health_error,omitempty"`
 }
 
 type StatusSingleOutput struct {
@@ -245,13 +252,17 @@ type BatchResponse struct {
 type ListResponse struct {
 	Items        []ListItemOutput
 	RunningCount int
-	Failures     []discovery.Failure
+	Failures     []discovery.Failure `json:"failures,omitempty"`
 }
 
 type StatusResponse struct {
 	Single   *StatusSingleOutput
 	List     []StatusItemOutput
-	Failures []discovery.Failure
+	Failures []discovery.Failure `json:"failures,omitempty"`
+	// Raw carries a response already rendered by an explicitly addressed
+	// remote node. It bypasses local status reconstruction while preserving
+	// the command's stdout contract.
+	Raw []byte `json:"-"`
 }
 
 type PortSingleOutput struct {
@@ -309,6 +320,7 @@ func BuildStatusDetail(detail orchestrator.Detail) StatusItemOutput {
 		Ports:          CopyIntMap(detail.Details.Ports),
 		PortBindings:   RuntimePortOutputs(detail.Details.PortBindings),
 		Health:         health,
+		HealthError:    detail.Details.HealthError,
 		StartOperation: detail.StartOperation,
 	}
 }
@@ -351,6 +363,7 @@ func BuildRuntimeDataFromDetails(details scenariomodel.RuntimeDetails) InfoRunti
 		Ports:       CopyIntMap(details.Ports),
 		ProcessInfo: CopyProcessRecords(details.ProcessInfo),
 		ListPorts:   RuntimePortOutputs(details.PortBindings),
+		HealthError: details.HealthError,
 	}
 }
 

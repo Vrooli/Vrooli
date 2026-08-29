@@ -94,16 +94,6 @@ export function hasStand(archetype: DeviceArchetype): boolean {
   return DEVICE_GEOMETRY[archetype].base !== "none";
 }
 
-export function fitGrid(gridCols: number, gridRows: number, paneWidth: number, paneHeight: number, cellAspect: number): FollowerRect {
-  const gridAspect = (gridCols * cellAspect) / gridRows;
-  let width = Math.min(paneWidth, paneHeight * gridAspect);
-  let height = width / gridAspect;
-  if (height > paneHeight) { height = paneHeight; width = height * gridAspect; }
-  const calculated = width / (gridCols * cellAspect);
-  const fontSize = Math.max(MIN_LEGIBLE_FONT_PX, calculated);
-  return { x: (paneWidth - width) / 2, y: (paneHeight - height) / 2, width, height, fontSize, scale: calculated >= MIN_LEGIBLE_FONT_PX ? 1 : calculated / MIN_LEGIBLE_FONT_PX };
-}
-
 // The terminal must fit the visible display, not the frame's outer bezel.
 // Values are normalized to the outer silhouette and leave room for rounded
 // corners, bezel, and the monitor/laptop base below the display.
@@ -254,14 +244,4 @@ export function fitFollowerPresentation(options: {
 export function surplusRatio(rect: Pick<FollowerRect, "width" | "height">, paneWidth: number, paneHeight: number): number {
   if (paneWidth <= 0 || paneHeight <= 0) return 1;
   return 1 - (rect.width * rect.height) / (paneWidth * paneHeight);
-}
-
-export function chromeTier(surplus: number, scale = 1): ChromeTier {
-  // A scaled follower still needs a visible silhouette. Only use the compact
-  // caption strip when the fitted geometry itself has no spare presentation
-  // room; otherwise retain the hairline frame around the overview.
-  if (scale < 1) return surplus >= STRIP_MIN_SURPLUS ? "strip" : "hairline";
-  if (surplus < FULL_CHROME_MAX_SURPLUS) return "full";
-  if (surplus < STRIP_MIN_SURPLUS) return "hairline";
-  return "strip";
 }

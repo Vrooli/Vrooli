@@ -229,6 +229,9 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 	if err := takeString("startup_policy", &dependency.StartupPolicy); err != nil {
 		return err
 	}
+	if err := takeString("supervision_precedence", &dependency.SupervisionPrecedence); err != nil {
+		return err
+	}
 	if err := takeString("freshness_policy", &dependency.FreshnessPolicy); err != nil {
 		return err
 	}
@@ -273,6 +276,7 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 
 	dependency.Type = strings.TrimSpace(dependency.Type)
 	dependency.StartupPolicy = strings.TrimSpace(dependency.StartupPolicy)
+	dependency.SupervisionPrecedence = strings.TrimSpace(dependency.SupervisionPrecedence)
 	dependency.FreshnessPolicy = strings.TrimSpace(dependency.FreshnessPolicy)
 	dependency.DegradedBehavior = strings.TrimSpace(dependency.DegradedBehavior)
 	dependency.Purpose = strings.TrimSpace(dependency.Purpose)
@@ -351,6 +355,9 @@ func (dependency Dependency) MarshalJSON() ([]byte, error) {
 	if err := emitIfNonEmpty("startup_policy", dependency.StartupPolicy); err != nil {
 		return nil, err
 	}
+	if err := emitIfNonEmpty("supervision_precedence", dependency.SupervisionPrecedence); err != nil {
+		return nil, err
+	}
 	if err := emitIfNonEmpty("freshness_policy", dependency.FreshnessPolicy); err != nil {
 		return nil, err
 	}
@@ -386,6 +393,13 @@ func (dependency Dependency) MarshalJSON() ([]byte, error) {
 }
 
 func (dependency Dependency) NormalizedStartupPolicy() string {
+	return dependency.SupervisionIntent()
+}
+
+// SupervisionIntent derives the single lifecycle answer from the two legacy
+// axes. It is computed, never stored as a third declaration. Disabled edges
+// remain ignored regardless of their retained metadata.
+func (dependency Dependency) SupervisionIntent() string {
 	if !dependency.Enabled {
 		return DependencyStartupPolicyIgnore
 	}
@@ -394,8 +408,13 @@ func (dependency Dependency) NormalizedStartupPolicy() string {
 		if dependency.Required {
 			return DependencyStartupPolicyMustStart
 		}
-		return DependencyStartupPolicyIgnore
-	case DependencyStartupPolicyMustStart, DependencyStartupPolicyTryStart, DependencyStartupPolicyIgnore:
+		return DependencyStartupPolicyTryStart
+	case DependencyStartupPolicyTryStart:
+		if dependency.Required {
+			return DependencyStartupPolicyMustStart
+		}
+		return DependencyStartupPolicyTryStart
+	case DependencyStartupPolicyMustStart, DependencyStartupPolicyIgnore:
 		return strings.TrimSpace(dependency.StartupPolicy)
 	default:
 		return strings.TrimSpace(dependency.StartupPolicy)
@@ -428,7 +447,7 @@ func (dependency Dependency) Validate(kind, name string) error {
 	if dependency.RuntimeOnly && strings.TrimSpace(dependency.RuntimeOnlyRationale) == "" {
 		return fmt.Errorf("%s.%s.runtime_only requires runtime_only_rationale", kind, name)
 	}
-	policy := dependency.NormalizedStartupPolicy()
+	policy := dependency.SupervisionIntent()
 	if !dependency.Enabled {
 		return nil
 	}
@@ -442,6 +461,9 @@ func (dependency Dependency) Validate(kind, name string) error {
 			DependencyStartupPolicyIgnore,
 			dependency.StartupPolicy,
 		)
+	}
+	if err := dependency.validateSupervisionPrecedence(kind, name); err != nil {
+		return err
 	}
 	if dependency.Required && policy == DependencyStartupPolicyIgnore {
 		return fmt.Errorf("%s.%s is required but resolves to startup_policy=%q", kind, name, policy)
@@ -465,6 +487,28 @@ func (dependency Dependency) Validate(kind, name string) error {
 		if policy == DependencyStartupPolicyIgnore {
 			return fmt.Errorf("%s.%s sets freshness_policy=%q but resolves to startup_policy=%q (an ignored dependency is never started or restarted)", kind, name, raw, policy)
 		}
+	}
+	return nil
+}
+
+func (dependency Dependency) validateSupervisionPrecedence(kind, name string) error {
+	rawPolicy := strings.TrimSpace(dependency.StartupPolicy)
+	marker := strings.TrimSpace(dependency.SupervisionPrecedence)
+	expected := ""
+	switch {
+	case dependency.Required && rawPolicy == DependencyStartupPolicyTryStart:
+		expected = DependencySupervisionPrecedenceRequired
+	case !dependency.Required && rawPolicy == DependencyStartupPolicyMustStart:
+		expected = DependencySupervisionPrecedenceStartupPolicy
+	}
+	if expected == "" {
+		if marker != "" {
+			return fmt.Errorf("%s.%s.supervision_precedence is only valid when required and startup_policy disagree", kind, name)
+		}
+		return nil
+	}
+	if marker != expected {
+		return fmt.Errorf("%s.%s required=%t and startup_policy=%q disagree; set supervision_precedence=%q to acknowledge the derived supervision intent", kind, name, dependency.Required, rawPolicy, expected)
 	}
 	return nil
 }

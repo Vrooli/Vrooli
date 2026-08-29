@@ -2,10 +2,11 @@ package securestore
 
 import (
 	"bytes"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // A recovery bundle is restored on a host that is not the one that wrote it,
@@ -28,33 +29,6 @@ var recoveryDrillValues = map[string]string{
 	"plain":            "sk-or-v1-0123456789abcdef",
 }
 
-// backendMemoryStore stands in for a native adapter: it holds exactly the bytes
-// it is handed, which is what every native backend claims to do.
-type backendMemoryStore struct{ values map[string]string }
-
-func (s *backendMemoryStore) Put(service, key, value string) error {
-	if s.values == nil {
-		s.values = map[string]string{}
-	}
-	s.values[service+"/"+key] = value
-	return nil
-}
-
-func (s *backendMemoryStore) Get(service, key string) (string, error) {
-	value, ok := s.values[service+"/"+key]
-	if !ok {
-		return "", fmt.Errorf("%w: %s/%s", ErrNotFound, service, key)
-	}
-	return value, nil
-}
-
-func (s *backendMemoryStore) Delete(service, key string) error {
-	delete(s.values, service+"/"+key)
-	return nil
-}
-
-func (s *backendMemoryStore) AdapterName() string { return "memory" }
-
 // newDrillEncryptedStore builds a real encrypted file store opened by a
 // passphrase, with no session cache so each handle is independent.
 func newDrillEncryptedStore(t *testing.T, path, passphrase string) Store {
@@ -73,7 +47,7 @@ func newDrillEncryptedStore(t *testing.T, path, passphrase string) Store {
 func TestStoredFormIsIdenticalAcrossBackends(t *testing.T) {
 	const service = "vrooli.credentials.v1"
 
-	native := guardValues(&backendMemoryStore{})
+	native := guardValues(testenv.NewCredentialStore(ErrNotFound))
 	encrypted := newDrillEncryptedStore(t, filepath.Join(t.TempDir(), "secrets.enc.json"), "drill-passphrase")
 
 	for field, want := range recoveryDrillValues {

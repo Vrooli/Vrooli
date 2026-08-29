@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CircleAlert, Radio } from "lucide-react";
+import { CircleAlert, Plus, Radio, RefreshCw } from "lucide-react";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
+import { Button } from "../ui/button";
 import { strings } from "../../consts/strings";
 import { useFleet, useFleetMutations } from "../../hooks/useFleet";
 import type { IssuedCode, JoinRequest, Machine } from "../../api/machines";
-import MachineList from "./MachineList";
-import AddMachine from "./AddMachine";
-import ReviewRequest from "./ReviewRequest";
-import GrantPicker from "./GrantPicker";
+import MachineCard, { JoinRequestCard } from "./MachineCard";
+import AddMachine from "../machines/AddMachine";
+import ReviewRequest from "../machines/ReviewRequest";
+import GrantPicker from "../machines/GrantPicker";
+import { useDevices, useDeviceMutations } from "../../hooks/useDevices";
+import DeviceCard from "./DeviceCard";
+import FleetRail from "./FleetRail";
 
 /**
  * The machines surface.
@@ -26,18 +30,20 @@ type View =
   | { kind: "grant-new"; request: JoinRequest }
   | { kind: "grant-existing"; machine: Machine };
 
-interface MachinesDrawerProps {
+interface FleetDrawerProps {
   open: boolean;
   onClose: () => void;
 }
 
-export default function MachinesDrawer({ open, onClose }: MachinesDrawerProps) {
+export default function FleetDrawer({ open, onClose }: FleetDrawerProps) {
   const { t } = useTranslation();
   const [view, setView] = useState<View>({ kind: "list" });
   const [code, setCode] = useState<IssuedCode | null>(null);
   const [failure, setFailure] = useState("");
 
   const fleetQuery = useFleet(open);
+  const devicesQuery = useDevices(open);
+  const { disconnect, giveControl, rename } = useDeviceMutations();
   const { issueCode, decide, setGrant } = useFleetMutations();
   const fleet = fleetQuery.data;
 
@@ -105,6 +111,8 @@ export default function MachinesDrawer({ open, onClose }: MachinesDrawerProps) {
   }, [fleet, t]);
 
   const presets = fleet?.presets ?? [];
+  const remoteMachines = fleet?.machines.filter((machine) => machine.target.kind !== "local") ?? [];
+  const reachableMachines = remoteMachines.filter((machine) => machine.target.available).length;
 
   return (
     <FullPageDrawer
@@ -112,20 +120,62 @@ export default function MachinesDrawer({ open, onClose }: MachinesDrawerProps) {
       open={open}
       onClose={onClose}
       closeLabel={t(strings.machines.closeAriaLabel)}
-      title={t(strings.machines.title)}
+      title={t(strings.fleet.title)}
       testId="machines-drawer"
     >
       <div className="flex h-full min-h-0 flex-col">
         {view.kind === "list" && (
-          <MachineList
-            fleet={fleet}
-            loading={fleetQuery.isLoading}
-            refreshing={fleetQuery.isFetching && !fleetQuery.isLoading}
-            onRefresh={() => { void fleetQuery.refetch(); }}
-            onAdd={() => { setView({ kind: "add" }); }}
-            onManage={(machine) => { setView({ kind: "grant-existing", machine }); }}
-            onReview={(request) => { setView({ kind: "review", request }); }}
-          />
+          <div className="min-h-0 flex-1 overflow-y-auto py-5">
+            <p className="px-5 pb-5 text-sm text-wc-text-muted">{t(strings.fleet.subtitle)}</p>
+            <FleetRail testId="fleet-rail-devices" eyebrow={t(strings.fleet.devices)} description={t(strings.fleet.devicesDescription)} count={devicesQuery.data?.length ?? 0}>
+              {(devicesQuery.data ?? []).map((device) => (
+                <DeviceCard
+                  key={`${device.deviceId}-${device.firstSeenAt}`}
+                  device={device}
+                  onGiveControl={(item) => {
+                    const session = item.sessions.find((attachment) => !attachment.holdsLease);
+                    if (session) giveControl.mutate({ deviceId: item.deviceId, sessionId: session.sessionId });
+                  }}
+                  onDropOld={(item) => { disconnect.mutate({ deviceId: item.deviceId }); }}
+                  onRename={(item) => {
+                    if (!item.isSelf) return;
+                    const label = window.prompt(t(strings.fleet.rename), item.deviceLabel);
+                    if (label?.trim()) rename.mutate(label);
+                  }}
+                />
+              ))}
+            </FleetRail>
+            <div className="mt-8">
+              <FleetRail testId="fleet-rail-machines" eyebrow={t(strings.fleet.machines)} description={t(strings.fleet.machinesDescription)} count={(fleet?.machines.length ?? 0) + (fleet?.joinRequests.length ?? 0)}>
+                <div className="w-[268px] shrink-0 space-y-3 rounded-xl border border-wc-default bg-wc-surface-base/40 p-4">
+                  <div data-testid="machines-count-summary" className="text-xs text-wc-text-muted">{t(strings.machines.countSummary, { linked: remoteMachines.length, reachable: reachableMachines })}</div>
+                  <div className="flex gap-2">
+                    <Button size="sm" data-testid="machines-add" onClick={() => { setView({ kind: "add" }); }}><Plus className="me-1.5 h-4 w-4" aria-hidden />{t(strings.machines.addMachine)}</Button>
+                    <Button variant="outline" size="sm" data-testid="machines-refresh" onClick={() => { void fleetQuery.refetch(); }} disabled={fleetQuery.isFetching}><RefreshCw className={fleetQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden /><span className="sr-only">{t(strings.machines.refresh)}</span></Button>
+                  </div>
+                </div>
+                {fleetQuery.isLoading ? (
+                  <div data-testid="machines-loading" className="w-[268px] shrink-0 rounded-xl border border-wc-default bg-wc-surface-input/50 p-4 text-sm text-wc-text-muted">{t(strings.machines.loading)}</div>
+                ) : (
+                  <>
+                    {(fleet?.joinRequests ?? []).map((request) => (
+                      <JoinRequestCard key={request.id} request={request} onReview={() => { setView({ kind: "review", request }); }} />
+                    ))}
+                    {(fleet?.machines ?? []).map((machine) => (
+                      <MachineCard key={machine.target.id} machine={machine} onManage={(item) => { setView({ kind: "grant-existing", machine: item }); }} />
+                    ))}
+                    {remoteMachines.length === 0 && (
+                      <div data-testid="machines-empty" className="w-[268px] shrink-0 rounded-xl border border-dashed border-wc-default bg-wc-surface-base/40 p-5 text-center">
+                        <p className="text-sm font-medium text-wc-text-primary">{fleet?.status === "unenrolled" ? t(strings.machines.unenrolledTitle) : t(strings.machines.emptyTitle)}</p>
+                        <p className="mt-1 text-xs leading-5 text-wc-text-faint">{fleet?.message || t(strings.machines.emptyBody)}</p>
+                        {fleet?.recoveryAction && <p className="mt-2 text-xs text-amber-200/80">{fleet.recoveryAction}</p>}
+                      </div>
+                    )}
+                  </>
+                )}
+              </FleetRail>
+            </div>
+          </div>
         )}
 
         {view.kind === "add" && (

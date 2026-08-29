@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 type fakeFileReader map[string][]byte
@@ -19,10 +20,6 @@ func (f fakeFileReader) ReadFile(name string) ([]byte, error) {
 	}
 	return nil, errors.New("not found")
 }
-
-type fixedClock time.Time
-
-func (f fixedClock) Now() time.Time { return time.Time(f) }
 
 func TestCollectLinuxSnapshot(t *testing.T) {
 	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
@@ -44,7 +41,7 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 			"/proc/meminfo": []byte("MemTotal: 16384 kB\nMemAvailable: 8192 kB\nSwapTotal: 1024 kB\nSwapFree: 512 kB\n"),
 			"/proc/loadavg": []byte("6.00 3.00 1.50 2/100 4321\n"),
 		},
-		Clock:    fixedClock(now),
+		Clock:    testenv.NewClock(now),
 		GOOS:     "linux",
 		GOARCH:   "amd64",
 		CPUCount: func() int { return 12 },
@@ -165,7 +162,7 @@ func TestCollectPlatformFactsWaylandPolicyUsesOneDistinguishingInputPerCase(t *t
 						"systemctl show display-manager.service -p Id --value": []byte("gdm3.service\n"),
 					},
 				},
-				Files: files, GOOS: "linux", Clock: fixedClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
+				Files: files, GOOS: "linux", Clock: testenv.NewClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
 			}
 			got, err := c.CollectPlatformFacts(context.Background())
 			if err != nil {
@@ -190,7 +187,7 @@ func TestCollectPlatformFactsReadsAutoLoginFromDisplayPolicy(t *testing.T) {
 		Files: platformFiles{
 			"/etc/gdm3/custom.conf": []byte("[daemon]\nAutomaticLoginEnable=true\nAutomaticLogin=alice\n"),
 		},
-		GOOS: "linux", GOARCH: "amd64", Clock: fixedClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
+		GOOS: "linux", GOARCH: "amd64", Clock: testenv.NewClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
 	}
 	got, err := c.CollectPlatformFacts(context.Background())
 	if err != nil {
@@ -235,7 +232,7 @@ func TestCollectPlatformFactsReportsAttachedDisplay(t *testing.T) {
 		Files: platformFiles{
 			"/sys/class/drm/card0-HDMI-A-1/status": []byte("connected\n"),
 		},
-		GOOS: "linux", GOARCH: "amd64", Clock: fixedClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
+		GOOS: "linux", GOARCH: "amd64", Clock: testenv.NewClock(time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)),
 	}
 	got, err := c.CollectPlatformFacts(context.Background())
 	if err != nil {
@@ -258,7 +255,7 @@ func TestCollectDarwinGPUFromSystemProfiler(t *testing.T) {
 				"sysctl -n hw.memsize":               []byte("34359738368\n"),
 			},
 		},
-		Clock:    fixedClock(now),
+		Clock:    testenv.NewClock(now),
 		GOOS:     "darwin",
 		GOARCH:   "arm64",
 		CPUCount: func() int { return 12 },
@@ -287,7 +284,7 @@ func TestCollectWindowsGPUFromWMIC(t *testing.T) {
 				"wmic path win32_VideoController get name":           []byte("Name\nNVIDIA GeForce RTX 3080\nMicrosoft Basic Display Adapter\n"),
 			},
 		},
-		Clock:    fixedClock(now),
+		Clock:    testenv.NewClock(now),
 		GOOS:     "windows",
 		GOARCH:   "amd64",
 		CPUCount: func() int { return 8 },

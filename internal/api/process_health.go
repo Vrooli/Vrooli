@@ -216,7 +216,7 @@ func parsePostgresAddress(target string) (string, error) {
 	if target == "" {
 		return "", nil
 	}
-	if strings.HasPrefix(target, "postgres://") || strings.HasPrefix(target, "postgresql://") {
+	if hasPostgresScheme(target) {
 		u, err := url.Parse(target)
 		if err != nil {
 			return "", err
@@ -239,4 +239,9 @@ func parsePostgresAddress(target string) (string, error) {
 		return "", err
 	}
 	return "", nil
+}
+
+func hasPostgresScheme(target string) bool {
+	scheme, _, ok := strings.Cut(target, "://")
+	return ok && (scheme == "postgres" || scheme == "postgresql")
 }

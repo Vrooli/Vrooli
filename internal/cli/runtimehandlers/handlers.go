@@ -28,6 +28,23 @@ type runtimeService struct {
 	run func([]string) error
 }
 
+var (
+	supervisorCommandNames = []string{"run", "status", "install", "uninstall"}
+	recoveryPolicyNames    = []string{"set", "list"}
+)
+
+// RegisteredCommandPaths returns the child paths bound by the runtime handler.
+func RegisteredCommandPaths() []string {
+	paths := make([]string, 0, len(supervisorCommandNames)+len(recoveryPolicyNames))
+	for _, name := range supervisorCommandNames {
+		paths = append(paths, "runtime supervisor "+name)
+	}
+	for _, name := range recoveryPolicyNames {
+		paths = append(paths, "runtime recovery policy "+name)
+	}
+	return paths
+}
+
 // RootHandler dispatches `vrooli runtime` through the runtime application.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
@@ -42,7 +59,7 @@ func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 				if args[0] == "recovery" {
 					return runRecoveryManifest(app, commandCtx, args[1:], deps.Stdout(ctx), deps.Stderr(ctx))
 				}
-				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "supervisor", runtimeBindings(app, commandCtx, []string{"supervisor"}, []string{"run", "status", "install", "uninstall"}))
+				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "supervisor", runtimeBindings(app, commandCtx, []string{"supervisor"}, supervisorCommandNames))
 				if err != nil {
 					return err
 				}
@@ -63,7 +80,7 @@ func runRecoveryManifest(app *runtimeapp.App, ctx *runtimecli.Context, args []st
 	if args[0] == "inspect" {
 		return app.Run(ctx, append([]string{"recovery"}, args...))
 	}
-	group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "runtime/recovery/policy", runtimeBindings(app, ctx, []string{"recovery", "policy"}, []string{"set", "list"}))
+	group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "runtime/recovery/policy", runtimeBindings(app, ctx, []string{"recovery", "policy"}, recoveryPolicyNames))
 	if err != nil {
 		return err
 	}

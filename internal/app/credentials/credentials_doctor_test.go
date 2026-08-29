@@ -29,29 +29,6 @@ func assertJSONKeys(t *testing.T, name string, value map[string]json.RawMessage,
 	}
 }
 
-type doctorTestStore struct{ values map[string]string }
-
-func (s *doctorTestStore) Put(service, key, value string) error {
-	if s.values == nil {
-		s.values = map[string]string{}
-	}
-	s.values[service+"/"+key] = value
-	return nil
-}
-
-func (s *doctorTestStore) Get(service, key string) (string, error) {
-	value, ok := s.values[service+"/"+key]
-	if !ok {
-		return "", securestore.ErrNotFound
-	}
-	return value, nil
-}
-
-func (s *doctorTestStore) Delete(service, key string) error {
-	delete(s.values, service+"/"+key)
-	return nil
-}
-
 func withDoctorAuthority(t *testing.T, store securestore.Store) *credentialauthority.Authority {
 	t.Helper()
 	authority, err := credentialauthority.NewAuthority(store)
@@ -155,7 +132,7 @@ func TestCredentialsDoctorDistinguishesEveryProviderCondition(t *testing.T) {
 	root := credentialFixtureRoot(t)
 
 	t.Run("unset value names the provision command", func(t *testing.T) {
-		withDoctorAuthority(t, &doctorTestStore{})
+		withDoctorAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 		output := runCredentials(t, root, "doctor")
 		if !strings.Contains(output, "vrooli credentials provision --identity vrooli/openrouter --field api-key") {
 			t.Fatalf("doctor did not name the provision command:\n%s", output)
@@ -166,7 +143,7 @@ func TestCredentialsDoctorDistinguishesEveryProviderCondition(t *testing.T) {
 	})
 
 	t.Run("every credential resolved reports a clean host", func(t *testing.T) {
-		authority := withDoctorAuthority(t, &doctorTestStore{})
+		authority := withDoctorAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 		if err := authority.Put("vrooli/openrouter", "api-key", provisionedTestValue); err != nil {
 			t.Fatal(err)
 		}
@@ -182,7 +159,7 @@ func TestCredentialsDoctorDistinguishesEveryProviderCondition(t *testing.T) {
 
 func TestCredentialsDoctorJSONContractIncludesRecoveryFields(t *testing.T) {
 	useNoLiveCredentialInstances(t)
-	withDoctorAuthority(t, &doctorTestStore{})
+	withDoctorAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal([]byte(runCredentials(t, credentialFixtureRoot(t), "doctor", "--format", "json")), &raw); err != nil {
 		t.Fatal(err)
@@ -278,7 +255,7 @@ func TestRecoveryClassificationSeparatesCoverageAndAbsence(t *testing.T) {
 
 func TestRuntimeCredentialInventoryHonorsDisabledResource(t *testing.T) {
 	root := credentialFixtureRoot(t)
-	withDoctorAuthority(t, &doctorTestStore{})
+	withDoctorAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	previousVault := liveVaultUnsealKeyEntries
 	previousKopia := liveKopiaRepositoryEntries
 	liveVaultUnsealKeyEntries = func() []resources.VaultUnsealKeyEntry {
@@ -421,7 +398,7 @@ func TestDiagnosisFixNamesTheDetectedConditionRatherThanAnAppliedRepair(t *testi
 func TestCredentialsReadOnlyCommandsNeverPrintAValue(t *testing.T) {
 	useNoLiveCredentialInstances(t)
 	root := credentialFixtureRoot(t)
-	authority := withDoctorAuthority(t, &doctorTestStore{})
+	authority := withDoctorAuthority(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	if err := authority.Put("vrooli/openrouter", "api-key", provisionedTestValue); err != nil {
 		t.Fatal(err)
 	}

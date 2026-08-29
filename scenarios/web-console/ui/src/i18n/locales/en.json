@@ -284,15 +284,19 @@
     "usedCount_one": "Used {{count}} time"
   },
   "handoff": {
+    "clearFilter": "Clear filter",
+    "clearSnippet": "Use each target's own prompt",
     "close": "Close",
+    "filterAria": "Filter handoff targets",
+    "filterPlaceholder": "Filter sessions",
+    "fromSource": "From {{name}}",
     "handOff": "Hand off",
-    "handOffTitle": "Hand off from {{name}}",
     "handOffToRole": "Hand off to {{label}}",
     "keptText": "The message was kept so you can try again.",
     "message": "Message",
     "messageFor": "Message for {{label}}",
-    "messageFrom": "Message from",
     "newSessionInGroup": "New session in this group…",
+    "noMatches": "No session matches that.",
     "noPayload": "No payload — the message is sent as typed.",
     "noTargets": "This session is the only member of its group. Add another session or role to hand off.",
     "notGrouped": "Put this session in a group to hand off to another session.",
@@ -306,6 +310,7 @@
       "other": "Other sessions"
     },
     "send": "Send",
+    "sendTo": "Send to {{total}}",
     "sending": "Sending…",
     "startsFirst": "Starts before the message is sent",
     "suggestionAction": "Hand off to {{label}}",
@@ -313,8 +318,9 @@
     "suggestionOpen": "Hand off…",
     "suggestionTitle": "{{rule}} matched",
     "targets": "Send to",
-    "waitingChip": "waiting",
-    "writeByHand": "Write it by hand"
+    "unreadAria": "{{total}} unread",
+    "useSnippet": "Use snippet",
+    "waitingChip": "waiting"
   },
   "handoffRules": {
     "create": "New rule",
@@ -484,6 +490,29 @@
     "unenrolledTitle": "This computer is not part of a fleet",
     "withholds": "Withholds",
     "wordsMatch": "Words match › Continue"
+  },
+  "fleet": {
+    "openAriaLabel": "Open devices and machines",
+    "title": "Devices & machines",
+    "subtitle": "Where you are working from, and what you can work on.",
+    "devices": "Devices",
+    "devicesDescription": "Screens you are using this console from",
+    "machines": "Machines",
+    "machinesDescription": "Computers you can run terminals on",
+    "unnamedDevice": "Unnamed device",
+    "you": "You",
+    "inControl": "In control",
+    "following": "Following",
+    "idle": "Idle",
+    "reconnecting": "Reconnecting",
+    "notConnected": "Not connected",
+    "giveControl": "Give control",
+    "dropOld": "Drop the old one",
+    "forgetDevice": "Forget this device",
+    "rename": "Rename",
+    "noSession": "No session open",
+    "driving": "Driving {{session}}",
+    "alsoDevice": "Also a device"
   },
   "manageGroups": {
     "assignSession": "Add current session",
@@ -1302,6 +1331,7 @@
     "picker": {
       "all": "All",
       "clearFilter": "Clear filter",
+      "delete": "Delete",
       "edit": "Edit",
       "empty": "No snippets yet",
       "emptyDescription": "Save useful text from a message, or create one now.",
@@ -1315,11 +1345,13 @@
       "newAria": "New snippet",
       "noMatches": "No snippets match your filter",
       "noMatchesDescription": "Try fewer words, or clear the filter.",
+      "pin": "Pin",
       "pinned": "Pinned",
       "recent": "Recent",
       "swipeActionsAria": "Actions for {{name}}",
       "tabsAria": "Snippet lists",
-      "title": "Snippets"
+      "title": "Snippets",
+      "unpin": "Unpin"
     },
     "save": {
       "createdInSettings": "Created in Settings",

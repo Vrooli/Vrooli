@@ -31,7 +31,7 @@ interface MachineListProps {
  *  inherit the full generic translator type. */
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 
-function reachabilityDetail(machine: Machine, t: Translate): string {
+export function reachabilityDetail(machine: Machine, t: Translate): string {
   if (machine.target.kind === "local") return t(strings.machines.thisComputerDetail);
   if (machine.heartbeatAgeSeconds <= 0 && !machine.target.available) return t(strings.machines.neverResponded);
   const age = humanAge(machine.heartbeatAgeSeconds);
@@ -40,7 +40,7 @@ function reachabilityDetail(machine: Machine, t: Translate): string {
     : t(strings.machines.lastResponded, { age });
 }
 
-function statusPill(machine: Machine, t: Translate) {
+export function statusPill(machine: Machine, t: Translate) {
   if (machine.target.kind === "local") {
     return { label: t(strings.machines.statusLocal), tone: "border-wc-default bg-wc-surface-input text-wc-text-secondary", icon: <Laptop className="h-3.5 w-3.5" aria-hidden /> };
   }

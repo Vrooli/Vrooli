@@ -192,63 +192,77 @@
           "type": "test",
           "ref": "ui/src/components/__tests__/DeviceFrame.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Device chrome renders its takeover action at each adaptive tier"
         },
         {
           "type": "test",
           "ref": "ui/src/lib/followerViewport.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Follower geometry remains bounded and selects adaptive chrome"
         },
         {
           "type": "test",
           "ref": "ui/src/lib/deviceArchetype.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Declared device class survives a rows-only resize; unknown classes fall back to grid geometry"
         },
         {
           "type": "test",
           "ref": "ui/src/hooks/terminal/useFollowerPresentation.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Silhouette, tier and frame rect are unchanged when a leader keyboard halves its rows"
         },
         {
           "type": "test",
           "ref": "ui/src/hooks/terminal/useFollowerViewportLayout.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "One transition declaration drives frame and terminal; layout restores when following stops"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/__tests__/TerminalPane.follower.test.tsx",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Self-echo/leader panes stay unframed while follower mode renders the device frame"
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/__tests__/WorkspacePaneShell.test.tsx",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Terminal and messages views remain isolated and the terminal view is restored after a view switch"
         },
         {
           "type": "test",
           "ref": "ui/src/lib/terminalProtocol.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "size_info and presence apply leader presentation identically and never clear an omitted field"
         },
         {
           "type": "test",
           "ref": "api/terminal_ws_test.go:TestTerminalWS_FollowerReceivesLeaderDevicePresentation",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Device class arrives at connect and keyboard state as it changes"
         },
         {
           "type": "test",
           "ref": "api/session/screen_test.go:TestSession_KeyboardStateFollowsTheLeaseOwner",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Only the lease owner's keyboard is published, and only on change"
         },
         {
           "type": "test",
           "ref": "api/session/screen_test.go:TestSession_LeaseHandoverCarriesDevicePresentation",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "A handover presents the new leader's class and keyboard immediately"
         }
       ]

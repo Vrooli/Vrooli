@@ -703,6 +703,7 @@ describe("useTerminalTouch", () => {
   it("does not intercept touches that begin inside the context menu or backdrop", () => {
     const backdrop = document.createElement("div");
     backdrop.dataset.testid = "ctx-backdrop";
+	backdrop.setAttribute("role", "button");
     container.appendChild(backdrop);
     renderHook(() => useTerminalTouch(makeHookArgs(terminal, container)));
 

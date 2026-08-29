@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -53,7 +54,7 @@ func DefaultInstallerForRepo(executable, repoRoot string) Installer {
 }
 
 func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != string(hostreqspec.PlatformLinux) {
 		return SetupStatus{Supported: false, SocketPath: DefaultSocketPath, Reason: "privilege broker is currently supported only on Linux with systemd", Recovery: "Use a supported Linux host, then re-run `vrooli setup --sudo-mode=ask`."}, nil
 	}
 	if os.Geteuid() != 0 {
@@ -101,7 +102,7 @@ func brokerServiceCommands() [][]string {
 }
 
 func Inspect() SetupStatus {
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != string(hostreqspec.PlatformLinux) {
 		return SetupStatus{Supported: false, SocketPath: DefaultSocketPath, Reason: "privilege broker is currently supported only on Linux with systemd"}
 	}
 	conn, err := net.Dial("unix", DefaultSocketPath)

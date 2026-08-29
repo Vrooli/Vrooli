@@ -4,45 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
-
-type fixedClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func newFixedClock(t time.Time) *fixedClock { return &fixedClock{now: t.UTC()} }
-
-func (c *fixedClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *fixedClock) Advance(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = c.now.Add(d)
-}
-
-func newTestStore(t *testing.T, clk Clock) *SQLiteStore {
-	t.Helper()
-	store, err := NewSQLiteStore(context.Background(), Config{
-		DBPath: filepath.Join(t.TempDir(), "capacity.db"),
-		Clock:  clk,
-	})
-	if err != nil {
-		t.Fatalf("NewSQLiteStore() error = %v", err)
-	}
-	t.Cleanup(func() { _ = store.Close() })
-	return store
-}
 
 func gpu(i int) *int { return &i }
 
@@ -61,8 +30,10 @@ func sampleClaim() CapacityClaim {
 
 func TestCreateClaimDefaultsAndRead(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	created, err := store.CreateClaim(ctx, sampleClaim(), 0)
 	if err != nil {
@@ -95,8 +66,10 @@ func TestCreateClaimDefaultsAndRead(t *testing.T) {
 
 func TestCreateClaimPersistsIdleGrace(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	claim := sampleClaim()
 	claim.IdleUnloadTTL = 15 * time.Minute
@@ -119,8 +92,10 @@ func TestCreateClaimPersistsIdleGrace(t *testing.T) {
 
 func TestHeartbeatRenewsLivenessWithoutBumpingGeneration(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	created, err := store.CreateClaim(ctx, sampleClaim(), 10*time.Second)
 	if err != nil {
@@ -142,8 +117,10 @@ func TestHeartbeatRenewsLivenessWithoutBumpingGeneration(t *testing.T) {
 
 func TestReportActivityBumpsGenerationAndAutoProtectsInteractive(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	claim := sampleClaim()
 	claim.OwnerID = "agent-manager"
@@ -186,8 +163,10 @@ func TestReportActivityBumpsGenerationAndAutoProtectsInteractive(t *testing.T) {
 
 func TestDegradeClaimSetsAmountAndStatus(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	created, err := store.CreateClaim(ctx, sampleClaim(), 0)
 	if err != nil {
@@ -211,8 +190,10 @@ func TestDegradeClaimSetsAmountAndStatus(t *testing.T) {
 
 func TestReleaseAndPreemptAreTerminal(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	a, _ := store.CreateClaim(ctx, sampleClaim(), 0)
 	released, err := store.ReleaseClaim(ctx, a.ClaimID)
@@ -239,8 +220,10 @@ func TestReleaseAndPreemptAreTerminal(t *testing.T) {
 
 func TestExpireStaleClaimsSweep(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	live, _ := store.CreateClaim(ctx, sampleClaim(), 60*time.Second)
 	stale, _ := store.CreateClaim(ctx, sampleClaim(), 10*time.Second)
@@ -266,8 +249,10 @@ func TestExpireStaleClaimsSweep(t *testing.T) {
 
 func TestListClaimsFilter(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	w := sampleClaim()
 	w.OwnerID = "whisper"
@@ -312,8 +297,10 @@ func TestListClaimsFilter(t *testing.T) {
 
 func TestProfileRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	claim := sampleClaim()
 	claim.DegradeProfile = &DegradeProfile{
@@ -340,7 +327,9 @@ func TestProfileRoundTrip(t *testing.T) {
 
 func TestNotFound(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))})
+	})
 	if _, err := store.GetClaim(ctx, "clm-missing"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("GetClaim(missing) = %v, want ErrNotFound", err)
 	}
@@ -348,7 +337,9 @@ func TestNotFound(t *testing.T) {
 
 func TestPolicyGetSetRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))})
+	})
 
 	def, err := store.GetPolicy(ctx)
 	if err != nil {
@@ -390,8 +381,10 @@ func TestPolicyGetSetRoundTrip(t *testing.T) {
 
 func TestConcurrentHeartbeatsAreSerializedSafely(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	created, err := store.CreateClaim(ctx, sampleClaim(), 30*time.Second)
 	if err != nil {
@@ -421,7 +414,7 @@ func TestConcurrentHeartbeatsAreSerializedSafely(t *testing.T) {
 // one-shot conversion path, never auto-migrated or recreated.
 func TestRejectsStampedOlderVersion(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "capacity.db")
-	stampUserVersion(t, dbPath, SchemaVersion-1)
+	testenv.StampSQLiteUserVersion(t, dbPath, SchemaVersion-1)
 
 	_, err := NewSQLiteStore(context.Background(), Config{DBPath: dbPath})
 	if err == nil {
@@ -436,7 +429,7 @@ func TestRejectsStampedOlderVersion(t *testing.T) {
 // refuse a ledger written by a newer one.
 func TestRejectsNewerDatabase(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "capacity.db")
-	stampUserVersion(t, dbPath, SchemaVersion+1)
+	testenv.StampSQLiteUserVersion(t, dbPath, SchemaVersion+1)
 
 	_, err := NewSQLiteStore(context.Background(), Config{DBPath: dbPath})
 	if err == nil {
@@ -452,7 +445,9 @@ func TestRejectsNewerDatabase(t *testing.T) {
 // (now removed) additive migrations.
 func TestFreshInstallAppliesFullSchema(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))})
+	})
 
 	var version int
 	if err := store.db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil {
@@ -495,17 +490,5 @@ func TestFreshInstallAppliesFullSchema(t *testing.T) {
 	var policyTable string
 	if err := store.db.QueryRowContext(ctx, `SELECT name FROM sqlite_master WHERE type='table' AND name='capacity_policy'`).Scan(&policyTable); err != nil {
 		t.Fatalf("fresh install missing capacity_policy table: %v", err)
-	}
-}
-
-func stampUserVersion(t *testing.T, dbPath string, version int) {
-	t.Helper()
-	db, err := sql.Open("sqlite", buildDSN(dbPath))
-	if err != nil {
-		t.Fatalf("sql.Open: %v", err)
-	}
-	defer db.Close()
-	if _, err := db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, version)); err != nil {
-		t.Fatalf("stamp user_version: %v", err)
 	}
 }

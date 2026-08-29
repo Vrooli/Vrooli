@@ -128,6 +128,28 @@ func TestBindService(t *testing.T) {
 	})
 }
 
+func TestRegisteredLeafPathsWalksBoundNestedCommands(t *testing.T) {
+	noop := func(struct{}, []string) error { return nil }
+	registry := NewRegistry(
+		map[topcli.CommandID]Handler[struct{}]{
+			topcli.CommandCredentials: noop,
+			topcli.CommandResource:    noop,
+		},
+		map[scenariocli.CommandID]Handler[struct{}]{},
+	)
+	got, err := WalkCommandTree(registry, []string{
+		"credentials list",
+		"resource blueprint list",
+	})
+	if err != nil {
+		t.Fatalf("WalkCommandTree() error = %v", err)
+	}
+	joined := strings.Join(got, "\n")
+	if len(got) == 0 || !strings.Contains(joined, "credentials list") || !strings.Contains(joined, "resource blueprint list") {
+		t.Fatalf("WalkCommandTree() = %#v, want non-empty nested bound paths", got)
+	}
+}
+
 func TestParseArgsSeparatesGlobalsAndCommand(t *testing.T) {
 	parsed, err := ParseArgs([]string{"--json", "--verbose", "scenario", "list"})
 	if err != nil {

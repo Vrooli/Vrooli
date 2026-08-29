@@ -1,160 +1,46 @@
 package rootcli
 
-import "github.com/vrooli/vrooli/internal/cli/commandtree"
+import (
+	"fmt"
+	"strings"
 
-// WalkCommandTree returns the leaf command paths registered by the root CLI.
-// The top-level manifest catalog is deliberately not part of this list: it is
-// a governance index of parent commands, not another invocable command tree.
-//
-// Most root command families expose their child parser through a dedicated
-// package. The remaining legacy handlers register their child vocabulary in
-// the same root wiring, so this list is the single exported view of those
-// registered leaves used by the drift checker.
-func WalkCommandTree() []string {
-	return commandtree.WalkCommandTree(commandtree.CommandTreeFromPaths(registeredCommandPaths))
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
+)
+
+const minimumNestedCommandSegments = 2
+
+// RegisteredLeafPaths validates and returns the leaf paths exposed by the
+// bound root registry. Child parsers contribute their paths from the same
+// specs or binding-name sets used to build their handler maps; the registry
+// verifies that every contributed path is reachable through a bound root (and
+// through a bound scenario child for the scenario domain).
+func (r *Registry[C]) RegisteredLeafPaths(childPaths []string) ([]string, error) {
+	validated := make([]string, 0, len(childPaths))
+	for _, raw := range childPaths {
+		parts := strings.Fields(commandtree.NormalizeName(raw))
+		if len(parts) == 0 {
+			continue
+		}
+		if _, ok := r.TopLevelHandler(parts[0]); !ok {
+			return nil, fmt.Errorf("unwalkable:%s: root handler is not bound", parts[0])
+		}
+		if parts[0] == "scenario" {
+			if len(parts) < minimumNestedCommandSegments {
+				return nil, fmt.Errorf("unwalkable:scenario: missing child command")
+			}
+			if _, ok := r.ScenarioHandler(parts[1]); !ok {
+				return nil, fmt.Errorf("unwalkable:scenario/%s: child handler is not bound", parts[1])
+			}
+		}
+		validated = append(validated, strings.Join(parts, " "))
+	}
+	return commandtree.WalkCommandTree(commandtree.CommandTreeFromPaths(validated)), nil
 }
 
-var registeredCommandPaths = []string{
-	"agent launch",
-	"scenario list",
-	"scenario status",
-	"scenario logs",
-	"scenario start",
-	"scenario stop",
-	"scenario restart",
-	"scenario setup",
-	"scenario info",
-	"scenario validate-env",
-	"scenario freshness",
-	"scenario run",
-	"scenario start-all",
-	"scenario wait",
-	"scenario stop-all",
-	"scenario test",
-	"scenario screenshot",
-	"scenario open",
-	"scenario port",
-	"scenario requirements",
-	"scenario completeness",
-	"scenario heal-from-sandbox",
-	"break-glass provision",
-	"break-glass issue",
-	"break-glass status",
-	"setup",
-	"develop",
-	"build",
-	"clean",
-	"status",
-	"stop",
-	"backup",
-	"restore",
-	"package list",
-	"package info",
-	"package dependents",
-	"package build",
-	"package generate",
-	"package test",
-	"package refresh",
-	"resource list",
-	"resource status",
-	"resource validate",
-	"resource install",
-	"resource uninstall",
-	"resource start",
-	"resource restart",
-	"resource start-all",
-	"resource stop",
-	"resource stop-all",
-	"resource logs",
-	"resource enable",
-	"resource disable",
-	"resource info",
-	"resource upstream-check",
-	"resource deprecate",
-	"resource list-deprecated",
-	"resource archive-to-blueprint",
-	"resource list-blueprint-archived",
-	"resource restore",
-	"resource restore-blueprint",
-	"resource archive",
-	"resource blueprint",
-	"resource schema",
-	"resource archive gc",
-	"resource archive gc-blueprints",
-	"resource blueprint list",
-	"resource blueprint info",
-	"resource blueprint search",
-	"resource blueprint validate",
-	"resource schema validate",
-	"resource schema sync",
-	"runtime supervisor run",
-	"runtime supervisor status",
-	"runtime supervisor install",
-	"runtime supervisor uninstall",
-	"runtime recovery policy list",
-	"runtime recovery policy set",
-	"cleanup orphans",
-	"cleanup locks",
-	"cleanup template-validation",
-	"orphans list",
-	"orphans kill",
-	"locks list",
-	"locks clean",
-	"contract validate",
-	"contract show",
-	"contract resolve",
-	"contract match-glob",
-	"contract resolve scenario",
-	"hygiene",
-	"lifecycle protect",
-	"auth status",
-	"recovery capture",
-	"recovery restore",
-	"recovery write",
-	"recovery show",
-	"recovery list",
-	"recovery touch",
-	"recovery set-ttl",
-	"recovery set-mode",
-	"recovery clean",
-	"recovery migrate",
-	"recovery namespace",
-	"host inventory",
-	"host install",
-	"host safeguard",
-	"capacity claim",
-	"capacity heartbeat",
-	"capacity activity",
-	"capacity degrade",
-	"capacity release",
-	"capacity list",
-	"capacity reconcile",
-	"capacity sweep",
-	"capacity gc",
-	"capacity recommend",
-	"capacity policy",
-	"capability ledger",
-	"capability fleet",
-	"credentials doctor",
-	"credentials provision",
-	"credentials status",
-	"credentials store status",
-	"credentials store init",
-	"credentials store unlock",
-	"credentials store lock",
-	"credentials store rewrap",
-	"credentials store change-passphrase",
-	"credentials keyring status",
-	"credentials keyring inspect",
-	"credentials keyring repair",
-	"credentials keyring unlock",
-	"credentials recovery export",
-	"credentials recovery verify",
-	"credentials recovery restore",
-	"release-authority init",
-	"release-authority status",
-	"release-authority add-evidence",
-	"release-authority sign",
-	"release-authority regenerate",
-	"workload list",
+// WalkCommandTree is the manifest-check view of the live registry.
+func WalkCommandTree[C any](registry *Registry[C], childPaths []string) ([]string, error) {
+	if registry == nil {
+		return nil, fmt.Errorf("unwalkable:root: registry is nil")
+	}
+	return registry.RegisteredLeafPaths(childPaths)
 }

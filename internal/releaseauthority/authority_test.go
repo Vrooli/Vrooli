@@ -3,7 +3,6 @@ package releaseauthority
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,39 +11,13 @@ import (
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/testenv"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
-type memoryStore struct{ values map[string]string }
-
-func (s *memoryStore) Put(service, key, value string) error {
-	if s.values == nil {
-		s.values = map[string]string{}
-	}
-	s.values[service+"/"+key] = value
-	return nil
-}
-
-func (s *memoryStore) Get(service, key string) (string, error) {
-	value, ok := s.values[service+"/"+key]
-	if !ok {
-		// A conforming Store answers a missing key with ErrNotFound so the
-		// authority can tell an unset key from an unreachable backend.
-		return "", fmt.Errorf("%w: %s/%s", securestore.ErrNotFound, service, key)
-	}
-	return value, nil
-}
-
-func (s *memoryStore) Delete(service, key string) error {
-	delete(s.values, service+"/"+key)
-	return nil
-}
-
-var _ securestore.Store = (*memoryStore)(nil)
-
 func newTestAuthority(t *testing.T) (*Authority, string) {
 	t.Helper()
-	credentials, err := credentialauthority.NewAuthority(&memoryStore{})
+	credentials, err := credentialauthority.NewAuthority(testenv.NewCredentialStore(securestore.ErrNotFound))
 	if err != nil {
 		t.Fatal(err)
 	}

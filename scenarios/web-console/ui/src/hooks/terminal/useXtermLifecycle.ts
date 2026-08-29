@@ -5,6 +5,7 @@ import { Terminal, type ITheme } from "@xterm/xterm";
 import { TERMINAL_FONT_FAMILY } from "../../consts/config";
 import { TERMINAL_SCROLLBACK_LINES } from "../../lib/terminalConfig";
 import { scrollTerminalLines } from "../../lib/terminalScroll";
+import type { FollowerMode } from "../../lib/terminalProtocol";
 
 export interface XtermLifecycleOptions {
   sessionId: string;
@@ -13,7 +14,7 @@ export interface XtermLifecycleOptions {
   wheelScrollSensitivity: number;
   sendResize: (cols: number, rows: number) => void;
   getServerSize: () => { cols: number; rows: number } | null;
-  isFollower: () => boolean;
+	followerMode: FollowerMode;
   renamePaneById: (sessionId: string, name: string) => void;
   syncPaneUpdate: (sessionId: string, patch: { name?: string }) => void;
 }
@@ -51,7 +52,7 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
     wheelScrollSensitivity,
     sendResize,
     getServerSize,
-    isFollower,
+		followerMode,
     renamePaneById,
     syncPaneUpdate,
   } = options;
@@ -154,11 +155,11 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
   }, [terminal, wheelScrollSensitivity]);
 
   useEffect(() => {
-    if (!terminal || !fitRef.current || isFollower()) return;
+		if (!terminal || !fitRef.current || followerMode === "follower") return;
     terminal.options.fontSize = paneFontSize;
     scrollAwareFit();
     maybeSendResize(terminal, sendResize, lastSentSizeRef, getServerSize);
-  }, [paneFontSize, terminal, isFollower, sendResize, scrollAwareFit, getServerSize]);
+	}, [paneFontSize, terminal, followerMode, sendResize, scrollAwareFit, getServerSize]);
 
   useEffect(() => {
     if (!terminal) return;
@@ -175,7 +176,7 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
         rafId = null;
         const nextSize = { width: container.clientWidth, height: container.clientHeight };
         setPaneSize((previous) => previous.width === nextSize.width && previous.height === nextSize.height ? previous : nextSize);
-        if (isFollower()) return;
+				if (followerMode === "follower") return;
         scrollAwareFit();
         maybeSendResize(terminal, sendResize, lastSentSizeRef, getServerSize);
       });
@@ -185,7 +186,7 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
     // ResizeObserver's first notification is asynchronous. Fit once in the
     // current layout as well, otherwise the accessibility capture can observe
     // xterm's default 80-column screen before the observer callback runs.
-    if (!isFollower()) {
+		if (followerMode !== "follower") {
       scrollAwareFit();
       maybeSendResize(terminal, sendResize, lastSentSizeRef, getServerSize);
     }
@@ -193,7 +194,14 @@ export function useXtermLifecycle(options: XtermLifecycleOptions) {
       resizeObserver.disconnect();
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [terminal, sendResize, scrollAwareFit, getServerSize, isFollower]);
+	}, [terminal, sendResize, scrollAwareFit, getServerSize, followerMode]);
+
+	useEffect(() => {
+		if (!terminal || followerMode !== "leader") return;
+		lastSentSizeRef.current = null;
+		scrollAwareFit();
+		maybeSendResize(terminal, sendResize, lastSentSizeRef, getServerSize);
+	}, [terminal, followerMode, scrollAwareFit, sendResize, getServerSize]);
 
   return { containerRef, terminalHostRef, fitRef, terminal, paneSize, scrollAwareFit };
 }

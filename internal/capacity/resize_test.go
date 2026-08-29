@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // Feature: an owner whose footprint changes resizes, it does not churn
@@ -19,7 +21,9 @@ import (
 // wall-clock movement.
 func newResizeStore(t *testing.T) *SQLiteStore {
 	t.Helper()
-	return newTestStore(t, newFixedClock(time.Date(2026, 8, 21, 6, 0, 0, 0, time.UTC)))
+	return testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 8, 21, 6, 0, 0, 0, time.UTC))})
+	})
 }
 
 func grantedVRAMClaim(t *testing.T, store *SQLiteStore, owner string, amount int64) CapacityClaim {

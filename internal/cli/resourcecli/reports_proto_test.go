@@ -9,16 +9,8 @@ import (
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
-
-func decodeJSON(t *testing.T, b []byte) map[string]any {
-	t.Helper()
-	var got map[string]any
-	if err := json.Unmarshal(b, &got); err != nil {
-		t.Fatalf("output is not valid JSON: %v\n%s", err, string(b))
-	}
-	return got
-}
 
 // TestWriteStatusesJSONContract pins the fleet `resource status --json` shape.
 func TestWriteStatusesJSONContract(t *testing.T) {
@@ -43,7 +35,7 @@ func TestWriteStatusesJSONContract(t *testing.T) {
 	if err := WriteStatuses(&buf, cliout.FormatJSON, items, failures); err != nil {
 		t.Fatalf("WriteStatuses: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: want true, got %v", got["success"])
 	}
@@ -89,7 +81,7 @@ func TestWriteStatusJSONContract(t *testing.T) {
 	if err := WriteStatus(&buf, cliout.FormatJSON, item); err != nil {
 		t.Fatalf("WriteStatus: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: %v", got["success"])
 	}
@@ -116,7 +108,7 @@ func TestWriteInfoJSONContract(t *testing.T) {
 	if err := WriteInfo(&buf, cliout.FormatJSON, resources.Status{Resource: resources.Resource{Name: "vault"}}); err != nil {
 		t.Fatalf("WriteInfo: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: %v", got["success"])
 	}
@@ -138,7 +130,7 @@ func TestWriteControlReportJSONContract(t *testing.T) {
 	if err := WriteControlReport(&buf, cliout.FormatJSON, "report", "Started", &report, report.Started, report.Failed); err != nil {
 		t.Fatalf("WriteControlReport: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: %v", got["success"])
 	}
@@ -163,7 +155,7 @@ func TestWriteDeprecationReportJSONContract(t *testing.T) {
 	if err := WriteDeprecationReport(&buf, cliout.FormatJSON, report); err != nil {
 		t.Fatalf("WriteDeprecationReport: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	rep := got["report"].(map[string]any)
 	res := rep["resource"].(map[string]any)
 	// integer field must be a JSON number, not a string.
@@ -186,7 +178,7 @@ func TestWriteArchiveGCReportJSONContract(t *testing.T) {
 	if err := WriteArchiveGCReport(&buf, cliout.FormatJSON, report, "deprecated resource"); err != nil {
 		t.Fatalf("WriteArchiveGCReport: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	rep := got["report"].(map[string]any)
 	if _, ok := rep["removed"].([]any); !ok {
 		t.Errorf("removed missing: %v", rep)
@@ -212,7 +204,7 @@ func TestWriteSchemaValidationReportJSONContract(t *testing.T) {
 	if err := WriteSchemaValidationReport(&buf, cliout.FormatJSON, report); err != nil {
 		t.Fatalf("WriteSchemaValidationReport: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	// success mirrors report.passed (WriteFieldsWithSuccess semantics).
 	if got["success"] != false {
 		t.Errorf("success should mirror passed=false, got %v", got["success"])
@@ -245,7 +237,7 @@ func TestWriteBlueprintListJSONContract(t *testing.T) {
 	if err := WriteBlueprintList(&buf, cliout.FormatJSON, items); err != nil {
 		t.Fatalf("WriteBlueprintList: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: %v", got["success"])
 	}
@@ -265,7 +257,7 @@ func TestWriteBlueprintSearchJSONContract(t *testing.T) {
 	if err := WriteBlueprintSearch(&buf, cliout.FormatJSON, "cache", []resources.Blueprint{{Name: "redis-cache"}}); err != nil {
 		t.Fatalf("WriteBlueprintSearch: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["query"] != "cache" {
 		t.Errorf("query: %v", got["query"])
 	}

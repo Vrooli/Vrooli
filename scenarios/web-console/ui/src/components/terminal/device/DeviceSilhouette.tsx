@@ -9,6 +9,8 @@ export interface DeviceSilhouetteProps {
   keyboardShare: number;
   /** Draw the leader's virtual keyboard in the space its grid vacated. */
   kbOpen: boolean;
+  /** Light the screen when this device owns a session's lease. */
+  screenLit?: boolean;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface DeviceSilhouetteProps {
  * uniformly. Corner radii stay circular and details keep their proportions at
  * every size, which the previous stretched unit-square viewBox could not do.
  */
-export function DeviceSilhouette({ archetype, keyboardShare, kbOpen }: DeviceSilhouetteProps) {
+export function DeviceSilhouette({ archetype, keyboardShare, kbOpen, screenLit = false }: DeviceSilhouetteProps) {
   const geometry = DEVICE_GEOMETRY[archetype];
   const box = screenBox(geometry);
   const plateHeight = box.height * Math.min(1, Math.max(0, keyboardShare));
@@ -29,6 +31,8 @@ export function DeviceSilhouette({ archetype, keyboardShare, kbOpen }: DeviceSil
   const screenClip = useId().replace(/:/g, "");
 
   return <svg
+    data-testid="device-silhouette"
+    data-screen-lit={screenLit ? "true" : "false"}
     aria-hidden="true"
     className="absolute inset-0 h-full w-full overflow-visible"
     viewBox={`0 0 ${String(geometry.width)} ${String(geometry.height)}`}
@@ -40,7 +44,7 @@ export function DeviceSilhouette({ archetype, keyboardShare, kbOpen }: DeviceSil
     </defs>
     {geometry.base === "wedge" && <WedgeBase geometry={geometry} />}
     {geometry.base === "stand" && <MonitorStand geometry={geometry} />}
-    <Enclosure geometry={geometry} />
+    <Enclosure geometry={geometry} screenLit={screenLit} />
     {kbOpen && plateHeight > 0 && <g clipPath={`url(#${screenClip})`}>
       <KeyPlate x={box.x} y={plateTop} width={box.width} height={plateHeight} />
     </g>}

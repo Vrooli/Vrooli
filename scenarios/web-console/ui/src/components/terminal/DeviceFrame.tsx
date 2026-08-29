@@ -100,6 +100,7 @@ export function DeviceFrame({ archetype, chromeTier, rect, keyboardShare, captio
         >{t(strings.deviceFrame.keyboardOpen)}</span>}
         <button
           type="button"
+          data-testid="device-frame-take-over"
           onClick={onTakeOver}
           className="rounded px-2 py-1 font-medium"
           style={{ background: "var(--wc-device-action-bg)", color: "var(--wc-device-action-fg)" }}

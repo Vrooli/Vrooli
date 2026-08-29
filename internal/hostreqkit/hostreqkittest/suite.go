@@ -16,7 +16,7 @@ import (
 	"github.com/vrooli/vrooli/internal/values"
 )
 
-const hostreqkittestDarwin = "darwin"
+const hostreqkittestDarwin = string(hostreqspec.PlatformDarwin)
 
 // LoadToolManifest loads the manifest owned by a manifest-only tool package.
 // Keeping this small loader here lets each package's conformance case use its
@@ -223,7 +223,7 @@ func runSuite(t suiteT, c Case) {
 		t.Run("inspect_linux_apt_not_installed", func(t suiteT) {
 			original := hostreqkit.LookPathFn
 			hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
-			status := c.NewHandler().Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt-get", SupportsSysctl: true}, BaseRequirement(c))
+			status := c.NewHandler().Inspect(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt-get", SupportsSysctl: true}, BaseRequirement(c))
 			hostreqkit.LookPathFn = original
 			if status.SupportClass != hostreqkit.SupportSupported {
 				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportSupported)
@@ -252,7 +252,7 @@ func runSuite(t suiteT, c Case) {
 				return "", os.ErrNotExist
 			}
 			hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return []byte(c.VersionOutput), nil }
-			status := c.NewHandler().Inspect(hostreqkit.Host{OS: "linux", PackageManager: "apt", SupportsSysctl: true}, BaseRequirement(c))
+			status := c.NewHandler().Inspect(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt", SupportsSysctl: true}, BaseRequirement(c))
 			hostreqkit.LookPathFn = originalLookPath
 			hostreqkit.CombinedOutputFn = originalOutput
 			if !status.Installed {
@@ -268,16 +268,16 @@ func runSuite(t suiteT, c Case) {
 	}
 
 	if enabled(c, "inspect_darwin_brew") {
-		runPackageInspection(t, c, "inspect_darwin_brew", hostreqkit.Host{OS: "darwin", PackageManager: "brew"}, "brew")
+		runPackageInspection(t, c, "inspect_darwin_brew", hostreqkit.Host{OS: string(hostreqspec.PlatformDarwin), PackageManager: "brew"}, "brew")
 	}
 	if enabled(c, "inspect_windows_winget") {
-		runPackageInspection(t, c, "inspect_windows_winget", hostreqkit.Host{OS: "windows", PackageManager: "winget"}, "winget")
+		runPackageInspection(t, c, "inspect_windows_winget", hostreqkit.Host{OS: string(hostreqspec.PlatformWindows), PackageManager: "winget"}, "winget")
 	}
 	if enabled(c, "inspect_unsupported_configuration") {
 		t.Run("inspect_unsupported_configuration", func(t suiteT) {
 			original := hostreqkit.LookPathFn
 			hostreqkit.LookPathFn = func(string) (string, error) { return "", os.ErrNotExist }
-			status := c.NewHandler().Inspect(hostreqkit.Host{OS: "linux", PackageManager: "dnf", SupportsSysctl: true}, BaseRequirement(c))
+			status := c.NewHandler().Inspect(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "dnf", SupportsSysctl: true}, BaseRequirement(c))
 			hostreqkit.LookPathFn = original
 			if status.SupportClass != hostreqkit.SupportUnsupported {
 				t.Errorf("SupportClass = %q, want %q", status.SupportClass, hostreqkit.SupportUnsupported)
@@ -338,7 +338,7 @@ func runSuite(t suiteT, c Case) {
 	if enabled(c, "apply_unsupported_returns_early") {
 		t.Run("apply_unsupported_returns_early", func(t suiteT) {
 			h := c.NewHandler()
-			status, err := h.Apply(hostreqkit.Host{OS: unsupportedOr("darwin", unsupported)}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportUnsupported}, hostreqkit.EnsureOptions{})
+			status, err := h.Apply(hostreqkit.Host{OS: unsupportedOr(string(hostreqspec.PlatformDarwin), unsupported)}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportUnsupported}, hostreqkit.EnsureOptions{})
 			if err != nil {
 				t.Errorf("Apply() error = %v", err)
 			}
@@ -400,7 +400,7 @@ func runSuite(t suiteT, c Case) {
 
 	if enabled(c, "apply_linux_apt_dry_run") {
 		t.Run("apply_linux_apt_dry_run", func(t suiteT) {
-			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt-get"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{DryRun: true})
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt-get"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{DryRun: true})
 			if err != nil {
 				t.Errorf("Apply() error = %v", err)
 			}
@@ -425,7 +425,7 @@ func runSuite(t suiteT, c Case) {
 				return nil
 			}
 			hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return []byte(c.VersionOutput), nil }
-			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "darwin", PackageManager: "brew"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true})
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: string(hostreqspec.PlatformDarwin), PackageManager: "brew"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true})
 			if err != nil {
 				t.Errorf("Apply() error = %v", err)
 			}
@@ -440,7 +440,7 @@ func runSuite(t suiteT, c Case) {
 
 	if enabled(c, "apply_default_fallback_unsupported") {
 		runAPTRepoCheck(t, c, "apply_default_fallback_unsupported", func(t suiteT, _ *APTRepoCase) {
-			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "dnf"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true})
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "dnf"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true})
 			if err != nil {
 				t.Errorf("Apply() error = %v", err)
 			}
@@ -470,7 +470,7 @@ func runSuite(t suiteT, c Case) {
 			hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return []byte(c.VersionOutput), nil }
 			cluster.SetKeyDownload(func() ([]byte, error) { return []byte("fixture-gpg-key"), nil })
 			sudoMode := values.FirstNonEmpty(cluster.SudoMode, "skip")
-			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt-get"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true, SudoMode: sudoMode})
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt-get"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true, SudoMode: sudoMode})
 			if err != nil {
 				t.Errorf("Apply() error = %v", err)
 			}
@@ -492,7 +492,7 @@ func runSuite(t suiteT, c Case) {
 				return "", os.ErrNotExist
 			}
 			cluster.SetKeyDownload(func() ([]byte, error) { return nil, os.ErrPermission })
-			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: "linux", PackageManager: "apt"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true, SudoMode: "skip"})
+			status, err := c.NewHandler().Apply(hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt"}, hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{AutoInstall: true, SudoMode: "skip"})
 			if err != nil {
 				t.Errorf("Apply() error = %v", err)
 			}
@@ -624,7 +624,7 @@ func enabled(c Case, check string) bool {
 
 // LinuxHost is the neutral host fixture used by the shared suite.
 func LinuxHost() hostreqkit.Host {
-	return hostreqkit.Host{OS: "linux", PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true, SupportsSysctl: true, SupportsSystemd: true}
+	return hostreqkit.Host{OS: string(hostreqspec.PlatformLinux), PackageManager: "apt-get", SupportsSetup: true, SupportsDevelop: true, SupportsSysctl: true, SupportsSystemd: true}
 }
 
 // BaseRequirement returns a required, non-manual requirement for a case.
@@ -642,8 +642,21 @@ func StubAll(t *testing.T) func() {
 	return func() {}
 }
 
-// StubLookups is the lookup-only counterpart of StubAll.
-func StubLookups(t *testing.T) func() { return StubAll(t) }
+// StubLookups snapshots the command-discovery seams shared by safeguard
+// handlers and returns a restoration hook for package-specific tests.
+func StubLookups(t *testing.T) func() {
+	t.Helper()
+	origLookPath := hostreqkit.LookPathFn
+	origReadFile := hostreqkit.ReadFileFn
+	origCombinedOutput := hostreqkit.CombinedOutputFn
+	origRunCommand := hostreqkit.RunCommandFn
+	return func() {
+		hostreqkit.LookPathFn = origLookPath
+		hostreqkit.ReadFileFn = origReadFile
+		hostreqkit.CombinedOutputFn = origCombinedOutput
+		hostreqkit.RunCommandFn = origRunCommand
+	}
+}
 
 // StubInvokingUser isolates tests that exercise installation into a user's
 // bin directory from the developer's real home and PATH.
@@ -831,7 +844,7 @@ func manualRequirement(c Case) hostreqspec.ResolvedRequirement {
 }
 
 func unsupportedOS(platforms []string) string {
-	for _, candidate := range []string{"darwin", "windows", "linux"} {
+	for _, candidate := range []string{string(hostreqspec.PlatformDarwin), string(hostreqspec.PlatformWindows), string(hostreqspec.PlatformLinux)} {
 		if !containsPlatform(platforms, candidate) {
 			return candidate
 		}

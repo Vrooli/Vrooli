@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -43,6 +44,56 @@ type ManagedServiceState struct {
 	PreviousArtifactVersion string     `json:"previous_artifact_version,omitempty"`
 	StartedAt               time.Time  `json:"started_at"`
 	StoppedAt               *time.Time `json:"stopped_at,omitempty"`
+}
+
+// ManagedServiceRecord associates a durable state record with the resource
+// directory that owns it.
+type ManagedServiceRecord struct {
+	Resource string
+	State    ManagedServiceState
+}
+
+// ReadManagedServiceRecords enumerates the same state authority used by the
+// supervisor. A malformed ownership record fails the read closed: callers must
+// not infer that a process is unowned merely because its owner record could not
+// be decoded.
+func ReadManagedServiceRecords() ([]ManagedServiceRecord, error) {
+	resolver, err := resourceStorageResolver()
+	if err != nil {
+		return nil, err
+	}
+	root, err := resolver.ResourcesRoot(runtimestorage.ClassState, "")
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []ManagedServiceRecord{}, nil
+		}
+		return nil, fmt.Errorf("read managed-service state root: %w", err)
+	}
+	records := make([]ManagedServiceRecord, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		path := filepath.Join(root, entry.Name(), managedServiceStateFile)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, fmt.Errorf("read managed-service state for %s: %w", entry.Name(), err)
+		}
+		var state ManagedServiceState
+		if err := json.Unmarshal(data, &state); err != nil {
+			return nil, fmt.Errorf("parse managed-service state for %s: %w", entry.Name(), err)
+		}
+		records = append(records, ManagedServiceRecord{Resource: entry.Name(), State: state})
+	}
+	sort.Slice(records, func(i, j int) bool { return records[i].Resource < records[j].Resource })
+	return records, nil
 }
 
 // ManagedServiceSupervisor owns one private service process. It uses direct

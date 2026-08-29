@@ -1,4 +1,3 @@
-//nolint:goconst // test data deliberately reuses stable flag fixtures.
 package scenariohandlers
 
 import (
@@ -7,9 +6,14 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 )
 
+const (
+	jsonFlag    = "--json"
+	verboseFlag = "--verbose"
+)
+
 func TestBuildScenarioCompletenessArgsAddsJSONWhenFormatMissing(t *testing.T) {
 	args := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{JSON: true}, []string{"alpha"})
-	if len(args) != 2 || args[0] != "alpha" || args[1] != "--json" {
+	if len(args) != 2 || args[0] != "alpha" || args[1] != jsonFlag {
 		t.Fatalf("args = %#v", args)
 	}
 }
@@ -20,7 +24,7 @@ func TestBuildScenarioCompletenessArgsPreservesExplicitFormat(t *testing.T) {
 		t.Fatalf("args = %#v", args)
 	}
 	for _, arg := range args {
-		if arg == "--json" {
+		if arg == jsonFlag {
 			t.Fatalf("args = %#v", args)
 		}
 	}
@@ -29,7 +33,7 @@ func TestBuildScenarioCompletenessArgsPreservesExplicitFormat(t *testing.T) {
 func TestBuildScenarioCompletenessArgsPreservesFormatEquals(t *testing.T) {
 	args := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{JSON: true}, []string{"alpha", "--format=yaml"})
 	for _, arg := range args {
-		if arg == "--json" {
+		if arg == jsonFlag {
 			t.Fatalf("--format=yaml should suppress auto-appended --json; args=%#v", args)
 		}
 	}
@@ -55,14 +59,14 @@ func TestBuildScenarioCompletenessArgsPrependsNoColor(t *testing.T) {
 
 func TestBuildScenarioCompletenessArgsAppendsVerbose(t *testing.T) {
 	args := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{Verbose: true}, []string{"score", "get", "alpha"})
-	if len(args) == 0 || args[len(args)-1] != "--verbose" {
+	if len(args) == 0 || args[len(args)-1] != verboseFlag {
 		t.Fatalf("expected --verbose last, got %#v", args)
 	}
 	// Don't add twice if user already passed --verbose.
-	again := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{Verbose: true}, []string{"score", "get", "alpha", "--verbose"})
+	again := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{Verbose: true}, []string{"score", "get", "alpha", verboseFlag})
 	count := 0
 	for _, arg := range again {
-		if arg == "--verbose" {
+		if arg == verboseFlag {
 			count++
 		}
 	}
@@ -72,7 +76,7 @@ func TestBuildScenarioCompletenessArgsAppendsVerbose(t *testing.T) {
 	// Also respect the short form -v.
 	short := BuildScenarioCompletenessArgs(rootcli.GlobalOptions{Verbose: true}, []string{"score", "get", "alpha", "-v"})
 	for _, arg := range short {
-		if arg == "--verbose" {
+		if arg == verboseFlag {
 			t.Fatalf("should not add --verbose when -v already present: %#v", short)
 		}
 	}

@@ -9,7 +9,9 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/operatorstate"
+	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/workloadowner"
 )
 
@@ -103,10 +105,11 @@ func containsArg(args []string, wanted string) bool {
 
 func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 	if len(args) == 0 || commandWantsHelp(args) {
-		commandtree.RenderHelp(ctx.Stdout, commandtree.Help{Title: "Vrooli Host", Description: "Inspect local host facts through internal/hostinventory.", Usage: "vrooli host <command> [options]", DefaultGroup: "Host Commands"}, []commandtree.Spec[string]{hostInventorySpec(), hostInstallSpec(), hostSafeguardSpec(), hostVolumeSpec(), hostStorageCandidatesSpec()})
+		commandtree.RenderHelp(ctx.Stdout, commandtree.Help{Title: "Vrooli Host", Description: "Inspect local host facts and repository-owned host automation.", Usage: "vrooli host <command> [options]", DefaultGroup: "Host Commands"}, []commandtree.Spec[string]{hostCronSpec(), hostInventorySpec(), hostInstallSpec(), hostSafeguardSpec(), hostVolumeSpec(), hostStorageCandidatesSpec()})
 		return nil
 	}
 	handlers := map[string]func([]string) error{
+		"cron":      func(args []string) error { return app.runHostCronCommand(ctx, args) },
 		"inventory": func(args []string) error { return app.runHostInventoryCommand(ctx, args) },
 		"install":   func(args []string) error { return app.runHostInstallCommand(ctx, args) },
 		safeguardCommand: func(args []string) error {
@@ -117,9 +120,41 @@ func (app *App) runHostCommand(ctx *CommandContext, args []string) error {
 	}
 	handler, ok := handlers[args[0]]
 	if !ok {
-		return rootcli.NewUnknownCommandError(args[0], []string{"inventory", "install", safeguardCommand, "volume", "storage"})
+		return rootcli.NewUnknownCommandError(args[0], []string{"cron", "inventory", "install", safeguardCommand, "volume", "storage"})
 	}
 	return handler(args[1:])
+}
+
+func hostCronSpec() commandtree.Spec[string] {
+	return commandtree.Spec[string]{Name: "cron", Summary: "Audit Vrooli-owned user-cron entries", Help: commandtree.Help{Description: "Compares the current user's crontab with hostCron declarations in .vrooli/service.json. The audit is read-only.", Usage: "vrooli host cron audit [--json]", Options: []commandtree.OptionArg{commandtree.JSONOption()}, Examples: []string{"vrooli host cron audit", "vrooli host cron audit --json"}}, Handler: "cron"}
+}
+
+func (app *App) runHostCronCommand(ctx *CommandContext, args []string) error {
+	if len(args) == 0 || commandWantsHelp(args) {
+		commandtree.RenderHelp(ctx.Stdout, hostCronSpec().Help, []commandtree.Spec[string]{})
+		return nil
+	}
+	if args[0] != "audit" {
+		return rootcli.NewUnknownCommandError(args[0], []string{"audit"})
+	}
+	for _, arg := range args[1:] {
+		if arg != "--json" {
+			return rootcli.UsageErrorf("host cron audit", "unknown option %q", arg)
+		}
+	}
+	report, err := maintenance.AuditUserCron(context.Background(), ctx.Root, shell.OSRunner{})
+	if err != nil {
+		return err
+	}
+	if ctx.Globals.JSON || containsArg(args, "--json") {
+		return cliout.WriteJSONValue(ctx.Stdout, report)
+	}
+	rows := make([][]string, 0, len(report.Findings)+1)
+	rows = append(rows, []string{"status", report.Status, report.Detail})
+	for _, finding := range report.Findings {
+		rows = append(rows, []string{finding.Code, finding.Declaration, finding.Message})
+	}
+	return cliout.WriteSection(ctx.Stdout, cliout.Section{Rows: rows})
 }
 
 func hostInventorySpec() commandtree.Spec[string] {

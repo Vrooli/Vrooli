@@ -41,7 +41,7 @@ func (DefaultProvider) Current(ctx context.Context, home string) (Snapshot, erro
 		return Snapshot{}, ctx.Err()
 	default:
 	}
-	if hostreqspec.CurrentPlatform() == "linux" {
+	if hostreqspec.CurrentPlatform() == string(hostreqspec.PlatformLinux) {
 		bootID, err := readTextFile(linuxBootIDPath)
 		if err == nil && bootID != "" {
 			return Snapshot{BootID: bootID, SessionID: bootID, Source: "linux_boot_id"}, nil

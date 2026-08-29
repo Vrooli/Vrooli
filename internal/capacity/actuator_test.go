@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // fakeExecutor records the degrade verbs it was asked to run and can be made to
@@ -81,8 +83,10 @@ func idleLadderClaim(t *testing.T, store *SQLiteStore, owner string, priority in
 // recorded) to free space for a higher-priority requester.
 func TestActuateDegradesIdleLowerPriorityHolder(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	holder := idleLadderClaim(t, store, "whisper", PriorityService)
 	clk.Advance(2 * DefaultIdleGrace) // past idle-grace
 
@@ -110,8 +114,10 @@ func TestActuateDegradesIdleLowerPriorityHolder(t *testing.T) {
 // the actuator never produces an action against them and never mutates them.
 func TestActuateNeverTouchesProtectedOrActive(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	// A protected lower-priority holder and an active lower-priority holder, both
 	// otherwise reclaim-eligible (idle past grace / lower priority).
@@ -148,8 +154,10 @@ func TestActuateNeverTouchesProtectedOrActive(t *testing.T) {
 // surfaced (never strand a resource off-GPU).
 func TestActuateFailureIsNonFatalAndLeavesClaim(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	holder := idleLadderClaim(t, store, "whisper", PriorityService)
 	clk.Advance(2 * DefaultIdleGrace)
 
@@ -177,8 +185,10 @@ func TestActuateFailureIsNonFatalAndLeavesClaim(t *testing.T) {
 // and re-degrading to a step it's already at is an idempotent no-op.
 func TestActuateDebounceAndIdempotency(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	holder := idleLadderClaim(t, store, "whisper", PriorityService)
 	clk.Advance(2 * DefaultIdleGrace)
 
@@ -230,8 +240,10 @@ func TestActuateDebounceAndIdempotency(t *testing.T) {
 // degraded (not preempted) even when preempt is enabled.
 func TestActuatePrefersDegradeOverPreempt(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	holder := idleLadderClaim(t, store, "whisper", PriorityService)
 	clk.Advance(2 * DefaultIdleGrace)
 
@@ -257,8 +269,10 @@ func TestActuatePrefersDegradeOverPreempt(t *testing.T) {
 // preempted (recorded) when enabled, and merely warned when disabled.
 func TestActuatePreemptGatedByPolicy(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	// A profile-less holder: no degrade rung, so reclaim must preempt.
 	c := CapacityClaim{
 		OwnerKind: OwnerKindResource, OwnerID: "bulk", ResourceKind: ResourceKindVRAM,

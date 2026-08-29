@@ -13,7 +13,7 @@ import { KEYBOARD_COLUMNS, KEYBOARD_ROWS, keyboardColumns, keyboardKeyHeight, sc
  */
 
 /** The enclosure body: filled panel, rim highlight, and the recessed screen. */
-export function Enclosure({ geometry }: { geometry: DeviceGeometry }) {
+export function Enclosure({ geometry, screenLit = false }: { geometry: DeviceGeometry; screenLit?: boolean }) {
   const box = screenBox(geometry);
   return <>
     <rect x="0" y="0" width={geometry.width} height={geometry.height} rx={geometry.radius} fill="var(--wc-device-body)" />
@@ -27,7 +27,14 @@ export function Enclosure({ geometry }: { geometry: DeviceGeometry }) {
       stroke="var(--wc-device-rim)"
       strokeWidth="1.5"
     />
-    <rect x={box.x} y={box.y} width={box.width} height={box.height} rx={geometry.screenRadius} fill="var(--wc-device-screen)" />
+    <rect
+      x={box.x}
+      y={box.y}
+      width={box.width}
+      height={box.height}
+      rx={geometry.screenRadius}
+      fill={screenLit ? "var(--wc-device-screen-lit, rgb(var(--wc-accent) / 0.32))" : "var(--wc-device-screen)"}
+    />
     <rect
       x={box.x}
       y={box.y}

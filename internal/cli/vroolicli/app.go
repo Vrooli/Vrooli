@@ -18,27 +18,37 @@ import (
 	packageapp "github.com/vrooli/vrooli/internal/app/package"
 	projectapp "github.com/vrooli/vrooli/internal/app/project"
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
+	"github.com/vrooli/vrooli/internal/app/supervision"
 	"github.com/vrooli/vrooli/internal/bootstrap"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cli/authcli"
 	"github.com/vrooli/vrooli/internal/cli/authhandlers"
 	"github.com/vrooli/vrooli/internal/cli/capabilityhandlers"
+	"github.com/vrooli/vrooli/internal/cli/capacitycli"
 	"github.com/vrooli/vrooli/internal/cli/capacityhandlers"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
+	"github.com/vrooli/vrooli/internal/cli/commandtree"
+	"github.com/vrooli/vrooli/internal/cli/contractcli"
 	"github.com/vrooli/vrooli/internal/cli/contracthandlers"
 	"github.com/vrooli/vrooli/internal/cli/credentialshandlers"
 	"github.com/vrooli/vrooli/internal/cli/hosthandlers"
 	"github.com/vrooli/vrooli/internal/cli/hygienehandlers"
 	"github.com/vrooli/vrooli/internal/cli/metrics"
+	"github.com/vrooli/vrooli/internal/cli/packagecli"
 	"github.com/vrooli/vrooli/internal/cli/packagehandlers"
 	"github.com/vrooli/vrooli/internal/cli/projectcli"
+	"github.com/vrooli/vrooli/internal/cli/recoverycli"
 	"github.com/vrooli/vrooli/internal/cli/recoveryhandlers"
+	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/cli/resourcehandlers"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/runtimehandlers"
 	"github.com/vrooli/vrooli/internal/cli/scenariocli"
 	"github.com/vrooli/vrooli/internal/cli/scenariohandlers"
 	"github.com/vrooli/vrooli/internal/cli/scenarioprimitives"
+	"github.com/vrooli/vrooli/internal/cli/supervisioncli"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
+	"github.com/vrooli/vrooli/internal/cli/tuninghandlers"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
 	configpkg "github.com/vrooli/vrooli/internal/config"
@@ -168,6 +178,60 @@ func (app *App) Registry() *rootcli.Registry[*CommandContext] {
 		app.registry = rootcli.NewRegistry(app.buildTopLevelHandlerMap(), app.buildScenarioHandlerMap())
 	}
 	return app.registry
+}
+
+// RegisteredLeafPaths returns the invocable command vocabulary derived from
+// the same specs and binding-name sets that build the live root handlers.
+// Constructing the registry is name-only: command services are not dialed.
+func RegisteredLeafPaths() ([]string, error) {
+	app := New(Config{})
+	var paths []string
+	appendSpecs := func(prefix string, names []string) {
+		for _, name := range names {
+			paths = append(paths, strings.TrimSpace(prefix+" "+name))
+		}
+	}
+	paths = append(paths, "agent launch", "hygiene", "lifecycle protect")
+	paths = append(paths,
+		"cleanup orphans", "cleanup locks", "cleanup template-validation",
+		"orphans list", "orphans kill", "locks list", "locks clean",
+		"release-authority init", "release-authority status", "release-authority add-evidence",
+		"release-authority sign", "release-authority regenerate",
+	)
+	for _, spec := range topcli.CommandSpecs() {
+		if spec.Group == "Lifecycle Commands" {
+			paths = append(paths, spec.Name)
+		}
+	}
+	for _, spec := range scenariocli.CommandSpecs() {
+		paths = append(paths, "scenario "+spec.Name)
+	}
+	appendSpecs("package", commandSpecNames(packagecli.CommandSpecs()))
+	appendSpecs("auth", commandSpecNames(authcli.CommandSpecs()))
+	appendSpecs("recovery", commandSpecNames(recoverycli.CommandSpecs()))
+	appendSpecs("capacity", commandSpecNames(capacitycli.CommandSpecs()))
+	appendSpecs("contract", commandSpecNames(contractcli.CommandSpecs()))
+	appendSpecs("contract resolve", commandSpecNames(contractcli.ResolveCommandSpecs()))
+	appendSpecs("resource", commandSpecNames(resourcecli.CommandSpecs()))
+	appendSpecs("resource blueprint", commandSpecNames(resourcecli.BlueprintCommandSpecs()))
+	appendSpecs("resource archive", commandSpecNames(resourcecli.ArchiveCommandSpecs()))
+	appendSpecs("resource schema", commandSpecNames(resourcecli.SchemaCommandSpecs()))
+	appendSpecs("resource acquisition", commandSpecNames(resourcecli.AcquisitionCommandSpecs()))
+	appendSpecs("resource acceleration", commandSpecNames(resourcecli.AccelerationCommandSpecs()))
+	paths = append(paths, credentialshandlers.RegisteredCommandPaths()...)
+	paths = append(paths, tuninghandlers.RegisteredCommandPaths()...)
+	paths = append(paths, hosthandlers.RegisteredCommandPaths()...)
+	paths = append(paths, runtimehandlers.RegisteredCommandPaths()...)
+	paths = append(paths, capabilityhandlers.RegisteredCommandPaths()...)
+	return rootcli.WalkCommandTree(app.Registry(), paths)
+}
+
+func commandSpecNames[ID any](specs []commandtree.Spec[ID]) []string {
+	names := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		names = append(names, spec.Name)
+	}
+	return names
 }
 
 func (app *App) Runner() *rootcli.Runner[*CommandContext] {
@@ -647,7 +711,7 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			if err != nil {
 				return project.StatusReport{}, err
 			}
-			return command.Status(projectapp.StatusRequest{ResourcesOnly: req.ResourcesOnly, ScenariosOnly: req.ScenariosOnly, Fast: req.Fast})
+			return command.Status(req)
 		}),
 		topcli.CommandStop: projectcli.StopHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.StopRequest) (control.StopReport, error) {
 			if err := enforceAgentCommandPolicy("stop", req.Targets); err != nil {
@@ -657,14 +721,14 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			if err != nil {
 				return control.StopReport{}, err
 			}
-			return command.Stop(projectapp.StopRequest{Targets: req.Targets})
+			return command.Stop(req)
 		}),
 		topcli.CommandBackup: projectcli.ProjectPhaseHandler(commandStdout, "backup", func(ctx *CommandContext, args []string) error { return runProjectPhaseFromContext(ctx, "backup", args) }),
 		topcli.CommandRestore: projectcli.ProjectPhaseHandler(commandStdout, "restore", func(ctx *CommandContext, args []string) error {
 			return runProjectPhaseFromContext(ctx, "restore", args)
 		}),
 		topcli.CommandScenario: func(ctx *CommandContext, args []string) error {
-			return scenariohandlers.RootHandler(commandStdout, ctx.app.Registry().ScenarioHandler, ctx.app.Registry().SuggestScenario)(ctx, args)
+			return scenariohandlers.RootHandler(commandStdout, func(ctx *CommandContext) io.Writer { return ctx.Stderr }, func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals }, ctx.app.Registry().ScenarioHandler, ctx.app.Registry().SuggestScenario)(ctx, args)
 		},
 		topcli.CommandPackage: packagehandlers.RootHandler(packagehandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,
@@ -740,11 +804,11 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			if err != nil {
 				return projectcli.OrphansResponse{}, err
 			}
-			resp, err := command.Orphans(projectapp.OrphansRequest{Kill: req.Kill, DryRun: req.DryRun})
+			resp, err := command.Orphans(req)
 			if err != nil {
 				return projectcli.OrphansResponse{}, err
 			}
-			return projectcli.OrphansResponse{List: resp.List, KillReport: resp.KillReport, DryRun: resp.DryRun}, nil
+			return resp, nil
 		}),
 		topcli.CommandLocks: projectcli.LocksHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.LocksRequest) (projectcli.LocksResponse, error) {
 			policyArgs := []string{"locks"}
@@ -758,18 +822,18 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			if err != nil {
 				return projectcli.LocksResponse{}, err
 			}
-			resp, err := command.Locks(projectapp.LocksRequest{Clean: req.Clean})
+			resp, err := command.Locks(req)
 			if err != nil {
 				return projectcli.LocksResponse{}, err
 			}
-			return projectcli.LocksResponse{RuntimeClaims: resp.RuntimeClaims, CleanReport: resp.CleanReport, ShowAll: req.ShowAll}, nil
+			return resp, nil
 		}),
 		topcli.CommandDiagnosePort: projectcli.DiagnosePortHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.DiagnosePortRequest) (maintenance.PortDiagnostic, error) {
 			command, err := ctx.app.newProjectCommandService(ctx)
 			if err != nil {
 				return maintenance.PortDiagnostic{}, err
 			}
-			return command.DiagnosePort(projectapp.DiagnosePortRequest{Port: req.Port, ScenarioName: req.ScenarioName})
+			return command.DiagnosePort(req)
 		}),
 		topcli.CommandContract: contracthandlers.RootHandler(contracthandlers.HandlerDeps[*CommandContext]{
 			Stdout:       commandStdout,
@@ -814,6 +878,11 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Stdout:  commandStdout,
 			Stderr:  func(ctx *CommandContext) io.Writer { return ctx.Stderr },
 		}),
+		topcli.CommandTuning: tuninghandlers.RootHandler(tuninghandlers.HandlerDeps[*CommandContext]{
+			Globals: func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals },
+			Stdout:  commandStdout,
+			Stderr:  func(ctx *CommandContext) io.Writer { return ctx.Stderr },
+		}),
 		topcli.CommandCredentials: credentialshandlers.RootHandler(credentialshandlers.HandlerDeps[*CommandContext]{
 			Root:    func(ctx *CommandContext) string { return ctx.Root },
 			Globals: func(ctx *CommandContext) rootcli.GlobalOptions { return ctx.Globals },
@@ -829,6 +898,21 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			Stdout:  commandStdout,
 			Stderr:  func(ctx *CommandContext) io.Writer { return ctx.Stderr },
 		}),
+		topcli.CommandSupervisionSet: func(ctx *CommandContext, args []string) error {
+			request, err := supervisioncli.ParseRequest(ctx.Globals.JSON, args)
+			if err != nil {
+				return err
+			}
+			report, err := (supervision.Service{}).Read(ctx.Root)
+			if err != nil {
+				return err
+			}
+			format, err := cliout.ParseFormat("", request.JSON)
+			if err != nil {
+				return err
+			}
+			return supervisioncli.Render(commandStdout(ctx), format, supervisioncli.Filter(report, request.Kind))
+		},
 		topcli.CommandUninstall: func(ctx *CommandContext, args []string) error { return ctx.app.runUninstallCommand(ctx, args) },
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *CommandContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
 	}

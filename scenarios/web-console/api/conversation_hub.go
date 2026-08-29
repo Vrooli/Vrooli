@@ -15,6 +15,7 @@ const (
 	HubKindConversationEventUpdate = "conversation_event_update"
 	HubKindConversationOutOfSync   = "conversation_out_of_sync"
 	HubKindSessionStatus           = "session_status"
+	HubKindDeviceStatus            = "device_status"
 )
 
 // hubRingSize bounds the in-memory replay buffer keyed by global id. A

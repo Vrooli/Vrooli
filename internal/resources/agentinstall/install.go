@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -149,7 +150,7 @@ func Install(ctx context.Context, spec Spec) error {
 		return fmt.Errorf("refusing to overwrite root-owned %s at %s", spec.Binary, blocker)
 	}
 	target := filepath.Join(spec.BinDir, spec.Binary)
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == string(hostreqspec.PlatformWindows) {
 		target += ".exe"
 	}
 	if spec.Version != "" {
@@ -203,7 +204,7 @@ func expandURL(template, version, goos, arch string) string {
 	value = strings.ReplaceAll(value, "${os}", goos)
 	value = strings.ReplaceAll(value, "${arch}", arch)
 	platform := goos
-	if platform == "darwin" {
+	if platform == string(hostreqspec.PlatformDarwin) {
 		platform = "macos"
 	}
 	return strings.ReplaceAll(value, "${platform}", platform)

@@ -49,6 +49,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -513,7 +514,7 @@ func (l *Ledger) Read() ([]Receipt, error) {
 			names = append(names, entry.Name())
 		}
 	}
-	sortStrings(names)
+	slices.Sort(names)
 
 	var receipts []Receipt
 	for _, name := range names {
@@ -541,12 +542,4 @@ func newReceiptID() string {
 		return fmt.Sprintf("rcpt-%d-%d", os.Getpid(), time.Now().UnixNano())
 	}
 	return hex.EncodeToString(buffer)
-}
-
-func sortStrings(values []string) {
-	for i := 1; i < len(values); i++ {
-		for j := i; j > 0 && values[j] < values[j-1]; j-- {
-			values[j], values[j-1] = values[j-1], values[j]
-		}
-	}
 }

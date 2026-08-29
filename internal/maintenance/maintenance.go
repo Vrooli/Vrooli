@@ -649,9 +649,22 @@ var vrooliCLIExecutableBasenames = map[string]struct{}{
 	"vrooli.exe": {},
 }
 
-func isVrooliCLIExecutable(exe string) bool {
-	_, ok := vrooliCLIExecutableBasenames[processPathBase(exe)]
-	return ok
+func isVrooliCLIExecutable(home, exe string) bool {
+	if _, ok := vrooliCLIExecutableBasenames[processPathBase(exe)]; ok {
+		return true
+	}
+	binDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		return false
+	}
+	exe = strings.TrimSuffix(strings.TrimSpace(exe), " (deleted)")
+	rel, err := filepath.Rel(binDir, exe)
+	if err != nil || rel == "." || filepath.IsAbs(rel) {
+		return false
+	}
+	// Only direct children are installed command surfaces. Subdirectories may
+	// contain a supervised workload and remain subject to ownership checks.
+	return filepath.Dir(rel) == "."
 }
 
 func isControlPlaneAPIExecutable(entry processTableEntry) bool {

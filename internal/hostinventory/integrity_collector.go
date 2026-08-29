@@ -346,7 +346,7 @@ func collectIntegrityPackages(ctx context.Context, c *IntegrityDefaultCollector,
 		state := PackageState{Manager: "pacman"}
 		if out, runErr := c.commands.Run(ctx, "pacman", "-Q"); runErr == nil {
 			for _, line := range strings.Split(string(out), "\n") {
-				if strings.Contains(line, "linux") || strings.Contains(line, "nvidia") || strings.Contains(line, "mesa") {
+				if strings.Contains(line, string(hostreqspec.PlatformLinux)) || strings.Contains(line, "nvidia") || strings.Contains(line, "mesa") {
 					state.Installed = append(state.Installed, strings.TrimSpace(line))
 				}
 			}

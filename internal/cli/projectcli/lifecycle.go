@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	projectapp "github.com/vrooli/vrooli/internal/app/project"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -33,45 +34,22 @@ type DoctorRequest struct {
 	RepairFilePermissions bool
 }
 
-type StatusRequest struct {
-	ResourcesOnly bool
-	ScenariosOnly bool
-	Fast          bool
-}
+type StatusRequest = projectapp.StatusRequest
 
-type StopRequest struct {
-	Targets []string
-}
+type StopRequest = projectapp.StopRequest
 
-type OrphansRequest struct {
-	Kill   bool
-	DryRun bool
-}
+type OrphansRequest = projectapp.OrphansRequest
 
-type LocksRequest struct {
-	Clean bool
-	// ShowAll includes expired claims in human-readable output. JSON output
-	// is never filtered (machine consumers depend on the full set), so this
-	// only affects rendering.
-	ShowAll bool
-}
+type LocksRequest = projectapp.LocksRequest
 
-type DiagnosePortRequest struct {
-	Port         int
-	ScenarioName string
-}
+type DiagnosePortRequest = projectapp.DiagnosePortRequest
 
 type CleanupRequest struct {
 	Target string
 	Args   []string
 }
 
-type TemplateValidationCleanupRequest struct {
-	DryRun          bool
-	OlderThan       string
-	IncludeRetained bool
-	RunID           string
-}
+type TemplateValidationCleanupRequest = projectapp.TemplateValidationCleanupRequest
 
 type LifecycleRequest struct {
 	Subcommand string

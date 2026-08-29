@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +15,8 @@ import (
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/supervision"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // mustProcDir resolves runtime-home paths for tests; the process
@@ -27,21 +28,6 @@ func mustProcDir(t *testing.T, home, name string) string {
 		t.Fatalf("ScenarioProcessDir(%q, %q): %v", home, name, err)
 	}
 	return dir
-}
-
-type maintenanceTestClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func newMaintenanceTestClock(now time.Time) *maintenanceTestClock {
-	return &maintenanceTestClock{now: now.UTC()}
-}
-
-func (c *maintenanceTestClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
 }
 
 func TestLooksLikeVrooliProcessSkipsSystemDaemons(t *testing.T) {
@@ -258,6 +244,47 @@ func TestListOrphansFiltersTrackedAncestors(t *testing.T) {
 		t.Fatalf("orphans = %#v", orphans)
 	}
 }
+
+func TestListOrphansGivenOwnedDaemonAtInitThenItIsNotAnOrphan(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	started := time.Date(2026, 8, 29, 0, 0, 0, 0, time.UTC)
+
+	originalListProcessTable := listProcessTableFn
+	originalOwnershipIndex := ownershipIndexFn
+	t.Cleanup(func() {
+		listProcessTableFn = originalListProcessTable
+		ownershipIndexFn = originalOwnershipIndex
+	})
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{
+			4242: {PID: 4242, PPID: 1, PGID: 4242, SID: 4242, Command: filepath.Join(home, ".vrooli", "artifacts", "ollama", "bin", "ollama")},
+			4243: {PID: 4243, PPID: 1, PGID: 4243, SID: 4243, Command: filepath.Join(home, ".vrooli", "artifacts", "abandoned", "server")},
+		}, nil
+	}
+	ownershipIndexFn = func(string) (*supervision.Index, error) {
+		return supervision.BuildIndex(
+			maintenanceProcessSource{4242: {PID: 4242, StartedAt: started}},
+			maintenanceOwnerSource{{Kind: supervision.OwnerKindResource, Name: "ollama", PID: 4242, StartedAt: started}},
+		)
+	}
+
+	orphans, err := NewController(root, home).ListOrphans()
+	if err != nil {
+		t.Fatalf("ListOrphans: %v", err)
+	}
+	if len(orphans) != 1 || orphans[0].PID != 4243 {
+		t.Fatalf("orphans = %#v, want only unclaimed pid 4243", orphans)
+	}
+}
+
+type maintenanceProcessSource map[int]supervision.ProcessInfo
+
+func (s maintenanceProcessSource) Processes() (map[int]supervision.ProcessInfo, error) { return s, nil }
+
+type maintenanceOwnerSource []supervision.Owner
+
+func (s maintenanceOwnerSource) Owners() ([]supervision.Owner, error) { return s, nil }
 
 func TestSnapshotHonorsRegistryProcessRefs(t *testing.T) {
 	root := t.TempDir()
@@ -715,7 +742,7 @@ func TestCleanStaleLocksExpiresAbandonedRegistryReservations(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	ctx := context.Background()
-	clk := newMaintenanceTestClock(time.Now().UTC().Add(-2 * time.Hour))
+	clk := testenv.NewClock(time.Now().UTC().Add(-2 * time.Hour))
 
 	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home, Clock: clk})
 	if err != nil {
@@ -1502,11 +1529,11 @@ func stubListenerSnapshot(t *testing.T, known bool, ports map[int][]network.Snap
 	}
 }
 
-// TestListOrphansExcludesVrooliCLIInvocation guards against classifying a
-// transient user-initiated `vrooli` CLI command (and its build subtree) as
-// orphans. Without this, `vrooli cleanup orphans` would SIGTERM a concurrent
-// `vrooli scenario restart <name>` invocation in progress.
-func TestListOrphansExcludesVrooliCLIInvocation(t *testing.T) {
+// TestListOrphansExcludesInstalledCLIInvocations guards every command surface
+// under ~/.vrooli/bin, not only the root `vrooli` executable. Scenario CLIs
+// run bounded jobs that may outlive the shell which launched them; they are not
+// abandoned supervised workloads. Artifact binaries remain in scope.
+func TestListOrphansExcludesInstalledCLIInvocations(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -1518,10 +1545,12 @@ func TestListOrphansExcludesVrooliCLIInvocation(t *testing.T) {
 	t.Cleanup(func() { listProcessTableFn = originalListProcessTable })
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
 		return map[int]processTableEntry{
-			// Sibling vrooli CLI invocation from a user shell (not tracked).
+			// Installed CLI invocations from a user shell (not tracked).
 			6000: {PID: 6000, PPID: 5999, PGID: 6000, SID: 6000, Executable: filepath.Join(home, ".vrooli", "bin", "vrooli"), Command: "vrooli scenario restart beta"},
+			6001: {PID: 6001, PPID: 1, PGID: 6001, SID: 6001, Executable: filepath.Join(home, ".vrooli", "bin", "git-control-tower"), Command: "git-control-tower baseline collection diff wait --name proof"},
+			6002: {PID: 6002, PPID: 1, PGID: 6002, SID: 6002, Executable: filepath.Join(home, ".vrooli", "bin", "tidiness-manager"), Command: "tidiness-manager scan internal --budget-audit"},
 			// Genuine unrelated orphan must still be surfaced.
-			5200: {PID: 5200, PPID: 1, PGID: 5200, SID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server")},
+			5200: {PID: 5200, PPID: 1, PGID: 5200, SID: 5200, Executable: filepath.Join(home, ".vrooli", "artifacts", "beta", "1.0", "server")},
 		}, nil
 	}
 
@@ -1531,7 +1560,7 @@ func TestListOrphansExcludesVrooliCLIInvocation(t *testing.T) {
 		t.Fatalf("ListOrphans: %v", err)
 	}
 	if len(orphans) != 1 || orphans[0].PID != 5200 {
-		t.Fatalf("vrooli CLI invocation must not be listed as orphan; got %#v", orphans)
+		t.Fatalf("installed CLI invocations must not be listed as orphans; got %#v", orphans)
 	}
 }
 

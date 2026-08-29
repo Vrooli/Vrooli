@@ -2,12 +2,15 @@
 
 package runtime
 
-import "github.com/vrooli/vrooli/internal/hostreqkit"
+import (
+	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
+)
 
 func currentHost() Host {
 	facts := currentPlatformFacts()
 	return Host{
-		OS:              "linux",
+		OS:              string(hostreqspec.PlatformLinux),
 		PackageManager:  detectPackageManager(),
 		SupportsSetup:   true,
 		SupportsDevelop: true,

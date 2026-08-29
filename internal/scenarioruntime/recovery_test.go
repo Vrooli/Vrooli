@@ -5,12 +5,16 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestRecoveryPolicyIsExplicitDurableAndFailsClosed(t *testing.T) {
 	ctx := context.Background()
-	clock := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clock)
+	clock := testenv.NewClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clock})
+	})
 
 	if _, err := store.GetRecoveryPolicy(ctx, "critical-api", ""); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("GetRecoveryPolicy without declaration error = %v, want ErrNotFound", err)
@@ -46,8 +50,10 @@ func TestRecoveryPolicyIsExplicitDurableAndFailsClosed(t *testing.T) {
 
 func TestPressureEpochAndRecoveryDecisionAreRestartSafeAndIdempotent(t *testing.T) {
 	ctx := context.Background()
-	clock := newFixedClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clock)
+	clock := testenv.NewClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clock})
+	})
 	epoch, err := store.CreatePressureEpoch(ctx, PressureEpoch{EpochID: "epoch-1", Source: "system-monitor"})
 	if err != nil {
 		t.Fatalf("CreatePressureEpoch: %v", err)
@@ -90,7 +96,9 @@ func TestPressureEpochAndRecoveryDecisionAreRestartSafeAndIdempotent(t *testing.
 }
 
 func TestRecoveryPolicyRejectsUnsafeValues(t *testing.T) {
-	store := newTestStore(t, newFixedClock(time.Now()))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Now())})
+	})
 	if _, err := store.UpsertRecoveryPolicy(context.Background(), RecoveryPolicy{Scenario: "api", DependencyTier: -1}); err == nil {
 		t.Fatal("UpsertRecoveryPolicy accepted negative dependency tier")
 	}

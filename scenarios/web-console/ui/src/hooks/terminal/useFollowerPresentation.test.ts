@@ -14,7 +14,7 @@ function present(overrides: Partial<PresentationOptions> = {}) {
   const options: PresentationOptions = {
     terminal: createTerminalStub({ cols: 80, rows: 24, screen: { width: 800, height: 480 } }),
     serverSize: { cols: 80, rows: 24 },
-    isFollower: true,
+		followerMode: "follower",
     paneSize: PANE,
     ...overrides,
   };
@@ -39,7 +39,7 @@ describe("measureCellAspect", () => {
 
 describe("useFollowerPresentation", () => {
   it("produces no frame for a leader, an unknown size, or an unmeasured pane", () => {
-    expect(present({ isFollower: false })).toBeNull();
+		expect(present({ followerMode: "leader" })).toBeNull();
     expect(present({ serverSize: null })).toBeNull();
     expect(present({ paneSize: { width: 0, height: 0 } })).toBeNull();
   });
@@ -80,7 +80,7 @@ describe("useFollowerPresentation", () => {
   it("computes without touching xterm, so rendering owns every mutation", () => {
     const terminal = createTerminalStub({ cols: 40, rows: 12, screen: { width: 400, height: 240 } });
     const { rerender } = renderHook(({ paneSize }) => useFollowerPresentation({
-      terminal, serverSize: { cols: 80, rows: 24 }, isFollower: true, paneSize,
+		terminal, serverSize: { cols: 80, rows: 24 }, followerMode: "follower", paneSize,
     }), { initialProps: { paneSize: PANE } });
     rerender({ paneSize: { width: 500, height: 400 } });
     expect(terminal.element?.style.cssText).toBe("");

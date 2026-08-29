@@ -991,7 +991,7 @@ func TestEnsureResourceDependenciesContinuesOnEnsureFailureWhenBestEffort(t *tes
 			Resources: map[string]scenario.Dependency{
 				"ollama": {
 					Enabled:          true,
-					Required:         true,
+					Required:         false,
 					StartupPolicy:    scenario.DependencyStartupPolicyTryStart,
 					DegradedBehavior: "fallback to cloud",
 					Config:           []byte(`{"models":["qwen3:4b"]}`),

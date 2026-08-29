@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -92,7 +93,7 @@ func (execRunner) Run(ctx context.Context, argv []string) ([]byte, error) {
 // error naming the native command an operator can run instead.
 func (s *Service) Backend() (Backend, error) {
 	switch s.goos {
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		if s.has("udisksctl") && s.has("busctl") {
 			return BackendUDisks, nil
 		}
@@ -100,12 +101,12 @@ func (s *Service) Backend() (Backend, error) {
 			return BackendNativeTools, nil
 		}
 		return "", ErrUnsupported{Reason: "no udisks2 client and no mount tools on this Linux host"}
-	case "darwin":
+	case string(hostreqspec.PlatformDarwin):
 		if s.has("diskutil") {
 			return BackendDiskutil, nil
 		}
 		return "", ErrUnsupported{Reason: "diskutil is unavailable"}
-	case "windows":
+	case string(hostreqspec.PlatformWindows):
 		if s.has("powershell") {
 			return BackendRepairVolume, nil
 		}

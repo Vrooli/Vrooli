@@ -11,10 +11,11 @@ import (
 
 	apihealth "github.com/vrooli/api-core/health"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestHealthProbeNoChecksReportsNotConfigured(t *testing.T) {
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
 	snapshot := HealthProbe{Clock: clk}.Probe(context.Background(), HealthProbeInput{
 		InstanceID:   "inst-alpha",
 		Scenario:     "alpha",
@@ -33,7 +34,7 @@ func TestHealthProbeNoChecksReportsNotConfigured(t *testing.T) {
 }
 
 func TestHealthProbeRecognizesStandardHealthResponse(t *testing.T) {
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/health" {
 			t.Fatalf("path = %q, want /health", r.URL.Path)
@@ -76,7 +77,7 @@ func TestHealthProbeRecognizesStandardHealthResponse(t *testing.T) {
 }
 
 func TestHealthProbeInvalidSchemaIsDiagnosticMetadata(t *testing.T) {
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"ok":true}`))
@@ -109,8 +110,10 @@ func TestHealthProbeInvalidSchemaIsDiagnosticMetadata(t *testing.T) {
 
 func TestHealthProbeUnhealthySnapshotDoesNotDeleteInstance(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateLease(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"}, time.Minute)
 	if err != nil {
 		t.Fatalf("CreateLease() error = %v", err)

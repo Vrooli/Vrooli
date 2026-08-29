@@ -137,10 +137,8 @@ func (a *App) StopAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) StopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-	if err := a.ensureScenarioExists(name); err != nil {
-		a.logWarn("Scenario stop requested for missing scenario", logx.AttrScenario, name)
-		respondError(w, err)
+	name, ok := a.scenarioNameForAction(w, r, "stop")
+	if !ok {
 		return
 	}
 	if err := a.StopScenarioFn(name); err != nil {
@@ -156,4 +154,14 @@ func (a *App) StopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	a.logInfo("Scenario stop request completed", logx.AttrScenario, name)
 	respondSuccess(w, http.StatusOK, messageData{Message: fmt.Sprintf("Scenario %s stopped successfully", name)})
+}
+
+func (a *App) scenarioNameForAction(w http.ResponseWriter, r *http.Request, action string) (string, bool) {
+	name := mux.Vars(r)["name"]
+	if err := a.ensureScenarioExists(name); err != nil {
+		a.logWarn(fmt.Sprintf("Scenario %s requested for missing scenario", action), logx.AttrScenario, name)
+		respondError(w, err)
+		return "", false
+	}
+	return name, true
 }

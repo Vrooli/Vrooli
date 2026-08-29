@@ -1,0 +1,42 @@
+{
+  "id": "f8c26384-57ed-4ebf-8bc7-5b9d82f5f8c5",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "two-viewers-lease-handover",
+  "folder_path": "/bas/cases/01-foundation/02-devices",
+  "description": "Open one terminal, attach a second live browser tab, and verify lease handover in both viewers",
+  "metadata": { "name": "two-viewers-lease-handover", "description": "Open one terminal, attach a second live browser tab, and verify lease handover in both viewers", "execution_mode": "mutating", "reset": "full", "labels": { "reset": "full", "requires_confirmation": "true", "routed_isolation": "true", "seed": "seed", "spec_entry_id": "workspace", "requirements_json": "[\"REQ-P1-013c\"]" } },
+  "tags": ["reset:full", "requirements_json:[\"REQ-P1-013c\"]"],
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "nodes": [
+      { "id": "launch-session", "action": { "type": "ACTION_TYPE_SUBFLOW", "subflow": { "workflow_path": "flows/terminal-command-smoke.json", "args": { "command": { "string_value": "printf BAS_DEVICE_LEASE_OK" } } } } },
+      { "id": "assert-session", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-terminal-smoke-session-id-captured='true']", "timeout_ms": 15000 } } },
+      { "id": "declare-second-device", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { localStorage.setItem('wc.deviceId', crypto.randomUUID()); localStorage.setItem('wc.deviceLabel', 'Second viewer'); })()" } } },
+      { "id": "open-second-tab", "action": { "type": "ACTION_TYPE_TAB_SWITCH", "tab_switch": { "action": "TAB_SWITCH_ACTION_OPEN" } } },
+      { "id": "navigate-second-viewer", "action": { "type": "ACTION_TYPE_NAVIGATE", "navigate": { "timeout_ms": 30000, "wait_until": "NAVIGATE_WAIT_EVENT_UNSPECIFIED", "destination_type": "NAVIGATE_DESTINATION_TYPE_UNSPECIFIED", "scenario": "web-console", "scenario_path": "/#/workspace" } } },
+      { "id": "assert-second-pane", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/terminal.pane", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000 } } },
+      { "id": "assert-second-follower", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/fleet.deviceFrame", "timeout_ms": 15000, "failure_message": "Expected the second live viewer to render follower device chrome" } } },
+      { "id": "take-over-second-viewer", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/fleet.takeOver" } } },
+      { "id": "wait-second-frame-away", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "@selector/fleet.deviceFrame", "state": "WAIT_STATE_HIDDEN", "timeout_ms": 15000 } } },
+      { "id": "switch-first-tab", "action": { "type": "ACTION_TYPE_TAB_SWITCH", "tab_switch": { "action": "TAB_SWITCH_ACTION_SWITCH", "index": 0 } } },
+      { "id": "assert-first-follower", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/fleet.deviceFrame", "timeout_ms": 15000, "failure_message": "Expected the first viewer to become a follower after handover" } } }
+      ,{ "id": "assert-new-leader-caption", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const caption = document.querySelector('[data-testid^=\"device-caption-\"]'); const text = caption?.textContent || ''; document.body.setAttribute('data-fleet-new-leader-caption', text.includes('Second viewer') ? 'true' : 'false'); })()" } } }
+      ,{ "id": "verify-new-leader-caption", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-fleet-new-leader-caption='true']", "timeout_ms": 5000, "failure_message": "Expected the first viewer to identify the second viewer as the new leader" } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "launch-session", "target": "assert-session", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e2", "source": "assert-session", "target": "declare-second-device", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e3", "source": "declare-second-device", "target": "open-second-tab", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e4", "source": "open-second-tab", "target": "navigate-second-viewer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e5", "source": "navigate-second-viewer", "target": "assert-second-pane", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e6", "source": "assert-second-pane", "target": "assert-second-follower", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e7", "source": "assert-second-follower", "target": "take-over-second-viewer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e8", "source": "take-over-second-viewer", "target": "wait-second-frame-away", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e9", "source": "wait-second-frame-away", "target": "switch-first-tab", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e10", "source": "switch-first-tab", "target": "assert-first-follower", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e11", "source": "assert-first-follower", "target": "assert-new-leader-caption", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e12", "source": "assert-new-leader-caption", "target": "verify-new-leader-caption", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    ]
+  }
+}

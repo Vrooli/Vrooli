@@ -13,21 +13,28 @@ import (
 )
 
 func RenderCapture(w io.Writer, format cliout.Format, resp recoveryapp.CaptureOutput) error {
-	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryCaptureResponse(resp)) }, func(w io.Writer) error {
-		_, _ = fmt.Fprintf(w, "captured %s/%s\n", resp.Scenario, resp.Slug)
-		_, _ = fmt.Fprintf(w, "  source: %s\n", filepath.ToSlash(resp.Source))
-		_, _ = fmt.Fprintf(w, "  restore point: %s\n", filepath.ToSlash(resp.RestorePointPath))
-		printStats(w, resp.Stats)
-		return nil
-	})
+	return renderTransfer(w, format,
+		func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryCaptureResponse(resp)) },
+		fmt.Sprintf("captured %s/%s", resp.Scenario, resp.Slug),
+		[]string{"source: " + filepath.ToSlash(resp.Source), "restore point: " + filepath.ToSlash(resp.RestorePointPath)},
+		resp.Stats)
 }
 
 func RenderRestore(w io.Writer, format cliout.Format, resp recoveryapp.RestoreOutput) error {
-	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryRestoreResponse(resp)) }, func(w io.Writer) error {
-		_, _ = fmt.Fprintf(w, "restored %s/%s\n", resp.Scenario, resp.Slug)
-		_, _ = fmt.Fprintf(w, "  restore point: %s\n", filepath.ToSlash(resp.RestorePointPath))
-		_, _ = fmt.Fprintf(w, "  dest: %s\n", filepath.ToSlash(resp.Dest))
-		printStats(w, resp.Stats)
+	return renderTransfer(w, format,
+		func(w io.Writer) error { return cliout.WriteProtoJSON(w, RecoveryRestoreResponse(resp)) },
+		fmt.Sprintf("restored %s/%s", resp.Scenario, resp.Slug),
+		[]string{"restore point: " + filepath.ToSlash(resp.RestorePointPath), "dest: " + filepath.ToSlash(resp.Dest)},
+		resp.Stats)
+}
+
+func renderTransfer(w io.Writer, format cliout.Format, writeJSON func(io.Writer) error, headline string, detail []string, stats baselinefloor.CopyStats) error {
+	return cliout.RenderJSONOr(w, format, writeJSON, func(w io.Writer) error {
+		_, _ = fmt.Fprintln(w, headline)
+		for _, line := range detail {
+			_, _ = fmt.Fprintln(w, "  "+line)
+		}
+		printStats(w, stats)
 		return nil
 	})
 }

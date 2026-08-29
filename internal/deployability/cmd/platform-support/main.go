@@ -25,7 +25,8 @@ import (
 )
 
 const (
-	mainParameterA = 2
+	checkInvocationArgumentCount = 2
+	invalidInvocationExitCode    = 2
 )
 
 type ledger struct {
@@ -75,10 +76,10 @@ type skipBudget struct {
 }
 
 func main() {
-	check := len(os.Args) == mainParameterA && os.Args[1] == "--check"
+	check := len(os.Args) == checkInvocationArgumentCount && os.Args[1] == "--check"
 	if len(os.Args) > 1 && !check {
 		fmt.Fprintln(os.Stderr, "usage: platform-support [--check]")
-		os.Exit(mainParameterA)
+		os.Exit(invalidInvocationExitCode)
 	}
 	root, err := repositoryRoot()
 	if err != nil {

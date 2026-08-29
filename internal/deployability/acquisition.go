@@ -5,9 +5,10 @@ import (
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-const acquisitionDarwin = "darwin"
+const acquisitionDarwin = string(hostreqspec.PlatformDarwin)
 
 // AcquisitionCoverageDeclaration is the manifest subset needed to prove that
 // a tool has a deterministic path on every platform it claims. The path may
@@ -89,9 +90,9 @@ func normalizeFactOS(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case acquisitionDarwin, "mac", string(HostOSMacOS):
 		return string(HostOSMacOS)
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		return string(HostOSLinux)
-	case "windows", "win32":
+	case string(hostreqspec.PlatformWindows), "win32":
 		return string(HostOSWindows)
 	default:
 		return strings.ToLower(strings.TrimSpace(value))

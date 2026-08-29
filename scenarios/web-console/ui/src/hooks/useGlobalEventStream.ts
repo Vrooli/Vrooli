@@ -40,6 +40,10 @@ type GlobalEventEnvelope =
   | (GlobalEventEnvelopeBase & {
       kind: "session_status";
       payload: SessionStatusPayload;
+    })
+  | (GlobalEventEnvelopeBase & {
+      kind: "device_status";
+      payload: DeviceStatusPayload;
     });
 
 interface ConversationEventPayload {
@@ -77,6 +81,14 @@ interface SessionStatusPayload {
   reason?: string;
 }
 
+export interface DeviceStatusPayload {
+  action?: "connected" | "disconnected";
+  deviceId?: string;
+  deviceLabel?: string;
+  deviceClass?: string;
+  connId?: string;
+}
+
 /** Lifecycle callbacks for externally originated session existence changes. */
 export interface SessionLifecycleHandlers {
   /** An externally created session (any origin) should be merged into state.
@@ -87,7 +99,11 @@ export interface SessionLifecycleHandlers {
   onSessionEnded?: (sessionId: string, reason: "deleted" | "terminated") => void;
 }
 
-export interface UseGlobalEventStreamOptions extends SessionLifecycleHandlers {
+export interface DeviceLifecycleHandlers {
+  onDeviceStatus?: (sessionId: string, status: DeviceStatusPayload) => void;
+}
+
+export interface UseGlobalEventStreamOptions extends SessionLifecycleHandlers, DeviceLifecycleHandlers {
   /** Surface an auto-summarize failure for the active pane (banner + retry). */
   onSummarizeError?: (sessionId: string, eventId: string, message: string) => void;
   /** Test seam: inject a fake EventSource factory. */
@@ -135,6 +151,7 @@ export function dispatchGlobalEvent(
   envelope: GlobalEventEnvelope,
   onSummarizeError?: (sessionId: string, eventId: string, message: string) => void,
   lifecycle?: SessionLifecycleHandlers,
+  deviceLifecycle?: DeviceLifecycleHandlers,
 ): void {
   const store = useConversationStore.getState();
   const { session_id: sessionId } = envelope;
@@ -181,6 +198,9 @@ export function dispatchGlobalEvent(
       }
       break;
     }
+    case "device_status":
+      deviceLifecycle?.onDeviceStatus?.(sessionId, envelope.payload);
+      break;
   }
 }
 
@@ -208,13 +228,15 @@ function toConversationEvent(
 }
 
 export function useGlobalEventStream(options: UseGlobalEventStreamOptions = {}): void {
-  const { onSummarizeError, onSessionCreated, onSessionEnded, createEventSource } = options;
+  const { onSummarizeError, onSessionCreated, onSessionEnded, onDeviceStatus, createEventSource } = options;
   // Keep the latest callbacks in refs so re-creating them doesn't tear down and
   // re-open the SSE connection.
   const onSummarizeErrorRef = useRef(onSummarizeError);
   onSummarizeErrorRef.current = onSummarizeError;
   const lifecycleRef = useRef<SessionLifecycleHandlers>({ onSessionCreated, onSessionEnded });
   lifecycleRef.current = { onSessionCreated, onSessionEnded };
+  const deviceLifecycleRef = useRef<DeviceLifecycleHandlers>({ onDeviceStatus });
+  deviceLifecycleRef.current = { onDeviceStatus };
 
   useEffect(() => {
     if (typeof EventSource === "undefined" && !createEventSource) return;
@@ -248,7 +270,7 @@ export function useGlobalEventStream(options: UseGlobalEventStreamOptions = {}):
       // out-of-sync nudges are advisory and intentionally carry id:0 — they must
       // always be processed, never deduped against a prior nudge.
       if (typeof envelope.id === "number" && envelope.id > 0 && !markSeen(envelope.id)) return;
-      dispatchGlobalEvent(envelope, onSummarizeErrorRef.current, lifecycleRef.current);
+      dispatchGlobalEvent(envelope, onSummarizeErrorRef.current, lifecycleRef.current, deviceLifecycleRef.current);
     };
 
     const kinds = [
@@ -256,6 +278,7 @@ export function useGlobalEventStream(options: UseGlobalEventStreamOptions = {}):
       "conversation_event_update",
       "conversation_out_of_sync",
       "session_status",
+      "device_status",
     ] as const;
 
     let source: EventSource | null = null;

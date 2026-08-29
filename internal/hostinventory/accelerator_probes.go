@@ -29,11 +29,11 @@ var vulkanICDDirs = map[string][]string{
 		"/usr/local/share/vulkan/icd.d",
 		"/etc/vulkan/icd.d",
 	},
-	"darwin": {
+	string(hostreqspec.PlatformDarwin): {
 		"/usr/local/share/vulkan/icd.d",
 		"/opt/homebrew/share/vulkan/icd.d",
 	},
-	"windows": {},
+	string(hostreqspec.PlatformWindows): {},
 }
 
 // probeNodeOpenable reports whether the invoking user can actually open a

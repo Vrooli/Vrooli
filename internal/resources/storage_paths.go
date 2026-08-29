@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	runtimestorage "github.com/vrooli/vrooli/internal/resources/runtime/storage"
 )
 
@@ -25,7 +26,7 @@ func resourceStorageResolver() (*runtimestorage.Resolver, error) {
 			return home, nil
 		},
 		EnvGet: func(key string) string {
-			if sudoed && runtime.GOOS == "linux" {
+			if sudoed && runtime.GOOS == string(hostreqspec.PlatformLinux) {
 				switch key {
 				case "XDG_DATA_HOME":
 					return filepath.Join(home, ".local", "share")

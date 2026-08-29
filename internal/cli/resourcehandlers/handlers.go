@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/cli-core/upstreamcheck"
 	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
 	"github.com/vrooli/vrooli/internal/capacity"
@@ -19,7 +18,6 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/topcli"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreq"
 	"github.com/vrooli/vrooli/internal/hostreqrun"
@@ -99,16 +97,13 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 	handlerMap := map[resourcecli.CommandID]rootcli.ResourceHandler[C]{
 		resourcecli.CommandList: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.NoArgsRequest, error) { return parseResourceListRequest(args) },
-			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (resourceListResponse, error) {
+			func(ctx C, controller *resources.Controller, req resourcecli.NoArgsRequest) (resourceapp.ListResponse, error) {
 				_ = req
 				resp, err := newResourceCommandService(deps, ctx, controller).List()
 				if err != nil {
-					return resourceListResponse{}, err
+					return resourceapp.ListResponse{}, err
 				}
-				return resourceListResponse{
-					Items:    resp.Items,
-					Failures: append([]discovery.Failure(nil), resp.Failures...),
-				}, nil
+				return resp, nil
 			},
 			renderResourceListResponse,
 		),
@@ -161,21 +156,15 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		),
 		resourcecli.CommandStatus: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.StatusRequest, error) { return parseResourceStatusRequest(args) },
-			func(ctx C, controller *resources.Controller, req resourcecli.StatusRequest) (resourceStatusResponse, error) {
+			func(ctx C, controller *resources.Controller, req resourcecli.StatusRequest) (resourceapp.StatusResponse, error) {
 				if err := ensureNamedResourceCLI(deps, ctx, req.Name); err != nil {
-					return resourceStatusResponse{}, err
+					return resourceapp.StatusResponse{}, err
 				}
 				resp, err := newResourceCommandService(deps, ctx, controller).Status(req.Name, req.Fast)
 				if err != nil {
-					return resourceStatusResponse{}, err
+					return resourceapp.StatusResponse{}, err
 				}
-				if resp.Item != nil {
-					return resourceStatusResponse{Item: resp.Item}, nil
-				}
-				return resourceStatusResponse{
-					Items:    resp.Items,
-					Failures: append([]discovery.Failure(nil), resp.Failures...),
-				}, nil
+				return resp, nil
 			},
 			renderResourceStatusResponse,
 		),
@@ -360,12 +349,12 @@ func buildResourceBlueprintCommandTable[C any](deps HandlerDeps[C]) []commandtre
 			func(args []string) (resourcecli.BlueprintSearchRequest, error) {
 				return parseResourceBlueprintSearchRequest(args)
 			},
-			func(ctx C, controller *resources.Controller, req resourcecli.BlueprintSearchRequest) (resourceBlueprintSearchResponse, error) {
+			func(ctx C, controller *resources.Controller, req resourcecli.BlueprintSearchRequest) (resourceapp.BlueprintSearchResponse, error) {
 				items, err := newResourceCommandService(deps, ctx, controller).BlueprintSearch(req.Query)
 				if err != nil {
-					return resourceBlueprintSearchResponse{}, err
+					return resourceapp.BlueprintSearchResponse{}, err
 				}
-				return resourceBlueprintSearchResponse{Query: req.Query, Items: items}, nil
+				return resourceapp.BlueprintSearchResponse{Query: req.Query, Items: items}, nil
 			},
 			renderResourceBlueprintSearchResponse,
 		),
@@ -561,7 +550,7 @@ func buildResourceAcquisitionCommandTable[C any](deps HandlerDeps[C]) []commandt
 					return fmt.Errorf("collect host facts: %w", err)
 				}
 				facts := snapshot.AcceleratorFacts()
-				result := resourceAcquisitionExplanation{
+				result := resourceapp.AcquisitionExplanation{
 					Resource:       name,
 					Facts:          facts,
 					FactProvenance: acquisitionFactProvenance(snapshot),
@@ -651,34 +640,6 @@ func showResourceAccelerationHelp(w io.Writer) {
 	resourcecli.RenderCommandHelp(w, "", "vrooli resource acceleration <subcommand> [options]", "Resource Acceleration", resourcecli.AccelerationCommandSpecs())
 }
 
-type resourceStatusResponse struct {
-	Item     *resources.Status
-	Items    []resources.Status
-	Failures []discovery.Failure
-}
-
-type resourceListResponse struct {
-	Items    []resources.Resource
-	Failures []discovery.Failure
-}
-
-type resourceBlueprintSearchResponse struct {
-	Query string
-	Items []resources.Blueprint
-}
-
-type resourceAcquisitionExplanation struct {
-	Resource       string                              `json:"resource"`
-	Facts          map[string]string                   `json:"facts"`
-	FactProvenance map[string]hostinventory.Provenance `json:"fact_provenance,omitempty"`
-	Acquisition    *binaryfetch.Acquisition            `json:"acquisition,omitempty"`
-	Resolution     binaryfetch.ResolutionExplanation   `json:"resolution,omitempty"`
-	// Closure is the runtime-closure verdict for the artifact staged on this
-	// host, when one is staged. A digest-correct artifact whose libraries do
-	// not resolve is the failure this field exists to make visible.
-	Closure *resources.ClosureVerdict `json:"runtime_closure,omitempty"`
-}
-
 // acquisitionFactProvenance answers "where did each fact that selected this
 // artifact come from". Every emitted accelerator fact must appear, otherwise an
 // operator reading `vrooli resource acquisition explain` sees a selection with
@@ -696,7 +657,7 @@ func acquisitionFactProvenance(snapshot hostinventory.Snapshot) map[string]hosti
 	return result
 }
 
-func writeResourceAcquisitionExplanation(w io.Writer, format cliout.Format, result resourceAcquisitionExplanation) error {
+func writeResourceAcquisitionExplanation(w io.Writer, format cliout.Format, result resourceapp.AcquisitionExplanation) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, result) }, func(w io.Writer) error {
 		_, _ = fmt.Fprintf(w, "Resource: %s\n", result.Resource)
 		_, _ = fmt.Fprintln(w, "Facts:")
@@ -1029,14 +990,14 @@ func mapResourceParseError(command string, err error) error {
 	return rootcli.UsageErrorf(command, "%s", err.Error())
 }
 
-func renderResourceStatusResponse(w io.Writer, format cliout.Format, resp resourceStatusResponse) error {
+func renderResourceStatusResponse(w io.Writer, format cliout.Format, resp resourceapp.StatusResponse) error {
 	if resp.Item != nil {
 		return resourcecli.WriteStatus(w, format, *resp.Item)
 	}
 	return resourcecli.WriteStatuses(w, format, resp.Items, resp.Failures)
 }
 
-func renderResourceListResponse(w io.Writer, format cliout.Format, resp resourceListResponse) error {
+func renderResourceListResponse(w io.Writer, format cliout.Format, resp resourceapp.ListResponse) error {
 	return resourcecli.WriteList(w, format, resp.Items, resp.Failures)
 }
 
@@ -1077,6 +1038,6 @@ func renderResourceControlReportResponse(w io.Writer, format cliout.Format, resp
 	}
 }
 
-func renderResourceBlueprintSearchResponse(w io.Writer, format cliout.Format, resp resourceBlueprintSearchResponse) error {
+func renderResourceBlueprintSearchResponse(w io.Writer, format cliout.Format, resp resourceapp.BlueprintSearchResponse) error {
 	return resourcecli.WriteBlueprintSearch(w, format, resp.Query, resp.Items)
 }

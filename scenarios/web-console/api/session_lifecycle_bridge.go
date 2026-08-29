@@ -71,7 +71,24 @@ func (s *Server) publishSessionLifecycleEvent(evt events.Event) {
 		action = "deleted"
 	case events.SessionTerminated:
 		action = "terminated"
+	case events.SessionConnected:
+		action = "connected"
+	case events.SessionDisconnected:
+		action = "disconnected"
 	default:
+		return
+	}
+	if action == "connected" || action == "disconnected" {
+		details := make(map[string]string, len(evt.Details)+1)
+		for key, value := range evt.Details {
+			details[key] = value
+		}
+		details["action"] = action
+		s.hub.Publish(HubEnvelope{
+			SessionID: evt.SessionID,
+			Kind:      HubKindDeviceStatus,
+			Payload:   details,
+		})
 		return
 	}
 

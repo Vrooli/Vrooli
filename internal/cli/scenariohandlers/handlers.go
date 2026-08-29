@@ -13,12 +13,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	climanifest "github.com/vrooli/vrooli/cli"
 	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
+	"github.com/vrooli/vrooli/internal/cli/manifestdispatch"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	. "github.com/vrooli/vrooli/internal/cli/scenariocli" //nolint:revive // scenariohandlers is a thin glue layer over scenariocli; dot-import keeps wiring readable.
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -58,7 +62,11 @@ type HandlerDeps[C any] struct {
 	CommandEnv              func(C) []string
 }
 
-func RootHandler[C any](stdout func(C) io.Writer, lookup func(string) (rootcli.Handler[C], bool), suggest func(string) []string) rootcli.Handler[C] {
+var manifestLifecycleCommands = map[string]struct{}{
+	"logs": {}, "restart": {}, "setup": {}, "start": {}, "status": {}, "stop": {},
+}
+
+func RootHandler[C any](stdout, stderr func(C) io.Writer, globals func(C) rootcli.GlobalOptions, lookup func(string) (rootcli.Handler[C], bool), suggest func(string) []string) rootcli.Handler[C] {
 	return func(ctx C, args []string) error {
 		if len(args) == 0 || (len(args) == 1 && HelpOnlyWithoutRoot(args)) {
 			RenderCommandHelp(stdout(ctx))
@@ -68,7 +76,41 @@ func RootHandler[C any](stdout func(C) io.Writer, lookup func(string) (rootcli.H
 		if !ok {
 			return rootcli.NewUnknownScenarioCommandError(args[0], suggest(args[0]))
 		}
-		return handler(ctx, args[1:])
+		if _, manifestBound := manifestLifecycleCommands[args[0]]; !manifestBound || manifestdispatch.WantsHelp(args[1:]) {
+			return handler(ctx, args[1:])
+		}
+		manifest, err := cliapp.ParseManifest(climanifest.Bytes())
+		if err != nil {
+			return err
+		}
+		group := manifest.FindGroup("scenario")
+		if group == nil {
+			return fmt.Errorf("cli manifest: scenario group not found")
+		}
+		bindings := make(map[string]func(cliapp.RunContext) error, len(group.Commands))
+		for _, command := range group.Commands {
+			boundHandler, exists := lookup(command.Name)
+			if !exists {
+				return fmt.Errorf("cli manifest: scenario command %q has no registered handler", command.Name)
+			}
+			bindingKey := command.Binding.BindingKey()
+			if command.Binding.Kind == "local" {
+				bindingKey = command.Binding.Handler
+				if bindingKey == "" {
+					bindingKey = command.Name
+				}
+			}
+			bindings[bindingKey] = func(runCtx cliapp.RunContext) error {
+				legacyArgs := manifestdispatch.WithJSON(manifestdispatch.LegacyArgs(runCtx), runCtx.JSON())
+				return boundHandler(ctx, legacyArgs)
+			}
+		}
+		loadedGroup, err := cliapp.LoadFromManifest(climanifest.Bytes(), "scenario", bindings)
+		if err != nil {
+			return err
+		}
+		core := cliapp.NewApp(cliapp.AppOptions{Name: "vrooli scenario", Commands: []cliapp.CommandGroup{{Commands: loadedGroup.Subcommands}}})
+		return core.RunWithWriters(manifestdispatch.WithJSON(args, globals(ctx).JSON), stdout(ctx), stderr(ctx))
 	}
 }
 
@@ -114,6 +156,23 @@ func mergeHandlerMaps[C any](groups ...map[CommandID]rootcli.Handler[C]) map[Com
 //nolint:gocyclo // read command registration preserves distinct parser, service, remote, and renderer seams.
 func buildScenarioReadHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] {
 	return map[CommandID]rootcli.Handler[C]{
+		CommandValidate: func(ctx C, args []string) error {
+			format, err := deps.OutputFormat(ctx)
+			if err != nil {
+				return err
+			}
+			if _, err := ParseValidateRequest(deps.Globals(ctx).JSON, args); err != nil {
+				return err
+			}
+			report := ValidateScenarioManifests(deps.Root(ctx))
+			if err := RenderValidateResponse(deps.Stdout(ctx), format, ValidateResponse{Report: report}); err != nil {
+				return err
+			}
+			if !report.Passed {
+				return rootcli.ExitCodeError{Code: 1, Silent_: true}
+			}
+			return nil
+		},
 		CommandList: scenarioServiceCommand(deps.Stdout, deps.OutputFormat,
 			func(ctx C, args []string) (ListRequest, error) { return ParseListRequest(deps.Globals(ctx).JSON, args) },
 			func(ctx C, format cliout.Format, req ListRequest) (ListResponse, error) {
@@ -528,9 +587,9 @@ func buildScenarioUtilityHandlers[C any](deps HandlerDeps[C]) map[CommandID]root
 			var command string
 			var commandArgs []string
 			switch runtime.GOOS {
-			case "darwin":
+			case string(hostreqspec.PlatformDarwin):
 				command, commandArgs = "screencapture", []string{"-x", req.Output}
-			case "linux":
+			case string(hostreqspec.PlatformLinux):
 				command, commandArgs = "gnome-screenshot", []string{"-f", req.Output}
 			default:
 				return fmt.Errorf("scenario screenshot: unsupported operating system %q", runtime.GOOS)
@@ -749,8 +808,8 @@ func decodeRemoteLifecycle(payload []byte) ([]LifecycleItemOutput, error) {
 		}
 		items = append(items, LifecycleItemOutput{
 			Name: item.GetName(), Status: item.GetStatus(), Health: item.GetHealth(), Ports: ports,
-			Endpoints: endpoints, FailedDependencies: CopyStrings(item.GetFailedDependencies()),
-			FailedResources: CopyStrings(item.GetFailedResources()), Verdict: item.GetVerdict(),
+			Endpoints: endpoints, FailedDependencies: scenarioapp.CopyStrings(item.GetFailedDependencies()),
+			FailedResources: scenarioapp.CopyStrings(item.GetFailedResources()), Verdict: item.GetVerdict(),
 			Operation: remoteOperationView(item.GetOperation()),
 		})
 	}

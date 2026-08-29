@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 
+	projectapp "github.com/vrooli/vrooli/internal/app/project"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -23,19 +24,9 @@ type StatusResponse struct {
 	Report  project.StatusReport
 }
 
-type OrphansResponse struct {
-	KillReport *control.StopReport
-	List       []maintenance.SystemProcess
-	DryRun     bool
-}
+type OrphansResponse = projectapp.OrphansResponse
 
-type LocksResponse struct {
-	CleanReport   *control.StopReport
-	RuntimeClaims []maintenance.RuntimeClaimInfo
-	// ShowAll renders expired claims in the human table. JSON output always
-	// carries the full claim set regardless of this flag.
-	ShowAll bool
-}
+type LocksResponse = projectapp.LocksResponse
 
 type TemplateValidationCleanupResponse struct {
 	Result templatevalidation.CleanupResult

@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // idleUnloadClaim returns an active, idle claim at its top step with an
@@ -72,8 +74,10 @@ func TestIdleUnloadHonorsPolicyDefaultTTL(t *testing.T) {
 func TestRunIdleUnloadAdvisoryVsEnforce(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC)
-	clk := newFixedClock(now)
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(now)
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	policy := DefaultPolicy()
 
 	created, err := store.CreateClaim(ctx, idleUnloadClaim(now, time.Hour), time.Hour)

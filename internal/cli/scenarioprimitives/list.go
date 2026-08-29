@@ -88,9 +88,34 @@ func BuildScenarioPrimitiveGroup(manifestRaw []byte, client cliv1connect.Scenari
 		},
 		projectScenarioListReport,
 	)
-	return cliapp.LoadFromManifestPrimitives(manifestRaw, projectPrimitiveGroup, map[string]cliapp.PrimitiveHandler{
+	bindings := map[string]cliapp.PrimitiveHandler{
 		"ScenarioControlPlaneService.ListScenarios": listHandler,
-	})
+	}
+	manifest, err := cliapp.ParseManifest(manifestRaw)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, err
+	}
+	group := manifest.FindGroup(projectPrimitiveGroup)
+	if group == nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("manifest group %q not found", projectPrimitiveGroup)
+	}
+	for _, command := range group.Commands {
+		key := command.Binding.BindingKey()
+		if command.Binding.Kind == "local" {
+			key = command.Binding.Handler
+			if key == "" {
+				key = command.Name
+			}
+		}
+		if _, exists := bindings[key]; exists {
+			continue
+		}
+		commandName := command.Name
+		bindings[key] = cliapp.PrimitiveHandler{Run: func(cliapp.RunContext) error {
+			return fmt.Errorf("scenario primitive %q is dispatched by the control-plane handler", commandName)
+		}}
+	}
+	return cliapp.LoadFromManifestPrimitives(manifestRaw, projectPrimitiveGroup, bindings)
 }
 
 func containsFlag(args []string, flag string) bool {

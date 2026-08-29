@@ -9,12 +9,16 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestStartOperationLifecycleAndSupersede(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	pid := 4242
 	first, err := store.BeginStartOperation(ctx, StartOperation{
@@ -84,8 +88,10 @@ func TestStartOperationLifecycleAndSupersede(t *testing.T) {
 
 func TestStartOperationAbandonAndTerminalPruning(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	op, err := store.BeginStartOperation(ctx, StartOperation{Scenario: "alpha"})
 	if err != nil {
@@ -139,8 +145,10 @@ func TestStartOperationAbandonAndTerminalPruning(t *testing.T) {
 // back to running.
 func TestUpdateStartOperationDoesNotResurrectTerminalRecord(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	op, err := store.BeginStartOperation(ctx, StartOperation{Scenario: "alpha"})
 	if err != nil {
@@ -170,8 +178,10 @@ func TestUpdateStartOperationDoesNotResurrectTerminalRecord(t *testing.T) {
 
 func TestPhaseDurationEstimatesSmoothedAndPruned(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	// No history → empty map, never a fabricated number.
 	estimates, err := store.PhaseDurationEstimates(ctx, "alpha", "")
@@ -224,8 +234,10 @@ func TestPhaseDurationEstimatesSmoothedAndPruned(t *testing.T) {
 
 func TestStartTimingSummariesIncludeScenarioAndFleetTail(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	writeTerminal := func(scenario, operation string, setup, health time.Duration) {
 		op, err := store.BeginStartOperation(ctx, StartOperation{Scenario: scenario, Operation: operation})
@@ -286,7 +298,9 @@ func TestStartTimingSummariesIncludeScenarioAndFleetTail(t *testing.T) {
 
 func TestGetLatestStartOperationNotFound(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))})
+	})
 	if _, err := store.GetLatestStartOperation(ctx, "ghost", ""); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("error = %v, want ErrNotFound", err)
 	}
@@ -334,7 +348,7 @@ VALUES ('startop-legacy', 'alpha', 'live', 'start', 'succeeded', '2026-05-01T12:
 		t.Fatalf("close raw sqlite: %v", err)
 	}
 
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
 	store, err := NewSQLiteStore(ctx, Config{DBPath: dbPath, Clock: clk})
 	if err != nil {
 		t.Fatalf("NewSQLiteStore on a v7 database: %v", err)
@@ -398,7 +412,9 @@ func TestStartOperationProvenanceMigrationIsIdempotent(t *testing.T) {
 
 func TestBeginStartOperationBoundsInitiatorText(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))})
+	})
 
 	// Agent-driven command lines run to kilobytes; the record is forensics,
 	// not a transcript.

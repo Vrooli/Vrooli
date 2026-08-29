@@ -10,6 +10,7 @@ import (
 	"time"
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/orchestrator"
@@ -363,7 +364,7 @@ func TestBuildListPortsSortsAndMapsRecords(t *testing.T) {
 		},
 	}
 
-	listPorts, ports := BuildListPorts(manifest, []process.Record{
+	listPorts, ports := scenarioapp.BuildListPorts(manifest, []process.Record{
 		{Step: "start-ui", Port: 38080, PortKey: "UI_PORT"},
 		{Step: "start-api", Port: 18080, PortKey: "API_PORT"},
 	})
@@ -386,7 +387,7 @@ func TestBuildListPortsKeepsFirstExplicitRecordPerPort(t *testing.T) {
 		},
 	}
 
-	listPorts, ports := BuildListPorts(manifest, []process.Record{
+	listPorts, ports := scenarioapp.BuildListPorts(manifest, []process.Record{
 		{Step: "start-api", Port: 18080, PortKey: "API_PORT"},
 		{Step: "run-api", Port: 19090, PortKey: "API_PORT"},
 	})
@@ -489,13 +490,13 @@ func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
 		},
 	}
 
-	status := BuildStatusItem(item, runtimeState)
+	status := scenarioapp.BuildStatusItem(item, runtimeState)
 	if status.Status != "running" || status.Health != "running" {
 		t.Fatalf("status item = %+v", status)
 	}
 
 	var infoOut bytes.Buffer
-	WriteInfoHuman(&infoOut, BuildInfoData(item), BuildRuntimeData(item.Manifest, runtimeState))
+	WriteInfoHuman(&infoOut, scenarioapp.BuildInfoData(item), scenarioapp.BuildRuntimeData(item.Manifest, runtimeState))
 	for _, want := range []string{
 		"Configured ports:",
 		"API_PORT (api)",
@@ -521,8 +522,8 @@ func TestBuildScenarioStatusItemAndHumanWriters(t *testing.T) {
 	var statusOut bytes.Buffer
 	WriteStatusHuman(&statusOut, StatusSingleOutput{
 		Scenario: status,
-		Info:     BuildInfoData(item),
-		Runtime:  BuildRuntimeData(item.Manifest, runtimeState),
+		Info:     scenarioapp.BuildInfoData(item),
+		Runtime:  scenarioapp.BuildRuntimeData(item.Manifest, runtimeState),
 	})
 	if !strings.Contains(statusOut.String(), "Health: running") || !strings.Contains(statusOut.String(), "Processes:") {
 		t.Fatalf("scenario status output = %s", statusOut.String())
@@ -597,7 +598,7 @@ func TestBuildStatusDetailIncludesHealthError(t *testing.T) {
 		},
 	}
 
-	status := BuildStatusDetail(detail)
+	status := scenarioapp.BuildStatusDetail(detail)
 	if status.Health != "unhealthy" {
 		t.Fatalf("Health = %v, want unhealthy", status.Health)
 	}
@@ -633,7 +634,7 @@ func TestBuildListPortsFallsBackToEnvironment(t *testing.T) {
 	var listPorts []ListPortOutput
 	var ports map[string]int
 	for attempt := 0; attempt < 20; attempt++ {
-		listPorts, ports = BuildListPorts(manifest, []process.Record{{
+		listPorts, ports = scenarioapp.BuildListPorts(manifest, []process.Record{{
 			PID:     cmd.Process.Pid,
 			Step:    "start-api",
 			Port:    18080,
@@ -656,9 +657,9 @@ func TestBuildListPortsFallsBackToEnvironment(t *testing.T) {
 func TestCopyHelpersReturnIndependentSlices(t *testing.T) {
 	originalStrings := []string{"alpha"}
 	originalRecords := []process.Record{{PID: 1234}}
-	copiedStrings := CopyStrings(originalStrings)
-	copiedRecords := CopyProcessRecords(originalRecords)
-	if len(CopyStrings(nil)) != 0 || len(CopyProcessRecords(nil)) != 0 {
+	copiedStrings := scenarioapp.CopyStrings(originalStrings)
+	copiedRecords := scenarioapp.CopyProcessRecords(originalRecords)
+	if len(scenarioapp.CopyStrings(nil)) != 0 || len(scenarioapp.CopyProcessRecords(nil)) != 0 {
 		t.Fatal("expected nil inputs to return empty slices")
 	}
 
@@ -671,7 +672,7 @@ func TestCopyHelpersReturnIndependentSlices(t *testing.T) {
 
 func TestCopyProcessRecordsReturnsIndependentSlice(t *testing.T) {
 	values := []process.Record{{Step: "start-api", Port: 18080}}
-	copied := CopyProcessRecords(values)
+	copied := scenarioapp.CopyProcessRecords(values)
 	values[0].Port = 19090
 
 	if copied[0].Port != 18080 {

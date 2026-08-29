@@ -1,5 +1,10 @@
 package session
 
+import (
+	"sync"
+	"time"
+)
+
 // broadcast.go: Output fan-out, per-client delivery, and emulator resync when
 // a slow client falls too far behind.
 //
@@ -70,6 +75,15 @@ type ClientInfo struct {
 	// part of its viewport.
 	KbOpen          bool
 	SubscribedOrder uint64
+	// ConnID names this WebSocket connection for the lifetime of the
+	// connection. It is used by roster projections and never exposed as an
+	// authorization signal.
+	ConnID        string
+	SubscribedAt  time.Time
+	supersedeCh   chan struct{}
+	supersedeOnce sync.Once
+	probe         func()
+	pongCh        chan struct{}
 }
 
 // PresenceState changes independently of terminal dimensions and therefore

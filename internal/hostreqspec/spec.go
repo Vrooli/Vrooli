@@ -17,7 +17,10 @@ type Kind string
 type Platform string
 
 const (
-	PlatformLinux   Platform = "linux"
+	PlatformLinux Platform = "linux"
+	// PlatformDarwin is Go's OS token at runtime and at release/build
+	// boundaries. PlatformMacOS remains the normalized manifest vocabulary.
+	PlatformDarwin  Platform = "darwin"
 	PlatformMacOS   Platform = "macos"
 	PlatformWindows Platform = "windows"
 )
@@ -86,13 +89,13 @@ func (d Declaration) DerivePrivilege(platform string) Privilege {
 		return d.Privilege
 	}
 	platform = strings.ToLower(strings.TrimSpace(platform))
-	if platform == "darwin" {
-		platform = "macos"
+	if platform == string(PlatformDarwin) {
+		platform = string(PlatformMacOS)
 	}
 	// Host declarations do not carry a source type. Their default is user: the
 	// object is consumed from an already configured host. Tool manifests supply
 	// an explicit or derived value during registry resolution.
-	if platform == "linux" || platform == "windows" {
+	if platform == string(PlatformLinux) || platform == string(PlatformWindows) {
 		return PrivilegeUser
 	}
 	return PrivilegeUser
@@ -347,8 +350,8 @@ func ContainsPlatform(values []string, target string) bool {
 // remains readable so previously published manifests keep resolving on macOS.
 func NormalizePlatform(value string) string {
 	switch value = strings.ToLower(strings.TrimSpace(value)); value {
-	case "darwin":
-		return "macos"
+	case string(PlatformDarwin):
+		return string(PlatformMacOS)
 	default:
 		return value
 	}

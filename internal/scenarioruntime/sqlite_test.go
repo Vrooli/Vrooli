@@ -7,38 +7,20 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 
 	_ "modernc.org/sqlite"
 )
 
-type fixedClock struct {
-	mu  sync.Mutex
-	now time.Time
-}
-
-func newFixedClock(t time.Time) *fixedClock {
-	return &fixedClock{now: t.UTC()}
-}
-
-func (c *fixedClock) Now() time.Time {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.now
-}
-
-func (c *fixedClock) Advance(d time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.now = c.now.Add(d)
-}
-
 func TestSQLiteStoreCreatesUpdatesAndQueriesInstance(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	created, err := store.CreateInstance(ctx, Instance{
 		InstanceID: "inst-alpha-1",
@@ -181,7 +163,7 @@ CREATE TABLE runtime_events (
 func TestSQLiteStoreRejectsUnsupportedStampedOlderVersion(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
-	stampUserVersion(t, dbPath, SchemaVersion-2)
+	testenv.StampSQLiteUserVersion(t, dbPath, SchemaVersion-2)
 
 	_, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
 	if err == nil {
@@ -216,7 +198,7 @@ DROP TABLE runtime_recovery_policies;`); err != nil {
 	if err := db.Close(); err != nil {
 		t.Fatalf("close v6 fixture: %v", err)
 	}
-	stampUserVersion(t, dbPath, 6)
+	testenv.StampSQLiteUserVersion(t, dbPath, 6)
 
 	migrated, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
 	if err != nil {
@@ -240,7 +222,7 @@ DROP TABLE runtime_recovery_policies;`); err != nil {
 func TestSQLiteStoreRejectsNewerDatabase(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
-	stampUserVersion(t, dbPath, SchemaVersion+1)
+	testenv.StampSQLiteUserVersion(t, dbPath, SchemaVersion+1)
 
 	_, err := NewSQLiteStore(ctx, Config{DBPath: dbPath})
 	if err == nil {
@@ -302,18 +284,6 @@ func TestFreshInstallAppliesFullSchema(t *testing.T) {
 	}
 }
 
-func stampUserVersion(t *testing.T, dbPath string, version int) {
-	t.Helper()
-	db, err := sql.Open("sqlite", buildDSN(dbPath))
-	if err != nil {
-		t.Fatalf("sql.Open: %v", err)
-	}
-	defer db.Close()
-	if _, err := db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, version)); err != nil {
-		t.Fatalf("stamp user_version: %v", err)
-	}
-}
-
 func tableColumns(t *testing.T, db *sql.DB, table string) map[string]bool {
 	t.Helper()
 	rows, err := db.Query(fmt.Sprintf(`PRAGMA table_info(%s)`, table))
@@ -341,7 +311,9 @@ func tableColumns(t *testing.T, db *sql.DB, table string) map[string]bool {
 
 func TestSQLiteStoreGenerationBlocksStaleWriters(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))})
+	})
 
 	first, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha-1", Scenario: "alpha"})
 	if err != nil {
@@ -363,7 +335,9 @@ func TestSQLiteStoreGenerationBlocksStaleWriters(t *testing.T) {
 
 func TestSQLiteStoreActiveClaimUniqueness(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))})
+	})
 	alpha, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance(alpha) error = %v", err)
@@ -421,8 +395,10 @@ func TestSQLiteStoreActiveClaimUniqueness(t *testing.T) {
 
 func TestSQLiteStoreBindsAndReleasesActiveClaimsForInstance(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance() error = %v", err)
@@ -463,8 +439,10 @@ func TestSQLiteStoreBindsAndReleasesActiveClaimsForInstance(t *testing.T) {
 
 func TestSQLiteStoreRetryableTxRetriesRuntimeRegistryLockContention(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance() error = %v", err)
@@ -512,8 +490,10 @@ WHERE claim_id = ?`, ClaimStatusReleased, formatTime(clk.Now()), "claim-alpha-ap
 // claims and other instances' claims are untouched.
 func TestRenewReservedPortClaimsForInstance(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance: %v", err)
@@ -574,8 +554,10 @@ func TestRenewReservedPortClaimsForInstance(t *testing.T) {
 
 func TestBindPortClaimRejectsExpiredClaimWithTypedError(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 15, 20, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 15, 20, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance: %v", err)
@@ -608,8 +590,10 @@ func TestBindPortClaimRejectsExpiredClaimWithTypedError(t *testing.T) {
 
 func TestBindPortClaimRejectsReleasedClaimWithTypedError(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 15, 20, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 15, 20, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance: %v", err)
@@ -641,8 +625,10 @@ func TestBindPortClaimDoesNotConflictWhenAnotherActiveRowExists(t *testing.T) {
 	// original instance later reaches BindPortClaim, it must NOT clobber
 	// the partial index — it must fail cleanly with ErrClaimNotReservable.
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 15, 20, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 15, 20, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	a, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-a", Scenario: "web-console"})
 	if err != nil {
 		t.Fatalf("CreateInstance a: %v", err)
@@ -701,8 +687,10 @@ func TestBindPortClaimDoesNotConflictWhenAnotherActiveRowExists(t *testing.T) {
 
 func TestSQLiteStoreUpdatesPortClaimListenerEvidence(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance() error = %v", err)
@@ -765,8 +753,10 @@ func TestSQLiteStoreUpdatesPortClaimListenerEvidence(t *testing.T) {
 
 func TestSQLiteStoreProcessRefsRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance() error = %v", err)
@@ -811,8 +801,10 @@ func TestSQLiteStoreProcessRefsRoundTrip(t *testing.T) {
 
 func TestSQLiteStoreExpiredClaimsAreQueryableSeparately(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance() error = %v", err)
@@ -849,8 +841,10 @@ func TestSQLiteStoreExpiredClaimsAreQueryableSeparately(t *testing.T) {
 
 func TestSQLiteStoreHealthSnapshotRoundTrip(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance() error = %v", err)
@@ -907,7 +901,7 @@ func TestSQLiteStoreUsesExplicitTempPathOnly(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 	store, err := NewSQLiteStore(ctx, Config{
 		DBPath: dbPath,
-		Clock:  newFixedClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)),
+		Clock:  testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC)),
 	})
 	if err != nil {
 		t.Fatalf("NewSQLiteStore() error = %v", err)
@@ -950,27 +944,12 @@ func TestSQLiteStoreReadOnlyOpensExistingRegistryWithoutWrites(t *testing.T) {
 	}
 }
 
-func newTestStore(t *testing.T, clk Clock) *SQLiteStore {
-	t.Helper()
-	store, err := NewSQLiteStore(context.Background(), Config{
-		DBPath: filepath.Join(t.TempDir(), "runtime.db"),
-		Clock:  clk,
-	})
-	if err != nil {
-		t.Fatalf("NewSQLiteStore() error = %v", err)
-	}
-	t.Cleanup(func() {
-		if err := store.Close(); err != nil {
-			t.Fatalf("Close() error = %v", err)
-		}
-	})
-	return store
-}
-
 func TestPruneTerminalPortClaims(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-prune", Scenario: "alpha"})
 	if err != nil {
 		t.Fatalf("CreateInstance error = %v", err)

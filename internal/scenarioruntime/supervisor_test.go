@@ -4,12 +4,16 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestSQLiteStoreSupervisorSessionLifecycle(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	pid := 4242
 	session, err := store.CreateSupervisorSession(ctx, SupervisorSession{
@@ -60,8 +64,10 @@ func TestSQLiteStoreSupervisorSessionLifecycle(t *testing.T) {
 
 func TestSQLiteStoreClaimSupervisionAndHeartbeatBatch(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	launcherPID := 4242
 	instance, err := store.CreateLease(ctx, Instance{
@@ -122,7 +128,9 @@ func TestSQLiteStoreClaimSupervisionAndHeartbeatBatch(t *testing.T) {
 // the fleet its leases.
 func TestSQLiteStoreSupervisorBatchSkipsClaimsItNoLongerOwns(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))})
+	})
 
 	stale, err := store.CreateLease(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha", Status: StatusRunning}, time.Minute)
 	if err != nil {
@@ -219,8 +227,10 @@ func TestStaleSupervisorTriggerRequiresPositiveEvidence(t *testing.T) {
 // rows, every one of them indistinguishable from the live supervisor.
 func TestExpireStaleSupervisorSessionsRetiresOnlyProvableCorpses(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	deadPID, livePID := 4242, 4243
 	for _, session := range []SupervisorSession{
@@ -260,8 +270,10 @@ func TestExpireStaleSupervisorSessionsRetiresOnlyProvableCorpses(t *testing.T) {
 // created it.
 func TestAttachLiveSupervisionTransfersOwnershipAndRefreshesLease(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	ownerPID := 99
 	instance, err := store.CreateLease(ctx, Instance{
@@ -303,8 +315,10 @@ func TestAttachLiveSupervisionTransfersOwnershipAndRefreshesLease(t *testing.T) 
 // lifecycle ownership: nothing would ever renew it.
 func TestAttachLiveSupervisionRefusesWhenNoSessionIsLive(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	ownerPID := 99
 	instance, err := store.CreateLease(ctx, Instance{

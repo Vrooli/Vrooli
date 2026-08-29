@@ -403,6 +403,19 @@ const literalSelectors: LiteralSelectorTree = {
   toolbar: {
     container: 'mobile-toolbar',
   },
+  fleet: {
+    drawer: 'machines-drawer',
+    railDevices: 'fleet-rail-devices',
+    railMachines: 'fleet-rail-machines',
+    card: 'fleet-card',
+    deviceCard: '[data-testid^="fleet-card-device-"]',
+    machineCard: '[data-testid^="fleet-card-machine-"]',
+    deviceSilhouette: '[data-testid^="fleet-card-device-"] [data-testid="device-silhouette"]',
+    machineSilhouette: '[data-testid^="fleet-card-machine-"] [data-testid="machine-silhouette"]',
+    deviceFrame: '[data-testid^="device-frame-"]',
+    deviceCaption: '[data-testid^="device-caption-"]',
+    takeOver: 'device-frame-take-over',
+  },
   voice: {
     micButton: 'voice-mic-btn',
     errorTooltip: 'voice-error-tooltip',

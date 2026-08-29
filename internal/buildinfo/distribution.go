@@ -12,20 +12,21 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
 const (
-	buildTargetWindows = "windows"
+	buildTargetWindows = string(hostreqspec.PlatformWindows)
 	buildTargetUnknown = "unknown"
 )
 
 // distributionTargetDarwinOS is the external release-artifact spelling. It
-// remains "darwin" because Go toolchains, release assets, and the keychain
+// remains the Darwin GOOS token because Go toolchains, release assets, and the keychain
 // cross-build contract use GOOS names rather than deployment manifest names.
-const distributionTargetDarwinOS = "darwin"
+const distributionTargetDarwinOS = string(hostreqspec.PlatformDarwin)
 
 // DistributionTarget is one supported prebuilt Vrooli CLI platform. This list
 // is the single source of truth consumed by the release workflow and bridge.
@@ -35,12 +36,12 @@ type DistributionTarget struct {
 }
 
 var distributionTargets = []DistributionTarget{
-	{OS: "linux", Arch: "amd64"},
-	{OS: "linux", Arch: "arm64"},
+	{OS: string(hostreqspec.PlatformLinux), Arch: "amd64"},
+	{OS: string(hostreqspec.PlatformLinux), Arch: "arm64"},
 	{OS: distributionTargetDarwinOS, Arch: "amd64"},
 	{OS: distributionTargetDarwinOS, Arch: "arm64"},
-	{OS: "windows", Arch: "amd64"},
-	{OS: "windows", Arch: "arm64"},
+	{OS: string(hostreqspec.PlatformWindows), Arch: "amd64"},
+	{OS: string(hostreqspec.PlatformWindows), Arch: "arm64"},
 }
 
 // DistributionTargets returns a copy of the supported release matrix.
@@ -188,7 +189,7 @@ func BuildDistribution(ctx context.Context, options DistributionBuildOptions) (D
 // safeguard as unsupported. The replacement lives beneath internal/buildinfo,
 // so the normal source fingerprint covers it along with every other build input.
 func distributionOverlay(root string, target DistributionTarget) ([]string, func(), error) {
-	if target.OS != "windows" {
+	if target.OS != string(hostreqspec.PlatformWindows) {
 		return nil, func() {}, nil
 	}
 	replaceFrom := filepath.Join(root, "internal", "safeguards", "pstore-observability", "handler.go")

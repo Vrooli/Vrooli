@@ -580,8 +580,8 @@ func TestReadServiceLoadsCanonicalDependencyMaps(t *testing.T) {
 	if !redis.Enabled {
 		t.Fatalf("redis should default to enabled when declared: %+v", redis)
 	}
-	if policy := redis.NormalizedStartupPolicy(); policy != DependencyStartupPolicyIgnore {
-		t.Fatalf("redis policy = %q, want ignore", policy)
+	if policy := redis.NormalizedStartupPolicy(); policy != DependencyStartupPolicyTryStart {
+		t.Fatalf("redis policy = %q, want try_start", policy)
 	}
 
 	testGenie, ok := manifest.Dependencies.Scenarios["test-genie"]
@@ -743,8 +743,8 @@ func TestDependencyNormalizedStartupPolicyUsesContractDefaults(t *testing.T) {
 	if policy := (Dependency{Enabled: true, Required: true}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyMustStart {
 		t.Fatalf("required dependency policy = %q, want %q", policy, DependencyStartupPolicyMustStart)
 	}
-	if policy := (Dependency{Enabled: true, Required: false}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyIgnore {
-		t.Fatalf("optional dependency policy = %q, want %q", policy, DependencyStartupPolicyIgnore)
+	if policy := (Dependency{Enabled: true, Required: false}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyTryStart {
+		t.Fatalf("optional dependency policy = %q, want %q", policy, DependencyStartupPolicyTryStart)
 	}
 	if policy := (Dependency{Enabled: false, Required: true, StartupPolicy: DependencyStartupPolicyMustStart}).NormalizedStartupPolicy(); policy != DependencyStartupPolicyIgnore {
 		t.Fatalf("disabled dependency policy = %q, want %q", policy, DependencyStartupPolicyIgnore)
@@ -843,7 +843,7 @@ func TestReadServiceRejectsRequiredDependencyWithIgnorePolicy(t *testing.T) {
 	}
 }
 
-func TestReadServiceRejectsRequiredTryStartWithoutDegradedBehavior(t *testing.T) {
+func TestReadServiceRejectsDisagreementWithoutSupervisionPrecedence(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")
 	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
@@ -859,8 +859,32 @@ func TestReadServiceRejectsRequiredTryStartWithoutDegradedBehavior(t *testing.T)
 		},
 	})
 
-	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "scenarios.beta is required with startup_policy") {
-		t.Fatalf("ReadService error = %v", err)
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "supervision_precedence") {
+		t.Fatalf("ReadService error = %v, want explicit precedence marker", err)
+	}
+}
+
+func TestDependencySupervisionIntentPrecedenceTable(t *testing.T) {
+	tests := []struct {
+		name string
+		dep  Dependency
+		want string
+	}{
+		{"required must-start", Dependency{Enabled: true, Required: true, StartupPolicy: DependencyStartupPolicyMustStart}, DependencyStartupPolicyMustStart},
+		{"required try-start acknowledged", Dependency{Enabled: true, Required: true, StartupPolicy: DependencyStartupPolicyTryStart, SupervisionPrecedence: DependencySupervisionPrecedenceRequired}, DependencyStartupPolicyMustStart},
+		{"required absent", Dependency{Enabled: true, Required: true}, DependencyStartupPolicyMustStart},
+		{"optional must-start acknowledged", Dependency{Enabled: true, StartupPolicy: DependencyStartupPolicyMustStart, SupervisionPrecedence: DependencySupervisionPrecedenceStartupPolicy}, DependencyStartupPolicyMustStart},
+		{"optional try-start", Dependency{Enabled: true, StartupPolicy: DependencyStartupPolicyTryStart}, DependencyStartupPolicyTryStart},
+		{"optional ignore", Dependency{Enabled: true, StartupPolicy: DependencyStartupPolicyIgnore}, DependencyStartupPolicyIgnore},
+		{"optional absent", Dependency{Enabled: true}, DependencyStartupPolicyTryStart},
+		{"disabled", Dependency{Enabled: false, Required: true, StartupPolicy: DependencyStartupPolicyMustStart}, DependencyStartupPolicyIgnore},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.dep.SupervisionIntent(); got != tt.want {
+				t.Fatalf("SupervisionIntent() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

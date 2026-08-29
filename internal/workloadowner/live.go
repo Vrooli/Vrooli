@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -39,12 +40,12 @@ func Enumerate(ctx context.Context, runner CommandRunner) (LiveReport, error) {
 		} else {
 			out.Observed = append(out.Observed, workloads...)
 		}
-	} else if runtime.GOOS == "linux" || runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+	} else if runtime.GOOS == string(hostreqspec.PlatformLinux) || runtime.GOOS == string(hostreqspec.PlatformDarwin) || runtime.GOOS == string(hostreqspec.PlatformWindows) {
 		out.Unread = append(out.Unread, "containers: docker is unavailable")
 	}
 
 	switch runtime.GOOS {
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		if path, err := runner.LookPath("systemctl"); err == nil {
 			data, runErr := runner.Run(ctx, path, "list-units", "--all", "--no-legend", "--no-pager")
 			if runErr != nil {
@@ -55,9 +56,9 @@ func Enumerate(ctx context.Context, runner CommandRunner) (LiveReport, error) {
 		} else {
 			out.Unread = append(out.Unread, "service units: systemctl is unavailable")
 		}
-	case "darwin":
+	case string(hostreqspec.PlatformDarwin):
 		out.Unread = append(out.Unread, "service units: launchd enumeration is not implemented")
-	case "windows":
+	case string(hostreqspec.PlatformWindows):
 		out.Unread = append(out.Unread, "service units and scheduled tasks: native enumeration is not implemented")
 	default:
 		out.Unread = append(out.Unread, fmt.Sprintf("service units: unsupported platform %q", runtime.GOOS))

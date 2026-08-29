@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/api-core/scenariocli"
@@ -91,7 +92,7 @@ func LocateScenarioCompletenessCLI(lookPath func(string) (string, error), root s
 
 func OpenURL(lookPath func(string) (string, error), run func(SubprocessSpec) error, url string) error {
 	switch runtime.GOOS {
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		if binary, err := lookPath("xdg-open"); err == nil {
 			return run(SubprocessSpec{Name: binary, Args: []string{url}})
 		}
@@ -101,9 +102,9 @@ func OpenURL(lookPath func(string) (string, error), run func(SubprocessSpec) err
 			}
 		}
 		return fmt.Errorf("no browser found for %s", url)
-	case "darwin":
+	case string(hostreqspec.PlatformDarwin):
 		return run(SubprocessSpec{Name: "open", Args: []string{url}})
-	case "windows":
+	case string(hostreqspec.PlatformWindows):
 		return run(SubprocessSpec{Name: "cmd", Args: []string{"/c", "start", "", url}})
 	default:
 		return fmt.Errorf("unsupported platform for opening URLs: %s", runtime.GOOS)

@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
-	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -69,6 +69,7 @@ const (
 	CommandList            CommandID = "list"
 	CommandInfo            CommandID = "info"
 	CommandStatus          CommandID = "status"
+	CommandValidate        CommandID = "validate"
 	CommandValidateEnv     CommandID = "validate-env"
 	CommandFreshness       CommandID = "freshness"
 	CommandTimings         CommandID = "timings"
@@ -104,6 +105,10 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{
 			Name: string(CommandStatus), Group: "Read-only Commands", Summary: "Show scenario runtime status", Handler: CommandStatus, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name"}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), instanceOption(), nodeOption()}},
+		},
+		{
+			Name: string(CommandValidate), Group: "Read-only Commands", Summary: "Validate every scenario manifest and derived supervision intent", Handler: CommandValidate, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{commandtree.JSONOption()}},
 		},
 		{
 			Name: string(CommandValidateEnv), Group: "Read-only Commands", Summary: "Validate resource-derived environment injection for a scenario", Handler: CommandValidateEnv, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
@@ -220,27 +225,10 @@ func commandHelpText(id CommandID) string {
 	return commandtree.SpecHelpText("", "vrooli scenario "+spec.Name, spec)
 }
 
-type StartRequest struct {
-	Names     []string
-	Options   lifecycle.StartOptions
-	JSON      bool
-	OpenAfter bool
-	// TimeoutSeconds is the ceiling for the whole start; 0 = unbounded.
-	TimeoutSeconds int
-}
+type StartRequest = scenarioapp.StartRequest
 type (
-	StopRequest struct {
-		Name string
-		JSON bool
-	}
-	RestartRequest struct {
-		Name      string
-		Options   lifecycle.StartOptions
-		JSON      bool
-		OpenAfter bool
-		// TimeoutSeconds is the ceiling for the whole restart; 0 = unbounded.
-		TimeoutSeconds int
-	}
+	StopRequest    = scenarioapp.StopRequest
+	RestartRequest = scenarioapp.RestartRequest
 )
 
 type ScreenshotRequest struct {
@@ -248,37 +236,20 @@ type ScreenshotRequest struct {
 	JSON   bool
 }
 
-type WaitRequest struct {
-	Name           string
-	TimeoutSeconds int
-	JSON           bool
-}
+type WaitRequest = scenarioapp.WaitRequest
 
 type (
-	ListRequest struct{ JSON, IncludePorts bool }
-	InfoRequest struct {
-		Name string
-		JSON bool
-	}
-	StatusRequest struct {
-		Name string
-		JSON bool
-	}
-	ValidateEnvRequest struct {
-		Name string
-		JSON bool
-	}
-	SetupRequest struct {
-		Name string
-		Opts lifecycle.PhaseOptions
-		JSON bool
-	}
-	TestRequest struct {
+	ListRequest        = scenarioapp.ListRequest
+	InfoRequest        = scenarioapp.InfoRequest
+	StatusRequest      = scenarioapp.StatusRequest
+	ValidateEnvRequest = scenarioapp.ValidateEnvRequest
+	SetupRequest       = scenarioapp.SetupRequest
+	TestRequest        struct {
 		Name string
 		Args []string
 	}
-	StartAllRequest struct{ JSON bool }
-	StopAllRequest  struct{ JSON bool }
+	StartAllRequest = scenarioapp.StartAllRequest
+	StopAllRequest  = scenarioapp.StopAllRequest
 	DeleteRequest   struct {
 		Name string
 		JSON bool
@@ -290,33 +261,14 @@ type (
 		RemovedArtifacts int      `json:"removed_artifacts"`
 		SkippedArtifacts []string `json:"skipped_artifacts,omitempty"`
 	}
-	PortRequest struct {
-		ScenarioName, PortName string
-		Path                   string
-		JSON                   bool
-	}
-	OpenRequest struct {
-		ScenarioName, PortName string
-		PrintURL, JSON         bool
-	}
-	RequirementsRequest struct {
-		Snapshot bool
-		Args     []string
-	}
-	HealFromSandboxRequest struct {
-		MergedPath string
-		DryRun     bool
-	}
-	HealFromSandboxResponse struct {
-		Affected     []string
-		DryRun       bool
-		StoppedCount int
-	}
+	PortRequest             = scenarioapp.PortRequest
+	OpenRequest             = scenarioapp.OpenRequest
+	RequirementsRequest     = scenarioapp.RequirementsRequest
+	HealFromSandboxRequest  = scenarioapp.HealFromSandboxRequest
+	HealFromSandboxResponse = scenarioapp.HealFromSandboxResponse
 )
 
-type ValidateEnvResponse struct {
-	Report resources.ScenarioEnvValidationReport
-}
+type ValidateEnvResponse = scenarioapp.ValidateEnvResponse
 
 func RenderDeleteResponse(w io.Writer, format cliout.Format, resp DeleteResponse) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {

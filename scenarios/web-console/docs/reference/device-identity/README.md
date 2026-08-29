@@ -38,3 +38,28 @@ the operator surface it never had.
   and never from the live terminal grid.
 - `terminal_ws` is a documented Connect exception (`docs/internal/SEAMS.md`), so
   JSON frame fields on that socket are correct and need no proto change.
+
+## Shipped state
+
+The browser declares a stable local device id, label, and screen family on every
+terminal WebSocket connection. The server groups live sockets by that identity,
+reclaims the size lease for a returning device after a liveness probe, and marks
+stale sockets for supersession. Lease and follower state are reducer-owned in the
+UI, so a follower cannot accidentally resize the shared PTY or echo its own
+presentation.
+
+The `DeviceService` roster is a live snapshot backed by the existing lifecycle
+event stream. The Devices & machines drawer shows connected browser devices and
+linked terminal machines as separate horizontal rails. Device cards expose
+recognition-only labels and safe actions; the caller's own device cannot be
+disconnected by the service.
+
+### Audit disposition
+
+- Shipped: D1-D6 (identity/lease reconciliation, reconnect reclaim, follower
+  self-echo, touch target coverage, role-transition sizing, and pane stacking).
+- Shipped: the device roster, lifecycle deltas, shared fleet card grammar, and
+  narrow horizontal overlay layout.
+- Deferred: persistence for devices that have no live connection. The roster is
+  intentionally live-only; last-seen history would require a separate durable
+  ownership decision.

@@ -2,14 +2,21 @@
   "$schema": "../../scenarios/test-genie/schemas/testing.schema.json",
   "version": "1.0.0",
   "phases": {
+    "go-code-graph": {},
+    "unit": {},
+    "quality": {},
     "tidiness": {
       "budgets": {
         "duplication_line_debt": 2751,
-        "baseline_duplication_line_debt": 2752,
-        "long_files": 58,
-        "complexity_over_threshold": 62,
-        "coupling_over_threshold": 3,
+        "baseline_duplication_line_debt": 2782,
+        "long_files": 53,
+        "baseline_long_files": 55,
+        "complexity_over_threshold": 61,
+        "baseline_complexity_over_threshold": 62,
+        "coupling_over_threshold": 2,
+        "baseline_coupling_over_threshold": 3,
         "debt_markers": 0,
+        "baseline_debt_markers": 0,
         "ratchet": true
       }
     }

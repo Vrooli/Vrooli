@@ -3,9 +3,11 @@ package resourceapp
 import (
 	"io"
 
+	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
@@ -65,6 +67,58 @@ type StatusResponse struct {
 	Items    []resources.Status
 	Item     *resources.Status
 	Failures []discovery.Failure
+}
+
+// Parser-facing requests are application contracts even though resourcecli
+// owns the argv grammar that populates them.
+type (
+	NoArgsRequest   struct{}
+	ScaffoldRequest struct{ Name, Driver string }
+	CLISyncRequest  struct{ DryRun bool }
+	NameRequest     struct {
+		Name string
+	}
+	StatusRequest struct {
+		Name string
+		Fast bool
+	}
+	ValidateRequest struct {
+		Name string
+	}
+	UpstreamCheckRequest struct {
+		Name string
+		All  bool
+	}
+	BlueprintSearchRequest struct {
+		Query string
+	}
+)
+
+// CLISyncRow is one application result from reconciling a declared resource
+// CLI. The CLI package only decides how to render the row.
+type CLISyncRow struct {
+	Name   string `json:"name"`
+	Action string `json:"action"`
+	Reason string `json:"reason"`
+}
+
+type BlueprintSearchResponse struct {
+	Query string
+	Items []resources.Blueprint
+}
+
+// AcquisitionExplanation is the typed result behind both human and JSON
+// rendering of resource acquisition selection.
+type AcquisitionExplanation struct {
+	Resource       string                              `json:"resource"`
+	Facts          map[string]string                   `json:"facts"`
+	FactProvenance map[string]hostinventory.Provenance `json:"fact_provenance,omitempty"`
+	Acquisition    *binaryfetch.Acquisition            `json:"acquisition,omitempty"`
+	Resolution     binaryfetch.ResolutionExplanation   `json:"resolution,omitempty"`
+	// Closure is the runtime-closure verdict for the artifact staged on this
+	// host, when one is staged. A digest-correct artifact whose libraries do
+	// not resolve is the failure this field exists to make visible.
+	Closure *resources.ClosureVerdict `json:"runtime_closure,omitempty"`
 }
 
 func (s Service) List() (ListResponse, error) {

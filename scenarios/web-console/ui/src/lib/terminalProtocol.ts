@@ -6,6 +6,11 @@ import type { TerminalMessage } from "../types/terminal";
  * transitions can be tested as pure data transformations.
  */
 export interface TerminalProtocolState {
+	/** This connection's browser-local device identity. */
+	selfDeviceId: string;
+	/** Device identity of the connection holding the session lease. */
+	leaderDeviceId: string;
+	followerMode: FollowerMode;
   inSnapshot: boolean;
   outputCursor: number;
   echo: {
@@ -24,7 +29,18 @@ export interface TerminalProtocolState {
   viewerCount: number;
 }
 
+export type FollowerMode = "leader" | "follower" | "self-echo";
+
+export function resolveFollowerMode(state: Pick<TerminalProtocolState, "holdsLease" | "selfDeviceId" | "leaderDeviceId">): FollowerMode {
+	if (state.holdsLease) return "leader";
+	if (state.selfDeviceId && state.selfDeviceId === state.leaderDeviceId) return "self-echo";
+	return "follower";
+}
+
 export const initialTerminalProtocolState: TerminalProtocolState = {
+	selfDeviceId: "",
+	leaderDeviceId: "",
+	followerMode: "leader",
   inSnapshot: true,
   outputCursor: 0,
   echo: { known: false, enabled: false, inAltBuffer: false, cursorAtLineEnd: false },
@@ -36,12 +52,17 @@ export const initialTerminalProtocolState: TerminalProtocolState = {
   viewerCount: 1,
 };
 
+export function initialTerminalProtocolStateFor(selfDeviceId: string): TerminalProtocolState {
+	return { ...initialTerminalProtocolState, selfDeviceId, followerMode: "leader" };
+}
+
 /**
  * size_info and presence carry the same lease and leader-presentation fields.
  * They are applied through one function so the two cases cannot drift.
  */
 function applyLeaderPresentation(next: TerminalProtocolState, msg: TerminalMessage): void {
   if (typeof msg.holdsLease === "boolean") next.holdsLease = msg.holdsLease;
+	if (typeof msg.leader === "string") next.leaderDeviceId = msg.leader;
   if (typeof msg.leaderDevice === "string") next.leaderDevice = msg.leaderDevice;
   if (typeof msg.deviceClass === "string") next.leaderClass = msg.deviceClass;
   if (typeof msg.kbOpen === "boolean") next.leaderKbOpen = msg.kbOpen;
@@ -58,16 +79,20 @@ export function reduceTerminalMessage(
     echo: { ...state.echo },
     serverSize: state.serverSize && { ...state.serverSize },
   };
-  if (typeof msg.output_cursor === "number") next.outputCursor = msg.output_cursor;
-  switch (msg.type) {
-    case "stdout":
-      return next;
+	if (typeof msg.output_cursor === "number") next.outputCursor = msg.output_cursor;
+	const finish = (): TerminalProtocolState => {
+		next.followerMode = resolveFollowerMode(next);
+		return next;
+	};
+	switch (msg.type) {
+		case "stdout":
+			return finish();
     case "history_end":
       next.inSnapshot = false;
-      return next;
+			return finish();
     case "resync":
       next.inSnapshot = true;
-      return next;
+			return finish();
     case "echo_state":
       next.echo = {
         known: msg.echo_known === true,
@@ -75,17 +100,17 @@ export function reduceTerminalMessage(
         inAltBuffer: msg.in_alt_buffer === true,
         cursorAtLineEnd: msg.cursor_at_line_end === true,
       };
-      return next;
+			return finish();
     case "size_info":
     case "resize_info":
       if (typeof msg.cols === "number" && typeof msg.rows === "number") {
         next.serverSize = { cols: msg.cols, rows: msg.rows };
       }
       applyLeaderPresentation(next, msg);
-      return next;
+			return finish();
     case "presence":
       applyLeaderPresentation(next, msg);
-      return next;
+			return finish();
     default:
       return next;
   }

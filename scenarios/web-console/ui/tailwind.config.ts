@@ -76,6 +76,9 @@ export default {
 
          Backdrop tokens sit one step below their surface so the surface
          paints above its own backdrop regardless of DOM order. */
+		// Every TerminalPane carries `isolate`, so these chrome values are
+		// scoped to their pane and cannot paint over a sibling view such as
+		// MessagesPane.
       zIndex: {
         "wc-chrome": "10",
         "wc-chrome-raised": "20",

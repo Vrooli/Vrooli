@@ -276,7 +276,8 @@ export default function FloatingToolbar({
         size="icon"
         className="h-11 w-11 md:h-8 md:w-8"
         onClick={onOpenMachines}
-        title={t(strings.machines.openAriaLabel)}
+        aria-label={t(strings.fleet.openAriaLabel)}
+        title={t(strings.fleet.openAriaLabel)}
         tabIndex={docked ? -1 : undefined}
       >
         <MonitorSmartphone className="h-4 w-4" />

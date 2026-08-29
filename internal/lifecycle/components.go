@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -246,7 +247,7 @@ func resolveComponentArgvForOS(argv []string, scenarioRoot, scenarioName string,
 
 func resolveComponentValue(value, scenarioRoot, scenarioName string, components map[string]scenario.Component, goos string) (string, error) {
 	ext := ""
-	if strings.EqualFold(strings.TrimSpace(goos), "windows") {
+	if strings.EqualFold(strings.TrimSpace(goos), string(hostreqspec.PlatformWindows)) {
 		ext = ".exe"
 	}
 	value = strings.ReplaceAll(value, "{{ext}}", ext)
@@ -299,7 +300,7 @@ func componentArtifactWithOutput(name, scenarioRoot, scenarioName string, compon
 		return "", fmt.Errorf("component %q build output is required", name)
 	}
 	ext := ""
-	if strings.EqualFold(strings.TrimSpace(goos), "windows") {
+	if strings.EqualFold(strings.TrimSpace(goos), string(hostreqspec.PlatformWindows)) {
 		ext = ".exe"
 	}
 	output = strings.NewReplacer(

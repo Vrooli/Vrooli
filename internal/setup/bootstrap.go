@@ -95,7 +95,7 @@ func addOnboardingApplyPrivilegeRequirement(resolution hostreq.Resolution, execu
 		Kind:       hostreq.KindSafeguard,
 		Required:   true,
 		Privilege:  hostreqspec.PrivilegeElevated,
-		Platforms:  []string{"linux", "macos"},
+		Platforms:  []string{string(hostreqspec.PlatformLinux), "macos"},
 		Config:     onboardingapplyprivileges.ConfigForRequirements(executable, tools, safeguards),
 		Reasons:    []string{"Allow onboarding apply to execute selected elevated host requirements without a second prompt"},
 		Provenance: []hostreq.Provenance{{Kind: "root", Name: "vrooli-setup", Path: "internal/setup/setup.go", Source: "internal/setup/setup.go"}},
@@ -143,7 +143,7 @@ func ensureBootstrapPackageManager(
 	lookPath func(string) (string, error),
 	run func(shell.Spec) error,
 ) error {
-	if host.OS != "darwin" || strings.TrimSpace(host.PackageManager) != "" {
+	if host.OS != string(hostreqspec.PlatformDarwin) || strings.TrimSpace(host.PackageManager) != "" {
 		return nil
 	}
 	if _, err := lookPath("curl"); err != nil {

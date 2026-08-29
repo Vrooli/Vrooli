@@ -122,8 +122,8 @@ func ProbeWritable(store Store) error {
 		return fmt.Errorf("generate secure-store probe key: %w", err)
 	}
 	key := "probe-" + hex.EncodeToString(bytes)
-	const value = "ready"
-	if err := store.Put(probeService, key, value); err != nil {
+	const probeReadbackValue = "ready"
+	if err := store.Put(probeService, key, probeReadbackValue); err != nil {
 		return classifyProbeError("write probe", err)
 	}
 	defer func() { _ = store.Delete(probeService, key) }()
@@ -131,7 +131,7 @@ func ProbeWritable(store Store) error {
 	if err != nil {
 		return classifyProbeError("read probe", err)
 	}
-	if got != value {
+	if got != probeReadbackValue {
 		return fmt.Errorf("%w: probe readback did not match", ErrUnavailable)
 	}
 	if err := store.Delete(probeService, key); err != nil {

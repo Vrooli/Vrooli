@@ -40,6 +40,10 @@ type OrphansRequest struct {
 
 type LocksRequest struct {
 	Clean bool
+	// ShowAll includes expired claims in human-readable output. JSON output
+	// is never filtered (machine consumers depend on the full set), so this
+	// only affects rendering.
+	ShowAll bool
 }
 
 type DiagnosePortRequest struct {
@@ -63,6 +67,9 @@ type OrphansResponse struct {
 type LocksResponse struct {
 	RuntimeClaims []maintenance.RuntimeClaimInfo
 	CleanReport   *control.StopReport
+	// ShowAll renders expired claims in the human table. JSON output always
+	// carries the full claim set regardless of this flag.
+	ShowAll bool
 }
 
 type Service struct {
@@ -129,7 +136,7 @@ func (s Service) Locks(req LocksRequest) (LocksResponse, error) {
 	if err != nil {
 		return LocksResponse{}, err
 	}
-	return LocksResponse{RuntimeClaims: claims}, nil
+	return LocksResponse{RuntimeClaims: claims, ShowAll: req.ShowAll}, nil
 }
 
 func (s Service) DiagnosePort(req DiagnosePortRequest) (maintenance.PortDiagnostic, error) {

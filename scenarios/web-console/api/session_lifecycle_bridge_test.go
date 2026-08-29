@@ -100,15 +100,24 @@ func TestPublishSessionLifecycleEvent_DeletedAndTerminated(t *testing.T) {
 	}
 }
 
-func TestPublishSessionLifecycleEvent_IgnoresNonExistenceEvents(t *testing.T) {
+func TestPublishSessionLifecycleEvent_PublishesDeviceStatus(t *testing.T) {
 	srv := &Server{hub: NewConversationHub()}
 	sub, _, _ := srv.hub.Subscribe(0)
 
-	// A connect event (and any non created/deleted/terminated type) must not
-	// reach the sidebar channel.
-	srv.publishSessionLifecycleEvent(events.Event{Type: events.SessionConnected, SessionID: "s1"})
-	if _, ok := recvEnvelope(t, sub, 100*time.Millisecond); ok {
-		t.Fatal("connect event should not publish a session_status envelope")
+	srv.publishSessionLifecycleEvent(events.Event{
+		Type: events.SessionConnected, SessionID: "s1",
+		Details: map[string]string{"deviceId": "phone-1", "connId": "c1"},
+	})
+	env, ok := recvEnvelope(t, sub, time.Second)
+	if !ok {
+		t.Fatal("connect event should publish a device_status envelope")
+	}
+	if env.Kind != HubKindDeviceStatus || env.SessionID != "s1" {
+		t.Fatalf("unexpected envelope: kind=%q session=%q", env.Kind, env.SessionID)
+	}
+	details, ok := env.Payload.(map[string]string)
+	if !ok || details["action"] != "connected" || details["deviceId"] != "phone-1" {
+		t.Fatalf("device payload = %#v", env.Payload)
 	}
 }
 

@@ -5,17 +5,14 @@ import (
 	"io"
 	"strings"
 
+	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/resources"
 )
 
-type CLISyncRow struct {
-	Name   string `json:"name"`
-	Action string `json:"action"`
-	Reason string `json:"reason"`
-}
+type CLISyncRow = resourceapp.CLISyncRow
 
 func WriteCLISync(w io.Writer, format cliout.Format, rows []CLISyncRow) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, rows) }, func(w io.Writer) error {

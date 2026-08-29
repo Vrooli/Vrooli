@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/shell"
 )
@@ -53,7 +54,7 @@ func stopRecordedService(entry InstallEntry) error {
 	manager := strings.ToLower(strings.TrimSpace(entry.ServiceManager))
 	name := strings.TrimSpace(entry.ServiceName)
 	switch {
-	case manager == "systemd" || (manager == "" && runtime.GOOS == "linux"):
+	case manager == "systemd" || (manager == "" && runtime.GOOS == string(hostreqspec.PlatformLinux)):
 		if name == "" {
 			name = filepath.Base(entry.Path)
 		}
@@ -62,7 +63,7 @@ func stopRecordedService(entry InstallEntry) error {
 			return runNativeServiceCommand("systemctl", args...)
 		}
 		return runNativeServiceCommand("systemctl", append([]string{"--user"}, args...)...)
-	case manager == "launchd" || (manager == "" && runtime.GOOS == "darwin"):
+	case manager == "launchd" || (manager == "" && runtime.GOOS == string(hostreqspec.PlatformDarwin)):
 		if name == "" {
 			name = strings.TrimSuffix(filepath.Base(entry.Path), filepath.Ext(entry.Path))
 		}

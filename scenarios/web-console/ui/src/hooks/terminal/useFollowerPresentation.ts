@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { resolveArchetype, type DeviceArchetype } from "../../lib/deviceArchetype";
 import { FALLBACK_CELL_ASPECT, fitFollowerPresentation, type ApertureRect, type ChromeTier, type FollowerRect } from "../../lib/followerViewport";
+import type { FollowerMode } from "../../lib/terminalProtocol";
 
 /**
  * The slice of xterm this hook reads.
@@ -46,16 +47,17 @@ export function measureCellAspect(terminal: MeasurableTerminal | null): number {
 export function useFollowerPresentation(options: {
   terminal: MeasurableTerminal | null;
   serverSize: { cols: number; rows: number } | null;
-  isFollower: boolean;
+	followerMode: FollowerMode;
+	viewMode?: "terminal" | "messages";
   paneSize: { width: number; height: number };
   /** Leader-declared device family. Absent leaders fall back to grid geometry. */
   leaderClass?: string;
   leaderKbOpen?: boolean;
 }): FollowerFrame | null {
-  const { terminal, serverSize, isFollower, paneSize, leaderClass, leaderKbOpen } = options;
+	const { terminal, serverSize, followerMode, viewMode = "terminal", paneSize, leaderClass, leaderKbOpen } = options;
   return useMemo<FollowerFrame | null>(() => {
     const size = serverSize;
-    if (!isFollower || !size || paneSize.width <= 0 || paneSize.height <= 0) return null;
+		if (viewMode === "messages" || followerMode !== "follower" || !size || paneSize.width <= 0 || paneSize.height <= 0) return null;
     const cellAspect = measureCellAspect(terminal);
     const archetype = resolveArchetype({
       declaredClass: leaderClass,
@@ -84,5 +86,5 @@ export function useFollowerPresentation(options: {
       keyboardShare: layout.keyboardShare,
       captionOffset: layout.captionOffset,
     };
-  }, [serverSize, isFollower, paneSize, terminal, leaderClass, leaderKbOpen]);
+	}, [serverSize, followerMode, viewMode, paneSize, terminal, leaderClass, leaderKbOpen]);
 }

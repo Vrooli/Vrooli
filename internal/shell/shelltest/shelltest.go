@@ -13,6 +13,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -89,7 +90,7 @@ func StubBin(t *testing.T, name string, exitCode int, stdout string) string {
 	dir := t.TempDir()
 	path := filepath.Join(dir, name)
 	contents := "#!/bin/sh\nprintf '%s' '" + shellSingleQuote(stdout) + "'\nexit " + strconv.Itoa(exitCode) + "\n"
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == string(hostreqspec.PlatformWindows) {
 		path += ".cmd"
 		contents = "@echo off\n<nul set /p =" + stdout + "\nexit /b " + strconv.Itoa(exitCode) + "\n"
 	}

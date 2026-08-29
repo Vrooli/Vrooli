@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 // A digest proves an artifact is the right bytes. It does not prove the host
@@ -78,12 +80,12 @@ func (e *RuntimeClosureError) Unwrap() error { return ErrRuntimeClosure }
 // names what it searched rather than asserting the library is absent from the
 // machine.
 var defaultLibraryDirs = map[string][]string{
-	"linux": {
+	string(hostreqspec.PlatformLinux): {
 		"/lib/x86_64-linux-gnu", "/usr/lib/x86_64-linux-gnu",
 		"/lib/aarch64-linux-gnu", "/usr/lib/aarch64-linux-gnu",
 		"/lib64", "/usr/lib64", "/lib", "/usr/lib", "/usr/local/lib",
 	},
-	"darwin": {
+	string(hostreqspec.PlatformDarwin): {
 		"/usr/lib", "/usr/local/lib", "/opt/homebrew/lib", "/System/Library/Frameworks",
 	},
 }

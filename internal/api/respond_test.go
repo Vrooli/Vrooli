@@ -1,17 +1,83 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
+
+// writeAPITestRegistryRuntime seeds an authoritative registry runtime for the
+// given scenario with a single bound port claim. Used by the API tests that
+// previously relied on legacy process records to make a scenario look running.
+func writeAPITestRegistryRuntime(t *testing.T, home, scenarioName, portName, envVar string, port int) {
+	t.Helper()
+	ctx := context.Background()
+	host, err := hostsession.DefaultProvider{}.Current(ctx, home)
+	if err != nil {
+		t.Fatalf("host session: %v", err)
+	}
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	defer store.Close()
+
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		InstanceID: "inst-" + scenarioName,
+		Scenario:   scenarioName,
+		Status:     scenarioruntime.StatusStarting,
+		Phase:      "develop",
+		OwnerKind:  scenarioruntime.OwnerKindLifecycle,
+		StartedAt:  time.Now().Add(-time.Minute).UTC(),
+		HostBootID: host.BootID,
+	}, scenarioruntime.DefaultHeartbeatTTL)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	if _, err := store.UpdateInstanceStatus(ctx, instance.InstanceID, instance.Generation, scenarioruntime.StatusRunning, "develop"); err != nil {
+		t.Fatalf("UpdateInstanceStatus: %v", err)
+	}
+	claim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID:    "claim-" + scenarioName + "-" + portName,
+		InstanceID: instance.InstanceID,
+		Scenario:   scenarioName,
+		PortName:   portName,
+		EnvVar:     envVar,
+		Port:       port,
+		BindHost:   "127.0.0.1",
+		Status:     scenarioruntime.ClaimStatusReserved,
+	})
+	if err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+	if _, err := store.BindPortClaim(ctx, claim.ClaimID); err != nil {
+		t.Fatalf("BindPortClaim: %v", err)
+	}
+	pid := os.Getpid()
+	if _, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{
+		RefID:      "proc-" + instance.InstanceID,
+		InstanceID: instance.InstanceID,
+		PID:        &pid,
+		PGID:       &pid,
+		Step:       "start-" + portName,
+		Status:     "running",
+		StartedAt:  time.Now().Add(-time.Minute).UTC(),
+		HostBootID: host.BootID,
+	}); err != nil {
+		t.Fatalf("AddProcessRef: %v", err)
+	}
+}
 
 func TestRespondErrorSetsHTTPStatusAndCode(t *testing.T) {
 	rec := httptest.NewRecorder()

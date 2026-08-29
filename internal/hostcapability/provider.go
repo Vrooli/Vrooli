@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/safeguards"
 )
 
@@ -85,7 +86,7 @@ func Evaluate(ctx context.Context, registry *Registry, invariants []Invariant, f
 
 type DarwinProvider struct{}
 
-func (DarwinProvider) Name() string { return "darwin" }
+func (DarwinProvider) Name() string { return string(hostreqspec.PlatformDarwin) }
 func (DarwinProvider) Resolve(_ context.Context, invariant Invariant, _ Facts) Result {
 	return Result{InvariantID: invariant.ID, Verdict: NotApplicable, Reason: "the invariant does not apply to this platform"}
 }
@@ -94,7 +95,7 @@ type AptProvider struct {
 	ResolveFn func(context.Context, Invariant, Facts) Result
 }
 
-func (AptProvider) Name() string { return "linux" }
+func (AptProvider) Name() string { return string(hostreqspec.PlatformLinux) }
 func (p AptProvider) Resolve(ctx context.Context, invariant Invariant, facts Facts) Result {
 	if p.ResolveFn == nil {
 		return resolveLinuxInvariant(invariant, facts)

@@ -5,6 +5,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // TestCreateInstancePerVariantGeneration proves the schema-5 invariant: two
@@ -13,7 +15,9 @@ import (
 // have rejected the shadow's generation 1 because the live instance already
 // owned it.
 func TestCreateInstancePerVariantGeneration(t *testing.T) {
-	store := newTestStore(t, newFixedClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC))})
+	})
 
 	live1 := mustCreate(t, store, Instance{Scenario: "alpha"})
 	if live1.Variant != DefaultVariant {
@@ -46,7 +50,9 @@ func TestCreateInstancePerVariantGeneration(t *testing.T) {
 // through the InstanceKey SSOT so casing/whitespace can never fragment the
 // uniqueness key or generation counter.
 func TestCreateInstanceNormalizesVariant(t *testing.T) {
-	store := newTestStore(t, newFixedClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC))})
+	})
 
 	a := mustCreate(t, store, Instance{Scenario: "beta", Variant: "  Shadow "})
 	if a.Variant != "shadow" {
@@ -63,7 +69,9 @@ func TestCreateInstanceNormalizesVariant(t *testing.T) {
 // only that variant's authoritative instance.
 func TestListInstancesVariantFilter(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC))})
+	})
 
 	mustCreate(t, store, Instance{Scenario: "gamma"})
 	mustCreate(t, store, Instance{Scenario: "gamma", Variant: "shadow"})
@@ -97,7 +105,9 @@ func TestListInstancesVariantFilter(t *testing.T) {
 // filters by) its instance's variant.
 func TestAcquirePortClaimDenormalizesVariant(t *testing.T) {
 	ctx := context.Background()
-	store := newTestStore(t, newFixedClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "runtime.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC))})
+	})
 
 	live := mustCreate(t, store, Instance{Scenario: "delta"})
 	shadow := mustCreate(t, store, Instance{Scenario: "delta", Variant: "shadow"})

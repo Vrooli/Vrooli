@@ -13,9 +13,9 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 
+	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
-	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
@@ -26,20 +26,7 @@ import (
 // must never loop `scenario status`; they block here.
 
 // WaitResponse mirrors scenarioapp.WaitResponse at the CLI layer.
-type WaitResponse struct {
-	Success       bool                          `json:"success"`
-	Scenario      string                        `json:"scenario"`
-	Verdict       string                        `json:"verdict"`
-	ExitCode      int                           `json:"exit_code"`
-	Source        string                        `json:"source"`
-	WaitedSeconds int                           `json:"waited_seconds"`
-	Error         string                        `json:"error,omitempty"`
-	Operation     *lifecycle.StartOperationView `json:"operation,omitempty"`
-	// ParkedMessage, when set, means agent-manager parked the run instead of
-	// this process blocking: the renderer prints exactly this message and
-	// nothing else (the wake turn carries the verdict).
-	ParkedMessage string `json:"-"`
-}
+type WaitResponse = scenarioapp.WaitResponse
 
 // WaitVerdictDetached is the CLI-layer verdict for a Ctrl-C detach: the wait
 // stopped observing but the awaited start (if any) continues. Exit 0 —

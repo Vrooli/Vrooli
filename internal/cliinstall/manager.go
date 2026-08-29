@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -29,9 +30,9 @@ import (
 )
 
 const (
-	cliInstallWindows = "windows"
-	cliInstallDarwin  = "darwin"
-	cliInstallLinux   = "linux"
+	cliInstallWindows = string(hostreqspec.PlatformWindows)
+	cliInstallDarwin  = string(hostreqspec.PlatformDarwin)
+	cliInstallLinux   = string(hostreqspec.PlatformLinux)
 )
 
 const (

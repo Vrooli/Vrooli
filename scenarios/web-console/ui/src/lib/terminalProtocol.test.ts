@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialTerminalProtocolState, reduceTerminalMessage } from "./terminalProtocol";
+import { initialTerminalProtocolState, initialTerminalProtocolStateFor, reduceTerminalMessage } from "./terminalProtocol";
 
 describe("terminal protocol reducer", () => {
   it("tracks cursor-bearing replay without DOM or transport effects", () => {
@@ -56,8 +56,26 @@ describe("terminal protocol reducer", () => {
     expect(next.leaderKbOpen).toBe(true);
   });
 
-  it("clears the keyboard state when the leader closes it", () => {
+	it("clears the keyboard state when the leader closes it", () => {
     const open = reduceTerminalMessage(initialTerminalProtocolState, { type: "presence", kbOpen: true, viewerCount: 2 });
     expect(reduceTerminalMessage(open, { type: "presence", kbOpen: false, viewerCount: 2 }).leaderKbOpen).toBe(false);
-  });
+	});
+
+	it("reduces a self-leader presence frame to self-echo", () => {
+		const state = initialTerminalProtocolStateFor("device-1");
+		const next = reduceTerminalMessage(state, { type: "presence", leader: "device-1", holdsLease: false, viewerCount: 2 });
+		expect(next.followerMode).toBe("self-echo");
+	});
+
+	it("reduces a foreign leader presence frame to follower", () => {
+		const state = initialTerminalProtocolStateFor("device-1");
+		const next = reduceTerminalMessage(state, { type: "presence", leader: "device-2", holdsLease: false, viewerCount: 2 });
+		expect(next.followerMode).toBe("follower");
+	});
+
+	it("keeps a lease holder as leader regardless of reported leader identity", () => {
+		const state = initialTerminalProtocolStateFor("device-1");
+		const next = reduceTerminalMessage(state, { type: "presence", leader: "device-2", holdsLease: true, viewerCount: 2 });
+		expect(next.followerMode).toBe("leader");
+	});
 });

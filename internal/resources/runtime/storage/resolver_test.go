@@ -34,6 +34,30 @@ func TestResolveUsesResourceScopedPaths(t *testing.T) {
 	}
 }
 
+func TestResourcesRootUsesTheSameStateAuthorityAsResolve(t *testing.T) {
+	home := t.TempDir()
+	r, err := NewResolver(ResolverConfig{
+		AppID:       "vrooli",
+		UserHomeDir: func() (string, error) { return home, nil },
+		EnvGet:      func(string) string { return "" },
+	})
+	if err != nil {
+		t.Fatalf("NewResolver: %v", err)
+	}
+
+	root, err := r.ResourcesRoot(ClassState, "")
+	if err != nil {
+		t.Fatalf("ResourcesRoot: %v", err)
+	}
+	paths, err := r.Resolve(Options{ResourceID: "redis"})
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if got, want := paths.StateDir, filepath.Join(root, "redis"); got != want {
+		t.Fatalf("StateDir = %q, want %q", got, want)
+	}
+}
+
 func TestPathRejectsEscapes(t *testing.T) {
 	r, err := NewResolver(ResolverConfig{
 		RuntimeOS: "linux",

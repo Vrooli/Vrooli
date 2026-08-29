@@ -92,4 +92,12 @@ func TestServiceRoutesMaintenanceUseCases(t *testing.T) {
 	if locks.CleanReport == nil || locks.CleanReport.Message != "cleaned" {
 		t.Fatalf("locks = %#v", locks)
 	}
+
+	locks, err = svc.Locks(LocksRequest{ShowAll: true})
+	if err != nil {
+		t.Fatalf("Locks list: %v", err)
+	}
+	if !locks.ShowAll || len(locks.RuntimeClaims) != 1 {
+		t.Fatalf("locks list = %#v", locks)
+	}
 }

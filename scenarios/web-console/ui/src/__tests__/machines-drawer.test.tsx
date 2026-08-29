@@ -28,7 +28,9 @@ import {
   type JoinRequest,
   type Machine,
 } from "../api/machines";
-import MachinesDrawer from "../components/machines/MachinesDrawer";
+import FleetDrawer from "../components/fleet/FleetDrawer";
+
+const MachinesDrawer = FleetDrawer;
 
 const listFleet = vi.mocked(_listFleet);
 const issueJoinCode = vi.mocked(_issueJoinCode);

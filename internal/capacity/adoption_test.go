@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func kyutaiSpec() (ResourceClaimSpec, bool, error) {
@@ -29,7 +30,9 @@ func declaredLoader(declared map[string]bool) SpecLoader {
 func TestAdoptCreatesClaimForDeclaredUnclaimed(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC)
-	store := newTestStore(t, newFixedClock(now))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(now)})
+	})
 
 	snap := snapshotWithProcs(hostinventory.GPUProcess{GPUIndex: 0, PID: 2000, ProcessName: "python", UsedBytes: 3 * uint64(gib)})
 	attr := fakeAttributor{2000: {ContainerName: "/vrooli-kyutai-stt-1", OwnerID: "kyutai-stt"}}
@@ -50,7 +53,9 @@ func TestAdoptCreatesClaimForDeclaredUnclaimed(t *testing.T) {
 func TestAdoptIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC)
-	store := newTestStore(t, newFixedClock(now))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(now)})
+	})
 	snap := snapshotWithProcs(hostinventory.GPUProcess{GPUIndex: 0, PID: 2000, ProcessName: "python", UsedBytes: 3 * uint64(gib)})
 	attr := fakeAttributor{2000: {ContainerName: "/vrooli-kyutai-stt-1", OwnerID: "kyutai-stt"}}
 	loader := declaredLoader(map[string]bool{"kyutai-stt": true})
@@ -75,7 +80,9 @@ func TestAdoptIsIdempotent(t *testing.T) {
 func TestAdoptSkipsUndeclared(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC)
-	store := newTestStore(t, newFixedClock(now))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(now)})
+	})
 	snap := snapshotWithProcs(hostinventory.GPUProcess{GPUIndex: 0, PID: 3000, ProcessName: "python", UsedBytes: 5 * uint64(gib)})
 	attr := fakeAttributor{3000: {ContainerName: "/some-random-job", OwnerID: "random-job"}}
 

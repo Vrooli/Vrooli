@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // residentClaim is a resident (resource) VRAM claim for the named owner.
@@ -26,8 +27,10 @@ func residentClaim(owner string) CapacityClaim {
 // expired — even after its deadline would otherwise have lapsed.
 func TestSweepRefreshesObservedResidentClaim(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	created, err := store.CreateClaim(ctx, residentClaim("whisper"), DefaultHeartbeatTTL)
 	if err != nil {
@@ -72,8 +75,10 @@ func TestSweepRefreshesObservedResidentClaim(t *testing.T) {
 // is swept to expired.
 func TestSweepExpiresUnobservedResidentClaim(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	created, err := store.CreateClaim(ctx, residentClaim("kyutai-stt"), DefaultHeartbeatTTL)
 	if err != nil {
@@ -106,8 +111,10 @@ func TestSweepExpiresUnobservedResidentClaim(t *testing.T) {
 // presence-refreshed, even when their owner process is observed.
 func TestSweepIgnoresOpScopedClaims(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 
 	opClaim := residentClaim("image-tools:job-1")
 	opClaim.OwnerKind = OwnerKindOp
@@ -136,8 +143,10 @@ func TestSweepIgnoresOpScopedClaims(t *testing.T) {
 // Sweep with a nil attributor never panics and refreshes nothing.
 func TestSweepNilAttributorSafe(t *testing.T) {
 	ctx := context.Background()
-	clk := newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
-	store := newTestStore(t, clk)
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
 	if _, err := store.CreateClaim(ctx, residentClaim("whisper"), DefaultHeartbeatTTL); err != nil {
 		t.Fatalf("CreateClaim() error = %v", err)
 	}

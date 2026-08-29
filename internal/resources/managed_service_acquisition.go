@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -273,10 +274,10 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 				arch = "aarch64"
 			}
 			platform := arch + "-unknown-linux-gnu"
-			if runtime.GOOS == "darwin" {
+			if runtime.GOOS == string(hostreqspec.PlatformDarwin) {
 				platform = arch + "-apple-darwin"
 			}
-			if runtime.GOOS == "windows" {
+			if runtime.GOOS == string(hostreqspec.PlatformWindows) {
 				platform = arch + "-pc-windows-msvc"
 			}
 			command, err := pythonWheelsCommand(ctx, step, dest, lockfile, platform)
@@ -297,7 +298,7 @@ func composeManagedServiceArtifact(ctx context.Context, target binaryfetch.Acqui
 		}
 	}
 	platformOS := runtime.GOOS
-	if platformOS == "darwin" {
+	if platformOS == string(hostreqspec.PlatformDarwin) {
 		platformOS = "macos"
 	}
 	return writeManagedComposeManifest(target, artifactRoot, platformOS+"-"+runtime.GOARCH, resourceRoot)

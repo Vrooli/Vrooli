@@ -18,7 +18,7 @@ import (
 
 const (
 	fleetContractUnsupported = "unsupported"
-	fleetContractWindows     = "windows"
+	fleetContractWindows     = string(hostreqspec.PlatformWindows)
 )
 
 const fleetContractDir = "dir"
@@ -26,7 +26,7 @@ const fleetContractDir = "dir"
 // externalAcquisitionGOOSDarwin is the GOOS spelling required by binary
 // acquisition targets. It is intentionally distinct from the normalized
 // host-platform spelling "macos" used by manifests.
-const externalAcquisitionGOOSDarwin = "darwin"
+const externalAcquisitionGOOSDarwin = string(hostreqspec.PlatformDarwin)
 
 var digestPattern = regexp.MustCompile(`@sha256:[0-9a-fA-F]{64}$`)
 

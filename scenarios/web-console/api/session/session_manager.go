@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -90,6 +91,76 @@ type Manager struct {
 	// the API exposes so the UI can honestly show "sessions still recovering".
 	recoveryMu sync.RWMutex
 	recovery   RecoveryProgress
+}
+
+// SessionAttachment names one session a device is currently viewing.
+type SessionAttachment struct {
+	SessionID   string
+	SessionName string
+	HoldsLease  bool
+}
+
+// FleetDevice is the cross-session projection of one browser-local device.
+type FleetDevice struct {
+	DeviceID     string
+	DeviceLabel  string
+	DeviceClass  string
+	ConnCount    int
+	FirstSeenAt  time.Time
+	Sessions     []SessionAttachment
+	Reconnecting bool
+}
+
+// ConnectedDevices projects live connections from every session. Empty device
+// identities are keyed privately by session and connection so they never merge.
+func (sm *Manager) ConnectedDevices() []FleetDevice {
+	sm.mu.RLock()
+	sessions := make([]*Session, 0, len(sm.sessions))
+	for _, sess := range sm.sessions {
+		sessions = append(sessions, sess)
+	}
+	sm.mu.RUnlock()
+	devices := make(map[string]*FleetDevice)
+	for _, sess := range sessions {
+		for _, view := range sess.ConnectedDevices() {
+			key := view.DeviceID
+			if key == "" && len(view.Connections) > 0 {
+				key = "\x00" + sess.ID + ":" + view.Connections[0].ConnID
+			}
+			device := devices[key]
+			if device == nil {
+				first := time.Time{}
+				if len(view.Connections) > 0 {
+					first = view.Connections[0].SubscribedAt
+				}
+				device = &FleetDevice{DeviceID: view.DeviceID, DeviceLabel: view.DeviceLabel, DeviceClass: view.DeviceClass, FirstSeenAt: first}
+				devices[key] = device
+			}
+			device.ConnCount += len(view.Connections)
+			if len(view.Connections) > 1 {
+				device.Reconnecting = true
+			}
+			if len(view.Connections) > 0 && (device.FirstSeenAt.IsZero() || view.Connections[0].SubscribedAt.Before(device.FirstSeenAt)) {
+				device.FirstSeenAt = view.Connections[0].SubscribedAt
+			}
+			for _, conn := range view.Connections {
+				if conn.HoldsLease {
+					device.Sessions = append(device.Sessions, SessionAttachment{SessionID: sess.ID, SessionName: sess.ID, HoldsLease: true})
+					break
+				}
+			}
+			if len(device.Sessions) == 0 || device.Sessions[len(device.Sessions)-1].SessionID != sess.ID {
+				device.Sessions = append(device.Sessions, SessionAttachment{SessionID: sess.ID, SessionName: sess.ID, HoldsLease: view.HoldsLease})
+			}
+		}
+	}
+	result := make([]FleetDevice, 0, len(devices))
+	for _, device := range devices {
+		sort.Slice(device.Sessions, func(i, j int) bool { return device.Sessions[i].SessionID < device.Sessions[j].SessionID })
+		result = append(result, *device)
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].FirstSeenAt.Before(result[j].FirstSeenAt) })
+	return result
 }
 
 // RecoveryProgress is a snapshot of startup session-recovery progress, surfaced

@@ -4,18 +4,14 @@ import (
 	"fmt"
 	"io"
 
+	scenarioapp "github.com/vrooli/vrooli/internal/app/scenario"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 // FreshnessRequest is the parsed `vrooli scenario freshness` invocation.
-type FreshnessRequest struct {
-	Name    string
-	Path    string
-	JSON    bool
-	Explain bool
-}
+type FreshnessRequest = scenarioapp.FreshnessRequest
 
 // FreshnessResponse couples the lifecycle freshness report with the --explain
 // flag so the renderer can choose between a summary and the full breakdown. JSON

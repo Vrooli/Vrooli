@@ -14,16 +14,8 @@ import (
 	"github.com/vrooli/vrooli/internal/project"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
-
-func decodeJSON(t *testing.T, b []byte) map[string]any {
-	t.Helper()
-	var got map[string]any
-	if err := json.Unmarshal(b, &got); err != nil {
-		t.Fatalf("output is not valid JSON: %v\n%s", err, string(b))
-	}
-	return got
-}
 
 // TestStatusJSONContract pins the `vrooli status --json` wire shape.
 func TestStatusJSONContract(t *testing.T) {
@@ -63,7 +55,7 @@ func TestStatusJSONContract(t *testing.T) {
 	if err := RenderStatusReport(&buf, cliout.FormatJSON, resp); err != nil {
 		t.Fatalf("RenderStatusReport: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: want true, got %v", got["success"])
 	}
@@ -107,7 +99,7 @@ func TestDoctorJSONContract(t *testing.T) {
 	if err := RenderDoctorReport(&buf, cliout.FormatJSON, report); err != nil {
 		t.Fatalf("RenderDoctorReport: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: want true, got %v", got["success"])
 	}
@@ -128,7 +120,7 @@ func TestStopJSONContract(t *testing.T) {
 	if err := RenderStopReport(&buf, cliout.FormatJSON, report); err != nil {
 		t.Fatalf("RenderStopReport: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: want true, got %v", got["success"])
 	}
@@ -149,7 +141,7 @@ func TestOrphansJSONContract(t *testing.T) {
 	if err := RenderOrphansResponse(&live, cliout.FormatJSON, OrphansResponse{List: list}); err != nil {
 		t.Fatalf("RenderOrphansResponse live: %v", err)
 	}
-	liveGot := decodeJSON(t, live.Bytes())
+	liveGot := testenv.DecodeJSON[map[string]any](t, live.Bytes())
 	if liveGot["success"] != true {
 		t.Errorf("live success: %v", liveGot["success"])
 	}
@@ -162,7 +154,7 @@ func TestOrphansJSONContract(t *testing.T) {
 	if err := RenderOrphansResponse(&dry, cliout.FormatJSON, OrphansResponse{List: list, DryRun: true}); err != nil {
 		t.Fatalf("RenderOrphansResponse dry: %v", err)
 	}
-	dryGot := decodeJSON(t, dry.Bytes())
+	dryGot := testenv.DecodeJSON[map[string]any](t, dry.Bytes())
 	dr := dryGot["dry_run"].(map[string]any)
 	if len(dr["orphans"].([]any)) != 1 {
 		t.Errorf("dry_run.orphans mismatch: %v", dr)
@@ -184,7 +176,7 @@ func TestLocksJSONContract(t *testing.T) {
 	if err := RenderLocksResponse(&buf, cliout.FormatJSON, resp); err != nil {
 		t.Fatalf("RenderLocksResponse: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: %v", got["success"])
 	}
@@ -225,7 +217,7 @@ func TestTemplateCleanupJSONContract(t *testing.T) {
 	if err := RenderTemplateValidationCleanupResponse(&buf, cliout.FormatJSON, resp); err != nil {
 		t.Fatalf("RenderTemplateValidationCleanupResponse: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true { // len(Failures)==0
 		t.Errorf("success: want true, got %v", got["success"])
 	}
@@ -265,7 +257,7 @@ func TestPortDiagnosticJSONContract(t *testing.T) {
 	if err := RenderPortDiagnostic(&buf, cliout.FormatJSON, diag); err != nil {
 		t.Fatalf("RenderPortDiagnostic: %v", err)
 	}
-	got := decodeJSON(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if got["success"] != true {
 		t.Errorf("success: %v", got["success"])
 	}

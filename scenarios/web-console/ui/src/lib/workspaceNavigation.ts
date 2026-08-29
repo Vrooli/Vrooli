@@ -499,3 +499,46 @@ export function buildOriginBucketedNavigation({
   }
   return result;
 }
+
+/**
+ * Per-session activity, keyed by session id.
+ *
+ * Split out of the sidebar's item builder so a second surface can describe a
+ * session in the sidebar's own words. The handoff composer needs exactly this
+ * and nothing else about a pane: it never sorts by group, never collapses,
+ * and never drags — so calling `buildWorkspaceNavigationItems` there would
+ * both do far too much and, because that builder skips the panes of a
+ * collapsed group, silently omit targets.
+ */
+export interface SessionActivity {
+  /** The sidebar's wording: "2m" for real output, "Visited 2m" for a bare open. */
+  label: string;
+  /** Epoch ms of that moment, or 0 when the session has never been seen. Sort key. */
+  at: number;
+  unreadCount: number;
+}
+
+export function buildSessionActivity(
+  panes: PaneMetadata[],
+  conversationSessions: Record<string, ConversationSessionSnapshot | undefined>,
+  lastVisitedBySession: Record<string, string>,
+  now?: Date,
+): Record<string, SessionActivity> {
+  const activity: Record<string, SessionActivity> = {};
+  for (const pane of panes) {
+    const session = conversationSessions[pane.sessionId];
+    const latest = latestEvent(session?.events ?? []);
+    const latestEventAt = latest?.createdAt ?? null;
+    const activityAt = latestEventAt ?? lastVisitedBySession[pane.sessionId] ?? null;
+    activity[pane.sessionId] = {
+      label: activityAt
+        ? latestEventAt
+          ? formatRelativeTime(activityAt, now)
+          : `Visited ${formatRelativeTime(activityAt, now)}`
+        : "",
+      at: activityAt ? Date.parse(activityAt) || 0 : 0,
+      unreadCount: countUnreadMessages(pane, session),
+    };
+  }
+  return activity;
+}

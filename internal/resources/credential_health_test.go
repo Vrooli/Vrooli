@@ -8,30 +8,8 @@ import (
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
-
-type credentialTestStore struct{ values map[string]string }
-
-func (s *credentialTestStore) Put(service, key, value string) error {
-	if s.values == nil {
-		s.values = map[string]string{}
-	}
-	s.values[service+"/"+key] = value
-	return nil
-}
-
-func (s *credentialTestStore) Get(service, key string) (string, error) {
-	value, ok := s.values[service+"/"+key]
-	if !ok {
-		return "", securestore.ErrNotFound
-	}
-	return value, nil
-}
-
-func (s *credentialTestStore) Delete(service, key string) error {
-	delete(s.values, service+"/"+key)
-	return nil
-}
 
 func withCredentialStore(t *testing.T, store securestore.Store) *credentialauthority.Authority {
 	t.Helper()
@@ -85,7 +63,7 @@ func TestCloudAPIStatusSeparatesHostFaultFromUnsetValue(t *testing.T) {
 		},
 		{
 			name:        "unset value names the provision command",
-			store:       &credentialTestStore{},
+			store:       testenv.NewCredentialStore(securestore.ErrNotFound),
 			wantMessage: "vrooli credentials provision --identity vrooli/openrouter --field api-key",
 			wantCode:    StatusCodeOK,
 		},
@@ -118,7 +96,7 @@ func TestCloudAPIStatusSeparatesHostFaultFromUnsetValue(t *testing.T) {
 // start-then-configure guarantee at the health boundary: the resource must go
 // healthy in the same process that reported it unhealthy.
 func TestCloudAPIStatusRecoversAfterProvisioningWithoutRestart(t *testing.T) {
-	authority := withCredentialStore(t, &credentialTestStore{})
+	authority := withCredentialStore(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	manifest := openrouterCloudManifest()
 
 	before, err := cloudAPIDriver{}.Status(context.Background(), &Controller{}, Resource{Name: "openrouter"}, manifest, true)
@@ -148,7 +126,7 @@ func TestCloudAPIStatusRecoversAfterProvisioningWithoutRestart(t *testing.T) {
 // The status message is operator-facing output, so it must never carry the
 // value it is reporting on.
 func TestCloudAPIStatusNeverPrintsACredentialValue(t *testing.T) {
-	authority := withCredentialStore(t, &credentialTestStore{})
+	authority := withCredentialStore(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 	if err := authority.Put("vrooli/openrouter", "api-key", "sk-secret-value"); err != nil {
 		t.Fatal(err)
 	}

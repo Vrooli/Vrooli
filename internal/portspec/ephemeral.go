@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
@@ -100,11 +101,11 @@ type defaultReader struct{}
 
 func (defaultReader) Read(ctx context.Context) (EphemeralRange, error) {
 	switch runtime.GOOS {
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		return readLinuxEphemeral(ctx)
-	case "darwin":
+	case string(hostreqspec.PlatformDarwin):
 		return readDarwinEphemeral(ctx)
-	case "windows":
+	case string(hostreqspec.PlatformWindows):
 		return readWindowsEphemeral(ctx)
 	default:
 		return EphemeralRange{}, fmt.Errorf("ports: unsupported OS %q for ephemeral probe", runtime.GOOS)
@@ -136,7 +137,7 @@ func parseLinuxEphemeral(raw string) (EphemeralRange, error) {
 	if lo <= 0 || hi < lo {
 		return EphemeralRange{}, fmt.Errorf("implausible ephemeral window %d..%d", lo, hi)
 	}
-	return EphemeralRange{Min: lo, Max: hi, Source: "linux-proc", OS: "linux"}, nil
+	return EphemeralRange{Min: lo, Max: hi, Source: "linux-proc", OS: string(hostreqspec.PlatformLinux)}, nil
 }
 
 func readDarwinEphemeral(ctx context.Context) (EphemeralRange, error) {
@@ -166,7 +167,7 @@ func parseDarwinEphemeral(raw string) (EphemeralRange, error) {
 	if lo <= 0 || hi < lo {
 		return EphemeralRange{}, fmt.Errorf("implausible ephemeral window %d..%d", lo, hi)
 	}
-	return EphemeralRange{Min: lo, Max: hi, Source: "darwin-sysctl", OS: "darwin"}, nil
+	return EphemeralRange{Min: lo, Max: hi, Source: "darwin-sysctl", OS: string(hostreqspec.PlatformDarwin)}, nil
 }
 
 func readWindowsEphemeral(ctx context.Context) (EphemeralRange, error) {
@@ -223,5 +224,5 @@ func parseWindowsEphemeral(raw string) (EphemeralRange, error) {
 	if end < start {
 		return EphemeralRange{}, fmt.Errorf("implausible netsh window %d..%d", start, end)
 	}
-	return EphemeralRange{Min: start, Max: end, Source: "windows-netsh", OS: "windows"}, nil
+	return EphemeralRange{Min: start, Max: end, Source: "windows-netsh", OS: string(hostreqspec.PlatformWindows)}, nil
 }

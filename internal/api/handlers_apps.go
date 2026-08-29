@@ -141,10 +141,8 @@ func (a *App) ProtectApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) StartApp(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-	if err := a.ensureScenarioExists(name); err != nil {
-		a.logWarn("Scenario start requested for missing scenario", logx.AttrScenario, name)
-		respondError(w, err)
+	name, ok := a.scenarioNameForAction(w, r, "start")
+	if !ok {
 		return
 	}
 	if err := checkForkBomb(); err != nil {
@@ -184,10 +182,8 @@ func (a *App) StopApp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) RestartApp(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-	if err := a.ensureScenarioExists(name); err != nil {
-		a.logWarn("Scenario restart requested for missing scenario", logx.AttrScenario, name)
-		respondError(w, err)
+	name, ok := a.scenarioNameForAction(w, r, "restart")
+	if !ok {
 		return
 	}
 	if _, err := a.Scenarios.Restart(name, lifecycle.StartOptions{}); err != nil {

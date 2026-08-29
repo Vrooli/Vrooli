@@ -8,6 +8,7 @@ import (
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/resources/securestore"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // withCredentialStore points the resolver at a store representing a host
@@ -22,29 +23,6 @@ func withCredentialStore(t *testing.T, store securestore.Store) *credentialautho
 	credentialauthority.DefaultAuthority = func() (*credentialauthority.Authority, error) { return authority, nil }
 	t.Cleanup(func() { credentialauthority.DefaultAuthority = previous })
 	return authority
-}
-
-type memoryCredentialStore struct{ values map[string]string }
-
-func (s *memoryCredentialStore) Put(service, key, value string) error {
-	if s.values == nil {
-		s.values = map[string]string{}
-	}
-	s.values[service+"/"+key] = value
-	return nil
-}
-
-func (s *memoryCredentialStore) Get(service, key string) (string, error) {
-	value, ok := s.values[service+"/"+key]
-	if !ok {
-		return "", securestore.ErrNotFound
-	}
-	return value, nil
-}
-
-func (s *memoryCredentialStore) Delete(service, key string) error {
-	delete(s.values, service+"/"+key)
-	return nil
 }
 
 func openrouterScenario(t *testing.T, root string) scenario.Scenario {
@@ -127,7 +105,7 @@ func TestBuildEnvironmentSurvivesAHostWithNoCredentialBackend(t *testing.T) {
 func TestStartThenConfigureNeedsNoControlPlaneRestart(t *testing.T) {
 	root := repoRoot(t)
 	home := t.TempDir()
-	authority := withCredentialStore(t, &memoryCredentialStore{})
+	authority := withCredentialStore(t, testenv.NewCredentialStore(securestore.ErrNotFound))
 
 	manager, err := NewManager(root, home)
 	if err != nil {

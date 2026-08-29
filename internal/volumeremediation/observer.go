@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -59,9 +60,9 @@ func (o *HostObserver) Observe(ctx context.Context, devicePath string) (State, e
 		return State{}, err
 	}
 	switch o.goos {
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		return o.observeLinux(ctx, devicePath)
-	case "darwin":
+	case string(hostreqspec.PlatformDarwin):
 		return o.observeDarwin(ctx, devicePath)
 	default:
 		return State{}, ErrUnsupported{

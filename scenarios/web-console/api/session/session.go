@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -69,6 +70,14 @@ type SubscribeResult struct {
 	SizeCh chan [2]uint16
 	// PresenceCh receives lease and viewer changes independently of size.
 	PresenceCh chan PresenceState
+	// SupersedeCh closes when a newer connection of the same device replaces
+	// this connection after it fails the liveness probe.
+	SupersedeCh chan struct{}
+	// ReclaimClient is the prior connection when this subscription reclaimed
+	// its device's lease.
+	ReclaimClient chan []byte
+	// ConnID is the stable name assigned to this connection.
+	ConnID string
 	// Snapshot is the self-contained ANSI byte stream reproducing the
 	// current emulator state (screen + alt-buffer flag + scrollback).
 	// Caller must write it before draining OutputCh so live frames are
@@ -136,6 +145,7 @@ type Session struct {
 	leaseOwner      chan []byte
 	leaseReason     LeaseReason
 	nextClientOrder uint64
+	nextConnID      uint64
 	emu             *terminal.Emulator
 	// snapshotCache is serialized only when emulator state changes. Subscribe
 	// can then register a client and serve the last replay without walking the
@@ -761,7 +771,10 @@ func (s *Session) CurrentDir(ctx context.Context) (string, error) {
 // Caller must call Unsubscribe when done.
 // [REQ:P0-003b] Reconnect State Restoration
 // DOC: docs/concepts/ARCHITECTURE.md#terminal-snapshot-replay
-func (s *Session) Subscribe() SubscribeResult {
+// Subscribe optionally accepts deviceID, deviceLabel and deviceClass. The
+// variadic form keeps package-local callers source-compatible while transport
+// callers can make identity available before lease reconciliation.
+func (s *Session) Subscribe(identity ...string) SubscribeResult {
 	notifyCh := make(chan int, 1)
 	sizeCh := make(chan [2]uint16, 1)
 	presenceCh := make(chan PresenceState, 1)
@@ -776,6 +789,21 @@ func (s *Session) Subscribe() SubscribeResult {
 	ch := make(chan []byte, s.clientChannelBuffer)
 	frameCh := make(chan OutputFrame, s.clientChannelBuffer)
 	s.nextClientOrder++
+	s.nextConnID++
+	now := time.Now()
+	connID := fmt.Sprintf("%s-%d", s.ID, s.nextConnID)
+	supersedeCh := make(chan struct{})
+	pongCh := make(chan struct{}, 1)
+	deviceID, deviceLabel, deviceClass := "", "", ""
+	if len(identity) > 0 {
+		deviceID = identity[0]
+	}
+	if len(identity) > 1 {
+		deviceLabel = identity[1]
+	}
+	if len(identity) > 2 {
+		deviceClass = identity[2]
+	}
 	s.clients[ch] = &ClientInfo{
 		AcceptedBase:    s.acceptedThrough,
 		NotifyCh:        notifyCh,
@@ -783,6 +811,22 @@ func (s *Session) Subscribe() SubscribeResult {
 		PresenceCh:      presenceCh,
 		FrameCh:         frameCh,
 		SubscribedOrder: s.nextClientOrder,
+		ConnID:          connID,
+		SubscribedAt:    now,
+		supersedeCh:     supersedeCh,
+		pongCh:          pongCh,
+		DeviceID:        deviceID,
+		DeviceLabel:     deviceLabel,
+		DeviceClass:     deviceClass,
+	}
+	var reclaimClient chan []byte
+	var resizePTY pty.PTY
+	var resizeCols, resizeRows uint16
+	if prior := s.leaseHolderForDeviceLocked(deviceID, ch); prior != nil {
+		reclaimClient = prior
+		s.leaseOwner = ch
+		s.leaseReason = LeaseReasonDeviceReclaim
+		resizePTY, resizeCols, resizeRows = s.applyDeclaredSizeLocked(ch)
 	}
 	if s.leaseOwner == nil {
 		s.leaseOwner = ch
@@ -799,16 +843,45 @@ func (s *Session) Subscribe() SubscribeResult {
 	bctrace("subscribe", s.ID, nil, "snapshot_bytes=%d", len(snap))
 	s.emuMu.Unlock()
 	s.clientsMu.Unlock()
+	if resizePTY != nil {
+		_ = resizePTY.SetSize(resizeCols, resizeRows)
+	}
 
 	return SubscribeResult{
-		OutputCh:     ch,
-		FrameCh:      frameCh,
-		NotifyCh:     notifyCh,
-		SizeCh:       sizeCh,
-		PresenceCh:   presenceCh,
-		Snapshot:     snap,
-		OutputCursor: outputCursor,
+		OutputCh:      ch,
+		FrameCh:       frameCh,
+		NotifyCh:      notifyCh,
+		SizeCh:        sizeCh,
+		PresenceCh:    presenceCh,
+		SupersedeCh:   supersedeCh,
+		ReclaimClient: reclaimClient,
+		ConnID:        connID,
+		Snapshot:      snap,
+		OutputCursor:  outputCursor,
 	}
+}
+
+// Supersede requests the WebSocket handler to close this connection through
+// its normal shutdown path. It is safe to call more than once.
+func (s *Session) Supersede(ch chan []byte) {
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+	if info := s.clients[ch]; info != nil && info.supersedeCh != nil {
+		info.supersedeOnce.Do(func() { close(info.supersedeCh) })
+	}
+}
+
+// ClientChannel resolves a stable connection id for an administrative
+// disconnect. The returned channel is opaque and only useful to Supersede.
+func (s *Session) ClientChannel(connID string) chan []byte {
+	s.clientsMu.Lock()
+	defer s.clientsMu.Unlock()
+	for ch, info := range s.clients {
+		if info != nil && info.ConnID == connID {
+			return ch
+		}
+	}
+	return nil
 }
 
 // Unsubscribe removes a client channel. The PTY size is unchanged.
@@ -822,6 +895,7 @@ func (s *Session) Unsubscribe(ch chan []byte) {
 		return
 	}
 	delete(s.clients, ch)
+	info.supersedeOnce.Do(func() { close(info.supersedeCh) })
 	close(info.SizeCh)
 	close(info.PresenceCh)
 	if info.FrameCh != nil {

@@ -175,6 +175,25 @@ describe("dispatchGlobalEvent session_status (Layer 1)", () => {
   });
 });
 
+describe("dispatchGlobalEvent device_status (Layer 1)", () => {
+  it("routes device connection deltas through the shared stream callback", () => {
+    const onDeviceStatus = vi.fn();
+    dispatchGlobalEvent(
+      {
+        id: 15,
+        session_id: "session-1",
+        kind: "device_status",
+        sequence: 0,
+        payload: { action: "connected", deviceId: "phone-1", deviceLabel: "Phone", deviceClass: "phone", connId: "c1" },
+      },
+      undefined,
+      undefined,
+      { onDeviceStatus },
+    );
+    expect(onDeviceStatus).toHaveBeenCalledWith("session-1", expect.objectContaining({ action: "connected", deviceId: "phone-1" }));
+  });
+});
+
 describe("useGlobalEventStream idempotency (Layer 1)", () => {
   it("does not double-apply an event replayed with the same global id on reconnect", () => {
     const sources: FakeEventSource[] = [];

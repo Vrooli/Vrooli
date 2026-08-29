@@ -195,6 +195,92 @@ func TestSession_SizeLeaseTransfersAndResizes(t *testing.T) {
 	}
 }
 
+func TestSession_ConnectedDevicesGroupsTwoSocketsOfOneDevice(t *testing.T) {
+	sess, _, _ := newPipedSession(t)
+	first, second := sess.Subscribe(), sess.Subscribe()
+	defer sess.Unsubscribe(first.OutputCh)
+	defer sess.Unsubscribe(second.OutputCh)
+	sess.SetClientDevice(first.OutputCh, "device-1", "Phone", "phone")
+	sess.SetClientDevice(second.OutputCh, "device-1", "Phone", "phone")
+	devices := sess.ConnectedDevices()
+	if len(devices) != 1 || devices[0].DeviceID != "device-1" || len(devices[0].Connections) != 2 {
+		t.Fatalf("devices = %+v, want one device with two connections", devices)
+	}
+}
+
+func TestSession_ConnectedDevicesKeepsUnidentifiedConnectionsSeparate(t *testing.T) {
+	sess, _, _ := newPipedSession(t)
+	first, second := sess.Subscribe(), sess.Subscribe()
+	defer sess.Unsubscribe(first.OutputCh)
+	defer sess.Unsubscribe(second.OutputCh)
+	devices := sess.ConnectedDevices()
+	if len(devices) != 2 {
+		t.Fatalf("devices = %+v, want two unidentified devices", devices)
+	}
+	for _, device := range devices {
+		if device.DeviceID != "" || len(device.Connections) != 1 {
+			t.Fatalf("device = %+v, want one unidentified connection", device)
+		}
+	}
+}
+
+func TestManager_ConnectedDevicesAggregatesAcrossSessions(t *testing.T) {
+	first, _, manager := newPipedSession(t)
+	created, err := manager.Create(context.Background(), "", 80, 24, "", nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer manager.Delete(context.Background(), created.ID)
+	left, right := first.Subscribe(), created.Subscribe()
+	defer first.Unsubscribe(left.OutputCh)
+	defer created.Unsubscribe(right.OutputCh)
+	first.SetClientDevice(left.OutputCh, "device-1", "Phone", "phone")
+	created.SetClientDevice(right.OutputCh, "device-1", "Phone", "phone")
+	devices := manager.ConnectedDevices()
+	if len(devices) != 1 || devices[0].ConnCount != 2 || len(devices[0].Sessions) != 2 {
+		t.Fatalf("devices = %+v, want one device across two sessions", devices)
+	}
+}
+
+func TestSession_ReconnectingDeviceReclaimsItsOwnLease(t *testing.T) {
+	sess, _, _ := newPipedSession(t)
+	old := sess.Subscribe("device-1", "Phone", "phone")
+	sess.DeclareSize(old.OutputCh, 100, 30)
+	newConn := sess.Subscribe("device-1", "Phone", "phone")
+	defer sess.Unsubscribe(newConn.OutputCh)
+	if !sess.HoldsLease(newConn.OutputCh) || sess.HoldsLease(old.OutputCh) {
+		t.Fatalf("lease owner did not move to reconnecting device")
+	}
+	if state := sess.SizeLeaseState(newConn.OutputCh); state.Leader != "device-1" || state.HoldsLease != true {
+		t.Fatalf("state = %+v, want reconnecting device as leader", state)
+	}
+	if newConn.ReclaimClient != old.OutputCh {
+		t.Fatalf("reclaim client = %v, want old connection", newConn.ReclaimClient)
+	}
+	sess.Unsubscribe(old.OutputCh)
+}
+
+func TestSession_ReclaimAppliesTheArrivingConnectionDeclaredSize(t *testing.T) {
+	sess, fake, _ := newPipedSession(t)
+	old := sess.Subscribe("device-1", "Phone", "phone")
+	sess.DeclareSize(old.OutputCh, 100, 30)
+	if err := sess.AcquireLease(old.OutputCh, LeaseReasonExplicit); err != nil {
+		t.Fatal(err)
+	}
+	newConn := sess.Subscribe("device-1", "Phone", "phone")
+	defer sess.Unsubscribe(newConn.OutputCh)
+	sess.DeclareSize(newConn.OutputCh, 140, 42)
+	// A declaration arrives after Subscribe in the current client protocol;
+	// explicitly reclaim once more to exercise the established resize path.
+	if err := sess.AcquireLease(newConn.OutputCh, LeaseReasonDeviceReclaim); err != nil {
+		t.Fatal(err)
+	}
+	if fake.Cols != 140 || fake.Rows != 42 {
+		t.Fatalf("PTY size = %dx%d, want 140x42", fake.Cols, fake.Rows)
+	}
+	sess.Unsubscribe(old.OutputCh)
+}
+
 // The leader's keyboard state is presentational, so it must reach followers,
 // and a follower's own keyboard must not wake anybody.
 func TestSession_KeyboardStateFollowsTheLeaseOwner(t *testing.T) {

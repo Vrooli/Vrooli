@@ -52,26 +52,11 @@ func ParseArgs(command, helpText string, schema ArgSchema, args []string) (Parse
 		}
 
 		if strings.HasPrefix(arg, "-") {
-			name, value, hasValue := splitOptionToken(arg)
-			option, ok := index[name]
-			if !ok {
-				return ParsedArgs{}, clipolicy.UnknownOptionError(command, arg)
+			next, err := consumeOption(command, args, i, index, parsed.flags)
+			if err != nil {
+				return ParsedArgs{}, err
 			}
-			if option.ValueName == "" {
-				if hasValue {
-					return ParsedArgs{}, clipolicy.UsageErrorf(command, "%s does not accept a value", arg)
-				}
-				parsed.flags[option.Name] = append(parsed.flags[option.Name], "true")
-				continue
-			}
-			if !hasValue {
-				if i+1 >= len(args) {
-					return ParsedArgs{}, clipolicy.UsageErrorf(command, "missing value for %s", arg)
-				}
-				i++
-				value = args[i]
-			}
-			parsed.flags[option.Name] = append(parsed.flags[option.Name], value)
+			i = next
 			continue
 		}
 
@@ -82,6 +67,31 @@ func ParseArgs(command, helpText string, schema ArgSchema, args []string) (Parse
 		return ParsedArgs{}, err
 	}
 	return parsed, nil
+}
+
+func consumeOption(command string, args []string, position int, index map[string]OptionArg, flags map[string][]string) (int, error) {
+	arg := args[position]
+	name, value, hasValue := splitOptionToken(arg)
+	option, ok := index[name]
+	if !ok {
+		return position, clipolicy.UnknownOptionError(command, arg)
+	}
+	if option.ValueName == "" {
+		if hasValue {
+			return position, clipolicy.UsageErrorf(command, "%s does not accept a value", arg)
+		}
+		flags[option.Name] = append(flags[option.Name], "true")
+		return position, nil
+	}
+	if !hasValue {
+		position++
+		if position >= len(args) {
+			return position, clipolicy.UsageErrorf(command, "missing value for %s", arg)
+		}
+		value = args[position]
+	}
+	flags[option.Name] = append(flags[option.Name], value)
+	return position, nil
 }
 
 func ParseNoArgs(command, helpText string, args []string) error {

@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/supervision"
 )
 
 const (
@@ -28,11 +29,13 @@ const (
 )
 
 const (
-	processSnapshotParameterA = 10
-	processSnapshotParameterB = 20
-	processSnapshotParameterC = 25
-	processSnapshotParameterD = 5
-	processSnapshotParameterE = 6
+	processSnapshotParameterA      = 10
+	processSnapshotParameterB      = 20
+	processSnapshotParameterC      = 25
+	processSnapshotParameterD      = 5
+	processSnapshotParameterE      = 6
+	initialProcessTableBufferBytes = 64 * 1024
+	maxProcessTableLineBytes       = 4 * 1024 * 1024
 )
 
 type processTableEntry struct {
@@ -74,6 +77,7 @@ var (
 	listProcessTableFn           = listProcessTable
 	processReadScenarioRecordsFn = process.ReadScenarioRecords
 	runtimeProcessRefsFn         = runtimeTrackedProcessRefs
+	ownershipIndexFn             = supervision.BuildHostIndex
 )
 
 // Snapshot gathers the current tracked-process and orphan-process state from the
@@ -84,7 +88,12 @@ func (c *Controller) Snapshot() (ProcessSnapshot, error) {
 		return ProcessSnapshot{}, err
 	}
 
-	tracked, trackedSIDs, trackedCount, runningTracked, err := trackedProcessStats(c.Home, processTable)
+	ownership, err := ownershipIndexFn(c.Home)
+	if err != nil {
+		return ProcessSnapshot{}, fmt.Errorf("build process ownership index: %w", err)
+	}
+
+	tracked, trackedSIDs, trackedCount, runningTracked, err := trackedProcessStats(c.Home, processTable, ownership)
 	if err != nil {
 		return ProcessSnapshot{}, err
 	}
@@ -168,11 +177,33 @@ func interpretOrphanStatus(count int) (string, string) {
 	}
 }
 
-func trackedProcessStats(home string, processTable map[int]processTableEntry) (map[int]struct{}, map[int]struct{}, int, int, error) {
+func trackedProcessStats(home string, processTable map[int]processTableEntry, ownership *supervision.Index) (map[int]struct{}, map[int]struct{}, int, int, error) {
 	tracked := make(map[int]struct{})
 	trackedSIDs := make(map[int]struct{})
 	trackedCount := 0
 	runningTracked := 0
+	addTrackedPID := func(pid int) {
+		if pid <= 0 {
+			return
+		}
+		if _, exists := tracked[pid]; exists {
+			return
+		}
+		tracked[pid] = struct{}{}
+		trackedCount++
+		if _, running := processTable[pid]; running {
+			runningTracked++
+		}
+	}
+
+	// Recorded ownership is authoritative. Only owners present in this same
+	// process-table snapshot are added; stale and reused PIDs were already
+	// removed by the ownership index's start-time guard.
+	for _, owner := range ownership.Owners() {
+		if _, running := processTable[owner.PID]; running {
+			addTrackedPID(owner.PID)
+		}
+	}
 
 	processesDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyProcesses)
 	if err != nil {
@@ -194,13 +225,7 @@ func trackedProcessStats(home string, processTable map[int]processTableEntry) (m
 				return nil, nil, 0, 0, err
 			}
 			for _, record := range records {
-				if record.PID > 0 {
-					tracked[record.PID] = struct{}{}
-					trackedCount++
-					if _, running := processTable[record.PID]; running {
-						runningTracked++
-					}
-				}
+				addTrackedPID(record.PID)
 				if record.PGID > 0 {
 					tracked[record.PGID] = struct{}{}
 				}
@@ -213,13 +238,7 @@ func trackedProcessStats(home string, processTable map[int]processTableEntry) (m
 		return nil, nil, 0, 0, err
 	}
 	for _, ref := range refs {
-		if ref.PID > 0 {
-			tracked[ref.PID] = struct{}{}
-			trackedCount++
-			if _, running := processTable[ref.PID]; running {
-				runningTracked++
-			}
-		}
+		addTrackedPID(ref.PID)
 		if ref.PGID > 0 {
 			tracked[ref.PGID] = struct{}{}
 		}
@@ -262,7 +281,7 @@ func collectOrphans(root, home string, processTable map[int]processTableEntry, t
 		// restart <name>`) that don't register a process record, and
 		// SIGTERM'ing a sibling vrooli invocation during `cleanup orphans`
 		// would disrupt in-flight user work.
-		if isVrooliCLIExecutable(entry.Executable) {
+		if isVrooliCLIExecutable(home, entry.Executable) {
 			continue
 		}
 		if isControlPlaneAPIExecutable(entry) {
@@ -341,6 +360,11 @@ func listProcessTable() (map[int]processTableEntry, error) {
 
 	processTable := make(map[int]processTableEntry)
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	// Command lines can legitimately approach the host ARG_MAX (for example a
+	// generated test invocation). Scanner's 64 KiB default must not make the
+	// entire ownership classifier unavailable because one process has a long
+	// argv.
+	scanner.Buffer(make([]byte, initialProcessTableBufferBytes), maxProcessTableLineBytes)
 	for scanner.Scan() {
 		entry, ok := parseProcessTableLine(scanner.Text())
 		if !ok {

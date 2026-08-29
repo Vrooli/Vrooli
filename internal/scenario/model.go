@@ -215,19 +215,20 @@ type Dependencies struct {
 }
 
 type Dependency struct {
-	Type                 string `json:"type,omitempty"`
-	Enabled              bool   `json:"enabled,omitempty"`
-	Required             bool   `json:"required,omitempty"`
-	StartupPolicy        string `json:"startup_policy,omitempty"`
-	FreshnessPolicy      string `json:"freshness_policy,omitempty"`
-	DegradedBehavior     string `json:"degraded_behavior,omitempty"`
-	Purpose              string `json:"purpose,omitempty"`
-	Description          string `json:"description,omitempty"`
-	Database             string `json:"database,omitempty"`
-	VersionRange         string `json:"versionRange,omitempty"`
-	RuntimeOnly          bool   `json:"runtime_only,omitempty"`
-	RuntimeOnlyRationale string `json:"runtime_only_rationale,omitempty"`
-	BundlePolicy         string `json:"bundle_policy,omitempty"`
+	Type                  string `json:"type,omitempty"`
+	Enabled               bool   `json:"enabled,omitempty"`
+	Required              bool   `json:"required,omitempty"`
+	StartupPolicy         string `json:"startup_policy,omitempty"`
+	SupervisionPrecedence string `json:"supervision_precedence,omitempty"`
+	FreshnessPolicy       string `json:"freshness_policy,omitempty"`
+	DegradedBehavior      string `json:"degraded_behavior,omitempty"`
+	Purpose               string `json:"purpose,omitempty"`
+	Description           string `json:"description,omitempty"`
+	Database              string `json:"database,omitempty"`
+	VersionRange          string `json:"versionRange,omitempty"`
+	RuntimeOnly           bool   `json:"runtime_only,omitempty"`
+	RuntimeOnlyRationale  string `json:"runtime_only_rationale,omitempty"`
+	BundlePolicy          string `json:"bundle_policy,omitempty"`
 
 	// Config holds dependency-specific keys that aren't modeled as typed fields.
 	// The declaring scenario and the dependency own the config schema together.
@@ -385,6 +386,9 @@ const (
 	DependencyStartupPolicyMustStart = "must_start"
 	DependencyStartupPolicyTryStart  = "try_start"
 	DependencyStartupPolicyIgnore    = "ignore"
+
+	DependencySupervisionPrecedenceRequired      = "required"
+	DependencySupervisionPrecedenceStartupPolicy = "startup_policy"
 )
 
 // Freshness policy governs whether a running, healthy dependency whose sources

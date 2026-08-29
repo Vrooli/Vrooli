@@ -16,7 +16,7 @@ import {
 import { getTerminalDebugProbe } from "../../components/terminal/debug";
 import { deviceIdentity } from "../../lib/deviceIdentity";
 import type { TerminalMessage } from "../../types/terminal";
-import { initialTerminalProtocolState, reduceTerminalMessage } from "../../lib/terminalProtocol";
+import { initialTerminalProtocolStateFor, reduceTerminalMessage, type FollowerMode } from "../../lib/terminalProtocol";
 import {
   useTerminalTransport,
   type SocketFactory,
@@ -82,6 +82,7 @@ export interface UseTerminalSessionOptions {
   onStatus?: (status: TerminalPaneStatus | null) => void;
   predictionContainer?: HTMLElement | null;
   createSocket?: SocketFactory;
+	onFollowerModeChange?: (mode: FollowerMode) => void;
 }
 
 export type { TerminalPaneStatus } from "../../stores/useWorkspaceStore";
@@ -100,6 +101,7 @@ export interface UseTerminalSessionResult {
 	getServerSize: () => { cols: number; rows: number } | null;
 	serverSize: { cols: number; rows: number } | null;
 	isFollower: boolean;
+	followerMode: FollowerMode;
 	leaderDevice: string;
 	/** Leader-declared device family, used to frame a follower's view. */
 	leaderClass: string;
@@ -159,6 +161,7 @@ export function useTerminalSession({
   onStatus,
   predictionContainer,
   createSocket,
+	onFollowerModeChange,
 }: UseTerminalSessionOptions): UseTerminalSessionResult {
   const sessionReadyRef = useRef(false);
   const wsGenAtReadyRef = useRef(0);
@@ -167,7 +170,10 @@ export function useTerminalSession({
   // cleanly.
   const inSnapshotRef = useRef(true);
 	const outputCursorRef = useRef(0);
-	const protocolStateRef = useRef(initialTerminalProtocolState);
+	const identityRef = useRef<ReturnType<typeof deviceIdentity> | null>(null);
+	if (identityRef.current === null) identityRef.current = deviceIdentity();
+	const identity = identityRef.current;
+	const protocolStateRef = useRef(initialTerminalProtocolStateFor(identity.id));
   const predictionOverlayRef = useRef<PredictionOverlay | null>(null);
 	const predictionSentAtRef = useRef(new Map<number, number>());
 	const predictionLatencyEmaRef = useRef(0);
@@ -183,18 +189,14 @@ export function useTerminalSession({
 	const leaseRequestInFlightRef = useRef(false);
   const [serverSize, setServerSize] = useState<{ cols: number; rows: number } | null>(null);
 	const [mouseMode, setMouseMode] = useState<boolean | null>(null);
-	const [holdsLease, setHoldsLease] = useState(true);
-	const [leaderDevice, setLeaderDevice] = useState("");
-	const [leaderClass, setLeaderClass] = useState("");
-	const [leaderKbOpen, setLeaderKbOpen] = useState(false);
-	const [viewerCount, setViewerCount] = useState(1);
+	const [leaseState, setLeaseState] = useState(() => protocolStateRef.current);
 
   const onExitRef = useRef(onExit);
   const onReadyRef = useRef(onReady);
   onExitRef.current = onExit;
   onReadyRef.current = onReady;
 
-  const wsUrl = buildSessionWsUrl(sessionId, typeof window === "undefined" ? undefined : deviceIdentity());
+  const wsUrl = buildSessionWsUrl(sessionId, typeof window === "undefined" ? undefined : identity);
 
   // Transport is constructed first; the stdin stream and session layer
   // consult transport.currentGen() and transport.sendJson().
@@ -245,7 +247,7 @@ export function useTerminalSession({
     inSnapshotRef.current = !wasReconnect;
 
     const t = terminalRef.current;
-    if (t && !wasReconnect) {
+	if (t && !wasReconnect) {
       // Wipe xterm.js buffers BEFORE the snapshot streams in. Two calls
       // are necessary because:
       //   - reset() is a soft reset (DECSTR) — clears modes/charsets but
@@ -256,12 +258,14 @@ export function useTerminalSession({
       //     "scroll up shows last page repeated" symptom.
       t.reset();
       t.clear();
-      declaredSizeRef.current = { cols: t.cols, rows: t.rows };
-      transportRef.current?.sendJson({ type: "resize", cols: t.cols, rows: t.rows });
-      predictionOverlayRef.current?.clear();
+		predictionOverlayRef.current?.clear();
 		predictionSentAtRef.current.clear();
 		predictionLatencyEmaRef.current = 0;
-    }
+	}
+	if (t) {
+		declaredSizeRef.current = { cols: t.cols, rows: t.rows };
+		transportRef.current?.sendJson({ type: "resize", cols: t.cols, rows: t.rows });
+	}
 	if (t && wasReconnect) {
 	  predictionOverlayRef.current?.clear();
 	  predictionSentAtRef.current.clear();
@@ -356,10 +360,10 @@ export function useTerminalSession({
 
   const submitInput = useCallback(
     (data: string, intent: Exclude<InputIntent, "control">): GateResult => {
-      if (!holdsLease) requestLease();
+      if (!leaseState.holdsLease) requestLease();
       return gate.submit(data, intent);
     },
-    [gate, holdsLease, requestLease],
+    [gate, leaseState.holdsLease, requestLease],
   );
 
   const sendConversationAck = useCallback(
@@ -385,17 +389,15 @@ export function useTerminalSession({
 
   // Incoming message handler. Installed as a transport subscriber.
   useEffect(() => {
-    // size_info and presence carry the same leader-presentation fields, so
-    // they apply them through one function rather than two copies that drift.
-    const applyLeaderPresentation = (msg: TerminalMessage) => {
-      setLeaderDevice(msg.leaderDevice ?? "");
-      setLeaderClass(msg.deviceClass ?? "");
-      setLeaderKbOpen(msg.kbOpen === true);
-      setViewerCount(msg.viewerCount ?? 1);
-      useWorkspaceStore.getState().setViewerCount(sessionId, msg.viewerCount ?? 1);
-    };
     const unsubscribe = transport.subscribe((msg) => {
-	  protocolStateRef.current = reduceTerminalMessage(protocolStateRef.current, msg);
+	  const nextProtocol = reduceTerminalMessage(protocolStateRef.current, msg);
+	  protocolStateRef.current = nextProtocol;
+	  setLeaseState((previous) => {
+	      if (previous.holdsLease === nextProtocol.holdsLease && previous.leaderDevice === nextProtocol.leaderDevice && previous.leaderClass === nextProtocol.leaderClass && previous.leaderKbOpen === nextProtocol.leaderKbOpen && previous.viewerCount === nextProtocol.viewerCount && previous.followerMode === nextProtocol.followerMode && previous.leaderDeviceId === nextProtocol.leaderDeviceId) return previous;
+      return nextProtocol;
+	  });
+	  useWorkspaceStore.getState().setViewerCount(sessionId, nextProtocol.viewerCount);
+	  onFollowerModeChange?.(nextProtocol.followerMode);
       switch (msg.type) {
         case "session_ready": {
           sessionReadyRef.current = true;
@@ -529,21 +531,13 @@ export function useTerminalSession({
 			if (!msg.cols || !msg.rows) break;
 			serverSizeRef.current = { cols: msg.cols, rows: msg.rows };
 			setServerSize(serverSizeRef.current);
-			if (msg.holdsLease !== undefined) {
-				const nextHoldsLease = msg.holdsLease === true;
-				setHoldsLease(nextHoldsLease);
-				if (nextHoldsLease || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
-			}
-			applyLeaderPresentation(msg);
+			if (msg.holdsLease !== undefined && (msg.holdsLease || !leaseRequestInFlightRef.current)) leaseRequestInFlightRef.current = false;
 			const t = terminalRef.current;
 			if (t && (t.cols !== msg.cols || t.rows !== msg.rows)) t.resize(msg.cols, msg.rows);
 			break;
 		}
 		case "presence": {
-			const nextHoldsLease = msg.holdsLease === true;
-			setHoldsLease(nextHoldsLease);
-			applyLeaderPresentation(msg);
-			if (nextHoldsLease || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
+			if (msg.holdsLease === true || !leaseRequestInFlightRef.current) leaseRequestInFlightRef.current = false;
 			break;
 		}
 		default:
@@ -553,7 +547,7 @@ export function useTerminalSession({
       }
     });
     return unsubscribe;
-  }, [onStatus, sessionId, stdin, transport]);
+  }, [onFollowerModeChange, onStatus, sessionId, stdin, transport]);
 
   useEffect(() => {
     if (!terminal || !predictionContainer) return;
@@ -667,11 +661,12 @@ export function useTerminalSession({
 		sendResize,
 		getServerSize,
 		serverSize,
-		isFollower: !holdsLease,
-		leaderDevice,
-		leaderClass,
-		leaderKbOpen,
-		viewerCount,
+		isFollower: leaseState.followerMode === "follower",
+		followerMode: leaseState.followerMode,
+		leaderDevice: leaseState.leaderDevice,
+		leaderClass: leaseState.leaderClass,
+		leaderKbOpen: leaseState.leaderKbOpen,
+		viewerCount: leaseState.viewerCount,
 		takeLease,
 		setKeyboardOpen,
     subscribeInputSettled: stdin.subscribeInputSettled,

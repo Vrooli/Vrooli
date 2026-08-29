@@ -36,7 +36,7 @@ describe("useXtermLifecycle", () => {
   it("constructs one terminal and waits for the initial fit", async () => {
     const { result } = renderHook(() => useXtermLifecycle({
       sessionId: "s", paneFontSize: 14, paneTheme: {}, wheelScrollSensitivity: 1,
-      sendResize: vi.fn(), getServerSize: () => null, isFollower: () => false,
+      sendResize: vi.fn(), getServerSize: () => null, followerMode: "leader",
       renamePaneById: vi.fn(), syncPaneUpdate: vi.fn(),
     }));
     const host = document.createElement("div");
@@ -52,7 +52,7 @@ describe("useXtermLifecycle", () => {
   it("applies every effective font increment to the rendered terminal", async () => {
     const base = {
       sessionId: "font-session", paneTheme: {}, wheelScrollSensitivity: 1,
-      sendResize: vi.fn(), getServerSize: () => null, isFollower: () => false,
+      sendResize: vi.fn(), getServerSize: () => null, followerMode: "leader" as const,
       renamePaneById: vi.fn(), syncPaneUpdate: vi.fn(),
     };
     let latest: ReturnType<typeof useXtermLifecycle> | undefined;
@@ -98,14 +98,13 @@ describe("useXtermLifecycle", () => {
     let latest: ReturnType<typeof useXtermLifecycle> | undefined;
     const sendResize = vi.fn();
     const getServerSize = () => null;
-    const isFollower = () => false;
     const renamePaneById = vi.fn();
     const syncPaneUpdate = vi.fn();
     function Harness(): ReactNode {
       renders += 1;
       latest = useXtermLifecycle({
         sessionId: "resize-session", paneFontSize: 14, paneTheme: {}, wheelScrollSensitivity: 1,
-        sendResize, getServerSize, isFollower, renamePaneById, syncPaneUpdate,
+        sendResize, getServerSize, followerMode: "leader", renamePaneById, syncPaneUpdate,
       });
       return createElement("div", { ref: latest.containerRef });
     }
@@ -140,7 +139,7 @@ describe("useXtermLifecycle", () => {
     Object.defineProperty(host, "clientHeight", { value: 600 });
     const lifecycleOptions = {
       sessionId: "touch-session", paneFontSize: 14, paneTheme: {}, wheelScrollSensitivity: 1,
-      sendResize: vi.fn(), getServerSize: () => null, isFollower: () => false,
+      sendResize: vi.fn(), getServerSize: () => null, followerMode: "leader" as const,
       renamePaneById: vi.fn(), syncPaneUpdate: vi.fn(),
     };
     const { unmount } = renderHook(() => {

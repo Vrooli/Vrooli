@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -195,9 +196,9 @@ func (app *App) installSupervisor(ctx *CommandContext, args []string) error {
 
 func nativeServiceManager() string {
 	switch runtime.GOOS {
-	case "darwin":
+	case string(hostreqspec.PlatformDarwin):
 		return "launchd"
-	case "linux":
+	case string(hostreqspec.PlatformLinux):
 		return "systemd"
 	default:
 		return runtime.GOOS

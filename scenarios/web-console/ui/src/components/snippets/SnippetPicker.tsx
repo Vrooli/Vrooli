@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Braces, Clock, List, Pencil, Pin, PinOff, Plus, Search, X } from "lucide-react";
+import { Braces, Clock, List, Pencil, Pin, PinOff, Plus, Search, Trash2, X } from "lucide-react";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
 import { Input } from "@vrooli/react-component-library/Input/1";
@@ -28,16 +29,25 @@ interface SnippetPickerProps {
   onClose: () => void;
   onInsert: (text: string, snippet: SnippetDTO) => void | Promise<void>;
   autoValues?: Record<string, string>;
+  /**
+   * Override for "new snippet". The picker can always create one on its own,
+   * so this is for a caller that owns a different create flow — the
+   * full-screen composer swaps its own save sheet in. It is not what makes
+   * creation available: gating on it left the toolbar and handoff pickers
+   * able to edit a snippet but not add one.
+   */
   onNew?: () => void;
 }
 
 export function SnippetPicker({ open, onClose, onInsert, autoValues = {}, onNew }: SnippetPickerProps) {
   const { t } = useTranslation();
-  const { snippets, status, touch, save } = useSnippets();
+  const { snippets, status, touch, save, remove } = useSnippets();
   const [filter, setFilter] = useState("");
   const [segment, setSegment] = useState<Segment>("recent");
   const [pending, setPending] = useState<SnippetDTO | null>(null);
   const [editing, setEditing] = useState<SnippetDTO | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SnippetDTO | null>(null);
   // Only one row may hold its action track open, so a second swipe closes the
   // first rather than leaving two rows displaced with no way back.
   const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null);
@@ -93,13 +103,29 @@ export function SnippetPicker({ open, onClose, onInsert, autoValues = {}, onNew 
     }
   };
 
+  const confirmDelete = async () => {
+    const snippet = deleteTarget;
+    if (!snippet) return;
+    setActionError("");
+    try {
+      await remove(snippet.id);
+      setEditing((current) => (current?.id === snippet.id ? null : current));
+    } catch {
+      setActionError(t(strings.snippets.settings.deleteError));
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
   // The swipe is an accelerator, never the only route: every action here is
   // also reachable from the Snippets settings panel, which is what keyboard
   // and screen-reader users get.
   const swipeActionsFor = (snippet: SnippetDTO): SwipeAction[] => [
     {
       id: "pin",
-      label: t(snippet.pinned ? strings.snippets.settings.unpin : strings.snippets.settings.pin),
+      // "Pin", not "Pin snippet": the row it is attached to already says which
+      // snippet, and the track has room for three labels only if they are short.
+      label: t(snippet.pinned ? strings.snippets.picker.unpin : strings.snippets.picker.pin),
       icon: snippet.pinned ? <PinOff className="h-4 w-4" aria-hidden /> : <Pin className="h-4 w-4" aria-hidden />,
       tone: "primary",
       onSelect: () => {
@@ -114,6 +140,18 @@ export function SnippetPicker({ open, onClose, onInsert, autoValues = {}, onNew 
       onSelect: () => {
         setSwipeOpenId(null);
         setEditing(snippet);
+      },
+    },
+    {
+      // Last, so the irreversible one is the furthest to reach and never the
+      // action a long swipe arms first.
+      id: "delete",
+      label: t(strings.snippets.picker.delete),
+      icon: <Trash2 className="h-4 w-4" aria-hidden />,
+      tone: "destructive",
+      onSelect: () => {
+        setSwipeOpenId(null);
+        setDeleteTarget(snippet);
       },
     },
   ];
@@ -134,6 +172,7 @@ export function SnippetPicker({ open, onClose, onInsert, autoValues = {}, onNew 
     { id: "all", label: tabLabel(t(strings.snippets.picker.all), matches.length), icon: <List className="h-4 w-4" aria-hidden />, badge: matches.length || undefined },
   ];
 
+  const startNew = onNew ?? (() => { setCreating(true); });
   const filtering = filter.trim().length > 0;
 
   if (!open) return null;
@@ -151,54 +190,57 @@ export function SnippetPicker({ open, onClose, onInsert, autoValues = {}, onNew 
         testId="snippet-picker"
         avoidKeyboard
         contentPadding="none"
-        headerActions={onNew && (
-          <IconButton
-            type="button"
-            data-testid="snippet-new"
-            aria-label={t(strings.snippets.picker.newAria)}
-            onClick={onNew}
-            shape="rounded"
-            surface="ghost"
-            size="md"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-          </IconButton>
-        )}
         subheader={(
           <div
             className="flex flex-col gap-2"
             style={{ paddingInline: "var(--space-md)", paddingBlock: "var(--space-sm)" }}
           >
-            <InputGroup size="md" shape="rounded" testId="snippet-filter-group">
-              <InputGroup.Adornment side="leading">
-                <Search aria-hidden />
-              </InputGroup.Adornment>
-              <InputGroup.Field>
-                <Input
-                  type="search"
-                  aria-label={t(strings.snippets.picker.filterAria)}
-                  data-testid="snippet-filter"
-                  value={filter}
-                  onChange={(event) => { setFilter(event.target.value); }}
-                  placeholder={t(strings.snippets.picker.filterPlaceholder)}
-                />
-              </InputGroup.Field>
-              {filtering && (
-                <InputGroup.Action>
-                  <IconButton
-                    type="button"
-                    data-testid="snippet-filter-clear"
-                    aria-label={t(strings.snippets.picker.clearFilter)}
-                    onClick={() => { setFilter(""); }}
-                    shape="rounded"
-                    surface="ghost"
-                    size="sm"
-                  >
-                    <X className="h-4 w-4" aria-hidden />
-                  </IconButton>
-                </InputGroup.Action>
-              )}
-            </InputGroup>
+            <div className="flex items-center gap-2">
+              <InputGroup className="min-w-0 flex-1" size="md" shape="rounded" testId="snippet-filter-group">
+                <InputGroup.Adornment side="leading">
+                  <Search aria-hidden />
+                </InputGroup.Adornment>
+                <InputGroup.Field>
+                  <Input
+                    type="search"
+                    aria-label={t(strings.snippets.picker.filterAria)}
+                    data-testid="snippet-filter"
+                    value={filter}
+                    onChange={(event) => { setFilter(event.target.value); }}
+                    placeholder={t(strings.snippets.picker.filterPlaceholder)}
+                  />
+                </InputGroup.Field>
+                {filtering && (
+                  <InputGroup.Action>
+                    <IconButton
+                      type="button"
+                      data-testid="snippet-filter-clear"
+                      aria-label={t(strings.snippets.picker.clearFilter)}
+                      onClick={() => { setFilter(""); }}
+                      shape="rounded"
+                      surface="ghost"
+                      size="sm"
+                    >
+                      <X className="h-4 w-4" aria-hidden />
+                    </IconButton>
+                  </InputGroup.Action>
+                )}
+              </InputGroup>
+              {/* Adding sits beside the field that searches what already
+                  exists: both act on the same list, so they share a row. */}
+              <IconButton
+                type="button"
+                className="shrink-0"
+                data-testid="snippet-new"
+                aria-label={t(strings.snippets.picker.newAria)}
+                onClick={startNew}
+                shape="rounded"
+                surface="ghost"
+                size="md"
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+              </IconButton>
+            </div>
             <Tabs
               mode="controlled"
               items={tabItems}
@@ -227,8 +269,8 @@ export function SnippetPicker({ open, onClose, onInsert, autoValues = {}, onNew 
                 title={t(filtering ? strings.snippets.picker.noMatches : strings.snippets.picker.empty)}
                 description={t(filtering ? strings.snippets.picker.noMatchesDescription : strings.snippets.picker.emptyDescription)}
                 icon={<Search aria-hidden />}
-                actionLabel={filtering ? t(strings.snippets.picker.clearFilter) : (onNew ? t(strings.snippets.picker.new) : undefined)}
-                onAction={filtering ? () => { setFilter(""); } : onNew}
+                actionLabel={t(filtering ? strings.snippets.picker.clearFilter : strings.snippets.picker.new)}
+                onAction={filtering ? () => { setFilter(""); } : startNew}
               />
             )}
             {visible.map((snippet) => (
@@ -248,6 +290,28 @@ export function SnippetPicker({ open, onClose, onInsert, autoValues = {}, onNew 
         </div>
       </ResponsiveDialog>
       {pending && <SnippetVariableSheet open snippet={pending} autoValues={autoValues} onClose={() => { setPending(null); }} onInsert={(text) => insert(text, pending)} />}
+      {deleteTarget && (
+        <AlertDialog
+          open
+          destructive
+          title={t(strings.snippets.settings.delete)}
+          description={t(strings.snippets.settings.deleteConfirm, { name: deleteTarget.name })}
+          cancelLabel={t(strings.snippets.cancel)}
+          confirmLabel={t(strings.snippets.picker.delete)}
+          onCancel={() => { setDeleteTarget(null); }}
+          onConfirm={() => void confirmDelete()}
+          testIdPrefix="snippet-picker-delete"
+        />
+      )}
+      {creating && (
+        <SnippetSaveSheet
+          open
+          mode="create"
+          initialBody=""
+          onClose={() => { setCreating(false); }}
+          onSaved={() => { setCreating(false); }}
+        />
+      )}
       {editing && (
         <SnippetSaveSheet
           open

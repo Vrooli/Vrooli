@@ -8,13 +8,14 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
-const serviceInstallWindows = "windows"
+const serviceInstallWindows = string(hostreqspec.PlatformWindows)
 
 // LogFileName is the supervisor's log basename inside the standard Vrooli log
 // tree. Every scenario already gets <home>/.vrooli/logs/<name>.log; the control

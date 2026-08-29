@@ -24,6 +24,17 @@ type hostService struct {
 	run func([]string) error
 }
 
+var hostCommandNames = []string{"cron", "inventory", "install", "safeguard", "volume", "storage"}
+
+// RegisteredCommandPaths returns the child paths bound by the host handler.
+func RegisteredCommandPaths() []string {
+	paths := make([]string, 0, len(hostCommandNames)+1)
+	for _, name := range hostCommandNames {
+		paths = append(paths, "host "+name)
+	}
+	return append(paths, "workload list")
+}
+
 // RootHandler dispatches `vrooli host` through the host application.
 func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
@@ -35,7 +46,7 @@ func RootHandler[C any](deps HandlerDeps[C]) rootcli.Handler[C] {
 				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
 					return hostcli.Run(app, commandCtx, args)
 				}
-				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(app, commandCtx, []string{"inventory", "install", "safeguard", "volume", "storage"}))
+				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(app, commandCtx, hostCommandNames))
 				if err != nil {
 					return err
 				}

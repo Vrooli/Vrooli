@@ -13,17 +13,14 @@ import {
 export const FLEET_QUERY_KEY = ["machines", "fleet"] as const;
 
 /**
- * The fleet is polled while the machines surface is open, because a machine
- * asking to join arrives without the operator doing anything — the whole point
- * of the "it appears here automatically" flow. Polling stops when the surface
- * closes.
+ * The fleet is a snapshot. Live connection changes invalidate it through the
+ * process-wide event stream; the surface never opens a second stream or polls.
  */
 export function useFleet(enabled: boolean) {
   return useQuery<Fleet>({
     queryKey: FLEET_QUERY_KEY,
     queryFn: listFleet,
     enabled,
-    refetchInterval: enabled ? 5_000 : false,
   });
 }
 

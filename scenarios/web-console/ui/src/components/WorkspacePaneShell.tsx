@@ -210,6 +210,7 @@ function WorkspacePaneShell({
             onSpeakingEventChange={(eventId) => { onSpeakingEventChange(sessionId, eventId); }}
             onConversationEventReceived={onConversationEventReceived}
             onNeedsUnlock={onNeedsUnlock}
+			viewMode={viewMode}
             ref={(handle) => { onTerminalRef(sessionId, handle); }}
           />
         </ErrorBoundary>

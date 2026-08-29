@@ -28,7 +28,7 @@ func StartResponse(run func(StartRequest) ([]scenarioapp.LifecycleItemOutput, er
 func ValidateEnvResponseFrom(run func(ValidateEnvRequest) (scenarioapp.ValidateEnvResponse, error), format cliout.Format, req ValidateEnvRequest) (ValidateEnvResponse, error) {
 	_ = format
 	resp, err := run(req)
-	return ValidateEnvResponse{Report: resp.Report}, err
+	return resp, err
 }
 
 func StopResponse(run func(StopRequest) ([]scenarioapp.LifecycleItemOutput, error), req StopRequest) (cliout.Format, []LifecycleItemOutput, error) {
@@ -139,10 +139,10 @@ func toCLILifecycleItems(items []scenarioapp.LifecycleItemOutput) []LifecycleIte
 			Name:               item.Name,
 			Status:             item.Status,
 			Health:             item.Health,
-			Ports:              CopyIntMap(item.Ports),
+			Ports:              scenarioapp.CopyIntMap(item.Ports),
 			Endpoints:          toCLIEndpoints(item.Endpoints),
-			FailedDependencies: CopyStrings(item.FailedDependencies),
-			FailedResources:    CopyStrings(item.FailedResources),
+			FailedDependencies: scenarioapp.CopyStrings(item.FailedDependencies),
+			FailedResources:    scenarioapp.CopyStrings(item.FailedResources),
 			Verdict:            item.Verdict,
 			Operation:          item.Operation,
 		})
@@ -151,30 +151,11 @@ func toCLILifecycleItems(items []scenarioapp.LifecycleItemOutput) []LifecycleIte
 }
 
 func toCLIEndpoints(items []scenarioapp.EndpointOutput) []EndpointOutput {
-	out := make([]EndpointOutput, 0, len(items))
-	for _, item := range items {
-		out = append(out, EndpointOutput{
-			Name:        item.Name,
-			Key:         item.Key,
-			Description: item.Description,
-			Port:        item.Port,
-			URL:         item.URL,
-		})
-	}
-	return out
+	return append([]EndpointOutput(nil), items...)
 }
 
 func toCLIListPorts(items []scenarioapp.ListPortOutput) []ListPortOutput {
-	out := make([]ListPortOutput, 0, len(items))
-	for _, item := range items {
-		out = append(out, ListPortOutput{
-			Key:            item.Key,
-			Step:           item.Step,
-			Port:           item.Port,
-			ListenerStatus: item.ListenerStatus,
-		})
-	}
-	return out
+	return append([]ListPortOutput(nil), items...)
 }
 
 func toCLIListResponse(resp scenarioapp.ListResponse) ListResponse {
@@ -185,7 +166,7 @@ func toCLIListResponse(resp scenarioapp.ListResponse) ListResponse {
 			Description: item.Description,
 			Version:     item.Version,
 			Status:      item.Status,
-			Tags:        CopyStrings(item.Tags),
+			Tags:        scenarioapp.CopyStrings(item.Tags),
 			Path:        item.Path,
 			Ports:       toCLIListPorts(item.Ports),
 		})
@@ -207,7 +188,7 @@ func toCLIInfoOutput(resp scenarioapp.InfoOutput) InfoOutput {
 			Version:          resp.Scenario.Version,
 			Type:             resp.Scenario.Type,
 			Category:         resp.Scenario.Category,
-			Tags:             CopyStrings(resp.Scenario.Tags),
+			Tags:             scenarioapp.CopyStrings(resp.Scenario.Tags),
 			Path:             resp.Scenario.Path,
 			ServicePath:      resp.Scenario.ServicePath,
 			SandboxRedirect:  resp.Scenario.SandboxRedirect,
@@ -222,9 +203,10 @@ func toCLIInfoOutput(resp scenarioapp.InfoOutput) InfoOutput {
 			Processes:   resp.Runtime.Processes,
 			Runtime:     resp.Runtime.Runtime,
 			StartedAt:   resp.Runtime.StartedAt,
-			Ports:       CopyIntMap(resp.Runtime.Ports),
-			ProcessInfo: CopyProcessRecords(resp.Runtime.ProcessInfo),
+			Ports:       scenarioapp.CopyIntMap(resp.Runtime.Ports),
+			ProcessInfo: scenarioapp.CopyProcessRecords(resp.Runtime.ProcessInfo),
 			ListPorts:   toCLIListPorts(resp.Runtime.ListPorts),
+			HealthError: resp.Runtime.HealthError,
 		},
 	}
 }
@@ -234,14 +216,15 @@ func toCLIStatusItem(item scenarioapp.StatusItemOutput) StatusItemOutput {
 		Name:           item.Name,
 		DisplayName:    item.DisplayName,
 		Description:    item.Description,
-		Tags:           CopyStrings(item.Tags),
+		Tags:           scenarioapp.CopyStrings(item.Tags),
 		Status:         item.Status,
 		Processes:      item.Processes,
 		Runtime:        item.Runtime,
 		StartedAt:      item.StartedAt,
-		Ports:          CopyIntMap(item.Ports),
+		Ports:          scenarioapp.CopyIntMap(item.Ports),
 		PortBindings:   toCLIListPorts(item.PortBindings),
 		Health:         item.Health,
+		HealthError:    item.HealthError,
 		StartOperation: item.StartOperation,
 	}
 }
@@ -272,17 +255,14 @@ func toCLIBatchResponse(resp scenarioapp.BatchResponse) BatchResponse {
 			Name:               item.Name,
 			Status:             item.Status,
 			Health:             item.Health,
-			Ports:              CopyIntMap(item.Ports),
+			Ports:              scenarioapp.CopyIntMap(item.Ports),
 			Endpoints:          toCLIEndpoints(item.Endpoints),
-			FailedDependencies: CopyStrings(item.FailedDependencies),
-			FailedResources:    CopyStrings(item.FailedResources),
+			FailedDependencies: scenarioapp.CopyStrings(item.FailedDependencies),
+			FailedResources:    scenarioapp.CopyStrings(item.FailedResources),
 		})
 	}
-	failed := make([]BatchFailure, 0, len(resp.Failed))
-	for _, item := range resp.Failed {
-		failed = append(failed, BatchFailure{Name: item.Name, Error: item.Error})
-	}
-	return BatchResponse{Verb: resp.Verb, Started: started, Stopped: CopyStrings(resp.Stopped), Failed: failed}
+	failed := append([]BatchFailure(nil), resp.Failed...)
+	return BatchResponse{Verb: resp.Verb, Started: started, Stopped: scenarioapp.CopyStrings(resp.Stopped), Failed: failed}
 }
 
 func toCLIPortResponse(resp scenarioapp.PortResponse) PortResponse {
@@ -310,13 +290,7 @@ func toCLIPortResponse(resp scenarioapp.PortResponse) PortResponse {
 }
 
 func toCLIOpenOutput(resp scenarioapp.OpenOutput) OpenOutput {
-	return OpenOutput{
-		Success:  resp.Success,
-		Scenario: resp.Scenario,
-		PortName: resp.PortName,
-		Port:     resp.Port,
-		URL:      resp.URL,
-	}
+	return resp
 }
 
 func mapCopy(values map[string]int) map[string]int {
@@ -336,7 +310,7 @@ func HealFromSandboxResponseFrom(run func(HealFromSandboxRequest) (scenarioapp.H
 		return HealFromSandboxResponse{}, err
 	}
 	return HealFromSandboxResponse{
-		Affected:     CopyStrings(resp.Affected),
+		Affected:     scenarioapp.CopyStrings(resp.Affected),
 		DryRun:       resp.DryRun,
 		StoppedCount: resp.StoppedCount,
 	}, nil

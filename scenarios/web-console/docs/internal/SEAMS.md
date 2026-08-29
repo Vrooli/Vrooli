@@ -1375,6 +1375,21 @@ recognition-only client assertions and are never authorization inputs.
 4. ~~**WebSocket reconnect**~~ — **Resolved**: Auto-reconnect with exponential backoff + visibility-aware deferral in `useTerminalSession`.
 5. **Session delete from UI** — No confirmation feedback beyond the session disappearing from the list. Low priority.
 
+## Device roster and terminal size lease
+
+`api/handlers/devices` owns the Connect `DeviceService` transport contract;
+`api/devices_catalog.go` adapts it to `session.Manager.ConnectedDevices()` and
+`Session.Supersede`. The service is a live projection, not a second device
+database. `List` groups WebSocket connections by browser-local device identity,
+and `Disconnect` refuses the caller's own device before asking the session to
+supersede another connection.
+
+The existing `/api/v1/events/stream` lifecycle stream carries device metadata for
+connected and disconnected sessions. `useDevices` owns the snapshot query while
+`Workspace` invalidates it on those deltas; no device polling timer is allowed.
+Terminal size and lease authority remain in `api/session/sizelease.go` and the
+terminal protocol reducer. Device identity is never an authorization signal.
+
 ## Audio Extraction Prep — Domain Boundary Seams (2026-05-16)
 
 These rows capture the audio-tools extraction-prep state. Each row identifies a

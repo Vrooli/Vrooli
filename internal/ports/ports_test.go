@@ -1611,6 +1611,10 @@ func ensureTypedResourceMetadata(t *testing.T, root string) {
 		Name:   "postgres",
 		Driver: "managed-service",
 		Ports:  []manifestpkg.ResourcePort{{Name: "postgresql", Container: 5432, Host: 5433}},
+		HealthChecks: []manifestpkg.ResourceHealthCheck{
+			{Type: "http", Target: "http://127.0.0.1:5433/health", Kind: "readiness", IntervalSeconds: 10, TimeoutSeconds: 10},
+			{Type: "http", Target: "http://127.0.0.1:5433/health", Kind: "liveness", IntervalSeconds: 30, TimeoutSeconds: 10},
+		},
 		Runtime: manifestpkg.ResourceRuntime{
 			Image: "postgres:16-alpine",
 			Env: map[string]string{

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
@@ -171,7 +172,7 @@ func CheckCapabilityManifestPlatformStatus(root string) error {
 	if len(paths) == 0 {
 		return nil
 	}
-	want := []string{"linux", "macos", "windows"}
+	want := []string{string(hostreqspec.PlatformLinux), "macos", string(hostreqspec.PlatformWindows)}
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -305,15 +306,15 @@ func CheckPlatformStatusSchemaRefs(root string) error {
 		path []string
 	}{
 		{"service.schema.json platformCapability.status", []string{"definitions", "platformCapability", "properties", "status", "$ref"}},
-		{"resource.schema.json platforms.linux", []string{"properties", "platforms", "properties", "linux", "$ref"}},
+		{"resource.schema.json platforms.linux", []string{"properties", "platforms", "properties", string(hostreqspec.PlatformLinux), "$ref"}},
 		{"resource.schema.json platforms.macos", []string{"properties", "platforms", "properties", "macos", "$ref"}},
-		{"resource.schema.json platforms.windows", []string{"properties", "platforms", "properties", "windows", "$ref"}},
-		{"tool.schema.json platform_status.linux", []string{"properties", "platform_status", "properties", "linux", "$ref"}},
+		{"resource.schema.json platforms.windows", []string{"properties", "platforms", "properties", string(hostreqspec.PlatformWindows), "$ref"}},
+		{"tool.schema.json platform_status.linux", []string{"properties", "platform_status", "properties", string(hostreqspec.PlatformLinux), "$ref"}},
 		{"tool.schema.json platform_status.macos", []string{"properties", "platform_status", "properties", "macos", "$ref"}},
-		{"tool.schema.json platform_status.windows", []string{"properties", "platform_status", "properties", "windows", "$ref"}},
-		{"safeguard.schema.json platform_status.linux", []string{"properties", "platform_status", "properties", "linux", "$ref"}},
+		{"tool.schema.json platform_status.windows", []string{"properties", "platform_status", "properties", string(hostreqspec.PlatformWindows), "$ref"}},
+		{"safeguard.schema.json platform_status.linux", []string{"properties", "platform_status", "properties", string(hostreqspec.PlatformLinux), "$ref"}},
 		{"safeguard.schema.json platform_status.macos", []string{"properties", "platform_status", "properties", "macos", "$ref"}},
-		{"safeguard.schema.json platform_status.windows", []string{"properties", "platform_status", "properties", "windows", "$ref"}},
+		{"safeguard.schema.json platform_status.windows", []string{"properties", "platform_status", "properties", string(hostreqspec.PlatformWindows), "$ref"}},
 	}
 	loaded := map[string]map[string]any{}
 	for _, check := range checks {

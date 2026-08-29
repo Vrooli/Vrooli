@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func TestDefaultPolicyIdleYieldFloorIsBatch(t *testing.T) {
@@ -13,7 +15,9 @@ func TestDefaultPolicyIdleYieldFloorIsBatch(t *testing.T) {
 }
 
 func TestPolicyIdleYieldFloorRoundTrip(t *testing.T) {
-	store := newTestStore(t, newFixedClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC)))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))})
+	})
 	ctx := context.Background()
 
 	// Set via tier name; the stored canonical value is the tier name.

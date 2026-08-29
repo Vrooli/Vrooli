@@ -17,13 +17,13 @@ import (
 type HostOS string
 
 const (
-	HostOSLinux   HostOS = "linux"
+	HostOSLinux   HostOS = HostOS(hostreqspec.PlatformLinux)
 	HostOSMacOS   HostOS = "macos"
-	HostOSWindows HostOS = "windows"
+	HostOSWindows HostOS = HostOS(hostreqspec.PlatformWindows)
 )
 
 // HostOSFromGOOS converts the Go runtime namespace to the deployment
-// vocabulary. Go calls Apple's platform "darwin"; deployment declarations
+// vocabulary. Go calls Apple's platform Darwin; deployment declarations
 // intentionally call it "macos". Unknown values return the zero HostOS so a
 // caller cannot accidentally treat an unrecognized runtime as supported.
 func HostOSFromGOOS(goos string) HostOS {

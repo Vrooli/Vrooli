@@ -91,10 +91,10 @@ func toolPrivilege(item hostreqkit.ToolManifest, platform string) hostreqspec.Pr
 	if platform == "" {
 		platform = hostreqspec.CurrentPlatform()
 	}
-	if platform == "darwin" {
+	if platform == string(hostreqspec.PlatformDarwin) {
 		platform = "macos"
 	}
-	if platform == "linux" || platform == "windows" {
+	if platform == string(hostreqspec.PlatformLinux) || platform == string(hostreqspec.PlatformWindows) {
 		return hostreqspec.PrivilegeElevated
 	}
 	return hostreqspec.PrivilegeUser

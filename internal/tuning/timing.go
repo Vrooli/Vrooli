@@ -122,314 +122,398 @@ const (
 
 // Timing levers are accessors so environment overrides are resolved once per
 // process while their compiled defaults remain immutable.
+// HostFactsRetryInterval controls host facts retry interval.
 func HostFactsRetryInterval() time.Duration {
 	return Duration("HostFactsRetryInterval", defaultHostFactsRetryInterval)
 }
 
+// FastPersistenceRetryInterval controls fast persistence retry interval.
 func FastPersistenceRetryInterval() time.Duration {
 	return Duration("FastPersistenceRetryInterval", defaultFastPersistenceRetryInterval)
 }
 
+// BackgroundLaunchPollInterval controls background launch poll interval.
 func BackgroundLaunchPollInterval() time.Duration {
 	return Duration("BackgroundLaunchPollInterval", defaultBackgroundLaunchPollInterval)
 }
 
+// LifecyclePollInterval controls lifecycle poll interval.
 func LifecyclePollInterval() time.Duration {
 	return Duration("LifecyclePollInterval", defaultLifecyclePollInterval)
 }
 
+// MaintenanceSettleDelay controls maintenance settle delay.
 func MaintenanceSettleDelay() time.Duration {
 	return Duration("MaintenanceSettleDelay", defaultMaintenanceSettleDelay)
 }
 
+// SetupFilesystemSettleDelay controls setup filesystem settle delay.
 func SetupFilesystemSettleDelay() time.Duration {
 	return Duration("SetupFilesystemSettleDelay", defaultSetupFilesystemSettleDelay)
 }
 
+// FastHealthPollInterval controls fast health poll interval.
 func FastHealthPollInterval() time.Duration {
 	return Duration("FastHealthPollInterval", defaultFastHealthPollInterval)
 }
 
+// HealthProbeInterval controls health probe interval.
 func HealthProbeInterval() time.Duration {
 	return Duration("HealthProbeInterval", defaultHealthProbeInterval)
 }
 
+// HostPresentationProbeTimeout controls host presentation probe timeout.
 func HostPresentationProbeTimeout() time.Duration {
 	return Duration("HostPresentationProbeTimeout", defaultHostPresentationProbeTimeout)
 }
 
+// ScenarioRequirementsSnapshotTimeout controls scenario requirements snapshot timeout.
 func ScenarioRequirementsSnapshotTimeout() time.Duration {
 	return Duration("ScenarioRequirementsSnapshotTimeout", defaultScenarioRequirementsSnapshotTimeout)
 }
 
+// LifecycleHealthPollInterval controls lifecycle health poll interval.
 func LifecycleHealthPollInterval() time.Duration {
 	return Duration("LifecycleHealthPollInterval", defaultLifecycleHealthPollInterval)
 }
 
+// SetupProgressPollInterval controls setup progress poll interval.
 func SetupProgressPollInterval() time.Duration {
 	return Duration("SetupProgressPollInterval", defaultSetupProgressPollInterval)
 }
 
+// CredentialStoreProbeTimeout controls credential store probe timeout.
 func CredentialStoreProbeTimeout() time.Duration {
 	return Duration("CredentialStoreProbeTimeout", defaultCredentialStoreProbeTimeout)
 }
 
+// LifecycleTransitionTimeout controls lifecycle transition timeout.
 func LifecycleTransitionTimeout() time.Duration {
 	return Duration("LifecycleTransitionTimeout", defaultLifecycleTransitionTimeout)
 }
 
+// LifecyclePollMaxInterval controls lifecycle poll max interval.
 func LifecyclePollMaxInterval() time.Duration {
 	return Duration("LifecyclePollMaxInterval", defaultLifecyclePollMaxInterval)
 }
 
+// EphemeralPortProbeTimeout controls ephemeral port probe timeout.
 func EphemeralPortProbeTimeout() time.Duration {
 	return Duration("EphemeralPortProbeTimeout", defaultEphemeralPortProbeTimeout)
 }
 
+// SetupHTTPProbeTimeout controls setup http probe timeout.
 func SetupHTTPProbeTimeout() time.Duration {
 	return Duration("SetupHTTPProbeTimeout", defaultSetupHTTPProbeTimeout)
 }
 
+// PrivilegeBrokerUnlockTimeout controls privilege broker unlock timeout.
 func PrivilegeBrokerUnlockTimeout() time.Duration {
 	return Duration("PrivilegeBrokerUnlockTimeout", defaultPrivilegeBrokerUnlockTimeout)
 }
 
+// HostPresentationCommandTimeout controls host presentation command timeout.
 func HostPresentationCommandTimeout() time.Duration {
 	return Duration("HostPresentationCommandTimeout", defaultHostPresentationCommandTimeout)
 }
 
+// ManagedServiceForceStopTimeout controls managed service force stop timeout.
 func ManagedServiceForceStopTimeout() time.Duration {
 	return Duration("ManagedServiceForceStopTimeout", defaultManagedServiceForceStopTimeout)
 }
 
+// HealthCheckTimeout controls health check timeout.
 func HealthCheckTimeout() time.Duration {
 	return Duration("HealthCheckTimeout", defaultHealthCheckTimeout)
 }
 
+// ListenerEnrichmentTimeout controls listener enrichment timeout.
 func ListenerEnrichmentTimeout() time.Duration {
 	return Duration("ListenerEnrichmentTimeout", defaultListenerEnrichmentTimeout)
 }
 
+// CredentialUnitProbeTimeout controls credential unit probe timeout.
 func CredentialUnitProbeTimeout() time.Duration {
 	return Duration("CredentialUnitProbeTimeout", defaultCredentialUnitProbeTimeout)
 }
 
+// ServiceHealthTimeout controls service health timeout.
 func ServiceHealthTimeout() time.Duration {
 	return Duration("ServiceHealthTimeout", defaultServiceHealthTimeout)
 }
 
+// FreshnessCheckBudget controls freshness check budget.
 func FreshnessCheckBudget() time.Duration {
 	return Duration("FreshnessCheckBudget", defaultFreshnessCheckBudget)
 }
 
+// RemoteDesktopProbeTimeout controls remote desktop probe timeout.
 func RemoteDesktopProbeTimeout() time.Duration {
 	return Duration("RemoteDesktopProbeTimeout", defaultRemoteDesktopProbeTimeout)
 }
 
+// IntegrityCollectionTimeout controls integrity collection timeout.
 func IntegrityCollectionTimeout() time.Duration {
 	return Duration("IntegrityCollectionTimeout", defaultIntegrityCollectionTimeout)
 }
 
+// ControlPlaneClientTimeout controls control plane client timeout.
 func ControlPlaneClientTimeout() time.Duration {
 	return Duration("ControlPlaneClientTimeout", defaultControlPlaneClientTimeout)
 }
 
+// CredentialServiceTimeout controls credential service timeout.
 func CredentialServiceTimeout() time.Duration {
 	return Duration("CredentialServiceTimeout", defaultCredentialServiceTimeout)
 }
 
+// DependencyBestEffortStartTimeout controls dependency best effort start timeout.
 func DependencyBestEffortStartTimeout() time.Duration {
 	return Duration("DependencyBestEffortStartTimeout", defaultDependencyBestEffortStartTimeout)
 }
 
+// SecretToolTimeout controls secret tool timeout.
 func SecretToolTimeout() time.Duration {
 	return Duration("SecretToolTimeout", defaultSecretToolTimeout)
 }
 
+// ReloadFallbackGracePeriod controls reload fallback grace period.
 func ReloadFallbackGracePeriod() time.Duration {
 	return Duration("ReloadFallbackGracePeriod", defaultReloadFallbackGracePeriod)
 }
 
+// LifecycleOperationTimeout controls lifecycle operation timeout.
 func LifecycleOperationTimeout() time.Duration {
 	return Duration("LifecycleOperationTimeout", defaultLifecycleOperationTimeout)
 }
 
+// HostRequirementCommandTimeout controls host requirement command timeout.
 func HostRequirementCommandTimeout() time.Duration {
 	return Duration("HostRequirementCommandTimeout", defaultHostRequirementCommandTimeout)
 }
 
+// ScenarioHeartbeatTTL controls scenario heartbeat ttl.
 func ScenarioHeartbeatTTL() time.Duration {
 	return Duration("ScenarioHeartbeatTTL", defaultScenarioHeartbeatTTL)
 }
 
+// CapacityHeartbeatTTL controls capacity heartbeat ttl.
 func CapacityHeartbeatTTL() time.Duration {
 	return Duration("CapacityHeartbeatTTL", defaultCapacityHeartbeatTTL)
 }
 
+// SetupOperationTimeout controls setup operation timeout.
 func SetupOperationTimeout() time.Duration {
 	return Duration("SetupOperationTimeout", defaultSetupOperationTimeout)
 }
 
+// SetupProgressObservationInterval controls setup progress observation interval.
 func SetupProgressObservationInterval() time.Duration {
 	return Duration("SetupProgressObservationInterval", defaultSetupProgressObservationInterval)
 }
 
+// ResourceControlTimeout controls resource control timeout.
 func ResourceControlTimeout() time.Duration {
 	return Duration("ResourceControlTimeout", defaultResourceControlTimeout)
 }
 
+// PlatformSupportRequestTimeout controls platform support request timeout.
 func PlatformSupportRequestTimeout() time.Duration {
 	return Duration("PlatformSupportRequestTimeout", defaultPlatformSupportRequestTimeout)
 }
 
+// CapacityDegradeDebounce controls capacity degrade debounce.
 func CapacityDegradeDebounce() time.Duration {
 	return Duration("CapacityDegradeDebounce", defaultCapacityDegradeDebounce)
 }
 
+// CapabilityRequestTimeout controls capability request timeout.
 func CapabilityRequestTimeout() time.Duration {
 	return Duration("CapabilityRequestTimeout", defaultCapabilityRequestTimeout)
 }
 
+// EagerScenarioWaitWindow controls eager scenario wait window.
 func EagerScenarioWaitWindow() time.Duration {
 	return Duration("EagerScenarioWaitWindow", defaultEagerScenarioWaitWindow)
 }
 
+// StructureProviderBudget controls structure provider budget.
 func StructureProviderBudget() time.Duration {
 	return Duration("StructureProviderBudget", defaultStructureProviderBudget)
 }
 
+// HostInventoryTTL controls host inventory ttl.
 func HostInventoryTTL() time.Duration {
 	return Duration("HostInventoryTTL", defaultHostInventoryTTL)
 }
 
+// SupervisorHealthInterval controls supervisor health interval.
 func SupervisorHealthInterval() time.Duration {
 	return Duration("SupervisorHealthInterval", defaultSupervisorHealthInterval)
 }
 
+// ReachabilityTimeout controls reachability timeout.
 func ReachabilityTimeout() time.Duration {
 	return Duration("ReachabilityTimeout", defaultReachabilityTimeout)
 }
 
+// CredentialRepairTimeout controls credential repair timeout.
 func CredentialRepairTimeout() time.Duration {
 	return Duration("CredentialRepairTimeout", defaultCredentialRepairTimeout)
 }
 
+// TidinessProviderBudget controls tidiness provider budget.
 func TidinessProviderBudget() time.Duration {
 	return Duration("TidinessProviderBudget", defaultTidinessProviderBudget)
 }
 
+// LifecycleExtendedOperationTimeout controls lifecycle extended operation timeout.
 func LifecycleExtendedOperationTimeout() time.Duration {
 	return Duration("LifecycleExtendedOperationTimeout", defaultLifecycleExtendedOperationTimeout)
 }
 
+// SupervisorRecoveryQuietPeriod controls supervisor recovery quiet period.
 func SupervisorRecoveryQuietPeriod() time.Duration {
 	return Duration("SupervisorRecoveryQuietPeriod", defaultSupervisorRecoveryQuietPeriod)
 }
 
+// CredentialReloadFallbackDelay controls credential reload fallback delay.
 func CredentialReloadFallbackDelay() time.Duration {
 	return Duration("CredentialReloadFallbackDelay", defaultCredentialReloadFallbackDelay)
 }
 
+// HostGPUInventoryTTL controls host gpu inventory ttl.
 func HostGPUInventoryTTL() time.Duration {
 	return Duration("HostGPUInventoryTTL", defaultHostGPUInventoryTTL)
 }
 
+// DockerRuntimeOperationTimeout controls docker runtime operation timeout.
 func DockerRuntimeOperationTimeout() time.Duration {
 	return Duration("DockerRuntimeOperationTimeout", defaultDockerRuntimeOperationTimeout)
 }
 
+// ResourceControlExtendedTimeout controls resource control extended timeout.
 func ResourceControlExtendedTimeout() time.Duration {
 	return Duration("ResourceControlExtendedTimeout", defaultResourceControlExtendedTimeout)
 }
 
+// SetupExtendedOperationTimeout controls setup extended operation timeout.
 func SetupExtendedOperationTimeout() time.Duration {
 	return Duration("SetupExtendedOperationTimeout", defaultSetupExtendedOperationTimeout)
 }
 
+// PrivilegeBrokerOperationTimeout controls privilege broker operation timeout.
 func PrivilegeBrokerOperationTimeout() time.Duration {
 	return Duration("PrivilegeBrokerOperationTimeout", defaultPrivilegeBrokerOperationTimeout)
 }
 
+// StructureProviderExtendedBudget controls structure provider extended budget.
 func StructureProviderExtendedBudget() time.Duration {
 	return Duration("StructureProviderExtendedBudget", defaultStructureProviderExtendedBudget)
 }
+
+// ProviderBudget controls provider budget.
 func ProviderBudget() time.Duration { return Duration("ProviderBudget", defaultProviderBudget) }
+
+// SupervisorRecoveryCooldown controls supervisor recovery cooldown.
 func SupervisorRecoveryCooldown() time.Duration {
 	return Duration("SupervisorRecoveryCooldown", defaultSupervisorRecoveryCooldown)
 }
 
+// EmergencyWatchdogInterval controls emergency watchdog interval.
 func EmergencyWatchdogInterval() time.Duration {
 	return Duration("EmergencyWatchdogInterval", defaultEmergencyWatchdogInterval)
 }
 
+// VaultBootstrapLease controls vault bootstrap lease.
 func VaultBootstrapLease() time.Duration {
 	return Duration("VaultBootstrapLease", defaultVaultBootstrapLease)
 }
 
+// ScenarioReservedClaimTTL controls scenario reserved claim ttl.
 func ScenarioReservedClaimTTL() time.Duration {
 	return Duration("ScenarioReservedClaimTTL", defaultScenarioReservedClaimTTL)
 }
 
+// SetupProgressStaleThreshold controls setup progress stale threshold.
 func SetupProgressStaleThreshold() time.Duration {
 	return Duration("SetupProgressStaleThreshold", defaultSetupProgressStaleThreshold)
 }
 
+// HostPlatformInventoryTTL controls host platform inventory ttl.
 func HostPlatformInventoryTTL() time.Duration {
 	return Duration("HostPlatformInventoryTTL", defaultHostPlatformInventoryTTL)
 }
 
+// HostWorkloadInventoryTTL controls host workload inventory ttl.
 func HostWorkloadInventoryTTL() time.Duration {
 	return Duration("HostWorkloadInventoryTTL", defaultHostWorkloadInventoryTTL)
 }
 
+// CapacityObservedPeakHalflife controls capacity observed peak halflife.
 func CapacityObservedPeakHalflife() time.Duration {
 	return Duration("CapacityObservedPeakHalflife", defaultCapacityObservedPeakHalflife)
 }
 
+// ScenarioWaitTimeout controls scenario wait timeout.
 func ScenarioWaitTimeout() time.Duration {
 	return Duration("ScenarioWaitTimeout", defaultScenarioWaitTimeout)
 }
 
+// CredentialEscrowRetention controls credential escrow retention.
 func CredentialEscrowRetention() time.Duration {
 	return Duration("CredentialEscrowRetention", defaultCredentialEscrowRetention)
 }
 
+// ResourceCommandTimeout controls resource command timeout.
 func ResourceCommandTimeout() time.Duration {
 	return Duration("ResourceCommandTimeout", defaultResourceCommandTimeout)
 }
 
+// CompanionCrashWindow controls companion crash window.
 func CompanionCrashWindow() time.Duration {
 	return Duration("CompanionCrashWindow", defaultCompanionCrashWindow)
 }
 
+// CompanionHeartbeatInterval controls companion heartbeat interval.
 func CompanionHeartbeatInterval() time.Duration {
 	return Duration("CompanionHeartbeatInterval", defaultCompanionHeartbeatInterval)
 }
 
+// CompanionCapacitySyncInterval controls companion capacity sync interval.
 func CompanionCapacitySyncInterval() time.Duration {
 	return Duration("CompanionCapacitySyncInterval", defaultCompanionCapacitySyncInterval)
 }
 
+// ResourceHTTPTimeout controls resource http timeout.
 func ResourceHTTPTimeout() time.Duration {
 	return Duration("ResourceHTTPTimeout", defaultResourceHTTPTimeout)
 }
 
+// ResourceShortHTTPTimeout controls resource short http timeout.
 func ResourceShortHTTPTimeout() time.Duration {
 	return Duration("ResourceShortHTTPTimeout", defaultResourceShortHTTPTimeout)
 }
 
+// ResourceMediumHTTPTimeout controls resource medium http timeout.
 func ResourceMediumHTTPTimeout() time.Duration {
 	return Duration("ResourceMediumHTTPTimeout", defaultResourceMediumHTTPTimeout)
 }
 
+// ResourceLongHTTPTimeout controls resource long http timeout.
 func ResourceLongHTTPTimeout() time.Duration {
 	return Duration("ResourceLongHTTPTimeout", defaultResourceLongHTTPTimeout)
 }
+
+// ActivityDebounce controls activity debounce.
 func ActivityDebounce() time.Duration { return Duration("ActivityDebounce", defaultActivityDebounce) }
+
+// ActivityReadHeaderTimeout controls activity read header timeout.
 func ActivityReadHeaderTimeout() time.Duration {
 	return Duration("ActivityReadHeaderTimeout", defaultActivityReadHeaderTimeout)
 }
 
+// ProgressDisplayResolution controls progress display resolution.
 func ProgressDisplayResolution() time.Duration {
 	return Duration("ProgressDisplayResolution", defaultProgressDisplayResolution)
 }
@@ -438,76 +522,97 @@ func CompanionLogMaxBytes() int64 {
 	return defaultCompanionLogMaxBytes
 }
 
+// AgentInstallDownloadTimeout controls agent install download timeout.
 func AgentInstallDownloadTimeout() time.Duration {
 	return Duration("AgentInstallDownloadTimeout", defaultAgentInstallDownloadTimeout)
 }
 
+// CopyRetentionWindow controls copy retention window.
 func CopyRetentionWindow() time.Duration {
 	return Duration("CopyRetentionWindow", defaultCopyRetentionWindow)
 }
+
+// RepairDeadline controls repair deadline.
 func RepairDeadline() time.Duration { return Duration("RepairDeadline", defaultRepairDeadline) }
+
+// DailyRetentionWindow controls daily retention window.
 func DailyRetentionWindow() time.Duration {
 	return Duration("DailyRetentionWindow", defaultDailyRetentionWindow)
 }
 
+// TerminalClaimRetention controls terminal claim retention.
 func TerminalClaimRetention() time.Duration {
 	return Duration("TerminalClaimRetention", defaultTerminalClaimRetention)
 }
 
+// ArtifactRetentionWindow controls artifact retention window.
 func ArtifactRetentionWindow() time.Duration {
 	return Duration("ArtifactRetentionWindow", defaultArtifactRetentionWindow)
 }
 
+// AttestationValidityWindow controls attestation validity window.
 func AttestationValidityWindow() time.Duration {
 	return Duration("AttestationValidityWindow", defaultAttestationValidityWindow)
 }
 
 // Runtime-backed bounds preserve a caller or manifest value as the fallback
 // while still exposing a stable operator override for that specific operation.
+// ResourceHealthCheckTimeout controls resource health check timeout.
 func ResourceHealthCheckTimeout(fallback time.Duration) time.Duration {
 	return Duration("ResourceHealthCheckTimeout", fallback)
 }
 
+// ResourceOperationTimeout controls resource operation timeout.
 func ResourceOperationTimeout(fallback time.Duration) time.Duration {
 	return Duration("ResourceOperationTimeout", fallback)
 }
 
+// ManagedServiceConfiguredTimeout controls managed service configured timeout.
 func ManagedServiceConfiguredTimeout(fallback time.Duration) time.Duration {
 	return Duration("ManagedServiceConfiguredTimeout", fallback)
 }
 
+// TidinessProviderCallTimeout controls tidiness provider call timeout.
 func TidinessProviderCallTimeout(fallback time.Duration) time.Duration {
 	return Duration("TidinessProviderCallTimeout", fallback)
 }
 
+// CredentialReloadOperationTimeout controls credential reload operation timeout.
 func CredentialReloadOperationTimeout(fallback time.Duration) time.Duration {
 	return Duration("CredentialReloadOperationTimeout", fallback)
 }
 
+// ProcessHealthCheckTimeout controls process health check timeout.
 func ProcessHealthCheckTimeout(fallback time.Duration) time.Duration {
 	return Duration("ProcessHealthCheckTimeout", fallback)
 }
 
+// DockerRuntimeEnvironmentTimeout controls docker runtime environment timeout.
 func DockerRuntimeEnvironmentTimeout(fallback time.Duration) time.Duration {
 	return Duration("DockerRuntimeEnvironmentTimeout", fallback)
 }
 
+// HygieneProviderExecutionBudget controls hygiene provider execution budget.
 func HygieneProviderExecutionBudget(fallback time.Duration) time.Duration {
 	return Duration("HygieneProviderExecutionBudget", fallback)
 }
 
+// PrivilegeBrokerRequestTimeout controls privilege broker request timeout.
 func PrivilegeBrokerRequestTimeout(fallback time.Duration) time.Duration {
 	return Duration("PrivilegeBrokerRequestTimeout", fallback)
 }
 
+// StructureProviderCallTimeout controls structure provider call timeout.
 func StructureProviderCallTimeout(fallback time.Duration) time.Duration {
 	return Duration("StructureProviderCallTimeout", fallback)
 }
 
+// CredentialStoreCommandTimeout controls credential store command timeout.
 func CredentialStoreCommandTimeout(fallback time.Duration) time.Duration {
 	return Duration("CredentialStoreCommandTimeout", fallback)
 }
 
+// ScenarioActionTimeout controls scenario action timeout.
 func ScenarioActionTimeout(fallback time.Duration) time.Duration {
 	return Duration("ScenarioActionTimeout", fallback)
 }

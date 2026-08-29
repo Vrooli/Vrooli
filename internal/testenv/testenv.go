@@ -1,15 +1,138 @@
 package testenv
 
 import (
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
+
+// CredentialStore is the shared in-memory secure-store fixture. Error fields
+// let a test inject the backend failures that cannot be produced by a healthy
+// in-memory implementation.
+type CredentialStore struct {
+	mu          sync.Mutex
+	values      map[string]string
+	notFound    error
+	PutError    error
+	GetError    error
+	DeleteError error
+	Adapter     string
+}
+
+// NewCredentialStore returns an empty credential store. Pass the owning
+// package's not-found sentinel when callers distinguish missing values with
+// errors.Is; keeping the sentinel injected avoids coupling testenv to a
+// credential backend package.
+func NewCredentialStore(notFound ...error) *CredentialStore {
+	err := errors.New("credential not found")
+	if len(notFound) > 0 && notFound[0] != nil {
+		err = notFound[0]
+	}
+	return &CredentialStore{values: map[string]string{}, notFound: err, Adapter: "memory"}
+}
+
+func (s *CredentialStore) Put(service, key, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.PutError != nil {
+		return s.PutError
+	}
+	s.values[service+"/"+key] = value
+	return nil
+}
+
+func (s *CredentialStore) Get(service, key string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.GetError != nil {
+		return "", s.GetError
+	}
+	value, ok := s.values[service+"/"+key]
+	if !ok {
+		return "", s.notFound
+	}
+	return value, nil
+}
+
+func (s *CredentialStore) Delete(service, key string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.DeleteError != nil {
+		return s.DeleteError
+	}
+	delete(s.values, service+"/"+key)
+	return nil
+}
+
+func (s *CredentialStore) AdapterName() string { return s.Adapter }
+
+// Clock is the shared concurrency-safe clock fixture.
+type Clock struct {
+	mu  sync.Mutex
+	now time.Time
+}
+
+func NewClock(start time.Time) *Clock { return &Clock{now: start.UTC()} }
+
+func (c *Clock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+func (c *Clock) Advance(duration time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.now = c.now.Add(duration)
+}
+
+// DecodeJSON decodes a JSON fixture and reports malformed output at the test
+// call site.
+func DecodeJSON[T any](t testing.TB, raw []byte) T {
+	t.Helper()
+	var value T
+	if err := json.Unmarshal(raw, &value); err != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", err, string(raw))
+	}
+	return value
+}
+
+// NewSQLiteStore owns the repeated temporary-path, open, failure and cleanup
+// mechanics while the domain supplies its typed store constructor and schema.
+func NewSQLiteStore[T interface{ Close() error }](t testing.TB, filename string, open func(string) (T, error)) T {
+	t.Helper()
+	store, err := open(filepath.Join(t.TempDir(), filename))
+	if err != nil {
+		t.Fatalf("open SQLite test store: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	return store
+}
+
+// StampSQLiteUserVersion creates or opens a SQLite fixture and stamps the
+// compatibility version expected by schema-rejection tests.
+func StampSQLiteUserVersion(t testing.TB, dbPath string, version int) {
+	t.Helper()
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, version)); err != nil {
+		t.Fatalf("stamp user_version: %v", err)
+	}
+}
 
 var identityVariables = map[string]struct{}{
 	"HOME": {}, "USER": {}, "SUDO_UID": {}, "SUDO_GID": {}, "SUDO_USER": {},

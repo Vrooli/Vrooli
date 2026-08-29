@@ -385,6 +385,7 @@ export function createTerminalSessionStub(overrides: Record<string, unknown> = {
     getServerSize: vi.fn(() => null),
     serverSize: null,
     isFollower: false,
+		followerMode: "leader" as const,
     leaderDevice: "",
     leaderClass: "",
     leaderKbOpen: false,

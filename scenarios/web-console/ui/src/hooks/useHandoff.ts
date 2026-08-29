@@ -2,7 +2,8 @@ import { useCallback } from "react";
 
 import type { GateResult } from "../components/terminal/inputGate";
 import { renderHandoffPrompt, type HandoffResult } from "../lib/handoff";
-import { useWorkspaceStore, type RoleMeta } from "../stores/useWorkspaceStore";
+import type { SessionActivity } from "../lib/workspaceNavigation";
+import { useWorkspaceStore, type PaneMetadata, type RoleMeta, type TabGroupMeta } from "../stores/useWorkspaceStore";
 
 // DOC: docs/internal/SNIPPETS-AND-MESSAGE-ACTIONS-UX.md
 
@@ -21,11 +22,35 @@ import { useWorkspaceStore, type RoleMeta } from "../stores/useWorkspaceStore";
  * a process first. Taking descriptors from the start is what let the
  * waiting-role case be an addition rather than a rewrite.
  */
-export type HandoffTarget =
+export type HandoffTarget = (
   | { kind: "session"; sessionId: string; label: string; incomingPrompt: string }
   | { kind: "role"; role: RoleMeta; label: string; incomingPrompt: string }
   /** Create a session in the group, then send to it. */
-  | { kind: "new-session"; groupId: string | null; label: string; incomingPrompt: string };
+  | { kind: "new-session"; groupId: string | null; label: string; incomingPrompt: string }
+) & { meta?: HandoffTargetMeta };
+
+/**
+ * Display-only description of a target row. The send path never reads it.
+ *
+ * Four terminals launched the same way all render as "/bin/bash", and the
+ * composer used to carry nothing but that name — so the list read as four
+ * identical rows. These are the signals the SIDEBAR already uses to tell the
+ * same panes apart (accent colour, group, last activity), deliberately
+ * reused rather than a second vocabulary invented for this one surface.
+ */
+export interface HandoffTargetMeta {
+  /** The pane's own accent; the group's is carried separately as the fallback. */
+  color?: string | null;
+  groupColor?: string | null;
+  /** Which group the session lives in. Worth showing outside "this group". */
+  groupName?: string;
+  /** "2m", "Visited 14m" — empty for a session that has never been seen. */
+  activityLabel?: string;
+  /** Sort key: epoch ms of that moment, 0 when there is none. */
+  activityAt?: number;
+  /** Unread assistant messages. Always 0 for a plain terminal. */
+  unreadCount?: number;
+}
 
 export type HandoffTargetSectionKind = "group" | "other" | "new";
 
@@ -154,6 +179,20 @@ function deliver(
 }
 
 /**
+ * Per-session activity, as the sidebar computes it. Supplied by the caller
+ * because the workspace STORE does not hold it: conversation events and
+ * last-visited times are Workspace state, so a store-only builder cannot see
+ * them. Defaulting to empty keeps every target valid without it.
+ */
+export type HandoffActivity = Record<string, SessionActivity | undefined>;
+
+/** Newest first, then by label, so identically named rows still have an order. */
+function byRecency(a: HandoffTarget, b: HandoffTarget): number {
+  const delta = (b.meta?.activityAt ?? 0) - (a.meta?.activityAt ?? 0);
+  return delta !== 0 ? delta : a.label.localeCompare(b.label);
+}
+
+/**
  * The targets a session may hand off to: every other member of its group.
  *
  * Excludes the source, and excludes running roles whose session is already
@@ -162,40 +201,73 @@ function deliver(
 function groupTargetsForSession(
   sourceSessionId: string,
   groupId: string | null,
+  activity: HandoffActivity,
 ): HandoffTarget[] {
   if (!groupId) return [];
-  const { panes, roles } = useWorkspaceStore.getState();
+  const { panes, roles, groups } = useWorkspaceStore.getState();
+  const groupBy = new Map(groups.map((group) => [group.id, group]));
   const roleBySession = new Map(
     roles.filter((r) => r.sessionId !== null).map((r) => [r.sessionId as string, r]),
   );
 
-  const targets: HandoffTarget[] = [];
+  const sessions: HandoffTarget[] = [];
   for (const pane of panes) {
     if (pane.groupId !== groupId || pane.sessionId === sourceSessionId) continue;
     const role = roleBySession.get(pane.sessionId);
-    targets.push({
+    sessions.push({
       kind: "session",
       sessionId: pane.sessionId,
       label: role?.label ?? pane.name,
       // A running role still supplies its own framing: the prompt lives on
       // the receiver, so a hand-made role and a templated one behave alike.
       incomingPrompt: role?.incomingPrompt ?? "",
+      meta: paneMeta(pane, groupBy, activity),
     });
   }
+  // Waiting roles keep their own block after the running sessions: they are
+  // not ordered by activity because they have none, and interleaving them
+  // would put a placeholder above a session that just produced output.
+  const waiting: HandoffTarget[] = [];
   for (const role of roles) {
     if (role.groupId !== groupId || role.sessionId !== null) continue;
-    targets.push({ kind: "role", role, label: role.label, incomingPrompt: role.incomingPrompt });
+    waiting.push({
+      kind: "role",
+      role,
+      label: role.label,
+      incomingPrompt: role.incomingPrompt,
+      meta: { groupColor: groupBy.get(groupId)?.color },
+    });
   }
-  return targets;
+  return [...sessions.sort(byRecency), ...waiting];
+}
+
+/** The row description for one pane. */
+function paneMeta(
+  pane: PaneMetadata,
+  groupBy: Map<string, TabGroupMeta>,
+  activity: HandoffActivity,
+): HandoffTargetMeta {
+  const group = pane.groupId ? groupBy.get(pane.groupId) : undefined;
+  const seen = activity[pane.sessionId];
+  return {
+    color: pane.headerColor,
+    groupColor: group?.color,
+    groupName: group?.name,
+    activityLabel: seen?.label ?? "",
+    activityAt: seen?.at ?? 0,
+    unreadCount: seen?.unreadCount ?? 0,
+  };
 }
 
 /** Ordered handoff choices: the source group, other live panes, then a new session. */
 export function handoffTargetSections(
   sourceSessionId: string,
   groupId: string | null,
+  activity: HandoffActivity = {},
 ): HandoffTargetSection[] {
-  const { panes, roles } = useWorkspaceStore.getState();
-  const groupTargets = groupTargetsForSession(sourceSessionId, groupId);
+  const { panes, roles, groups } = useWorkspaceStore.getState();
+  const groupBy = new Map(groups.map((group) => [group.id, group]));
+  const groupTargets = groupTargetsForSession(sourceSessionId, groupId, activity);
   const groupedSessionIds = new Set(
     groupTargets.flatMap((target) => target.kind === "session" ? [target.sessionId] : []),
   );
@@ -210,8 +282,9 @@ export function handoffTargetSections(
       sessionId: pane.sessionId,
       label: role?.label ?? pane.name,
       incomingPrompt: role?.incomingPrompt ?? "",
+      meta: paneMeta(pane, groupBy, activity),
     }];
-  });
+  }).sort(byRecency);
 
   return [
     ...(groupId && groupTargets.length > 0

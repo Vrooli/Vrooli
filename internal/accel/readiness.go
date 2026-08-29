@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 const (
@@ -168,7 +169,7 @@ func unreachableReason(backend Backend, snapshot hostinventory.Snapshot) string 
 		}
 		return "the host reports no CUDA device"
 	case BackendMetal:
-		if snapshot.OS != "darwin" {
+		if snapshot.OS != string(hostreqspec.PlatformDarwin) {
 			return fmt.Sprintf("metal is only reachable on darwin; this host is %s", snapshot.OS)
 		}
 		return "the host enumerated no Metal-capable device"

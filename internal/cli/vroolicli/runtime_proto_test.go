@@ -2,13 +2,13 @@ package vroolicli
 
 import (
 	"bytes"
-	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/app/runtime"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // TestCliVersionJSONContract pins the `vrooli --version --json` wire shape.
@@ -22,7 +22,7 @@ func TestCliVersionJSONContract(t *testing.T) {
 		t.Fatalf("writeCliVersionJSON: %v", err)
 	}
 
-	got := decode(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if _, ok := got["success"]; ok {
 		t.Errorf("version output must not carry a success envelope: %v", got)
 	}
@@ -71,7 +71,7 @@ func TestCliSupervisorStatusJSONContract(t *testing.T) {
 		t.Fatalf("writeCliSupervisorStatusJSON: %v", err)
 	}
 
-	got := decode(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if _, ok := got["success"]; ok {
 		t.Errorf("status output must not carry a success envelope: %v", got)
 	}
@@ -131,7 +131,7 @@ func TestCliSupervisorServiceResultJSONContract(t *testing.T) {
 		t.Fatalf("writeCliSupervisorServiceResultJSON: %v", err)
 	}
 
-	got := decode(t, buf.Bytes())
+	got := testenv.DecodeJSON[map[string]any](t, buf.Bytes())
 	if _, ok := got["success"]; ok {
 		t.Errorf("service result must not carry a success envelope: %v", got)
 	}
@@ -144,13 +144,4 @@ func TestCliSupervisorServiceResultJSONContract(t *testing.T) {
 	if got["active"] != true {
 		t.Errorf("active: want true, got %v", got["active"])
 	}
-}
-
-func decode(t *testing.T, b []byte) map[string]any {
-	t.Helper()
-	var got map[string]any
-	if err := json.Unmarshal(b, &got); err != nil {
-		t.Fatalf("output is not valid JSON: %v\n%s", err, string(b))
-	}
-	return got
 }

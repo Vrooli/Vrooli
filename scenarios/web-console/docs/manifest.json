@@ -715,6 +715,28 @@
           "completion": "optional"
         },
         {
+          "path": "reference/device-identity/README.md",
+          "docType": "reference",
+          "title": "Device Identity and Fleet Surface",
+          "description": "Live device identity, terminal-size lease behavior, and Devices and machines overlay decisions",
+          "audience": [
+            "developers",
+            "operators",
+            "agents"
+          ],
+          "canonicalFor": [
+            "device-identity",
+            "fleet-surface",
+            "terminal-size-lease"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented",
+            "validated"
+          ],
+          "completion": "required"
+        },
+        {
           "path": "reference/tts-api.md",
           "docType": "reference",
           "title": "TTS API Reference",

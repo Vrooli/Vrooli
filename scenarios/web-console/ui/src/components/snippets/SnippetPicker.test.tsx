@@ -17,11 +17,13 @@ const snippets: SnippetDTO[] = [
 describe("SnippetPicker", () => {
   const touch = vi.fn();
   const save = vi.fn();
+  const remove = vi.fn();
   beforeEach(() => {
     vi.clearAllMocks();
     touch.mockResolvedValue(undefined);
     save.mockImplementation((input) => Promise.resolve({ ...snippets[0], ...input } as SnippetDTO));
-    hook.useSnippets.mockReturnValue({ snippets, status: "ready", touch, save });
+    remove.mockResolvedValue(true);
+    hook.useSnippets.mockReturnValue({ snippets, status: "ready", touch, save, remove });
   });
 
   it("filters by body text and keeps rows at the 44px floor", () => {
@@ -79,6 +81,31 @@ describe("SnippetPicker", () => {
     expect(screen.queryByTestId("snippet-filter-clear")).toBeNull();
   });
 
+  it("offers creating a snippet even when no caller supplies a create flow", async () => {
+    // Editing is owned by the picker, so adding must be too. Gating this on an
+    // `onNew` prop left the toolbar and handoff pickers able to edit a snippet
+    // but never add one.
+    render(<SnippetPicker open onClose={vi.fn()} onInsert={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("snippet-new"));
+    const sheet = await screen.findByTestId("snippet-save-sheet");
+    expect(within(sheet).getByTestId("snippet-save-name")).toHaveValue("");
+  });
+
+  it("seats the add control beside the search field, not in the dialog header", () => {
+    render(<SnippetPicker open onClose={vi.fn()} onInsert={vi.fn()} />);
+    const band = screen.getByTestId("snippet-picker.subheader");
+    expect(within(band).getByTestId("snippet-new")).toBeTruthy();
+    expect(within(band).getByTestId("snippet-filter-group")).toBeTruthy();
+  });
+
+  it("lets a caller own the create flow instead", () => {
+    const onNew = vi.fn();
+    render(<SnippetPicker open onClose={vi.fn()} onInsert={vi.fn()} onNew={onNew} />);
+    fireEvent.click(screen.getByTestId("snippet-new"));
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("snippet-save-sheet")).toBeNull();
+  });
+
   it("keeps each list count in the accessible name, not only in the badge", () => {
     render(<SnippetPicker open onClose={vi.fn()} onInsert={vi.fn()} />);
     // The shared strip marks its badge `aria-hidden`, so a count that lived
@@ -111,6 +138,43 @@ describe("SnippetPicker", () => {
     const track = screen.getByTestId("snippet-swipe-plain");
     fireEvent.click(within(track).getByTestId("snippet-swipe-plain.action.pin"));
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ id: "plain", pinned: true }));
+  });
+
+  it("labels row actions without repeating the noun the row already carries", () => {
+    render(<SnippetPicker open onClose={vi.fn()} onInsert={vi.fn()} />);
+    const track = screen.getByTestId("snippet-swipe-plain");
+    expect(within(track).getByTestId("snippet-swipe-plain.action.pin")).toHaveAccessibleName("snippets.picker.pin");
+    expect(within(track).getByTestId("snippet-swipe-plain.action.edit")).toHaveAccessibleName("snippets.picker.edit");
+    expect(within(track).getByTestId("snippet-swipe-plain.action.delete")).toHaveAccessibleName("snippets.picker.delete");
+  });
+
+  it("seats delete last so a long swipe never arms the irreversible action first", () => {
+    render(<SnippetPicker open onClose={vi.fn()} onInsert={vi.fn()} />);
+    const track = screen.getByTestId("snippet-swipe-plain");
+    // Queried by attribute: a closed track keeps its actions out of the
+    // accessibility tree, so a role query returns nothing here.
+    const ids = Array.from(track.querySelectorAll<HTMLElement>('[data-testid*=".action."]'))
+      .map((node) => node.dataset.testid ?? "")
+      .map((id) => id.split(".action.")[1]);
+    expect(ids).toEqual(["pin", "edit", "delete"]);
+  });
+
+  it("confirms before deleting a row and does not delete on the swipe alone", async () => {
+    render(<SnippetPicker open onClose={vi.fn()} onInsert={vi.fn()} />);
+    const track = screen.getByTestId("snippet-swipe-plain");
+    fireEvent.click(within(track).getByTestId("snippet-swipe-plain.action.delete"));
+    expect(remove).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByTestId("snippet-picker-delete-confirm"));
+    await waitFor(() => { expect(remove).toHaveBeenCalledWith("plain"); });
+  });
+
+  it("keeps the row when the delete confirmation is dismissed", async () => {
+    render(<SnippetPicker open onClose={vi.fn()} onInsert={vi.fn()} />);
+    const track = screen.getByTestId("snippet-swipe-plain");
+    fireEvent.click(within(track).getByTestId("snippet-swipe-plain.action.delete"));
+    fireEvent.click(await screen.findByTestId("snippet-picker-delete-cancel"));
+    expect(remove).not.toHaveBeenCalled();
+    expect(screen.getByTestId("snippet-row-plain")).toBeTruthy();
   });
 
   it("opens the save sheet in edit mode with the row's own text", async () => {

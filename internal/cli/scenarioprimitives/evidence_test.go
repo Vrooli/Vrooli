@@ -57,7 +57,13 @@ func loadManifestGroupForEvidence(raw []byte, path string) (cliapp.SubcommandGro
 	}
 	bindings := make(map[string]func(cliapp.RunContext) error, len(group.Commands))
 	for _, command := range group.Commands {
-		key := command.Binding.Handler
+		key := command.Binding.BindingKey()
+		if command.Binding.Kind == "local" {
+			key = command.Binding.Handler
+			if key == "" {
+				key = command.Name
+			}
+		}
 		bindings[key] = func(cliapp.RunContext) error { return nil }
 	}
 	return cliapp.LoadFromManifest(raw, path, bindings)
