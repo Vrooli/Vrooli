@@ -25,17 +25,8 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("expected theme system, got %s", cfg.UI.Theme)
 	}
 
-	if !cfg.Monitoring.IsScenarioCritical("template-manager") {
-		t.Fatalf("template-manager should be monitored as a critical scenario by default")
-	}
-	if !cfg.Monitoring.IsScenarioCritical("system-monitor") {
-		t.Fatalf("system-monitor should be monitored as a critical scenario by default")
-	}
-	if !cfg.Monitoring.IsScenarioCritical("vrooli-events") {
-		t.Fatalf("vrooli-events should be monitored as a mandatory critical core scenario")
-	}
-	if !cfg.Monitoring.IsScenarioCritical("swarm-manager") {
-		t.Fatal("swarm-manager should be monitored as a mandatory core scenario")
+	if len(cfg.Monitoring.Scenarios) != 0 || len(cfg.Monitoring.Resources) != 0 {
+		t.Fatalf("built-in monitoring must be empty; canonical membership comes from supervision-set: %+v", cfg.Monitoring)
 	}
 }
 
@@ -72,7 +63,7 @@ func TestGetCheckDefaults(t *testing.T) {
 	}
 }
 
-func TestManagerLoadReconcilesMandatoryCoreScenarioAndAutoHeal(t *testing.T) {
+func TestManagerComputedSupervisionFloorOverridesStaleCheckConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 	schemaPath := filepath.Join(tmpDir, "schema.json")
@@ -87,12 +78,9 @@ func TestManagerLoadReconcilesMandatoryCoreScenarioAndAutoHeal(t *testing.T) {
 	if err := mgr.Load(); err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	monitoring := mgr.GetMonitoring()
-	if !monitoring.IsScenarioCritical("vrooli-events") {
-		t.Fatal("mandatory core scenario was not reconciled as critical")
-	}
+	mgr.SetSupervisedChecks(map[string]string{"scenario-vrooli-events": "must_start"})
 	if !mgr.IsCheckEnabled("scenario-vrooli-events") || !mgr.IsAutoHealEnabled("scenario-vrooli-events") {
-		t.Fatal("mandatory core scenario coverage must remain enabled and auto-healable")
+		t.Fatal("computed supervision floor must remain enabled and auto-healable")
 	}
 }
 
@@ -138,7 +126,7 @@ func TestManagerLoadSave(t *testing.T) {
 	}
 }
 
-func TestManagerLoadAdoptsNewDefaultResources(t *testing.T) {
+func TestManagerLoadDoesNotInventDefaultResources(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.json")
 	schemaPath := filepath.Join(tmpDir, "schema.json")
@@ -158,9 +146,18 @@ func TestManagerLoadAdoptsNewDefaultResources(t *testing.T) {
 	}
 
 	resources := mgr.GetMonitoring().Resources
-	if !containsString(resources, "whisper") {
-		t.Fatalf("expected saved monitoring config to adopt new default resource whisper, got %v", resources)
+	if containsString(resources, "whisper") {
+		t.Fatalf("saved overrides must not acquire a hardcoded resource, got %v", resources)
 	}
+}
+
+func containsString(items []string, want string) bool {
+	for _, item := range items {
+		if item == want {
+			return true
+		}
+	}
+	return false
 }
 
 func TestManagerLoadHonorsExplicitDisabledDefaultResource(t *testing.T) {

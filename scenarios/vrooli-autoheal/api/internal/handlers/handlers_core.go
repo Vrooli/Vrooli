@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
@@ -78,12 +79,26 @@ type operationalRetentionReporter interface {
 	OperationalRetentionStatus(ctx context.Context) (persistence.RetentionStatus, error)
 }
 
+type supervisedAvailabilityStore interface {
+	ObserveSupervisedAvailability(ctx context.Context, result checks.Result) error
+	GetOutageSummary(ctx context.Context, memberID string, from, to time.Time) (*persistence.OutageSummary, error)
+}
+
+// controlPlaneClient is the narrow command surface handlers need for
+// setup-owned host operations. Keeping process execution behind the shared
+// typed client prevents HTTP handlers from becoming an os/exec boundary and
+// makes the exact control-plane argv testable.
+type controlPlaneClient interface {
+	OutputCombined(ctx context.Context, args ...string) ([]byte, error)
+}
+
 // Handlers wraps the dependencies needed by HTTP handlers
 type Handlers struct {
 	registry               *checks.Registry
 	store                  StoreInterface
 	platform               *platform.Capabilities
 	watchdogDetector       *watchdog.Detector
+	controlPlane           controlPlaneClient
 	hostCollector          hostinventory.IntegrityCollector
 	incidentService        *incidents.Service
 	remediationService     *remediation.Service
@@ -147,6 +162,7 @@ func New(registry *checks.Registry, store *persistence.Store, plat *platform.Cap
 		store:              store,
 		platform:           plat,
 		watchdogDetector:   watchdog.NewDetector(plat),
+		controlPlane:       vroolicli.New(),
 		hostCollector:      hostCollector,
 		incidentService:    incidentService,
 		remediationService: remediationService,
@@ -184,6 +200,7 @@ func NewWithInterface(registry *checks.Registry, store StoreInterface, plat *pla
 		store:              store,
 		platform:           plat,
 		watchdogDetector:   watchdog.NewDetector(plat),
+		controlPlane:       vroolicli.New(),
 		hostCollector:      hostCollector,
 		incidentService:    incidentService,
 		remediationService: remediationService,
@@ -256,8 +273,8 @@ func (h *Handlers) pruneOperationalHistory(ctx context.Context) {
 	h.lastRetentionAt = time.Now()
 	h.lastRetentionResult = result
 	h.lastRetentionErr = ""
-	if result.HealthResults+result.ActionLogs+result.Actions+result.SystemEvents > 0 {
-		apierrors.LogInfo("retention", "pruned operational history", "health_results", result.HealthResults, "action_logs", result.ActionLogs, "actions", result.Actions, "system_events", result.SystemEvents)
+	if result.HealthResults+result.ActionLogs+result.SystemEvents > 0 {
+		apierrors.LogInfo("retention", "pruned operational history", "health_results", result.HealthResults, "action_logs", result.ActionLogs, "system_events", result.SystemEvents)
 	}
 }
 
@@ -388,8 +405,10 @@ func (h *Handlers) Status(w http.ResponseWriter, r *http.Request) {
 			"critical":      summary.CritCount,
 			"notApplicable": summary.NotApplicableCount,
 		},
-		"checks":    summary.Checks,
-		"timestamp": summary.Timestamp,
+		"checks":          summary.Checks,
+		"healTrackers":    h.registry.GetAllHealTrackers(),
+		"suspendedChecks": h.registry.GetSuspendedHealTrackers(),
+		"timestamp":       summary.Timestamp,
 	}
 	if h.systemEventService != nil {
 		response["systemEvents"] = map[string]interface{}{
@@ -502,6 +521,12 @@ func (h *Handlers) Tick(w http.ResponseWriter, r *http.Request) {
 		if err := h.store.SaveResult(ctx, result); err != nil {
 			persistenceErrors++
 			apierrors.LogError("tick", "save_result:"+result.CheckID, err)
+		}
+		if outageStore, ok := h.store.(supervisedAvailabilityStore); ok {
+			if err := outageStore.ObserveSupervisedAvailability(ctx, result); err != nil {
+				persistenceErrors++
+				apierrors.LogError("tick", "observe_outage:"+result.CheckID, err)
+			}
 		}
 	}
 	if h.incidentService != nil {

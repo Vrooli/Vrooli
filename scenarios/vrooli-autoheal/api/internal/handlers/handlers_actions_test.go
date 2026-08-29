@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -383,6 +384,94 @@ func TestExecuteCheckAction_Failed(t *testing.T) {
 
 	if resp.Error == "" {
 		t.Error("Expected error message for failed action")
+	}
+}
+
+// [REQ:AUTOHEAL-P0-012]
+func TestExecuteCheckAction_PersistsTypedInterlockRefusal(t *testing.T) {
+	caps := &platform.Capabilities{Platform: platform.Linux}
+	registry := checks.NewRegistry(caps)
+	starter := &mockHealableCheck{
+		mockCheck:       mockCheck{id: "resource-qdrant", status: checks.StatusCritical},
+		recoveryActions: []checks.RecoveryAction{{ID: "start", Available: true}},
+		executeResult:   checks.ActionResult{CheckID: "resource-qdrant", Success: true},
+	}
+	destroyer := &mockHealableCheck{
+		mockCheck:       mockCheck{id: "resource-qdrant-mode-drift", status: checks.StatusCritical},
+		recoveryActions: []checks.RecoveryAction{{ID: "kill", Available: true, Dangerous: true}},
+		executeResult:   checks.ActionResult{CheckID: "resource-qdrant-mode-drift", Success: true},
+	}
+	registry.Register(starter)
+	registry.Register(destroyer)
+	if result := registry.ExecuteAction(context.Background(), starter.ID(), "start"); !result.Success {
+		t.Fatalf("prime start result = %#v, want success", result)
+	}
+
+	store := &mockStore{}
+	h := NewWithInterface(registry, store, caps)
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/checks/{checkId}/actions/{actionId}", h.ExecuteCheckAction)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, httptest.NewRequest("POST", "/api/v1/checks/resource-qdrant-mode-drift/actions/kill", nil))
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusConflict)
+	}
+	var result checks.ActionResult
+	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
+		t.Fatalf("decode refusal: %v", err)
+	}
+	if result.Refusal == nil || result.Refusal.SourceCheckID != "resource-qdrant" || result.Refusal.AttemptingCheckID != "resource-qdrant-mode-drift" {
+		t.Fatalf("refusal = %#v, want both check IDs", result.Refusal)
+	}
+	if store.actionLogCalls != 1 {
+		t.Fatalf("action log calls = %d, want 1", store.actionLogCalls)
+	}
+	if store.lastActionLog.Success || store.lastActionLog.CheckID != "resource-qdrant-mode-drift" || !strings.Contains(store.lastActionLog.Error, "resource-qdrant") {
+		t.Fatalf("durable action log = %#v, want failed refusal naming source check", store.lastActionLog)
+	}
+}
+
+func TestSuspendedCheckRemainsVisibleAndResumeCommandReactivatesIt(t *testing.T) {
+	caps := &platform.Capabilities{Platform: platform.Linux}
+	registry := checks.NewRegistry(caps)
+	if err := registry.SetAutoHealPolicy(checks.AutoHealPolicy{
+		BaseCooldown:         time.Minute,
+		MaxRestartAttempts:   1,
+		FastActionTimeout:    checks.DefaultFastActionTimeout,
+		RestartActionTimeout: checks.DefaultRestartActionTimeout,
+		TimeoutRetryCooldown: checks.DefaultTimeoutRetryCooldown,
+	}); err != nil {
+		t.Fatalf("set policy: %v", err)
+	}
+	check := &mockHealableCheckCritical{
+		mockCheck:       mockCheck{id: "scenario-failing", status: checks.StatusCritical, message: "down"},
+		recoveryActions: []checks.RecoveryAction{{ID: "start", Available: true}},
+		executeResult:   checks.ActionResult{CheckID: "scenario-failing", Error: "start failed"},
+	}
+	registry.Register(check)
+	registry.SetConfigProvider(&mockConfigProvider{autoHealChecks: map[string]bool{"scenario-failing": true}})
+	registry.RunAutoHeal(context.Background(), []checks.Result{{CheckID: "scenario-failing", Status: checks.StatusCritical}})
+
+	h := NewWithInterface(registry, &mockStore{}, caps)
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/checks/suspended", h.ListSuspendedChecks).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/checks/{checkId}/resume", h.ResumeCheck).Methods(http.MethodPost)
+
+	list := httptest.NewRecorder()
+	router.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/api/v1/checks/suspended", nil))
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), "reached consecutive failure limit") {
+		t.Fatalf("suspended response = %d %s", list.Code, list.Body.String())
+	}
+
+	resume := httptest.NewRecorder()
+	router.ServeHTTP(resume, httptest.NewRequest(http.MethodPost, "/api/v1/checks/scenario-failing/resume", nil))
+	if resume.Code != http.StatusOK {
+		t.Fatalf("resume response = %d %s", resume.Code, resume.Body.String())
+	}
+	tracker, _ := registry.GetHealTracker("scenario-failing")
+	if tracker.IsSuspended() || tracker.TotalAttempts != 1 || tracker.Disposition != checks.HealDispositionEscalated {
+		t.Fatalf("tracker after resume = %+v, want active with escalation evidence preserved", tracker)
 	}
 }
 

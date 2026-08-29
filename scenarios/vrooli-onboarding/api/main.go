@@ -64,6 +64,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/operator-state", s.handleOperatorState).Methods("GET")
 	s.router.Handle("/api/v2/operator-state", onboardingMutationAuth(http.HandlerFunc(s.handleOperatorState))).Methods("PATCH")
 	s.router.HandleFunc("/api/v2/scenarios", s.handleV2Scenarios).Methods("GET")
+	s.router.HandleFunc("/api/v2/core-set", s.handleV2CoreSet).Methods("GET")
 	s.router.HandleFunc("/api/v2/recommendation", s.handleV2Recommendation).Methods("GET")
 	s.router.HandleFunc("/api/v2/resources", s.handleV2Resources).Methods("GET")
 	s.router.HandleFunc("/api/v2/closure", s.handleV2Closure).Methods("GET")

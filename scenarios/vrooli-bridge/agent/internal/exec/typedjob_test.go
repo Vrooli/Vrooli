@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/cliresolve"
 	"vrooli-bridge/agent/internal/exec"
 
 	"github.com/stretchr/testify/require"
@@ -103,21 +104,30 @@ func TestBuildArgv_ConstructsTypedArgv(t *testing.T) {
 	require.Equal(t, []string{"vrooli", "scenario", "test", "web-search", "--json"}, argv)
 }
 
-func TestBuildArgv_RoutesDeviceControlNamespaceToScenarioCLI(t *testing.T) {
+func TestBuildArgv_PreservesCommaAndEmptyArguments(t *testing.T) {
+	argv, err := exec.BuildArgv("vrooli", &channelv1.JobPush{
+		Verb: "scenario test", Scenario: "web-search",
+		Args: []string{"--label", "one,two", ""},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"vrooli", "scenario", "test", "web-search", "--label", "one,two", ""}, argv)
+}
+
+func TestBuildArgv_KeepsOperatorBinaryWhenScenarioIsPresent(t *testing.T) {
 	argv, err := exec.BuildArgv("vrooli", &channelv1.JobPush{
 		RunId: "bridge-run-42", Verb: "device-control flow", Scenario: "device-control",
 		Args: []string{"run", "--file", "/tmp/flow.json", "--device", "android-1"},
 	})
 	require.NoError(t, err)
-	require.Equal(t, []string{"device-control", "flow", "run", "--file", "/tmp/flow.json", "--device", "android-1"}, argv)
+	require.Equal(t, []string{"vrooli", "device-control", "flow", "device-control", "run", "--file", "/tmp/flow.json", "--device", "android-1"}, argv)
 }
 
-func TestBuildArgv_RoutesScenarioOwnedVerbToScenarioCLI(t *testing.T) {
+func TestBuildArgv_NeverUsesJobScenarioAsExecutable(t *testing.T) {
 	argv, err := exec.BuildArgv("vrooli", &channelv1.JobPush{
 		Verb: "system-monitor metrics devices", Scenario: "system-monitor",
 	})
 	require.NoError(t, err)
-	require.Equal(t, []string{"system-monitor", "metrics", "devices"}, argv)
+	require.Equal(t, []string{"vrooli", "system-monitor", "metrics", "devices", "system-monitor"}, argv)
 }
 
 func TestExecute_DeviceControlJobPreservesBridgeRunIdentity(t *testing.T) {
@@ -129,10 +139,55 @@ func TestExecute_DeviceControlJobPreservesBridgeRunIdentity(t *testing.T) {
 		RunId: "bridge-run-42", Verb: "device-control flow", Scenario: "device-control",
 		Args: []string{"run", "--file", "/tmp/flow.json", "--device", "android-1"},
 	}))
-	require.Equal(t, []string{"device-control", "flow", "run", "--file", "/tmp/flow.json", "--device", "android-1"}, cmd.gotArgv)
+	require.Equal(t, []string{"vrooli", "device-control", "flow", "device-control", "run", "--file", "/tmp/flow.json", "--device", "android-1"}, cmd.gotArgv)
 	for _, event := range rep.events {
 		require.Equal(t, "bridge-run-42", event.RunId)
 	}
+}
+
+func TestRunner_ResolvesScenarioCLIToAbsolutePath(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".vrooli", "bin", "system-monitor")
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte("scenario cli"), 0o755))
+	cmd := &fakeCommand{exit: 0}
+	rep := &fakeReporter{}
+	runner := exec.NewRunner("vrooli", "/work", rep,
+		exec.WithCommandRunner(cmd), exec.WithCLIResolver(cliresolve.New(home)))
+	require.NoError(t, runner.Execute(context.Background(), &channelv1.JobPush{
+		RunId: "scenario-run", Scenario: "system-monitor", Verb: "metrics current",
+	}))
+	require.Equal(t, []string{path, "metrics", "current"}, cmd.gotArgv)
+}
+
+func TestRunner_StripsScenarioQualifierFromQualifiedVerb(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".vrooli", "bin", "system-monitor")
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte("scenario cli"), 0o755))
+	cmd := &fakeCommand{exit: 0}
+	rep := &fakeReporter{}
+	runner := exec.NewRunner("vrooli", "/work", rep,
+		exec.WithCommandRunner(cmd), exec.WithCLIResolver(cliresolve.New(home)))
+	require.NoError(t, runner.Execute(context.Background(), &channelv1.JobPush{
+		RunId: "qualified-scenario-run", Scenario: "system-monitor", Verb: "system-monitor metrics current",
+	}))
+	require.Equal(t, []string{path, "metrics", "current"}, cmd.gotArgv)
+}
+
+func TestRunnerKeepsRootScenarioCommandOnVrooliBinary(t *testing.T) {
+	home := t.TempDir()
+	path := filepath.Join(home, ".vrooli", "bin", "system-monitor")
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte("scenario cli"), 0o755))
+	cmd := &fakeCommand{exit: 0}
+	runner := exec.NewRunner("vrooli", "/work", &fakeReporter{},
+		exec.WithCommandRunner(cmd), exec.WithCLIResolver(cliresolve.New(home)))
+
+	require.NoError(t, runner.Execute(context.Background(), &channelv1.JobPush{
+		RunId: "root-scenario-status", Scenario: "system-monitor", Verb: "scenario status",
+	}))
+	require.Equal(t, []string{"vrooli", "scenario", "status", "system-monitor"}, cmd.gotArgv)
 }
 
 // [REQ:BRG-P0-004] A shell metacharacter in any typed field is rejected before

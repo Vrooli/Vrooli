@@ -107,7 +107,7 @@ verdict), `handlers/gate`, `cli/domains/gate`, `gates`+`gate_os_results` schema.
 backs both the dispatch handler and the gate runner (every gate validation run
 flows through the same allowlist + scopes + audit). All tests `[REQ:BRG-P1-002]`;
 deployment-manager wired as the first consumer (`crossosgate`, Connect/JSON, no
-proto-module dep, additive + inert until `VROOLI_BRIDGE_URL` is set).
+proto-module dep, additive + inert until its shared Bridge client is wired).
 
 **P2 future seams — recorded, deliberately NOT built (gated on separate tracks).**
 Bridge is written cross-platform from day one so it is never the blocker, but

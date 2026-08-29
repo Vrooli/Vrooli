@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/vrooli"
@@ -15,8 +17,22 @@ import (
 
 // ConfigHandlers wraps handlers for configuration management
 type ConfigHandlers struct {
-	configMgr *userconfig.Manager
-	registry  *checks.Registry
+	configMgr           *userconfig.Manager
+	registry            *checks.Registry
+	monitoringRefresher interface{ Reconcile(context.Context) error }
+}
+
+// SetMonitoringRefresher makes all monitoring mutations pass through the same
+// canonical-set reconciler used at startup and on periodic reload.
+func (h *ConfigHandlers) SetMonitoringRefresher(refresher interface{ Reconcile(context.Context) error }) {
+	h.monitoringRefresher = refresher
+}
+
+func (h *ConfigHandlers) reconcileMonitoring(ctx context.Context) error {
+	if h.monitoringRefresher == nil {
+		return nil
+	}
+	return h.monitoringRefresher.Reconcile(ctx)
 }
 
 // NewConfigHandlers creates a new ConfigHandlers instance
@@ -53,6 +69,10 @@ func (h *ConfigHandlers) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.syncAutoHealPolicy(); err != nil {
 		apierrors.LogAndRespond(w, apierrors.NewValidationError("config", "apply auto-heal policy", err))
+		return
+	}
+	if err := h.reconcileMonitoring(r.Context()); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("config", "reconcile active checks", err))
 		return
 	}
 
@@ -140,6 +160,10 @@ func (h *ConfigHandlers) ImportConfig(w http.ResponseWriter, r *http.Request) {
 		apierrors.LogAndRespond(w, apierrors.NewValidationError("config", "apply auto-heal policy", err))
 		return
 	}
+	if err := h.reconcileMonitoring(r.Context()); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("config", "reconcile active checks", err))
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
@@ -164,6 +188,9 @@ func (h *ConfigHandlers) syncAutoHealPolicy() error {
 		global.TimeoutRetrySeconds,
 	)
 	if err != nil {
+		return err
+	}
+	if err := h.registry.SetHealInterlockWindow(time.Duration(global.HealInterlockSeconds) * time.Second); err != nil {
 		return err
 	}
 	return h.registry.SetAutoHealPolicy(policy)
@@ -355,6 +382,10 @@ func (h *ConfigHandlers) UpdateMonitoring(w http.ResponseWriter, r *http.Request
 		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "update configuration", err))
 		return
 	}
+	if err := h.reconcileMonitoring(r.Context()); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "reconcile active checks", err))
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]interface{}{
@@ -389,9 +420,13 @@ func (h *ConfigHandlers) AddScenario(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Dynamically register the check so it takes effect immediately
-	if h.registry != nil {
+	if h.monitoringRefresher == nil && h.registry != nil {
 		check := vrooli.NewScenarioCheck(req.Name, req.Critical)
 		h.registry.Register(check)
+	}
+	if err := h.reconcileMonitoring(r.Context()); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "reconcile active checks", err))
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -416,9 +451,13 @@ func (h *ConfigHandlers) RemoveScenario(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Dynamically unregister the check so it takes effect immediately
-	if h.registry != nil {
+	if h.monitoringRefresher == nil && h.registry != nil {
 		checkID := "scenario-" + name
 		h.registry.Unregister(checkID)
+	}
+	if err := h.reconcileMonitoring(r.Context()); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "reconcile active checks", err))
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -451,11 +490,15 @@ func (h *ConfigHandlers) SetScenarioCritical(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Re-register the check with updated criticality
-	if h.registry != nil {
+	if h.monitoringRefresher == nil && h.registry != nil {
 		checkID := "scenario-" + name
 		h.registry.Unregister(checkID)
 		check := vrooli.NewScenarioCheck(name, req.Critical)
 		h.registry.Register(check)
+	}
+	if err := h.reconcileMonitoring(r.Context()); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "reconcile active checks", err))
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -492,9 +535,13 @@ func (h *ConfigHandlers) AddResource(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Dynamically register the check so it takes effect immediately
-	if h.registry != nil {
+	if h.monitoringRefresher == nil && h.registry != nil {
 		check := vrooli.NewResourceCheck(req.Name)
 		h.registry.Register(check)
+	}
+	if err := h.reconcileMonitoring(r.Context()); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "reconcile active checks", err))
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -519,9 +566,13 @@ func (h *ConfigHandlers) RemoveResource(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Dynamically unregister the check so it takes effect immediately
-	if h.registry != nil {
+	if h.monitoringRefresher == nil && h.registry != nil {
 		checkID := "resource-" + name
 		h.registry.Unregister(checkID)
+	}
+	if err := h.reconcileMonitoring(r.Context()); err != nil {
+		apierrors.LogAndRespond(w, apierrors.NewInternalError("monitoring", "reconcile active checks", err))
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

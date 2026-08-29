@@ -1,62 +1,73 @@
 # Vrooli Bridge
 
-Fleet control plane that provisions, updates, and runs allowlisted commands across an owner's trusted Vrooli nodes on every OS
+Owner control plane for a trusted fleet of Vrooli nodes across Linux, macOS,
+and Windows.
 
-This scenario provides
-the standard full-stack Vrooli scenario shape:
+Bridge owns durable node identity, pairing, presence, scope-gated dispatch, run
+history, provisioning gates, and the operator surfaces that use them:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
 - CLI wrapper (`cli/`)
 - Lifecycle + health wiring (`.vrooli/service.json`)
 - Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
+- `agent/` is a standalone CGO-free Go module that cross-compiles for all six
+  supported OS/architecture pairs. It resolves installed scenario CLIs by
+  absolute path and executes typed argv without a shell.
+- `packages/nodeclient` is the shared typed client for downstream scenarios;
+  they do not carry private Bridge wire adapters.
 
 > **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
 > owns the first-session initialization protocol — charter, requirements,
 > domain map, design language, placeholder replacement, and first real
 > vertical slice. Run `make orient` for a machine-readable gate status.
 
-## What You Get
+## Onboarding
 
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
+Use [`bootstrap/README.md`](bootstrap/README.md) for a fresh machine. The
+manual code path remains available when the control plane is not discoverable.
+On a trusted LAN, the agent can discover `_vrooli-bridge._tcp.local`; the
+advertised control-plane URL is carried in DNS-SD TXT data.
+
+The terminal-free request/approve path is used when an installed agent has a
+control-plane URL but no node id. It submits public facts, displays three
+key-derived confirmation words, and waits. The owner sees the same words,
+chooses a catalog-derived permission preset (read-only by default), and must
+confirm the match before approval. The agent persists its assigned id and the
+pinned control-plane public key.
+
+Presence survives a Bridge restart as durable registry state, while online and
+dispatchable status require a fresh heartbeat and live channel. A stale row is
+not presented as ready.
+
+## Product surfaces
+
+- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`) coordinated
+  through generated proto contracts for pairing, registry, dispatch, runs,
+  machine lineage, readiness, and cross-platform gates.
 - Lifecycle metadata, Makefile entrypoints, health checks, endpoint
   metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
+- The UI includes the fleet dashboard, pending-pairing approvals, permission
+  presets, onboarding, run history, and trust/grant controls.
 - SQLite by default. Add external resources to `.vrooli/service.json`
   only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, and generic placeholder icons ready for scenario-specific
-  replacement.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
+- The standalone `agent/` module cross-compiles for the supported OS/architecture
+  pairs and resolves installed scenario CLIs by absolute path without a shell.
+- Downstream scenarios use [`packages/nodeclient`](../../packages/nodeclient/)
+  for Bridge discovery, authentication, typed relay arguments, durable runs,
+  and interactive sessions. Browser payloads never contain Bridge owner or
+  node credentials.
 
-## Customize Safely
+## Extension rules
 
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
+The durable product surfaces are the Bridge domains and their generated
+contracts. Keep these invariants when extending them:
 
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
-
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- The feature-folder pattern under `ui/src/features/<name>/`.
+- i18n and accessibility wiring, including stable selectors.
+- Existing design tokens and feature-folder boundaries.
 - The proto → API → CLI → UI vertical-slice shape.
+- Owner/operator separation: Bridge holds credentials and nodes execute only
+  admitted, typed verbs.
 
 **Connect-RPC is the default transport.** Every domain endpoint goes
 through a proto service and generated Connect handlers/clients. If
@@ -68,24 +79,22 @@ receiver, third-party shape, ops probe) are enumerated in
 `api/internal/module/module.go`. The notes attachments endpoint is
 the worked REST example.
 
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
+[`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) documents the current
+ownership boundaries and transport seams.
 
-## Running The Scenario
+## Running and validating
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
-make setup   # wraps `vrooli scenario setup`
-
-# Start API + UI in the background
-make start   # wraps `vrooli scenario start`
+vrooli scenario start vrooli-bridge
+vrooli scenario test vrooli-bridge
+vrooli scenario stop vrooli-bridge
 ```
 
-See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
-
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute vrooli-bridge --preset comprehensive` directly for
-finer-grained presets.
+Use [`bootstrap/README.md`](bootstrap/README.md) for a fresh node. The
+installed agent can discover the control plane over DNS-SD, request pairing,
+show key-derived confirmation words, and persist its assigned identity. An
+owner approves the request with a catalog permission preset; read-only is the
+default.
 
 ## Documentation Map
 

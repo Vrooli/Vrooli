@@ -33,6 +33,19 @@ wins**: that conversation is the point. Two authorities for one decision is how
 resource enablement ended up split between operator state and the repository
 service manifest.
 
+## Supervision membership is independent from auto-restart
+
+`core.seed` declares which scenarios enter the computed supervision closure.
+The per-scenario `auto_restart` flag remains a lifecycle preference and does not
+remove a member from that closure.
+
+**Tradeoff**: an operator can ask the lifecycle not to restart a scenario that
+still appears in supervision reports. **Why it wins**: treating `auto_restart`
+as a second membership switch would create two competing authorities and make
+the declared core set conditional on an unrelated recommendation. The
+supervisor can report or act on the mismatch without changing what membership
+means.
+
 ## Apply is part of the wizard, not a follow-up
 
 **Tradeoff**: onboarding becomes a mutating surface with real failure modes,

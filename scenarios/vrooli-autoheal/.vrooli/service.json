@@ -13,9 +13,49 @@
         "subpath": "autoheal.sqlite",
         "rationale": "The autoheal control-plane database is durable operational state and is bounded by its working-set requirement.",
         "budget": {
-          "max_bytes": "64GiB",
+          "max_bytes": "1GiB",
           "max_age": "30d",
-          "rationale": "Retain the database for active recovery history; the byte ceiling is derived from the operational working set and is alarm-only."
+          "rationale": "The database is a bounded operational working set. Per-table retention ceilings total 704 MiB, leaving headroom for durable rollups, schema overhead, WAL, and future bounded tables while keeping the complete live database below 1 GiB."
+        }
+      },
+      "data_wal": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "subpath": "autoheal.sqlite-wal",
+        "rationale": "SQLite write-ahead-log sidecar for the canonical autoheal database; SQLite recreates it and it must be counted while the database is live.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "max_age": "30d",
+          "rationale": "The live sidecar is normally short-lived and small; the ceiling detects a checkpoint failure without treating the durable database as disposable."
+        }
+      },
+      "data_shm": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": true,
+        "subpath": "autoheal.sqlite-shm",
+        "rationale": "SQLite shared-memory sidecar for the canonical autoheal database; SQLite recreates it and it must be counted while the database is live.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "SQLite shared memory is bounded and regenerable; a one-mebibyte ceiling leaves headroom above the observed 32 KiB file."
+        }
+      },
+      "deployment_report": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "format": "json",
+        "regenerable": true,
+        "subpath": "deployment/deployment-report.json",
+        "rationale": "The lifecycle deployment assessment is a resolver-owned report that can be regenerated from the current scenario state.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The observed report is 6 KiB; one mebibyte leaves ample schema growth headroom while detecting accidental history accumulation."
         }
       },
       "legacy_user_data_database": {
@@ -28,6 +68,20 @@
         "budget": {
           "max_bytes": "0B",
           "rationale": "This is a superseded location; zero bytes is the deliberate ceiling for orphan cleanup."
+        }
+      },
+      "retention_enforcement_receipt": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "regenerable": true,
+        "subpath": "retention/enforcement-receipt.json",
+        "rationale": "Storage Manager writes the latest retention-enforcement receipt under the scenario state root so operators and audits can prove the bounded-history policy ran.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Only the latest compact receipt is retained; one mebibyte leaves ample schema headroom and detects accidental append-only behavior."
         }
       },
       "logs": {
@@ -469,15 +523,6 @@
   ],
   "dependencies": {
     "resources": {},
-    "scenarios": {
-      "system-monitor": {
-        "required": false,
-        "startup_policy": "try_start",
-        "runtime_only": true,
-        "runtime_only_rationale": "Disk pressure observations use the system-monitor HTTP boundary through discovery.",
-        "degraded_behavior": "Disk pressure observation is unavailable while system-monitor is stopped."
-      }
-    },
     "scenarios": {}
   },
   "cli": {
@@ -518,9 +563,9 @@
           "time_column": "occurred_at"
         },
         "max_age": "30d",
-        "max_bytes": "2GiB",
+        "max_bytes": "128MiB",
         "pruner": "builtin",
-        "rationale": "Host journal ingest. Volume is driven by host conditions Vrooli does not control - an AMDGPU driver fault emitted roughly 1000 lines per second for 17 days, producing 846M rows and 453 GB while the 30d horizon correctly deleted nothing. The byte ceiling is the real bound; the horizon alone is not one. 2GiB is an operator-approved starting figure, not a measured optimum - revisit once normal ingest volume is visible."
+        "rationale": "Host journal ingest is kept for at most 30 days, but volume is driven by host conditions Vrooli does not control. The 128 MiB ceiling is the hard small-host bound when the age horizon alone cannot contain a log storm; compact incidents preserve the durable forensic rollup."
       },
       "health_results": {
         "target": {
@@ -530,10 +575,23 @@
           "table": "health_results",
           "time_column": "created_at"
         },
-        "max_age": "30d",
+        "max_age": "24h",
         "pruner": "builtin",
-        "rationale": "One row per health check per tick, and measured as the LARGEST table in this database: 12.2 GiB against system_events' 0.86 GiB after the 2026-07-31 remediation. An age bound alone was not a bound here either - the same failure this plan exists to fix, one table over. Each budget's ceiling applies to its own table and indexes.",
-        "max_bytes": "2GiB"
+        "rationale": "One row per health check per tick. Twenty-four hours is enough to diagnose current fleet behavior while outage_records and incidents retain compact durable history. The 256 MiB ceiling bounds bursts even when tick volume exceeds the normal rate.",
+        "max_bytes": "256MiB"
+      },
+      "action_logs": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "autoheal.sqlite",
+          "table": "action_logs",
+          "time_column": "created_at"
+        },
+        "max_age": "24h",
+        "max_bytes": "64MiB",
+        "pruner": "builtin",
+        "rationale": "Action attempts are high-volume operational evidence paired with health results. Twenty-four hours preserves the current diagnosis window; incidents, outage_records, and heal_trackers retain durable outcomes. The 64 MiB ceiling bounds verbose command output and burst recovery loops."
       },
       "host_inventory_snapshots": {
         "target": {
@@ -545,8 +603,8 @@
         },
         "max_age": "90d",
         "pruner": "builtin",
-        "rationale": "Full host inventory documents, written only when the fingerprint changes. Measured at 1.7 GiB, so the 90d horizon alone was already letting it drift; the ceiling bounds it.",
-        "max_bytes": "1GiB"
+        "rationale": "Full host inventory documents are retained for at most a quarter, but the byte ceiling is authoritative when host churn makes fingerprint snapshots accumulate faster. Current inventory remains available through the latest-snapshot read model.",
+        "max_bytes": "128MiB"
       },
       "incident_observations": {
         "target": {
@@ -558,8 +616,8 @@
         },
         "max_age": "90d",
         "pruner": "builtin",
-        "rationale": "Incident forensics: one row per open incident per source check, throttled to a 30-minute quiet window unless the evidence changes. It had NO deletion path of any kind - no DELETE statement anywhere in the scenario and no ON DELETE CASCADE, so closing an incident never freed its observations and the table only ever grew. Measured at 0.249 GiB over 50 days (12,117 rows averaging 21 KB of evidence_json each, one incident alone holding 2,317), which is ~1 GiB/year at a healthy baseline. The rate is not the reason for the ceiling: growth scales with how many incidents are open, so it is fastest exactly when the fleet is broken and autoheal matters most. 90d keeps forensics across a full quarter of incident history; 512MiB is the bound for when that assumption stops holding.",
-        "max_bytes": "512MiB"
+        "rationale": "Incident observations preserve up to a quarter of detailed source evidence. The 128 MiB ceiling prevents open-incident evidence churn from crowding out the incident and outage rollups that remain durable outside this raw observation table.",
+        "max_bytes": "128MiB"
       }
     }
   },

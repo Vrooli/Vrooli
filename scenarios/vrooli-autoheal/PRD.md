@@ -1,150 +1,77 @@
 # Product Requirements Document (PRD)
 
 > **Template Version**: 2.0
-> **Canonical Reference**: `/scenarios/business-health/docs/reference/canonical-prd-template.md`
-> **Validation**: Enforced by `business-health` (the test-genie `business` phase)
+> **Canonical Reference**: `scenarios/business-health/docs/reference/canonical-prd-template.md`
+> **Validation**: Enforced by `business-health` (`validate scenario vrooli-autoheal`)
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
 
-- **Purpose**: Self-healing supervisor that bootstraps the Vrooli environment, installs OS-level watchdogs, and continuously monitors/repairs critical infrastructure across platforms
-- **Primary users/verticals**: DevOps engineers, system administrators, Vrooli operators, automated agents
-- **Deployment surfaces**: CLI (`vrooli-autoheal tick/loop/status`), API (health registry), UI (dashboard showing health status and history)
-- **Value promise**: Ensures Vrooli infrastructure survives reboots, crashes, and failures without manual intervention. Centralizes all health logic in one place with a clean registry of checks.
-
-### Why It Matters
-
-1. **Survival across reboots & crashes**: Brings Vrooli back to a known-good state after OS reboots, Docker restarts, or process crashes without manual intervention
-2. **Keeps ops surface reachable**: Ensures remote access (RDP/xrdp), core monitors, and management scenarios stay online so operators can always reach and control the system
-3. **Centralizes health logic**: All "is the system healthy?" logic lives in one place with a clean registry of checks instead of scattered scripts and cron jobs
-4. **Cross-platform with platform-specific smarts**: Same high-level behavior on Linux/Windows/macOS while doing the right OS-specific things (systemd, Windows services, launchd, RDP variants)
-5. **Foundation for higher-level automation**: Other scenarios and agents can rely on vrooli-autoheal as a trusted service that keeps critical infrastructure running
+- **Purpose**: Keep the operator-declared Vrooli supervision set available across reboots, crashes, and partial failures without contradictory heal actions.
+- **Primary users/verticals**: Vrooli operators, system administrators, DevOps engineers, and automated agents.
+- **Deployment surfaces**: CLI tick/loop/status commands, API health and history surfaces, a web dashboard, and OS watchdog integrations.
+- **Value promise**: One operator declaration drives cross-platform resource and scenario supervision, while durable evidence makes outages and repairs auditable.
 
 ## 🎯 Operational Targets
 
+> Checkboxes auto-update from requirements sync; do not hand-edit them.
+
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | CLI tick command | Single-shot bootstrap + health cycle via `vrooli-autoheal tick`
-- [x] OT-P0-002 | CLI loop command | Long-running mode with configurable interval via `vrooli-autoheal loop`
-- [x] OT-P0-003 | Platform detection | Detect platform (linux/windows/macos/other) and capabilities (supportsRdp, supportsSystemd, etc.)
-- [x] OT-P0-004 | Health check registry | Extensible registry pattern for registering/running health checks with intervals and platform filters
-- [ ] OT-P0-005 | Core bootstrap | Bootstrap DB, core resources, and critical scenarios from cold state
-- [x] OT-P0-006 | Resource health checks | Monitor configured resources (postgres, redis, qdrant, ollama) with auto-restart on failure
-- [x] OT-P0-007 | Scenario health checks | Monitor configured scenarios with auto-restart on failure
-- [x] OT-P0-008 | OS watchdog installer | Idempotently install/verify systemd/launchd/Windows service that keeps autoheal loop running
-- [ ] OT-P0-009 | Health result persistence | Store health check results with timestamps for status queries and UI display
-- [x] OT-P0-010 | CLI status command | Show last-known health summary via `vrooli-autoheal status`
+- [ ] OT-P0-001 | CLI tick command | When an operator requests one cycle, vrooli-autoheal shall bootstrap dependencies and execute the due health checks once.
+- [ ] OT-P0-002 | CLI loop command | While loop mode is active, vrooli-autoheal shall run due checks at the configured interval until graceful shutdown.
+- [ ] OT-P0-003 | Platform detection | The supervisor shall detect Linux, Windows, macOS, WSL, and the host capabilities needed by platform-specific checks.
+- [ ] OT-P0-004 | Health check registry | The supervisor shall register and execute typed health checks with intervals, platform filters, and shared action handling.
+- [ ] OT-P0-005 | Core bootstrap | When starting from cold state, the supervisor shall bootstrap its durable store, core resources, and critical scenarios.
+- [ ] OT-P0-006 | Resource health checks | The supervisor shall monitor and repair every resource in the computed supervision set without treating a serving resource as failed.
+- [ ] OT-P0-007 | Scenario health checks | The supervisor shall monitor and repair every scenario in the computed supervision set.
+- [ ] OT-P0-008 | OS watchdog installer | The control plane shall idempotently install and verify the platform watchdog that keeps vrooli-autoheal running.
+- [ ] OT-P0-009 | Health result persistence | The supervisor shall durably store bounded health, action, outage, and incident records for operator queries.
+- [ ] OT-P0-010 | CLI status command | When an operator requests status, vrooli-autoheal shall report the last-known health summary and degraded dependencies.
+- [ ] OT-P0-011 | Single supervision authority | The supervisor shall derive resource and scenario targets from one operator-declared, database-free dependency closure with attribution.
+- [ ] OT-P0-012 | Cross-check heal interlock | If one check requests a destructive action against a target another check started inside the configured window, the supervisor shall refuse and durably record the action.
+- [ ] OT-P0-013 | Availability ledger | When a supervised member becomes unavailable and later recovers, the supervisor shall persist one outage interval and the matching repair actions.
+- [ ] OT-P0-014 | Bounded retry and escalation | If a supervised member exceeds its configured consecutive-failure budget, the supervisor shall suspend retries and raise a durable incident until explicitly resumed.
+- [ ] OT-P0-015 | Storage retention | The supervisor shall enforce retention and size bounds on its durable history and use one canonical database location.
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-001 | Infrastructure checks | Network connectivity, DNS resolution, time synchronization checks
-- [x] OT-P1-002 | System resource checks | Disk space, swap usage, zombie processes, port exhaustion monitoring
-- [x] OT-P1-003 | RDP/remote access health | Platform-specific RDP/xrdp/TermService monitoring with auto-restart
-- [x] OT-P1-004 | Docker daemon health | Monitor Docker service and restart if unresponsive
-- [x] OT-P1-005 | Cloudflared tunnel health | Monitor cloudflared service and tunnel connectivity
-- [ ] OT-P1-006 | Health history window | Store recent health check history (24h) for dashboards and trend analysis
-- [ ] OT-P1-007 | Web UI dashboard | React dashboard showing current health status, recent events, and auto-heal actions
-- [x] OT-P1-008 | Configurable check intervals | Per-check interval configuration with smart scheduling (only run when interval elapsed)
-- [x] OT-P1-009 | Graceful shutdown | Handle SIGINT/SIGTERM cleanly in loop mode
+- [ ] OT-P1-001 | Infrastructure checks | The supervisor should monitor network connectivity, DNS resolution, and time synchronization.
+- [ ] OT-P1-002 | System resource checks | The supervisor should monitor disk, swap, zombie-process, and port-exhaustion conditions.
+- [ ] OT-P1-003 | Remote access health | Where remote access is configured, the supervisor should monitor and repair the platform-specific service.
+- [ ] OT-P1-004 | Docker daemon health | Where Docker is required, the supervisor should monitor and repair an unresponsive daemon.
+- [ ] OT-P1-005 | Cloudflared tunnel health | Where a Cloudflare tunnel is configured, the supervisor should monitor its service and connectivity.
+- [ ] OT-P1-006 | Health history window | The supervisor should expose retained health and availability history for dashboards and trend analysis.
+- [ ] OT-P1-007 | Web UI dashboard | The web UI should present current health, recent events, repair actions, outages, and incidents accessibly.
+- [ ] OT-P1-008 | Configurable check intervals | The supervisor should schedule each check using its configured interval and avoid running it before it is due.
+- [ ] OT-P1-009 | Graceful shutdown | When receiving SIGINT or SIGTERM, the supervisor should stop scheduling work and shut down cleanly.
 
 ### 🟢 P2 – Future / expansion
 
-- [x] OT-P2-001 | Certificate expiration monitoring | Check SSL certificates and warn before expiration
-- [x] OT-P2-002 | Display manager health | GDM/lightdm/sddm monitoring for Linux desktops
-- [ ] OT-P2-003 | Webhook notifications | Send alerts to Slack/Discord/email on critical failures
-- [ ] OT-P2-004 | Custom check plugins | Allow external check definitions via config files
-- [ ] OT-P2-005 | AI-powered root cause analysis | Use Ollama to analyze failure patterns and suggest fixes
-- [ ] OT-P2-006 | Mobile status app | Push notifications and status monitoring on mobile devices
+- [ ] OT-P2-001 | Certificate expiration monitoring | Where certificates are configured, the supervisor may warn before expiration.
+- [ ] OT-P2-002 | Display manager health | Where a display manager is configured, the supervisor may monitor its health on supported platforms.
+- [ ] OT-P2-003 | Webhook notifications | The supervisor may deliver incident notifications to configured webhook destinations.
+- [ ] OT-P2-004 | Custom check plugins | The supervisor may load externally defined health checks through a governed plugin contract.
+- [ ] OT-P2-005 | AI root-cause analysis | Where an approved model is available, the supervisor may analyze failure history and suggest causes.
+- [ ] OT-P2-006 | Mobile status app | The product may provide mobile status and push-notification surfaces.
 
 ## 🧱 Tech Direction Snapshot
 
-- **Preferred stacks/frameworks**: Go API (cross-platform, low overhead), React + Vite UI (TypeScript), Bash CLI wrapper calling Go binary
-- **Data + storage expectations**: PostgreSQL for health history and configuration, in-memory cache for current state
-- **Integration strategy**:
-  - Uses `vrooli resource status/start/stop` CLI for resource management
-  - Uses `vrooli scenario status/start/stop` CLI for scenario management
-  - Direct API calls only where CLI is insufficient (e.g., health endpoint checks)
-- **Non-goals / guardrails**:
-  - Will NOT replace existing monitoring tools (system-monitor handles metrics/anomalies)
-  - Will NOT implement alerting/paging (use dedicated alerting scenarios)
-  - Will NOT manage non-Vrooli services beyond OS-level watchdog
+- **Preferred stacks/frameworks**: Go for the API and control-plane integrations; React and TypeScript for the dashboard.
+- **Data expectations**: SQLite is the canonical bounded local history store; supervision-set computation remains database-free.
+- **Integration strategy**: Read operator state and dependency manifests through the control plane; use governed Vrooli resource and scenario lifecycle commands; keep host remediation in the control plane.
+- **Non-goals**: Do not replace metrics or paging products, supervise arbitrary non-Vrooli processes, or add a second target declaration.
 
 ## 🤝 Dependencies & Launch Plan
 
-- **Required resources**:
-  - `postgres` - Health check history and configuration storage
-- **Optional resources**:
-  - `redis` - Real-time status pub/sub (fallback: polling)
-  - `ollama` - AI analysis for P2 features
-- **Scenario dependencies**:
-  - None (autoheal is foundational, other scenarios depend on it)
-- **Operational risks**:
-  - OS-level watchdog installation requires elevated privileges on some platforms
-  - Platform detection edge cases on WSL/Docker containers
-  - Circular dependency risk (autoheal monitors scenarios that might monitor autoheal)
-- **Launch sequencing**:
-  1. Core CLI (tick/loop/status) with platform detection
-  2. Health check registry with resource/scenario checks
-  3. OS watchdog installers (Linux first, then Windows/macOS)
-  4. Web UI dashboard
-  5. P1 infrastructure/system checks
+- Required capabilities: the Vrooli control plane, scenario-dependency-analyzer, operator state, and filesystem process ownership records.
+- Optional resources: Redis for real-time delivery and Ollama for future analysis; neither is required to compute the supervision set.
+- Risks: circular self-healing, platform-specific watchdog behavior, retry storms, stale process identity, and unbounded history.
+- Launch sequence: establish ownership-authoritative classification; add the heal interlock; publish one supervision set; consume it in onboarding and autoheal; add durable outages, incidents, retention, and host-schedule hygiene.
 
 ## 🎨 UX & Branding
 
-- **Look & feel**: Dark theme with status-driven colors (green=healthy, amber=warning, red=critical), clean dashboard layout
-- **Accessibility**: WCAG AA compliance, high contrast mode, screen reader support for health status
-- **Voice & messaging**: Technical but reassuring - "Your infrastructure is protected"
-- **Branding hooks**: Shield/heartbeat iconography, Vrooli brand colors as accents
-
-## 📎 Appendix
-
-### CLI Command Reference
-
-```bash
-# Single health cycle (bootstrap + all checks + watchdog verify)
-vrooli-autoheal tick
-
-# Long-running mode (default 60s interval)
-vrooli-autoheal loop [--interval-seconds=60]
-
-# Show last-known health summary
-vrooli-autoheal status [--json]
-```
-
-### Platform Capabilities Model
-
-```typescript
-type Platform = "linux" | "windows" | "macos" | "other";
-
-interface PlatformCapabilities {
-  supportsRdp: boolean;
-  supportsSystemd: boolean;
-  supportsLaunchd: boolean;
-  supportsWindowsServices: boolean;
-  isHeadlessServer: boolean;
-  hasDocker: boolean;
-}
-```
-
-### Health Check Interface
-
-```typescript
-interface HealthCheck {
-  id: string;
-  description: string;
-  intervalSeconds: number;
-  platforms?: Platform[];  // omit = all platforms
-  run(ctx: HealthCheckContext): Promise<HealthResult>;
-}
-
-interface HealthResult {
-  status: "ok" | "warning" | "critical";
-  message: string;
-  details?: Record<string, unknown>;
-}
-```
-
-### Related Documentation
-
-- System monitor: `scenarios/system-monitor/PRD.md`
-- Production guide: `docs/operations/production-guide.md`
+- Look and feel: calm, status-led, and operationally dense without hiding degraded states.
+- Accessibility: meet WCAG AA, preserve high contrast, keyboard navigation, and screen-reader descriptions for health and incident state.
+- Voice: precise and reassuring; distinguish healthy, serving-but-degraded, unavailable, refused, suspended, and escalated outcomes.
+- Branding: use Vrooli shield and heartbeat motifs with semantic theme tokens rather than raw status colors.

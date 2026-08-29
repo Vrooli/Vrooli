@@ -64,8 +64,7 @@ Vrooli install plus the node-agent service.
 ### Control plane
 
 - API port: fixed at **18767** by the Bridge service manifest (and injected as
-  `API_PORT`). This stable control-plane port is the only LAN firewall port a
-  candidate needs; lifecycle fails rather than silently moving it on collision.
+  `API_PORT`). Lifecycle fails rather than silently moving it on collision.
 - UI port: assigned by lifecycle as `UI_PORT` (React fleet dashboard).
 - Storage: SQLite via `api-core/storage` holding control-plane
   metadata — nodes, pairings, capability snapshots, jobs, dispatch and
@@ -76,6 +75,24 @@ Vrooli install plus the node-agent service.
   off-LAN node-agents dial; on a trusted LAN, agents reach the control
   plane directly (mDNS auto-discovery is a P1 convenience).
 - No third-party runtime resource is required for the core control plane.
+
+### LAN discovery firewall permission
+
+The optional trusted-LAN discovery path uses DNS-SD over UDP 5353: IPv4
+multicast `224.0.0.251` and IPv6 multicast `ff02::fb`. The Bridge responder and
+the agent browser need permission on the selected private interface; the
+control-plane API still needs TCP `API_PORT` from the node.
+
+- Linux: allow UDP 5353 multicast on the trusted interface in the host
+  firewall (for example, the `mdns` service in firewalld or an equivalent
+  narrow rule in ufw).
+- macOS: approve the local-network/app-firewall prompt for the Bridge or
+  installed agent when the operating system presents it.
+- Windows: the node-agent service and terminal-free LAN join are not a
+  supported target in this release; its service renderer remains build-only.
+
+If multicast or the firewall permission is unavailable, use the documented
+manual control-plane URL. mDNS is never required for off-LAN bootstrap.
 
 ### Node
 

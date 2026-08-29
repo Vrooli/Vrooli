@@ -77,7 +77,8 @@
 
 ### Database Schema (PERSIST-*)
 - `health_results` table for check history
-- `autoheal_actions` table for auto-heal log
+- `action_logs` is the sole action ledger; the never-written
+  `autoheal_actions` duplicate was retired in 2026-08
 - `autoheal_config` table for settings
 - Cleanup function for 24-hour retention
 

@@ -22,6 +22,7 @@ type GlobalConfig struct {
 	ActionTimeoutFastSeconds    int `json:"actionTimeoutFastSeconds,omitempty"`
 	ActionTimeoutRestartSeconds int `json:"actionTimeoutRestartSeconds,omitempty"`
 	TimeoutRetrySeconds         int `json:"timeoutRetrySeconds,omitempty"`
+	HealInterlockSeconds        int `json:"healInterlockSeconds,omitempty"`
 }
 
 // Check contains per-check configuration

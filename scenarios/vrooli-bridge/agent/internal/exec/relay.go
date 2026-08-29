@@ -45,7 +45,7 @@ func (r *Runner) ExecuteRelay(ctx context.Context, request *channelv1.RelayReque
 		Args:           append([]string(nil), request.GetArgs()...),
 		TimeoutSeconds: request.GetTimeoutSeconds(),
 	}
-	argv, err := BuildArgv(r.bin, job)
+	argv, err := r.buildArgv(job)
 	if err != nil {
 		return RelayExecution{ExitCode: rejectExitCode, Reason: err.Error()}
 	}

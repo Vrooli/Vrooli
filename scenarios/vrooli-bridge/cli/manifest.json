@@ -831,6 +831,10 @@
             {
               "name": "scopes",
               "description": "Comma-separated catalog grants (<namespace>:<effect>, with catalog wildcards)"
+            },
+            {
+              "name": "confirm",
+              "description": "Confirmation word from pair list; repeat three times when approving"
             }
           ],
           "binding": {
@@ -1083,7 +1087,8 @@
             { "name": "node-id", "required": true, "description": "Target connected node id" },
             { "name": "scenario", "required": true, "description": "Scenario the command operates on" },
             { "name": "command", "required": true, "description": "Allowlisted command namespace, for example scenario status" },
-            { "name": "args", "description": "Comma-separated additional typed arguments" },
+            { "name": "args", "description": "Deprecated comma-separated additional typed arguments; use --arg once per argument", "local_only": true, "bind_waiver": "Compatibility parser expands this deprecated comma-separated form into the typed args sequence before the RelayService request is built." },
+            { "name": "arg", "description": "One additional typed argument; repeat for each argument", "repeatable": true, "bind": { "field": "args" } },
             { "name": "timeout", "description": "Wall-clock budget in seconds (0 = server default)", "bind": { "field": "timeout_seconds" } },
             { "name": "max-response-bytes", "description": "Maximum response bytes" }
           ],
@@ -2263,6 +2268,11 @@
       "service": "PairingService",
       "method": "RegisterEncryptionKey",
       "reason": "Node-facing authenticated key-add exchange called by an already-paired agent at startup; it is not an operator command."
+    },
+    {
+      "service": "PairingService",
+      "method": "GetPairingRequest",
+      "reason": "Node-facing polling RPC used by the bootstrap agent after RequestPairing; operators review the same request through the owner-facing pair list command."
     },
     {
       "service": "CredentialGrantService",

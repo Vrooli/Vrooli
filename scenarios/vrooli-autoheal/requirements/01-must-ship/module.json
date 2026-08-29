@@ -1,0 +1,235 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "When an operator requests one cycle, vrooli-autoheal shall bootstrap dependencies and execute the due health checks once.",
+      "id": "AUTOHEAL-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "CLI tick command",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "While loop mode is active, vrooli-autoheal shall run due checks at the configured interval until graceful shutdown.",
+      "id": "AUTOHEAL-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "CLI loop command",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The supervisor shall detect Linux, Windows, macOS, WSL, and the host capabilities needed by platform-specific checks.",
+      "id": "AUTOHEAL-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Platform detection",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The supervisor shall register and execute typed health checks with intervals, platform filters, and shared action handling.",
+      "id": "AUTOHEAL-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Health check registry",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When starting from cold state, the supervisor shall bootstrap its durable store, core resources, and critical scenarios.",
+      "id": "AUTOHEAL-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Core bootstrap",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The supervisor shall monitor and repair every resource in the computed supervision set without treating a serving resource as failed.",
+      "id": "AUTOHEAL-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Resource health checks",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The supervisor shall monitor and repair every scenario in the computed supervision set.",
+      "id": "AUTOHEAL-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "Scenario health checks",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The control plane shall idempotently install and verify the platform watchdog that keeps vrooli-autoheal running.",
+      "id": "AUTOHEAL-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "OS watchdog installer",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The supervisor shall durably store bounded health, action, outage, and incident records for operator queries.",
+      "id": "AUTOHEAL-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Health result persistence",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When an operator requests status, vrooli-autoheal shall report the last-known health summary and degraded dependencies.",
+      "id": "AUTOHEAL-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "CLI status command",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The supervisor shall derive resource and scenario targets from one operator-declared, database-free dependency closure with attribution.",
+      "id": "AUTOHEAL-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "Single supervision authority",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "If one check requests a destructive action against a target another check started inside the configured window, the supervisor shall refuse and durably record the action.",
+      "id": "AUTOHEAL-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Cross-check heal interlock",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-012] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "When a supervised member becomes unavailable and later recovers, the supervisor shall persist one outage interval and the matching repair actions.",
+      "id": "AUTOHEAL-P0-013",
+      "prd_ref": "OT-P0-013",
+      "status": "planned",
+      "title": "Availability ledger",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-013] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "If a supervised member exceeds its configured consecutive-failure budget, the supervisor shall suspend retries and raise a durable incident until explicitly resumed.",
+      "id": "AUTOHEAL-P0-014",
+      "prd_ref": "OT-P0-014",
+      "status": "planned",
+      "title": "Bounded retry and escalation",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-014] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The supervisor shall enforce retention and size bounds on its durable history and use one canonical database location.",
+      "id": "AUTOHEAL-P0-015",
+      "prd_ref": "OT-P0-015",
+      "status": "planned",
+      "title": "Storage retention",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:AUTOHEAL-P0-015] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

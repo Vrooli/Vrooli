@@ -44,7 +44,7 @@ func (h *handlers) call(ctx cliapp.RunContext) error {
 		NodeId:           ctx.Flag("node-id"),
 		Scenario:         ctx.Flag("scenario"),
 		Command:          ctx.Flag("command"),
-		Args:             splitCSV(ctx.Flag("args")),
+		Args:             relayArgs(ctx),
 		TimeoutSeconds:   parseInt64(ctx.Flag("timeout")),
 		MaxResponseBytes: parseUint64(ctx.Flag("max-response-bytes")),
 	}))
@@ -58,6 +58,15 @@ func (h *handlers) call(ctx cliapp.RunContext) error {
 		Status: []string{fmt.Sprintf("Relay %s: %s (exit %d, %d bytes).", response.Msg.CorrelationId, response.Msg.Outcome.String(), response.Msg.ExitCode, response.Msg.TotalBytes)},
 		Triage: []cliapp.TriageGroup{{Heading: "Target", Items: []string{fmt.Sprintf("node=%s scenario=%s command=%s", ctx.Flag("node-id"), ctx.Flag("scenario"), ctx.Flag("command"))}}},
 	})
+}
+
+func relayArgs(ctx cliapp.RunContext) []string {
+	if ctx.FlagDeclared("arg") {
+		if values := ctx.FlagValues("arg"); len(values) > 0 {
+			return append([]string(nil), values...)
+		}
+	}
+	return splitCSV(ctx.Flag("args"))
 }
 
 func splitCSV(raw string) []string {

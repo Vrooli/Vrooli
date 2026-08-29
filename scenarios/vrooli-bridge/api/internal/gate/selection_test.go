@@ -20,13 +20,13 @@ func TestEligibleByOSAgreesWithSharedSelector(t *testing.T) {
 	healthy := targetmodel.Target{
 		ID: "node-linux", NodeID: "node-linux", Platform: "desktop", OS: "linux",
 		Transport: targetmodel.Transport{Kind: targetmodel.TransportBridge}, Available: true,
-		Reason:      targetmodel.ReasonBridgeAuthorizedDesktop,
+		Reason:      "bridge node is online and authorized; desktop evidence remains target-owned",
 		BridgeTrust: &targetmodel.BridgeTrust{Registered: true, DispatchAuthorized: true},
 	}
 	offline := targetmodel.Target{
 		ID: "node-darwin", NodeID: "node-darwin", Platform: "desktop", OS: "darwin",
 		Transport: targetmodel.Transport{Kind: targetmodel.TransportBridge}, Available: true,
-		Reason:      targetmodel.ReasonBridgeAuthorizedDesktop,
+		Reason:      "bridge node is online and authorized; desktop evidence remains target-owned",
 		BridgeTrust: &targetmodel.BridgeTrust{Registered: true, DispatchAuthorized: true},
 	}
 
@@ -42,7 +42,7 @@ func TestEligibleByOSAgreesWithSharedSelector(t *testing.T) {
 
 	expectedOffline := offline
 	expectedOffline.Available = false
-	expectedOffline.Reason = targetmodel.ReasonBridgeOffline
+	expectedOffline.Reason = "bridge node is offline or not dispatchable"
 	expectedOffline.MissingCapability = "bridge dispatch reachability"
 	expectedOffline.NextAction = "restore the node channel and protocol compatibility"
 	expected := targetmodel.SelectByOS(targetmodel.Inventory{Targets: []targetmodel.Target{healthy, expectedOffline}}, []string{"linux", "darwin"}, targetmodel.SelectionRequest{TransportKinds: []targetmodel.TransportKind{targetmodel.TransportBridge}})

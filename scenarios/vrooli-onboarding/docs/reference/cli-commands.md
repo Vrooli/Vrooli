@@ -13,11 +13,12 @@ the contract, not the flag list.
 ## The wizard
 
 ```bash
-vrooli-onboarding wizard run --interactive     # same nine-step flow used by the UI
+vrooli-onboarding wizard run --interactive     # same ten-step flow used by the UI
 vrooli-onboarding wizard run --accept-recommendation --non-interactive # apply the explicit starter profile
 vrooli-onboarding wizard status                # step pointer + which steps are satisfied
 vrooli-onboarding wizard commit --selection "<file>"   # non-interactive, no prompts
 vrooli-onboarding wizard export --output "<file>"     # current selection as a selection document
+vrooli-onboarding wizard core-set --add <scenario> --remove <scenario> --json
 ```
 
 `wizard run` without a mode is a read-only catalog response for compatibility
@@ -27,9 +28,14 @@ authorizes the manifest-derived starter profile. If bootstrap has queued a
 typed operator input, resolve it through the onboarding UI/API first; the
 declarative CLI does not accept passphrases or other secrets as flags.
 
-The interactive wizard walks the same nine steps in the same order, with the
+The interactive wizard walks the same ten steps in the same order, with the
 same derived consequences and the same locked system set. The presentation
 differs; the decisions do not.
+
+The core-set command shows the computed closure before it sends a field-scoped
+patch. Trusted-base members cannot be removed. Core-set membership declares
+supervision; `operating_mode.*.auto_restart` remains an independent lifecycle
+preference.
 
 A **selection document** names the capabilities an operator wants, not the
 internal state shape:

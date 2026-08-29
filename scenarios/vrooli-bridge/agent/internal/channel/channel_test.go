@@ -55,6 +55,11 @@ func TestProtocolVersionMatchesProto(t *testing.T) {
 	require.Equal(t, uint32(2), ProtocolVersion)
 }
 
+func TestHomeForVrooliBinaryStripsInstalledLayout(t *testing.T) {
+	require.Equal(t, "/Users/tester", homeForVrooliBinary("/Users/tester/.vrooli/bin/vrooli"))
+	require.Equal(t, "", homeForVrooliBinary("vrooli"))
+}
+
 // fakeControlPlane stands up the node-facing edge of the control plane: the SSE
 // dial-out endpoint (which it holds open) and the PresenceService heartbeat
 // handler (which records what the agent reports). It is the in-process double

@@ -125,7 +125,7 @@ React stability pass completed with runtime status normalization and defensive r
 ---
 ## Work ladder
 
-- Rung: W0
-- Evidence: no swarm-manager goal named or describing `vrooli-autoheal` was found by the required named-mention search; contract comparison is unverifiable.
-- Blocker: no approved goal to compare against `PRD.md`.
-- Measured: 2026-08-05
+- Rung: W3
+- Evidence: W0 passes because goal `supervision-authority-vrooli-autoheal` is represented by P0 targets `OT-P0-011` through `OT-P0-015`; W1 `business-health validate scenario vrooli-autoheal` and W2 `vrooli scenario requirements validate vrooli-autoheal` pass. W3 governed Test Genie run `20260829-012848-8b736c9c` completed with 22 phases passed, 0 failed, and the optional templates phase skipped.
+- Blocker: none at the work-ladder gates; implementation-plan work may proceed and must re-measure after behavior changes.
+- Measured: 2026-08-29

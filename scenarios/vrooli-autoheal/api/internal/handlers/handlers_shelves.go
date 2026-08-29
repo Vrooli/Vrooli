@@ -92,6 +92,25 @@ func (h *Handlers) UnshelveCheck(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{"checkId": checkID, "shelved": false})
 }
 
+func (h *Handlers) ListSuspendedChecks(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"suspended": h.registry.GetSuspendedHealTrackers()})
+}
+
+func (h *Handlers) ResumeCheck(w http.ResponseWriter, r *http.Request) {
+	checkID := strings.TrimSpace(mux.Vars(r)["checkId"])
+	if checkID == "" {
+		http.Error(w, "check id is required", http.StatusBadRequest)
+		return
+	}
+	if !h.registry.ResumeHealTracker(checkID) {
+		http.Error(w, "check is not suspended", http.StatusConflict)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"checkId": checkID, "resumed": true})
+}
+
 func parseShelfExpiry(raw string) (time.Time, error) {
 	if duration, err := time.ParseDuration(strings.TrimSpace(raw)); err == nil {
 		if duration <= 0 {

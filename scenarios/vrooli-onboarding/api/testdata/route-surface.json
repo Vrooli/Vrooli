@@ -84,6 +84,14 @@
     },
     {
       "method": "GET",
+      "path": "/api/v2/core-set",
+      "surfaces": [
+        "cli",
+        "ui"
+      ]
+    },
+    {
+      "method": "GET",
       "path": "/api/v2/closure",
       "surfaces": [
         "cli",

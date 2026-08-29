@@ -9,11 +9,12 @@ import (
 
 // Manager handles loading, saving, and accessing configuration
 type Manager struct {
-	mu         sync.RWMutex
-	config     *Config
-	configPath string
-	schemaPath string
-	io         configIO
+	mu               sync.RWMutex
+	config           *Config
+	configPath       string
+	schemaPath       string
+	io               configIO
+	supervisedChecks map[string]string
 }
 
 // NewManager creates a new configuration manager
@@ -25,10 +26,11 @@ func NewManager(configPath, schemaPath string) *Manager {
 
 func newManagerWithIO(configPath, schemaPath string, io configIO) *Manager {
 	return &Manager{
-		configPath: configPath,
-		schemaPath: schemaPath,
-		config:     DefaultConfig(),
-		io:         io,
+		configPath:       configPath,
+		schemaPath:       schemaPath,
+		config:           DefaultConfig(),
+		io:               io,
+		supervisedChecks: make(map[string]string),
 	}
 }
 
@@ -176,16 +178,33 @@ func (m *Manager) GetCheck(checkID string) CheckConfig {
 			}
 		}
 	}
-	// Core runtime scenarios are the platform recovery floor. Their health
-	// coverage cannot be disabled by stale or hand-edited user config; user
-	// configuration remains additive for all non-core checks.
-	if isMandatoryCoreScenarioCheck(checkID) {
+	// The computed supervision set is the platform recovery floor. It cannot be
+	// disabled by stale or hand-edited user config. The controller replaces this
+	// map atomically whenever `vrooli supervision-set` changes.
+	if intent, supervised := m.supervisedChecks[checkID]; supervised {
 		result.Enabled = true
 		result.AutoHeal = true
-		result.Settings.AutoHealOn = "critical"
+		if intent == "try_start" {
+			result.Settings.AutoHealOn = "warning+critical"
+		} else {
+			result.Settings.AutoHealOn = "critical"
+		}
 	}
 
 	return result
+}
+
+// SetSupervisedChecks installs the current computed supervision floor. The
+// caller passes check IDs to keep the config package independent of core-set
+// transport types.
+func (m *Manager) SetSupervisedChecks(supervised map[string]string) {
+	copyOf := make(map[string]string, len(supervised))
+	for id, intent := range supervised {
+		copyOf[id] = intent
+	}
+	m.mu.Lock()
+	m.supervisedChecks = copyOf
+	m.mu.Unlock()
 }
 
 // CheckConfig is the resolved configuration for a check (with defaults applied)
@@ -453,6 +472,12 @@ func (m *Manager) Validate(config *Config) ValidationResult {
 			Message: "must be between 5 and 600",
 		})
 	}
+	if config.Global.HealInterlockSeconds != 0 && (config.Global.HealInterlockSeconds < 5 || config.Global.HealInterlockSeconds > 300) {
+		errors = append(errors, ValidationError{
+			Path:    "global.healInterlockSeconds",
+			Message: "must be between 5 and 300",
+		})
+	}
 
 	// Validate UI config
 	if config.UI.AutoRefreshSeconds < 5 || config.UI.AutoRefreshSeconds > 300 {
@@ -588,6 +613,9 @@ func (m *Manager) mergeConfig(file *Config) {
 	if file.Global.TimeoutRetrySeconds != 0 {
 		m.config.Global.TimeoutRetrySeconds = file.Global.TimeoutRetrySeconds
 	}
+	if file.Global.HealInterlockSeconds != 0 {
+		m.config.Global.HealInterlockSeconds = file.Global.HealInterlockSeconds
+	}
 
 	// Checks - merge each check
 	if file.Checks != nil {
@@ -611,9 +639,8 @@ func (m *Manager) mergeConfig(file *Config) {
 		m.config.UI.DefaultTab = file.UI.DefaultTab
 	}
 
-	// Monitoring config starts from defaults so new default checks are adopted
-	// by older saved configs. Explicit disabled check entries still suppress
-	// default resources, which preserves intentional removals.
+	// Monitoring config contains additive operator overrides only. Canonical
+	// membership is loaded separately from `vrooli supervision-set`.
 	if file.Monitoring.Scenarios != nil || file.Monitoring.Resources != nil {
 		m.config.Monitoring = m.mergeMonitoringConfig(file.Monitoring)
 	}
@@ -633,39 +660,9 @@ func (m *Manager) mergeMonitoringConfig(file MonitoringConfig) MonitoringConfig 
 
 	if file.Resources != nil {
 		merged.Resources = append([]string(nil), file.Resources...)
-		for _, resource := range DefaultMonitoring().Resources {
-			checkID := "resource-" + resource
-			if check, ok := m.config.Checks[checkID]; ok && check.Enabled != nil && !*check.Enabled {
-				merged.Resources = removeString(merged.Resources, resource)
-				continue
-			}
-			if !containsString(merged.Resources, resource) {
-				merged.Resources = append(merged.Resources, resource)
-			}
-		}
 	}
-	ensureMandatoryCoreScenarios(&merged)
 
 	return merged
-}
-
-func containsString(items []string, want string) bool {
-	for _, item := range items {
-		if item == want {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(items []string, remove string) []string {
-	filtered := items[:0]
-	for _, item := range items {
-		if item != remove {
-			filtered = append(filtered, item)
-		}
-	}
-	return filtered
 }
 
 // mergeThresholds merges user threshold overrides into defaults

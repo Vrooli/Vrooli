@@ -42,6 +42,26 @@ type mockStore struct {
 	savedInventories int
 	retentionCalls   int
 	retentionBefore  time.Time
+	actionLogCalls   int
+	lastActionLog    persistence.ActionLog
+	outageSummary    *persistence.OutageSummary
+	outageErr        error
+	outageObserved   []checks.Result
+}
+
+func (m *mockStore) ObserveSupervisedAvailability(_ context.Context, result checks.Result) error {
+	m.outageObserved = append(m.outageObserved, result)
+	return m.outageErr
+}
+
+func (m *mockStore) GetOutageSummary(_ context.Context, memberID string, from, to time.Time) (*persistence.OutageSummary, error) {
+	if m.outageErr != nil {
+		return nil, m.outageErr
+	}
+	if m.outageSummary != nil {
+		return m.outageSummary, nil
+	}
+	return &persistence.OutageSummary{MemberID: memberID, WindowStart: from, WindowEnd: to}, nil
 }
 
 func (m *mockStore) PruneOperationalHistory(_ context.Context, before time.Time, _ int) (persistence.RetentionResult, error) {
@@ -220,6 +240,11 @@ func (m *mockStore) RecordIncidentRemediationOutcome(ctx context.Context, incide
 
 // Action log mock methods [REQ:HEAL-ACTION-001].
 func (m *mockStore) SaveActionLog(ctx context.Context, checkID, actionID string, success, timedOut bool, message, output, errMsg string, durationMs int64) error {
+	m.actionLogCalls++
+	m.lastActionLog = persistence.ActionLog{
+		CheckID: checkID, ActionID: actionID, Success: success,
+		Message: message, Output: output, Error: errMsg, DurationMs: durationMs,
+	}
 	return nil
 }
 

@@ -21,6 +21,7 @@ every request. None is cached, and none has independent storage.
 | Method | Path | Returns |
 |---|---|---|
 | GET | `/api/v2/scenarios` | Every scenario with `system_required`, `runtime.kind`, the auto-restart recommendation, the effective operator choice, and its declared scenario and resource dependencies |
+| GET | `/api/v2/core-set` | Current or proposed `core.seed`, immutable `core.trusted_base`, and the shared typed supervision closure; returns the seed with `available: false` if the catalog cannot be resolved |
 | GET | `/api/v2/closure` | The transitive closure of the current selection: every member, and why it entered the set |
 | GET | `/api/v2/resources` | Required (derived and locked), optional (`optional_dependencies`), and standalone resources with their effective enablement |
 | GET | `/api/v2/credentials` | Credential descriptors for the selected stack, complete with `label`, `description`, `obtain_url`, `required`, and configured status — never a value |

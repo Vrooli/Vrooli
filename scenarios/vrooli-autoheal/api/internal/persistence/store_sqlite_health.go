@@ -211,9 +211,6 @@ func (s *Store) pruneOperationalHistorySQLite(ctx context.Context, before time.T
 	if out.ActionLogs, err = prune("action_logs", "created_at"); err != nil {
 		return RetentionResult{}, fmt.Errorf("prune action logs: %w", err)
 	}
-	if out.Actions, err = prune("autoheal_actions", "created_at"); err != nil {
-		return RetentionResult{}, fmt.Errorf("prune autoheal actions: %w", err)
-	}
 	if out.SystemEvents, err = prune("system_events", "occurred_at"); err != nil {
 		return RetentionResult{}, fmt.Errorf("prune system events: %w", err)
 	}

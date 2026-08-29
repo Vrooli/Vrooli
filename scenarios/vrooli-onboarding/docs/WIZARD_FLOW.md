@@ -43,7 +43,7 @@ derivation, and the operator's unit of choice is their own use case.
 
 ## Step sequence
 
-Nine steps including the welcome surface. Re-enterable from any step, resuming at the first unsatisfied one.
+Ten steps including the welcome surface. Re-enterable from any step, resuming at the first unsatisfied one.
 
 ```mermaid
 stateDiagram-v2
@@ -55,7 +55,8 @@ stateDiagram-v2
   Resume --> Credentials: selection satisfied
   Resume --> Validation: everything satisfied
 
-  Scenarios --> Resources
+  Scenarios --> CoreSet
+  CoreSet --> Resources
   Resources --> Credentials
   Credentials --> Integrations
   Integrations --> Host
@@ -118,7 +119,28 @@ Contract:
   the same screen as the choice.
 - A dependency cycle is reported as a manifest defect, not traversed.
 
-### 2 — Resources
+### 2 — Core supervision set
+
+The current `core.seed` is editable and `core.trusted_base` is visible and
+locked. Before a change is confirmed, the wizard computes the declared
+scenario/resource closure and shows its supervision intent. A catalog failure
+does not hide authority: the seed remains visible and the closure is labelled
+unavailable.
+
+Membership answers “what must remain supervised.” It does not answer “what
+should restart automatically.” A scenario can remain in the supervision set
+while its `auto_restart` override is false; the operating-mode choice remains a
+lifecycle recommendation and never removes supervision authority.
+
+The commit writes only the selected `core.seed` through the operator-state
+service. It never writes an autoheal roster. The canonical closure is computed
+from that seed plus enabled manifest dependencies with effective intent
+`must_start` or `try_start`; `ignore` edges are excluded. The review surface
+shows the attribution chain so the operator can trace every implied resource
+or scenario back to a selected seed. After commit, the same result is available
+from `vrooli supervision-set --json` and is what autoheal consumes.
+
+### 3 — Resources
 
 Required resources — everything the closure implies — render locked and checked.
 Optional resources declared through `optional_dependencies` are toggleable.
@@ -128,7 +150,7 @@ Toggling an optional resource writes `resources.<name>.enabled` in operator
 state. That field is the **only** authority for resource enablement; nothing
 else carries the decision.
 
-### 3 — Credentials
+### 4 — Credentials
 
 One card per credential descriptor in scope. Scope is the selected stack plus
 the **project scope**: the descriptors declared by the repository-root manifest
@@ -199,14 +221,14 @@ read-back, and commits the new authority only after the whole migration
 succeeds. These operations delegate to securestore; onboarding does not
 maintain a second encrypted-store implementation.
 
-### 4 — Integrations *(deferred)*
+### 5 — Integrations *(deferred)*
 
 Empty until integration-hub ships. Where a selected scenario declares an
 `integrations[]` requirement, the step names it as deferred and creates no
 binding. The connector and connection models are owned by integration-hub; see
 [`connectors.md`](../../../docs/configuration/integrations/connectors.md).
 
-### 5 — Host
+### 6 — Host
 
 Tools and safeguards derived from the repository-root manifest, every scenario
 in the selection closure, and their resources. The closure — not the raw
@@ -248,7 +270,7 @@ Contract:
 - A requirement not declared for the running platform renders unsupported, not
   missing — the two have different operator responses.
 
-### 6 — Operating mode
+### 7 — Operating mode
 
 Per-scenario keep-running confirmation, pre-filled from
 `runtime.auto_restart_default` and stored as an operator override.
@@ -257,7 +279,7 @@ Global startup behaviour and profile selection are
 [declared open work](../../../docs/configuration/operating-mode.md) in the
 configuration contract. This step does not invent them.
 
-### 7 — Apply
+### 8 — Apply
 
 The only step that changes host state.
 
@@ -296,7 +318,7 @@ Contract:
 - The completion marker is what makes "this install has been configured"
   observable — by re-entry, by autoheal, and by a desktop first-run.
 
-### 8 — Validation
+### 9 — Validation
 
 A live probe pass over everything the selection implies.
 
@@ -372,7 +394,7 @@ patch and use the same apply/readiness APIs.
 
 ### Surface parity
 
-The same nine steps exist in the UI, the interactive CLI, and the
+The same ten steps exist in the UI, the interactive CLI, and the
 non-interactive selection document. Identical choices produce byte-identical
 operator state, because all three write through one service rather than three
 code paths kept in step by review.
@@ -388,7 +410,7 @@ flowchart TD
   R -->|"repo root set"| A["Repository catalog<br/>state: .vrooli/operator-state.json"]
   R -->|"bundle root set"| B["Bundle catalog<br/>state: app-data storage root"]
   R -->|"neither"| C["Typed degraded state<br/>names the missing catalog"]
-  A --> D["Same nine steps"]
+  A --> D["Same ten steps"]
   B --> D
   C --> E["Step renders an actionable message,<br/>never an unhandled error"]
 ```
@@ -402,10 +424,10 @@ packaging verifies them.
 Settled; do not relitigate without new evidence.
 
 - **Source of truth is manifests plus operator state**, never onboarding internals.
-- **Step order**: Scenarios → Resources → Credentials → Integrations → Host →
+- **Step order**: Scenarios → Core supervision set → Resources → Credentials → Integrations → Host →
   Operating mode → Apply → Validation.
 - **System-required scenarios are locked on**, per `service.system_required`.
-- **Per-scenario auto-restart is the operator's call**; the manifest only recommends.
+- **Supervision membership and auto-restart are independent**; `core.seed` declares supervision, while the operator may override the manifest's lifecycle recommendation.
 - **Re-enterable, not one-shot.**
 - **Safeguard risk is a column, not a step.**
 - **Apply is part of the wizard**, not a follow-up the operator must remember.
@@ -416,7 +438,7 @@ Settled; do not relitigate without new evidence.
 - **Goal intake** — depends on profiles.
 - **Profiles** — until a second concrete profile exists. `active_profile` is
   already reserved in the state schema.
-- **Integration-hub** — owns connectors and connections; step 4 is empty until it ships.
+- **Integration-hub** — owns connectors and connections; the integrations step is empty until it ships.
 
 ## See also
 

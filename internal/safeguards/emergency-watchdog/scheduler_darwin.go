@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -17,11 +18,11 @@ import (
 const launchAgentLabel = "com.vrooli.emergency-watchdog"
 
 func nativeSchedulerAvailable(goos string) bool {
-	return goos == "darwin" && commandAvailable("launchctl")
+	return goos == string(hostreqspec.PlatformDarwin) && commandAvailable("launchctl")
 }
 
 func nativePending(goos string, p paths) []string {
-	if goos != "darwin" {
+	if goos != string(hostreqspec.PlatformDarwin) {
 		return []string{"unsupported scheduler"}
 	}
 	var pending []string
@@ -44,7 +45,7 @@ func guiLaunchdAvailable() bool {
 }
 
 func applyNative(goos string, p paths, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
-	if goos != "darwin" {
+	if goos != string(hostreqspec.PlatformDarwin) {
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		return status, nil
 	}

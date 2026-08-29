@@ -3,10 +3,13 @@ package handlers
 import (
 	"context"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	checksproto "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/checks"
+	measuresproto "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-autoheal/v1/measures"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
+	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/persistence"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 )
 
@@ -60,5 +63,27 @@ func TestListChecksExposesDeclaredPlatforms(t *testing.T) {
 				break
 			}
 		}
+	}
+}
+
+func TestGetOutageSummaryExposesBothDowntimeAggregates(t *testing.T) {
+	caps := &platform.Capabilities{Platform: platform.Linux}
+	now := time.Now().UTC()
+	store := &mockStore{outageSummary: &persistence.OutageSummary{
+		MemberID:                "resource-qdrant",
+		WindowStart:             now.Add(-24 * time.Hour),
+		WindowEnd:               now,
+		TotalUnavailableSeconds: 45.25,
+		DistinctOutageCount:     1,
+	}}
+	h := NewWithInterface(checks.NewRegistry(caps), store, caps)
+	response, err := (&typedMeasures{h: h}).GetOutageSummary(context.Background(), connect.NewRequest(&measuresproto.GetOutageSummaryRequest{
+		MemberId: "resource-qdrant", WindowHours: 24,
+	}))
+	if err != nil {
+		t.Fatalf("GetOutageSummary: %v", err)
+	}
+	if response.Msg.Outage.TotalUnavailableSeconds != 45.25 || response.Msg.Outage.DistinctOutageCount != 1 {
+		t.Fatalf("outage summary = %+v, want 45.25 seconds and one interval", response.Msg.Outage)
 	}
 }

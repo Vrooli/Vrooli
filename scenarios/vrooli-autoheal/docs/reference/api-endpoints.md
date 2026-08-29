@@ -670,7 +670,9 @@ Enable or disable auto-heal for a specific check.
 
 #### GET /api/v1/config/monitoring
 
-Get the monitoring configuration (which scenarios and resources are monitored).
+Get additive operator monitoring overrides. Canonical scenario/resource
+membership comes from `vrooli supervision-set` and cannot be removed through
+this endpoint.
 
 ---
 

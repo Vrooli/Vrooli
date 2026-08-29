@@ -126,12 +126,12 @@ func (a nodeListerAdapter) ListNodes(ctx context.Context) ([]gate.NodeRef, error
 
 func bridgeTargetReason(revoked, dispatchAuthorized bool) string {
 	if revoked {
-		return targetmodel.ReasonBridgeRevoked
+		return "bridge node is revoked"
 	}
 	if !dispatchAuthorized {
-		return targetmodel.ReasonBridgeNoDispatchScope
+		return "bridge node is online but lacks an authorized scenario-test dispatch scope"
 	}
-	return targetmodel.ReasonBridgeAuthorizedDesktop
+	return "bridge node is online and authorized; desktop evidence remains target-owned"
 }
 
 func hasScenarioTestScope(scopes []string) bool {

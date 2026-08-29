@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	apicoreset "github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/vrooli/internal/hostreq"
@@ -98,7 +99,7 @@ func (s *Server) handleOperatorState(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "read merge patch: " + err.Error()})
 			return
 		}
-		state, err := operatorStateService().ApplyValidated(r.Context(), patch, validateOperatorStateSafeguardConfigs)
+		state, err := operatorStateService().ApplyValidated(r.Context(), patch, validateOperatorState)
 		if err != nil {
 			status := http.StatusInternalServerError
 			if strings.Contains(err.Error(), "validation failed") || strings.Contains(err.Error(), "invalid safeguard") || strings.Contains(err.Error(), "merge patch") {
@@ -111,6 +112,20 @@ func (s *Server) handleOperatorState(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func validateOperatorState(state OperatorState) error {
+	if err := validateOperatorStateSafeguardConfigs(state); err != nil {
+		return err
+	}
+	if state.Core == nil {
+		return nil
+	}
+	authority := apicoreset.Authority{Seed: state.Core.Seed, TrustedBase: state.Core.TrustedBase}
+	if err := authority.Validate(); err != nil {
+		return fmt.Errorf("core authority validation failed: %w", err)
+	}
+	return nil
 }
 
 func validateOperatorStateSafeguardConfigs(state OperatorState) error {

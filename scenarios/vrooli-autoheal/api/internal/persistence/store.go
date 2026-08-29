@@ -38,6 +38,7 @@ func NewStore(db storeDB) *Store {
 	store := &Store{db: db}
 	_ = store.ensureIncidentContractColumns(context.Background())
 	_ = store.ensureHostInventorySnapshotColumns(context.Background())
+	_ = store.ensureHealTrackerColumns(context.Background())
 	return store
 }
 
@@ -72,7 +73,6 @@ func (s *Store) CleanupOldResults(ctx context.Context, retentionHours int) (int6
 type RetentionResult struct {
 	HealthResults int64 `json:"health_results"`
 	ActionLogs    int64 `json:"action_logs"`
-	Actions       int64 `json:"actions"`
 	SystemEvents  int64 `json:"system_events"`
 }
 
@@ -308,6 +308,39 @@ type ActionLogsResponse struct {
 	Total int         `json:"total"`
 }
 
+// OutageRecord is one continuous interval during which a supervised member
+// was observed unavailable. An empty ClosedAt means the outage is ongoing.
+type OutageRecord struct {
+	ID       int64      `json:"id"`
+	MemberID string     `json:"memberId"`
+	Cause    string     `json:"cause"`
+	OpenedAt time.Time  `json:"openedAt"`
+	ClosedAt *time.Time `json:"closedAt,omitempty"`
+}
+
+// OutageSummary reports interval-weighted unavailability for one member. An
+// open interval is measured through WindowEnd without mutating the record.
+type OutageSummary struct {
+	MemberID                string    `json:"memberId"`
+	WindowStart             time.Time `json:"windowStart"`
+	WindowEnd               time.Time `json:"windowEnd"`
+	TotalUnavailableSeconds float64   `json:"totalUnavailableSeconds"`
+	DistinctOutageCount     int       `json:"distinctOutageCount"`
+	OpenOutageCount         int       `json:"openOutageCount"`
+}
+
+func (s *Store) ObserveSupervisedAvailability(ctx context.Context, result checks.Result) error {
+	return s.observeSupervisedAvailabilitySQLite(ctx, result)
+}
+
+func (s *Store) GetOutageSummary(ctx context.Context, memberID string, from, to time.Time) (*OutageSummary, error) {
+	return s.getOutageSummarySQLite(ctx, memberID, from, to)
+}
+
+func (s *Store) ListOutageRecords(ctx context.Context, memberID string, limit int) ([]OutageRecord, error) {
+	return s.listOutageRecordsSQLite(ctx, memberID, limit)
+}
+
 // SaveActionLog persists a recovery action execution to the database.
 func (s *Store) SaveActionLog(ctx context.Context, checkID, actionID string, success, timedOut bool, message, output, errMsg string, durationMs int64) error {
 	return s.saveActionLogSQLite(ctx, checkID, actionID, success, timedOut, message, output, errMsg, durationMs)
@@ -326,6 +359,13 @@ func (s *Store) GetActionLogsForCheck(ctx context.Context, checkID string, limit
 // SaveHealTracker persists a heal tracker state to the database.
 func (s *Store) SaveHealTracker(ctx context.Context, checkID string, tracker *checks.HealTracker) error {
 	return s.saveHealTrackerSQLite(ctx, checkID, tracker)
+}
+
+// SaveHealTrackers persists a reconciliation set in one transaction. Startup
+// classification can touch many legacy rows; one commit avoids turning a busy
+// database into a partially durable disposition map.
+func (s *Store) SaveHealTrackers(ctx context.Context, trackers map[string]checks.HealTracker) error {
+	return s.saveHealTrackersSQLite(ctx, trackers)
 }
 
 // GetAllHealTrackers retrieves all heal tracker states from the database.

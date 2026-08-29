@@ -7,6 +7,7 @@ import type {
   OperatorStatePatch,
   V2ScenarioResponse,
   V2Recommendation,
+  V2CoreSetResponse,
   V2ReadinessResponse,
   V2HostRequirementsResponse,
   V2ClosureResponse,
@@ -59,6 +60,16 @@ export function fetchV2Recommendation() {
     baseUrl: API_BASE.replace(/\/v1$/, ""),
   });
   return typedFetch<V2Recommendation>(url, { cache: "no-store" });
+}
+
+export function fetchV2CoreSet(seed?: Iterable<string>) {
+  const url = new URL(
+    buildApiUrl("/v2/core-set", { baseUrl: API_BASE.replace(/\/v1$/, "") }),
+  );
+  if (seed) {
+    for (const name of Array.from(seed).sort()) url.searchParams.append("seed", name);
+  }
+  return typedFetch<V2CoreSetResponse>(url.toString(), { cache: "no-store" });
 }
 
 export function fetchV2Readiness() {

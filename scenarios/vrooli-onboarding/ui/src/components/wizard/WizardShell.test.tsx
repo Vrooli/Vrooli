@@ -8,6 +8,7 @@ import type { V2Step } from "../../types";
 const testSteps: V2Step[] = [
   "Welcome",
   "Scenarios",
+  "Core Set",
   "Resources",
   "Credentials",
   "Integrations",
@@ -84,7 +85,7 @@ describe("WizardShell", () => {
     const progressBar = screen.getByRole("progressbar");
     expect(progressBar).toHaveAttribute("aria-valuenow", "2");
     expect(progressBar).toHaveAttribute("aria-valuemin", "0");
-    expect(progressBar).toHaveAttribute("aria-valuemax", "8");
+    expect(progressBar).toHaveAttribute("aria-valuemax", "9");
   });
 
   it("shows Next button by default", () => {
@@ -191,7 +192,7 @@ describe("WizardShell", () => {
         Content
       </WizardShell>,
     );
-    expect(screen.getByText("3/9")).toBeInTheDocument();
+    expect(screen.getByText("3/10")).toBeInTheDocument();
   });
 
   it("renders mobile dot progress indicators", () => {
@@ -203,7 +204,7 @@ describe("WizardShell", () => {
     const mobileProgress = screen.getByRole("list", { name: /step progress/i });
     expect(mobileProgress).toBeInTheDocument();
     const dots = mobileProgress.querySelectorAll("[role='listitem']");
-    expect(dots).toHaveLength(9);
+    expect(dots).toHaveLength(10);
   });
 
   it("makes completed step indicators clickable when onGoToStep is provided", () => {
@@ -277,8 +278,8 @@ describe("WizardShell", () => {
       </WizardShell>,
     );
     const progressFill = screen.getByTestId("progress-bar");
-    // Step 1 of 9 steps (0-indexed): 1/8 * 100 = 12.5%
-    expect(progressFill.style.width).toBe("12.5%");
+    // Step 1 of 10 steps (0-indexed): 1/9 * 100.
+    expect(progressFill.style.width).toBe("11.11111111111111%");
   });
 
   it("shows step number for non-completed future steps", () => {
@@ -304,7 +305,7 @@ describe("WizardShell", () => {
 
   it("progress bar width is 100% on the final V2 step", () => {
     render(
-      <WizardShell {...defaultProps} currentStep={8}>
+      <WizardShell {...defaultProps} currentStep={9}>
         Content
       </WizardShell>,
     );

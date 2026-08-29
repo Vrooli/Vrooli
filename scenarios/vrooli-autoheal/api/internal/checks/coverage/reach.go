@@ -84,6 +84,7 @@ func (c *remediationReachCheck) Title() string { return "Critical Finding Remedi
 func (c *remediationReachCheck) Description() string {
 	return "Measures whether critical findings expose a registered recovery action."
 }
+
 func (c *remediationReachCheck) Importance() string {
 	return "A detected critical finding without a recovery path is an actionable coverage gap."
 }
@@ -164,6 +165,7 @@ func (c *deliveryReachCheck) Title() string { return "Critical Finding Delivery 
 func (c *deliveryReachCheck) Description() string {
 	return "Measures whether critical incident IDs have entered notification delivery."
 }
+
 func (c *deliveryReachCheck) Importance() string {
 	return "A critical finding without a delivery attempt is an unread alert gap."
 }

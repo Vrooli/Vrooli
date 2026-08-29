@@ -58,6 +58,101 @@ func TestSQLiteStore_SaveAndReadHealthResults(t *testing.T) {
 	}
 }
 
+func TestSQLiteStore_OutageLedgerClosesOneContinuousIntervalAndSurvivesStoreRestart(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	memberID := "resource-qdrant"
+	openedAt := time.Date(2026, 8, 29, 3, 0, 0, 0, time.UTC)
+	observation := func(at time.Time, available bool, message string) checks.Result {
+		return checks.Result{
+			CheckID: memberID,
+			Status:  checks.StatusCritical,
+			Message: message,
+			Details: map[string]interface{}{
+				"supervisionIntent": "must_start",
+				"available":         available,
+			},
+			Timestamp: at,
+		}
+	}
+
+	if err := store.ObserveSupervisedAvailability(ctx, observation(openedAt, false, "qdrant stopped")); err != nil {
+		t.Fatalf("open outage: %v", err)
+	}
+	if err := store.ObserveSupervisedAvailability(ctx, observation(openedAt.Add(15*time.Second), false, "qdrant still stopped")); err != nil {
+		t.Fatalf("repeat outage observation: %v", err)
+	}
+	closedAt := openedAt.Add(45 * time.Second)
+	if err := store.ObserveSupervisedAvailability(ctx, observation(closedAt, true, "qdrant healthy")); err != nil {
+		t.Fatalf("close outage: %v", err)
+	}
+
+	restartedStore := NewStore(db)
+	records, err := restartedStore.ListOutageRecords(ctx, memberID, 10)
+	if err != nil {
+		t.Fatalf("list outage records after store restart: %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("outage records = %d, want exactly one", len(records))
+	}
+	if records[0].ClosedAt == nil || !records[0].ClosedAt.After(records[0].OpenedAt) {
+		t.Fatalf("closed outage = %+v, want non-zero duration", records[0])
+	}
+
+	summary, err := restartedStore.GetOutageSummary(ctx, memberID, openedAt.Add(-time.Minute), closedAt.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("get outage summary: %v", err)
+	}
+	if summary.DistinctOutageCount != 1 || summary.OpenOutageCount != 0 {
+		t.Fatalf("outage counts = distinct %d open %d, want 1 and 0", summary.DistinctOutageCount, summary.OpenOutageCount)
+	}
+	if summary.TotalUnavailableSeconds != 45 {
+		t.Fatalf("unavailable seconds = %v, want 45", summary.TotalUnavailableSeconds)
+	}
+}
+
+func TestSQLiteSchemaRetiresNeverWrittenAutohealActionsLedger(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	var count int
+	if err := db.QueryRowContext(context.Background(), `
+		SELECT COUNT(*) FROM sqlite_master
+		WHERE (type = 'table' AND name = 'autoheal_actions')
+		   OR (type = 'index' AND name = 'idx_autoheal_actions_created_at')
+	`).Scan(&count); err != nil {
+		t.Fatalf("inspect sqlite schema: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("retired autoheal_actions schema objects = %d, want 0", count)
+	}
+}
+
+func TestSQLiteStore_PersistsHealSuspensionAndDisposition(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	now := time.Now().UTC().Truncate(time.Nanosecond)
+	want := &checks.HealTracker{
+		LastAttempt:         now,
+		ConsecutiveFailures: 3,
+		TotalAttempts:       3,
+		SuspendedAt:         now,
+		SuspensionReason:    "reached consecutive failure limit (3)",
+		Disposition:         checks.HealDispositionEscalated,
+		DispositionAt:       now,
+	}
+	if err := store.SaveHealTrackers(context.Background(), map[string]checks.HealTracker{"scenario-failing": *want}); err != nil {
+		t.Fatalf("batch save suspended tracker: %v", err)
+	}
+	loaded, err := store.GetAllHealTrackers(context.Background())
+	if err != nil {
+		t.Fatalf("load suspended trackers: %v", err)
+	}
+	got := loaded["scenario-failing"]
+	if got == nil || got.SuspensionReason != want.SuspensionReason || got.Disposition != checks.HealDispositionEscalated || got.SuspendedAt.IsZero() {
+		t.Fatalf("loaded tracker = %+v, want durable suspension", got)
+	}
+}
+
 func TestSQLiteStore_JournalCursorRoundTrip(t *testing.T) {
 	db := openSQLiteTestDB(t)
 	store := NewStore(db)

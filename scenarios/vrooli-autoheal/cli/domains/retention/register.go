@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"vrooli-autoheal/cli/internal/support"
@@ -69,11 +70,12 @@ func open(allowFullVacuum bool, batchSize int) ([]budgetState, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	specs = sqliteTableSpecs(specs)
 	if len(specs) == 0 {
 		return nil, func() {}, nil
 	}
 
-	scenarioID, err := storage.ScenarioNamespace("vrooli-autoheal")
+	scenarioID, err := retentionScenarioNamespace(os.Getenv)
 	if err != nil {
 		return nil, nil, fmt.Errorf("resolve storage namespace: %w", err)
 	}
@@ -98,10 +100,6 @@ func open(allowFullVacuum bool, batchSize int) ([]budgetState, func(), error) {
 		if err != nil {
 			closeAll()
 			return nil, nil, fmt.Errorf("budget %q: %w", spec.Budget.Name, err)
-		}
-		if spec.Target.Kind != retention.TargetSQLiteTable {
-			closeAll()
-			return nil, nil, fmt.Errorf("budget %q: this command handles sqlite_table budgets only, got %q", spec.Budget.Name, spec.Target.Kind)
 		}
 		db, ok := handles[path]
 		if !ok {
@@ -130,6 +128,49 @@ func open(allowFullVacuum bool, batchSize int) ([]budgetState, func(), error) {
 		states = append(states, budgetState{spec: spec, path: path, pruner: pruner})
 	}
 	return states, closeAll, nil
+}
+
+const retentionScenarioID = "vrooli-autoheal"
+
+// retentionScenarioNamespace prevents a standalone installed CLI from
+// inheriting another scenario's lifecycle namespace. This matters when the CLI
+// is launched from a terminal embedded in a running scenario: blindly using
+// VROOLI_STORAGE_NAMESPACE would open (and potentially prune) that scenario's
+// database. An autoheal live/shadow namespace is honored; a foreign live
+// namespace falls back to autoheal live, and a foreign non-live namespace
+// fails rather than aliasing a shadow onto live.
+func retentionScenarioNamespace(getenv func(string) string) (string, error) {
+	root := strings.TrimSpace(getenv(storage.EnvStorageNamespace))
+	variant := strings.ToLower(strings.TrimSpace(getenv(storage.EnvVariant)))
+	if root == retentionScenarioID || strings.HasPrefix(root, retentionScenarioID+"_") {
+		ns, err := storage.ResolveNamespace(storage.NamespaceConfig{Root: root, Variant: variant})
+		if err != nil {
+			return "", err
+		}
+		return ns.Root(), nil
+	}
+	if variant != "" && variant != "live" {
+		return "", fmt.Errorf("refusing retention for %s: ambient namespace %q belongs to a non-live %q instance", retentionScenarioID, root, variant)
+	}
+	ns, err := storage.ResolveNamespace(storage.NamespaceConfig{Root: retentionScenarioID, Variant: "live"})
+	if err != nil {
+		return "", err
+	}
+	return ns.Root(), nil
+}
+
+// sqliteTableSpecs narrows the scenario-wide retention declaration to the
+// database targets this offline operator command owns. ParseManifest also
+// returns storage.entries directory/file budgets; those are enforced by the
+// framework manager and must not make database maintenance unusable.
+func sqliteTableSpecs(specs []retention.Spec) []retention.Spec {
+	out := make([]retention.Spec, 0, len(specs))
+	for _, spec := range specs {
+		if spec.Target.Kind == retention.TargetSQLiteTable {
+			out = append(out, spec)
+		}
+	}
+	return out
 }
 
 // writeJSON renders a value as indented JSON on stdout.

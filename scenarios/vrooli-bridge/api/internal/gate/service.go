@@ -166,17 +166,17 @@ func (s *service) eligibleByOS(all []NodeRef) map[string]*targetmodel.Selection 
 		if node.Revoked {
 			target.Revoked = true
 			target.Available = false
-			target.Reason = targetmodel.ReasonBridgeRevoked
+			target.Reason = "bridge node is revoked"
 			target.MissingCapability = "bridge node authorization"
 			target.NextAction = "revoke the stale target and register an authorized node"
 		} else if target.BridgeTrust != nil && !target.BridgeTrust.DispatchAuthorized {
 			target.Available = false
-			target.Reason = targetmodel.ReasonBridgeNoDispatchScope
+			target.Reason = "bridge node is online but lacks an authorized scenario-test dispatch scope"
 			target.MissingCapability = "scenario-test dispatch scope"
 			target.NextAction = "grant the scenario-test dispatch scope to the registered node"
 		} else if !s.presence.IsOnline(target.ID) || !s.presence.Dispatchable(target.ID) {
 			target.Available = false
-			target.Reason = targetmodel.ReasonBridgeOffline
+			target.Reason = "bridge node is offline or not dispatchable"
 			target.MissingCapability = "bridge dispatch reachability"
 			target.NextAction = "restore the node channel and protocol compatibility"
 		}

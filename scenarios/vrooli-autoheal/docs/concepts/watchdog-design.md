@@ -162,24 +162,35 @@ Get-ScheduledTask -TaskName "VrooliAutoheal"
 ## Operational-history retention
 
 Autoheal treats SQLite history as bounded operational evidence, not an
-unlimited log sink. On a normal health-check tick it reads the live
-`global.historyRetentionHours` configuration (default 24 hours) and, at most
-once per hour, incrementally prunes up to 1,000 expired rows from each of
-`health_results`, `action_logs`, `autoheal_actions`, and `system_events`.
-Incident records remain as the durable forensic rollup.
+unlimited log sink. The named tuning constant
+`userconfig.DefaultHistoryRetentionHours` is 24 hours. The manifest-owned
+retention scheduler enforces that window for both `health_results` and
+`action_logs` on startup and every 15 minutes, using bounded delete batches and
+SQLite checkpoints. A contract test requires both manifest budgets to remain
+aligned with the named constant.
+
+Age is not a disk bound during an incident storm, so every high-volume table
+also has a byte ceiling. The declared ceilings are 256 MiB for health results,
+64 MiB for action logs, and 128 MiB each for system events, host inventory
+snapshots, and incident observations. Their 704 MiB total leaves room for
+durable rollups, indexes, WAL, and schema overhead beneath the database's 1 GiB
+working-set budget. Durable outage intervals, incidents, and heal trackers are
+kept separately from the raw operational ledgers.
 
 Oversized health-result detail payloads and individual action-log text fields
 are capped at 64 KiB with an explicit truncation marker. Retention failures are
-logged and do not fail the health-check tick; the next tick retries the bounded
-pass. Autoheal owns liveness checks and their action cooldowns, while the
+logged and do not fail the health-check tick; the next scheduled cycle retries
+the bounded pass. Autoheal owns liveness checks and their action cooldowns, while the
 runtime supervisor remains the sole owner of pressure-epoch scenario recovery.
 During a detected, regressed, or quiet-period-gated runtime pressure epoch,
 autoheal records the unhealthy result but suppresses restart-class actions. If
 the runtime registry cannot be read, it also fails closed for those actions.
 
 `GET /api/v1/status` exposes the SQLite footprint, oldest/newest retained
-health-result timestamps, last prune time and per-table prune counts. A failed
-retention status read or prune is shown as degraded so operators can diagnose
+health-result timestamps. `vrooli-autoheal retention status` reports per-table
+row/byte measurements and declared bounds; `retention enforce --compact` is the
+offline operator path for an immediate sweep plus physical reclamation. A
+failed retention status read is shown as degraded so operators can diagnose
 storage pressure before it affects normal health checks.
 
 ## Self-Protection

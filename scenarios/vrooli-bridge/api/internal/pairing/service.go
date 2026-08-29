@@ -27,16 +27,26 @@ const (
 // registers redeeming nodes (via the NodeRegistrar seam), stores their Ed25519
 // public keys, and runs the request/approve fallback.
 type Service struct {
-	repo           Repository
-	registrar      NodeRegistrar
-	clock          schedule.Clock
-	validateScopes func([]string) error
+	repo                 Repository
+	registrar            NodeRegistrar
+	clock                schedule.Clock
+	validateScopes       func([]string) error
+	validateConfirmation func(PairingRequest, []string) error
 }
 
 type Option func(*Service)
 
 func WithGrantValidator(validate func([]string) error) Option {
 	return func(s *Service) { s.validateScopes = validate }
+}
+
+// WithConfirmationValidator installs the owner-side proof-of-possession check
+// used by the no-code pairing path. The validator receives the durable request
+// and the words supplied by the operator, so it can derive the expected words
+// from the pinned control-plane and node identities without storing another
+// secret.
+func WithConfirmationValidator(validate func(PairingRequest, []string) error) Option {
+	return func(s *Service) { s.validateConfirmation = validate }
 }
 
 // NewService constructs the pairing service.
@@ -350,9 +360,30 @@ func (s *Service) RequestPairing(ctx context.Context, nodePublicKeyB64 string, f
 	})
 }
 
+// GetRequest returns the durable decision state for a request/approve join.
+// The node uses this open read to learn when the owner has approved it; the
+// request contains only public enrollment data and the minted node id.
+func (s *Service) GetRequest(ctx context.Context, requestID string) (PairingRequest, error) {
+	if strings.TrimSpace(requestID) == "" {
+		return PairingRequest{}, ErrInvalid{Field: "request_id", Reason: "is required"}
+	}
+	return s.repo.GetRequest(ctx, strings.TrimSpace(requestID))
+}
+
 // Approve approves (or rejects) a pending request. On approval it registers the
 // node and stores its credential, then records the decision atomically.
 func (s *Service) Approve(ctx context.Context, requestID string, approve bool, scopes []string) (status RequestStatus, nodeID string, err error) {
+	return s.approve(ctx, requestID, approve, scopes, nil, false)
+}
+
+// ApproveWithConfirmation approves a request only after the operator supplies
+// the key-derived confirmation words. Rejection does not require a
+// confirmation because it creates no node or credential.
+func (s *Service) ApproveWithConfirmation(ctx context.Context, requestID string, approve bool, scopes, confirmationWords []string) (status RequestStatus, nodeID string, err error) {
+	return s.approve(ctx, requestID, approve, scopes, confirmationWords, approve)
+}
+
+func (s *Service) approve(ctx context.Context, requestID string, approve bool, scopes, confirmationWords []string, requireConfirmation bool) (status RequestStatus, nodeID string, err error) {
 	if approve {
 		if err := s.validateGrantScopes(scopes); err != nil {
 			return "", "", err
@@ -364,6 +395,14 @@ func (s *Service) Approve(ctx context.Context, requestID string, approve bool, s
 	}
 	if req.Status != RequestPending {
 		return "", "", ErrRequestDecided
+	}
+	if requireConfirmation {
+		if s.validateConfirmation == nil {
+			return "", "", ErrInvalid{Field: "confirmation_words", Reason: "confirmation validator is not configured"}
+		}
+		if err := s.validateConfirmation(req, confirmationWords); err != nil {
+			return "", "", err
+		}
 	}
 
 	if !approve {

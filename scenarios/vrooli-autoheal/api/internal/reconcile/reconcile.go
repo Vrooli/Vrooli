@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/coreset"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
@@ -29,21 +30,27 @@ func NewCoreSetProviderWithRunner(run CommandRunner) Provider { return &CoreSetP
 func (p *CoreSetProvider) Expected(ctx context.Context) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	out, err := p.run(ctx, "scenario-dependency-analyzer", "core-set", "--json")
+	out, err := p.run(ctx, "vrooli", "supervision-set", "--json")
 	if err != nil {
-		return nil, fmt.Errorf("derive core set: %w", err)
+		return nil, fmt.Errorf("load supervision set: %w", err)
 	}
-	var response struct {
-		Source  string   `json:"source"`
-		CoreSet []string `json:"core_set"`
-	}
+	var response coreset.Report
 	if err := json.Unmarshal(out, &response); err != nil {
-		return nil, fmt.Errorf("decode core set: %w", err)
+		return nil, fmt.Errorf("decode supervision set: %w", err)
 	}
-	if response.Source != "computed" || len(response.CoreSet) == 0 {
-		return nil, fmt.Errorf("core set is unavailable or not computed")
+	if response.Source != "computed" || len(response.Members) == 0 {
+		return nil, fmt.Errorf("supervision set is unavailable or not computed")
 	}
-	return normalize(response.CoreSet), nil
+	scenarios := make([]string, 0, len(response.Members))
+	for _, member := range response.Members {
+		if member.Kind == coreset.MemberKindScenario {
+			scenarios = append(scenarios, member.Name)
+		}
+	}
+	if len(scenarios) == 0 {
+		return nil, fmt.Errorf("supervision set contains no scenarios")
+	}
+	return normalize(scenarios), nil
 }
 
 // Diff separates the three distinct reconcile answers. GhostChecks and

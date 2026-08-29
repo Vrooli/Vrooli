@@ -69,7 +69,7 @@ The cross-OS deployment gate (OT-P1-002) is the headline consumer integration:
   timed-out gate is never assumed green; promotion is withheld until a real green
   is observed (the gate is durable + re-attachable by id).
 - **Wiring:** additive and inert by default — the route returns `503` until
-  `VROOLI_BRIDGE_URL` (and optional `VROOLI_BRIDGE_TOKEN`) point at a bridge
+  the shared node client (and its configured credentials) points at a bridge
   control plane, so the integration never destabilizes deployment-manager's
   existing flows.
 - **Business validation (BRG-P1-002):** a scenario is proven green on real

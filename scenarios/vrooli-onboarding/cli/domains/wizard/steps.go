@@ -31,6 +31,7 @@ func dispatchStep(id string) stepHandler {
 var stepHandlers = map[string]stepHandler{
 	"welcome":        dispatchStep("welcome"),
 	"scenarios":      dispatchStep("scenarios"),
+	"core-set":       dispatchStep("core-set"),
 	"resources":      dispatchStep("resources"),
 	"credentials":    dispatchStep("credentials"),
 	"integrations":   dispatchStep("integrations"),

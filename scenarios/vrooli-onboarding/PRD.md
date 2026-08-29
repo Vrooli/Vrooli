@@ -17,6 +17,7 @@
 - [ ] OT-P0-006 | Apply and completion | When the operator confirms setup, the system shall install opted-in host tools, apply opted-in safeguards, enable selected resources, start selected scenarios, report a per-item result, and record a durable completion marker.
 - [ ] OT-P0-007 | Credential provisioning without disclosure | If a credential value is submitted, then the system shall relay it to the credential authority and shall not write it to operator state, logs, URLs, browser storage, or any response body.
 - [ ] OT-P0-008 | Surface parity across UI, CLI, and API | The wizard shall be completable through the UI, an interactive CLI, and a non-interactive CLI or API call, and the three shall produce identical operator state for identical choices.
+- [ ] OT-P0-009 | Declared supervision authority | The wizard shall show the current `core.seed`, prevent removal of `core.trusted_base`, preview the computed supervision closure before confirmation, and commit membership only through the typed operator-state authority. Scenario `auto_restart` choices shall remain lifecycle recommendations and shall not alter supervision membership.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Actionable readiness report | The readiness report should probe declared credentials, host tools, host safeguards, and resource reachability, and should name a remediation for every item that is not ready.

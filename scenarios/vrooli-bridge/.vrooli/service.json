@@ -118,14 +118,15 @@
         "required": true,
         "startup_policy": "try_start",
         "degraded_behavior": "Bridge fails closed for owner-session and protected fleet operations when the authenticator is unavailable.",
-      "description": "Owner identity and token validation for Bridge's authenticated control-plane surface."
-    },
-    "vrooli-onboarding": {
-      "required": false,
-      "startup_policy": "try_start",
-      "runtime_only": true,
-      "runtime_only_rationale": "Optional onboarding selection handoff uses the discovered HTTP boundary.",
-      "degraded_behavior": "Legacy host-only onboarding remains available when the onboarding scenario is stopped."
+        "description": "Owner identity and token validation for Bridge's authenticated control-plane surface.",
+        "supervision_precedence": "required"
+      },
+      "vrooli-onboarding": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Optional onboarding selection handoff uses the discovered HTTP boundary.",
+        "degraded_behavior": "Legacy host-only onboarding remains available when the onboarding scenario is stopped."
       }
     }
   },

@@ -138,6 +138,7 @@ This centralizes operational configuration.
 Autoheal consumes the core Vrooli CLI as the source of truth instead of reimplementing lifecycle and maintenance heuristics:
 
 ```go
+cmd := exec.Command("vrooli", "supervision-set", "--json")
 cmd := exec.Command("vrooli", "scenario", "status", scenarioName, "--json")
 cmd := exec.Command("vrooli", "orphans", "--json")
 cmd := exec.Command("vrooli", "locks", "--json")
@@ -145,9 +146,17 @@ cmd := exec.Command("vrooli", "diagnose-port", port, scenarioName, "--json")
 ```
 
 This keeps maintenance semantics in one place:
+- scenario and resource membership, intent, and attribution are defined by the operator-declared supervision closure
 - lock staleness is defined by core
 - orphan classification is defined by core
 - autoheal only evaluates and presents the returned state
+
+The supervision controller loads that declaration at startup and every 30
+seconds. `must_start` members produce critical target checks; `try_start`
+members produce warning-level target checks. Persisted monitoring targets are
+additive operator overrides. If the source becomes unavailable, the controller
+keeps its in-memory last-known-good set and reports degraded source health; it
+never substitutes an empty set.
 
 ## Data Flow
 

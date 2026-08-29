@@ -18,7 +18,8 @@
         "ONB-STATE-PRESERVES-UNKNOWN",
         "ONB-STATE-SCHEMA-VALIDATED",
         "ONB-STATE-SINGLE-WRITER",
-        "ONB-STATE-RESOURCE-AUTHORITY"
+        "ONB-STATE-RESOURCE-AUTHORITY",
+        "ONB-CORE-SUPERVISION-AUTHORITY"
       ],
       "validation": [
         {
@@ -173,6 +174,33 @@
           "phase": "unit",
           "status": "failing",
           "notes": "Evidence target: `internal/operatorstate/concurrency_test.go`; this requirement remains planned until that evidence is added. parallel disjoint patches both land; overlapping patches serialize."
+        }
+      ]
+    },
+    {
+      "id": "ONB-CORE-SUPERVISION-AUTHORITY",
+      "title": "When an operator changes the core supervision seed, the system shall preserve the trusted base, preview the declared closure, and shall not infer membership from auto-restart.",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-009",
+      "category": "state",
+      "description": "The wizard exposes the declared supervision authority without creating a second one. Trusted-base members cannot be removed, closure failure keeps the seed visible, and operating-mode preferences remain independent lifecycle input.",
+      "depends_on": [
+        "ONB-STATE-SCHEMA-VALIDATED"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/v2_core_set_test.go",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts trusted-base rejection leaves state unchanged and bundle fallback preserves visible seed authority."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/wizard/V2Steps.test.tsx",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Asserts closure preview, trusted-base locking, and the unavailable-closure fallback."
         }
       ]
     },

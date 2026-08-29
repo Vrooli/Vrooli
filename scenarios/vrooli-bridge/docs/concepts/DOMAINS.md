@@ -138,7 +138,7 @@ belong in [`DATA.md`](DATA.md).
 - Primary archetype: aggregation / workflow. Bridge supplies the capability; deployment-manager owns the verdict.
 - Delegates, never reimplements: each per-OS validation is dispatched through the SHARED dispatch service (allowlist + per-node scopes + audit) and tracked as a durable run (runs domain) via the `Runner` seam. Aggregation rule: ANY failing OS — a non-zero/aborted run OR a target OS with no eligible node — fails the gate; the verdict is recomputed live from the per-OS runs on read.
 - Owns: the `gates` + `gate_os_results` ledger. Does not own: the individual node runs (runs), the allowlist gate (dispatch), or artifact transport (device-sync-hub).
-- Consumer: deployment-manager's `crossosgate` package speaks `GateService` over Connect/JSON and owns the production-readiness decision (`POST /api/v1/cross-os-gate/evaluate`, additive + inert until `VROOLI_BRIDGE_URL` is set).
+- Consumer: deployment-manager's `crossosgate` package speaks `GateService` through the shared node client and owns the production-readiness decision (`POST /api/v1/cross-os-gate/evaluate`).
 - Related docs: [`INTEGRATIONS.md`](INTEGRATIONS.md), [`FLOWS.md`](FLOWS.md), [`../internal/SEAMS.md`](../internal/SEAMS.md).
 
 ### audit

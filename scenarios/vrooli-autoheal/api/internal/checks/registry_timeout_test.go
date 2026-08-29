@@ -199,7 +199,7 @@ func TestAutoHealCooldown_UsesConfiguredPolicy(t *testing.T) {
 	}
 }
 
-func TestAutoHealBackoff_UsesConfiguredMaxRestartAttempts(t *testing.T) {
+func TestAutoHealSuspendsAtConfiguredFailureLimitAndCanResume(t *testing.T) {
 	reg := NewRegistry(testPlatform())
 	if err := reg.SetAutoHealPolicy(AutoHealPolicy{
 		BaseCooldown:         60 * time.Second,
@@ -235,7 +235,7 @@ func TestAutoHealBackoff_UsesConfiguredMaxRestartAttempts(t *testing.T) {
 	}
 
 	clk.current = clk.current.Add(61 * time.Second)
-	// Failure #2: threshold reached -> 120s cooldown.
+	// Failure #2 reaches the configured bound and suspends further attempts.
 	r2 := reg.RunAutoHeal(context.Background(), []Result{
 		{CheckID: "failing-check", Status: StatusCritical},
 	})
@@ -250,34 +250,66 @@ func TestAutoHealBackoff_UsesConfiguredMaxRestartAttempts(t *testing.T) {
 	if tracker.ConsecutiveFailures != 2 {
 		t.Fatalf("ConsecutiveFailures = %d, want 2", tracker.ConsecutiveFailures)
 	}
+	if !tracker.IsSuspended() || tracker.Disposition != HealDispositionEscalated {
+		t.Fatalf("tracker after limit = %+v, want suspended/escalated", tracker)
+	}
 	if got := tracker.CooldownUntil.Sub(clk.current); got != 120*time.Second {
 		t.Fatalf("cooldown after 2nd failure = %v, want 120s", got)
 	}
 
 	clk.current = clk.current.Add(121 * time.Second)
-	// Failure #3: exponential growth -> 240s cooldown.
+	// Further ticks keep the failed check visible without retrying it.
 	r3 := reg.RunAutoHeal(context.Background(), []Result{
 		{CheckID: "failing-check", Status: StatusCritical},
 	})
-	if len(r3) != 1 || !r3[0].Attempted {
-		t.Fatalf("third failure should attempt heal, got %+v", r3)
+	if len(r3) != 1 || r3[0].Attempted || !r3[0].Suspended {
+		t.Fatalf("third tick should report suspension without retry, got %+v", r3)
 	}
-
-	tracker, ok = reg.GetHealTracker("failing-check")
-	if !ok {
-		t.Fatal("expected heal tracker")
+	if !reg.ResumeHealTracker("failing-check") {
+		t.Fatal("resume should clear a real suspension")
 	}
-	if tracker.ConsecutiveFailures != 3 {
-		t.Fatalf("ConsecutiveFailures = %d, want 3", tracker.ConsecutiveFailures)
-	}
-	if got := tracker.CooldownUntil.Sub(clk.current); got != 240*time.Second {
-		t.Fatalf("cooldown after 3rd failure = %v, want 240s", got)
+	tracker, _ = reg.GetHealTracker("failing-check")
+	if tracker.IsSuspended() || tracker.ConsecutiveFailures != 0 || tracker.TotalAttempts != 2 {
+		t.Fatalf("tracker after resume = %+v, want active with lifetime counters preserved", tracker)
 	}
 }
 
 type mockHealTrackerStore struct {
 	trackers map[string]*HealTracker
 	saveCh   chan string
+}
+
+func TestReconcileHealTrackerDispositionsRetiresMissingAndSuspendsRegisteredFailures(t *testing.T) {
+	store := &mockHealTrackerStore{trackers: map[string]*HealTracker{
+		"scenario-retired": {ConsecutiveFailures: 725, TotalAttempts: 725},
+		"scenario-active":  {ConsecutiveFailures: 3, TotalAttempts: 3},
+	}}
+	reg := NewRegistry(testPlatform())
+	if err := reg.SetAutoHealPolicy(AutoHealPolicy{
+		BaseCooldown:         time.Minute,
+		MaxRestartAttempts:   3,
+		FastActionTimeout:    DefaultFastActionTimeout,
+		RestartActionTimeout: DefaultRestartActionTimeout,
+		TimeoutRetryCooldown: DefaultTimeoutRetryCooldown,
+	}); err != nil {
+		t.Fatalf("set policy: %v", err)
+	}
+	reg.SetHealTrackerStore(store)
+	reg.Register(&mockHealableCheck{id: "scenario-active"})
+	if err := reg.LoadHealTrackers(context.Background()); err != nil {
+		t.Fatalf("load trackers: %v", err)
+	}
+	if err := reg.ReconcileHealTrackerDispositions(context.Background()); err != nil {
+		t.Fatalf("reconcile dispositions: %v", err)
+	}
+	retired, _ := reg.GetHealTracker("scenario-retired")
+	if retired.Disposition != HealDispositionRetired || retired.IsSuspended() || retired.SuccessHistory != HealSuccessNever {
+		t.Fatalf("retired tracker = %+v", retired)
+	}
+	active, _ := reg.GetHealTracker("scenario-active")
+	if active.Disposition != HealDispositionEscalated || !active.IsSuspended() {
+		t.Fatalf("active failing tracker = %+v, want escalated suspension", active)
+	}
 }
 
 func (m *mockHealTrackerStore) SaveHealTracker(ctx context.Context, checkID string, tracker *HealTracker) error {

@@ -18,6 +18,8 @@ func TestRunWizardUsesTheDeclaredStepSequence(t *testing.T) {
 			_, _ = w.Write([]byte(testStepModelJSON))
 		case "/api/v1/v2/scenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
+		case "/api/v1/v2/core-set":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
 		case "/api/v1/v2/resources":
 			_, _ = w.Write([]byte(`{"optional":[],"standalone":[]}`))
 		case "/api/v1/v2/credentials":
@@ -37,7 +39,7 @@ func TestRunWizardUsesTheDeclaredStepSequence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _ = io.WriteString(writer, "\n\n\n\n\n\n\n\nyes\n\n")
+	_, _ = io.WriteString(writer, "\n\n\n\n\n\n\n\n\nyes\n\n")
 	_ = writer.Close()
 	old := os.Stdin
 	os.Stdin = input
@@ -69,9 +71,11 @@ func TestRunWizardResumesAtFirstUnsatisfiedStep(t *testing.T) {
 		case "/api/v1/v2/steps":
 			_, _ = w.Write([]byte(testStepModelJSON))
 		case "/api/v1/v2/session":
-			_, _ = w.Write([]byte(`{"first_unsatisfied_step":5,"completion":false}`))
+			_, _ = w.Write([]byte(`{"first_unsatisfied_step":6,"completion":false}`))
 		case "/api/v1/v2/scenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
+		case "/api/v1/v2/core-set":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
 		case "/api/v1/v2/resources":
 			_, _ = w.Write([]byte(`{"optional":[],"standalone":[]}`))
 		case "/api/v1/v2/credentials":

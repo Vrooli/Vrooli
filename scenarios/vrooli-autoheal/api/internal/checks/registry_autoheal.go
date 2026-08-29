@@ -15,6 +15,8 @@ type AutoHealResult struct {
 	Reason              string        `json:"reason,omitempty"`            // Why it wasn't attempted
 	CooldownRemaining   time.Duration `json:"cooldownRemaining,omitempty"` // Time until next attempt allowed
 	ConsecutiveFailures int           `json:"consecutiveFailures,omitempty"`
+	Suspended           bool          `json:"suspended,omitempty"`
+	SuspensionReason    string        `json:"suspensionReason,omitempty"`
 }
 
 // healCandidate represents a check that needs healing with its metadata
@@ -80,6 +82,17 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		// Check cooldown before attempting heal.
 		// Use a snapshot to avoid races with concurrent tracker updates.
 		tracker := r.getHealTrackerSnapshot(result.CheckID)
+		if tracker.IsSuspended() {
+			autoHealResults = append(autoHealResults, AutoHealResult{
+				CheckID:             result.CheckID,
+				Attempted:           false,
+				Reason:              "auto-heal suspended: " + tracker.SuspensionReason,
+				ConsecutiveFailures: tracker.ConsecutiveFailures,
+				Suspended:           true,
+				SuspensionReason:    tracker.SuspensionReason,
+			})
+			continue
+		}
 		if tracker.IsInCooldownAt(now) {
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:             result.CheckID,
@@ -196,12 +209,15 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			}
 			r.updateHealTracker(c.result.CheckID, outcomeFailure)
 			updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
+			r.recordHealIncident(ctx, c.result.CheckID, c.selectedAction.ID, actionResult, outcomeFailure, updatedTracker)
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:             c.result.CheckID,
 				Attempted:           true,
 				ActionResult:        actionResult,
 				CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
 				ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
+				Suspended:           updatedTracker.IsSuspended(),
+				SuspensionReason:    updatedTracker.SuspensionReason,
 			})
 			continue
 		default:
@@ -234,6 +250,8 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			TimedOut:            actionResult.TimedOut,
 			CooldownRemaining:   updatedTracker.CooldownRemainingAt(r.now()),
 			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
+			Suspended:           updatedTracker.IsSuspended(),
+			SuspensionReason:    updatedTracker.SuspensionReason,
 		})
 	}
 
@@ -267,7 +285,7 @@ func (r *Registry) executeAutoHealActionWithTimeout(ctx context.Context, candida
 	start := time.Now()
 	resultCh := make(chan ActionResult, 1)
 	go func() {
-		resultCh <- candidate.healable.ExecuteAction(ctx, candidate.selectedAction.ID)
+		resultCh <- r.executeGuardedAction(ctx, candidate.healable, *candidate.selectedAction)
 	}()
 
 	select {
@@ -507,6 +525,11 @@ func (r *Registry) updateHealTracker(checkID string, outcome healOutcome) {
 		tracker.TotalSuccesses++
 		tracker.ConsecutiveFailures = 0
 		tracker.ConsecutiveTimeouts = 0
+		tracker.SuspendedAt = time.Time{}
+		tracker.SuspensionReason = ""
+		tracker.Disposition = HealDispositionHealed
+		tracker.DispositionAt = now
+		tracker.SuccessHistory = HealSuccessPrevious
 		// Apply base cooldown after success to prevent rapid re-triggering.
 		if policy != nil {
 			tracker.CooldownUntil = now.Add(policy.BaseCooldown)
@@ -532,6 +555,11 @@ func (r *Registry) updateHealTracker(checkID string, outcome healOutcome) {
 		fallthrough
 	default:
 		tracker.ConsecutiveFailures++
+		if tracker.LastSuccess.IsZero() {
+			tracker.SuccessHistory = HealSuccessNever
+		} else {
+			tracker.SuccessHistory = HealSuccessPrevious
+		}
 		tracker.ConsecutiveTimeouts = 0
 		if policy != nil {
 			cooldown := policy.CalculateFailureCooldown(tracker.ConsecutiveFailures)
@@ -539,6 +567,12 @@ func (r *Registry) updateHealTracker(checkID string, outcome healOutcome) {
 		} else {
 			tracker.CooldownUntil = now
 		}
+	}
+	if policy != nil && tracker.ConsecutiveFailures >= policy.MaxRestartAttempts && outcome != outcomeSuccess {
+		tracker.SuspendedAt = now
+		tracker.SuspensionReason = fmt.Sprintf("reached consecutive failure limit (%d)", policy.MaxRestartAttempts)
+		tracker.Disposition = HealDispositionEscalated
+		tracker.DispositionAt = now
 	}
 
 	// Persist to store if configured (async to not block)
@@ -600,6 +634,102 @@ func (r *Registry) GetAllHealTrackers() map[string]HealTracker {
 		result[id] = *tracker
 	}
 	return result
+}
+
+func (r *Registry) GetSuspendedHealTrackers() map[string]HealTracker {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make(map[string]HealTracker)
+	for id, tracker := range r.healTrackers {
+		if tracker.IsSuspended() {
+			result[id] = *tracker
+		}
+	}
+	return result
+}
+
+// ResumeHealTracker clears only the bounded-retry suspension and failure
+// streak. Lifetime counters and the escalated disposition remain as evidence.
+func (r *Registry) ResumeHealTracker(checkID string) bool {
+	r.mu.Lock()
+	tracker, exists := r.healTrackers[checkID]
+	if !exists || !tracker.IsSuspended() {
+		r.mu.Unlock()
+		return false
+	}
+	tracker.SuspendedAt = time.Time{}
+	tracker.SuspensionReason = ""
+	tracker.ConsecutiveFailures = 0
+	tracker.ConsecutiveTimeouts = 0
+	tracker.CooldownUntil = r.clock.Now()
+	store := r.healTrackerStore
+	copy := *tracker
+	r.mu.Unlock()
+	if store != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = store.SaveHealTracker(ctx, checkID, &copy)
+	}
+	return true
+}
+
+// ReconcileHealTrackerDispositions classifies restored legacy trackers after
+// canonical checks are registered. Missing checks are retired; registered
+// checks already beyond the configured bound are escalated and suspended.
+func (r *Registry) ReconcileHealTrackerDispositions(ctx context.Context) error {
+	r.mu.Lock()
+	if r.autoHealPolicy == nil {
+		r.mu.Unlock()
+		return fmt.Errorf("auto-heal policy not configured")
+	}
+	now := r.clock.Now()
+	changed := make(map[string]HealTracker)
+	escalated := make(map[string]HealTracker)
+	for id, tracker := range r.healTrackers {
+		if _, registered := r.checks[id]; !registered {
+			if tracker.Disposition != HealDispositionRetired {
+				tracker.Disposition = HealDispositionRetired
+				tracker.DispositionAt = now
+				tracker.SuspendedAt = time.Time{}
+				tracker.SuspensionReason = ""
+				changed[id] = *tracker
+			}
+			continue
+		}
+		if tracker.ConsecutiveFailures >= r.autoHealPolicy.MaxRestartAttempts && !tracker.IsSuspended() {
+			tracker.SuspendedAt = now
+			tracker.SuspensionReason = fmt.Sprintf("restored above consecutive failure limit (%d)", r.autoHealPolicy.MaxRestartAttempts)
+			tracker.Disposition = HealDispositionEscalated
+			tracker.DispositionAt = now
+			changed[id] = *tracker
+			escalated[id] = *tracker
+		}
+	}
+	store := r.healTrackerStore
+	reporter := r.healIncidentReporter
+	r.mu.Unlock()
+	if batchStore, ok := store.(interface {
+		SaveHealTrackers(context.Context, map[string]HealTracker) error
+	}); ok {
+		if err := batchStore.SaveHealTrackers(ctx, changed); err != nil {
+			return fmt.Errorf("persist heal tracker dispositions: %w", err)
+		}
+	} else if store != nil {
+		for id, tracker := range changed {
+			copy := tracker
+			if err := store.SaveHealTracker(ctx, id, &copy); err != nil {
+				return fmt.Errorf("persist heal tracker disposition %s: %w", id, err)
+			}
+		}
+	}
+	if reporter != nil {
+		for id, tracker := range escalated {
+			if err := reporter.OpenHealIncident(ctx, id, "auto-heal", tracker.SuspensionReason, tracker.ConsecutiveFailures); err != nil {
+				return fmt.Errorf("open restored heal incident %s: %w", id, err)
+			}
+		}
+	}
+	return nil
 }
 
 // ResetHealTracker resets the heal tracker for a check (for manual intervention)

@@ -6,6 +6,7 @@ import { StepIntegrationsDeferred } from "./StepIntegrationsDeferred";
 import { StepOperatingMode } from "./StepOperatingMode";
 import { StepReadiness } from "./StepReadiness";
 import { StepSelectScenarios } from "./StepSelectScenarios";
+import { StepCoreSet } from "./StepCoreSet";
 import { StepWelcome } from "./StepWelcome";
 import type { OperatorState, V2Step } from "../../types";
 
@@ -14,6 +15,7 @@ export interface StepRegistryProps {
   selectedScenarios: Set<string>;
   operatorState: OperatorState | null;
   toggleScenario: (name: string) => void;
+  setCoreSeed: (seed: string[]) => void;
   setScenarioAutoRestart: (name: string, autoRestart: boolean) => void;
   setHostOptIn: (
     kind: "host_tools" | "host_safeguards",
@@ -36,6 +38,13 @@ export const stepRegistry: Record<string, StepRenderer> = {
     <StepSelectScenarios
       selected={selectedScenarios}
       onToggle={toggleScenario}
+    />
+  ),
+  "core-set": ({ operatorState, setCoreSeed }) => (
+    <StepCoreSet
+      seed={new Set(operatorState?.core?.seed ?? [])}
+      trustedBase={new Set(operatorState?.core?.trusted_base ?? [])}
+      onChange={setCoreSeed}
     />
   ),
   resources: ({ selectedScenarios, operatorState, setResourceEnabled }) => (

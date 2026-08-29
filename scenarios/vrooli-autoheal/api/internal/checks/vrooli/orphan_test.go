@@ -150,7 +150,7 @@ func TestOrphanCheckExecuteActionList(t *testing.T) {
 	}
 }
 
-func TestOrphanCheckExecuteActionKillDelegatesToCoreCleanup(t *testing.T) {
+func TestOrphanCheckExecuteActionKillDelegatesToOwnershipAwareCoreCleanup(t *testing.T) {
 	executor := testutil.NewMockExecutor()
 	executor.Responses["vrooli cleanup orphans --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"data":{"stopped":[{"name":"100","message":"alpha"}],"failed":[],"message":"Stopped 1 processes (0 failed)"}}`),

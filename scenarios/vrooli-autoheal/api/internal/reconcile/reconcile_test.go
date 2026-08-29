@@ -68,7 +68,7 @@ func TestCompareWithoutInstalledSetClassifiesNothing(t *testing.T) {
 
 func TestCoreSetProviderDoesNotAcceptUnavailableSource(t *testing.T) {
 	provider := NewCoreSetProviderWithRunner(func(context.Context, string, ...string) ([]byte, error) {
-		return []byte(`{"source":"cached","core_set":["alpha"]}`), nil
+		return []byte(`{"source":"cached","members":[{"name":"alpha","kind":"scenario"}]}`), nil
 	})
 	if _, err := provider.Expected(context.Background()); err == nil {
 		t.Fatal("expected non-computed source to be unavailable")
@@ -78,6 +78,22 @@ func TestCoreSetProviderDoesNotAcceptUnavailableSource(t *testing.T) {
 	})
 	if _, err := provider.Expected(context.Background()); err == nil {
 		t.Fatal("expected command error")
+	}
+}
+
+func TestCoreSetProviderReadsCanonicalSupervisionSetScenarios(t *testing.T) {
+	provider := NewCoreSetProviderWithRunner(func(_ context.Context, command string, args ...string) ([]byte, error) {
+		if command != "vrooli" || len(args) != 2 || args[0] != "supervision-set" || args[1] != "--json" {
+			t.Fatalf("unexpected canonical source command: %s %v", command, args)
+		}
+		return []byte(`{"source":"computed","members":[{"name":"redis","kind":"resource"},{"name":"beta","kind":"scenario"},{"name":"alpha","kind":"scenario"}]}`), nil
+	})
+	got, err := provider.Expected(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0] != "alpha" || got[1] != "beta" {
+		t.Fatalf("expected canonical scenario projection, got %v", got)
 	}
 }
 

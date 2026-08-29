@@ -36,6 +36,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/cliresolve"
+
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/config"
 	"vrooli-bridge/agent/internal/cpverify"
@@ -795,6 +797,9 @@ func (c *Client) runJob(job *channelv1.JobPush) {
 		exec.WithArtifactDir(filepath.Join(c.cfg.StateDir, "artifacts")),
 		exec.WithCredentialEnvironment(c.ephemeral),
 	}
+	if c.commandRunner == nil {
+		runnerOpts = append(runnerOpts, exec.WithCLIResolver(cliresolve.New(homeForVrooliBinary(c.cfg.VrooliBin))))
+	}
 	if c.commandRunner != nil {
 		runnerOpts = append(runnerOpts, exec.WithCommandRunner(c.commandRunner))
 	}
@@ -848,9 +853,13 @@ func (c *Client) runRelay(request *channelv1.RelayRequest) {
 		maxBytes = exec.DefaultRelayMaxResponseBytes
 	}
 	var reportErr error
-	runnerOpts := []exec.Option{exec.WithClock(c.now)}
+	runnerOpts := []exec.Option{
+		exec.WithClock(c.now),
+	}
 	if c.commandRunner != nil {
 		runnerOpts = append(runnerOpts, exec.WithCommandRunner(c.commandRunner))
+	} else {
+		runnerOpts = append(runnerOpts, exec.WithCLIResolver(cliresolve.New(homeForVrooliBinary(c.cfg.VrooliBin))))
 	}
 	runner := exec.NewRunner(c.cfg.VrooliBin, c.cfg.WorkDir, nil, runnerOpts...)
 	result := runner.ExecuteRelay(ctx, request, maxBytes, func(data []byte) {
@@ -885,6 +894,17 @@ func (c *Client) runRelay(request *channelv1.RelayRequest) {
 		return
 	}
 	_ = report(sharedv1.RelayResponseKind_RELAY_RESPONSE_KIND_FAILED, nil, reason, int32(result.ExitCode), result.TotalBytes)
+}
+
+func homeForVrooliBinary(binary string) string {
+	binary = strings.TrimSpace(binary)
+	if filepath.IsAbs(binary) {
+		// Installed Vrooli binaries live at <home>/.vrooli/bin/vrooli.
+		// Strip the binary, bin, and .vrooli components so cliresolve can
+		// append its own stable .vrooli/bin suffix exactly once.
+		return filepath.Dir(filepath.Dir(filepath.Dir(binary)))
+	}
+	return ""
 }
 
 type artifactUploader struct {

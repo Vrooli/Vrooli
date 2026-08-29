@@ -32,24 +32,26 @@ lifecycle markers, caches, and generated runtime state are not.
 | Scenario exists, and what it needs | `scenarios/<n>/.vrooli/service.json` | Scenario author | — |
 | Scenario is system-required | `service.system_required` | Scenario author | 1 (locked on) |
 | Scenario enabled on this install | `operator-state.scenarios.<n>.enabled` | Operator | 1 |
-| Scenario runtime shape | `runtime.kind` | Scenario author | 6 (hides the toggle for `on_demand`/`one_shot`) |
-| Auto-restart recommendation | `runtime.auto_restart_default` | Scenario author | 6 (pre-fills) |
-| Auto-restart on this install | `operator-state.scenarios.<n>.auto_restart` | Operator | 6 |
+| Supervision seed | `operator-state.core.seed` | Operator | 2 |
+| Trusted supervision base | `operator-state.core.trusted_base` | Control plane | 2 (visible, locked) |
+| Computed supervision closure | Declared scenario/resource dependencies | Control plane | 2 (preview) |
+| Scenario runtime shape | `runtime.kind` | Scenario author | 7 (hides the toggle for `on_demand`/`one_shot`) |
+| Auto-restart recommendation | `runtime.auto_restart_default` | Scenario author | 7 (pre-fills) |
+| Auto-restart on this install | `operator-state.scenarios.<n>.auto_restart` | Operator | 7 |
 | Scenario → scenario dependencies | `dependencies.scenarios` | Scenario author | 1 (cascade) |
-| Resource required by a scenario | `dependencies.resources` | Scenario author | 2 (locked on) |
-| Resource optional for a scenario | `optional_dependencies` | Scenario author | 2 (toggleable) |
-| **Resource enabled on this install** | `operator-state.resources.<n>.enabled` | Operator | 2 |
-| Credential declared | `credentials.descriptors[]` on a manifest | Author | 3 |
-| Credential **value** | Credential authority | Operator, write-only | 3 |
-| Host tool required | `hostTools[]` on a manifest | Author | 5 (locked on) |
-| Host tool opted in | `operator-state.host_tools.<n>.opted_in` | Operator | 5 |
-| Safeguard declared, with its risk | `internal/safeguards/<n>/safeguard.json` | Author | 5 |
-| Safeguard opted in | `operator-state.host_safeguards.<n>.opted_in` | Operator | 5 |
-| Safeguard config values | `operator-state.host_safeguards.<n>.config` | Operator | 5 |
-| Setup completed, and with what | `operator-state` completion marker | Apply | 7 |
-| Degraded acknowledgement | `operator-state` | Operator | 8 |
+| Resource required by a scenario | `dependencies.resources` | Scenario author | 3 (locked on) |
+| Resource optional for a scenario | `optional_dependencies` | Scenario author | 3 (toggleable) |
+| **Resource enabled on this install** | `operator-state.resources.<n>.enabled` | Operator | 3 |
+| Credential declared | `credentials.descriptors[]` on a manifest | Author | 4 |
+| Credential **value** | Credential authority | Operator, write-only | 4 |
+| Host tool required | `hostTools[]` on a manifest | Author | 6 (locked on) |
+| Host tool opted in | `operator-state.host_tools.<n>.opted_in` | Operator | 6 |
+| Safeguard declared, with its risk | `internal/safeguards/<n>/safeguard.json` | Author | 6 |
+| Safeguard opted in | `operator-state.host_safeguards.<n>.opted_in` | Operator | 6 |
+| Safeguard config values | `operator-state.host_safeguards.<n>.config` | Operator | 6 |
+| Setup completed, and with what | `operator-state` completion marker | Apply | 8 |
+| Degraded acknowledgement | `operator-state` | Operator | 9 |
 | Trust posture | `operator-state.trust_posture` | Control plane | — *(preserved, never written here)* |
-| Core-set authority | `operator-state.core` | Control plane | — *(preserved, never written here)* |
 | Active profile | `operator-state.active_profile` | *(deferred)* | — |
 | Integration binding | `operator-state.integrations.*` | integration-hub *(deferred)* | 4 |
 
@@ -75,6 +77,12 @@ Its write is: **load → merge the field-scoped patch → validate against the s
 - Two surfaces patching disjoint fields concurrently both succeed.
 
 Adding a writer that bypasses the service is a test failure.
+
+The core-set endpoint validates `trusted_base ⊆ seed` before it writes and
+computes the preview with the same supervision service consumed by the control
+plane. `scenarios.<name>.auto_restart` is deliberately absent from that
+calculation: it controls lifecycle restart preference, not supervision
+membership.
 
 ## Resolution order
 

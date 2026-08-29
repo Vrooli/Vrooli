@@ -21,11 +21,30 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Name: "measure", Description: "Read typed reliability measures", NeedsAPI: true,
 		Subcommands: []cliapp.Command{
 			{Name: "uptime", Description: "Read uptime for one check", Run: func(args []string) error { return uptime(core, args) }},
+			{Name: "outages", Description: "Read interval-weighted downtime for one supervised member", Run: func(args []string) error { return outages(core, args) }},
 			{Name: "restarts", Description: "Count recorded restarts in a window", Run: func(args []string) error { return restarts(core, args) }},
 			{Name: "heal-outcomes", Description: "Count recovery outcomes in a window", Run: func(args []string) error { return healOutcomes(core, args) }},
 			{Name: "critical", Description: "Count critical observations in a window", Run: func(args []string) error { return critical(core, args) }},
 		},
 	}
+}
+
+func outages(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("measure outages")
+	memberID := fs.String("member-id", "", "Supervised member identifier, such as resource-qdrant")
+	window := fs.Int("window-hours", 24, "Measurement window in hours")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if *memberID == "" {
+		return fmt.Errorf("--member-id is required")
+	}
+	response, err := client(core).GetOutageSummary(context.Background(), connect.NewRequest(&measuresv1.GetOutageSummaryRequest{MemberId: *memberID, WindowHours: int32(*window)}))
+	if err != nil {
+		return cliapp.WrapAPIError("read outage measure", err, nil)
+	}
+	return renderMessage(response.Msg, *jsonOutput, fmt.Sprintf("%s unavailable: %.3fs across %d outage(s)", response.Msg.Outage.MemberId, response.Msg.Outage.TotalUnavailableSeconds, response.Msg.Outage.DistinctOutageCount))
 }
 
 func client(core *cliapp.ScenarioApp) measuresconnect.MeasuresServiceClient {

@@ -39,19 +39,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/cliresolve"
 )
 
 // SentinelControlPlane is the revision token that expands to the control plane's
 // current commit. It is accepted anywhere a revision is (onboard target,
 // provision target/rollback, fleet roll target).
 const SentinelControlPlane = "@cp"
-
-// shellMetachars mirrors the node agent's privsep filter
-// (agent/internal/privsep/privsep.go) EXACTLY. The two are intentionally
-// duplicated because the agent is a separate Go module; keeping the sets
-// identical means a ref this boundary accepts is one privsep will also accept, so
-// the friendly rejection here never diverges from the agent's hard rejection.
-const shellMetachars = "|&;<>()$`\\\"'\n\r\t*?[]{}!#~ "
 
 // GitCommit is the control plane's build commit, injected at build time via
 // -ldflags "-X vrooli-bridge/internal/cprev.GitCommit=<sha>" (the pattern
@@ -286,10 +281,10 @@ func ValidateRef(revision string) error {
 	if rev == "" {
 		return ErrUnsafeRevision{Revision: revision, Reason: "empty"}
 	}
-	if i := strings.IndexAny(rev, shellMetachars); i >= 0 {
+	if err := cliresolve.ValidateArgvToken(rev); err != nil || strings.ContainsAny(rev, " \t\n\r") {
 		return ErrUnsafeRevision{
 			Revision: rev,
-			Reason:   fmt.Sprintf("contains disallowed character %q (relative refs like HEAD~1 are not allowed; pass an exact revision or a branch/tag name)", string(rev[i])),
+			Reason:   "contains a disallowed shell or whitespace character (relative refs like HEAD~1 are not allowed; pass an exact revision or a branch/tag name)",
 		}
 	}
 	return nil

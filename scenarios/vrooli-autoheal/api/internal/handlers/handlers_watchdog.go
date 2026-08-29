@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -96,8 +95,7 @@ func (h *Handlers) WatchdogInstall(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_ = opts // policy is resolved by the setup-owned control-plane safeguard.
-	cmd := exec.CommandContext(r.Context(), "vrooli", "host", "safeguard", "autoheal_watchdog")
-	output, runErr := cmd.CombinedOutput()
+	output, runErr := h.controlPlane.OutputCombined(r.Context(), "host", "safeguard", "autoheal_watchdog")
 	result := &watchdog.InstallResult{Success: runErr == nil, Message: "autoheal watchdog installation delegated to vrooli setup", ServicePath: ""}
 	if runErr != nil {
 		result.Error = fmt.Sprintf("vrooli host safeguard autoheal_watchdog: %v: %s", runErr, strings.TrimSpace(string(output)))

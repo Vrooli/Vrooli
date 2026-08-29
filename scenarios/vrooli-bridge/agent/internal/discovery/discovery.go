@@ -18,7 +18,7 @@
 // spam, leaving the manual path as the fallback.
 //
 // The Browser interface is the seam: production wires the dependency-free mDNS
-// querier (mdns.go); tests substitute a fake instance source.
+// querier (mdns_adapter.go); tests substitute a fake instance source.
 package discovery
 
 import (

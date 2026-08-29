@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { nodesClient, type Node } from "../../api/nodes";
 import { machinesClient, type GetMachineResponse, type Machine, type MachineTrust } from "../../api/machines";
 import { queueClient, type NodeQueue } from "../../api/queue";
-import { pairingClient, type IssuePairingCodeResponse } from "../../api/pairing";
+import { pairingClient, type IssuePairingCodeResponse, type PairingRequest, type PermissionPreset } from "../../api/pairing";
 import {
   onboardClient,
   OnboardingState,
@@ -238,6 +238,56 @@ export function useIssuePairingCodeMutation() {
     mutationFn: (name: string): Promise<IssuePairingCodeResponse> =>
       pairingClient.issuePairingCode({ name }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: NODES_QUERY_KEY }),
+  });
+}
+
+export const PAIRING_REQUESTS_QUERY_KEY = ["fleet", "pairing-requests"] as const;
+
+export function usePairingRequestsQuery() {
+  return useQuery({
+    queryKey: PAIRING_REQUESTS_QUERY_KEY,
+    queryFn: async (): Promise<{ requests: PairingRequest[]; presets: PermissionPreset[] }> => {
+      const response = await pairingClient.listPairingRequests({ includeDecided: false });
+      const requests = response.requests.map((request) => ({
+        id: request.id,
+        name: request.name,
+        os: request.os,
+        arch: request.arch,
+        endpoint: request.endpoint,
+        confirmationWords: "confirmationWords" in request && Array.isArray(request.confirmationWords)
+          ? request.confirmationWords.filter((word): word is string => typeof word === "string")
+          : [],
+      }));
+      const presets = "presets" in response && Array.isArray(response.presets)
+        ? response.presets.map((preset) => ({
+            name: typeof preset.name === "string" ? preset.name : "",
+            description: typeof preset.description === "string" ? preset.description : "",
+            scopes: Array.isArray(preset.scopes) ? preset.scopes.filter((scope: unknown): scope is string => typeof scope === "string") : [],
+            withholds: Array.isArray(preset.withholds) ? preset.withholds.filter((scope: unknown): scope is string => typeof scope === "string") : [],
+          }))
+        : [];
+      return { requests, presets };
+    },
+    refetchInterval: 5_000,
+  });
+}
+
+export function useApprovePairingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { requestId: string; approve: boolean; scopes?: string[]; confirmationWords?: string[] }) => {
+      const request = {
+        requestId: input.requestId,
+        approve: input.approve,
+        scopes: input.scopes ?? [],
+        confirmationWords: input.confirmationWords ?? [],
+      };
+      return pairingClient.approvePairing(request);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: PAIRING_REQUESTS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: NODES_QUERY_KEY });
+    },
   });
 }
 

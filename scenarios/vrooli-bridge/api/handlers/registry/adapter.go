@@ -3,6 +3,7 @@ package registry
 import (
 	"time"
 
+	"github.com/vrooli/api-core/targetmodel"
 	internalpresence "vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
 
@@ -15,17 +16,22 @@ import (
 // presence overlay (online + status) the handler computed from the live
 // presence reader. The domain layer never imports proto; this is the single
 // translation point (api-steer §7).
-func domainToProto(n registry.Node, online, dispatchable bool, facts ...internalpresence.ReadinessFacts) *registryv1.Node {
-	if n.Kind == registry.KindControlPlane {
-		// The control plane is ready by virtue of the API process being alive. It
-		// has no dial-out heartbeat and is excluded from push-target resolution.
-		online, dispatchable = true, true
-		facts = []internalpresence.ReadinessFacts{{HeartbeatFresh: true, ChannelHeld: false, ProtocolCompatible: true, Dispatchable: true}}
-	}
+func domainToProto(n registry.Node, online, dispatchable bool, staleAfter time.Duration, facts ...internalpresence.ReadinessFacts) *registryv1.Node {
 	readiness := internalpresence.ReadinessFacts{ChannelHeld: online, ProtocolCompatible: dispatchable, Dispatchable: dispatchable}
 	if len(facts) > 0 {
 		readiness = facts[0]
 	}
+	// LastSeenAt is durable evidence and is the source of truth for freshness.
+	// The in-memory presence overlay can outlive a stale heartbeat, so never let
+	// a held channel or a copied readiness default turn an old node fresh again.
+	if staleAfter <= 0 {
+		staleAfter = internalpresence.DefaultHeartbeatStaleAfter
+	}
+	heartbeatFresh, heartbeatAge := targetmodel.HeartbeatFresh(n.LastSeenAt, time.Now().UTC(), staleAfter)
+	readiness.HeartbeatFresh = heartbeatFresh
+	readiness.HeartbeatAge = heartbeatAge
+	effectiveOnline := online && heartbeatFresh
+	effectiveDispatchable := dispatchable && heartbeatFresh
 	out := &registryv1.Node{
 		Id:                    n.ID,
 		Name:                  n.Name,
@@ -36,8 +42,8 @@ func domainToProto(n registry.Node, online, dispatchable bool, facts ...internal
 		Endpoint:              n.Endpoint,
 		Capabilities:          append([]string(nil), n.Capabilities...),
 		Scopes:                append([]string(nil), n.Scopes...),
-		Online:                online,
-		Status:                statusFor(n, online, dispatchable),
+		Online:                effectiveOnline,
+		Status:                statusFor(n, effectiveOnline, effectiveDispatchable),
 		CreatedAt:             timestamppb.New(n.CreatedAt),
 		UpdatedAt:             timestamppb.New(n.UpdatedAt),
 		RegistryRecordPresent: true,
@@ -45,7 +51,7 @@ func domainToProto(n registry.Node, online, dispatchable bool, facts ...internal
 		HeartbeatAgeSeconds:   int64(readiness.HeartbeatAge / time.Second),
 		ChannelHeld:           readiness.ChannelHeld,
 		ProtocolCompatible:    readiness.ProtocolCompatible,
-		Dispatchable:          readiness.Dispatchable,
+		Dispatchable:          effectiveDispatchable,
 	}
 	if !n.LastSeenAt.IsZero() {
 		out.LastSeenAt = timestamppb.New(n.LastSeenAt)

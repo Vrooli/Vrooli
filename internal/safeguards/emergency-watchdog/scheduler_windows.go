@@ -8,18 +8,19 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 const windowsTaskName = "Vrooli Emergency Watchdog"
 
 func nativeSchedulerAvailable(goos string) bool {
-	return goos == "windows" && commandAvailable("schtasks.exe")
+	return goos == string(hostreqspec.PlatformWindows) && commandAvailable("schtasks.exe")
 }
 
 func guiLaunchdAvailable() bool { return false }
 
 func nativePending(goos string, _ paths) []string {
-	if goos != "windows" {
+	if goos != string(hostreqspec.PlatformWindows) {
 		return []string{"unsupported scheduler"}
 	}
 	if _, err := hostreqkit.CombinedOutputFn("schtasks.exe", "/Query", "/TN", windowsTaskName); err != nil {
@@ -29,7 +30,7 @@ func nativePending(goos string, _ paths) []string {
 }
 
 func applyNative(goos string, p paths, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
-	if goos != "windows" {
+	if goos != string(hostreqspec.PlatformWindows) {
 		status.ExecutionState = hostreqkit.ExecutionUnsupported
 		return status, nil
 	}

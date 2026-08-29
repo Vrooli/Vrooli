@@ -23,13 +23,14 @@ var onboardingSteps = []onboardingStep{
 		}
 		return false
 	}},
-	{ID: "resources", Ordinal: 2, Title: "Resources", Route: "/setup/resources", Satisfied: func(s OperatorState) bool { return s.Resources != nil }},
-	{ID: "credentials", Ordinal: 3, Title: "Credentials", Route: "/setup/credentials", Satisfied: func(s OperatorState) bool { return s.Scenarios != nil }},
-	{ID: "integrations", Ordinal: 4, Title: "Integrations", Route: "/setup/integrations", Deferred: true, Satisfied: func(s OperatorState) bool { return s.Version != "" }},
-	{ID: "host", Ordinal: 5, Title: "Host", Route: "/setup/host", Satisfied: func(s OperatorState) bool { return s.HostTools != nil || s.HostSafeguards != nil }},
-	{ID: "operating-mode", Ordinal: 6, Title: "Operating Mode", Route: "/setup/operating-mode", Satisfied: func(s OperatorState) bool { return s.Scenarios != nil }},
-	{ID: "apply", Ordinal: 7, Title: "Apply", Route: "/setup/apply", Satisfied: func(s OperatorState) bool { return s.Completion != nil }},
-	{ID: "validation", Ordinal: 8, Title: "Validation", Route: "/setup/validation", Satisfied: func(s OperatorState) bool { return s.Completion != nil }},
+	{ID: "core-set", Ordinal: 2, Title: "Core Set", Route: "/setup/core-set", Satisfied: func(s OperatorState) bool { return s.Core != nil && len(s.Core.Seed) > 0 }},
+	{ID: "resources", Ordinal: 3, Title: "Resources", Route: "/setup/resources", Satisfied: func(s OperatorState) bool { return s.Resources != nil }},
+	{ID: "credentials", Ordinal: 4, Title: "Credentials", Route: "/setup/credentials", Satisfied: func(s OperatorState) bool { return s.Scenarios != nil }},
+	{ID: "integrations", Ordinal: 5, Title: "Integrations", Route: "/setup/integrations", Deferred: true, Satisfied: func(s OperatorState) bool { return s.Version != "" }},
+	{ID: "host", Ordinal: 6, Title: "Host", Route: "/setup/host", Satisfied: func(s OperatorState) bool { return s.HostTools != nil || s.HostSafeguards != nil }},
+	{ID: "operating-mode", Ordinal: 7, Title: "Operating Mode", Route: "/setup/operating-mode", Satisfied: func(s OperatorState) bool { return s.Scenarios != nil }},
+	{ID: "apply", Ordinal: 8, Title: "Apply", Route: "/setup/apply", Satisfied: func(s OperatorState) bool { return s.Completion != nil }},
+	{ID: "validation", Ordinal: 9, Title: "Validation", Route: "/setup/validation", Satisfied: func(s OperatorState) bool { return s.Completion != nil }},
 }
 
 type stepModelResponse struct {

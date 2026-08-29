@@ -25,7 +25,11 @@ const { listNodes, revokeNode } = vi.hoisted(() => ({
   revokeNode: vi.fn(),
 }));
 const { listQueue } = vi.hoisted(() => ({ listQueue: vi.fn() }));
-const { issuePairingCode } = vi.hoisted(() => ({ issuePairingCode: vi.fn() }));
+const { issuePairingCode, listPairingRequests, approvePairing } = vi.hoisted(() => ({
+  issuePairingCode: vi.fn(),
+  listPairingRequests: vi.fn(),
+  approvePairing: vi.fn(),
+}));
 
 vi.mock("../../api/nodes", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/nodes")>();
@@ -37,13 +41,15 @@ vi.mock("../../api/queue", async (importOriginal) => {
 });
 vi.mock("../../api/pairing", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/pairing")>();
-  return { ...actual, pairingClient: { issuePairingCode } };
+  return { ...actual, pairingClient: { issuePairingCode, listPairingRequests, approvePairing } };
 });
 
 import { FleetPanel } from "./FleetPanel";
 import { PairNodeForm } from "./PairNodeForm";
+import { PendingPairingPanel } from "./PendingPairingPanel";
 
 function renderFleet() {
+  listPairingRequests.mockResolvedValue({ requests: [], presets: [] });
   return renderWithProviders(
     <>
       <PairNodeForm />
@@ -148,6 +154,34 @@ describe("[REQ:BRG-P1-005] Fleet dashboard", () => {
   });
 
   describe("pairing flow", () => {
+    it("requires matching confirmation words before approving and sends the selected preset", async () => {
+      const user = userEvent.setup();
+      listPairingRequests.mockResolvedValue({
+        requests: [{ id: "req-1", name: "scratch-mac", os: "darwin", arch: "arm64", endpoint: "192.168.1.20", confirmationWords: ["amber", "orbit", "cedar"] }],
+        presets: [
+          { name: "read-only", description: "Read status and telemetry", scopes: ["vrooli:read"], withholds: ["write", "destructive"] },
+          { name: "operate", description: "Read and operate", scopes: ["vrooli:read", "vrooli:write"], withholds: ["destructive"] },
+        ],
+      });
+      approvePairing.mockResolvedValue({ status: 2, nodeId: "node-1" });
+      renderWithProviders(<PendingPairingPanel />);
+
+      const row = await screen.findByTestId(selectors.fleet.pairingRequests.row({ id: "req-1" }));
+      expect(within(row).getByTestId(selectors.fleet.pairingRequests.approve({ id: "req-1" }))).toBeDisabled();
+      expect(within(row).getByTestId(selectors.fleet.pairingRequests.words({ id: "req-1" }))).toHaveTextContent("amber orbit cedar");
+
+      await user.click(within(row).getByTestId(selectors.fleet.pairingRequests.wordsMatch({ id: "req-1" })));
+      await user.selectOptions(within(row).getByTestId(selectors.fleet.pairingRequests.preset({ id: "req-1" })), "operate");
+      await user.click(within(row).getByTestId(selectors.fleet.pairingRequests.approve({ id: "req-1" })));
+
+      await waitFor(() => expect(approvePairing).toHaveBeenCalledWith({
+        requestId: "req-1",
+        approve: true,
+        scopes: ["vrooli:read", "vrooli:write"],
+        confirmationWords: ["amber", "orbit", "cedar"],
+      }));
+    });
+
     it("starts with no result (empty), then surfaces the minted code on success", async () => {
       const user = userEvent.setup();
       listNodes.mockResolvedValue({ nodes: [] });

@@ -1,21 +1,24 @@
 package userconfig
 
-import "github.com/vrooli/api-core/coreset"
-
 // Default values for configuration
 const (
 	DefaultVersion = "1.0"
 
 	// Global defaults
-	DefaultGracePeriodSeconds          = 60
-	DefaultTickIntervalSeconds         = 60
-	DefaultVerifyDelaySeconds          = 30
-	DefaultMaxRestartAttempts          = 3
-	DefaultRestartCooldownSeconds      = 300
+	DefaultGracePeriodSeconds     = 60
+	DefaultTickIntervalSeconds    = 60
+	DefaultVerifyDelaySeconds     = 30
+	DefaultMaxRestartAttempts     = 3
+	DefaultRestartCooldownSeconds = 300
+	// DefaultHistoryRetentionHours is the named operational-history window.
+	// The manifest-owned scheduled sweeps for health_results and action_logs
+	// are contract-tested against this value so configuration and enforcement
+	// cannot silently drift apart.
 	DefaultHistoryRetentionHours       = 24
 	DefaultActionTimeoutFastSeconds    = 30
 	DefaultActionTimeoutRestartSeconds = 300
 	DefaultTimeoutRetrySeconds         = 30
+	DefaultHealInterlockSeconds        = 30
 
 	// UI defaults
 	DefaultAutoRefreshSeconds = 30
@@ -38,6 +41,7 @@ func DefaultGlobal() GlobalConfig {
 		ActionTimeoutFastSeconds:    DefaultActionTimeoutFastSeconds,
 		ActionTimeoutRestartSeconds: DefaultActionTimeoutRestartSeconds,
 		TimeoutRetrySeconds:         DefaultTimeoutRetrySeconds,
+		HealInterlockSeconds:        DefaultHealInterlockSeconds,
 	}
 }
 
@@ -54,8 +58,8 @@ func DefaultUI() UIConfig {
 // DefaultConfig returns a configuration with all defaults applied
 func DefaultConfig() *Config {
 	return &Config{
-		Version:    DefaultVersion,
-		Global:     DefaultGlobal(),
+		Version: DefaultVersion,
+		Global:  DefaultGlobal(),
 		Checks: map[string]Check{
 			// Host-integrity checks are part of the operator-visible contract.
 			// Keep their explicit toggles in the returned config so the API and
@@ -75,55 +79,10 @@ func DefaultConfig() *Config {
 // DefaultMonitoring returns the default monitoring configuration
 // This defines which scenarios and resources are monitored by default
 func DefaultMonitoring() MonitoringConfig {
-	monitoring := MonitoringConfig{
-		Scenarios: map[string]MonitoredScenario{
-			// Critical scenarios - will report StatusCritical when stopped
-			"app-monitor": {Critical: true},
-			// system-monitor provides the pressure evidence consumed by the
-			// runtime recovery controller; its liveness is therefore explicit.
-			"system-monitor":   {Critical: true},
-			"template-manager": {Critical: true},
-			"search-hub":       {Critical: true},
-			// Non-critical scenarios - will report StatusWarning when stopped
-			"browser-automation-studio": {Critical: false},
-			"test-genie":                {Critical: false},
-			"deployment-manager":        {Critical: false},
-			"git-control-tower":         {Critical: false},
-			"tidiness-manager":          {Critical: false},
-			"architecture-cartographer": {Critical: false},
-			"cli-health":                {Critical: false},
-			"ui-health":                 {Critical: false},
-			"business-health":           {Critical: false},
-			"code-facts":                {Critical: false},
-			"measures-health":           {Critical: false},
-			"source-ledger":             {Critical: false},
-			"web-search":                {Critical: false},
-		},
-		Resources: []string{
-			"postgres",
-			"redis",
-			"ollama",
-			"qdrant",
-			"searxng",
-			"whisper",
-			"reranker",
-		},
-	}
-	ensureMandatoryCoreScenarios(&monitoring)
-	return monitoring
-}
-
-// ensureMandatoryCoreScenarios keeps the platform's shared core-set healthy
-// without requiring every consumer scenario to declare the same dependency.
-// Core members are always critical; optional operator monitoring remains
-// additive around this mandatory floor.
-func ensureMandatoryCoreScenarios(monitoring *MonitoringConfig) {
-	if monitoring.Scenarios == nil {
-		monitoring.Scenarios = make(map[string]MonitoredScenario)
-	}
-	for _, name := range coreset.CoreSeedScenarios() {
-		monitoring.Scenarios[name] = MonitoredScenario{Critical: true}
-	}
+	// Supervision authority comes exclusively from `vrooli supervision-set`.
+	// Persisted monitoring entries are additive operator overrides, so the
+	// built-in default must remain empty rather than becoming a rival core list.
+	return MonitoringConfig{Scenarios: map[string]MonitoredScenario{}}
 }
 
 // CheckDefaults contains default settings for a check
@@ -393,14 +352,6 @@ func GetCheckDefaults(checkID string) CheckDefaults {
 		AutoHealOn:      "critical",
 		IntervalSeconds: 60,
 	}
-}
-
-func isMandatoryCoreScenarioCheck(checkID string) bool {
-	const prefix = "scenario-"
-	if len(checkID) <= len(prefix) || checkID[:len(prefix)] != prefix {
-		return false
-	}
-	return coreset.IsCoreSeed(checkID[len(prefix):])
 }
 
 // isResourceCheck reports whether a check id names a resource check. The

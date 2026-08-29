@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vrooli/cliresolve"
+
 	"github.com/vrooli/api-core/scopecatalog"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -147,12 +149,6 @@ func manifestOutputs(artifact manifestArtifact) map[string][]ArtifactOutput {
 	return result
 }
 
-// shellMetachars are characters that would have meaning to a shell. A typed job
-// never reaches a shell (the node-agent execs an argv, never `sh -c`), so any
-// token containing one is rejected as defence in depth — it can only be an
-// attempt to smuggle a shell construct through a typed field.
-const shellMetachars = "|&;<>()$`\\\"'\n\r\t*?[]{}!#~"
-
 // Allow validates the job against the manifest allowlist and the node's granted
 // scopes. It is pure (no I/O) so the highest-stakes decision in the scenario is
 // exhaustively table-testable. Returns nil when the verb is allowlisted and
@@ -170,8 +166,8 @@ func Allow(job Job, scopes, manifest []string) error {
 	}
 
 	for _, tok := range append([]string{j.Verb, j.Scenario}, j.Args...) {
-		if i := strings.IndexAny(tok, shellMetachars); i >= 0 {
-			return ErrUnsafeToken{Token: tok, Reason: "contains a shell metacharacter"}
+		if err := cliresolve.ValidateArgvToken(tok); err != nil {
+			return ErrUnsafeToken{Token: tok, Reason: err.Error()}
 		}
 	}
 

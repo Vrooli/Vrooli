@@ -110,6 +110,7 @@ export function useWizardState() {
       return {
         ...base,
         ...patch,
+        core: patch.core ?? base.core,
         scenarios: patch.scenarios
           ? { ...(base.scenarios ?? {}), ...patch.scenarios }
           : base.scenarios,
@@ -157,6 +158,18 @@ export function useWizardState() {
             ...(operatorState?.scenarios?.[name] ?? {}),
             auto_restart: autoRestart,
           },
+        },
+      });
+    },
+    [operatorState, persistOperatorState],
+  );
+
+  const setCoreSeed = useCallback(
+    (seed: string[]) => {
+      persistOperatorState({
+        core: {
+          seed: Array.from(new Set(seed)).sort(),
+          trusted_base: operatorState?.core?.trusted_base ?? [],
         },
       });
     },
@@ -244,6 +257,7 @@ export function useWizardState() {
     operatorState,
     stepContentRef,
     toggleScenario,
+    setCoreSeed,
     setScenarioAutoRestart,
     setHostOptIn,
     setHostConfig,

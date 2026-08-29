@@ -24,6 +24,9 @@ seams. It does not add CGO or external package dependencies.
 
 ## Storage Status
 - Runtime database remains SQLite via `api-core/database` and `modernc.org/sqlite`.
+- The active database, WAL, SHM, deployment report, and retention receipt are declared through resolver-selected `data`/`state` classes; no new platform-specific path was introduced.
+- Offline retention refuses a foreign ambient `VROOLI_STORAGE_NAMESPACE`, so an installed CLI launched from another scenario cannot inspect or prune that scenario's database. Autoheal live and shadow namespaces remain isolated.
+- The active database has a 1 GiB working-set budget backed by per-table scheduled age and byte enforcement; the 2026-08-29 compacted measurement was 253,382,656 bytes.
 - System events are stored in `system_events` with fingerprint dedupe.
 - Source health is stored in `system_event_sources`.
 - Default event retention is 30 days.

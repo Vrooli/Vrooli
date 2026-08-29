@@ -12,6 +12,7 @@ async function renderApp() {
   const steps = [
     "welcome",
     "scenarios",
+    "core-set",
     "resources",
     "credentials",
     "integrations",
@@ -94,7 +95,7 @@ describe("App - Wizard Navigation", () => {
   it("renders step announcement for screen readers", async () => {
     await renderApp();
     const announcement = screen.getByTestId("step-announcement");
-    expect(announcement).toHaveTextContent("Step 1 of 9");
+    expect(announcement).toHaveTextContent("Step 1 of 10");
     expect(announcement).toHaveAttribute("aria-live", "assertive");
   });
 
@@ -102,7 +103,7 @@ describe("App - Wizard Navigation", () => {
     await renderApp();
     fireEvent.click(screen.getByTestId("wizard-next")); // go to step 2
     expect(screen.getByTestId("step-announcement")).toHaveTextContent(
-      "Step 2 of 9",
+      "Step 2 of 10",
     );
   });
 });

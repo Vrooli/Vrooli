@@ -52,6 +52,29 @@ export interface V2Recommendation {
   explanation: string;
 }
 
+export interface SupervisionAttributionStep {
+  name: string;
+  kind: "scenario" | "resource";
+  declared_by?: string;
+  supervision_intent: "must_start" | "try_start";
+  source: string;
+}
+export interface SupervisionMember {
+  name: string;
+  kind: "scenario" | "resource";
+  supervision_intent: "must_start" | "try_start";
+  attribution_chain: SupervisionAttributionStep[];
+}
+export interface V2CoreSetResponse {
+  available: boolean;
+  seed: string[];
+  trusted_base: string[];
+  members: SupervisionMember[];
+  member_counts?: Record<string, number>;
+  load_errors?: Record<string, string>;
+  error?: string;
+}
+
 export interface ClosureMember {
   name: string;
   required: boolean;
@@ -349,6 +372,7 @@ export interface V2HostRequirementsResponse {
 export interface OperatorState {
   version: string;
   updated_at: string;
+  core?: { seed: string[]; trusted_base: string[] };
   scenarios?: Record<string, { enabled?: boolean; auto_restart?: boolean }>;
   resources?: Record<string, { enabled?: boolean }>;
   host_tools?: Record<string, { opted_in?: boolean }>;
@@ -361,7 +385,7 @@ export interface OperatorState {
 export type OperatorStatePatch = Partial<
   Pick<
     OperatorState,
-    "scenarios" | "resources" | "host_tools" | "host_safeguards"
+    "core" | "scenarios" | "resources" | "host_tools" | "host_safeguards"
   >
 > & {
   trust_posture?: "personal" | "shared" | "hosted";

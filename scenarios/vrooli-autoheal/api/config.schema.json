@@ -55,6 +55,13 @@
           "maximum": 168,
           "default": 24,
           "description": "How long to keep check history in database"
+        },
+        "healInterlockSeconds": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 30,
+          "description": "Refuse destructive healing by another check for this long after a successful start or restart"
         }
       },
       "additionalProperties": false

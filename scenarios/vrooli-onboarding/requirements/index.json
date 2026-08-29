@@ -21,7 +21,7 @@
       "prd_ref": "OT-P0-001",
       "priority": "P0",
       "title": "Capability selection",
-      "requirement_count": 10,
+      "requirement_count": 11,
       "requirement_ids": [
         "ONB-SELECT-CAPABILITY-FIRST",
         "ONB-SELECT-READ-MODEL",
@@ -66,6 +66,7 @@
         "ONB-STATE-RESOURCE-AUTHORITY",
         "ONB-STATE-COMPLETION-MARKER",
         "ONB-STATE-CONCURRENT-SAFE",
+        "ONB-CORE-SUPERVISION-AUTHORITY",
         "ONB-REENTRY-RESUMES"
       ],
       "operationalTargets": [
@@ -77,6 +78,9 @@
         },
         {
           "id": "OT-P0-006"
+        },
+        {
+          "id": "OT-P0-009"
         },
         {
           "id": "OT-P1-002"

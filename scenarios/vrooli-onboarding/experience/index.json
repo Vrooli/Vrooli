@@ -7,7 +7,7 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "vrooli-onboarding",
-  "description": "The UX contract for the eight-step operator setup flow and its health and glossary surfaces. Every page is draft: the intent is authored ahead of the target build, so reconciliation runs advisory until the build conforms. Component specs land with the shared-component-library adoption that gives them catalog specimens to reference.",
+  "description": "The UX contract for the ten-step operator setup flow and its health and glossary surfaces. Component specs land with the shared-component-library adoption that gives them catalog specimens to reference.",
   "pages": [
     {
       "id": "setup-welcome",
@@ -20,6 +20,12 @@
       "path": "pages/setup-scenarios.json",
       "title": "Choose capabilities",
       "status": "active"
+    },
+    {
+      "id": "setup-core-set",
+      "path": "pages/setup-core-set.json",
+      "title": "Core supervision set",
+      "status": "draft"
     },
     {
       "id": "setup-resources",

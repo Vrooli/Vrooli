@@ -8,6 +8,7 @@
     "purpose": "The primary journey. A new operator selects capabilities, provisions what they need, consents to host changes, applies, and reaches a green readiness report without editing a file.",
     "prd_refs": [
       "OT-P0-001",
+      "OT-P0-009",
       "OT-P0-004",
       "OT-P0-006",
       "OT-P0-007",
@@ -20,6 +21,12 @@
       "intent": "Find and select the capabilities this install should run, and see what each pulls in.",
       "via": "search, then scenario selection",
       "state": "cascade-visible"
+    },
+    {
+      "page": "setup-core-set",
+      "intent": "Review the trusted base, choose the supervision seed, and inspect its full declared closure before confirmation.",
+      "via": "seed toggles, closure preview, then confirmation",
+      "state": "draft-preview"
     },
     {
       "page": "setup-resources",

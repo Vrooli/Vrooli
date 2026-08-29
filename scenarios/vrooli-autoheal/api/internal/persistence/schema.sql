@@ -204,19 +204,11 @@ CREATE TABLE IF NOT EXISTS remediation_authorisations (
 CREATE INDEX IF NOT EXISTS idx_remediation_authorisations_incident
     ON remediation_authorisations (incident_id, remediation_id);
 
-CREATE TABLE IF NOT EXISTS autoheal_actions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    check_id TEXT NOT NULL,
-    action_type TEXT NOT NULL,
-    target TEXT NOT NULL,
-    success INTEGER NOT NULL DEFAULT 0,
-    message TEXT,
-    details TEXT NOT NULL DEFAULT '{}',
-    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_autoheal_actions_created_at
-    ON autoheal_actions (created_at DESC);
+-- autoheal_actions was a never-written duplicate of action_logs. Drop it on
+-- every schema reconciliation so an upgraded database cannot masquerade as if
+-- it still has an authoritative action ledger.
+DROP INDEX IF EXISTS idx_autoheal_actions_created_at;
+DROP TABLE IF EXISTS autoheal_actions;
 
 CREATE TABLE IF NOT EXISTS action_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -237,6 +229,22 @@ CREATE INDEX IF NOT EXISTS idx_action_logs_check_id_created
 CREATE INDEX IF NOT EXISTS idx_action_logs_created_at
     ON action_logs (created_at DESC);
 
+CREATE TABLE IF NOT EXISTS outage_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id TEXT NOT NULL,
+    cause TEXT NOT NULL,
+    opened_at TEXT NOT NULL,
+    closed_at TEXT,
+    CHECK (closed_at IS NULL OR closed_at > opened_at)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_outage_records_one_open_member
+    ON outage_records (member_id)
+    WHERE closed_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_outage_records_member_window
+    ON outage_records (member_id, opened_at, closed_at);
+
 CREATE TABLE IF NOT EXISTS autoheal_config (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,
@@ -251,6 +259,10 @@ CREATE TABLE IF NOT EXISTS heal_trackers (
     total_attempts INTEGER NOT NULL DEFAULT 0,
     total_successes INTEGER NOT NULL DEFAULT 0,
     cooldown_until TEXT,
+    suspended_at TEXT,
+    suspension_reason TEXT NOT NULL DEFAULT '',
+    disposition TEXT NOT NULL DEFAULT '',
+    disposition_at TEXT,
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 

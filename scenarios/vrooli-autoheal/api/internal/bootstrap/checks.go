@@ -42,9 +42,23 @@ func RegisterDefaultChecks(registry *checks.Registry, caps *platform.Capabilitie
 
 // RegisterChecksFromConfig adds health checks using the user's monitoring configuration.
 // This respects which scenarios and resources the user has configured for monitoring.
-func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabilities, configMgr *userconfig.Manager) {
+func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabilities, configMgr *userconfig.Manager) (*SupervisionController, error) {
 	factory := NewCheckFactoryFromConfigManager(configMgr)
+	// Scenario/resource membership is reconciled from the canonical supervision
+	// set below. The persisted monitoring configuration is additive input to
+	// that controller, not a second registration path.
+	factory.criticalScenarios = nil
+	factory.nonCriticalScenarios = nil
+	factory.resources = nil
 	RegisterChecksWithFactory(registry, caps, factory)
+	controller := NewSupervisionController(registry, configMgr, NewSupervisionSource(checks.DefaultExecutor))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if _, err := controller.Refresh(ctx); err != nil {
+		return nil, err
+	}
+	registry.Register(&supervisionSourceCheck{controller: controller})
+	return controller, nil
 }
 
 // RegisterChecksWithFactory adds health checks to the registry using the provided factory.

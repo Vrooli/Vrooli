@@ -104,6 +104,7 @@ var Endpoints = []module.EndpointDescriptor{
 			"request_id": "string (required)",
 			"approve":    "boolean",
 			"scopes":     "array<string>",
+			"confirmation_words": "array<string> (required when approving)",
 		}},
 		Response: &module.Schema{Type: "object", Properties: map[string]string{
 			"node_id": "string (set when approved)",
@@ -117,6 +118,20 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Approve a request", Curl: "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/ApprovePairing -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"request_id\":\"...\",\"approve\":true,\"scopes\":[\"scenario test*\"]}'"},
+		},
+	},
+	{
+		ID:          "pairing_get_request",
+		Path:        pairingconnect.PairingServiceGetPairingRequestProcedure,
+		Method:      "POST",
+		Summary:     "Get pairing request status",
+		Description: "Node-facing polling endpoint for a no-code pairing request. Returns public request facts, confirmation words, and the node identity after owner approval.",
+		Category:    "pairing",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"request_id": "string (required)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"request": "PairingRequest", "control_plane_public_key": "string (set when approved)"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing request id"},
+			{Status: 404, Code: "not_found", Description: "Unknown request"},
 		},
 	},
 	{

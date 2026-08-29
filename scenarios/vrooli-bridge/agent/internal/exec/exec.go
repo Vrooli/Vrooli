@@ -16,19 +16,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cliresolve"
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-// shellMetachars are characters with shell meaning. A typed job never reaches a
-// shell, so any token containing one is rejected as defence in depth — it can
-// only be an attempt to smuggle a shell construct through a typed field. This
-// mirrors the control-plane dispatch allowlist (api internal/dispatch); the two
-// are intentionally duplicated because the agent is a separate Go module that
-// cannot import the api package.
-const shellMetachars = "|&;<>()$`\\\"'\n\r\t*?[]{}!#~"
 
 // rejectExitCode is reported when a job is rejected before execution (bad verb,
 // unsafe token). startFailureExitCode is reported when the command cannot start.
@@ -76,6 +70,7 @@ type Runner struct {
 	uploader      ArtifactUploader
 	artifactDir   string
 	credentialEnv CredentialEnvironment
+	cliResolver   interface{ Executable(string) (string, error) }
 	now           func() time.Time
 }
 
@@ -100,6 +95,12 @@ func WithArtifactDir(dir string) Option { return func(r *Runner) { r.artifactDir
 
 func WithCredentialEnvironment(provider CredentialEnvironment) Option {
 	return func(r *Runner) { r.credentialEnv = provider }
+}
+
+// WithCLIResolver enables scenario-owned verbs to resolve their installed CLI
+// by absolute path. Production supplies this through the dial-out channel.
+func WithCLIResolver(resolver *cliresolve.Resolver) Option {
+	return func(r *Runner) { r.cliResolver = resolver }
 }
 
 // NewRunner constructs a Runner. bin is the local vrooli CLI (default "vrooli"),
@@ -144,32 +145,19 @@ func BuildArgv(bin string, job *channelv1.JobPush) ([]string, error) {
 	}
 
 	verbTokens := strings.Fields(verb)
-	scenario := strings.TrimSpace(job.GetScenario())
-	if scenario != "" && scenario != "vrooli" && len(verbTokens) > 0 && verbTokens[0] == scenario {
-		argv := make([]string, 0, len(verbTokens)+len(job.GetArgs()))
-		argv = append(argv, verbTokens...)
-		argv = append(argv, job.GetArgs()...)
-		for _, tok := range argv[1:] {
-			if i := strings.IndexAny(tok, shellMetachars); i >= 0 {
-				return nil, fmt.Errorf("unsafe token %q: contains shell metacharacter %q", tok, string(tok[i]))
-			}
-		}
-		return argv, nil
-	}
-
 	argv := make([]string, 0, len(verbTokens)+len(job.GetArgs())+2)
 	argv = append(argv, strings.TrimSpace(bin))
 	argv = append(argv, verbTokens...)
-	if sc := strings.TrimSpace(job.GetScenario()); sc != "" {
+	if sc := strings.TrimSpace(job.GetScenario()); sc != "" && sc != "vrooli" {
 		argv = append(argv, sc)
 	}
 	argv = append(argv, job.GetArgs()...)
 
-	// Validate every token EXCEPT the binary (argv[0]) for shell metacharacters.
-	// The binary is operator-configured, not job-supplied.
-	for _, tok := range argv[1:] {
-		if i := strings.IndexAny(tok, shellMetachars); i >= 0 {
-			return nil, fmt.Errorf("unsafe token %q: contains shell metacharacter %q", tok, string(tok[i]))
+	// Validate every token, including argv[0], before crossing the direct-exec
+	// boundary. argv[0] is operator-selected, never job-supplied.
+	for _, tok := range argv {
+		if err := cliresolve.ValidateArgvToken(tok); err != nil {
+			return nil, fmt.Errorf("unsafe token %q: %w", tok, err)
 		}
 	}
 	return argv, nil
@@ -308,7 +296,7 @@ type preparedOutput struct {
 }
 
 func (r *Runner) buildArgvWithOutputs(job *channelv1.JobPush) ([]string, []preparedOutput, error) {
-	argv, err := BuildArgv(r.bin, job)
+	argv, err := r.buildArgv(job)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -332,6 +320,42 @@ func (r *Runner) buildArgvWithOutputs(job *channelv1.JobPush) ([]string, []prepa
 		}
 	}
 	return argv, outputs, nil
+}
+
+func (r *Runner) buildArgv(job *channelv1.JobPush) ([]string, error) {
+	if job == nil {
+		return BuildArgv(r.bin, job)
+	}
+	verb := strings.TrimSpace(job.GetVerb())
+	// `scenario ...` is a root-CLI command even when the request is scoped to
+	// another scenario. Resolving it through that scenario's installed CLI
+	// would produce e.g. `system-monitor scenario status`, which the scenario
+	// CLI correctly rejects. Scenario-owned verbs remain resolver-backed below.
+	if r.cliResolver == nil || strings.TrimSpace(job.GetScenario()) == "" || strings.TrimSpace(job.GetScenario()) == "vrooli" || verb == "scenario" || strings.HasPrefix(verb, "scenario ") {
+		return BuildArgv(r.bin, job)
+	}
+	resolved, err := r.cliResolver.Executable(strings.TrimSpace(job.GetScenario()))
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario CLI %q: %w", job.GetScenario(), err)
+	}
+	copy, ok := proto.Clone(job).(*channelv1.JobPush)
+	if !ok {
+		return nil, fmt.Errorf("clone job for scenario CLI resolution")
+	}
+	// The derived Bridge vocabulary qualifies scenario-owned verbs with the
+	// scenario name (for example, "system-monitor metrics current"), while
+	// the scenario executable receives only its own command namespace. Keep
+	// the qualified form at the control-plane boundary, then remove exactly
+	// one leading scenario token before direct execution.
+	qualified := strings.TrimSpace(copy.GetVerb())
+	prefix := strings.TrimSpace(job.GetScenario())
+	if qualified == prefix {
+		copy.Verb = ""
+	} else if strings.HasPrefix(qualified, prefix+" ") {
+		copy.Verb = strings.TrimSpace(strings.TrimPrefix(qualified, prefix+" "))
+	}
+	copy.Scenario = ""
+	return BuildArgv(resolved, copy)
 }
 
 func statusEvent(status string) *sharedv1.RunEvent {

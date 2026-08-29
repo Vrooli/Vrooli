@@ -128,6 +128,8 @@ func run() error {
 	// health window.
 	startupCtx, cancelStartup := context.WithCancel(context.Background())
 	var startupWG sync.WaitGroup
+	checksRegistered := make(chan struct{})
+	incidentReporterReady := make(chan struct{})
 	startupWG.Add(1)
 	go func() {
 		defer startupWG.Done()
@@ -137,11 +139,32 @@ func run() error {
 			log.Printf("warning: heal tracker restore failed (continuing with empty in-memory trackers): %v", err)
 		} else {
 			log.Printf("startup stage=heal-trackers-restored")
+			select {
+			case <-checksRegistered:
+				select {
+				case <-incidentReporterReady:
+				case <-startupCtx.Done():
+					return
+				}
+				ctxReconcile, cancelReconcile := context.WithTimeout(startupCtx, time.Minute)
+				defer cancelReconcile()
+				if err := registry.ReconcileHealTrackerDispositions(ctxReconcile); err != nil {
+					log.Printf("warning: heal tracker disposition reconciliation failed: %v", err)
+				} else {
+					log.Printf("startup stage=heal-tracker-dispositions-reconciled")
+				}
+			case <-startupCtx.Done():
+			}
 		}
 	}()
 
 	// Register health checks using user's monitoring config (delegated to bootstrap module)
-	bootstrap.RegisterChecksFromConfig(registry, plat, configMgr)
+	supervisionController, err := bootstrap.RegisterChecksFromConfig(registry, plat, configMgr)
+	if err != nil {
+		close(checksRegistered)
+		return fmt.Errorf("initialize canonical supervision set: %w", err)
+	}
+	close(checksRegistered)
 	log.Printf("startup stage=checks-registered count=%d", registry.GetSummary().TotalCount)
 
 	startupWG.Add(1)
@@ -169,6 +192,7 @@ func run() error {
 
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
+	close(incidentReporterReady)
 	log.Printf("startup stage=handlers-created")
 	if eventsBase, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events"); resolveErr == nil {
 		h.SetIncidentEventPublisher(incidents.NewEventBusPublisher(eventsBase))
@@ -187,6 +211,7 @@ func run() error {
 	h.SetSystemEventService(systemEventService)
 	h.SetHistoryRetentionHoursProvider(func() int { return configMgr.GetGlobal().HistoryRetentionHours })
 	configHandlers := apiHandlers.NewConfigHandlers(configMgr, registry)
+	configHandlers.SetMonitoringRefresher(supervisionController)
 	apiRouter := setupRouter(h, configHandlers)
 	apiHandlers.RegisterTypedServices(apiRouter, h)
 	rootMux := http.NewServeMux()
@@ -314,10 +339,12 @@ func setupRouter(h *apiHandlers.Handlers, ch *apiHandlers.ConfigHandlers) *mux.R
 	// Note: /checks/trends must be before /checks/{checkId} to match correctly
 	router.HandleFunc("/api/v1/checks/trends", h.CheckTrends).Methods("GET")
 	router.HandleFunc("/api/v1/checks/shelves", h.ListCheckShelves).Methods("GET")
+	router.HandleFunc("/api/v1/checks/suspended", h.ListSuspendedChecks).Methods("GET")
 	router.HandleFunc("/api/v1/checks/{checkId}", h.CheckResult).Methods("GET")
 	router.HandleFunc("/api/v1/checks/{checkId}/history", h.CheckHistory).Methods("GET")
 	router.HandleFunc("/api/v1/checks/{checkId}/shelve", h.ShelveCheck).Methods("POST")
 	router.HandleFunc("/api/v1/checks/{checkId}/shelve", h.UnshelveCheck).Methods("DELETE")
+	router.HandleFunc("/api/v1/checks/{checkId}/resume", h.ResumeCheck).Methods("POST")
 
 	// History and timeline endpoints [REQ:UI-EVENTS-001] [REQ:PERSIST-HISTORY-001]
 	router.HandleFunc("/api/v1/timeline", h.Timeline).Methods("GET")
@@ -601,6 +628,9 @@ func applyAutoHealPolicyFromConfig(registry *checks.Registry, global userconfig.
 		global.TimeoutRetrySeconds,
 	)
 	if err != nil {
+		return err
+	}
+	if err := registry.SetHealInterlockWindow(time.Duration(global.HealInterlockSeconds) * time.Second); err != nil {
 		return err
 	}
 	return registry.SetAutoHealPolicy(policy)

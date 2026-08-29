@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -21,6 +22,7 @@ import (
 type Selection struct {
 	ActiveProfile     string          `json:"active_profile,omitempty"`
 	Scenarios         []string        `json:"scenarios"`
+	CoreSeed          []string        `json:"core_seed,omitempty"`
 	ScenarioState     map[string]bool `json:"scenario_state,omitempty"`
 	OptionalResources []string        `json:"optional_resources,omitempty"`
 	Resources         map[string]bool `json:"resources,omitempty"`
@@ -41,6 +43,9 @@ type Selection struct {
 // declarative surfaces provably share the same write contract.
 func selectionPatch(selection Selection) map[string]any {
 	patch := map[string]any{"scenarios": map[string]any{}}
+	if selection.CoreSeed != nil {
+		patch["core"] = map[string]any{"seed": normalizedNames(selection.CoreSeed)}
+	}
 	if strings.TrimSpace(selection.ActiveProfile) != "" {
 		patch["active_profile"] = selection.ActiveProfile
 	}
@@ -131,7 +136,8 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		{Name: "status", Description: "Show the computed onboarding step and committed state", Run: func(args []string) error { return support.GetJSON(core, "wizard", args, "/v2/session") }},
 		{Name: "commit", Description: "Commit a selection document and apply it; top-level apply applies committed state", Run: func(args []string) error { return apply(core, args) }},
 		{Name: "export", Description: "Export the current manifest-derived selection", Run: func(args []string) error { return exportSelection(core, args) }},
-		{Name: "run", Description: "Walk the same nine capability steps used by the UI", Run: func(args []string) error { return runWizard(core, args) }},
+		{Name: "run", Description: "Walk the same ten capability steps used by the UI", Run: func(args []string) error { return runWizard(core, args) }},
+		{Name: "core-set", Description: "Preview and update the operator core seed", Run: func(args []string) error { return runCoreSet(core, args) }},
 	}}
 }
 
@@ -261,6 +267,15 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("decode scenarios: %w", err)
 	}
 	selection := Selection{ScenarioState: map[string]bool{}, ActiveProfile: "starter"}
+	coreSetBody, err := core.Get("/v2/core-set", nil)
+	if err != nil {
+		return err
+	}
+	var currentCore coreSetView
+	if err := json.Unmarshal(coreSetBody, &currentCore); err != nil {
+		return fmt.Errorf("decode core set: %w", err)
+	}
+	selection.CoreSeed = append([]string(nil), currentCore.Seed...)
 	recommendationBody, err := core.Get("/v2/recommendation", nil)
 	if err != nil {
 		return err
@@ -367,6 +382,29 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 					selection.Scenarios = append(selection.Scenarios, name)
 					selection.ScenarioState[name] = true
 				}
+			}
+			return nil
+		case "core-set":
+			_, _ = fmt.Fprintln(os.Stdout, "Current core seed:", strings.Join(selection.CoreSeed, ", "))
+			if currentCore.Available {
+				_, _ = fmt.Fprintf(os.Stdout, "Computed closure: %d scenario(s), %d resource(s)\n", currentCore.MemberCounts["scenario"], currentCore.MemberCounts["resource"])
+			} else {
+				_, _ = fmt.Fprintln(os.Stdout, "Closure unavailable; the seed remains authoritative:", currentCore.Error)
+			}
+			seedLine, err := read("core-set", "enter the complete core seed (comma separated; press enter to keep it)")
+			if err != nil {
+				return err
+			}
+			if strings.TrimSpace(seedLine) != "" {
+				selection.CoreSeed = normalizedNames(strings.Split(seedLine, ","))
+			}
+			preview, err := fetchCoreSet(core, selection.CoreSeed)
+			if err != nil {
+				return err
+			}
+			currentCore = preview
+			if preview.Available {
+				_, _ = fmt.Fprintf(os.Stdout, "Updated closure: %d scenario(s), %d resource(s)\n", preview.MemberCounts["scenario"], preview.MemberCounts["resource"])
 			}
 			return nil
 		case "resources":
@@ -572,6 +610,104 @@ func runWizard(core *cliapp.ScenarioApp, args []string) error {
 		}
 	}
 	return nil
+}
+
+type coreSetView struct {
+	Available    bool           `json:"available"`
+	Seed         []string       `json:"seed"`
+	TrustedBase  []string       `json:"trusted_base"`
+	MemberCounts map[string]int `json:"member_counts"`
+	Error        string         `json:"error"`
+}
+
+func runCoreSet(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("wizard core-set")
+	add := fs.String("add", "", "Comma-separated scenarios to add to core.seed")
+	remove := fs.String("remove", "", "Comma-separated scenarios to remove from core.seed")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	currentBody, err := core.Get("/v2/core-set", nil)
+	if err != nil {
+		return err
+	}
+	var current coreSetView
+	if err := json.Unmarshal(currentBody, &current); err != nil {
+		return fmt.Errorf("decode core set: %w", err)
+	}
+	seed := map[string]bool{}
+	for _, name := range current.Seed {
+		seed[name] = true
+	}
+	for _, name := range normalizedNames(strings.Split(*add, ",")) {
+		seed[name] = true
+	}
+	for _, name := range normalizedNames(strings.Split(*remove, ",")) {
+		delete(seed, name)
+	}
+	proposed := make([]string, 0, len(seed))
+	for name := range seed {
+		proposed = append(proposed, name)
+	}
+	sort.Strings(proposed)
+	preview, err := fetchCoreSet(core, proposed)
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(*add) != "" || strings.TrimSpace(*remove) != "" {
+		if !preview.Available {
+			return fmt.Errorf("core-set closure unavailable; seed remains unchanged: %s", preview.Error)
+		}
+		body, err := json.Marshal(map[string]any{"core": map[string]any{"seed": proposed}})
+		if err != nil {
+			return err
+		}
+		if _, err := core.Request("PATCH", "/v2/operator-state", nil, body); err != nil {
+			return err
+		}
+	}
+	encoded, err := json.Marshal(preview)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		_, err = os.Stdout.Write(append(encoded, '\n'))
+		return err
+	}
+	_, err = fmt.Fprintf(os.Stdout, "Core seed: %s\nClosure: %d scenario(s), %d resource(s)\n", strings.Join(preview.Seed, ", "), preview.MemberCounts["scenario"], preview.MemberCounts["resource"])
+	return err
+}
+
+func fetchCoreSet(core *cliapp.ScenarioApp, seed []string) (coreSetView, error) {
+	query := url.Values{}
+	for _, name := range normalizedNames(seed) {
+		query.Add("seed", name)
+	}
+	body, err := core.Get("/v2/core-set", query)
+	if err != nil {
+		return coreSetView{}, err
+	}
+	var view coreSetView
+	if err := json.Unmarshal(body, &view); err != nil {
+		return coreSetView{}, fmt.Errorf("decode core-set preview: %w", err)
+	}
+	return view, nil
+}
+
+func normalizedNames(values []string) []string {
+	set := map[string]struct{}{}
+	for _, value := range values {
+		if value = strings.ToLower(strings.TrimSpace(value)); value != "" {
+			set[value] = struct{}{}
+		}
+	}
+	result := make([]string, 0, len(set))
+	for value := range set {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
 }
 
 func applyRecommendation(core *cliapp.ScenarioApp) error {

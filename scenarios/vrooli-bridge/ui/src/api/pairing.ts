@@ -16,4 +16,20 @@ import { transport } from "./client";
  */
 export const pairingClient = createClient(PairingService, transport);
 
+export interface PairingRequest {
+  id: string;
+  name: string;
+  os: string;
+  arch: string;
+  endpoint: string;
+  confirmationWords: string[];
+}
+
+export interface PermissionPreset {
+  name: string;
+  description: string;
+  scopes: string[];
+  withholds: string[];
+}
+
 export type { IssuePairingCodeResponse };

@@ -1,3 +1,4 @@
+// [REQ:ONB-CORE-SUPERVISION-AUTHORITY]
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
@@ -8,9 +9,11 @@ import { StepOperatingMode } from "./StepOperatingMode";
 import { StepApply } from "./StepApply";
 import { StepReadiness } from "./StepReadiness";
 import { StepSelectScenarios } from "./StepSelectScenarios";
+import { StepCoreSet } from "./StepCoreSet";
 
 const api = vi.hoisted(() => ({
   fetchV2Scenarios: vi.fn(),
+  fetchV2CoreSet: vi.fn(),
   fetchV2HostRequirements: vi.fn(),
   fetchV2Readiness: vi.fn(),
   fetchV2Closure: vi.fn(),
@@ -37,6 +40,17 @@ const scenarios = {
 
 beforeEach(() => {
   api.fetchV2Scenarios.mockResolvedValue(scenarios);
+  api.fetchV2CoreSet.mockResolvedValue({
+    available: true,
+    seed: ["control-plane", "writer"],
+    trusted_base: ["control-plane"],
+    member_counts: { scenario: 2, resource: 1 },
+    members: [
+      { name: "control-plane", kind: "scenario", supervision_intent: "must_start" },
+      { name: "writer", kind: "scenario", supervision_intent: "must_start" },
+      { name: "postgres", kind: "resource", supervision_intent: "must_serve" },
+    ],
+  });
   api.fetchV2HostRequirements.mockResolvedValue({
     tools: [{ name: "git", required: true, reason: "source control", status: "required" }],
     safeguards: [{ name: "firewall", required: false, reason: "network safety", status: "optional", risk: "medium", config_schema: { type: "object", properties: { target: { type: "string", description: "collector target" } } } }],
@@ -70,6 +84,31 @@ beforeEach(() => {
 });
 
 describe("V2 onboarding wizard steps", () => {
+  it("previews the supervision closure and prevents trusted-base removal", async () => {
+    const onChange = vi.fn();
+    renderWithProviders(<StepCoreSet seed={new Set(["control-plane"])} trustedBase={new Set(["control-plane"])} onChange={onChange} />);
+    expect(await screen.findByText("2 scenarios · 1 resources")).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "Supervise control-plane" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Supervise writer" }));
+    expect(onChange).not.toHaveBeenCalled();
+    const confirm = screen.getByRole("button", { name: "Confirm supervision set" });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    fireEvent.click(confirm);
+    expect(onChange).toHaveBeenCalledWith(["control-plane", "writer"]);
+  });
+
+  it("keeps the seed visible when closure computation is unavailable", async () => {
+    api.fetchV2CoreSet.mockResolvedValueOnce({
+      available: false,
+      seed: ["control-plane"],
+      trusted_base: ["control-plane"],
+      error: "catalog unavailable",
+    });
+    renderWithProviders(<StepCoreSet seed={new Set(["control-plane"])} trustedBase={new Set(["control-plane"])} onChange={vi.fn()} />);
+    expect(await screen.findByText(/Seed: control-plane/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Confirm supervision set" })).toBeDisabled();
+  });
+
   it("derives resources and lets operators select optional scenarios", async () => {
     const onToggle = vi.fn();
     const onResourceToggle = vi.fn();

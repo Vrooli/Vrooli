@@ -2,6 +2,7 @@ package registry
 
 import (
 	"log"
+	"time"
 
 	"vrooli-bridge/internal/module"
 	internalregistry "vrooli-bridge/internal/registry"
@@ -17,13 +18,14 @@ import (
 // online/offline overlay on the read path; nil disables the overlay (every node
 // reads offline) without changing the stored node data — the Phase-1 presence
 // step threads the real hub in.
-func Module(svc internalregistry.Service, presence Presence, credentials CredentialRevoker, disconnect Disconnector, logger *log.Logger) module.Module {
+func Module(svc internalregistry.Service, presence Presence, credentials CredentialRevoker, disconnect Disconnector, staleAfter time.Duration, logger *log.Logger) module.Module {
 	path, handler := registryconnect.NewNodeRegistryServiceHandler(NewConnectHandler(Deps{
-		Service:     svc,
-		Presence:    presence,
-		Credentials: credentials,
-		Disconnect:  disconnect,
-		Logger:      logger,
+		Service:            svc,
+		Presence:           presence,
+		Credentials:        credentials,
+		Disconnect:         disconnect,
+		Logger:             logger,
+		PresenceStaleAfter: staleAfter,
 	}))
 	return module.Module{
 		Name: "registry",

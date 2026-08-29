@@ -326,6 +326,9 @@ const literalSelectors = {
       code: "fleet-pairing-code",
       copy: "fleet-pairing-copy",
     },
+    pairingRequests: {
+      panel: "fleet-pairing-requests",
+    },
     onboard: {
       form: "fleet-onboard-form",
       addNode: "fleet-onboard-add-node",
@@ -481,6 +484,42 @@ const dynamicSelectorDefinitions = {
     }),
   },
   fleet: {
+    pairingRequests: {
+      row: defineDynamicSelector({
+        description: "Pending pairing request by request id",
+        testIdPattern: "fleet-pairing-request-${id}",
+        params: { id: { type: "string" } },
+      }),
+      words: defineDynamicSelector({
+        description: "Confirmation words for a pending pairing request",
+        testIdPattern: "fleet-pairing-request-words-${id}",
+        params: { id: { type: "string" } },
+      }),
+      preset: defineDynamicSelector({
+        description: "Permission preset for a pending pairing request",
+        testIdPattern: "fleet-pairing-request-preset-${id}",
+        params: { id: { type: "string" } },
+      }),
+      wordsMatch: defineDynamicSelector({
+        description: "Confirmation checkbox for a pending pairing request",
+        testIdPattern: "fleet-pairing-request-words-match-${id}",
+        params: { id: { type: "string" } },
+      }),
+      approve: defineDynamicSelector({
+        description: "Approve a pending pairing request",
+        testIdPattern: "fleet-pairing-request-approve-${id}",
+        params: { id: { type: "string" } },
+      }),
+      reject: defineDynamicSelector({
+        description: "Reject a pending pairing request",
+        testIdPattern: "fleet-pairing-request-reject-${id}",
+        params: { id: { type: "string" } },
+      }),
+      error: defineDynamicSelector({
+        description: "Pairing approval error",
+        testIdPattern: "fleet-pairing-request-error",
+      }),
+    },
     machineLifecycleRow: defineDynamicSelector({
       description: "Durable Machine lifecycle row by Machine id",
       testIdPattern: "machine-lifecycle-${id}",

@@ -212,6 +212,17 @@
       ]
     },
     {
+      "id": "core-set",
+      "path": "/api/v2/core-set",
+      "method": "GET",
+      "category": "state",
+      "summary": "Preview the declared supervision authority",
+      "description": "Returns the current or proposed core seed, the immutable trusted base, and the canonical scenario/resource supervision closure. If the catalog is unavailable, the response preserves the visible seed and reports available false.",
+      "requirements": [
+        "ONB-CORE-SUPERVISION-AUTHORITY"
+      ]
+    },
+    {
       "id": "recommendation",
       "path": "/api/v2/recommendation",
       "method": "GET",
@@ -264,38 +275,6 @@
       "requirements": [
         "ONB-CRED-DESCRIPTOR-COMPLETE"
       ]
-    },
-    {
-      "id": "capabilities",
-      "path": "/api/v2/capabilities",
-      "method": "GET",
-      "category": "credentials",
-      "summary": "Discover provider-defined operator capabilities",
-      "description": "Returns capability descriptors, typed inputs, candidate metadata, current state, remediation, and secret-free evidence."
-    },
-    {
-      "id": "capabilities-status",
-      "path": "/api/v2/capabilities/status",
-      "method": "GET",
-      "category": "credentials",
-      "summary": "Read provider-defined capability status",
-      "description": "The status alias exposes the same metadata-only capability catalog."
-    },
-    {
-      "id": "capabilities-preview",
-      "path": "/api/v2/capabilities/preview",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Preview a typed provider capability",
-      "description": "Validates a typed action and returns the exact declared mutations without performing external writes."
-    },
-    {
-      "id": "capabilities-apply",
-      "path": "/api/v2/capabilities/apply",
-      "method": "POST",
-      "category": "credentials",
-      "summary": "Apply a confirmed provider capability",
-      "description": "Passes typed inputs to the owning control-plane provider and returns only typed result metadata and secret-free evidence."
     },
     {
       "id": "handoff",
@@ -390,6 +369,38 @@
       "description": "Accepts answers for the pending request ids and removes the queue after validation. Secret values are not persisted by the queue."
     },
     {
+      "id": "capabilities",
+      "path": "/api/v2/capabilities",
+      "method": "GET",
+      "category": "credentials",
+      "summary": "Discover provider-defined operator capabilities",
+      "description": "Returns capability descriptors, typed inputs, candidate metadata, current state, remediation, and secret-free evidence."
+    },
+    {
+      "id": "capabilities-status",
+      "path": "/api/v2/capabilities/status",
+      "method": "GET",
+      "category": "credentials",
+      "summary": "Read provider-defined capability status",
+      "description": "The status alias exposes the same metadata-only capability catalog."
+    },
+    {
+      "id": "capabilities-preview",
+      "path": "/api/v2/capabilities/preview",
+      "method": "POST",
+      "category": "credentials",
+      "summary": "Preview a typed provider capability",
+      "description": "Validates a typed action and returns the exact declared mutations without performing external writes."
+    },
+    {
+      "id": "capabilities-apply",
+      "path": "/api/v2/capabilities/apply",
+      "method": "POST",
+      "category": "credentials",
+      "summary": "Apply a confirmed provider capability",
+      "description": "Passes typed inputs to the owning control-plane provider and returns only typed result metadata and secret-free evidence."
+    },
+    {
       "id": "host-requirements",
       "path": "/api/v2/host-requirements",
       "method": "GET",
@@ -422,24 +433,6 @@
       ]
     },
     {
-      "id": "readiness-degraded-acknowledgement",
-      "path": "/api/v2/readiness/degraded-acknowledgement",
-      "method": "POST",
-      "category": "readiness",
-      "summary": "Record that the operator accepted the current degraded set",
-      "description": "Records a durable acknowledgement of the exact degraded optional items readiness reports now, identified by its digest. Completion stays withheld while any required item is unresolved, and a digest that no longer names the current gap is rejected. Never accepts or returns a credential value.",
-      "requirements": [
-        "ONB-READY-DEGRADED-CONTINUE",
-        "ONB-COMPLETE-REQUIRES-READY"
-      ],
-      "examples": [
-        {
-          "name": "Acknowledge the current degraded set",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v2/readiness/degraded-acknowledgement -H 'Content-Type: application/json' -d '{\"readiness_digest\":\"<digest from GET /api/v2/readiness>\"}'"
-        }
-      ]
-    },
-    {
       "id": "credentials-provision",
       "path": "/api/v2/credentials/provision",
       "method": "POST",
@@ -461,6 +454,24 @@
       "requirements": [
         "ONB-CRED-DIAGNOSIS",
         "ONB-CRED-HEADLESS-STORE"
+      ]
+    },
+    {
+      "id": "readiness-degraded-acknowledgement",
+      "path": "/api/v2/readiness/degraded-acknowledgement",
+      "method": "POST",
+      "category": "readiness",
+      "summary": "Record that the operator accepted the current degraded set",
+      "description": "Records a durable acknowledgement of the exact degraded optional items readiness reports now, identified by its digest. Completion stays withheld while any required item is unresolved, and a digest that no longer names the current gap is rejected. Never accepts or returns a credential value.",
+      "requirements": [
+        "ONB-READY-DEGRADED-CONTINUE",
+        "ONB-COMPLETE-REQUIRES-READY"
+      ],
+      "examples": [
+        {
+          "name": "Acknowledge the current degraded set",
+          "curl": "curl -X POST http://localhost:${API_PORT}/api/v2/readiness/degraded-acknowledgement -H 'Content-Type: application/json' -d '{\"readiness_digest\":\"<digest from GET /api/v2/readiness>\"}'"
+        }
       ]
     },
     {

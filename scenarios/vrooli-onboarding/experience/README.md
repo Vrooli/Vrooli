@@ -14,7 +14,7 @@ experience-manager spec validate vrooli-onboarding --json
 
 | Kind | Count | Covers |
 |---|---|---|
-| Pages | 10 | The eight setup steps, plus health and glossary |
+| Pages | 12 | The ten setup steps, plus health and glossary |
 | Journeys | 6 | First run, re-entry, headless credential provisioning, safeguard consent, degraded continue, surface parity |
 
 Each page declares its identity and route, the communication priorities it must

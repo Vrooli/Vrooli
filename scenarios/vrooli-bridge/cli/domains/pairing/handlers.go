@@ -226,9 +226,10 @@ func (h *handlers) approve(ctx cliapp.RunContext) error {
 	id := ctx.Positional("request-id")
 	approve := !ctx.BoolFlag("reject")
 	resp, err := h.client.ApprovePairing(context.Background(), connect.NewRequest(&pairingv1.ApprovePairingRequest{
-		RequestId: id,
-		Approve:   approve,
-		Scopes:    splitCSV(ctx.Flag("scopes")),
+		RequestId:         id,
+		Approve:           approve,
+		Scopes:            splitCSV(ctx.Flag("scopes")),
+		ConfirmationWords: append([]string(nil), ctx.FlagValues("confirm")...),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("decide pairing request %q", id), err, nil)

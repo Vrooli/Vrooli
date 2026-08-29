@@ -164,6 +164,42 @@ type RecoveryAction struct {
 	Available   bool   `json:"available"`   // Can run in current state (e.g., can't start if already running)
 }
 
+// HealTarget is the stable identity of the runtime object an action changes.
+// Different checks may observe the same target (for example, a resource health
+// check and its accelerator-placement check), so check IDs are not target IDs.
+type HealTarget struct {
+	Kind string `json:"kind"`
+	Name string `json:"name"`
+}
+
+// String returns the operator-facing target identity used in refusal records.
+func (t HealTarget) String() string {
+	if t.Kind == "" {
+		return t.Name
+	}
+	return t.Kind + ":" + t.Name
+}
+
+// HealTargetProvider lets a check explicitly declare the object its actions
+// affect. The registry has a conservative check-ID fallback for legacy checks.
+type HealTargetProvider interface {
+	HealTarget() HealTarget
+}
+
+// ActionRefusal is a typed, machine-readable reason an action was not run.
+// It is intentionally separate from Error: callers can distinguish a safety
+// decision from an execution failure without treating the refusal as success.
+type ActionRefusal struct {
+	Kind              string     `json:"kind"`
+	Reason            string     `json:"reason"`
+	Target            HealTarget `json:"target"`
+	SourceCheckID     string     `json:"sourceCheckId"`
+	AttemptingCheckID string     `json:"attemptingCheckId"`
+	SourceActionID    string     `json:"sourceActionId"`
+	SourceTimestamp   time.Time  `json:"sourceTimestamp"`
+	Window            string     `json:"window"`
+}
+
 // ActionResult represents the outcome of executing a recovery action
 // [REQ:HEAL-ACTION-001]
 type ActionResult struct {
@@ -172,11 +208,13 @@ type ActionResult struct {
 	Success   bool               `json:"success"`
 	TimedOut  bool               `json:"timedOut,omitempty"` // True when the action exceeded its per-action timeout. Distinct from Success=false so callers can retry quickly instead of cooling down on the exponential failure backoff.
 	Message   string             `json:"message"`
+	Warning   string             `json:"warning,omitempty"`
 	Output    string             `json:"output,omitempty"` // Command output if any
 	Error     string             `json:"error,omitempty"`  // Error message if failed
 	Timestamp time.Time          `json:"timestamp"`
 	Duration  time.Duration      `json:"duration"`
 	Elevation *elevation.Outcome `json:"elevation,omitempty"`
+	Refusal   *ActionRefusal     `json:"refusal,omitempty"`
 }
 
 // HealableCheck extends Check with recovery action capabilities
@@ -243,6 +281,14 @@ type PollResult struct {
 // This is used by recovery actions to verify that a fix actually worked.
 // [REQ:HEAL-ACTION-001]
 func PollForSuccess(ctx context.Context, check Check, config PollConfig) PollResult {
+	return PollForResult(ctx, check, config, func(result Result) bool { return result.Status == StatusOK })
+}
+
+// PollForResult repeatedly runs a check until the caller's typed acceptance
+// predicate is satisfied or the timeout expires. This supports domains where
+// a warning can still mean the recovery objective succeeded (for example, a
+// resource that is serving while a non-serving companion is degraded).
+func PollForResult(ctx context.Context, check Check, config PollConfig, accept func(Result) bool) PollResult {
 	start := time.Now()
 	attempts := 0
 
@@ -276,7 +322,7 @@ func PollForSuccess(ctx context.Context, check Check, config PollConfig) PollRes
 		attempts++
 		result := check.Run(ctx)
 
-		if result.Status == StatusOK {
+		if accept(result) {
 			return PollResult{
 				Success:     true,
 				FinalResult: &result,
@@ -317,7 +363,7 @@ func PollForSuccess(ctx context.Context, check Check, config PollConfig) PollRes
 	attempts++
 	result := check.Run(ctx)
 	return PollResult{
-		Success:     result.Status == StatusOK,
+		Success:     accept(result),
 		FinalResult: &result,
 		Attempts:    attempts,
 		Elapsed:     time.Since(start),

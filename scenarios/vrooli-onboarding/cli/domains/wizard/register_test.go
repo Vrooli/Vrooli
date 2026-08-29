@@ -17,7 +17,7 @@ import (
 
 func TestRegisterAndSelectionErrors(t *testing.T) {
 	group := Register(&cliapp.ScenarioApp{})
-	if group.Name != "wizard" || len(group.Subcommands) != 4 {
+	if group.Name != "wizard" || len(group.Subcommands) != 5 {
 		t.Fatalf("unexpected wizard group: %+v", group)
 	}
 	if err := group.Subcommands[1].Run(nil); err == nil {
@@ -72,13 +72,15 @@ func TestDeclarativeWizardApplyExportAndStatus(t *testing.T) {
 	}
 }
 
-func TestInteractiveWizardWalksAllNineSteps(t *testing.T) {
+func TestInteractiveWizardWalksAllTenSteps(t *testing.T) {
 	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/v2/steps":
 			_, _ = w.Write([]byte(testStepModelJSON))
 		case "/api/v1/v2/scenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
+		case "/api/v1/v2/core-set":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
 		case "/api/v1/v2/resources":
 			_, _ = w.Write([]byte(`{"optional":[{"name":"ollama"}],"standalone":[]}`))
 		case "/api/v1/v2/host-requirements":
@@ -87,7 +89,7 @@ func TestInteractiveWizardWalksAllNineSteps(t *testing.T) {
 			_, _ = w.Write([]byte(`{"status":"ready","credentials":[],"hosts":[]}`))
 		}
 	}))
-	input := "\ndemo\nollama\n\n\n\n\n demo\nyes\n\n"
+	input := "\ndemo\n\nollama\n\n\n\n\n demo\nyes\n\n"
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -111,6 +113,8 @@ func TestInteractiveWizardProvisionsCredentialsAndReviewsPlan(t *testing.T) {
 			_, _ = w.Write([]byte(testStepModelJSON))
 		case "/api/v1/v2/scenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
+		case "/api/v1/v2/core-set":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
 		case "/api/v1/v2/resources":
 			_, _ = w.Write([]byte(`{"optional":[],"standalone":[]}`))
 		case "/api/v1/v2/credentials":
@@ -129,7 +133,7 @@ func TestInteractiveWizardProvisionsCredentialsAndReviewsPlan(t *testing.T) {
 			_, _ = w.Write([]byte(`{"status":"ready","credentials":[],"hosts":[]}`))
 		}
 	}))
-	input := "\ndemo\n\n\nsecret\n\n\n\n\nyes\n\n"
+	input := "\ndemo\n\n\n\nsecret\n\n\n\n\nyes\n\n"
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -150,7 +154,7 @@ func TestInteractiveWizardProvisionsCredentialsAndReviewsPlan(t *testing.T) {
 	}
 }
 
-const testStepModelJSON = `{"steps":[{"id":"welcome","ordinal":0},{"id":"scenarios","ordinal":1},{"id":"resources","ordinal":2},{"id":"credentials","ordinal":3},{"id":"integrations","ordinal":4},{"id":"host","ordinal":5},{"id":"operating-mode","ordinal":6},{"id":"apply","ordinal":7},{"id":"validation","ordinal":8}]}`
+const testStepModelJSON = `{"steps":[{"id":"welcome","ordinal":0},{"id":"scenarios","ordinal":1},{"id":"core-set","ordinal":2},{"id":"resources","ordinal":3},{"id":"credentials","ordinal":4},{"id":"integrations","ordinal":5},{"id":"host","ordinal":6},{"id":"operating-mode","ordinal":7},{"id":"apply","ordinal":8},{"id":"validation","ordinal":9}]}`
 
 func TestWizardPureFormattingHelpers(t *testing.T) {
 	if got := ensureModeMap(nil); got == nil {
@@ -160,6 +164,7 @@ func TestWizardPureFormattingHelpers(t *testing.T) {
 
 func TestSelectionPatchCoversAllAutomationChoices(t *testing.T) {
 	selection := Selection{Scenarios: []string{"alpha"}, OptionalResources: []string{"ollama"}}
+	selection.CoreSeed = []string{"alpha"}
 	selection.Resources = map[string]bool{"postgres": false}
 	selection.Host.Tools = []string{"demo-tool"}
 	selection.Host.Safeguards = []string{"kernel_config"}
@@ -184,6 +189,70 @@ func TestSelectionPatchCoversAllAutomationChoices(t *testing.T) {
 	}
 	if decoded["host_tools"].(map[string]any)["demo-tool"].(map[string]any)["opted_in"] != true {
 		t.Fatal("host tools must be represented in the shared patch")
+	}
+	if decoded["core"].(map[string]any)["seed"].([]any)[0] != "alpha" {
+		t.Fatal("core seed must be represented in the shared patch")
+	}
+}
+
+func TestCoreSetCommandPreviewsBeforeFieldScopedPatch(t *testing.T) {
+	order := []string{}
+	var patched []string
+	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/v2/core-set" && !r.URL.Query().Has("seed"):
+			order = append(order, "current")
+			_, _ = w.Write([]byte(`{"available":true,"seed":["alpha"],"trusted_base":[]}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/v2/core-set":
+			order = append(order, "preview")
+			_, _ = w.Write([]byte(`{"available":true,"seed":["beta"],"trusted_base":[],"member_counts":{"scenario":1,"resource":0}}`))
+		case r.Method == http.MethodPatch && r.URL.Path == "/api/v1/v2/operator-state":
+			order = append(order, "patch")
+			var body struct {
+				Core struct {
+					Seed []string `json:"seed"`
+				} `json:"core"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatal(err)
+			}
+			patched = body.Core.Seed
+			_, _ = w.Write([]byte(`{"version":"1.0.0"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+
+	if err := runCoreSet(core, []string{"--add", "beta", "--remove", "alpha", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(order, ","); got != "current,preview,patch" {
+		t.Fatalf("request order = %s", got)
+	}
+	if got := strings.Join(patched, ","); got != "beta" {
+		t.Fatalf("patched seed = %s", got)
+	}
+}
+
+func TestCoreSetCommandDoesNotWriteWithoutClosure(t *testing.T) {
+	patched := false
+	core := clitest.NewTestApp(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPatch {
+			patched = true
+		}
+		if r.URL.Query().Has("seed") {
+			_, _ = w.Write([]byte(`{"available":false,"seed":["alpha","beta"],"error":"catalog unavailable"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"available":true,"seed":["alpha"]}`))
+	}))
+
+	err := runCoreSet(core, []string{"--add", "beta"})
+	if err == nil || !strings.Contains(err.Error(), "closure unavailable") {
+		t.Fatalf("error = %v", err)
+	}
+	if patched {
+		t.Fatal("core-set command wrote without a computed closure")
 	}
 }
 
@@ -226,6 +295,8 @@ func TestApplyPlanIsDisclosedBeforeConsent(t *testing.T) {
 			_, _ = w.Write([]byte(testStepModelJSON))
 		case "/api/v1/v2/scenarios":
 			_, _ = w.Write([]byte(`{"scenarios":[{"name":"demo"}]}`))
+		case "/api/v1/v2/core-set":
+			_, _ = w.Write([]byte(`{"available":true,"seed":["demo"],"trusted_base":["demo"],"member_counts":{"scenario":1,"resource":0}}`))
 		case "/api/v1/v2/resources":
 			_, _ = w.Write([]byte(`{"optional":[],"standalone":[]}`))
 		case "/api/v1/v2/credentials":
@@ -243,10 +314,10 @@ func TestApplyPlanIsDisclosedBeforeConsent(t *testing.T) {
 		}
 	}))
 
-	// One answer per prompt, in order: welcome, scenarios, resources,
+	// One answer per prompt, in order: welcome, scenarios, core set, resources,
 	// credentials, integrations, host tools, host safeguards, operating-mode,
 	// and finally the apply confirmation, which is the "no".
-	input := "\ndemo\n\n\n\n\n\n\nno\n"
+	input := "\ndemo\n\n\n\n\n\n\n\nno\n"
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)

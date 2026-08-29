@@ -414,8 +414,8 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 |---|---|
 | **Seam** | LAN auto-discovery of the control plane; manual URL stays the cross-network default and the fallback. |
 | **Interface** | `agent/internal/discovery::Browser` (the mDNS querier) behind `Resolve` (manual URL wins; mDNS only when no URL given). |
-| **Production wiring** | `agent/internal/discovery/mdns.go` — a dependency-free DNS-SD querier over UDP multicast; gated by the `--discover` flag. |
-| **Test fake** | `agent/internal/discovery/mdns_test.go` (fake Browser), `fallback_test.go` (manual-URL-wins, Browser never invoked). |
+| **Production wiring** | `agent/internal/discovery/mdns_adapter.go` — the shared `packages/mdns-go` DNS-SD browser; gated by the `--discover` flag. |
+| **Test fake** | `agent/internal/discovery/mdns_adapter_test.go` (fake Browser), `fallback_test.go` (manual-URL-wins, Browser never invoked). |
 | **Why it exists** | Pairing on a trusted LAN is "run the installer" without typing the control-plane URL; off-LAN bootstrap never depends on mDNS. |
 
 ### gate seams (NodeLister / Presence / Runner / Repository, OT-P1-002)
@@ -434,7 +434,7 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 |---|---|
 | **Seam** | The boundary where bridge SUPPLIES the cross-OS validation capability and the *consumer* OWNS the promotion verdict. Bridge exposes `GateService` (RunGate/WaitGate); deployment-manager maps the aggregate gate verdict to its own production-readiness decision. |
 | **Interface** | Consumer side: `scenarios/deployment-manager/api/crossosgate::Bridge` (`RunGate`/`WaitGate`) + `Gate.Evaluate(Request) Verdict`. Producer side: the generated `GateService` Connect contract. |
-| **Production wiring** | deployment-manager's `crossosgate.NewHTTPBridge` speaks bridge's `GateService` over the Connect unary JSON protocol (no proto-module dependency on the consumer); route `POST /api/v1/cross-os-gate/evaluate` is additive + inert (503) until `VROOLI_BRIDGE_URL` is configured. |
+| **Production wiring** | deployment-manager's `crossosgate.NewHTTPHandler` uses the shared `packages/nodeclient` transport to speak bridge's `GateService` over the Connect unary JSON protocol; the route reports the typed unavailable state when Bridge discovery or authorization fails. |
 | **Test fake** | `deployment-manager/api/crossosgate/crossosgate_test.go` (fake Bridge for the Evaluate mapping; httptest-backed `httpBridge` for the wire contract). |
 | **Why it exists** | "Bridge supplies the capability, deployment-manager owns the verdict." The consumer never imports bridge internals; it speaks the wire contract, so the two scenarios evolve independently behind the proto contract. |
 

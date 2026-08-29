@@ -350,6 +350,33 @@ func (s *typedMeasures) GetCriticalCount(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(&measures.GetCriticalCountResponse{Critical: &measures.CriticalCount{Count: int32(stats.CriticalEvents), WindowHours: int32(window), ComputedAt: timestamppb.Now()}}), nil
 }
 
+func (s *typedMeasures) GetOutageSummary(ctx context.Context, req *connect.Request[measures.GetOutageSummaryRequest]) (*connect.Response[measures.GetOutageSummaryResponse], error) {
+	memberID := strings.TrimSpace(req.Msg.GetMemberId())
+	if memberID == "" {
+		return nil, invalidArgument("member_id is required")
+	}
+	window := boundedLimit(int(req.Msg.GetWindowHours()), 24, 24*365)
+	outageStore, ok := s.h.store.(supervisedAvailabilityStore)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("outage ledger is unavailable"))
+	}
+	windowEnd := time.Now().UTC()
+	windowStart := windowEnd.Add(-time.Duration(window) * time.Hour)
+	summary, err := outageStore.GetOutageSummary(ctx, memberID, windowStart, windowEnd)
+	if err != nil {
+		return nil, internalError("load outage summary", err)
+	}
+	return connect.NewResponse(&measures.GetOutageSummaryResponse{Outage: &measures.OutageSummary{
+		MemberId:                summary.MemberID,
+		TotalUnavailableSeconds: summary.TotalUnavailableSeconds,
+		DistinctOutageCount:     int32(summary.DistinctOutageCount),
+		OpenOutageCount:         int32(summary.OpenOutageCount),
+		WindowStart:             timestamppb.New(summary.WindowStart),
+		WindowEnd:               timestamppb.New(summary.WindowEnd),
+		ComputedAt:              timestamppb.Now(),
+	}}), nil
+}
+
 func (s *typedActions) GetEventWeightedUptime(ctx context.Context, req *connect.Request[actions.GetEventWeightedUptimeRequest]) (*connect.Response[actions.GetEventWeightedUptimeResponse], error) {
 	stats, err := s.h.store.GetUptimeStats(ctx, boundedLimit(int(req.Msg.GetWindowHours()), 24, 168))
 	if err != nil {

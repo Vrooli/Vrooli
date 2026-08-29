@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -36,10 +37,18 @@ func (osCommandRunner) run(ctx context.Context, argv []string, dir string, overl
 		return startFailureExitCode, errors.New("empty argv")
 	}
 
+	// Build the environment before resolving argv[0]. os/exec performs LookPath
+	// during Command construction, so assigning Env afterwards cannot make a
+	// service-manager PATH visible to lookup.
+	env := commandEnvironment(argv[0])
+	resolved, err := resolveExecutable(argv[0], env)
+	if err != nil {
+		return startFailureExitCode, err
+	}
 	// #nosec G204 — argv is a typed, validated token list (BuildArgv rejects
 	// shell metacharacters); the binary is operator-configured. This is the
 	// allowlisted-verb execution path, not a shell.
-	cmd := exec.Command(argv[0], argv[1:]...)
+	cmd := exec.Command(resolved, argv[1:]...)
 	prepareCommand(cmd)
 	cmd.Dir = dir
 	// Native service managers intentionally provide a minimal PATH. The Vrooli
@@ -47,7 +56,7 @@ func (osCommandRunner) run(ctx context.Context, argv []string, dir string, overl
 	// may invoke the host Go/toolchain binaries. Reconstruct the project-owned
 	// toolchain locations that bootstrap already treats as authoritative so a
 	// background node behaves like the same node in an interactive shell.
-	cmd.Env = commandEnvironment(argv[0])
+	cmd.Env = env
 	if len(overlay) > 0 {
 		cmd.Env = append(cmd.Env, overlay...)
 	}
@@ -92,6 +101,41 @@ func (osCommandRunner) run(ctx context.Context, argv []string, dir string, overl
 	}
 	// ctx cancellation / kill / start failure surfaces here.
 	return startFailureExitCode, err
+}
+
+func resolveExecutable(binary string, env []string) (string, error) {
+	if filepath.IsAbs(binary) {
+		info, err := os.Stat(binary)
+		if err != nil {
+			return "", fmt.Errorf("resolve executable %q: %w", binary, err)
+		}
+		if info.IsDir() || info.Mode()&0o111 == 0 {
+			return "", fmt.Errorf("resolve executable %q: not an executable file", binary)
+		}
+		return filepath.Clean(binary), nil
+	}
+	pathValue := ""
+	for _, item := range env {
+		if strings.HasPrefix(item, "PATH=") {
+			pathValue = strings.TrimPrefix(item, "PATH=")
+			break
+		}
+	}
+	for _, dir := range strings.Split(pathValue, string(filepath.ListSeparator)) {
+		if dir == "" {
+			dir = "."
+		}
+		candidate := filepath.Join(dir, binary)
+		info, err := os.Stat(candidate)
+		if err == nil && !info.IsDir() && info.Mode()&0o111 != 0 {
+			absolute, absErr := filepath.Abs(candidate)
+			if absErr != nil {
+				return "", absErr
+			}
+			return filepath.Clean(absolute), nil
+		}
+	}
+	return "", fmt.Errorf("resolve executable %q in PATH %q: %w", binary, pathValue, exec.ErrNotFound)
 }
 
 func commandEnvironment(binary string) []string {

@@ -454,12 +454,10 @@ func IsWorkingTreeRevision(revision string) bool {
 }
 
 // setupProfileMetachars is the shell-metacharacter set a setup-profile value may
-// never contain. It mirrors internal/cprev.shellMetachars (the revision filter)
-// EXACTLY so a value this boundary accepts is one the node-side script — which
-// splices these into `make setup SETUP_ARGS=…` — can also splice safely. The two
-// sets are intentionally duplicated: cprev governs refs, this governs profile
-// tokens, and each documents its own contract. A comma is deliberately allowed
-// (resource/scenario selections are comma lists).
+// never contain. It mirrors the shared cliresolve shell-token policy so a value
+// this boundary accepts is one the node-side script — which splices these into
+// `make setup SETUP_ARGS=…` — can also splice safely. A comma is deliberately
+// allowed (resource/scenario selections are comma lists).
 const setupProfileMetachars = "|&;<>()$`\\\"'\n\r\t*?[]{}!#~ "
 
 var provisionServiceUserPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)

@@ -1,6 +1,6 @@
 {
   "scenario": "vrooli-onboarding/api",
-  "ceiling": 7,
+  "ceiling": 8,
   "imports": [
     "github.com/vrooli/vrooli/internal/config",
     "github.com/vrooli/vrooli/internal/hostreq",
@@ -8,7 +8,8 @@
     "github.com/vrooli/vrooli/internal/operatorinput",
     "github.com/vrooli/vrooli/internal/operatorstate",
     "github.com/vrooli/vrooli/internal/projectstate",
-    "github.com/vrooli/vrooli/internal/secrets"
+    "github.com/vrooli/vrooli/internal/secrets",
+    "github.com/vrooli/vrooli/internal/app/supervision"
   ],
-  "decision": "Grandfather the current API projection imports. Do not grow this list; promote a package when the onboarding bundle must build outside the monorepo."
+  "decision": "Grandfather the API projection imports plus the canonical supervision application service. Onboarding must compute the exact control-plane closure rather than fork it; do not add any second supervision implementation. Promote the service when the onboarding bundle must build outside the monorepo."
 }

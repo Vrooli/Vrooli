@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks/testutil"
 )
@@ -77,6 +78,46 @@ func TestScenarioCheckCriticality(t *testing.T) {
 	}
 	if nonCriticalCheck.critical {
 		t.Error("Non-critical check should have critical=false")
+	}
+}
+
+func TestSupervisionIntentAndAttributionAppearOnEveryTargetResult(t *testing.T) {
+	chain := []coreset.AttributionStep{{Name: "search-hub", Kind: coreset.MemberKindScenario, SupervisionIntent: coreset.IntentTryStart, Source: "core.seed"}}
+	scenarioExecutor := testutil.NewMockExecutor()
+	scenarioExecutor.Responses["vrooli scenario status search-hub --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"scenario":{"name":"search-hub","status":"stopped","health_status":null}}`),
+	}
+	scenarioResult := NewScenarioCheck(
+		"search-hub",
+		false,
+		WithScenarioExecutor(scenarioExecutor),
+		WithScenarioSupervision(coreset.IntentTryStart, chain),
+	).Run(context.Background())
+	if scenarioResult.Status != checks.StatusWarning {
+		t.Fatalf("try_start scenario status = %s, want warning", scenarioResult.Status)
+	}
+	if scenarioResult.Details["supervisionIntent"] != coreset.IntentTryStart {
+		t.Fatalf("scenario intent missing from details: %+v", scenarioResult.Details)
+	}
+	if got, ok := scenarioResult.Details["attributionChain"].([]coreset.AttributionStep); !ok || len(got) != 1 || got[0].Source != "core.seed" {
+		t.Fatalf("scenario attribution missing from details: %#v", scenarioResult.Details["attributionChain"])
+	}
+
+	resourceChain := []coreset.AttributionStep{{Name: "redis", Kind: coreset.MemberKindResource, SupervisionIntent: coreset.IntentTryStart, Source: "core.seed"}}
+	resourceExecutor := testutil.NewMockExecutor()
+	resourceExecutor.Responses["vrooli resource status redis --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"name":"redis","installed":false,"running":false,"status":"not installed"}`),
+	}
+	resourceResult := NewResourceCheck(
+		"redis",
+		WithResourceExecutor(resourceExecutor),
+		WithResourceSupervision(coreset.IntentTryStart, resourceChain),
+	).Run(context.Background())
+	if resourceResult.Status != checks.StatusWarning {
+		t.Fatalf("try_start resource status = %s, want warning", resourceResult.Status)
+	}
+	if resourceResult.Details["supervisionIntent"] != coreset.IntentTryStart {
+		t.Fatalf("resource intent missing from details: %+v", resourceResult.Details)
 	}
 }
 
@@ -230,6 +271,35 @@ func TestResourceCheckRunWithMock(t *testing.T) {
 				t.Errorf("Expected 1 executor call, got %d", len(mockExecutor.Calls))
 			}
 		})
+	}
+}
+
+func TestResourceCheckServingWithDeadCompanionIsObservedButNotAutoHealed(t *testing.T) {
+	mockExecutor := testutil.NewMockExecutor()
+	mockExecutor.Responses["vrooli resource status ollama --json"] = testutil.MockResponse{
+		Output: []byte(`{"success":true,"name":"ollama","installed":true,"running":true,"healthy":false,"serving":true,"status":"running; capacity-sync companion down","resource":{"running":true,"healthy":false,"serving":true,"raw":{"companions":[{"name":"capacity-sync","alive":false}]}}}`),
+	}
+
+	check := NewResourceCheck("ollama", WithResourceExecutor(mockExecutor))
+	result := check.Run(context.Background())
+	if result.Status != checks.StatusWarning {
+		t.Fatalf("status = %v, want warning", result.Status)
+	}
+	if available, _ := result.Details["available"].(bool); !available {
+		t.Fatalf("available = %v, want true", result.Details["available"])
+	}
+	if companion, _ := result.Details["companionDown"].(bool); !companion {
+		t.Fatalf("companionDown = %v, want true", result.Details["companionDown"])
+	}
+	if eligible, ok := result.Details["autoHealEligible"].(bool); !ok || eligible {
+		t.Fatalf("autoHealEligible = %v, want explicit false", result.Details["autoHealEligible"])
+	}
+
+	// The manual repair remains discoverable; only scheduled auto-heal is
+	// suppressed while the primary continues to serve.
+	actions := check.RecoveryActions(&result)
+	if len(actions) == 0 || actions[0].ID != "respawn-companion" || !actions[0].Available {
+		t.Fatalf("actions = %+v, want available manual respawn-companion", actions)
 	}
 }
 

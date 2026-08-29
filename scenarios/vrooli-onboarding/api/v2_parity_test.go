@@ -12,7 +12,7 @@ func TestAPIPatchPreservesSharedOperatorStateFields(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_ROOT", root)
 	t.Setenv("BUNDLE_ROOT", "")
-	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","trust_posture":"shared","core":{"seed":["postgres"],"trusted_base":["git"]}}`)
+	writeFixtureFile(t, filepath.Join(root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","updated_at":"2026-08-11T00:00:00Z","trust_posture":"shared","core":{"seed":["git","postgres"],"trusted_base":["git"]}}`)
 	w := doRequest(t, NewServer(), http.MethodPatch, "/api/v2/operator-state", `{"scenarios":{"demo":{"enabled":true}}}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("patch = %d: %s", w.Code, w.Body.String())

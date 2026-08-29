@@ -72,6 +72,10 @@ func TestRunAutoHealEscalatesOnceThresholdIsReachedAndResolvesOnSuccess(t *testi
 	if opened.lastError != "Runtime error: start qdrant: managed-service health check did not pass before startup timeout" {
 		t.Fatalf("incident last error = %q, want verbatim action error", opened.lastError)
 	}
+	tracker, _ := reg.GetHealTracker("resource-qdrant")
+	if !tracker.IsSuspended() || tracker.Disposition != HealDispositionEscalated {
+		t.Fatalf("tracker = %+v, want suspended durable escalation", tracker)
+	}
 
 	check, _ := reg.GetHealableCheck("resource-qdrant")
 	_ = check
@@ -83,6 +87,9 @@ func TestRunAutoHealEscalatesOnceThresholdIsReachedAndResolvesOnSuccess(t *testi
 		actions:       []RecoveryAction{{ID: "start", Available: true}},
 		executeResult: ActionResult{Success: true, Message: "qdrant started"},
 	})
+	if !reg.ResumeHealTracker("resource-qdrant") {
+		t.Fatal("operator resume should reactivate suspended check")
+	}
 	reg.RunAutoHeal(context.Background(), []Result{result})
 
 	if len(reporter.resolved) != 1 || reporter.resolved[0] != "resource-qdrant:start" {

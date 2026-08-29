@@ -17,8 +17,8 @@ vrooli-autoheal replaces the legacy bash-based autoheal cronjob with a cross-pla
 # Build and install
 vrooli scenario run vrooli-autoheal --setup
 
-# Start the scenario
-make start   # or: vrooli scenario run vrooli-autoheal --dev
+# Start the scenario through the managed lifecycle
+make start
 
 # Check health status
 vrooli-autoheal status
@@ -74,8 +74,8 @@ The system detects the current platform and capabilities:
 ## Health Checks
 
 ### P0 (Core)
-- Resource health (postgres, redis, qdrant, ollama, etc.)
-- Scenario health (configurable list of critical scenarios)
+- Resource health for every resource in `vrooli supervision-set`
+- Scenario health for every scenario in `vrooli supervision-set`
 - OS watchdog verification
 
 ### P1 (Infrastructure)
@@ -87,12 +87,38 @@ The system detects the current platform and capabilities:
 
 ## Configuration
 
-Health checks and monitored resources/scenarios are configured via:
+Health checks and supervised resources/scenarios are governed via:
 
-1. **Environment variables** (e.g., `VROOLI_AUTOHEAL_RESOURCES`, `VROOLI_AUTOHEAL_SCENARIOS`)
-2. **Local config file** (`~/.vrooli-autoheal/config.json`, override with `VROOLI_AUTOHEAL_CONFIG`)
-3. **SQLite** for persisted health history/action logs (default backend)
-4. **Default values** for common checks
+1. **Canonical authority**: `vrooli supervision-set --json` computes the operator-declared dependency closure and attribution chains.
+2. **Additive overrides**: `~/.vrooli-autoheal/config.json` may add monitoring targets, but cannot remove or disable canonical members.
+3. **Last-known-good behavior**: a source outage retains the most recent non-empty set and raises `vrooli-supervision-set-source` as degraded; startup fails closed if no good set has ever loaded.
+4. **SQLite** stores bounded health history and action logs, never supervision membership.
+
+Canonical members take precedence when an additive override names the same
+check. `must_start` members are critical; `try_start` members are warning-level.
+Use `vrooli supervision-set --json` to inspect the effective member and its
+attribution chain before changing autoheal configuration.
+
+All scheduled and manual recovery actions cross the same heal interlock. A
+successful start-like action blocks a dangerous action from another check
+against the same target for the 30-second safety window. This guard is separate
+from orphan classification because independently scheduled checks can race
+even when both classify the process correctly.
+
+Supervised-member availability is persisted as continuous outage intervals.
+Query both total unavailable seconds and distinct outage count with:
+
+```bash
+vrooli-autoheal measure outages --member-id resource-qdrant --window-hours 24
+```
+
+After three consecutive real recovery failures by default, autoheal suspends
+that check, raises a durable incident, and continues observing without retrying
+forever. Inspect with `vrooli-autoheal check suspended`; after repairing the
+cause, resume only that check with `vrooli-autoheal check resume <check-id>`.
+
+The project-level model and precedence table are documented in
+[`docs/concepts/ARCHITECTURE.md`](../../docs/concepts/ARCHITECTURE.md#supervision-authority).
 
 ## Testing
 

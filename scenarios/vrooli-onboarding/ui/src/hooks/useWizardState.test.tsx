@@ -6,6 +6,7 @@ import { useWizardState } from "./useWizardState";
 const testSteps = [
   "welcome",
   "scenarios",
+  "core-set",
   "resources",
   "credentials",
   "integrations",

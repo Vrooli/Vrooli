@@ -32,14 +32,14 @@ func TestNewDefaultCheckFactory(t *testing.T) {
 	if factory.dnsDomain != "resolver.test" {
 		t.Errorf("dnsDomain = %q, want resolver.test", factory.dnsDomain)
 	}
-	if len(factory.criticalScenarios) == 0 {
-		t.Error("criticalScenarios should not be empty")
+	if len(factory.criticalScenarios) != 0 {
+		t.Error("criticalScenarios must come from the canonical supervision set")
 	}
-	if len(factory.nonCriticalScenarios) == 0 {
-		t.Error("nonCriticalScenarios should not be empty")
+	if len(factory.nonCriticalScenarios) != 0 {
+		t.Error("nonCriticalScenarios must come from the canonical supervision set")
 	}
-	if len(factory.resources) == 0 {
-		t.Error("resources should not be empty")
+	if len(factory.resources) != 0 {
+		t.Error("resources must come from the canonical supervision set")
 	}
 }
 

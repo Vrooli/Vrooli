@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/langrecover"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/strategies"
@@ -20,17 +21,19 @@ import (
 // ScenarioCheck monitors a Vrooli scenario via CLI.
 // Scenarios can be marked as critical or non-critical, affecting severity of failures.
 type ScenarioCheck struct {
-	id           string
-	scenarioName string
-	title        string
-	description  string
-	importance   string
-	interval     int
-	critical     bool // determines if stopped/failed → critical or warning
-	executor     checks.CommandExecutor
-	client       *integration.Client
-	directHealth func(context.Context) (bool, string)
-	recoveryPoll scenarioRecoveryPollConfig
+	id                string
+	scenarioName      string
+	title             string
+	description       string
+	importance        string
+	interval          int
+	critical          bool // determines if stopped/failed → critical or warning
+	executor          checks.CommandExecutor
+	client            *integration.Client
+	directHealth      func(context.Context) (bool, string)
+	recoveryPoll      scenarioRecoveryPollConfig
+	supervisionIntent string
+	attributionChain  []coreset.AttributionStep
 	// readLifecycleLog returns the tail of the most recent lifecycle run log
 	// for this scenario. Used to detect drift signatures (go.mod, pnpm) that
 	// only surface during start/setup attempts, not in `scenario status` output.
@@ -99,6 +102,15 @@ func WithScenarioRecoveryPolling(timeout, interval, initialDelay time.Duration) 
 		if initialDelay >= 0 {
 			c.recoveryPoll.initialDelay = initialDelay
 		}
+	}
+}
+
+// WithScenarioSupervision attaches the declared intent and complete authority
+// chain to every observation emitted by this check.
+func WithScenarioSupervision(intent string, chain []coreset.AttributionStep) ScenarioCheckOption {
+	return func(c *ScenarioCheck) {
+		c.supervisionIntent = intent
+		c.attributionChain = append([]coreset.AttributionStep(nil), chain...)
 	}
 }
 
@@ -190,6 +202,10 @@ func (c *ScenarioCheck) IsCritical() bool { return c.critical }
 // ScenarioName returns the name of the scenario (for action execution)
 func (c *ScenarioCheck) ScenarioName() string { return c.scenarioName }
 
+func (c *ScenarioCheck) HealTarget() checks.HealTarget {
+	return checks.HealTarget{Kind: "scenario", Name: c.scenarioName}
+}
+
 func (c *ScenarioCheck) strategy() *strategies.VrooliStrategy {
 	return strategies.NewVrooliStrategy(strategies.VrooliScenario, c.scenarioName, c.executor)
 }
@@ -198,6 +214,10 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	result := checks.Result{
 		CheckID: c.id,
 		Details: make(map[string]interface{}),
+	}
+	if c.supervisionIntent != "" {
+		result.Details["supervisionIntent"] = c.supervisionIntent
+		result.Details["attributionChain"] = append([]coreset.AttributionStep(nil), c.attributionChain...)
 	}
 
 	// Capture the API PID at check time for TOCTOU protection.
@@ -233,6 +253,7 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 				result.Details["healthConfidence"] = "degraded"
 				// Prevent auto-heal from taking scenario restart actions based on fallback-only evidence.
 				result.Details["autoHealEligible"] = false
+				result.Details["available"] = true
 				return result
 			}
 
@@ -240,6 +261,7 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 			result.Message = c.scenarioName + " scenario appears stopped (Vrooli API unavailable and direct check failed)"
 			result.Details["healthConfidence"] = "low"
 			result.Details["autoHealEligible"] = true
+			result.Details["available"] = false
 			result.Details["error"] = err.Error()
 			return result
 		}
@@ -283,6 +305,7 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	if scenarioStatus != "running" {
 		result.Status = CLIStatusToCheckStatus(CLIStatusStopped, c.critical)
 		result.Message = c.scenarioName + " scenario is stopped"
+		result.Details["available"] = false
 		return result
 	}
 
@@ -290,15 +313,19 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	case "healthy":
 		result.Status = checks.StatusOK
 		result.Message = c.scenarioName + " scenario is healthy"
+		result.Details["available"] = true
 	case "degraded":
 		result.Status = checks.StatusWarning
 		result.Message = c.scenarioName + " scenario is degraded"
+		result.Details["available"] = true
 	case "unhealthy":
 		result.Status = CLIStatusToCheckStatus(CLIStatusStopped, c.critical)
 		result.Message = c.scenarioName + " scenario is unhealthy"
+		result.Details["available"] = false
 	case "running":
 		result.Status = checks.StatusOK
 		result.Message = c.scenarioName + " scenario is running"
+		result.Details["available"] = true
 	default:
 		result.Status = checks.StatusWarning
 		result.Message = c.scenarioName + " scenario health is unknown"

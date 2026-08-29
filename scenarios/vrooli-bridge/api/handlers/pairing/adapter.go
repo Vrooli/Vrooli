@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/pairing"
+	"vrooli-bridge/pairingwords"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -36,17 +37,19 @@ func statusToProto(s pairing.RequestStatus) pairingv1.PairingRequestStatus {
 	}
 }
 
-func requestToProto(r pairing.PairingRequest) *pairingv1.PairingRequest {
+func requestToProto(r pairing.PairingRequest, confirmationWords []string) *pairingv1.PairingRequest {
 	return &pairingv1.PairingRequest{
-		Id:           r.ID,
-		Name:         r.Name,
-		Os:           r.OS,
-		Arch:         r.Arch,
-		Endpoint:     r.Endpoint,
-		Capabilities: append([]string(nil), r.Capabilities...),
-		Status:       statusToProto(r.Status),
-		CreatedAt:    timeToProto(r.CreatedAt),
-		DecidedAt:    timeToProto(r.DecidedAt),
-		NodeId:       r.NodeID,
+		Id:                r.ID,
+		Name:              r.Name,
+		Os:                r.OS,
+		Arch:              r.Arch,
+		Endpoint:          r.Endpoint,
+		Capabilities:      append([]string(nil), r.Capabilities...),
+		Status:            statusToProto(r.Status),
+		CreatedAt:         timeToProto(r.CreatedAt),
+		DecidedAt:         timeToProto(r.DecidedAt),
+		NodeId:            r.NodeID,
+		ConfirmationWords: append([]string(nil), confirmationWords...),
+		KeyFingerprint:    pairingwords.Fingerprint(r.PublicKey),
 	}
 }

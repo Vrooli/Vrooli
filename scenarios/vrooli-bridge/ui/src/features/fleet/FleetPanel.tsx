@@ -22,6 +22,7 @@ import { NodeStatus, type Node } from "../../api/nodes";
 import { OnboardingStepStatus, type OnboardingOp } from "../../api/onboard";
 import { type NodeQueue } from "../../api/queue";
 import { NodeManagementPanel } from "./NodeManagementPanel";
+import { PendingPairingPanel } from "./PendingPairingPanel";
 import { useBridgeFirewallActionMutation, useBridgeReadinessQuery, useFailedOnboardingsQuery, useFleetQueueQuery, useNodesQuery, useOnboardingQuery, useRemoveFailedOnboardingMutation, useRevokeNodeMutation } from "./queries";
 
 const STATUS_LABEL = {
@@ -265,6 +266,8 @@ export function FleetPanel({
           ) : null}
         </section>
       )}
+
+      <PendingPairingPanel />
 
       {nodesQuery.isLoading && (
         <p data-testid={selectors.fleet.loading} className="mt-3 text-sm text-app-muted-foreground">

@@ -78,7 +78,7 @@ func TestLoad_DiscoverFlagAndEnv(t *testing.T) {
 
 	cfg, err := Load([]string{"--state-dir", dir})
 	require.NoError(t, err)
-	require.False(t, cfg.Discover, "discovery is off by default")
+	require.True(t, cfg.Discover, "installed agents discover the control plane by default")
 
 	cfg, err = Load([]string{"--state-dir", dir, "--discover"})
 	require.NoError(t, err)

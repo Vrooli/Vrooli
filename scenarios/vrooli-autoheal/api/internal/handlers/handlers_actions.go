@@ -54,7 +54,7 @@ func (h *Handlers) ExecuteCheckAction(w http.ResponseWriter, r *http.Request) {
 	actionID := vars["actionId"]
 
 	// Get the check and verify it's healable
-	healable, ok := h.registry.GetHealableCheck(checkID)
+	_, ok := h.registry.GetHealableCheck(checkID)
 	if !ok {
 		apierrors.LogAndRespond(w, apierrors.NewNotFoundError("actions", "healable check", checkID))
 		return
@@ -64,7 +64,7 @@ func (h *Handlers) ExecuteCheckAction(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 
-	result := healable.ExecuteAction(ctx, actionID)
+	result := h.registry.ExecuteAction(ctx, checkID, actionID)
 
 	// Log the action to the database
 	if err := h.store.SaveActionLog(
@@ -84,7 +84,9 @@ func (h *Handlers) ExecuteCheckAction(w http.ResponseWriter, r *http.Request) {
 	// Return the result
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusOK
-	if !result.Success {
+	if result.Refusal != nil {
+		statusCode = http.StatusConflict
+	} else if !result.Success {
 		statusCode = http.StatusInternalServerError
 	}
 	w.WriteHeader(statusCode)

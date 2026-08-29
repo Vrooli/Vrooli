@@ -18,7 +18,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "agent/internal/discovery/mdns_test.go",
+          "ref": "agent/internal/discovery/mdns_adapter_test.go",
           "phase": "unit",
           "status": "failing",
           "notes": "mDNS discovery locates an advertised control plane on the LAN and falls back cleanly to manual URL when absent."

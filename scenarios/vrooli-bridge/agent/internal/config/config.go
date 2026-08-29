@@ -25,6 +25,7 @@ const (
 	// written to — not a secret value itself.
 	credentialFileName      = "node_credential.key" // #nosec G101 -- this is a filename constant, not an embedded credential.
 	controlPlaneKeyFileName = "control_plane.pub"   // the pinned control-plane public key
+	nodeIDFileName          = "node_id"
 )
 
 // Config is the fully-resolved agent configuration.
@@ -155,7 +156,7 @@ func Load(args []string) (Config, error) {
 		printPublicKey   = fs.Bool("print-public-key", false, "Load-or-generate the node keypair, print its base64 public key, and exit (bootstrap helper)")
 		printServiceUnit = fs.Bool("print-service-unit", false, "Render this binary's platform-native background-service unit and exit (bootstrap helper)")
 		serviceUser      = fs.String("service-user", envOr("BRIDGE_SERVICE_USER", ""), "OS principal the rendered service runs as (with --print-service-unit)")
-		discover         = fs.Bool("discover", envBoolOr("BRIDGE_DISCOVER", false), "Try mDNS LAN auto-discovery of the control plane when no --control-plane-url is set (manual URL stays the cross-network default)")
+		discover         = fs.Bool("discover", envBoolOr("BRIDGE_DISCOVER", true), "Try mDNS LAN auto-discovery of the control plane when no --control-plane-url is set (manual URL stays the cross-network default)")
 		presenceOnly     = fs.Bool("presence-only", envBoolOr("BRIDGE_PRESENCE_ONLY", true), "Hold presence only; reject pushed jobs and provisioning commands (default true)")
 		provisionHelper  = fs.Bool("provision-helper", envBoolOr("BRIDGE_PROVISION_HELPER", false), "Run the privileged provisioning IPC helper instead of the node agent")
 		provisionSocket  = fs.String("provision-socket", envOr("BRIDGE_PROVISION_SOCKET", ""), "Local IPC socket shared by the runner and provisioning helper")
@@ -182,6 +183,12 @@ func Load(args []string) (Config, error) {
 			return Config{}, fmt.Errorf("create agent state dir %q: %w", stateDir, err)
 		}
 	}
+	resolvedNodeID := strings.TrimSpace(*nodeID)
+	if resolvedNodeID == "" && !*provisionHelper {
+		if raw, readErr := os.ReadFile(filepath.Join(stateDir, nodeIDFileName)); readErr == nil {
+			resolvedNodeID = strings.TrimSpace(string(raw))
+		}
+	}
 
 	if *heartbeat <= 0 {
 		return Config{}, errors.New("heartbeat-interval must be positive")
@@ -195,7 +202,7 @@ func Load(args []string) (Config, error) {
 
 	return Config{
 		ControlPlaneURL:     strings.TrimSpace(*controlPlaneURL),
-		NodeID:              strings.TrimSpace(*nodeID),
+		NodeID:              resolvedNodeID,
 		StateDir:            stateDir,
 		CredentialPath:      filepath.Join(stateDir, credentialFileName),
 		ControlPlaneKeyPath: filepath.Join(stateDir, controlPlaneKeyFileName),

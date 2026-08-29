@@ -92,9 +92,61 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "shelve", Description: "Shelve a check until a mandatory expiry", Run: func(args []string) error { return runShelve(core, args) }},
 			{Name: "unshelve", Description: "Remove a check shelf", Run: func(args []string) error { return runUnshelve(core, args) }},
 			{Name: "shelved", Description: "List active check shelves", Run: func(args []string) error { return runShelved(core, args) }},
+			{Name: "suspended", Description: "List checks suspended after bounded recovery failures", Run: func(args []string) error { return runSuspended(core, args) }},
+			{Name: "resume", Description: "Resume automatic recovery for a suspended check", Run: func(args []string) error { return runResume(core, args) }},
 			{Name: "saturation", Description: "Tally transitions for every registered check in one read", Run: func(args []string) error { return runSaturation(core, args) }},
 		},
 	}
+}
+
+func runSuspended(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("check suspended")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	body, err := core.Get("/checks/suspended", nil)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		fmt.Fprintln(os.Stdout, support.PrettyJSON(body))
+		return nil
+	}
+	var response struct {
+		Suspended map[string]struct {
+			SuspensionReason string `json:"suspensionReason"`
+		} `json:"suspended"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return err
+	}
+	items := make([]string, 0, len(response.Suspended))
+	for id, tracker := range response.Suspended {
+		items = append(items, fmt.Sprintf("%s: %s", id, tracker.SuspensionReason))
+	}
+	sort.Strings(items)
+	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{Summary: []string{fmt.Sprintf("Suspended checks: %d", len(items))}, ResultsHeading: "Suspensions", Results: items})
+}
+
+func runResume(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("check resume")
+	jsonOutput := cliutil.JSONFlag(fs)
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("usage: vrooli-autoheal check resume <check-id>")
+	}
+	body, err := core.Request("POST", "/checks/"+url.PathEscape(fs.Arg(0))+"/resume", nil, nil)
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		fmt.Fprintln(os.Stdout, support.PrettyJSON(body))
+		return nil
+	}
+	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{Status: []string{fmt.Sprintf("Resumed automatic recovery for %s.", fs.Arg(0))}})
 }
 
 func runReconcile(core *cliapp.ScenarioApp, args []string) error {

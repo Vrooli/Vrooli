@@ -7,20 +7,23 @@ cd scenarios/vrooli-onboarding
 make start
 ```
 
-Open the lifecycle-managed UI, then work the nine steps (including welcome and
+Open the lifecycle-managed UI, then work the ten steps (including welcome and
 resume state):
 
 1. **Scenarios** — search the catalog and pick the capabilities you want. System
    capabilities stay locked on. Each choice names what it pulls in.
-2. **Resources** — required resources are already selected; add optional ones.
-3. **Credentials** — each card explains what the credential unlocks and links to
+2. **Core supervision set** — review the trusted base, choose the seed, and
+   inspect its computed scenario/resource closure.
+3. **Resources** — required resources are already selected; add optional ones.
+4. **Credentials** — each card explains what the credential unlocks and links to
    where you get one. Values go straight to the credential authority.
-4. **Integrations** — empty until integration-hub ships.
-5. **Host** — consent to the tools and safeguards your selection needs. Risk and
+5. **Integrations** — empty until integration-hub ships.
+6. **Host** — consent to the tools and safeguards your selection needs. Risk and
    privilege are shown before you choose.
-6. **Operating mode** — confirm which scenarios stay running.
-7. **Apply** — this is the step that changes your host. You get a per-item report.
-8. **Validation** — live probes. Fix anything required, then recheck.
+7. **Operating mode** — confirm lifecycle auto-restart preferences; this does
+   not change supervision membership.
+8. **Apply** — this is the step that changes your host. You get a per-item report.
+9. **Validation** — live probes. Fix anything required, then recheck.
 
 Reopening the wizard resumes at the first unsatisfied step. Nothing you have
 already decided is lost or read-only.

@@ -38,6 +38,10 @@ const (
 	// action times out, so the next tick can retry quickly instead of being
 	// silenced by the failure-cooldown ratchet.
 	DefaultTimeoutRetryCooldown = 30 * time.Second
+
+	// DefaultHealInterlockWindow is deliberately short: it contains cross-check
+	// disagreement without indefinitely masking a genuinely flapping target.
+	DefaultHealInterlockWindow = 30 * time.Second
 )
 
 // longRunningActionIDs enumerates action IDs that receive the long lifecycle
@@ -196,7 +200,22 @@ type HealTracker struct {
 	TotalSuccesses      int       `json:"totalSuccesses"`
 	TotalTimeouts       int       `json:"totalTimeouts,omitempty"`
 	CooldownUntil       time.Time `json:"cooldownUntil"`
+	SuspendedAt         time.Time `json:"suspendedAt,omitempty"`
+	SuspensionReason    string    `json:"suspensionReason,omitempty"`
+	Disposition         string    `json:"disposition,omitempty"`
+	DispositionAt       time.Time `json:"dispositionAt,omitempty"`
+	SuccessHistory      string    `json:"successHistory,omitempty"`
 }
+
+const (
+	HealDispositionHealed    = "healed"
+	HealDispositionRetired   = "retired"
+	HealDispositionEscalated = "escalated"
+	HealSuccessNever         = "never_succeeded"
+	HealSuccessPrevious      = "previously_succeeded"
+)
+
+func (ht *HealTracker) IsSuspended() bool { return !ht.SuspendedAt.IsZero() }
 
 // IsInCooldown returns true if the check is still in cooldown period
 func (ht *HealTracker) IsInCooldown() bool {
@@ -262,6 +281,9 @@ type Registry struct {
 	recoveryGate         RecoveryOwnershipGate
 	healIncidentReporter HealIncidentReporter
 	clock                Clock
+	interlockMu          sync.Mutex
+	recentHealActions    map[HealTarget]RecentHealAction
+	healInterlockWindow  time.Duration
 }
 
 // SetRecoveryOwnershipGate installs the cross-controller restart ownership
@@ -309,12 +331,14 @@ func (realClock) Now() time.Time {
 // Platform is injected to allow testing and avoid hidden dependency creation.
 func NewRegistry(plat *platform.Capabilities) *Registry {
 	return &Registry{
-		checks:       make(map[string]Check),
-		results:      make(map[string]Result),
-		lastRun:      make(map[string]time.Time),
-		healTrackers: make(map[string]*HealTracker),
-		platform:     plat,
-		clock:        realClock{},
+		checks:              make(map[string]Check),
+		results:             make(map[string]Result),
+		lastRun:             make(map[string]time.Time),
+		healTrackers:        make(map[string]*HealTracker),
+		recentHealActions:   make(map[HealTarget]RecentHealAction),
+		healInterlockWindow: DefaultHealInterlockWindow,
+		platform:            plat,
+		clock:               realClock{},
 	}
 }
 
@@ -444,6 +468,11 @@ func (r *Registry) LoadHealTrackers(ctx context.Context) error {
 
 	// Merge loaded trackers into in-memory map
 	for checkID, tracker := range trackers {
+		if tracker.LastSuccess.IsZero() {
+			tracker.SuccessHistory = HealSuccessNever
+		} else {
+			tracker.SuccessHistory = HealSuccessPrevious
+		}
 		r.healTrackers[checkID] = tracker
 	}
 

@@ -35,26 +35,35 @@ Manifests declare **what exists**. Operator state records **what this install ch
 
 All five produce identical operator state for identical choices. That is a tested claim (`ONB-PARITY-IDENTICAL-STATE`), not a convention — it holds because all of them write through one service.
 
-## The nine steps
+## The ten steps
 
 | # | Step | Operator decides | Derived from |
 |---|---|---|---|
 | 1 | Welcome | Whether to begin setup | The onboarding step model |
 | 2 | Scenarios | Which capabilities this install runs | Scenario manifests; system-required entries are locked on |
-| 3 | Resources | Which optional resources to add | Transitive closure of the scenario selection |
-| 4 | Credentials | Which declared credentials to provision | Credential descriptors on selected manifests |
-| 5 | Integrations | *(deferred)* | Owned by integration-hub; no placeholder bindings |
-| 6 | Host | Which tools and safeguards to consent to | `hostTools` / `hostSafeguards` on selected manifests |
-| 7 | Operating mode | Which scenarios stay running | `runtime.kind` and `runtime.auto_restart_default` |
-| 8 | Apply | Confirmation to change the host | The committed selection |
-| 9 | Validation | Whether to continue degraded | Live probes over credentials, tools, safeguards, resources |
+| 3 | Core supervision set | Which seed scenarios must remain supervised | `core.seed`, locked `core.trusted_base`, and the declared closure |
+| 4 | Resources | Which optional resources to add | Transitive closure of the scenario selection |
+| 5 | Credentials | Which declared credentials to provision | Credential descriptors on selected manifests |
+| 6 | Integrations | *(deferred)* | Owned by integration-hub; no placeholder bindings |
+| 7 | Host | Which tools and safeguards to consent to | `hostTools` / `hostSafeguards` on selected manifests |
+| 8 | Operating mode | Which scenarios restart automatically | `runtime.kind` and `runtime.auto_restart_default` |
+| 9 | Apply | Confirmation to change the host | The committed selection |
+| 10 | Validation | Whether to continue degraded | Live probes over credentials, tools, safeguards, resources |
 
-Steps 1–7 record intent. Step 8 is where intent becomes host state. Step 9 is where the install is proven. Re-entry resumes at the first unsatisfied step.
+Steps 1–8 record intent. Step 9 is where intent becomes host state. Step 10 is where the install is proven. Re-entry resumes at the first unsatisfied step.
+
+The core supervision step edits only `core.seed`; it does not write an
+autoheal target list. Before commit, onboarding asks the shared control-plane
+resolver for the scenario/resource closure and displays each member's effective
+supervision intent. After commit, `vrooli supervision-set --json` is the
+operator-verifiable source consumed by autoheal. `core.trusted_base` remains a
+locked subset of the seed. Operating-mode `auto_restart` choices are separate
+and cannot remove a member from supervision.
 
 ## Architecture
 
 - **Go API** (`api/`) — manifest read models, the readiness composer, the apply engine, and a thin relay to the credential authority. It holds no inventory of scenarios, resources, tools, or safeguards in code.
-- **React + TypeScript UI** (`ui/`) — the nine-step wizard plus a health dashboard and glossary. Renders through shared primitives and semantic design tokens in light and dark themes.
+- **React + TypeScript UI** (`ui/`) — the ten-step wizard plus a health dashboard and glossary. Renders through shared primitives and semantic design tokens in light and dark themes.
 - **Go CLI** (`cli/`) — interactive and non-interactive wizard, credentials, host requirements, readiness with a machine-readable exit code.
 - **Control-plane state service** (`internal/operatorstate/`) — the single writer for `.vrooli/operator-state.json` and the single evaluator for the configuration resolution order. Onboarding is a client of it, not the owner.
 

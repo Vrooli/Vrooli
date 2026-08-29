@@ -25,6 +25,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cliresolve"
+
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
 
@@ -38,13 +40,6 @@ const (
 	setupFailExitCode    = 1
 	startFailureExitCode = 127
 )
-
-// shellMetachars mirrors the runner's defence-in-depth check: a provisioning
-// step is always a typed argv, so a revision token carrying a shell
-// metacharacter can only be smuggling and is rejected before execution. (The
-// control plane validates revisions too; the two are intentionally duplicated
-// because the agent is a separate Go module.)
-const shellMetachars = "|&;<>()$`\\\"'\n\r\t*?[]{}!#~ "
 
 // StepRunner executes one provisioning step's argv in dir, streaming combined
 // stdout/stderr to onLog line-by-line, and returns the step's exit code. It
@@ -202,8 +197,8 @@ func Steps(gitBin, vrooliBin, target string) ([][]string, error) {
 	if target == "" {
 		return nil, fmt.Errorf("target revision is required")
 	}
-	if i := strings.IndexAny(target, shellMetachars); i >= 0 {
-		return nil, fmt.Errorf("unsafe revision %q: contains disallowed character %q", target, string(target[i]))
+	if err := cliresolve.ValidateArgvToken(target); err != nil || strings.ContainsAny(target, " \t\n\r") {
+		return nil, fmt.Errorf("unsafe revision %q: contains a disallowed shell or whitespace character", target)
 	}
 	return [][]string{
 		{gitBin, "fetch", "--all", "--tags"},

@@ -11,7 +11,7 @@ terminal, an agent, and a remote coordinator reach the same result.
 ## Read in this order
 
 1. [Quickstart](QUICKSTART.md) — first run in five minutes.
-2. [Wizard flow](WIZARD_FLOW.md) — the nine steps and their contracts.
+2. [Wizard flow](WIZARD_FLOW.md) — the ten steps and their contracts.
 3. [Architecture](concepts/ARCHITECTURE.md) — read models, write authority, tier resolution.
 4. [Configuration](reference/configuration.md) — every operator-controllable decision and where it lands.
 

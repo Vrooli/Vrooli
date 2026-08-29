@@ -38,19 +38,6 @@ func TestRegisterDefaultChecks(t *testing.T) {
 		"infra-docker",
 		"infra-cloudflared",
 		"infra-rdp",
-		// Resource checks
-		"resource-postgres",
-		"resource-redis",
-		"resource-ollama",
-		"resource-qdrant",
-		"resource-searxng",
-		"resource-whisper",
-		// Scenario checks (critical)
-		"scenario-app-monitor",
-		// Scenario checks (non-critical)
-		"scenario-template-manager",
-		"scenario-browser-automation-studio",
-		"scenario-test-genie",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -65,7 +52,6 @@ func TestRegisterDefaultChecks(t *testing.T) {
 			t.Errorf("Expected check %q to be registered", expectedID)
 		}
 	}
-
 	t.Logf("Registered %d checks", len(checksList))
 }
 

@@ -54,6 +54,16 @@
       "reason": "Existing local check inspection command retained outside the typed reliability-measure Connect surface."
     },
     {
+      "command": "check suspended",
+      "class": "passthrough",
+      "reason": "Existing local suspension inspection command reads the durable heal-tracker disposition surface."
+    },
+    {
+      "command": "check resume",
+      "class": "passthrough",
+      "reason": "Existing local recovery command explicitly resumes a check after an operator reviews its bounded-failure suspension."
+    },
+    {
       "command": "config show",
       "class": "passthrough",
       "reason": "Existing local configuration command retained outside the typed reliability-measure Connect surface."
@@ -447,6 +457,55 @@
               "value_field": "uptime.uptime_percent",
               "unit": "percent",
               "summary_template": "{check_id} uptime ({window_hours}h)"
+            }
+          }
+        },
+        {
+          "name": "outages",
+          "description": "Read interval-weighted downtime by supervised member",
+          "flags": [
+            {
+              "name": "member-id",
+              "required": true
+            },
+            {
+              "name": "window-hours",
+              "default": "24"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "MeasuresService",
+            "method": "GetOutageSummary"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "measure": {
+            "domain": "reliability",
+            "intent": "Measure interval-weighted unavailability for one supervised member over a bounded window.",
+            "questions": [
+              "how long was this supervised member unavailable",
+              "show member outages this week"
+            ],
+            "params": {
+              "member_id": {},
+              "window_hours": {
+                "default": "24"
+              }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "outage.total_unavailable_seconds",
+              "unit": "seconds",
+              "summary_template": "{member_id} unavailable ({window_hours}h)"
             }
           }
         },
