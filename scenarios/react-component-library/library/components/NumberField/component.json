@@ -28,7 +28,7 @@
     "1.0.0"
   ],
   "kind": "input",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:NumberField",
   "slot": "ui-primitive",
   "tags": [

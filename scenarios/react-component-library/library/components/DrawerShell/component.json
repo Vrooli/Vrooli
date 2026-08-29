@@ -33,7 +33,7 @@
     "1.0.0"
   ],
   "kind": "overlay",
-  "latest": "1.1.3",
+  "latest": "1.1.4",
   "libraryId": "react-component-library:DrawerShell",
   "replacedBy": [
     "overlays.full-page-drawer",

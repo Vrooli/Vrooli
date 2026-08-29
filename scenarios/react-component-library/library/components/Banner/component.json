@@ -38,7 +38,7 @@
     "1.0.0"
   ],
   "kind": "surface",
-  "latest": "1.0.11",
+  "latest": "1.0.12",
   "libraryId": "react-component-library:Banner",
   "tags": [
     "feedback",

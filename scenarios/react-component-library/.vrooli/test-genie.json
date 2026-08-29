@@ -21,6 +21,7 @@
       "graph-reconciled": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
       "token-vocabulary": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
       "token-ramp-complete": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
+      "scenario-token-requirements": { "mode": "file-determined", "inputs": ["library/**", "../../templates/design/_base/tokens.css", "../*/ui/src/**", "catalog/config.json"] },
       "released-version-immutable": { "mode": "file-determined", "inputs": ["library/**/versions/**", "catalog/config.json"] },
       "version-liveness": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },
       "types": { "mode": "file-determined", "inputs": ["library/**", "ui/**", "catalog/config.json"] },

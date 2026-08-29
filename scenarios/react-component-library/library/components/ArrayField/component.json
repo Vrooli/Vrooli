@@ -26,7 +26,7 @@
     "1.0.1"
   ],
   "kind": "input",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:ArrayField",
   "tags": [
     "form",

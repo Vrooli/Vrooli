@@ -342,7 +342,7 @@ export function ComponentEditorImpl({
   const [overrideMessages, setOverrideMessages] = useState<Record<string, string>>({});
   const [previewEvents, setPreviewEvents] = useState<PreviewEvent[]>([]);
   const [previewKit, setPreviewKit] = useState<PreviewKit>(() =>
-    readPreviewPreference("rcl.preview.kit", "vrooli-default"),
+    readPreviewPreference("rcl.preview.kit", ""),
   );
   const [frameEnabled] = useState(() => readPreviewPreference("rcl.preview.frame", true));
   const previewReloadKey = 0;

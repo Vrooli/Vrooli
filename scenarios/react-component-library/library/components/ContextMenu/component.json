@@ -29,7 +29,7 @@
     "1.2.2"
   ],
   "kind": "control",
-  "latest": "1.2.8",
+  "latest": "1.2.9",
   "libraryId": "react-component-library:ContextMenu",
   "tags": [
     "overlay",

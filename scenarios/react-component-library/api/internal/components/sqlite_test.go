@@ -130,6 +130,35 @@ func TestSQLiteRepository_UpsertManifestPersistsLatestHeadersForCategoryFacet(t 
 	require.NotContains(t, fetched.Headers, "category")
 }
 
+func TestSQLiteRepository_PersistsVersionKitCompatibilityAndProjectsLatest(t *testing.T) {
+	repo, _ := newComponentsDB(t)
+	ctx := context.Background()
+	want := components.ComponentKitCompatibility{
+		Verdict:               components.KitCompatibilityRestricted,
+		CompatibleKitIDs:      []string{"kit-a"},
+		UnsatisfiedProperties: []string{},
+	}
+	component, err := repo.UpsertManifest(ctx, components.IndexManifestInput{
+		Manifest: components.ComponentManifest{LibraryID: "react-component-library:Panel", Slug: "Panel", DisplayName: "Panel", LatestVersion: "1.0.0"},
+		Versions: []components.ComponentVersion{{
+			Version: "1.0.0", Status: components.VersionStatusReleased,
+			SourcePath: "components/Panel/versions/1.0.0/Panel.tsx", ContentSHA256: "panel",
+			KitCompatibility: want,
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, want, component.KitCompatibility)
+
+	version, err := repo.GetVersion(ctx, component.ID, "1.0.0")
+	require.NoError(t, err)
+	require.Equal(t, want, version.KitCompatibility)
+
+	listed, err := repo.List(ctx, components.SearchQuery{Limit: 10})
+	require.NoError(t, err)
+	require.Len(t, listed, 1)
+	require.Equal(t, want, listed[0].KitCompatibility)
+}
+
 func TestSQLiteRepository_UpsertManifestPreservesCreatedAtAndReleasedAt(t *testing.T) {
 	d, repo, now := newComponentsRawDB(t)
 	ctx := context.Background()

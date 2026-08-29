@@ -40,7 +40,7 @@
     "2.4.0"
   ],
   "kind": "shell",
-  "latest": "2.6.0",
+  "latest": "2.6.1",
   "libraryId": "react-component-library:SidebarShell",
   "slot": "layout-nav",
   "tags": [

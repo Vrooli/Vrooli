@@ -464,6 +464,52 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 
 var libraryPackageSpecifier = regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\d+(?:\.\d+\.\d+)?))?`)
 
+type LibraryPackageSpecifier struct {
+	Name             string
+	RequestedVersion string
+}
+
+// LibraryPackageSpecifiers exposes the package-export matcher to consumers
+// that need to reason about imports. Keeping the regexp here prevents token
+// sync, retention, and release freezing from drifting into distinct grammars.
+func LibraryPackageSpecifiers(source string) []LibraryPackageSpecifier {
+	matches := libraryPackageSpecifier.FindAllStringSubmatch(source, -1)
+	result := make([]LibraryPackageSpecifier, 0, len(matches))
+	seen := map[LibraryPackageSpecifier]bool{}
+	for _, match := range matches {
+		if len(match) != 3 {
+			continue
+		}
+		specifier := LibraryPackageSpecifier{Name: match[1], RequestedVersion: match[2]}
+		if !seen[specifier] {
+			seen[specifier] = true
+			result = append(result, specifier)
+		}
+	}
+	return result
+}
+
+// SelectActivePackageVersion applies the same newest-compatible rule as the
+// package export map: bare selects newest, a major selects newest in that
+// major, and an exact version selects only itself. Callers supply only active,
+// materialized releases so drafts and deprecated/evicted versions cannot win.
+func SelectActivePackageVersion(versions []string, requested string) (string, bool) {
+	var candidates []string
+	for _, candidate := range versions {
+		if !regexp.MustCompile(`^\d+\.\d+\.\d+$`).MatchString(candidate) {
+			continue
+		}
+		if requested == "" || candidate == requested || (!strings.Contains(requested, ".") && strings.HasPrefix(candidate, requested+".")) {
+			candidates = append(candidates, candidate)
+		}
+	}
+	if len(candidates) == 0 {
+		return "", false
+	}
+	sort.Slice(candidates, func(i, j int) bool { return compareSemver(candidates[i], candidates[j]) < 0 })
+	return candidates[len(candidates)-1], true
+}
+
 type frozenDependency struct {
 	LibraryID string `json:"libraryId"`
 	Version   string `json:"version"`
@@ -557,16 +603,14 @@ func (s *FSContentStore) resolveSourceDependency(name, requested string) (frozen
 		for _, entry := range entries {
 			candidate := entry.Name()
 			if entry.IsDir() && regexp.MustCompile(`^\d+\.\d+\.\d+$`).MatchString(candidate) && !unavailable[candidate] {
-				if requested == "" || candidate == requested || (!strings.Contains(requested, ".") && strings.HasPrefix(candidate, requested+".")) {
-					candidates = append(candidates, candidate)
-				}
+				candidates = append(candidates, candidate)
 			}
 		}
-		if len(candidates) == 0 {
+		selected, ok := SelectActivePackageVersion(candidates, requested)
+		if !ok {
 			return frozenDependency{}, fmt.Errorf("%s has no active release matching %q", name, requested)
 		}
-		sort.Slice(candidates, func(i, j int) bool { return compareSemver(candidates[i], candidates[j]) < 0 })
-		return frozenDependency{LibraryID: manifest.LibraryID, Version: candidates[len(candidates)-1], Rank: rank}, nil
+		return frozenDependency{LibraryID: manifest.LibraryID, Version: selected, Rank: rank}, nil
 	}
 	return frozenDependency{}, fmt.Errorf("unknown intra-library asset %s", name)
 }

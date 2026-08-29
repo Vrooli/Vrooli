@@ -1227,6 +1227,11 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]
 		if runners["token-ramp-complete"], err = gates.ValidateTokenRampComplete(root); err != nil {
 			return nil, err
 		}
+		if needed("scenario-token-requirements") {
+			if runners["scenario-token-requirements"], err = gates.ValidateScenarioTokenRequirements(root); err != nil {
+				return nil, err
+			}
+		}
 	}
 	if runtimeDB != nil {
 		if runners["released-version-immutable"], err = gates.ValidateReleasedVersionImmutableWithDB(root, runtimeDB); err != nil {

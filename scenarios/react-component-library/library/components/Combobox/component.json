@@ -29,7 +29,7 @@
     "1.0.4"
   ],
   "kind": "input",
-  "latest": "1.0.6",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:Combobox",
   "requires": [
     {

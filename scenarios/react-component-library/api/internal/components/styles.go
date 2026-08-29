@@ -47,7 +47,7 @@ func LoadDesignStyles(_ context.Context, root string) ([]DesignStyle, error) {
 	}
 	var out []DesignStyle
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), "_") {
 			continue
 		}
 		raw, err := os.ReadFile(filepath.Join(root, entry.Name(), "metadata.json"))

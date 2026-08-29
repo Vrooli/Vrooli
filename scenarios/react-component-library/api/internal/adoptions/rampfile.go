@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"react-component-library/internal/components"
+	"react-component-library/internal/themes"
 )
 
 const (
@@ -130,6 +131,19 @@ func (s *service) SyncScenarioTokens(ctx context.Context, in TokenSyncInput) (To
 	for _, match := range rampDeclarationRE.FindAllStringSubmatch(ramp.managed, -1) {
 		managed[match[1]] = strings.TrimSpace(match[2])
 	}
+	contractTierRemoved := false
+	if reader, ok := s.tokenInventory.(ScenarioReferenceTokenReader); ok {
+		tokens, tokenErr := reader.ReferenceTokens(ctx)
+		if tokenErr != nil {
+			return TokenSyncResult{}, tokenErr
+		}
+		for property := range managed {
+			if token, exists := tokens[property]; exists && token.Tier == themes.TokenTierContract {
+				delete(managed, property)
+				contractTierRemoved = true
+			}
+		}
+	}
 	runtimeOwned := map[string]struct{}{}
 	runtimeCollisionRemoved := false
 	if reader, ok := s.tokenInventory.(ScenarioRuntimeTokenInventoryReader); ok {
@@ -174,7 +188,7 @@ func (s *service) SyncScenarioTokens(ctx context.Context, in TokenSyncInput) (To
 	}
 	sort.Strings(result.Collisions)
 	ramp.managed = renderRampDeclarations(managed)
-	result.Changed = len(result.Added) > 0 || runtimeCollisionRemoved || !strings.Contains(string(raw), tokenRampBegin)
+	result.Changed = len(result.Added) > 0 || runtimeCollisionRemoved || contractTierRemoved || !strings.Contains(string(raw), tokenRampBegin)
 	if result.Changed && !in.DryRun {
 		if _, err := s.files.Write(ctx, scenario, tokenRampPath, []byte(ramp.render())); err != nil {
 			return TokenSyncResult{}, err
@@ -235,6 +249,32 @@ func (s *service) requiredTokensForScenario(ctx context.Context, scenario string
 		return nil, err
 	}
 	required := make(map[string]struct{})
+	seenVersions := map[string]bool{}
+	collect := func(root components.Component, version components.ComponentVersion) error {
+		key := root.ID + "@" + version.Version
+		if seenVersions[key] {
+			return nil
+		}
+		seenVersions[key] = true
+		closure, closureErr := s.resolveAdoptionClosure(ctx, root, version, scenario, nil)
+		if closureErr != nil {
+			return closureErr
+		}
+		for _, asset := range closure.Assets {
+			for _, property := range asset.Version.RequiredTokens {
+				required[property] = struct{}{}
+			}
+			for _, pattern := range asset.Version.RequiredTokenPatterns {
+				prefix := strings.TrimSuffix(pattern, "*")
+				for property := range s.referenceRampCache(ctx) {
+					if strings.HasPrefix(property, prefix) {
+						required[property] = struct{}{}
+					}
+				}
+			}
+		}
+		return nil
+	}
 	for _, row := range rows {
 		root, err := s.library.Get(ctx, row.ComponentID)
 		var missing components.ErrComponentNotFound
@@ -259,21 +299,55 @@ func (s *service) requiredTokensForScenario(ctx context.Context, scenario string
 		if err != nil {
 			return nil, err
 		}
-		closure, err := s.resolveAdoptionClosure(ctx, root, version, scenario, nil)
-		if err != nil {
+		if err := collect(root, version); err != nil {
 			return nil, err
 		}
-		for _, asset := range closure.Assets {
-			for _, property := range asset.Version.RequiredTokens {
-				required[property] = struct{}{}
+	}
+	if reader, ok := s.files.(ScenarioLibraryImportReader); ok {
+		specifiers, scanErr := reader.ImportedLibrarySpecifiers(ctx, scenario)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		for _, specifier := range specifiers {
+			root, getErr := s.library.Get(ctx, "react-component-library:"+specifier.Name)
+			if getErr != nil {
+				return nil, getErr
 			}
-			for _, pattern := range asset.Version.RequiredTokenPatterns {
-				prefix := strings.TrimSuffix(pattern, "*")
-				for property := range s.referenceRampCache(ctx) {
-					if strings.HasPrefix(property, prefix) {
-						required[property] = struct{}{}
-					}
+			versions, listErr := s.library.ListVersions(ctx, root.ID, 100000)
+			if listErr != nil {
+				return nil, listErr
+			}
+			active := make([]string, 0, len(versions))
+			for _, version := range versions {
+				if version.Status == components.VersionStatusReleased && version.Presence != "evicted" {
+					active = append(active, version.Version)
 				}
+			}
+			selected, found := components.SelectActivePackageVersion(active, specifier.RequestedVersion)
+			if !found {
+				return nil, fmt.Errorf("imported asset %s has no active release matching %q", specifier.Name, specifier.RequestedVersion)
+			}
+			version, versionErr := s.library.GetVersion(ctx, root.ID, selected)
+			if versionErr != nil {
+				return nil, versionErr
+			}
+			if err := collect(root, version); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if reader, ok := s.tokenInventory.(ScenarioReferenceTokenReader); ok {
+		tokens, tokenErr := reader.ReferenceTokens(ctx)
+		if tokenErr != nil {
+			return nil, tokenErr
+		}
+		for property := range required {
+			token, exists := tokens[property]
+			// Sync owns only the canonical design vocabulary. Asset-local/runtime
+			// properties (including --rcl-*) are supplied by the component unit,
+			// while undefined vocabulary is diagnosed by the compatibility gate.
+			if !exists || token.Tier == themes.TokenTierContract {
+				delete(required, property)
 			}
 		}
 	}
@@ -290,15 +364,22 @@ func (s *service) referenceRampCache(ctx context.Context) map[string]string {
 
 func (s *service) referenceRampValues(ctx context.Context) (map[string]string, error) {
 	values := map[string]string{}
+	if reader, ok := s.tokenInventory.(ScenarioReferenceTokenReader); ok {
+		tokens, err := reader.ReferenceTokens(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for name, token := range tokens {
+			if token.Tier != themes.TokenTierContract {
+				values[name] = token.Value
+			}
+		}
+		return values, nil
+	}
 	raw, err := s.files.Read(ctx, "react-component-library", tokenRampPath)
 	if err == nil {
 		for _, match := range rampDeclarationRE.FindAllStringSubmatch(string(raw), -1) {
 			values[match[1]] = strings.TrimSpace(match[2])
-		}
-	}
-	for _, property := range []string{"--color-background", "--color-foreground", "--color-surface", "--color-surface-muted", "--color-border", "--color-primary", "--color-primary-foreground", "--space-3xs", "--space-2xs", "--space-xs", "--space-sm", "--space-md", "--space-lg", "--space-xl", "--space-2xl", "--dur-instant", "--dur-quick", "--dur-moderate", "--dur-deliberate", "--radius-none", "--radius-sm", "--radius-md", "--radius-lg", "--radius-xl", "--radius-pill", "--elev-flat", "--elev-raised", "--elev-floating", "--elev-overlay"} {
-		if _, ok := values[property]; !ok {
-			values[property] = "initial"
 		}
 	}
 	return values, nil

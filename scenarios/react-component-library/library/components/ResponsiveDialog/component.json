@@ -34,7 +34,7 @@
     "1.2.1"
   ],
   "kind": "control",
-  "latest": "1.2.7",
+  "latest": "1.2.8",
   "libraryId": "react-component-library:ResponsiveDialog",
   "tags": [
     "overlay",

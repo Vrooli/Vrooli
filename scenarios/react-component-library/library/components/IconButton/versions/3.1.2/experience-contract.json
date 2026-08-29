@@ -1,0 +1,105 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "control": {
+        "selector": "[data-testid='controls.icon-button']"
+      },
+      "glyph": {
+        "selector": "[data-rcl-morphing-icon]"
+      },
+      "spinner": {
+        "selector": "[data-rcl-icon-button-spinner]"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["control"],
+      "id": "named-action",
+      "statement": "The icon button exposes a named action.",
+      "states": ["default"],
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "elements": ["control"],
+      "id": "toggle-announced",
+      "statement": "A selected icon button announces its pressed state rather than only colouring itself.",
+      "states": ["selected"],
+      "tier": "machine",
+      "type": "attribute"
+    },
+    {
+      "elements": ["control", "spinner"],
+      "id": "pending-blocks",
+      "statement": "A pending icon button is disabled and marked busy.",
+      "states": ["pending"],
+      "tier": "machine",
+      "type": "attribute"
+    },
+    {
+      "elements": ["glyph"],
+      "id": "icon-change-animates",
+      "statement": "Changing the icon animates the change without call-site motion code.",
+      "states": ["icon-swap"],
+      "tier": "machine",
+      "type": "element-present"
+    }
+  ],
+  "component": {
+    "id": "icon-button",
+    "purpose": "Provide an icon-only action that is legible at rest, gives real feedback on interaction, announces toggle state, and animates its own icon changes.",
+    "storyRef": "../../library/components/IconButton/versions/3.1.2/story.json",
+    "title": "IconButton"
+  },
+  "elements": [
+    {
+      "description": "The native icon button.",
+      "id": "control",
+      "role": "button"
+    },
+    {
+      "description": "The icon slot, which owns the swap animation.",
+      "id": "glyph"
+    },
+    {
+      "description": "The pending indicator that replaces the glyph.",
+      "id": "spinner"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "Named icon-only action with no chrome at rest.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Standing surface for a control that must be findable at rest.",
+      "example": "surface-soft",
+      "id": "surface-soft"
+    },
+    {
+      "description": "Toggle in its on state.",
+      "example": "selected",
+      "id": "selected"
+    },
+    {
+      "description": "In-flight action.",
+      "example": "pending",
+      "id": "pending"
+    },
+    {
+      "description": "Unavailable action.",
+      "example": "disabled",
+      "id": "disabled"
+    },
+    {
+      "description": "The icon has changed and the control animated the change.",
+      "example": "icon-swap",
+      "id": "icon-swap"
+    }
+  ]
+}

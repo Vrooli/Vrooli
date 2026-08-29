@@ -23,7 +23,7 @@
     "1.1.2"
   ],
   "kind": "surface",
-  "latest": "2.0.0",
+  "latest": "2.0.1",
   "libraryId": "react-component-library:SplitPane",
   "tags": [
     "layout",

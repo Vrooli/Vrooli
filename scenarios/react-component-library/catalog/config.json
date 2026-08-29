@@ -204,6 +204,39 @@
       }
     },
     {
+      "id": "fallback-parity",
+      "attribution": "attributable",
+      "rung": "implemented",
+      "description": "Authored fallbacks for shared design properties equal the canonical base values.",
+      "appliesTo": ["component"],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates fallback-parity"
+      }
+    },
+    {
+      "id": "kit-compatibility",
+      "attribution": "attributable",
+      "rung": "implemented",
+      "description": "Every active component token contract is satisfiable by at least one registered design kit.",
+      "appliesTo": ["component"],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates kit-compatibility"
+      }
+    },
+    {
+      "id": "affinity-compatible",
+      "attribution": "attributable",
+      "rung": "implemented",
+      "description": "Authored kit affinity never claims a kit outside the component's derived compatibility set.",
+      "appliesTo": ["component"],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates affinity-compatible"
+      }
+    },
+    {
       "id": "token-ramp-complete",
       "attribution": "corpus",
       "rung": "implemented",
@@ -218,6 +251,23 @@
       "blocking": true,
       "runner": {
         "react-vite": "react-component-library catalog gates token-ramp-complete"
+      }
+    },
+    {
+      "id": "scenario-token-requirements",
+      "attribution": "corpus",
+      "rung": "implemented",
+      "description": "Every scenario managed token region covers the active React Component Library releases imported by that scenario, excluding host-owned Contract-tier properties.",
+      "appliesTo": [
+        "foundation",
+        "primitive",
+        "component",
+        "runtime-hook",
+        "runtime-service"
+      ],
+      "blocking": true,
+      "runner": {
+        "react-vite": "react-component-library catalog gates scenario-token-requirements"
       }
     },
     {

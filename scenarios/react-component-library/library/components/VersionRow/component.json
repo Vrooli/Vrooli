@@ -6,7 +6,7 @@
   "displayName": "VersionRow",
   "description": "A compact version-history row composed from published data-display assets.",
   "kind": "surface",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "deprecatedVersions": [],
   "entry": "VersionRow.tsx",
   "tags": [
@@ -14,5 +14,13 @@
     "data-display",
     "versions",
     "token-bound"
+  ],
+  "draft": "",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
   ]
 }

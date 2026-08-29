@@ -31,7 +31,7 @@
     "1.0.3"
   ],
   "kind": "overlay",
-  "latest": "2.0.6",
+  "latest": "2.0.7",
   "libraryId": "react-component-library:AlertDialog",
   "tags": [
     "overlay",

@@ -41,7 +41,7 @@
     "1.1.2"
   ],
   "kind": "overlay",
-  "latest": "1.2.3",
+  "latest": "1.2.4",
   "libraryId": "react-component-library:Popover",
   "slot": "ui-pattern",
   "tags": [

@@ -2,12 +2,27 @@ package components_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"react-component-library/internal/components"
 )
+
+func TestLoadDesignStylesSkipsReservedSharedDirectories(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "_base"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "demo"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "_base", "tokens.css"), []byte(":root {}"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "demo", "metadata.json"), []byte(`{"id":"demo","name":"Demo","adapters":{}}`), 0o644))
+
+	styles, err := components.LoadDesignStyles(context.Background(), root)
+	require.NoError(t, err)
+	require.Len(t, styles, 1)
+	require.Equal(t, "demo", styles[0].ID)
+}
 
 func TestLoadDesignStylesLoadsCanonicalTemplates(t *testing.T) {
 	styles, err := components.LoadDesignStyles(context.Background(), "../../../../../templates/design")

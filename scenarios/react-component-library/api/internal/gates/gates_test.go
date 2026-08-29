@@ -527,6 +527,13 @@ func TestFixtureGateRejectsMissingAdversarialShape(t *testing.T) {
 
 func TestTokenGateRejectsLiteralDimensionInImplementation(t *testing.T) {
 	root := t.TempDir()
+	base := filepath.Join(root, "templates", "design", "_base", "tokens.css")
+	if err := os.MkdirAll(filepath.Dir(base), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(base, []byte(":root {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	for _, kit := range []string{"one", "two", "three"} {
 		path := filepath.Join(root, "templates", "design", kit, "adapters", "react-vite-tailwind")
 		if err := os.MkdirAll(path, 0o755); err != nil {
@@ -554,6 +561,98 @@ func TestTokenGateRejectsLiteralDimensionInImplementation(t *testing.T) {
 	if result.Inspected != 1 || len(result.Findings) != 1 || result.Findings[0].Code != "catalog.tokens_literal" {
 		t.Fatalf("result = %+v", result)
 	}
+}
+
+func TestScenarioTokenRequirementsGateRejectsMissingImportedProperty(t *testing.T) {
+	root := t.TempDir()
+	write := func(relative, content string) {
+		t.Helper()
+		path := filepath.Join(root, relative)
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	}
+	write("templates/design/_base/tokens.css", ":root {\n  /* @tier Expression */\n  --color-needed: blue;\n  /* @tier Contract */\n  --layer-modal: 400;\n}\n")
+	write("scenarios/react-component-library/library/components/Fixture/component.json", `{"libraryId":"react-component-library:Fixture"}`)
+	write("scenarios/react-component-library/library/components/Fixture/versions/1.0.0/Fixture.tsx", `export const Fixture = () => <div style={{ color: "var(--color-needed)", zIndex: "var(--layer-modal)" }} />;`)
+	write("scenarios/fixture/ui/src/App.tsx", `import { Fixture } from "@vrooli/react-component-library/Fixture"; export const App = Fixture;`)
+	write("scenarios/fixture/ui/src/design-tokens.css", ":root {\n/* rcl:tokens:begin */\n/* rcl:tokens:end */\n}\n")
+
+	result, err := ValidateScenarioTokenRequirements(root)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	require.Equal(t, "catalog.scenario_token_requirements", result.Findings[0].Code)
+	require.Contains(t, result.Findings[0].Message, "--color-needed")
+	require.NotContains(t, result.Findings[0].Message, "--layer-modal")
+}
+
+func TestFallbackParityReportsOnlyDisagreeingExternalFallback(t *testing.T) {
+	root := t.TempDir()
+	base := filepath.Join(root, "templates", "design", "_base")
+	require.NoError(t, os.MkdirAll(base, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(base, "tokens.css"), []byte(":root {\n  --space-md: 24px;\n  --radius-panel: 0.5rem;\n}\n"), 0o644))
+	version := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Panel", "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(version, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(version, "Panel.tsx"), []byte("const css = `padding: var(--space-md, 1rem); border-radius: var(--radius-panel, 0.5rem); color: var(--local, red); --local: blue;`;"), 0o644))
+
+	result, err := ValidateFallbackParity(root)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	require.Equal(t, "catalog.fallback_parity", result.Findings[0].Code)
+	require.Contains(t, result.Findings[0].Message, "--space-md")
+}
+
+func TestTokenVocabularyAllowsCompatibilityAliasDeclarationsButRejectsReferences(t *testing.T) {
+	root := t.TempDir()
+	version := filepath.Join(root, "scenarios", "react-component-library", "library", "foundations", "BaseStyles", "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(version, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(version, "BaseStyles.ts"), []byte(`const css = ":root { --app-surface: var(--color-surface); }";`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "react-component-library", "library", "foundations", "BaseStyles", "component.json"), []byte(`{"libraryId":"react-component-library:BaseStyles","latest":"1.0.0"}`), 0o644))
+
+	result, err := ValidateTokenVocabulary(root)
+	require.NoError(t, err)
+	require.Empty(t, result.Findings)
+
+	require.NoError(t, os.WriteFile(filepath.Join(version, "BaseStyles.ts"), []byte(`const css = ":root { --app-surface: var(--color-surface); color: var(--app-surface); }";`), 0o644))
+	result, err = ValidateTokenVocabulary(root)
+	require.NoError(t, err)
+	require.Len(t, result.Findings, 1)
+	require.Equal(t, "catalog.token_vocabulary", result.Findings[0].Code)
+}
+
+func TestLiveFallbackParity(t *testing.T) {
+	result, err := ValidateFallbackParity(liveRoot(t))
+	require.NoError(t, err)
+	for _, finding := range result.Findings {
+		t.Logf("%s:%d: %s", finding.File, finding.Line, finding.Message)
+	}
+	require.Empty(t, result.Findings)
+}
+
+func TestCompatibilityGatesRejectBadVerdictsAndOverclaims(t *testing.T) {
+	census := Census{
+		ComponentsScanned: 4,
+		Components: []ComponentTokenCensus{
+			{LibraryID: "react-component-library:Universal", Verdict: CompatibilityUniversal},
+			{LibraryID: "react-component-library:Restricted", Verdict: CompatibilityRestricted},
+			{LibraryID: "react-component-library:Impossible", Verdict: CompatibilityUnsatisfiable},
+			{LibraryID: "react-component-library:Undefined", Verdict: CompatibilityUndefinedVocabulary, RequiredTokens: []string{"--missing"}},
+		},
+		AffinityOverclaims: []AffinityOverclaim{{LibraryID: "react-component-library:Restricted", StyleID: "kit-b"}},
+	}
+	require.Len(t, compatibilityGateResult(census, false).Findings, 2)
+	require.Len(t, compatibilityGateResult(census, true).Findings, 1)
+}
+
+func TestLiveKitCompatibility(t *testing.T) {
+	result, err := ValidateKitCompatibility(liveRoot(t))
+	require.NoError(t, err)
+	require.Empty(t, result.Findings)
+}
+
+func TestLiveAffinityCompatibility(t *testing.T) {
+	result, err := ValidateAffinityNotBroaderThanCompatibility(liveRoot(t))
+	require.NoError(t, err)
+	require.Empty(t, result.Findings)
 }
 
 func TestLifecycleGateRejectsMissingCleanup(t *testing.T) {

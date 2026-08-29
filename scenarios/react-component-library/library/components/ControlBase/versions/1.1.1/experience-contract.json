@@ -1,0 +1,60 @@
+{
+  "bindings": {
+    "elements": {
+      "control": {
+        "testid": "control-base-root"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["control"],
+      "id": "size-scale",
+      "statement": "Each public size resolves the documented minimum geometry.",
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "elements": ["control"],
+      "id": "hover-state-contrast",
+      "params": {
+        "background": "surface",
+        "minContrastRatio": 3,
+        "state": "hover"
+      },
+      "statement": "The hover treatment retains readable foreground contrast.",
+      "states": ["size-md"],
+      "tier": "machine",
+      "type": "state-contrast"
+    }
+  ],
+  "component": {
+    "id": "control-base",
+    "purpose": "Owns the documented six-rung control geometry, focus, hover, disabled, and density contract.",
+    "title": "Control Base"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library/ControlBase@1.1.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "elements": [
+    {
+      "description": "The shared native control.",
+      "id": "control",
+      "role": "button"
+    }
+  ],
+  "states": [
+    {
+      "description": "A primary control at a documented size.",
+      "example": "size-md",
+      "id": "size-md"
+    },
+    {
+      "description": "The same geometry with reduced internal spacing.",
+      "example": "density-compact",
+      "id": "density-compact"
+    }
+  ]
+}

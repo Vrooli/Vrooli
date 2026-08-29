@@ -28,7 +28,7 @@
     "1.0.0"
   ],
   "kind": "input",
-  "latest": "1.2.0",
+  "latest": "1.2.1",
   "libraryId": "react-component-library:InputGroup",
   "slot": "ui-primitive",
   "tags": [

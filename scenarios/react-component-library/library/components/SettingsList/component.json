@@ -1,0 +1,24 @@
+{
+  "libraryId": "react-component-library:SettingsList",
+  "displayName": "Settings List",
+  "description": "Container-responsive settings groups, rows, and section introductions.",
+  "kind": "control",
+  "tags": [
+    "settings",
+    "layout",
+    "responsive",
+    "accessibility",
+    "token-bound"
+  ],
+  "entry": "SettingsList.tsx",
+  "latest": "0.1.5",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": ""
+}

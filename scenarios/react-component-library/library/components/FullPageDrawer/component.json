@@ -32,7 +32,7 @@
     "1.2.1"
   ],
   "kind": "control",
-  "latest": "1.2.6",
+  "latest": "1.2.7",
   "libraryId": "react-component-library:FullPageDrawer",
   "tags": [
     "overlay",

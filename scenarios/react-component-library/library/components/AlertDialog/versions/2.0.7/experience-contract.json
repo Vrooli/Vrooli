@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "surface": {
+        "selector": "alertdialog"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["surface"],
+      "id": "alertdialog-present",
+      "statement": "Every state exposes a named alertdialog landmark.",
+      "states": ["default", "submitting", "request-error"],
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "elements": ["surface"],
+      "id": "accessible-name",
+      "statement": "The open decision surface exposes a non-empty accessible name.",
+      "tier": "machine",
+      "type": "accessible-name"
+    },
+    {
+      "elements": ["surface"],
+      "id": "focus-containment",
+      "statement": "Keyboard focus remains inside the open modal decision surface.",
+      "tier": "machine",
+      "type": "focus-containment"
+    }
+  ],
+  "component": {
+    "id": "overlays.alert-dialog",
+    "purpose": "A consequential decision surface that defaults focus to the safe action.",
+    "title": "AlertDialog"
+  },
+  "elements": [
+    {
+      "description": "The consequential modal decision.",
+      "id": "surface",
+      "name": "Confirm action",
+      "role": "alertdialog"
+    }
+  ],
+  "kind": "experience-component",
+  "schemaVersion": "1.1.0",
+  "states": [
+    {
+      "description": "A consequential confirmation.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Actions are disabled while work is pending.",
+      "example": "submitting",
+      "id": "submitting"
+    },
+    {
+      "description": "A request failure is announced without losing context.",
+      "example": "request-error",
+      "id": "request-error"
+    }
+  ]
+}

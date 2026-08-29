@@ -22,6 +22,7 @@ import (
 	"react-component-library/internal/components"
 	internaldeps "react-component-library/internal/deps"
 	internalpreview "react-component-library/internal/preview"
+	"react-component-library/internal/themes"
 )
 
 //go:embed assets/harness.js assets/story-evaluator.js assets/story-sheet.css assets/story-sheet.js
@@ -1007,12 +1008,20 @@ func discoverRepoRoot(explicit string) string {
 }
 
 func previewDesignSystemCSS(repoRoot, kit string) (string, error) {
+	if kit == "none" {
+		return "", nil
+	}
 	if kit == "" || strings.Contains(kit, ".") || strings.ContainsAny(kit, `/\\`) {
 		return "", fmt.Errorf("invalid design kit %q", kit)
 	}
 	adapter := filepath.Join(repoRoot, "templates", "design", kit, "adapters", "react-vite-tailwind")
 	tokensPath := filepath.Join(adapter, "tokens.css")
+	baseTokensPath := filepath.Join(repoRoot, "templates", "design", "_base", "tokens.css")
 	utilitiesPath := filepath.Join(adapter, "preview-utilities.css")
+	baseTokensInfo, err := os.Stat(baseTokensPath)
+	if err != nil {
+		return "", fmt.Errorf("shared token vocabulary missing: %w", err)
+	}
 	tokensInfo, err := os.Stat(tokensPath)
 	if err != nil {
 		return "", fmt.Errorf("tokens stylesheet missing: %w", err)
@@ -1022,15 +1031,15 @@ func previewDesignSystemCSS(repoRoot, kit string) (string, error) {
 		return "", fmt.Errorf("compiled utility stylesheet missing for %q: %w", kit, err)
 	}
 	key := kit
-	modified := fmt.Sprintf("%d:%d", tokensInfo.ModTime().UnixNano(), utilitiesInfo.ModTime().UnixNano())
+	modified := fmt.Sprintf("%d:%d:%d", baseTokensInfo.ModTime().UnixNano(), tokensInfo.ModTime().UnixNano(), utilitiesInfo.ModTime().UnixNano())
 	previewCSSCache.Lock()
 	defer previewCSSCache.Unlock()
 	if previewCSSCache.key == key && previewCSSCache.modified == modified && previewCSSCache.css != "" {
 		return previewCSSCache.css, nil
 	}
-	tokens, err := os.ReadFile(tokensPath)
+	tokens, err := themes.ComposeKitCSS(repoRoot, kit)
 	if err != nil {
-		return "", fmt.Errorf("read tokens stylesheet: %w", err)
+		return "", fmt.Errorf("compose token stylesheets: %w", err)
 	}
 	utilities, err := os.ReadFile(utilitiesPath)
 	if err != nil {
@@ -1041,8 +1050,48 @@ func previewDesignSystemCSS(repoRoot, kit string) (string, error) {
 	}
 	previewCSSCache.key = key
 	previewCSSCache.modified = modified
-	previewCSSCache.css = string(tokens) + "\n" + string(utilities)
+	previewCSSCache.css = tokens + "\n" + string(utilities)
 	return previewCSSCache.css, nil
+}
+
+// ServeBaseStylesFixture renders the exact published foundation CSS without
+// loading any design kit. It is a browser-measurable proof of both the
+// canonical floor and unlayered scenario precedence.
+func (h *HarnessHandler) ServeBaseStylesFixture(w http.ResponseWriter, r *http.Request) {
+	version := strings.TrimSpace(r.URL.Query().Get("version"))
+	if version == "" || filepath.Base(version) != version || strings.HasPrefix(version, ".") || strings.ContainsAny(version, `/\\`) {
+		http.Error(w, "preview: a safe BaseStyles version is required", http.StatusBadRequest)
+		return
+	}
+	path := filepath.Join(h.repoRoot, "scenarios", "react-component-library", "library", "foundations", "BaseStyles", "versions", version, "BaseStyles.ts")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		http.Error(w, "preview: BaseStyles version is unavailable", http.StatusNotFound)
+		return
+	}
+	css, err := extractBaseStylesCSS(string(raw))
+	if err != nil {
+		http.Error(w, "preview: BaseStyles source is malformed", http.StatusUnprocessableEntity)
+		return
+	}
+	css = strings.ReplaceAll(css, "</style", "<\\/style")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = fmt.Fprintf(w, `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>%s</style></head><body><main><div id="canonical" style="padding:var(--space-md);border-radius:var(--radius-panel)">Canonical layered default</div><div id="override" style="--space-md:7px;padding:var(--space-md);border-radius:var(--radius-panel)">Unlayered scenario override</div><output id="measurement" data-testid="base-styles-measurement"></output></main><script>const canonical=getComputedStyle(document.querySelector('#canonical'));const override=getComputedStyle(document.querySelector('#override'));const value='canonical padding='+canonical.paddingTop+', radius='+canonical.borderTopLeftRadius+'; override padding='+override.paddingTop;const output=document.querySelector('#measurement');output.textContent=value;output.dataset.canonicalPadding=canonical.paddingTop;output.dataset.canonicalRadius=canonical.borderTopLeftRadius;output.dataset.overridePadding=override.paddingTop;</script></body></html>`, css)
+}
+
+func extractBaseStylesCSS(source string) (string, error) {
+	const marker = "export const baseStyles = `"
+	start := strings.Index(source, marker)
+	if start < 0 {
+		return "", fmt.Errorf("baseStyles template literal not found")
+	}
+	rest := source[start+len(marker):]
+	end := strings.Index(rest, "`;")
+	if end < 0 {
+		return "", fmt.Errorf("baseStyles template literal is unterminated")
+	}
+	return rest[:end], nil
 }
 
 // previewConsumerCSS reads a scenario's current build output and source-owned

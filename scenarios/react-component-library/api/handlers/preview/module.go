@@ -58,6 +58,7 @@ func ModuleFromService(svc preview.Service, comp components.Service, logger *log
 			r.HandleFunc("/preview/runtime/{module:react|react-dom}@{version}/{path:.*}", runtime.ServeHTTP).Methods("GET")
 			r.HandleFunc("/preview/runtime/npm/{module:.+}@{version}", runtime.ServeHTTP).Methods("GET")
 			r.HandleFunc("/preview/runtime/npm/{module:.+}@{version}/{path:.*}", runtime.ServeHTTP).Methods("GET")
+			r.HandleFunc("/preview/foundations/base-styles-fixture.html", harness.ServeBaseStylesFixture).Methods("GET")
 			r.HandleFunc("/preview/{id}/harness.html", harness.ServeHTTP).Methods("GET")
 		},
 		Endpoints: Endpoints,

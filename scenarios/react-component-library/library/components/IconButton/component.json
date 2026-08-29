@@ -21,11 +21,10 @@
   "evictedVersions": [
     "3.1.0",
     "3.0.1",
-    "3.0.0",
-    "2.0.1"
+    "3.0.0"
   ],
   "kind": "control",
-  "latest": "3.1.1",
+  "latest": "3.1.2",
   "libraryId": "react-component-library:IconButton",
   "tags": [
     "button",

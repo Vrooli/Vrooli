@@ -26,7 +26,7 @@
     "1.0.4"
   ],
   "kind": "surface",
-  "latest": "1.0.6",
+  "latest": "1.0.7",
   "libraryId": "react-component-library:Toast",
   "requires": [
     {

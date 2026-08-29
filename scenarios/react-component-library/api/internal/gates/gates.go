@@ -22,6 +22,7 @@ import (
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/graphreconcile"
+	"react-component-library/internal/themes"
 	"react-component-library/internal/utilityclass"
 )
 
@@ -507,12 +508,12 @@ func ValidateTokenVocabulary(root string) (Result, error) {
 		if err != nil {
 			return Result{}, err
 		}
-		if strings.Contains(string(raw), "--app-") {
+		if offset := firstRetiredTokenReference(raw); offset >= 0 {
 			result.Findings = append(result.Findings, Finding{
 				Code:        "catalog.token_vocabulary",
 				AssetID:     implementationName(path),
 				File:        repoRel(root, path),
-				Line:        lineOf(raw, "--app-"),
+				Line:        lineAt(raw, offset),
 				Message:     "references the retired --app-* CSS custom property vocabulary",
 				Remediation: "Replace each --app-<name> reference with its --color-<name> / --space-<name> equivalent from the canonical ramp at ui/src/design-tokens.css. The --app-* family is defined only for the workspace application shell and is not published to library consumers, so a library asset referencing it renders unstyled in every adopting scenario.",
 				DocsRef:     "docs/concepts/ARCHITECTURE.md#design-tokens",
@@ -520,6 +521,26 @@ func ValidateTokenVocabulary(root string) (Result, error) {
 		}
 	}
 	return nonEmpty(result, "token-vocabulary"), nil
+}
+
+// firstRetiredTokenReference returns the first --app-* occurrence that is not
+// the name of a custom-property declaration. BaseStyles intentionally keeps
+// declaration-only aliases at the compatibility boundary; consumers may not
+// reference that retired vocabulary from active component source.
+func firstRetiredTokenReference(raw []byte) int {
+	declarations := map[int]bool{}
+	for _, match := range cssVarDeclGateRE.FindAllSubmatchIndex(raw, -1) {
+		if len(match) >= 4 {
+			declarations[match[2]] = true
+		}
+	}
+	retired := regexp.MustCompile(`--app-[A-Za-z0-9_-]+`)
+	for _, match := range retired.FindAllIndex(raw, -1) {
+		if !declarations[match[0]] {
+			return match[0]
+		}
+	}
+	return -1
 }
 
 // ValidateTokenRampComplete verifies that every external literal custom
@@ -537,6 +558,13 @@ func ValidateTokenRampComplete(root string) (Result, error) {
 	ramp := map[string]struct{}{}
 	for _, match := range cssVarDeclGateRE.FindAllStringSubmatch(string(rampRaw), -1) {
 		ramp[match[1]] = struct{}{}
+	}
+	baseProperties, err := activeAssetDeclarations(filepath.Join(root, "scenarios", "react-component-library", "library", "foundations", "BaseStyles"))
+	if err != nil {
+		return Result{}, fmt.Errorf("read shared BaseStyles vocabulary: %w", err)
+	}
+	for property := range baseProperties {
+		ramp[property] = struct{}{}
 	}
 	result := Result{Inspected: len(sources)}
 	for _, path := range sources {
@@ -2561,14 +2589,17 @@ func ValidateTokens(root string) (Result, error) {
 		if err != nil {
 			return Result{}, err
 		}
-		text := string(data)
 		kit := filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(path))))
+		resolved, err := themes.ComposeKitCSS(root, kit)
+		if err != nil {
+			return Result{}, fmt.Errorf("resolve design kit %q: %w", kit, err)
+		}
 		for _, token := range shared {
-			if !strings.Contains(text, "--"+token) {
+			if !strings.Contains(resolved, "--"+token) {
 				result.Findings = append(result.Findings, Finding{
 					Code: "catalog.tokens_missing", AssetID: "", File: repoRel(root, path),
-					Message:     fmt.Sprintf("design kit %q does not declare shared token --%s", kit, token),
-					Remediation: fmt.Sprintf("Declare --%s in this kit's tokens.css. Every kit must publish the full shared vocabulary, because a component authored against one kit is expected to render in all of them; a kit missing a step silently drops that declaration to its initial value wherever the component lands.", token),
+					Message:     fmt.Sprintf("design kit %q does not resolve shared token --%s", kit, token),
+					Remediation: fmt.Sprintf("Declare --%s in the shared base or this kit's override file. Every kit must resolve the full shared vocabulary, because a component authored against one kit is expected to render in all of them; a missing step silently drops that declaration to its initial value wherever the component lands.", token),
 					DocsRef:     "docs/concepts/ARCHITECTURE.md#design-tokens",
 				})
 			}
@@ -2602,6 +2633,174 @@ func ValidateTokens(root string) (Result, error) {
 		result.Findings[index].Category = "conformance"
 	}
 	return nonEmpty(result, "tokens"), nil
+}
+
+type tokenFallback struct {
+	Property string
+	Value    string
+	Offset   int
+}
+
+// ValidateFallbackParity makes authored fallbacks an honest view of the
+// canonical base vocabulary. Properties owned inside the same version and
+// host-computed --rcl-* contracts are intentionally outside this comparison.
+func ValidateFallbackParity(root string) (Result, error) {
+	tokens, err := themes.ReadTokenFile(filepath.Join(root, "templates", "design", "_base", "tokens.css"))
+	if err != nil {
+		return Result{}, fmt.Errorf("read canonical token vocabulary: %w", err)
+	}
+	canonical := make(map[string]string, len(tokens))
+	for _, token := range tokens {
+		canonical[token.Name] = normalizeTokenValue(token.Value)
+	}
+	sources, err := activeLibrarySources(root)
+	if err != nil {
+		return Result{}, err
+	}
+	byVersion := map[string][]string{}
+	for _, source := range sources {
+		if !strings.Contains(filepath.ToSlash(source), "/library/components/") {
+			continue
+		}
+		byVersion[filepath.Dir(source)] = append(byVersion[filepath.Dir(source)], source)
+	}
+	result := Result{}
+	for _, versionSources := range byVersion {
+		declared := map[string]bool{}
+		contents := map[string][]byte{}
+		for _, source := range versionSources {
+			data, readErr := os.ReadFile(source)
+			if readErr != nil {
+				return Result{}, readErr
+			}
+			contents[source] = data
+			for _, match := range regexp.MustCompile(`(?m)(--[A-Za-z0-9_-]+)\s*:`).FindAllSubmatch(data, -1) {
+				declared[string(match[1])] = true
+			}
+		}
+		for _, source := range versionSources {
+			data := contents[source]
+			result.Inspected++
+			for _, fallback := range parseTokenFallbacks(string(data)) {
+				want, known := canonical[fallback.Property]
+				if !known || declared[fallback.Property] || strings.HasPrefix(fallback.Property, "--rcl-") {
+					continue
+				}
+				if normalizeTokenValue(fallback.Value) == want {
+					continue
+				}
+				result.Findings = append(result.Findings, Finding{
+					Code: "catalog.fallback_parity", File: repoRel(root, source), Line: lineAt(data, fallback.Offset),
+					Message:     fmt.Sprintf("%s fallback %q disagrees with canonical value %q", fallback.Property, fallback.Value, tokenValue(tokens, fallback.Property)),
+					Remediation: fmt.Sprintf("Use var(%s, %s), or declare the property inside this component version when it is genuinely component-owned.", fallback.Property, tokenValue(tokens, fallback.Property)),
+					DocsRef:     "docs/design/TOKEN-DICTIONARY.md",
+				})
+			}
+		}
+	}
+	return result, nil
+}
+
+// ValidateKitCompatibility blocks versions whose token contract cannot be
+// satisfied by the registered kit vocabulary.
+func ValidateKitCompatibility(root string) (Result, error) {
+	census, err := TokenCensus(root)
+	if err != nil {
+		return Result{}, err
+	}
+	return compatibilityGateResult(census, false), nil
+}
+
+// ValidateAffinityNotBroaderThanCompatibility keeps authored aesthetic fit
+// inside the objectively renderable kit set.
+func ValidateAffinityNotBroaderThanCompatibility(root string) (Result, error) {
+	census, err := TokenCensus(root)
+	if err != nil {
+		return Result{}, err
+	}
+	return compatibilityGateResult(census, true), nil
+}
+
+func compatibilityGateResult(census Census, affinityOnly bool) Result {
+	result := Result{Inspected: census.ComponentsScanned}
+	if affinityOnly {
+		for _, overclaim := range census.AffinityOverclaims {
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.affinity_compatible", AssetID: strings.TrimPrefix(overclaim.LibraryID, "react-component-library:"),
+				Message:     fmt.Sprintf("declared affinity %s is broader than derived kit compatibility", overclaim.StyleID),
+				Remediation: "Remove the aesthetic-fit claim until the named kit supplies every required token.",
+				DocsRef:     "docs/design/TOKEN-DICTIONARY.md",
+			})
+		}
+		return result
+	}
+	for _, component := range census.Components {
+		if component.Verdict != CompatibilityUndefinedVocabulary && component.Verdict != CompatibilityUnsatisfiable {
+			continue
+		}
+		result.Findings = append(result.Findings, Finding{
+			Code: "catalog.kit_compatibility", AssetID: strings.TrimPrefix(component.LibraryID, "react-component-library:"),
+			Message:     fmt.Sprintf("derived kit compatibility is %s for required tokens %s", component.Verdict, strings.Join(component.RequiredTokens, ", ")),
+			Remediation: "Publish the missing semantic vocabulary through the shared base or a deliberate kit override; do not broaden affinity metadata.",
+			DocsRef:     "docs/design/TOKEN-DICTIONARY.md",
+		})
+	}
+	return result
+}
+
+func tokenValue(tokens []themes.DesignToken, property string) string {
+	for _, token := range tokens {
+		if token.Name == property {
+			return token.Value
+		}
+	}
+	return ""
+}
+
+func normalizeTokenValue(value string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
+}
+
+func parseTokenFallbacks(source string) []tokenFallback {
+	var result []tokenFallback
+	for offset := 0; offset < len(source); {
+		relative := strings.Index(source[offset:], "var(")
+		if relative < 0 {
+			break
+		}
+		start := offset + relative
+		depth, comma, end := 0, -1, -1
+		for i := start + len("var("); i < len(source); i++ {
+			switch source[i] {
+			case '(':
+				depth++
+			case ')':
+				if depth == 0 {
+					end = i
+				} else {
+					depth--
+				}
+			case ',':
+				if depth == 0 && comma < 0 {
+					comma = i
+				}
+			}
+			if end >= 0 {
+				break
+			}
+		}
+		if end < 0 {
+			break
+		}
+		if comma > 0 {
+			property := strings.TrimSpace(source[start+len("var(") : comma])
+			if strings.HasPrefix(property, "--") && !strings.Contains(property, "${") {
+				result = append(result, tokenFallback{Property: property, Value: strings.TrimSpace(source[comma+1 : end]), Offset: start})
+			}
+		}
+		offset = end + 1
+	}
+	return result
 }
 
 // ValidateLifecycle performs conservative static checks over hook/service/

@@ -1,0 +1,42 @@
+{
+  "claims": [
+    {
+      "id": "derived-value",
+      "statement": "The output recalculates from current store values rather than requiring consumer synchronization state.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "honest-status",
+      "statement": "The field labels the value as calculated and exposes an accessible live status without pretending it is an editable input.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "responsive-surface",
+      "statement": "The derived value remains legible in the same responsive form rhythm as its source fields.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "forms.computed-field",
+    "purpose": "A derived form value that remains understandable, accessible, and tied to its source dependencies.",
+    "title": "ComputedField"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:ComputedField@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "A calculated total follows source values and announces its role.",
+      "example": "default",
+      "id": "default"
+    }
+  ]
+}

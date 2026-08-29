@@ -1,0 +1,52 @@
+{
+  "claims": [
+    {
+      "id": "keyboard-operable",
+      "statement": "The splitter is focusable and fully operable by key.",
+      "states": ["keyboard"],
+      "tier": "aspirational",
+      "type": "keyboard-operable"
+    },
+    {
+      "id": "composed-not-duplicated",
+      "statement": "The splitter is the shared resize primitive, not a second implementation of one.",
+      "states": ["default", "vertical"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "both-orientations",
+      "statement": "Orientation maps straight through to the resize axis, so a grid splitter needs no separate component.",
+      "states": ["default", "vertical"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "manipulation.split-pane",
+    "purpose": "Two panes and one splitter, in either orientation, composed from the shared resize primitive.",
+    "title": "SplitPane"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:SplitPane@2.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "Side-by-side panes with a vertical splitter.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "Stacked panes with a horizontal splitter.",
+      "example": "vertical",
+      "id": "vertical"
+    },
+    {
+      "description": "The splitter operated from the keyboard.",
+      "example": "keyboard",
+      "id": "keyboard"
+    }
+  ]
+}

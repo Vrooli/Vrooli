@@ -1,5 +1,7 @@
 /** @vrooliComponentSource forms.select */
 import { Eye, Palette } from "lucide-react";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "../../components/Button";
 import { Select } from "../../components/Select";
@@ -8,20 +10,9 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { type ColorScheme, type DeviceFiltersValue } from "../../hooks/useDeviceFilters";
 import { AnchoredMenu } from "./AnchoredMenu";
+import { componentsClient } from "../../api/components";
 
-export const PREVIEW_KITS = [
-  { value: "vrooli-default", label: strings.components.themeSwitcher.kitOptions.default },
-  {
-    value: "vrooli-command-display",
-    label: strings.components.themeSwitcher.kitOptions.commandDisplay,
-  },
-  {
-    value: "vrooli-conversion-landing",
-    label: strings.components.themeSwitcher.kitOptions.conversionLanding,
-  },
-] as const;
-
-export type PreviewKit = (typeof PREVIEW_KITS)[number]["value"];
+export type PreviewKit = string;
 
 interface Props {
   previewReady: boolean;
@@ -66,6 +57,18 @@ export function ThemeSwitcher({
 }: Props) {
   const { t } = useTranslation();
   const activeMode = MODE_OPTIONS.find((option) => option.value === colorScheme);
+  const { data: designStyles } = useQuery({
+    queryKey: ["design-styles"],
+    queryFn: () => componentsClient.listDesignStyles({}),
+    staleTime: 60_000,
+  });
+  const previewKits = designStyles?.styles ?? [];
+
+  useEffect(() => {
+    if (previewKits.length > 0 && !previewKits.some((style) => style.id === kit)) {
+      setKit(previewKits[0]!.id);
+    }
+  }, [kit, previewKits, setKit]);
 
   return (
     <div data-testid={selectors.components.themeSwitcher.root} className="min-w-0 text-xs">
@@ -130,9 +133,9 @@ export function ThemeSwitcher({
               onChange={(event) => setKit(event.target.value as PreviewKit)}
               className="h-control-sm min-h-control-sm w-full rounded-md border border-app-border bg-app-surface px-space-2xs text-xs text-app-foreground"
             >
-              {PREVIEW_KITS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {t(option.label)}
+              {previewKits.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.name || option.id}
                 </option>
               ))}
             </select>

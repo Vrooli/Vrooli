@@ -57,6 +57,7 @@ type Component struct {
 	CatalogRungName          string
 	TransitiveDependentCount int
 	Metrics                  AssetMetrics
+	KitCompatibility         ComponentKitCompatibility
 }
 
 // AssetKind distinguishes renderable assets, reusable hooks, and the
@@ -173,6 +174,7 @@ type ComponentVersion struct {
 	RequiredTokens []string
 	// RequiredTokenPatterns describes dynamic names selected at runtime.
 	RequiredTokenPatterns []string
+	KitCompatibility      ComponentKitCompatibility
 	// ExperienceContract is the immutable behavior contract promoted beside
 	// the version. It is separate from source files so adopters can copy the
 	// contract into their own experience registry deliberately.

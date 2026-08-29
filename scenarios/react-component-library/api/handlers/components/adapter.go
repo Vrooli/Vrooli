@@ -69,6 +69,7 @@ func domainToProto(c components.Component) *componentsv1.Component {
 			VersionCount:           int32(c.Metrics.VersionCount),
 			VersionAdoptions:       versionAdoptionsToProto(c.Metrics.VersionAdoptions),
 		},
+		KitCompatibility: kitCompatibilityToProto(c.KitCompatibility),
 	}
 }
 
@@ -157,22 +158,41 @@ func styleFitVerdictKindToProto(kind components.StyleFitVerdictKind) componentsv
 
 func versionToProto(v components.ComponentVersion) *componentsv1.ComponentVersion {
 	out := &componentsv1.ComponentVersion{
-		Id:            v.ID,
-		ComponentId:   v.ComponentID,
-		LibraryId:     v.LibraryID,
-		Version:       v.Version,
-		Status:        versionStatusToProto(v.Status),
-		SourcePath:    v.SourcePath,
-		ContentSha256: v.ContentSHA256,
-		ChangelogMd:   v.ChangelogMD,
-		Files:         versionFilesToProto(v.Files),
-		ParityReport:  parityReportToProtoValue(v.ParityReport),
-		IndexedAt:     timestamppb.New(v.IndexedAt.UTC()),
+		Id:               v.ID,
+		ComponentId:      v.ComponentID,
+		LibraryId:        v.LibraryID,
+		Version:          v.Version,
+		Status:           versionStatusToProto(v.Status),
+		SourcePath:       v.SourcePath,
+		ContentSha256:    v.ContentSHA256,
+		ChangelogMd:      v.ChangelogMD,
+		Files:            versionFilesToProto(v.Files),
+		ParityReport:     parityReportToProtoValue(v.ParityReport),
+		KitCompatibility: kitCompatibilityToProto(v.KitCompatibility),
+		IndexedAt:        timestamppb.New(v.IndexedAt.UTC()),
 	}
 	if !v.ReleasedAt.IsZero() {
 		out.ReleasedAt = timestamppb.New(v.ReleasedAt.UTC())
 	}
 	return out
+}
+
+func kitCompatibilityToProto(in components.ComponentKitCompatibility) *componentsv1.ComponentKitCompatibility {
+	if in.Verdict == "" {
+		return nil
+	}
+	verdict := componentsv1.ComponentKitCompatibilityVerdict_COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSPECIFIED
+	switch in.Verdict {
+	case components.KitCompatibilityUniversal:
+		verdict = componentsv1.ComponentKitCompatibilityVerdict_COMPONENT_KIT_COMPATIBILITY_VERDICT_UNIVERSAL
+	case components.KitCompatibilityRestricted:
+		verdict = componentsv1.ComponentKitCompatibilityVerdict_COMPONENT_KIT_COMPATIBILITY_VERDICT_RESTRICTED
+	case components.KitCompatibilityUnsatisfiable:
+		verdict = componentsv1.ComponentKitCompatibilityVerdict_COMPONENT_KIT_COMPATIBILITY_VERDICT_UNSATISFIABLE
+	case components.KitCompatibilityUndefinedVocabulary:
+		verdict = componentsv1.ComponentKitCompatibilityVerdict_COMPONENT_KIT_COMPATIBILITY_VERDICT_UNDEFINED_VOCABULARY
+	}
+	return &componentsv1.ComponentKitCompatibility{Verdict: verdict, CompatibleKitIds: append([]string(nil), in.CompatibleKitIDs...), UnsatisfiedProperties: append([]string(nil), in.UnsatisfiedProperties...)}
 }
 
 func parityReportToProto(report components.IngestParityReport) *componentsv1.IngestParityReport {

@@ -20,7 +20,7 @@
   "entry": "ComputedField.tsx",
   "displayName": "ComputedField",
   "kind": "input",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:ComputedField",
   "tags": [
     "form",

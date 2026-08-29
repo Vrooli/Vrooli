@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,6 +15,41 @@ import (
 	internaldeps "react-component-library/internal/deps"
 	internalpreview "react-component-library/internal/preview"
 )
+
+func TestPreviewDesignSystemCSSComposesBaseBeforeKitOverrides(t *testing.T) {
+	repo := t.TempDir()
+	base := filepath.Join(repo, "templates", "design", "_base")
+	adapter := filepath.Join(repo, "templates", "design", "demo", "adapters", "react-vite-tailwind")
+	require.NoError(t, os.MkdirAll(base, 0o755))
+	require.NoError(t, os.MkdirAll(adapter, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(base, "tokens.css"), []byte(":root { --shared: base; --tone: base; }\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(adapter, "tokens.css"), []byte(":root { --tone: kit; }\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(adapter, "preview-utilities.css"), []byte(".utility { display: block; }\n"), 0o644))
+	previewCSSCache = struct {
+		sync.Mutex
+		key      string
+		modified string
+		css      string
+	}{}
+
+	css, err := previewDesignSystemCSS(repo, "demo")
+	require.NoError(t, err)
+	require.Contains(t, css, "--shared: base")
+	require.Less(t, strings.Index(css, "--tone: base"), strings.Index(css, "--tone: kit"))
+	require.Contains(t, css, ".utility { display: block; }")
+}
+
+func TestPreviewDesignSystemCSSAllowsFoundationOnlyFixture(t *testing.T) {
+	css, err := previewDesignSystemCSS(t.TempDir(), "none")
+	require.NoError(t, err)
+	require.Empty(t, css)
+}
+
+func TestExtractBaseStylesCSSReadsPublishedTemplateLiteral(t *testing.T) {
+	css, err := extractBaseStylesCSS("export const baseStyles = `@layer rcl.tokens { :root { --space-md: 24px; } }`;\n")
+	require.NoError(t, err)
+	require.Contains(t, css, "--space-md: 24px")
+}
 
 func TestPreviewConsumerCSSReadsLiveTokenBridgeAndCompiledBundle(t *testing.T) {
 	repo := t.TempDir()

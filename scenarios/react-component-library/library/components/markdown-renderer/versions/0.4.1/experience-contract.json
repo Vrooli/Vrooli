@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "bindings": {
+    "elements": {
+      "renderer": {
+        "selector": "[data-rcl-markdown]"
+      }
+    }
+  },
+  "claims": [
+    {
+      "elements": ["renderer"],
+      "id": "markdown-present",
+      "statement": "Rendered prose, tables, quotations, and fenced code remain available without consumer utility CSS.",
+      "states": ["gfm-prose-and-code"],
+      "tier": "machine",
+      "type": "element-present"
+    },
+    {
+      "id": "code-contained",
+      "statement": "Long fenced code scrolls within its code surface instead of overflowing the document.",
+      "states": ["gfm-prose-and-code"],
+      "tier": "machine",
+      "type": "no-document-horizontal-overflow"
+    }
+  ],
+  "component": {
+    "id": "markdown-renderer",
+    "purpose": "Render GFM prose, syntax-highlighted code, inline references, and Mermaid diagrams with token-bound portable styling.",
+    "storyRef": "../../library/components/markdown-renderer/versions/0.4.1/story.json",
+    "title": "Markdown Renderer"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:markdown-renderer@0.4.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "elements": [
+    {
+      "description": "The token-bound markdown rendering surface.",
+      "id": "renderer",
+      "name": "Markdown renderer"
+    }
+  ],
+  "states": [
+    {
+      "description": "GFM prose, a table, a quotation, and a fenced code block render together.",
+      "example": "gfm-prose-and-code",
+      "id": "gfm-prose-and-code"
+    }
+  ]
+}

@@ -8,10 +8,11 @@ import (
 
 func TestTokenCensusClassifiesEveryCompatibilityVerdict(t *testing.T) {
 	root := t.TempDir()
+	writeCensusFixture(t, root, "templates/design/_base/tokens.css", ":root {\n  /* @tier Expression */\n  --shared: red;\n}\n")
 	writeCensusFixture(t, root, "templates/design/kit-a/metadata.json", `{}`)
-	writeCensusFixture(t, root, "templates/design/kit-a/adapters/react-vite-tailwind/tokens.css", `:root { --shared: red; --a: red; }`)
+	writeCensusFixture(t, root, "templates/design/kit-a/adapters/react-vite-tailwind/tokens.css", ":root {\n  --a: red;\n}\n")
 	writeCensusFixture(t, root, "templates/design/kit-b/metadata.json", `{}`)
-	writeCensusFixture(t, root, "templates/design/kit-b/adapters/react-vite-tailwind/tokens.css", `:root { --shared: blue; --b: blue; }`)
+	writeCensusFixture(t, root, "templates/design/kit-b/adapters/react-vite-tailwind/tokens.css", ":root {\n  --b: blue;\n}\n")
 	writeAssetFixture(t, root, "foundations", "BaseStyles", "rcl:BaseStyles", `:root { --base: 1px; }`, nil)
 	writeAssetFixture(t, root, "components", "Universal", "rcl:Universal", `.x { color: var(--shared); }`, []string{"kit-a", "kit-b"})
 	writeAssetFixture(t, root, "components", "Restricted", "rcl:Restricted", `.x { color: var(--a); }`, []string{"kit-a", "kit-b"})

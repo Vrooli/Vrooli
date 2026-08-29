@@ -10,17 +10,18 @@ import (
 	"strings"
 
 	"react-component-library/internal/components"
+	"react-component-library/internal/themes"
 )
 
 var tokenDeclarationRE = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
 
-type CompatibilityVerdict string
+type CompatibilityVerdict = components.KitCompatibilityVerdict
 
 const (
-	CompatibilityUniversal           CompatibilityVerdict = "universal"
-	CompatibilityRestricted          CompatibilityVerdict = "restricted"
-	CompatibilityUnsatisfiable       CompatibilityVerdict = "unsatisfiable"
-	CompatibilityUndefinedVocabulary CompatibilityVerdict = "undefined-vocabulary"
+	CompatibilityUniversal           = components.KitCompatibilityUniversal
+	CompatibilityRestricted          = components.KitCompatibilityRestricted
+	CompatibilityUnsatisfiable       = components.KitCompatibilityUnsatisfiable
+	CompatibilityUndefinedVocabulary = components.KitCompatibilityUndefinedVocabulary
 )
 
 type ComponentTokenCensus struct {
@@ -77,7 +78,6 @@ func TokenCensus(root string) (Census, error) {
 	if err != nil {
 		return Census{}, err
 	}
-	kitIDs := sortedKeys(kits)
 
 	manifestPaths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "components", "*", "component.json"))
 	if err != nil {
@@ -127,14 +127,11 @@ func TokenCensus(root string) (Census, error) {
 			componentRequired = append(componentRequired, property)
 		}
 
-		compatible, hasUndefined := compatibleKits(componentRequired, kits, kitIDs)
-		verdict := classifyCompatibility(len(kitIDs), len(compatible), hasUndefined)
-		if hasUndefined {
-			for _, property := range componentRequired {
-				if !publishedByAnyKit(property, kits) {
-					undefined[property] = struct{}{}
-				}
-			}
+		compatibility := components.DeriveKitCompatibility(componentRequired, kits)
+		compatible := compatibility.CompatibleKitIDs
+		verdict := compatibility.Verdict
+		for _, property := range compatibility.UnsatisfiedProperties {
+			undefined[property] = struct{}{}
 		}
 		census.VerdictCounts[string(verdict)]++
 		census.Components = append(census.Components, ComponentTokenCensus{
@@ -229,16 +226,22 @@ func readKitProperties(root string) (map[string][]string, error) {
 		return nil, err
 	}
 	result := make(map[string][]string, len(metadataPaths))
+	_, baseErr := os.Stat(filepath.Join(root, "templates", "design", "_base", "tokens.css"))
 	for _, metadataPath := range metadataPaths {
 		kitID := filepath.Base(filepath.Dir(metadataPath))
-		tokensPath := filepath.Join(filepath.Dir(metadataPath), "adapters", "react-vite-tailwind", "tokens.css")
-		raw, err := os.ReadFile(tokensPath)
+		var tokens []themes.DesignToken
+		var err error
+		if baseErr == nil {
+			tokens, err = themes.ResolveKitTokens(root, kitID)
+		} else {
+			tokens, err = themes.ReadTokenFile(filepath.Join(filepath.Dir(metadataPath), "adapters", "react-vite-tailwind", "tokens.css"))
+		}
 		if err != nil {
-			return nil, fmt.Errorf("read kit %s tokens: %w", kitID, err)
+			return nil, err
 		}
 		properties := map[string]struct{}{}
-		for _, match := range tokenDeclarationRE.FindAllStringSubmatch(string(raw), -1) {
-			properties[match[1]] = struct{}{}
+		for _, token := range tokens {
+			properties[token.Name] = struct{}{}
 		}
 		result[kitID] = sortedSet(properties)
 	}

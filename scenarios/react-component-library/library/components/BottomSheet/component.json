@@ -32,7 +32,7 @@
     "1.2.1"
   ],
   "kind": "control",
-  "latest": "1.2.5",
+  "latest": "1.2.6",
   "libraryId": "react-component-library:BottomSheet",
   "tags": [
     "overlay",

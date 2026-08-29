@@ -1,0 +1,96 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Banner",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "single",
+      "name": "Single",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Single"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "alert"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='feedback.banner']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='feedback.banner.connection']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='feedback.banner.connection-dismiss']"
+        }
+      ]
+    },
+    {
+      "id": "stacked",
+      "name": "Stacked",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Stacked"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='feedback.banner.connection']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='feedback.banner-overflow-toggle']"
+        },
+        {
+          "kind": "notVisible",
+          "selector": "[data-testid='feedback.banner.transcribing']"
+        }
+      ]
+    },
+    {
+      "id": "chrome-match",
+      "name": "Chrome match",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ChromeMatch"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='feedback.banner.chrome-verdict']"
+        },
+        {
+          "kind": "text",
+          "selector": "[data-testid='feedback.banner.chrome-verdict']",
+          "value": "CHROME-MATCH"
+        }
+      ]
+    }
+  ]
+}

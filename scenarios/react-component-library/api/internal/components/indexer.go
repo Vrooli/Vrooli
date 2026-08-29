@@ -54,6 +54,8 @@ type Indexer struct {
 	fs               fs.FS // injected for tests; nil means use os.DirFS(root)
 	observer         UpsertObserver
 	assetDirectories []string
+	kitVocabularies  map[string][]string
+	kitVocabularyErr error
 }
 
 // SetUpsertObserver installs the post-upsert seam. Designed to be
@@ -70,7 +72,11 @@ func NewIndexer(repo Repository, root string, fsys fs.FS) *Indexer {
 	if fsys == nil && root != "" {
 		fsys = os.DirFS(root)
 	}
-	return &Indexer{repo: repo, root: root, fs: fsys, assetDirectories: CatalogKindDirectories(root)}
+	idx := &Indexer{repo: repo, root: root, fs: fsys, assetDirectories: CatalogKindDirectories(root)}
+	if repoRoot := repositoryRootFromLibrary(root); repoRoot != "" {
+		idx.kitVocabularies, idx.kitVocabularyErr = loadKitTokenVocabularies(repoRoot)
+	}
+	return idx
 }
 
 // IndexResult summarizes one Run.
@@ -89,6 +95,9 @@ type IndexResult struct {
 // walking or sweeping the rest of the catalog. Authoring operations use this
 // path so an unrelated component cannot block a draft or publication.
 func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, error) {
+	if idx.kitVocabularyErr != nil {
+		return Component{}, idx.kitVocabularyErr
+	}
 	if idx.fs == nil {
 		return Component{}, fmt.Errorf("indexer has no filesystem configured")
 	}
@@ -124,6 +133,9 @@ func (idx *Indexer) IndexManifest(ctx context.Context, path string) (Component, 
 // otherwise healthy run.
 func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 	var result IndexResult
+	if idx.kitVocabularyErr != nil {
+		return result, idx.kitVocabularyErr
+	}
 	// A manifest that was discovered but failed validation/upsert is still a
 	// live filesystem asset. Protect its last-known registry row from the
 	// end-of-run stale sweep; immutable-release failures must not look like
@@ -578,6 +590,7 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		if err != nil {
 			return IndexManifestInput{}, nil, err
 		}
+		requiredTokens := ExtractRequiredTokens(versionFiles)
 		versions = append(versions, ComponentVersion{
 			LibraryID:             manifest.LibraryID,
 			Version:               version,
@@ -589,8 +602,9 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			Files:                 versionFiles,
 			Dependencies:          dependencies,
 			DependencyLockPresent: lockFile != nil,
-			RequiredTokens:        ExtractRequiredTokens(versionFiles),
+			RequiredTokens:        requiredTokens,
 			RequiredTokenPatterns: ExtractRequiredTokenPatterns(versionFiles),
+			KitCompatibility:      DeriveKitCompatibility(requiredTokens, idx.kitVocabularies),
 			ExperienceContract:    experienceContract,
 			ParityReport:          parity,
 			Presence:              "materialized",

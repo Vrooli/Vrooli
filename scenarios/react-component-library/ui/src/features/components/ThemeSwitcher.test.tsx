@@ -7,6 +7,18 @@ import { ThemeSwitcher, type PreviewKit } from "./ThemeSwitcher";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 
+vi.mock("../../api/components", () => ({
+  componentsClient: {
+    listDesignStyles: vi.fn().mockResolvedValue({
+      styles: [
+        { id: "vrooli-default", name: "Vrooli Operational Console" },
+        { id: "vrooli-command-display", name: "Vrooli Command Display" },
+        { id: "registry-fixture", name: "Registry Fixture" },
+      ],
+    }),
+  },
+}));
+
 const filters = {
   visionFilter: "none" as const,
   setVisionFilter: vi.fn(),
@@ -57,6 +69,13 @@ describe("ThemeSwitcher", () => {
       "vrooli-command-display",
     );
     expect(setKit).toHaveBeenCalledWith("vrooli-command-display");
+  });
+
+  it("renders kits returned by the design-style registry", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Harness />);
+    await user.click(screen.getByTestId(selectors.components.themeSwitcher.appearanceToggle));
+    expect(await screen.findByRole("option", { name: "Registry Fixture" })).toBeInTheDocument();
   });
 
   it("keeps light and dark as the explicit mode controls", async () => {

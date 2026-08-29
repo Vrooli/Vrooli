@@ -19,6 +19,7 @@ import (
 
 	"react-component-library/internal/components"
 	"react-component-library/internal/deps"
+	"react-component-library/internal/themes"
 	"react-component-library/internal/uimanifest"
 
 	"github.com/vrooli/api-core/schedule"
@@ -537,6 +538,14 @@ type ScenarioFileRemover interface {
 // retain their read/write-only contract.
 type ScenarioImportSiteFinder interface {
 	FindImportSites(ctx context.Context, scenario, adoptedPath string) ([]string, error)
+}
+
+type ScenarioLibraryImportReader interface {
+	ImportedLibrarySpecifiers(ctx context.Context, scenario string) ([]components.LibraryPackageSpecifier, error)
+}
+
+type ScenarioReferenceTokenReader interface {
+	ReferenceTokens(ctx context.Context) (map[string]themes.DesignToken, error)
 }
 
 // ScenarioImportRewriter replaces imports of a copied root with the package
@@ -1644,6 +1653,8 @@ var (
 	_ ScenarioTokenNamespaceReader        = (*FSScenarioFileReader)(nil)
 	_ ScenarioTokenInventoryReader        = (*FSScenarioFileReader)(nil)
 	_ ScenarioRuntimeTokenInventoryReader = (*FSScenarioFileReader)(nil)
+	_ ScenarioLibraryImportReader         = (*FSScenarioFileReader)(nil)
+	_ ScenarioReferenceTokenReader        = (*FSScenarioFileReader)(nil)
 )
 
 // TokenNamespace reads the consumer's declared semantic namespace. The
@@ -1787,6 +1798,49 @@ func (r *FSScenarioFileReader) RuntimeWrittenTokens(_ context.Context, scenario 
 		result = append(result, property)
 	}
 	sort.Strings(result)
+	return result, nil
+}
+
+func (r *FSScenarioFileReader) ImportedLibrarySpecifiers(_ context.Context, scenario string) ([]components.LibraryPackageSpecifier, error) {
+	sources, err := r.walkScenarioSources()
+	if err != nil {
+		return nil, err
+	}
+	seen := map[components.LibraryPackageSpecifier]bool{}
+	var result []components.LibraryPackageSpecifier
+	for _, source := range sources {
+		if source.scenario != scenario {
+			continue
+		}
+		for _, specifier := range components.LibraryPackageSpecifiers(string(source.content)) {
+			if !seen[specifier] {
+				seen[specifier] = true
+				result = append(result, specifier)
+			}
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Name != result[j].Name {
+			return result[i].Name < result[j].Name
+		}
+		return result[i].RequestedVersion < result[j].RequestedVersion
+	})
+	return result, nil
+}
+
+func (r *FSScenarioFileReader) ReferenceTokens(_ context.Context) (map[string]themes.DesignToken, error) {
+	path := filepath.Join(filepath.Dir(r.root), "templates", "design", "_base", "tokens.css")
+	tokens, err := themes.ReadTokenFile(path)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string]themes.DesignToken, len(tokens))
+	for _, token := range tokens {
+		if token.Tier == "" {
+			return nil, fmt.Errorf("canonical token %s has no parseable tier annotation", token.Name)
+		}
+		result[token.Name] = token
+	}
 	return result, nil
 }
 

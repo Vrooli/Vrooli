@@ -17,7 +17,7 @@
   "displayName": "Form",
   "kind": "input",
   "draft": "",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:Form",
   "slot": "ui-primitive",
   "tags": [

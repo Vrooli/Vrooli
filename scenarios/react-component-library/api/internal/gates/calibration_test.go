@@ -11,8 +11,12 @@ func TestBlockingStaticCalibrationFixturesDiscriminate(t *testing.T) {
 		t.Fatal(err)
 	}
 	runners := map[string]GateRunner{
+		"fallback-parity":             ValidateFallbackParity,
+		"kit-compatibility":           ValidateKitCompatibility,
+		"affinity-compatible":         ValidateAffinityNotBroaderThanCompatibility,
 		"token-vocabulary":            ValidateTokenVocabulary,
 		"token-ramp-complete":         ValidateTokenRampComplete,
+		"scenario-token-requirements": ValidateScenarioTokenRequirements,
 		"released-version-immutable":  ValidateReleasedVersionImmutable,
 		"types":                       ValidateTypes,
 		"api":                         ValidateAPI,

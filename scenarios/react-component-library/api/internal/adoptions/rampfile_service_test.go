@@ -2,6 +2,8 @@ package adoptions_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"regexp"
 	"testing"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"react-component-library/internal/adoptions"
 	adoptmocks "react-component-library/internal/adoptions/mocks"
 	"react-component-library/internal/components"
+	"react-component-library/internal/themes"
 )
 
 var testRampTokenRE = regexp.MustCompile(`--[A-Za-z0-9_-]+`)
@@ -19,6 +22,24 @@ var testRampTokenRE = regexp.MustCompile(`--[A-Za-z0-9_-]+`)
 type rampTokenInventory struct {
 	files   *fakeFiles
 	runtime []string
+}
+
+type importedRampFiles struct {
+	*fakeFiles
+	imports []components.LibraryPackageSpecifier
+}
+
+type tieredRampTokenInventory struct {
+	rampTokenInventory
+	tokens map[string]themes.DesignToken
+}
+
+func (r tieredRampTokenInventory) ReferenceTokens(context.Context) (map[string]themes.DesignToken, error) {
+	return r.tokens, nil
+}
+
+func (f *importedRampFiles) ImportedLibrarySpecifiers(context.Context, string) ([]components.LibraryPackageSpecifier, error) {
+	return append([]components.LibraryPackageSpecifier(nil), f.imports...), nil
 }
 
 type contractCoverageVerdicts map[string]string
@@ -151,6 +172,56 @@ func TestSyncScenarioTokensUsesLatestReleasedVersion(t *testing.T) {
 	require.Equal(t, []string{"--color-latest"}, result.Added)
 	require.NotContains(t, result.Added, "--color-old")
 	require.Contains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--color-latest: initial;")
+}
+
+func TestSyncScenarioTokensUnionsImportedAssetsWithAdoptionLedger(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp-button": {ID: "cmp-button", LibraryID: "react-component-library:Button", LatestVersion: "2.1.0"},
+		},
+		versions: map[string]components.ComponentVersion{
+			"cmp-button@1.4.2": {ComponentID: "cmp-button", LibraryID: "react-component-library:Button", Version: "1.4.2", Status: components.VersionStatusReleased, RequiredTokens: []string{"--color-old"}},
+			"cmp-button@2.1.0": {ComponentID: "cmp-button", LibraryID: "react-component-library:Button", Version: "2.1.0", Status: components.VersionStatusReleased, RequiredTokens: []string{"--color-imported"}},
+		},
+	}
+	baseFiles := &fakeFiles{bytes: map[string][]byte{}}
+	files := &importedRampFiles{fakeFiles: baseFiles, imports: []components.LibraryPackageSpecifier{{Name: "Button", RequestedVersion: "2"}}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: baseFiles})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target", DryRun: true})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-imported"}, result.Added)
+}
+
+func TestSyncScenarioTokensNeverManagesContractTier(t *testing.T) {
+	svc, files := newRampServiceWithTokens(":root {\n/* rcl:tokens:begin */\n  --layer-modal: 400;\n/* rcl:tokens:end */\n}\n", []string{"--color-primary", "--layer-modal"})
+	adoptions.SetTokenNamespaceReader(svc, tieredRampTokenInventory{
+		rampTokenInventory: rampTokenInventory{files: files},
+		tokens: map[string]themes.DesignToken{
+			"--color-primary": {Name: "--color-primary", Value: "blue", Tier: themes.TokenTierExpression},
+			"--layer-modal":   {Name: "--layer-modal", Value: "400", Tier: themes.TokenTierContract},
+		},
+	})
+
+	result, err := svc.SyncScenarioTokens(context.Background(), adoptions.TokenSyncInput{Scenario: "target"})
+	require.NoError(t, err)
+	require.Equal(t, []string{"--color-primary"}, result.Added)
+	require.NotContains(t, string(files.bytes["target::ui/src/design-tokens.css"]), "--layer-modal")
+}
+
+func TestFSScenarioFileReaderReadsCanonicalTokenTiers(t *testing.T) {
+	root := t.TempDir()
+	scenariosRoot := filepath.Join(root, "scenarios")
+	tokenPath := filepath.Join(root, "templates", "design", "_base", "tokens.css")
+	require.NoError(t, os.MkdirAll(filepath.Dir(tokenPath), 0o755))
+	require.NoError(t, os.WriteFile(tokenPath, []byte(":root {\n  /* @tier Expression */\n  --color-primary: blue;\n  /* @tier Contract */\n  --layer-modal: 400;\n}\n"), 0o600))
+
+	tokens, err := adoptions.NewFSScenarioFileReader(scenariosRoot).ReferenceTokens(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, themes.TokenTierExpression, tokens["--color-primary"].Tier)
+	require.Equal(t, themes.TokenTierContract, tokens["--layer-modal"].Tier)
 }
 
 func TestSyncScenarioTokensResolvesReindexedComponentByStableLibraryID(t *testing.T) {

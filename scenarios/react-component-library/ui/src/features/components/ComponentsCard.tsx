@@ -19,9 +19,28 @@ import { CreateComponentDialog } from "./CreateComponentDialog";
 const DESIGN_AFFINITY_NATIVE = 1;
 const DESIGN_AFFINITY_COMPATIBLE = 2;
 const DESIGN_AFFINITY_DISCOURAGED = 3;
+const KIT_COMPATIBILITY_UNIVERSAL = 1;
+const KIT_COMPATIBILITY_RESTRICTED = 2;
+const KIT_COMPATIBILITY_UNSATISFIABLE = 3;
+const KIT_COMPATIBILITY_UNDEFINED = 4;
 
 function isDiscouragedAffinity(affinity: unknown) {
   return affinity === DESIGN_AFFINITY_DISCOURAGED;
+}
+
+function formatKitCompatibility(verdict: unknown) {
+  switch (verdict) {
+    case KIT_COMPATIBILITY_UNIVERSAL:
+      return "universal";
+    case KIT_COMPATIBILITY_RESTRICTED:
+      return "restricted";
+    case KIT_COMPATIBILITY_UNSATISFIABLE:
+      return "unsatisfiable";
+    case KIT_COMPATIBILITY_UNDEFINED:
+      return "undefined vocabulary";
+    default:
+      return "unmeasured";
+  }
 }
 
 function componentSearchValue(component: Component) {
@@ -34,6 +53,7 @@ function componentSearchValue(component: Component) {
     component.description,
     ...component.tags,
     ...component.designStyles.map((style) => `${style.styleId} ${formatAffinity(style.affinity)}`),
+    formatKitCompatibility(component.kitCompatibility?.verdict),
   ]
     .filter(Boolean)
     .join(" ");
@@ -141,33 +161,49 @@ export function ComponentsCard() {
       id: "design",
       header: "Design",
       searchValue: (component) =>
-        component.designStyles
-          .map((style) => `${style.styleId}:${formatAffinity(style.affinity)}`)
-          .join(" "),
+        [
+          formatKitCompatibility(component.kitCompatibility?.verdict),
+          ...component.designStyles.map(
+            (style) => `${style.styleId}:${formatAffinity(style.affinity)}`,
+          ),
+        ].join(" "),
       accessor: (component) => {
         const designStyles = component.designStyles;
         const designStylesSummary = designStyles
           .map((style) => `${style.styleId}:${formatAffinity(style.affinity)}`)
           .join(", ");
-        if (designStyles.length === 0) {
-          return <span className="text-xs text-app-muted-foreground">-</span>;
-        }
         return (
-          <div
-            data-testid={selectors.components.itemDesignStyles}
-            className="flex max-w-sidebar flex-wrap gap-space-3xs text-xs"
-            aria-label={t(strings.components.designStylesLabel, {
-              styles: designStylesSummary,
-            })}
-          >
-            {designStyles.map((style) => (
-              <StatusBadge
-                key={style.styleId}
-                tone={isDiscouragedAffinity(style.affinity) ? "warning" : "neutral"}
-              >
-                {style.styleId}:{formatAffinity(style.affinity)}
-              </StatusBadge>
-            ))}
+          <div className="grid max-w-sidebar gap-space-3xs text-xs">
+            <StatusBadge
+              tone={
+                component.kitCompatibility?.verdict === KIT_COMPATIBILITY_UNSATISFIABLE ||
+                component.kitCompatibility?.verdict === KIT_COMPATIBILITY_UNDEFINED
+                  ? "warning"
+                  : "neutral"
+              }
+            >
+              Derived: {formatKitCompatibility(component.kitCompatibility?.verdict)}
+            </StatusBadge>
+            <div
+              data-testid={selectors.components.itemDesignStyles}
+              className="flex flex-wrap gap-space-3xs"
+              aria-label={t(strings.components.designStylesLabel, {
+                styles: designStylesSummary,
+              })}
+            >
+              {designStyles.length === 0 ? (
+                <span className="text-app-muted-foreground">Declared affinity: none</span>
+              ) : (
+                designStyles.map((style) => (
+                  <StatusBadge
+                    key={style.styleId}
+                    tone={isDiscouragedAffinity(style.affinity) ? "warning" : "neutral"}
+                  >
+                    Declared {style.styleId}:{formatAffinity(style.affinity)}
+                  </StatusBadge>
+                ))
+              )}
+            </div>
           </div>
         );
       },

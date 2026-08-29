@@ -103,6 +103,11 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
+- Rung: W3 / R3 (design-token vocabulary, kit compatibility, and Settings layout contract)
+- Evidence: W0/W1 remain clean (`business-health validate scenario react-component-library` and `vrooli scenario requirements validate react-component-library` both pass). The live catalog now exposes calibrated blocking `fallback-parity`, `kit-compatibility`, and `affinity-compatible` gates; those gates plus `token-vocabulary` and `token-ramp-complete` report zero findings while each planted fixture is detected. The current census covers 162 components and 159 external references with zero undefined properties or affinity overclaims. Banner 1.0.12 passed focused preflight/component validation and removed the last active fallback mismatch. Browser Automation Studio executions `7b4a624d-3227-4178-9138-dcbbd9cec23d` and `445ae14d-530c-41f0-bb75-8aba52fb0379` exercised the real web-console Settings modal at 390px and 924px: narrow controls align to the trailing edge, the narrow group border is 0px, the wide border is 1px, and measured rows remain at least 48px tall.
+- Blocker: None for this plan's intent. The broad scenario baseline retains unrelated historical release-provenance/index findings and other inherited suite failures; the plan-owned deterministic gates, component contract, generator check, and real consumer layout evidence are green.
+- Measured: 2026-08-29.
+
 - Rung: W3 / R0 (overlay keyboard coordinate-system regression)
 - Evidence: `useOverlaySurface` placed visual-viewport variables on the panel while `data-avoid-keyboard` rules read them from the presentation root. The root therefore used fallback geometry while the child panel independently adopted the reduced visible height, producing a severe apparent shrink. Release 1.3.11 exposes root viewport props; the updated presentations use the visual viewport rectangle once and size panels against that root.
 - Blocker: Manual confirmation on the operator's mobile keyboard remains pending; broad automated suites were intentionally not run for this iteration.

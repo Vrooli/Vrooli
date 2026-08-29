@@ -1,0 +1,33 @@
+{
+  "claims": [
+    {
+      "id": "contract-present",
+      "statement": "Chip maintains a full touch target in both selection states.",
+      "states": ["unselected", "selected"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "primitives.chip",
+    "purpose": "Selectable compact token.",
+    "title": "Chip"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:Chip@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "The chip is available.",
+      "example": "unselected",
+      "id": "unselected"
+    },
+    {
+      "description": "The chip is selected.",
+      "example": "selected",
+      "id": "selected"
+    }
+  ]
+}

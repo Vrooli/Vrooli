@@ -121,6 +121,13 @@ CREATE TABLE IF NOT EXISTS component_version_required_token_patterns (
 CREATE INDEX IF NOT EXISTS idx_component_version_required_token_patterns_version
   ON component_version_required_token_patterns(version_id, pattern);
 
+CREATE TABLE IF NOT EXISTS component_version_kit_compatibility (
+  version_id TEXT PRIMARY KEY,
+  verdict TEXT NOT NULL,
+  compatible_kit_ids_json TEXT NOT NULL DEFAULT '[]',
+  unsatisfied_properties_json TEXT NOT NULL DEFAULT '[]'
+);
+
 CREATE TABLE IF NOT EXISTS component_version_parity_reports (
   version_id TEXT PRIMARY KEY,
   report_json TEXT NOT NULL

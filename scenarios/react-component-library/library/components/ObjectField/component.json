@@ -29,7 +29,7 @@
     "1.0.2"
   ],
   "kind": "input",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:ObjectField",
   "requires": [
     {

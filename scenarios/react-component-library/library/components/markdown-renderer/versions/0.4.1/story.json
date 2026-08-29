@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n> Keep operator context visible.\n\n```ts\nconst stable = true;\n```",
+        "kind": "text",
+        "label": "Markdown",
+        "path": "content"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "content": "# Shared markdown\n\n| State | Value |\n| --- | --- |\n| Ready | yes |\n\n> Keep operator context visible.\n\n```ts\nconst stable = true;\n```"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Shared markdown"
+        },
+        {
+          "kind": "text",
+          "value": "Ready"
+        },
+        {
+          "kind": "text",
+          "value": "Keep operator context visible."
+        },
+        {
+          "kind": "text",
+          "value": "const stable = true;"
+        }
+      ],
+      "id": "gfm-prose-and-code",
+      "mode": "pinned",
+      "name": "GFM, prose, and code",
+      "role": "anatomy"
+    }
+  ],
+  "title": "Markdown Renderer"
+}

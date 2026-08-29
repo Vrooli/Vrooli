@@ -90,6 +90,7 @@ describe("ComponentsCard", () => {
               { styleId: "vrooli-default", affinity: 1 },
               { styleId: "vrooli-conversion-landing", affinity: 3 },
             ],
+            kitCompatibility: { verdict: 1, compatibleKitIds: ["vrooli-default"], unsatisfiedProperties: [] },
           }),
           makeComponent({
             id: "b",
@@ -126,6 +127,7 @@ describe("ComponentsCard", () => {
       .map((n) => n.textContent);
     expect(styles[0]).toContain("vrooli-default:native");
     expect(styles[0]).toContain("vrooli-conversion-landing:discouraged");
+    expect(screen.getByText("Derived: universal")).toBeInTheDocument();
 
     const tagLines = screen.getAllByTestId(selectors.components.itemTags).map((n) => n.textContent);
     expect(tagLines[0]).toContain("form");

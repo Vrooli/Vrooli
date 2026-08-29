@@ -1,0 +1,356 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "NumberField",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Value, unit and steppers in one field",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "The unit is a suffix bound to the value rather than a loose sibling beside it, and the steppers share the value's border.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "spinbutton",
+          "name": "Font size"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='story-number-value']",
+          "attribute": "aria-valuemin",
+          "value": "8"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='story-number-value']",
+          "attribute": "aria-valuemax",
+          "value": "32"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='story-number-value']",
+          "attribute": "aria-valuenow",
+          "value": "14"
+        },
+        {
+          "kind": "count",
+          "selector": "[data-rcl-input-group-segment]",
+          "value": "2"
+        },
+        {
+          "kind": "text",
+          "value": "px"
+        }
+      ]
+    },
+    {
+      "id": "increment",
+      "name": "A stepper moves the value it is joined to",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Pressing the increase segment commits through onChange, so the field is controlled by its owner rather than by its own internal draft.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Increment"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "selector": "[data-testid='story-number-increase']"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "committed 15"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='story-number-value']",
+          "attribute": "aria-valuenow",
+          "value": "15"
+        }
+      ]
+    },
+    {
+      "id": "arrow-keys",
+      "name": "Arrow keys step the value",
+      "role": "boundary",
+      "mode": "live",
+      "description": "The spinbutton role promises keyboard stepping; a hand-rolled text box with two buttons beside it declares the role it cannot keep.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ArrowKeys"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          },
+          "text": "ArrowUp"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          },
+          "text": "ArrowUp"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          },
+          "text": "ArrowDown"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "committed 15"
+        }
+      ]
+    },
+    {
+      "id": "at-maximum",
+      "name": "The ceiling disables its stepper",
+      "role": "boundary",
+      "mode": "live",
+      "description": "A bound that is visible before it is reached, rather than a press that silently does nothing.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AtMaximum"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='story-number-increase']",
+          "attribute": "disabled"
+        },
+        {
+          "kind": "text",
+          "value": "committed 32"
+        }
+      ]
+    },
+    {
+      "id": "at-minimum",
+      "name": "The floor disables its stepper",
+      "role": "boundary",
+      "mode": "live",
+      "description": "The floor is the bound hand-rolled steppers usually do enforce; it is asserted here so the pair cannot drift apart.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AtMinimum"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='story-number-decrease']",
+          "attribute": "disabled"
+        },
+        {
+          "kind": "text",
+          "value": "committed 8"
+        }
+      ]
+    },
+    {
+      "id": "typed-over-maximum",
+      "name": "Typing past the ceiling commits the ceiling",
+      "role": "boundary",
+      "mode": "live",
+      "description": "The regression this component exists to prevent: a declared maximum that the typing path never enforces.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TypedOverMaximum"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "focus",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          }
+        },
+        {
+          "kind": "type",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          },
+          "text": "999"
+        },
+        {
+          "kind": "blur",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "committed 32"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='story-number-value']",
+          "attribute": "aria-valuenow",
+          "value": "32"
+        }
+      ]
+    },
+    {
+      "id": "typed-empty",
+      "name": "A blank field reverts, it does not resolve to zero",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Number(\" \") is 0 just as Number(\"\") is, so a parser that trims and then trusts the result silently discards the value and commits the floor.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "TypedEmpty"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "focus",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          }
+        },
+        {
+          "kind": "type",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          },
+          "text": "   "
+        },
+        {
+          "kind": "blur",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "committed 14"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='story-number-value']",
+          "attribute": "aria-valuenow",
+          "value": "14"
+        }
+      ]
+    },
+    {
+      "id": "fractional-step",
+      "name": "A fractional step stays decimal-clean",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Stepping by 0.1 in binary floating point produces 1.3000000000000003 unless the step's precision is respected on commit.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "FractionalStep"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          },
+          "text": "ArrowUp"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          },
+          "text": "ArrowUp"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "selector": "[data-testid='story-number-value']"
+          },
+          "text": "ArrowUp"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "text",
+          "value": "committed 1.3"
+        }
+      ]
+    }
+  ]
+}

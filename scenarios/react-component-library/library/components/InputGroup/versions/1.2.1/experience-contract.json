@@ -1,0 +1,112 @@
+{
+  "claims": [
+    {
+      "id": "chrome-lives-on-the-wrapper",
+      "statement": "Border, background, radius and the focus ring belong to the group, so a control placed beside the input sits inside the same outline instead of next to it.",
+      "states": ["default", "prefix-and-segment"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "one-focus-ring",
+      "statement": "Focusing any part of the group lights one ring on the group, which is the visible evidence that the parts are one control.",
+      "states": ["default", "prefix-and-segment"],
+      "tier": "aspirational",
+      "type": "keyboard-operable"
+    },
+    {
+      "id": "growth-safe-anchoring",
+      "statement": "An action declares where it sits on a field that grows, so a composer keeps its expand affordance at the top and its send affordance at the bottom.",
+      "states": ["composer-actions"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "no-padding-arithmetic-in-callers",
+      "statement": "An adornment supplies its own gutter and collapses the control's padding on that side, so callers never hand-tune padding to clear a prefix.",
+      "states": ["prefix-and-segment", "joined-steppers"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "disabled-is-not-forged",
+      "statement": "A disabled group blocks pointer input and marks itself, and disables the segments it owns, but never reports disabled state on controls it does not own.",
+      "states": ["disabled"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "interaction-states-are-neutralised-too",
+      "statement": "A control inside the group surrenders its own chrome in every interaction state, not just at rest, so a hover rule the control ships cannot repaint half the field a different colour from the other half.",
+      "states": ["default", "prefix-and-segment", "composer-actions"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "pill-is-one-row-round",
+      "statement": "Pill means as round as one row allows: a true stadium at the resting height, and a well-rounded rectangle once the field grows, rather than a lozenge.",
+      "states": ["pill-at-rest", "grown-actions"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "grown-actions-take-a-row",
+      "statement": "Once the host reports the field has grown, the actions leave their fixed lane and take a row beneath the text, which returns the full width to the control that ran out of it.",
+      "states": ["grown-actions"],
+      "tier": "manual",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "forms.input-group",
+    "purpose": "One field shell for an input and the controls attached to it, so a text box and its buttons read and behave as a single control.",
+    "title": "Input Group"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:InputGroup@1.1.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "A group with a single input and nothing attached.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "A leading adornment and a joined trailing segment.",
+      "example": "prefix-and-segment",
+      "id": "prefix-and-segment"
+    },
+    {
+      "description": "A growing composer with actions anchored at opposite ends.",
+      "example": "composer-actions",
+      "id": "composer-actions"
+    },
+    {
+      "description": "Steppers joined either side of a numeric value.",
+      "example": "joined-steppers",
+      "id": "joined-steppers"
+    },
+    {
+      "description": "The group carrying invalid tone.",
+      "example": "invalid",
+      "id": "invalid"
+    },
+    {
+      "description": "The group disabled as a whole.",
+      "example": "disabled",
+      "id": "disabled"
+    },
+    {
+      "description": "Grown, with the actions on their own row.",
+      "example": "grown-actions",
+      "id": "grown-actions"
+    },
+    {
+      "description": "A resting pill with its actions still inline.",
+      "example": "pill-at-rest",
+      "id": "pill-at-rest"
+    }
+  ]
+}

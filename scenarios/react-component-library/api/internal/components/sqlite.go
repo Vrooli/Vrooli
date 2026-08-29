@@ -121,6 +121,9 @@ func (s *sqliteRepository) UpsertManifest(ctx context.Context, in IndexManifestI
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_required_token_patterns WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ? AND (`+refreshPredicate+`))`, refreshArgs...); err != nil {
 		return Component{}, fmt.Errorf("clear component version required token patterns for %q: %w", c.ID, err)
 	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_kit_compatibility WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ? AND (`+refreshPredicate+`))`, refreshArgs...); err != nil {
+		return Component{}, fmt.Errorf("clear component version kit compatibility for %q: %w", c.ID, err)
+	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM component_version_parity_reports WHERE version_id IN (SELECT id FROM component_versions WHERE component_id = ? AND (`+refreshPredicate+`))`, refreshArgs...); err != nil {
 		return Component{}, fmt.Errorf("clear component parity reports for %q: %w", c.ID, err)
 	}
@@ -198,6 +201,13 @@ ON CONFLICT(component_id, version) DO UPDATE SET
 		for _, pattern := range v.RequiredTokenPatterns {
 			if _, err := s.db.ExecContext(ctx, `INSERT INTO component_version_required_token_patterns (version_id, pattern) VALUES (?, ?)`, v.ID, pattern); err != nil {
 				return Component{}, fmt.Errorf("upsert component version required token pattern %s@%s/%s: %w", c.LibraryID, v.Version, pattern, err)
+			}
+		}
+		if v.KitCompatibility.Verdict != "" {
+			compatible, _ := json.Marshal(v.KitCompatibility.CompatibleKitIDs)
+			unsatisfied, _ := json.Marshal(v.KitCompatibility.UnsatisfiedProperties)
+			if _, err := s.db.ExecContext(ctx, `INSERT INTO component_version_kit_compatibility (version_id, verdict, compatible_kit_ids_json, unsatisfied_properties_json) VALUES (?, ?, ?, ?)`, v.ID, string(v.KitCompatibility.Verdict), string(compatible), string(unsatisfied)); err != nil {
+				return Component{}, fmt.Errorf("upsert component kit compatibility %s@%s: %w", c.LibraryID, v.Version, err)
 			}
 		}
 		if v.ParityReport != nil {
@@ -673,6 +683,27 @@ func (s *sqliteRepository) loadAssetProjection(ctx context.Context, assets []*Co
 		byID[asset.ID] = asset
 	}
 	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
+	compatRows, err := s.db.QueryContext(ctx, `SELECT v.component_id, k.verdict, k.compatible_kit_ids_json, k.unsatisfied_properties_json FROM component_versions v JOIN components c ON c.id = v.component_id AND c.latest_version = v.version JOIN component_version_kit_compatibility k ON k.version_id = v.id WHERE v.component_id IN (`+placeholders+`)`, ids...)
+	if err != nil {
+		return fmt.Errorf("load latest kit compatibility: %w", err)
+	}
+	defer compatRows.Close()
+	for compatRows.Next() {
+		var id, verdict, compatible, unsatisfied string
+		if err := compatRows.Scan(&id, &verdict, &compatible, &unsatisfied); err != nil {
+			return fmt.Errorf("scan latest kit compatibility: %w", err)
+		}
+		compatibility := ComponentKitCompatibility{Verdict: KitCompatibilityVerdict(verdict)}
+		_ = json.Unmarshal([]byte(compatible), &compatibility.CompatibleKitIDs)
+		_ = json.Unmarshal([]byte(unsatisfied), &compatibility.UnsatisfiedProperties)
+		byID[id].KitCompatibility = compatibility
+	}
+	if err := compatRows.Err(); err != nil {
+		return fmt.Errorf("iterate latest kit compatibility: %w", err)
+	}
+	if err := compatRows.Close(); err != nil {
+		return fmt.Errorf("close latest kit compatibility rows: %w", err)
+	}
 	rows, err := s.db.QueryContext(ctx, `SELECT component_id, library_id, version FROM component_asset_dependencies WHERE component_id IN (`+placeholders+`) ORDER BY component_id, library_id, version`, ids...)
 	if err != nil {
 		return fmt.Errorf("load asset dependencies: %w", err)
@@ -1065,6 +1096,10 @@ LIMIT ?
 		if err != nil {
 			return nil, err
 		}
+		out[i].KitCompatibility, err = s.getVersionKitCompatibility(ctx, out[i].ID)
+		if err != nil {
+			return nil, err
+		}
 		out[i].ParityReport, err = s.getVersionParity(ctx, out[i].ID)
 		if err != nil {
 			return nil, err
@@ -1100,6 +1135,10 @@ WHERE component_id = ? AND version = ?
 		return ComponentVersion{}, err
 	}
 	v.RequiredTokenPatterns, err = s.listVersionRequiredTokenPatterns(ctx, v.ID)
+	if err != nil {
+		return ComponentVersion{}, err
+	}
+	v.KitCompatibility, err = s.getVersionKitCompatibility(ctx, v.ID)
 	if err != nil {
 		return ComponentVersion{}, err
 	}
@@ -1212,6 +1251,25 @@ func (s *sqliteRepository) listVersionRequiredTokenPatterns(ctx context.Context,
 		patterns = append(patterns, pattern)
 	}
 	return patterns, rows.Err()
+}
+
+func (s *sqliteRepository) getVersionKitCompatibility(ctx context.Context, versionID string) (ComponentKitCompatibility, error) {
+	var verdict, compatible, unsatisfied string
+	err := s.db.QueryRowContext(ctx, `SELECT verdict, compatible_kit_ids_json, unsatisfied_properties_json FROM component_version_kit_compatibility WHERE version_id = ?`, versionID).Scan(&verdict, &compatible, &unsatisfied)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ComponentKitCompatibility{}, nil
+	}
+	if err != nil {
+		return ComponentKitCompatibility{}, fmt.Errorf("get component version kit compatibility: %w", err)
+	}
+	result := ComponentKitCompatibility{Verdict: KitCompatibilityVerdict(verdict)}
+	if err := json.Unmarshal([]byte(compatible), &result.CompatibleKitIDs); err != nil {
+		return ComponentKitCompatibility{}, err
+	}
+	if err := json.Unmarshal([]byte(unsatisfied), &result.UnsatisfiedProperties); err != nil {
+		return ComponentKitCompatibility{}, err
+	}
+	return result, nil
 }
 
 func (s *sqliteRepository) ListStories(ctx context.Context, q StoryQuery) ([]ComponentStory, error) {

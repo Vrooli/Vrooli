@@ -1,0 +1,131 @@
+{
+  "claims": [
+    {
+      "id": "keyboard-operable",
+      "statement": "Arrow keys resize by a declared step, Shift coarsens it, Home and End reach the bounds, PageUp and PageDown move between snap points, and Enter restores the default.",
+      "states": ["keyboard-resize", "at-minimum", "snapped", "rtl"],
+      "tier": "aspirational",
+      "type": "keyboard-operable"
+    },
+    {
+      "id": "pointer-independence",
+      "statement": "Every size reachable by dragging is reachable from the keyboard, because both paths commit through the same clamped setter.",
+      "states": ["keyboard-resize", "at-minimum", "snapped"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "gesture-alternative",
+      "statement": "The drag gesture is not the only way to resize; the separator is focusable and fully operable by key.",
+      "states": ["keyboard-resize"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "status-announced",
+      "statement": "aria-valuetext carries a sentence naming the panel and its size, so the value is announced as meaning rather than as a bare number, and changes wording when snapped or collapsed.",
+      "states": ["default", "snapped", "collapsed"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "focus-visible-indicator",
+      "statement": "The separator takes focus and paints a visible ring plus an emphasised seam; it never takes focus without being operable.",
+      "states": ["keyboard-resize", "forced-colors"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "reduced-motion",
+      "statement": "Under prefers-reduced-motion the seam changes colour without the thickness transition.",
+      "states": ["default"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "no-layout-animation",
+      "statement": "Resizing writes a custom property that drives a logical size; no transition is applied to the panel dimension, so a drag never animates layout.",
+      "states": ["default", "keyboard-resize"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "content-reflow",
+      "statement": "At every reachable size, including the declared minimum, the panel reflows without introducing horizontal document overflow.",
+      "states": ["at-minimum", "default"],
+      "tier": "machine",
+      "type": "no-document-horizontal-overflow"
+    },
+    {
+      "id": "forced-colors-perceivable",
+      "statement": "The affordance is a painted bar rather than a fill on the hit area, so it survives forced-colors discarding author backgrounds.",
+      "states": ["forced-colors"],
+      "tier": "manual",
+      "type": "manual-review"
+    },
+    {
+      "id": "pointer-drag-uncovered",
+      "statement": "The pointer drag path is NOT covered by these stories. The story runner supports settle, click, key, type and blur interactions and has no pointer-drag primitive, so pointer coverage lives in the hook's unit tests and in browser captures until a pointerDrag interaction kind exists.",
+      "states": ["default"],
+      "tier": "aspirational",
+      "type": "manual-review"
+    }
+  ],
+  "component": {
+    "id": "manipulation.resize-handle",
+    "purpose": "The drag affordance for a resizable region, operable and perceivable without a pointer.",
+    "title": "Resize Handle"
+  },
+  "contract": {
+    "kind": "rcl-component-experience-contract",
+    "provenance": "react-component-library:ResizeHandle@1.0.0",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "states": [
+    {
+      "description": "A vertical seam at rest between a panel and a workspace.",
+      "example": "default",
+      "id": "default"
+    },
+    {
+      "description": "The inline axis: a vertical separator between two columns.",
+      "example": "axis-inline",
+      "id": "axis-inline"
+    },
+    {
+      "description": "The block axis: a horizontal separator between two stacked regions.",
+      "example": "axis-block",
+      "id": "axis-block"
+    },
+    {
+      "description": "Arrow keys resize in declared pixel steps with no pointer involved.",
+      "example": "keyboard-resize",
+      "id": "keyboard-resize"
+    },
+    {
+      "description": "Driven to the declared floor; content stays legible and the value never goes lower.",
+      "example": "at-minimum",
+      "id": "at-minimum"
+    },
+    {
+      "description": "Settled on a declared snap point, with the announcement saying so.",
+      "example": "snapped",
+      "id": "snapped"
+    },
+    {
+      "description": "Below the collapse threshold; the handle remains the way back out.",
+      "example": "collapsed",
+      "id": "collapsed"
+    },
+    {
+      "description": "Right-to-left, where the growth direction is the mirror of the physical one.",
+      "example": "rtl",
+      "id": "rtl"
+    },
+    {
+      "description": "System high contrast, where author background colors are discarded.",
+      "example": "forced-colors",
+      "id": "forced-colors"
+    }
+  ]
+}

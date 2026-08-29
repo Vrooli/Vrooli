@@ -57,12 +57,20 @@ func GateRunnerFor(gate string) GateRunner {
 		return ValidateAPI
 	case "tokens":
 		return ValidateTokens
+	case "fallback-parity":
+		return ValidateFallbackParity
+	case "kit-compatibility":
+		return ValidateKitCompatibility
+	case "affinity-compatible":
+		return ValidateAffinityNotBroaderThanCompatibility
 	case "conformance":
 		return ValidateConformance
 	case "token-vocabulary":
 		return ValidateTokenVocabulary
 	case "token-ramp-complete":
 		return ValidateTokenRampComplete
+	case "scenario-token-requirements":
+		return ValidateScenarioTokenRequirements
 	case "released-version-immutable":
 		return ValidateReleasedVersionImmutable
 	case "version-liveness":
@@ -258,6 +266,22 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 			cleanup()
 			return "", func() {}, err
 		}
+		if gate == "token-ramp-complete" || gate == "fallback-parity" || gate == "kit-compatibility" || gate == "affinity-compatible" {
+			baseStyles := filepath.Join(tmp, "scenarios", "react-component-library", "library", "foundations", "BaseStyles")
+			if err := os.Symlink(filepath.Join(root, "scenarios", "react-component-library", "library", "foundations", "BaseStyles"), baseStyles); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+			designTemplates := filepath.Join(tmp, "templates", "design")
+			if err := os.MkdirAll(filepath.Dir(designTemplates), 0o755); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+			if err := os.Symlink(filepath.Join(root, "templates", "design"), designTemplates); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+		}
 	}
 	fixtureDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "calibration", gate)
 	assetDir := filepath.Join(tmp, "scenarios", "react-component-library", "catalog", "assets", "calibration")
@@ -298,6 +322,13 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 				return "", func() {}, err
 			}
 		}
+		if fixture.Mutation == "affinity-incompatible" {
+			manifest = fmt.Sprintf("{\"libraryId\":\"%s\",\"catalogId\":\"%s\",\"latest\":\"1.0.0\",\"designStyles\":[{\"styleId\":\"vrooli-default\",\"affinity\":\"native\"}]}\n", name, fixture.AssetID)
+			if err := os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+		}
 	}
 	if fixture.Mutation == "deprecated-import" {
 		controlDir := filepath.Join(tmp, "scenarios", "react-component-library", "library", "components", "ControlBase", "versions", "1.0.0")
@@ -324,6 +355,44 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 		name := calibrationDirectoryName(fixture.AssetID)
 		source := fmt.Sprintf("import { %s } from \"@vrooli/react-component-library/%s/9.9.9\";\nexport const Consumer = %s;\n", name, name, name)
 		if err := os.WriteFile(consumerPath, []byte(source), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+	}
+	if fixture.Mutation == "scenario-token-requirements" {
+		tokenPath := filepath.Join(tmp, "templates", "design", "_base", "tokens.css")
+		if err := os.MkdirAll(filepath.Dir(tokenPath), 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(tokenPath, []byte(":root {\n  /* @tier Expression */\n  --color-calibration: blue;\n}\n"), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		assetDir := filepath.Join(tmp, "scenarios", "react-component-library", "library", "components", "CalibrationScenarioToken")
+		versionDir := filepath.Join(assetDir, "versions", "1.0.0")
+		if err := os.MkdirAll(versionDir, 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(assetDir, "component.json"), []byte(`{"libraryId":"react-component-library:CalibrationScenarioToken"}`), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(versionDir, "CalibrationScenarioToken.tsx"), []byte(`export const CalibrationScenarioToken = () => <div style={{color: "var(--color-calibration)"}} />;`), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		consumerDir := filepath.Join(tmp, "scenarios", "calibration-adopter", "ui", "src")
+		if err := os.MkdirAll(consumerDir, 0o755); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(consumerDir, "App.tsx"), []byte(`import { CalibrationScenarioToken } from "@vrooli/react-component-library/CalibrationScenarioToken";`), 0o644); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
+		if err := os.WriteFile(filepath.Join(consumerDir, "design-tokens.css"), []byte(":root {\n/* rcl:tokens:begin */\n/* rcl:tokens:end */\n}\n"), 0o644); err != nil {
 			cleanup()
 			return "", func() {}, err
 		}

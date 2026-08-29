@@ -18,7 +18,7 @@
     "1.0.2"
   ],
   "kind": "surface",
-  "latest": "1.0.3",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:DescriptionList",
   "tags": [
     "data-display",
