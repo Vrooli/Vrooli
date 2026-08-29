@@ -11,8 +11,9 @@ import {
 } from "../../api/handoffrules";
 import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
-import { SettingsCard, SettingsSectionIntro } from "./primitives";
+
 import { IconButton } from "@vrooli/react-component-library/IconButton";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 // [REQ:P0-014h] Handoff Capture Rules
 
@@ -85,8 +86,8 @@ export default function HandoffRulesPanel() {
   }, [refresh]);
 
   return (
-    <div data-testid="handoff-rules-panel" className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList data-testid="handoff-rules-panel">
+      <SettingsList.Intro
         eyebrow={t(strings.settings.tabHandoffRules)}
         title={t(strings.handoffRules.title)}
         description={t(strings.handoffRules.footer)}
@@ -110,9 +111,9 @@ export default function HandoffRulesPanel() {
           {t(strings.handoffRules.empty)}
         </p>
       ) : (
-        <div className="space-y-2">
+        <div>
           {rules.map((rule) => (
-            <SettingsCard key={rule.id} className="space-y-3">
+            <SettingsList.Group key={rule.id}>
               <div data-testid={`handoff-rule-${rule.id}`} className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -165,7 +166,7 @@ export default function HandoffRulesPanel() {
                   ? t(strings.handoffRules.patternGlobHint)
                   : t(strings.handoffRules.patternRegexHint)}
               </p>
-            </SettingsCard>
+            </SettingsList.Group>
           ))}
         </div>
       )}
@@ -173,6 +174,6 @@ export default function HandoffRulesPanel() {
       <p data-testid="handoff-rules-footer" className="rounded-lg border border-wc-default bg-wc-surface-base/40 px-3 py-2 text-xs text-wc-text-secondary">
         {t(strings.handoffRules.footer)}
       </p>
-    </div>
+    </SettingsList>
   );
 }

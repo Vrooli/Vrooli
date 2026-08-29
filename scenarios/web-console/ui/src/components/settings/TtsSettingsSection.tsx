@@ -13,14 +13,9 @@ import {
 import type { TTSVoiceInfo } from "../../audio-integration";
 import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
-import {
-  SettingsCard,
-  SettingsRow,
-  SettingsSectionIntro,
-  SettingsSlider,
-  SettingsToggle,
-} from "./primitives";
+import { SettingsSlider, SettingsToggle } from "./primitives";
 import { useSummarizeSettings } from "./useSummarizeSettings";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 // TtsSettingsSection split-of-concerns:
 //   - voice / speed / response-format / summarization knobs → audio-integration
@@ -195,28 +190,25 @@ export default function TtsSettingsSection() {
   }, [loadTtsStatus, refresh, testSpeak, t]);
 
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList>
+      <SettingsList.Intro
         eyebrow={t(strings.settings.voiceOutputSection.eyebrow)}
         title={t(strings.settings.voiceOutputSection.title)}
         description={t(strings.settings.voiceOutputSection.description)}
       />
 
-      <SettingsCard className="space-y-4">
+      <SettingsList.Group>
         {statusError && (
           <div className="text-xs text-wc-error-detail">{t(strings.settings.voiceOutputSection.statusLoadFailed, { message: statusError })}</div>
         )}
 
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.voiceOutputSection.activeBackend)}
-          hint={t(strings.settings.voiceOutputSection.activeBackendHint, { label: preferenceLabel, reason: backendReason })}
-          control={<span data-testid="tts-backend-indicator" className={`text-xs font-medium ${backendColor}`}>{backendLabel}</span>}
-        />
+          hint={t(strings.settings.voiceOutputSection.activeBackendHint, { label: preferenceLabel, reason: backendReason })} control="compact">{<span data-testid="tts-backend-indicator" className={`text-xs font-medium ${backendColor}`}>{backendLabel}</span>}</SettingsList.Row>
 
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.voiceOutputSection.backendPreference)}
-          hint={t(strings.settings.voiceOutputSection.backendPreferenceHint)}
-          control={(
+          hint={t(strings.settings.voiceOutputSection.backendPreferenceHint)} control="wide">{(
             <select
               data-testid="tts-backend-select"
               className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
@@ -231,13 +223,11 @@ export default function TtsSettingsSection() {
               <option value="kokoro">{t(strings.settings.voiceOutputSection.preferenceKokoro)}</option>
               <option value="browser">{t(strings.settings.voiceOutputSection.preferenceBrowser)}</option>
             </select>
-          )}
-        />
+          )}</SettingsList.Row>
 
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.voiceOutputSection.autoSpeak)}
-          hint={t(strings.settings.voiceOutputSection.autoSpeakHint)}
-          control={(
+          hint={t(strings.settings.voiceOutputSection.autoSpeakHint)} control="compact">{(
             <SettingsToggle
               testId="auto-tts-toggle"
               checked={autoTtsEnabled}
@@ -246,13 +236,11 @@ export default function TtsSettingsSection() {
                 void persistHookConfig({ autoEnabled: next });
               }}
             />
-          )}
-        />
+          )}</SettingsList.Row>
 
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.voiceOutputSection.startMuted)}
-          hint={t(strings.settings.voiceOutputSection.startMutedHint)}
-          control={(
+          hint={t(strings.settings.voiceOutputSection.startMutedHint)} control="compact">{(
             <SettingsToggle
               testId="start-muted-toggle"
               checked={startMutedOnLoad}
@@ -261,8 +249,7 @@ export default function TtsSettingsSection() {
                 void persistHookConfig({ startMuted: next });
               }}
             />
-          )}
-        />
+          )}</SettingsList.Row>
 
         <div className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-center">
           <div>
@@ -318,9 +305,9 @@ export default function TtsSettingsSection() {
         {error && (
           <div className="text-xs text-wc-error-detail">{t(strings.settings.voiceOutputSection.playbackError, { message: error })}</div>
         )}
-      </SettingsCard>
+      </SettingsList.Group>
 
-      <SettingsCard className="space-y-2 text-[11px] text-wc-text-faint">
+      <SettingsList.Group className="text-[11px] text-wc-text-faint">
         <div>
           {t(strings.settings.voiceOutputSection.claudeHookPrefix)}
           <span className={hookRegistered ? "text-green-400" : "text-wc-error-detail"}>
@@ -350,14 +337,13 @@ export default function TtsSettingsSection() {
           })}
         </div>
         {hookSettingsPath && <div className="break-all">{t(strings.settings.voiceOutputSection.hookSettingsPath, { path: hookSettingsPath })}</div>}
-      </SettingsCard>
+      </SettingsList.Group>
 
       {(backend === "kokoro" || ttsBackendPreference === "kokoro") && (
-        <SettingsCard className="space-y-4">
-          <SettingsRow
+        <SettingsList.Group>
+          <SettingsList.Row
             label={t(strings.settings.voiceOutputSection.kokoroVoice)}
-            hint={t(strings.settings.voiceOutputSection.kokoroVoiceHint)}
-            control={(
+            hint={t(strings.settings.voiceOutputSection.kokoroVoiceHint)} control="wide">{(
               <select
                 data-testid="kokoro-voice-select"
                 className="max-w-[180px] rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
@@ -372,13 +358,11 @@ export default function TtsSettingsSection() {
                   <option key={voice.id} value={voice.id}>{voice.name}</option>
                 ))}
               </select>
-            )}
-          />
+            )}</SettingsList.Row>
 
-          <SettingsRow
+          <SettingsList.Row
             label={t(strings.settings.voiceOutputSection.kokoroSpeed)}
-            hint={t(strings.settings.voiceOutputSection.kokoroSpeedHint)}
-            control={(
+            hint={t(strings.settings.voiceOutputSection.kokoroSpeedHint)} control="wide">{(
               <SettingsSlider
                 testId="kokoro-speed-slider"
                 value={kokoroSpeed}
@@ -392,27 +376,25 @@ export default function TtsSettingsSection() {
                 defaultMarker={1}
                 formatValue={(value) => value.toFixed(1)}
               />
-            )}
-          />
-        </SettingsCard>
+            )}</SettingsList.Row>
+        </SettingsList.Group>
       )}
 
       {/* Summarization — sourced from / persisted to audio-tools via audio-integration. */}
-      <SettingsSectionIntro
+      <SettingsList.Intro
         eyebrow={t(strings.settings.voiceOutputSection.summarizationEyebrow)}
         title={t(strings.settings.voiceOutputSection.summarizationTitle)}
         description={t(strings.settings.voiceOutputSection.summarizationDescription)}
       />
 
-      <SettingsCard className="space-y-4">
+      <SettingsList.Group>
         {summarizeSettings.error && (
           <div className="text-xs text-wc-error-detail">{t(strings.settings.voiceOutputSection.summarizationLoadFailed, { message: summarizeSettings.error })}</div>
         )}
 
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.voiceOutputSection.summarizeToggle)}
-          hint={t(strings.settings.voiceOutputSection.summarizeToggleHint)}
-          control={(
+          hint={t(strings.settings.voiceOutputSection.summarizeToggleHint)} control="compact">{(
             <SettingsToggle
               testId="summarize-toggle"
               checked={summarizeSettings.config?.enabled ?? false}
@@ -420,13 +402,11 @@ export default function TtsSettingsSection() {
                 void summarizeSettings.save({ enabled: next });
               }}
             />
-          )}
-        />
+          )}</SettingsList.Row>
 
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.voiceOutputSection.wordThreshold)}
-          hint={t(strings.settings.voiceOutputSection.wordThresholdHint)}
-          control={(
+          hint={t(strings.settings.voiceOutputSection.wordThresholdHint)} control="compact">{(
             /* Previously a `type="number"` whose onChange ran
                `Math.max(100, parseInt(...) || 500)`: the floor was enforced,
                the declared 10000 ceiling never was, and any draft parsing to 0
@@ -446,13 +426,11 @@ export default function TtsSettingsSection() {
               unit={t(strings.settings.voiceOutputSection.chars)}
               size="sm"
             />
-          )}
-        />
+          )}</SettingsList.Row>
 
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.voiceOutputSection.summarizationLevel)}
-          hint={t(strings.settings.voiceOutputSection.summarizationLevelHint)}
-          control={(
+          hint={t(strings.settings.voiceOutputSection.summarizationLevelHint)} control="wide">{(
             <select
               data-testid="summarize-level-select"
               className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
@@ -466,13 +444,11 @@ export default function TtsSettingsSection() {
               <option value="moderate">{t(strings.settings.voiceOutputSection.levelModerateOption)}</option>
               <option value="heavy">{t(strings.settings.voiceOutputSection.levelHeavyOption)}</option>
             </select>
-          )}
-        />
+          )}</SettingsList.Row>
 
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.voiceOutputSection.model)}
-          hint={t(strings.settings.voiceOutputSection.modelHint)}
-          control={(
+          hint={t(strings.settings.voiceOutputSection.modelHint)} control="wide">{(
             <select
               data-testid="summarize-model-select"
               className="max-w-[220px] rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
@@ -489,8 +465,7 @@ export default function TtsSettingsSection() {
                 <option value={summarizeSettings.config.model}>{summarizeSettings.config.model}</option>
               )}
             </select>
-          )}
-        />
+          )}</SettingsList.Row>
 
         {summarizeSettings.selectedModel && (
           <div className="rounded-md border border-wc-default bg-wc-surface-base px-3 py-2 text-[11px] text-wc-text-muted">
@@ -517,10 +492,9 @@ export default function TtsSettingsSection() {
           </div>
         )}
 
-        <SettingsRow
+        <SettingsList.Row
           label="Timeout"
-          hint="Maximum time to wait for local summarization."
-          control={(
+          hint="Maximum time to wait for local summarization." control="compact">{(
             <NumberField
               testId="summarize-timeout"
               label="Timeout"
@@ -535,16 +509,14 @@ export default function TtsSettingsSection() {
               unit="sec"
               size="sm"
             />
-          )}
-        />
-      </SettingsCard>
+          )}</SettingsList.Row>
+      </SettingsList.Group>
 
       {backend === "browser" && (
-        <SettingsCard className="space-y-4">
-          <SettingsRow
+        <SettingsList.Group>
+          <SettingsList.Row
             label={t(strings.settings.voiceOutputSection.browserVoice)}
-            hint={t(strings.settings.voiceOutputSection.browserVoiceHint)}
-            control={(
+            hint={t(strings.settings.voiceOutputSection.browserVoiceHint)} control="wide">{(
               <select
                 data-testid="tts-voice-select"
                 className="max-w-[180px] rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
@@ -556,13 +528,11 @@ export default function TtsSettingsSection() {
                   <option key={voice.id} value={voice.id}>{voice.name}</option>
                 ))}
               </select>
-            )}
-          />
+            )}</SettingsList.Row>
 
-          <SettingsRow
+          <SettingsList.Row
             label={t(strings.settings.voiceOutputSection.browserRate)}
-            hint={t(strings.settings.voiceOutputSection.browserRateHint)}
-            control={(
+            hint={t(strings.settings.voiceOutputSection.browserRateHint)} control="wide">{(
               <SettingsSlider
                 testId="tts-rate-slider"
                 value={ttsRate}
@@ -573,13 +543,11 @@ export default function TtsSettingsSection() {
                 defaultMarker={1}
                 formatValue={(value) => value.toFixed(1)}
               />
-            )}
-          />
+            )}</SettingsList.Row>
 
-          <SettingsRow
+          <SettingsList.Row
             label={t(strings.settings.voiceOutputSection.browserPitch)}
-            hint={t(strings.settings.voiceOutputSection.browserPitchHint)}
-            control={(
+            hint={t(strings.settings.voiceOutputSection.browserPitchHint)} control="wide">{(
               <SettingsSlider
                 testId="tts-pitch-slider"
                 value={ttsPitch}
@@ -590,10 +558,9 @@ export default function TtsSettingsSection() {
                 defaultMarker={1}
                 formatValue={(value) => value.toFixed(1)}
               />
-            )}
-          />
-        </SettingsCard>
+            )}</SettingsList.Row>
+        </SettingsList.Group>
       )}
-    </div>
+    </SettingsList>
   );
 }

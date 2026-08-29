@@ -117,6 +117,35 @@
   --elev-flat: none;
   --elev-raised: 0 1px 2px rgba(9, 18, 22, 0.06), 0 1px 3px rgba(9, 18, 22, 0.1);
   --elev-overlay: 0 2px 4px rgba(9, 18, 22, 0.06), 0 4px 12px rgba(9, 18, 22, 0.1);
+
+  /* Stacking scale. Copied verbatim from the canonical source, where it sits
+   * between --elev-* and --border-*; this copy had skipped the block entirely.
+   *
+   * Every name here was previously undefined, and an undefined custom property
+   * in `z-index: var(--layer-modal)` is invalid at computed-value time, so the
+   * declaration resolved to `auto` rather than to any number. That is not a
+   * cosmetic default: a library rule still WINS the cascade and then computes
+   * to `auto`, which silently outranks nothing and loses to every consumer
+   * `z-index` on the page.
+   *
+   * SidebarShell is where it surfaced. Its panel rule
+   * `[data-rcl-sidebar-shell][data-mode="overlay"]` is (0,2,0) and beats the
+   * `.z-wc-drawer` class this app puts on the same element, so the panel took
+   * `auto`; its backdrop rule `[data-rcl-sidebar-backdrop]` is only (0,1,0),
+   * ties with `.z-wc-drawer`, and the consumer wins the tie — so the backdrop
+   * took 50 and painted over the drawer it was meant to sit behind. Dialog,
+   * DrawerShell and ResponsivePanel read the same token and were equally
+   * unlayered; they just had no consumer z-index to lose to yet. */
+  --layer-base: 0;
+  --layer-sticky: 100;
+  --layer-dropdown: 200;
+  --layer-overlay: 300;
+  --layer-modal: 400;
+  --layer-toast: 500;
+  --layer-tooltip: 600;
+  --layer-menu: 610;
+  --layer-alert: 700;
+
   --border-hairline: 1px;
   --border-strong: 2px;
   --opacity-disabled: 0.4;
@@ -136,6 +165,13 @@
      Never for opacity or colour, where an overshoot has nowhere to go. */
   --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 /* rcl:tokens:begin */
+  --badge-border: var(--color-border);
+  --border-thin: 1px;
+  --color-accent-subtle: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --color-danger-border: color-mix(in srgb, var(--color-danger) 38%, var(--color-border));
+  --color-danger-foreground: color-mix(in srgb, var(--color-danger) 78%, var(--color-foreground));
+  --color-danger-foreground-inverse: var(--color-primary-foreground);
+  --color-danger-subtle: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
   --color-scrim: rgba(15, 23, 42, 0.72);
   --color-shell: #020617;
   --color-surface-raised: #172033;
@@ -152,19 +188,9 @@
   --control-size-xs: 32px;
   --elev-floating: 0 4px 12px rgba(9, 18, 22, 0.12);
   --elev-modal: 0 4px 12px rgba(9, 18, 22, 0.1), 0 16px 48px rgba(9, 18, 22, 0.18);
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--focus-ring-color) 35%, transparent);
-  --focus-ring-color: var(--color-focus);
-  /* Library components draw focus as an `outline` from these two rather than
-   * as the composed box-shadow above. Both names resolve to the same colour so
-   * a library surface and an app surface cannot disagree about focus. */
-  --color-focus-ring: var(--color-focus);
-  --focus-ring-width: 2px;
-  --layer-base: 0;
-  --layer-modal: 400;
-  --layer-popover: 200;
-  --layer-raised: 150;
-  --layer-sticky: 100;
-  --layer-toast: 500;
+  --elev-subtle: 0 1px 2px rgba(9, 18, 22, .06);
+  --font-size-lg: 18px;
+  --font-size-sm: 14px;
   --opacity-scrim: 0.72;
   --overlay-dialog-lg: 48rem;
   --overlay-dialog-md: 32rem;
@@ -172,15 +198,19 @@
   --overlay-drawer-top-gap: var(--space-2xl);
   --overlay-grabber-block: 0.25rem;
   --overlay-grabber-inline: 2.25rem;
+  --overlay-menu-align: 0px;
   --panel-padding: var(--space-md);
   --panel-radius: var(--radius-panel);
   --radius-lg: 0.75rem;
   --radius-md: 0.5rem;
   --radius-none: 0;
+  --radius-overlay: 1rem;
   --radius-sheet: 1rem;
   --radius-sm: 0.25rem;
   --radius-xl: 1.25rem;
   --rcl-sheet-progress: initial;
+  --space-4xl: 80px;
+  --space-4xs: 4px;
   --spring-subtle: cubic-bezier(0.2, 0.8, 0.2, 1.05);
   --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
   --text-body-sm: 400 var(--text-body-sm-size) / var(--text-body-sm-line) var(--font-sans);
@@ -199,6 +229,8 @@
   --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
   --text-title-line: 30px;
   --text-title-size: 24px;
+  --text-xs: 12px;
+  --weight-medium: 500;
 /* rcl:tokens:end */
 
   /* Scenario-owned, deliberately outside the managed region.

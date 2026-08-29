@@ -24,7 +24,8 @@ import { getSessionDefaults, updateSessionDefaults } from "../../api/settings";
 import { fetchCapabilities } from "../../api/capabilities";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { Button } from "../ui/button";
-import { SettingsCard, SettingsSectionIntro } from "./primitives";
+
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 function SessionPolicyControl({
   session,
@@ -126,7 +127,7 @@ function SessionDefaultsControl() {
   const backendOptions = BACKEND_OPTIONS.filter((b) => availableBackends.includes(b.id));
 
   return (
-    <SettingsCard className="space-y-3">
+    <SettingsList.Group>
       <div>
         <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.sessionsSection.defaultsTitle)}</div>
         <div className="text-[11px] text-wc-text-muted">
@@ -167,7 +168,7 @@ function SessionDefaultsControl() {
           </select>
         </div>
       </div>
-    </SettingsCard>
+    </SettingsList.Group>
   );
 }
 
@@ -247,8 +248,8 @@ export default function SessionManagementSection({
   const sessionMap = new Map(sessions.map((item) => [item.session.id, item.session]));
 
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList>
+      <SettingsList.Intro
         eyebrow={t(strings.settings.sessionsSection.eyebrow)}
         title={t(strings.settings.sessionsSection.title)}
         description={t(strings.settings.sessionsSection.description)}
@@ -261,7 +262,7 @@ export default function SessionManagementSection({
         data-entry-count={archiveRetention?.stats.entry_count ?? ""}
         data-total-bytes={archiveRetention?.stats.total_bytes ?? ""}
       >
-        <SettingsCard className="space-y-2">
+        <SettingsList.Group>
           <div className="flex items-start gap-3">
             <Archive className="mt-0.5 h-4 w-4 text-wc-accent" />
             <div>
@@ -278,10 +279,10 @@ export default function SessionManagementSection({
               </div>
             </div>
           </div>
-        </SettingsCard>
+        </SettingsList.Group>
       </div>
 
-      <SettingsCard className="space-y-4">
+      <SettingsList.Group>
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.sessionsSection.openTerminals)}</div>
@@ -314,7 +315,7 @@ export default function SessionManagementSection({
         {panes.length === 0 ? (
           <div className="py-6 text-center text-xs text-wc-text-faint">{t(strings.settings.sessionsSection.noTerminalsOpen)}</div>
         ) : (
-          <div className="space-y-3">
+          <div>
             {panes.map((pane, index) => {
               const session = sessionMap.get(pane.sessionId);
               return (
@@ -482,7 +483,7 @@ export default function SessionManagementSection({
             })}
           </div>
         )}
-      </SettingsCard>
-    </div>
+      </SettingsList.Group>
+    </SettingsList>
   );
 }

@@ -45,6 +45,10 @@
       "types": "./dist/exports/Alert/1.0.2.d.ts",
       "import": "./dist/exports/Alert/1.0.2.js"
     },
+    "./Alert/1.0.3": {
+      "types": "./dist/exports/Alert/1.0.3.d.ts",
+      "import": "./dist/exports/Alert/1.0.3.js"
+    },
     "./Alert/1/1.0.0": {
       "types": "./dist/exports/Alert/1/1.0.0.d.ts",
       "import": "./dist/exports/Alert/1/1.0.0.js"
@@ -56,6 +60,10 @@
     "./Alert/1/1.0.2": {
       "types": "./dist/exports/Alert/1/1.0.2.d.ts",
       "import": "./dist/exports/Alert/1/1.0.2.js"
+    },
+    "./Alert/1/1.0.3": {
+      "types": "./dist/exports/Alert/1/1.0.3.d.ts",
+      "import": "./dist/exports/Alert/1/1.0.3.js"
     },
     "./AlertDialog": {
       "types": "./dist/exports/AlertDialog.d.ts",
@@ -121,9 +129,17 @@
       "types": "./dist/exports/AlertDialog/2.0.6.d.ts",
       "import": "./dist/exports/AlertDialog/2.0.6.js"
     },
+    "./AlertDialog/2.0.7": {
+      "types": "./dist/exports/AlertDialog/2.0.7.d.ts",
+      "import": "./dist/exports/AlertDialog/2.0.7.js"
+    },
     "./AlertDialog/2/2.0.6": {
       "types": "./dist/exports/AlertDialog/2/2.0.6.d.ts",
       "import": "./dist/exports/AlertDialog/2/2.0.6.js"
+    },
+    "./AlertDialog/2/2.0.7": {
+      "types": "./dist/exports/AlertDialog/2/2.0.7.d.ts",
+      "import": "./dist/exports/AlertDialog/2/2.0.7.js"
     },
     "./AppNavigation": {
       "types": "./dist/exports/AppNavigation.d.ts",
@@ -265,6 +281,10 @@
       "types": "./dist/exports/ArrayField/1.0.2.d.ts",
       "import": "./dist/exports/ArrayField/1.0.2.js"
     },
+    "./ArrayField/1.0.3": {
+      "types": "./dist/exports/ArrayField/1.0.3.d.ts",
+      "import": "./dist/exports/ArrayField/1.0.3.js"
+    },
     "./ArrayField/1/1.0.0": {
       "types": "./dist/exports/ArrayField/1/1.0.0.d.ts",
       "import": "./dist/exports/ArrayField/1/1.0.0.js"
@@ -276,6 +296,10 @@
     "./ArrayField/1/1.0.2": {
       "types": "./dist/exports/ArrayField/1/1.0.2.d.ts",
       "import": "./dist/exports/ArrayField/1/1.0.2.js"
+    },
+    "./ArrayField/1/1.0.3": {
+      "types": "./dist/exports/ArrayField/1/1.0.3.d.ts",
+      "import": "./dist/exports/ArrayField/1/1.0.3.js"
     },
     "./AspectRatio": {
       "types": "./dist/exports/AspectRatio.d.ts",
@@ -341,6 +365,10 @@
       "types": "./dist/exports/AsyncBoundary/1.0.4.d.ts",
       "import": "./dist/exports/AsyncBoundary/1.0.4.js"
     },
+    "./AsyncBoundary/1.0.5": {
+      "types": "./dist/exports/AsyncBoundary/1.0.5.d.ts",
+      "import": "./dist/exports/AsyncBoundary/1.0.5.js"
+    },
     "./AsyncBoundary/1/1.0.0": {
       "types": "./dist/exports/AsyncBoundary/1/1.0.0.d.ts",
       "import": "./dist/exports/AsyncBoundary/1/1.0.0.js"
@@ -356,6 +384,10 @@
     "./AsyncBoundary/1/1.0.4": {
       "types": "./dist/exports/AsyncBoundary/1/1.0.4.d.ts",
       "import": "./dist/exports/AsyncBoundary/1/1.0.4.js"
+    },
+    "./AsyncBoundary/1/1.0.5": {
+      "types": "./dist/exports/AsyncBoundary/1/1.0.5.d.ts",
+      "import": "./dist/exports/AsyncBoundary/1/1.0.5.js"
     },
     "./AsyncFormFlow": {
       "types": "./dist/exports/AsyncFormFlow.d.ts",
@@ -381,6 +413,10 @@
       "types": "./dist/exports/AsyncFormFlow/1.0.6.d.ts",
       "import": "./dist/exports/AsyncFormFlow/1.0.6.js"
     },
+    "./AsyncFormFlow/1.0.7": {
+      "types": "./dist/exports/AsyncFormFlow/1.0.7.d.ts",
+      "import": "./dist/exports/AsyncFormFlow/1.0.7.js"
+    },
     "./AsyncFormFlow/1/1.0.3": {
       "types": "./dist/exports/AsyncFormFlow/1/1.0.3.d.ts",
       "import": "./dist/exports/AsyncFormFlow/1/1.0.3.js"
@@ -396,6 +432,10 @@
     "./AsyncFormFlow/1/1.0.6": {
       "types": "./dist/exports/AsyncFormFlow/1/1.0.6.d.ts",
       "import": "./dist/exports/AsyncFormFlow/1/1.0.6.js"
+    },
+    "./AsyncFormFlow/1/1.0.7": {
+      "types": "./dist/exports/AsyncFormFlow/1/1.0.7.d.ts",
+      "import": "./dist/exports/AsyncFormFlow/1/1.0.7.js"
     },
     "./AsyncOptionsField": {
       "types": "./dist/exports/AsyncOptionsField.d.ts",
@@ -425,6 +465,10 @@
       "types": "./dist/exports/AsyncOptionsField/1.0.6.d.ts",
       "import": "./dist/exports/AsyncOptionsField/1.0.6.js"
     },
+    "./AsyncOptionsField/1.0.7": {
+      "types": "./dist/exports/AsyncOptionsField/1.0.7.d.ts",
+      "import": "./dist/exports/AsyncOptionsField/1.0.7.js"
+    },
     "./AsyncOptionsField/1/1.0.0": {
       "types": "./dist/exports/AsyncOptionsField/1/1.0.0.d.ts",
       "import": "./dist/exports/AsyncOptionsField/1/1.0.0.js"
@@ -444,6 +488,10 @@
     "./AsyncOptionsField/1/1.0.6": {
       "types": "./dist/exports/AsyncOptionsField/1/1.0.6.d.ts",
       "import": "./dist/exports/AsyncOptionsField/1/1.0.6.js"
+    },
+    "./AsyncOptionsField/1/1.0.7": {
+      "types": "./dist/exports/AsyncOptionsField/1/1.0.7.d.ts",
+      "import": "./dist/exports/AsyncOptionsField/1/1.0.7.js"
     },
     "./AsyncPanel": {
       "types": "./dist/exports/AsyncPanel.d.ts",
@@ -477,6 +525,10 @@
       "types": "./dist/exports/AttachmentPreview/1.0.2.d.ts",
       "import": "./dist/exports/AttachmentPreview/1.0.2.js"
     },
+    "./AttachmentPreview/1.0.3": {
+      "types": "./dist/exports/AttachmentPreview/1.0.3.d.ts",
+      "import": "./dist/exports/AttachmentPreview/1.0.3.js"
+    },
     "./AttachmentPreview/1/1.0.1": {
       "types": "./dist/exports/AttachmentPreview/1/1.0.1.d.ts",
       "import": "./dist/exports/AttachmentPreview/1/1.0.1.js"
@@ -484,6 +536,10 @@
     "./AttachmentPreview/1/1.0.2": {
       "types": "./dist/exports/AttachmentPreview/1/1.0.2.d.ts",
       "import": "./dist/exports/AttachmentPreview/1/1.0.2.js"
+    },
+    "./AttachmentPreview/1/1.0.3": {
+      "types": "./dist/exports/AttachmentPreview/1/1.0.3.d.ts",
+      "import": "./dist/exports/AttachmentPreview/1/1.0.3.js"
     },
     "./AuditTrail": {
       "types": "./dist/exports/AuditTrail.d.ts",
@@ -505,6 +561,10 @@
       "types": "./dist/exports/AuditTrail/1.0.5.d.ts",
       "import": "./dist/exports/AuditTrail/1.0.5.js"
     },
+    "./AuditTrail/1.0.6": {
+      "types": "./dist/exports/AuditTrail/1.0.6.d.ts",
+      "import": "./dist/exports/AuditTrail/1.0.6.js"
+    },
     "./AuditTrail/1/1.0.0": {
       "types": "./dist/exports/AuditTrail/1/1.0.0.d.ts",
       "import": "./dist/exports/AuditTrail/1/1.0.0.js"
@@ -516,6 +576,10 @@
     "./AuditTrail/1/1.0.5": {
       "types": "./dist/exports/AuditTrail/1/1.0.5.d.ts",
       "import": "./dist/exports/AuditTrail/1/1.0.5.js"
+    },
+    "./AuditTrail/1/1.0.6": {
+      "types": "./dist/exports/AuditTrail/1/1.0.6.d.ts",
+      "import": "./dist/exports/AuditTrail/1/1.0.6.js"
     },
     "./AuthSection": {
       "types": "./dist/exports/AuthSection.d.ts",
@@ -757,6 +821,10 @@
       "types": "./dist/exports/BaseStyles/1.2.0.d.ts",
       "import": "./dist/exports/BaseStyles/1.2.0.js"
     },
+    "./BaseStyles/1.2.1": {
+      "types": "./dist/exports/BaseStyles/1.2.1.d.ts",
+      "import": "./dist/exports/BaseStyles/1.2.1.js"
+    },
     "./BaseStyles/1/1.0.0": {
       "types": "./dist/exports/BaseStyles/1/1.0.0.d.ts",
       "import": "./dist/exports/BaseStyles/1/1.0.0.js"
@@ -772,6 +840,10 @@
     "./BaseStyles/1/1.2.0": {
       "types": "./dist/exports/BaseStyles/1/1.2.0.d.ts",
       "import": "./dist/exports/BaseStyles/1/1.2.0.js"
+    },
+    "./BaseStyles/1/1.2.1": {
+      "types": "./dist/exports/BaseStyles/1/1.2.1.d.ts",
+      "import": "./dist/exports/BaseStyles/1/1.2.1.js"
     },
     "./BottomNav": {
       "types": "./dist/exports/BottomNav.d.ts",
@@ -877,6 +949,30 @@
       "types": "./dist/exports/BottomSheet/1.2.0.d.ts",
       "import": "./dist/exports/BottomSheet/1.2.0.js"
     },
+    "./BottomSheet/1.2.1": {
+      "types": "./dist/exports/BottomSheet/1.2.1.d.ts",
+      "import": "./dist/exports/BottomSheet/1.2.1.js"
+    },
+    "./BottomSheet/1.2.2": {
+      "types": "./dist/exports/BottomSheet/1.2.2.d.ts",
+      "import": "./dist/exports/BottomSheet/1.2.2.js"
+    },
+    "./BottomSheet/1.2.3": {
+      "types": "./dist/exports/BottomSheet/1.2.3.d.ts",
+      "import": "./dist/exports/BottomSheet/1.2.3.js"
+    },
+    "./BottomSheet/1.2.4": {
+      "types": "./dist/exports/BottomSheet/1.2.4.d.ts",
+      "import": "./dist/exports/BottomSheet/1.2.4.js"
+    },
+    "./BottomSheet/1.2.5": {
+      "types": "./dist/exports/BottomSheet/1.2.5.d.ts",
+      "import": "./dist/exports/BottomSheet/1.2.5.js"
+    },
+    "./BottomSheet/1.2.6": {
+      "types": "./dist/exports/BottomSheet/1.2.6.d.ts",
+      "import": "./dist/exports/BottomSheet/1.2.6.js"
+    },
     "./BottomSheet/1/1.0.4": {
       "types": "./dist/exports/BottomSheet/1/1.0.4.d.ts",
       "import": "./dist/exports/BottomSheet/1/1.0.4.js"
@@ -925,6 +1021,30 @@
       "types": "./dist/exports/BottomSheet/1/1.2.0.d.ts",
       "import": "./dist/exports/BottomSheet/1/1.2.0.js"
     },
+    "./BottomSheet/1/1.2.1": {
+      "types": "./dist/exports/BottomSheet/1/1.2.1.d.ts",
+      "import": "./dist/exports/BottomSheet/1/1.2.1.js"
+    },
+    "./BottomSheet/1/1.2.2": {
+      "types": "./dist/exports/BottomSheet/1/1.2.2.d.ts",
+      "import": "./dist/exports/BottomSheet/1/1.2.2.js"
+    },
+    "./BottomSheet/1/1.2.3": {
+      "types": "./dist/exports/BottomSheet/1/1.2.3.d.ts",
+      "import": "./dist/exports/BottomSheet/1/1.2.3.js"
+    },
+    "./BottomSheet/1/1.2.4": {
+      "types": "./dist/exports/BottomSheet/1/1.2.4.d.ts",
+      "import": "./dist/exports/BottomSheet/1/1.2.4.js"
+    },
+    "./BottomSheet/1/1.2.5": {
+      "types": "./dist/exports/BottomSheet/1/1.2.5.d.ts",
+      "import": "./dist/exports/BottomSheet/1/1.2.5.js"
+    },
+    "./BottomSheet/1/1.2.6": {
+      "types": "./dist/exports/BottomSheet/1/1.2.6.d.ts",
+      "import": "./dist/exports/BottomSheet/1/1.2.6.js"
+    },
     "./BoundedMeter": {
       "types": "./dist/exports/BoundedMeter.d.ts",
       "import": "./dist/exports/BoundedMeter.js"
@@ -949,6 +1069,10 @@
       "types": "./dist/exports/BoundedMeter/1.0.5.d.ts",
       "import": "./dist/exports/BoundedMeter/1.0.5.js"
     },
+    "./BoundedMeter/1.0.6": {
+      "types": "./dist/exports/BoundedMeter/1.0.6.d.ts",
+      "import": "./dist/exports/BoundedMeter/1.0.6.js"
+    },
     "./BoundedMeter/1/1.0.2": {
       "types": "./dist/exports/BoundedMeter/1/1.0.2.d.ts",
       "import": "./dist/exports/BoundedMeter/1/1.0.2.js"
@@ -964,6 +1088,10 @@
     "./BoundedMeter/1/1.0.5": {
       "types": "./dist/exports/BoundedMeter/1/1.0.5.d.ts",
       "import": "./dist/exports/BoundedMeter/1/1.0.5.js"
+    },
+    "./BoundedMeter/1/1.0.6": {
+      "types": "./dist/exports/BoundedMeter/1/1.0.6.d.ts",
+      "import": "./dist/exports/BoundedMeter/1/1.0.6.js"
     },
     "./BudgetBar": {
       "types": "./dist/exports/BudgetBar.d.ts",
@@ -1177,6 +1305,10 @@
       "types": "./dist/exports/Calendar/1.0.6.d.ts",
       "import": "./dist/exports/Calendar/1.0.6.js"
     },
+    "./Calendar/1.0.7": {
+      "types": "./dist/exports/Calendar/1.0.7.d.ts",
+      "import": "./dist/exports/Calendar/1.0.7.js"
+    },
     "./Calendar/1/1.0.3": {
       "types": "./dist/exports/Calendar/1/1.0.3.d.ts",
       "import": "./dist/exports/Calendar/1/1.0.3.js"
@@ -1192,6 +1324,10 @@
     "./Calendar/1/1.0.6": {
       "types": "./dist/exports/Calendar/1/1.0.6.d.ts",
       "import": "./dist/exports/Calendar/1/1.0.6.js"
+    },
+    "./Calendar/1/1.0.7": {
+      "types": "./dist/exports/Calendar/1/1.0.7.d.ts",
+      "import": "./dist/exports/Calendar/1/1.0.7.js"
     },
     "./CanvasFrame": {
       "types": "./dist/exports/CanvasFrame.d.ts",
@@ -1261,9 +1397,17 @@
       "types": "./dist/exports/Card/1.2.2.d.ts",
       "import": "./dist/exports/Card/1.2.2.js"
     },
+    "./Card/1.2.3": {
+      "types": "./dist/exports/Card/1.2.3.d.ts",
+      "import": "./dist/exports/Card/1.2.3.js"
+    },
     "./Card/1/1.2.2": {
       "types": "./dist/exports/Card/1/1.2.2.d.ts",
       "import": "./dist/exports/Card/1/1.2.2.js"
+    },
+    "./Card/1/1.2.3": {
+      "types": "./dist/exports/Card/1/1.2.3.d.ts",
+      "import": "./dist/exports/Card/1/1.2.3.js"
     },
     "./CardGrid": {
       "types": "./dist/exports/CardGrid.d.ts",
@@ -1369,6 +1513,14 @@
       "types": "./dist/exports/Chart/1.0.6.d.ts",
       "import": "./dist/exports/Chart/1.0.6.js"
     },
+    "./Chart/1.0.7": {
+      "types": "./dist/exports/Chart/1.0.7.d.ts",
+      "import": "./dist/exports/Chart/1.0.7.js"
+    },
+    "./Chart/1.0.8": {
+      "types": "./dist/exports/Chart/1.0.8.d.ts",
+      "import": "./dist/exports/Chart/1.0.8.js"
+    },
     "./Chart/1/1.0.0": {
       "types": "./dist/exports/Chart/1/1.0.0.d.ts",
       "import": "./dist/exports/Chart/1/1.0.0.js"
@@ -1392,6 +1544,14 @@
     "./Chart/1/1.0.6": {
       "types": "./dist/exports/Chart/1/1.0.6.d.ts",
       "import": "./dist/exports/Chart/1/1.0.6.js"
+    },
+    "./Chart/1/1.0.7": {
+      "types": "./dist/exports/Chart/1/1.0.7.d.ts",
+      "import": "./dist/exports/Chart/1/1.0.7.js"
+    },
+    "./Chart/1/1.0.8": {
+      "types": "./dist/exports/Chart/1/1.0.8.d.ts",
+      "import": "./dist/exports/Chart/1/1.0.8.js"
     },
     "./Checkbox": {
       "types": "./dist/exports/Checkbox.d.ts",
@@ -1453,6 +1613,14 @@
       "types": "./dist/exports/Chip/1.0.3.d.ts",
       "import": "./dist/exports/Chip/1.0.3.js"
     },
+    "./Chip/1.0.4": {
+      "types": "./dist/exports/Chip/1.0.4.d.ts",
+      "import": "./dist/exports/Chip/1.0.4.js"
+    },
+    "./Chip/1.0.5": {
+      "types": "./dist/exports/Chip/1.0.5.d.ts",
+      "import": "./dist/exports/Chip/1.0.5.js"
+    },
     "./Chip/1/1.0.0": {
       "types": "./dist/exports/Chip/1/1.0.0.d.ts",
       "import": "./dist/exports/Chip/1/1.0.0.js"
@@ -1464,6 +1632,14 @@
     "./Chip/1/1.0.3": {
       "types": "./dist/exports/Chip/1/1.0.3.d.ts",
       "import": "./dist/exports/Chip/1/1.0.3.js"
+    },
+    "./Chip/1/1.0.4": {
+      "types": "./dist/exports/Chip/1/1.0.4.d.ts",
+      "import": "./dist/exports/Chip/1/1.0.4.js"
+    },
+    "./Chip/1/1.0.5": {
+      "types": "./dist/exports/Chip/1/1.0.5.d.ts",
+      "import": "./dist/exports/Chip/1/1.0.5.js"
     },
     "./ChromeTheme": {
       "types": "./dist/exports/ChromeTheme.d.ts",
@@ -1585,6 +1761,14 @@
       "types": "./dist/exports/CollectionPage/1.0.4.d.ts",
       "import": "./dist/exports/CollectionPage/1.0.4.js"
     },
+    "./CollectionPage/1.0.5": {
+      "types": "./dist/exports/CollectionPage/1.0.5.d.ts",
+      "import": "./dist/exports/CollectionPage/1.0.5.js"
+    },
+    "./CollectionPage/1.0.6": {
+      "types": "./dist/exports/CollectionPage/1.0.6.d.ts",
+      "import": "./dist/exports/CollectionPage/1.0.6.js"
+    },
     "./CollectionPage/1/1.0.3": {
       "types": "./dist/exports/CollectionPage/1/1.0.3.d.ts",
       "import": "./dist/exports/CollectionPage/1/1.0.3.js"
@@ -1592,6 +1776,14 @@
     "./CollectionPage/1/1.0.4": {
       "types": "./dist/exports/CollectionPage/1/1.0.4.d.ts",
       "import": "./dist/exports/CollectionPage/1/1.0.4.js"
+    },
+    "./CollectionPage/1/1.0.5": {
+      "types": "./dist/exports/CollectionPage/1/1.0.5.d.ts",
+      "import": "./dist/exports/CollectionPage/1/1.0.5.js"
+    },
+    "./CollectionPage/1/1.0.6": {
+      "types": "./dist/exports/CollectionPage/1/1.0.6.d.ts",
+      "import": "./dist/exports/CollectionPage/1/1.0.6.js"
     },
     "./ColorPicker": {
       "types": "./dist/exports/ColorPicker.d.ts",
@@ -1649,6 +1841,14 @@
       "types": "./dist/exports/Combobox/1.0.6.d.ts",
       "import": "./dist/exports/Combobox/1.0.6.js"
     },
+    "./Combobox/1.0.7": {
+      "types": "./dist/exports/Combobox/1.0.7.d.ts",
+      "import": "./dist/exports/Combobox/1.0.7.js"
+    },
+    "./Combobox/1.0.8": {
+      "types": "./dist/exports/Combobox/1.0.8.d.ts",
+      "import": "./dist/exports/Combobox/1.0.8.js"
+    },
     "./Combobox/1/1.0.3": {
       "types": "./dist/exports/Combobox/1/1.0.3.d.ts",
       "import": "./dist/exports/Combobox/1/1.0.3.js"
@@ -1664,6 +1864,14 @@
     "./Combobox/1/1.0.6": {
       "types": "./dist/exports/Combobox/1/1.0.6.d.ts",
       "import": "./dist/exports/Combobox/1/1.0.6.js"
+    },
+    "./Combobox/1/1.0.7": {
+      "types": "./dist/exports/Combobox/1/1.0.7.d.ts",
+      "import": "./dist/exports/Combobox/1/1.0.7.js"
+    },
+    "./Combobox/1/1.0.8": {
+      "types": "./dist/exports/Combobox/1/1.0.8.d.ts",
+      "import": "./dist/exports/Combobox/1/1.0.8.js"
     },
     "./CommandButton": {
       "types": "./dist/exports/CommandButton.d.ts",
@@ -1737,6 +1945,14 @@
       "types": "./dist/exports/CommandPalette/1.1.4.d.ts",
       "import": "./dist/exports/CommandPalette/1.1.4.js"
     },
+    "./CommandPalette/1.1.5": {
+      "types": "./dist/exports/CommandPalette/1.1.5.d.ts",
+      "import": "./dist/exports/CommandPalette/1.1.5.js"
+    },
+    "./CommandPalette/1.1.6": {
+      "types": "./dist/exports/CommandPalette/1.1.6.d.ts",
+      "import": "./dist/exports/CommandPalette/1.1.6.js"
+    },
     "./CommandPalette/1/1.0.0": {
       "types": "./dist/exports/CommandPalette/1/1.0.0.d.ts",
       "import": "./dist/exports/CommandPalette/1/1.0.0.js"
@@ -1760,6 +1976,14 @@
     "./CommandPalette/1/1.1.4": {
       "types": "./dist/exports/CommandPalette/1/1.1.4.d.ts",
       "import": "./dist/exports/CommandPalette/1/1.1.4.js"
+    },
+    "./CommandPalette/1/1.1.5": {
+      "types": "./dist/exports/CommandPalette/1/1.1.5.d.ts",
+      "import": "./dist/exports/CommandPalette/1/1.1.5.js"
+    },
+    "./CommandPalette/1/1.1.6": {
+      "types": "./dist/exports/CommandPalette/1/1.1.6.d.ts",
+      "import": "./dist/exports/CommandPalette/1/1.1.6.js"
     },
     "./CommandRegistry": {
       "types": "./dist/exports/CommandRegistry.d.ts",
@@ -1793,6 +2017,10 @@
       "types": "./dist/exports/ComputedField/1.0.1.d.ts",
       "import": "./dist/exports/ComputedField/1.0.1.js"
     },
+    "./ComputedField/1.0.2": {
+      "types": "./dist/exports/ComputedField/1.0.2.d.ts",
+      "import": "./dist/exports/ComputedField/1.0.2.js"
+    },
     "./ComputedField/1/1.0.0": {
       "types": "./dist/exports/ComputedField/1/1.0.0.d.ts",
       "import": "./dist/exports/ComputedField/1/1.0.0.js"
@@ -1800,6 +2028,10 @@
     "./ComputedField/1/1.0.1": {
       "types": "./dist/exports/ComputedField/1/1.0.1.d.ts",
       "import": "./dist/exports/ComputedField/1/1.0.1.js"
+    },
+    "./ComputedField/1/1.0.2": {
+      "types": "./dist/exports/ComputedField/1/1.0.2.d.ts",
+      "import": "./dist/exports/ComputedField/1/1.0.2.js"
     },
     "./ConditionalField": {
       "types": "./dist/exports/ConditionalField.d.ts",
@@ -1817,6 +2049,10 @@
       "types": "./dist/exports/ConditionalField/1.0.1.d.ts",
       "import": "./dist/exports/ConditionalField/1.0.1.js"
     },
+    "./ConditionalField/1.0.2": {
+      "types": "./dist/exports/ConditionalField/1.0.2.d.ts",
+      "import": "./dist/exports/ConditionalField/1.0.2.js"
+    },
     "./ConditionalField/1/1.0.0": {
       "types": "./dist/exports/ConditionalField/1/1.0.0.d.ts",
       "import": "./dist/exports/ConditionalField/1/1.0.0.js"
@@ -1824,6 +2060,10 @@
     "./ConditionalField/1/1.0.1": {
       "types": "./dist/exports/ConditionalField/1/1.0.1.d.ts",
       "import": "./dist/exports/ConditionalField/1/1.0.1.js"
+    },
+    "./ConditionalField/1/1.0.2": {
+      "types": "./dist/exports/ConditionalField/1/1.0.2.d.ts",
+      "import": "./dist/exports/ConditionalField/1/1.0.2.js"
     },
     "./ConflictResolutionFlow": {
       "types": "./dist/exports/ConflictResolutionFlow.d.ts",
@@ -1853,6 +2093,10 @@
       "types": "./dist/exports/ConflictResolutionFlow/1.0.6.d.ts",
       "import": "./dist/exports/ConflictResolutionFlow/1.0.6.js"
     },
+    "./ConflictResolutionFlow/1.0.7": {
+      "types": "./dist/exports/ConflictResolutionFlow/1.0.7.d.ts",
+      "import": "./dist/exports/ConflictResolutionFlow/1.0.7.js"
+    },
     "./ConflictResolutionFlow/1/1.0.0": {
       "types": "./dist/exports/ConflictResolutionFlow/1/1.0.0.d.ts",
       "import": "./dist/exports/ConflictResolutionFlow/1/1.0.0.js"
@@ -1872,6 +2116,10 @@
     "./ConflictResolutionFlow/1/1.0.6": {
       "types": "./dist/exports/ConflictResolutionFlow/1/1.0.6.d.ts",
       "import": "./dist/exports/ConflictResolutionFlow/1/1.0.6.js"
+    },
+    "./ConflictResolutionFlow/1/1.0.7": {
+      "types": "./dist/exports/ConflictResolutionFlow/1/1.0.7.d.ts",
+      "import": "./dist/exports/ConflictResolutionFlow/1/1.0.7.js"
     },
     "./Container": {
       "types": "./dist/exports/Container.d.ts",
@@ -1965,6 +2213,34 @@
       "types": "./dist/exports/ContextMenu/1.2.2.d.ts",
       "import": "./dist/exports/ContextMenu/1.2.2.js"
     },
+    "./ContextMenu/1.2.3": {
+      "types": "./dist/exports/ContextMenu/1.2.3.d.ts",
+      "import": "./dist/exports/ContextMenu/1.2.3.js"
+    },
+    "./ContextMenu/1.2.4": {
+      "types": "./dist/exports/ContextMenu/1.2.4.d.ts",
+      "import": "./dist/exports/ContextMenu/1.2.4.js"
+    },
+    "./ContextMenu/1.2.5": {
+      "types": "./dist/exports/ContextMenu/1.2.5.d.ts",
+      "import": "./dist/exports/ContextMenu/1.2.5.js"
+    },
+    "./ContextMenu/1.2.6": {
+      "types": "./dist/exports/ContextMenu/1.2.6.d.ts",
+      "import": "./dist/exports/ContextMenu/1.2.6.js"
+    },
+    "./ContextMenu/1.2.7": {
+      "types": "./dist/exports/ContextMenu/1.2.7.d.ts",
+      "import": "./dist/exports/ContextMenu/1.2.7.js"
+    },
+    "./ContextMenu/1.2.8": {
+      "types": "./dist/exports/ContextMenu/1.2.8.d.ts",
+      "import": "./dist/exports/ContextMenu/1.2.8.js"
+    },
+    "./ContextMenu/1.2.9": {
+      "types": "./dist/exports/ContextMenu/1.2.9.d.ts",
+      "import": "./dist/exports/ContextMenu/1.2.9.js"
+    },
     "./ContextMenu/1/1.0.0": {
       "types": "./dist/exports/ContextMenu/1/1.0.0.d.ts",
       "import": "./dist/exports/ContextMenu/1/1.0.0.js"
@@ -2005,6 +2281,34 @@
       "types": "./dist/exports/ContextMenu/1/1.2.2.d.ts",
       "import": "./dist/exports/ContextMenu/1/1.2.2.js"
     },
+    "./ContextMenu/1/1.2.3": {
+      "types": "./dist/exports/ContextMenu/1/1.2.3.d.ts",
+      "import": "./dist/exports/ContextMenu/1/1.2.3.js"
+    },
+    "./ContextMenu/1/1.2.4": {
+      "types": "./dist/exports/ContextMenu/1/1.2.4.d.ts",
+      "import": "./dist/exports/ContextMenu/1/1.2.4.js"
+    },
+    "./ContextMenu/1/1.2.5": {
+      "types": "./dist/exports/ContextMenu/1/1.2.5.d.ts",
+      "import": "./dist/exports/ContextMenu/1/1.2.5.js"
+    },
+    "./ContextMenu/1/1.2.6": {
+      "types": "./dist/exports/ContextMenu/1/1.2.6.d.ts",
+      "import": "./dist/exports/ContextMenu/1/1.2.6.js"
+    },
+    "./ContextMenu/1/1.2.7": {
+      "types": "./dist/exports/ContextMenu/1/1.2.7.d.ts",
+      "import": "./dist/exports/ContextMenu/1/1.2.7.js"
+    },
+    "./ContextMenu/1/1.2.8": {
+      "types": "./dist/exports/ContextMenu/1/1.2.8.d.ts",
+      "import": "./dist/exports/ContextMenu/1/1.2.8.js"
+    },
+    "./ContextMenu/1/1.2.9": {
+      "types": "./dist/exports/ContextMenu/1/1.2.9.d.ts",
+      "import": "./dist/exports/ContextMenu/1/1.2.9.js"
+    },
     "./Contracts": {
       "types": "./dist/exports/Contracts.d.ts",
       "import": "./dist/exports/Contracts.js"
@@ -2041,6 +2345,10 @@
       "types": "./dist/exports/ControlBase/1.1.0.d.ts",
       "import": "./dist/exports/ControlBase/1.1.0.js"
     },
+    "./ControlBase/1.1.1": {
+      "types": "./dist/exports/ControlBase/1.1.1.d.ts",
+      "import": "./dist/exports/ControlBase/1.1.1.js"
+    },
     "./ControlBase/1/1.0.0": {
       "types": "./dist/exports/ControlBase/1/1.0.0.d.ts",
       "import": "./dist/exports/ControlBase/1/1.0.0.js"
@@ -2052,6 +2360,10 @@
     "./ControlBase/1/1.1.0": {
       "types": "./dist/exports/ControlBase/1/1.1.0.d.ts",
       "import": "./dist/exports/ControlBase/1/1.1.0.js"
+    },
+    "./ControlBase/1/1.1.1": {
+      "types": "./dist/exports/ControlBase/1/1.1.1.d.ts",
+      "import": "./dist/exports/ControlBase/1/1.1.1.js"
     },
     "./CopyableText": {
       "types": "./dist/exports/CopyableText.d.ts",
@@ -2093,6 +2405,14 @@
       "types": "./dist/exports/DashboardPage/1.0.5.d.ts",
       "import": "./dist/exports/DashboardPage/1.0.5.js"
     },
+    "./DashboardPage/1.0.6": {
+      "types": "./dist/exports/DashboardPage/1.0.6.d.ts",
+      "import": "./dist/exports/DashboardPage/1.0.6.js"
+    },
+    "./DashboardPage/1.0.7": {
+      "types": "./dist/exports/DashboardPage/1.0.7.d.ts",
+      "import": "./dist/exports/DashboardPage/1.0.7.js"
+    },
     "./DashboardPage/1/1.0.4": {
       "types": "./dist/exports/DashboardPage/1/1.0.4.d.ts",
       "import": "./dist/exports/DashboardPage/1/1.0.4.js"
@@ -2100,6 +2420,14 @@
     "./DashboardPage/1/1.0.5": {
       "types": "./dist/exports/DashboardPage/1/1.0.5.d.ts",
       "import": "./dist/exports/DashboardPage/1/1.0.5.js"
+    },
+    "./DashboardPage/1/1.0.6": {
+      "types": "./dist/exports/DashboardPage/1/1.0.6.d.ts",
+      "import": "./dist/exports/DashboardPage/1/1.0.6.js"
+    },
+    "./DashboardPage/1/1.0.7": {
+      "types": "./dist/exports/DashboardPage/1/1.0.7.d.ts",
+      "import": "./dist/exports/DashboardPage/1/1.0.7.js"
     },
     "./DataTable": {
       "types": "./dist/exports/DataTable.d.ts",
@@ -2225,6 +2553,14 @@
       "types": "./dist/exports/DescriptionList/1.0.3.d.ts",
       "import": "./dist/exports/DescriptionList/1.0.3.js"
     },
+    "./DescriptionList/1.0.4": {
+      "types": "./dist/exports/DescriptionList/1.0.4.d.ts",
+      "import": "./dist/exports/DescriptionList/1.0.4.js"
+    },
+    "./DescriptionList/1.0.5": {
+      "types": "./dist/exports/DescriptionList/1.0.5.d.ts",
+      "import": "./dist/exports/DescriptionList/1.0.5.js"
+    },
     "./DescriptionList/1/1.0.0": {
       "types": "./dist/exports/DescriptionList/1/1.0.0.d.ts",
       "import": "./dist/exports/DescriptionList/1/1.0.0.js"
@@ -2236,6 +2572,14 @@
     "./DescriptionList/1/1.0.3": {
       "types": "./dist/exports/DescriptionList/1/1.0.3.d.ts",
       "import": "./dist/exports/DescriptionList/1/1.0.3.js"
+    },
+    "./DescriptionList/1/1.0.4": {
+      "types": "./dist/exports/DescriptionList/1/1.0.4.d.ts",
+      "import": "./dist/exports/DescriptionList/1/1.0.4.js"
+    },
+    "./DescriptionList/1/1.0.5": {
+      "types": "./dist/exports/DescriptionList/1/1.0.5.d.ts",
+      "import": "./dist/exports/DescriptionList/1/1.0.5.js"
     },
     "./DetailPage": {
       "types": "./dist/exports/DetailPage.d.ts",
@@ -2253,6 +2597,14 @@
       "types": "./dist/exports/DetailPage/1.0.5.d.ts",
       "import": "./dist/exports/DetailPage/1.0.5.js"
     },
+    "./DetailPage/1.0.6": {
+      "types": "./dist/exports/DetailPage/1.0.6.d.ts",
+      "import": "./dist/exports/DetailPage/1.0.6.js"
+    },
+    "./DetailPage/1.0.7": {
+      "types": "./dist/exports/DetailPage/1.0.7.d.ts",
+      "import": "./dist/exports/DetailPage/1.0.7.js"
+    },
     "./DetailPage/1/1.0.4": {
       "types": "./dist/exports/DetailPage/1/1.0.4.d.ts",
       "import": "./dist/exports/DetailPage/1/1.0.4.js"
@@ -2260,6 +2612,14 @@
     "./DetailPage/1/1.0.5": {
       "types": "./dist/exports/DetailPage/1/1.0.5.d.ts",
       "import": "./dist/exports/DetailPage/1/1.0.5.js"
+    },
+    "./DetailPage/1/1.0.6": {
+      "types": "./dist/exports/DetailPage/1/1.0.6.d.ts",
+      "import": "./dist/exports/DetailPage/1/1.0.6.js"
+    },
+    "./DetailPage/1/1.0.7": {
+      "types": "./dist/exports/DetailPage/1/1.0.7.d.ts",
+      "import": "./dist/exports/DetailPage/1/1.0.7.js"
     },
     "./Dialog": {
       "types": "./dist/exports/Dialog.d.ts",
@@ -2321,6 +2681,14 @@
       "types": "./dist/exports/DiffViewer/1.0.2.d.ts",
       "import": "./dist/exports/DiffViewer/1.0.2.js"
     },
+    "./DiffViewer/1.0.3": {
+      "types": "./dist/exports/DiffViewer/1.0.3.d.ts",
+      "import": "./dist/exports/DiffViewer/1.0.3.js"
+    },
+    "./DiffViewer/1.0.4": {
+      "types": "./dist/exports/DiffViewer/1.0.4.d.ts",
+      "import": "./dist/exports/DiffViewer/1.0.4.js"
+    },
     "./DiffViewer/1/1.0.0": {
       "types": "./dist/exports/DiffViewer/1/1.0.0.d.ts",
       "import": "./dist/exports/DiffViewer/1/1.0.0.js"
@@ -2332,6 +2700,14 @@
     "./DiffViewer/1/1.0.2": {
       "types": "./dist/exports/DiffViewer/1/1.0.2.d.ts",
       "import": "./dist/exports/DiffViewer/1/1.0.2.js"
+    },
+    "./DiffViewer/1/1.0.3": {
+      "types": "./dist/exports/DiffViewer/1/1.0.3.d.ts",
+      "import": "./dist/exports/DiffViewer/1/1.0.3.js"
+    },
+    "./DiffViewer/1/1.0.4": {
+      "types": "./dist/exports/DiffViewer/1/1.0.4.d.ts",
+      "import": "./dist/exports/DiffViewer/1/1.0.4.js"
     },
     "./DirtyStateGuard": {
       "types": "./dist/exports/DirtyStateGuard.d.ts",
@@ -2365,6 +2741,14 @@
       "types": "./dist/exports/DirtyStateGuard/1.0.6.d.ts",
       "import": "./dist/exports/DirtyStateGuard/1.0.6.js"
     },
+    "./DirtyStateGuard/1.0.7": {
+      "types": "./dist/exports/DirtyStateGuard/1.0.7.d.ts",
+      "import": "./dist/exports/DirtyStateGuard/1.0.7.js"
+    },
+    "./DirtyStateGuard/1.0.8": {
+      "types": "./dist/exports/DirtyStateGuard/1.0.8.d.ts",
+      "import": "./dist/exports/DirtyStateGuard/1.0.8.js"
+    },
     "./DirtyStateGuard/1/1.0.0": {
       "types": "./dist/exports/DirtyStateGuard/1/1.0.0.d.ts",
       "import": "./dist/exports/DirtyStateGuard/1/1.0.0.js"
@@ -2388,6 +2772,14 @@
     "./DirtyStateGuard/1/1.0.6": {
       "types": "./dist/exports/DirtyStateGuard/1/1.0.6.d.ts",
       "import": "./dist/exports/DirtyStateGuard/1/1.0.6.js"
+    },
+    "./DirtyStateGuard/1/1.0.7": {
+      "types": "./dist/exports/DirtyStateGuard/1/1.0.7.d.ts",
+      "import": "./dist/exports/DirtyStateGuard/1/1.0.7.js"
+    },
+    "./DirtyStateGuard/1/1.0.8": {
+      "types": "./dist/exports/DirtyStateGuard/1/1.0.8.d.ts",
+      "import": "./dist/exports/DirtyStateGuard/1/1.0.8.js"
     },
     "./DragDropStore": {
       "types": "./dist/exports/DragDropStore.d.ts",
@@ -2433,6 +2825,10 @@
       "types": "./dist/exports/Draggable/1.0.4.d.ts",
       "import": "./dist/exports/Draggable/1.0.4.js"
     },
+    "./Draggable/1.0.5": {
+      "types": "./dist/exports/Draggable/1.0.5.d.ts",
+      "import": "./dist/exports/Draggable/1.0.5.js"
+    },
     "./Draggable/1/1.0.0": {
       "types": "./dist/exports/Draggable/1/1.0.0.d.ts",
       "import": "./dist/exports/Draggable/1/1.0.0.js"
@@ -2452,6 +2848,10 @@
     "./Draggable/1/1.0.4": {
       "types": "./dist/exports/Draggable/1/1.0.4.d.ts",
       "import": "./dist/exports/Draggable/1/1.0.4.js"
+    },
+    "./Draggable/1/1.0.5": {
+      "types": "./dist/exports/Draggable/1/1.0.5.d.ts",
+      "import": "./dist/exports/Draggable/1/1.0.5.js"
     },
     "./DrawerShell": {
       "types": "./dist/exports/DrawerShell.d.ts",
@@ -2477,6 +2877,10 @@
       "types": "./dist/exports/DrawerShell/1.1.3.d.ts",
       "import": "./dist/exports/DrawerShell/1.1.3.js"
     },
+    "./DrawerShell/1.1.4": {
+      "types": "./dist/exports/DrawerShell/1.1.4.d.ts",
+      "import": "./dist/exports/DrawerShell/1.1.4.js"
+    },
     "./DrawerShell/1/1.0.0": {
       "types": "./dist/exports/DrawerShell/1/1.0.0.d.ts",
       "import": "./dist/exports/DrawerShell/1/1.0.0.js"
@@ -2492,6 +2896,10 @@
     "./DrawerShell/1/1.1.3": {
       "types": "./dist/exports/DrawerShell/1/1.1.3.d.ts",
       "import": "./dist/exports/DrawerShell/1/1.1.3.js"
+    },
+    "./DrawerShell/1/1.1.4": {
+      "types": "./dist/exports/DrawerShell/1/1.1.4.d.ts",
+      "import": "./dist/exports/DrawerShell/1/1.1.4.js"
     },
     "./EdgeFade": {
       "types": "./dist/exports/EdgeFade.d.ts",
@@ -2541,6 +2949,10 @@
       "types": "./dist/exports/EditableResource/1.0.6.d.ts",
       "import": "./dist/exports/EditableResource/1.0.6.js"
     },
+    "./EditableResource/1.0.7": {
+      "types": "./dist/exports/EditableResource/1.0.7.d.ts",
+      "import": "./dist/exports/EditableResource/1.0.7.js"
+    },
     "./EditableResource/1/1.0.3": {
       "types": "./dist/exports/EditableResource/1/1.0.3.d.ts",
       "import": "./dist/exports/EditableResource/1/1.0.3.js"
@@ -2556,6 +2968,10 @@
     "./EditableResource/1/1.0.6": {
       "types": "./dist/exports/EditableResource/1/1.0.6.d.ts",
       "import": "./dist/exports/EditableResource/1/1.0.6.js"
+    },
+    "./EditableResource/1/1.0.7": {
+      "types": "./dist/exports/EditableResource/1/1.0.7.d.ts",
+      "import": "./dist/exports/EditableResource/1/1.0.7.js"
     },
     "./EmptyState": {
       "types": "./dist/exports/EmptyState.d.ts",
@@ -2745,6 +3161,10 @@
       "types": "./dist/exports/FilePreview/1.0.2.d.ts",
       "import": "./dist/exports/FilePreview/1.0.2.js"
     },
+    "./FilePreview/1.0.3": {
+      "types": "./dist/exports/FilePreview/1.0.3.d.ts",
+      "import": "./dist/exports/FilePreview/1.0.3.js"
+    },
     "./FilePreview/1/1.0.0": {
       "types": "./dist/exports/FilePreview/1/1.0.0.d.ts",
       "import": "./dist/exports/FilePreview/1/1.0.0.js"
@@ -2756,6 +3176,10 @@
     "./FilePreview/1/1.0.2": {
       "types": "./dist/exports/FilePreview/1/1.0.2.d.ts",
       "import": "./dist/exports/FilePreview/1/1.0.2.js"
+    },
+    "./FilePreview/1/1.0.3": {
+      "types": "./dist/exports/FilePreview/1/1.0.3.d.ts",
+      "import": "./dist/exports/FilePreview/1/1.0.3.js"
     },
     "./FilterBar": {
       "types": "./dist/exports/FilterBar.d.ts",
@@ -2837,6 +3261,10 @@
       "types": "./dist/exports/Form/1.0.1.d.ts",
       "import": "./dist/exports/Form/1.0.1.js"
     },
+    "./Form/1.0.2": {
+      "types": "./dist/exports/Form/1.0.2.d.ts",
+      "import": "./dist/exports/Form/1.0.2.js"
+    },
     "./Form/1/1.0.0": {
       "types": "./dist/exports/Form/1/1.0.0.d.ts",
       "import": "./dist/exports/Form/1/1.0.0.js"
@@ -2844,6 +3272,10 @@
     "./Form/1/1.0.1": {
       "types": "./dist/exports/Form/1/1.0.1.d.ts",
       "import": "./dist/exports/Form/1/1.0.1.js"
+    },
+    "./Form/1/1.0.2": {
+      "types": "./dist/exports/Form/1/1.0.2.d.ts",
+      "import": "./dist/exports/Form/1/1.0.2.js"
     },
     "./FormActions": {
       "types": "./dist/exports/FormActions.d.ts",
@@ -2865,6 +3297,10 @@
       "types": "./dist/exports/FormActions/1.0.2.d.ts",
       "import": "./dist/exports/FormActions/1.0.2.js"
     },
+    "./FormActions/1.0.3": {
+      "types": "./dist/exports/FormActions/1.0.3.d.ts",
+      "import": "./dist/exports/FormActions/1.0.3.js"
+    },
     "./FormActions/1/1.0.0": {
       "types": "./dist/exports/FormActions/1/1.0.0.d.ts",
       "import": "./dist/exports/FormActions/1/1.0.0.js"
@@ -2876,6 +3312,10 @@
     "./FormActions/1/1.0.2": {
       "types": "./dist/exports/FormActions/1/1.0.2.d.ts",
       "import": "./dist/exports/FormActions/1/1.0.2.js"
+    },
+    "./FormActions/1/1.0.3": {
+      "types": "./dist/exports/FormActions/1/1.0.3.d.ts",
+      "import": "./dist/exports/FormActions/1/1.0.3.js"
     },
     "./FormField": {
       "types": "./dist/exports/FormField.d.ts",
@@ -2893,6 +3333,10 @@
       "types": "./dist/exports/FormField/1.0.1.d.ts",
       "import": "./dist/exports/FormField/1.0.1.js"
     },
+    "./FormField/1.0.2": {
+      "types": "./dist/exports/FormField/1.0.2.d.ts",
+      "import": "./dist/exports/FormField/1.0.2.js"
+    },
     "./FormField/1/1.0.0": {
       "types": "./dist/exports/FormField/1/1.0.0.d.ts",
       "import": "./dist/exports/FormField/1/1.0.0.js"
@@ -2900,6 +3344,10 @@
     "./FormField/1/1.0.1": {
       "types": "./dist/exports/FormField/1/1.0.1.d.ts",
       "import": "./dist/exports/FormField/1/1.0.1.js"
+    },
+    "./FormField/1/1.0.2": {
+      "types": "./dist/exports/FormField/1/1.0.2.d.ts",
+      "import": "./dist/exports/FormField/1/1.0.2.js"
     },
     "./FormSection": {
       "types": "./dist/exports/FormSection.d.ts",
@@ -2921,6 +3369,14 @@
       "types": "./dist/exports/FormSection/1.0.2.d.ts",
       "import": "./dist/exports/FormSection/1.0.2.js"
     },
+    "./FormSection/1.0.3": {
+      "types": "./dist/exports/FormSection/1.0.3.d.ts",
+      "import": "./dist/exports/FormSection/1.0.3.js"
+    },
+    "./FormSection/1.0.4": {
+      "types": "./dist/exports/FormSection/1.0.4.d.ts",
+      "import": "./dist/exports/FormSection/1.0.4.js"
+    },
     "./FormSection/1/1.0.0": {
       "types": "./dist/exports/FormSection/1/1.0.0.d.ts",
       "import": "./dist/exports/FormSection/1/1.0.0.js"
@@ -2932,6 +3388,14 @@
     "./FormSection/1/1.0.2": {
       "types": "./dist/exports/FormSection/1/1.0.2.d.ts",
       "import": "./dist/exports/FormSection/1/1.0.2.js"
+    },
+    "./FormSection/1/1.0.3": {
+      "types": "./dist/exports/FormSection/1/1.0.3.d.ts",
+      "import": "./dist/exports/FormSection/1/1.0.3.js"
+    },
+    "./FormSection/1/1.0.4": {
+      "types": "./dist/exports/FormSection/1/1.0.4.d.ts",
+      "import": "./dist/exports/FormSection/1/1.0.4.js"
     },
     "./FormStore": {
       "types": "./dist/exports/FormStore.d.ts",
@@ -3005,6 +3469,34 @@
       "types": "./dist/exports/FullPageDrawer/1.2.0.d.ts",
       "import": "./dist/exports/FullPageDrawer/1.2.0.js"
     },
+    "./FullPageDrawer/1.2.1": {
+      "types": "./dist/exports/FullPageDrawer/1.2.1.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1.2.1.js"
+    },
+    "./FullPageDrawer/1.2.2": {
+      "types": "./dist/exports/FullPageDrawer/1.2.2.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1.2.2.js"
+    },
+    "./FullPageDrawer/1.2.3": {
+      "types": "./dist/exports/FullPageDrawer/1.2.3.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1.2.3.js"
+    },
+    "./FullPageDrawer/1.2.4": {
+      "types": "./dist/exports/FullPageDrawer/1.2.4.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1.2.4.js"
+    },
+    "./FullPageDrawer/1.2.5": {
+      "types": "./dist/exports/FullPageDrawer/1.2.5.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1.2.5.js"
+    },
+    "./FullPageDrawer/1.2.6": {
+      "types": "./dist/exports/FullPageDrawer/1.2.6.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1.2.6.js"
+    },
+    "./FullPageDrawer/1.2.7": {
+      "types": "./dist/exports/FullPageDrawer/1.2.7.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1.2.7.js"
+    },
     "./FullPageDrawer/1/1.0.3": {
       "types": "./dist/exports/FullPageDrawer/1/1.0.3.d.ts",
       "import": "./dist/exports/FullPageDrawer/1/1.0.3.js"
@@ -3053,6 +3545,34 @@
       "types": "./dist/exports/FullPageDrawer/1/1.2.0.d.ts",
       "import": "./dist/exports/FullPageDrawer/1/1.2.0.js"
     },
+    "./FullPageDrawer/1/1.2.1": {
+      "types": "./dist/exports/FullPageDrawer/1/1.2.1.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1/1.2.1.js"
+    },
+    "./FullPageDrawer/1/1.2.2": {
+      "types": "./dist/exports/FullPageDrawer/1/1.2.2.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1/1.2.2.js"
+    },
+    "./FullPageDrawer/1/1.2.3": {
+      "types": "./dist/exports/FullPageDrawer/1/1.2.3.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1/1.2.3.js"
+    },
+    "./FullPageDrawer/1/1.2.4": {
+      "types": "./dist/exports/FullPageDrawer/1/1.2.4.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1/1.2.4.js"
+    },
+    "./FullPageDrawer/1/1.2.5": {
+      "types": "./dist/exports/FullPageDrawer/1/1.2.5.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1/1.2.5.js"
+    },
+    "./FullPageDrawer/1/1.2.6": {
+      "types": "./dist/exports/FullPageDrawer/1/1.2.6.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1/1.2.6.js"
+    },
+    "./FullPageDrawer/1/1.2.7": {
+      "types": "./dist/exports/FullPageDrawer/1/1.2.7.d.ts",
+      "import": "./dist/exports/FullPageDrawer/1/1.2.7.js"
+    },
     "./GeneratedForm": {
       "types": "./dist/exports/GeneratedForm.d.ts",
       "import": "./dist/exports/GeneratedForm.js"
@@ -3069,6 +3589,10 @@
       "types": "./dist/exports/GeneratedForm/1.0.2.d.ts",
       "import": "./dist/exports/GeneratedForm/1.0.2.js"
     },
+    "./GeneratedForm/1.0.3": {
+      "types": "./dist/exports/GeneratedForm/1.0.3.d.ts",
+      "import": "./dist/exports/GeneratedForm/1.0.3.js"
+    },
     "./GeneratedForm/1/1.0.1": {
       "types": "./dist/exports/GeneratedForm/1/1.0.1.d.ts",
       "import": "./dist/exports/GeneratedForm/1/1.0.1.js"
@@ -3076,6 +3600,26 @@
     "./GeneratedForm/1/1.0.2": {
       "types": "./dist/exports/GeneratedForm/1/1.0.2.d.ts",
       "import": "./dist/exports/GeneratedForm/1/1.0.2.js"
+    },
+    "./GeneratedForm/1/1.0.3": {
+      "types": "./dist/exports/GeneratedForm/1/1.0.3.d.ts",
+      "import": "./dist/exports/GeneratedForm/1/1.0.3.js"
+    },
+    "./GestureDirection": {
+      "types": "./dist/exports/GestureDirection.d.ts",
+      "import": "./dist/exports/GestureDirection.js"
+    },
+    "./GestureDirection/1": {
+      "types": "./dist/exports/GestureDirection/1.d.ts",
+      "import": "./dist/exports/GestureDirection/1.js"
+    },
+    "./GestureDirection/1.0.0": {
+      "types": "./dist/exports/GestureDirection/1.0.0.d.ts",
+      "import": "./dist/exports/GestureDirection/1.0.0.js"
+    },
+    "./GestureDirection/1/1.0.0": {
+      "types": "./dist/exports/GestureDirection/1/1.0.0.d.ts",
+      "import": "./dist/exports/GestureDirection/1/1.0.0.js"
     },
     "./GlobalCommandSystem": {
       "types": "./dist/exports/GlobalCommandSystem.d.ts",
@@ -3093,6 +3637,10 @@
       "types": "./dist/exports/GlobalCommandSystem/1.0.2.d.ts",
       "import": "./dist/exports/GlobalCommandSystem/1.0.2.js"
     },
+    "./GlobalCommandSystem/1.0.3": {
+      "types": "./dist/exports/GlobalCommandSystem/1.0.3.d.ts",
+      "import": "./dist/exports/GlobalCommandSystem/1.0.3.js"
+    },
     "./GlobalCommandSystem/1/1.0.1": {
       "types": "./dist/exports/GlobalCommandSystem/1/1.0.1.d.ts",
       "import": "./dist/exports/GlobalCommandSystem/1/1.0.1.js"
@@ -3100,6 +3648,10 @@
     "./GlobalCommandSystem/1/1.0.2": {
       "types": "./dist/exports/GlobalCommandSystem/1/1.0.2.d.ts",
       "import": "./dist/exports/GlobalCommandSystem/1/1.0.2.js"
+    },
+    "./GlobalCommandSystem/1/1.0.3": {
+      "types": "./dist/exports/GlobalCommandSystem/1/1.0.3.d.ts",
+      "import": "./dist/exports/GlobalCommandSystem/1/1.0.3.js"
     },
     "./Heading": {
       "types": "./dist/exports/Heading.d.ts",
@@ -3229,37 +3781,21 @@
       "types": "./dist/exports/IconButton/3.d.ts",
       "import": "./dist/exports/IconButton/3.js"
     },
-    "./IconButton/3.0.0": {
-      "types": "./dist/exports/IconButton/3.0.0.d.ts",
-      "import": "./dist/exports/IconButton/3.0.0.js"
-    },
-    "./IconButton/3.0.1": {
-      "types": "./dist/exports/IconButton/3.0.1.d.ts",
-      "import": "./dist/exports/IconButton/3.0.1.js"
-    },
-    "./IconButton/3.1.0": {
-      "types": "./dist/exports/IconButton/3.1.0.d.ts",
-      "import": "./dist/exports/IconButton/3.1.0.js"
-    },
     "./IconButton/3.1.1": {
       "types": "./dist/exports/IconButton/3.1.1.d.ts",
       "import": "./dist/exports/IconButton/3.1.1.js"
     },
-    "./IconButton/3/3.0.0": {
-      "types": "./dist/exports/IconButton/3/3.0.0.d.ts",
-      "import": "./dist/exports/IconButton/3/3.0.0.js"
-    },
-    "./IconButton/3/3.0.1": {
-      "types": "./dist/exports/IconButton/3/3.0.1.d.ts",
-      "import": "./dist/exports/IconButton/3/3.0.1.js"
-    },
-    "./IconButton/3/3.1.0": {
-      "types": "./dist/exports/IconButton/3/3.1.0.d.ts",
-      "import": "./dist/exports/IconButton/3/3.1.0.js"
+    "./IconButton/3.1.2": {
+      "types": "./dist/exports/IconButton/3.1.2.d.ts",
+      "import": "./dist/exports/IconButton/3.1.2.js"
     },
     "./IconButton/3/3.1.1": {
       "types": "./dist/exports/IconButton/3/3.1.1.d.ts",
       "import": "./dist/exports/IconButton/3/3.1.1.js"
+    },
+    "./IconButton/3/3.1.2": {
+      "types": "./dist/exports/IconButton/3/3.1.2.d.ts",
+      "import": "./dist/exports/IconButton/3/3.1.2.js"
     },
     "./IconGeometry": {
       "types": "./dist/exports/IconGeometry.d.ts",
@@ -3329,10 +3865,6 @@
       "types": "./dist/exports/Input/1.1.2.d.ts",
       "import": "./dist/exports/Input/1.1.2.js"
     },
-    "./Input/1.2.0": {
-      "types": "./dist/exports/Input/1.2.0.d.ts",
-      "import": "./dist/exports/Input/1.2.0.js"
-    },
     "./Input/1.3.0": {
       "types": "./dist/exports/Input/1.3.0.d.ts",
       "import": "./dist/exports/Input/1.3.0.js"
@@ -3340,10 +3872,6 @@
     "./Input/1/1.1.2": {
       "types": "./dist/exports/Input/1/1.1.2.d.ts",
       "import": "./dist/exports/Input/1/1.1.2.js"
-    },
-    "./Input/1/1.2.0": {
-      "types": "./dist/exports/Input/1/1.2.0.d.ts",
-      "import": "./dist/exports/Input/1/1.2.0.js"
     },
     "./Input/1/1.3.0": {
       "types": "./dist/exports/Input/1/1.3.0.d.ts",
@@ -3369,6 +3897,10 @@
       "types": "./dist/exports/InputGroup/1.2.0.d.ts",
       "import": "./dist/exports/InputGroup/1.2.0.js"
     },
+    "./InputGroup/1.2.1": {
+      "types": "./dist/exports/InputGroup/1.2.1.d.ts",
+      "import": "./dist/exports/InputGroup/1.2.1.js"
+    },
     "./InputGroup/1/1.0.0": {
       "types": "./dist/exports/InputGroup/1/1.0.0.d.ts",
       "import": "./dist/exports/InputGroup/1/1.0.0.js"
@@ -3380,6 +3912,10 @@
     "./InputGroup/1/1.2.0": {
       "types": "./dist/exports/InputGroup/1/1.2.0.d.ts",
       "import": "./dist/exports/InputGroup/1/1.2.0.js"
+    },
+    "./InputGroup/1/1.2.1": {
+      "types": "./dist/exports/InputGroup/1/1.2.1.d.ts",
+      "import": "./dist/exports/InputGroup/1/1.2.1.js"
     },
     "./InspectorLayout": {
       "types": "./dist/exports/InspectorLayout.d.ts",
@@ -3413,6 +3949,10 @@
       "types": "./dist/exports/JsonViewer/1.0.5.d.ts",
       "import": "./dist/exports/JsonViewer/1.0.5.js"
     },
+    "./JsonViewer/1.0.6": {
+      "types": "./dist/exports/JsonViewer/1.0.6.d.ts",
+      "import": "./dist/exports/JsonViewer/1.0.6.js"
+    },
     "./JsonViewer/1/1.0.4": {
       "types": "./dist/exports/JsonViewer/1/1.0.4.d.ts",
       "import": "./dist/exports/JsonViewer/1/1.0.4.js"
@@ -3420,6 +3960,10 @@
     "./JsonViewer/1/1.0.5": {
       "types": "./dist/exports/JsonViewer/1/1.0.5.d.ts",
       "import": "./dist/exports/JsonViewer/1/1.0.5.js"
+    },
+    "./JsonViewer/1/1.0.6": {
+      "types": "./dist/exports/JsonViewer/1/1.0.6.d.ts",
+      "import": "./dist/exports/JsonViewer/1/1.0.6.js"
     },
     "./LayerManager": {
       "types": "./dist/exports/LayerManager.d.ts",
@@ -3525,6 +4069,10 @@
       "types": "./dist/exports/List/1.0.4.d.ts",
       "import": "./dist/exports/List/1.0.4.js"
     },
+    "./List/1.0.5": {
+      "types": "./dist/exports/List/1.0.5.d.ts",
+      "import": "./dist/exports/List/1.0.5.js"
+    },
     "./List/1/1.0.0": {
       "types": "./dist/exports/List/1/1.0.0.d.ts",
       "import": "./dist/exports/List/1/1.0.0.js"
@@ -3544,6 +4092,10 @@
     "./List/1/1.0.4": {
       "types": "./dist/exports/List/1/1.0.4.d.ts",
       "import": "./dist/exports/List/1/1.0.4.js"
+    },
+    "./List/1/1.0.5": {
+      "types": "./dist/exports/List/1/1.0.5.d.ts",
+      "import": "./dist/exports/List/1/1.0.5.js"
     },
     "./LiveAnnouncer": {
       "types": "./dist/exports/LiveAnnouncer.d.ts",
@@ -3625,6 +4177,10 @@
       "types": "./dist/exports/MasterDetail/1.0.6.d.ts",
       "import": "./dist/exports/MasterDetail/1.0.6.js"
     },
+    "./MasterDetail/1.0.7": {
+      "types": "./dist/exports/MasterDetail/1.0.7.d.ts",
+      "import": "./dist/exports/MasterDetail/1.0.7.js"
+    },
     "./MasterDetail/1/1.0.3": {
       "types": "./dist/exports/MasterDetail/1/1.0.3.d.ts",
       "import": "./dist/exports/MasterDetail/1/1.0.3.js"
@@ -3640,6 +4196,10 @@
     "./MasterDetail/1/1.0.6": {
       "types": "./dist/exports/MasterDetail/1/1.0.6.d.ts",
       "import": "./dist/exports/MasterDetail/1/1.0.6.js"
+    },
+    "./MasterDetail/1/1.0.7": {
+      "types": "./dist/exports/MasterDetail/1/1.0.7.d.ts",
+      "import": "./dist/exports/MasterDetail/1/1.0.7.js"
     },
     "./MeasurementBar": {
       "types": "./dist/exports/MeasurementBar.d.ts",
@@ -3745,6 +4305,10 @@
       "types": "./dist/exports/Message/1.0.4.d.ts",
       "import": "./dist/exports/Message/1.0.4.js"
     },
+    "./Message/1.0.5": {
+      "types": "./dist/exports/Message/1.0.5.d.ts",
+      "import": "./dist/exports/Message/1.0.5.js"
+    },
     "./Message/1/1.0.3": {
       "types": "./dist/exports/Message/1/1.0.3.d.ts",
       "import": "./dist/exports/Message/1/1.0.3.js"
@@ -3752,6 +4316,10 @@
     "./Message/1/1.0.4": {
       "types": "./dist/exports/Message/1/1.0.4.d.ts",
       "import": "./dist/exports/Message/1/1.0.4.js"
+    },
+    "./Message/1/1.0.5": {
+      "types": "./dist/exports/Message/1/1.0.5.d.ts",
+      "import": "./dist/exports/Message/1/1.0.5.js"
     },
     "./Meter": {
       "types": "./dist/exports/Meter.d.ts",
@@ -4061,6 +4629,10 @@
       "types": "./dist/exports/NumberField/1.0.2.d.ts",
       "import": "./dist/exports/NumberField/1.0.2.js"
     },
+    "./NumberField/1.0.3": {
+      "types": "./dist/exports/NumberField/1.0.3.d.ts",
+      "import": "./dist/exports/NumberField/1.0.3.js"
+    },
     "./NumberField/1/1.0.0": {
       "types": "./dist/exports/NumberField/1/1.0.0.d.ts",
       "import": "./dist/exports/NumberField/1/1.0.0.js"
@@ -4072,6 +4644,10 @@
     "./NumberField/1/1.0.2": {
       "types": "./dist/exports/NumberField/1/1.0.2.d.ts",
       "import": "./dist/exports/NumberField/1/1.0.2.js"
+    },
+    "./NumberField/1/1.0.3": {
+      "types": "./dist/exports/NumberField/1/1.0.3.d.ts",
+      "import": "./dist/exports/NumberField/1/1.0.3.js"
     },
     "./ObjectField": {
       "types": "./dist/exports/ObjectField.d.ts",
@@ -4101,6 +4677,10 @@
       "types": "./dist/exports/ObjectField/1.0.4.d.ts",
       "import": "./dist/exports/ObjectField/1.0.4.js"
     },
+    "./ObjectField/1.0.5": {
+      "types": "./dist/exports/ObjectField/1.0.5.d.ts",
+      "import": "./dist/exports/ObjectField/1.0.5.js"
+    },
     "./ObjectField/1/1.0.0": {
       "types": "./dist/exports/ObjectField/1/1.0.0.d.ts",
       "import": "./dist/exports/ObjectField/1/1.0.0.js"
@@ -4120,6 +4700,10 @@
     "./ObjectField/1/1.0.4": {
       "types": "./dist/exports/ObjectField/1/1.0.4.d.ts",
       "import": "./dist/exports/ObjectField/1/1.0.4.js"
+    },
+    "./ObjectField/1/1.0.5": {
+      "types": "./dist/exports/ObjectField/1/1.0.5.d.ts",
+      "import": "./dist/exports/ObjectField/1/1.0.5.js"
     },
     "./OfflineState": {
       "types": "./dist/exports/OfflineState.d.ts",
@@ -4329,6 +4913,10 @@
       "types": "./dist/exports/PermissionState/1.0.5.d.ts",
       "import": "./dist/exports/PermissionState/1.0.5.js"
     },
+    "./PermissionState/1.0.6": {
+      "types": "./dist/exports/PermissionState/1.0.6.d.ts",
+      "import": "./dist/exports/PermissionState/1.0.6.js"
+    },
     "./PermissionState/1/1.0.4": {
       "types": "./dist/exports/PermissionState/1/1.0.4.d.ts",
       "import": "./dist/exports/PermissionState/1/1.0.4.js"
@@ -4336,6 +4924,10 @@
     "./PermissionState/1/1.0.5": {
       "types": "./dist/exports/PermissionState/1/1.0.5.d.ts",
       "import": "./dist/exports/PermissionState/1/1.0.5.js"
+    },
+    "./PermissionState/1/1.0.6": {
+      "types": "./dist/exports/PermissionState/1/1.0.6.d.ts",
+      "import": "./dist/exports/PermissionState/1/1.0.6.js"
     },
     "./Popover": {
       "types": "./dist/exports/Popover.d.ts",
@@ -4377,6 +4969,10 @@
       "types": "./dist/exports/Popover/1.2.3.d.ts",
       "import": "./dist/exports/Popover/1.2.3.js"
     },
+    "./Popover/1.2.4": {
+      "types": "./dist/exports/Popover/1.2.4.d.ts",
+      "import": "./dist/exports/Popover/1.2.4.js"
+    },
     "./Popover/1/1.0.0": {
       "types": "./dist/exports/Popover/1/1.0.0.d.ts",
       "import": "./dist/exports/Popover/1/1.0.0.js"
@@ -4408,6 +5004,10 @@
     "./Popover/1/1.2.3": {
       "types": "./dist/exports/Popover/1/1.2.3.d.ts",
       "import": "./dist/exports/Popover/1/1.2.3.js"
+    },
+    "./Popover/1/1.2.4": {
+      "types": "./dist/exports/Popover/1/1.2.4.d.ts",
+      "import": "./dist/exports/Popover/1/1.2.4.js"
     },
     "./Portal": {
       "types": "./dist/exports/Portal.d.ts",
@@ -4789,9 +5389,17 @@
       "types": "./dist/exports/Resizable/2.0.0.d.ts",
       "import": "./dist/exports/Resizable/2.0.0.js"
     },
+    "./Resizable/2.0.1": {
+      "types": "./dist/exports/Resizable/2.0.1.d.ts",
+      "import": "./dist/exports/Resizable/2.0.1.js"
+    },
     "./Resizable/2/2.0.0": {
       "types": "./dist/exports/Resizable/2/2.0.0.d.ts",
       "import": "./dist/exports/Resizable/2/2.0.0.js"
+    },
+    "./Resizable/2/2.0.1": {
+      "types": "./dist/exports/Resizable/2/2.0.1.d.ts",
+      "import": "./dist/exports/Resizable/2/2.0.1.js"
     },
     "./ResizableSidebar": {
       "types": "./dist/exports/ResizableSidebar.d.ts",
@@ -4821,9 +5429,17 @@
       "types": "./dist/exports/ResizableSidebar/2.0.0.d.ts",
       "import": "./dist/exports/ResizableSidebar/2.0.0.js"
     },
+    "./ResizableSidebar/2.0.1": {
+      "types": "./dist/exports/ResizableSidebar/2.0.1.d.ts",
+      "import": "./dist/exports/ResizableSidebar/2.0.1.js"
+    },
     "./ResizableSidebar/2/2.0.0": {
       "types": "./dist/exports/ResizableSidebar/2/2.0.0.d.ts",
       "import": "./dist/exports/ResizableSidebar/2/2.0.0.js"
+    },
+    "./ResizableSidebar/2/2.0.1": {
+      "types": "./dist/exports/ResizableSidebar/2/2.0.1.d.ts",
+      "import": "./dist/exports/ResizableSidebar/2/2.0.1.js"
     },
     "./ResizeHandle": {
       "types": "./dist/exports/ResizeHandle.d.ts",
@@ -4837,9 +5453,17 @@
       "types": "./dist/exports/ResizeHandle/1.0.0.d.ts",
       "import": "./dist/exports/ResizeHandle/1.0.0.js"
     },
+    "./ResizeHandle/1.0.1": {
+      "types": "./dist/exports/ResizeHandle/1.0.1.d.ts",
+      "import": "./dist/exports/ResizeHandle/1.0.1.js"
+    },
     "./ResizeHandle/1/1.0.0": {
       "types": "./dist/exports/ResizeHandle/1/1.0.0.d.ts",
       "import": "./dist/exports/ResizeHandle/1/1.0.0.js"
+    },
+    "./ResizeHandle/1/1.0.1": {
+      "types": "./dist/exports/ResizeHandle/1/1.0.1.d.ts",
+      "import": "./dist/exports/ResizeHandle/1/1.0.1.js"
     },
     "./ResourceCollection": {
       "types": "./dist/exports/ResourceCollection.d.ts",
@@ -4909,6 +5533,10 @@
       "types": "./dist/exports/ResourceDetail/1.0.4.d.ts",
       "import": "./dist/exports/ResourceDetail/1.0.4.js"
     },
+    "./ResourceDetail/1.0.5": {
+      "types": "./dist/exports/ResourceDetail/1.0.5.d.ts",
+      "import": "./dist/exports/ResourceDetail/1.0.5.js"
+    },
     "./ResourceDetail/1/1.0.0": {
       "types": "./dist/exports/ResourceDetail/1/1.0.0.d.ts",
       "import": "./dist/exports/ResourceDetail/1/1.0.0.js"
@@ -4928,6 +5556,10 @@
     "./ResourceDetail/1/1.0.4": {
       "types": "./dist/exports/ResourceDetail/1/1.0.4.d.ts",
       "import": "./dist/exports/ResourceDetail/1/1.0.4.js"
+    },
+    "./ResourceDetail/1/1.0.5": {
+      "types": "./dist/exports/ResourceDetail/1/1.0.5.d.ts",
+      "import": "./dist/exports/ResourceDetail/1/1.0.5.js"
     },
     "./ResponsiveDialog": {
       "types": "./dist/exports/ResponsiveDialog.d.ts",
@@ -4985,6 +5617,38 @@
       "types": "./dist/exports/ResponsiveDialog/1.2.0.d.ts",
       "import": "./dist/exports/ResponsiveDialog/1.2.0.js"
     },
+    "./ResponsiveDialog/1.2.1": {
+      "types": "./dist/exports/ResponsiveDialog/1.2.1.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1.2.1.js"
+    },
+    "./ResponsiveDialog/1.2.2": {
+      "types": "./dist/exports/ResponsiveDialog/1.2.2.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1.2.2.js"
+    },
+    "./ResponsiveDialog/1.2.3": {
+      "types": "./dist/exports/ResponsiveDialog/1.2.3.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1.2.3.js"
+    },
+    "./ResponsiveDialog/1.2.4": {
+      "types": "./dist/exports/ResponsiveDialog/1.2.4.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1.2.4.js"
+    },
+    "./ResponsiveDialog/1.2.5": {
+      "types": "./dist/exports/ResponsiveDialog/1.2.5.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1.2.5.js"
+    },
+    "./ResponsiveDialog/1.2.6": {
+      "types": "./dist/exports/ResponsiveDialog/1.2.6.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1.2.6.js"
+    },
+    "./ResponsiveDialog/1.2.7": {
+      "types": "./dist/exports/ResponsiveDialog/1.2.7.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1.2.7.js"
+    },
+    "./ResponsiveDialog/1.2.8": {
+      "types": "./dist/exports/ResponsiveDialog/1.2.8.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1.2.8.js"
+    },
     "./ResponsiveDialog/1/1.0.3": {
       "types": "./dist/exports/ResponsiveDialog/1/1.0.3.d.ts",
       "import": "./dist/exports/ResponsiveDialog/1/1.0.3.js"
@@ -5032,6 +5696,38 @@
     "./ResponsiveDialog/1/1.2.0": {
       "types": "./dist/exports/ResponsiveDialog/1/1.2.0.d.ts",
       "import": "./dist/exports/ResponsiveDialog/1/1.2.0.js"
+    },
+    "./ResponsiveDialog/1/1.2.1": {
+      "types": "./dist/exports/ResponsiveDialog/1/1.2.1.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1/1.2.1.js"
+    },
+    "./ResponsiveDialog/1/1.2.2": {
+      "types": "./dist/exports/ResponsiveDialog/1/1.2.2.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1/1.2.2.js"
+    },
+    "./ResponsiveDialog/1/1.2.3": {
+      "types": "./dist/exports/ResponsiveDialog/1/1.2.3.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1/1.2.3.js"
+    },
+    "./ResponsiveDialog/1/1.2.4": {
+      "types": "./dist/exports/ResponsiveDialog/1/1.2.4.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1/1.2.4.js"
+    },
+    "./ResponsiveDialog/1/1.2.5": {
+      "types": "./dist/exports/ResponsiveDialog/1/1.2.5.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1/1.2.5.js"
+    },
+    "./ResponsiveDialog/1/1.2.6": {
+      "types": "./dist/exports/ResponsiveDialog/1/1.2.6.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1/1.2.6.js"
+    },
+    "./ResponsiveDialog/1/1.2.7": {
+      "types": "./dist/exports/ResponsiveDialog/1/1.2.7.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1/1.2.7.js"
+    },
+    "./ResponsiveDialog/1/1.2.8": {
+      "types": "./dist/exports/ResponsiveDialog/1/1.2.8.d.ts",
+      "import": "./dist/exports/ResponsiveDialog/1/1.2.8.js"
     },
     "./ResponsivePanel": {
       "types": "./dist/exports/ResponsivePanel.d.ts",
@@ -5361,6 +6057,30 @@
       "types": "./dist/exports/SelectionControl/1.0.1.d.ts",
       "import": "./dist/exports/SelectionControl/1.0.1.js"
     },
+    "./SelectionControl/1.0.2": {
+      "types": "./dist/exports/SelectionControl/1.0.2.d.ts",
+      "import": "./dist/exports/SelectionControl/1.0.2.js"
+    },
+    "./SelectionControl/1.0.3": {
+      "types": "./dist/exports/SelectionControl/1.0.3.d.ts",
+      "import": "./dist/exports/SelectionControl/1.0.3.js"
+    },
+    "./SelectionControl/1.0.4": {
+      "types": "./dist/exports/SelectionControl/1.0.4.d.ts",
+      "import": "./dist/exports/SelectionControl/1.0.4.js"
+    },
+    "./SelectionControl/1.0.5": {
+      "types": "./dist/exports/SelectionControl/1.0.5.d.ts",
+      "import": "./dist/exports/SelectionControl/1.0.5.js"
+    },
+    "./SelectionControl/1.0.6": {
+      "types": "./dist/exports/SelectionControl/1.0.6.d.ts",
+      "import": "./dist/exports/SelectionControl/1.0.6.js"
+    },
+    "./SelectionControl/1.0.7": {
+      "types": "./dist/exports/SelectionControl/1.0.7.d.ts",
+      "import": "./dist/exports/SelectionControl/1.0.7.js"
+    },
     "./SelectionControl/1/1.0.0": {
       "types": "./dist/exports/SelectionControl/1/1.0.0.d.ts",
       "import": "./dist/exports/SelectionControl/1/1.0.0.js"
@@ -5368,6 +6088,30 @@
     "./SelectionControl/1/1.0.1": {
       "types": "./dist/exports/SelectionControl/1/1.0.1.d.ts",
       "import": "./dist/exports/SelectionControl/1/1.0.1.js"
+    },
+    "./SelectionControl/1/1.0.2": {
+      "types": "./dist/exports/SelectionControl/1/1.0.2.d.ts",
+      "import": "./dist/exports/SelectionControl/1/1.0.2.js"
+    },
+    "./SelectionControl/1/1.0.3": {
+      "types": "./dist/exports/SelectionControl/1/1.0.3.d.ts",
+      "import": "./dist/exports/SelectionControl/1/1.0.3.js"
+    },
+    "./SelectionControl/1/1.0.4": {
+      "types": "./dist/exports/SelectionControl/1/1.0.4.d.ts",
+      "import": "./dist/exports/SelectionControl/1/1.0.4.js"
+    },
+    "./SelectionControl/1/1.0.5": {
+      "types": "./dist/exports/SelectionControl/1/1.0.5.d.ts",
+      "import": "./dist/exports/SelectionControl/1/1.0.5.js"
+    },
+    "./SelectionControl/1/1.0.6": {
+      "types": "./dist/exports/SelectionControl/1/1.0.6.d.ts",
+      "import": "./dist/exports/SelectionControl/1/1.0.6.js"
+    },
+    "./SelectionControl/1/1.0.7": {
+      "types": "./dist/exports/SelectionControl/1/1.0.7.d.ts",
+      "import": "./dist/exports/SelectionControl/1/1.0.7.js"
     },
     "./SelectionStore": {
       "types": "./dist/exports/SelectionStore.d.ts",
@@ -5409,6 +6153,62 @@
       "types": "./dist/exports/Separator/1/1.0.1.d.ts",
       "import": "./dist/exports/Separator/1/1.0.1.js"
     },
+    "./SettingsList": {
+      "types": "./dist/exports/SettingsList.d.ts",
+      "import": "./dist/exports/SettingsList.js"
+    },
+    "./SettingsList/0": {
+      "types": "./dist/exports/SettingsList/0.d.ts",
+      "import": "./dist/exports/SettingsList/0.js"
+    },
+    "./SettingsList/0.1.0": {
+      "types": "./dist/exports/SettingsList/0.1.0.d.ts",
+      "import": "./dist/exports/SettingsList/0.1.0.js"
+    },
+    "./SettingsList/0.1.1": {
+      "types": "./dist/exports/SettingsList/0.1.1.d.ts",
+      "import": "./dist/exports/SettingsList/0.1.1.js"
+    },
+    "./SettingsList/0.1.2": {
+      "types": "./dist/exports/SettingsList/0.1.2.d.ts",
+      "import": "./dist/exports/SettingsList/0.1.2.js"
+    },
+    "./SettingsList/0.1.3": {
+      "types": "./dist/exports/SettingsList/0.1.3.d.ts",
+      "import": "./dist/exports/SettingsList/0.1.3.js"
+    },
+    "./SettingsList/0.1.4": {
+      "types": "./dist/exports/SettingsList/0.1.4.d.ts",
+      "import": "./dist/exports/SettingsList/0.1.4.js"
+    },
+    "./SettingsList/0.1.5": {
+      "types": "./dist/exports/SettingsList/0.1.5.d.ts",
+      "import": "./dist/exports/SettingsList/0.1.5.js"
+    },
+    "./SettingsList/0/0.1.0": {
+      "types": "./dist/exports/SettingsList/0/0.1.0.d.ts",
+      "import": "./dist/exports/SettingsList/0/0.1.0.js"
+    },
+    "./SettingsList/0/0.1.1": {
+      "types": "./dist/exports/SettingsList/0/0.1.1.d.ts",
+      "import": "./dist/exports/SettingsList/0/0.1.1.js"
+    },
+    "./SettingsList/0/0.1.2": {
+      "types": "./dist/exports/SettingsList/0/0.1.2.d.ts",
+      "import": "./dist/exports/SettingsList/0/0.1.2.js"
+    },
+    "./SettingsList/0/0.1.3": {
+      "types": "./dist/exports/SettingsList/0/0.1.3.d.ts",
+      "import": "./dist/exports/SettingsList/0/0.1.3.js"
+    },
+    "./SettingsList/0/0.1.4": {
+      "types": "./dist/exports/SettingsList/0/0.1.4.d.ts",
+      "import": "./dist/exports/SettingsList/0/0.1.4.js"
+    },
+    "./SettingsList/0/0.1.5": {
+      "types": "./dist/exports/SettingsList/0/0.1.5.d.ts",
+      "import": "./dist/exports/SettingsList/0/0.1.5.js"
+    },
     "./ShortcutRegistry": {
       "types": "./dist/exports/ShortcutRegistry.d.ts",
       "import": "./dist/exports/ShortcutRegistry.js"
@@ -5441,10 +6241,6 @@
       "types": "./dist/exports/SidebarShell/1.3.1.d.ts",
       "import": "./dist/exports/SidebarShell/1.3.1.js"
     },
-    "./SidebarShell/1.3.2": {
-      "types": "./dist/exports/SidebarShell/1.3.2.d.ts",
-      "import": "./dist/exports/SidebarShell/1.3.2.js"
-    },
     "./SidebarShell/1/1.2.0": {
       "types": "./dist/exports/SidebarShell/1/1.2.0.d.ts",
       "import": "./dist/exports/SidebarShell/1/1.2.0.js"
@@ -5453,53 +6249,41 @@
       "types": "./dist/exports/SidebarShell/1/1.3.1.d.ts",
       "import": "./dist/exports/SidebarShell/1/1.3.1.js"
     },
-    "./SidebarShell/1/1.3.2": {
-      "types": "./dist/exports/SidebarShell/1/1.3.2.d.ts",
-      "import": "./dist/exports/SidebarShell/1/1.3.2.js"
-    },
     "./SidebarShell/2": {
       "types": "./dist/exports/SidebarShell/2.d.ts",
       "import": "./dist/exports/SidebarShell/2.js"
-    },
-    "./SidebarShell/2.0.0": {
-      "types": "./dist/exports/SidebarShell/2.0.0.d.ts",
-      "import": "./dist/exports/SidebarShell/2.0.0.js"
-    },
-    "./SidebarShell/2.1.0": {
-      "types": "./dist/exports/SidebarShell/2.1.0.d.ts",
-      "import": "./dist/exports/SidebarShell/2.1.0.js"
-    },
-    "./SidebarShell/2.2.0": {
-      "types": "./dist/exports/SidebarShell/2.2.0.d.ts",
-      "import": "./dist/exports/SidebarShell/2.2.0.js"
-    },
-    "./SidebarShell/2.3.0": {
-      "types": "./dist/exports/SidebarShell/2.3.0.d.ts",
-      "import": "./dist/exports/SidebarShell/2.3.0.js"
     },
     "./SidebarShell/2.4.0": {
       "types": "./dist/exports/SidebarShell/2.4.0.d.ts",
       "import": "./dist/exports/SidebarShell/2.4.0.js"
     },
-    "./SidebarShell/2/2.0.0": {
-      "types": "./dist/exports/SidebarShell/2/2.0.0.d.ts",
-      "import": "./dist/exports/SidebarShell/2/2.0.0.js"
+    "./SidebarShell/2.5.3": {
+      "types": "./dist/exports/SidebarShell/2.5.3.d.ts",
+      "import": "./dist/exports/SidebarShell/2.5.3.js"
     },
-    "./SidebarShell/2/2.1.0": {
-      "types": "./dist/exports/SidebarShell/2/2.1.0.d.ts",
-      "import": "./dist/exports/SidebarShell/2/2.1.0.js"
+    "./SidebarShell/2.6.0": {
+      "types": "./dist/exports/SidebarShell/2.6.0.d.ts",
+      "import": "./dist/exports/SidebarShell/2.6.0.js"
     },
-    "./SidebarShell/2/2.2.0": {
-      "types": "./dist/exports/SidebarShell/2/2.2.0.d.ts",
-      "import": "./dist/exports/SidebarShell/2/2.2.0.js"
-    },
-    "./SidebarShell/2/2.3.0": {
-      "types": "./dist/exports/SidebarShell/2/2.3.0.d.ts",
-      "import": "./dist/exports/SidebarShell/2/2.3.0.js"
+    "./SidebarShell/2.6.1": {
+      "types": "./dist/exports/SidebarShell/2.6.1.d.ts",
+      "import": "./dist/exports/SidebarShell/2.6.1.js"
     },
     "./SidebarShell/2/2.4.0": {
       "types": "./dist/exports/SidebarShell/2/2.4.0.d.ts",
       "import": "./dist/exports/SidebarShell/2/2.4.0.js"
+    },
+    "./SidebarShell/2/2.5.3": {
+      "types": "./dist/exports/SidebarShell/2/2.5.3.d.ts",
+      "import": "./dist/exports/SidebarShell/2/2.5.3.js"
+    },
+    "./SidebarShell/2/2.6.0": {
+      "types": "./dist/exports/SidebarShell/2/2.6.0.d.ts",
+      "import": "./dist/exports/SidebarShell/2/2.6.0.js"
+    },
+    "./SidebarShell/2/2.6.1": {
+      "types": "./dist/exports/SidebarShell/2/2.6.1.d.ts",
+      "import": "./dist/exports/SidebarShell/2/2.6.1.js"
     },
     "./Skeleton": {
       "types": "./dist/exports/Skeleton.d.ts",
@@ -5540,6 +6324,46 @@
     "./Skeleton/1/1.0.4": {
       "types": "./dist/exports/Skeleton/1/1.0.4.d.ts",
       "import": "./dist/exports/Skeleton/1/1.0.4.js"
+    },
+    "./Slider": {
+      "types": "./dist/exports/Slider.d.ts",
+      "import": "./dist/exports/Slider.js"
+    },
+    "./Slider/1": {
+      "types": "./dist/exports/Slider/1.d.ts",
+      "import": "./dist/exports/Slider/1.js"
+    },
+    "./Slider/1.0.0": {
+      "types": "./dist/exports/Slider/1.0.0.d.ts",
+      "import": "./dist/exports/Slider/1.0.0.js"
+    },
+    "./Slider/1.0.1": {
+      "types": "./dist/exports/Slider/1.0.1.d.ts",
+      "import": "./dist/exports/Slider/1.0.1.js"
+    },
+    "./Slider/1.0.2": {
+      "types": "./dist/exports/Slider/1.0.2.d.ts",
+      "import": "./dist/exports/Slider/1.0.2.js"
+    },
+    "./Slider/1.1.0": {
+      "types": "./dist/exports/Slider/1.1.0.d.ts",
+      "import": "./dist/exports/Slider/1.1.0.js"
+    },
+    "./Slider/1/1.0.0": {
+      "types": "./dist/exports/Slider/1/1.0.0.d.ts",
+      "import": "./dist/exports/Slider/1/1.0.0.js"
+    },
+    "./Slider/1/1.0.1": {
+      "types": "./dist/exports/Slider/1/1.0.1.d.ts",
+      "import": "./dist/exports/Slider/1/1.0.1.js"
+    },
+    "./Slider/1/1.0.2": {
+      "types": "./dist/exports/Slider/1/1.0.2.d.ts",
+      "import": "./dist/exports/Slider/1/1.0.2.js"
+    },
+    "./Slider/1/1.1.0": {
+      "types": "./dist/exports/Slider/1/1.1.0.d.ts",
+      "import": "./dist/exports/Slider/1/1.1.0.js"
     },
     "./Slot": {
       "types": "./dist/exports/Slot.d.ts",
@@ -5589,6 +6413,10 @@
       "types": "./dist/exports/Sortable/1.0.6.d.ts",
       "import": "./dist/exports/Sortable/1.0.6.js"
     },
+    "./Sortable/1.0.7": {
+      "types": "./dist/exports/Sortable/1.0.7.d.ts",
+      "import": "./dist/exports/Sortable/1.0.7.js"
+    },
     "./Sortable/1/1.0.3": {
       "types": "./dist/exports/Sortable/1/1.0.3.d.ts",
       "import": "./dist/exports/Sortable/1/1.0.3.js"
@@ -5604,6 +6432,10 @@
     "./Sortable/1/1.0.6": {
       "types": "./dist/exports/Sortable/1/1.0.6.d.ts",
       "import": "./dist/exports/Sortable/1/1.0.6.js"
+    },
+    "./Sortable/1/1.0.7": {
+      "types": "./dist/exports/Sortable/1/1.0.7.d.ts",
+      "import": "./dist/exports/Sortable/1/1.0.7.js"
     },
     "./Spinner": {
       "types": "./dist/exports/Spinner.d.ts",
@@ -5693,9 +6525,17 @@
       "types": "./dist/exports/SplitPane/2.0.0.d.ts",
       "import": "./dist/exports/SplitPane/2.0.0.js"
     },
+    "./SplitPane/2.0.1": {
+      "types": "./dist/exports/SplitPane/2.0.1.d.ts",
+      "import": "./dist/exports/SplitPane/2.0.1.js"
+    },
     "./SplitPane/2/2.0.0": {
       "types": "./dist/exports/SplitPane/2/2.0.0.d.ts",
       "import": "./dist/exports/SplitPane/2/2.0.0.js"
+    },
+    "./SplitPane/2/2.0.1": {
+      "types": "./dist/exports/SplitPane/2/2.0.1.d.ts",
+      "import": "./dist/exports/SplitPane/2/2.0.1.js"
     },
     "./SplitView": {
       "types": "./dist/exports/SplitView.d.ts",
@@ -5713,6 +6553,10 @@
       "types": "./dist/exports/SplitView/1.0.1.d.ts",
       "import": "./dist/exports/SplitView/1.0.1.js"
     },
+    "./SplitView/1.0.2": {
+      "types": "./dist/exports/SplitView/1.0.2.d.ts",
+      "import": "./dist/exports/SplitView/1.0.2.js"
+    },
     "./SplitView/1/1.0.0": {
       "types": "./dist/exports/SplitView/1/1.0.0.d.ts",
       "import": "./dist/exports/SplitView/1/1.0.0.js"
@@ -5720,6 +6564,10 @@
     "./SplitView/1/1.0.1": {
       "types": "./dist/exports/SplitView/1/1.0.1.d.ts",
       "import": "./dist/exports/SplitView/1/1.0.1.js"
+    },
+    "./SplitView/1/1.0.2": {
+      "types": "./dist/exports/SplitView/1/1.0.2.d.ts",
+      "import": "./dist/exports/SplitView/1/1.0.2.js"
     },
     "./Stack": {
       "types": "./dist/exports/Stack.d.ts",
@@ -5777,6 +6625,10 @@
       "types": "./dist/exports/Stat/1.0.4.d.ts",
       "import": "./dist/exports/Stat/1.0.4.js"
     },
+    "./Stat/1.0.5": {
+      "types": "./dist/exports/Stat/1.0.5.d.ts",
+      "import": "./dist/exports/Stat/1.0.5.js"
+    },
     "./Stat/1/1.0.1": {
       "types": "./dist/exports/Stat/1/1.0.1.d.ts",
       "import": "./dist/exports/Stat/1/1.0.1.js"
@@ -5792,6 +6644,10 @@
     "./Stat/1/1.0.4": {
       "types": "./dist/exports/Stat/1/1.0.4.d.ts",
       "import": "./dist/exports/Stat/1/1.0.4.js"
+    },
+    "./Stat/1/1.0.5": {
+      "types": "./dist/exports/Stat/1/1.0.5.d.ts",
+      "import": "./dist/exports/Stat/1/1.0.5.js"
     },
     "./StatCard": {
       "types": "./dist/exports/StatCard.d.ts",
@@ -5817,6 +6673,10 @@
       "types": "./dist/exports/StatCard/1.0.7.d.ts",
       "import": "./dist/exports/StatCard/1.0.7.js"
     },
+    "./StatCard/1.0.8": {
+      "types": "./dist/exports/StatCard/1.0.8.d.ts",
+      "import": "./dist/exports/StatCard/1.0.8.js"
+    },
     "./StatCard/1/1.0.4": {
       "types": "./dist/exports/StatCard/1/1.0.4.d.ts",
       "import": "./dist/exports/StatCard/1/1.0.4.js"
@@ -5833,6 +6693,10 @@
       "types": "./dist/exports/StatCard/1/1.0.7.d.ts",
       "import": "./dist/exports/StatCard/1/1.0.7.js"
     },
+    "./StatCard/1/1.0.8": {
+      "types": "./dist/exports/StatCard/1/1.0.8.d.ts",
+      "import": "./dist/exports/StatCard/1/1.0.8.js"
+    },
     "./StatusBadge": {
       "types": "./dist/exports/StatusBadge.d.ts",
       "import": "./dist/exports/StatusBadge.js"
@@ -5841,10 +6705,6 @@
       "types": "./dist/exports/StatusBadge/1.d.ts",
       "import": "./dist/exports/StatusBadge/1.js"
     },
-    "./StatusBadge/1.1.0": {
-      "types": "./dist/exports/StatusBadge/1.1.0.d.ts",
-      "import": "./dist/exports/StatusBadge/1.1.0.js"
-    },
     "./StatusBadge/1.2.0": {
       "types": "./dist/exports/StatusBadge/1.2.0.d.ts",
       "import": "./dist/exports/StatusBadge/1.2.0.js"
@@ -5852,10 +6712,6 @@
     "./StatusBadge/1.2.1": {
       "types": "./dist/exports/StatusBadge/1.2.1.d.ts",
       "import": "./dist/exports/StatusBadge/1.2.1.js"
-    },
-    "./StatusBadge/1/1.1.0": {
-      "types": "./dist/exports/StatusBadge/1/1.1.0.d.ts",
-      "import": "./dist/exports/StatusBadge/1/1.1.0.js"
     },
     "./StatusBadge/1/1.2.0": {
       "types": "./dist/exports/StatusBadge/1/1.2.0.d.ts",
@@ -5985,6 +6841,46 @@
       "types": "./dist/exports/Surface/1/1.0.1.d.ts",
       "import": "./dist/exports/Surface/1/1.0.1.js"
     },
+    "./SwipeActions": {
+      "types": "./dist/exports/SwipeActions.d.ts",
+      "import": "./dist/exports/SwipeActions.js"
+    },
+    "./SwipeActions/1": {
+      "types": "./dist/exports/SwipeActions/1.d.ts",
+      "import": "./dist/exports/SwipeActions/1.js"
+    },
+    "./SwipeActions/1.0.5": {
+      "types": "./dist/exports/SwipeActions/1.0.5.d.ts",
+      "import": "./dist/exports/SwipeActions/1.0.5.js"
+    },
+    "./SwipeActions/1.1.0": {
+      "types": "./dist/exports/SwipeActions/1.1.0.d.ts",
+      "import": "./dist/exports/SwipeActions/1.1.0.js"
+    },
+    "./SwipeActions/1.1.1": {
+      "types": "./dist/exports/SwipeActions/1.1.1.d.ts",
+      "import": "./dist/exports/SwipeActions/1.1.1.js"
+    },
+    "./SwipeActions/1.2.0": {
+      "types": "./dist/exports/SwipeActions/1.2.0.d.ts",
+      "import": "./dist/exports/SwipeActions/1.2.0.js"
+    },
+    "./SwipeActions/1/1.0.5": {
+      "types": "./dist/exports/SwipeActions/1/1.0.5.d.ts",
+      "import": "./dist/exports/SwipeActions/1/1.0.5.js"
+    },
+    "./SwipeActions/1/1.1.0": {
+      "types": "./dist/exports/SwipeActions/1/1.1.0.d.ts",
+      "import": "./dist/exports/SwipeActions/1/1.1.0.js"
+    },
+    "./SwipeActions/1/1.1.1": {
+      "types": "./dist/exports/SwipeActions/1/1.1.1.d.ts",
+      "import": "./dist/exports/SwipeActions/1/1.1.1.js"
+    },
+    "./SwipeActions/1/1.2.0": {
+      "types": "./dist/exports/SwipeActions/1/1.2.0.d.ts",
+      "import": "./dist/exports/SwipeActions/1/1.2.0.js"
+    },
     "./Switch": {
       "types": "./dist/exports/Switch.d.ts",
       "import": "./dist/exports/Switch.js"
@@ -5992,6 +6888,14 @@
     "./Switch/1": {
       "types": "./dist/exports/Switch/1.d.ts",
       "import": "./dist/exports/Switch/1.js"
+    },
+    "./Switch/1.0.10": {
+      "types": "./dist/exports/Switch/1.0.10.d.ts",
+      "import": "./dist/exports/Switch/1.0.10.js"
+    },
+    "./Switch/1.0.11": {
+      "types": "./dist/exports/Switch/1.0.11.d.ts",
+      "import": "./dist/exports/Switch/1.0.11.js"
     },
     "./Switch/1.0.2": {
       "types": "./dist/exports/Switch/1.0.2.d.ts",
@@ -6009,6 +6913,30 @@
       "types": "./dist/exports/Switch/1.0.5.d.ts",
       "import": "./dist/exports/Switch/1.0.5.js"
     },
+    "./Switch/1.0.6": {
+      "types": "./dist/exports/Switch/1.0.6.d.ts",
+      "import": "./dist/exports/Switch/1.0.6.js"
+    },
+    "./Switch/1.0.7": {
+      "types": "./dist/exports/Switch/1.0.7.d.ts",
+      "import": "./dist/exports/Switch/1.0.7.js"
+    },
+    "./Switch/1.0.8": {
+      "types": "./dist/exports/Switch/1.0.8.d.ts",
+      "import": "./dist/exports/Switch/1.0.8.js"
+    },
+    "./Switch/1.0.9": {
+      "types": "./dist/exports/Switch/1.0.9.d.ts",
+      "import": "./dist/exports/Switch/1.0.9.js"
+    },
+    "./Switch/1/1.0.10": {
+      "types": "./dist/exports/Switch/1/1.0.10.d.ts",
+      "import": "./dist/exports/Switch/1/1.0.10.js"
+    },
+    "./Switch/1/1.0.11": {
+      "types": "./dist/exports/Switch/1/1.0.11.d.ts",
+      "import": "./dist/exports/Switch/1/1.0.11.js"
+    },
     "./Switch/1/1.0.2": {
       "types": "./dist/exports/Switch/1/1.0.2.d.ts",
       "import": "./dist/exports/Switch/1/1.0.2.js"
@@ -6024,6 +6952,22 @@
     "./Switch/1/1.0.5": {
       "types": "./dist/exports/Switch/1/1.0.5.d.ts",
       "import": "./dist/exports/Switch/1/1.0.5.js"
+    },
+    "./Switch/1/1.0.6": {
+      "types": "./dist/exports/Switch/1/1.0.6.d.ts",
+      "import": "./dist/exports/Switch/1/1.0.6.js"
+    },
+    "./Switch/1/1.0.7": {
+      "types": "./dist/exports/Switch/1/1.0.7.d.ts",
+      "import": "./dist/exports/Switch/1/1.0.7.js"
+    },
+    "./Switch/1/1.0.8": {
+      "types": "./dist/exports/Switch/1/1.0.8.d.ts",
+      "import": "./dist/exports/Switch/1/1.0.8.js"
+    },
+    "./Switch/1/1.0.9": {
+      "types": "./dist/exports/Switch/1/1.0.9.d.ts",
+      "import": "./dist/exports/Switch/1/1.0.9.js"
     },
     "./Table": {
       "types": "./dist/exports/Table.d.ts",
@@ -6129,14 +7073,6 @@
       "types": "./dist/exports/Textarea/1.d.ts",
       "import": "./dist/exports/Textarea/1.js"
     },
-    "./Textarea/1.0.0": {
-      "types": "./dist/exports/Textarea/1.0.0.d.ts",
-      "import": "./dist/exports/Textarea/1.0.0.js"
-    },
-    "./Textarea/1.0.1": {
-      "types": "./dist/exports/Textarea/1.0.1.d.ts",
-      "import": "./dist/exports/Textarea/1.0.1.js"
-    },
     "./Textarea/1.0.2": {
       "types": "./dist/exports/Textarea/1.0.2.d.ts",
       "import": "./dist/exports/Textarea/1.0.2.js"
@@ -6144,14 +7080,6 @@
     "./Textarea/1.1.0": {
       "types": "./dist/exports/Textarea/1.1.0.d.ts",
       "import": "./dist/exports/Textarea/1.1.0.js"
-    },
-    "./Textarea/1/1.0.0": {
-      "types": "./dist/exports/Textarea/1/1.0.0.d.ts",
-      "import": "./dist/exports/Textarea/1/1.0.0.js"
-    },
-    "./Textarea/1/1.0.1": {
-      "types": "./dist/exports/Textarea/1/1.0.1.d.ts",
-      "import": "./dist/exports/Textarea/1/1.0.1.js"
     },
     "./Textarea/1/1.0.2": {
       "types": "./dist/exports/Textarea/1/1.0.2.d.ts",
@@ -6209,6 +7137,10 @@
       "types": "./dist/exports/Toast/1.0.6.d.ts",
       "import": "./dist/exports/Toast/1.0.6.js"
     },
+    "./Toast/1.0.7": {
+      "types": "./dist/exports/Toast/1.0.7.d.ts",
+      "import": "./dist/exports/Toast/1.0.7.js"
+    },
     "./Toast/1/1.0.3": {
       "types": "./dist/exports/Toast/1/1.0.3.d.ts",
       "import": "./dist/exports/Toast/1/1.0.3.js"
@@ -6224,6 +7156,10 @@
     "./Toast/1/1.0.6": {
       "types": "./dist/exports/Toast/1/1.0.6.d.ts",
       "import": "./dist/exports/Toast/1/1.0.6.js"
+    },
+    "./Toast/1/1.0.7": {
+      "types": "./dist/exports/Toast/1/1.0.7.d.ts",
+      "import": "./dist/exports/Toast/1/1.0.7.js"
     },
     "./ToastManager": {
       "types": "./dist/exports/ToastManager.d.ts",
@@ -6277,9 +7213,17 @@
       "types": "./dist/exports/Tokens/1.0.0.d.ts",
       "import": "./dist/exports/Tokens/1.0.0.js"
     },
+    "./Tokens/1.0.1": {
+      "types": "./dist/exports/Tokens/1.0.1.d.ts",
+      "import": "./dist/exports/Tokens/1.0.1.js"
+    },
     "./Tokens/1/1.0.0": {
       "types": "./dist/exports/Tokens/1/1.0.0.d.ts",
       "import": "./dist/exports/Tokens/1/1.0.0.js"
+    },
+    "./Tokens/1/1.0.1": {
+      "types": "./dist/exports/Tokens/1/1.0.1.d.ts",
+      "import": "./dist/exports/Tokens/1/1.0.1.js"
     },
     "./Toolbar": {
       "types": "./dist/exports/Toolbar.d.ts",
@@ -6345,6 +7289,10 @@
       "types": "./dist/exports/Tooltip/1.0.2.d.ts",
       "import": "./dist/exports/Tooltip/1.0.2.js"
     },
+    "./Tooltip/1.0.3": {
+      "types": "./dist/exports/Tooltip/1.0.3.d.ts",
+      "import": "./dist/exports/Tooltip/1.0.3.js"
+    },
     "./Tooltip/1/1.0.1": {
       "types": "./dist/exports/Tooltip/1/1.0.1.d.ts",
       "import": "./dist/exports/Tooltip/1/1.0.1.js"
@@ -6352,6 +7300,10 @@
     "./Tooltip/1/1.0.2": {
       "types": "./dist/exports/Tooltip/1/1.0.2.d.ts",
       "import": "./dist/exports/Tooltip/1/1.0.2.js"
+    },
+    "./Tooltip/1/1.0.3": {
+      "types": "./dist/exports/Tooltip/1/1.0.3.d.ts",
+      "import": "./dist/exports/Tooltip/1/1.0.3.js"
     },
     "./TopBar": {
       "types": "./dist/exports/TopBar.d.ts",
@@ -6369,6 +7321,10 @@
       "types": "./dist/exports/TopBar/1.0.5.d.ts",
       "import": "./dist/exports/TopBar/1.0.5.js"
     },
+    "./TopBar/1.0.6": {
+      "types": "./dist/exports/TopBar/1.0.6.d.ts",
+      "import": "./dist/exports/TopBar/1.0.6.js"
+    },
     "./TopBar/1/1.0.4": {
       "types": "./dist/exports/TopBar/1/1.0.4.d.ts",
       "import": "./dist/exports/TopBar/1/1.0.4.js"
@@ -6376,6 +7332,10 @@
     "./TopBar/1/1.0.5": {
       "types": "./dist/exports/TopBar/1/1.0.5.d.ts",
       "import": "./dist/exports/TopBar/1/1.0.5.js"
+    },
+    "./TopBar/1/1.0.6": {
+      "types": "./dist/exports/TopBar/1/1.0.6.d.ts",
+      "import": "./dist/exports/TopBar/1/1.0.6.js"
     },
     "./Transition": {
       "types": "./dist/exports/Transition.d.ts",
@@ -6501,6 +7461,10 @@
       "types": "./dist/exports/UndoBanner/1.0.4.d.ts",
       "import": "./dist/exports/UndoBanner/1.0.4.js"
     },
+    "./UndoBanner/1.0.5": {
+      "types": "./dist/exports/UndoBanner/1.0.5.d.ts",
+      "import": "./dist/exports/UndoBanner/1.0.5.js"
+    },
     "./UndoBanner/1/1.0.0": {
       "types": "./dist/exports/UndoBanner/1/1.0.0.d.ts",
       "import": "./dist/exports/UndoBanner/1/1.0.0.js"
@@ -6512,6 +7476,10 @@
     "./UndoBanner/1/1.0.4": {
       "types": "./dist/exports/UndoBanner/1/1.0.4.d.ts",
       "import": "./dist/exports/UndoBanner/1/1.0.4.js"
+    },
+    "./UndoBanner/1/1.0.5": {
+      "types": "./dist/exports/UndoBanner/1/1.0.5.d.ts",
+      "import": "./dist/exports/UndoBanner/1/1.0.5.js"
     },
     "./UndoManager": {
       "types": "./dist/exports/UndoManager.d.ts",
@@ -6545,6 +7513,10 @@
       "types": "./dist/exports/UndoableDestructiveAction/1.0.4.d.ts",
       "import": "./dist/exports/UndoableDestructiveAction/1.0.4.js"
     },
+    "./UndoableDestructiveAction/1.0.5": {
+      "types": "./dist/exports/UndoableDestructiveAction/1.0.5.d.ts",
+      "import": "./dist/exports/UndoableDestructiveAction/1.0.5.js"
+    },
     "./UndoableDestructiveAction/1/1.0.3": {
       "types": "./dist/exports/UndoableDestructiveAction/1/1.0.3.d.ts",
       "import": "./dist/exports/UndoableDestructiveAction/1/1.0.3.js"
@@ -6552,6 +7524,10 @@
     "./UndoableDestructiveAction/1/1.0.4": {
       "types": "./dist/exports/UndoableDestructiveAction/1/1.0.4.d.ts",
       "import": "./dist/exports/UndoableDestructiveAction/1/1.0.4.js"
+    },
+    "./UndoableDestructiveAction/1/1.0.5": {
+      "types": "./dist/exports/UndoableDestructiveAction/1/1.0.5.d.ts",
+      "import": "./dist/exports/UndoableDestructiveAction/1/1.0.5.js"
     },
     "./UnsavedChangesFlow": {
       "types": "./dist/exports/UnsavedChangesFlow.d.ts",
@@ -6581,6 +7557,10 @@
       "types": "./dist/exports/UnsavedChangesFlow/1.0.6.d.ts",
       "import": "./dist/exports/UnsavedChangesFlow/1.0.6.js"
     },
+    "./UnsavedChangesFlow/1.0.7": {
+      "types": "./dist/exports/UnsavedChangesFlow/1.0.7.d.ts",
+      "import": "./dist/exports/UnsavedChangesFlow/1.0.7.js"
+    },
     "./UnsavedChangesFlow/1/1.0.0": {
       "types": "./dist/exports/UnsavedChangesFlow/1/1.0.0.d.ts",
       "import": "./dist/exports/UnsavedChangesFlow/1/1.0.0.js"
@@ -6600,6 +7580,10 @@
     "./UnsavedChangesFlow/1/1.0.6": {
       "types": "./dist/exports/UnsavedChangesFlow/1/1.0.6.d.ts",
       "import": "./dist/exports/UnsavedChangesFlow/1/1.0.6.js"
+    },
+    "./UnsavedChangesFlow/1/1.0.7": {
+      "types": "./dist/exports/UnsavedChangesFlow/1/1.0.7.d.ts",
+      "import": "./dist/exports/UnsavedChangesFlow/1/1.0.7.js"
     },
     "./UpgradePrompt": {
       "types": "./dist/exports/UpgradePrompt.d.ts",
@@ -6653,6 +7637,10 @@
       "types": "./dist/exports/ValidationSummary/1.0.6.d.ts",
       "import": "./dist/exports/ValidationSummary/1.0.6.js"
     },
+    "./ValidationSummary/1.0.7": {
+      "types": "./dist/exports/ValidationSummary/1.0.7.d.ts",
+      "import": "./dist/exports/ValidationSummary/1.0.7.js"
+    },
     "./ValidationSummary/1/1.0.0": {
       "types": "./dist/exports/ValidationSummary/1/1.0.0.d.ts",
       "import": "./dist/exports/ValidationSummary/1/1.0.0.js"
@@ -6672,6 +7660,10 @@
     "./ValidationSummary/1/1.0.6": {
       "types": "./dist/exports/ValidationSummary/1/1.0.6.d.ts",
       "import": "./dist/exports/ValidationSummary/1/1.0.6.js"
+    },
+    "./ValidationSummary/1/1.0.7": {
+      "types": "./dist/exports/ValidationSummary/1/1.0.7.d.ts",
+      "import": "./dist/exports/ValidationSummary/1/1.0.7.js"
     },
     "./VerdictSummary": {
       "types": "./dist/exports/VerdictSummary.d.ts",
@@ -6709,9 +7701,17 @@
       "types": "./dist/exports/VersionRow/1.0.0.d.ts",
       "import": "./dist/exports/VersionRow/1.0.0.js"
     },
+    "./VersionRow/1.0.1": {
+      "types": "./dist/exports/VersionRow/1.0.1.d.ts",
+      "import": "./dist/exports/VersionRow/1.0.1.js"
+    },
     "./VersionRow/1/1.0.0": {
       "types": "./dist/exports/VersionRow/1/1.0.0.d.ts",
       "import": "./dist/exports/VersionRow/1/1.0.0.js"
+    },
+    "./VersionRow/1/1.0.1": {
+      "types": "./dist/exports/VersionRow/1/1.0.1.d.ts",
+      "import": "./dist/exports/VersionRow/1/1.0.1.js"
     },
     "./VirtualList": {
       "types": "./dist/exports/VirtualList.d.ts",
@@ -6737,6 +7737,10 @@
       "types": "./dist/exports/VirtualList/1.0.4.d.ts",
       "import": "./dist/exports/VirtualList/1.0.4.js"
     },
+    "./VirtualList/1.0.5": {
+      "types": "./dist/exports/VirtualList/1.0.5.d.ts",
+      "import": "./dist/exports/VirtualList/1.0.5.js"
+    },
     "./VirtualList/1/1.0.1": {
       "types": "./dist/exports/VirtualList/1/1.0.1.d.ts",
       "import": "./dist/exports/VirtualList/1/1.0.1.js"
@@ -6752,6 +7756,10 @@
     "./VirtualList/1/1.0.4": {
       "types": "./dist/exports/VirtualList/1/1.0.4.d.ts",
       "import": "./dist/exports/VirtualList/1/1.0.4.js"
+    },
+    "./VirtualList/1/1.0.5": {
+      "types": "./dist/exports/VirtualList/1/1.0.5.d.ts",
+      "import": "./dist/exports/VirtualList/1/1.0.5.js"
     },
     "./VisualRecipes": {
       "types": "./dist/exports/VisualRecipes.d.ts",
@@ -6865,21 +7873,21 @@
       "types": "./dist/exports/inline-code/0.d.ts",
       "import": "./dist/exports/inline-code/0.js"
     },
-    "./inline-code/0.3.2": {
-      "types": "./dist/exports/inline-code/0.3.2.d.ts",
-      "import": "./dist/exports/inline-code/0.3.2.js"
-    },
     "./inline-code/0.3.3": {
       "types": "./dist/exports/inline-code/0.3.3.d.ts",
       "import": "./dist/exports/inline-code/0.3.3.js"
     },
-    "./inline-code/0/0.3.2": {
-      "types": "./dist/exports/inline-code/0/0.3.2.d.ts",
-      "import": "./dist/exports/inline-code/0/0.3.2.js"
+    "./inline-code/0.3.4": {
+      "types": "./dist/exports/inline-code/0.3.4.d.ts",
+      "import": "./dist/exports/inline-code/0.3.4.js"
     },
     "./inline-code/0/0.3.3": {
       "types": "./dist/exports/inline-code/0/0.3.3.d.ts",
       "import": "./dist/exports/inline-code/0/0.3.3.js"
+    },
+    "./inline-code/0/0.3.4": {
+      "types": "./dist/exports/inline-code/0/0.3.4.d.ts",
+      "import": "./dist/exports/inline-code/0/0.3.4.js"
     },
     "./markdown-renderer": {
       "types": "./dist/exports/markdown-renderer.d.ts",
@@ -6888,10 +7896,6 @@
     "./markdown-renderer/0": {
       "types": "./dist/exports/markdown-renderer/0.d.ts",
       "import": "./dist/exports/markdown-renderer/0.js"
-    },
-    "./markdown-renderer/0.1.1": {
-      "types": "./dist/exports/markdown-renderer/0.1.1.d.ts",
-      "import": "./dist/exports/markdown-renderer/0.1.1.js"
     },
     "./markdown-renderer/0.3.2": {
       "types": "./dist/exports/markdown-renderer/0.3.2.d.ts",
@@ -6905,9 +7909,9 @@
       "types": "./dist/exports/markdown-renderer/0.4.0.d.ts",
       "import": "./dist/exports/markdown-renderer/0.4.0.js"
     },
-    "./markdown-renderer/0/0.1.1": {
-      "types": "./dist/exports/markdown-renderer/0/0.1.1.d.ts",
-      "import": "./dist/exports/markdown-renderer/0/0.1.1.js"
+    "./markdown-renderer/0.4.1": {
+      "types": "./dist/exports/markdown-renderer/0.4.1.d.ts",
+      "import": "./dist/exports/markdown-renderer/0.4.1.js"
     },
     "./markdown-renderer/0/0.3.2": {
       "types": "./dist/exports/markdown-renderer/0/0.3.2.d.ts",
@@ -6920,6 +7924,10 @@
     "./markdown-renderer/0/0.4.0": {
       "types": "./dist/exports/markdown-renderer/0/0.4.0.d.ts",
       "import": "./dist/exports/markdown-renderer/0/0.4.0.js"
+    },
+    "./markdown-renderer/0/0.4.1": {
+      "types": "./dist/exports/markdown-renderer/0/0.4.1.d.ts",
+      "import": "./dist/exports/markdown-renderer/0/0.4.1.js"
     },
     "./mermaid-diagram": {
       "types": "./dist/exports/mermaid-diagram.d.ts",
@@ -7056,6 +8064,42 @@
     "./useDirection/1/1.0.0": {
       "types": "./dist/exports/useDirection/1/1.0.0.d.ts",
       "import": "./dist/exports/useDirection/1/1.0.0.js"
+    },
+    "./useDirection/2": {
+      "types": "./dist/exports/useDirection/2.d.ts",
+      "import": "./dist/exports/useDirection/2.js"
+    },
+    "./useDirection/2.0.0": {
+      "types": "./dist/exports/useDirection/2.0.0.d.ts",
+      "import": "./dist/exports/useDirection/2.0.0.js"
+    },
+    "./useDirection/2.1.0": {
+      "types": "./dist/exports/useDirection/2.1.0.d.ts",
+      "import": "./dist/exports/useDirection/2.1.0.js"
+    },
+    "./useDirection/2.1.1": {
+      "types": "./dist/exports/useDirection/2.1.1.d.ts",
+      "import": "./dist/exports/useDirection/2.1.1.js"
+    },
+    "./useDirection/2.1.2": {
+      "types": "./dist/exports/useDirection/2.1.2.d.ts",
+      "import": "./dist/exports/useDirection/2.1.2.js"
+    },
+    "./useDirection/2/2.0.0": {
+      "types": "./dist/exports/useDirection/2/2.0.0.d.ts",
+      "import": "./dist/exports/useDirection/2/2.0.0.js"
+    },
+    "./useDirection/2/2.1.0": {
+      "types": "./dist/exports/useDirection/2/2.1.0.d.ts",
+      "import": "./dist/exports/useDirection/2/2.1.0.js"
+    },
+    "./useDirection/2/2.1.1": {
+      "types": "./dist/exports/useDirection/2/2.1.1.d.ts",
+      "import": "./dist/exports/useDirection/2/2.1.1.js"
+    },
+    "./useDirection/2/2.1.2": {
+      "types": "./dist/exports/useDirection/2/2.1.2.d.ts",
+      "import": "./dist/exports/useDirection/2/2.1.2.js"
     },
     "./useDisclosure": {
       "types": "./dist/exports/useDisclosure.d.ts",
@@ -7212,6 +8256,46 @@
     "./useFocusVisible/1/1.0.0": {
       "types": "./dist/exports/useFocusVisible/1/1.0.0.d.ts",
       "import": "./dist/exports/useFocusVisible/1/1.0.0.js"
+    },
+    "./useHandedness": {
+      "types": "./dist/exports/useHandedness.d.ts",
+      "import": "./dist/exports/useHandedness.js"
+    },
+    "./useHandedness/1": {
+      "types": "./dist/exports/useHandedness/1.d.ts",
+      "import": "./dist/exports/useHandedness/1.js"
+    },
+    "./useHandedness/1.0.0": {
+      "types": "./dist/exports/useHandedness/1.0.0.d.ts",
+      "import": "./dist/exports/useHandedness/1.0.0.js"
+    },
+    "./useHandedness/1.1.0": {
+      "types": "./dist/exports/useHandedness/1.1.0.d.ts",
+      "import": "./dist/exports/useHandedness/1.1.0.js"
+    },
+    "./useHandedness/1.1.1": {
+      "types": "./dist/exports/useHandedness/1.1.1.d.ts",
+      "import": "./dist/exports/useHandedness/1.1.1.js"
+    },
+    "./useHandedness/1.1.2": {
+      "types": "./dist/exports/useHandedness/1.1.2.d.ts",
+      "import": "./dist/exports/useHandedness/1.1.2.js"
+    },
+    "./useHandedness/1/1.0.0": {
+      "types": "./dist/exports/useHandedness/1/1.0.0.d.ts",
+      "import": "./dist/exports/useHandedness/1/1.0.0.js"
+    },
+    "./useHandedness/1/1.1.0": {
+      "types": "./dist/exports/useHandedness/1/1.1.0.d.ts",
+      "import": "./dist/exports/useHandedness/1/1.1.0.js"
+    },
+    "./useHandedness/1/1.1.1": {
+      "types": "./dist/exports/useHandedness/1/1.1.1.d.ts",
+      "import": "./dist/exports/useHandedness/1/1.1.1.js"
+    },
+    "./useHandedness/1/1.1.2": {
+      "types": "./dist/exports/useHandedness/1/1.1.2.d.ts",
+      "import": "./dist/exports/useHandedness/1/1.1.2.js"
     },
     "./useHover": {
       "types": "./dist/exports/useHover.d.ts",
@@ -7429,6 +8513,14 @@
       "types": "./dist/exports/useOverlaySurface/1.3.1.d.ts",
       "import": "./dist/exports/useOverlaySurface/1.3.1.js"
     },
+    "./useOverlaySurface/1.3.10": {
+      "types": "./dist/exports/useOverlaySurface/1.3.10.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1.3.10.js"
+    },
+    "./useOverlaySurface/1.3.11": {
+      "types": "./dist/exports/useOverlaySurface/1.3.11.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1.3.11.js"
+    },
     "./useOverlaySurface/1.3.2": {
       "types": "./dist/exports/useOverlaySurface/1.3.2.d.ts",
       "import": "./dist/exports/useOverlaySurface/1.3.2.js"
@@ -7448,6 +8540,18 @@
     "./useOverlaySurface/1.3.6": {
       "types": "./dist/exports/useOverlaySurface/1.3.6.d.ts",
       "import": "./dist/exports/useOverlaySurface/1.3.6.js"
+    },
+    "./useOverlaySurface/1.3.7": {
+      "types": "./dist/exports/useOverlaySurface/1.3.7.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1.3.7.js"
+    },
+    "./useOverlaySurface/1.3.8": {
+      "types": "./dist/exports/useOverlaySurface/1.3.8.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1.3.8.js"
+    },
+    "./useOverlaySurface/1.3.9": {
+      "types": "./dist/exports/useOverlaySurface/1.3.9.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1.3.9.js"
     },
     "./useOverlaySurface/1/1.0.0": {
       "types": "./dist/exports/useOverlaySurface/1/1.0.0.d.ts",
@@ -7473,6 +8577,14 @@
       "types": "./dist/exports/useOverlaySurface/1/1.3.1.d.ts",
       "import": "./dist/exports/useOverlaySurface/1/1.3.1.js"
     },
+    "./useOverlaySurface/1/1.3.10": {
+      "types": "./dist/exports/useOverlaySurface/1/1.3.10.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1/1.3.10.js"
+    },
+    "./useOverlaySurface/1/1.3.11": {
+      "types": "./dist/exports/useOverlaySurface/1/1.3.11.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1/1.3.11.js"
+    },
     "./useOverlaySurface/1/1.3.2": {
       "types": "./dist/exports/useOverlaySurface/1/1.3.2.d.ts",
       "import": "./dist/exports/useOverlaySurface/1/1.3.2.js"
@@ -7492,6 +8604,18 @@
     "./useOverlaySurface/1/1.3.6": {
       "types": "./dist/exports/useOverlaySurface/1/1.3.6.d.ts",
       "import": "./dist/exports/useOverlaySurface/1/1.3.6.js"
+    },
+    "./useOverlaySurface/1/1.3.7": {
+      "types": "./dist/exports/useOverlaySurface/1/1.3.7.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1/1.3.7.js"
+    },
+    "./useOverlaySurface/1/1.3.8": {
+      "types": "./dist/exports/useOverlaySurface/1/1.3.8.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1/1.3.8.js"
+    },
+    "./useOverlaySurface/1/1.3.9": {
+      "types": "./dist/exports/useOverlaySurface/1/1.3.9.d.ts",
+      "import": "./dist/exports/useOverlaySurface/1/1.3.9.js"
     },
     "./usePress": {
       "types": "./dist/exports/usePress.d.ts",
@@ -7673,6 +8797,14 @@
       "types": "./dist/exports/useSwipe/2.0.2.d.ts",
       "import": "./dist/exports/useSwipe/2.0.2.js"
     },
+    "./useSwipe/2.0.3": {
+      "types": "./dist/exports/useSwipe/2.0.3.d.ts",
+      "import": "./dist/exports/useSwipe/2.0.3.js"
+    },
+    "./useSwipe/2.0.4": {
+      "types": "./dist/exports/useSwipe/2.0.4.d.ts",
+      "import": "./dist/exports/useSwipe/2.0.4.js"
+    },
     "./useSwipe/2/2.0.0": {
       "types": "./dist/exports/useSwipe/2/2.0.0.d.ts",
       "import": "./dist/exports/useSwipe/2/2.0.0.js"
@@ -7684,6 +8816,54 @@
     "./useSwipe/2/2.0.2": {
       "types": "./dist/exports/useSwipe/2/2.0.2.d.ts",
       "import": "./dist/exports/useSwipe/2/2.0.2.js"
+    },
+    "./useSwipe/2/2.0.3": {
+      "types": "./dist/exports/useSwipe/2/2.0.3.d.ts",
+      "import": "./dist/exports/useSwipe/2/2.0.3.js"
+    },
+    "./useSwipe/2/2.0.4": {
+      "types": "./dist/exports/useSwipe/2/2.0.4.d.ts",
+      "import": "./dist/exports/useSwipe/2/2.0.4.js"
+    },
+    "./useSwipeGesture": {
+      "types": "./dist/exports/useSwipeGesture.d.ts",
+      "import": "./dist/exports/useSwipeGesture.js"
+    },
+    "./useSwipeGesture/1": {
+      "types": "./dist/exports/useSwipeGesture/1.d.ts",
+      "import": "./dist/exports/useSwipeGesture/1.js"
+    },
+    "./useSwipeGesture/1.0.0": {
+      "types": "./dist/exports/useSwipeGesture/1.0.0.d.ts",
+      "import": "./dist/exports/useSwipeGesture/1.0.0.js"
+    },
+    "./useSwipeGesture/1.1.0": {
+      "types": "./dist/exports/useSwipeGesture/1.1.0.d.ts",
+      "import": "./dist/exports/useSwipeGesture/1.1.0.js"
+    },
+    "./useSwipeGesture/1.1.1": {
+      "types": "./dist/exports/useSwipeGesture/1.1.1.d.ts",
+      "import": "./dist/exports/useSwipeGesture/1.1.1.js"
+    },
+    "./useSwipeGesture/1.1.2": {
+      "types": "./dist/exports/useSwipeGesture/1.1.2.d.ts",
+      "import": "./dist/exports/useSwipeGesture/1.1.2.js"
+    },
+    "./useSwipeGesture/1/1.0.0": {
+      "types": "./dist/exports/useSwipeGesture/1/1.0.0.d.ts",
+      "import": "./dist/exports/useSwipeGesture/1/1.0.0.js"
+    },
+    "./useSwipeGesture/1/1.1.0": {
+      "types": "./dist/exports/useSwipeGesture/1/1.1.0.d.ts",
+      "import": "./dist/exports/useSwipeGesture/1/1.1.0.js"
+    },
+    "./useSwipeGesture/1/1.1.1": {
+      "types": "./dist/exports/useSwipeGesture/1/1.1.1.d.ts",
+      "import": "./dist/exports/useSwipeGesture/1/1.1.1.js"
+    },
+    "./useSwipeGesture/1/1.1.2": {
+      "types": "./dist/exports/useSwipeGesture/1/1.1.2.d.ts",
+      "import": "./dist/exports/useSwipeGesture/1/1.1.2.js"
     },
     "./useTypeahead": {
       "types": "./dist/exports/useTypeahead.d.ts",
@@ -7700,6 +8880,30 @@
     "./useTypeahead/1/1.0.0": {
       "types": "./dist/exports/useTypeahead/1/1.0.0.d.ts",
       "import": "./dist/exports/useTypeahead/1/1.0.0.js"
+    },
+    "./useViewportEnvironment": {
+      "types": "./dist/exports/useViewportEnvironment.d.ts",
+      "import": "./dist/exports/useViewportEnvironment.js"
+    },
+    "./useViewportEnvironment/1": {
+      "types": "./dist/exports/useViewportEnvironment/1.d.ts",
+      "import": "./dist/exports/useViewportEnvironment/1.js"
+    },
+    "./useViewportEnvironment/1.0.2": {
+      "types": "./dist/exports/useViewportEnvironment/1.0.2.d.ts",
+      "import": "./dist/exports/useViewportEnvironment/1.0.2.js"
+    },
+    "./useViewportEnvironment/1.0.3": {
+      "types": "./dist/exports/useViewportEnvironment/1.0.3.d.ts",
+      "import": "./dist/exports/useViewportEnvironment/1.0.3.js"
+    },
+    "./useViewportEnvironment/1/1.0.2": {
+      "types": "./dist/exports/useViewportEnvironment/1/1.0.2.d.ts",
+      "import": "./dist/exports/useViewportEnvironment/1/1.0.2.js"
+    },
+    "./useViewportEnvironment/1/1.0.3": {
+      "types": "./dist/exports/useViewportEnvironment/1/1.0.3.d.ts",
+      "import": "./dist/exports/useViewportEnvironment/1/1.0.3.js"
     },
     "./useVoiceInput": {
       "types": "./dist/exports/useVoiceInput.d.ts",

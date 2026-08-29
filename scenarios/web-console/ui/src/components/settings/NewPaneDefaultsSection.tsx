@@ -6,7 +6,8 @@ import { Button } from "../ui/button";
 import HeaderColorPicker from "../appearance/HeaderColorPicker";
 import ThemePicker from "../appearance/ThemePicker";
 import FontSizeStepper from "../appearance/FontSizeStepper";
-import { SettingsCard, SettingsRow, SettingsSectionIntro } from "./primitives";
+
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 export default function NewPaneDefaultsSection() {
   const { t } = useTranslation();
@@ -20,14 +21,14 @@ export default function NewPaneDefaultsSection() {
   const setPlusButtonBehavior = useWorkspaceStore((state) => state.setPlusButtonBehavior);
 
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList>
+      <SettingsList.Intro
         eyebrow={t(strings.settings.newPaneDefaultsSection.eyebrow)}
         title={t(strings.settings.newPaneDefaultsSection.title)}
         description={t(strings.settings.newPaneDefaultsSection.description)}
       />
 
-      <SettingsCard className="space-y-5">
+      <SettingsList.Group>
         <HeaderColorPicker
           currentColor={defaultHeaderColor}
           onSelectColor={setDefaultHeaderColor}
@@ -43,10 +44,9 @@ export default function NewPaneDefaultsSection() {
           onChangeSize={setDefaultFontSize}
           testIdPrefix="defaults"
         />
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.newPaneDefaultsSection.plusButtonLabel)}
-          hint={t(strings.settings.newPaneDefaultsSection.plusButtonHint)}
-          control={(
+          hint={t(strings.settings.newPaneDefaultsSection.plusButtonHint)} control="compact">{(
             <div className="flex items-center gap-2">
               <Button
                 data-testid="plus-behavior-launcher"
@@ -69,9 +69,8 @@ export default function NewPaneDefaultsSection() {
                 {t(strings.settings.newPaneDefaultsSection.emptyTerminal)}
               </Button>
             </div>
-          )}
-        />
-      </SettingsCard>
-    </div>
+          )}</SettingsList.Row>
+      </SettingsList.Group>
+    </SettingsList>
   );
 }

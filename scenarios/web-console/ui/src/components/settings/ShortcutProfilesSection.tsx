@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, Plus, Save, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../ui/button";
-import { SettingsCard, SettingsSectionIntro } from "./primitives";
+
 import type { Profile as ShortcutProfile } from "@vrooli/proto-types/web-console/v1/shortcuts/shortcuts_pb";
 import { shortcutsClient } from "../../api/shortcuts";
 import { strings } from "../../consts/strings";
 import { toErrorInfo } from "../../lib/errors";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 interface ShortcutDraft {
   label: string;
@@ -98,7 +99,7 @@ function ShortcutEditor({
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div>
         {entries.map((entry, index) => (
           <div key={`${profile.id}-${index}`} className="flex items-center gap-2">
             <input
@@ -215,14 +216,14 @@ export default function ShortcutProfilesSection() {
   }, [t]);
 
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList>
+      <SettingsList.Intro
         eyebrow={t(strings.settings.shortcutsSection.eyebrow)}
         title={t(strings.settings.shortcutsSection.title)}
         description={t(strings.settings.shortcutsSection.description)}
       />
 
-      <SettingsCard className="space-y-4">
+      <SettingsList.Group>
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.shortcutsSection.profilesTitle)}</div>
@@ -259,7 +260,7 @@ export default function ShortcutProfilesSection() {
             {t(strings.settings.shortcutsSection.empty)}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div>
             {profiles.map((profile) => (
               <ShortcutEditor
                 key={profile.id}
@@ -270,7 +271,7 @@ export default function ShortcutProfilesSection() {
             ))}
           </div>
         )}
-      </SettingsCard>
-    </div>
+      </SettingsList.Group>
+    </SettingsList>
   );
 }

@@ -1,0 +1,323 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: #22d3ee; } a:hover { color: #67e8f9; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 1040px; background: #020617; position: relative; overflow: hidden;">
+
+  <!-- Workspace showing through behind the drawer -->
+  <div style="position: absolute; inset: 0; background: #020617;"></div>
+  <div style="position: absolute; inset: 0; background: rgb(15 23 42 / 0.52);"></div>
+
+  <!-- Drawer panel: RCL FullPageDrawer at >=48rem is inset by --space-md (24px), radius --radius-panel (8px) -->
+  <div style="position: absolute; inset: 24px; background: #0f172a; border-radius: 8px; border: 1px solid rgb(255 255 255 / 0.06); box-shadow: 0 24px 64px rgb(2 6 23 / 0.6); display: flex; flex-direction: column; overflow: hidden;">
+
+    <!-- Header -->
+    <div style="flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px; border-bottom: 1px solid rgb(255 255 255 / 0.1);">
+      <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+        <h2 style="margin: 0; font: 600 18px/24px system-ui, sans-serif; color: #f8fafc;">Devices &amp; machines</h2>
+        <p style="margin: 0; font-size: 13px; line-height: 18px; color: #94a3b8;">Where you are working from, and what you can work on.</p>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; flex: 0 0 auto;">
+        <button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 0; border-radius: 9999px; background: transparent; color: #e2e8f0; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
+          Refresh
+        </button>
+        <button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border: 0; border-radius: 9999px; background: #f8fafc; color: #0f172a; font: 500 14px/1 system-ui, sans-serif; cursor: pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          Add machine
+        </button>
+        <button style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 9999px; background: transparent; color: #94a3b8; cursor: pointer;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 24px; display: flex; flex-direction: column; gap: 28px;">
+
+      <!-- ── DEVICES ─────────────────────────────────────────── -->
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;">
+          <div style="display: flex; align-items: baseline; gap: 12px;">
+            <span style="font: 500 11px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Devices</span>
+            <span style="font-size: 13px; color: #94a3b8;">Screens you are using this console from</span>
+          </div>
+          <span style="font-size: 13px; color: #64748b;">3 connected · this device in control</span>
+        </div>
+
+        <!-- Rail -->
+        <div style="display: flex; gap: 16px; align-items: stretch;">
+
+          <!-- Device: this device, in control -->
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(34 211 238 / 0.4); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); box-shadow: inset 0 0 44px rgb(34 211 238 / 0.12); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="-14 0 420 268" style="height: 100%; width: auto;" aria-hidden="true">
+                <path d="M-13.72 252 H405.72 L396.72 268 H-4.72 Z" fill="#242E43"></path>
+                <path d="M-13.72 252 H405.72" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.2" fill="none"></path>
+                <rect x="160.72" y="256.48" width="70.56" height="5.44" rx="2" fill="#020615" opacity="0.55"></rect>
+                <rect x="0" y="0" width="392" height="250" rx="10" fill="#333F55"></rect>
+                <rect x="0.75" y="0.75" width="390.5" height="248.5" rx="9.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+                <rect x="9" y="9" width="374" height="221" rx="3" fill="#06323b"></rect>
+                <rect x="9" y="9" width="374" height="221" rx="3" fill="none" stroke="rgb(34 211 238 / 0.45)" stroke-width="1"></rect>
+                <circle cx="196" cy="4.5" r="2.2" fill="rgb(248 250 252 / 0.4)"></circle>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Studio MacBook</span>
+                <span style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 9999px; border: 1px solid rgb(6 182 212 / 0.4); background: rgb(34 211 238 / 0.1); color: #22d3ee; font: 500 11px/1 system-ui, sans-serif;">You</span>
+              </div>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">Laptop · connected 2 hours ago</div>
+              <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                <span style="font-size: 12px; line-height: 16px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Driving <span style="color: #e2e8f0;">api refactor</span></span>
+              </div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(6 182 212 / 0.4); background: rgb(34 211 238 / 0.1); color: #22d3ee; font: 500 11px/1 system-ui, sans-serif;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                In control
+              </span>
+            </div>
+            <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto; display: flex; gap: 8px;">
+              <button style="flex: 1 1 auto; height: 32px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #f8fafc; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Rename</button>
+            </div>
+          </div>
+
+          <!-- Device: phone, following -->
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="-3 0 202 400" style="height: 100%; width: auto;" aria-hidden="true">
+                <rect x="195" y="86" width="3" height="46" rx="1.5" fill="#242E43"></rect>
+                <rect x="-2" y="74" width="3" height="24" rx="1.5" fill="#242E43"></rect>
+                <rect x="-2" y="106" width="3" height="24" rx="1.5" fill="#242E43"></rect>
+                <rect x="0" y="0" width="196" height="400" rx="27" fill="#333F55"></rect>
+                <rect x="0.75" y="0.75" width="194.5" height="398.5" rx="26.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+                <rect x="9" y="9" width="178" height="382" rx="19" fill="#020615"></rect>
+                <rect x="9" y="9" width="178" height="382" rx="19" fill="none" stroke="rgb(0 0 0 / 0.55)" stroke-width="1"></rect>
+                <rect x="77.42" y="13.7" width="41.16" height="8.55" rx="4.28" fill="#242E43"></rect>
+                <rect x="63.7" y="394.1" width="68.6" height="2.8" rx="1.4" fill="rgb(248 250 252 / 0.4)"></rect>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">iPhone</span>
+              </div>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">Phone · connected 6 minutes ago</div>
+              <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                <span style="font-size: 12px; line-height: 16px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Watching <span style="color: #e2e8f0;">api refactor</span></span>
+              </div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(148 163 184 / 0.25); background: rgb(148 163 184 / 0.1); color: #cbd5e1; font: 500 11px/1 system-ui, sans-serif;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                Following
+              </span>
+            </div>
+            <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto; display: flex; gap: 8px;">
+              <button style="flex: 1 1 auto; height: 32px; border-radius: 9999px; border: 0; background: #22d3ee; color: #0f172a; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Give control</button>
+              <button style="flex: 0 0 auto; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #94a3b8; cursor: pointer;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Device: tablet, idle -->
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="0 0 286 372" style="height: 100%; width: auto; opacity: 0.55;" aria-hidden="true">
+                <rect x="0" y="0" width="286" height="372" rx="20" fill="#333F55"></rect>
+                <rect x="0.75" y="0.75" width="284.5" height="370.5" rx="19.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+                <rect x="14" y="14" width="258" height="344" rx="9" fill="#020615"></rect>
+                <rect x="14" y="14" width="258" height="344" rx="9" fill="none" stroke="rgb(0 0 0 / 0.55)" stroke-width="1"></rect>
+                <circle cx="143" cy="7" r="2.2" fill="rgb(248 250 252 / 0.4)"></circle>
+                <rect x="92.95" y="363.6" width="100.1" height="2.8" rx="1.4" fill="rgb(248 250 252 / 0.4)"></rect>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Kitchen iPad</span>
+              </div>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">Tablet · connected 40 minutes ago</div>
+              <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 auto;"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                <span style="font-size: 12px; line-height: 16px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No session open</span>
+              </div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(148 163 184 / 0.25); background: rgb(148 163 184 / 0.1); color: #cbd5e1; font: 500 11px/1 system-ui, sans-serif;">Idle</span>
+            </div>
+            <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto; display: flex; gap: 8px;">
+              <button style="flex: 1 1 auto; height: 32px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #f8fafc; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Rename</button>
+              <button style="flex: 0 0 auto; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #94a3b8; cursor: pointer;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── MACHINES ────────────────────────────────────────── -->
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px;">
+          <div style="display: flex; align-items: baseline; gap: 12px;">
+            <span style="font: 500 11px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Machines</span>
+            <span style="font-size: 13px; color: #94a3b8;">Computers you can run terminals on</span>
+          </div>
+          <span style="font-size: 13px; color: #64748b;">3 linked · 2 reachable now</span>
+        </div>
+
+        <!-- Rail -->
+        <div style="display: flex; gap: 16px; align-items: stretch;">
+
+          <!-- Machine: this computer -->
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="-14 0 420 268" style="height: 100%; width: auto;" aria-hidden="true">
+                <path d="M-13.72 252 H405.72 L396.72 268 H-4.72 Z" fill="#242E43"></path>
+                <path d="M-13.72 252 H405.72" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.2" fill="none"></path>
+                <rect x="160.72" y="256.48" width="70.56" height="5.44" rx="2" fill="#020615" opacity="0.55"></rect>
+                <rect x="0" y="0" width="392" height="250" rx="10" fill="#333F55"></rect>
+                <rect x="0.75" y="0.75" width="390.5" height="248.5" rx="9.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+                <rect x="9" y="9" width="374" height="221" rx="3" fill="#020615"></rect>
+                <rect x="9" y="9" width="374" height="221" rx="3" fill="none" stroke="rgb(0 0 0 / 0.55)" stroke-width="1"></rect>
+                <circle cx="196" cy="4.5" r="2.2" fill="rgb(248 250 252 / 0.4)"></circle>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">This computer</span>
+                <span style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: 9999px; border: 1px solid rgb(6 182 212 / 0.4); background: rgb(34 211 238 / 0.1); color: #22d3ee; font: 500 11px/1 system-ui, sans-serif;">Also a device</span>
+              </div>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">linux · x86_64 · the app is running here</div>
+              <div style="font-size: 12px; line-height: 16px; color: #94a3b8;">Full control</div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.1); background: #1e293b; color: #e2e8f0; font: 500 11px/1 system-ui, sans-serif;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"></rect><line x1="2" y1="21" x2="22" y2="21"></line></svg>
+                Local
+              </span>
+            </div>
+            <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto; display: flex; gap: 8px;">
+              <button style="flex: 1 1 auto; height: 32px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #f8fafc; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Manage</button>
+            </div>
+          </div>
+
+          <!-- Machine: reachable -->
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="0 0 300 200" style="height: 100%; width: auto;" aria-hidden="true">
+                <rect x="0" y="0" width="300" height="200" rx="12" fill="#333F55"></rect>
+                <rect x="0.75" y="0.75" width="298.5" height="198.5" rx="11.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+                <rect x="18" y="18" width="264" height="164" rx="6" fill="#020615"></rect>
+                <rect x="18" y="18" width="264" height="164" rx="6" fill="none" stroke="rgb(0 0 0 / 0.55)" stroke-width="1"></rect>
+                <rect x="42" y="44" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.1)"></rect>
+                <rect x="42" y="66" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.1)"></rect>
+                <rect x="42" y="88" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.1)"></rect>
+                <rect x="42" y="110" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.1)"></rect>
+                <rect x="42" y="146" width="90" height="12" rx="3" fill="rgb(248 250 252 / 0.08)"></rect>
+                <circle cx="246" cy="52" r="12" fill="rgb(52 211 153 / 0.15)"></circle>
+                <circle cx="246" cy="52" r="6" fill="#34d399"></circle>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">minimouse</span>
+              </div>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">darwin · amd64 · responded 8 seconds ago</div>
+              <div style="font-size: 12px; line-height: 16px; color: #94a3b8;">Read only</div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(52 211 153 / 0.3); background: rgb(52 211 153 / 0.1); color: #6ee7b7; font: 500 11px/1 system-ui, sans-serif;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                Reachable
+              </span>
+            </div>
+            <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto; display: flex; gap: 8px;">
+              <button style="flex: 1 1 auto; height: 32px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #f8fafc; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Manage</button>
+            </div>
+          </div>
+
+          <!-- Machine: not responding -->
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="0 0 300 200" style="height: 100%; width: auto; opacity: 0.6;" aria-hidden="true">
+                <rect x="0" y="0" width="300" height="200" rx="12" fill="#333F55"></rect>
+                <rect x="0.75" y="0.75" width="298.5" height="198.5" rx="11.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+                <rect x="18" y="18" width="264" height="164" rx="6" fill="#020615"></rect>
+                <rect x="18" y="18" width="264" height="164" rx="6" fill="none" stroke="rgb(0 0 0 / 0.55)" stroke-width="1"></rect>
+                <rect x="42" y="44" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.06)"></rect>
+                <rect x="42" y="66" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.06)"></rect>
+                <rect x="42" y="88" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.06)"></rect>
+                <rect x="42" y="110" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.06)"></rect>
+                <rect x="42" y="146" width="90" height="12" rx="3" fill="rgb(248 250 252 / 0.05)"></rect>
+                <circle cx="246" cy="52" r="6" fill="#fbbf24" opacity="0.85"></circle>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">swarminator</span>
+              </div>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">linux · arm64 · last responded 7 days ago</div>
+              <div style="font-size: 12px; line-height: 16px; color: #94a3b8;">Operate</div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(251 191 36 / 0.3); background: rgb(251 191 36 / 0.1); color: #fde68a; font: 500 11px/1 system-ui, sans-serif;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"></line><path d="M8.5 16.5a5 5 0 0 1 7 0"></path><path d="M2 8.82a15 15 0 0 1 4.17-2.65"></path><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"></path><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"></path><path d="M5 12.86a10 10 0 0 1 5.17-2.7"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+                Not responding
+              </span>
+            </div>
+            <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto; display: flex; gap: 8px;">
+              <button style="flex: 1 1 auto; height: 32px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #f8fafc; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Reconnect</button>
+            </div>
+          </div>
+
+          <!-- Machine: join request -->
+          <div style="width: 268px; flex: 0 0 auto; background: rgb(34 211 238 / 0.06); border: 1px solid rgb(34 211 238 / 0.4); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px dashed rgb(34 211 238 / 0.3); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="0 0 300 200" style="height: 100%; width: auto; opacity: 0.5;" aria-hidden="true">
+                <rect x="0.75" y="0.75" width="298.5" height="198.5" rx="11.25" fill="none" stroke="rgb(34 211 238 / 0.45)" stroke-width="1.5" stroke-dasharray="10 8"></rect>
+                <rect x="42" y="70" width="150" height="8" rx="4" fill="rgb(34 211 238 / 0.18)"></rect>
+                <rect x="42" y="92" width="150" height="8" rx="4" fill="rgb(34 211 238 / 0.18)"></rect>
+                <rect x="42" y="114" width="90" height="8" rx="4" fill="rgb(34 211 238 / 0.12)"></rect>
+                <circle cx="246" cy="78" r="6" fill="#22d3ee"></circle>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Studio Mac</div>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">darwin · arm64 · 192.168.1.44</div>
+              <div style="font-size: 12px; line-height: 16px; color: #94a3b8;">Asked to join 4 seconds ago</div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(6 182 212 / 0.4); background: rgb(34 211 238 / 0.1); color: #22d3ee; font: 500 11px/1 system-ui, sans-serif;">Waiting for you</span>
+            </div>
+            <div style="border-top: 1px solid rgb(34 211 238 / 0.2); padding-top: 12px; margin-top: auto; display: flex; gap: 8px;">
+              <button style="flex: 1 1 auto; height: 32px; border-radius: 9999px; border: 0; background: #22d3ee; color: #0f172a; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">Review</button>
+            </div>
+          </div>
+
+          <!-- Peeking fifth card, communicating the rail scrolls -->
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; opacity: 0.5;">
+            <div style="height: 120px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06);"></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div style="flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px; border-top: 1px solid rgb(255 255 255 / 0.1);">
+      <span style="font-size: 12px; line-height: 16px; color: #64748b;">Machines you link here are available to every Vrooli app on this computer.</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; color: #64748b;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.93 19.07a10 10 0 0 1 0-14.14"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path><path d="M7.76 16.24a6 6 0 0 1 0-8.48"></path><path d="M16.24 7.76a6 6 0 0 1 0 8.48"></path><circle cx="12" cy="12" r="1.5"></circle></svg>
+        bridge · healthy · :18767
+      </span>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

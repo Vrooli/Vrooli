@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pin, PinOff, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { MasterDetail } from "@vrooli/react-component-library/MasterDetail/1";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 
@@ -12,7 +13,8 @@ import { cn } from "../../lib/classnames";
 import { SnippetBodyEditor } from "../snippets/SnippetBodyEditor";
 import { SnippetSaveSheet } from "../snippets/SnippetSaveSheet";
 import { Button } from "../ui/button";
-import { SettingsCard, SettingsSectionIntro } from "./primitives";
+
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 // [REQ:P0-015g] Personal snippet management
 
@@ -28,6 +30,7 @@ export default function SnippetsPanel() {
   const [promoting, setPromoting] = useState(false);
   const [promotionResult, setPromotionResult] = useState("");
   const [promotionError, setPromotionError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<SnippetDTO | null>(null);
 
   useEffect(() => {
     setDraft(snippets.find((snippet) => snippet.id === selectedId) ?? null);
@@ -70,15 +73,22 @@ export default function SnippetsPanel() {
     }
   };
 
-  const deleteOne = async (snippet: SnippetDTO) => {
-    if (!window.confirm(t(strings.snippets.settings.deleteConfirm, { name: snippet.name }))) return;
+  // A browser `confirm()` blocks the whole page, cannot be styled, and on a
+  // touch device is dismissed by gestures this app also uses. Deletion is the
+  // one irreversible action here, so it gets the same governed confirmation
+  // every other destructive path in the console uses.
+  const confirmDelete = async () => {
+    const snippet = deleteTarget;
+    if (!snippet) return;
     setError("");
     try {
       if (await remove(snippet.id)) {
         setSelectedId((current) => (current === snippet.id ? null : current));
       }
+      setDeleteTarget(null);
     } catch {
       setError(t(strings.snippets.settings.deleteError));
+      setDeleteTarget(null);
     }
   };
 
@@ -108,8 +118,8 @@ export default function SnippetsPanel() {
   };
 
   return (
-    <div data-testid="snippets-panel" className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList data-testid="snippets-panel">
+      <SettingsList.Intro
         eyebrow={t(strings.snippets.settings.eyebrow)}
         title={t(strings.snippets.settings.title)}
         description={t(strings.snippets.settings.description)}
@@ -168,12 +178,12 @@ export default function SnippetsPanel() {
                 data-testid={`snippet-settings-delete-${item.id}`}
                 aria-label={t(strings.snippets.settings.delete)}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-red-400 hover:bg-red-500/10"
-                onClick={(event) => { event.stopPropagation(); void deleteOne(snippet); }}
+                onClick={(event) => { event.stopPropagation(); setDeleteTarget(snippet); }}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter" && event.key !== " ") return;
                   event.preventDefault();
                   event.stopPropagation();
-                  void deleteOne(snippet);
+                  setDeleteTarget(snippet);
                 }}
               >
                 <Trash2 className="h-4 w-4" />
@@ -186,7 +196,7 @@ export default function SnippetsPanel() {
 
       {draft && (
         <div data-testid="snippet-settings-detail">
-        <SettingsCard className="space-y-4">
+        <SettingsList.Group>
           <label className="block space-y-1.5 text-xs font-medium text-wc-text-secondary">
             <span>{t(strings.snippets.name)}</span>
             <input
@@ -197,7 +207,7 @@ export default function SnippetsPanel() {
             />
           </label>
 
-          <div className="space-y-1.5">
+          <div>
             <span className="text-xs font-medium text-wc-text-secondary">{t(strings.snippets.color)}</span>
             <div className="flex flex-wrap gap-1.5">
               {HEADER_COLORS.map((color) => (
@@ -246,7 +256,7 @@ export default function SnippetsPanel() {
               {t(saving ? strings.snippets.save.saving : strings.snippets.save.save)}
             </Button>
           </div>
-        </SettingsCard>
+        </SettingsList.Group>
         </div>
       )}
 
@@ -268,7 +278,7 @@ export default function SnippetsPanel() {
         testId="snippet-promote-dialog"
         avoidKeyboard
       >
-        <div className="space-y-4 p-4">
+        <div className="p-4">
           <p>{t(strings.snippets.settings.promoteFactGoverned)}</p>
           <p>{t(strings.snippets.settings.promoteFactSnippetStays)}</p>
           <p>{t(strings.snippets.settings.promoteFactNoSync)}</p>
@@ -294,6 +304,20 @@ export default function SnippetsPanel() {
           </div>
         </div>
       </ResponsiveDialog>
-    </div>
+
+      {deleteTarget && (
+        <AlertDialog
+          open
+          destructive
+          title={t(strings.snippets.settings.delete)}
+          description={t(strings.snippets.settings.deleteConfirm, { name: deleteTarget.name })}
+          cancelLabel={t(strings.snippets.cancel)}
+          confirmLabel={t(strings.snippets.settings.delete)}
+          onCancel={() => { setDeleteTarget(null); }}
+          onConfirm={() => void confirmDelete()}
+          testIdPrefix="snippet-delete"
+        />
+      )}
+    </SettingsList>
   );
 }

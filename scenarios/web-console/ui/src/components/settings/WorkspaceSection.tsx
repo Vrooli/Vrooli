@@ -5,17 +5,12 @@ import { useWakeLockStatus } from "../../stores/useWakeLockStatus";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
-import {
-  SettingsCard,
-  SettingsRow,
-  SettingsSectionIntro,
-  SettingsSlider,
-  SettingsToggle,
-} from "./primitives";
+import { SettingsSlider, SettingsToggle } from "./primitives";
 import LocaleSwitcher from "../LocaleSwitcher";
 import ToolbarCustomizer from "./ToolbarCustomizer";
 import { deviceIdentity, setDeviceLabel } from "../../lib/deviceIdentity";
 import { useSecureContextCapabilities } from "../../hooks/useSecureContextCapabilities";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 const STATUS_HINT_KEYS = {
   active: strings.settings.workspaceSection.wakeLockActive,
@@ -69,23 +64,22 @@ export default function WorkspaceSection() {
     : undefined;
 
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList>
+      <SettingsList.Intro
         eyebrow={t(strings.settings.workspaceSection.eyebrow)}
         title={t(strings.settings.workspaceSection.title)}
         description={t(strings.settings.workspaceSection.description)}
       />
 
-      <SettingsCard className="space-y-4">
+      <SettingsList.Group>
         {unavailableCapabilities && (
           <p className="text-xs text-wc-text-secondary" role="status" data-testid="secure-context-capabilities">
             Browser capabilities unavailable in this context: {unavailableCapabilities}.
           </p>
         )}
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.workspaceSection.paneLayoutLabel)}
-          hint={t(strings.settings.workspaceSection.paneLayoutHint)}
-          control={(
+          hint={t(strings.settings.workspaceSection.paneLayoutHint)} control="compact">{(
             <div className="flex items-center gap-2">
               <Button
                 data-testid="display-mode-grid"
@@ -118,17 +112,15 @@ export default function WorkspaceSection() {
                 {t(strings.settings.workspaceSection.sidebar)}
               </Button>
             </div>
-          )}
-        />
+          )}</SettingsList.Row>
 
         {/* Which edge drawers open from, and therefore which way their
             gestures run. This is a reach preference, not a language one: it
             moves the drawer without mirroring any text. Changing the interface
             language is what mirrors text, and it is applied on top of this. */}
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.workspaceSection.handednessLabel)}
-          hint={t(strings.settings.workspaceSection.handednessHint)}
-          control={(
+          hint={t(strings.settings.workspaceSection.handednessHint)} control="compact">{(
             <div className="flex gap-1">
               <Button
                 data-testid="handedness-inline-start"
@@ -153,13 +145,12 @@ export default function WorkspaceSection() {
                 {t(strings.settings.workspaceSection.handednessEnd)}
               </Button>
             </div>
-          )}
-        />
+          )}</SettingsList.Row>
 
         {/* The toolbar has three independent choices — which controls, how
             large, how many rows — so it gets a block of its own rather than a
-            SettingsRow's single control slot. */}
-        <div className="space-y-2 border-t border-wc-default pt-4">
+            SettingsList.Row's single control slot. */}
+        <div className="border-t border-wc-default pt-4">
           <div>
             <div className="text-sm font-medium text-wc-text-secondary">
               {t(strings.settings.workspaceSection.mobileToolbarLabel)}
@@ -172,33 +163,28 @@ export default function WorkspaceSection() {
         </div>
 
         {displayMode === "grid" && (
-          <SettingsRow
+          <SettingsList.Row
             label={t(strings.settings.workspaceSection.minimapLabel)}
-            hint={t(strings.settings.workspaceSection.minimapHint)}
-            control={(
+            hint={t(strings.settings.workspaceSection.minimapHint)} control="compact">{(
               <SettingsToggle
                 testId="minimap-toggle"
                 checked={isMinimapVisible}
                 onCheckedChange={setMinimapVisible}
               />
-            )}
-          />
+            )}</SettingsList.Row>
         )}
-        <SettingsRow
+        <SettingsList.Row
           label={t(strings.settings.workspaceSection.adaptiveChromeLabel)}
-          hint={t(strings.settings.workspaceSection.adaptiveChromeHint)}
-          control={(
+          hint={t(strings.settings.workspaceSection.adaptiveChromeHint)} control="compact">{(
             <SettingsToggle
               testId="adaptive-chrome-toggle"
               checked={adaptiveChrome}
               onCheckedChange={setAdaptiveChrome}
             />
-          )}
-        />
-        <SettingsRow
+          )}</SettingsList.Row>
+        <SettingsList.Row
           label="Touch scroll sensitivity"
-          hint="Adjust finger and trackpad scrolling independently."
-          control={(
+          hint="Adjust finger and trackpad scrolling independently." control="wide">{(
             <SettingsSlider
               testId="touch-scroll-sensitivity"
               value={touchScrollSensitivity}
@@ -209,12 +195,10 @@ export default function WorkspaceSection() {
               defaultMarker={1}
               formatValue={(value) => value.toFixed(1)}
             />
-          )}
-        />
-        <SettingsRow
+          )}</SettingsList.Row>
+        <SettingsList.Row
           label="Wheel scroll sensitivity"
-          hint="Adjust mouse-wheel scrolling independently."
-          control={(
+          hint="Adjust mouse-wheel scrolling independently." control="wide">{(
             <SettingsSlider
               testId="wheel-scroll-sensitivity"
               value={wheelScrollSensitivity}
@@ -225,28 +209,24 @@ export default function WorkspaceSection() {
               defaultMarker={1}
               formatValue={(value) => value.toFixed(1)}
             />
-          )}
-        />
+          )}</SettingsList.Row>
         <div className="flex justify-end">
           <Button type="button" variant="outline" size="sm" onClick={resetScrollSensitivities}>
             Reset scroll sensitivities
           </Button>
         </div>
-        <SettingsRow
+        <SettingsList.Row
           label="tmux mouse mode for new persistent panes"
-          hint="When enabled, new persistent panes let tmux capture mouse scrolling. Existing panes keep their current setting."
-          control={(
+          hint="When enabled, new persistent panes let tmux capture mouse scrolling. Existing panes keep their current setting." control="compact">{(
             <SettingsToggle
               testId="tmux-mouse-mode-default-toggle"
               checked={tmuxMouseMode}
               onCheckedChange={setTmuxMouseMode}
             />
-          )}
-        />
-        <SettingsRow
+          )}</SettingsList.Row>
+        <SettingsList.Row
           label="Prediction latency threshold"
-          hint="Underline speculative characters only when round-trip latency exceeds this value."
-          control={(
+          hint="Underline speculative characters only when round-trip latency exceeds this value." control="wide">{(
             <SettingsSlider
               testId="prediction-latency-threshold"
               value={predictionLatencyThresholdMs}
@@ -256,31 +236,23 @@ export default function WorkspaceSection() {
               step={5}
               formatValue={(value) => `${String(value)} ms`}
             />
-          )}
-        />
-        <SettingsRow
+          )}</SettingsList.Row>
+        <SettingsList.Row
 		  label={t(strings.deviceIdentity.label)}
-		  hint={t(strings.deviceIdentity.hint)}
-		  control={<input className="h-8 rounded border border-wc-default bg-wc-surface-input px-2 text-sm" value={deviceLabel} onChange={(event) => { setLocalDeviceLabel(event.target.value); setDeviceLabel(event.target.value); }} />}
-		/>
-		<SettingsRow
+		  hint={t(strings.deviceIdentity.hint)} control="compact">{<input className="h-8 rounded border border-wc-default bg-wc-surface-input px-2 text-sm" value={deviceLabel} onChange={(event) => { setLocalDeviceLabel(event.target.value); setDeviceLabel(event.target.value); }} />}</SettingsList.Row>
+		<SettingsList.Row
           label={t(strings.settings.workspaceSection.localeLabel)}
-          hint={t(strings.settings.workspaceSection.localeHint)}
-          control={<LocaleSwitcher />}
-        />
-        <SettingsRow
+          hint={t(strings.settings.workspaceSection.localeHint)} control="compact">{<LocaleSwitcher />}</SettingsList.Row>
+        <SettingsList.Row
           label={t(strings.settings.workspaceSection.keepAwakeLabel)}
-          hint={wakeLockHint}
-          hintClassName={wakeLockHintClass}
-          control={(
+          hint={<span className={wakeLockHintClass}>{wakeLockHint}</span>} control="compact">{(
             <SettingsToggle
               testId="keep-screen-awake-toggle"
               checked={keepScreenAwake}
               onCheckedChange={setKeepScreenAwake}
             />
-          )}
-        />
-      </SettingsCard>
-    </div>
+          )}</SettingsList.Row>
+      </SettingsList.Group>
+    </SettingsList>
   );
 }

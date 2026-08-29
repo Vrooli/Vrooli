@@ -115,20 +115,28 @@ describe("SnippetsPanel", () => {
     expect(controls(seed, "seed")).toEqual(controls(owned, "owned"));
   });
 
-  it("confirms deletion and leaves a stated empty state", async () => {
+  it("confirms deletion in a governed dialog and leaves a stated empty state", async () => {
     api.rows = [row("only", { name: "Only" })];
     render(<SnippetsPanel />);
     fireEvent.click(await screen.findByTestId("snippet-settings-delete-only"));
-    expect(window.confirm).toHaveBeenCalledWith("snippets.settings.deleteConfirm");
+    // The row does not delete on the first press: an in-app dialog stands
+    // between the press and the irreversible call, and no browser modal is
+    // involved on any path.
+    expect(api.deleteSnippet).not.toHaveBeenCalled();
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(await screen.findByTestId("snippet-delete-dialog")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("snippet-delete-confirm"));
     expect(await screen.findByTestId("snippets-empty")).toBeInTheDocument();
+    await waitFor(() => { expect(screen.queryByTestId("snippet-delete-dialog")).toBeNull(); });
   });
 
   it("does nothing when deletion is cancelled", async () => {
-    vi.mocked(window.confirm).mockReturnValue(false);
     render(<SnippetsPanel />);
     fireEvent.click(await screen.findByTestId("snippet-settings-delete-seed"));
+    fireEvent.click(await screen.findByTestId("snippet-delete-cancel"));
     expect(api.deleteSnippet).not.toHaveBeenCalled();
     expect(screen.getByTestId("snippet-settings-row-seed")).toBeInTheDocument();
+    await waitFor(() => { expect(screen.queryByTestId("snippet-delete-dialog")).toBeNull(); });
   });
 
   it("moves a newly pinned snippet to the top", async () => {

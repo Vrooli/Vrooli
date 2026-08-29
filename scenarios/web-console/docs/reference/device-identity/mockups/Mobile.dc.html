@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: #22d3ee; } a:hover { color: #67e8f9; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 390px; height: 844px; background: #020617; position: relative; overflow: hidden;">
+  <div style="position: absolute; inset: 0; background: rgb(15 23 42 / 0.52);"></div>
+
+  <!-- Panel: below 48rem the drawer is full-bleed from --overlay-drawer-top-gap (32px), radius --radius-sheet (16px) -->
+  <div style="position: absolute; left: 0; right: 0; top: 32px; bottom: 0; background: #0f172a; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; overflow: hidden;">
+
+    <!-- Grabber -->
+    <div style="flex: 0 0 auto; display: flex; justify-content: center; padding-top: 8px;">
+      <div style="width: 36px; height: 4px; border-radius: 9999px; background: rgb(255 255 255 / 0.2);"></div>
+    </div>
+
+    <!-- Header -->
+    <div style="flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 12px 24px 16px; border-bottom: 1px solid rgb(255 255 255 / 0.1);">
+      <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+        <h2 style="margin: 0; font: 600 18px/24px system-ui, sans-serif; color: #f8fafc;">Devices &amp; machines</h2>
+        <p style="margin: 0; font-size: 12px; line-height: 16px; color: #94a3b8;">Where you are working from, and what you can work on.</p>
+      </div>
+      <button style="flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -8px -12px 0 0; border: 0; border-radius: 9999px; background: transparent; color: #94a3b8; cursor: pointer;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <!-- Content -->
+    <div style="flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 20px 0 0; display: flex; flex-direction: column; gap: 24px;">
+
+      <!-- Devices -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="padding: 0 24px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+            <span style="font: 500 11px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Devices</span>
+            <span style="font-size: 12px; color: #64748b;">3 connected</span>
+          </div>
+          <span style="font-size: 12px; line-height: 16px; color: #94a3b8;">Screens you are using this console from</span>
+        </div>
+
+        <!-- Swipe rail: cards keep their desktop width so the metaphor survives -->
+        <div style="display: flex; gap: 12px; padding: 0 24px;">
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(34 211 238 / 0.4); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 112px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); box-shadow: inset 0 0 44px rgb(34 211 238 / 0.12); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="-3 0 202 400" style="height: 100%; width: auto;" aria-hidden="true">
+                <rect x="195" y="86" width="3" height="46" rx="1.5" fill="#242E43"></rect>
+                <rect x="-2" y="74" width="3" height="24" rx="1.5" fill="#242E43"></rect>
+                <rect x="-2" y="106" width="3" height="24" rx="1.5" fill="#242E43"></rect>
+                <rect x="0" y="0" width="196" height="400" rx="27" fill="#333F55"></rect>
+                <rect x="0.75" y="0.75" width="194.5" height="398.5" rx="26.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+                <rect x="9" y="9" width="178" height="382" rx="19" fill="#06323b"></rect>
+                <rect x="9" y="9" width="178" height="382" rx="19" fill="none" stroke="rgb(34 211 238 / 0.45)" stroke-width="1"></rect>
+                <rect x="77.42" y="13.7" width="41.16" height="8.55" rx="4.28" fill="#242E43"></rect>
+                <rect x="63.7" y="394.1" width="68.6" height="2.8" rx="1.4" fill="rgb(248 250 252 / 0.4)"></rect>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">iPhone</span>
+                <span style="display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 9999px; border: 1px solid rgb(6 182 212 / 0.4); background: rgb(34 211 238 / 0.1); color: #22d3ee; font: 500 11px/1 system-ui, sans-serif;">You</span>
+              </div>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">Driving api refactor</div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(6 182 212 / 0.4); background: rgb(34 211 238 / 0.1); color: #22d3ee; font: 500 11px/1 system-ui, sans-serif;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                In control
+              </span>
+            </div>
+            <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto;">
+              <button style="width: 100%; height: 44px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.3); background: transparent; color: #f8fafc; font: 500 13px/1 system-ui, sans-serif; cursor: pointer;">Rename</button>
+            </div>
+          </div>
+
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 112px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="-14 0 420 268" style="height: 100%; width: auto;" aria-hidden="true">
+                <path d="M-13.72 252 H405.72 L396.72 268 H-4.72 Z" fill="#242E43"></path>
+                <path d="M-13.72 252 H405.72" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.2" fill="none"></path>
+                <rect x="160.72" y="256.48" width="70.56" height="5.44" rx="2" fill="#020615" opacity="0.55"></rect>
+                <rect x="0" y="0" width="392" height="250" rx="10" fill="#333F55"></rect>
+                <rect x="0.75" y="0.75" width="390.5" height="248.5" rx="9.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+                <rect x="9" y="9" width="374" height="221" rx="3" fill="#020615"></rect>
+                <circle cx="196" cy="4.5" r="2.2" fill="rgb(248 250 252 / 0.4)"></circle>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">Studio MacBook</span>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">Watching api refactor</div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(148 163 184 / 0.25); background: rgb(148 163 184 / 0.1); color: #cbd5e1; font: 500 11px/1 system-ui, sans-serif;">Following</span>
+            </div>
+            <div style="border-top: 1px solid rgb(255 255 255 / 0.1); padding-top: 12px; margin-top: auto;">
+              <button style="width: 100%; height: 44px; border-radius: 9999px; border: 0; background: #22d3ee; color: #0f172a; font: 500 13px/1 system-ui, sans-serif; cursor: pointer;">Give control</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Machines -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div style="padding: 0 24px; display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+            <span style="font: 500 11px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Machines</span>
+            <span style="font-size: 12px; color: #64748b;">3 linked · 2 reachable</span>
+          </div>
+          <span style="font-size: 12px; line-height: 16px; color: #94a3b8;">Computers you can run terminals on</span>
+        </div>
+
+        <div style="display: flex; gap: 12px; padding: 0 24px;">
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="height: 112px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <svg viewBox="0 0 300 200" style="height: 100%; width: auto;" aria-hidden="true">
+                <rect x="0" y="0" width="300" height="200" rx="12" fill="#333F55"></rect>
+                <rect x="0.75" y="0.75" width="298.5" height="198.5" rx="11.25" fill="none" stroke="rgb(248 250 252 / 0.26)" stroke-width="1.5"></rect>
+                <rect x="18" y="18" width="264" height="164" rx="6" fill="#020615"></rect>
+                <rect x="42" y="44" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.1)"></rect>
+                <rect x="42" y="66" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.1)"></rect>
+                <rect x="42" y="88" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.1)"></rect>
+                <rect x="42" y="110" width="150" height="8" rx="4" fill="rgb(248 250 252 / 0.1)"></rect>
+                <circle cx="246" cy="52" r="12" fill="rgb(52 211 153 / 0.15)"></circle>
+                <circle cx="246" cy="52" r="6" fill="#34d399"></circle>
+              </svg>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">minimouse</span>
+              <div style="font-size: 12px; line-height: 16px; color: #64748b;">darwin · amd64 · responded 8s ago</div>
+              <span style="align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; border: 1px solid rgb(52 211 153 / 0.3); background: rgb(52 211 153 / 0.1); color: #6ee7b7; font: 500 11px/1 system-ui, sans-serif;">Reachable · Read only</span>
+            </div>
+          </div>
+          <div style="width: 268px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 12px; padding: 16px;">
+            <div style="height: 112px; border-radius: 8px; background: #020617; border: 1px solid rgb(255 255 255 / 0.06);"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

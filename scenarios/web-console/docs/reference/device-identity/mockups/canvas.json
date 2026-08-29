@@ -1,0 +1,84 @@
+{
+  "artboards": [
+    {
+      "file": "Today.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1040,
+      "title": "Today"
+    },
+    {
+      "file": "Main.dc.html",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 1040,
+      "title": "Proposed"
+    },
+    {
+      "file": "DeviceStates.dc.html",
+      "x": 0,
+      "y": 1200,
+      "w": 1470,
+      "h": 620,
+      "title": "Device card states"
+    },
+    {
+      "file": "Mobile.dc.html",
+      "x": 1570,
+      "y": 1200,
+      "w": 390,
+      "h": 844,
+      "title": "Narrow"
+    },
+    {
+      "file": "Alternatives.dc.html",
+      "x": 0,
+      "y": 2204,
+      "w": 1420,
+      "h": 740,
+      "title": "Layout alternatives"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "note-today",
+      "x": 0,
+      "y": -130,
+      "w": 420,
+      "text": "TODAY\nThe shipped MachineList, redrawn from source at its real values. One vertical list, constrained to max-w-4xl, holding only machines. Devices connected to the console have no home anywhere."
+    },
+    {
+      "id": "note-main",
+      "x": 1560,
+      "y": -130,
+      "w": 480,
+      "text": "PROPOSED\nTwo rails on one axis. The subtitle does the terminology work: devices are where you are working FROM, machines are what you work ON. Rails take the full panel width \u2014 max-w-4xl is what makes the current list feel thin."
+    },
+    {
+      "id": "note-states",
+      "x": 0,
+      "y": 1070,
+      "w": 520,
+      "text": "The lit screen is the lease. Only the device in control gets a lit silhouette \u2014 state as form, not just another pill.\n\nMachines deliberately do NOT wear device silhouettes: a headless VPS is not a laptop, and reusing the frames would flatten the exact distinction this surface exists to make. They share the card grammar and the same body/rim tokens instead. The one exception is This computer, which genuinely is both."
+    },
+    {
+      "id": "note-mobile",
+      "x": 1570,
+      "y": 1070,
+      "w": 380,
+      "text": "Cards keep their 268px width on a phone and the rail becomes a swipe. Turning them back into full-width rows would land exactly where the current list is."
+    },
+    {
+      "id": "note-alts",
+      "x": 0,
+      "y": 2074,
+      "w": 520,
+      "text": "A is drawn in Proposed because it is what you asked for and it reads well on touch. B is worth a look if the device count usually sits at two or three \u2014 the rail leaves a lot of air there. C answers a question the cards cannot, so it belongs beside them rather than instead of them."
+    }
+  ],
+  "launch": {
+    "view": "canvas"
+  }
+}

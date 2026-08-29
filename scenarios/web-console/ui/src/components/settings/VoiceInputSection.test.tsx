@@ -80,8 +80,17 @@ describe("VoiceInputSection", () => {
 
   it("renders the disabled voice settings and keeps browser-only work dormant", () => {
     renderWithProviders(<VoiceInputSection />);
-    expect(screen.getByTestId("voice-enabled-toggle")).toHaveAttribute("aria-checked", "false");
-    fireEvent.click(screen.getByTestId("voice-enabled-toggle"));
+    const toggle = screen.getByTestId("voice-enabled-toggle");
+    const row = toggle.closest("[data-rcl-settings-row]");
+    const list = toggle.closest("[data-rcl-settings-list]");
+
+    expect(list).toHaveAttribute("data-variant", "auto");
+    expect(list).toHaveAttribute("data-density", "comfortable");
+    expect(row).toHaveAttribute("data-control", "compact");
+    expect(toggle).toHaveAttribute("aria-labelledby", row?.querySelector("[data-rcl-settings-row-label]")?.id);
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+
+    fireEvent.click(toggle);
     expect(useWorkspaceStore.getState().voiceEnabled).toBe(true);
   });
 

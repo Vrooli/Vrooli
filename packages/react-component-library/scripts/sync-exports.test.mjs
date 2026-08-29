@@ -54,6 +54,23 @@ test("deprecated highest directory does not control bare resolution", async () =
   }
 });
 
+test("incomplete evicted retirement mirrors are ignored during export resolution", async () => {
+  const root = fixture(
+    { latest: "2.0.0", deprecatedVersions: ["1.0.0"], evictedVersions: ["1.0.0"] },
+    ["1.0.0", "2.0.0"],
+  );
+  try {
+    rmSync(join(root, "components", "Panel", "versions", "1.0.0", "Panel.tsx"));
+    writeFileSync(join(root, "components", "Panel", "versions", "1.0.0", "retired-source.ts"), "export {};\n");
+    const { resolutions } = await resolveCatalogExports({ libraryRoot: root });
+    assert.equal(resolutions["./Panel/1.0.0"], undefined);
+    assert.equal(resolutions["./Panel/1/1.0.0"], undefined);
+    assert.equal(resolutions["./Panel"].version, "2.0.0");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("two supported majors emit an alias for each major", async () => {
   const root = fixture({ latest: "2.1.0" }, ["1.4.0", "2.0.0", "2.1.0"]);
   try {

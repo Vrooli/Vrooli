@@ -13,7 +13,7 @@ import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
-import { SettingsCard } from "./settings/primitives";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 import AppearancePreview from "./appearance/AppearancePreview";
 import HeaderColorPicker from "./appearance/HeaderColorPicker";
 import ThemePicker from "./appearance/ThemePicker";
@@ -179,7 +179,7 @@ export default function AppearanceModal() {
       title={t(strings.appearance.title)}
       testId="appearance-modal"
     >
-      <div className="space-y-4 p-4">
+      <SettingsList className="p-4">
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted mb-2">
             {t(strings.appearance.previewHeading)}
@@ -192,7 +192,7 @@ export default function AppearanceModal() {
           />
         </section>
 
-        <SettingsCard className="space-y-5">
+        <SettingsList.Group>
           <HeaderColorPicker
             currentColor={currentColor}
             onSelectColor={(color) => {
@@ -229,9 +229,9 @@ export default function AppearanceModal() {
               {t(strings.appearance.resetToDefaults)}
             </button>
           </div>
-        </SettingsCard>
+        </SettingsList.Group>
 
-        <SettingsCard className="space-y-3">
+        <SettingsList.Group className="text-[11px] text-wc-text-faint">
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider text-wc-text-muted">
               {t(strings.appearance.applySection.heading)}
@@ -296,8 +296,8 @@ export default function AppearanceModal() {
             <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
             {t(strings.appearance.applySection.manageDefaults)}
           </button>
-        </SettingsCard>
-      </div>
+        </SettingsList.Group>
+      </SettingsList>
 
       <AlertDialog
         open={confirmOpen}

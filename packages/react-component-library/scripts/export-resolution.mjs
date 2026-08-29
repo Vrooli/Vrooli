@@ -51,6 +51,7 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
         .map((entry) => entry.name)
         .sort(compareVersions);
       const deprecated = new Set(Array.isArray(manifest.deprecatedVersions) ? manifest.deprecatedVersions : []);
+      const evicted = new Set(Array.isArray(manifest.evictedVersions) ? manifest.evictedVersions : []);
       const latest = typeof manifest.latest === "string" ? manifest.latest.trim() : "";
       if (!latest || !diskVersions.includes(latest)) {
         failures.push(`${relative(manifestRoot, manifestPath)}: latest ${JSON.stringify(latest)} does not name a released version on disk`);
@@ -70,6 +71,13 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
       for (const version of diskVersions) {
         const entry = await entryForVersion(libraryRoot, kind, name, version);
         if (!entry) {
+          // Evicted releases remain in the manifest as durable lifecycle
+          // history, and an offline materialization pass can temporarily
+          // restore an incomplete retirement mirror during bootstrap. That
+          // mirror is not an export-resolution failure. An evicted release
+          // that still has its canonical entry remains exactly reproducible
+          // for pinned consumers until its source is actually reclaimed.
+          if (evicted.has(version)) continue;
           failures.push(`${relative(manifestRoot, manifestPath)}: ${version} has no public entry module`);
           continue;
         }

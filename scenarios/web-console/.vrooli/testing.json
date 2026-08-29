@@ -191,22 +191,22 @@
         "waivers": []
       },
       "runner_profiles": {
-      "default": {
-        "cpu_weight": 1,
-        "memory_bytes": 536870912,
-        "max_workers": 1,
-        "timeout_seconds": 600,
-        "no_output_timeout_seconds": 180,
+        "default": {
+          "cpu_weight": 1,
+          "memory_bytes": 536870912,
+          "max_workers": 1,
+          "timeout_seconds": 600,
+          "no_output_timeout_seconds": 180,
           "sharding": "none",
           "network": "allow",
           "filesystem": "workspace"
         },
-      "bounded-batches": {
-        "cpu_weight": 1,
-        "memory_bytes": 2147483648,
-        "max_workers": 1,
-        "timeout_seconds": 900,
-        "no_output_timeout_seconds": 180,
+        "bounded-batches": {
+          "cpu_weight": 1,
+          "memory_bytes": 2147483648,
+          "max_workers": 1,
+          "timeout_seconds": 900,
+          "no_output_timeout_seconds": 180,
           "sharding": "none",
           "network": "allow",
           "filesystem": "workspace"
@@ -234,6 +234,23 @@
       },
       "bundle_size": {
         "enabled": true
+      }
+    }
+  },
+  "phases": {
+    "tidiness": {
+      "budgets": {
+        "ratchet": true,
+        "duplication_line_debt": 11805,
+        "baseline_duplication_line_debt": 11806,
+        "long_files": 23,
+        "baseline_long_files": 24,
+        "complexity_over_threshold": 169,
+        "baseline_complexity_over_threshold": 170,
+        "coupling_over_threshold": 9,
+        "baseline_coupling_over_threshold": 10,
+        "reserve": 1,
+        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
       }
     }
   }

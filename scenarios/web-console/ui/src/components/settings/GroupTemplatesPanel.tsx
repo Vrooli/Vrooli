@@ -17,7 +17,8 @@ import { HEADER_COLORS } from "../../consts/config";
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { Button } from "../ui/button";
-import { SettingsCard, SettingsSectionIntro } from "./primitives";
+
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 // [REQ:P0-014g] Group Templates
 
@@ -119,8 +120,8 @@ export default function GroupTemplatesPanel() {
   }));
 
   return (
-    <div data-testid="group-templates-panel" className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList data-testid="group-templates-panel">
+      <SettingsList.Intro
         eyebrow={t(strings.settings.tabTemplates)}
         title={t(strings.groupTemplates.title)}
         description={t(strings.groupTemplates.reorderHint)}
@@ -166,8 +167,8 @@ export default function GroupTemplatesPanel() {
       />
 
       {draft && (
-        <SettingsCard className="space-y-4">
-          <div className="space-y-1.5">
+        <SettingsList.Group>
+          <div>
             <label htmlFor="template-name" className="text-xs font-medium text-wc-text-secondary">
               {t(strings.groupTemplates.name)}
             </label>
@@ -180,7 +181,7 @@ export default function GroupTemplatesPanel() {
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div>
             <span className="text-xs font-medium text-wc-text-secondary">{t(strings.groupTemplates.color)}</span>
             <div className="flex flex-wrap gap-1.5">
               {HEADER_COLORS.map((color) => (
@@ -199,7 +200,7 @@ export default function GroupTemplatesPanel() {
             </div>
           </div>
 
-          <div data-testid="group-templates-role-list" className="space-y-2">
+          <div data-testid="group-templates-role-list">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-wc-text-secondary">{t(strings.groupTemplates.roles)}</span>
               <button
@@ -223,7 +224,7 @@ export default function GroupTemplatesPanel() {
                 const index = state.index;
                 const role = item.value;
                 return (
-                  <div className="space-y-2 rounded-lg border border-wc-default bg-wc-surface-base/40 p-3">
+                  <div className="rounded-lg border border-wc-default bg-wc-surface-base/40 p-3">
                     <div className="flex items-center gap-2">
                       <GripVertical className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />
                       <input
@@ -264,7 +265,7 @@ export default function GroupTemplatesPanel() {
                       className="min-h-11 w-full rounded-lg border border-wc-default bg-wc-surface-input px-3 font-mono text-xs text-wc-text-primary outline-none focus:border-wc-accent"
                     />
 
-                    <div className="space-y-1">
+                    <div>
                       <textarea
                         data-testid={`group-template-role-prompt-${String(index)}`}
                         value={role.incoming_prompt}
@@ -296,8 +297,8 @@ export default function GroupTemplatesPanel() {
               {t(strings.roles.save)}
             </Button>
           </div>
-        </SettingsCard>
+        </SettingsList.Group>
       )}
-    </div>
+    </SettingsList>
   );
 }

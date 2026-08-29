@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: #22d3ee; } a:hover { color: #67e8f9; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 1040px; background: #020617; position: relative; overflow: hidden;">
+  <div style="position: absolute; inset: 0; background: rgb(15 23 42 / 0.52);"></div>
+
+  <div style="position: absolute; inset: 24px; background: #0f172a; border-radius: 8px; border: 1px solid rgb(255 255 255 / 0.06); box-shadow: 0 24px 64px rgb(2 6 23 / 0.6); display: flex; flex-direction: column; overflow: hidden;">
+
+    <!-- Header, as shipped -->
+    <div style="flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 24px; border-bottom: 1px solid rgb(255 255 255 / 0.1);">
+      <h2 style="margin: 0; font: 600 18px/24px system-ui, sans-serif; color: #f8fafc;">Machines</h2>
+      <button style="display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0; border-radius: 9999px; background: transparent; color: #94a3b8; cursor: pointer;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
+    <!-- Content, constrained to max-w-4xl as shipped -->
+    <div style="flex: 1 1 auto; min-height: 0; overflow: hidden;">
+      <div style="max-width: 896px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px;">
+
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+          <span style="font-size: 14px; line-height: 20px; color: #94a3b8;">3 linked · 2 reachable now</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <button style="display: inline-flex; align-items: center; gap: 6px; height: 44px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: #e2e8f0; font: 500 12px/1 system-ui, sans-serif; cursor: pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
+              Refresh
+            </button>
+            <button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border: 0; border-radius: 9999px; background: #f8fafc; color: #0f172a; font: 500 14px/1 system-ui, sans-serif; cursor: pointer;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Add machine
+            </button>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+
+          <!-- Join request banner -->
+          <div style="display: flex; align-items: center; gap: 16px; border-radius: 12px; border: 1px solid rgb(34 211 238 / 0.4); background: rgb(34 211 238 / 0.1); padding: 14px 16px;">
+            <span style="flex: 0 0 auto; display: flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 8px; background: rgb(34 211 238 / 0.2); color: #22d3ee;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+            </span>
+            <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+              <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">Studio Mac wants to join</span>
+              <span style="font-size: 12px; line-height: 16px; color: #64748b;">darwin · arm64 · 192.168.1.44 · asked to join 4s ago</span>
+            </span>
+            <button style="flex: 0 0 auto; height: 36px; padding: 0 16px; border: 0; border-radius: 9999px; background: #f8fafc; color: #0f172a; font: 500 14px/1 system-ui, sans-serif; cursor: pointer;">Review</button>
+          </div>
+
+          <!-- Row: this computer -->
+          <div style="display: flex; align-items: center; gap: 16px; border-radius: 12px; border: 1px solid rgb(255 255 255 / 0.1); background: #1e293b; padding: 14px 16px;">
+            <span style="flex: 0 0 auto; display: flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 8px; background: rgb(34 211 238 / 0.15); color: #22d3ee;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"></rect><line x1="2" y1="21" x2="22" y2="21"></line></svg>
+            </span>
+            <span style="flex: 1 1 192px; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+              <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">This computer</span>
+              <span style="font-size: 12px; line-height: 16px; color: #64748b;">linux · x86_64 · the app is running here</span>
+            </span>
+            <span style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; border: 1px solid rgb(255 255 255 / 0.1); background: #1e293b; padding: 4px 10px; font: 500 11px/1 system-ui, sans-serif; color: #e2e8f0;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"></rect><line x1="2" y1="21" x2="22" y2="21"></line></svg>
+              Local
+            </span>
+            <span style="flex: 0 0 208px; display: flex; flex-direction: column; font-size: 12px; line-height: 20px;">
+              <span style="color: #94a3b8;">Full control</span>
+              <span style="color: #64748b;">every app on this machine</span>
+            </span>
+            <span style="flex: 0 0 auto; width: 72px;"></span>
+          </div>
+
+          <!-- Row: minimouse -->
+          <div style="display: flex; align-items: center; gap: 16px; border-radius: 12px; border: 1px solid rgb(255 255 255 / 0.1); background: #1e293b; padding: 14px 16px;">
+            <span style="flex: 0 0 auto; display: flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 8px; background: #020617; color: #e2e8f0;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+            </span>
+            <span style="flex: 1 1 192px; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+              <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">minimouse</span>
+              <span style="font-size: 12px; line-height: 16px; color: #64748b;">darwin · amd64 · responded 8 seconds ago</span>
+            </span>
+            <span style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; border: 1px solid rgb(52 211 153 / 0.3); background: rgb(52 211 153 / 0.1); padding: 4px 10px; font: 500 11px/1 system-ui, sans-serif; color: #6ee7b7;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              Reachable
+            </span>
+            <span style="flex: 0 0 208px; display: flex; flex-direction: column; font-size: 12px; line-height: 20px;">
+              <span style="color: #94a3b8;">Read only</span>
+              <span style="color: #64748b;">every app on this machine</span>
+            </span>
+            <button style="flex: 0 0 auto; height: 36px; padding: 0 16px; border: 1px solid rgb(255 255 255 / 0.3); border-radius: 9999px; background: transparent; color: #ffffff; font: 500 14px/1 system-ui, sans-serif; cursor: pointer;">Manage</button>
+          </div>
+
+          <!-- Row: swarminator -->
+          <div style="display: flex; align-items: center; gap: 16px; border-radius: 12px; border: 1px solid rgb(255 255 255 / 0.1); background: #1e293b; padding: 14px 16px;">
+            <span style="flex: 0 0 auto; display: flex; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 8px; background: #020617; color: #e2e8f0;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+            </span>
+            <span style="flex: 1 1 192px; min-width: 0; display: flex; flex-direction: column; gap: 2px;">
+              <span style="font: 500 14px/20px system-ui, sans-serif; color: #f8fafc;">swarminator</span>
+              <span style="font-size: 12px; line-height: 16px; color: #64748b;">linux · arm64 · last responded 7 days ago</span>
+              <span style="font-size: 12px; line-height: 20px; color: rgb(253 230 138 / 0.8);">Start Vrooli on swarminator, then try again.</span>
+            </span>
+            <span style="flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; border: 1px solid rgb(251 191 36 / 0.3); background: rgb(251 191 36 / 0.1); padding: 4px 10px; font: 500 11px/1 system-ui, sans-serif; color: #fde68a;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="2" x2="22" y2="22"></line><path d="M8.5 16.5a5 5 0 0 1 7 0"></path><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"></path><line x1="12" y1="20" x2="12.01" y2="20"></line></svg>
+              Not responding
+            </span>
+            <span style="flex: 0 0 208px; display: flex; flex-direction: column; font-size: 12px; line-height: 20px;">
+              <span style="color: #94a3b8;">Operate</span>
+              <span style="color: #64748b;">every app on this machine</span>
+            </span>
+            <button style="flex: 0 0 auto; height: 36px; padding: 0 16px; border: 1px solid rgb(255 255 255 / 0.3); border-radius: 9999px; background: transparent; color: #ffffff; font: 500 14px/1 system-ui, sans-serif; cursor: pointer;">Reconnect</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div style="flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 24px; border-top: 1px solid rgb(255 255 255 / 0.1);">
+      <span style="font-size: 12px; line-height: 16px; color: #64748b;">Machines you link here are available to every Vrooli app on this computer.</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; color: #64748b;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.93 19.07a10 10 0 0 1 0-14.14"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path><circle cx="12" cy="12" r="1.5"></circle></svg>
+        bridge · healthy · :18767
+      </span>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

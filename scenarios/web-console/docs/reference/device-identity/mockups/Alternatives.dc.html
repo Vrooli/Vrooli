@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: #22d3ee; } a:hover { color: #67e8f9; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 1420px; height: 740px; background: #020617; padding: 32px; display: flex; flex-direction: column; gap: 24px;">
+
+  <div style="display: flex; flex-direction: column; gap: 6px;">
+    <span style="font: 500 11px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Layout · three ways to arrange the same cards</span>
+    <h2 style="margin: 0; font: 600 18px/24px system-ui, sans-serif; color: #f8fafc;">Rail, grid, matrix</h2>
+  </div>
+
+  <div style="display: flex; gap: 24px; align-items: stretch; flex: 1 1 auto; min-height: 0;">
+
+    <!-- Option A: rail -->
+    <div style="flex: 1 1 0; display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <span style="font: 600 14px/20px system-ui, sans-serif; color: #22d3ee;">A · Horizontal rail</span>
+        <span style="font-size: 12px; color: #64748b;">drawn in Main</span>
+      </div>
+      <div style="flex: 1 1 auto; background: #0f172a; border: 1px solid rgb(34 211 238 / 0.4); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 18px; overflow: hidden;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="font: 500 10px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Devices</span>
+          <div style="display: flex; gap: 10px;">
+            <div style="width: 116px; height: 148px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(34 211 238 / 0.4); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617; box-shadow: inset 0 0 20px rgb(34 211 238 / 0.14);"></div>
+              <div style="height: 8px; width: 70%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+              <div style="height: 6px; width: 90%; border-radius: 3px; background: rgb(248 250 252 / 0.14);"></div>
+              <div style="height: 14px; width: 62px; border-radius: 9999px; background: rgb(34 211 238 / 0.18); border: 1px solid rgb(6 182 212 / 0.4);"></div>
+            </div>
+            <div style="width: 116px; height: 148px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 55%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+              <div style="height: 6px; width: 85%; border-radius: 3px; background: rgb(248 250 252 / 0.14);"></div>
+              <div style="height: 14px; width: 58px; border-radius: 9999px; background: rgb(148 163 184 / 0.14);"></div>
+            </div>
+            <div style="width: 116px; height: 148px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 66%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+              <div style="height: 6px; width: 80%; border-radius: 3px; background: rgb(248 250 252 / 0.14);"></div>
+            </div>
+            <div style="flex: 1 1 auto; min-width: 0; border: 1px dashed rgb(255 255 255 / 0.1); border-radius: 10px;"></div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="font: 500 10px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Machines</span>
+          <div style="display: flex; gap: 10px;">
+            <div style="width: 116px; height: 148px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 62%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+              <div style="height: 14px; width: 60px; border-radius: 9999px; background: rgb(52 211 153 / 0.16);"></div>
+            </div>
+            <div style="width: 116px; height: 148px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 70%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+              <div style="height: 14px; width: 66px; border-radius: 9999px; background: rgb(251 191 36 / 0.16);"></div>
+            </div>
+            <div style="width: 116px; height: 148px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 58%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+            </div>
+            <div style="width: 60px; height: 148px; flex: 0 0 auto; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; opacity: 0.5;"></div>
+          </div>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 17px; color: #94a3b8;"><span style="color: #6ee7b7;">Keeps</span> the two populations obviously separate, and swipes naturally on a phone. <span style="color: #fde68a;">Costs</span> you the right-hand air when a rail holds two cards, and hides anything past the edge.</p>
+    </div>
+
+    <!-- Option B: wrap grid -->
+    <div style="flex: 1 1 0; display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <span style="font: 600 14px/20px system-ui, sans-serif; color: #e2e8f0;">B · Wrapping grid</span>
+      </div>
+      <div style="flex: 1 1 auto; background: #0f172a; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 18px; overflow: hidden;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="font: 500 10px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Devices</span>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+            <div style="height: 148px; background: #1e293b; border: 1px solid rgb(34 211 238 / 0.4); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617; box-shadow: inset 0 0 20px rgb(34 211 238 / 0.14);"></div>
+              <div style="height: 8px; width: 70%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+              <div style="height: 14px; width: 62px; border-radius: 9999px; background: rgb(34 211 238 / 0.18); border: 1px solid rgb(6 182 212 / 0.4);"></div>
+            </div>
+            <div style="height: 148px; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 55%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+              <div style="height: 14px; width: 58px; border-radius: 9999px; background: rgb(148 163 184 / 0.14);"></div>
+            </div>
+            <div style="height: 148px; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 66%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="font: 500 10px/1 system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: #64748b;">Machines</span>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+            <div style="height: 148px; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 62%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+              <div style="height: 14px; width: 60px; border-radius: 9999px; background: rgb(52 211 153 / 0.16);"></div>
+            </div>
+            <div style="height: 148px; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 70%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+              <div style="height: 14px; width: 66px; border-radius: 9999px; background: rgb(251 191 36 / 0.16);"></div>
+            </div>
+            <div style="height: 148px; background: #1e293b; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="height: 66px; border-radius: 6px; background: #020617;"></div>
+              <div style="height: 8px; width: 58%; border-radius: 4px; background: rgb(248 250 252 / 0.5);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 17px; color: #94a3b8;"><span style="color: #6ee7b7;">Keeps</span> every card visible at any count and fills the panel at three devices. <span style="color: #fde68a;">Costs</span> the horizontal reading you asked for — two grids stacked look more alike than two rails do.</p>
+    </div>
+
+    <!-- Option C: matrix -->
+    <div style="flex: 1 1 0; display: flex; flex-direction: column; gap: 14px; min-width: 0;">
+      <div style="display: flex; align-items: baseline; gap: 10px;">
+        <span style="font: 600 14px/20px system-ui, sans-serif; color: #e2e8f0;">C · Control matrix</span>
+        <span style="font-size: 12px; color: #64748b;">a second view, not a replacement</span>
+      </div>
+      <div style="flex: 1 1 auto; background: #0f172a; border: 1px solid rgb(255 255 255 / 0.1); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 12px; overflow: hidden;">
+        <div style="display: grid; grid-template-columns: 118px repeat(4, minmax(0, 1fr)); gap: 8px; align-items: center;">
+          <span></span>
+          <span style="font-size: 11px; color: #64748b; text-align: center;">api refactor</span>
+          <span style="font-size: 11px; color: #64748b; text-align: center;">test-genie</span>
+          <span style="font-size: 11px; color: #64748b; text-align: center;">logs</span>
+          <span style="font-size: 11px; color: #64748b; text-align: center;">deploy</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 118px repeat(4, minmax(0, 1fr)); gap: 8px; align-items: center;">
+          <span style="font-size: 12px; color: #f8fafc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Studio MacBook</span>
+          <div style="height: 34px; border-radius: 6px; background: rgb(34 211 238 / 0.14); border: 1px solid rgb(6 182 212 / 0.4); display: flex; align-items: center; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06);"></div>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </div>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06);"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 118px repeat(4, minmax(0, 1fr)); gap: 8px; align-items: center;">
+          <span style="font-size: 12px; color: #f8fafc;">iPhone</span>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06); display: flex; align-items: center; justify-content: center;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </div>
+          <div style="height: 34px; border-radius: 6px; background: rgb(34 211 238 / 0.14); border: 1px solid rgb(6 182 212 / 0.4); display: flex; align-items: center; justify-content: center;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06);"></div>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06);"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 118px repeat(4, minmax(0, 1fr)); gap: 8px; align-items: center;">
+          <span style="font-size: 12px; color: #94a3b8;">Kitchen iPad</span>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06);"></div>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06);"></div>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06);"></div>
+          <div style="height: 34px; border-radius: 6px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06);"></div>
+        </div>
+        <div style="display: flex; gap: 16px; padding-top: 6px; border-top: 1px solid rgb(255 255 255 / 0.08); margin-top: 4px;">
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #64748b;">
+            <span style="width: 12px; height: 12px; border-radius: 3px; background: rgb(34 211 238 / 0.14); border: 1px solid rgb(6 182 212 / 0.4);"></span>in control
+          </span>
+          <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: #64748b;">
+            <span style="width: 12px; height: 12px; border-radius: 3px; background: rgb(148 163 184 / 0.08); border: 1px solid rgb(255 255 255 / 0.06);"></span>watching
+          </span>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 12px; line-height: 17px; color: #94a3b8;"><span style="color: #6ee7b7;">Keeps</span> the whole devices-by-sessions picture in one glance, which the cards cannot show. <span style="color: #fde68a;">Costs</span> the silhouettes and every action, so it earns its place only past three or four sessions.</p>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

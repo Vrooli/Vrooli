@@ -54,13 +54,8 @@ import {
 } from "../../audio-integration";
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
-import {
-  SettingsCard,
-  SettingsRow,
-  SettingsSectionIntro,
-  SettingsSlider,
-  SettingsToggle,
-} from "./primitives";
+import { SettingsSlider, SettingsToggle } from "./primitives";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 /** Lease reasons meaning the page/OS pulled the mic, so an in-flight settings
  *  capture must be cancelled (not processed/uploaded). */
@@ -787,45 +782,40 @@ export default function VoiceInputSection() {
   }, [loadSpeakerStatus]);
 
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList>
+      <SettingsList.Intro
         eyebrow={t(strings.settings.voiceInputSection.eyebrow)}
         title={t(strings.settings.voiceInputSection.title)}
         description={t(strings.settings.voiceInputSection.description)}
       />
 
-      <SettingsCard className="space-y-4">
-        <SettingsRow
+      <SettingsList.Group>
+        <SettingsList.Row
           label={t(strings.settings.voiceInputSection.voiceInputLabel)}
-          hint={t(strings.settings.voiceInputSection.voiceInputHint)}
-          control={(
+          hint={t(strings.settings.voiceInputSection.voiceInputHint)} control="compact">{(
             <SettingsToggle
               testId="voice-enabled-toggle"
               checked={voiceEnabled}
               onCheckedChange={setVoiceEnabled}
             />
-          )}
-        />
+          )}</SettingsList.Row>
 
         {voiceEnabled && (
           <>
-            <SettingsRow
+            <SettingsList.Row
               label={t(strings.settings.voiceInputSection.autoStopLabel)}
-              hint={t(strings.settings.voiceInputSection.autoStopHint)}
-              control={(
+              hint={t(strings.settings.voiceInputSection.autoStopHint)} control="compact">{(
                 <SettingsToggle
                   testId="vad-auto-stop-toggle"
                   checked={vadAutoStop}
                   onCheckedChange={setVadAutoStop}
                 />
-              )}
-            />
+              )}</SettingsList.Row>
 
             {vadAutoStop && (
-              <SettingsRow
+              <SettingsList.Row
                 label={t(strings.settings.voiceInputSection.silenceTimeoutLabel)}
-                hint={t(strings.settings.voiceInputSection.silenceTimeoutHint)}
-                control={(
+                hint={t(strings.settings.voiceInputSection.silenceTimeoutHint)} control="wide">{(
                   // Write-through: audio-tools' stt_stream_config.vad_silence_ms
                   // is the single source of truth. Range matches the
                   // server-side validation [200, 3000] in stream_config.go.
@@ -842,14 +832,12 @@ export default function VoiceInputSection() {
                       t(strings.settings.voiceInputSection.secondsShort, { value: (value / 1000).toFixed(1) })
                     }
                   />
-                )}
-              />
+                )}</SettingsList.Row>
             )}
 
-            <SettingsRow
+            <SettingsList.Row
               label={t(strings.settings.voiceInputSection.languageLabel)}
-              hint={t(strings.settings.voiceInputSection.languageHint)}
-              control={(
+              hint={t(strings.settings.voiceInputSection.languageHint)} control="wide">{(
                 <select
                   data-testid="voice-language-select"
                   className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
@@ -868,15 +856,14 @@ export default function VoiceInputSection() {
                   <option value="pt-BR">{t(strings.settings.voiceInputSection.langPtBr)}</option>
                   <option value="hi-IN">{t(strings.settings.voiceInputSection.langHiIn)}</option>
                 </select>
-              )}
-            />
+              )}</SettingsList.Row>
           </>
         )}
-      </SettingsCard>
+      </SettingsList.Group>
 
       {voiceEnabled && (
-        <SettingsCard className="space-y-4">
-          <SettingsSectionIntro
+        <SettingsList.Group>
+          <SettingsList.Intro
             eyebrow={t(strings.settings.voiceInputSection.persistentEyebrow)}
             title={t(strings.settings.voiceInputSection.persistentTitle)}
             description={t(strings.settings.voiceInputSection.persistentDescription)}
@@ -884,24 +871,21 @@ export default function VoiceInputSection() {
 
           {vsConfig && (
             <>
-              <SettingsRow
+              <SettingsList.Row
                 label={t(strings.settings.voiceInputSection.persistentModeLabel)}
-                hint={t(strings.settings.voiceInputSection.persistentModeHint)}
-                control={(
+                hint={t(strings.settings.voiceInputSection.persistentModeHint)} control="compact">{(
                   <SettingsToggle
                     testId="persistent-mode-toggle"
                     checked={vsConfig.persistentMode}
                     onCheckedChange={(next) => handleVsConfigChange({ persistentMode: next })}
                   />
-                )}
-              />
+                )}</SettingsList.Row>
 
               {vsConfig.persistentMode && (
                 <>
-                  <SettingsRow
+                  <SettingsList.Row
                     label={t(strings.settings.voiceInputSection.segmentSilenceLabel)}
-                    hint={t(strings.settings.voiceInputSection.segmentSilenceHint)}
-                    control={(
+                    hint={t(strings.settings.voiceInputSection.segmentSilenceHint)} control="wide">{(
                       // Reads from vad_silence_ms (with legacy fall-back),
                       // writes to vad_silence_ms. Both this slider and
                       // the silence-timeout slider above map to the same
@@ -918,10 +902,9 @@ export default function VoiceInputSection() {
                           t(strings.settings.voiceInputSection.secondsShort, { value: (value / 1000).toFixed(1) })
                         }
                       />
-                    )}
-                  />
+                    )}</SettingsList.Row>
 
-                  <div className="space-y-1.5">
+                  <div>
                     <div className="text-xs font-medium text-wc-text-secondary">{t(strings.settings.voiceInputSection.voiceCommandsTitle)}</div>
                     <div className="text-[11px] text-wc-text-muted mb-1">
                       {t(strings.settings.voiceInputSection.voiceCommandsHint)}
@@ -946,24 +929,23 @@ export default function VoiceInputSection() {
               {t(strings.settings.voiceInputSection.voiceConfigUnavailable)}
             </div>
           )}
-        </SettingsCard>
+        </SettingsList.Group>
       )}
 
       {/* Wake word — independent of persistent mode. Works as a secondary
           trigger in any mode (one-shot or persistent); the mic button still
           behaves normally. */}
       {voiceEnabled && vsConfig && (
-        <SettingsCard className="space-y-4">
-          <SettingsSectionIntro
+        <SettingsList.Group>
+          <SettingsList.Intro
             eyebrow={t(strings.settings.voiceInputSection.wakeWordEyebrow)}
             title={t(strings.settings.voiceInputSection.wakeWordTitle)}
             description={t(strings.settings.voiceInputSection.wakeWordSectionDescription)}
           />
 
-          <SettingsRow
+          <SettingsList.Row
             label={t(strings.settings.voiceInputSection.wakeWordLabel)}
-            hint={t(strings.settings.voiceInputSection.wakeWordHint)}
-            control={(
+            hint={t(strings.settings.voiceInputSection.wakeWordHint)} control="compact">{(
               <SettingsToggle
                 testId="wake-word-toggle"
                 checked={vsConfig.wakeWordEnabled}
@@ -975,8 +957,7 @@ export default function VoiceInputSection() {
                   handleVsConfigChange({ wakeWordEnabled: next });
                 }}
               />
-            )}
-          />
+            )}</SettingsList.Row>
 
           <div className="rounded-xl border border-wc-default bg-wc-surface-base/60 p-3 space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium text-wc-text-secondary">
@@ -999,7 +980,7 @@ export default function VoiceInputSection() {
               />
             </div>
 
-            <div className="space-y-1.5">
+            <div>
               {Array.from({ length: MAX_ENROLLMENT_SAMPLES }, (_, i) => {
                 const sample = wwSamplesRef.current[i] ?? null;
                 const hasSample = sample != null;
@@ -1077,10 +1058,9 @@ export default function VoiceInputSection() {
               })}
             </div>
 
-            <SettingsRow
+            <SettingsList.Row
               label={t(strings.settings.voiceInputSection.sensitivityLabel)}
-              hint={t(strings.settings.voiceInputSection.sensitivityHint)}
-              control={(
+              hint={t(strings.settings.voiceInputSection.sensitivityHint)} control="wide">{(
                 <SettingsSlider
                   testId="wake-word-threshold-slider"
                   value={wakeWordThreshold}
@@ -1093,8 +1073,7 @@ export default function VoiceInputSection() {
                   step={0.05}
                   formatValue={(value) => value.toFixed(2)}
                 />
-              )}
-            />
+              )}</SettingsList.Row>
 
             {wakeWordError && (
               <div className="flex items-center gap-2 text-xs text-wc-error-detail">
@@ -1194,7 +1173,7 @@ export default function VoiceInputSection() {
                 )}
 
                 {wakeWordTest.state.currentResult && (
-                  <div className="space-y-1">
+                  <div>
                     <div className="flex items-center gap-2 text-xs">
                       <span className={wakeWordTest.state.currentResult.isMatch ? "text-green-500 font-medium" : "text-red-500 font-medium"}>
                         {wakeWordTest.state.currentResult.isMatch ? t(strings.settings.voiceInputSection.liveTestMatch) : t(strings.settings.voiceInputSection.liveTestReject)}
@@ -1218,7 +1197,7 @@ export default function VoiceInputSection() {
                 )}
 
                 {wakeWordTest.state.history.length > 1 && (
-                  <div className="space-y-1">
+                  <div>
                     <div className="text-[10px] text-wc-text-faint font-medium">{t(strings.settings.voiceInputSection.recentAttempts)}</div>
                     <div className="max-h-32 overflow-y-auto space-y-1">
                       {wakeWordTest.state.history.map((attempt, i) => (
@@ -1245,12 +1224,12 @@ export default function VoiceInputSection() {
               </>
             )}
           </div>
-        </SettingsCard>
+        </SettingsList.Group>
       )}
 
       {voiceEnabled && (
-        <SettingsCard className="space-y-4">
-          <SettingsSectionIntro
+        <SettingsList.Group>
+          <SettingsList.Intro
             eyebrow={t(strings.settings.voiceInputSection.speakerEyebrow)}
             title={t(strings.settings.voiceInputSection.speakerTitle)}
             description={t(strings.settings.voiceInputSection.speakerDescription)}
@@ -1263,14 +1242,13 @@ export default function VoiceInputSection() {
             </div>
           )}
 
-          <SettingsRow
+          <SettingsList.Row
             label={t(strings.settings.voiceInputSection.resourceStatusLabel)}
             hint={speakerLoading
               ? t(strings.settings.voiceInputSection.resourceStatusChecking)
               : speakerStatus?.capability === "available"
                 ? (speakerStatus.resourceReady ? t(strings.settings.voiceInputSection.resourceReady) : t(strings.settings.voiceInputSection.resourceReachable))
-                : t(strings.settings.voiceInputSection.resourceUnavailable)}
-            control={(
+                : t(strings.settings.voiceInputSection.resourceUnavailable)} control="compact">{(
               <div className="flex items-center gap-2">
                 <span className={`text-xs font-medium ${
                   speakerStatus?.capability === "available" && speakerStatus?.resourceReady
@@ -1290,13 +1268,11 @@ export default function VoiceInputSection() {
                   <RefreshCw className={`h-3.5 w-3.5 text-wc-text-faint ${speakerLoading ? "animate-spin" : ""}`} />
                 </Button>
               </div>
-            )}
-          />
+            )}</SettingsList.Row>
 
-          <SettingsRow
+          <SettingsList.Row
             label={t(strings.settings.voiceInputSection.useSpeakerLabel)}
-            hint={t(strings.settings.voiceInputSection.useSpeakerHint)}
-            control={(
+            hint={t(strings.settings.voiceInputSection.useSpeakerHint)} control="compact">{(
               <SettingsToggle
                 testId="speaker-verification-toggle"
                 checked={speakerStatus?.config.enabled ?? false}
@@ -1312,10 +1288,9 @@ export default function VoiceInputSection() {
                   void persistSpeakerConfig({ enabled: next, profileIds });
                 }}
               />
-            )}
-          />
+            )}</SettingsList.Row>
 
-          <div className="space-y-1.5">
+          <div>
             <div className="text-xs font-medium text-wc-text-secondary">{t(strings.settings.voiceInputSection.activeProfilesTitle)}</div>
             <div className="text-[11px] text-wc-text-muted">
               {t(strings.settings.voiceInputSection.activeProfilesHint)}
@@ -1346,10 +1321,9 @@ export default function VoiceInputSection() {
             )}
           </div>
 
-          <SettingsRow
+          <SettingsList.Row
             label={t(strings.settings.voiceInputSection.modeLabel)}
-            hint={t(strings.settings.voiceInputSection.modeHint)}
-            control={(
+            hint={t(strings.settings.voiceInputSection.modeHint)} control="wide">{(
               <select
                 data-testid="speaker-mode-select"
                 className="rounded-lg border border-wc-default bg-wc-surface-base px-2 py-1 text-xs text-wc-text-primary"
@@ -1362,13 +1336,11 @@ export default function VoiceInputSection() {
                 <option value="advisory">{t(strings.settings.voiceInputSection.modeAdvisory)}</option>
                 <option value="off">{t(strings.settings.voiceInputSection.modeOff)}</option>
               </select>
-            )}
-          />
+            )}</SettingsList.Row>
 
-          <SettingsRow
+          <SettingsList.Row
             label={t(strings.settings.voiceInputSection.thresholdLabel)}
-            hint={t(strings.settings.voiceInputSection.thresholdHint)}
-            control={(
+            hint={t(strings.settings.voiceInputSection.thresholdHint)} control="wide">{(
               <SettingsSlider
                 testId="speaker-threshold-slider"
                 value={speakerStatus?.config.threshold ?? 0.35}
@@ -1380,8 +1352,7 @@ export default function VoiceInputSection() {
                 step={0.01}
                 formatValue={(value) => value.toFixed(2)}
               />
-            )}
-          />
+            )}</SettingsList.Row>
 
           <div className="rounded-xl border border-wc-default bg-wc-surface-base/60 p-3">
             <div className="flex items-center gap-2 text-sm font-medium text-wc-text-secondary">
@@ -1528,14 +1499,13 @@ export default function VoiceInputSection() {
               </div>
             ) : null}
           </div>
-        </SettingsCard>
+        </SettingsList.Group>
       )}
 
-      <SettingsCard className="space-y-4">
-        <SettingsRow
+      <SettingsList.Group>
+        <SettingsList.Row
           label={t(strings.settings.voiceInputSection.shortcutLabel)}
-          hint={t(strings.settings.voiceInputSection.shortcutHint)}
-          control={(
+          hint={t(strings.settings.voiceInputSection.shortcutHint)} control="compact">{(
             <div className="flex items-center gap-2">
               {recordingShortcut ? (
                 <span
@@ -1573,11 +1543,10 @@ export default function VoiceInputSection() {
                 <Keyboard className="h-3.5 w-3.5 text-wc-text-faint" />
               </Button>
             </div>
-          )}
-        />
-      </SettingsCard>
+          )}</SettingsList.Row>
+      </SettingsList.Group>
 
-      <SettingsCard className="space-y-3">
+      <SettingsList.Group>
         <div className="flex items-center justify-between">
           <div>
             <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.voiceInputSection.backendAvailability)}</div>
@@ -1604,7 +1573,7 @@ export default function VoiceInputSection() {
           </div>
         )}
 
-        <div className="space-y-2">
+        <div>
           {voiceCaps.filter((capability) => capability.features.includes("voice-input")).map((capability) => (
             <div key={capability.id} className="flex items-center gap-2 text-xs">
               {capability.status === "available" ? (
@@ -1641,9 +1610,9 @@ export default function VoiceInputSection() {
             {t(strings.settings.voiceInputSection.noBackendWarning)}
           </p>
         )}
-      </SettingsCard>
+      </SettingsList.Group>
 
-      <SettingsCard className="space-y-3">
+      <SettingsList.Group>
         <div>
           <div className="text-sm font-medium text-wc-text-secondary">{t(strings.settings.voiceInputSection.micAccess)}</div>
           <div className="text-[11px] text-wc-text-muted">
@@ -1694,12 +1663,12 @@ export default function VoiceInputSection() {
             {micRequesting ? t(strings.settings.voiceInputSection.requesting) : t(strings.settings.voiceInputSection.allowMicrophone)}
           </Button>
         )}
-      </SettingsCard>
+      </SettingsList.Group>
 
       {voiceEnabled && <TestMicrophoneCard />}
 
       {voiceEnabled && (
-        <SettingsCard className="space-y-3">
+        <SettingsList.Group>
           <button
             data-testid="advanced-streaming-toggle"
             className="flex w-full items-center gap-1 text-start text-[11px] font-semibold uppercase tracking-[0.22em] text-wc-text-muted"
@@ -1710,7 +1679,7 @@ export default function VoiceInputSection() {
           </button>
 
           {advancedOpen && (
-            <div className="space-y-4">
+            <div>
               {vsConfigLoading && (
                 <div className="py-2 text-center text-xs text-wc-text-faint">{t(strings.settings.voiceInputSection.loading)}</div>
               )}
@@ -1724,10 +1693,9 @@ export default function VoiceInputSection() {
 
               {vsConfig && (
                 <>
-                  <SettingsRow
+                  <SettingsList.Row
                     label={t(strings.settings.voiceInputSection.flushIntervalLabel)}
-                    hint={t(strings.settings.voiceInputSection.flushIntervalHint)}
-                    control={(
+                    hint={t(strings.settings.voiceInputSection.flushIntervalHint)} control="wide">{(
                       <SettingsSlider
                         testId="vs-flush-interval"
                         value={vsConfig.flushIntervalMs}
@@ -1739,13 +1707,11 @@ export default function VoiceInputSection() {
                           t(strings.settings.voiceInputSection.msSuffix, { value })
                         }
                       />
-                    )}
-                  />
+                    )}</SettingsList.Row>
 
-                  <SettingsRow
+                  <SettingsList.Row
                     label={t(strings.settings.voiceInputSection.minChunkLabel)}
-                    hint={t(strings.settings.voiceInputSection.minChunkHint)}
-                    control={(
+                    hint={t(strings.settings.voiceInputSection.minChunkHint)} control="wide">{(
                       <SettingsSlider
                         testId="vs-min-delta"
                         value={vsConfig.minDeltaBytes}
@@ -1757,13 +1723,11 @@ export default function VoiceInputSection() {
                           t(strings.settings.voiceInputSection.kbSuffix, { value: (value / 1024).toFixed(1) })
                         }
                       />
-                    )}
-                  />
+                    )}</SettingsList.Row>
 
-                  <SettingsRow
+                  <SettingsList.Row
                     label={t(strings.settings.voiceInputSection.overlapLabel)}
-                    hint={t(strings.settings.voiceInputSection.overlapHint)}
-                    control={(
+                    hint={t(strings.settings.voiceInputSection.overlapHint)} control="wide">{(
                       <SettingsSlider
                         testId="vs-overlap"
                         value={vsConfig.overlapBytes}
@@ -1775,8 +1739,7 @@ export default function VoiceInputSection() {
                           t(strings.settings.voiceInputSection.kbSuffix, { value: (value / 1024).toFixed(1) })
                         }
                       />
-                    )}
-                  />
+                    )}</SettingsList.Row>
 
                   <Button
                     data-testid="vs-reset-defaults"
@@ -1792,9 +1755,9 @@ export default function VoiceInputSection() {
               )}
             </div>
           )}
-        </SettingsCard>
+        </SettingsList.Group>
       )}
-    </div>
+    </SettingsList>
   );
 }
 
@@ -1887,7 +1850,7 @@ function TestMicrophoneCard() {
   const busy = recording || transcribing || detected === "loading";
 
   return (
-    <SettingsCard className="space-y-3">
+    <SettingsList.Group>
       <div className="flex items-center justify-between">
         <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-wc-text-muted">
           {t(strings.settings.voiceInputSection.testMicHeading)}
@@ -1937,7 +1900,7 @@ function TestMicrophoneCard() {
       )}
 
       {result && (
-        <div data-testid="mic-test-result" className="space-y-1 rounded-md border border-wc-default bg-wc-surface-base p-2 text-xs">
+        <div data-testid="mic-test-result" className="rounded-md border border-wc-default bg-wc-surface-base p-2 text-xs">
           <div className="flex justify-between">
             <span className="text-wc-text-muted">{t(strings.settings.voiceInputSection.testMicProviderUsed)}</span>
             <span className="font-medium text-wc-text-primary">{result.providerUsed}</span>
@@ -1946,7 +1909,7 @@ function TestMicrophoneCard() {
             <span className="text-wc-text-muted">{t(strings.settings.voiceInputSection.testMicElapsed)}</span>
             <span className="text-wc-text-primary">{t(strings.settings.voiceInputSection.testMicMsSuffix, { value: result.elapsedMs })}</span>
           </div>
-          <div className="space-y-0.5">
+          <div>
             <div className="text-wc-text-muted">{t(strings.settings.voiceInputSection.testMicTranscript)}</div>
             <div className="rounded bg-wc-surface-raised p-1.5 text-wc-text-primary">
               {result.transcript || <span className="text-wc-text-faint">{t(strings.settings.voiceInputSection.testMicNoTranscript)}</span>}
@@ -1954,6 +1917,6 @@ function TestMicrophoneCard() {
           </div>
         </div>
       )}
-    </SettingsCard>
+    </SettingsList.Group>
   );
 }

@@ -1,21 +1,22 @@
 import { useTranslation } from "react-i18next";
 import { strings } from "../../consts/strings";
 import IntegrationsPanel from "../IntegrationsPanel";
-import { SettingsCard, SettingsSectionIntro } from "./primitives";
+
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.4";
 
 export default function IntegrationsSection({ open }: { open: boolean }) {
   const { t } = useTranslation();
   return (
-    <div className="space-y-4">
-      <SettingsSectionIntro
+    <SettingsList>
+      <SettingsList.Intro
         eyebrow={t(strings.settings.integrationsSection.eyebrow)}
         title={t(strings.settings.integrationsSection.title)}
         description={t(strings.settings.integrationsSection.description)}
       />
 
-      <SettingsCard>
+      <SettingsList.Group>
         <IntegrationsPanel open={open} />
-      </SettingsCard>
-    </div>
+      </SettingsList.Group>
+    </SettingsList>
   );
 }
