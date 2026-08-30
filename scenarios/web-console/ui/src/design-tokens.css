@@ -47,6 +47,18 @@
   --wc-device-action-bg: var(--color-primary);
   --wc-device-action-fg: var(--color-background);
 
+  /* Machine chassis. A machine is compute, not a screen — most are headless —
+   * so its recess is a vent face rather than glass, and reachability is
+   * carried by a status lamp instead of by the shape. The colours stay in the
+   * device family on purpose: both halves of the fleet drawer must shift
+   * together when the terminal palette changes. */
+  --wc-machine-lamp-live: var(--color-primary);
+  --wc-machine-lamp-offline: var(--color-warning);
+  --wc-machine-lamp-dark: var(--wc-device-detail);
+  /* The chassis analogue of --wc-device-screen-lit: a dispatchable machine
+   * washes its vent face the way a leading device lights its screen. */
+  --wc-machine-face-live: color-mix(in srgb, var(--color-primary) 14%, var(--wc-device-screen));
+
   /* Typography. A system-font stack (no bundled webfont): we render with the
    * platform UI typeface rather than shipping a custom font. If the brand later
    * adopts a bundled typeface, self-host it (@font-face + woff2) and lead with
@@ -144,7 +156,8 @@
   --layer-toast: 500;
   --layer-tooltip: 600;
   --layer-menu: 610;
-  --layer-alert: 700;
+	--layer-alert: 700;
+	--layer-banner: 750;
 
   --border-hairline: 1px;
   --border-strong: 2px;

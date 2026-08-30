@@ -27,6 +27,24 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 			}
 		}
 	}
+	if exists, err := pairingTableExists(ctx, db, "pairing_requests"); err != nil {
+		return err
+	} else if exists {
+		for _, column := range []struct{ name, ddl string }{
+			{"machine_arch", "TEXT NOT NULL DEFAULT ''"},
+			{"binary_arch", "TEXT NOT NULL DEFAULT ''"},
+		} {
+			present, err := pairingColumnExists(ctx, db, "pairing_requests", column.name)
+			if err != nil {
+				return err
+			}
+			if !present {
+				if _, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE pairing_requests ADD COLUMN %s %s", column.name, column.ddl)); err != nil {
+					return fmt.Errorf("add pairing_requests.%s: %w", column.name, err)
+				}
+			}
+		}
+	}
 	return nil
 }
 

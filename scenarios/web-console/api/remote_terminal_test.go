@@ -59,7 +59,7 @@ func TestConfiguredRemoteTargetMintsEnrolledLocalSessionByDefault(t *testing.T) 
 		Mode:             sharedsession.ModePersonal,
 		Reference:        "enrollment-1",
 		EnrolledAt:       time.Now().UTC(),
-		ScopeCeiling:     []string{"vrooli-bridge:read", "vrooli-bridge:session"},
+		ScopeCeiling:     []string{"vrooli-bridge:read", "vrooli-bridge:write"},
 	}); err != nil {
 		t.Fatal(err)
 	}

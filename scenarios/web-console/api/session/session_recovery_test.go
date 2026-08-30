@@ -41,6 +41,31 @@ func TestRecover_NoDetachedSessions(t *testing.T) {
 	}
 }
 
+func TestCreateRemoteDoesNotResolveLocalLaunchDirectory(t *testing.T) {
+	var captured pty.LaunchSpec
+	sm := NewManagerWithFactory(func(spec pty.LaunchSpec) (pty.PTY, error) {
+		captured = spec
+		return ptyfake.NewFakePTYWithOutput(), nil
+	})
+	sm.SetUploadDirFunc(t.TempDir)
+	sm.SetEnvForSessionFunc(func(string) map[string]string { return nil })
+
+	sess, err := sm.CreateRemote(context.Background(), RemoteLaunch{
+		BaseURL: "http://bridge.example.test", NodeID: "node-1", Cols: 80, Rows: 24,
+	}, nil)
+	if err != nil {
+		t.Fatalf("CreateRemote: %v", err)
+	}
+	defer func() { _ = sm.Delete(context.Background(), sess.ID) }()
+
+	if captured.Shell != "" {
+		t.Fatalf("remote shell = %q, want empty node-owned value", captured.Shell)
+	}
+	if captured.WorkingDir != "" {
+		t.Fatalf("remote working directory = %q, want empty node-owned value", captured.WorkingDir)
+	}
+}
+
 func TestRecover_OrphanedMetadata_NoTmuxSession_PreservesRow(t *testing.T) {
 	useIsolatedSessionState(t)
 	useIsolatedTmuxSocket(t)

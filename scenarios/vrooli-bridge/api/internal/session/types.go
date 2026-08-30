@@ -13,15 +13,30 @@ import (
 	"vrooli-bridge/internal/audit"
 
 	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scopecatalog"
+)
+
+var (
+	// TransportScope is the ordinary write-effect grant required to open an
+	// interactive session. It is derived from the shared scope grammar rather
+	// than being a second transport-specific vocabulary.
+	TransportScope = mustTransportScope("interactive-session:write")
 )
 
 const (
-	Scope              = "vrooli-bridge:session"
 	DefaultWindow      = uint32(64)
 	DefaultIdle        = 5 * time.Minute
 	DefaultMaxLifetime = 2 * time.Hour
 	historyLimit       = 256
 )
+
+func mustTransportScope(required string) string {
+	scope, ok := scopecatalog.TransportScope(required)
+	if !ok {
+		panic("invalid interactive session transport scope")
+	}
+	return scope
+}
 
 var (
 	ErrScopeDenied   = errors.New("session scope is not granted")
@@ -370,7 +385,7 @@ func (m *Manager) record(ctx context.Context, s *State, action audit.Action, out
 
 func hasScope(scopes []string) bool {
 	for _, scope := range scopes {
-		if scope == Scope {
+		if scope == TransportScope {
 			return true
 		}
 	}

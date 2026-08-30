@@ -88,8 +88,10 @@ func buildManifest() ([]string, map[string][]ArtifactOutput, error) {
 			continue
 		}
 		verb := scope.Verb()
-		effect := string(scope.Effect)
-		required := "vrooli-bridge:" + effect
+		required, ok := scopecatalog.TransportScope(scope.Value)
+		if !ok {
+			return nil, nil, fmt.Errorf("catalog command %q has malformed scope %q", scope.Command, scope.Value)
+		}
 		if !catalog.HasScope(required) {
 			return nil, nil, fmt.Errorf("catalog command %q requires missing bridge effect scope %q", scope.Command, required)
 		}

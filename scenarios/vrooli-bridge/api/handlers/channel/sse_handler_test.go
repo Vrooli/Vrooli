@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/presence"
+	"vrooli-bridge/internal/registry"
+	registrymocks "vrooli-bridge/internal/registry/mocks"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/scheduletest"
@@ -16,6 +18,33 @@ import (
 type presenceProbeWriter struct {
 	header   http.Header
 	onHeader func()
+}
+
+func TestSSEHandler_RecordsExplicitArchitectureFacts(t *testing.T) {
+	hub := presence.NewHub(scheduletest.New(time.Date(2026, 6, 18, 12, 0, 0, 0, time.UTC)))
+	nodes := &registrymocks.FakeService{}
+	nodes.GetOut = registry.Node{ID: "n1"}
+	h := newSSEHandler(sseDeps{Hub: hub, Registry: nodes})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/v1/channel/events?node=n1&pv=2&machine_arch=amd64&binary_arch=arm64", nil)
+	w := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		h.handleEvents(w, req)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		cancel()
+		<-done
+	}
+	require.Equal(t, []string{"n1"}, nodes.ArchitectureIDs)
+	require.Equal(t, []string{"amd64"}, nodes.MachineArchs)
+	require.Equal(t, []string{"arm64"}, nodes.BinaryArchs)
 }
 
 func (w *presenceProbeWriter) Header() http.Header { return w.header }

@@ -44,6 +44,14 @@ func TestInteractiveShellDefaultsBeforeCleaningEmptyInput(t *testing.T) {
 	require.Equal(t, "/bin/sh", interactiveShell("   "))
 }
 
+func TestInteractiveShellFallsBackWhenDefaultIsMissing(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		repocontracttest.SkipPlatform(t, "POSIX fallback shell selection is platform-specific on Windows")
+	}
+	t.Setenv("SHELL", "/does/not/exist/zsh")
+	require.Equal(t, "/bin/sh", interactiveShell(""))
+}
+
 func TestInteractiveCommandEnvMakesConfiguredVrooliBinDiscoverable(t *testing.T) {
 	env := interactiveCommandEnv("/Users/test/.vrooli/bin/vrooli", []string{"PATH=/usr/bin:/bin", "HOME=/Users/test"})
 	require.Contains(t, env, "HOME=/Users/test")

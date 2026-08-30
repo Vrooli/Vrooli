@@ -182,20 +182,24 @@ class ListEnginesRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class EngineInfo(_message.Message):
-    __slots__ = ("id", "display_name", "kind", "available", "native_streaming", "is_active")
+    __slots__ = ("id", "display_name", "kind", "available", "native_streaming", "is_active", "verdict", "reason")
     ID_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_FIELD_NUMBER: _ClassVar[int]
     NATIVE_STREAMING_FIELD_NUMBER: _ClassVar[int]
     IS_ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     id: str
     display_name: str
     kind: str
     available: bool
     native_streaming: bool
     is_active: bool
-    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., kind: _Optional[str] = ..., available: _Optional[bool] = ..., native_streaming: _Optional[bool] = ..., is_active: _Optional[bool] = ...) -> None: ...
+    verdict: str
+    reason: str
+    def __init__(self, id: _Optional[str] = ..., display_name: _Optional[str] = ..., kind: _Optional[str] = ..., available: _Optional[bool] = ..., native_streaming: _Optional[bool] = ..., is_active: _Optional[bool] = ..., verdict: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class ListEnginesResponse(_message.Message):
     __slots__ = ("engines",)

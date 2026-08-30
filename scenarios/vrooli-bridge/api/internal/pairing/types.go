@@ -75,6 +75,8 @@ type PairingRequest struct {
 	Name         string
 	OS           string
 	Arch         string
+	MachineArch  string
+	BinaryArch   string
 	Endpoint     string
 	Capabilities []string
 	Status       RequestStatus
@@ -90,6 +92,8 @@ type NodeFacts struct {
 	Name         string
 	OS           string
 	Arch         string
+	MachineArch  string
+	BinaryArch   string
 	Endpoint     string
 	Capabilities []string
 	Scopes       []string

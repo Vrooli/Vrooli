@@ -34,7 +34,7 @@ func resolveRemoteDesktopCredential(identity, field string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return authority.Resolve(parsed, field)
+	return authority.Require(parsed, field)
 }
 
 func remoteDesktopCredentialsReady() bool {

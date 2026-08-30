@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -126,6 +128,8 @@ func (a registrarAdapter) registerNode(ctx context.Context, facts internalpairin
 		Name:                 facts.Name,
 		OS:                   facts.OS,
 		Arch:                 facts.Arch,
+		MachineArch:          facts.MachineArch,
+		BinaryArch:           facts.BinaryArch,
 		Endpoint:             facts.Endpoint,
 		Capabilities:         facts.Capabilities,
 		Scopes:               facts.Scopes,
@@ -250,7 +254,11 @@ func deriveControlPlaneURL() string {
 	if port == "" {
 		port = "18767"
 	}
-	return "http://" + net.JoinHostPort(outboundIP(), port)
+	ip, err := resolveOutboundIP(net.Dial)
+	if err != nil {
+		log.Printf("control-plane address is not routable: %v; using loopback for local onboarding", err)
+	}
+	return "http://" + net.JoinHostPort(ip, port)
 }
 
 func canonicalControlPlaneEndpoint() (string, string) {
@@ -271,13 +279,28 @@ func startMDNSResponder(logger *log.Logger) *mdns.Responder {
 		}
 	}
 	controlPlaneURL, _ := canonicalControlPlaneEndpoint()
+	ip, err := resolveOutboundIP(net.Dial)
+	if err != nil {
+		logger.Printf("mDNS default-route address is unavailable: %v; using interface candidates when available", err)
+	}
+	candidates, candidatesErr := outboundIPs()
+	if candidatesErr == nil && len(candidates) > 0 {
+		if err != nil || ip == "127.0.0.1" {
+			ip = candidates[0]
+		}
+	}
+	txt := map[string]string{}
+	if len(candidates) > 0 {
+		txt["addresses"] = strings.Join(candidates, ",")
+	}
 	responder := mdns.NewResponder(mdns.ResponderConfig{
 		Service:  "_vrooli-bridge._tcp.local",
 		Instance: "vrooli-bridge",
 		Host:     "vrooli-bridge.local",
 		Port:     bridgeAPIPort(),
-		Address:  net.ParseIP(outboundIP()),
+		Address:  net.ParseIP(ip),
 		URL:      controlPlaneURL,
+		TXT:      txt,
 	})
 	if !enabled {
 		return responder
@@ -302,15 +325,64 @@ func bridgeAPIPort() int {
 // no default route (fully offline) fall back to loopback, which still serves
 // the onboard-this-same-machine case.
 func outboundIP() string {
-	conn, err := net.Dial("udp", "192.0.2.1:9")
+	ip, _ := resolveOutboundIP(net.Dial)
+	return ip
+}
+
+func resolveOutboundIP(dial func(string, string) (net.Conn, error)) (string, error) {
+	conn, err := dial("udp", "192.0.2.1:9")
 	if err != nil {
-		return "127.0.0.1"
+		return "127.0.0.1", fmt.Errorf("default route probe failed: %w", err)
 	}
 	defer conn.Close()
 	if addr, ok := conn.LocalAddr().(*net.UDPAddr); ok && addr.IP != nil && !addr.IP.IsUnspecified() {
-		return addr.IP.String()
+		return addr.IP.String(), nil
 	}
-	return "127.0.0.1"
+	return "127.0.0.1", errors.New("default route probe returned no usable source address")
+}
+
+func outboundIPs() ([]string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	return collectInterfaceIPs(interfaces, func(iface net.Interface) ([]net.Addr, error) {
+		return iface.Addrs()
+	})
+}
+
+func collectInterfaceIPs(interfaces []net.Interface, addresses func(net.Interface) ([]net.Addr, error)) ([]string, error) {
+	seen := map[string]struct{}{}
+	var candidates []string
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := addresses(iface)
+		if err != nil {
+			return nil, fmt.Errorf("read addresses for %s: %w", iface.Name, err)
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch value := addr.(type) {
+			case *net.IPNet:
+				ip = value.IP
+			case *net.IPAddr:
+				ip = value.IP
+			}
+			if ip == nil || ip.IsUnspecified() || ip.IsLoopback() {
+				continue
+			}
+			value := ip.String()
+			if _, ok := seen[value]; ok {
+				continue
+			}
+			seen[value] = struct{}{}
+			candidates = append(candidates, value)
+		}
+	}
+	sort.Strings(candidates)
+	return candidates, nil
 }
 
 func main() {

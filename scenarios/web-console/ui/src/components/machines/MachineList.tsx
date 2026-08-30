@@ -6,6 +6,7 @@ import { machineTestID } from "./testids";
 import type { Fleet, JoinRequest, Machine } from "../../api/machines";
 import { humanAge } from "./age";
 import { GrantLine } from "./grant";
+import type { MachineState } from "../../lib/machineGeometry";
 
 /**
  * Screen 01 — the machines panel.
@@ -51,6 +52,19 @@ export function statusPill(machine: Machine, t: Translate) {
     return { label: t(strings.machines.statusNeverResponded), tone: "border-slate-400/25 bg-slate-400/10 text-slate-300", icon: <WifiOff className="h-3.5 w-3.5" aria-hidden /> };
   }
   return { label: t(strings.machines.statusNotResponding), tone: "border-amber-400/30 bg-amber-400/10 text-amber-200", icon: <WifiOff className="h-3.5 w-3.5" aria-hidden /> };
+}
+
+/**
+ * How a machine's reachability is drawn, derived from the same facts as
+ * {@link statusPill}. The two must not disagree: the lamp and the pill sit on
+ * the same card and describe the same thing, so they are derived side by side
+ * rather than in the components that render them.
+ */
+export function machineDrawState(machine: Machine): MachineState {
+  if (machine.target.available) return "dispatchable";
+  // A machine that has never answered gets a different lamp from one that
+  // answered and later stopped, because the two need different actions.
+  return machine.heartbeatAgeSeconds <= 0 ? "unenrolled" : "offline";
 }
 
 function MachineRow({ machine, onManage }: { machine: Machine; onManage: (machine: Machine) => void }) {

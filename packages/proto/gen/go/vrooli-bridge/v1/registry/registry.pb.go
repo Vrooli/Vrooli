@@ -153,8 +153,9 @@ type Node struct {
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Human-friendly label the owner sets (e.g. "mac-mini-office").
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// Operating system and architecture the node runs (GOOS/GOARCH style),
-	// driving the cross-OS gate's per-OS fan-out.
+	// Operating system and legacy architecture field. `arch` remains for wire
+	// compatibility; refreshed agents populate the separate architecture facts
+	// below so machine identity is not inferred from the binary.
 	Os   string `protobuf:"bytes,3,opt,name=os,proto3" json:"os,omitempty"`
 	Arch string `protobuf:"bytes,4,opt,name=arch,proto3" json:"arch,omitempty"`
 	// The Vrooli git revision the node is currently provisioned to. Updated by
@@ -171,8 +172,8 @@ type Node struct {
 	// Registry-owned catalog grants that authorize what the node may be asked
 	// to run. Command grants use <namespace>:<effect> (for example
 	// "web-console:read") and may use *, <namespace>:*, or *:<effect>;
-	// "vrooli-bridge:session" is a separate transport capability. Enforced at
-	// dispatch; an empty list is presence-only.
+	// Interactive sessions use the ordinary vrooli-bridge:write transport grant,
+	// enforced at dispatch; an empty list is presence-only.
 	Scopes []string `protobuf:"bytes,8,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	// Current status, with the presence overlay applied (see NodeStatus).
 	Status NodeStatus `protobuf:"varint,9,opt,name=status,proto3,enum=vrooli.vrooli_bridge.v1.registry.NodeStatus" json:"status,omitempty"`
@@ -194,8 +195,12 @@ type Node struct {
 	ProtocolCompatible    bool     `protobuf:"varint,19,opt,name=protocol_compatible,json=protocolCompatible,proto3" json:"protocol_compatible,omitempty"`
 	Dispatchable          bool     `protobuf:"varint,20,opt,name=dispatchable,proto3" json:"dispatchable,omitempty"`
 	Kind                  NodeKind `protobuf:"varint,21,opt,name=kind,proto3,enum=vrooli.vrooli_bridge.v1.registry.NodeKind" json:"kind,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Architecture of the physical/virtual machine reported by the agent.
+	MachineArch string `protobuf:"bytes,22,opt,name=machine_arch,json=machineArch,proto3" json:"machine_arch,omitempty"`
+	// Architecture the agent binary was built for.
+	BinaryArch    string `protobuf:"bytes,23,opt,name=binary_arch,json=binaryArch,proto3" json:"binary_arch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Node) Reset() {
@@ -375,6 +380,20 @@ func (x *Node) GetKind() NodeKind {
 	return NodeKind_NODE_KIND_UNSPECIFIED
 }
 
+func (x *Node) GetMachineArch() string {
+	if x != nil {
+		return x.MachineArch
+	}
+	return ""
+}
+
+func (x *Node) GetBinaryArch() string {
+	if x != nil {
+		return x.BinaryArch
+	}
+	return ""
+}
+
 // RegisterNodeRequest carries the durable identity of a node being registered.
 type RegisterNodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -385,6 +404,8 @@ type RegisterNodeRequest struct {
 	Capabilities  []string               `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
 	Scopes        []string               `protobuf:"bytes,6,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	Kind          NodeKind               `protobuf:"varint,7,opt,name=kind,proto3,enum=vrooli.vrooli_bridge.v1.registry.NodeKind" json:"kind,omitempty"`
+	MachineArch   string                 `protobuf:"bytes,8,opt,name=machine_arch,json=machineArch,proto3" json:"machine_arch,omitempty"`
+	BinaryArch    string                 `protobuf:"bytes,9,opt,name=binary_arch,json=binaryArch,proto3" json:"binary_arch,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -466,6 +487,20 @@ func (x *RegisterNodeRequest) GetKind() NodeKind {
 		return x.Kind
 	}
 	return NodeKind_NODE_KIND_UNSPECIFIED
+}
+
+func (x *RegisterNodeRequest) GetMachineArch() string {
+	if x != nil {
+		return x.MachineArch
+	}
+	return ""
+}
+
+func (x *RegisterNodeRequest) GetBinaryArch() string {
+	if x != nil {
+		return x.BinaryArch
+	}
+	return ""
 }
 
 type RegisterNodeResponse struct {
@@ -1044,7 +1079,7 @@ var File_vrooli_bridge_v1_registry_registry_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_registry_registry_proto_rawDesc = "" +
 	"\n" +
-	"(vrooli-bridge/v1/registry/registry.proto\x12 vrooli.vrooli_bridge.v1.registry\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdc\x06\n" +
+	"(vrooli-bridge/v1/registry/registry.proto\x12 vrooli.vrooli_bridge.v1.registry\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\a\n" +
 	"\x04Node\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n" +
@@ -1071,7 +1106,10 @@ const file_vrooli_bridge_v1_registry_registry_proto_rawDesc = "" +
 	"\fchannel_held\x18\x12 \x01(\bR\vchannelHeld\x12/\n" +
 	"\x13protocol_compatible\x18\x13 \x01(\bR\x12protocolCompatible\x12\"\n" +
 	"\fdispatchable\x18\x14 \x01(\bR\fdispatchable\x12>\n" +
-	"\x04kind\x18\x15 \x01(\x0e2*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\"\xe5\x01\n" +
+	"\x04kind\x18\x15 \x01(\x0e2*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\x12!\n" +
+	"\fmachine_arch\x18\x16 \x01(\tR\vmachineArch\x12\x1f\n" +
+	"\vbinary_arch\x18\x17 \x01(\tR\n" +
+	"binaryArch\"\xa9\x02\n" +
 	"\x13RegisterNodeRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n" +
 	"\x02os\x18\x02 \x01(\tR\x02os\x12\x12\n" +
@@ -1079,7 +1117,10 @@ const file_vrooli_bridge_v1_registry_registry_proto_rawDesc = "" +
 	"\bendpoint\x18\x04 \x01(\tR\bendpoint\x12\"\n" +
 	"\fcapabilities\x18\x05 \x03(\tR\fcapabilities\x12\x16\n" +
 	"\x06scopes\x18\x06 \x03(\tR\x06scopes\x12>\n" +
-	"\x04kind\x18\a \x01(\x0e2*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\"R\n" +
+	"\x04kind\x18\a \x01(\x0e2*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\x12!\n" +
+	"\fmachine_arch\x18\b \x01(\tR\vmachineArch\x12\x1f\n" +
+	"\vbinary_arch\x18\t \x01(\tR\n" +
+	"binaryArch\"R\n" +
 	"\x14RegisterNodeResponse\x12:\n" +
 	"\x04node\x18\x01 \x01(\v2&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"\x12\n" +
 	"\x10ListNodesRequest\"Q\n" +

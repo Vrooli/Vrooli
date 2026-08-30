@@ -59,8 +59,8 @@ message Handshake {
   // behaviour with a specific build.
   string agent_version = 3;
 
-  // GOOS / GOARCH the agent was built for (e.g. "linux"/"amd64"). Drives the
-  // cross-OS gate's per-OS fan-out (gate domain).
+  // GOOS and legacy architecture field. `arch` remains for wire compatibility
+  // and is the agent binary architecture for older peers.
   string os = 4;
   string arch = 5;
 
@@ -73,7 +73,16 @@ message Handshake {
   // False is valid: SSE job delivery remains the compatibility fallback.
   bool supports_websocket = 7;
 
-  reserved 8 to 15; // forward growth (hardware facts, agent flags)
+  // Architecture reported by the running machine rather than inferred from
+  // the agent binary. Empty on legacy peers, which are not machine-arch
+  // qualified until refreshed.
+  string machine_arch = 8;
+
+  // Architecture selected when the agent binary was built. This is explicit
+  // so emulated or translated installations cannot masquerade as native.
+  string binary_arch = 9;
+
+  reserved 10 to 15; // forward growth (hardware facts, agent flags)
 }
 
 // HandshakeAck is the control plane's first push after a Handshake. It accepts

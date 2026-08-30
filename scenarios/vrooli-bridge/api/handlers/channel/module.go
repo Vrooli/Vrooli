@@ -23,7 +23,6 @@ import (
 // presence hub; the heartbeat handler also persists last-seen via the registry
 // seam. channel owns no tables of its own.
 func Module(hub *presence.Hub, lastSeen LastSeenRecorder, verifier *nodeauth.Verifier, logger *log.Logger, opts ...HeartbeatOption) module.Module {
-	sse := newSSEHandler(sseDeps{Hub: hub, Verifier: verifier, Logger: logger})
 	heartbeatDeps := HeartbeatDeps{
 		Hub:      hub,
 		LastSeen: lastSeen,
@@ -33,6 +32,7 @@ func Module(hub *presence.Hub, lastSeen LastSeenRecorder, verifier *nodeauth.Ver
 	for _, opt := range opts {
 		opt(&heartbeatDeps)
 	}
+	sse := newSSEHandler(sseDeps{Hub: hub, Verifier: verifier, Logger: logger, Registry: heartbeatDeps.SessionRegistry})
 	path, handler := presenceconnect.NewPresenceServiceHandler(NewHeartbeatHandler(HeartbeatDeps{
 		Hub: heartbeatDeps.Hub, LastSeen: heartbeatDeps.LastSeen,
 		Verifier: heartbeatDeps.Verifier, Logger: heartbeatDeps.Logger,

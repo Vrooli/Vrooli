@@ -14,6 +14,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/
 service DeviceService {
   rpc List(ListRequest) returns (ListResponse);
   rpc Disconnect(DisconnectRequest) returns (DisconnectResponse);
+  rpc GiveControl(GiveControlRequest) returns (GiveControlResponse);
 }
 
 message ListRequest {
@@ -50,4 +51,13 @@ message DisconnectRequest {
 
 message DisconnectResponse {
   int32 closed_connections = 1;
+}
+
+message GiveControlRequest {
+  string device_id = 1;
+  string session_id = 2;
+}
+
+message GiveControlResponse {
+  bool transferred = 1;
 }

@@ -17,7 +17,9 @@ Every module's `prd_ref` points at the operational target it covers (e.g. `"prd_
 Modules 01–03, 05–08, and 10–20 describe shipped or existing bridge
 capabilities. Module 04 is built by this plan: its manifest is derived from
 CLI governance and intersected with registry-owned node execution scopes;
-presence-only is the empty-scope state and `vrooli-bridge:session` is reserved
+presence-only is the empty-scope state. Interactive sessions use the same
+`vrooli-bridge:<effect>` transport-scope convention as relay dispatch, with
+`vrooli-bridge:write` as the operate-tier floor.
 for a future PTY protocol. G8 remains open because the live onboarding path has
 not installed the privileged helper as a separate operating-system principal.
 

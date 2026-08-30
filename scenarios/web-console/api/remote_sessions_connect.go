@@ -49,8 +49,8 @@ func (s *Server) Create(ctx context.Context, in sessionsH.CreateInput) (sessions
 	}
 	created, err := s.sessions.CreateRemote(ctx, session.RemoteLaunch{
 		BaseURL: target.BaseURL, NodeID: target.NodeID, OwnerToken: target.OwnerToken,
-		ReauthToken: target.ReauthToken, Shell: in.Shell, WorkingDir: in.WorkingDir,
-		Cols: uint16(cols), Rows: uint16(rows), LaunchCommand: in.LaunchCommand,
+		ReauthToken: target.ReauthToken,
+		Cols:        uint16(cols), Rows: uint16(rows), LaunchCommand: in.LaunchCommand,
 		ExecuteLaunchCommand: in.ExecuteLaunchCommand,
 	}, sessionPolicy)
 	if err != nil {

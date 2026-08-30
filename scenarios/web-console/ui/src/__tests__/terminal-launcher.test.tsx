@@ -61,6 +61,21 @@ describe("TerminalLauncher", () => {
     expect(screen.getByText(strings.terminalLauncher.emptyShell)).toBeTruthy();
   });
 
+  it("opens with the requested machine selected", () => {
+    render(
+      <TerminalLauncher
+        open={true}
+        onClose={onClose}
+        onLaunch={onLaunch}
+        shortcuts={testShortcuts}
+        initialTarget={{ id: "machine-1", kind: "bridge-node", label: "Remote machine", available: true }}
+        availableTargets={[{ id: "machine-1", kind: "bridge-node", label: "Remote machine", available: true }]}
+      />,
+    );
+
+    expect(screen.getByTestId("launcher-machine-picker")).toHaveAttribute("aria-label", "launcher.machine: Remote machine");
+  });
+
   it("explains and disables launch when no session backend is available", () => {
     render(
       <TerminalLauncher

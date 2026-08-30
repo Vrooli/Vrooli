@@ -505,6 +505,7 @@
     "dropOld": "古い接続を切断",
     "forgetDevice": "このデバイスを忘れる",
     "rename": "名前を変更",
+    "startSession": "セッションを開始",
     "noSession": "開いているセッションはありません",
     "driving": "{{session}} を操作中",
     "alsoDevice": "デバイスでもあります"

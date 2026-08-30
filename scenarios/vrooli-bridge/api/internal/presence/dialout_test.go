@@ -79,7 +79,8 @@ func TestDialOut_FlipsPresenceOnlineThenOffline(t *testing.T) {
 
 // [REQ:BRG-P1-001] The dial-out records the node's protocol-compatibility
 // verdict from the version it advertises (?pv=). A current-version node is
-// dispatchable; a node that omits ?pv= (back-compat) is also dispatchable.
+// dispatchable; a node that omits ?pv= remains held for presence but is not
+// dispatchable until it reports a protocol version.
 func TestDialOut_RecordsProtocolCompatibility(t *testing.T) {
 	srv, hub := startChannelServer(t)
 

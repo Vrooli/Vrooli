@@ -27,6 +27,7 @@ type Service interface {
 
 	// Update validates (id + name required) and persists the editable surface.
 	Update(ctx context.Context, in UpdateInput) (Node, error)
+	UpdateArchitecture(ctx context.Context, id, machineArch, binaryArch string) error
 
 	// Revoke severs a node (idempotent). Returns ErrNodeNotFound when unknown.
 	Revoke(ctx context.Context, id string) (Node, error)
@@ -71,6 +72,12 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Node, error) 
 	if arch == "" {
 		return Node{}, ErrInvalidNode{Field: "arch", Reason: "required"}
 	}
+	machineArch := strings.TrimSpace(in.MachineArch)
+	if machineArch != "" {
+		// Keep the legacy arch projection useful to older consumers: it is the
+		// host architecture, never the translated agent binary architecture.
+		arch = machineArch
+	}
 	kind := strings.TrimSpace(in.Kind)
 	if kind == "" {
 		kind = KindAgent
@@ -86,11 +93,21 @@ func (s *service) Register(ctx context.Context, in RegisterInput) (Node, error) 
 		Kind:                 kind,
 		OS:                   os,
 		Arch:                 arch,
+		MachineArch:          machineArch,
+		BinaryArch:           strings.TrimSpace(in.BinaryArch),
 		Endpoint:             strings.TrimSpace(in.Endpoint),
 		Capabilities:         trimAll(in.Capabilities),
 		Scopes:               trimAll(in.Scopes),
 		PairingCorrelationID: strings.TrimSpace(in.PairingCorrelationID),
 	})
+}
+
+func (s *service) UpdateArchitecture(ctx context.Context, id, machineArch, binaryArch string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return ErrInvalidNode{Field: "id", Reason: "required"}
+	}
+	return s.repo.UpdateArchitecture(ctx, id, strings.TrimSpace(machineArch), strings.TrimSpace(binaryArch))
 }
 
 func (s *service) List(ctx context.Context) ([]Node, error) {
@@ -180,7 +197,7 @@ func validateGrant(scope string, catalog scopecatalog.Catalog, namespaces map[st
 	if strings.Contains(scope, " ") {
 		return ErrInvalidGrant{Scope: scope, Reason: "command-named grants are not allowed; use <namespace>:<effect>"}
 	}
-	if scope == "*" || scope == "vrooli-bridge:session" || catalog.HasScope(scope) {
+	if scope == "*" || catalog.HasScope(scope) {
 		return nil
 	}
 	namespace, effect, ok := strings.Cut(scope, ":")

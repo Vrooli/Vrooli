@@ -106,7 +106,10 @@ describe("TerminalLauncher", () => {
     // card that owns a quarter of the dialog.
     expect(screen.getByTestId("launcher-target-catalog-state")).toHaveTextContent("terminalLauncher.registryError");
     fireEvent.click(screen.getByTestId("launcher-machine-option-offline-node"));
-    expect(screen.getByText("terminalLauncher.targetUnavailable")).toBeInTheDocument();
+    const unavailableOption = screen.getByTestId("launcher-machine-option-offline-node");
+    expect(unavailableOption).toBeDisabled();
+    expect(unavailableOption).toHaveAttribute("title", "node unreachable");
+    expect(screen.getByTestId("launcher-machine-picker")).toHaveAttribute("aria-label", "launcher.machine: This machine");
     expect(screen.getByTestId("launcher-empty-shell")).toBeDisabled();
     expect(screen.getByTestId("launcher-custom-launch")).toBeDisabled();
     await waitFor(() => { expect(screen.getByTestId("launcher-agent-status")).toBeInTheDocument(); });

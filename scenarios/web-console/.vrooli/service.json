@@ -198,21 +198,22 @@
         }
       },
       "terminal-remote-bridge": {
-        "linux": {
-          "status": "build-verified",
-          "mechanism": "vrooli-bridge-websocket-session-stream",
-          "evidence": "api bridge PTY contract tests on linux/amd64"
-        },
-        "macos": {
-          "status": "build-verified",
-          "mechanism": "vrooli-bridge-websocket-session-stream",
-          "evidence": "go build and go vet darwin matrix plus bridge contract tests"
-        },
-        "windows": {
-          "status": "build-verified",
-          "mechanism": "vrooli-bridge-websocket-session-stream",
-          "evidence": "go build and go vet windows matrix plus bridge contract tests"
-        }
+        "pairs": [
+          {
+            "console": "linux",
+            "node": "linux",
+            "status": "build-verified",
+            "mechanism": "vrooli-bridge-websocket-session-stream",
+            "evidence": "api bridge PTY contract tests on linux/amd64"
+          },
+          {
+            "console": "linux",
+            "node": "macos",
+            "status": "supported",
+            "mechanism": "vrooli-bridge-websocket-session-stream",
+            "evidence": "live TestLiveRemoteSessionThroughWebConsole proof on minimouse Darwin amd64; Darwin transcript, resize, and stty assertions"
+          }
+        ]
       },
       "session-working-dir": {
         "linux": {

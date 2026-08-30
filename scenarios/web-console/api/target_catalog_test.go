@@ -119,7 +119,7 @@ func TestTargetCatalogProjectsReadinessAndRecoveryText(t *testing.T) {
 		Scopes:                []string{"system-monitor:read"},
 	}
 	facts := readinessFactsForNode(node)
-	if len(facts) != 6 || facts[0].Passed != true || facts[4].Passed != false || !facts[5].Passed {
+	if len(facts) != 7 || facts[0].Passed != true || facts[4].Passed != false || facts[5].Passed || facts[6].Passed {
 		t.Fatalf("readiness facts = %+v", facts)
 	}
 	if facts[5].Detail != "Read only; changes are not permitted. Granted scopes: system-monitor:read" {

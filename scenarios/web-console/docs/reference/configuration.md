@@ -30,9 +30,15 @@ Tokens are server-side only.
 | Variable | Purpose |
 |----------|---------|
 | `VROOLI_BRIDGE_NODE_ID` | Optional registered node identity retained for a single-node Bridge deployment |
+| `WC_BRIDGE_URL` | Optional server-side Bridge address; empty resolves `vrooli-bridge` on this machine. A non-empty value must be reachable from the Web Console host. |
 | `VROOLI_BRIDGE_API_TOKEN` | Explicit fallback Bridge credential; an enrolled local operator session is preferred when available |
 | `VROOLI_BRIDGE_REAUTH_TOKEN` | Optional short-lived owner re-authentication proof |
 | `VROOLI_BRIDGE_LABEL` | Optional launcher label; defaults to `Bridge fleet` |
+
+When `WC_BRIDGE_URL` points to another machine, the Web Console sends the
+server-held owner credential and remote shell traffic over that connection.
+Use `https://` (and the resulting `wss://` session transport) for non-loopback
+addresses unless an explicitly trusted deployment overrides that policy.
 
 Remote sessions currently report `survives_restart=false`: the Web Console
 keeps the short-lived federation registry in memory and preserves reconnect

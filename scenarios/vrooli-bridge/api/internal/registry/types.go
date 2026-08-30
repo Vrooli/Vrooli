@@ -25,11 +25,17 @@ import (
 // proto wire type at packages/proto/.../v1/registry.Node — the handler
 // translates at the boundary so the domain never imports proto.
 type Node struct {
-	ID           string
-	Name         string
-	Kind         string
-	OS           string
-	Arch         string
+	ID   string
+	Name string
+	Kind string
+	OS   string
+	Arch string
+	// MachineArch is the physical/OS-reported architecture (for example arm64
+	// on an Apple Silicon host). Arch remains the legacy wire field.
+	MachineArch string
+	// BinaryArch is the architecture of the running agent executable. It can
+	// differ from MachineArch when a translation layer is in use.
+	BinaryArch   string
 	Revision     string
 	Endpoint     string
 	Capabilities []string
@@ -58,6 +64,8 @@ type RegisterInput struct {
 	Kind                 string
 	OS                   string
 	Arch                 string
+	MachineArch          string
+	BinaryArch           string
 	Endpoint             string
 	Capabilities         []string
 	Scopes               []string

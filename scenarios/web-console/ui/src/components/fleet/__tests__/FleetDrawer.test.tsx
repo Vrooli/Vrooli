@@ -1,11 +1,11 @@
 import { renderWithProviders as render } from "../../../test-utils";
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setLocale } from "../../../i18n";
-import type { JoinRequest } from "../../../api/machines";
+import type { JoinRequest, Machine } from "../../../api/machines";
 
 const fleetMock = vi.hoisted(() => ({
-  data: { machines: [], joinRequests: [] as JoinRequest[], presets: [], controlPlane: { reachable: false, endpoint: "", consoleUrl: "" } },
+  data: { machines: [] as Machine[], joinRequests: [] as JoinRequest[], presets: [], controlPlane: { reachable: false, endpoint: "", consoleUrl: "" } },
   isLoading: false,
   isFetching: false,
   refetch: vi.fn(),
@@ -42,5 +42,22 @@ describe("FleetDrawer", () => {
     const rail = screen.getByTestId("fleet-rail-machines");
     expect(rail.querySelector("[data-testid='machines-join-request-request-1']")).toBeInTheDocument();
     fleetMock.data.joinRequests = [];
+  });
+
+  it("forwards a machine card's start-session action", () => {
+    const machine: Machine = {
+      target: { id: "machine-2", kind: "bridge-node", label: "Build host", available: true },
+      grant: { summary: "Read terminal", effects: ["read"], appCount: 1, coversAllApps: false, scopes: [], preset: "read" },
+      heartbeatAgeSeconds: 2,
+      manageable: true,
+    };
+    fleetMock.data = { ...fleetMock.data, machines: [machine] };
+    const onStartSession = vi.fn();
+
+    render(<FleetDrawer open onClose={vi.fn()} onStartSession={onStartSession} />);
+    fireEvent.click(screen.getByTestId("machines-start-session-machine-2"));
+
+    expect(onStartSession).toHaveBeenCalledWith(machine);
+    fleetMock.data = { ...fleetMock.data, machines: [] };
   });
 });

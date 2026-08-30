@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
@@ -24,8 +26,10 @@ type SQLExecutor interface {
 }
 
 type sqliteRepository struct {
-	db    SQLExecutor
-	clock schedule.Clock
+	db          SQLExecutor
+	clock       schedule.Clock
+	migrateOnce sync.Once
+	migrateErr  error
 }
 
 // NewSQLiteRepository constructs the production Repository.
@@ -304,6 +308,9 @@ func (s *sqliteRepository) ActiveNodeByPublicKey(ctx context.Context, publicKey 
 }
 
 func (s *sqliteRepository) CreateRequest(ctx context.Context, r PairingRequest) (PairingRequest, error) {
+	if err := s.ensureRequestColumns(ctx); err != nil {
+		return PairingRequest{}, err
+	}
 	if r.ID == "" {
 		r.ID = uuid.NewString()
 	}
@@ -318,9 +325,9 @@ func (s *sqliteRepository) CreateRequest(ctx context.Context, r PairingRequest) 
 		return PairingRequest{}, fmt.Errorf("encode capabilities: %w", err)
 	}
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO pairing_requests (id, public_key, name, os, arch, endpoint, capabilities, status, node_id, created_at, decided_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, '')`,
-		r.ID, r.PublicKey, r.Name, r.OS, r.Arch, r.Endpoint, caps, string(r.Status),
+		`INSERT INTO pairing_requests (id, public_key, name, os, arch, machine_arch, binary_arch, endpoint, capabilities, status, node_id, created_at, decided_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, '')`,
+		r.ID, r.PublicKey, r.Name, r.OS, r.Arch, r.MachineArch, r.BinaryArch, r.Endpoint, caps, string(r.Status),
 		r.CreatedAt.Format(timeFormat))
 	if err != nil {
 		return PairingRequest{}, fmt.Errorf("insert pairing request: %w", err)
@@ -329,8 +336,11 @@ func (s *sqliteRepository) CreateRequest(ctx context.Context, r PairingRequest) 
 }
 
 func (s *sqliteRepository) GetRequest(ctx context.Context, id string) (PairingRequest, error) {
+	if err := s.ensureRequestColumns(ctx); err != nil {
+		return PairingRequest{}, err
+	}
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, public_key, name, os, arch, endpoint, capabilities, status, node_id, created_at, decided_at
+		`SELECT id, public_key, name, os, arch, machine_arch, binary_arch, endpoint, capabilities, status, node_id, created_at, decided_at
 		 FROM pairing_requests WHERE id = ?`, id)
 	r, err := scanRequest(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -361,7 +371,10 @@ func (s *sqliteRepository) DecideRequest(ctx context.Context, id string, status 
 }
 
 func (s *sqliteRepository) ListRequests(ctx context.Context, includeDecided bool) ([]PairingRequest, error) {
-	query := `SELECT id, public_key, name, os, arch, endpoint, capabilities, status, node_id, created_at, decided_at
+	if err := s.ensureRequestColumns(ctx); err != nil {
+		return nil, err
+	}
+	query := `SELECT id, public_key, name, os, arch, machine_arch, binary_arch, endpoint, capabilities, status, node_id, created_at, decided_at
 		FROM pairing_requests `
 	if !includeDecided {
 		query += `WHERE status = 'pending' `
@@ -386,6 +399,22 @@ func (s *sqliteRepository) ListRequests(ctx context.Context, includeDecided bool
 		return nil, fmt.Errorf("iterate pairing requests: %w", err)
 	}
 	return out, nil
+}
+
+func (s *sqliteRepository) ensureRequestColumns(ctx context.Context) error {
+	s.migrateOnce.Do(func() {
+		for _, stmt := range []string{
+			`ALTER TABLE pairing_requests ADD COLUMN machine_arch TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE pairing_requests ADD COLUMN binary_arch TEXT NOT NULL DEFAULT ''`,
+		} {
+			_, s.migrateErr = s.db.ExecContext(ctx, stmt)
+			if s.migrateErr != nil && !strings.Contains(s.migrateErr.Error(), "duplicate column") {
+				return
+			}
+			s.migrateErr = nil
+		}
+	})
+	return s.migrateErr
 }
 
 // --- scan / encode helpers (local to pairing; mirror the registry domain) ---
@@ -455,7 +484,7 @@ func scanRequest(s rowScanner) (PairingRequest, error) {
 		createdRaw string
 		decidedRaw string
 	)
-	if err := s.Scan(&r.ID, &r.PublicKey, &r.Name, &r.OS, &r.Arch, &r.Endpoint,
+	if err := s.Scan(&r.ID, &r.PublicKey, &r.Name, &r.OS, &r.Arch, &r.MachineArch, &r.BinaryArch, &r.Endpoint,
 		&capsRaw, &statusRaw, &r.NodeID, &createdRaw, &decidedRaw); err != nil {
 		return PairingRequest{}, err
 	}

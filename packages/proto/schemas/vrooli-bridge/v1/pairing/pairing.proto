@@ -144,6 +144,8 @@ message RedeemPairingCodeRequest {
   string arch = 5;
   string endpoint = 6;
   repeated string capabilities = 7;
+  string machine_arch = 8;
+  string binary_arch = 9;
 }
 
 message RedeemPairingCodeResponse {
@@ -164,6 +166,8 @@ message RequestPairingRequest {
   string arch = 4;
   string endpoint = 5;
   repeated string capabilities = 6;
+  string machine_arch = 7;
+  string binary_arch = 8;
 }
 
 message RequestPairingResponse {
@@ -226,6 +230,8 @@ message PairingRequest {
   // Short fingerprint of the requesting node's public key. Unlike name, os and
   // endpoint, this value is derived from the key the node proved it holds.
   string key_fingerprint = 12;
+  string machine_arch = 13;
+  string binary_arch = 14;
 }
 
 message ListPairingRequestsRequest {

@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS nodes (
   kind         TEXT NOT NULL DEFAULT 'agent',
   os           TEXT NOT NULL DEFAULT '',
   arch         TEXT NOT NULL DEFAULT '',
+  machine_arch TEXT NOT NULL DEFAULT '',
+  binary_arch  TEXT NOT NULL DEFAULT '',
   revision     TEXT NOT NULL DEFAULT '',
   endpoint     TEXT NOT NULL DEFAULT '',
   capabilities TEXT NOT NULL DEFAULT '[]',

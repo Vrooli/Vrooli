@@ -35,6 +35,39 @@ func TestResolve(t *testing.T) {
 	}
 }
 
+func TestTransportScopeDerivesOnlyKnownEffects(t *testing.T) {
+	for _, tc := range []struct{ required, want string }{
+		{"demo:read", "vrooli-bridge:read"},
+		{"demo:write", "vrooli-bridge:write"},
+		{"demo:destructive", "vrooli-bridge:destructive"},
+	} {
+		got, ok := TransportScope(tc.required)
+		if !ok || got != tc.want {
+			t.Fatalf("TransportScope(%q) = (%q, %t), want %q", tc.required, got, ok, tc.want)
+		}
+	}
+	if got, ok := TransportScope("demo:session"); ok || got != "" {
+		t.Fatalf("unknown effect = (%q, %t), want rejected", got, ok)
+	}
+	for _, required := range []string{"demo:write:extra", ":write", "demo:"} {
+		if got, ok := TransportScope(required); ok || got != "" {
+			t.Fatalf("malformed scope %q = (%q, %t), want rejected", required, got, ok)
+		}
+	}
+}
+
+func TestClassifyScopesIgnoresMalformedValues(t *testing.T) {
+	effects, apps, wildcard := ClassifyScopes([]string{
+		"System-Monitor:read", "web-console:write", "*:read", "broken", "web-console:write:extra",
+	})
+	if !reflect.DeepEqual(effects, []string{"read", "write"}) || apps != 2 || !wildcard {
+		t.Fatalf("ClassifyScopes() = (%v, %d, %t)", effects, apps, wildcard)
+	}
+	if got := SummarizeScopes([]string{"web-console:write"}); got != "Read and operate; destructive actions withheld" {
+		t.Fatalf("SummarizeScopes() = %q", got)
+	}
+}
+
 func TestBuildResilientQuarantinesOneInvalidScenarioManifest(t *testing.T) {
 	root := repoRoot(t)
 	brokenRoot := t.TempDir()

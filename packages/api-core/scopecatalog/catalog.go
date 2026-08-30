@@ -511,6 +511,17 @@ func Resolve(held []string, required string) bool {
 	return false
 }
 
+// TransportScope derives Bridge's transport-level effect grant from a
+// concrete namespace/effect scope. Keeping this derivation here prevents
+// relay and session transports from inventing subtly different grammars.
+func TransportScope(required string) (string, bool) {
+	scope, ok := ParseScope(required)
+	if !ok || scope.Effect == "*" {
+		return "", false
+	}
+	return "vrooli-bridge:" + scope.Effect, true
+}
+
 // Materialize expands held wildcard grants against the concrete scope names
 // supplied by the caller. Entries marked human-only are excluded when
 // agentEligible is false. It performs no I/O, so callers can use it at token

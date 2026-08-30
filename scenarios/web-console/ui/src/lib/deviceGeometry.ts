@@ -12,7 +12,16 @@
 // the element aspect are the same number, so nothing is squashed.
 import type { DeviceArchetype } from "./deviceArchetype";
 
-export interface DeviceGeometry {
+/**
+ * The part of an enclosure every silhouette shares: a rounded body with a
+ * recessed opening in it.
+ *
+ * Machines reuse this (see `machineGeometry.ts`) so both halves of the fleet
+ * drawer are drawn by the same primitives. They deliberately do *not* reuse
+ * {@link DeviceGeometry}: its `base` union and the `DeviceArchetype` key it is
+ * tabled under both belong to the follower viewport, which no machine enters.
+ */
+export interface EnclosureGeometry {
   /** Outer panel width in device units. */
   width: number;
   /** Outer panel height in device units. The stand is drawn outside this. */
@@ -21,10 +30,13 @@ export interface DeviceGeometry {
   radius: number;
   /** Bezel on the left, right and top edges. */
   bezel: number;
-  /** Bezel below the screen, which is thicker on every real device. */
+  /** Bezel below the opening, which is thicker on every real device. */
   chin: number;
-  /** Screen corner radius. */
+  /** Corner radius of the recessed opening — a screen, or a machine's vent face. */
   screenRadius: number;
+}
+
+export interface DeviceGeometry extends EnclosureGeometry {
   /** How the enclosure meets the desk, drawn below the panel bounds. */
   base: "none" | "wedge" | "stand";
   /** Extra device units the base occupies below the panel. */
@@ -40,7 +52,7 @@ export const DEVICE_GEOMETRY: Record<DeviceArchetype, DeviceGeometry> = {
 };
 
 /** Screen rect in device units, for drawing. */
-export function screenBox(geometry: DeviceGeometry): { x: number; y: number; width: number; height: number } {
+export function screenBox(geometry: EnclosureGeometry): { x: number; y: number; width: number; height: number } {
   return {
     x: geometry.bezel,
     y: geometry.bezel,

@@ -967,7 +967,11 @@ type EngineInfo struct {
 	NativeStreaming bool `protobuf:"varint,5,opt,name=native_streaming,json=nativeStreaming,proto3" json:"native_streaming,omitempty"`
 	// is_active is true for the engine the persisted StreamConfig currently
 	// selects (or the manifest default when unset).
-	IsActive      bool `protobuf:"varint,6,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	IsActive bool `protobuf:"varint,6,opt,name=is_active,json=isActive,proto3" json:"is_active,omitempty"`
+	// verdict is selected, candidate, or rejected according to the resolver.
+	Verdict string `protobuf:"bytes,7,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	// reason explains the signal and observed policy result for this candidate.
+	Reason        string `protobuf:"bytes,8,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1042,6 +1046,20 @@ func (x *EngineInfo) GetIsActive() bool {
 		return x.IsActive
 	}
 	return false
+}
+
+func (x *EngineInfo) GetVerdict() string {
+	if x != nil {
+		return x.Verdict
+	}
+	return ""
+}
+
+func (x *EngineInfo) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
 }
 
 type ListEnginesResponse struct {
@@ -4792,7 +4810,7 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x10ffmpeg_available\x18\x02 \x01(\bR\x0fffmpegAvailable\x127\n" +
 	"\x18canonical_sample_rate_hz\x18\x03 \x01(\x05R\x15canonicalSampleRateHz\x12-\n" +
 	"\x12canonical_channels\x18\x04 \x01(\x05R\x11canonicalChannels\"\x14\n" +
-	"\x12ListEnginesRequest\"\xb9\x01\n" +
+	"\x12ListEnginesRequest\"\xeb\x01\n" +
 	"\n" +
 	"EngineInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
@@ -4800,7 +4818,9 @@ const file_audio_tools_v1_stt_stt_proto_rawDesc = "" +
 	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x1c\n" +
 	"\tavailable\x18\x04 \x01(\bR\tavailable\x12)\n" +
 	"\x10native_streaming\x18\x05 \x01(\bR\x0fnativeStreaming\x12\x1b\n" +
-	"\tis_active\x18\x06 \x01(\bR\bisActive\"V\n" +
+	"\tis_active\x18\x06 \x01(\bR\bisActive\x12\x18\n" +
+	"\averdict\x18\a \x01(\tR\averdict\x12\x16\n" +
+	"\x06reason\x18\b \x01(\tR\x06reason\"V\n" +
 	"\x13ListEnginesResponse\x12?\n" +
 	"\aengines\x18\x01 \x03(\v2%.vrooli.audio_tools.v1.stt.EngineInfoR\aengines\"D\n" +
 	"\x1cGetEngineSwitchImpactRequest\x12$\n" +

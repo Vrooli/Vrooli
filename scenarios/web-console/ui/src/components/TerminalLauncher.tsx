@@ -82,6 +82,8 @@ interface TerminalLauncherProps {
   onCreateGroup?: (name: string) => Promise<string | null>;
   /** The appearance a new session will receive, named before launch. */
   appearance?: { headerColor: string; themeId: string; fontSize: number };
+  /** Select a machine when the launcher was opened from its fleet card. */
+  initialTarget?: TerminalTarget;
   /**
    * Create a whole group and its roles in one action.
    *
@@ -149,6 +151,7 @@ export default function TerminalLauncher({
   onCreateGroup,
   appearance,
   onCreateGroupFromRoles,
+  initialTarget,
 }: TerminalLauncherProps) {
   const { t } = useTranslation();
   const [customCommand, setCustomCommand] = useState("");
@@ -159,7 +162,7 @@ export default function TerminalLauncher({
     defaultPolicy ? policyKey(defaultPolicy.mode, defaultPolicy.duration) : "never",
   );
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [selectedTarget, setSelectedTarget] = useState("local");
+  const [selectedTarget, setSelectedTarget] = useState(initialTarget?.id ?? "local");
   // The destination is dialog state, seeded from the caller's pending group.
   // Seeding rather than mirroring is deliberate: once the operator changes it
   // here, a re-render from the caller must not silently move it back.
@@ -173,11 +176,12 @@ export default function TerminalLauncher({
   useEffect(() => {
     if (open) {
       setDestinationGroupId(pendingGroupId);
+      setSelectedTarget(initialTarget?.id ?? "local");
       // Always reopen on the single-session mode: it is the common case, and
       // landing in group mode because the last trip used it would surprise.
       setMode("one-session");
     }
-  }, [open, pendingGroupId]);
+  }, [initialTarget?.id, open, pendingGroupId]);
 
   useEffect(() => { setSelectedBackend(defaultBackend); }, [defaultBackend]);
   useEffect(() => {
@@ -204,9 +208,12 @@ export default function TerminalLauncher({
   const shortcuts = shortcutsProp ?? apiShortcuts ?? DEFAULT_SHORTCUTS;
   const catalogTargets = targetCatalog?.targets ?? availableTargets;
   const targets = useMemo(() => {
-    const local = catalogTargets.find((target) => target.id === "local") ?? localFallback;
-    return [local, ...catalogTargets.filter((target) => target.id !== "local")];
-  }, [catalogTargets]);
+    const catalogWithInitial = initialTarget && !catalogTargets.some((target) => target.id === initialTarget.id)
+      ? [...catalogTargets, initialTarget]
+      : catalogTargets;
+    const local = catalogWithInitial.find((target) => target.id === "local") ?? localFallback;
+    return [local, ...catalogWithInitial.filter((target) => target.id !== "local")];
+  }, [catalogTargets, initialTarget]);
   const selected = targets.find((target) => target.id === selectedTarget) ?? targets[0] ?? localFallback;
   const statusLabels: Record<TerminalTargetState, string> = {
     dispatchable: t(strings.terminalLauncher.dispatchable),
@@ -583,4 +590,3 @@ export default function TerminalLauncher({
     </ResponsiveDialog>
   );
 }
-

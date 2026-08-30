@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/scopecatalog"
 )
 
 // TransportKind identifies how a caller reaches a target.
@@ -58,7 +60,6 @@ const (
 	ReadinessProtocol       = "protocol_compatible"
 	ReadinessDispatch       = "dispatchable"
 	ReadinessBridgeScope    = "bridge_scope"
-	ReadinessAgentCLI       = "agent_cli"
 	ReadinessSessionSupport = "session_support"
 )
 
@@ -74,7 +75,6 @@ func ReadinessCheckFor(identity string, passed bool, detail string) ReadinessChe
 		ReadinessProtocol:       "Protocol compatible",
 		ReadinessDispatch:       "Dispatchable",
 		ReadinessBridgeScope:    "Bridge scope",
-		ReadinessAgentCLI:       "Agent CLI",
 		ReadinessSessionSupport: "Session support",
 	}
 	label := labels[identity]
@@ -91,7 +91,7 @@ func recoveryAction(identity string, passed bool) string {
 	switch identity {
 	case ReadinessHeartbeat, ReadinessChannel:
 		return "Reconnect the Bridge agent, then refresh"
-	case ReadinessProtocol, ReadinessAgentCLI:
+	case ReadinessProtocol:
 		return "Update or provision the Bridge agent, then refresh"
 	case ReadinessBridgeScope:
 		return "Grant the required Bridge scope in the node settings"
@@ -173,6 +173,33 @@ func (t Target) Supports(capability string) bool {
 		}
 	}
 	return false
+}
+
+// CanHostSession is the single admission predicate shared by target
+// catalogs, launch handlers, and readiness projections. It intentionally
+// reports an operator-facing reason instead of allowing a later transport
+// handshake to be the first place an unsupported target is discovered.
+func CanHostSession(t Target) (bool, string) {
+	if t.Transport.Kind == TransportLocal {
+		return true, ""
+	}
+	if t.Transport.Kind != TransportBridge {
+		return false, "this target does not provide a supported session transport"
+	}
+	if t.DeviceKind != "bridge-node" {
+		return false, "this registered target does not host Bridge agent sessions"
+	}
+	if t.BridgeTrust == nil || !t.BridgeTrust.Registered {
+		return false, "this node is not registered with Bridge"
+	}
+	if !t.BridgeTrust.Online || !t.Transport.Available {
+		return false, "this node is offline or its Bridge channel is unavailable"
+	}
+	transportScope, ok := scopecatalog.TransportScope("interactive-session:write")
+	if !ok || !scopecatalog.Resolve(t.Scopes, transportScope) {
+		return false, "this node lacks the required interactive-session transport grant"
+	}
+	return true, ""
 }
 
 // Inventory is a point-in-time target snapshot.

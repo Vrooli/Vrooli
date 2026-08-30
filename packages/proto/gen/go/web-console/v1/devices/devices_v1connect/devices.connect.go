@@ -38,12 +38,16 @@ const (
 	// DeviceServiceDisconnectProcedure is the fully-qualified name of the DeviceService's Disconnect
 	// RPC.
 	DeviceServiceDisconnectProcedure = "/vrooli.web_console.v1.devices.DeviceService/Disconnect"
+	// DeviceServiceGiveControlProcedure is the fully-qualified name of the DeviceService's GiveControl
+	// RPC.
+	DeviceServiceGiveControlProcedure = "/vrooli.web_console.v1.devices.DeviceService/GiveControl"
 )
 
 // DeviceServiceClient is a client for the vrooli.web_console.v1.devices.DeviceService service.
 type DeviceServiceClient interface {
 	List(context.Context, *connect.Request[devices.ListRequest]) (*connect.Response[devices.ListResponse], error)
 	Disconnect(context.Context, *connect.Request[devices.DisconnectRequest]) (*connect.Response[devices.DisconnectResponse], error)
+	GiveControl(context.Context, *connect.Request[devices.GiveControlRequest]) (*connect.Response[devices.GiveControlResponse], error)
 }
 
 // NewDeviceServiceClient constructs a client for the vrooli.web_console.v1.devices.DeviceService
@@ -69,13 +73,20 @@ func NewDeviceServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(deviceServiceMethods.ByName("Disconnect")),
 			connect.WithClientOptions(opts...),
 		),
+		giveControl: connect.NewClient[devices.GiveControlRequest, devices.GiveControlResponse](
+			httpClient,
+			baseURL+DeviceServiceGiveControlProcedure,
+			connect.WithSchema(deviceServiceMethods.ByName("GiveControl")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // deviceServiceClient implements DeviceServiceClient.
 type deviceServiceClient struct {
-	list       *connect.Client[devices.ListRequest, devices.ListResponse]
-	disconnect *connect.Client[devices.DisconnectRequest, devices.DisconnectResponse]
+	list        *connect.Client[devices.ListRequest, devices.ListResponse]
+	disconnect  *connect.Client[devices.DisconnectRequest, devices.DisconnectResponse]
+	giveControl *connect.Client[devices.GiveControlRequest, devices.GiveControlResponse]
 }
 
 // List calls vrooli.web_console.v1.devices.DeviceService.List.
@@ -88,11 +99,17 @@ func (c *deviceServiceClient) Disconnect(ctx context.Context, req *connect.Reque
 	return c.disconnect.CallUnary(ctx, req)
 }
 
+// GiveControl calls vrooli.web_console.v1.devices.DeviceService.GiveControl.
+func (c *deviceServiceClient) GiveControl(ctx context.Context, req *connect.Request[devices.GiveControlRequest]) (*connect.Response[devices.GiveControlResponse], error) {
+	return c.giveControl.CallUnary(ctx, req)
+}
+
 // DeviceServiceHandler is an implementation of the vrooli.web_console.v1.devices.DeviceService
 // service.
 type DeviceServiceHandler interface {
 	List(context.Context, *connect.Request[devices.ListRequest]) (*connect.Response[devices.ListResponse], error)
 	Disconnect(context.Context, *connect.Request[devices.DisconnectRequest]) (*connect.Response[devices.DisconnectResponse], error)
+	GiveControl(context.Context, *connect.Request[devices.GiveControlRequest]) (*connect.Response[devices.GiveControlResponse], error)
 }
 
 // NewDeviceServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -114,12 +131,20 @@ func NewDeviceServiceHandler(svc DeviceServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(deviceServiceMethods.ByName("Disconnect")),
 		connect.WithHandlerOptions(opts...),
 	)
+	deviceServiceGiveControlHandler := connect.NewUnaryHandler(
+		DeviceServiceGiveControlProcedure,
+		svc.GiveControl,
+		connect.WithSchema(deviceServiceMethods.ByName("GiveControl")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.devices.DeviceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DeviceServiceListProcedure:
 			deviceServiceListHandler.ServeHTTP(w, r)
 		case DeviceServiceDisconnectProcedure:
 			deviceServiceDisconnectHandler.ServeHTTP(w, r)
+		case DeviceServiceGiveControlProcedure:
+			deviceServiceGiveControlHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -135,4 +160,8 @@ func (UnimplementedDeviceServiceHandler) List(context.Context, *connect.Request[
 
 func (UnimplementedDeviceServiceHandler) Disconnect(context.Context, *connect.Request[devices.DisconnectRequest]) (*connect.Response[devices.DisconnectResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.devices.DeviceService.Disconnect is not implemented"))
+}
+
+func (UnimplementedDeviceServiceHandler) GiveControl(context.Context, *connect.Request[devices.GiveControlRequest]) (*connect.Response[devices.GiveControlResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.devices.DeviceService.GiveControl is not implemented"))
 }

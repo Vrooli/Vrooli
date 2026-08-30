@@ -27,6 +27,7 @@ type FakeRepository struct {
 	RevokeErr        error
 	RemoveErr        error
 	TouchErr         error
+	ArchitectureErr  error
 	TouchLastSeenIDs []string
 
 	CreateCalls atomic.Int64
@@ -177,6 +178,26 @@ func (f *FakeRepository) TouchLastSeen(_ context.Context, id string, t time.Time
 		existing.LastSeenAt = t
 		f.nodes[id] = existing
 	}
+	return nil
+}
+
+func (f *FakeRepository) UpdateArchitecture(_ context.Context, id, machineArch, binaryArch string) error {
+	if f.ArchitectureErr != nil {
+		return f.ArchitectureErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n, ok := f.nodes[id]
+	if !ok {
+		return registry.ErrNodeNotFound{ID: id}
+	}
+	if machineArch != "" {
+		n.Arch = machineArch
+	}
+	n.MachineArch = machineArch
+	n.BinaryArch = binaryArch
+	n.UpdatedAt = f.now()
+	f.nodes[id] = n
 	return nil
 }
 

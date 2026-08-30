@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -339,10 +341,12 @@ func NewServer(db *database.RoutedDB) *Server {
 	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
 	bridgeOwnerToken, bridgeReauthToken := resolveBridgeOwnerCredentials()
-	// Bridge endpoint selection belongs to packages/nodeclient. The capability
-	// registry receives an empty base here; the target catalog resolves the
-	// scenario-owned endpoint on demand.
-	bridgeURL := ""
+	// Bridge endpoint selection is a Web Console setting. An empty value is
+	// passed through to nodeclient for local slug discovery.
+	bridgeURL := config.Load().BridgeURL
+	if warning := bridgeURLSecurityWarning(bridgeURL); warning != "" {
+		log.Printf("bridge endpoint warning: %s", warning)
+	}
 
 	checkers := newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken, bridgeReauthToken)
 	srv.capabilities = capabilities.NewRegistry(capabilities.Known, checkers, 30*time.Second)
@@ -448,6 +452,25 @@ func NewServer(db *database.RoutedDB) *Server {
 	log.Println("opencode-watcher: started")
 
 	return srv
+}
+
+func bridgeURLSecurityWarning(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return "Bridge URL is not a valid absolute URL"
+	}
+	if u.Scheme != "http" {
+		return ""
+	}
+	host := strings.ToLower(u.Hostname())
+	if host == "localhost" || net.ParseIP(host).IsLoopback() {
+		return ""
+	}
+	return "a non-loopback Bridge URL uses http; owner credentials and shell traffic are not encrypted (use https/wss)"
 }
 
 // newCapabilityCheckers is the production checker map kept separate from

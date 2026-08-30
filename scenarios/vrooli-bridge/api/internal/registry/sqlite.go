@@ -48,12 +48,12 @@ const (
 	nodeTimeFormat = time.RFC3339Nano
 
 	insertNodeSQL = `
-INSERT INTO nodes (id, name, kind, os, arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO nodes (id, name, kind, os, arch, machine_arch, binary_arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectNodeColumns = `
-SELECT id, name, kind, os, arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at
+	SELECT id, name, kind, os, arch, machine_arch, binary_arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at
 FROM nodes
 `
 
@@ -62,8 +62,15 @@ FROM nodes
 	listNodesSQL = selectNodeColumns + `ORDER BY created_at DESC, id DESC`
 
 	updateNodeSQL = `
-UPDATE nodes
+	UPDATE nodes
 SET name = ?, kind = ?, endpoint = ?, capabilities = ?, scopes = ?, revision = ?, updated_at = ?
+WHERE id = ?
+`
+
+	updateArchitectureSQL = `
+UPDATE nodes
+SET arch = CASE WHEN ? <> '' THEN ? ELSE arch END,
+    machine_arch = ?, binary_arch = ?, updated_at = ?
 WHERE id = ?
 `
 
@@ -82,7 +89,7 @@ WHERE id = ?
 )
 
 func (s *sqliteRepository) Create(ctx context.Context, n Node) (Node, error) {
-	if err := s.ensureKindColumn(ctx); err != nil {
+	if err := s.ensureColumns(ctx); err != nil {
 		return Node{}, err
 	}
 	if n.ID == "" {
@@ -108,7 +115,7 @@ func (s *sqliteRepository) Create(ctx context.Context, n Node) (Node, error) {
 		n.Kind = KindAgent
 	}
 	_, err = s.db.ExecContext(ctx, insertNodeSQL,
-		n.ID, n.Name, n.Kind, n.OS, n.Arch, n.Revision, n.Endpoint, caps, scopes,
+		n.ID, n.Name, n.Kind, n.OS, n.Arch, n.MachineArch, n.BinaryArch, n.Revision, n.Endpoint, caps, scopes,
 		n.PairingCorrelationID,
 		n.CreatedAt.Format(nodeTimeFormat), n.UpdatedAt.Format(nodeTimeFormat),
 		formatNullableTime(n.LastSeenAt), formatNullableTime(n.RevokedAt),
@@ -120,7 +127,7 @@ func (s *sqliteRepository) Create(ctx context.Context, n Node) (Node, error) {
 }
 
 func (s *sqliteRepository) GetByPairingCorrelation(ctx context.Context, correlationID string) (Node, error) {
-	if err := s.ensureKindColumn(ctx); err != nil {
+	if err := s.ensureColumns(ctx); err != nil {
 		return Node{}, err
 	}
 	row := s.db.QueryRowContext(ctx, selectNodeColumns+"WHERE pairing_correlation_id = ?", correlationID)
@@ -135,7 +142,7 @@ func (s *sqliteRepository) GetByPairingCorrelation(ctx context.Context, correlat
 }
 
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Node, error) {
-	if err := s.ensureKindColumn(ctx); err != nil {
+	if err := s.ensureColumns(ctx); err != nil {
 		return Node{}, err
 	}
 	row := s.db.QueryRowContext(ctx, selectNodeByIDSQL, id)
@@ -150,7 +157,7 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Node, error) {
 }
 
 func (s *sqliteRepository) List(ctx context.Context) ([]Node, error) {
-	if err := s.ensureKindColumn(ctx); err != nil {
+	if err := s.ensureColumns(ctx); err != nil {
 		return nil, err
 	}
 	rows, err := s.db.QueryContext(ctx, listNodesSQL)
@@ -174,7 +181,7 @@ func (s *sqliteRepository) List(ctx context.Context) ([]Node, error) {
 }
 
 func (s *sqliteRepository) Update(ctx context.Context, n Node) (Node, error) {
-	if err := s.ensureKindColumn(ctx); err != nil {
+	if err := s.ensureColumns(ctx); err != nil {
 		return Node{}, err
 	}
 	// Read-modify-write so the returned node carries the immutable fields
@@ -212,8 +219,27 @@ func (s *sqliteRepository) Update(ctx context.Context, n Node) (Node, error) {
 	return existing, nil
 }
 
+func (s *sqliteRepository) UpdateArchitecture(ctx context.Context, id, machineArch, binaryArch string) error {
+	if err := s.ensureColumns(ctx); err != nil {
+		return err
+	}
+	now := s.clock.Now().UTC().Format(nodeTimeFormat)
+	res, err := s.db.ExecContext(ctx, updateArchitectureSQL, machineArch, machineArch, machineArch, binaryArch, now, id)
+	if err != nil {
+		return fmt.Errorf("update architecture for node %q: %w", id, err)
+	}
+	changed, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update architecture rows: %w", err)
+	}
+	if changed == 0 {
+		return ErrNodeNotFound{ID: id}
+	}
+	return nil
+}
+
 func (s *sqliteRepository) Revoke(ctx context.Context, id string) (Node, error) {
-	if err := s.ensureKindColumn(ctx); err != nil {
+	if err := s.ensureColumns(ctx); err != nil {
 		return Node{}, err
 	}
 	existing, err := s.Get(ctx, id)
@@ -236,7 +262,7 @@ func (s *sqliteRepository) Revoke(ctx context.Context, id string) (Node, error) 
 }
 
 func (s *sqliteRepository) Remove(ctx context.Context, id string) error {
-	if err := s.ensureKindColumn(ctx); err != nil {
+	if err := s.ensureColumns(ctx); err != nil {
 		return err
 	}
 	existing, err := s.Get(ctx, id)
@@ -253,7 +279,7 @@ func (s *sqliteRepository) Remove(ctx context.Context, id string) error {
 }
 
 func (s *sqliteRepository) TouchLastSeen(ctx context.Context, id string, t time.Time) error {
-	if err := s.ensureKindColumn(ctx); err != nil {
+	if err := s.ensureColumns(ctx); err != nil {
 		return err
 	}
 	if _, err := s.db.ExecContext(ctx, touchLastSeenSQL, t.UTC().Format(nodeTimeFormat), id); err != nil {
@@ -277,7 +303,7 @@ func scanNode(s rowScanner) (Node, error) {
 		lastSeenRaw string
 		revokedRaw  string
 	)
-	if err := s.Scan(&n.ID, &n.Name, &n.Kind, &n.OS, &n.Arch, &n.Revision, &n.Endpoint,
+	if err := s.Scan(&n.ID, &n.Name, &n.Kind, &n.OS, &n.Arch, &n.MachineArch, &n.BinaryArch, &n.Revision, &n.Endpoint,
 		&capsRaw, &scopesRaw, &n.PairingCorrelationID, &createdRaw, &updatedRaw, &lastSeenRaw, &revokedRaw); err != nil {
 		return Node{}, err
 	}
@@ -308,13 +334,19 @@ func scanNode(s rowScanner) (Node, error) {
 	return n, nil
 }
 
-func (s *sqliteRepository) ensureKindColumn(ctx context.Context) error {
+func (s *sqliteRepository) ensureColumns(ctx context.Context) error {
 	s.migrateOnce.Do(func() {
-		_, s.migrateErr = s.db.ExecContext(ctx, `ALTER TABLE nodes ADD COLUMN kind TEXT NOT NULL DEFAULT 'agent'`)
-		if s.migrateErr != nil && !strings.Contains(s.migrateErr.Error(), "duplicate column") {
-			return
+		for _, stmt := range []string{
+			`ALTER TABLE nodes ADD COLUMN kind TEXT NOT NULL DEFAULT 'agent'`,
+			`ALTER TABLE nodes ADD COLUMN machine_arch TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE nodes ADD COLUMN binary_arch TEXT NOT NULL DEFAULT ''`,
+		} {
+			_, s.migrateErr = s.db.ExecContext(ctx, stmt)
+			if s.migrateErr != nil && !strings.Contains(s.migrateErr.Error(), "duplicate column") {
+				return
+			}
+			s.migrateErr = nil
 		}
-		s.migrateErr = nil
 	})
 	return s.migrateErr
 }

@@ -508,6 +508,7 @@
     "dropOld": "إسقاط القديم",
     "forgetDevice": "نسيان هذا الجهاز",
     "rename": "إعادة تسمية",
+    "startSession": "بدء جلسة",
     "noSession": "لا توجد جلسة مفتوحة",
     "driving": "يقود {{session}}",
     "alsoDevice": "جهاز أيضًا"

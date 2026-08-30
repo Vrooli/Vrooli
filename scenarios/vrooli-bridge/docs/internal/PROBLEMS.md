@@ -413,7 +413,8 @@ Current identity/delegation work remains on the typed Mode-A ladder:
 4. Treat macOS screenshot proof as hardware evidence only when a real GUI
    login/window-server session exists. An SSH-only launchd domain is a recorded
    environment finding, not a reason to fabricate an artifact or broaden Mode A.
-5. The `vrooli-bridge:session` seam is now implemented as an authenticated,
-   bounded binary WebSocket transport. PTY/backend selection remains a later
-   domain concern; this transport deliberately relays bytes without parsing
-   them.
+5. The interactive session seam is implemented as an authenticated, bounded
+   binary WebSocket transport using the shared `vrooli-bridge:write` effect.
+   PTY/backend selection remains a domain concern; this transport deliberately
+   relays bytes without parsing them. Updated 2026-08-29 by the remote-sessions
+   portability plan.

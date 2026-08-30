@@ -1,5 +1,7 @@
 # Progress — Vrooli Bridge
 
+> Historical entries may mention `vrooli-bridge:session`; that value was removed from the current transport contract on 2026-08-29.
+
 Lifecycle log for meaningful scenario changes. Future agents read this
 file to understand what changed without reconstructing history from git.
 

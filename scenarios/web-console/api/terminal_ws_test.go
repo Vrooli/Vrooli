@@ -629,7 +629,7 @@ func TestLiveRemoteSessionThroughWebConsole(t *testing.T) {
 	}
 	sessionID := created.Session.ID
 	t.Cleanup(func() {
-		req, reqErr := http.NewRequest(http.MethodDelete, baseURL+"/vrooli.web_console.v1.sessions.SessionsService/Delete", strings.NewReader(fmt.Sprintf(`{"id":%q}`, sessionID)))
+		req, reqErr := http.NewRequest(http.MethodPost, baseURL+"/vrooli.web_console.v1.sessions.SessionsService/Delete", strings.NewReader(fmt.Sprintf(`{"id":%q}`, sessionID)))
 		if reqErr != nil {
 			t.Errorf("build remote session cleanup request: %v", reqErr)
 			return
@@ -1320,7 +1320,11 @@ func TestHandleTerminalWS_ReconnectToSameSession(t *testing.T) {
 
 	// Disconnect
 	conn1.Close()
-	time.Sleep(100 * time.Millisecond)
+	// The remote-session contract promises that a short network interruption
+	// does not terminate the server-owned session. Keep the socket detached for
+	// the full five-second interval before attaching again, so this test cannot
+	// pass merely because the reconnect happened immediately.
+	time.Sleep(5 * time.Second)
 
 	// Second connection: should get history
 	conn2, _, err := dialer.Dial(wsURL(ts, "/api/v1/sessions/"+sessID+"/ws"), nil)

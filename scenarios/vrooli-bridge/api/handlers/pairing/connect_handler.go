@@ -87,6 +87,8 @@ func (h *connectHandler) RedeemPairingCode(ctx context.Context, req *connect.Req
 		Name:         req.Msg.GetName(),
 		OS:           req.Msg.GetOs(),
 		Arch:         req.Msg.GetArch(),
+		MachineArch:  req.Msg.GetMachineArch(),
+		BinaryArch:   req.Msg.GetBinaryArch(),
 		Endpoint:     req.Msg.GetEndpoint(),
 		Capabilities: req.Msg.GetCapabilities(),
 	})
@@ -105,6 +107,8 @@ func (h *connectHandler) RequestPairing(ctx context.Context, req *connect.Reques
 		Name:         req.Msg.GetName(),
 		OS:           req.Msg.GetOs(),
 		Arch:         req.Msg.GetArch(),
+		MachineArch:  req.Msg.GetMachineArch(),
+		BinaryArch:   req.Msg.GetBinaryArch(),
 		Endpoint:     req.Msg.GetEndpoint(),
 		Capabilities: req.Msg.GetCapabilities(),
 	})

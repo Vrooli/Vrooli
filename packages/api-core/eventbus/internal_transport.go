@@ -23,7 +23,7 @@ func (t InternalScenarioTransport) RoundTrip(request *http.Request) (*http.Respo
 	if base == nil {
 		base = http.DefaultTransport
 	}
-	if request == nil || t.InternalOrigin == nil || !sameOrigin(request.URL, t.InternalOrigin) || t.IdentityToken == nil {
+	if request == nil || t.InternalOrigin == nil || !sameEndpointOrigin(request.URL, t.InternalOrigin) || t.IdentityToken == nil {
 		return base.RoundTrip(request)
 	}
 	clone := request.Clone(request.Context())
@@ -34,7 +34,7 @@ func (t InternalScenarioTransport) RoundTrip(request *http.Request) (*http.Respo
 	return base.RoundTrip(clone)
 }
 
-func sameOrigin(target, origin *url.URL) bool {
+func sameEndpointOrigin(target, origin *url.URL) bool {
 	return target != nil && strings.EqualFold(target.Scheme, origin.Scheme) && strings.EqualFold(target.Host, origin.Host)
 }
 

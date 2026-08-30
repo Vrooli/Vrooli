@@ -28,7 +28,40 @@
     "tags": [
       "react-ui",
       "go-api"
-    ]
+    ],
+    "platform_capabilities": {
+      "bridge-node-channel": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "dial-out-websocket-channel",
+          "evidence": "Bridge channel contract tests on linux/amd64"
+        },
+        "macos": {
+          "status": "supported",
+          "mechanism": "dial-out-websocket-channel",
+          "evidence": "live minimouse Darwin amd64 agent handshake protocol_version=2 with machine_arch=amd64 and binary_arch=amd64"
+        },
+        "windows": {
+          "status": "build-verified",
+          "mechanism": "dial-out-websocket-channel",
+          "evidence": "cross-platform agent build and protocol fixtures; real Windows run pending"
+        }
+      },
+      "bridge-relay-transport": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "typed-relay-over-node-channel",
+          "evidence": "Bridge relay and dispatch contract tests on linux/amd64"
+        }
+      },
+      "bridge-session-transport": {
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "owner-authenticated-session-websocket",
+          "evidence": "Bridge session websocket and PTY contract tests on linux/amd64"
+        }
+      }
+    }
   },
   "generation": {
     "template": {

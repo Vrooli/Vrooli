@@ -28,6 +28,9 @@ type Repository interface {
 	// Update persists the owner-editable fields of n (matched by n.ID) and
 	// bumps UpdatedAt. Returns ErrNodeNotFound when no row matches.
 	Update(ctx context.Context, n Node) (Node, error)
+	// UpdateArchitecture records the agent's self-reported machine and binary
+	// architectures without allowing the node to edit owner-controlled fields.
+	UpdateArchitecture(ctx context.Context, id, machineArch, binaryArch string) error
 
 	// Revoke stamps revoked_at on the node (idempotent: a second revoke is a
 	// no-op that returns the already-revoked record). Returns ErrNodeNotFound

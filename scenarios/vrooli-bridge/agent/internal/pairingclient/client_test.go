@@ -28,6 +28,9 @@ func TestJoinDisplaysWordsAndWaitsForApproval(t *testing.T) {
 			if req.Msg.GetNodePublicKey() != cred.PublicKeyBase64() {
 				t.Fatalf("node public key = %q, want generated credential", req.Msg.GetNodePublicKey())
 			}
+			if req.Msg.GetMachineArch() != "amd64" || req.Msg.GetBinaryArch() != "arm64" {
+				t.Fatalf("architecture facts = %s/%s, want amd64/arm64", req.Msg.GetMachineArch(), req.Msg.GetBinaryArch())
+			}
 			return connect.NewResponse(&pairingv1.RequestPairingResponse{RequestId: "req-1", ConfirmationWords: []string{"amber", "orbit", "cedar"}}), nil
 		},
 	))
@@ -49,7 +52,7 @@ func TestJoinDisplaysWordsAndWaitsForApproval(t *testing.T) {
 
 	var displayed []string
 	result, err := (Client{BaseURL: server.URL, PollEvery: time.Millisecond, Display: func(words []string) { displayed = append([]string(nil), words...) }}).Join(
-		context.Background(), cred, Facts{Name: "scratch-mac", OS: "darwin", Arch: "arm64"},
+		context.Background(), cred, Facts{Name: "scratch-mac", OS: "darwin", Arch: "arm64", MachineArch: "amd64", BinaryArch: "arm64"},
 	)
 	if err != nil {
 		t.Fatal(err)

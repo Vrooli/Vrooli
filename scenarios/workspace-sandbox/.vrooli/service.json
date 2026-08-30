@@ -15,13 +15,15 @@
         }
       }
     },
-    "cleanup_providers": [{
-      "id": "workspace-sandbox-retention",
-      "name": "Workspace Sandbox retained sandboxes",
-      "safety_tier": "safe_with_owner",
-      "default_mode": "disabled",
-      "default_approval": "owner"
-    }],
+    "cleanup_providers": [
+      {
+        "id": "workspace-sandbox-retention",
+        "name": "Workspace Sandbox retained sandboxes",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
   },
   "service": {
@@ -66,7 +68,10 @@
       {
         "name": "sandbox",
         "source": "skills/sandbox/SKILL.md",
-        "command_groups": ["sandbox", "change"]
+        "command_groups": [
+          "sandbox",
+          "change"
+        ]
       }
     ],
     "entitlement_tier": "free",

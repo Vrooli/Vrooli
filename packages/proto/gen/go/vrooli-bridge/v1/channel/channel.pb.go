@@ -109,8 +109,8 @@ type Handshake struct {
 	// The agent binary's build fingerprint, so the control plane can correlate
 	// behaviour with a specific build.
 	AgentVersion string `protobuf:"bytes,3,opt,name=agent_version,json=agentVersion,proto3" json:"agent_version,omitempty"`
-	// GOOS / GOARCH the agent was built for (e.g. "linux"/"amd64"). Drives the
-	// cross-OS gate's per-OS fan-out (gate domain).
+	// GOOS and legacy architecture field. `arch` remains for wire compatibility
+	// and is the agent binary architecture for older peers.
 	Os   string `protobuf:"bytes,4,opt,name=os,proto3" json:"os,omitempty"`
 	Arch string `protobuf:"bytes,5,opt,name=arch,proto3" json:"arch,omitempty"`
 	// Self-reported verb-namespace capabilities the node is willing to run
@@ -120,8 +120,15 @@ type Handshake struct {
 	// True when the agent can participate in the bidirectional session wire.
 	// False is valid: SSE job delivery remains the compatibility fallback.
 	SupportsWebsocket bool `protobuf:"varint,7,opt,name=supports_websocket,json=supportsWebsocket,proto3" json:"supports_websocket,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Architecture reported by the running machine rather than inferred from
+	// the agent binary. Empty on legacy peers, which are not machine-arch
+	// qualified until refreshed.
+	MachineArch string `protobuf:"bytes,8,opt,name=machine_arch,json=machineArch,proto3" json:"machine_arch,omitempty"`
+	// Architecture selected when the agent binary was built. This is explicit
+	// so emulated or translated installations cannot masquerade as native.
+	BinaryArch    string `protobuf:"bytes,9,opt,name=binary_arch,json=binaryArch,proto3" json:"binary_arch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Handshake) Reset() {
@@ -201,6 +208,20 @@ func (x *Handshake) GetSupportsWebsocket() bool {
 		return x.SupportsWebsocket
 	}
 	return false
+}
+
+func (x *Handshake) GetMachineArch() string {
+	if x != nil {
+		return x.MachineArch
+	}
+	return ""
+}
+
+func (x *Handshake) GetBinaryArch() string {
+	if x != nil {
+		return x.BinaryArch
+	}
+	return ""
 }
 
 // HandshakeAck is the control plane's first push after a Handshake. It accepts
@@ -1838,7 +1859,7 @@ var File_vrooli_bridge_v1_channel_channel_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\n" +
-	"&vrooli-bridge/v1/channel/channel.proto\x12\x1fvrooli.vrooli_bridge.v1.channel\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$vrooli-bridge/v1/shared/shared.proto\"\xf1\x01\n" +
+	"&vrooli-bridge/v1/channel/channel.proto\x12\x1fvrooli.vrooli_bridge.v1.channel\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$vrooli-bridge/v1/shared/shared.proto\"\xb5\x02\n" +
 	"\tHandshake\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12\x17\n" +
 	"\anode_id\x18\x02 \x01(\tR\x06nodeId\x12#\n" +
@@ -1846,7 +1867,11 @@ const file_vrooli_bridge_v1_channel_channel_proto_rawDesc = "" +
 	"\x02os\x18\x04 \x01(\tR\x02os\x12\x12\n" +
 	"\x04arch\x18\x05 \x01(\tR\x04arch\x12\"\n" +
 	"\fcapabilities\x18\x06 \x03(\tR\fcapabilities\x12-\n" +
-	"\x12supports_websocket\x18\a \x01(\bR\x11supportsWebsocketJ\x04\b\b\x10\x10\"\x81\x02\n" +
+	"\x12supports_websocket\x18\a \x01(\bR\x11supportsWebsocket\x12!\n" +
+	"\fmachine_arch\x18\b \x01(\tR\vmachineArch\x12\x1f\n" +
+	"\vbinary_arch\x18\t \x01(\tR\n" +
+	"binaryArchJ\x04\b\n" +
+	"\x10\x10\"\x81\x02\n" +
 	"\fHandshakeAck\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\x12Y\n" +
 	"\rcompatibility\x18\x02 \x01(\x0e23.vrooli.vrooli_bridge.v1.shared.CompatibilityStatusR\rcompatibility\x12C\n" +

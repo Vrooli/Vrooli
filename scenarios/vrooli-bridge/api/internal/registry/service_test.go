@@ -65,11 +65,14 @@ func TestService_Register_NormalisesCapabilities(t *testing.T) {
 		Scopes: []scopecatalog.Scope{{Scenario: "demo", Value: "demo:read"}},
 	})))
 	n, err := svc.Register(context.Background(), registry.RegisterInput{
-		Name: "a", OS: "linux", Arch: "amd64",
+		Name: "a", OS: "linux", Arch: "arm64", MachineArch: "amd64", BinaryArch: "arm64",
 		Capabilities: []string{" scenario test* ", "", "  "},
 		Scopes:       []string{"demo:read"},
 	})
 	require.NoError(t, err)
+	require.Equal(t, "amd64", n.Arch)
+	require.Equal(t, "amd64", n.MachineArch)
+	require.Equal(t, "arm64", n.BinaryArch)
 	require.Equal(t, []string{"scenario test*"}, n.Capabilities)
 	require.Equal(t, []string{"demo:read"}, n.Scopes)
 }
@@ -78,6 +81,7 @@ func TestServiceRejectsCommandNamedAndUnknownGrantsAtRegisterAndUpdate(t *testin
 	catalog := scopecatalog.Catalog{Scopes: []scopecatalog.Scope{
 		{Scenario: "web-console", Value: "web-console:read"},
 		{Scenario: "web-console", Value: "web-console:write"},
+		{Scenario: "vrooli-bridge", Value: "vrooli-bridge:write"},
 	}}
 	valid := registry.NewCatalogGrantValidator(catalog)
 	tests := []struct {
@@ -89,7 +93,7 @@ func TestServiceRejectsCommandNamedAndUnknownGrantsAtRegisterAndUpdate(t *testin
 		{name: "namespace wildcard", scope: "web-console:*", ok: true},
 		{name: "effect wildcard", scope: "*:read", ok: true},
 		{name: "universal", scope: "*", ok: true},
-		{name: "session transport", scope: "vrooli-bridge:session", ok: true},
+		{name: "session transport", scope: "vrooli-bridge:write", ok: true},
 		{name: "command named", scope: "scenario status*"},
 		{name: "unknown exact", scope: "unknown:read"},
 		{name: "unknown namespace wildcard", scope: "unknown:*"},

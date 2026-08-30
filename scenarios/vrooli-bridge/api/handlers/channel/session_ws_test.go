@@ -1,8 +1,12 @@
 package channel
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"testing"
 
 	"github.com/gorilla/websocket"
@@ -12,14 +16,20 @@ import (
 	"vrooli-bridge/internal/audit"
 	auditmocks "vrooli-bridge/internal/audit/mocks"
 	"vrooli-bridge/internal/auth"
+	"vrooli-bridge/internal/registry"
+	registrymocks "vrooli-bridge/internal/registry/mocks"
 	"vrooli-bridge/internal/session"
 
 	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
 )
 
+func sessionRegistry(scopes ...string) registry.Service {
+	return &registrymocks.FakeService{GetOut: registry.Node{ID: "n1", Scopes: scopes}}
+}
+
 func sessionHTTPHandler(h *sessionWSHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := auth.WithIdentity(r.Context(), auth.Identity{OwnerID: "owner-1"})
+		ctx := auth.WithIdentity(r.Context(), auth.Identity{OwnerID: "owner-1", Scopes: []string{session.TransportScope}})
 		h.handle(w, r.WithContext(ctx))
 	})
 }
@@ -35,10 +45,10 @@ func readSessionFrame(t *testing.T, c *websocket.Conn) *sessionv1.Frame {
 
 func TestSessionWebSocketRelaysBytesAndAuditsLifecycle(t *testing.T) {
 	sink := &auditmocks.FakeSink{}
-	h := &sessionWSHandler{manager: session.NewManager(nil, nil), audit: sink, auth: &auth.FakeValidator{Identity: auth.Identity{OwnerID: "owner-1"}}}
+	h := &sessionWSHandler{manager: session.NewManager(nil, nil), audit: sink, auth: &auth.FakeValidator{Identity: auth.Identity{OwnerID: "owner-1"}}, registry: sessionRegistry(session.TransportScope)}
 	srv := httptest.NewServer(sessionHTTPHandler(h))
 	defer srv.Close()
-	url := "ws" + srv.URL[4:] + "/api/v1/channel/session?node=n1&session_id=s1&scopes=" + session.Scope
+	url := "ws" + srv.URL[4:] + "/api/v1/channel/session?node=n1&session_id=s1&scopes=" + session.TransportScope
 	dialer := websocket.Dialer{}
 	conn, resp, err := dialer.Dial(url, http.Header{"X-Bridge-Owner-Reauth": []string{"fresh-proof"}})
 	require.NoError(t, err)
@@ -64,14 +74,14 @@ func TestSessionWebSocketRelaysBytesAndAuditsLifecycle(t *testing.T) {
 }
 
 func TestSessionWebSocketAcceptsEnrolledLocalSessionWithoutSecondJWT(t *testing.T) {
-	h := &sessionWSHandler{manager: session.NewManager(nil, nil), audit: &auditmocks.FakeSink{}}
+	h := &sessionWSHandler{manager: session.NewManager(nil, nil), audit: &auditmocks.FakeSink{}, registry: sessionRegistry(session.TransportScope)}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := auth.WithIdentity(r.Context(), auth.Identity{OwnerID: "owner-1", AuthMethod: auth.AuthMethodEnrolled})
+		ctx := auth.WithIdentity(r.Context(), auth.Identity{OwnerID: "owner-1", AuthMethod: auth.AuthMethodEnrolled, Scopes: []string{session.TransportScope}})
 		h.handle(w, r.WithContext(ctx))
 	}))
 	defer srv.Close()
 
-	url := "ws" + srv.URL[4:] + "/api/v1/channel/session?node=n1&session_id=enrolled-s1&scopes=" + session.Scope
+	url := "ws" + srv.URL[4:] + "/api/v1/channel/session?node=n1&session_id=enrolled-s1&scopes=" + session.TransportScope
 	conn, resp, err := (&websocket.Dialer{}).Dial(url, nil)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusSwitchingProtocols, resp.StatusCode)
@@ -80,7 +90,7 @@ func TestSessionWebSocketAcceptsEnrolledLocalSessionWithoutSecondJWT(t *testing.
 }
 
 func TestSessionWebSocketRefusesNodeWithoutScopeBeforeUpgrade(t *testing.T) {
-	h := &sessionWSHandler{manager: session.NewManager(nil, nil), auth: &auth.FakeValidator{Identity: auth.Identity{OwnerID: "owner-1"}}}
+	h := &sessionWSHandler{manager: session.NewManager(nil, nil), auth: &auth.FakeValidator{Identity: auth.Identity{OwnerID: "owner-1"}}, registry: sessionRegistry()}
 	srv := httptest.NewServer(sessionHTTPHandler(h))
 	defer srv.Close()
 	url := "ws" + srv.URL[4:] + "/api/v1/channel/session?node=n1&session_id=s1&scopes="
@@ -91,12 +101,41 @@ func TestSessionWebSocketRefusesNodeWithoutScopeBeforeUpgrade(t *testing.T) {
 }
 
 func TestSessionWebSocketRejectsCrossOrigin(t *testing.T) {
-	h := &sessionWSHandler{manager: session.NewManager(nil, nil), auth: &auth.FakeValidator{Identity: auth.Identity{OwnerID: "owner-1"}}}
+	h := &sessionWSHandler{manager: session.NewManager(nil, nil), auth: &auth.FakeValidator{Identity: auth.Identity{OwnerID: "owner-1"}}, registry: sessionRegistry(session.TransportScope)}
 	srv := httptest.NewServer(sessionHTTPHandler(h))
 	defer srv.Close()
-	url := "ws" + srv.URL[4:] + "/api/v1/channel/session?node=n1&session_id=s1&scopes=" + session.Scope
+	url := "ws" + srv.URL[4:] + "/api/v1/channel/session?node=n1&session_id=s1&scopes=" + session.TransportScope
 	_, resp, err := (&websocket.Dialer{}).Dial(url, http.Header{"X-Bridge-Owner-Reauth": []string{"fresh-proof"}, "Origin": []string{"https://attacker.invalid"}})
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+}
+
+func TestNoSessionHandlerTestConstructsWithoutRegistry(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	require.True(t, ok)
+	f, err := parser.ParseFile(token.NewFileSet(), file, nil, 0)
+	require.NoError(t, err)
+	violations := 0
+	ast.Inspect(f, func(node ast.Node) bool {
+		literal, ok := node.(*ast.CompositeLit)
+		if !ok {
+			return true
+		}
+		ident, ok := literal.Type.(*ast.Ident)
+		if !ok || ident.Name != "sessionWSHandler" {
+			return true
+		}
+		for _, elt := range literal.Elts {
+			field, ok := elt.(*ast.KeyValueExpr)
+			if ok {
+				if key, ok := field.Key.(*ast.Ident); ok && key.Name == "registry" {
+					return true
+				}
+			}
+		}
+		violations++
+		return true
+	})
+	require.Zero(t, violations, "every sessionWSHandler test fixture must exercise the registry-backed production path")
 }

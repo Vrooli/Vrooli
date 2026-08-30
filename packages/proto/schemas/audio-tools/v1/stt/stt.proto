@@ -275,6 +275,10 @@ message EngineInfo {
   // is_active is true for the engine the persisted StreamConfig currently
   // selects (or the manifest default when unset).
   bool is_active = 6;
+  // verdict is selected, candidate, or rejected according to the resolver.
+  string verdict = 7;
+  // reason explains the signal and observed policy result for this candidate.
+  string reason = 8;
 }
 
 message ListEnginesResponse {

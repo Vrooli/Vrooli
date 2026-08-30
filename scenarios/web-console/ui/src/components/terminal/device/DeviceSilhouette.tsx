@@ -44,7 +44,7 @@ export function DeviceSilhouette({ archetype, keyboardShare, kbOpen, screenLit =
     </defs>
     {geometry.base === "wedge" && <WedgeBase geometry={geometry} />}
     {geometry.base === "stand" && <MonitorStand geometry={geometry} />}
-    <Enclosure geometry={geometry} screenLit={screenLit} />
+    <Enclosure geometry={geometry} faceFill={screenLit ? "var(--wc-device-screen-lit, rgb(var(--wc-accent) / 0.32))" : undefined} />
     {kbOpen && plateHeight > 0 && <g clipPath={`url(#${screenClip})`}>
       <KeyPlate x={box.x} y={plateTop} width={box.width} height={plateHeight} />
     </g>}

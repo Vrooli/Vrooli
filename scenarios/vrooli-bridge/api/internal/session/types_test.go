@@ -19,7 +19,7 @@ func (f *fakeAudit) Append(_ context.Context, r audit.Record) (audit.Record, err
 }
 
 func openRequest() OpenRequest {
-	return OpenRequest{ID: "s1", NodeID: "n1", OwnerID: "o1", Scopes: []string{Scope}, Reauth: true, Window: 2, Idle: time.Minute, MaxLifetime: time.Hour}
+	return OpenRequest{ID: "s1", NodeID: "n1", OwnerID: "o1", Scopes: []string{TransportScope}, Reauth: true, Window: 2, Idle: time.Minute, MaxLifetime: time.Hour}
 }
 
 func TestManagerRefusesScopeAndOwnerReauth(t *testing.T) {
@@ -79,7 +79,7 @@ func TestManagerIdleAndLifetimeAreHardBoundsAndAudited(t *testing.T) {
 
 func TestManagerKillClosesDoneSignalIdempotently(t *testing.T) {
 	m := NewManager(nil, nil)
-	state, err := m.Open(context.Background(), OpenRequest{ID: "kill-me", NodeID: "node-1", OwnerID: "owner-1", Scopes: []string{Scope}, Reauth: true})
+	state, err := m.Open(context.Background(), OpenRequest{ID: "kill-me", NodeID: "node-1", OwnerID: "owner-1", Scopes: []string{TransportScope}, Reauth: true})
 	require.NoError(t, err)
 	done, err := m.Done(state.ID)
 	require.NoError(t, err)

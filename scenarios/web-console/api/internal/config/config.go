@@ -24,6 +24,11 @@ const DefaultMaxSnapshotBytes = 8 * 1024 * 1024
 // Each field maps to an environment variable with a sane default.
 // See docs/reference/configuration.md for full documentation.
 type Config struct {
+	// BridgeURL is the optional server-side Bridge endpoint. Empty means
+	// resolve the local vrooli-bridge scenario through discovery.
+	// Env: WC_BRIDGE_URL | Default: empty (local slug discovery)
+	BridgeURL string
+
 	// TerminalScrollbackLines is the number of decoded scrollback lines the
 	// per-session terminal emulator retains. Replayed via the snapshot
 	// stream on every (re)connect.
@@ -127,6 +132,7 @@ type Config struct {
 func Default() Config {
 	shell, _ := resolveShell()
 	return Config{
+		BridgeURL:                        "",
 		TerminalScrollbackLines:         DefaultTerminalScrollbackLines,
 		MaxSnapshotBytes:                DefaultMaxSnapshotBytes,
 		PTYReadBuffer:                   4096,
@@ -154,6 +160,7 @@ func Default() Config {
 // to Default() values for anything not set or invalid.
 func Load() Config {
 	cfg := Default()
+	cfg.BridgeURL = os.Getenv("WC_BRIDGE_URL")
 
 	cfg.TerminalScrollbackLines = envInt("WC_TERMINAL_SCROLLBACK_LINES", cfg.TerminalScrollbackLines, 100, 100_000)
 	cfg.MaxSnapshotBytes = envInt("WC_MAX_SNAPSHOT_BYTES", cfg.MaxSnapshotBytes, 64*1024, 16*1024*1024)

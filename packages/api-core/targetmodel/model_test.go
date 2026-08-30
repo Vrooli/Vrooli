@@ -66,3 +66,22 @@ func TestReadinessCheckUsesStableIdentityAndRecovery(t *testing.T) {
 		t.Fatalf("unknown check = %+v", unknown)
 	}
 }
+
+func TestCanHostSessionRequiresBridgeAgentAndWriteGrant(t *testing.T) {
+	base := Target{
+		ID: "node-1", Platform: "bridge", DeviceKind: "bridge-node",
+		Transport:   Transport{Kind: TransportBridge, Available: true},
+		BridgeTrust: &BridgeTrust{Registered: true, Online: true},
+	}
+	if ok, reason := CanHostSession(base); ok || reason == "" {
+		t.Fatalf("missing grant = (%t, %q), want refusal with reason", ok, reason)
+	}
+	base.Scopes = []string{"vrooli-bridge:write"}
+	if ok, reason := CanHostSession(base); !ok || reason != "" {
+		t.Fatalf("write grant = (%t, %q), want admitted", ok, reason)
+	}
+	base.DeviceKind = "ssh"
+	if ok, reason := CanHostSession(base); ok || reason == "" {
+		t.Fatalf("ssh target = (%t, %q), want explicit unsupported reason", ok, reason)
+	}
+}

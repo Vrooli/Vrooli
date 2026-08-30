@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/registry/registry.proto\x12 vrooli.vrooli_bridge.v1.registry\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdc\x06\n\x04Node\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n\x02os\x18\x03 \x01(\tR\x02os\x12\x12\n\x04\x61rch\x18\x04 \x01(\tR\x04\x61rch\x12\x1a\n\x08revision\x18\x05 \x01(\tR\x08revision\x12\x1a\n\x08\x65ndpoint\x18\x06 \x01(\tR\x08\x65ndpoint\x12\"\n\x0c\x63\x61pabilities\x18\x07 \x03(\tR\x0c\x63\x61pabilities\x12\x16\n\x06scopes\x18\x08 \x03(\tR\x06scopes\x12\x44\n\x06status\x18\t \x01(\x0e\x32,.vrooli.vrooli_bridge.v1.registry.NodeStatusR\x06status\x12\x16\n\x06online\x18\n \x01(\x08R\x06online\x12\x39\n\ncreated_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x0c \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12<\n\x0clast_seen_at\x18\r \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nlastSeenAt\x12\x39\n\nrevoked_at\x18\x0e \x01(\x0b\x32\x1a.google.protobuf.TimestampR\trevokedAt\x12\x36\n\x17registry_record_present\x18\x0f \x01(\x08R\x15registryRecordPresent\x12\'\n\x0fheartbeat_fresh\x18\x10 \x01(\x08R\x0eheartbeatFresh\x12\x32\n\x15heartbeat_age_seconds\x18\x11 \x01(\x03R\x13heartbeatAgeSeconds\x12!\n\x0c\x63hannel_held\x18\x12 \x01(\x08R\x0b\x63hannelHeld\x12/\n\x13protocol_compatible\x18\x13 \x01(\x08R\x12protocolCompatible\x12\"\n\x0c\x64ispatchable\x18\x14 \x01(\x08R\x0c\x64ispatchable\x12>\n\x04kind\x18\x15 \x01(\x0e\x32*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\"\xe5\x01\n\x13RegisterNodeRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n\x02os\x18\x02 \x01(\tR\x02os\x12\x12\n\x04\x61rch\x18\x03 \x01(\tR\x04\x61rch\x12\x1a\n\x08\x65ndpoint\x18\x04 \x01(\tR\x08\x65ndpoint\x12\"\n\x0c\x63\x61pabilities\x18\x05 \x03(\tR\x0c\x63\x61pabilities\x12\x16\n\x06scopes\x18\x06 \x03(\tR\x06scopes\x12>\n\x04kind\x18\x07 \x01(\x0e\x32*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\"R\n\x14RegisterNodeResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"\x12\n\x10ListNodesRequest\"Q\n\x11ListNodesResponse\x12<\n\x05nodes\x18\x01 \x03(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x05nodes\" \n\x0eGetNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"M\n\x0fGetNodeResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"\xeb\x01\n\x11UpdateNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n\x08\x65ndpoint\x18\x03 \x01(\tR\x08\x65ndpoint\x12\"\n\x0c\x63\x61pabilities\x18\x04 \x03(\tR\x0c\x63\x61pabilities\x12\x16\n\x06scopes\x18\x05 \x03(\tR\x06scopes\x12\x1a\n\x08revision\x18\x06 \x01(\tR\x08revision\x12>\n\x04kind\x18\x07 \x01(\x0e\x32*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\"P\n\x12UpdateNodeResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"#\n\x11RevokeNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"P\n\x12RevokeNodeResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"#\n\x11RemoveNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"<\n\x12RemoveNodeResponse\x12&\n\x0fremoved_node_id\x18\x01 \x01(\tR\rremovedNodeId\"V\n\x18GetNodeReadinessResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node*\x82\x01\n\x08NodeKind\x12\x19\n\x15NODE_KIND_UNSPECIFIED\x10\x00\x12\x13\n\x0fNODE_KIND_AGENT\x10\x01\x12\x11\n\rNODE_KIND_SSH\x10\x02\x12\x16\n\x12NODE_KIND_ATTACHED\x10\x03\x12\x1b\n\x17NODE_KIND_CONTROL_PLANE\x10\x04*\x91\x01\n\nNodeStatus\x12\x1b\n\x17NODE_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13NODE_STATUS_OFFLINE\x10\x01\x12\x16\n\x12NODE_STATUS_ONLINE\x10\x02\x12\x1c\n\x18NODE_STATUS_NEEDS_UPDATE\x10\x03\x12\x17\n\x13NODE_STATUS_REVOKED\x10\x04\x32\xe8\x06\n\x13NodeRegistryService\x12}\n\x0cRegisterNode\x12\x35.vrooli.vrooli_bridge.v1.registry.RegisterNodeRequest\x1a\x36.vrooli.vrooli_bridge.v1.registry.RegisterNodeResponse\x12t\n\tListNodes\x12\x32.vrooli.vrooli_bridge.v1.registry.ListNodesRequest\x1a\x33.vrooli.vrooli_bridge.v1.registry.ListNodesResponse\x12n\n\x07GetNode\x12\x30.vrooli.vrooli_bridge.v1.registry.GetNodeRequest\x1a\x31.vrooli.vrooli_bridge.v1.registry.GetNodeResponse\x12w\n\nUpdateNode\x12\x33.vrooli.vrooli_bridge.v1.registry.UpdateNodeRequest\x1a\x34.vrooli.vrooli_bridge.v1.registry.UpdateNodeResponse\x12w\n\nRevokeNode\x12\x33.vrooli.vrooli_bridge.v1.registry.RevokeNodeRequest\x1a\x34.vrooli.vrooli_bridge.v1.registry.RevokeNodeResponse\x12w\n\nRemoveNode\x12\x33.vrooli.vrooli_bridge.v1.registry.RemoveNodeRequest\x1a\x34.vrooli.vrooli_bridge.v1.registry.RemoveNodeResponse\x12\x80\x01\n\x10GetNodeReadiness\x12\x30.vrooli.vrooli_bridge.v1.registry.GetNodeRequest\x1a:.vrooli.vrooli_bridge.v1.registry.GetNodeReadinessResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry;registry_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n(vrooli-bridge/v1/registry/registry.proto\x12 vrooli.vrooli_bridge.v1.registry\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa0\x07\n\x04Node\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n\x02os\x18\x03 \x01(\tR\x02os\x12\x12\n\x04\x61rch\x18\x04 \x01(\tR\x04\x61rch\x12\x1a\n\x08revision\x18\x05 \x01(\tR\x08revision\x12\x1a\n\x08\x65ndpoint\x18\x06 \x01(\tR\x08\x65ndpoint\x12\"\n\x0c\x63\x61pabilities\x18\x07 \x03(\tR\x0c\x63\x61pabilities\x12\x16\n\x06scopes\x18\x08 \x03(\tR\x06scopes\x12\x44\n\x06status\x18\t \x01(\x0e\x32,.vrooli.vrooli_bridge.v1.registry.NodeStatusR\x06status\x12\x16\n\x06online\x18\n \x01(\x08R\x06online\x12\x39\n\ncreated_at\x18\x0b \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x39\n\nupdated_at\x18\x0c \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tupdatedAt\x12<\n\x0clast_seen_at\x18\r \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nlastSeenAt\x12\x39\n\nrevoked_at\x18\x0e \x01(\x0b\x32\x1a.google.protobuf.TimestampR\trevokedAt\x12\x36\n\x17registry_record_present\x18\x0f \x01(\x08R\x15registryRecordPresent\x12\'\n\x0fheartbeat_fresh\x18\x10 \x01(\x08R\x0eheartbeatFresh\x12\x32\n\x15heartbeat_age_seconds\x18\x11 \x01(\x03R\x13heartbeatAgeSeconds\x12!\n\x0c\x63hannel_held\x18\x12 \x01(\x08R\x0b\x63hannelHeld\x12/\n\x13protocol_compatible\x18\x13 \x01(\x08R\x12protocolCompatible\x12\"\n\x0c\x64ispatchable\x18\x14 \x01(\x08R\x0c\x64ispatchable\x12>\n\x04kind\x18\x15 \x01(\x0e\x32*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\x12!\n\x0cmachine_arch\x18\x16 \x01(\tR\x0bmachineArch\x12\x1f\n\x0b\x62inary_arch\x18\x17 \x01(\tR\nbinaryArch\"\xa9\x02\n\x13RegisterNodeRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x0e\n\x02os\x18\x02 \x01(\tR\x02os\x12\x12\n\x04\x61rch\x18\x03 \x01(\tR\x04\x61rch\x12\x1a\n\x08\x65ndpoint\x18\x04 \x01(\tR\x08\x65ndpoint\x12\"\n\x0c\x63\x61pabilities\x18\x05 \x03(\tR\x0c\x63\x61pabilities\x12\x16\n\x06scopes\x18\x06 \x03(\tR\x06scopes\x12>\n\x04kind\x18\x07 \x01(\x0e\x32*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\x12!\n\x0cmachine_arch\x18\x08 \x01(\tR\x0bmachineArch\x12\x1f\n\x0b\x62inary_arch\x18\t \x01(\tR\nbinaryArch\"R\n\x14RegisterNodeResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"\x12\n\x10ListNodesRequest\"Q\n\x11ListNodesResponse\x12<\n\x05nodes\x18\x01 \x03(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x05nodes\" \n\x0eGetNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"M\n\x0fGetNodeResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"\xeb\x01\n\x11UpdateNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n\x08\x65ndpoint\x18\x03 \x01(\tR\x08\x65ndpoint\x12\"\n\x0c\x63\x61pabilities\x18\x04 \x03(\tR\x0c\x63\x61pabilities\x12\x16\n\x06scopes\x18\x05 \x03(\tR\x06scopes\x12\x1a\n\x08revision\x18\x06 \x01(\tR\x08revision\x12>\n\x04kind\x18\x07 \x01(\x0e\x32*.vrooli.vrooli_bridge.v1.registry.NodeKindR\x04kind\"P\n\x12UpdateNodeResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"#\n\x11RevokeNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"P\n\x12RevokeNodeResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node\"#\n\x11RemoveNodeRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"<\n\x12RemoveNodeResponse\x12&\n\x0fremoved_node_id\x18\x01 \x01(\tR\rremovedNodeId\"V\n\x18GetNodeReadinessResponse\x12:\n\x04node\x18\x01 \x01(\x0b\x32&.vrooli.vrooli_bridge.v1.registry.NodeR\x04node*\x82\x01\n\x08NodeKind\x12\x19\n\x15NODE_KIND_UNSPECIFIED\x10\x00\x12\x13\n\x0fNODE_KIND_AGENT\x10\x01\x12\x11\n\rNODE_KIND_SSH\x10\x02\x12\x16\n\x12NODE_KIND_ATTACHED\x10\x03\x12\x1b\n\x17NODE_KIND_CONTROL_PLANE\x10\x04*\x91\x01\n\nNodeStatus\x12\x1b\n\x17NODE_STATUS_UNSPECIFIED\x10\x00\x12\x17\n\x13NODE_STATUS_OFFLINE\x10\x01\x12\x16\n\x12NODE_STATUS_ONLINE\x10\x02\x12\x1c\n\x18NODE_STATUS_NEEDS_UPDATE\x10\x03\x12\x17\n\x13NODE_STATUS_REVOKED\x10\x04\x32\xe8\x06\n\x13NodeRegistryService\x12}\n\x0cRegisterNode\x12\x35.vrooli.vrooli_bridge.v1.registry.RegisterNodeRequest\x1a\x36.vrooli.vrooli_bridge.v1.registry.RegisterNodeResponse\x12t\n\tListNodes\x12\x32.vrooli.vrooli_bridge.v1.registry.ListNodesRequest\x1a\x33.vrooli.vrooli_bridge.v1.registry.ListNodesResponse\x12n\n\x07GetNode\x12\x30.vrooli.vrooli_bridge.v1.registry.GetNodeRequest\x1a\x31.vrooli.vrooli_bridge.v1.registry.GetNodeResponse\x12w\n\nUpdateNode\x12\x33.vrooli.vrooli_bridge.v1.registry.UpdateNodeRequest\x1a\x34.vrooli.vrooli_bridge.v1.registry.UpdateNodeResponse\x12w\n\nRevokeNode\x12\x33.vrooli.vrooli_bridge.v1.registry.RevokeNodeRequest\x1a\x34.vrooli.vrooli_bridge.v1.registry.RevokeNodeResponse\x12w\n\nRemoveNode\x12\x33.vrooli.vrooli_bridge.v1.registry.RemoveNodeRequest\x1a\x34.vrooli.vrooli_bridge.v1.registry.RemoveNodeResponse\x12\x80\x01\n\x10GetNodeReadiness\x12\x30.vrooli.vrooli_bridge.v1.registry.GetNodeRequest\x1a:.vrooli.vrooli_bridge.v1.registry.GetNodeReadinessResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry;registry_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,38 +33,38 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'vrooli_bridge.v1.registry.r
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry;registry_v1'
-  _globals['_NODEKIND']._serialized_start=2133
-  _globals['_NODEKIND']._serialized_end=2263
-  _globals['_NODESTATUS']._serialized_start=2266
-  _globals['_NODESTATUS']._serialized_end=2411
+  _globals['_NODEKIND']._serialized_start=2269
+  _globals['_NODEKIND']._serialized_end=2399
+  _globals['_NODESTATUS']._serialized_start=2402
+  _globals['_NODESTATUS']._serialized_end=2547
   _globals['_NODE']._serialized_start=112
-  _globals['_NODE']._serialized_end=972
-  _globals['_REGISTERNODEREQUEST']._serialized_start=975
-  _globals['_REGISTERNODEREQUEST']._serialized_end=1204
-  _globals['_REGISTERNODERESPONSE']._serialized_start=1206
-  _globals['_REGISTERNODERESPONSE']._serialized_end=1288
-  _globals['_LISTNODESREQUEST']._serialized_start=1290
-  _globals['_LISTNODESREQUEST']._serialized_end=1308
-  _globals['_LISTNODESRESPONSE']._serialized_start=1310
-  _globals['_LISTNODESRESPONSE']._serialized_end=1391
-  _globals['_GETNODEREQUEST']._serialized_start=1393
-  _globals['_GETNODEREQUEST']._serialized_end=1425
-  _globals['_GETNODERESPONSE']._serialized_start=1427
-  _globals['_GETNODERESPONSE']._serialized_end=1504
-  _globals['_UPDATENODEREQUEST']._serialized_start=1507
-  _globals['_UPDATENODEREQUEST']._serialized_end=1742
-  _globals['_UPDATENODERESPONSE']._serialized_start=1744
-  _globals['_UPDATENODERESPONSE']._serialized_end=1824
-  _globals['_REVOKENODEREQUEST']._serialized_start=1826
-  _globals['_REVOKENODEREQUEST']._serialized_end=1861
-  _globals['_REVOKENODERESPONSE']._serialized_start=1863
-  _globals['_REVOKENODERESPONSE']._serialized_end=1943
-  _globals['_REMOVENODEREQUEST']._serialized_start=1945
-  _globals['_REMOVENODEREQUEST']._serialized_end=1980
-  _globals['_REMOVENODERESPONSE']._serialized_start=1982
-  _globals['_REMOVENODERESPONSE']._serialized_end=2042
-  _globals['_GETNODEREADINESSRESPONSE']._serialized_start=2044
-  _globals['_GETNODEREADINESSRESPONSE']._serialized_end=2130
-  _globals['_NODEREGISTRYSERVICE']._serialized_start=2414
-  _globals['_NODEREGISTRYSERVICE']._serialized_end=3286
+  _globals['_NODE']._serialized_end=1040
+  _globals['_REGISTERNODEREQUEST']._serialized_start=1043
+  _globals['_REGISTERNODEREQUEST']._serialized_end=1340
+  _globals['_REGISTERNODERESPONSE']._serialized_start=1342
+  _globals['_REGISTERNODERESPONSE']._serialized_end=1424
+  _globals['_LISTNODESREQUEST']._serialized_start=1426
+  _globals['_LISTNODESREQUEST']._serialized_end=1444
+  _globals['_LISTNODESRESPONSE']._serialized_start=1446
+  _globals['_LISTNODESRESPONSE']._serialized_end=1527
+  _globals['_GETNODEREQUEST']._serialized_start=1529
+  _globals['_GETNODEREQUEST']._serialized_end=1561
+  _globals['_GETNODERESPONSE']._serialized_start=1563
+  _globals['_GETNODERESPONSE']._serialized_end=1640
+  _globals['_UPDATENODEREQUEST']._serialized_start=1643
+  _globals['_UPDATENODEREQUEST']._serialized_end=1878
+  _globals['_UPDATENODERESPONSE']._serialized_start=1880
+  _globals['_UPDATENODERESPONSE']._serialized_end=1960
+  _globals['_REVOKENODEREQUEST']._serialized_start=1962
+  _globals['_REVOKENODEREQUEST']._serialized_end=1997
+  _globals['_REVOKENODERESPONSE']._serialized_start=1999
+  _globals['_REVOKENODERESPONSE']._serialized_end=2079
+  _globals['_REMOVENODEREQUEST']._serialized_start=2081
+  _globals['_REMOVENODEREQUEST']._serialized_end=2116
+  _globals['_REMOVENODERESPONSE']._serialized_start=2118
+  _globals['_REMOVENODERESPONSE']._serialized_end=2178
+  _globals['_GETNODEREADINESSRESPONSE']._serialized_start=2180
+  _globals['_GETNODEREADINESSRESPONSE']._serialized_end=2266
+  _globals['_NODEREGISTRYSERVICE']._serialized_start=2550
+  _globals['_NODEREGISTRYSERVICE']._serialized_end=3422
 # @@protoc_insertion_point(module_scope)

@@ -532,6 +532,10 @@
       "testId": "[data-testid^=\"fleet-card-machine-\"]",
       "selector": "[data-testid=\"[data-testid^=\"fleet-card-machine-\"]\"]"
     },
+    "fleet.machineStartSession": {
+      "testId": "[data-testid^=\"machines-start-session-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"machines-start-session-\"]\"]"
+    },
     "fleet.deviceSilhouette": {
       "testId": "[data-testid^=\"fleet-card-device-\"] [data-testid=\"device-silhouette\"]",
       "selector": "[data-testid=\"[data-testid^=\"fleet-card-device-\"] [data-testid=\"device-silhouette\"]\"]"

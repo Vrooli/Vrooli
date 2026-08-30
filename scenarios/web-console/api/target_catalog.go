@@ -9,6 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/api-core/targetmodel"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -96,42 +97,27 @@ func localTerminalTarget() targetmodel.Target {
 }
 
 func readinessFactsForNode(node *registryv1.Node) []targetmodel.ReadinessCheck {
+	hasSessionGrant := false
+	for _, scope := range node.GetScopes() {
+		transportScope, ok := scopecatalog.TransportScope("interactive-session:write")
+		if ok && (scope == transportScope || scope == "vrooli-bridge:*" || scope == "*:write" || scope == "*") {
+			hasSessionGrant = true
+			break
+		}
+	}
 	return []targetmodel.ReadinessCheck{
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessRegistry, node.GetRegistryRecordPresent(), "Bridge registry record is present"),
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessHeartbeat, node.GetHeartbeatFresh(), "Node heartbeat is within the freshness window"),
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessChannel, node.GetChannelHeld(), "Bridge has a live channel to this node"),
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessProtocol, node.GetProtocolCompatible(), "Node and Bridge can speak the same session protocol"),
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessDispatch, node.GetDispatchable(), "Web Console may start a session on this node"),
-		targetmodel.ReadinessCheckFor(targetmodel.ReadinessBridgeScope, len(node.GetScopes()) > 0, grantDetailForScopes(node.GetScopes())),
+		targetmodel.ReadinessCheckFor(targetmodel.ReadinessBridgeScope, hasSessionGrant, grantDetailForScopes(node.GetScopes())),
+		targetmodel.ReadinessCheckFor(targetmodel.ReadinessSessionSupport, hasSessionGrant && node.GetKind() == registryv1.NodeKind_NODE_KIND_AGENT, "Interactive sessions require a Bridge agent and the vrooli-bridge:write grant"),
 	}
 }
 
 func grantSummaryForScopes(scopes []string) string {
-	hasRead, hasWrite, hasDestructive := false, false, false
-	for _, scope := range scopes {
-		parts := strings.SplitN(strings.ToLower(strings.TrimSpace(scope)), ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		switch parts[1] {
-		case "read", "*":
-			hasRead = true
-		case "write":
-			hasWrite = true
-		case "destructive":
-			hasDestructive = true
-		}
-	}
-	switch {
-	case hasDestructive:
-		return "Full control, including destructive actions"
-	case hasWrite:
-		return "Read and operate; destructive actions withheld"
-	case hasRead:
-		return "Read only; changes are not permitted"
-	default:
-		return "No remote actions granted"
-	}
+	return scopecatalog.SummarizeScopes(scopes)
 }
 
 func grantDetailForScopes(scopes []string) string {

@@ -25,7 +25,7 @@ func TestEvaluateAt_Bands(t *testing.T) {
 // excluded from work.
 func TestStatus_Dispatchable(t *testing.T) {
 	require.True(t, compat.StatusOK.Dispatchable())
-	require.True(t, compat.StatusUnspecified.Dispatchable())
+	require.False(t, compat.StatusUnspecified.Dispatchable())
 	require.False(t, compat.StatusNeedsUpdate.Dispatchable())
 	require.False(t, compat.StatusIncompatible.Dispatchable())
 }

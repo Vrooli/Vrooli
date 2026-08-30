@@ -249,9 +249,6 @@ func (h *Hub) Readiness(nodeID string) ReadinessFacts {
 		heartbeatFresh = age >= 0 && age <= h.staleAfter
 	}
 	protocolCompatible := h.compat[nodeID].Dispatchable()
-	if h.compat[nodeID] == compat.StatusUnspecified {
-		protocolCompatible = true
-	}
 	return ReadinessFacts{
 		HeartbeatFresh: heartbeatFresh, HeartbeatAge: age, ChannelHeld: channelHeld,
 		ProtocolCompatible: protocolCompatible, Dispatchable: h.onlineLocked(nodeID) && protocolCompatible,

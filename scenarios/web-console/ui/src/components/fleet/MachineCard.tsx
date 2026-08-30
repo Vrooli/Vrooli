@@ -4,12 +4,13 @@ import type { JoinRequest, Machine } from "../../api/machines";
 import { strings } from "../../consts/strings";
 import { humanAge } from "../machines/age";
 import { GrantLine } from "../machines/grant";
-import { reachabilityDetail, statusPill } from "../machines/MachineList";
+import { machineDrawState, reachabilityDetail, statusPill } from "../machines/MachineList";
 import { machineTestID } from "../machines/testids";
+import { DeviceSilhouette } from "../terminal/device/DeviceSilhouette";
 import FleetCard from "./FleetCard";
 import MachineSilhouette from "./MachineSilhouette";
 
-export function MachineCard({ machine, onManage, onReview }: { machine: Machine; onManage?: (machine: Machine) => void; onReview?: () => void }) {
+export function MachineCard({ machine, onManage, onStartSession, onReview }: { machine: Machine; onManage?: (machine: Machine) => void; onStartSession?: (machine: Machine) => void; onReview?: () => void }) {
   const { t } = useTranslation();
   const isLocal = machine.target.kind === "local";
   const pill = statusPill(machine, t as (key: string, options?: Record<string, unknown>) => string);
@@ -23,8 +24,17 @@ export function MachineCard({ machine, onManage, onReview }: { machine: Machine;
       meta={[platform, reachabilityDetail(machine, t as (key: string, options?: Record<string, unknown>) => string), isLocal ? t(strings.fleet.alsoDevice) : ""].filter(Boolean).join(" · ")}
       state={pill.label}
       stateTone={isLocal ? "accent" : machine.target.available ? "accent" : "warning"}
-      silhouette={<MachineSilhouette local={isLocal} reachable={machine.target.available} />}
-      actions={machine.manageable && onManage ? <Button size="sm" data-testid={`machines-manage-${machineTestID(machine.target.id)}`} className="min-h-11" onClick={() => { onManage(machine); }}>{machine.target.available ? t(strings.machines.manage) : t(strings.machines.reconnect)}</Button> : undefined}
+      silhouette={isLocal
+        // The local machine is the computer this console is running on — it is
+        // a screen the operator is looking at, not a headless box, so it is
+        // drawn by the device artwork. That is also what visually ties the
+        // devices and machines sections of the drawer together.
+        ? <DeviceSilhouette archetype="laptop" keyboardShare={0} kbOpen={false} screenLit />
+        : <MachineSilhouette state={machineDrawState(machine)} />}
+      actions={(machine.manageable && onManage) || onStartSession ? <>
+        {onStartSession && <Button size="sm" data-testid={`machines-start-session-${machineTestID(machine.target.id)}`} className="min-h-11" onClick={() => { onStartSession(machine); }} disabled={!machine.target.available}>{t(strings.fleet.startSession)}</Button>}
+        {machine.manageable && onManage && <Button size="sm" data-testid={`machines-manage-${machineTestID(machine.target.id)}`} className="min-h-11" onClick={() => { onManage(machine); }}>{machine.target.available ? t(strings.machines.manage) : t(strings.machines.reconnect)}</Button>}
+      </> : undefined}
     >
         <GrantLine grant={machine.grant} />
         {!machine.target.available && machine.target.recovery_action && <span className="mt-1 block text-xs leading-5 text-amber-200/80">{machine.target.recovery_action}</span>}
@@ -45,7 +55,7 @@ export function JoinRequestCard({ request, onReview }: { request: JoinRequest; o
         meta={[platform, t(strings.machines.askedToJoin, { age: humanAge(request.requestedAgeSeconds) })].filter(Boolean).join(" · ")}
         state={t(strings.machines.review)}
         stateTone="accent"
-        silhouette={<MachineSilhouette reachable={false} />}
+        silhouette={<MachineSilhouette state="unenrolled" />}
         actions={<Button size="sm" className="min-h-11" data-testid={`machines-review-${machineTestID(request.id)}`} onClick={onReview}>{t(strings.machines.review)}</Button>}
       >
         {t(strings.machines.reviewDerived)}

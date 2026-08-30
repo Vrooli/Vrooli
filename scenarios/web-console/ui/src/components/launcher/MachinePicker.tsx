@@ -158,6 +158,8 @@ export default function MachinePicker({
   };
 
   const choose = (targetId: string) => {
+	const target = ordered.find((candidate) => candidate.id === targetId);
+	if (!target?.available) return;
     onSelect(targetId);
     close();
   };
@@ -234,6 +236,9 @@ export default function MachinePicker({
                   type="button"
                   role="option"
                   aria-selected={isSelected}
+                  aria-disabled={!target.available}
+                  title={!target.available ? (target.failure_rung ?? target.recovery_action ?? "This machine cannot host a terminal session") : undefined}
+                  disabled={!target.available}
                   tabIndex={index === activeIndex ? 0 : -1}
                   data-active={index === activeIndex}
                   data-testid={`launcher-machine-option-${slugify(target.id)}`}
@@ -242,6 +247,7 @@ export default function MachinePicker({
                   className={cn(
                     "flex w-full items-center gap-2.5 px-3 py-2 text-start transition",
                     isSelected ? "bg-wc-accent/10" : "hover:bg-wc-surface-input",
+                    !target.available && "cursor-not-allowed opacity-60",
                   )}
                 >
                   <span className={cn("h-2 w-2 shrink-0 rounded-full", ledClass[toneFor(target)])} aria-hidden />

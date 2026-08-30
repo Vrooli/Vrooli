@@ -38,6 +38,8 @@ func domainToProto(n registry.Node, online, dispatchable bool, staleAfter time.D
 		Kind:                  kindProto(n.Kind),
 		Os:                    n.OS,
 		Arch:                  n.Arch,
+		MachineArch:           n.MachineArch,
+		BinaryArch:            n.BinaryArch,
 		Revision:              n.Revision,
 		Endpoint:              n.Endpoint,
 		Capabilities:          append([]string(nil), n.Capabilities...),

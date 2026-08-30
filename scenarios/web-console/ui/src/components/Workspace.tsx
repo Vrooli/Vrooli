@@ -208,6 +208,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     setTtsMutedOnPane,
     getTtsStateOnPane,
   } = useSessionManager();
+  // Keep the exact launch request that produced the current creation error.
+  // Recovery must retry the same destination and command; falling back to an
+  // empty launch silently moved failed remote launches back to this machine.
+  const lastLaunchOptionsRef = useRef<LaunchOptions | undefined>(undefined);
 
   const workspace = useWorkspaceStore(useShallow((state) => ({
     panes: state.panes,
@@ -365,6 +369,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   }, [mergeExternalSession]);
 
   const [launcherOpen, setLauncherOpen] = useState(false);
+  const [launcherInitialTarget, setLauncherInitialTarget] = useState<TerminalTarget>();
   const [machinesOpen, setMachinesOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [lastVisitedBySession, setLastVisitedBySession] = useState<Record<string, string>>({});
@@ -799,7 +804,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     }
   }, [createNamedGroup, createRole, handleStartRole, syncUpdateGroup, updateWorkspaceGroup]);
 
-  const openLauncher = useCallback(() => { setLauncherOpen(true); }, []);
+  const openLauncher = useCallback(() => { setLauncherInitialTarget(undefined); setLauncherOpen(true); }, []);
+  const openLauncherForMachine = useCallback((machine: { target: TerminalTarget }) => {
+    setMachinesOpen(false);
+    setLauncherInitialTarget(machine.target);
+    setLauncherOpen(true);
+  }, []);
   // Opening machines from the launcher replaces it rather than stacking two
   // overlays: one surface on screen at a time.
   const openMachines = useCallback(() => {
@@ -822,11 +832,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const openTemplateSettings = useCallback(() => { openSettingsTab("templates"); }, [openSettingsTab]);
   const closeLauncher = useCallback(() => {
     setLauncherGroupId(null);
+    setLauncherInitialTarget(undefined);
     setLauncherOpen(false);
   }, []);
 
   const handleLaunch = useCallback(
     async (opts?: LaunchOptions) => {
+      lastLaunchOptionsRef.current = opts;
       try {
         const session = await launchSession(opts);
         if (session) {
@@ -862,7 +874,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
   const handleRetry = useCallback(() => {
     clearError();
-    handleLaunch();
+    void handleLaunch(lastLaunchOptionsRef.current);
   }, [clearError, handleLaunch]);
 
   // Stable callback for the (memoized) TabBar so a conversation event landing
@@ -1725,6 +1737,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           onCreateGroup={createLauncherGroup}
           appearance={launcherAppearance}
           onCreateGroupFromRoles={createGroupFromRoles}
+          initialTarget={launcherInitialTarget}
           onEditShortcuts={openShortcutSettings}
           onEditTemplates={openTemplateSettings}
         />
@@ -2359,11 +2372,12 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onCreateGroup={createLauncherGroup}
         appearance={launcherAppearance}
         onCreateGroupFromRoles={createGroupFromRoles}
+        initialTarget={launcherInitialTarget}
         onEditShortcuts={openShortcutSettings}
         onEditTemplates={openTemplateSettings}
       />
 
-      <FleetDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} />
+      <FleetDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} onStartSession={openLauncherForMachine} />
 
       {/* Settings Modal */}
       <SettingsModal

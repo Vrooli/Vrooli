@@ -85,6 +85,22 @@ func (c *Client) openNodeSession(id string, open *sessionv1.Open) {
 	terminal, ptyErr := pty.StartWithSize(cmd, &pty.Winsize{Cols: 80, Rows: 24})
 	if ptyErr != nil {
 		c.logger.Printf("channel: session %q native pty start failed: %v; using pipe fallback", id, ptyErr)
+		// pty.StartWithSize may have partially initialized the command before
+		// returning an error. Do not reuse that Cmd: StdinPipe/StdoutPipe can
+		// then report a misleading "already started" error and leave a blank
+		// remote session. Recreate the command and start the bounded pipe
+		// fallback from a clean process state.
+		fallbackShell := shell
+		if runtime.GOOS != "windows" {
+			// /bin/sh is the POSIX baseline and avoids repeating a shell
+			// implementation that just failed under the host's PTY layer.
+			fallbackShell = "/bin/sh"
+		}
+		cmd = exec.CommandContext(ctx, fallbackShell, interactiveShellArgs()...) // #nosec G204 -- fallbackShell is a fixed platform shell or the previously validated shell.
+		cmd.Env = interactiveCommandEnv(c.cfg.VrooliBin, os.Environ())
+		if dir := strings.TrimSpace(open.GetWorkingDir()); dir != "" {
+			cmd.Dir = filepath.Clean(dir)
+		}
 	}
 	var stdin io.WriteCloser
 	var reader io.Reader
@@ -97,17 +113,20 @@ func (c *Client) openNodeSession(id string, open *sessionv1.Open) {
 		var err error
 		stdin, err = cmd.StdinPipe()
 		if err != nil {
+			c.logger.Printf("channel: session %q pipe stdin setup failed: %v", id, err)
 			cancel()
 			return
 		}
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
+			c.logger.Printf("channel: session %q pipe stdout setup failed: %v", id, err)
 			_ = stdin.Close()
 			cancel()
 			return
 		}
 		cmd.Stderr = cmd.Stdout
 		if err := cmd.Start(); err != nil {
+			c.logger.Printf("channel: session %q pipe start failed: %v", id, err)
 			_ = stdin.Close()
 			cancel()
 			return
@@ -260,8 +279,17 @@ func interactiveShell(shell string) string {
 			shell = os.Getenv("COMSPEC")
 		} else {
 			shell = os.Getenv("SHELL")
-			if shell == "" {
-				shell = "/bin/sh"
+		}
+		// A service account can inherit a stale or non-existent SHELL value
+		// (for example, a macOS image without /bin/zsh). Remote sessions must
+		// still get a usable host-owned shell, so validate the default and fall
+		// back through the platform's conventional locations.
+		if !shellExecutable(shell) {
+			for _, candidate := range defaultInteractiveShells() {
+				if shellExecutable(candidate) {
+					shell = candidate
+					break
+				}
 			}
 		}
 	}
@@ -273,6 +301,35 @@ func interactiveShell(shell string) string {
 	default:
 		return ""
 	}
+}
+
+func shellExecutable(shell string) bool {
+	shell = strings.TrimSpace(shell)
+	if shell == "" {
+		return false
+	}
+	if filepath.IsAbs(shell) {
+		info, err := os.Stat(shell)
+		return err == nil && !info.IsDir() && info.Mode()&0111 != 0
+	}
+	_, err := exec.LookPath(shell)
+	return err == nil
+}
+
+func defaultInteractiveShells() []string {
+	if runtime.GOOS == "windows" {
+		return []string{"C:\\Windows\\System32\\cmd.exe", "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"}
+	}
+	return []string{"/bin/sh", "/bin/bash", "/usr/bin/sh", "/usr/bin/bash"}
+}
+
+func interactiveShellArgs() []string {
+	if runtime.GOOS == "windows" {
+		return []string{"/Q"}
+	}
+	// A pipe is not a terminal. POSIX shells otherwise exit immediately
+	// instead of accepting the session's stdin stream.
+	return []string{"-i"}
 }
 
 func interactiveCommandEnv(vrooliBin string, base []string) []string {

@@ -104,8 +104,9 @@ message Node {
   // Human-friendly label the owner sets (e.g. "mac-mini-office").
   string name = 2;
 
-  // Operating system and architecture the node runs (GOOS/GOARCH style),
-  // driving the cross-OS gate's per-OS fan-out.
+  // Operating system and legacy architecture field. `arch` remains for wire
+  // compatibility; refreshed agents populate the separate architecture facts
+  // below so machine identity is not inferred from the binary.
   string os = 3;
   string arch = 4;
 
@@ -126,8 +127,8 @@ message Node {
   // Registry-owned catalog grants that authorize what the node may be asked
   // to run. Command grants use <namespace>:<effect> (for example
   // "web-console:read") and may use *, <namespace>:*, or *:<effect>;
-  // "vrooli-bridge:session" is a separate transport capability. Enforced at
-  // dispatch; an empty list is presence-only.
+  // Interactive sessions use the ordinary vrooli-bridge:write transport grant,
+  // enforced at dispatch; an empty list is presence-only.
   repeated string scopes = 8;
 
   // Current status, with the presence overlay applied (see NodeStatus).
@@ -156,6 +157,12 @@ message Node {
   bool dispatchable = 20;
 
   NodeKind kind = 21;
+
+  // Architecture of the physical/virtual machine reported by the agent.
+  string machine_arch = 22;
+
+  // Architecture the agent binary was built for.
+  string binary_arch = 23;
 }
 
 // RegisterNodeRequest carries the durable identity of a node being registered.
@@ -167,6 +174,8 @@ message RegisterNodeRequest {
   repeated string capabilities = 5;
   repeated string scopes = 6;
   NodeKind kind = 7;
+  string machine_arch = 8;
+  string binary_arch = 9;
 }
 
 message RegisterNodeResponse {

@@ -33,9 +33,10 @@ type View =
 interface FleetDrawerProps {
   open: boolean;
   onClose: () => void;
+  onStartSession?: (machine: Machine) => void;
 }
 
-export default function FleetDrawer({ open, onClose }: FleetDrawerProps) {
+export default function FleetDrawer({ open, onClose, onStartSession }: FleetDrawerProps) {
   const { t } = useTranslation();
   const [view, setView] = useState<View>({ kind: "list" });
   const [code, setCode] = useState<IssuedCode | null>(null);
@@ -162,7 +163,7 @@ export default function FleetDrawer({ open, onClose }: FleetDrawerProps) {
                       <JoinRequestCard key={request.id} request={request} onReview={() => { setView({ kind: "review", request }); }} />
                     ))}
                     {(fleet?.machines ?? []).map((machine) => (
-                      <MachineCard key={machine.target.id} machine={machine} onManage={(item) => { setView({ kind: "grant-existing", machine: item }); }} />
+                      <MachineCard key={machine.target.id} machine={machine} onStartSession={onStartSession} onManage={(item) => { setView({ kind: "grant-existing", machine: item }); }} />
                     ))}
                     {remoteMachines.length === 0 && (
                       <div data-testid="machines-empty" className="w-[268px] shrink-0 rounded-xl border border-dashed border-wc-default bg-wc-surface-base/40 p-5 text-center">

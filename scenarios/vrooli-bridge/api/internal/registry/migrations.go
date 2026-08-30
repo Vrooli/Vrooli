@@ -22,6 +22,7 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		return err
 	}
 	defer rows.Close()
+	columns := map[string]bool{}
 	for rows.Next() {
 		var cid, notNull, pk int
 		var name, typ string
@@ -29,15 +30,18 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		if err := rows.Scan(&cid, &name, &typ, &notNull, &dflt, &pk); err != nil {
 			return err
 		}
-		if name == "pairing_correlation_id" {
-			return nil
-		}
+		columns[name] = true
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	if _, err = db.ExecContext(ctx, "ALTER TABLE nodes ADD COLUMN pairing_correlation_id TEXT NOT NULL DEFAULT ''"); err != nil {
-		return fmt.Errorf("add nodes.pairing_correlation_id: %w", err)
+	for _, column := range []string{"pairing_correlation_id", "machine_arch", "binary_arch"} {
+		if columns[column] {
+			continue
+		}
+		if _, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE nodes ADD COLUMN %s TEXT NOT NULL DEFAULT ''", column)); err != nil {
+			return fmt.Errorf("add nodes.%s: %w", column, err)
+		}
 	}
 	return nil
 }

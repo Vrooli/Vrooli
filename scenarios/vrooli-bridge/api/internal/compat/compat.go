@@ -29,8 +29,8 @@ type Status int
 
 const (
 	// StatusUnspecified is the zero value: no version has been negotiated yet.
-	// It is treated as compatible (OK) for back-compatibility — a node that
-	// never reports a version (e.g. a pre-negotiation dial) is not punished.
+	// It is not dispatchable because compatibility must be measured before work
+	// is sent to a node.
 	StatusUnspecified Status = 0
 
 	// StatusOK — the node's protocol version is fully drivable; it may receive
@@ -61,12 +61,10 @@ func (s Status) String() string {
 	}
 }
 
-// Dispatchable reports whether a node with this status may receive WORK (jobs,
-// provisioning is allowed regardless — provisioning is how an out-of-date node
-// is fixed). Only OK / Unspecified are dispatchable; a flagged node is excluded.
-func (s Status) Dispatchable() bool {
-	return s == StatusOK || s == StatusUnspecified
-}
+// Dispatchable reports whether a node with this status may receive WORK.
+// Provisioning is allowed regardless so an unreported or out-of-date node can
+// be repaired, but dispatch requires an explicitly measured OK status.
+func (s Status) Dispatchable() bool { return s == StatusOK }
 
 // Evaluate classifies a node's reported protocol version against the control
 // plane's current + minimum-supported versions.
@@ -77,7 +75,7 @@ func Evaluate(nodeProtocolVersion uint32) Status {
 // EvaluateAt is the pure evaluator with explicit current/min thresholds (the
 // testable core). The bands are:
 //
-//   - nodePV == 0           → Unspecified (back-compat: absence is not a fault)
+//   - nodePV == 0           → Unspecified (not dispatchable until reported)
 //   - nodePV >= current     → OK (equal, or newer — DiscardUnknown lets the
 //     control plane drive the subset it understands)
 //   - min <= nodePV < current → NeedsUpdate (drivable for presence; no work)

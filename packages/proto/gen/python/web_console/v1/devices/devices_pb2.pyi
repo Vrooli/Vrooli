@@ -64,3 +64,17 @@ class DisconnectResponse(_message.Message):
     CLOSED_CONNECTIONS_FIELD_NUMBER: _ClassVar[int]
     closed_connections: int
     def __init__(self, closed_connections: _Optional[int] = ...) -> None: ...
+
+class GiveControlRequest(_message.Message):
+    __slots__ = ("device_id", "session_id")
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    device_id: str
+    session_id: str
+    def __init__(self, device_id: _Optional[str] = ..., session_id: _Optional[str] = ...) -> None: ...
+
+class GiveControlResponse(_message.Message):
+    __slots__ = ("transferred",)
+    TRANSFERRED_FIELD_NUMBER: _ClassVar[int]
+    transferred: bool
+    def __init__(self, transferred: _Optional[bool] = ...) -> None: ...

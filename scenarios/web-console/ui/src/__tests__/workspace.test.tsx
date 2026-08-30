@@ -285,6 +285,10 @@ vi.mock("../components/TerminalLauncher", () => ({
     open ? (
       <div data-testid="mock-launcher">
         <button data-testid="mock-launcher-launch" onClick={() => onLaunch({})}>Launch</button>
+        <button data-testid="mock-launcher-remote-launch" onClick={() => onLaunch({
+          command: "vrooli agent launch --runner codex",
+          target: { id: "bridge-node:remote-1", kind: "remote", label: "Remote Mac", available: true },
+        })}>Remote launch</button>
         <button data-testid="mock-launcher-close" onClick={onClose}>Close</button>
         {creating && <span>creating...</span>}
       </div>
@@ -410,6 +414,25 @@ describe("Workspace", () => {
     expect(mockClearError).toHaveBeenCalledOnce();
     await waitFor(() => {
       expect(mockLaunchSession).toHaveBeenCalledOnce();
+    });
+  });
+
+  it("retries a failed launch with its original target and command", async () => {
+    mockLaunchSession.mockResolvedValue(null);
+    const view = render(<Workspace />);
+    fireEvent.click(screen.getByTestId("new-terminal-button"));
+    fireEvent.click(screen.getByTestId("mock-launcher-remote-launch"));
+
+    hookState.createError = { message: "Remote node unavailable", retry: true };
+    // The real hook publishes the error asynchronously. Re-render the mocked
+    // hook state so the recovery banner can exercise the same callback.
+    view.rerender(<Workspace />);
+    fireEvent.click(screen.getByTestId("mock-retry"));
+
+    await waitFor(() => expect(mockLaunchSession).toHaveBeenCalledTimes(2));
+    expect(mockLaunchSession.mock.calls[1]?.[0]).toMatchObject({
+      command: "vrooli agent launch --runner codex",
+      target: { id: "bridge-node:remote-1", kind: "remote" },
     });
   });
 

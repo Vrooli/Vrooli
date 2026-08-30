@@ -8,10 +8,36 @@ import (
 
 	"connectrpc.com/connect"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type heartbeatRoutingClient struct {
 	heartbeatErr error
+}
+
+func TestFilePersistenceClassificationSurvivesUnrelatedStorageFailure(t *testing.T) {
+	detail, err := structpb.NewStruct(map[string]any{"file_persisting": true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	native, err := anypb.New(detail)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := &scenariovalidationv1.ValidateScenarioResponse{
+		Status:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+		NativeDetail: native,
+	}
+
+	got, err := filePersistenceClassification(resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got {
+		t.Fatal("file_persisting = false, want true despite unrelated storage findings")
+	}
 }
 
 func (c heartbeatRoutingClient) InstallTestPool(context.Context, *connect.Request[routingv1.InstallTestPoolRequest]) (*connect.Response[routingv1.InstallTestPoolResponse], error) {

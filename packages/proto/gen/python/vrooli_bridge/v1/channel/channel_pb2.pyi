@@ -35,7 +35,7 @@ PRIVILEGED_OPERATION_ROTATE_BREAK_GLASS: PrivilegedOperation
 PRIVILEGED_OPERATION_RESET_BREAK_GLASS: PrivilegedOperation
 
 class Handshake(_message.Message):
-    __slots__ = ("protocol_version", "node_id", "agent_version", "os", "arch", "capabilities", "supports_websocket")
+    __slots__ = ("protocol_version", "node_id", "agent_version", "os", "arch", "capabilities", "supports_websocket", "machine_arch", "binary_arch")
     PROTOCOL_VERSION_FIELD_NUMBER: _ClassVar[int]
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -43,6 +43,8 @@ class Handshake(_message.Message):
     ARCH_FIELD_NUMBER: _ClassVar[int]
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_WEBSOCKET_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_ARCH_FIELD_NUMBER: _ClassVar[int]
+    BINARY_ARCH_FIELD_NUMBER: _ClassVar[int]
     protocol_version: int
     node_id: str
     agent_version: str
@@ -50,7 +52,9 @@ class Handshake(_message.Message):
     arch: str
     capabilities: _containers.RepeatedScalarFieldContainer[str]
     supports_websocket: bool
-    def __init__(self, protocol_version: _Optional[int] = ..., node_id: _Optional[str] = ..., agent_version: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., supports_websocket: _Optional[bool] = ...) -> None: ...
+    machine_arch: str
+    binary_arch: str
+    def __init__(self, protocol_version: _Optional[int] = ..., node_id: _Optional[str] = ..., agent_version: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., supports_websocket: _Optional[bool] = ..., machine_arch: _Optional[str] = ..., binary_arch: _Optional[str] = ...) -> None: ...
 
 class HandshakeAck(_message.Message):
     __slots__ = ("accepted", "compatibility", "control_plane_protocol_version", "session_id", "reason")

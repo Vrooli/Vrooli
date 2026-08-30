@@ -72,6 +72,8 @@ CREATE TABLE IF NOT EXISTS pairing_requests (
   name         TEXT NOT NULL DEFAULT '',
   os           TEXT NOT NULL DEFAULT '',
   arch         TEXT NOT NULL DEFAULT '',
+  machine_arch TEXT NOT NULL DEFAULT '',
+  binary_arch  TEXT NOT NULL DEFAULT '',
   endpoint     TEXT NOT NULL DEFAULT '',
   capabilities TEXT NOT NULL DEFAULT '[]',
   status       TEXT NOT NULL DEFAULT 'pending',

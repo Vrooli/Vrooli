@@ -510,6 +510,7 @@
     "dropOld": "Drop the old one",
     "forgetDevice": "Forget this device",
     "rename": "Rename",
+    "startSession": "Start session",
     "noSession": "No session open",
     "driving": "Driving {{session}}",
     "alsoDevice": "Also a device"

@@ -24,6 +24,8 @@ type Facts struct {
 	Name         string
 	OS           string
 	Arch         string
+	MachineArch  string
+	BinaryArch   string
 	Endpoint     string
 	Capabilities []string
 }
@@ -58,6 +60,7 @@ func (c Client) Join(ctx context.Context, cred *nodecred.Credential, facts Facts
 	requested, err := api.RequestPairing(ctx, connect.NewRequest(&pairingv1.RequestPairingRequest{
 		NodePublicKey: cred.PublicKeyBase64(),
 		Name:          facts.Name, Os: facts.OS, Arch: facts.Arch, Endpoint: facts.Endpoint,
+		MachineArch: facts.MachineArch, BinaryArch: facts.BinaryArch,
 		Capabilities: append([]string(nil), facts.Capabilities...),
 	}))
 	if err != nil {

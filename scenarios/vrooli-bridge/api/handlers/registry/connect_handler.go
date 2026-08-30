@@ -102,6 +102,8 @@ func (h *connectHandler) RegisterNode(ctx context.Context, req *connect.Request[
 		Kind:         kindString(req.Msg.Kind),
 		OS:           req.Msg.Os,
 		Arch:         req.Msg.Arch,
+		MachineArch:  req.Msg.MachineArch,
+		BinaryArch:   req.Msg.BinaryArch,
 		Endpoint:     req.Msg.Endpoint,
 		Capabilities: req.Msg.Capabilities,
 		Scopes:       req.Msg.Scopes,

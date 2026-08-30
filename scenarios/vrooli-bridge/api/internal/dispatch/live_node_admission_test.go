@@ -46,7 +46,7 @@ func TestLiveNodeAdmission(t *testing.T) {
 				Kind:   registry.KindAgent,
 				OS:     "darwin",
 				Arch:   "amd64",
-				Scopes: []string{"vrooli-bridge:read", "vrooli-bridge:write", "vrooli-bridge:session", "vrooli:read", "vrooli:write"},
+				Scopes: []string{"vrooli-bridge:read", "vrooli-bridge:write", "vrooli:read", "vrooli:write"},
 			},
 			verbs: []string{
 				"capability ledger",
@@ -65,7 +65,7 @@ func TestLiveNodeAdmission(t *testing.T) {
 				Kind:   registry.KindAgent,
 				OS:     "linux",
 				Arch:   "amd64",
-				Scopes: []string{"vrooli-bridge:read", "vrooli-bridge:write", "vrooli-bridge:session", "vrooli:read", "vrooli:write", "device-control:read", "device-control:write"},
+				Scopes: []string{"vrooli-bridge:read", "vrooli-bridge:write", "vrooli:read", "vrooli:write", "device-control:read", "device-control:write"},
 			},
 			verbs: []string{
 				"device-control flow",

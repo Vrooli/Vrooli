@@ -368,6 +368,102 @@ func (x *DisconnectResponse) GetClosedConnections() int32 {
 	return 0
 }
 
+type GiveControlRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DeviceId      string                 `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	SessionId     string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GiveControlRequest) Reset() {
+	*x = GiveControlRequest{}
+	mi := &file_web_console_v1_devices_devices_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GiveControlRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GiveControlRequest) ProtoMessage() {}
+
+func (x *GiveControlRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_devices_devices_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GiveControlRequest.ProtoReflect.Descriptor instead.
+func (*GiveControlRequest) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_devices_devices_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GiveControlRequest) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *GiveControlRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type GiveControlResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Transferred   bool                   `protobuf:"varint,1,opt,name=transferred,proto3" json:"transferred,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GiveControlResponse) Reset() {
+	*x = GiveControlResponse{}
+	mi := &file_web_console_v1_devices_devices_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GiveControlResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GiveControlResponse) ProtoMessage() {}
+
+func (x *GiveControlResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_devices_devices_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GiveControlResponse.ProtoReflect.Descriptor instead.
+func (*GiveControlResponse) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_devices_devices_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GiveControlResponse) GetTransferred() bool {
+	if x != nil {
+		return x.Transferred
+	}
+	return false
+}
+
 var File_web_console_v1_devices_devices_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_devices_devices_proto_rawDesc = "" +
@@ -396,11 +492,18 @@ const file_web_console_v1_devices_devices_proto_rawDesc = "" +
 	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12#\n" +
 	"\rconnection_id\x18\x02 \x01(\tR\fconnectionId\"C\n" +
 	"\x12DisconnectResponse\x12-\n" +
-	"\x12closed_connections\x18\x01 \x01(\x05R\x11closedConnections2\xe3\x01\n" +
+	"\x12closed_connections\x18\x01 \x01(\x05R\x11closedConnections\"P\n" +
+	"\x12GiveControlRequest\x12\x1b\n" +
+	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\"7\n" +
+	"\x13GiveControlResponse\x12 \n" +
+	"\vtransferred\x18\x01 \x01(\bR\vtransferred2\xd9\x02\n" +
 	"\rDeviceService\x12_\n" +
 	"\x04List\x12*.vrooli.web_console.v1.devices.ListRequest\x1a+.vrooli.web_console.v1.devices.ListResponse\x12q\n" +
 	"\n" +
-	"Disconnect\x120.vrooli.web_console.v1.devices.DisconnectRequest\x1a1.vrooli.web_console.v1.devices.DisconnectResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/devices;devices_v1b\x06proto3"
+	"Disconnect\x120.vrooli.web_console.v1.devices.DisconnectRequest\x1a1.vrooli.web_console.v1.devices.DisconnectResponse\x12t\n" +
+	"\vGiveControl\x121.vrooli.web_console.v1.devices.GiveControlRequest\x1a2.vrooli.web_console.v1.devices.GiveControlResponseBRZPgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/devices;devices_v1b\x06proto3"
 
 var (
 	file_web_console_v1_devices_devices_proto_rawDescOnce sync.Once
@@ -414,7 +517,7 @@ func file_web_console_v1_devices_devices_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_devices_devices_proto_rawDescData
 }
 
-var file_web_console_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_web_console_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_web_console_v1_devices_devices_proto_goTypes = []any{
 	(*ListRequest)(nil),           // 0: vrooli.web_console.v1.devices.ListRequest
 	(*ListResponse)(nil),          // 1: vrooli.web_console.v1.devices.ListResponse
@@ -422,18 +525,22 @@ var file_web_console_v1_devices_devices_proto_goTypes = []any{
 	(*Device)(nil),                // 3: vrooli.web_console.v1.devices.Device
 	(*DisconnectRequest)(nil),     // 4: vrooli.web_console.v1.devices.DisconnectRequest
 	(*DisconnectResponse)(nil),    // 5: vrooli.web_console.v1.devices.DisconnectResponse
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(*GiveControlRequest)(nil),    // 6: vrooli.web_console.v1.devices.GiveControlRequest
+	(*GiveControlResponse)(nil),   // 7: vrooli.web_console.v1.devices.GiveControlResponse
+	(*timestamppb.Timestamp)(nil), // 8: google.protobuf.Timestamp
 }
 var file_web_console_v1_devices_devices_proto_depIdxs = []int32{
 	3, // 0: vrooli.web_console.v1.devices.ListResponse.devices:type_name -> vrooli.web_console.v1.devices.Device
-	6, // 1: vrooli.web_console.v1.devices.Device.first_seen_at:type_name -> google.protobuf.Timestamp
+	8, // 1: vrooli.web_console.v1.devices.Device.first_seen_at:type_name -> google.protobuf.Timestamp
 	2, // 2: vrooli.web_console.v1.devices.Device.sessions:type_name -> vrooli.web_console.v1.devices.SessionAttachment
 	0, // 3: vrooli.web_console.v1.devices.DeviceService.List:input_type -> vrooli.web_console.v1.devices.ListRequest
 	4, // 4: vrooli.web_console.v1.devices.DeviceService.Disconnect:input_type -> vrooli.web_console.v1.devices.DisconnectRequest
-	1, // 5: vrooli.web_console.v1.devices.DeviceService.List:output_type -> vrooli.web_console.v1.devices.ListResponse
-	5, // 6: vrooli.web_console.v1.devices.DeviceService.Disconnect:output_type -> vrooli.web_console.v1.devices.DisconnectResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
+	6, // 5: vrooli.web_console.v1.devices.DeviceService.GiveControl:input_type -> vrooli.web_console.v1.devices.GiveControlRequest
+	1, // 6: vrooli.web_console.v1.devices.DeviceService.List:output_type -> vrooli.web_console.v1.devices.ListResponse
+	5, // 7: vrooli.web_console.v1.devices.DeviceService.Disconnect:output_type -> vrooli.web_console.v1.devices.DisconnectResponse
+	7, // 8: vrooli.web_console.v1.devices.DeviceService.GiveControl:output_type -> vrooli.web_console.v1.devices.GiveControlResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
 	3, // [3:3] is the sub-list for extension extendee
 	0, // [0:3] is the sub-list for field type_name
@@ -450,7 +557,7 @@ func file_web_console_v1_devices_devices_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_devices_devices_proto_rawDesc), len(file_web_console_v1_devices_devices_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

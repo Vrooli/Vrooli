@@ -522,6 +522,7 @@ export const strings = {
     dropOld: "fleet.dropOld",
     forgetDevice: "fleet.forgetDevice",
     rename: "fleet.rename",
+    startSession: "fleet.startSession",
     noSession: "fleet.noSession",
     driving: "fleet.driving",
     alsoDevice: "fleet.alsoDevice",

@@ -18,11 +18,6 @@ import (
 // CommandRunner executes a command and returns combined stdout/stderr.
 type CommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
 
-// CommandScopeResolver maps one remote argv verb to the concrete catalog scope
-// derived from its owning CLI manifest. The bool is false for an unknown or
-// ambiguous verb.
-type CommandScopeResolver func(command string) (scope string, ok bool)
-
 // ResolverConfig configures a Resolver.
 type ResolverConfig struct {
 	// VrooliPath is the CLI binary to invoke. Defaults to "vrooli".
@@ -58,12 +53,6 @@ type ResolverConfig struct {
 
 	// Now supplies time for deterministic cache tests. Nil uses time.Now.
 	Now func() time.Time
-
-	// TargetResolver and Relay provide the optional node transport. Leaving
-	// both nil preserves the local resolver and its exact CLI behavior.
-	TargetResolver TargetResolver
-	Relay          RelayTransport
-	CommandScope   CommandScopeResolver
 }
 
 // Resolver resolves scenario ports by shelling out to the Vrooli CLI. Successful
@@ -72,22 +61,19 @@ type ResolverConfig struct {
 // configured TTL.
 // If configured with a static base URL, it bypasses CLI discovery entirely.
 type Resolver struct {
-	vrooliPath     string
-	runner         CommandRunner
-	host           string
-	scheme         string
-	staticBaseURL  string // When set, bypasses CLI discovery
-	targetResolver TargetResolver
-	relay          RelayTransport
-	commandScope   CommandScopeResolver
-	cacheTTL       time.Duration
-	negativeTTL    time.Duration
-	sharedLookup   bool
-	now            func() time.Time
-	cacheMu        sync.Mutex
-	cache          map[string]*cachedPort
-	cacheHits      int64
-	cacheMisses    int64
+	vrooliPath    string
+	runner        CommandRunner
+	host          string
+	scheme        string
+	staticBaseURL string // When set, bypasses CLI discovery
+	cacheTTL      time.Duration
+	negativeTTL   time.Duration
+	sharedLookup  bool
+	now           func() time.Time
+	cacheMu       sync.Mutex
+	cache         map[string]*cachedPort
+	cacheHits     int64
+	cacheMisses   int64
 }
 
 // cachedPort holds one key's resolution plus the lock that serializes lookups
@@ -114,17 +100,12 @@ const defaultResolverNegativeCacheTTL = 500 * time.Millisecond
 type ErrorKind string
 
 const (
-	ErrInvalidInput               ErrorKind = "invalid_input"
-	ErrVrooliNotFound             ErrorKind = "vrooli_not_found"
-	ErrScenarioNotRunning         ErrorKind = "scenario_not_running"
-	ErrTimeout                    ErrorKind = "timeout"
-	ErrInvalidPort                ErrorKind = "invalid_port"
-	ErrCommandFailed              ErrorKind = "command_failed"
-	ErrNodeOffline                ErrorKind = "node_offline"
-	ErrNodeOutOfScope             ErrorKind = "node_out_of_scope"
-	ErrNodeUnpaired               ErrorKind = "node_unpaired_or_revoked"
-	ErrRemoteTransportUnavailable ErrorKind = "remote_transport_unavailable"
-	ErrRemoteCallFailed           ErrorKind = "remote_call_failed"
+	ErrInvalidInput       ErrorKind = "invalid_input"
+	ErrVrooliNotFound     ErrorKind = "vrooli_not_found"
+	ErrScenarioNotRunning ErrorKind = "scenario_not_running"
+	ErrTimeout            ErrorKind = "timeout"
+	ErrInvalidPort        ErrorKind = "invalid_port"
+	ErrCommandFailed      ErrorKind = "command_failed"
 )
 
 // Error provides structured details about discovery failures.
@@ -215,12 +196,9 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		// Only an unconfigured resolver may use the shared seam; an injected
 		// runner or binary path is an explicit request for this resolver's own
 		// execution path.
-		sharedLookup:   cfg.CommandRunner == nil && cfg.VrooliPath == "",
-		now:            now,
-		cache:          make(map[string]*cachedPort),
-		targetResolver: cfg.TargetResolver,
-		relay:          cfg.Relay,
-		commandScope:   cfg.CommandScope,
+		sharedLookup: cfg.CommandRunner == nil && cfg.VrooliPath == "",
+		now:          now,
+		cache:        make(map[string]*cachedPort),
 	}
 }
 

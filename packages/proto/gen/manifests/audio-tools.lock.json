@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "audio-tools",
-  "input_digest": "sha256:ad022635c66b393691c1c087b3d47df720e4eec1aed1527e78ddfa13602339d4",
+  "input_digest": "sha256:7d718904c51720e3661035e70ddfad8867818608f97b6e98c5cc465a5fa9281d",
   "input_files": [
     "schemas/audio-tools/v1/audio/audio.proto",
     "schemas/audio-tools/v1/auth/auth.proto",
@@ -57,7 +57,7 @@
     "gen/go/audio-tools/v1/settings/settings.pb.go": "sha256:66bb0722c3386aee63b8c643292401aa96d7cc07d4887b8465a5aa90d2bb8dc6",
     "gen/go/audio-tools/v1/settings/settings_v1connect/settings.connect.go": "sha256:b3ae264af7acbb5460a6a47a69318e8a17e069f058a89e9d2aae43a30704821e",
     "gen/go/audio-tools/v1/shared/shared.pb.go": "sha256:23c5aabfb9de7ed8d356eb400fe47e991a4f5fd60ee6a3d9c52cc556c41ddfb8",
-    "gen/go/audio-tools/v1/stt/stt.pb.go": "sha256:c1300d017208f8a5df115d4e547da57a6d88e71e4df974c14eed8d2de32326cb",
+    "gen/go/audio-tools/v1/stt/stt.pb.go": "sha256:0c0871c1c3474d60685cbc72224ea7a62c1cefbdf6065ce92f76f91bad779358",
     "gen/go/audio-tools/v1/stt/stt_admin.pb.go": "sha256:9f976d1f4464231ef04c5636fe6a6aa47995d70c65669242d6741b2825ccefa4",
     "gen/go/audio-tools/v1/stt/stt_v1connect/stt.connect.go": "sha256:b3630dddcbf41a3a343bd60e408790bb903875e621fa8b5d357cc7a76ae68edb",
     "gen/go/audio-tools/v1/stt/stt_v1connect/stt_admin.connect.go": "sha256:aaf33e756057af36a4783d8efafb2f42e5031c6dfe21cf22cad3c42be5e93672",
@@ -114,8 +114,8 @@
     "gen/python/audio_tools/v1/stt/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/audio_tools/v1/stt/stt_admin_pb2.py": "sha256:3b0c3d3f96d2df5b5f4c98144a2d25e5ef34a690d3ad806ae11058000b1fc7d0",
     "gen/python/audio_tools/v1/stt/stt_admin_pb2.pyi": "sha256:f565d85b3b7f10a25286db507a8d47aa75c52861c7ae104da860284b2a7b8f71",
-    "gen/python/audio_tools/v1/stt/stt_pb2.py": "sha256:5972548d15d2d6da664fdaad86a12baf41adddd3379fc21d4281741b85f797a5",
-    "gen/python/audio_tools/v1/stt/stt_pb2.pyi": "sha256:2ad9fda7ae7ec7aa774779fb2be7cd79e2e75bb4eb3e475e1887bc0879eeebb0",
+    "gen/python/audio_tools/v1/stt/stt_pb2.py": "sha256:ab89d367b9932a13df67f7cc4944a8fbd52b92850122b4f7f0d6cb586cf0cc45",
+    "gen/python/audio_tools/v1/stt/stt_pb2.pyi": "sha256:1932ec140c16a8354a51148d9ff1973660900881617af058acb52e574e761090",
     "gen/python/audio_tools/v1/summarize/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/audio_tools/v1/summarize/summarize_pb2.py": "sha256:569a74558dc48ba33af02a50e007518732923783faa38c66a3938071b475cebc",
     "gen/python/audio_tools/v1/summarize/summarize_pb2.pyi": "sha256:9f09b1feb82283c1f053fef75a94a5849207e0977a6937bd38f4b8baf37357c4",
@@ -140,7 +140,7 @@
     "gen/typescript/audio-tools/v1/settings/settings_pb.ts": "sha256:f07ddf563c245dee6331d13acaac78bf6160354743dcea126b6fb37afdf68ee1",
     "gen/typescript/audio-tools/v1/shared/shared_pb.ts": "sha256:0e231826e1e8ec55c7a1f385dc40397f185a11b0127874a103086226643ea9c7",
     "gen/typescript/audio-tools/v1/stt/stt_admin_pb.ts": "sha256:23b8298509e6147a11c5eb3afebc1360e337258f0356a156e88689f2e286c082",
-    "gen/typescript/audio-tools/v1/stt/stt_pb.ts": "sha256:57f044dfd273a6628f28bb42f5b8db9508ccf996cacdc1f2a7259da94dc495c8",
+    "gen/typescript/audio-tools/v1/stt/stt_pb.ts": "sha256:ebd623b17e68c2ce6a6061a7d7095aaee5769aa8717741d789fd10c3cb0a2208",
     "gen/typescript/audio-tools/v1/summarize/summarize_pb.ts": "sha256:df742d60748654685b82c0191d946362876a95a7483efa43a1c7e3bd2aac3f66",
     "gen/typescript/audio-tools/v1/tts/tts_pb.ts": "sha256:2f5974d1e8c768b2f839d14564b3b639dffd2fa348a5d4a5e0cd4e22cb9e7b04",
     "gen/typescript/audio-tools/v1/usage/usage_pb.ts": "sha256:24df86aa99b89341d5a746ab288704cecb54d8ea57c8c3419702542bb2e987a3"

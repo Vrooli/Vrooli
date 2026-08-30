@@ -13,6 +13,8 @@ import (
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/vrooli/api-core/scopecatalog"
+	sessioncore "github.com/vrooli/vrooli/packages/session-core"
 	"vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/registry"
@@ -71,6 +73,10 @@ func (h *sessionWSHandler) handle(w http.ResponseWriter, r *http.Request) {
 	} else {
 		scopes = strings.Split(r.URL.Query().Get("scopes"), ",")
 	}
+	if !scopecatalog.Resolve(owner.Scopes, session.TransportScope) {
+		h.reject(w, r, owner.OwnerID, "owner authorization ceiling does not include "+session.TransportScope)
+		return
+	}
 
 	id := strings.TrimSpace(r.URL.Query().Get("session_id"))
 	if id == "" {
@@ -84,7 +90,7 @@ func (h *sessionWSHandler) handle(w http.ResponseWriter, r *http.Request) {
 	upgrader := websocket.Upgrader{
 		ReadBufferSize: 32 * 1024, WriteBufferSize: 32 * 1024,
 		CheckOrigin: func(req *http.Request) bool {
-			return req.Header.Get("Origin") == "" || sameOrigin(req.Header.Get("Origin"), req.Host)
+			return req.Header.Get("Origin") == "" || sessioncore.SameOrigin(req.Header.Get("Origin"), req.Host)
 		},
 	}
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -289,10 +295,6 @@ func (h *sessionWSHandler) write(conn *websocket.Conn, frame *sessionv1.Frame) e
 
 func rejectFrame(code, reason string) *sessionv1.Frame {
 	return &sessionv1.Frame{Payload: &sessionv1.Frame_Ack{Ack: &sessionv1.Ack{Code: code, Reason: reason}}}
-}
-
-func sameOrigin(origin, host string) bool {
-	return strings.TrimPrefix(strings.TrimPrefix(origin, "http://"), "https://") == host
 }
 
 func minDuration(a, b time.Duration) time.Duration {

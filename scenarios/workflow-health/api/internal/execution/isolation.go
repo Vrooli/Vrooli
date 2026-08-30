@@ -112,11 +112,16 @@ func storageHealthRequiresFileRoots(ctx context.Context, scenario string) (bool,
 	if err != nil {
 		return false, fmt.Errorf("validate target through storage-manager: %w", err)
 	}
-	if resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
-		return false, fmt.Errorf("storage-manager did not prove target isolation (status %s)", resp.Msg.GetStatus())
-	}
+	return filePersistenceClassification(resp.Msg)
+}
+
+// filePersistenceClassification answers only the isolation question consumed
+// by workflow execution. Storage Manager's overall status also includes
+// declaration, retention, and legacy-storage findings; those remain important
+// storage debt but must not masquerade as evidence that routed seams are absent.
+func filePersistenceClassification(resp *scenariovalidationv1.ValidateScenarioResponse) (bool, error) {
 	detail := &structpb.Struct{}
-	if native := resp.Msg.GetNativeDetail(); native == nil || native.UnmarshalTo(detail) != nil {
+	if native := resp.GetNativeDetail(); native == nil || native.UnmarshalTo(detail) != nil {
 		return false, fmt.Errorf("storage-manager response omitted file-persistence classification")
 	}
 	field, ok := detail.Fields["file_persisting"]

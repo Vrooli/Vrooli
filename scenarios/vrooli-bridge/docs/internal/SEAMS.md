@@ -270,9 +270,9 @@ These decisions have table or boundary tests and are wired once at `main.go`.
 | Seam | Contract |
 |---|---|
 | **Wire** | `packages/proto/schemas/vrooli-bridge/v1/session/session.proto`; binary `Frame` messages over `/api/v1/channel/session`. |
-| **Policy** | `api/internal/session.Manager` requires `vrooli-bridge:session`, owner re-authentication, sequence continuity, bounded receive window, idle timeout and hard lifetime. |
+| **Policy** | `api/internal/session.Manager` requires the ordinary `vrooli-bridge:write` transport-effect grant, owner re-authentication, sequence continuity, bounded receive window, idle timeout and hard lifetime. The grant is derived from the shared `scopecatalog` grammar; interactive sessions do not introduce a second scope vocabulary. |
 | **Security** | The ambient owner identity is insufficient. `X-Bridge-Owner-Reauth` is independently validated, WebSocket origins are same-origin checked, and denied opens are audited. |
-| **Backend seam** | The WebSocket handler relays opaque bytes. PTY, agent and SSH backends are selected by the next session phase without changing this wire contract. |
+| **Backend seam** | The WebSocket handler relays opaque bytes. PTY and agent backends are selected without changing this wire contract; SSH is not advertised until a constructed credentialed backend exists. |
 | **Test fake** | A `fakeLastSeen` recorder in `handlers/channel/heartbeat_handler_test.go` (records ids; an injectable error proves the swallow path). |
 | **Why it exists** | Keeps the channel handler decoupled from the registry's storage internals while still persisting "last seen 2h ago" across a control-plane restart. The presence hub itself stays pure in-memory. |
 

@@ -15,6 +15,7 @@ import (
 	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/targetmodel"
 	"github.com/vrooli/nodeclient"
+	"web-console/internal/config"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 )
@@ -39,7 +40,7 @@ func configuredRemoteTarget() targetConnection {
 		NodeID:     strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_NODE_ID")),
 		Transport:  targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_NODE_ID"))},
 		Health:     targetmodel.TargetHealth{Status: "unconfigured"},
-	}, OwnerToken: ownerToken, ReauthToken: reauthToken}
+	}, BaseURL: strings.TrimSpace(config.Load().BridgeURL), OwnerToken: ownerToken, ReauthToken: reauthToken}
 	if strings.TrimSpace(t.OwnerToken) == "" ||
 		(!hasExplicitAuthScheme(t.OwnerToken, sharedsession.LocalSessionScheme) &&
 			strings.TrimSpace(t.ReauthToken) == "" && strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN")) == "") {
@@ -115,7 +116,10 @@ func targetFromRegistryNode(base targetConnection, node *registryv1.Node) target
 		target.Label = node.GetId()
 	}
 	target.OS = node.GetOs()
-	target.Architecture = node.GetArch()
+	target.Architecture = node.GetMachineArch()
+	if target.Architecture == "" {
+		target.Architecture = node.GetArch()
+	}
 	target.Revision = node.GetRevision()
 	target.Scopes = append([]string(nil), node.GetScopes()...)
 	target.Health = targetmodel.TargetHealth{Status: node.GetStatus().String()}
@@ -125,14 +129,21 @@ func targetFromRegistryNode(base targetConnection, node *registryv1.Node) target
 		target.LastSeenAt = node.GetLastSeenAt().AsTime()
 	}
 	target.Readiness = readinessFactsForNode(node)
-	target.Available = node.GetDispatchable() && node.GetKind() == registryv1.NodeKind_NODE_KIND_AGENT
-	target.Transport = targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: node.GetId(), Available: target.Available}
+	target.Transport = targetmodel.Transport{Kind: targetmodel.TransportBridge, ID: node.GetId(), Available: node.GetDispatchable()}
+	target.Available, target.Reason = targetmodel.CanHostSession(target.Target)
 	target.Mode = targetStateForNode(node, target.Available)
 	if !target.Available {
+		if target.DeviceKind == "ssh" {
+			target.Reason = "SSH interactive sessions are not supported"
+			target.NextAction = "Use a node-agent session or onboard this machine with the Bridge agent"
+			return target
+		}
 		if failure := readinessFailure(node); failure != "" {
 			target.Reason = failure
 		} else {
-			target.Reason = "session backend unavailable for " + target.DeviceKind
+			if target.Reason == "" {
+				target.Reason = "session backend unavailable for " + target.DeviceKind
+			}
 		}
 		target.NextAction = recoveryActionForNode(node, target.Reason)
 	}

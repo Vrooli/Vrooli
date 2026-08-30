@@ -349,6 +349,20 @@ html[data-wc-adaptive-chrome="true"] .wc-ios-tint-edge {
   50% { opacity: 0.7; }
 }
 
+/* ── Machine status lamp ──
+ * A dispatchable machine's lamp halo breathes, which is the one moving part of
+ * the fleet drawer. Reachability is the only fact about a machine that changes
+ * without the operator doing anything, so it is the only one that animates.
+ * The reduced-motion block below neutralizes it. */
+@keyframes wcMachineLampBreathe {
+  0%, 100% { opacity: 0.32; }
+  50% { opacity: 0.68; }
+}
+
+.wc-machine-lamp-halo {
+  animation: wcMachineLampBreathe 3.4s ease-in-out infinite;
+}
+
 /* ── Floating toolbar dock/undock animation ── */
 .wc-dock-transition {
   transition: transform 300ms cubic-bezier(0.25, 1, 0.5, 1);

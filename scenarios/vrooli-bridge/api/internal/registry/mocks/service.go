@@ -16,17 +16,21 @@ type FakeService struct {
 	RemoveIDs      []string
 	GetIDs         []string
 
-	RegisterOut registry.Node
-	RegisterErr error
-	ListOut     []registry.Node
-	ListErr     error
-	GetOut      registry.Node
-	GetErr      error
-	UpdateOut   registry.Node
-	UpdateErr   error
-	RevokeOut   registry.Node
-	RevokeErr   error
-	RemoveErr   error
+	RegisterOut     registry.Node
+	RegisterErr     error
+	ListOut         []registry.Node
+	ListErr         error
+	GetOut          registry.Node
+	GetErr          error
+	UpdateOut       registry.Node
+	UpdateErr       error
+	RevokeOut       registry.Node
+	RevokeErr       error
+	RemoveErr       error
+	ArchitectureErr error
+	ArchitectureIDs []string
+	MachineArchs    []string
+	BinaryArchs     []string
 
 	RegisterCalls atomic.Int64
 	RevokeCalls   atomic.Int64
@@ -67,4 +71,14 @@ func (f *FakeService) Revoke(_ context.Context, id string) (registry.Node, error
 func (f *FakeService) Remove(_ context.Context, id string) error {
 	f.RemoveIDs = append(f.RemoveIDs, id)
 	return f.RemoveErr
+}
+
+func (f *FakeService) UpdateArchitecture(_ context.Context, id, machineArch, binaryArch string) error {
+	if f.ArchitectureErr != nil {
+		return f.ArchitectureErr
+	}
+	f.ArchitectureIDs = append(f.ArchitectureIDs, id)
+	f.MachineArchs = append(f.MachineArchs, machineArch)
+	f.BinaryArchs = append(f.BinaryArchs, binaryArch)
+	return nil
 }

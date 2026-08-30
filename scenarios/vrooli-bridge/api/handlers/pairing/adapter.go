@@ -43,6 +43,8 @@ func requestToProto(r pairing.PairingRequest, confirmationWords []string) *pairi
 		Name:              r.Name,
 		Os:                r.OS,
 		Arch:              r.Arch,
+		MachineArch:       r.MachineArch,
+		BinaryArch:        r.BinaryArch,
 		Endpoint:          r.Endpoint,
 		Capabilities:      append([]string(nil), r.Capabilities...),
 		Status:            statusToProto(r.Status),

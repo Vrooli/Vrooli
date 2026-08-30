@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -41,6 +42,27 @@ func TestSetupRoutes_AllEndpointsRegistered(t *testing.T) {
 		if !srv.router.Match(req, &match) {
 			t.Errorf("route not registered: %s %s", rt.method, rt.path)
 		}
+	}
+}
+
+func TestBridgeURLSecurityWarning(t *testing.T) {
+	for _, tc := range []struct {
+		name, raw, want string
+	}{
+		{name: "empty", raw: "", want: ""},
+		{name: "loopback http", raw: "http://127.0.0.1:18767", want: ""},
+		{name: "remote http", raw: "http://bridge.example.test:18767", want: "not encrypted"},
+		{name: "remote https", raw: "https://bridge.example.test:18767", want: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := bridgeURLSecurityWarning(tc.raw)
+			if tc.want == "" && got != "" {
+				t.Fatalf("warning = %q, want none", got)
+			}
+			if tc.want != "" && !strings.Contains(got, tc.want) {
+				t.Fatalf("warning = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

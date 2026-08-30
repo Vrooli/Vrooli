@@ -2,9 +2,11 @@ package sessions
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/vrooli/nodeclient"
 	"web-console/internal/backend"
 	"web-console/internal/policy"
 	intsessions "web-console/internal/sessions"
@@ -17,6 +19,10 @@ func TestAdapterPureMappingsAndErrorClassification(t *testing.T) {
 		if got := mapCreateError(in); got == nil {
 			t.Fatalf("mapCreateError(%v) returned nil", in)
 		}
+	}
+	missingScope := mapCreateError(&nodeclient.Error{Kind: nodeclient.ErrMissingScope, Scope: "vrooli-bridge:write", Err: errors.New("missing")})
+	if !strings.Contains(missingScope.Error(), "vrooli-bridge:write") || !strings.Contains(missingScope.Error(), "manage the machine permissions") {
+		t.Fatalf("missing-scope mapping = %q", missingScope)
 	}
 	resp := intsessions.Response{ID: "s", Shell: "/bin/sh", Cols: 80, Rows: 24, Backend: backend.Standard, SurvivesRestart: true, Policy: policy.Policy{Mode: policy.Preset, Duration: "1h"}, Recovered: true, Origin: "ui", Owner: "owner", DisplayLabel: "label"}
 	converted := responseToHandlerSession(resp)

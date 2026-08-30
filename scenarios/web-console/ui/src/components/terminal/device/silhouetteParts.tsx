@@ -1,5 +1,6 @@
-import type { DeviceGeometry } from "../../../lib/deviceGeometry";
+import type { DeviceGeometry, EnclosureGeometry } from "../../../lib/deviceGeometry";
 import { KEYBOARD_COLUMNS, KEYBOARD_ROWS, keyboardColumns, keyboardKeyHeight, screenBox } from "../../../lib/deviceGeometry";
+import type { MachineGeometry, MachineState } from "../../../lib/machineGeometry";
 
 /**
  * Shared drawing primitives for the device silhouettes.
@@ -12,8 +13,15 @@ import { KEYBOARD_COLUMNS, KEYBOARD_ROWS, keyboardColumns, keyboardKeyHeight, sc
  * viewBox whose aspect matches its element, so nothing is stretched.
  */
 
-/** The enclosure body: filled panel, rim highlight, and the recessed screen. */
-export function Enclosure({ geometry, screenLit = false }: { geometry: DeviceGeometry; screenLit?: boolean }) {
+/**
+ * The enclosure body: filled panel, rim highlight, and the recessed opening.
+ *
+ * `faceFill` overrides what fills that opening, which is how a lit state stays
+ * one prop rather than a fork per caller: a device passes the lit-screen token
+ * while it drives a session, a machine passes the live-face token while it is
+ * dispatchable, and everything else passes nothing.
+ */
+export function Enclosure({ geometry, faceFill }: { geometry: EnclosureGeometry; faceFill?: string }) {
   const box = screenBox(geometry);
   return <>
     <rect x="0" y="0" width={geometry.width} height={geometry.height} rx={geometry.radius} fill="var(--wc-device-body)" />
@@ -33,7 +41,7 @@ export function Enclosure({ geometry, screenLit = false }: { geometry: DeviceGeo
       width={box.width}
       height={box.height}
       rx={geometry.screenRadius}
-      fill={screenLit ? "var(--wc-device-screen-lit, rgb(var(--wc-accent) / 0.32))" : "var(--wc-device-screen)"}
+      fill={faceFill ?? "var(--wc-device-screen)"}
     />
     <rect
       x={box.x}
@@ -207,4 +215,109 @@ export function KeyPlate({ x, y, width, height }: { x: number; y: number; width:
       <rect key={index} x={key.x} y={key.y} width={key.width} height={key.height} rx={radius} fill="var(--wc-device-keycap)" />
     ))}
   </g>;
+}
+
+// ── Machine chassis parts ────────────────────────────────────────────────────
+//
+// A machine is compute, not a screen. Most are headless, and all the console
+// knows about one is `kind`, `os` and `arch` — so the enclosure stays neutral
+// and the recess reads as a vent face rather than as glass. What tells an
+// operator whether a machine is usable is the lamp, not the shape.
+
+/**
+ * The vent grille filling the run of the face the lamp does not claim.
+ *
+ * It is the chassis equivalent of the screen: the one recess that says what the
+ * enclosure is for. Slots run in columns on a wide chassis and in rows on a
+ * tall one, so the grille reads as venting rather than as a stretched pattern.
+ */
+export function VentFace({ geometry, live = false }: { geometry: MachineGeometry; live?: boolean }) {
+  const box = screenBox(geometry);
+  const fill = live ? "var(--wc-machine-lamp-live)" : "var(--wc-device-detail)";
+  const opacity = live ? 0.5 : 0.62;
+  const run = geometry.ventRun;
+  const count = geometry.vents;
+  const slots: { x: number; y: number; width: number; height: number }[] = [];
+
+  if (geometry.ventDirection === "horizontal") {
+    // Rows: the slot and the gap are equal, so `count` slots and `count - 1`
+    // gaps fill the band exactly.
+    const band = box.height * 0.62;
+    const step = band / (count * 2 - 1);
+    for (let index = 0; index < count; index++) {
+      slots.push({ x: box.x + box.width * 0.18, y: box.y + box.height * 0.19 + index * step * 2, width: box.width * run, height: step });
+    }
+  } else {
+    const band = box.width * run;
+    const step = band / (count * 2 - 1);
+    const height = box.height * 0.58;
+    for (let index = 0; index < count; index++) {
+      slots.push({ x: box.x + box.width * 0.1 + index * step * 2, y: box.y + (box.height - height) / 2, width: step, height });
+    }
+  }
+
+  return <g>
+    {slots.map((slot, index) => (
+      <rect
+        key={index}
+        x={slot.x}
+        y={slot.y}
+        width={slot.width}
+        height={slot.height}
+        rx={Math.min(slot.width, slot.height) / 2}
+        fill={fill}
+        opacity={opacity}
+      />
+    ))}
+  </g>;
+}
+
+/**
+ * The status lamp, and the reason the chassis needs only one shape.
+ *
+ * A second, permanently unlit lamp sits below it so a single lit lamp reads as
+ * a state rather than as a detail that happens to be there. An unenrolled
+ * machine drops the halo entirely: it has never answered, and a glow would
+ * imply it had.
+ */
+export function StatusLamp({ geometry, state }: { geometry: MachineGeometry; state: MachineState }) {
+  const box = screenBox(geometry);
+  const cx = box.x + box.width * 0.885;
+  const cy = box.y + box.height / 2;
+  const radius = Math.max(5, box.width * 0.026);
+  const fill = state === "dispatchable"
+    ? "var(--wc-machine-lamp-live)"
+    : state === "offline" ? "var(--wc-machine-lamp-offline)" : "var(--wc-machine-lamp-dark)";
+
+  return <g>
+    {state !== "unenrolled" && <circle
+      cx={cx}
+      cy={cy}
+      r={radius * 2.6}
+      fill={fill}
+      opacity="0.32"
+      className={state === "dispatchable" ? "wc-machine-lamp-halo" : undefined}
+    />}
+    <circle cx={cx} cy={cy} r={radius} fill={fill} />
+    <circle cx={cx} cy={cy + radius * 3.4} r={radius * 0.62} fill="var(--wc-device-detail)" opacity="0.5" />
+  </g>;
+}
+
+/** Two low feet, drawn below the panel. The chassis analogue of a stand. */
+export function ChassisFeet({ geometry }: { geometry: MachineGeometry }) {
+  const width = geometry.width * 0.13;
+  return <>
+    <rect x={geometry.width * 0.11} y={geometry.height} width={width} height={geometry.baseHeight} rx={geometry.baseHeight / 2} fill="var(--wc-device-body-shade)" />
+    <rect x={geometry.width * 0.76} y={geometry.height} width={width} height={geometry.baseHeight} rx={geometry.baseHeight / 2} fill="var(--wc-device-body-shade)" />
+  </>;
+}
+
+/** Mounting ears, drawn just outside a rack chassis' left and right edges. */
+export function RackEars({ geometry }: { geometry: MachineGeometry }) {
+  const height = geometry.height * 0.52;
+  const y = (geometry.height - height) / 2;
+  return <>
+    <rect x="-7" y={y} width="7" height={height} rx="2" fill="var(--wc-device-body-shade)" />
+    <rect x={geometry.width} y={y} width="7" height={height} rx="2" fill="var(--wc-device-body-shade)" />
+  </>;
 }

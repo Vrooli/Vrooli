@@ -13,6 +13,7 @@ import (
 	"vrooli-bridge/internal/httpx"
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/presence"
+	"vrooli-bridge/internal/registry"
 )
 
 // errMissingNodeID is returned when a node opens the channel or heartbeats
@@ -31,6 +32,7 @@ type sseDeps struct {
 	// enforcement (the ?node= stub, Phase-1).
 	Verifier *nodeauth.Verifier
 	Logger   *log.Logger
+	Registry registry.Service
 }
 
 type sseHandler struct {
@@ -58,7 +60,7 @@ func nodeIDFrom(r *http.Request) string {
 
 // parseProtocolVersion reads the node's advertised channel wire-protocol version
 // from the ?pv= query param. An absent/garbage value yields 0 (Unspecified),
-// which the compat evaluator treats as dispatchable (back-compat).
+// which the compat evaluator treats as non-dispatchable.
 func parseProtocolVersion(raw string) uint32 {
 	v, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 32)
 	if err != nil {
@@ -108,10 +110,19 @@ func (h *sseHandler) handleEvents(w http.ResponseWriter, r *http.Request) {
 	// Record the node's protocol-compatibility verdict from the version it
 	// reports on the dial-out (?pv=). A version-drifted node holds its channel
 	// (presence) but is excluded from work by dispatch / the fleet roll. Absence
-	// of ?pv= reads as Unspecified, which is dispatchable (back-compat for a node
-	// that predates version negotiation).
+	// of ?pv= reads as Unspecified and is not dispatchable until the agent is
+	// refreshed.
 	nodePV := parseProtocolVersion(r.URL.Query().Get("pv"))
 	h.deps.Hub.SetCompatibility(nodeID, compat.Evaluate(nodePV))
+	if h.deps.Registry != nil {
+		machineArch := strings.TrimSpace(r.URL.Query().Get("machine_arch"))
+		binaryArch := strings.TrimSpace(r.URL.Query().Get("binary_arch"))
+		if machineArch != "" || binaryArch != "" {
+			if err := h.deps.Registry.UpdateArchitecture(r.Context(), nodeID, machineArch, binaryArch); err != nil {
+				h.deps.Logger.Printf("channel.events: update architecture for %q: %v", nodeID, err)
+			}
+		}
+	}
 
 	// Register presence before acknowledging the HTTP stream. The TCP connection
 	// already exists when this handler runs, so writing/flushing the response

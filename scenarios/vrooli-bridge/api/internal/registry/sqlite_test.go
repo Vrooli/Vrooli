@@ -41,6 +41,8 @@ func TestSQLiteRepository_CreateGetRoundTrip(t *testing.T) {
 		Name:         "mac-mini",
 		OS:           "darwin",
 		Arch:         "arm64",
+		MachineArch:  "amd64",
+		BinaryArch:   "arm64",
 		Revision:     "abc123",
 		Endpoint:     "https://node.local",
 		Capabilities: []string{"scenario test*"},
@@ -55,12 +57,33 @@ func TestSQLiteRepository_CreateGetRoundTrip(t *testing.T) {
 	require.Equal(t, "mac-mini", got.Name)
 	require.Equal(t, "darwin", got.OS)
 	require.Equal(t, "arm64", got.Arch)
+	require.Equal(t, "amd64", got.MachineArch)
+	require.Equal(t, "arm64", got.BinaryArch)
 	require.Equal(t, "abc123", got.Revision)
 	require.Equal(t, "https://node.local", got.Endpoint)
 	require.Equal(t, []string{"scenario test*"}, got.Capabilities)
 	require.Equal(t, []string{"scenario test*", "registry list"}, got.Scopes)
 	require.False(t, got.Revoked())
 	require.True(t, got.LastSeenAt.IsZero())
+}
+
+func TestSQLiteRepository_UpdateArchitecturePreservesOwnerFields(t *testing.T) {
+	d, clk := newSchemaDB(t)
+	repo := registry.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	n, err := repo.Create(ctx, registry.Node{Name: "mac", OS: "darwin", Arch: "amd64", Endpoint: "https://node"})
+	require.NoError(t, err)
+
+	clk.Advance(time.Minute)
+	require.NoError(t, repo.UpdateArchitecture(ctx, n.ID, "amd64", "amd64"))
+	got, err := repo.Get(ctx, n.ID)
+	require.NoError(t, err)
+	require.Equal(t, "mac", got.Name)
+	require.Equal(t, "https://node", got.Endpoint)
+	require.Equal(t, "amd64", got.MachineArch)
+	require.Equal(t, "amd64", got.BinaryArch)
+	require.Equal(t, "amd64", got.Arch)
+	require.True(t, got.UpdatedAt.After(n.UpdatedAt))
 }
 
 func TestSQLiteRepository_GetMissingReturnsTyped(t *testing.T) {

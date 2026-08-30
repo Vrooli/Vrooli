@@ -117,5 +117,5 @@ func TestRollback_ProtocolIncompatibleNodeFlaggedNeedsUpdate(t *testing.T) {
 	require.False(t, compat.StatusNeedsUpdate.Dispatchable())
 	require.False(t, compat.StatusIncompatible.Dispatchable())
 	require.True(t, compat.StatusOK.Dispatchable())
-	require.True(t, compat.StatusUnspecified.Dispatchable())
+	require.False(t, compat.StatusUnspecified.Dispatchable())
 }

@@ -37,7 +37,7 @@ NODE_STATUS_NEEDS_UPDATE: NodeStatus
 NODE_STATUS_REVOKED: NodeStatus
 
 class Node(_message.Message):
-    __slots__ = ("id", "name", "os", "arch", "revision", "endpoint", "capabilities", "scopes", "status", "online", "created_at", "updated_at", "last_seen_at", "revoked_at", "registry_record_present", "heartbeat_fresh", "heartbeat_age_seconds", "channel_held", "protocol_compatible", "dispatchable", "kind")
+    __slots__ = ("id", "name", "os", "arch", "revision", "endpoint", "capabilities", "scopes", "status", "online", "created_at", "updated_at", "last_seen_at", "revoked_at", "registry_record_present", "heartbeat_fresh", "heartbeat_age_seconds", "channel_held", "protocol_compatible", "dispatchable", "kind", "machine_arch", "binary_arch")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     OS_FIELD_NUMBER: _ClassVar[int]
@@ -59,6 +59,8 @@ class Node(_message.Message):
     PROTOCOL_COMPATIBLE_FIELD_NUMBER: _ClassVar[int]
     DISPATCHABLE_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_ARCH_FIELD_NUMBER: _ClassVar[int]
+    BINARY_ARCH_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     os: str
@@ -80,10 +82,12 @@ class Node(_message.Message):
     protocol_compatible: bool
     dispatchable: bool
     kind: NodeKind
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., revision: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., scopes: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[NodeStatus, str]] = ..., online: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_seen_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., registry_record_present: _Optional[bool] = ..., heartbeat_fresh: _Optional[bool] = ..., heartbeat_age_seconds: _Optional[int] = ..., channel_held: _Optional[bool] = ..., protocol_compatible: _Optional[bool] = ..., dispatchable: _Optional[bool] = ..., kind: _Optional[_Union[NodeKind, str]] = ...) -> None: ...
+    machine_arch: str
+    binary_arch: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., revision: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., scopes: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[NodeStatus, str]] = ..., online: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_seen_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., registry_record_present: _Optional[bool] = ..., heartbeat_fresh: _Optional[bool] = ..., heartbeat_age_seconds: _Optional[int] = ..., channel_held: _Optional[bool] = ..., protocol_compatible: _Optional[bool] = ..., dispatchable: _Optional[bool] = ..., kind: _Optional[_Union[NodeKind, str]] = ..., machine_arch: _Optional[str] = ..., binary_arch: _Optional[str] = ...) -> None: ...
 
 class RegisterNodeRequest(_message.Message):
-    __slots__ = ("name", "os", "arch", "endpoint", "capabilities", "scopes", "kind")
+    __slots__ = ("name", "os", "arch", "endpoint", "capabilities", "scopes", "kind", "machine_arch", "binary_arch")
     NAME_FIELD_NUMBER: _ClassVar[int]
     OS_FIELD_NUMBER: _ClassVar[int]
     ARCH_FIELD_NUMBER: _ClassVar[int]
@@ -91,6 +95,8 @@ class RegisterNodeRequest(_message.Message):
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     SCOPES_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_ARCH_FIELD_NUMBER: _ClassVar[int]
+    BINARY_ARCH_FIELD_NUMBER: _ClassVar[int]
     name: str
     os: str
     arch: str
@@ -98,7 +104,9 @@ class RegisterNodeRequest(_message.Message):
     capabilities: _containers.RepeatedScalarFieldContainer[str]
     scopes: _containers.RepeatedScalarFieldContainer[str]
     kind: NodeKind
-    def __init__(self, name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., scopes: _Optional[_Iterable[str]] = ..., kind: _Optional[_Union[NodeKind, str]] = ...) -> None: ...
+    machine_arch: str
+    binary_arch: str
+    def __init__(self, name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., scopes: _Optional[_Iterable[str]] = ..., kind: _Optional[_Union[NodeKind, str]] = ..., machine_arch: _Optional[str] = ..., binary_arch: _Optional[str] = ...) -> None: ...
 
 class RegisterNodeResponse(_message.Message):
     __slots__ = ("node",)

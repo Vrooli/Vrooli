@@ -410,6 +410,7 @@ const literalSelectors: LiteralSelectorTree = {
     card: 'fleet-card',
     deviceCard: '[data-testid^="fleet-card-device-"]',
     machineCard: '[data-testid^="fleet-card-machine-"]',
+    machineStartSession: '[data-testid^="machines-start-session-"]',
     deviceSilhouette: '[data-testid^="fleet-card-device-"] [data-testid="device-silhouette"]',
     machineSilhouette: '[data-testid^="fleet-card-machine-"] [data-testid="machine-silhouette"]',
     deviceFrame: '[data-testid^="device-frame-"]',

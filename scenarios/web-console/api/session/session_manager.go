@@ -349,6 +349,12 @@ func (sm *Manager) createWithOptions(ctx context.Context, shell string, cols, ro
 
 func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, rows uint16, bid backend.ID, pol *policy.Policy, workingDir string, tmuxMouseMode bool, remote *RemoteLaunch) (*Session, error) {
 	shell, cols, rows = sm.applySessionDefaults(shell, cols, rows)
+	if remote != nil {
+		// The local host's shell and working directory are not portable launch
+		// parameters. The node agent owns both defaults for a remote session.
+		shell = ""
+		workingDir = ""
+	}
 
 	// Resolve backend (read default under lock to avoid data race with settings handler)
 	if bid == "" || bid == "auto" {
@@ -391,7 +397,7 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 	// that never records it can never have its messages captured. Resolving
 	// once means the spawned process and the persisted row cannot disagree.
 	launchDir := strings.TrimSpace(workingDir)
-	if launchDir == "" {
+	if launchDir == "" && remote == nil {
 		launchDir = config.ResolveWorkingDir()
 	}
 	spec := pty.LaunchSpec{
@@ -414,7 +420,10 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 
 	p, err := factory(spec)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrPTYSpawnFailed, err)
+		// Preserve the typed nodeclient error through the session sentinel so
+		// the Connect handler can distinguish a denied grant, an offline node,
+		// and an actual local PTY failure.
+		return nil, fmt.Errorf("%w: %w", ErrPTYSpawnFailed, err)
 	}
 	uploadRoot := sm.uploadDirFunc()
 
@@ -488,6 +497,12 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 
 	// Start the PTY output reader; it will close exitCh when the process exits.
 	go sess.readLoop()
+
+	if remote != nil && remote.ExecuteLaunchCommand && strings.TrimSpace(remote.LaunchCommand) != "" {
+		if err := sess.SendInput(InputText(remote.LaunchCommand + "\n").AsPaste().WithSource("launch")); err != nil {
+			log.Printf("remote session %s: paste launch command: %v", sess.ID, err)
+		}
+	}
 
 	// Auto-remove: when the PTY exits, clean up the session map entry and
 	// any upload temp directory so List()/Get() no longer return a terminated session.

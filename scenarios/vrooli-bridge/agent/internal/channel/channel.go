@@ -28,6 +28,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	osexec "os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -94,6 +96,7 @@ var ErrNotConfigured = errors.New("agent not configured to dial a control plane 
 // Client holds the agent's channel configuration and transport seams.
 type Client struct {
 	cfg            config.Config
+	machineArch    string
 	httpClient     *http.Client
 	rpc            presence_v1connect.PresenceServiceClient
 	grantRPC       credentialgrantconnect.CredentialGrantServiceClient
@@ -223,14 +226,15 @@ func WithShutdown(shutdown func()) Option { return func(c *Client) { c.shutdown 
 // URL; it is only invoked once Dial confirms the agent is paired.
 func NewClient(cfg config.Config, opts ...Option) *Client {
 	c := &Client{
-		cfg:        cfg,
-		httpClient: &http.Client{},
-		logger:     log.Default(),
-		now:        time.Now,
-		ephemeral:  credentialpush.NewEphemeralStore(),
-		sampler:    health.NewSystemSampler(cfg.StateDir),
-		minBackoff: defaultMinBackoff,
-		maxBackoff: defaultMaxBackoff,
+		cfg:         cfg,
+		machineArch: MachineArchitecture(),
+		httpClient:  &http.Client{},
+		logger:      log.Default(),
+		now:         time.Now,
+		ephemeral:   credentialpush.NewEphemeralStore(),
+		sampler:     health.NewSystemSampler(cfg.StateDir),
+		minBackoff:  defaultMinBackoff,
+		maxBackoff:  defaultMaxBackoff,
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -256,6 +260,8 @@ func (c *Client) Handshake() *channelv1.Handshake {
 		AgentVersion:      buildinfo.Fingerprint(),
 		Os:                runtime.GOOS,
 		Arch:              runtime.GOARCH,
+		MachineArch:       c.machineArch,
+		BinaryArch:        runtime.GOARCH,
 		Capabilities:      append([]string(nil), c.cfg.Capabilities...),
 		SupportsWebsocket: true,
 	}
@@ -389,6 +395,9 @@ func (c *Client) openChannel(ctx context.Context) (io.ReadCloser, error) {
 		return nil, err
 	}
 	q := u.Query()
+	q.Set("pv", strconv.FormatUint(uint64(ProtocolVersion), 10))
+	q.Set("machine_arch", c.machineArch)
+	q.Set("binary_arch", runtime.GOARCH)
 	if c.cred != nil {
 		// Mutual auth: the dial-out token binds this connection to the node key
 		// so the control plane verifies the node before holding the stream.
@@ -414,6 +423,43 @@ func (c *Client) openChannel(ctx context.Context) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("control plane returned status %d", resp.StatusCode)
 	}
 	return resp.Body, nil
+}
+
+// MachineArchitecture returns the architecture reported by the host kernel,
+// normalized to the Go/toolchain vocabulary used by Bridge. This is distinct
+// from runtime.GOARCH, which describes the agent binary and may be translated
+// on the host (for example Rosetta on macOS).
+func MachineArchitecture() string {
+	if runtime.GOOS == "windows" {
+		if raw := os.Getenv("PROCESSOR_ARCHITEW6432"); raw != "" {
+			return normalizeMachineArchitecture(raw)
+		}
+		if raw := os.Getenv("PROCESSOR_ARCHITECTURE"); raw != "" {
+			return normalizeMachineArchitecture(raw)
+		}
+	} else {
+		if raw, err := osexec.Command("uname", "-m").Output(); err == nil {
+			if normalized := normalizeMachineArchitecture(string(raw)); normalized != "" {
+				return normalized
+			}
+		}
+	}
+	return normalizeMachineArchitecture(runtime.GOARCH)
+}
+
+func normalizeMachineArchitecture(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "x86_64", "amd64":
+		return "amd64"
+	case "aarch64", "arm64":
+		return "arm64"
+	case "armv7", "armv7l", "arm":
+		return "arm"
+	case "i386", "i486", "i586", "i686", "x86", "386":
+		return "386"
+	default:
+		return strings.TrimSpace(raw)
+	}
 }
 
 // readFrames consumes the SSE stream until it closes or ctx is cancelled. It

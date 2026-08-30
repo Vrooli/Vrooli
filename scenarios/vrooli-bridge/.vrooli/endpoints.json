@@ -422,7 +422,7 @@
       "path": "/api/v1/channel/session",
       "method": "GET",
       "summary": "Open an authenticated interactive session",
-      "description": "Opens a binary WebSocket session with explicit owner re-authentication, the vrooli-bridge:session node scope, bounded flow-control window, idle timeout and hard lifetime. SSE job delivery remains available separately.",
+      "description": "Opens a binary WebSocket session with explicit owner re-authentication, the vrooli-bridge:write node scope, bounded flow-control window, idle timeout and hard lifetime. SSE job delivery remains available separately.",
       "category": "channel",
       "response": {
         "type": "application/octet-stream",
@@ -439,7 +439,7 @@
         {
           "status": 403,
           "code": "permission_denied",
-          "description": "Node lacks vrooli-bridge:session scope"
+          "description": "Node lacks vrooli-bridge:write scope"
         }
       ],
       "rest_exception": {
@@ -537,6 +537,38 @@
       ]
     },
     {
+      "id": "presence_report_credential_receipt",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportCredentialReceipt",
+      "method": "POST",
+      "summary": "Report credential delivery receipt",
+      "description": "Node-facing: records metadata-only acceptance or rejection of a credential push; secret values are never returned or persisted.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "receipt": "CredentialReceipt (grant_id, node_id, generation, accepted, reason)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing grant or node metadata"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid node proof"
+        }
+      ]
+    },
+    {
       "id": "presence_report_relay_response",
       "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportRelayResponse",
       "method": "POST",
@@ -580,6 +612,326 @@
       "summary": "Receive an authenticated node session frame",
       "description": "Node-facing Connect-RPC for PTY output and session close events. Requires the node proof and binds the frame to its Bridge session.",
       "category": "channel"
+    },
+    {
+      "id": "cleanup_prepare",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/PrepareCleanup",
+      "method": "POST",
+      "summary": "Prepare a protected cleanup target",
+      "description": "Resolves the target transport and publishes only its sealing public key; it creates no cleanup operation.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "scope": "string",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "target": "CleanupTarget"
+        }
+      }
+    },
+    {
+      "id": "cleanup_provision_break_glass",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ProvisionBreakGlass",
+      "method": "POST",
+      "summary": "Provision target-bound break-glass material",
+      "description": "Relays an opaque node-sealed passphrase to the paired helper. The operator must supply it; agents cannot select this operation.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "operation_id": "string (required)",
+          "operator_id": "string",
+          "scope": "string",
+          "sealed_passphrase": "bytes (required)",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Target protection could not be provisioned"
+        }
+      ]
+    },
+    {
+      "id": "cleanup_reset_break_glass",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ResetBreakGlass",
+      "method": "POST",
+      "summary": "Retire stale target-bound break-glass material",
+      "description": "Operator-confirmed recovery that removes only managed break-glass material and never grants cleanup authority; fresh protection must be provisioned afterward.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "scope": "string",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Target protection could not be retired"
+        }
+      ]
+    },
+    {
+      "id": "cleanup_start",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/StartCleanup",
+      "method": "POST",
+      "summary": "Start a Bridge-managed cleanup inventory",
+      "description": "Creates one durable cleanup operation per machine and requests read-only inventory through the paired privileged helper.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "scope": "string",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "A cleanup operation is already active for this machine"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The paired node cannot be reached"
+        }
+      ]
+    },
+    {
+      "id": "cleanup_get",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/GetCleanup",
+      "method": "POST",
+      "summary": "Get a cleanup operation and events",
+      "description": "Reads the durable cleanup operation, frozen plan, receipt, and event history.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<CleanupEvent>",
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_plan",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/PlanCleanup",
+      "method": "POST",
+      "summary": "Read a frozen cleanup plan",
+      "description": "Returns the plan after the node has reported its read-only inventory.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_confirm",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ConfirmCleanup",
+      "method": "POST",
+      "summary": "Confirm a frozen cleanup plan",
+      "description": "Requires exact target and plan hash plus opaque node-bound authorization material. This is destructive and operator-confirmed.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "capability": "bytes (required)",
+          "id": "string (required)",
+          "operator_id": "string",
+          "plan_hash": "string (required)",
+          "sealed_passphrase": "bytes (required)",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Confirmation does not match the frozen plan"
+        }
+      ]
+    },
+    {
+      "id": "cleanup_apply",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ApplyCleanup",
+      "method": "POST",
+      "summary": "Resume a confirmed cleanup",
+      "description": "Applies only the previously frozen plan; it never rediscovers artifacts. This is destructive, requires operator confirmation, and is never autonomous-agent eligible.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_verify",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/VerifyCleanup",
+      "method": "POST",
+      "summary": "Verify cleanup result",
+      "description": "Requests a read-only post-apply verification and records the signed result.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_cancel",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/CancelCleanup",
+      "method": "POST",
+      "summary": "Cancel a cleanup operation",
+      "description": "Cancels a non-terminal operation and releases the per-machine cleanup lease.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "reason": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "operation": "CleanupOperation"
+        }
+      }
+    },
+    {
+      "id": "cleanup_report_event",
+      "path": "/vrooli.vrooli_bridge.v1.cleanup.CleanupService/ReportCleanupEvent",
+      "method": "POST",
+      "summary": "Ingest a node cleanup event",
+      "description": "Node-facing mutual-authenticated event ingestion; omitted from the operator CLI.",
+      "category": "cleanup",
+      "request": {
+        "type": "object",
+        "properties": {
+          "event": "CleanupEvent"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "bool"
+        }
+      }
+    },
+    {
+      "id": "credentialgrant_create",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/CreateGrant",
+      "method": "POST",
+      "summary": "Create a credential grant",
+      "description": "Owner-gated metadata-only grant authoring; credential values are never accepted.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "credentialgrant_list",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/ListGrants",
+      "method": "POST",
+      "summary": "List credential grants",
+      "description": "Owner-gated grant inventory with generation receipts.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "credentialgrant_revoke",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/RevokeGrant",
+      "method": "POST",
+      "summary": "Revoke a credential grant",
+      "description": "Owner-gated grant revocation.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "credentialgrant_rotate",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/RotateAddress",
+      "method": "POST",
+      "summary": "Rotate a granted address",
+      "description": "Advances the address generation and fans out sealed values to active grants.",
+      "category": "credential-grants"
+    },
+    {
+      "id": "credentialgrant_sync_node",
+      "path": "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/SyncNodeGrants",
+      "method": "POST",
+      "summary": "Reconcile node credential grants",
+      "description": "Node-facing authenticated reconciliation; metadata response plus sealed current-value delivery.",
+      "category": "credential-grants"
     },
     {
       "id": "dispatch_dispatch_job",
@@ -1078,6 +1430,43 @@
           "status": 503,
           "code": "unavailable",
           "description": "scenario-authenticator could not be reached"
+        }
+      ]
+    },
+    {
+      "id": "identity_enroll_operator_session",
+      "path": "/vrooli.vrooli_bridge.v1.identity.IdentityService/EnrollOperatorSession",
+      "method": "POST",
+      "summary": "Enroll a locally verifiable operator session",
+      "description": "Owner-authenticated enrollment of a client public key. The private key stays on the client and subsequent short-lived sessions are verified locally by Bridge.",
+      "category": "identity",
+      "request": {
+        "type": "object",
+        "properties": {
+          "mode": "string",
+          "public_key": "bytes",
+          "requested_scopes": "array"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "enrollment_reference": "string",
+          "operator_id": "string",
+          "scope_ceiling": "array",
+          "session_ttl_seconds": "integer"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "A normal owner session is required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Requested scope exceeds the owner ceiling"
         }
       ]
     },
@@ -1601,6 +1990,53 @@
       ]
     },
     {
+      "id": "onboard_protect_onboarding",
+      "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/ProtectOnboarding",
+      "method": "POST",
+      "summary": "Complete target-bound onboarding protection",
+      "description": "Relays an opaque node-sealed break-glass envelope after pairing; the node helper owns the protected material and the owner passphrase never reaches Bridge plaintext.",
+      "category": "onboard",
+      "request": {
+        "type": "object",
+        "properties": {
+          "cleanup_operation_id": "string (required)",
+          "declined": "bool",
+          "machine_id": "string (required)",
+          "node_id": "string (required)",
+          "onboarding_op_id": "string (required)",
+          "scope": "string",
+          "sealed_passphrase": "bytes",
+          "target": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "detail": "string",
+          "op": "OnboardingOp",
+          "protection_operation_id": "string",
+          "protection_status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing onboarding or target identity, or missing sealed authorization when not declined"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The target protection step cannot be completed"
+        }
+      ]
+    },
+    {
       "id": "onboard_list_onboardings",
       "path": "/vrooli.vrooli_bridge.v1.onboard.OnboardService/ListOnboardings",
       "method": "POST",
@@ -1924,6 +2360,7 @@
         "type": "object",
         "properties": {
           "approve": "boolean",
+          "confirmation_words": "array<string> (required when approving)",
           "request_id": "string (required)",
           "scopes": "array<string>"
         }
@@ -1965,6 +2402,39 @@
       ]
     },
     {
+      "id": "pairing_get_request",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/GetPairingRequest",
+      "method": "POST",
+      "summary": "Get pairing request status",
+      "description": "Node-facing polling endpoint for a no-code pairing request. Returns public request facts, confirmation words, and the node identity after owner approval.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "request_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "control_plane_public_key": "string (set when approved)",
+          "request": "PairingRequest"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing request id"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown request"
+        }
+      ]
+    },
+    {
       "id": "pairing_list_requests",
       "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/ListPairingRequests",
       "method": "POST",
@@ -1999,6 +2469,41 @@
         {
           "name": "List pending requests",
           "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/ListPairingRequests -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_register_encryption_key",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/RegisterEncryptionKey",
+      "method": "POST",
+      "summary": "Register a node encryption key",
+      "description": "Stores a node-generated X25519 public key after the existing Ed25519 node-auth proof succeeds. The private key never crosses the control plane.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "encryption_public_key": "string (base64 X25519)",
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "algorithm": "string",
+          "node_id": "string",
+          "registered": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid X25519 public key"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Active node Ed25519 proof required"
         }
       ]
     },

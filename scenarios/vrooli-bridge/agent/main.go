@@ -165,7 +165,7 @@ func run(args []string) error {
 		joined, joinErr := (pairingclient.Client{
 			BaseURL: cfg.ControlPlaneURL,
 			Display: func(words []string) { logger.Printf("pairing confirmation words: %s", strings.Join(words, " ")) },
-		}).Join(ctx, cred, pairingclient.Facts{Name: hostname, OS: runtime.GOOS, Arch: runtime.GOARCH, Capabilities: cfg.Capabilities})
+		}).Join(ctx, cred, pairingclient.Facts{Name: hostname, OS: runtime.GOOS, Arch: runtime.GOARCH, MachineArch: channel.MachineArchitecture(), BinaryArch: runtime.GOARCH, Capabilities: cfg.Capabilities})
 		if joinErr != nil {
 			if errors.Is(joinErr, pairingclient.ErrRejected) {
 				return fmt.Errorf("pairing rejected: %w", joinErr)
@@ -209,8 +209,8 @@ func run(args []string) error {
 		return err
 	}
 	hs := client.Handshake()
-	logger.Printf("channel handshake: node_id=%q protocol_version=%d os=%s arch=%s capabilities=%v",
-		hs.GetNodeId(), hs.GetProtocolVersion(), hs.GetOs(), hs.GetArch(), hs.GetCapabilities())
+	logger.Printf("channel handshake: node_id=%q protocol_version=%d os=%s machine_arch=%s binary_arch=%s capabilities=%v",
+		hs.GetNodeId(), hs.GetProtocolVersion(), hs.GetOs(), hs.GetMachineArch(), hs.GetBinaryArch(), hs.GetCapabilities())
 
 	logger.Printf("holding dial-out channel to %s (heartbeat every %s); send SIGINT/SIGTERM to stop",
 		cfg.ControlPlaneURL, cfg.HeartbeatInterval)

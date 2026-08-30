@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/devices/devices.proto.
  */
 export const file_web_console_v1_devices_devices: GenFile = /*@__PURE__*/
-  fileDesc("CiR3ZWItY29uc29sZS92MS9kZXZpY2VzL2RldmljZXMucHJvdG8SHXZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzIiUKC0xpc3RSZXF1ZXN0EhYKDnNlbGZfZGV2aWNlX2lkGAEgASgJIkYKDExpc3RSZXNwb25zZRI2CgdkZXZpY2VzGAEgAygLMiUudnJvb2xpLndlYl9jb25zb2xlLnYxLmRldmljZXMuRGV2aWNlIlIKEVNlc3Npb25BdHRhY2htZW50EhIKCnNlc3Npb25faWQYASABKAkSFAoMc2Vzc2lvbl9uYW1lGAIgASgJEhMKC2hvbGRzX2xlYXNlGAMgASgIIv8BCgZEZXZpY2USEQoJZGV2aWNlX2lkGAEgASgJEhQKDGRldmljZV9sYWJlbBgCIAEoCRIUCgxkZXZpY2VfY2xhc3MYAyABKAkSGAoQY29ubmVjdGlvbl9jb3VudBgEIAEoBRIxCg1maXJzdF9zZWVuX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJCCghzZXNzaW9ucxgGIAMoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzLlNlc3Npb25BdHRhY2htZW50Eg8KB2lzX3NlbGYYByABKAgSFAoMcmVjb25uZWN0aW5nGAggASgIIj0KEURpc2Nvbm5lY3RSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCRIVCg1jb25uZWN0aW9uX2lkGAIgASgJIjAKEkRpc2Nvbm5lY3RSZXNwb25zZRIaChJjbG9zZWRfY29ubmVjdGlvbnMYASABKAUy4wEKDURldmljZVNlcnZpY2USXwoETGlzdBIqLnZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzLkxpc3RSZXF1ZXN0GisudnJvb2xpLndlYl9jb25zb2xlLnYxLmRldmljZXMuTGlzdFJlc3BvbnNlEnEKCkRpc2Nvbm5lY3QSMC52cm9vbGkud2ViX2NvbnNvbGUudjEuZGV2aWNlcy5EaXNjb25uZWN0UmVxdWVzdBoxLnZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzLkRpc2Nvbm5lY3RSZXNwb25zZUJSWlBnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2RldmljZXM7ZGV2aWNlc192MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CiR3ZWItY29uc29sZS92MS9kZXZpY2VzL2RldmljZXMucHJvdG8SHXZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzIiUKC0xpc3RSZXF1ZXN0EhYKDnNlbGZfZGV2aWNlX2lkGAEgASgJIkYKDExpc3RSZXNwb25zZRI2CgdkZXZpY2VzGAEgAygLMiUudnJvb2xpLndlYl9jb25zb2xlLnYxLmRldmljZXMuRGV2aWNlIlIKEVNlc3Npb25BdHRhY2htZW50EhIKCnNlc3Npb25faWQYASABKAkSFAoMc2Vzc2lvbl9uYW1lGAIgASgJEhMKC2hvbGRzX2xlYXNlGAMgASgIIv8BCgZEZXZpY2USEQoJZGV2aWNlX2lkGAEgASgJEhQKDGRldmljZV9sYWJlbBgCIAEoCRIUCgxkZXZpY2VfY2xhc3MYAyABKAkSGAoQY29ubmVjdGlvbl9jb3VudBgEIAEoBRIxCg1maXJzdF9zZWVuX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJCCghzZXNzaW9ucxgGIAMoCzIwLnZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzLlNlc3Npb25BdHRhY2htZW50Eg8KB2lzX3NlbGYYByABKAgSFAoMcmVjb25uZWN0aW5nGAggASgIIj0KEURpc2Nvbm5lY3RSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCRIVCg1jb25uZWN0aW9uX2lkGAIgASgJIjAKEkRpc2Nvbm5lY3RSZXNwb25zZRIaChJjbG9zZWRfY29ubmVjdGlvbnMYASABKAUiOwoSR2l2ZUNvbnRyb2xSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCRISCgpzZXNzaW9uX2lkGAIgASgJIioKE0dpdmVDb250cm9sUmVzcG9uc2USEwoLdHJhbnNmZXJyZWQYASABKAgy2QIKDURldmljZVNlcnZpY2USXwoETGlzdBIqLnZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzLkxpc3RSZXF1ZXN0GisudnJvb2xpLndlYl9jb25zb2xlLnYxLmRldmljZXMuTGlzdFJlc3BvbnNlEnEKCkRpc2Nvbm5lY3QSMC52cm9vbGkud2ViX2NvbnNvbGUudjEuZGV2aWNlcy5EaXNjb25uZWN0UmVxdWVzdBoxLnZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzLkRpc2Nvbm5lY3RSZXNwb25zZRJ0CgtHaXZlQ29udHJvbBIxLnZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzLkdpdmVDb250cm9sUmVxdWVzdBoyLnZyb29saS53ZWJfY29uc29sZS52MS5kZXZpY2VzLkdpdmVDb250cm9sUmVzcG9uc2VCUlpQZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItY29uc29sZS92MS9kZXZpY2VzO2RldmljZXNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.web_console.v1.devices.ListRequest
@@ -170,6 +170,45 @@ export const DisconnectResponseSchema: GenMessage<DisconnectResponse> = /*@__PUR
   messageDesc(file_web_console_v1_devices_devices, 5);
 
 /**
+ * @generated from message vrooli.web_console.v1.devices.GiveControlRequest
+ */
+export type GiveControlRequest = Message<"vrooli.web_console.v1.devices.GiveControlRequest"> & {
+  /**
+   * @generated from field: string device_id = 1;
+   */
+  deviceId: string;
+
+  /**
+   * @generated from field: string session_id = 2;
+   */
+  sessionId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.devices.GiveControlRequest.
+ * Use `create(GiveControlRequestSchema)` to create a new message.
+ */
+export const GiveControlRequestSchema: GenMessage<GiveControlRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_devices_devices, 6);
+
+/**
+ * @generated from message vrooli.web_console.v1.devices.GiveControlResponse
+ */
+export type GiveControlResponse = Message<"vrooli.web_console.v1.devices.GiveControlResponse"> & {
+  /**
+   * @generated from field: bool transferred = 1;
+   */
+  transferred: boolean;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.devices.GiveControlResponse.
+ * Use `create(GiveControlResponseSchema)` to create a new message.
+ */
+export const GiveControlResponseSchema: GenMessage<GiveControlResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_devices_devices, 7);
+
+/**
  * DeviceService is the live roster of browser devices viewing Web Console.
  * It is intentionally separate from the machine enrollment surface: a device
  * is a connected screen, while a machine is a terminal target.
@@ -192,6 +231,14 @@ export const DeviceService: GenService<{
     methodKind: "unary";
     input: typeof DisconnectRequestSchema;
     output: typeof DisconnectResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.devices.DeviceService.GiveControl
+   */
+  giveControl: {
+    methodKind: "unary";
+    input: typeof GiveControlRequestSchema;
+    output: typeof GiveControlResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_devices_devices, 0);

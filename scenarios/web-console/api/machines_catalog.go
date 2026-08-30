@@ -21,6 +21,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/nodeclient"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -277,34 +278,7 @@ func grantFromScopes(scopes []string, presets []*machinesv1.PermissionPreset) *m
 // reported separately from a count because it also reaches apps that do not
 // exist yet, which no count can express.
 func classifyScopes(scopes []string) (effects []string, appCount int, coversAllApps bool) {
-	seenEffects := map[string]bool{}
-	apps := map[string]struct{}{}
-	for _, scope := range scopes {
-		parts := strings.SplitN(strings.ToLower(strings.TrimSpace(scope)), ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		namespace, effect := parts[0], parts[1]
-		if namespace == "*" {
-			coversAllApps = true
-		} else if namespace != "" {
-			apps[namespace] = struct{}{}
-		}
-		switch effect {
-		case "read", "write", "destructive":
-			seenEffects[effect] = true
-		case "*":
-			seenEffects["read"], seenEffects["write"], seenEffects["destructive"] = true, true, true
-		}
-	}
-	// Ordered least to most consequential, so a reader scanning the list meets
-	// the widest authority last.
-	for _, effect := range []string{"read", "write", "destructive"} {
-		if seenEffects[effect] {
-			effects = append(effects, effect)
-		}
-	}
-	return effects, len(apps), coversAllApps
+	return scopecatalog.ClassifyScopes(scopes)
 }
 
 func (h *machineRPC) machineForNode(node *registryv1.Node, presets []*machinesv1.PermissionPreset) *machinesv1.Machine {

@@ -39,6 +39,8 @@ func TestHandshake_ReflectsConfigAndBuildTarget(t *testing.T) {
 	require.Equal(t, "node-1", hs.GetNodeId())
 	require.Equal(t, runtime.GOOS, hs.GetOs())
 	require.Equal(t, runtime.GOARCH, hs.GetArch())
+	require.Equal(t, MachineArchitecture(), hs.GetMachineArch())
+	require.Equal(t, runtime.GOARCH, hs.GetBinaryArch())
 	require.Equal(t, []string{"scenario test*"}, hs.GetCapabilities())
 	require.NotEmpty(t, hs.GetAgentVersion(), "agent version is the build fingerprint")
 }
@@ -71,6 +73,9 @@ type fakeControlPlane struct {
 	hbAuthNode   string
 	hbAuthTS     string
 	sseToken     string // ?token= of the most recent dial-out
+	sseProtocol  string
+	sseMachine   string
+	sseBinary    string
 	sseOpened    atomic.Int64
 	deliveryAcks []*sharedv1.DeliveryAck
 	closeStreams chan struct{}
@@ -139,6 +144,9 @@ func (f *fakeControlPlane) handler() http.Handler {
 		}
 		f.mu.Lock()
 		f.sseToken = r.URL.Query().Get("token")
+		f.sseProtocol = r.URL.Query().Get("pv")
+		f.sseMachine = r.URL.Query().Get("machine_arch")
+		f.sseBinary = r.URL.Query().Get("binary_arch")
 		f.mu.Unlock()
 		require(r.URL.Query().Get("node") != "" || r.URL.Query().Get("token") != "")
 		f.sseOpened.Add(1)
@@ -193,6 +201,11 @@ func TestDial_HoldsChannelAndHeartbeats(t *testing.T) {
 	require.Eventually(t, func() bool { return fcp.heartbeatCount() >= 3 }, 2*time.Second, 5*time.Millisecond,
 		"agent should report heartbeats on the configured cadence")
 	require.GreaterOrEqual(t, fcp.sseOpened.Load(), int64(1), "agent should hold the dial-out SSE stream")
+	fcp.mu.Lock()
+	require.Equal(t, "2", fcp.sseProtocol)
+	require.Equal(t, MachineArchitecture(), fcp.sseMachine)
+	require.Equal(t, runtime.GOARCH, fcp.sseBinary)
+	fcp.mu.Unlock()
 
 	hb := fcp.heartbeats[0]
 	require.Equal(t, "node-7", hb.GetNodeId())

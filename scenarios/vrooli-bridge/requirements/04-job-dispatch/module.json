@@ -14,7 +14,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "security",
-      "description": "The control plane dispatches typed jobs — {scenario, verb, args} validated against a manifest derived from scenario CLI governance — never raw shell strings. The node registry owns the execution scopes that intersect the derived manifest; a node with no execution scopes is presence-only. Typed output declarations are also manifest-controlled: the node writes only to a private generated path, uploads bounded bytes over authenticated node RPC, and the owner retrieves them through the owner-gated artifacts RPC. `vrooli-bridge:session` is reserved for a future interactive protocol and is not implemented here.",
+      "description": "The control plane dispatches typed jobs — {scenario, verb, args} validated against a manifest derived from scenario CLI governance — never raw shell strings. The node registry owns the execution scopes that intersect the derived manifest; a node with no execution scopes is presence-only. Typed output declarations are also manifest-controlled: the node writes only to a private generated path, uploads bounded bytes over authenticated node RPC, and the owner retrieves them through the owner-gated artifacts RPC. Interactive sessions use the same `vrooli-bridge:<effect>` transport-scope convention as relay dispatch, with `vrooli-bridge:write` as the operate-tier floor.",
       "validation": [
         {
           "type": "test",
