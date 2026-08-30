@@ -13,7 +13,8 @@ import (
 // floors. These are deliberately corpus-level measures: they describe the
 // shape of the workbench's authored styling and do not claim that a raw value
 // is a layout defect by itself.
-func ValidateConformance(root string) (Result, error) {
+func ValidateConformance(scope Scope) (Result, error) {
+	root := scope.Root
 	uiRoot := filepath.Join(root, "scenarios", "react-component-library", "ui", "src")
 	if _, statErr := os.Stat(uiRoot); os.IsNotExist(statErr) {
 		return nonEmpty(Result{}, "conformance"), nil

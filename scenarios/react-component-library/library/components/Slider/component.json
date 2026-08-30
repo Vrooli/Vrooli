@@ -19,11 +19,13 @@
   "kind": "control",
   "latest": "1.1.0",
   "libraryId": "react-component-library:Slider",
+  "catalogId": "controls.slider",
   "tags": [
     "controls",
     "input",
     "accessibility",
     "gesture",
     "token-bound"
-  ]
+  ],
+  "assetKind": "component"
 }

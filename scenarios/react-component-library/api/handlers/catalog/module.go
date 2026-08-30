@@ -176,6 +176,9 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load catalog gate definitions: %w", definitionErr))
 	}
 	if req.Msg.GetAll() {
+		if strings.TrimSpace(req.Msg.GetAssetId()) != "" {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("asset_id cannot be combined with all=true"))
+		}
 		aggregate := &catalogv1.RunGateResponse{Gate: "all"}
 		type gateResult struct {
 			index int
@@ -192,7 +195,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 				defer workers.Done()
 				for index := range jobs {
 					definition := definitions[index]
-					result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, CalibrationOnly: req.Msg.GetCalibrationOnly()}))
+					result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, AssetId: req.Msg.GetAssetId(), CalibrationOnly: req.Msg.GetCalibrationOnly()}))
 					results <- gateResult{index: index, resp: result, err: runErr}
 				}
 			}()
@@ -277,13 +280,20 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		result gates.Result
 		err    error
 	)
+	var runtimeDB *sql.DB
+	if h.evidence != nil {
+		runtimeDB = h.evidence.Database()
+	}
 	if runner == nil {
 		result, err = gates.UnmeasuredGate(h.repoRoot)
 	} else {
-		result, err = runner(h.repoRoot)
+		result, err = runner(gates.Scope{Root: h.repoRoot, Assets: scopedAssetIDs(req.Msg.GetAssetId()), DB: runtimeDB})
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("run catalog gate %q: %w", gate, err))
+	}
+	if err := catalogcoverage.AnnotateFindings(h.repoRoot, gate, &result); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("annotate catalog gate %q: %w", gate, err))
 	}
 	if gate == "version-liveness" && h.evidence != nil && h.evidence.Database() != nil {
 		items, planHash, planErr := versionledger.NewRepository(h.evidence.Database(), filepath.Join(h.repoRoot, "scenarios", "react-component-library", "library")).PlanCleanup(ctx, versionledger.CleanupScope{})
@@ -379,39 +389,51 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	}
 	for _, finding := range result.Findings {
 		response.Findings = append(response.Findings, &catalogv1.GateFinding{
-			Code:        finding.Code,
-			Message:     finding.Message,
-			AssetId:     finding.AssetID,
-			Severity:    severity,
-			File:        finding.File,
-			Line:        int32(finding.Line),
-			Remediation: finding.Remediation,
-			DocsRef:     finding.DocsRef,
+			Code:           finding.Code,
+			Message:        finding.Message,
+			AssetId:        finding.AssetID,
+			Severity:       severity,
+			File:           finding.File,
+			Line:           int32(finding.Line),
+			Remediation:    finding.Remediation,
+			DocsRef:        finding.DocsRef,
+			RuleSource:     string(finding.RuleSource),
+			RuleDeclaredIn: finding.RuleDeclaredIn,
 		})
 	}
 	for _, finding := range result.InformationalFindings {
 		response.Findings = append(response.Findings, &catalogv1.GateFinding{
-			Code:        finding.Code,
-			Message:     finding.Message,
-			AssetId:     finding.AssetID,
-			Severity:    "info",
-			File:        finding.File,
-			Line:        int32(finding.Line),
-			Remediation: finding.Remediation,
-			DocsRef:     finding.DocsRef,
+			Code:           finding.Code,
+			Message:        finding.Message,
+			AssetId:        finding.AssetID,
+			Severity:       "info",
+			File:           finding.File,
+			Line:           int32(finding.Line),
+			Remediation:    finding.Remediation,
+			DocsRef:        finding.DocsRef,
+			RuleSource:     string(finding.RuleSource),
+			RuleDeclaredIn: finding.RuleDeclaredIn,
 		})
 	}
 	for _, finding := range result.RunnerError {
-		response.RunnerErrors = append(response.RunnerErrors, &catalogv1.GateFinding{Code: finding.Code, Message: finding.Message, AssetId: finding.AssetID, Severity: "error", File: finding.File, Line: int32(finding.Line), Remediation: finding.Remediation, DocsRef: finding.DocsRef})
+		response.RunnerErrors = append(response.RunnerErrors, &catalogv1.GateFinding{Code: finding.Code, Message: finding.Message, AssetId: finding.AssetID, Severity: "error", File: finding.File, Line: int32(finding.Line), Remediation: finding.Remediation, DocsRef: finding.DocsRef, RuleSource: string(finding.RuleSource), RuleDeclaredIn: finding.RuleDeclaredIn})
 	}
 	return connect.NewResponse(response), nil
 }
 
+func scopedAssetIDs(assetID string) []string {
+	assetID = strings.TrimSpace(assetID)
+	if assetID == "" {
+		return nil
+	}
+	return []string{assetID}
+}
+
 func (h *handler) gateRunner(gate string) gates.GateRunner {
 	if gate == "released-version-immutable" && h.evidence != nil && h.evidence.Database() != nil {
-		db := h.evidence.Database()
-		return func(root string) (gates.Result, error) {
-			return gates.ValidateReleasedVersionImmutableWithDB(root, db)
+		return func(scope gates.Scope) (gates.Result, error) {
+			scope.DB = h.evidence.Database()
+			return gates.ValidateReleasedVersionImmutable(scope)
 		}
 	}
 	return gates.GateRunnerFor(gate)

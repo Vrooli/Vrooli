@@ -23,5 +23,7 @@
     "lifecycle",
     "surface",
     "accessibility"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

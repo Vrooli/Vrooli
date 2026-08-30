@@ -27,5 +27,6 @@
     "form",
     "color",
     "appearance"
-  ]
+  ],
+  "assetKind": "component"
 }

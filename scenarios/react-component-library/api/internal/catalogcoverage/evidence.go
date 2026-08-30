@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"react-component-library/internal/gates"
-	"react-component-library/internal/versionledger"
 )
 
 // Schema owns the durable browser-backed gate evidence table. Evidence is
@@ -32,8 +31,9 @@ CREATE TABLE IF NOT EXISTS catalog_gate_evidence (
   version TEXT NOT NULL DEFAULT '',
   result TEXT NOT NULL,
   measurement_json TEXT NOT NULL DEFAULT '',
-  source_revision TEXT NOT NULL,
-  recorded_at TEXT NOT NULL,
+	source_revision TEXT NOT NULL,
+	rule_set_digest TEXT NOT NULL DEFAULT '',
+	recorded_at TEXT NOT NULL,
   UNIQUE (asset_id, target, gate, version, recorded_at)
 );
 CREATE INDEX IF NOT EXISTS idx_catalog_gate_evidence_revision
@@ -103,7 +103,7 @@ func (s *EvidenceStore) ensureMeasurementColumn(ctx context.Context) error {
 		return err
 	}
 	defer rows.Close()
-	found := false
+	columns := map[string]bool{}
 	for rows.Next() {
 		var cid, notNull, pk int
 		var name, typ string
@@ -113,9 +113,7 @@ func (s *EvidenceStore) ensureMeasurementColumn(ctx context.Context) error {
 			s.err = scanErr
 			return scanErr
 		}
-		if name == "measurement_json" {
-			found = true
-		}
+		columns[name] = true
 	}
 	if err := rows.Err(); err != nil {
 		_ = rows.Close()
@@ -126,8 +124,14 @@ func (s *EvidenceStore) ensureMeasurementColumn(ctx context.Context) error {
 		s.err = err
 		return err
 	}
-	if !found {
+	if !columns["measurement_json"] {
 		if _, err := s.db.ExecContext(ctx, `ALTER TABLE catalog_gate_evidence ADD COLUMN measurement_json TEXT NOT NULL DEFAULT ''`); err != nil {
+			s.err = err
+			return err
+		}
+	}
+	if !columns["rule_set_digest"] {
+		if _, err := s.db.ExecContext(ctx, `ALTER TABLE catalog_gate_evidence ADD COLUMN rule_set_digest TEXT NOT NULL DEFAULT ''`); err != nil {
 			s.err = err
 			return err
 		}
@@ -275,8 +279,8 @@ func (s *EvidenceStore) Save(ctx context.Context, evidence []GateEvidence) error
 		}
 		id := evidenceID(item)
 		_, err := tx.ExecContext(ctx, `
-INSERT OR IGNORE INTO catalog_gate_evidence(id, asset_id, target, gate, version, result, measurement_json, source_revision, recorded_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, item.AssetID, item.Target, item.Gate, item.Version, item.Result, item.MeasurementJSON, item.SourceRevision, item.RecordedAt)
+INSERT OR IGNORE INTO catalog_gate_evidence(id, asset_id, target, gate, version, result, measurement_json, source_revision, rule_set_digest, recorded_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, id, item.AssetID, item.Target, item.Gate, item.Version, item.Result, item.MeasurementJSON, item.SourceRevision, item.RuleSetDigest, item.RecordedAt)
 		if err != nil {
 			return err
 		}
@@ -299,7 +303,7 @@ func (s *EvidenceStore) List(ctx context.Context) ([]GateEvidence, error) {
 	if err := s.ensureMeasurementColumn(ctx); err != nil {
 		return nil, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT asset_id, target, gate, version, result, measurement_json, source_revision, recorded_at FROM catalog_gate_evidence ORDER BY asset_id, target, gate, recorded_at DESC`)
+	rows, err := s.db.QueryContext(ctx, `SELECT asset_id, target, gate, version, result, measurement_json, source_revision, rule_set_digest, recorded_at FROM catalog_gate_evidence ORDER BY asset_id, target, gate, recorded_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -307,7 +311,7 @@ func (s *EvidenceStore) List(ctx context.Context) ([]GateEvidence, error) {
 	var out []GateEvidence
 	for rows.Next() {
 		var item GateEvidence
-		if err := rows.Scan(&item.AssetID, &item.Target, &item.Gate, &item.Version, &item.Result, &item.MeasurementJSON, &item.SourceRevision, &item.RecordedAt); err != nil {
+		if err := rows.Scan(&item.AssetID, &item.Target, &item.Gate, &item.Version, &item.Result, &item.MeasurementJSON, &item.SourceRevision, &item.RuleSetDigest, &item.RecordedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, item)
@@ -797,10 +801,27 @@ func staleAssetsByGate(root string, persisted []GateEvidence, definitions []Gate
 			built[impl.CatalogID] = true
 		}
 	}
-	kindByAsset := make(map[string]string, len(assets))
+	bindingsByAsset := make(map[string]map[string]RuleBinding, len(assets))
 	for _, asset := range assets {
-		if built[asset.ID] {
-			kindByAsset[asset.ID] = asset.Kind
+		if !built[asset.ID] {
+			continue
+		}
+		bindings, resolveErr := ResolveRuleSet(root, asset.ID)
+		if resolveErr != nil {
+			// Small isolated fixtures used by the evidence tests often provide
+			// catalog assets without the production config.json. Preserve the
+			// legacy definition-driven applicability in that case; production
+			// catalogs still use the resolver above as the source of truth.
+			for _, definition := range definitions {
+				if definition.Attribution == "corpus" || !containsKind(definition.AppliesTo, asset.Kind) {
+					continue
+				}
+				bindings = append(bindings, RuleBinding{GateID: definition.ID})
+			}
+		}
+		bindingsByAsset[asset.ID] = make(map[string]RuleBinding, len(bindings))
+		for _, binding := range bindings {
+			bindingsByAsset[asset.ID][binding.GateID] = binding
 		}
 	}
 	byGateAsset := map[string]map[string]GateEvidence{}
@@ -821,8 +842,8 @@ func staleAssetsByGate(root string, persisted []GateEvidence, definitions []Gate
 			continue
 		}
 		gateStale := map[string]bool{}
-		for assetID := range kindByAsset {
-			if !containsKind(definition.AppliesTo, kindByAsset[assetID]) {
+		for assetID := range bindingsByAsset {
+			if _, applicable := bindingsByAsset[assetID][definition.ID]; !applicable {
 				continue
 			}
 			revision, known := revisions[assetID]
@@ -833,7 +854,9 @@ func staleAssetsByGate(root string, persisted []GateEvidence, definitions []Gate
 				continue
 			}
 			item, ok := byGateAsset[definition.ID][assetID]
-			if !ok || revision != item.SourceRevision {
+			digest, digestErr := RuleSetDigest(root, assetID)
+			digestStale := digestErr == nil && (item.RuleSetDigest == "" || digest != item.RuleSetDigest)
+			if !ok || revision != item.SourceRevision || digestStale {
 				gateStale[assetID] = true
 			}
 		}
@@ -1145,176 +1168,41 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]
 		return nil, err
 	}
 	runners := map[string]gates.Result{}
-	if needed("types") {
-		// Hand the runner the library directories whose evidence is stale. That
-		// set already contains every dependent, because the revision index
-		// folds each asset's dependencies into its hash, so an asset absent
-		// from it cannot have been affected by anything that changed.
-		var scope []string
-		if stale != nil {
-			for assetID := range stale["types"] {
-				if name := implByAsset[assetID].Name; name != "" {
-					scope = append(scope, name)
-				}
+	bindingsByAsset := make(map[string]map[string]RuleBinding, len(assets))
+	for _, asset := range assets {
+		if _, ok := implByAsset[asset.ID]; !ok {
+			continue
+		}
+		bindings, resolveErr := ResolveRuleSet(root, asset.ID)
+		if resolveErr != nil {
+			return nil, resolveErr
+		}
+		bindingsByAsset[asset.ID] = make(map[string]RuleBinding, len(bindings))
+		for _, binding := range bindings {
+			bindingsByAsset[asset.ID][binding.GateID] = binding
+		}
+	}
+	for _, definition := range definitions {
+		if !needed(definition.ID) && definition.Attribution != "corpus" {
+			continue
+		}
+		var selected []string
+		if definition.Attribution != "corpus" && stale != nil {
+			for assetID := range stale[definition.ID] {
+				selected = append(selected, assetID)
 			}
+			sort.Strings(selected)
 		}
-		if runners["types"], err = gates.ValidateTypesForAssets(root, scope); err != nil {
-			return nil, err
+		result, available, runErr := gates.Run(definition.ID, gates.Scope{Root: root, Assets: selected, DB: runtimeDB})
+		if runErr != nil {
+			return nil, runErr
 		}
-	}
-	if needed("api") {
-		if runners["api"], err = gates.ValidateAPI(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("tokens") {
-		if runners["tokens"], err = gates.ValidateTokens(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("conformance") {
-		if runners["conformance"], err = gates.ValidateConformance(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("version-liveness") {
-		if runners["version-liveness"], err = gates.ValidateVersionLiveness(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("release-provenance") {
-		if runners["release-provenance"], err = gates.ValidateReleaseProvenance(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("dependency-rank") {
-		if runners["dependency-rank"], err = gates.ValidateDependencyRank(root); err != nil {
-			return nil, err
-		}
-	}
-	if runtimeDB != nil {
-		libraryRoot := filepath.Join(resolveScenarioRoot(root), "library")
-		var componentTableCount int
-		if tableErr := runtimeDB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='components'`).Scan(&componentTableCount); tableErr != nil {
-			return nil, fmt.Errorf("check version retirement schema: %w", tableErr)
-		}
-		if componentTableCount > 0 {
-			items, planHash, planErr := versionledger.NewRepository(runtimeDB, libraryRoot).PlanCleanup(context.Background(), versionledger.CleanupScope{})
-			if planErr != nil {
-				return nil, fmt.Errorf("compute version retirement plan: %w", planErr)
-			}
-			eligible := 0
-			for _, item := range items {
-				if item.Eligible {
-					eligible++
-				}
-			}
-			versionLiveness := runners["version-liveness"]
-			versionLiveness.InformationalFindings = append(versionLiveness.InformationalFindings, gates.Finding{
-				Code:        "catalog.version_retirement_plan",
-				AssetID:     "__corpus__",
-				Message:     fmt.Sprintf("retirement plan computed: %d safe candidate(s) out of %d; no versions applied without an explicit plan hash and confirmation", eligible, len(items)),
-				Remediation: fmt.Sprintf("Review `react-component-library versions plan-cleanup --json` (plan hash %s), then apply only with the reviewed hash and explicit confirmation.", planHash),
-				DocsRef:     "docs/concepts/ARCHITECTURE.md#version-lifecycle",
-			})
-			runners["version-liveness"] = versionLiveness
-		}
-	}
-	if _, statErr := os.Stat(filepath.Join(root, "scenarios", "react-component-library", "ui", "src", "design-tokens.css")); statErr == nil {
-		if runners["token-vocabulary"], err = gates.ValidateTokenVocabulary(root); err != nil {
-			return nil, err
-		}
-		if runners["token-ramp-complete"], err = gates.ValidateTokenRampComplete(root); err != nil {
-			return nil, err
-		}
-		if needed("scenario-token-requirements") {
-			if runners["scenario-token-requirements"], err = gates.ValidateScenarioTokenRequirements(root); err != nil {
+		if available {
+			result = gates.NormalizeResult(root, result)
+			if err := AnnotateFindings(root, definition.ID, &result); err != nil {
 				return nil, err
 			}
-		}
-	}
-	if runtimeDB != nil {
-		if runners["released-version-immutable"], err = gates.ValidateReleasedVersionImmutableWithDB(root, runtimeDB); err != nil {
-			return nil, err
-		}
-	} else if _, statErr := os.Stat(filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db")); statErr == nil {
-		if runners["released-version-immutable"], err = gates.ValidateReleasedVersionImmutable(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("lifecycle") {
-		if runners["lifecycle"], err = gates.ValidateLifecycle(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("examples") {
-		if runners["examples"], err = gates.ValidateExamples(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("fixture-adversarial") {
-		if runners["fixture-adversarial"], err = gates.ValidateFixtures(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("rtl") {
-		if runners["rtl"], err = gates.ValidateRTL(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("reduced-motion") {
-		if runners["reduced-motion"], err = gates.ValidateReducedMotion(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("stress") {
-		if runners["stress"], err = gates.ValidateStress(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("integration") {
-		if runners["integration"], err = gates.ValidateIntegration(root); err != nil {
-			return nil, err
-		}
-	}
-	// These corpus gates require the live catalog application and BAS tree.
-	// Sparse unit-test repositories intentionally omit those surfaces; do not
-	// turn their absence into a fabricated runner failure.
-	uiSourceRoot := filepath.Join(root, "scenarios", "react-component-library", "ui", "src")
-	if _, statErr := os.Stat(uiSourceRoot); statErr == nil {
-		if runners["self-hosting"], err = gates.ValidateSelfHosting(root); err != nil {
-			return nil, err
-		}
-	}
-	basRoot := filepath.Join(root, "scenarios", "react-component-library", "bas")
-	if _, statErr := os.Stat(basRoot); statErr == nil {
-		if runners["bas-genericity"], err = gates.ValidateBASGenericity(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("surface-discipline") {
-		if runners["surface-discipline"], err = gates.ValidateSurfaceDiscipline(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("restyle-contract") {
-		if runners["restyle-contract"], err = gates.ValidateRestyleContract(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("story-grammar") {
-		if runners["story-grammar"], err = gates.ValidateStoryGrammar(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("story-distinctness") {
-		if runners["story-distinctness"], err = gates.ValidateStoryDistinctness(root); err != nil {
-			return nil, err
-		}
-	}
-	if needed("evidence-freshness") {
-		if runners["evidence-freshness"], err = gates.ValidateEvidenceFreshness(root); err != nil {
-			return nil, err
+			runners[definition.ID] = result
 		}
 	}
 	for name, runner := range runners {
@@ -1351,7 +1239,8 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]
 			return nil, fmt.Errorf("catalog asset %q has no computable revision", asset.ID)
 		}
 		for _, definition := range definitions {
-			if definition.Attribution == "corpus" || !containsKind(definition.AppliesTo, asset.Kind) {
+			binding, applicable := bindingsByAsset[asset.ID][definition.ID]
+			if !applicable || binding.Source == RuleSourceCorpus {
 				continue
 			}
 			gateName := definition.ID
@@ -1385,6 +1274,16 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]
 			continue
 		}
 		out = append(out, GateEvidence{AssetID: "__corpus__", Target: "corpus", Version: "", Gate: definition.ID, Result: "unmeasured", SourceRevision: "corpus"})
+	}
+	for i := range out {
+		if out[i].AssetID == "__corpus__" {
+			continue
+		}
+		digest, err := RuleSetDigest(root, out[i].AssetID)
+		if err != nil {
+			return nil, err
+		}
+		out[i].RuleSetDigest = digest
 	}
 	return out, nil
 }

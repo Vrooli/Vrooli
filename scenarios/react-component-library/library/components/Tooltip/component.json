@@ -23,5 +23,6 @@
     "accessible",
     "interaction",
     "token-bound"
-  ]
+  ],
+  "assetKind": "component"
 }

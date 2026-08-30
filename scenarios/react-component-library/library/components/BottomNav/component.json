@@ -40,5 +40,6 @@
     "layout",
     "navigation",
     "mobile"
-  ]
+  ],
+  "assetKind": "component"
 }

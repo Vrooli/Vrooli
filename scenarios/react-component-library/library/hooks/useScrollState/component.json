@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-scroll-state",
   "description": "Production-ready useScrollState hook with SSR-safe lifecycle behavior.",
   "designStyles": [

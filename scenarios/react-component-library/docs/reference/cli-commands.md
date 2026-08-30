@@ -126,6 +126,12 @@ style-fit, and dependency reasons.
 
 ## Output contracts
 
+### Scoped catalog gates
+
+`react-component-library catalog gates <gate> --asset-id <catalog-id>` runs one
+registered gate against one catalog asset. Omit `--asset-id` for the full
+corpus; do not combine it with `--all`.
+
 Every scenario command should render through one of three human
 contracts. Proto-backed commands should use `cliapp.RenderProtoList`
 or `cliapp.RenderProtoMutation`: human consumers see the report, while

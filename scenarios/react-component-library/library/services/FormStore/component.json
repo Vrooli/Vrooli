@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "service",
+  "assetKind": "runtime-service",
   "catalogId": "services.form-store",
   "description": "Field-granular form state with validation, submission, autosave, and conflict coordination.",
   "designStyles": [

@@ -60,7 +60,7 @@ func TestCalibrationQuarantinesAlwaysPassingRunner(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	report, err := Calibrate(root, "token-vocabulary", func(string) (Result, error) {
+	report, err := Calibrate(root, "token-vocabulary", func(Scope) (Result, error) {
 		return Result{Inspected: 1}, nil
 	})
 	if err != nil {

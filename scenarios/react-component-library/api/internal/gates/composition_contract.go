@@ -11,8 +11,9 @@ import (
 // declarations with the source that is expected to honor them. The catalog is
 // the relationship oracle; source is only used to catch a child that silently
 // replaces a declared context value with a hard-coded treatment.
-func ValidateCompositionContract(root string) (Result, error) {
-	assets, err := loadAssets(root)
+func ValidateCompositionContract(scope Scope) (Result, error) {
+	root := scope.Root
+	assets, err := loadAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}

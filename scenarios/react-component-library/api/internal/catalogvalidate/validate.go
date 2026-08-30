@@ -61,6 +61,7 @@ func (v *Validator) Validate() ([]Finding, error) {
 		}
 	}
 	findings = append(findings, crossRegistryFindings(v.RepoRoot, catalogDir)...)
+	findings = append(findings, implementationIdentityFindings(v.RepoRoot)...)
 	findings = append(findings, vacuousAllowlistFindings(v.RepoRoot)...)
 	sort.Slice(findings, func(i, j int) bool {
 		if findings[i].Location != findings[j].Location {
@@ -72,6 +73,42 @@ func (v *Validator) Validate() ([]Finding, error) {
 		return findings[i].Message < findings[j].Message
 	})
 	return findings, nil
+}
+
+// implementationIdentityFindings closes the join between authored library
+// manifests and the desired-state catalog. An implementation may be outside
+// the catalog, but only when that choice is explicit in its manifest.
+func implementationIdentityFindings(repoRoot string) []Finding {
+	libraryRoot := filepath.Join(repoRoot, "scenarios", "react-component-library", "library")
+	paths, _ := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
+	var findings []Finding
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			findings = append(findings, Finding{Code: "catalog.implementation_manifest_unreadable", Severity: "error", Location: rel(repoRoot, path), Message: err.Error()})
+			continue
+		}
+		var manifest struct {
+			CatalogID    *string `json:"catalogId"`
+			Supplemental bool    `json:"supplemental"`
+		}
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			continue
+		}
+		if manifest.CatalogID != nil && strings.TrimSpace(*manifest.CatalogID) != "" {
+			continue
+		}
+		if manifest.Supplemental {
+			continue
+		}
+		findings = append(findings, Finding{
+			Code:     "catalog.implementation_identity_missing",
+			Severity: "error",
+			Location: rel(repoRoot, path),
+			Message:  "implementation must declare a catalogId or supplemental=true",
+		})
+	}
+	return findings
 }
 
 type vacuousAllowlistEntry struct {

@@ -28,5 +28,6 @@
     "responsive",
     "accessibility"
   ],
-  "catalogId": "hooks.use-viewport-environment"
+  "catalogId": "hooks.use-viewport-environment",
+  "assetKind": "component"
 }

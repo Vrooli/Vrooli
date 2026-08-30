@@ -11,7 +11,8 @@ import (
 	"github.com/vrooli/api-core/database"
 )
 
-func validateEvidenceFreshness(root string) (Result, error) {
+func validateEvidenceFreshness(scope Scope) (Result, error) {
+	root := scope.Root
 	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
 	if err != nil {
 		return Result{}, err

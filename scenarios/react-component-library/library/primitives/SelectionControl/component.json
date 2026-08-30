@@ -26,5 +26,6 @@
     "selection",
     "accessibility",
     "token-bound"
-  ]
+  ],
+  "supplemental": true
 }

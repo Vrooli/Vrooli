@@ -13,8 +13,9 @@ var exportedTypeScriptSymbol = regexp.MustCompile(`^\s*export\s+(?:default\s+)?(
 // prose quality; it proves the cheaper, falsifiable contract that every
 // exported symbol has a TSDoc block immediately above it. A missing block is
 // reported, never converted into a pass by a catalog description.
-func ValidateDocumentation(root string) (Result, error) {
-	assets, err := loadAssets(root)
+func ValidateDocumentation(scope Scope) (Result, error) {
+	root := scope.Root
+	assets, err := loadAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}

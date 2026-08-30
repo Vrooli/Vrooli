@@ -25,5 +25,7 @@
   "tags": [
     "markdown",
     "mermaid"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

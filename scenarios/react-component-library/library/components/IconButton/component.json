@@ -31,5 +31,6 @@
     "icon",
     "accessibility",
     "motion"
-  ]
+  ],
+  "assetKind": "component"
 }

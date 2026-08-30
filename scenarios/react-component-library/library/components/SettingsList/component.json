@@ -20,5 +20,7 @@
       "reason": "token-native operational-console baseline"
     }
   ],
-  "draft": ""
+  "draft": "",
+  "assetKind": "component",
+  "supplemental": true
 }

@@ -55,7 +55,7 @@ func TestValidateSurfaceDisciplinePublishesCorpusCounts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateSurfaceDiscipline(root)
+	result, err := ValidateSurfaceDiscipline(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}

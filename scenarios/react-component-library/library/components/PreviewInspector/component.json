@@ -30,5 +30,6 @@
     "preview",
     "overlay",
     "inspection"
-  ]
+  ],
+  "supplemental": true
 }

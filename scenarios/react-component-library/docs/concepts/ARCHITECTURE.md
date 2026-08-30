@@ -497,3 +497,9 @@ CLI and relationships read model.
 - [`../internal/ERROR-HANDLING.md`](../internal/ERROR-HANDLING.md) — error semantics
 - [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md) — known issues / tech debt
 - [`../internal/PROGRESS.md`](../internal/PROGRESS.md) — lifecycle log
+# Asset-first gate loop
+
+Catalog validation resolves universal, kind, and asset declarations before
+invoking a registered runner with a `gates.Scope`. The source revision and
+resolved rule-set digest form the evidence cache key. Findings identify both
+the rule layer and the declaring file.

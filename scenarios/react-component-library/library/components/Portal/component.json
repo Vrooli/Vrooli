@@ -22,5 +22,7 @@
     "runtime",
     "overlay",
     "accessibility"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

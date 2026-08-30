@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"react-component-library/internal/assetrung"
+	"react-component-library/internal/gates"
 )
 
 // Asset is one desired-state catalog entry.
@@ -137,6 +138,13 @@ func LoadGateDefinitions(configPath string) ([]GateDefinition, error) {
 	}
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("parse catalog config: %w", err)
+	}
+	for i := range doc.Gates {
+		if definition, ok := gates.Lookup(doc.Gates[i].ID); ok && definition.CorpusScoped {
+			doc.Gates[i].Attribution = "corpus"
+		} else {
+			doc.Gates[i].Attribution = "attributable"
+		}
 	}
 	return doc.Gates, nil
 }

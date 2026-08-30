@@ -29,5 +29,7 @@
   "tags": [
     "feedback",
     "status"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

@@ -2056,7 +2056,7 @@
               "description": "Gate: types, api, tokens, conformance, token-vocabulary, token-ramp-complete, fallback-parity, kit-compatibility, affinity-compatible, scenario-token-requirements, released-version-immutable, lifecycle, fixture-adversarial, or examples"
             }
           ],
-          "flags": [{"name": "all", "bool": true, "description": "Run every declared catalog gate"}, {"name": "calibration-only", "bool": true, "description": "Run gate-owned planted-error fixtures without inspecting the corpus"}],
+          "flags": [{"name": "all", "bool": true, "description": "Run every declared catalog gate"}, {"name": "asset-id", "description": "Run the gate for one catalog asset only"}, {"name": "calibration-only", "bool": true, "description": "Run gate-owned planted-error fixtures without inspecting the corpus"}],
           "binding": {
             "kind": "connect-rpc",
             "service": "CatalogService",

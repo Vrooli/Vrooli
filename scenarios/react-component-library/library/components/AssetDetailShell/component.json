@@ -27,5 +27,7 @@
     "preview",
     "metadata",
     "experience"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

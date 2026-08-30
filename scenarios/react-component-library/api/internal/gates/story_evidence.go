@@ -34,8 +34,9 @@ type persistedEvidence struct {
 	} `json:"performance"`
 }
 
-func ValidateConsoleClean(root string) (Result, error) {
-	result, err := loadStoryEvidence(root, "console")
+func ValidateConsoleClean(scope Scope) (Result, error) {
+	root := scope.Root
+	result, err := loadStoryEvidence(scope, "console")
 	if err != nil {
 		return Result{}, err
 	}
@@ -45,12 +46,13 @@ func ValidateConsoleClean(root string) (Result, error) {
 	return nonEmpty(result, "console-clean"), nil
 }
 
-func ValidatePerformance(root string) (Result, error) {
+func ValidatePerformance(scope Scope) (Result, error) {
+	root := scope.Root
 	result, err := validateProductionBuild(root)
 	if err != nil {
 		return Result{}, err
 	}
-	observed, err := loadStoryEvidence(root, "performance")
+	observed, err := loadStoryEvidence(scope, "performance")
 	if err != nil {
 		return Result{}, err
 	}
@@ -87,7 +89,8 @@ func validateProductionBuild(root string) (Result, error) {
 	return result, nil
 }
 
-func loadStoryEvidence(root string, kinds ...string) (Result, error) {
+func loadStoryEvidence(scope Scope, kinds ...string) (Result, error) {
+	root := scope.Root
 	allowedKinds := map[string]bool{}
 	for _, kind := range kinds {
 		allowedKinds[kind] = true
@@ -112,7 +115,7 @@ func loadStoryEvidence(root string, kinds ...string) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	assets, err := loadAssets(root)
+	assets, err := loadAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}

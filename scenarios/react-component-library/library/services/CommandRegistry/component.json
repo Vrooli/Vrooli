@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "service",
+  "assetKind": "runtime-service",
   "catalogId": "services.command-registry",
   "description": "Scoped runtime registry for searchable commands, async execution, recent history, and isolated consumers.",
   "designStyles": [

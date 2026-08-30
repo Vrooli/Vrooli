@@ -47,6 +47,7 @@ type GateEvidence struct {
 	Result          string
 	MeasurementJSON string
 	SourceRevision  string
+	RuleSetDigest   string
 	RecordedAt      string
 }
 

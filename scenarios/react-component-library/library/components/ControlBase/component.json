@@ -25,5 +25,7 @@
     "control",
     "primitive",
     "accessibility"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

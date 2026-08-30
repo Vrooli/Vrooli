@@ -10,5 +10,6 @@
   "toolRestrictionPolicy": "advisory",
   "skipPermissionPrompt": true,
   "sandboxConfig": {"manualReview": true},
-  "createdBy": "react-component-library"
+  "createdBy": "react-component-library",
+  "effort": "medium"
 }

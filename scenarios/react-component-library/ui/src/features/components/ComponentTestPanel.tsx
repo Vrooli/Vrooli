@@ -101,6 +101,14 @@ function StageRow({ result }: { result: ComponentTestResult }) {
             {result.assetLibraryId}@{result.version}
           </span>
         </div>
+        {(result.ruleSource || result.ruleDeclaredIn) && (
+          <p className="mt-space-3xs text-xs text-app-muted-foreground">
+            Rule: <span className="font-mono">{result.ruleSource || "unknown"}</span>
+            {result.ruleDeclaredIn && (
+              <>{" · "}<code>{result.ruleDeclaredIn}</code></>
+            )}
+          </p>
+        )}
         {result.message && (
           <p className="mt-space-3xs text-xs text-app-muted-foreground">{result.message}</p>
         )}

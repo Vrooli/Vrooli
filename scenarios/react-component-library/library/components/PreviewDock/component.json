@@ -30,5 +30,6 @@
     "preview",
     "chrome",
     "responsive"
-  ]
+  ],
+  "supplemental": true
 }

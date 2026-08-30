@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-focus-trap",
   "description": "Reusable focus containment primitive for accessible overlays.",
   "designStyles": [

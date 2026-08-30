@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-retry",
   "description": "A cancellable retry controller with bounded attempts, abortable backoff, and failure classification.",
   "designStyles": [

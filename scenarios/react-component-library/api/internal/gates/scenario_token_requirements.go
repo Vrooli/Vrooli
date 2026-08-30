@@ -27,7 +27,8 @@ type gateLibraryAsset struct {
 // ValidateScenarioTokenRequirements proves that each scenario's managed token
 // region covers the active package releases it actually imports. Contract-tier
 // properties are host behavior and are intentionally never copied into ramps.
-func ValidateScenarioTokenRequirements(root string) (Result, error) {
+func ValidateScenarioTokenRequirements(scope Scope) (Result, error) {
+	root := scope.Root
 	baseTokens, err := themes.ReadTokenFile(filepath.Join(root, "templates", "design", "_base", "tokens.css"))
 	if err != nil {
 		return Result{}, err

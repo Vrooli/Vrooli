@@ -19,5 +19,6 @@
       "affinity": "native",
       "reason": "token-native operational-console baseline"
     }
-  ]
+  ],
+  "supplemental": true
 }

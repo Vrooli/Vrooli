@@ -74,6 +74,9 @@ var fingerprintRoots = []string{
 // Paths are sorted before hashing so filesystem traversal order cannot change
 // the cache key.
 func fingerprint(repoRoot string) (string, error) {
+	if key, ok := assetCacheFingerprint(repoRoot); ok {
+		return key, nil
+	}
 	type input struct {
 		path string
 		data []byte
@@ -127,6 +130,39 @@ func fingerprint(repoRoot string) (string, error) {
 		_, _ = hash.Write([]byte{0})
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// assetCacheFingerprint is the freshness authority for a real catalog report.
+// It hashes the per-asset revision and resolved rule-set digest, so unrelated
+// assets do not share one invalidation bucket. The file-tree fallback remains
+// useful for isolated cache unit fixtures that intentionally have no catalog.
+func assetCacheFingerprint(repoRoot string) (string, bool) {
+	revisions, err := catalogcoverage.BuildRevisionIndex(repoRoot)
+	if err != nil {
+		return "", false
+	}
+	assets, err := catalogcoverage.LoadCatalog(filepath.Join(repoRoot, "scenarios", "react-component-library", "catalog"))
+	if err != nil || len(assets) == 0 {
+		return "", false
+	}
+	hash := sha256.New()
+	for _, asset := range assets {
+		revision, ok := revisions[asset.ID]
+		if !ok {
+			continue
+		}
+		digest, digestErr := catalogcoverage.RuleSetDigest(repoRoot, asset.ID)
+		if digestErr != nil {
+			return "", false
+		}
+		_, _ = hash.Write([]byte(asset.ID))
+		_, _ = hash.Write([]byte{0})
+		_, _ = hash.Write([]byte(revision))
+		_, _ = hash.Write([]byte{0})
+		_, _ = hash.Write([]byte(digest))
+		_, _ = hash.Write([]byte{0})
+	}
+	return hex.EncodeToString(hash.Sum(nil)), true
 }
 
 // get returns a report for the current inputs. A cache hit returns

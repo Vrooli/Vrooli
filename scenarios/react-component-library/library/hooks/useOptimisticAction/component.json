@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-optimistic-action",
   "description": "An optimistic state controller that applies a predicted change immediately and deterministically commits or rolls it back once the operation settles.",
   "designStyles": [

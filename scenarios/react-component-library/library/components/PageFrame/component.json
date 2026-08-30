@@ -25,5 +25,7 @@
     "layout",
     "navigation",
     "frame"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

@@ -16,5 +16,10 @@
   "kind": "surface",
   "latest": "1.0.0",
   "libraryId": "react-component-library:GestureDirection",
-  "tags": ["foundations", "gesture", "accessibility", "internationalization"]
+  "tags": [
+    "foundations",
+    "gesture",
+    "accessibility",
+    "internationalization"
+  ]
 }

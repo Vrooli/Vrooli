@@ -253,7 +253,7 @@ func (h *handlers) gate(ctx cliapp.RunContext) error {
 	if gate == "" {
 		gate = "story-grammar"
 	}
-	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.BoolFlag("all"), CalibrationOnly: ctx.BoolFlag("calibration-only")}))
+	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.BoolFlag("all"), AssetId: ctx.Flag("asset-id"), CalibrationOnly: ctx.BoolFlag("calibration-only")}))
 	if err != nil {
 		return cliapp.WrapAPIError("run catalog gate", err, nil)
 	}

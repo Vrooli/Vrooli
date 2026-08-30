@@ -26,5 +26,7 @@
     "empty",
     "error",
     "retry"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

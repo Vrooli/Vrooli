@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-hydrated",
   "description": "Production-ready useHydrated hook with SSR-safe lifecycle behavior.",
   "designStyles": [

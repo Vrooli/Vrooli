@@ -36,14 +36,16 @@ import (
 // a gate that can resolve a location and does not is a gate that costs its
 // reader a grep.
 type Finding struct {
-	Code        string
-	Category    string
-	AssetID     string
-	Message     string
-	File        string
-	Line        int
-	Remediation string
-	DocsRef     string
+	Code           string
+	Category       string
+	AssetID        string
+	Message        string
+	File           string
+	Line           int
+	Remediation    string
+	DocsRef        string
+	RuleSource     RuleSource
+	RuleDeclaredIn string
 }
 
 // Result makes runner coverage observable. A gate that reports no findings
@@ -100,7 +102,7 @@ func NormalizeResult(root string, result Result) Result {
 		// distribution finding to an arbitrary catalog entry. Preserve those
 		// findings as findings; they are measured observations, not runner
 		// failures caused by an unresolvable asset identity.
-		if strings.HasPrefix(finding.AssetID, "workbench.") || strings.HasPrefix(finding.AssetID, "__corpus__") {
+		if strings.HasPrefix(finding.AssetID, "workbench.") || strings.HasPrefix(finding.AssetID, "supplemental.") || strings.HasPrefix(finding.AssetID, "__corpus__") {
 			normalized = append(normalized, finding)
 			continue
 		}
@@ -192,7 +194,8 @@ func pathWithin(root, candidate string) bool {
 // It never repairs a manifest, but every unavailable or divergent dependency
 // view must fail so the catalog cannot claim a trustworthy graph while its
 // source evidence is missing.
-func ValidateGraphReconciled(root string) (Result, error) {
+func ValidateGraphReconciled(scope Scope) (Result, error) {
+	root := scope.Root
 	report, err := graphreconcile.Reconcile(context.Background(), root)
 	if err != nil {
 		return Result{}, err
@@ -238,7 +241,8 @@ func ValidateGraphReconciled(root string) (Result, error) {
 // ValidateReleaseProvenance rejects release directories that did not pass
 // through the draft publisher. Historical releases carry an explicit
 // backfilled marker; new releases must name their draft and publication time.
-func ValidateReleaseProvenance(root string) (Result, error) {
+func ValidateReleaseProvenance(scope Scope) (Result, error) {
+	root := scope.Root
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	raw, err := os.ReadFile(filepath.Join(libraryRoot, "release-provenance.json"))
 	if err != nil {
@@ -310,7 +314,8 @@ func ValidateReleaseProvenance(root string) (Result, error) {
 
 // ValidateDependencyRank enforces the composition direction over generated
 // per-version locks, which are the durable projection of real source imports.
-func ValidateDependencyRank(root string) (Result, error) {
+func ValidateDependencyRank(scope Scope) (Result, error) {
+	root := scope.Root
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	rankByKind := map[string]int{"foundations": 1, "hooks": 2, "services": 2, "adapters": 2, "primitives": 3, "components": 4, "patterns": 5, "navigation": 5, "page-templates": 6}
 	type assetRank struct {
@@ -385,7 +390,8 @@ var (
 // source must not retain a relative edge into another version directory.
 // Package compilation catches the former late; this gate makes the contract
 // visible to catalog evidence and calibration before a consumer build.
-func ValidateVersionLiveness(root string) (Result, error) {
+func ValidateVersionLiveness(scope Scope) (Result, error) {
+	root := scope.Root
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	var sources []string
 	err := filepath.WalkDir(libraryRoot, func(path string, entry os.DirEntry, walkErr error) error {
@@ -399,6 +405,9 @@ func ValidateVersionLiveness(root string) (Result, error) {
 			return nil
 		}
 		if ext := strings.ToLower(filepath.Ext(path)); ext == ".ts" || ext == ".tsx" {
+			if !sourceInScope(root, path, scope) {
+				return nil
+			}
 			sources = append(sources, path)
 		}
 		return nil
@@ -497,8 +506,9 @@ func pascalCaseGate(value string) string {
 // ValidateTokenVocabulary rejects the retired app-prefixed CSS vocabulary in
 // active library source. The consumer-side token-map vocabulary is separate
 // and is intentionally not inspected here.
-func ValidateTokenVocabulary(root string) (Result, error) {
-	sources, err := activeLibrarySources(root)
+func ValidateTokenVocabulary(scope Scope) (Result, error) {
+	root := scope.Root
+	sources, err := activeLibrarySources(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -546,8 +556,9 @@ func firstRetiredTokenReference(raw []byte) int {
 // ValidateTokenRampComplete verifies that every external literal custom
 // property used by active library source is published by the canonical RCL
 // ramp. Self-defined --rcl-* properties and dynamic families are excluded.
-func ValidateTokenRampComplete(root string) (Result, error) {
-	sources, err := activeLibrarySources(root)
+func ValidateTokenRampComplete(scope Scope) (Result, error) {
+	root := scope.Root
+	sources, err := activeLibrarySources(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -602,14 +613,18 @@ func ValidateTokenRampComplete(root string) (Result, error) {
 // with its current on-disk entry and companion files. It is intentionally a
 // corpus gate, independent of the indexer's write path, so direct filesystem
 // edits remain observable.
-func ValidateReleasedVersionImmutable(root string) (Result, error) {
+func ValidateReleasedVersionImmutable(scope Scope) (Result, error) {
+	root := scope.Root
+	if scope.DB != nil {
+		return validateReleasedVersionImmutableWithDB(root, scope.DB)
+	}
 	dbPath := filepath.Join(root, "scenarios", "react-component-library", "data", "react-component-library.db")
 	db, err := openGateDB(context.Background(), dbPath)
 	if err != nil {
 		return validateReleasedVersionHashLedger(root)
 	}
 	defer db.Close()
-	return ValidateReleasedVersionImmutableWithDB(root, db)
+	return validateReleasedVersionImmutableWithDB(root, db)
 }
 
 // queryContexter is the smallest database seam needed by the immutable gate.
@@ -620,10 +635,10 @@ type queryContexter interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
 
-// ValidateReleasedVersionImmutableWithDB compares released versions using an
-// already-open scenario database. Runtime callers must use this form so the
-// gate observes the same routed storage and schema as the rest of the API.
-func ValidateReleasedVersionImmutableWithDB(root string, db queryContexter) (Result, error) {
+// validateReleasedVersionImmutableWithDB compares released versions using an
+// already-open scenario database. Scope-aware callers reach it through the
+// single exported ValidateReleasedVersionImmutable runner.
+func validateReleasedVersionImmutableWithDB(root string, db queryContexter) (Result, error) {
 	if db == nil {
 		return Result{}, fmt.Errorf("component index database is not configured")
 	}
@@ -766,7 +781,12 @@ type assetDoc struct {
 	Consumes map[string]json.RawMessage `json:"consumes"`
 }
 
-func loadAssets(root string) ([]assetDoc, error) {
+func loadAssets(scope Scope) ([]assetDoc, error) {
+	root := scope.Root
+	selected := make(map[string]bool, len(scope.Assets))
+	for _, assetID := range scope.Assets {
+		selected[assetID] = true
+	}
 	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
 	if err != nil {
 		return nil, err
@@ -782,6 +802,9 @@ func loadAssets(root string) ([]assetDoc, error) {
 		if err := json.Unmarshal(data, &doc); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", path, err)
 		}
+		if !scope.IsFullCorpus() && !selected[doc.Asset.ID] {
+			continue
+		}
 		out = append(out, doc)
 	}
 	return out, nil
@@ -790,8 +813,9 @@ func loadAssets(root string) ([]assetDoc, error) {
 // loadLibraryAssets is the manifest-backed view used by source gates. The
 // catalog projection can legitimately lag a newly authored manifest; source
 // quality gates must not turn that lag into an uninspected implementation.
-func loadLibraryAssets(root string) ([]assetDoc, error) {
-	catalog, err := loadAssets(root)
+func loadLibraryAssets(scope Scope) ([]assetDoc, error) {
+	root := scope.Root
+	catalog, err := loadAssets(scope)
 	if err != nil {
 		return nil, err
 	}
@@ -812,26 +836,24 @@ func loadLibraryAssets(root string) ([]assetDoc, error) {
 				return nil, err
 			}
 			var metadata struct {
-				CatalogID   string `json:"catalogId"`
-				LibraryID   string `json:"libraryId"`
-				DisplayName string `json:"displayName"`
-				AssetKind   string `json:"assetKind"`
+				CatalogID    string `json:"catalogId"`
+				LibraryID    string `json:"libraryId"`
+				DisplayName  string `json:"displayName"`
+				AssetKind    string `json:"assetKind"`
+				Supplemental bool   `json:"supplemental"`
 			}
 			if err := json.Unmarshal(data, &metadata); err != nil {
 				return nil, fmt.Errorf("parse %s: %w", manifest, err)
 			}
 			id := metadata.CatalogID
-			if id == "" {
-				id = metadata.LibraryID
+			if id == "" && metadata.Supplemental {
+				id = "supplemental." + strings.ReplaceAll(metadata.LibraryID, ":", ".")
 			}
 			if projected, ok := byID[id]; ok {
 				result = append(result, projected)
 				continue
 			}
 			assetKind := metadata.AssetKind
-			if assetKind == "" {
-				assetKind = strings.TrimSuffix(kind, "s")
-			}
 			result = append(result, assetDoc{Asset: struct {
 				ID, Kind, Name, Surface string
 				Target                  struct {
@@ -846,8 +868,9 @@ func loadLibraryAssets(root string) ([]assetDoc, error) {
 // ValidateAPI checks declared API vocabulary against the implementation
 // source selected by catalogId. Missing implementations are not failures of
 // this runner; coverage keeps those assets at missing/scaffolded.
-func ValidateAPI(root string) (Result, error) {
-	assets, err := loadAssets(root)
+func ValidateAPI(scope Scope) (Result, error) {
+	root := scope.Root
+	assets, err := loadAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -928,8 +951,8 @@ var (
 // ValidateI18n derives user-facing strings from component source. Literal
 // labels are not a stable adoption contract: the host must supply their
 // translation through the shared locale bridge.
-func ValidateI18n(root string) (Result, error) {
-	return validateActiveSources(root, "i18n", func(asset assetDoc, source string) defect {
+func ValidateI18n(scope Scope) (Result, error) {
+	return validateActiveSources(scope, "i18n", func(asset assetDoc, source string) defect {
 		if legacyI18nBridge.MatchString(source) {
 			return defect{
 				Message:     "library source still uses the removed locale bridge or legacy translate call",
@@ -965,12 +988,13 @@ func ValidateI18n(root string) (Result, error) {
 // ValidateSelectorCoverage requires every native interactive element to carry
 // a stable test id rooted at the catalog asset identity. This keeps BAS flows
 // portable after the asset is copied into an adopting scenario.
-func ValidateSelectorCoverage(root string) (Result, error) {
+func ValidateSelectorCoverage(scope Scope) (Result, error) {
+	root := scope.Root
 	factsIndex, indexErr := readSourceFactsIndex(root)
 	if indexErr != nil && !os.IsNotExist(indexErr) {
 		return Result{}, indexErr
 	}
-	return validateActiveSourcesWithPath(root, "selector-coverage", func(asset assetDoc, path, source string) defect {
+	return validateActiveSourcesWithPath(scope, "selector-coverage", func(asset assetDoc, path, source string) defect {
 		factErr := indexErr
 		facts := []sourceFacts{}
 		if fact, ok := factsIndex[filepath.Clean(path)]; ok {
@@ -1049,8 +1073,8 @@ func ValidateSelectorCoverage(root string) (Result, error) {
 // element. Components with bespoke props must name className and use it in
 // rendered markup so a consumer never has to copy the implementation merely
 // to change presentation.
-func ValidateRestyleContract(root string) (Result, error) {
-	return validateActiveSources(root, "restyle-contract", func(asset assetDoc, source string) defect {
+func ValidateRestyleContract(scope Scope) (Result, error) {
+	return validateActiveSources(scope, "restyle-contract", func(asset assetDoc, source string) defect {
 		finding := analyzeRestyleSource(source)
 		if finding.Message == "" {
 			return ok()
@@ -1064,9 +1088,10 @@ func ValidateRestyleContract(root string) (Result, error) {
 // domain catalog ids remain valid because they are the public catalog asset
 // identity; library-prefixed ids are the identity form used by assets that do
 // not yet have a domain projection and must equal libraryId exactly.
-func ValidateManifestIdentity(root string) (Result, error) {
+func ValidateManifestIdentity(scope Scope) (Result, error) {
+	root := scope.Root
 	result := Result{}
-	catalog, err := loadAssets(root)
+	catalog, err := loadAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -1110,7 +1135,8 @@ func ValidateManifestIdentity(root string) (Result, error) {
 
 // ValidateManifestMetadata keeps authored assets discoverable and prevents
 // transitional catalog escape hatches from becoming permanent public state.
-func ValidateManifestMetadata(root string) (Result, error) {
+func ValidateManifestMetadata(scope Scope) (Result, error) {
+	root := scope.Root
 	result := Result{}
 	for _, kind := range []string{"components"} {
 		paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
@@ -1152,7 +1178,8 @@ func ValidateManifestMetadata(root string) (Result, error) {
 // ValidateOverlaySurfaceComposition keeps modal and menu behavior on the
 // shared overlay substrate. An opt-out is permitted only when the manifest
 // carries a non-empty reason, making the exception reviewable.
-func ValidateOverlaySurfaceComposition(root string) (Result, error) {
+func ValidateOverlaySurfaceComposition(scope Scope) (Result, error) {
+	root := scope.Root
 	result := Result{}
 	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "components", "*", "component.json"))
 	if err != nil {
@@ -1228,8 +1255,8 @@ var (
 // ValidateSharedStyleOwnership keeps cross-cutting rules in BaseStyles. An
 // asset-local copy is not harmless duplication: it gives render order control
 // over focus, motion, and forced-colors behavior.
-func ValidateSharedStyleOwnership(root string) (Result, error) {
-	return validateActiveSourceFiles(root, "shared-style-ownership", func(asset assetDoc, source string) defect {
+func ValidateSharedStyleOwnership(scope Scope) (Result, error) {
+	return validateActiveSourceFiles(scope, "shared-style-ownership", func(asset assetDoc, source string) defect {
 		if strings.HasSuffix(asset.Asset.ID, ":BaseStyles") || strings.HasSuffix(asset.Asset.ID, ".base-styles") {
 			return ok()
 		}
@@ -1251,8 +1278,8 @@ func ValidateSharedStyleOwnership(root string) (Result, error) {
 // ValidateStyleInjection rejects style elements emitted from component output.
 // The only supported runtime path is useLibraryStyleSheet, whose document-head
 // ownership is independently tested by the foundation package.
-func ValidateStyleInjection(root string) (Result, error) {
-	return validateActiveSourceFiles(root, "style-injection", func(_ assetDoc, source string) defect {
+func ValidateStyleInjection(scope Scope) (Result, error) {
+	return validateActiveSourceFiles(scope, "style-injection", func(_ assetDoc, source string) defect {
 		if styleTagRE.MatchString(source) {
 			return defect{Message: "renders a style element from component output", Remediation: "Move the stylesheet into a module-level string and mount it with useLibraryStyleSheet so instances share one head node.", DocsRef: "docs/reference/style-ownership.md"}
 		}
@@ -1263,8 +1290,8 @@ func ValidateStyleInjection(root string) (Result, error) {
 // ValidateForeignTokenClasses is the compatibility name for the superseded
 // palette-only gate. Keep it delegated so existing catalog evidence and
 // calibration fixtures retain their stable gate identity.
-func ValidateForeignTokenClasses(root string) (Result, error) {
-	result, err := validateNoUtilityClasses(root, "foreign-token-classes")
+func ValidateForeignTokenClasses(scope Scope) (Result, error) {
+	result, err := validateNoUtilityClasses(scope, "foreign-token-classes")
 	return result, err
 }
 
@@ -1281,11 +1308,12 @@ type utilityClassAllowance struct {
 // ValidateNoUtilityClasses enforces the package portability boundary across
 // every released source file. The allowlist is explicit migration debt and is
 // surfaced as informational evidence; any unlisted hit is blocking.
-func ValidateNoUtilityClasses(root string) (Result, error) {
-	return validateNoUtilityClasses(root, "utility-class")
+func ValidateNoUtilityClasses(scope Scope) (Result, error) {
+	return validateNoUtilityClasses(scope, "utility-class")
 }
 
-func validateNoUtilityClasses(root, gate string) (Result, error) {
+func validateNoUtilityClasses(scope Scope, gate string) (Result, error) {
+	root := scope.Root
 	allowlistPath := filepath.Join(root, "scenarios", "react-component-library", "library", "utility-class-allowlist.json")
 	data, err := os.ReadFile(allowlistPath)
 	if err != nil && !os.IsNotExist(err) {
@@ -1301,7 +1329,7 @@ func validateNoUtilityClasses(root, gate string) (Result, error) {
 	for _, entry := range allowlist.Entries {
 		allowed[filepath.ToSlash(filepath.Clean(entry.Path))] = true
 	}
-	sources, err := allLibrarySources(root)
+	sources, err := allLibrarySources(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -1380,12 +1408,13 @@ func libraryVersionPath(path string) string {
 // manifest's deprecatedVersions list. Released historical versions remain
 // immutable and may still contain the dependency pins that were valid when
 // they were published; active sources are the surface this gate governs.
-func ValidateDeprecatedImports(root string) (Result, error) {
+func ValidateDeprecatedImports(scope Scope) (Result, error) {
+	root := scope.Root
 	deprecated, err := deprecatedLibraryVersions(root)
 	if err != nil {
 		return Result{}, err
 	}
-	sources, err := activeLibrarySources(root)
+	sources, err := activeLibrarySources(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -1422,7 +1451,8 @@ type consumerPinManifest struct {
 
 // ValidateConsumerPins inspects the exact asset-version surface imported by
 // scenarios and groups each defect with every affected consumer.
-func ValidateConsumerPins(root string) (Result, error) {
+func ValidateConsumerPins(scope Scope) (Result, error) {
+	root := scope.Root
 	manifests, err := consumerPinManifests(root)
 	if err != nil {
 		return Result{}, err
@@ -1624,7 +1654,8 @@ func sortedStringMapKeys(values map[string]bool) []string {
 	return keys
 }
 
-func allLibrarySources(root string) ([]string, error) {
+func allLibrarySources(scope Scope) ([]string, error) {
+	root := scope.Root
 	var sources []string
 	err := filepath.WalkDir(filepath.Join(root, "scenarios", "react-component-library", "library"), func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -1637,6 +1668,9 @@ func allLibrarySources(root string) ([]string, error) {
 			return nil
 		}
 		if ext := strings.ToLower(filepath.Ext(path)); ext == ".ts" || ext == ".tsx" {
+			if !sourceInScope(root, path, scope) {
+				return nil
+			}
 			sources = append(sources, path)
 		}
 		return nil
@@ -1681,7 +1715,8 @@ func deprecatedLibraryVersions(root string) (map[string][]string, error) {
 // ValidateProvenanceStamp ensures a source marker describes a real adoption
 // edge. Library files are checked against their owning manifest; UI files must
 // import or render the stamped asset instead of copying a stale label.
-func ValidateProvenanceStamp(root string) (Result, error) {
+func ValidateProvenanceStamp(scope Scope) (Result, error) {
+	root := scope.Root
 	var paths []string
 	for _, base := range []string{filepath.Join(root, "scenarios", "react-component-library", "library"), filepath.Join(root, "scenarios", "react-component-library", "ui")} {
 		err := filepath.WalkDir(base, func(path string, entry os.DirEntry, walkErr error) error {
@@ -1905,7 +1940,8 @@ func isJSXNameStart(char byte) bool {
 // ValidateStoryGrammar is the catalog-level counterpart to the story parser.
 // It reads every story contract so the node DSL is checked even when a caller
 // bypasses the component indexer.
-func ValidateStoryGrammar(root string) (Result, error) {
+func ValidateStoryGrammar(scope Scope) (Result, error) {
+	root := scope.Root
 	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
 	if err != nil {
 		return Result{}, err
@@ -1974,7 +2010,8 @@ func ValidateStoryGrammar(root string) (Result, error) {
 // ValidateStoryDistinctness rejects exact duplicate frames and the old
 // one-specimen-per-option shape. Axis stories are intentionally allowed to
 // share a specimen because their declared covers matrix is the variation.
-func ValidateStoryDistinctness(root string) (Result, error) {
+func ValidateStoryDistinctness(scope Scope) (Result, error) {
+	root := scope.Root
 	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", "*", "*", "versions", "*", "story.json"))
 	if err != nil {
 		return Result{}, err
@@ -2042,8 +2079,8 @@ func ValidateStoryDistinctness(root string) (Result, error) {
 
 // Evidence freshness is a filesystem gate so the catalog can distinguish a
 // current story contract from an older component-test observation.
-func ValidateEvidenceFreshness(root string) (Result, error) {
-	return validateEvidenceFreshness(root)
+func ValidateEvidenceFreshness(scope Scope) (Result, error) {
+	return validateEvidenceFreshness(scope)
 }
 
 func interactiveElements(source string) []string {
@@ -2086,11 +2123,12 @@ func interactiveElements(source string) []string {
 // catalog registry. Types are intentionally not inferred from the presence of
 // source files: a released asset only earns this gate after the real
 // TypeScript/ESLint boundary has executed successfully.
-func ValidateTypes(root string) (Result, error) {
-	return ValidateTypesForAssets(root, nil)
+func ValidateTypes(scope Scope) (Result, error) {
+	root := scope.Root
+	return validateTypes(root, scope.Assets)
 }
 
-// ValidateTypesForAssets runs catalog conformance over a subset of the library.
+// validateTypes runs catalog conformance over a subset of the library.
 //
 // assets names the library directories whose content changed, plus everything
 // that depends on them — the caller derives that closure from the generated
@@ -2102,7 +2140,7 @@ func ValidateTypes(root string) (Result, error) {
 // expensive half: a full pass measured 24.6s, a scoped pass touching something
 // the app depends on 21.7s, and a scoped pass touching something it does not
 // 1.0s. 147 of 238 assets fall in that last case.
-func ValidateTypesForAssets(root string, assets []string) (Result, error) {
+func validateTypes(root string, assets []string) (Result, error) {
 	uiDir := filepath.Join(root, "scenarios", "react-component-library", "ui")
 	if _, err := os.Stat(filepath.Join(uiDir, "package.json")); err != nil {
 		if os.IsNotExist(err) {
@@ -2118,7 +2156,7 @@ func ValidateTypesForAssets(root string, assets []string) (Result, error) {
 		return Result{}, err
 	}
 
-	result := Result{Inspected: countCatalogSources(root)}
+	result := Result{Inspected: countCatalogSources(Scope{Root: root})}
 	if result.Inspected == 0 {
 		return nonEmpty(result, "types"), nil
 	}
@@ -2305,8 +2343,8 @@ func libraryAssetForPath(libraryRoot, file string) string {
 	return segments[1]
 }
 
-func countCatalogSources(root string) int {
-	sources, _ := activeLibrarySources(root)
+func countCatalogSources(scope Scope) int {
+	sources, _ := activeLibrarySources(scope)
 	return len(sources)
 }
 
@@ -2315,7 +2353,8 @@ func countCatalogSources(root string) int {
 // that pin them explicitly, but corpus-wide quality gates should measure the
 // active catalog surface consistently with indexing, coverage, and the type
 // gate rather than double-counting retired implementations.
-func activeLibrarySources(root string) ([]string, error) {
+func activeLibrarySources(scope Scope) ([]string, error) {
+	root := scope.Root
 	var sources []string
 	for _, kind := range []string{"foundations", "hooks", "services", "primitives", "components"} {
 		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
@@ -2347,7 +2386,11 @@ func activeLibrarySources(root string) ([]string, error) {
 					if err != nil {
 						return nil, err
 					}
-					sources = append(sources, matches...)
+					for _, path := range matches {
+						if sourceInScope(root, path, scope) {
+							sources = append(sources, path)
+						}
+					}
 				}
 			}
 		}
@@ -2366,11 +2409,45 @@ func activeLibrarySources(root string) ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			sources = append(sources, matches...)
+			for _, path := range matches {
+				if sourceInScope(root, path, scope) {
+					sources = append(sources, path)
+				}
+			}
 		}
 	}
 	sort.Strings(sources)
 	return sources, nil
+}
+
+func sourceInScope(root, sourcePath string, scope Scope) bool {
+	if scope.IsFullCorpus() {
+		return true
+	}
+	selected := make(map[string]bool, len(scope.Assets))
+	for _, assetID := range scope.Assets {
+		selected[assetID] = true
+	}
+	versionDir := filepath.Dir(sourcePath)
+	assetDir := filepath.Dir(filepath.Dir(versionDir))
+	manifestPath := filepath.Join(assetDir, "component.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return false
+	}
+	var manifest struct {
+		CatalogID    string `json:"catalogId"`
+		LibraryID    string `json:"libraryId"`
+		Supplemental bool   `json:"supplemental"`
+	}
+	if json.Unmarshal(data, &manifest) != nil {
+		return false
+	}
+	assetID := manifest.CatalogID
+	if assetID == "" && manifest.Supplemental {
+		assetID = "supplemental." + strings.ReplaceAll(manifest.LibraryID, ":", ".")
+	}
+	return selected[assetID]
 }
 
 func implementationSource(root, catalogID string) (string, string, bool, error) {
@@ -2577,7 +2654,8 @@ func literalDimensionFindings(root, path string, data []byte) []Finding {
 
 // ValidateTokens checks the shared ramp contract in every design kit and
 // rejects non-grid spacing declarations.
-func ValidateTokens(root string) (Result, error) {
+func ValidateTokens(scope Scope) (Result, error) {
+	root := scope.Root
 	paths, err := filepath.Glob(filepath.Join(root, "templates", "design", "*", "adapters", "react-vite-tailwind", "tokens.css"))
 	if err != nil {
 		return Result{}, err
@@ -2617,7 +2695,7 @@ func ValidateTokens(root string) (Result, error) {
 			}
 		}
 	}
-	sources, err := activeLibrarySources(root)
+	sources, err := activeLibrarySources(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -2644,7 +2722,8 @@ type tokenFallback struct {
 // ValidateFallbackParity makes authored fallbacks an honest view of the
 // canonical base vocabulary. Properties owned inside the same version and
 // host-computed --rcl-* contracts are intentionally outside this comparison.
-func ValidateFallbackParity(root string) (Result, error) {
+func ValidateFallbackParity(scope Scope) (Result, error) {
+	root := scope.Root
 	tokens, err := themes.ReadTokenFile(filepath.Join(root, "templates", "design", "_base", "tokens.css"))
 	if err != nil {
 		return Result{}, fmt.Errorf("read canonical token vocabulary: %w", err)
@@ -2653,7 +2732,7 @@ func ValidateFallbackParity(root string) (Result, error) {
 	for _, token := range tokens {
 		canonical[token.Name] = normalizeTokenValue(token.Value)
 	}
-	sources, err := activeLibrarySources(root)
+	sources, err := activeLibrarySources(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -2703,7 +2782,8 @@ func ValidateFallbackParity(root string) (Result, error) {
 
 // ValidateKitCompatibility blocks versions whose token contract cannot be
 // satisfied by the registered kit vocabulary.
-func ValidateKitCompatibility(root string) (Result, error) {
+func ValidateKitCompatibility(scope Scope) (Result, error) {
+	root := scope.Root
 	census, err := TokenCensus(root)
 	if err != nil {
 		return Result{}, err
@@ -2713,7 +2793,8 @@ func ValidateKitCompatibility(root string) (Result, error) {
 
 // ValidateAffinityNotBroaderThanCompatibility keeps authored aesthetic fit
 // inside the objectively renderable kit set.
-func ValidateAffinityNotBroaderThanCompatibility(root string) (Result, error) {
+func ValidateAffinityNotBroaderThanCompatibility(scope Scope) (Result, error) {
+	root := scope.Root
 	census, err := TokenCensus(root)
 	if err != nil {
 		return Result{}, err
@@ -2806,9 +2887,10 @@ func parseTokenFallbacks(source string) []tokenFallback {
 // ValidateLifecycle performs conservative static checks over hook/service/
 // adapter/generator sources. It deliberately prefers a finding over a green
 // result when cleanup evidence is absent.
-func ValidateLifecycle(root string) (Result, error) {
+func ValidateLifecycle(scope Scope) (Result, error) {
+	root := scope.Root
 	result := Result{}
-	paths, err := activeLibrarySources(root)
+	paths, err := activeLibrarySources(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -2965,14 +3047,15 @@ func implementationName(path string) string {
 	}
 }
 
-func ValidateFixtures(root string) (Result, error) {
-	assets, err := loadAssets(root)
+func ValidateFixtures(scope Scope) (Result, error) {
+	root := scope.Root
+	assets, err := loadAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}
 	result := Result{}
 	for _, asset := range assets {
-		if asset.Asset.Kind != "fixture" || asset.Fixture == nil {
+		if asset.Fixture == nil {
 			continue
 		}
 		result.Inspected++
@@ -3099,7 +3182,8 @@ func fixtureFailureAssertions(root, fixtureID string) (int, error) {
 // beside their released source. Enum completeness is validated by the story
 // contract parser in the registry; this gate owns the filesystem-level
 // requirement so coverage never promotes a primitive with no specimen.
-func ValidateExamples(root string) (Result, error) {
+func ValidateExamples(scope Scope) (Result, error) {
+	root := scope.Root
 	result := Result{}
 	for _, kind := range []string{"components", "primitives"} {
 		manifests, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "library", kind, "*", "component.json"))
@@ -3141,9 +3225,10 @@ func ValidateExamples(root string) (Result, error) {
 // indexed story contract. The story contract is the stress fixture boundary:
 // it is where long, empty, disabled, and large-value specimens are declared
 // and version-pinned for the browser runner.
-func ValidateStress(root string) (Result, error) {
+func ValidateStress(scope Scope) (Result, error) {
+	root := scope.Root
 	const stressDocs = "docs/internal/TESTING.md"
-	return validateActiveSources(root, "stress", func(asset assetDoc, source string) defect {
+	return validateActiveSources(scope, "stress", func(asset assetDoc, source string) defect {
 		_ = source
 		manifest, _, found, err := implementationSource(root, asset.Asset.ID)
 		if err != nil || !found {
@@ -3188,8 +3273,8 @@ func ValidateStress(root string) (Result, error) {
 // every released renderable asset. The actual manager/browser integration is
 // recorded by component-test and Experience Manager evidence; this runner
 // prevents a source-only asset from receiving an integration pass.
-func ValidateIntegration(root string) (Result, error) {
-	return validateActiveSources(root, "integration", func(asset assetDoc, source string) defect {
+func ValidateIntegration(scope Scope) (Result, error) {
+	return validateActiveSources(scope, "integration", func(asset assetDoc, source string) defect {
 		if strings.TrimSpace(source) == "" {
 			return defect{
 				Message:     "released integration source is empty",
@@ -3215,7 +3300,8 @@ func ValidateIntegration(root string) (Result, error) {
 // ValidateSelfHosting measures whether the catalog application exercises the
 // published library surface. This is a corpus observation: the catalog app
 // is the consumer and the library asset set is the denominator.
-func ValidateSelfHosting(root string) (Result, error) {
+func ValidateSelfHosting(scope Scope) (Result, error) {
+	root := scope.Root
 	uiRoot := filepath.Join(root, "scenarios", "react-component-library", "ui", "src")
 	policyPath := filepath.Join(root, "scenarios", "react-component-library", "catalog", "self-hosting-policy.json")
 	policyData, err := os.ReadFile(policyPath)
@@ -3237,7 +3323,7 @@ func ValidateSelfHosting(root string) (Result, error) {
 	if err := json.Unmarshal(policyData, &policy); err != nil {
 		return Result{}, fmt.Errorf("decode self-hosting policy: %w", err)
 	}
-	assets, err := loadLibraryAssets(root)
+	assets, err := loadLibraryAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -3305,7 +3391,8 @@ func ValidateSelfHosting(root string) (Result, error) {
 // ValidateBASGenericity keeps browser workflows capability-driven. Component
 // names and version query parameters belong in story/runner data, not in a
 // workflow file that must be copied for every asset.
-func ValidateBASGenericity(root string) (Result, error) {
+func ValidateBASGenericity(scope Scope) (Result, error) {
+	root := scope.Root
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	componentNames := map[string]bool{}
 	manifests, err := filepath.Glob(filepath.Join(libraryRoot, "*", "*", "component.json"))
@@ -3414,20 +3501,29 @@ type defect struct{ Message, Remediation, DocsRef string }
 
 func ok() defect { return defect{} }
 
-func validateActiveSources(root, gate string, check func(asset assetDoc, source string) defect) (Result, error) {
-	return validateActiveSourcesWithPath(root, gate, func(asset assetDoc, _ string, source string) defect {
+func validateActiveSources(scope Scope, gate string, check func(asset assetDoc, source string) defect) (Result, error) {
+	return validateActiveSourcesWithPath(scope, gate, func(asset assetDoc, _ string, source string) defect {
 		return check(asset, source)
 	})
 }
 
-func validateActiveSourcesWithPath(root, gate string, check func(asset assetDoc, path, source string) defect) (Result, error) {
-	assets, err := loadLibraryAssets(root)
+func validateActiveSourcesWithPath(scope Scope, gate string, check func(asset assetDoc, path, source string) defect) (Result, error) {
+	root := scope.Root
+	assets, err := loadLibraryAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}
 	result := Result{}
+	selected := make(map[string]bool, len(scope.Assets))
+	for _, assetID := range scope.Assets {
+		selected[assetID] = true
+	}
 	for _, asset := range assets {
-		if asset.Asset.Kind != "component" && asset.Asset.Kind != "navigation" && asset.Asset.Kind != "primitive" && asset.Asset.Kind != "pattern" && asset.Asset.Kind != "page-template" {
+		if !scope.IsFullCorpus() && !selected[asset.Asset.ID] {
+			continue
+		}
+		if strings.HasPrefix(asset.Asset.ID, "supplemental.") {
+			result.Skipped = append(result.Skipped, asset.Asset.ID)
 			continue
 		}
 		sources, err := implementationSources(root, asset.Asset.ID)
@@ -3468,16 +3564,14 @@ func validateActiveSourcesWithPath(root, gate string, check func(asset assetDoc,
 // complete implementation package, not only the component entrypoint. Style
 // declarations commonly live beside that entrypoint in styles.ts, so looking
 // at the first source file would make those declarations invisible.
-func validateActiveSourceFiles(root, gate string, check func(asset assetDoc, source string) defect) (Result, error) {
-	assets, err := loadLibraryAssets(root)
+func validateActiveSourceFiles(scope Scope, gate string, check func(asset assetDoc, source string) defect) (Result, error) {
+	root := scope.Root
+	assets, err := loadLibraryAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}
 	result := Result{}
 	for _, asset := range assets {
-		if asset.Asset.Kind != "component" && asset.Asset.Kind != "navigation" && asset.Asset.Kind != "primitive" && asset.Asset.Kind != "pattern" && asset.Asset.Kind != "page-template" {
-			continue
-		}
 		versions, err := implementationSources(root, asset.Asset.ID)
 		if err != nil {
 			return Result{}, err

@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "service",
+  "assetKind": "runtime-service",
   "catalogId": "navigation.scroll-restoration",
   "description": "Scoped runtime service for predictable ScrollRestoration behavior.",
   "designStyles": [

@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-element-rect",
   "description": "ResizeObserver-backed border-box geometry with animation-frame batched reads.",
   "designStyles": [

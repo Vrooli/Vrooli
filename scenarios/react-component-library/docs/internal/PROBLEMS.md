@@ -198,3 +198,8 @@ a migration handoff with a planned retirement path back into
 - Evidence: Catalog conformance now type-checks and lints discovered current/draft sources directly, with no disposable-source allowlist, component-name branch, version-specific rewrite, or fixed component injection. The UI production build and `catalog:check` pass; catalog lint retains 13 existing warnings and no errors. The observer preview case now navigates directly to its preview route without a mutating click, and workflow static validation no longer reports `observer_content_unsafe`. Stale experience references were reconciled to materialized story IDs, with a local cross-reference check reporting zero invalid state examples.
 - Outstanding: The full scenario run remains in progress or may expose additional inherited experience-contract debt; the current plan validation must use its terminal result rather than infer from this focused evidence.
 - Measured: 2026-08-28.
+
+- Rung: W3 / R0 — gate-loop declaration execution re-measurement
+- Evidence: The scoped runner registry, declaration resolver, per-asset rule-set digest, generated determinism block, canonical asset-kind migration, protobuf provenance fields, and scoped gate CLI path compile and pass focused tests. The server-owned run `20260829-150711-c0e6c86f` finished 20/27 phases passed, 6 failed, 1 skipped. Remaining failures include inherited performance/unit/component-test baseline debt and an empty `react-component-library:Input@1.2.0` file mirror that prevents UI export materialization.
+- Outstanding: Full suite health and the remaining historical selector/provenance corpus findings are retained as validation evidence; they are not repaired by weakening this gate-loop refactor.
+- Measured: 2026-08-29.

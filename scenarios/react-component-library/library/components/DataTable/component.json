@@ -49,5 +49,6 @@
     "responsive",
     "recovery",
     "token-bound"
-  ]
+  ],
+  "assetKind": "component"
 }

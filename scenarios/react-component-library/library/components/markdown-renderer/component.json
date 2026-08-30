@@ -13,7 +13,7 @@
     }
   ],
   "displayName": "Markdown Renderer",
-  "draft": "",
+  "draft": "0.4.2-draft.1",
   "entry": "MarkdownRenderer.tsx",
   "evictedVersions": [
     "0.3.3",
@@ -26,5 +26,7 @@
     "markdown",
     "rendering",
     "gfm"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

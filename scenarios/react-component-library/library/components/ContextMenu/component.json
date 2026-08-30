@@ -36,5 +36,6 @@
     "accessibility",
     "responsive",
     "token-bound"
-  ]
+  ],
+  "assetKind": "component"
 }

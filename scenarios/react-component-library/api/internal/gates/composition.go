@@ -31,8 +31,9 @@ const compositionPassThreshold = 0.8
 // Nested stamped assets are excluded from the parent denominator so a parent
 // is measured on its own nodes. A data-bespoke node is an explicit, reasoned
 // exception rather than a raw-node failure.
-func ValidateComposition(root string) (Result, error) {
-	assets, err := loadAssets(root)
+func ValidateComposition(scope Scope) (Result, error) {
+	root := scope.Root
+	assets, err := loadAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -43,9 +44,6 @@ func ValidateComposition(root string) (Result, error) {
 	result := Result{CompositionScores: map[string]float64{}}
 	values := make([]float64, 0)
 	for _, asset := range assets {
-		if !compositionAssetKind(asset.Asset.Kind) {
-			continue
-		}
 		_, _, implemented, err := implementationSource(root, asset.Asset.ID)
 		if err != nil {
 			return Result{}, err
@@ -124,15 +122,6 @@ func ValidateComposition(root string) (Result, error) {
 	// file an asset-less finding as a runner malfunction, which it is not. The
 	// per-asset burn-down is the stamp report, which names every asset and why.
 	return nonEmpty(result, "composition"), nil
-}
-
-func compositionAssetKind(kind string) bool {
-	switch kind {
-	case "component", "primitive", "pattern", "page-template", "navigation":
-		return true
-	default:
-		return false
-	}
 }
 
 func loadCompositionCaptures(root string) (map[string]compositionCapture, error) {

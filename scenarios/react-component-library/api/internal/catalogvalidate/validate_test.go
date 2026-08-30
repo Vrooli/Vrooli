@@ -78,6 +78,27 @@ func TestVacuousRungDetectsMissingGate(t *testing.T) {
 	t.Fatalf("findings = %+v", findings)
 }
 
+func TestImplementationIdentityRequiresCatalogOrSupplementalMarker(t *testing.T) {
+	root := t.TempDir()
+	manifest := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Example", "component.json")
+	if err := os.MkdirAll(filepath.Dir(manifest), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifest, []byte(`{"libraryId":"react-component-library:Example","catalogId":null}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	findings := implementationIdentityFindings(root)
+	if len(findings) != 1 || findings[0].Code != "catalog.implementation_identity_missing" {
+		t.Fatalf("findings = %+v", findings)
+	}
+	if err := os.WriteFile(manifest, []byte(`{"libraryId":"react-component-library:Example","catalogId":null,"supplemental":true}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if findings := implementationIdentityFindings(root); len(findings) != 0 {
+		t.Fatalf("supplemental manifest findings = %+v", findings)
+	}
+}
+
 func TestVacuousAllowlistRequiresReasonsAndDetectsGrowth(t *testing.T) {
 	_, findings := parseVacuousAllowlist("library/vacuous-allowlist.json", []byte(`{
   "schemaVersion": 1,

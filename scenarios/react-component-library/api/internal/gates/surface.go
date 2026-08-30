@@ -48,8 +48,9 @@ type capturedSurfaceNode struct {
 // latest BAS computed-style capture. Missing capture is explicitly
 // unmeasured; it can never become a pass merely because source text mentions a
 // token.
-func ValidateSurfaceDiscipline(root string) (Result, error) {
-	assets, err := loadAssets(root)
+func ValidateSurfaceDiscipline(scope Scope) (Result, error) {
+	root := scope.Root
+	assets, err := loadAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}
@@ -63,9 +64,6 @@ func ValidateSurfaceDiscipline(root string) (Result, error) {
 	}
 	result := Result{SurfaceCounts: map[string]int{}}
 	for _, asset := range assets {
-		if asset.Asset.Kind != "component" && asset.Asset.Kind != "primitive" {
-			continue
-		}
 		manifest, source, found, sourceErr := implementationSource(root, asset.Asset.ID)
 		if sourceErr != nil {
 			return Result{}, sourceErr

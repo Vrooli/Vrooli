@@ -27,5 +27,7 @@
     "dashboard",
     "responsive",
     "experience"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

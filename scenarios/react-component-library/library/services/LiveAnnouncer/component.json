@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "service",
+  "assetKind": "runtime-service",
   "catalogId": "services.live-announcer",
   "description": "A single queued live region for status, progress, and result announcements.",
   "designStyles": [

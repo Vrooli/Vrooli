@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-announce",
   "description": "A live-region primitive that queues, deduplicates, and times screen-reader messages through the shared announcer rather than creating competing regions.",
   "designStyles": [

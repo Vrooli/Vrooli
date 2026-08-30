@@ -72,16 +72,17 @@ type differentialRow struct {
 	CheckedAt   string
 }
 
-func ValidateRTL(root string) (Result, error) {
-	return validateDifferentialGate(root, "rtl")
+func ValidateRTL(scope Scope) (Result, error) {
+	return validateDifferentialGate(scope, "rtl")
 }
 
-func ValidateReducedMotion(root string) (Result, error) {
-	return validateDifferentialGate(root, "reduced-motion")
+func ValidateReducedMotion(scope Scope) (Result, error) {
+	return validateDifferentialGate(scope, "reduced-motion")
 }
 
-func validateDifferentialGate(root, gate string) (Result, error) {
-	assets, err := loadAssets(root)
+func validateDifferentialGate(scope Scope, gate string) (Result, error) {
+	root := scope.Root
+	assets, err := loadAssets(scope)
 	if err != nil {
 		return Result{}, err
 	}

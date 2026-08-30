@@ -26,5 +26,6 @@
     "token-bound",
     "status",
     "accessibility"
-  ]
+  ],
+  "assetKind": "component"
 }

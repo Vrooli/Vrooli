@@ -97,7 +97,7 @@ function SettingsListRoot({
       data-variant={variant}
       data-density={density}
     >
-      <StyleSheet name="settings-list-0-1-3" css={styles} />
+      <StyleSheet name="settings-list-0-1-5" css={styles} />
       {children}
     </section>
   );

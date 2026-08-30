@@ -36,5 +36,7 @@
     "microphone",
     "input",
     "accessibility"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

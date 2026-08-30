@@ -36,5 +36,6 @@
     "control",
     "token-bound",
     "numeric"
-  ]
+  ],
+  "assetKind": "component"
 }

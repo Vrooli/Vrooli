@@ -26,5 +26,7 @@
     "inspector",
     "workbench",
     "experience"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-reduced-motion",
   "description": "Production-ready useReducedMotion hook with SSR-safe lifecycle behavior.",
   "designStyles": [

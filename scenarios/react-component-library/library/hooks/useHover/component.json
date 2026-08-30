@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-hover",
   "description": "A pointer-aware hover-intent hook with entry/exit delay and related-surface handoff.",
   "designStyles": [

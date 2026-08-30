@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-drag",
   "description": "Pointer-capture drag controller with keyboard stepping, cancellation and stable handler identity.",
   "designStyles": [

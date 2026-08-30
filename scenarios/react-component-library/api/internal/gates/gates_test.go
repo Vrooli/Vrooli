@@ -47,7 +47,7 @@ func TestValidateNoUtilityClassesDistinguishesClassBearingSource(t *testing.T) {
 			if err := os.WriteFile(path, []byte(test.source), 0o600); err != nil {
 				t.Fatal(err)
 			}
-			result, err := ValidateNoUtilityClasses(root)
+			result, err := ValidateNoUtilityClasses(Scope{Root: root})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -60,7 +60,7 @@ func TestValidateNoUtilityClassesDistinguishesClassBearingSource(t *testing.T) {
 
 func TestLiveUtilityClassAllowlistIsExactAndShrinkOnly(t *testing.T) {
 	root := liveRoot(t)
-	result, err := ValidateNoUtilityClasses(root)
+	result, err := ValidateNoUtilityClasses(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestValidateConsumerPinsNamesEveryDefectAndConsumer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	result, err := ValidateConsumerPins(root)
+	result, err := ValidateConsumerPins(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,12 +139,33 @@ func TestValidateConsumerPinsNamesEveryDefectAndConsumer(t *testing.T) {
 }
 
 func TestValidateSelectorCoverageLiveCorpusIsMeasuredAcrossExportedVersions(t *testing.T) {
-	result, err := ValidateSelectorCoverage(liveRoot(t))
+	result, err := ValidateSelectorCoverage(Scope{Root: liveRoot(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if result.Inspected == 0 || result.Inspected != len(result.InspectedAssets) || result.InspectedVersions <= result.Inspected || len(result.Skipped) != 0 || len(result.RunnerError) != 0 {
 		t.Fatalf("selector coverage = %+v, want all active assets and exported versions measured", result)
+	}
+}
+
+func TestScopeSelectsOnlyRequestedAssets(t *testing.T) {
+	scope := Scope{Root: "/repo", Assets: []string{"controls.button", "forms.select"}}
+	selected := map[string]bool{}
+	for _, assetID := range scope.Assets {
+		selected[assetID] = true
+	}
+	for _, test := range []struct {
+		assetID string
+		want    bool
+	}{
+		{assetID: "controls.button", want: true},
+		{assetID: "forms.select", want: true},
+		{assetID: "controls.checkbox", want: false},
+	} {
+		got := scope.IsFullCorpus() || selected[test.assetID]
+		if got != test.want {
+			t.Fatalf("asset %q selected = %v, want %v", test.assetID, got, test.want)
+		}
 	}
 }
 
@@ -158,7 +179,7 @@ func TestStoryDistinctnessRejectsOneSpecimenForManyFrames(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(storyDir, "story.json"), []byte(contract), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateStoryDistinctness(root)
+	result, err := ValidateStoryDistinctness(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +232,7 @@ func TestValidateManifestIdentityRejectsOmittedCatalogID(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(manifestDir, "component.json"), []byte(`{"libraryId":"react-component-library:Fixture"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateManifestIdentity(root)
+	result, err := ValidateManifestIdentity(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +246,7 @@ func TestValidateManifestMetadataLiveCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateManifestMetadata(root)
+	result, err := ValidateManifestMetadata(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +278,7 @@ func TestValidateOverlaySurfaceCompositionAcceptsSharedCoreAndReasonedOptOut(t *
 			t.Fatal(err)
 		}
 	}
-	result, err := ValidateOverlaySurfaceComposition(root)
+	result, err := ValidateOverlaySurfaceComposition(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -330,7 +351,7 @@ func TestValidateRestyleContractLiveCorpusIsMeasuredAcrossExportedVersions(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateRestyleContract(root)
+	result, err := ValidateRestyleContract(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +389,7 @@ func TestReleasedVersionImmutableRejectsSyntheticDrift(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateReleasedVersionImmutable(root)
+	result, err := ValidateReleasedVersionImmutable(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +403,7 @@ func TestReleasedVersionImmutableRejectsSyntheticDrift(t *testing.T) {
 
 func TestReleasedVersionImmutableRejectsEmptyIndexWithoutEvidence(t *testing.T) {
 	root := t.TempDir()
-	result, err := ValidateReleasedVersionImmutable(root)
+	result, err := ValidateReleasedVersionImmutable(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,14 +428,14 @@ func TestReleasedVersionImmutableFallsBackToHashLedgerAndDetectsOneByteMutation(
 	if err := os.WriteFile(filepath.Join(libraryRoot, "released-version-hashes.json"), []byte(ledger), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	clean, err := ValidateReleasedVersionImmutable(root)
+	clean, err := ValidateReleasedVersionImmutable(Scope{Root: root})
 	if err != nil || clean.Inspected != 1 || len(clean.Findings) != 0 {
 		t.Fatalf("clean fallback = %+v, err=%v", clean, err)
 	}
 	if err := os.WriteFile(sourcePath, append(released, ' '), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	drifted, err := ValidateReleasedVersionImmutable(root)
+	drifted, err := ValidateReleasedVersionImmutable(Scope{Root: root})
 	if err != nil || len(drifted.Findings) != 1 {
 		t.Fatalf("drifted fallback = %+v, err=%v", drifted, err)
 	}
@@ -446,7 +467,7 @@ func TestReleasedVersionImmutableAcceptsCanonicalTerminalLF(t *testing.T) {
 	if _, err = db.ExecContext(context.Background(), `INSERT INTO component_versions(status, source_path, content_sha256) VALUES ('released', ?, ?)`, "components/Fixture/versions/1.0.0/Fixture.tsx", hex.EncodeToString(hash[:])); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateReleasedVersionImmutable(root)
+	result, err := ValidateReleasedVersionImmutable(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -456,7 +477,7 @@ func TestReleasedVersionImmutableAcceptsCanonicalTerminalLF(t *testing.T) {
 }
 
 func TestLiveTokenGate(t *testing.T) {
-	result, err := ValidateTokens(liveRoot(t))
+	result, err := ValidateTokens(Scope{Root: liveRoot(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -469,7 +490,7 @@ func TestLiveTokenGate(t *testing.T) {
 }
 
 func TestLiveAPIGateInspectsClosureImplementations(t *testing.T) {
-	result, err := ValidateAPI(liveRoot(t))
+	result, err := ValidateAPI(Scope{Root: liveRoot(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -498,7 +519,7 @@ func TestAPIGateRejectsUndeclaredImplementationVocabulary(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(manifestDir, "Button.tsx"), []byte(`export function Button() { return <button>save</button>; }`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateAPI(root)
+	result, err := ValidateAPI(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -516,7 +537,7 @@ func TestFixtureGateRejectsMissingAdversarialShape(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(assets, "one.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"fixtures.one","kind":"fixture"},"fixture":{"dataShapes":["typical"]}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateFixtures(root)
+	result, err := ValidateFixtures(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -554,7 +575,7 @@ func TestTokenGateRejectsLiteralDimensionInImplementation(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "Button.tsx"), []byte("export const Button = () => <button className=\"px-3\" />"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateTokens(root)
+	result, err := ValidateTokens(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -577,7 +598,7 @@ func TestScenarioTokenRequirementsGateRejectsMissingImportedProperty(t *testing.
 	write("scenarios/fixture/ui/src/App.tsx", `import { Fixture } from "@vrooli/react-component-library/Fixture"; export const App = Fixture;`)
 	write("scenarios/fixture/ui/src/design-tokens.css", ":root {\n/* rcl:tokens:begin */\n/* rcl:tokens:end */\n}\n")
 
-	result, err := ValidateScenarioTokenRequirements(root)
+	result, err := ValidateScenarioTokenRequirements(Scope{Root: root})
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 1)
 	require.Equal(t, "catalog.scenario_token_requirements", result.Findings[0].Code)
@@ -594,7 +615,7 @@ func TestFallbackParityReportsOnlyDisagreeingExternalFallback(t *testing.T) {
 	require.NoError(t, os.MkdirAll(version, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(version, "Panel.tsx"), []byte("const css = `padding: var(--space-md, 1rem); border-radius: var(--radius-panel, 0.5rem); color: var(--local, red); --local: blue;`;"), 0o644))
 
-	result, err := ValidateFallbackParity(root)
+	result, err := ValidateFallbackParity(Scope{Root: root})
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 1)
 	require.Equal(t, "catalog.fallback_parity", result.Findings[0].Code)
@@ -608,19 +629,19 @@ func TestTokenVocabularyAllowsCompatibilityAliasDeclarationsButRejectsReferences
 	require.NoError(t, os.WriteFile(filepath.Join(version, "BaseStyles.ts"), []byte(`const css = ":root { --app-surface: var(--color-surface); }";`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "scenarios", "react-component-library", "library", "foundations", "BaseStyles", "component.json"), []byte(`{"libraryId":"react-component-library:BaseStyles","latest":"1.0.0"}`), 0o644))
 
-	result, err := ValidateTokenVocabulary(root)
+	result, err := ValidateTokenVocabulary(Scope{Root: root})
 	require.NoError(t, err)
 	require.Empty(t, result.Findings)
 
 	require.NoError(t, os.WriteFile(filepath.Join(version, "BaseStyles.ts"), []byte(`const css = ":root { --app-surface: var(--color-surface); color: var(--app-surface); }";`), 0o644))
-	result, err = ValidateTokenVocabulary(root)
+	result, err = ValidateTokenVocabulary(Scope{Root: root})
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 1)
 	require.Equal(t, "catalog.token_vocabulary", result.Findings[0].Code)
 }
 
 func TestLiveFallbackParity(t *testing.T) {
-	result, err := ValidateFallbackParity(liveRoot(t))
+	result, err := ValidateFallbackParity(Scope{Root: liveRoot(t)})
 	require.NoError(t, err)
 	for _, finding := range result.Findings {
 		t.Logf("%s:%d: %s", finding.File, finding.Line, finding.Message)
@@ -644,13 +665,13 @@ func TestCompatibilityGatesRejectBadVerdictsAndOverclaims(t *testing.T) {
 }
 
 func TestLiveKitCompatibility(t *testing.T) {
-	result, err := ValidateKitCompatibility(liveRoot(t))
+	result, err := ValidateKitCompatibility(Scope{Root: liveRoot(t)})
 	require.NoError(t, err)
 	require.Empty(t, result.Findings)
 }
 
 func TestLiveAffinityCompatibility(t *testing.T) {
-	result, err := ValidateAffinityNotBroaderThanCompatibility(liveRoot(t))
+	result, err := ValidateAffinityNotBroaderThanCompatibility(Scope{Root: liveRoot(t)})
 	require.NoError(t, err)
 	require.Empty(t, result.Findings)
 }
@@ -664,7 +685,7 @@ func TestLifecycleGateRejectsMissingCleanup(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "Watcher.tsx"), []byte(`export const Watcher = () => { if (typeof window !== "undefined") window.addEventListener("resize", () => {}); return null; };`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateLifecycle(root)
+	result, err := ValidateLifecycle(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -693,7 +714,7 @@ export const Watcher = () => {
 	if err := os.WriteFile(filepath.Join(source, "story.tsx"), []byte(`export const Story = () => window.setTimeout(() => {}, 10);`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateLifecycle(root)
+	result, err := ValidateLifecycle(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -721,7 +742,7 @@ func TestLifecycleGateIgnoresBehaviorTests(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "useViewport.behavior.test.tsx"), []byte(testSource), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateLifecycle(root)
+	result, err := ValidateLifecycle(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -740,7 +761,7 @@ func TestLifecycleGateRejectsRenderTimeBrowserAccess(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "Watcher.tsx"), []byte(implementation), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateLifecycle(root)
+	result, err := ValidateLifecycle(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -761,7 +782,7 @@ func TestLifecycleGateAcceptsDocumentGuard(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "useLocale.ts"), []byte(implementation), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateLifecycle(root)
+	result, err := ValidateLifecycle(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -777,7 +798,7 @@ func TestLifecycleGateAcceptsDocumentGuard(t *testing.T) {
 // token. Any new gate that emits a bare message fails here.
 func TestEveryFindingCarriesRemediation(t *testing.T) {
 	root := t.TempDir()
-	runners := map[string]func(string) (Result, error){
+	runners := map[string]Runner{
 		"api":           ValidateAPI,
 		"tokens":        ValidateTokens,
 		"conformance":   ValidateConformance,
@@ -792,7 +813,7 @@ func TestEveryFindingCarriesRemediation(t *testing.T) {
 	}
 	for name, run := range runners {
 		t.Run(name, func(t *testing.T) {
-			result, err := run(root)
+			result, err := run(Scope{Root: root})
 			if err != nil {
 				t.Skipf("runner needs inputs this fixture does not supply: %v", err)
 			}
@@ -851,7 +872,7 @@ func TestEveryGateRejectsZeroInspectedInputs(t *testing.T) {
 	root := t.TempDir()
 	tests := []struct {
 		name string
-		run  func(string) (Result, error)
+		run  Runner
 	}{
 		{name: "api", run: ValidateAPI},
 		{name: "tokens", run: ValidateTokens},
@@ -861,7 +882,7 @@ func TestEveryGateRejectsZeroInspectedInputs(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.run(root)
+			result, err := test.run(Scope{Root: root})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -905,7 +926,7 @@ export default Fixture;
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateConformance(root)
+	result, err := ValidateConformance(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -950,7 +971,7 @@ func TestFixtureGateRejectsDataSourceWithoutTypeArgument(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(assets, "one.json"), []byte(doc), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	result, err := ValidateFixtures(root)
+	result, err := ValidateFixtures(Scope{Root: root})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -970,14 +991,14 @@ func TestValidateDependencyRankRejectsPrimitiveImportingComponent(t *testing.T) 
 	require.NoError(t, os.WriteFile(filepath.Join(component, "component.json"), []byte(`{"libraryId":"react-component-library:Dialog"}`), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(primitive, "versions", "1.0.0", "dependencies.json"), []byte(`{"libraryId":"react-component-library:Stack","version":"1.0.0","dependencies":[{"libraryId":"react-component-library:Dialog","version":"1.0.0"}]}`), 0o600))
 
-	result, err := ValidateDependencyRank(root)
+	result, err := ValidateDependencyRank(Scope{Root: root})
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 1)
 	require.Equal(t, "catalog.dependency_rank", result.Findings[0].Code)
 }
 
 func TestLiveDependencyLocksObeyCompositionRank(t *testing.T) {
-	result, err := ValidateDependencyRank(liveRoot(t))
+	result, err := ValidateDependencyRank(Scope{Root: liveRoot(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -994,14 +1015,14 @@ func TestValidateReleaseProvenanceRejectsHandCreatedRelease(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(asset, "component.json"), []byte(`{"libraryId":"react-component-library:Dialog"}`), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(library, "release-provenance.json"), []byte(`{"schemaVersion":1,"entries":[]}`), 0o600))
 
-	result, err := ValidateReleaseProvenance(root)
+	result, err := ValidateReleaseProvenance(Scope{Root: root})
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 1)
 	require.Equal(t, "catalog.release_provenance_missing", result.Findings[0].Code)
 }
 
 func TestLiveReleaseProvenanceCoversEveryMaterializedRelease(t *testing.T) {
-	result, err := ValidateReleaseProvenance(liveRoot(t))
+	result, err := ValidateReleaseProvenance(Scope{Root: liveRoot(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1011,7 +1032,7 @@ func TestLiveReleaseProvenanceCoversEveryMaterializedRelease(t *testing.T) {
 }
 
 func TestLiveSelfHostingDoesNotRegressBelowReviewedFloor(t *testing.T) {
-	result, err := ValidateSelfHosting(liveRoot(t))
+	result, err := ValidateSelfHosting(Scope{Root: liveRoot(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1021,7 +1042,7 @@ func TestLiveSelfHostingDoesNotRegressBelowReviewedFloor(t *testing.T) {
 }
 
 func TestLiveBASIsCapabilityDriven(t *testing.T) {
-	result, err := ValidateBASGenericity(liveRoot(t))
+	result, err := ValidateBASGenericity(Scope{Root: liveRoot(t)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1040,7 +1061,7 @@ func TestBASGenericityRejectsAssetKnowledgeAndVersionPins(t *testing.T) {
 	require.NoError(t, os.MkdirAll(calibrationDir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(manifest, "component.json"), []byte(`{"displayName":"Button"}`), 0o600))
 	require.NoError(t, os.WriteFile(filepath.Join(caseDir, "bad.json"), []byte(`{"url":"/story?version=1.0.0","asset":"Button"}`), 0o600))
-	result, err := ValidateBASGenericity(root)
+	result, err := ValidateBASGenericity(Scope{Root: root})
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 2)
 }

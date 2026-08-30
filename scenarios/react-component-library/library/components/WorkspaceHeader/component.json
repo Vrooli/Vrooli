@@ -22,5 +22,7 @@
     "header",
     "workspace",
     "navigation"
-  ]
+  ],
+  "assetKind": "component",
+  "supplemental": true
 }

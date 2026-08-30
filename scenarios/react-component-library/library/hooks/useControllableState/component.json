@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "assetKind": "hook",
+  "assetKind": "runtime-hook",
   "catalogId": "hooks.use-controllable-state",
   "description": "Production-ready useControllableState hook with SSR-safe lifecycle behavior.",
   "designStyles": [

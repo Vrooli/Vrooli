@@ -44,104 +44,17 @@ type CalibrationReport struct {
 	Delegated         bool
 }
 
-type GateRunner func(string) (Result, error)
+type GateRunner = Runner
 
 // GateRunnerFor returns the production runner for a declared gate. A nil
 // runner is intentional for external gates: their calibration is delegated to
 // the owning browser/toolchain suite rather than fabricated in this process.
 func GateRunnerFor(gate string) GateRunner {
-	switch gate {
-	case "types":
-		return ValidateTypes
-	case "api":
-		return ValidateAPI
-	case "tokens":
-		return ValidateTokens
-	case "fallback-parity":
-		return ValidateFallbackParity
-	case "kit-compatibility":
-		return ValidateKitCompatibility
-	case "affinity-compatible":
-		return ValidateAffinityNotBroaderThanCompatibility
-	case "conformance":
-		return ValidateConformance
-	case "token-vocabulary":
-		return ValidateTokenVocabulary
-	case "token-ramp-complete":
-		return ValidateTokenRampComplete
-	case "scenario-token-requirements":
-		return ValidateScenarioTokenRequirements
-	case "released-version-immutable":
-		return ValidateReleasedVersionImmutable
-	case "version-liveness":
-		return ValidateVersionLiveness
-	case "lifecycle":
-		return ValidateLifecycle
-	case "self-hosting":
-		return ValidateSelfHosting
-	case "bas-genericity":
-		return ValidateBASGenericity
-	case "fixture-adversarial":
-		return ValidateFixtures
-	case "examples":
-		return ValidateExamples
-	case "graph-reconciled":
-		return ValidateGraphReconciled
-	case "release-provenance":
-		return ValidateReleaseProvenance
-	case "dependency-rank":
-		return ValidateDependencyRank
-	case "rtl":
-		return ValidateRTL
-	case "reduced-motion":
-		return ValidateReducedMotion
-	case "documentation":
-		return ValidateDocumentation
-	case "performance":
-		return ValidatePerformance
-	case "console-clean":
-		return ValidateConsoleClean
-	case "surface-discipline":
-		return ValidateSurfaceDiscipline
-	case "composition":
-		return ValidateComposition
-	case "composition-contract":
-		return ValidateCompositionContract
-	case "i18n":
-		return ValidateI18n
-	case "selector-coverage":
-		return ValidateSelectorCoverage
-	case "restyle-contract":
-		return ValidateRestyleContract
-	case "manifest-identity":
-		return ValidateManifestIdentity
-	case "manifest-metadata":
-		return ValidateManifestMetadata
-	case "overlay-surface-composition":
-		return ValidateOverlaySurfaceComposition
-	case "shared-style-ownership":
-		return ValidateSharedStyleOwnership
-	case "style-injection":
-		return ValidateStyleInjection
-	case "foreign-token-classes":
-		return ValidateForeignTokenClasses
-	case "utility-class":
-		return ValidateNoUtilityClasses
-	case "consumer-pin":
-		return ValidateConsumerPins
-	case "deprecated-import":
-		return ValidateDeprecatedImports
-	case "provenance-stamp":
-		return ValidateProvenanceStamp
-	case "story-grammar":
-		return ValidateStoryGrammar
-	case "story-distinctness":
-		return ValidateStoryDistinctness
-	case "evidence-freshness":
-		return ValidateEvidenceFreshness
-	default:
+	definition, ok := Lookup(gate)
+	if !ok {
 		return nil
 	}
+	return definition.Run
 }
 
 // Calibrate evaluates every fixture owned by gate. A missing fixture is a
@@ -176,7 +89,7 @@ func Calibrate(root, gate string, runner GateRunner) (CalibrationReport, error) 
 		if materializeErr != nil {
 			return CalibrationReport{}, materializeErr
 		}
-		observed, runErr := runner(overlay)
+		observed, runErr := runner(Scope{Root: overlay})
 		cleanup()
 		if runErr != nil {
 			result.Status = "runner-error"
