@@ -53,6 +53,8 @@ export interface TTSCoreState {
    *  `effectiveVolume = isMuted ? 0 : volume` so unmuting restores the slider value. */
   isMuted: boolean;
   backend: TTSBackend;
+  /** Concrete provider selected by the server, when known. */
+  providerId?: string;
   voices: TTSVoiceInfo[];
   error: string | null;
   backendReason: string;
@@ -71,7 +73,7 @@ export interface TTSCoreState {
 export interface UseTextToSpeechCoreOptions {
   /** Whether autoplay is enabled (informational; host owns the actual auto trigger). */
   autoEnabled: boolean;
-  /** Backend selection. `"auto"` picks Kokoro when available, falling back to Browser. */
+  /** Backend selection. `"auto"` picks the server TTS backend when available, falling back to Browser. */
   backend: "auto" | "kokoro" | "browser";
   /** Initial mute state — `true` keeps playback silent until the user unmutes. */
   startMuted: boolean;
@@ -87,12 +89,13 @@ export interface UseTextToSpeechCoreOptions {
    */
   onPlaybackEvent?: (ev: TTSCorePlaybackEvent) => void;
   /**
-   * Optional probe: returns whether Kokoro is currently available. Defaults to
-   * `() => Promise<true>` when omitted (the Kokoro provider then surfaces the
-   * actual error at first synthesize). Hosts that own a capabilities API should
-   * supply a real probe so the backend can downgrade preemptively.
+   * Optional probe: returns whether any server-side TTS provider is currently
+   * available. Defaults to `() => Promise<true>` when omitted (the server
+   * provider then surfaces the actual error at first synthesize). Hosts that
+   * own a capabilities API should supply a real probe so auto mode can choose
+   * the browser tier only when the complete server tier is unavailable.
    */
-  kokoroAvailable?: () => Promise<boolean>;
+  serverTTSAvailable?: () => Promise<boolean>;
   /**
    * Stable key identifying the playback owner (e.g. a session id). When set
    * together with `persistPlaybackAcrossUnmount`, the active provider is held in
@@ -162,6 +165,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     isMuted: initialMuted,
     capabilities: NO_CAPABILITIES,
     backend: "none",
+    providerId: undefined,
     voices: [],
     error: null,
     backendReason: "Checking TTS backend availability…",
@@ -185,8 +189,8 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
   const hasExplicitMuteOverrideRef = useRef(false);
   const onPlaybackEventRef = useRef(opts.onPlaybackEvent);
   onPlaybackEventRef.current = opts.onPlaybackEvent;
-  const kokoroAvailableRef = useRef(opts.kokoroAvailable);
-  kokoroAvailableRef.current = opts.kokoroAvailable;
+  const serverTTSAvailableRef = useRef(opts.serverTTSAvailable);
+  serverTTSAvailableRef.current = opts.serverTTSAvailable;
   // Resolved playback-owner key: non-null only when persistence is requested
   // AND a key is supplied. Read through a ref so the once-only unmount cleanup
   // sees the latest value.
@@ -293,6 +297,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
         rate: settings.rate,
         pitch: settings.pitch,
       });
+      setState((s) => ({ ...s, providerId: "browser-tts" }));
       return "browser";
     },
     [settings.pitch, settings.rate, settings.voice],
@@ -409,6 +414,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
               ...s,
               supported: true,
               backend: "browser",
+              providerId: "browser-tts",
               capabilities: provider.capabilities,
               voices: voices.map((v) => ({ id: v.name, name: v.name })),
               backendReason: "Browser backend selected explicitly",
@@ -431,24 +437,29 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
         return;
       }
 
-      // Probe Kokoro availability. Hosts without a probe assume Kokoro and let
+      // Probe server TTS availability. Hosts without a probe assume the server
       // the provider surface the actual error on first synth — the runtime
       // fallback in executeSpeak still routes to Browser when "auto".
-      let kokoroAvailable = true;
+      let serverTTSAvailable = true;
       try {
-        if (kokoroAvailableRef.current) {
-          kokoroAvailable = await kokoroAvailableRef.current();
+        if (serverTTSAvailableRef.current) {
+          serverTTSAvailable = await serverTTSAvailableRef.current();
         }
       } catch {
-        kokoroAvailable = false;
+        serverTTSAvailable = false;
       }
 
-      if (!cancelled && kokoroAvailable) {
+      if (!cancelled && serverTTSAvailable) {
         // Inject synthesizeTTS pulled through the audio-integration barrel so
         // tests using vi.mock("../audio-integration", …) intercept the call.
         const { provider, adopted } = obtainProvider(
           "kokoro",
-          () => new KokoroProvider({ synthesize: opts.runtime?.synthesizeTTS, synthesizeWithMetrics: opts.runtime?.synthesizeTTSWithMetrics, reportTTSPlayStart: opts.runtime?.reportTTSPlayStart }),
+          () => new KokoroProvider({
+            synthesize: opts.runtime?.synthesizeTTS,
+            synthesizeWithMetrics: opts.runtime?.synthesizeTTSWithMetrics,
+            reportTTSPlayStart: opts.runtime?.reportTTSPlayStart,
+            onProviderResolved: (providerId) => setState((s) => ({ ...s, providerId })),
+          }),
         );
         // Phase 8 observability: surface per-paragraph degradation (retry /
         // browser fallback / skip) so silent partial TTS loss becomes visible.
@@ -470,11 +481,12 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
               ...s,
               supported: true,
               backend: "kokoro",
+              providerId: "kokoro-tts",
               capabilities: provider.capabilities,
               voices,
               backendReason: opts.backend === "kokoro"
                 ? "Kokoro backend selected explicitly"
-                : "Kokoro is available and preferred over browser speech synthesis",
+                : "A server speech provider is available and preferred over browser speech synthesis",
               isSpeaking: adopted && provider.isSpeaking ? true : s.isSpeaking,
             }));
           }
@@ -484,11 +496,12 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
               ...s,
               supported: true,
               backend: "kokoro",
+              providerId: "kokoro-tts",
               capabilities: provider.capabilities,
               voices: [{ id: KOKORO_DEFAULT_VOICE, name: KOKORO_DEFAULT_VOICE }],
               backendReason: opts.backend === "kokoro"
                 ? "Kokoro backend selected explicitly"
-                : "Kokoro is available and preferred over browser speech synthesis",
+                : "A server speech provider is available and preferred over browser speech synthesis",
               isSpeaking: adopted && provider.isSpeaking ? true : s.isSpeaking,
             }));
           }
@@ -496,7 +509,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
         return;
       }
 
-      // Kokoro unavailable.
+      // No server-side TTS provider is available.
       if (opts.backend === "kokoro" && !cancelled) {
         backendRef.current = "none";
         providerRef.current = null;
@@ -522,10 +535,11 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
           ...s,
           supported: true,
           backend: "browser",
+          providerId: "browser-tts",
           isSpeaking: adopted && provider.isSpeaking ? true : s.isSpeaking,
           capabilities: provider.capabilities,
           voices: voices.map((v) => ({ id: v.name, name: v.name })),
-          backendReason: "Kokoro is unavailable, so browser speech synthesis is active",
+          backendReason: "No server speech provider is available, so browser speech synthesis is active",
         }));
       } else if (!cancelled) {
         backendRef.current = "none";
@@ -539,7 +553,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
           voices: [],
           backendReason: opts.backend === "kokoro"
             ? "Kokoro backend was selected explicitly, but Kokoro is unavailable and browser speech synthesis is not supported"
-            : "No TTS backend is available. Kokoro is unavailable and browser speech synthesis is not supported",
+            : "No TTS backend is available. No server speech provider is available and browser speech synthesis is not supported",
         }));
       }
     }

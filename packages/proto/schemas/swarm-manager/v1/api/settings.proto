@@ -81,6 +81,7 @@ message PolicyControlsView {
   // Agent budget group.
   int32 agent_max_turns = 16;
   int32 agent_timeout_seconds = 17;
+  map<string, string> autonomy_gate_modes = 18;
 }
 
 // SettingsPolicyProjection carries the effective policy controls plus the
@@ -199,6 +200,7 @@ message UpdateSettingsRequest {
     ]
   }];
   AutoFilerSettingsPatch auto_filer = 38;
+  map<string, string> autonomy_gate_modes = 39;
 
   reserved 25, 36;
   reserved "max_concurrent_executions";

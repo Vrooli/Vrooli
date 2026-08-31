@@ -40,17 +40,29 @@ class Grant(_message.Message):
     preset: str
     def __init__(self, summary: _Optional[str] = ..., effects: _Optional[_Iterable[str]] = ..., app_count: _Optional[int] = ..., covers_all_apps: _Optional[bool] = ..., scopes: _Optional[_Iterable[str]] = ..., preset: _Optional[str] = ...) -> None: ...
 
+class MachineDrift(_message.Message):
+    __slots__ = ("kind", "name", "reason")
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    kind: str
+    name: str
+    reason: str
+    def __init__(self, kind: _Optional[str] = ..., name: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
 class Machine(_message.Message):
-    __slots__ = ("target", "grant", "heartbeat_age_seconds", "manageable")
+    __slots__ = ("target", "grant", "heartbeat_age_seconds", "manageable", "drift")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     GRANT_FIELD_NUMBER: _ClassVar[int]
     HEARTBEAT_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
     MANAGEABLE_FIELD_NUMBER: _ClassVar[int]
+    DRIFT_FIELD_NUMBER: _ClassVar[int]
     target: _target_pb2.Target
     grant: Grant
     heartbeat_age_seconds: int
     manageable: bool
-    def __init__(self, target: _Optional[_Union[_target_pb2.Target, _Mapping]] = ..., grant: _Optional[_Union[Grant, _Mapping]] = ..., heartbeat_age_seconds: _Optional[int] = ..., manageable: _Optional[bool] = ...) -> None: ...
+    drift: _containers.RepeatedCompositeFieldContainer[MachineDrift]
+    def __init__(self, target: _Optional[_Union[_target_pb2.Target, _Mapping]] = ..., grant: _Optional[_Union[Grant, _Mapping]] = ..., heartbeat_age_seconds: _Optional[int] = ..., manageable: _Optional[bool] = ..., drift: _Optional[_Iterable[_Union[MachineDrift, _Mapping]]] = ...) -> None: ...
 
 class JoinRequest(_message.Message):
     __slots__ = ("id", "name", "os", "arch", "endpoint", "confirmation_words", "key_fingerprint", "requested_at", "requested_age_seconds")

@@ -81,13 +81,16 @@ func (TargetState) EnumDescriptor() ([]byte, []int) {
 }
 
 type ReadinessFact struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Label         string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
-	Passed        bool                   `protobuf:"varint,3,opt,name=passed,proto3" json:"passed,omitempty"`
-	Detail        string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Key            string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Label          string                 `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	Passed         bool                   `protobuf:"varint,3,opt,name=passed,proto3" json:"passed,omitempty"`
+	Detail         string                 `protobuf:"bytes,4,opt,name=detail,proto3" json:"detail,omitempty"`
+	State          string                 `protobuf:"bytes,5,opt,name=state,proto3" json:"state,omitempty"`                                         // ready | missing | not_applicable | unknown
+	Version        string                 `protobuf:"bytes,6,opt,name=version,proto3" json:"version,omitempty"`                                     // observed tool version when available
+	RecoveryAction string                 `protobuf:"bytes,7,opt,name=recovery_action,json=recoveryAction,proto3" json:"recovery_action,omitempty"` // safe action for a non-ready fact
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ReadinessFact) Reset() {
@@ -144,6 +147,27 @@ func (x *ReadinessFact) GetPassed() bool {
 func (x *ReadinessFact) GetDetail() string {
 	if x != nil {
 		return x.Detail
+	}
+	return ""
+}
+
+func (x *ReadinessFact) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *ReadinessFact) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *ReadinessFact) GetRecoveryAction() string {
+	if x != nil {
+		return x.RecoveryAction
 	}
 	return ""
 }
@@ -319,12 +343,15 @@ var File_web_console_v1_shared_target_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_shared_target_proto_rawDesc = "" +
 	"\n" +
-	"\"web-console/v1/shared/target.proto\x12\x1cvrooli.web_console.v1.shared\x1a\x1fgoogle/protobuf/timestamp.proto\"g\n" +
+	"\"web-console/v1/shared/target.proto\x12\x1cvrooli.web_console.v1.shared\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\x01\n" +
 	"\rReadinessFact\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x16\n" +
 	"\x06passed\x18\x03 \x01(\bR\x06passed\x12\x16\n" +
-	"\x06detail\x18\x04 \x01(\tR\x06detail\"\xb0\x04\n" +
+	"\x06detail\x18\x04 \x01(\tR\x06detail\x12\x14\n" +
+	"\x05state\x18\x05 \x01(\tR\x05state\x12\x18\n" +
+	"\aversion\x18\x06 \x01(\tR\aversion\x12'\n" +
+	"\x0frecovery_action\x18\a \x01(\tR\x0erecoveryAction\"\xb0\x04\n" +
 	"\x06Target\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n" +

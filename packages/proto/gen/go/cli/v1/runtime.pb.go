@@ -122,7 +122,9 @@ type CliSupervisorStatus struct {
 	// Effective lease-renewal batch size.
 	EffectiveBatchSize int32 `protobuf:"varint,15,opt,name=effective_batch_size,json=effectiveBatchSize,proto3" json:"effective_batch_size,omitempty"`
 	// Most recent reconcile tick summary; always present (zero-valued if no tick).
-	LastTick      *CliSupervisorTick `protobuf:"bytes,16,opt,name=last_tick,json=lastTick,proto3" json:"last_tick,omitempty"`
+	LastTick *CliSupervisorTick `protobuf:"bytes,16,opt,name=last_tick,json=lastTick,proto3" json:"last_tick,omitempty"`
+	// Build/source identity of the binary currently reporting this status.
+	BuildIdentity string `protobuf:"bytes,17,opt,name=build_identity,json=buildIdentity,proto3" json:"build_identity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -267,6 +269,13 @@ func (x *CliSupervisorStatus) GetLastTick() *CliSupervisorTick {
 		return x.LastTick
 	}
 	return nil
+}
+
+func (x *CliSupervisorStatus) GetBuildIdentity() string {
+	if x != nil {
+		return x.BuildIdentity
+	}
+	return ""
 }
 
 // CliSupervisorTick is one reconcile-tick summary embedded in
@@ -1952,7 +1961,7 @@ const file_cli_v1_runtime_proto_rawDesc = "" +
 	"\vcli_version\x18\x01 \x01(\tR\n" +
 	"cliVersion\x12)\n" +
 	"\x10platform_version\x18\x02 \x01(\tR\x0fplatformVersion\x12\x12\n" +
-	"\x04root\x18\x03 \x01(\tR\x04root\"\x8b\x06\n" +
+	"\x04root\x18\x03 \x01(\tR\x04root\"\xb2\x06\n" +
 	"\x13CliSupervisorStatus\x12#\n" +
 	"\rsupervisor_id\x18\x01 \x01(\tR\fsupervisorId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12#\n" +
@@ -1971,7 +1980,8 @@ const file_cli_v1_runtime_proto_rawDesc = "" +
 	"\x19effective_health_interval\x18\r \x01(\x03R\x17effectiveHealthInterval\x12G\n" +
 	" effective_max_health_concurrency\x18\x0e \x01(\x05R\x1deffectiveMaxHealthConcurrency\x120\n" +
 	"\x14effective_batch_size\x18\x0f \x01(\x05R\x12effectiveBatchSize\x12=\n" +
-	"\tlast_tick\x18\x10 \x01(\v2 .vrooli.cli.v1.CliSupervisorTickR\blastTick\"\xba\x01\n" +
+	"\tlast_tick\x18\x10 \x01(\v2 .vrooli.cli.v1.CliSupervisorTickR\blastTick\x12%\n" +
+	"\x0ebuild_identity\x18\x11 \x01(\tR\rbuildIdentity\"\xba\x01\n" +
 	"\x11CliSupervisorTick\x12#\n" +
 	"\rsupervisor_id\x18\x01 \x01(\tR\fsupervisorId\x12\x18\n" +
 	"\arenewed\x18\x02 \x01(\x05R\arenewed\x12\x18\n" +

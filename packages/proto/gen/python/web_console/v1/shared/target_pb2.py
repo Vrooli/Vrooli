@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"web-console/v1/shared/target.proto\x12\x1cvrooli.web_console.v1.shared\x1a\x1fgoogle/protobuf/timestamp.proto\"g\n\rReadinessFact\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12\x16\n\x06passed\x18\x03 \x01(\x08R\x06passed\x12\x16\n\x06\x64\x65tail\x18\x04 \x01(\tR\x06\x64\x65tail\"\xb0\x04\n\x06Target\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n\x05label\x18\x03 \x01(\tR\x05label\x12\x0e\n\x02os\x18\x04 \x01(\tR\x02os\x12\x12\n\x04\x61rch\x18\x05 \x01(\tR\x04\x61rch\x12\x17\n\x07node_id\x18\x06 \x01(\tR\x06nodeId\x12\x1a\n\x08revision\x18\x07 \x01(\tR\x08revision\x12\x16\n\x06status\x18\x08 \x01(\tR\x06status\x12\x16\n\x06online\x18\t \x01(\x08R\x06online\x12<\n\x0clast_seen_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nlastSeenAt\x12I\n\treadiness\x18\x0b \x03(\x0b\x32+.vrooli.web_console.v1.shared.ReadinessFactR\treadiness\x12\"\n\x0c\x64ispatchable\x18\x0c \x01(\x08R\x0c\x64ispatchable\x12!\n\x0c\x66\x61ilure_rung\x18\r \x01(\tR\x0b\x66\x61ilureRung\x12?\n\x05state\x18\x0e \x01(\x0e\x32).vrooli.web_console.v1.shared.TargetStateR\x05state\x12\'\n\x0frecovery_action\x18\x0f \x01(\tR\x0erecoveryAction\x12)\n\x10survives_restart\x18\x10 \x01(\x08R\x0fsurvivesRestart*\xa1\x01\n\x0bTargetState\x12\x1c\n\x18TARGET_STATE_UNSPECIFIED\x10\x00\x12\x1d\n\x19TARGET_STATE_DISPATCHABLE\x10\x01\x12\x18\n\x14TARGET_STATE_OFFLINE\x10\x02\x12\x1d\n\x19TARGET_STATE_NEEDS_UPDATE\x10\x03\x12\x1c\n\x18TARGET_STATE_UNAVAILABLE\x10\x04\x42PZNgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared;shared_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"web-console/v1/shared/target.proto\x12\x1cvrooli.web_console.v1.shared\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc0\x01\n\rReadinessFact\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05label\x18\x02 \x01(\tR\x05label\x12\x16\n\x06passed\x18\x03 \x01(\x08R\x06passed\x12\x16\n\x06\x64\x65tail\x18\x04 \x01(\tR\x06\x64\x65tail\x12\x14\n\x05state\x18\x05 \x01(\tR\x05state\x12\x18\n\x07version\x18\x06 \x01(\tR\x07version\x12\'\n\x0frecovery_action\x18\x07 \x01(\tR\x0erecoveryAction\"\xb0\x04\n\x06Target\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04kind\x18\x02 \x01(\tR\x04kind\x12\x14\n\x05label\x18\x03 \x01(\tR\x05label\x12\x0e\n\x02os\x18\x04 \x01(\tR\x02os\x12\x12\n\x04\x61rch\x18\x05 \x01(\tR\x04\x61rch\x12\x17\n\x07node_id\x18\x06 \x01(\tR\x06nodeId\x12\x1a\n\x08revision\x18\x07 \x01(\tR\x08revision\x12\x16\n\x06status\x18\x08 \x01(\tR\x06status\x12\x16\n\x06online\x18\t \x01(\x08R\x06online\x12<\n\x0clast_seen_at\x18\n \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nlastSeenAt\x12I\n\treadiness\x18\x0b \x03(\x0b\x32+.vrooli.web_console.v1.shared.ReadinessFactR\treadiness\x12\"\n\x0c\x64ispatchable\x18\x0c \x01(\x08R\x0c\x64ispatchable\x12!\n\x0c\x66\x61ilure_rung\x18\r \x01(\tR\x0b\x66\x61ilureRung\x12?\n\x05state\x18\x0e \x01(\x0e\x32).vrooli.web_console.v1.shared.TargetStateR\x05state\x12\'\n\x0frecovery_action\x18\x0f \x01(\tR\x0erecoveryAction\x12)\n\x10survives_restart\x18\x10 \x01(\x08R\x0fsurvivesRestart*\xa1\x01\n\x0bTargetState\x12\x1c\n\x18TARGET_STATE_UNSPECIFIED\x10\x00\x12\x1d\n\x19TARGET_STATE_DISPATCHABLE\x10\x01\x12\x18\n\x14TARGET_STATE_OFFLINE\x10\x02\x12\x1d\n\x19TARGET_STATE_NEEDS_UPDATE\x10\x03\x12\x1c\n\x18TARGET_STATE_UNAVAILABLE\x10\x04\x42PZNgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared;shared_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,10 +33,10 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'web_console.v1.shared.targe
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZNgithub.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared;shared_v1'
-  _globals['_TARGETSTATE']._serialized_start=770
-  _globals['_TARGETSTATE']._serialized_end=931
-  _globals['_READINESSFACT']._serialized_start=101
-  _globals['_READINESSFACT']._serialized_end=204
-  _globals['_TARGET']._serialized_start=207
-  _globals['_TARGET']._serialized_end=767
+  _globals['_TARGETSTATE']._serialized_start=860
+  _globals['_TARGETSTATE']._serialized_end=1021
+  _globals['_READINESSFACT']._serialized_start=102
+  _globals['_READINESSFACT']._serialized_end=294
+  _globals['_TARGET']._serialized_start=297
+  _globals['_TARGET']._serialized_end=857
 # @@protoc_insertion_point(module_scope)

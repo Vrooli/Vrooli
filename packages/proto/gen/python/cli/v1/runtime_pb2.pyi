@@ -17,7 +17,7 @@ class CliVersion(_message.Message):
     def __init__(self, cli_version: _Optional[str] = ..., platform_version: _Optional[str] = ..., root: _Optional[str] = ...) -> None: ...
 
 class CliSupervisorStatus(_message.Message):
-    __slots__ = ("supervisor_id", "status", "status_reason", "host_boot_id", "host_session_id", "pid", "last_heartbeat_at", "heartbeat_deadline_at", "supervised_instance_count", "unverified_instance_count", "effective_renew_interval", "effective_lease_ttl", "effective_health_interval", "effective_max_health_concurrency", "effective_batch_size", "last_tick")
+    __slots__ = ("supervisor_id", "status", "status_reason", "host_boot_id", "host_session_id", "pid", "last_heartbeat_at", "heartbeat_deadline_at", "supervised_instance_count", "unverified_instance_count", "effective_renew_interval", "effective_lease_ttl", "effective_health_interval", "effective_max_health_concurrency", "effective_batch_size", "last_tick", "build_identity")
     SUPERVISOR_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     STATUS_REASON_FIELD_NUMBER: _ClassVar[int]
@@ -34,6 +34,7 @@ class CliSupervisorStatus(_message.Message):
     EFFECTIVE_MAX_HEALTH_CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
     EFFECTIVE_BATCH_SIZE_FIELD_NUMBER: _ClassVar[int]
     LAST_TICK_FIELD_NUMBER: _ClassVar[int]
+    BUILD_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     supervisor_id: str
     status: str
     status_reason: str
@@ -50,7 +51,8 @@ class CliSupervisorStatus(_message.Message):
     effective_max_health_concurrency: int
     effective_batch_size: int
     last_tick: CliSupervisorTick
-    def __init__(self, supervisor_id: _Optional[str] = ..., status: _Optional[str] = ..., status_reason: _Optional[str] = ..., host_boot_id: _Optional[str] = ..., host_session_id: _Optional[str] = ..., pid: _Optional[int] = ..., last_heartbeat_at: _Optional[str] = ..., heartbeat_deadline_at: _Optional[str] = ..., supervised_instance_count: _Optional[int] = ..., unverified_instance_count: _Optional[int] = ..., effective_renew_interval: _Optional[int] = ..., effective_lease_ttl: _Optional[int] = ..., effective_health_interval: _Optional[int] = ..., effective_max_health_concurrency: _Optional[int] = ..., effective_batch_size: _Optional[int] = ..., last_tick: _Optional[_Union[CliSupervisorTick, _Mapping]] = ...) -> None: ...
+    build_identity: str
+    def __init__(self, supervisor_id: _Optional[str] = ..., status: _Optional[str] = ..., status_reason: _Optional[str] = ..., host_boot_id: _Optional[str] = ..., host_session_id: _Optional[str] = ..., pid: _Optional[int] = ..., last_heartbeat_at: _Optional[str] = ..., heartbeat_deadline_at: _Optional[str] = ..., supervised_instance_count: _Optional[int] = ..., unverified_instance_count: _Optional[int] = ..., effective_renew_interval: _Optional[int] = ..., effective_lease_ttl: _Optional[int] = ..., effective_health_interval: _Optional[int] = ..., effective_max_health_concurrency: _Optional[int] = ..., effective_batch_size: _Optional[int] = ..., last_tick: _Optional[_Union[CliSupervisorTick, _Mapping]] = ..., build_identity: _Optional[str] = ...) -> None: ...
 
 class CliSupervisorTick(_message.Message):
     __slots__ = ("supervisor_id", "renewed", "expired", "unverified", "health_probe_count")

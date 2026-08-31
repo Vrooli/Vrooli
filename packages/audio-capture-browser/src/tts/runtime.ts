@@ -10,6 +10,9 @@ export interface TTSSynthesisMetrics {
   requestId: string;
   synthStartMs: number;
   totalChars: number;
+  /** Provider metadata returned by the server synthesis response. */
+  providerTier?: string;
+  providerId?: string;
 }
 
 export type TTSRuntime = {

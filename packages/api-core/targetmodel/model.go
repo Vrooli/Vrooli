@@ -46,21 +46,37 @@ type BridgeTrust struct {
 // explain why a target can or cannot be selected. Identity is stable for
 // machine logic; label, detail, and recovery action are presentation-safe.
 type ReadinessCheck struct {
-	Identity       string `json:"identity"`
-	Label          string `json:"label"`
-	Passed         bool   `json:"passed"`
-	Detail         string `json:"detail,omitempty"`
-	RecoveryAction string `json:"recovery_action,omitempty"`
+	Identity string `json:"identity"`
+	Label    string `json:"label"`
+	Passed   bool   `json:"passed"`
+	// State is the richer capability vocabulary. Transport checks retain their
+	// boolean Passed value; capability checks use all four states below.
+	State          ReadinessState `json:"state,omitempty"`
+	Version        string         `json:"version,omitempty"`
+	Detail         string         `json:"detail,omitempty"`
+	RecoveryAction string         `json:"recovery_action,omitempty"`
 }
 
+// ReadinessState distinguishes an observed absence from an unsupported
+// platform and from an observation that is not available yet.
+type ReadinessState string
+
 const (
-	ReadinessRegistry       = "registry_record"
-	ReadinessHeartbeat      = "heartbeat_fresh"
-	ReadinessChannel        = "channel_held"
-	ReadinessProtocol       = "protocol_compatible"
-	ReadinessDispatch       = "dispatchable"
-	ReadinessBridgeScope    = "bridge_scope"
-	ReadinessSessionSupport = "session_support"
+	ReadinessReady         ReadinessState = "ready"
+	ReadinessMissing       ReadinessState = "missing"
+	ReadinessNotApplicable ReadinessState = "not_applicable"
+	ReadinessUnknown       ReadinessState = "unknown"
+)
+
+const (
+	ReadinessRegistry         = "registry_record"
+	ReadinessHeartbeat        = "heartbeat_fresh"
+	ReadinessChannel          = "channel_held"
+	ReadinessProtocol         = "protocol_compatible"
+	ReadinessDispatch         = "dispatchable"
+	ReadinessBridgeScope      = "bridge_scope"
+	ReadinessSessionSupport   = "session_support"
+	ReadinessCapabilityPrefix = "capability:"
 )
 
 // ReadinessCheckFor resolves the stable identity to the common operator
@@ -81,7 +97,29 @@ func ReadinessCheckFor(identity string, passed bool, detail string) ReadinessChe
 	if label == "" {
 		label = identity
 	}
-	return ReadinessCheck{Identity: identity, Label: label, Passed: passed, Detail: detail, RecoveryAction: recoveryAction(identity, passed)}
+	state := ReadinessMissing
+	if passed {
+		state = ReadinessReady
+	}
+	return ReadinessCheck{Identity: identity, Label: label, Passed: passed, State: state, Detail: detail, RecoveryAction: recoveryAction(identity, passed)}
+}
+
+// CapabilityReadinessCheck creates the operator-facing fact for one named
+// capability. Unlike transport readiness, missing capability facts do not
+// make the target itself undispatchable.
+func CapabilityReadinessCheck(capability string, state ReadinessState, detail, recovery string) ReadinessCheck {
+	capability = strings.TrimSpace(capability)
+	if state != ReadinessReady && state != ReadinessMissing && state != ReadinessNotApplicable && state != ReadinessUnknown {
+		state = ReadinessUnknown
+	}
+	return ReadinessCheck{
+		Identity:       ReadinessCapabilityPrefix + capability,
+		Label:          capability,
+		Passed:         state == ReadinessReady,
+		State:          state,
+		Detail:         detail,
+		RecoveryAction: recovery,
+	}
 }
 
 func recoveryAction(identity string, passed bool) string {

@@ -24,6 +24,9 @@ message ReadinessFact {
   string label = 2;
   bool passed = 3;
   string detail = 4;
+  string state = 5; // ready | missing | not_applicable | unknown
+  string version = 6; // observed tool version when available
+  string recovery_action = 7; // safe action for a non-ready fact
 }
 
 // Target is a safe projection of a local or Bridge-backed session location.

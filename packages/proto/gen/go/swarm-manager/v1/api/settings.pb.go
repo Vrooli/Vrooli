@@ -235,8 +235,9 @@ type PolicyControlsView struct {
 	ReviewRequireScreenshots    bool    `protobuf:"varint,14,opt,name=review_require_screenshots,json=reviewRequireScreenshots,proto3" json:"review_require_screenshots,omitempty"`
 	ReviewRequireTests          bool    `protobuf:"varint,15,opt,name=review_require_tests,json=reviewRequireTests,proto3" json:"review_require_tests,omitempty"`
 	// Agent budget group.
-	AgentMaxTurns       int32 `protobuf:"varint,16,opt,name=agent_max_turns,json=agentMaxTurns,proto3" json:"agent_max_turns,omitempty"`
-	AgentTimeoutSeconds int32 `protobuf:"varint,17,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3" json:"agent_timeout_seconds,omitempty"`
+	AgentMaxTurns       int32             `protobuf:"varint,16,opt,name=agent_max_turns,json=agentMaxTurns,proto3" json:"agent_max_turns,omitempty"`
+	AgentTimeoutSeconds int32             `protobuf:"varint,17,opt,name=agent_timeout_seconds,json=agentTimeoutSeconds,proto3" json:"agent_timeout_seconds,omitempty"`
+	AutonomyGateModes   map[string]string `protobuf:"bytes,18,rep,name=autonomy_gate_modes,json=autonomyGateModes,proto3" json:"autonomy_gate_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -353,6 +354,13 @@ func (x *PolicyControlsView) GetAgentTimeoutSeconds() int32 {
 		return x.AgentTimeoutSeconds
 	}
 	return 0
+}
+
+func (x *PolicyControlsView) GetAutonomyGateModes() map[string]string {
+	if x != nil {
+		return x.AutonomyGateModes
+	}
+	return nil
 }
 
 // SettingsPolicyProjection carries the effective policy controls plus the
@@ -552,10 +560,11 @@ type UpdateSettingsRequest struct {
 	ExecutionCostCapPerRun        *float64         `protobuf:"fixed64,29,opt,name=execution_cost_cap_per_run,json=executionCostCapPerRun,proto3,oneof" json:"execution_cost_cap_per_run,omitempty"`
 	CostPerTurnEstimate           *float64         `protobuf:"fixed64,30,opt,name=cost_per_turn_estimate,json=costPerTurnEstimate,proto3,oneof" json:"cost_per_turn_estimate,omitempty"`
 	// Fix-before-feature gate controls (see domain domain.Settings).
-	FixBeforeFeature *string                 `protobuf:"bytes,35,opt,name=fix_before_feature,json=fixBeforeFeature,proto3,oneof" json:"fix_before_feature,omitempty"`
-	AutoFiler        *AutoFilerSettingsPatch `protobuf:"bytes,38,opt,name=auto_filer,json=autoFiler,proto3" json:"auto_filer,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	FixBeforeFeature  *string                 `protobuf:"bytes,35,opt,name=fix_before_feature,json=fixBeforeFeature,proto3,oneof" json:"fix_before_feature,omitempty"`
+	AutoFiler         *AutoFilerSettingsPatch `protobuf:"bytes,38,opt,name=auto_filer,json=autoFiler,proto3" json:"auto_filer,omitempty"`
+	AutonomyGateModes map[string]string       `protobuf:"bytes,39,rep,name=autonomy_gate_modes,json=autonomyGateModes,proto3" json:"autonomy_gate_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdateSettingsRequest) Reset() {
@@ -756,6 +765,13 @@ func (x *UpdateSettingsRequest) GetAutoFiler() *AutoFilerSettingsPatch {
 	return nil
 }
 
+func (x *UpdateSettingsRequest) GetAutonomyGateModes() map[string]string {
+	if x != nil {
+		return x.AutonomyGateModes
+	}
+	return nil
+}
+
 var File_swarm_manager_v1_api_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
@@ -768,7 +784,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x05field\x18\x01 \x01(\tR\x05field\x12B\n" +
 	"\x04role\x18\x02 \x01(\x0e2..vrooli.swarm_manager.v1.api.SettingsFieldRoleR\x04role\x12\x18\n" +
 	"\acontrol\x18\x03 \x01(\tR\acontrol\x12\x12\n" +
-	"\x04note\x18\x04 \x01(\tR\x04note\"\xf6\x05\n" +
+	"\x04note\x18\x04 \x01(\tR\x04note\"\xb4\a\n" +
 	"\x12PolicyControlsView\x12!\n" +
 	"\fdefault_mode\x18\x01 \x01(\tR\vdefaultMode\x12\x1d\n" +
 	"\n" +
@@ -783,7 +799,11 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x1areview_require_screenshots\x18\x0e \x01(\bR\x18reviewRequireScreenshots\x120\n" +
 	"\x14review_require_tests\x18\x0f \x01(\bR\x12reviewRequireTests\x12&\n" +
 	"\x0fagent_max_turns\x18\x10 \x01(\x05R\ragentMaxTurns\x122\n" +
-	"\x15agent_timeout_seconds\x18\x11 \x01(\x05R\x13agentTimeoutSecondsJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\x0fauto_initializeR\x14auto_advance_enabledR\x0fcascade_enabledR\x1aauto_advance_delay_secondsR\x0fmax_auto_rounds\"\xde\x01\n" +
+	"\x15agent_timeout_seconds\x18\x11 \x01(\x05R\x13agentTimeoutSeconds\x12v\n" +
+	"\x13autonomy_gate_modes\x18\x12 \x03(\v2F.vrooli.swarm_manager.v1.api.PolicyControlsView.AutonomyGateModesEntryR\x11autonomyGateModes\x1aD\n" +
+	"\x16AutonomyGateModesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\x0fauto_initializeR\x14auto_advance_enabledR\x0fcascade_enabledR\x1aauto_advance_delay_secondsR\x0fmax_auto_rounds\"\xde\x01\n" +
 	"\x18SettingsPolicyProjection\x12^\n" +
 	"\x12effective_controls\x18\x01 \x01(\v2/.vrooli.swarm_manager.v1.api.PolicyControlsViewR\x11effectiveControls\x12b\n" +
 	"\x0fclassifications\x18\x02 \x03(\v28.vrooli.swarm_manager.v1.api.SettingsFieldClassificationR\x0fclassifications\"\xc2\x04\n" +
@@ -806,7 +826,7 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x19_min_velocity_transitionsB\x13\n" +
 	"\x11_interval_minutesB\f\n" +
 	"\n" +
-	"_goal_name\"\xc3\x14\n" +
+	"_goal_name\"\x84\x16\n" +
 	"\x15UpdateSettingsRequest\x127\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x04darkR\x05lightR\x06systemH\x00R\x05theme\x88\x01\x01\x12=\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x15\xbaH\x12r\x10R\x00R\x06manualR\x04yoloH\x01R\vdefaultMode\x88\x01\x01\x12\"\n" +
@@ -835,13 +855,17 @@ const file_swarm_manager_v1_api_settings_proto_rawDesc = "" +
 	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01H\x13R\x13costPerTurnEstimate\x88\x01\x01\x12O\n" +
 	"\x12fix_before_feature\x18# \x01(\tB\x1c\xbaH\x19r\x17R\x00R\x03offR\asuggestR\x05blockH\x14R\x10fixBeforeFeature\x88\x01\x01\x12R\n" +
 	"\n" +
-	"auto_filer\x18& \x01(\v23.vrooli.swarm_manager.v1.api.AutoFilerSettingsPatchR\tautoFiler\x1a\x7f\n" +
+	"auto_filer\x18& \x01(\v23.vrooli.swarm_manager.v1.api.AutoFilerSettingsPatchR\tautoFiler\x12y\n" +
+	"\x13autonomy_gate_modes\x18' \x03(\v2I.vrooli.swarm_manager.v1.api.UpdateSettingsRequest.AutonomyGateModesEntryR\x11autonomyGateModes\x1a\x7f\n" +
 	"\x1dDeleteConfirmationLevelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12H\n" +
 	"\x05value\x18\x02 \x01(\x0e22.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\x05value:\x028\x01\x1aH\n" +
 	"\x1aLaneConcurrencyLimitsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01B\b\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aD\n" +
+	"\x16AutonomyGateModesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01B\b\n" +
 	"\x06_themeB\x0f\n" +
 	"\r_default_modeB\r\n" +
 	"\v_auto_fixupB\x15\n" +
@@ -884,7 +908,7 @@ func file_swarm_manager_v1_api_settings_proto_rawDescGZIP() []byte {
 }
 
 var file_swarm_manager_v1_api_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_swarm_manager_v1_api_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_swarm_manager_v1_api_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_swarm_manager_v1_api_settings_proto_goTypes = []any{
 	(SettingsFieldRole)(0),              // 0: vrooli.swarm_manager.v1.api.SettingsFieldRole
 	(*SettingsResponse)(nil),            // 1: vrooli.swarm_manager.v1.api.SettingsResponse
@@ -893,26 +917,30 @@ var file_swarm_manager_v1_api_settings_proto_goTypes = []any{
 	(*SettingsPolicyProjection)(nil),    // 4: vrooli.swarm_manager.v1.api.SettingsPolicyProjection
 	(*AutoFilerSettingsPatch)(nil),      // 5: vrooli.swarm_manager.v1.api.AutoFilerSettingsPatch
 	(*UpdateSettingsRequest)(nil),       // 6: vrooli.swarm_manager.v1.api.UpdateSettingsRequest
-	nil,                                 // 7: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
-	nil,                                 // 8: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
-	(*domain.Settings)(nil),             // 9: vrooli.swarm_manager.v1.domain.Settings
-	(domain.DeleteConfirmLevel)(0),      // 10: vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
+	nil,                                 // 7: vrooli.swarm_manager.v1.api.PolicyControlsView.AutonomyGateModesEntry
+	nil,                                 // 8: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
+	nil,                                 // 9: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
+	nil,                                 // 10: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.AutonomyGateModesEntry
+	(*domain.Settings)(nil),             // 11: vrooli.swarm_manager.v1.domain.Settings
+	(domain.DeleteConfirmLevel)(0),      // 12: vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
 }
 var file_swarm_manager_v1_api_settings_proto_depIdxs = []int32{
-	9,  // 0: vrooli.swarm_manager.v1.api.SettingsResponse.settings:type_name -> vrooli.swarm_manager.v1.domain.Settings
+	11, // 0: vrooli.swarm_manager.v1.api.SettingsResponse.settings:type_name -> vrooli.swarm_manager.v1.domain.Settings
 	4,  // 1: vrooli.swarm_manager.v1.api.SettingsResponse.policy_projection:type_name -> vrooli.swarm_manager.v1.api.SettingsPolicyProjection
 	0,  // 2: vrooli.swarm_manager.v1.api.SettingsFieldClassification.role:type_name -> vrooli.swarm_manager.v1.api.SettingsFieldRole
-	3,  // 3: vrooli.swarm_manager.v1.api.SettingsPolicyProjection.effective_controls:type_name -> vrooli.swarm_manager.v1.api.PolicyControlsView
-	2,  // 4: vrooli.swarm_manager.v1.api.SettingsPolicyProjection.classifications:type_name -> vrooli.swarm_manager.v1.api.SettingsFieldClassification
-	7,  // 5: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.delete_confirmation_levels:type_name -> vrooli.swarm_manager.v1.api.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
-	8,  // 6: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.lane_concurrency_limits:type_name -> vrooli.swarm_manager.v1.api.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
-	5,  // 7: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.auto_filer:type_name -> vrooli.swarm_manager.v1.api.AutoFilerSettingsPatch
-	10, // 8: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.DeleteConfirmationLevelsEntry.value:type_name -> vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
-	9,  // [9:9] is the sub-list for method output_type
-	9,  // [9:9] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	7,  // 3: vrooli.swarm_manager.v1.api.PolicyControlsView.autonomy_gate_modes:type_name -> vrooli.swarm_manager.v1.api.PolicyControlsView.AutonomyGateModesEntry
+	3,  // 4: vrooli.swarm_manager.v1.api.SettingsPolicyProjection.effective_controls:type_name -> vrooli.swarm_manager.v1.api.PolicyControlsView
+	2,  // 5: vrooli.swarm_manager.v1.api.SettingsPolicyProjection.classifications:type_name -> vrooli.swarm_manager.v1.api.SettingsFieldClassification
+	8,  // 6: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.delete_confirmation_levels:type_name -> vrooli.swarm_manager.v1.api.UpdateSettingsRequest.DeleteConfirmationLevelsEntry
+	9,  // 7: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.lane_concurrency_limits:type_name -> vrooli.swarm_manager.v1.api.UpdateSettingsRequest.LaneConcurrencyLimitsEntry
+	5,  // 8: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.auto_filer:type_name -> vrooli.swarm_manager.v1.api.AutoFilerSettingsPatch
+	10, // 9: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.autonomy_gate_modes:type_name -> vrooli.swarm_manager.v1.api.UpdateSettingsRequest.AutonomyGateModesEntry
+	12, // 10: vrooli.swarm_manager.v1.api.UpdateSettingsRequest.DeleteConfirmationLevelsEntry.value:type_name -> vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_api_settings_proto_init() }
@@ -928,7 +956,7 @@ func file_swarm_manager_v1_api_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_api_settings_proto_rawDesc), len(file_swarm_manager_v1_api_settings_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

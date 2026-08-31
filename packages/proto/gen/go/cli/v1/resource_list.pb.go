@@ -119,9 +119,12 @@ type Resource struct {
 	// Portability tier label (e.g. "partial", "full"); empty if unset.
 	PortabilityTier string `protobuf:"bytes,12,opt,name=portability_tier,json=portabilityTier,proto3" json:"portability_tier,omitempty"`
 	// Path to the resource's manifest file; empty if none.
-	ManifestPath  string `protobuf:"bytes,13,opt,name=manifest_path,json=manifestPath,proto3" json:"manifest_path,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ManifestPath string `protobuf:"bytes,13,opt,name=manifest_path,json=manifestPath,proto3" json:"manifest_path,omitempty"`
+	// Scenario declarations that name this resource while it is explicitly
+	// disabled by the project or operator state.
+	DisabledDependencyConsumers []*DisabledDependencyConsumer `protobuf:"bytes,17,rep,name=disabled_dependency_consumers,json=disabledDependencyConsumers,proto3" json:"disabled_dependency_consumers,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *Resource) Reset() {
@@ -259,6 +262,65 @@ func (x *Resource) GetManifestPath() string {
 	return ""
 }
 
+func (x *Resource) GetDisabledDependencyConsumers() []*DisabledDependencyConsumer {
+	if x != nil {
+		return x.DisabledDependencyConsumers
+	}
+	return nil
+}
+
+type DisabledDependencyConsumer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	StartupPolicy string                 `protobuf:"bytes,2,opt,name=startup_policy,json=startupPolicy,proto3" json:"startup_policy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DisabledDependencyConsumer) Reset() {
+	*x = DisabledDependencyConsumer{}
+	mi := &file_cli_v1_resource_list_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DisabledDependencyConsumer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DisabledDependencyConsumer) ProtoMessage() {}
+
+func (x *DisabledDependencyConsumer) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_resource_list_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DisabledDependencyConsumer.ProtoReflect.Descriptor instead.
+func (*DisabledDependencyConsumer) Descriptor() ([]byte, []int) {
+	return file_cli_v1_resource_list_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *DisabledDependencyConsumer) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *DisabledDependencyConsumer) GetStartupPolicy() string {
+	if x != nil {
+		return x.StartupPolicy
+	}
+	return ""
+}
+
 // ResourceConfig mirrors the resource's manifest config block.
 type ResourceConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -274,7 +336,7 @@ type ResourceConfig struct {
 
 func (x *ResourceConfig) Reset() {
 	*x = ResourceConfig{}
-	mi := &file_cli_v1_resource_list_proto_msgTypes[2]
+	mi := &file_cli_v1_resource_list_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -286,7 +348,7 @@ func (x *ResourceConfig) String() string {
 func (*ResourceConfig) ProtoMessage() {}
 
 func (x *ResourceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_resource_list_proto_msgTypes[2]
+	mi := &file_cli_v1_resource_list_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -299,7 +361,7 @@ func (x *ResourceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceConfig.ProtoReflect.Descriptor instead.
 func (*ResourceConfig) Descriptor() ([]byte, []int) {
-	return file_cli_v1_resource_list_proto_rawDescGZIP(), []int{2}
+	return file_cli_v1_resource_list_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ResourceConfig) GetEnabled() bool {
@@ -331,7 +393,7 @@ const file_cli_v1_resource_list_proto_rawDesc = "" +
 	"\x14ResourceListResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x125\n" +
 	"\tresources\x18\x02 \x03(\v2\x17.vrooli.cli.v1.ResourceR\tresources\x12N\n" +
-	"\x12discovery_failures\x18\x03 \x03(\v2\x1f.vrooli.cli.v1.DiscoveryFailureR\x11discoveryFailures\"\xff\x03\n" +
+	"\x12discovery_failures\x18\x03 \x03(\v2\x1f.vrooli.cli.v1.DiscoveryFailureR\x11discoveryFailures\"\xee\x04\n" +
 	"\bResource\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
@@ -350,7 +412,11 @@ const file_cli_v1_resource_list_proto_rawDesc = "" +
 	" \x01(\tR\x06driver\x12\x1a\n" +
 	"\btemplate\x18\v \x01(\tR\btemplate\x12)\n" +
 	"\x10portability_tier\x18\f \x01(\tR\x0fportabilityTier\x12#\n" +
-	"\rmanifest_path\x18\r \x01(\tR\fmanifestPathJ\x04\b\a\x10\bR\ahas_cli\"h\n" +
+	"\rmanifest_path\x18\r \x01(\tR\fmanifestPath\x12m\n" +
+	"\x1ddisabled_dependency_consumers\x18\x11 \x03(\v2).vrooli.cli.v1.DisabledDependencyConsumerR\x1bdisabledDependencyConsumersJ\x04\b\a\x10\bR\ahas_cli\"_\n" +
+	"\x1aDisabledDependencyConsumer\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12%\n" +
+	"\x0estartup_policy\x18\x02 \x01(\tR\rstartupPolicy\"h\n" +
 	"\x0eResourceConfig\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1a\n" +
 	"\brequired\x18\x02 \x01(\bR\brequired\x12 \n" +
@@ -368,22 +434,24 @@ func file_cli_v1_resource_list_proto_rawDescGZIP() []byte {
 	return file_cli_v1_resource_list_proto_rawDescData
 }
 
-var file_cli_v1_resource_list_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_cli_v1_resource_list_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_cli_v1_resource_list_proto_goTypes = []any{
-	(*ResourceListResponse)(nil), // 0: vrooli.cli.v1.ResourceListResponse
-	(*Resource)(nil),             // 1: vrooli.cli.v1.Resource
-	(*ResourceConfig)(nil),       // 2: vrooli.cli.v1.ResourceConfig
-	(*DiscoveryFailure)(nil),     // 3: vrooli.cli.v1.DiscoveryFailure
+	(*ResourceListResponse)(nil),       // 0: vrooli.cli.v1.ResourceListResponse
+	(*Resource)(nil),                   // 1: vrooli.cli.v1.Resource
+	(*DisabledDependencyConsumer)(nil), // 2: vrooli.cli.v1.DisabledDependencyConsumer
+	(*ResourceConfig)(nil),             // 3: vrooli.cli.v1.ResourceConfig
+	(*DiscoveryFailure)(nil),           // 4: vrooli.cli.v1.DiscoveryFailure
 }
 var file_cli_v1_resource_list_proto_depIdxs = []int32{
 	1, // 0: vrooli.cli.v1.ResourceListResponse.resources:type_name -> vrooli.cli.v1.Resource
-	3, // 1: vrooli.cli.v1.ResourceListResponse.discovery_failures:type_name -> vrooli.cli.v1.DiscoveryFailure
-	2, // 2: vrooli.cli.v1.Resource.config:type_name -> vrooli.cli.v1.ResourceConfig
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 1: vrooli.cli.v1.ResourceListResponse.discovery_failures:type_name -> vrooli.cli.v1.DiscoveryFailure
+	3, // 2: vrooli.cli.v1.Resource.config:type_name -> vrooli.cli.v1.ResourceConfig
+	2, // 3: vrooli.cli.v1.Resource.disabled_dependency_consumers:type_name -> vrooli.cli.v1.DisabledDependencyConsumer
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_resource_list_proto_init() }
@@ -398,7 +466,7 @@ func file_cli_v1_resource_list_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_resource_list_proto_rawDesc), len(file_cli_v1_resource_list_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

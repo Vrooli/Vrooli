@@ -84,6 +84,9 @@ message CliSupervisorStatus {
 
   // Most recent reconcile tick summary; always present (zero-valued if no tick).
   CliSupervisorTick last_tick = 16;
+
+  // Build/source identity of the binary currently reporting this status.
+  string build_identity = 17;
 }
 
 // CliSupervisorTick is one reconcile-tick summary embedded in

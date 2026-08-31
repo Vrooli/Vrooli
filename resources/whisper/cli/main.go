@@ -53,6 +53,8 @@ func newApp() (*cliapp.ResourceApp, error) {
 		Title:    "Capability",
 		Commands: []cliapp.Command{recommend.Commands(nil), activityproxy.Command(nil)},
 	})
-	app.SetCommandsWithSubgroups(groups, []cliapp.SubcommandGroup{recommend.CapacityCommands(nil)})
+	// Capacity actuation is owned by the control-plane broker. Whisper keeps
+	// only the model recommendation/read-pin surface.
+	app.SetCommandsWithSubgroups(groups, nil)
 	return app, nil
 }

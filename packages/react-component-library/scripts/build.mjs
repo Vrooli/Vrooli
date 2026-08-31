@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { authoredRoot } from "./catalog-source.mjs";
 import { resolveCatalogExports } from "./export-resolution.mjs";
+import { packageDependencyPaths as derivePackageDependencyPaths } from "./dependency-paths.mjs";
 
 const packageRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/scripts$/, "");
 const sourceRoot = authoredRoot;
@@ -26,20 +27,13 @@ const { resolutions: exportResolutions } = await resolveCatalogExports({
 const generatedConfigPath = join(packageRoot, ".build-tsconfig.json");
 const baseConfig = JSON.parse(await readFile(join(packageRoot, "tsconfig.build.json"), "utf8"));
 const packageNodeModules = join(packageRoot, "node_modules");
-const packageDependencyPaths = {
-  react: [join(packageNodeModules, "@types", "react", "index.d.ts")],
-  "react/*": [join(packageNodeModules, "@types", "react", "*")],
-  "react/jsx-runtime": [join(packageNodeModules, "@types", "react", "jsx-runtime.d.ts")],
-  "react-dom": [join(packageNodeModules, "@types", "react-dom", "index.d.ts")],
-  "lucide-react": [join(packageNodeModules, "lucide-react")],
-  clsx: [join(packageNodeModules, "clsx")],
-  "tailwind-merge": [join(packageNodeModules, "tailwind-merge")],
-  shiki: [join(packageNodeModules, "shiki")],
-  "react-markdown": [join(packageNodeModules, "react-markdown")],
-  "remark-gfm": [join(packageNodeModules, "remark-gfm")],
-  mermaid: [join(packageNodeModules, "mermaid")],
+const packageManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+// Dependencies are discovered from package.json. Only the workspace package
+// keeps an explicit override because it is intentionally linked outside this
+// package's node_modules tree.
+const packageDependencyPaths = derivePackageDependencyPaths(packageRoot, packageManifest, {
   "@vrooli/audio-capture-browser": [join(packageRoot, "..", "audio-capture-browser", "dist", "index.d.ts")],
-};
+});
 const selfPaths = Object.fromEntries(Object.entries(exportResolutions).map(([subpath, resolution]) => [
   `@vrooli/react-component-library/${subpath.slice(2)}`,
   [relativePath(packageRoot, join(sourceRoot, resolution.source)).replaceAll("\\", "/")],

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/resource_list.proto.
  */
 export const file_cli_v1_resource_list: GenFile = /*@__PURE__*/
-  fileDesc("ChpjbGkvdjEvcmVzb3VyY2VfbGlzdC5wcm90bxINdnJvb2xpLmNsaS52MSKQAQoUUmVzb3VyY2VMaXN0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIqCglyZXNvdXJjZXMYAiADKAsyFy52cm9vbGkuY2xpLnYxLlJlc291cmNlEjsKEmRpc2NvdmVyeV9mYWlsdXJlcxgDIAMoCzIfLnZyb29saS5jbGkudjEuRGlzY292ZXJ5RmFpbHVyZSLbAgoIUmVzb3VyY2USDAoEbmFtZRgBIAEoCRIMCgRwYXRoGAIgASgJEg4KBmV4aXN0cxgDIAEoCBISCgpyZWdpc3RlcmVkGAQgASgIEg8KB2VuYWJsZWQYBSABKAgSEAoIcmVxdWlyZWQYBiABKAgSFAoMZGVjbGFyZXNfY2xpGA4gASgIEhUKDWNsaV9pbnN0YWxsZWQYDyABKAgSGAoQY2xpX3N0YXRlX3JlYXNvbhgQIAEoCRItCgZjb25maWcYCCABKAsyHS52cm9vbGkuY2xpLnYxLlJlc291cmNlQ29uZmlnEhQKDGNvbnRyb2xfbW9kZRgJIAEoCRIOCgZkcml2ZXIYCiABKAkSEAoIdGVtcGxhdGUYCyABKAkSGAoQcG9ydGFiaWxpdHlfdGllchgMIAEoCRIVCg1tYW5pZmVzdF9wYXRoGA0gASgJSgQIBxAIUgdoYXNfY2xpIkgKDlJlc291cmNlQ29uZmlnEg8KB2VuYWJsZWQYASABKAgSEAoIcmVxdWlyZWQYAiABKAgSEwoLZGVzY3JpcHRpb24YAyABKAlCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw", [file_cli_v1_common]);
+  fileDesc("ChpjbGkvdjEvcmVzb3VyY2VfbGlzdC5wcm90bxINdnJvb2xpLmNsaS52MSKQAQoUUmVzb3VyY2VMaXN0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIqCglyZXNvdXJjZXMYAiADKAsyFy52cm9vbGkuY2xpLnYxLlJlc291cmNlEjsKEmRpc2NvdmVyeV9mYWlsdXJlcxgDIAMoCzIfLnZyb29saS5jbGkudjEuRGlzY292ZXJ5RmFpbHVyZSKtAwoIUmVzb3VyY2USDAoEbmFtZRgBIAEoCRIMCgRwYXRoGAIgASgJEg4KBmV4aXN0cxgDIAEoCBISCgpyZWdpc3RlcmVkGAQgASgIEg8KB2VuYWJsZWQYBSABKAgSEAoIcmVxdWlyZWQYBiABKAgSFAoMZGVjbGFyZXNfY2xpGA4gASgIEhUKDWNsaV9pbnN0YWxsZWQYDyABKAgSGAoQY2xpX3N0YXRlX3JlYXNvbhgQIAEoCRItCgZjb25maWcYCCABKAsyHS52cm9vbGkuY2xpLnYxLlJlc291cmNlQ29uZmlnEhQKDGNvbnRyb2xfbW9kZRgJIAEoCRIOCgZkcml2ZXIYCiABKAkSEAoIdGVtcGxhdGUYCyABKAkSGAoQcG9ydGFiaWxpdHlfdGllchgMIAEoCRIVCg1tYW5pZmVzdF9wYXRoGA0gASgJElAKHWRpc2FibGVkX2RlcGVuZGVuY3lfY29uc3VtZXJzGBEgAygLMikudnJvb2xpLmNsaS52MS5EaXNhYmxlZERlcGVuZGVuY3lDb25zdW1lckoECAcQCFIHaGFzX2NsaSJGChpEaXNhYmxlZERlcGVuZGVuY3lDb25zdW1lchIQCghzY2VuYXJpbxgBIAEoCRIWCg5zdGFydHVwX3BvbGljeRgCIAEoCSJICg5SZXNvdXJjZUNvbmZpZxIPCgdlbmFibGVkGAEgASgIEhAKCHJlcXVpcmVkGAIgASgIEhMKC2Rlc2NyaXB0aW9uGAMgASgJQj1aO2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vY2xpL3YxO2NsaXYxYgZwcm90bzM", [file_cli_v1_common]);
 
 /**
  * ResourceListResponse is the top-level envelope of `vrooli resource list --json`.
@@ -161,6 +161,14 @@ export type Resource = Message<"vrooli.cli.v1.Resource"> & {
    * @generated from field: string manifest_path = 13;
    */
   manifestPath: string;
+
+  /**
+   * Scenario declarations that name this resource while it is explicitly
+   * disabled by the project or operator state.
+   *
+   * @generated from field: repeated vrooli.cli.v1.DisabledDependencyConsumer disabled_dependency_consumers = 17;
+   */
+  disabledDependencyConsumers: DisabledDependencyConsumer[];
 };
 
 /**
@@ -169,6 +177,28 @@ export type Resource = Message<"vrooli.cli.v1.Resource"> & {
  */
 export const ResourceSchema: GenMessage<Resource> = /*@__PURE__*/
   messageDesc(file_cli_v1_resource_list, 1);
+
+/**
+ * @generated from message vrooli.cli.v1.DisabledDependencyConsumer
+ */
+export type DisabledDependencyConsumer = Message<"vrooli.cli.v1.DisabledDependencyConsumer"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string startup_policy = 2;
+   */
+  startupPolicy: string;
+};
+
+/**
+ * Describes the message vrooli.cli.v1.DisabledDependencyConsumer.
+ * Use `create(DisabledDependencyConsumerSchema)` to create a new message.
+ */
+export const DisabledDependencyConsumerSchema: GenMessage<DisabledDependencyConsumer> = /*@__PURE__*/
+  messageDesc(file_cli_v1_resource_list, 2);
 
 /**
  * ResourceConfig mirrors the resource's manifest config block.
@@ -203,5 +233,5 @@ export type ResourceConfig = Message<"vrooli.cli.v1.ResourceConfig"> & {
  * Use `create(ResourceConfigSchema)` to create a new message.
  */
 export const ResourceConfigSchema: GenMessage<ResourceConfig> = /*@__PURE__*/
-  messageDesc(file_cli_v1_resource_list, 2);
+  messageDesc(file_cli_v1_resource_list, 3);
 

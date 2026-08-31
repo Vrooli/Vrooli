@@ -187,6 +187,10 @@ export type VoiceRejection =
 export interface VoiceInputState {
   supported: boolean;
   backend: VoiceBackend;
+  /** Provider health detail shown when the mic is disabled. */
+  capabilityReason?: string;
+  /** Operator recovery command shown with the provider detail. */
+  operatorCommand?: string;
   voiceState: VoiceState;
   error: string | null;
   /** 0-1 audio level from the microphone while recording */

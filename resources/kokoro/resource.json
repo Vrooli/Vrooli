@@ -269,8 +269,8 @@
         "macos": {
           "support": "unsupported",
           "mode": "bundled-service",
-          "reason": "Kokoro native macOS acquisition is not qualified for this release.",
-          "limitations": ["No native macOS artifact was built or hashed."],
+          "reason": "Kokoro native macOS acquisition is not qualified for this release; see scenarios/audio-tools/docs/reference/macos-speech-qualification.md.",
+          "limitations": ["No native macOS artifact was built or hashed; qualification checklist is required."],
           "evidence": ["manifest-validation"]
         },
         "windows": {

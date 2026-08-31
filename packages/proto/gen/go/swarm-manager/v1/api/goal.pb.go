@@ -149,8 +149,12 @@ func (x *DeleteGoalRequest) GetName() string {
 }
 
 type ArchiveGoalRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Name  string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// force applies the explicit drop cascade to open targeted backlog items.
+	// Without force, archiving refuses when open targets remain.
+	Force         bool   `protobuf:"varint,2,opt,name=force,proto3" json:"force,omitempty"`
+	Actor         string `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -188,6 +192,20 @@ func (*ArchiveGoalRequest) Descriptor() ([]byte, []int) {
 func (x *ArchiveGoalRequest) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *ArchiveGoalRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+func (x *ArchiveGoalRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
 	}
 	return ""
 }
@@ -1206,9 +1224,11 @@ const file_swarm_manager_v1_api_goal_proto_rawDesc = "" +
 	"\x0eGetGoalRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"0\n" +
 	"\x11DeleteGoalRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"1\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"]\n" +
 	"\x12ArchiveGoalRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"3\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x14\n" +
+	"\x05force\x18\x02 \x01(\bR\x05force\x12\x14\n" +
+	"\x05actor\x18\x03 \x01(\tR\x05actor\"3\n" +
 	"\x14UnarchiveGoalRequest\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\x95\x01\n" +
 	"\x11CreateGoalRequest\x12\x12\n" +

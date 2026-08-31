@@ -87,6 +87,12 @@ message Grant {
   string preset = 6;
 }
 
+message MachineDrift {
+  string kind = 1;
+  string name = 2;
+  string reason = 3;
+}
+
 // Machine is one linked computer as an operator sees it: who it is, whether it
 // answers, and what it may do.
 message Machine {
@@ -103,6 +109,9 @@ message Machine {
   // False for the computer the Web Console runs on: it has no remote grant to
   // change and cannot be forgotten.
   bool manageable = 4;
+
+  // Typed differences between the desired machine profile and current facts.
+  repeated MachineDrift drift = 5;
 }
 
 // JoinRequest is a machine asking to be linked. Every descriptive field is

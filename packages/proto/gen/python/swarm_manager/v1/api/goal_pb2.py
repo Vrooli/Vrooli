@@ -27,7 +27,7 @@ from swarm_manager.v1.domain import goal_pb2 as swarm__manager_dot_v1_dot_domain
 from swarm_manager.v1.shared import goal_pb2 as swarm__manager_dot_v1_dot_shared_dot_goal__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fswarm-manager/v1/api/goal.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1b\x62uf/validate/validate.proto\x1a\"swarm-manager/v1/domain/goal.proto\x1a\"swarm-manager/v1/shared/goal.proto\"\x12\n\x10ListGoalsRequest\"-\n\x0eGetGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"0\n\x11\x44\x65leteGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"1\n\x12\x41rchiveGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"3\n\x14UnarchiveGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"\x95\x01\n\x11\x43reateGoalRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x1a\n\x08priority\x18\x04 \x01(\x05R\x08priority\x12\x18\n\x07targets\x18\x05 \x03(\tR\x07targets\"\xb1\x01\n\x11UpdateGoalRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n\x0b\x64\x65scription\x18\x03 \x01(\tH\x01R\x0b\x64\x65scription\x88\x01\x01\x12\x1f\n\x08priority\x18\x04 \x01(\x05H\x02R\x08priority\x88\x01\x01\x42\x08\n\x06_titleB\x0e\n\x0c_descriptionB\x0b\n\t_priority\"H\n\x18UpdateGoalTargetsRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n\x07targets\x18\x02 \x03(\tR\x07targets\"~\n\x16\x43reateMilestoneRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12G\n\tmilestone\x18\x02 \x01(\x0b\x32).vrooli.swarm_manager.v1.shared.MilestoneR\tmilestone\"~\n\x16UpdateMilestoneRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12G\n\tmilestone\x18\x02 \x01(\x0b\x32).vrooli.swarm_manager.v1.shared.MilestoneR\tmilestone\"]\n\x17\x41rchiveMilestoneRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12%\n\x0emilestone_name\x18\x02 \x01(\tR\rmilestoneName\"w\n\x1bUpdateMilestoneItemsRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12%\n\x0emilestone_name\x18\x02 \x01(\tR\rmilestoneName\x12\x14\n\x05items\x18\x03 \x03(\tR\x05items\"2\n\x13\x43loseOutGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\">\n\x1fListPendingGoalWorkflowsRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\"l\n\x18\x41pplyGoalWorkflowRequest\x12$\n\tgoal_name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x08goalName\x12*\n\x0c\x65xecution_id\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x65xecutionId\"\xaf\x02\n\x13PendingGoalWorkflow\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12!\n\x0c\x65xecution_id\x18\x02 \x01(\tR\x0b\x65xecutionId\x12\x1e\n\ntransition\x18\x03 \x01(\tR\ntransition\x12\x1c\n\tmilestone\x18\x04 \x01(\tR\tmilestone\x12!\n\x0cgoal_version\x18\x05 \x01(\tR\x0bgoalVersion\x12\x14\n\x05stale\x18\x06 \x01(\x08R\x05stale\x12\x1a\n\x08\x61ttempts\x18\x07 \x01(\x05R\x08\x61ttempts\x12&\n\x0flast_attempt_at\x18\x08 \x01(\tR\rlastAttemptAt\x12\x1d\n\nlast_error\x18\t \x01(\tR\tlastError\"n\n ListPendingGoalWorkflowsResponse\x12J\n\x07pending\x18\x01 \x03(\x0b\x32\x30.vrooli.swarm_manager.v1.api.PendingGoalWorkflowR\x07pending\"\xc3\x01\n\x19\x41pplyGoalWorkflowResponse\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12\x1d\n\nsession_id\x18\x02 \x01(\tR\tsessionId\x12!\n\x0cproposal_ids\x18\x03 \x03(\tR\x0bproposalIds\x12\x18\n\x07outcome\x18\x04 \x01(\tR\x07outcome\x12\'\n\x0f\x61lready_applied\x18\x05 \x01(\x08R\x0e\x61lreadyApplied\"\x89\x01\n\x0cGoalResponse\x12\x38\n\x04goal\x18\x01 \x01(\x0b\x32$.vrooli.swarm_manager.v1.domain.GoalR\x04goal\x12?\n\x05scope\x18\x02 \x01(\x0b\x32).vrooli.swarm_manager.v1.domain.GoalScopeR\x05scope\"T\n\x11ListGoalsResponse\x12?\n\x05goals\x18\x01 \x03(\x0b\x32).vrooli.swarm_manager.v1.api.GoalResponseR\x05goals\"T\n\x11GoalScopeResponse\x12?\n\x05scope\x18\x01 \x01(\x0b\x32).vrooli.swarm_manager.v1.domain.GoalScopeR\x05scope\"\x13\n\x11\x45mptyGoalResponse2\xa5\x10\n\x0bGoalService\x12j\n\tListGoals\x12-.vrooli.swarm_manager.v1.api.ListGoalsRequest\x1a..vrooli.swarm_manager.v1.api.ListGoalsResponse\x12\x61\n\x07GetGoal\x12+.vrooli.swarm_manager.v1.api.GetGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12g\n\nCreateGoal\x12..vrooli.swarm_manager.v1.api.CreateGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12g\n\nUpdateGoal\x12..vrooli.swarm_manager.v1.api.UpdateGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12l\n\nDeleteGoal\x12..vrooli.swarm_manager.v1.api.DeleteGoalRequest\x1a..vrooli.swarm_manager.v1.api.EmptyGoalResponse\x12i\n\x0b\x41rchiveGoal\x12/.vrooli.swarm_manager.v1.api.ArchiveGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12m\n\rUnarchiveGoal\x12\x31.vrooli.swarm_manager.v1.api.UnarchiveGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12n\n\nAddTargets\x12\x35.vrooli.swarm_manager.v1.api.UpdateGoalTargetsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12q\n\rRemoveTargets\x12\x35.vrooli.swarm_manager.v1.api.UpdateGoalTargetsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12q\n\x0f\x43reateMilestone\x12\x33.vrooli.swarm_manager.v1.api.CreateMilestoneRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12q\n\x0fUpdateMilestone\x12\x33.vrooli.swarm_manager.v1.api.UpdateMilestoneRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12s\n\x10\x41rchiveMilestone\x12\x34.vrooli.swarm_manager.v1.api.ArchiveMilestoneRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12{\n\x14\x41ssignMilestoneItems\x12\x38.vrooli.swarm_manager.v1.api.UpdateMilestoneItemsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12}\n\x16UnassignMilestoneItems\x12\x38.vrooli.swarm_manager.v1.api.UpdateMilestoneItemsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12g\n\x08GetScope\x12+.vrooli.swarm_manager.v1.api.GetGoalRequest\x1a..vrooli.swarm_manager.v1.api.GoalScopeResponse\x12k\n\x0c\x43loseOutGoal\x12\x30.vrooli.swarm_manager.v1.api.CloseOutGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12\x97\x01\n\x18ListPendingGoalWorkflows\x12<.vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsRequest\x1a=.vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsResponse\x12\x82\x01\n\x11\x41pplyGoalWorkflow\x12\x35.vrooli.swarm_manager.v1.api.ApplyGoalWorkflowRequest\x1a\x36.vrooli.swarm_manager.v1.api.ApplyGoalWorkflowResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fswarm-manager/v1/api/goal.proto\x12\x1bvrooli.swarm_manager.v1.api\x1a\x1b\x62uf/validate/validate.proto\x1a\"swarm-manager/v1/domain/goal.proto\x1a\"swarm-manager/v1/shared/goal.proto\"\x12\n\x10ListGoalsRequest\"-\n\x0eGetGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"0\n\x11\x44\x65leteGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"]\n\x12\x41rchiveGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\x12\x14\n\x05\x66orce\x18\x02 \x01(\x08R\x05\x66orce\x12\x14\n\x05\x61\x63tor\x18\x03 \x01(\tR\x05\x61\x63tor\"3\n\x14UnarchiveGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\"\x95\x01\n\x11\x43reateGoalRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12 \n\x0b\x64\x65scription\x18\x03 \x01(\tR\x0b\x64\x65scription\x12\x1a\n\x08priority\x18\x04 \x01(\x05R\x08priority\x12\x18\n\x07targets\x18\x05 \x03(\tR\x07targets\"\xb1\x01\n\x11UpdateGoalRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n\x0b\x64\x65scription\x18\x03 \x01(\tH\x01R\x0b\x64\x65scription\x88\x01\x01\x12\x1f\n\x08priority\x18\x04 \x01(\x05H\x02R\x08priority\x88\x01\x01\x42\x08\n\x06_titleB\x0e\n\x0c_descriptionB\x0b\n\t_priority\"H\n\x18UpdateGoalTargetsRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n\x07targets\x18\x02 \x03(\tR\x07targets\"~\n\x16\x43reateMilestoneRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12G\n\tmilestone\x18\x02 \x01(\x0b\x32).vrooli.swarm_manager.v1.shared.MilestoneR\tmilestone\"~\n\x16UpdateMilestoneRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12G\n\tmilestone\x18\x02 \x01(\x0b\x32).vrooli.swarm_manager.v1.shared.MilestoneR\tmilestone\"]\n\x17\x41rchiveMilestoneRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12%\n\x0emilestone_name\x18\x02 \x01(\tR\rmilestoneName\"w\n\x1bUpdateMilestoneItemsRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12%\n\x0emilestone_name\x18\x02 \x01(\tR\rmilestoneName\x12\x14\n\x05items\x18\x03 \x03(\tR\x05items\"2\n\x13\x43loseOutGoalRequest\x12\x1b\n\x04name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x04name\">\n\x1fListPendingGoalWorkflowsRequest\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\"l\n\x18\x41pplyGoalWorkflowRequest\x12$\n\tgoal_name\x18\x01 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x08goalName\x12*\n\x0c\x65xecution_id\x18\x02 \x01(\tB\x07\xbaH\x04r\x02\x10\x01R\x0b\x65xecutionId\"\xaf\x02\n\x13PendingGoalWorkflow\x12\x1b\n\tgoal_name\x18\x01 \x01(\tR\x08goalName\x12!\n\x0c\x65xecution_id\x18\x02 \x01(\tR\x0b\x65xecutionId\x12\x1e\n\ntransition\x18\x03 \x01(\tR\ntransition\x12\x1c\n\tmilestone\x18\x04 \x01(\tR\tmilestone\x12!\n\x0cgoal_version\x18\x05 \x01(\tR\x0bgoalVersion\x12\x14\n\x05stale\x18\x06 \x01(\x08R\x05stale\x12\x1a\n\x08\x61ttempts\x18\x07 \x01(\x05R\x08\x61ttempts\x12&\n\x0flast_attempt_at\x18\x08 \x01(\tR\rlastAttemptAt\x12\x1d\n\nlast_error\x18\t \x01(\tR\tlastError\"n\n ListPendingGoalWorkflowsResponse\x12J\n\x07pending\x18\x01 \x03(\x0b\x32\x30.vrooli.swarm_manager.v1.api.PendingGoalWorkflowR\x07pending\"\xc3\x01\n\x19\x41pplyGoalWorkflowResponse\x12!\n\x0c\x65xecution_id\x18\x01 \x01(\tR\x0b\x65xecutionId\x12\x1d\n\nsession_id\x18\x02 \x01(\tR\tsessionId\x12!\n\x0cproposal_ids\x18\x03 \x03(\tR\x0bproposalIds\x12\x18\n\x07outcome\x18\x04 \x01(\tR\x07outcome\x12\'\n\x0f\x61lready_applied\x18\x05 \x01(\x08R\x0e\x61lreadyApplied\"\x89\x01\n\x0cGoalResponse\x12\x38\n\x04goal\x18\x01 \x01(\x0b\x32$.vrooli.swarm_manager.v1.domain.GoalR\x04goal\x12?\n\x05scope\x18\x02 \x01(\x0b\x32).vrooli.swarm_manager.v1.domain.GoalScopeR\x05scope\"T\n\x11ListGoalsResponse\x12?\n\x05goals\x18\x01 \x03(\x0b\x32).vrooli.swarm_manager.v1.api.GoalResponseR\x05goals\"T\n\x11GoalScopeResponse\x12?\n\x05scope\x18\x01 \x01(\x0b\x32).vrooli.swarm_manager.v1.domain.GoalScopeR\x05scope\"\x13\n\x11\x45mptyGoalResponse2\xa5\x10\n\x0bGoalService\x12j\n\tListGoals\x12-.vrooli.swarm_manager.v1.api.ListGoalsRequest\x1a..vrooli.swarm_manager.v1.api.ListGoalsResponse\x12\x61\n\x07GetGoal\x12+.vrooli.swarm_manager.v1.api.GetGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12g\n\nCreateGoal\x12..vrooli.swarm_manager.v1.api.CreateGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12g\n\nUpdateGoal\x12..vrooli.swarm_manager.v1.api.UpdateGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12l\n\nDeleteGoal\x12..vrooli.swarm_manager.v1.api.DeleteGoalRequest\x1a..vrooli.swarm_manager.v1.api.EmptyGoalResponse\x12i\n\x0b\x41rchiveGoal\x12/.vrooli.swarm_manager.v1.api.ArchiveGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12m\n\rUnarchiveGoal\x12\x31.vrooli.swarm_manager.v1.api.UnarchiveGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12n\n\nAddTargets\x12\x35.vrooli.swarm_manager.v1.api.UpdateGoalTargetsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12q\n\rRemoveTargets\x12\x35.vrooli.swarm_manager.v1.api.UpdateGoalTargetsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12q\n\x0f\x43reateMilestone\x12\x33.vrooli.swarm_manager.v1.api.CreateMilestoneRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12q\n\x0fUpdateMilestone\x12\x33.vrooli.swarm_manager.v1.api.UpdateMilestoneRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12s\n\x10\x41rchiveMilestone\x12\x34.vrooli.swarm_manager.v1.api.ArchiveMilestoneRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12{\n\x14\x41ssignMilestoneItems\x12\x38.vrooli.swarm_manager.v1.api.UpdateMilestoneItemsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12}\n\x16UnassignMilestoneItems\x12\x38.vrooli.swarm_manager.v1.api.UpdateMilestoneItemsRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12g\n\x08GetScope\x12+.vrooli.swarm_manager.v1.api.GetGoalRequest\x1a..vrooli.swarm_manager.v1.api.GoalScopeResponse\x12k\n\x0c\x43loseOutGoal\x12\x30.vrooli.swarm_manager.v1.api.CloseOutGoalRequest\x1a).vrooli.swarm_manager.v1.api.GoalResponse\x12\x97\x01\n\x18ListPendingGoalWorkflows\x12<.vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsRequest\x1a=.vrooli.swarm_manager.v1.api.ListPendingGoalWorkflowsResponse\x12\x82\x01\n\x11\x41pplyGoalWorkflow\x12\x35.vrooli.swarm_manager.v1.api.ApplyGoalWorkflowRequest\x1a\x36.vrooli.swarm_manager.v1.api.ApplyGoalWorkflowResponseBIZGgithub.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api;apib\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -56,43 +56,43 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_DELETEGOALREQUEST']._serialized_start=232
   _globals['_DELETEGOALREQUEST']._serialized_end=280
   _globals['_ARCHIVEGOALREQUEST']._serialized_start=282
-  _globals['_ARCHIVEGOALREQUEST']._serialized_end=331
-  _globals['_UNARCHIVEGOALREQUEST']._serialized_start=333
-  _globals['_UNARCHIVEGOALREQUEST']._serialized_end=384
-  _globals['_CREATEGOALREQUEST']._serialized_start=387
-  _globals['_CREATEGOALREQUEST']._serialized_end=536
-  _globals['_UPDATEGOALREQUEST']._serialized_start=539
-  _globals['_UPDATEGOALREQUEST']._serialized_end=716
-  _globals['_UPDATEGOALTARGETSREQUEST']._serialized_start=718
-  _globals['_UPDATEGOALTARGETSREQUEST']._serialized_end=790
-  _globals['_CREATEMILESTONEREQUEST']._serialized_start=792
-  _globals['_CREATEMILESTONEREQUEST']._serialized_end=918
-  _globals['_UPDATEMILESTONEREQUEST']._serialized_start=920
-  _globals['_UPDATEMILESTONEREQUEST']._serialized_end=1046
-  _globals['_ARCHIVEMILESTONEREQUEST']._serialized_start=1048
-  _globals['_ARCHIVEMILESTONEREQUEST']._serialized_end=1141
-  _globals['_UPDATEMILESTONEITEMSREQUEST']._serialized_start=1143
-  _globals['_UPDATEMILESTONEITEMSREQUEST']._serialized_end=1262
-  _globals['_CLOSEOUTGOALREQUEST']._serialized_start=1264
-  _globals['_CLOSEOUTGOALREQUEST']._serialized_end=1314
-  _globals['_LISTPENDINGGOALWORKFLOWSREQUEST']._serialized_start=1316
-  _globals['_LISTPENDINGGOALWORKFLOWSREQUEST']._serialized_end=1378
-  _globals['_APPLYGOALWORKFLOWREQUEST']._serialized_start=1380
-  _globals['_APPLYGOALWORKFLOWREQUEST']._serialized_end=1488
-  _globals['_PENDINGGOALWORKFLOW']._serialized_start=1491
-  _globals['_PENDINGGOALWORKFLOW']._serialized_end=1794
-  _globals['_LISTPENDINGGOALWORKFLOWSRESPONSE']._serialized_start=1796
-  _globals['_LISTPENDINGGOALWORKFLOWSRESPONSE']._serialized_end=1906
-  _globals['_APPLYGOALWORKFLOWRESPONSE']._serialized_start=1909
-  _globals['_APPLYGOALWORKFLOWRESPONSE']._serialized_end=2104
-  _globals['_GOALRESPONSE']._serialized_start=2107
-  _globals['_GOALRESPONSE']._serialized_end=2244
-  _globals['_LISTGOALSRESPONSE']._serialized_start=2246
-  _globals['_LISTGOALSRESPONSE']._serialized_end=2330
-  _globals['_GOALSCOPERESPONSE']._serialized_start=2332
-  _globals['_GOALSCOPERESPONSE']._serialized_end=2416
-  _globals['_EMPTYGOALRESPONSE']._serialized_start=2418
-  _globals['_EMPTYGOALRESPONSE']._serialized_end=2437
-  _globals['_GOALSERVICE']._serialized_start=2440
-  _globals['_GOALSERVICE']._serialized_end=4525
+  _globals['_ARCHIVEGOALREQUEST']._serialized_end=375
+  _globals['_UNARCHIVEGOALREQUEST']._serialized_start=377
+  _globals['_UNARCHIVEGOALREQUEST']._serialized_end=428
+  _globals['_CREATEGOALREQUEST']._serialized_start=431
+  _globals['_CREATEGOALREQUEST']._serialized_end=580
+  _globals['_UPDATEGOALREQUEST']._serialized_start=583
+  _globals['_UPDATEGOALREQUEST']._serialized_end=760
+  _globals['_UPDATEGOALTARGETSREQUEST']._serialized_start=762
+  _globals['_UPDATEGOALTARGETSREQUEST']._serialized_end=834
+  _globals['_CREATEMILESTONEREQUEST']._serialized_start=836
+  _globals['_CREATEMILESTONEREQUEST']._serialized_end=962
+  _globals['_UPDATEMILESTONEREQUEST']._serialized_start=964
+  _globals['_UPDATEMILESTONEREQUEST']._serialized_end=1090
+  _globals['_ARCHIVEMILESTONEREQUEST']._serialized_start=1092
+  _globals['_ARCHIVEMILESTONEREQUEST']._serialized_end=1185
+  _globals['_UPDATEMILESTONEITEMSREQUEST']._serialized_start=1187
+  _globals['_UPDATEMILESTONEITEMSREQUEST']._serialized_end=1306
+  _globals['_CLOSEOUTGOALREQUEST']._serialized_start=1308
+  _globals['_CLOSEOUTGOALREQUEST']._serialized_end=1358
+  _globals['_LISTPENDINGGOALWORKFLOWSREQUEST']._serialized_start=1360
+  _globals['_LISTPENDINGGOALWORKFLOWSREQUEST']._serialized_end=1422
+  _globals['_APPLYGOALWORKFLOWREQUEST']._serialized_start=1424
+  _globals['_APPLYGOALWORKFLOWREQUEST']._serialized_end=1532
+  _globals['_PENDINGGOALWORKFLOW']._serialized_start=1535
+  _globals['_PENDINGGOALWORKFLOW']._serialized_end=1838
+  _globals['_LISTPENDINGGOALWORKFLOWSRESPONSE']._serialized_start=1840
+  _globals['_LISTPENDINGGOALWORKFLOWSRESPONSE']._serialized_end=1950
+  _globals['_APPLYGOALWORKFLOWRESPONSE']._serialized_start=1953
+  _globals['_APPLYGOALWORKFLOWRESPONSE']._serialized_end=2148
+  _globals['_GOALRESPONSE']._serialized_start=2151
+  _globals['_GOALRESPONSE']._serialized_end=2288
+  _globals['_LISTGOALSRESPONSE']._serialized_start=2290
+  _globals['_LISTGOALSRESPONSE']._serialized_end=2374
+  _globals['_GOALSCOPERESPONSE']._serialized_start=2376
+  _globals['_GOALSCOPERESPONSE']._serialized_end=2460
+  _globals['_EMPTYGOALRESPONSE']._serialized_start=2462
+  _globals['_EMPTYGOALRESPONSE']._serialized_end=2481
+  _globals['_GOALSERVICE']._serialized_start=2484
+  _globals['_GOALSERVICE']._serialized_end=4569
 # @@protoc_insertion_point(module_scope)

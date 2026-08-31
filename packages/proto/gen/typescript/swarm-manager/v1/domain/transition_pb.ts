@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file swarm-manager/v1/domain/transition.proto.
  */
 export const file_swarm_manager_v1_domain_transition: GenFile = /*@__PURE__*/
-  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi90cmFuc2l0aW9uLnByb3RvEh52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4iLQoPV29ya2Zsb3dMb2NhdG9yEg0KBW93bmVyGAEgASgJEgsKA2tleRgCIAEoCSKIAQoRRXhlY3V0aW9uU3RyYXRlZ3kSCgoCaWQYASABKAkSFAoMd29ya2Zsb3dfa2V5GAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRITCgt3aGVuX3RvX3VzZRgFIAEoCRIRCgljb3N0X2JhbmQYBiABKAkizQIKClRyYW5zaXRpb24SCwoDa2V5GAEgASgJEg8KB3N1YmplY3QYAiABKAkSPAoEa2luZBgDIAEoDjIuLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5UcmFuc2l0aW9uS2luZBJBCgh3b3JrZmxvdxgEIAEoCzIvLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5Xb3JrZmxvd0xvY2F0b3ISEAoIcmVxdWlyZXMYBSADKAkSFgoOaW5wdXRfY29udHJhY3QYBiABKAkSGQoRdGVybWluYWxfb3V0Y29tZXMYByADKAkSFAoMYXBwbHlfYWN0aW9uGAggASgJEkUKCnN0cmF0ZWdpZXMYCSADKAsyMS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uRXhlY3V0aW9uU3RyYXRlZ3kqjwEKDlRyYW5zaXRpb25LaW5kEh8KG1RSQU5TSVRJT05fS0lORF9VTlNQRUNJRklFRBAAEhsKF1RSQU5TSVRJT05fS0lORF9TRVNTSU9OEAESHAoYVFJBTlNJVElPTl9LSU5EX1dPUktGTE9XEAISIQodVFJBTlNJVElPTl9LSU5EX0RFVEVSTUlOSVNUSUMQA0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z");
+  fileDesc("Cihzd2FybS1tYW5hZ2VyL3YxL2RvbWFpbi90cmFuc2l0aW9uLnByb3RvEh52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4iLQoPV29ya2Zsb3dMb2NhdG9yEg0KBW93bmVyGAEgASgJEgsKA2tleRgCIAEoCSKIAQoRRXhlY3V0aW9uU3RyYXRlZ3kSCgoCaWQYASABKAkSFAoMd29ya2Zsb3dfa2V5GAIgASgJEhQKDGRpc3BsYXlfbmFtZRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRITCgt3aGVuX3RvX3VzZRgFIAEoCRIRCgljb3N0X2JhbmQYBiABKAkitAEKCUh1bWFuR2F0ZRIKCgJpZBgBIAEoCRIPCgdkZWNpZGVzGAIgASgJEhQKDGRlZmF1bHRfbW9kZRgDIAEoCRIRCgl0aHJlc2hvbGQYBCABKAESEgoKbWluX3NhbXBsZRgFIAEoBRIMCgRtb2RlGAYgASgJEhcKD2FjY2VwdGFuY2VfcmF0ZRgHIAEoARITCgtzYW1wbGVfc2l6ZRgIIAEoBRIRCglyZWFkaW5lc3MYCSABKAkioQMKClRyYW5zaXRpb24SCwoDa2V5GAEgASgJEg8KB3N1YmplY3QYAiABKAkSPAoEa2luZBgDIAEoDjIuLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5UcmFuc2l0aW9uS2luZBJBCgh3b3JrZmxvdxgEIAEoCzIvLnZyb29saS5zd2FybV9tYW5hZ2VyLnYxLmRvbWFpbi5Xb3JrZmxvd0xvY2F0b3ISEAoIcmVxdWlyZXMYBSADKAkSFgoOaW5wdXRfY29udHJhY3QYBiABKAkSGQoRdGVybWluYWxfb3V0Y29tZXMYByADKAkSFAoMYXBwbHlfYWN0aW9uGAggASgJEkUKCnN0cmF0ZWdpZXMYCSADKAsyMS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uRXhlY3V0aW9uU3RyYXRlZ3kSPgoLaHVtYW5fZ2F0ZXMYCiADKAsyKS52cm9vbGkuc3dhcm1fbWFuYWdlci52MS5kb21haW4uSHVtYW5HYXRlEhIKCmh1bWFuX3dhaXQYCyABKAgqjwEKDlRyYW5zaXRpb25LaW5kEh8KG1RSQU5TSVRJT05fS0lORF9VTlNQRUNJRklFRBAAEhsKF1RSQU5TSVRJT05fS0lORF9TRVNTSU9OEAESHAoYVFJBTlNJVElPTl9LSU5EX1dPUktGTE9XEAISIQodVFJBTlNJVElPTl9LSU5EX0RFVEVSTUlOSVNUSUMQA0JPWk1naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3N3YXJtLW1hbmFnZXIvdjEvZG9tYWluO2RvbWFpbmIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.swarm_manager.v1.domain.WorkflowLocator
@@ -77,6 +77,63 @@ export const ExecutionStrategySchema: GenMessage<ExecutionStrategy> = /*@__PURE_
   messageDesc(file_swarm_manager_v1_domain_transition, 1);
 
 /**
+ * @generated from message vrooli.swarm_manager.v1.domain.HumanGate
+ */
+export type HumanGate = Message<"vrooli.swarm_manager.v1.domain.HumanGate"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string decides = 2;
+   */
+  decides: string;
+
+  /**
+   * @generated from field: string default_mode = 3;
+   */
+  defaultMode: string;
+
+  /**
+   * @generated from field: double threshold = 4;
+   */
+  threshold: number;
+
+  /**
+   * @generated from field: int32 min_sample = 5;
+   */
+  minSample: number;
+
+  /**
+   * @generated from field: string mode = 6;
+   */
+  mode: string;
+
+  /**
+   * @generated from field: double acceptance_rate = 7;
+   */
+  acceptanceRate: number;
+
+  /**
+   * @generated from field: int32 sample_size = 8;
+   */
+  sampleSize: number;
+
+  /**
+   * @generated from field: string readiness = 9;
+   */
+  readiness: string;
+};
+
+/**
+ * Describes the message vrooli.swarm_manager.v1.domain.HumanGate.
+ * Use `create(HumanGateSchema)` to create a new message.
+ */
+export const HumanGateSchema: GenMessage<HumanGate> = /*@__PURE__*/
+  messageDesc(file_swarm_manager_v1_domain_transition, 2);
+
+/**
  * @generated from message vrooli.swarm_manager.v1.domain.Transition
  */
 export type Transition = Message<"vrooli.swarm_manager.v1.domain.Transition"> & {
@@ -124,6 +181,16 @@ export type Transition = Message<"vrooli.swarm_manager.v1.domain.Transition"> & 
    * @generated from field: repeated vrooli.swarm_manager.v1.domain.ExecutionStrategy strategies = 9;
    */
   strategies: ExecutionStrategy[];
+
+  /**
+   * @generated from field: repeated vrooli.swarm_manager.v1.domain.HumanGate human_gates = 10;
+   */
+  humanGates: HumanGate[];
+
+  /**
+   * @generated from field: bool human_wait = 11;
+   */
+  humanWait: boolean;
 };
 
 /**
@@ -131,7 +198,7 @@ export type Transition = Message<"vrooli.swarm_manager.v1.domain.Transition"> & 
  * Use `create(TransitionSchema)` to create a new message.
  */
 export const TransitionSchema: GenMessage<Transition> = /*@__PURE__*/
-  messageDesc(file_swarm_manager_v1_domain_transition, 2);
+  messageDesc(file_swarm_manager_v1_domain_transition, 3);
 
 /**
  * @generated from enum vrooli.swarm_manager.v1.domain.TransitionKind

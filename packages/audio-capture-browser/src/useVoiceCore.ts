@@ -126,6 +126,10 @@ export interface VoiceCapabilityProbe {
   whisperHealthy: boolean;
   /** Whether the Whisper backend supports voice-streaming (WS). Defaults to true when omitted. */
   streamingAvailable?: boolean;
+  /** Human-readable provider failure detail for an unavailable mic state. */
+  capabilityReason?: string;
+  /** Operator command that repairs or inspects the unavailable provider. */
+  operatorCommand?: string;
 }
 
 export interface UseVoiceCoreOptions {
@@ -911,9 +915,22 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       capCheckResolvedRef.current = true;
 
       console.info("[voice] Backend: none (durable audio path unavailable)");
+      // Readiness only — deliberately silent.
+      //
+      // This probe exists to pre-warm the provider, not to tell anyone
+      // anything: nobody has asked for audio yet, so an unreachable
+      // backend is a capability fact for the host's capability surface to
+      // present when it becomes relevant, not a notice this hook may
+      // raise. Setting `error` AND `fallbackNotice` here used to put two
+      // rows in the host's notice region beside the host's own capability
+      // banner — one unreachable backend, three separate notices to
+      // dismiss, on every load.
+      //
+      // A turn already in flight is the exception: the user did ask, so
+      // it still gets its error.
       setState((s) => s.voiceState !== "idle"
         ? { ...s, supported: false, backend: "none", error: "Durable audio path unavailable" }
-        : { ...s, supported: false, backend: "none", error: "Durable audio path unavailable", fallbackNotice: "Voice input is unavailable because audio-tools cannot be reached." });
+        : { ...s, supported: false, backend: "none" });
     })();
 
     // Background capability refresh — keeps the snapshot warm so
@@ -1035,7 +1052,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         streamingAvailableRef.current = probe.whisperHealthy && (probe.streamingAvailable ?? true);
         capCheckResolvedRef.current = true;
         if (!probe.whisperHealthy) {
-          setState((s) => ({ ...s, supported: false, backend: "none", error: "Durable audio path unavailable" }));
+          setState((s) => ({ ...s, supported: false, backend: "none", error: "Durable audio path unavailable", capabilityReason: probe.capabilityReason, operatorCommand: probe.operatorCommand }));
         }
       } catch {
         capCheckResolvedRef.current = true;
@@ -1075,10 +1092,14 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       capabilityCheckRef.current().then((probe) => {
         if (!probe.whisperHealthy) {
           controller.shutdown("provider-error");
-          setState((s) => ({ ...s, supported: false, backend: "none", error: "Durable audio path unavailable", fallbackNotice: "Voice input is unavailable because audio-tools cannot be reached." }));
+          // One fact, one field. `error` is the unreachable-backend
+          // channel; `fallbackNotice` is for degradation *during* a
+          // turn (see the transport-failure path below). Writing both
+          // made the host render the same sentence twice.
+          setState((s) => ({ ...s, supported: false, backend: "none", error: "Durable audio path unavailable" }));
         } else {
           streamingAvailableRef.current = probe.streamingAvailable ?? true;
-          setState((s) => ({ ...s, supported: true, backend: "whisper", error: null, fallbackNotice: null }));
+          setState((s) => ({ ...s, supported: true, backend: "whisper", error: null, fallbackNotice: null, capabilityReason: undefined, operatorCommand: undefined }));
         }
       }).catch(() => {});
 
@@ -1092,7 +1113,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           console.info("[voice] Provider:", streamingAvailableRef.current ? "PCMVoiceStreamV2" : "WhisperHTTP");
         } else {
           const reason = "Voice input is unavailable because audio-tools cannot be reached.";
-          setState((s) => ({ ...s, supported: false, voiceState: "idle", backend: "none", error: reason, fallbackNotice: reason }));
+          setState((s) => ({ ...s, supported: false, voiceState: "idle", backend: "none", error: reason }));
           return;
         }
       }

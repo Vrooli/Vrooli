@@ -24,16 +24,22 @@ TARGET_STATE_NEEDS_UPDATE: TargetState
 TARGET_STATE_UNAVAILABLE: TargetState
 
 class ReadinessFact(_message.Message):
-    __slots__ = ("key", "label", "passed", "detail")
+    __slots__ = ("key", "label", "passed", "detail", "state", "version", "recovery_action")
     KEY_FIELD_NUMBER: _ClassVar[int]
     LABEL_FIELD_NUMBER: _ClassVar[int]
     PASSED_FIELD_NUMBER: _ClassVar[int]
     DETAIL_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_ACTION_FIELD_NUMBER: _ClassVar[int]
     key: str
     label: str
     passed: bool
     detail: str
-    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., passed: _Optional[bool] = ..., detail: _Optional[str] = ...) -> None: ...
+    state: str
+    version: str
+    recovery_action: str
+    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., passed: _Optional[bool] = ..., detail: _Optional[str] = ..., state: _Optional[str] = ..., version: _Optional[str] = ..., recovery_action: _Optional[str] = ...) -> None: ...
 
 class Target(_message.Message):
     __slots__ = ("id", "kind", "label", "os", "arch", "node_id", "revision", "status", "online", "last_seen_at", "readiness", "dispatchable", "failure_rung", "state", "recovery_action", "survives_restart")

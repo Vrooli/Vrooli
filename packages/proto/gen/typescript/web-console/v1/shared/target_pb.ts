@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/shared/target.proto.
  */
 export const file_web_console_v1_shared_target: GenFile = /*@__PURE__*/
-  fileDesc("CiJ3ZWItY29uc29sZS92MS9zaGFyZWQvdGFyZ2V0LnByb3RvEhx2cm9vbGkud2ViX2NvbnNvbGUudjEuc2hhcmVkIksKDVJlYWRpbmVzc0ZhY3QSCwoDa2V5GAEgASgJEg0KBWxhYmVsGAIgASgJEg4KBnBhc3NlZBgDIAEoCBIOCgZkZXRhaWwYBCABKAkimQMKBlRhcmdldBIKCgJpZBgBIAEoCRIMCgRraW5kGAIgASgJEg0KBWxhYmVsGAMgASgJEgoKAm9zGAQgASgJEgwKBGFyY2gYBSABKAkSDwoHbm9kZV9pZBgGIAEoCRIQCghyZXZpc2lvbhgHIAEoCRIOCgZzdGF0dXMYCCABKAkSDgoGb25saW5lGAkgASgIEjAKDGxhc3Rfc2Vlbl9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASPgoJcmVhZGluZXNzGAsgAygLMisudnJvb2xpLndlYl9jb25zb2xlLnYxLnNoYXJlZC5SZWFkaW5lc3NGYWN0EhQKDGRpc3BhdGNoYWJsZRgMIAEoCBIUCgxmYWlsdXJlX3J1bmcYDSABKAkSOAoFc3RhdGUYDiABKA4yKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hhcmVkLlRhcmdldFN0YXRlEhcKD3JlY292ZXJ5X2FjdGlvbhgPIAEoCRIYChBzdXJ2aXZlc19yZXN0YXJ0GBAgASgIKqEBCgtUYXJnZXRTdGF0ZRIcChhUQVJHRVRfU1RBVEVfVU5TUEVDSUZJRUQQABIdChlUQVJHRVRfU1RBVEVfRElTUEFUQ0hBQkxFEAESGAoUVEFSR0VUX1NUQVRFX09GRkxJTkUQAhIdChlUQVJHRVRfU1RBVEVfTkVFRFNfVVBEQVRFEAMSHAoYVEFSR0VUX1NUQVRFX1VOQVZBSUxBQkxFEARCUFpOZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItY29uc29sZS92MS9zaGFyZWQ7c2hhcmVkX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CiJ3ZWItY29uc29sZS92MS9zaGFyZWQvdGFyZ2V0LnByb3RvEhx2cm9vbGkud2ViX2NvbnNvbGUudjEuc2hhcmVkIoQBCg1SZWFkaW5lc3NGYWN0EgsKA2tleRgBIAEoCRINCgVsYWJlbBgCIAEoCRIOCgZwYXNzZWQYAyABKAgSDgoGZGV0YWlsGAQgASgJEg0KBXN0YXRlGAUgASgJEg8KB3ZlcnNpb24YBiABKAkSFwoPcmVjb3ZlcnlfYWN0aW9uGAcgASgJIpkDCgZUYXJnZXQSCgoCaWQYASABKAkSDAoEa2luZBgCIAEoCRINCgVsYWJlbBgDIAEoCRIKCgJvcxgEIAEoCRIMCgRhcmNoGAUgASgJEg8KB25vZGVfaWQYBiABKAkSEAoIcmV2aXNpb24YByABKAkSDgoGc3RhdHVzGAggASgJEg4KBm9ubGluZRgJIAEoCBIwCgxsYXN0X3NlZW5fYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEj4KCXJlYWRpbmVzcxgLIAMoCzIrLnZyb29saS53ZWJfY29uc29sZS52MS5zaGFyZWQuUmVhZGluZXNzRmFjdBIUCgxkaXNwYXRjaGFibGUYDCABKAgSFAoMZmFpbHVyZV9ydW5nGA0gASgJEjgKBXN0YXRlGA4gASgOMikudnJvb2xpLndlYl9jb25zb2xlLnYxLnNoYXJlZC5UYXJnZXRTdGF0ZRIXCg9yZWNvdmVyeV9hY3Rpb24YDyABKAkSGAoQc3Vydml2ZXNfcmVzdGFydBgQIAEoCCqhAQoLVGFyZ2V0U3RhdGUSHAoYVEFSR0VUX1NUQVRFX1VOU1BFQ0lGSUVEEAASHQoZVEFSR0VUX1NUQVRFX0RJU1BBVENIQUJMRRABEhgKFFRBUkdFVF9TVEFURV9PRkZMSU5FEAISHQoZVEFSR0VUX1NUQVRFX05FRURTX1VQREFURRADEhwKGFRBUkdFVF9TVEFURV9VTkFWQUlMQUJMRRAEQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.web_console.v1.shared.ReadinessFact
@@ -37,6 +37,27 @@ export type ReadinessFact = Message<"vrooli.web_console.v1.shared.ReadinessFact"
    * @generated from field: string detail = 4;
    */
   detail: string;
+
+  /**
+   * ready | missing | not_applicable | unknown
+   *
+   * @generated from field: string state = 5;
+   */
+  state: string;
+
+  /**
+   * observed tool version when available
+   *
+   * @generated from field: string version = 6;
+   */
+  version: string;
+
+  /**
+   * safe action for a non-ready fact
+   *
+   * @generated from field: string recovery_action = 7;
+   */
+  recoveryAction: string;
 };
 
 /**

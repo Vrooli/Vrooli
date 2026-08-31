@@ -26,10 +26,14 @@ class DeleteGoalRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
 class ArchiveGoalRequest(_message.Message):
-    __slots__ = ("name",)
+    __slots__ = ("name", "force", "actor")
     NAME_FIELD_NUMBER: _ClassVar[int]
+    FORCE_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
     name: str
-    def __init__(self, name: _Optional[str] = ...) -> None: ...
+    force: bool
+    actor: str
+    def __init__(self, name: _Optional[str] = ..., force: _Optional[bool] = ..., actor: _Optional[str] = ...) -> None: ...
 
 class UnarchiveGoalRequest(_message.Message):
     __slots__ = ("name",)

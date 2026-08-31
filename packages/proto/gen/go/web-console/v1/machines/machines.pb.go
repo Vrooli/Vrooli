@@ -189,6 +189,66 @@ func (x *Grant) GetPreset() string {
 	return ""
 }
 
+type MachineDrift struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MachineDrift) Reset() {
+	*x = MachineDrift{}
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MachineDrift) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MachineDrift) ProtoMessage() {}
+
+func (x *MachineDrift) ProtoReflect() protoreflect.Message {
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MachineDrift.ProtoReflect.Descriptor instead.
+func (*MachineDrift) Descriptor() ([]byte, []int) {
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *MachineDrift) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *MachineDrift) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *MachineDrift) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 // Machine is one linked computer as an operator sees it: who it is, whether it
 // answers, and what it may do.
 type Machine struct {
@@ -202,14 +262,16 @@ type Machine struct {
 	HeartbeatAgeSeconds int64 `protobuf:"varint,3,opt,name=heartbeat_age_seconds,json=heartbeatAgeSeconds,proto3" json:"heartbeat_age_seconds,omitempty"`
 	// False for the computer the Web Console runs on: it has no remote grant to
 	// change and cannot be forgotten.
-	Manageable    bool `protobuf:"varint,4,opt,name=manageable,proto3" json:"manageable,omitempty"`
+	Manageable bool `protobuf:"varint,4,opt,name=manageable,proto3" json:"manageable,omitempty"`
+	// Typed differences between the desired machine profile and current facts.
+	Drift         []*MachineDrift `protobuf:"bytes,5,rep,name=drift,proto3" json:"drift,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Machine) Reset() {
 	*x = Machine{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[1]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -221,7 +283,7 @@ func (x *Machine) String() string {
 func (*Machine) ProtoMessage() {}
 
 func (x *Machine) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[1]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -234,7 +296,7 @@ func (x *Machine) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Machine.ProtoReflect.Descriptor instead.
 func (*Machine) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{1}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Machine) GetTarget() *shared.Target {
@@ -265,6 +327,13 @@ func (x *Machine) GetManageable() bool {
 	return false
 }
 
+func (x *Machine) GetDrift() []*MachineDrift {
+	if x != nil {
+		return x.Drift
+	}
+	return nil
+}
+
 // JoinRequest is a machine asking to be linked. Every descriptive field is
 // chosen by the sender and is therefore untrusted; confirmation_words is the
 // only field derived from the exchanged keys.
@@ -289,7 +358,7 @@ type JoinRequest struct {
 
 func (x *JoinRequest) Reset() {
 	*x = JoinRequest{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[2]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -301,7 +370,7 @@ func (x *JoinRequest) String() string {
 func (*JoinRequest) ProtoMessage() {}
 
 func (x *JoinRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[2]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -314,7 +383,7 @@ func (x *JoinRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinRequest.ProtoReflect.Descriptor instead.
 func (*JoinRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{2}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *JoinRequest) GetId() string {
@@ -406,7 +475,7 @@ type PermissionPreset struct {
 
 func (x *PermissionPreset) Reset() {
 	*x = PermissionPreset{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[3]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -418,7 +487,7 @@ func (x *PermissionPreset) String() string {
 func (*PermissionPreset) ProtoMessage() {}
 
 func (x *PermissionPreset) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[3]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -431,7 +500,7 @@ func (x *PermissionPreset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionPreset.ProtoReflect.Descriptor instead.
 func (*PermissionPreset) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{3}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *PermissionPreset) GetName() string {
@@ -512,7 +581,7 @@ type ControlPlane struct {
 
 func (x *ControlPlane) Reset() {
 	*x = ControlPlane{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[4]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -524,7 +593,7 @@ func (x *ControlPlane) String() string {
 func (*ControlPlane) ProtoMessage() {}
 
 func (x *ControlPlane) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[4]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -537,7 +606,7 @@ func (x *ControlPlane) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControlPlane.ProtoReflect.Descriptor instead.
 func (*ControlPlane) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{4}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ControlPlane) GetReachable() bool {
@@ -576,7 +645,7 @@ type ListRequest struct {
 
 func (x *ListRequest) Reset() {
 	*x = ListRequest{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[5]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -588,7 +657,7 @@ func (x *ListRequest) String() string {
 func (*ListRequest) ProtoMessage() {}
 
 func (x *ListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[5]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -601,7 +670,7 @@ func (x *ListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRequest.ProtoReflect.Descriptor instead.
 func (*ListRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{5}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{6}
 }
 
 type ListResponse struct {
@@ -619,7 +688,7 @@ type ListResponse struct {
 
 func (x *ListResponse) Reset() {
 	*x = ListResponse{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[6]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -631,7 +700,7 @@ func (x *ListResponse) String() string {
 func (*ListResponse) ProtoMessage() {}
 
 func (x *ListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[6]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -644,7 +713,7 @@ func (x *ListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListResponse.ProtoReflect.Descriptor instead.
 func (*ListResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{6}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListResponse) GetState() FleetState {
@@ -706,7 +775,7 @@ type IssueCodeRequest struct {
 
 func (x *IssueCodeRequest) Reset() {
 	*x = IssueCodeRequest{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[7]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -718,7 +787,7 @@ func (x *IssueCodeRequest) String() string {
 func (*IssueCodeRequest) ProtoMessage() {}
 
 func (x *IssueCodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[7]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -731,7 +800,7 @@ func (x *IssueCodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueCodeRequest.ProtoReflect.Descriptor instead.
 func (*IssueCodeRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{7}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *IssueCodeRequest) GetLabel() string {
@@ -753,7 +822,7 @@ type IssueCodeResponse struct {
 
 func (x *IssueCodeResponse) Reset() {
 	*x = IssueCodeResponse{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[8]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +834,7 @@ func (x *IssueCodeResponse) String() string {
 func (*IssueCodeResponse) ProtoMessage() {}
 
 func (x *IssueCodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[8]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +847,7 @@ func (x *IssueCodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueCodeResponse.ProtoReflect.Descriptor instead.
 func (*IssueCodeResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{8}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *IssueCodeResponse) GetCode() string {
@@ -820,7 +889,7 @@ type DecideRequest struct {
 
 func (x *DecideRequest) Reset() {
 	*x = DecideRequest{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[9]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -832,7 +901,7 @@ func (x *DecideRequest) String() string {
 func (*DecideRequest) ProtoMessage() {}
 
 func (x *DecideRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[9]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -845,7 +914,7 @@ func (x *DecideRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecideRequest.ProtoReflect.Descriptor instead.
 func (*DecideRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{9}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DecideRequest) GetRequestId() string {
@@ -894,7 +963,7 @@ type DecideResponse struct {
 
 func (x *DecideResponse) Reset() {
 	*x = DecideResponse{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[10]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -906,7 +975,7 @@ func (x *DecideResponse) String() string {
 func (*DecideResponse) ProtoMessage() {}
 
 func (x *DecideResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[10]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -919,7 +988,7 @@ func (x *DecideResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DecideResponse.ProtoReflect.Descriptor instead.
 func (*DecideResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{10}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DecideResponse) GetMachine() *Machine {
@@ -947,7 +1016,7 @@ type SetGrantRequest struct {
 
 func (x *SetGrantRequest) Reset() {
 	*x = SetGrantRequest{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[11]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -959,7 +1028,7 @@ func (x *SetGrantRequest) String() string {
 func (*SetGrantRequest) ProtoMessage() {}
 
 func (x *SetGrantRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[11]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -972,7 +1041,7 @@ func (x *SetGrantRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetGrantRequest.ProtoReflect.Descriptor instead.
 func (*SetGrantRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{11}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SetGrantRequest) GetMachineId() string {
@@ -1005,7 +1074,7 @@ type SetGrantResponse struct {
 
 func (x *SetGrantResponse) Reset() {
 	*x = SetGrantResponse{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[12]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1017,7 +1086,7 @@ func (x *SetGrantResponse) String() string {
 func (*SetGrantResponse) ProtoMessage() {}
 
 func (x *SetGrantResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[12]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1030,7 +1099,7 @@ func (x *SetGrantResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetGrantResponse.ProtoReflect.Descriptor instead.
 func (*SetGrantResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{12}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SetGrantResponse) GetMachine() *Machine {
@@ -1049,7 +1118,7 @@ type ForgetRequest struct {
 
 func (x *ForgetRequest) Reset() {
 	*x = ForgetRequest{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[13]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1061,7 +1130,7 @@ func (x *ForgetRequest) String() string {
 func (*ForgetRequest) ProtoMessage() {}
 
 func (x *ForgetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[13]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1074,7 +1143,7 @@ func (x *ForgetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForgetRequest.ProtoReflect.Descriptor instead.
 func (*ForgetRequest) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{13}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ForgetRequest) GetMachineId() string {
@@ -1093,7 +1162,7 @@ type ForgetResponse struct {
 
 func (x *ForgetResponse) Reset() {
 	*x = ForgetResponse{}
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[14]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1105,7 +1174,7 @@ func (x *ForgetResponse) String() string {
 func (*ForgetResponse) ProtoMessage() {}
 
 func (x *ForgetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_web_console_v1_machines_machines_proto_msgTypes[14]
+	mi := &file_web_console_v1_machines_machines_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1118,7 +1187,7 @@ func (x *ForgetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForgetResponse.ProtoReflect.Descriptor instead.
 func (*ForgetResponse) Descriptor() ([]byte, []int) {
-	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{14}
+	return file_web_console_v1_machines_machines_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ForgetResponse) GetForgottenMachineId() string {
@@ -1139,14 +1208,19 @@ const file_web_console_v1_machines_machines_proto_rawDesc = "" +
 	"\tapp_count\x18\x03 \x01(\x05R\bappCount\x12&\n" +
 	"\x0fcovers_all_apps\x18\x04 \x01(\bR\rcoversAllApps\x12\x16\n" +
 	"\x06scopes\x18\x05 \x03(\tR\x06scopes\x12\x16\n" +
-	"\x06preset\x18\x06 \x01(\tR\x06preset\"\xd8\x01\n" +
+	"\x06preset\x18\x06 \x01(\tR\x06preset\"N\n" +
+	"\fMachineDrift\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"\x9c\x02\n" +
 	"\aMachine\x12<\n" +
 	"\x06target\x18\x01 \x01(\v2$.vrooli.web_console.v1.shared.TargetR\x06target\x12;\n" +
 	"\x05grant\x18\x02 \x01(\v2%.vrooli.web_console.v1.machines.GrantR\x05grant\x122\n" +
 	"\x15heartbeat_age_seconds\x18\x03 \x01(\x03R\x13heartbeatAgeSeconds\x12\x1e\n" +
 	"\n" +
 	"manageable\x18\x04 \x01(\bR\n" +
-	"manageable\"\xbc\x02\n" +
+	"manageable\x12B\n" +
+	"\x05drift\x18\x05 \x03(\v2,.vrooli.web_console.v1.machines.MachineDriftR\x05drift\"\xbc\x02\n" +
 	"\vJoinRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x0e\n" +
@@ -1237,54 +1311,56 @@ func file_web_console_v1_machines_machines_proto_rawDescGZIP() []byte {
 }
 
 var file_web_console_v1_machines_machines_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_web_console_v1_machines_machines_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_web_console_v1_machines_machines_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_web_console_v1_machines_machines_proto_goTypes = []any{
 	(FleetState)(0),               // 0: vrooli.web_console.v1.machines.FleetState
 	(*Grant)(nil),                 // 1: vrooli.web_console.v1.machines.Grant
-	(*Machine)(nil),               // 2: vrooli.web_console.v1.machines.Machine
-	(*JoinRequest)(nil),           // 3: vrooli.web_console.v1.machines.JoinRequest
-	(*PermissionPreset)(nil),      // 4: vrooli.web_console.v1.machines.PermissionPreset
-	(*ControlPlane)(nil),          // 5: vrooli.web_console.v1.machines.ControlPlane
-	(*ListRequest)(nil),           // 6: vrooli.web_console.v1.machines.ListRequest
-	(*ListResponse)(nil),          // 7: vrooli.web_console.v1.machines.ListResponse
-	(*IssueCodeRequest)(nil),      // 8: vrooli.web_console.v1.machines.IssueCodeRequest
-	(*IssueCodeResponse)(nil),     // 9: vrooli.web_console.v1.machines.IssueCodeResponse
-	(*DecideRequest)(nil),         // 10: vrooli.web_console.v1.machines.DecideRequest
-	(*DecideResponse)(nil),        // 11: vrooli.web_console.v1.machines.DecideResponse
-	(*SetGrantRequest)(nil),       // 12: vrooli.web_console.v1.machines.SetGrantRequest
-	(*SetGrantResponse)(nil),      // 13: vrooli.web_console.v1.machines.SetGrantResponse
-	(*ForgetRequest)(nil),         // 14: vrooli.web_console.v1.machines.ForgetRequest
-	(*ForgetResponse)(nil),        // 15: vrooli.web_console.v1.machines.ForgetResponse
-	(*shared.Target)(nil),         // 16: vrooli.web_console.v1.shared.Target
-	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
+	(*MachineDrift)(nil),          // 2: vrooli.web_console.v1.machines.MachineDrift
+	(*Machine)(nil),               // 3: vrooli.web_console.v1.machines.Machine
+	(*JoinRequest)(nil),           // 4: vrooli.web_console.v1.machines.JoinRequest
+	(*PermissionPreset)(nil),      // 5: vrooli.web_console.v1.machines.PermissionPreset
+	(*ControlPlane)(nil),          // 6: vrooli.web_console.v1.machines.ControlPlane
+	(*ListRequest)(nil),           // 7: vrooli.web_console.v1.machines.ListRequest
+	(*ListResponse)(nil),          // 8: vrooli.web_console.v1.machines.ListResponse
+	(*IssueCodeRequest)(nil),      // 9: vrooli.web_console.v1.machines.IssueCodeRequest
+	(*IssueCodeResponse)(nil),     // 10: vrooli.web_console.v1.machines.IssueCodeResponse
+	(*DecideRequest)(nil),         // 11: vrooli.web_console.v1.machines.DecideRequest
+	(*DecideResponse)(nil),        // 12: vrooli.web_console.v1.machines.DecideResponse
+	(*SetGrantRequest)(nil),       // 13: vrooli.web_console.v1.machines.SetGrantRequest
+	(*SetGrantResponse)(nil),      // 14: vrooli.web_console.v1.machines.SetGrantResponse
+	(*ForgetRequest)(nil),         // 15: vrooli.web_console.v1.machines.ForgetRequest
+	(*ForgetResponse)(nil),        // 16: vrooli.web_console.v1.machines.ForgetResponse
+	(*shared.Target)(nil),         // 17: vrooli.web_console.v1.shared.Target
+	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
 }
 var file_web_console_v1_machines_machines_proto_depIdxs = []int32{
-	16, // 0: vrooli.web_console.v1.machines.Machine.target:type_name -> vrooli.web_console.v1.shared.Target
+	17, // 0: vrooli.web_console.v1.machines.Machine.target:type_name -> vrooli.web_console.v1.shared.Target
 	1,  // 1: vrooli.web_console.v1.machines.Machine.grant:type_name -> vrooli.web_console.v1.machines.Grant
-	17, // 2: vrooli.web_console.v1.machines.JoinRequest.requested_at:type_name -> google.protobuf.Timestamp
-	0,  // 3: vrooli.web_console.v1.machines.ListResponse.state:type_name -> vrooli.web_console.v1.machines.FleetState
-	2,  // 4: vrooli.web_console.v1.machines.ListResponse.machines:type_name -> vrooli.web_console.v1.machines.Machine
-	3,  // 5: vrooli.web_console.v1.machines.ListResponse.join_requests:type_name -> vrooli.web_console.v1.machines.JoinRequest
-	4,  // 6: vrooli.web_console.v1.machines.ListResponse.presets:type_name -> vrooli.web_console.v1.machines.PermissionPreset
-	5,  // 7: vrooli.web_console.v1.machines.ListResponse.control_plane:type_name -> vrooli.web_console.v1.machines.ControlPlane
-	17, // 8: vrooli.web_console.v1.machines.IssueCodeResponse.expires_at:type_name -> google.protobuf.Timestamp
-	2,  // 9: vrooli.web_console.v1.machines.DecideResponse.machine:type_name -> vrooli.web_console.v1.machines.Machine
-	2,  // 10: vrooli.web_console.v1.machines.SetGrantResponse.machine:type_name -> vrooli.web_console.v1.machines.Machine
-	6,  // 11: vrooli.web_console.v1.machines.MachineService.List:input_type -> vrooli.web_console.v1.machines.ListRequest
-	8,  // 12: vrooli.web_console.v1.machines.MachineService.IssueCode:input_type -> vrooli.web_console.v1.machines.IssueCodeRequest
-	10, // 13: vrooli.web_console.v1.machines.MachineService.Decide:input_type -> vrooli.web_console.v1.machines.DecideRequest
-	12, // 14: vrooli.web_console.v1.machines.MachineService.SetGrant:input_type -> vrooli.web_console.v1.machines.SetGrantRequest
-	14, // 15: vrooli.web_console.v1.machines.MachineService.Forget:input_type -> vrooli.web_console.v1.machines.ForgetRequest
-	7,  // 16: vrooli.web_console.v1.machines.MachineService.List:output_type -> vrooli.web_console.v1.machines.ListResponse
-	9,  // 17: vrooli.web_console.v1.machines.MachineService.IssueCode:output_type -> vrooli.web_console.v1.machines.IssueCodeResponse
-	11, // 18: vrooli.web_console.v1.machines.MachineService.Decide:output_type -> vrooli.web_console.v1.machines.DecideResponse
-	13, // 19: vrooli.web_console.v1.machines.MachineService.SetGrant:output_type -> vrooli.web_console.v1.machines.SetGrantResponse
-	15, // 20: vrooli.web_console.v1.machines.MachineService.Forget:output_type -> vrooli.web_console.v1.machines.ForgetResponse
-	16, // [16:21] is the sub-list for method output_type
-	11, // [11:16] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	2,  // 2: vrooli.web_console.v1.machines.Machine.drift:type_name -> vrooli.web_console.v1.machines.MachineDrift
+	18, // 3: vrooli.web_console.v1.machines.JoinRequest.requested_at:type_name -> google.protobuf.Timestamp
+	0,  // 4: vrooli.web_console.v1.machines.ListResponse.state:type_name -> vrooli.web_console.v1.machines.FleetState
+	3,  // 5: vrooli.web_console.v1.machines.ListResponse.machines:type_name -> vrooli.web_console.v1.machines.Machine
+	4,  // 6: vrooli.web_console.v1.machines.ListResponse.join_requests:type_name -> vrooli.web_console.v1.machines.JoinRequest
+	5,  // 7: vrooli.web_console.v1.machines.ListResponse.presets:type_name -> vrooli.web_console.v1.machines.PermissionPreset
+	6,  // 8: vrooli.web_console.v1.machines.ListResponse.control_plane:type_name -> vrooli.web_console.v1.machines.ControlPlane
+	18, // 9: vrooli.web_console.v1.machines.IssueCodeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	3,  // 10: vrooli.web_console.v1.machines.DecideResponse.machine:type_name -> vrooli.web_console.v1.machines.Machine
+	3,  // 11: vrooli.web_console.v1.machines.SetGrantResponse.machine:type_name -> vrooli.web_console.v1.machines.Machine
+	7,  // 12: vrooli.web_console.v1.machines.MachineService.List:input_type -> vrooli.web_console.v1.machines.ListRequest
+	9,  // 13: vrooli.web_console.v1.machines.MachineService.IssueCode:input_type -> vrooli.web_console.v1.machines.IssueCodeRequest
+	11, // 14: vrooli.web_console.v1.machines.MachineService.Decide:input_type -> vrooli.web_console.v1.machines.DecideRequest
+	13, // 15: vrooli.web_console.v1.machines.MachineService.SetGrant:input_type -> vrooli.web_console.v1.machines.SetGrantRequest
+	15, // 16: vrooli.web_console.v1.machines.MachineService.Forget:input_type -> vrooli.web_console.v1.machines.ForgetRequest
+	8,  // 17: vrooli.web_console.v1.machines.MachineService.List:output_type -> vrooli.web_console.v1.machines.ListResponse
+	10, // 18: vrooli.web_console.v1.machines.MachineService.IssueCode:output_type -> vrooli.web_console.v1.machines.IssueCodeResponse
+	12, // 19: vrooli.web_console.v1.machines.MachineService.Decide:output_type -> vrooli.web_console.v1.machines.DecideResponse
+	14, // 20: vrooli.web_console.v1.machines.MachineService.SetGrant:output_type -> vrooli.web_console.v1.machines.SetGrantResponse
+	16, // 21: vrooli.web_console.v1.machines.MachineService.Forget:output_type -> vrooli.web_console.v1.machines.ForgetResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_machines_machines_proto_init() }
@@ -1298,7 +1374,7 @@ func file_web_console_v1_machines_machines_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_machines_machines_proto_rawDesc), len(file_web_console_v1_machines_machines_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   15,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

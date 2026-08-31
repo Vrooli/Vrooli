@@ -45,6 +45,10 @@ message DeleteGoalRequest {
 }
 message ArchiveGoalRequest {
   string name = 1 [(buf.validate.field).string.min_len = 1];
+	// force applies the explicit drop cascade to open targeted backlog items.
+	// Without force, archiving refuses when open targets remain.
+	bool force = 2;
+	string actor = 3;
 }
 message UnarchiveGoalRequest {
   string name = 1 [(buf.validate.field).string.min_len = 1];

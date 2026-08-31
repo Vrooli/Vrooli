@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.vrooli_bridge.v1.registry;
 
 import "google/protobuf/timestamp.proto";
+import "vrooli-bridge/v1/shared/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry;registry_v1";
 
@@ -163,6 +164,13 @@ message Node {
 
   // Architecture the agent binary was built for.
   string binary_arch = 23;
+
+  repeated vrooli.vrooli_bridge.v1.shared.CapabilityObservation capability_inventory = 24;
+  google.protobuf.Timestamp capability_probed_at = 25;
+  string configuration_op_id = 26;
+  string configuration_state = 27;
+  google.protobuf.Timestamp configuration_at = 28;
+  repeated string configuration_unmet = 29;
 }
 
 // RegisterNodeRequest carries the durable identity of a node being registered.

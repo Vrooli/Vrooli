@@ -50,6 +50,9 @@ message Machine {
   google.protobuf.Timestamp updated_at = 9;
   google.protobuf.Timestamp archived_at = 10;
   google.protobuf.Timestamp removed_at = 11;
+  string applied_profile_id = 12;
+  string applied_profile_version = 13;
+  google.protobuf.Timestamp applied_at = 14;
 }
 
 message CreateMachineRequest {
@@ -100,6 +103,11 @@ message MachineReadiness {
   bool ready = 1;
   repeated string reasons = 2;
 }
+message MachineDrift {
+  string kind = 1;
+  string name = 2;
+  string reason = 3;
+}
 message GetMachineResponse {
   Machine machine = 1;
   repeated EnrollmentAttempt enrollment_attempts = 2;
@@ -109,6 +117,8 @@ message GetMachineResponse {
   // Durable local cleanup effects are returned with the Machine detail so an
   // operator can distinguish a pending remote action from confirmed history.
   repeated MachineCleanup cleanup_tombstones = 6;
+  repeated MachineDrift drift = 7;
+  EffectivePolicy effective_policy = 8;
 }
 message ListMachinesRequest {}
 message ListMachinesResponse {
@@ -188,6 +198,8 @@ message EffectivePolicy {
   repeated string suggested_scopes = 4;
   repeated string required_capabilities = 5;
   string snapshot_json = 6;
+  repeated string scenarios = 8;
+  repeated string optional_resources = 9;
 }
 message ApplyMachinePolicyRequest {
   string machine_id = 1;

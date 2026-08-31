@@ -109,6 +109,18 @@ const (
 	// TeamsServiceExportClaudeCodeTeamProcedure is the fully-qualified name of the TeamsService's
 	// ExportClaudeCodeTeam RPC.
 	TeamsServiceExportClaudeCodeTeamProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/ExportClaudeCodeTeam"
+	// TeamsServiceListKnowledgeProcedure is the fully-qualified name of the TeamsService's
+	// ListKnowledge RPC.
+	TeamsServiceListKnowledgeProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/ListKnowledge"
+	// TeamsServiceAddKnowledgeProcedure is the fully-qualified name of the TeamsService's AddKnowledge
+	// RPC.
+	TeamsServiceAddKnowledgeProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/AddKnowledge"
+	// TeamsServiceUpdateKnowledgeProcedure is the fully-qualified name of the TeamsService's
+	// UpdateKnowledge RPC.
+	TeamsServiceUpdateKnowledgeProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/UpdateKnowledge"
+	// TeamsServiceDeleteKnowledgeProcedure is the fully-qualified name of the TeamsService's
+	// DeleteKnowledge RPC.
+	TeamsServiceDeleteKnowledgeProcedure = "/vrooli.prompt_manager.v1.teams.TeamsService/DeleteKnowledge"
 )
 
 // TeamsServiceClient is a client for the vrooli.prompt_manager.v1.teams.TeamsService service.
@@ -141,6 +153,10 @@ type TeamsServiceClient interface {
 	ListAvailableClaudeCodeTeams(context.Context, *connect.Request[teams.ListAvailableClaudeCodeTeamsRequest]) (*connect.Response[teams.ListAvailableClaudeCodeTeamsResponse], error)
 	ImportClaudeCodeTeam(context.Context, *connect.Request[teams.ImportClaudeCodeTeamRequest]) (*connect.Response[teams.TeamDetails], error)
 	ExportClaudeCodeTeam(context.Context, *connect.Request[teams.ExportClaudeCodeTeamRequest]) (*connect.Response[teams.ExportClaudeCodeTeamResponse], error)
+	ListKnowledge(context.Context, *connect.Request[teams.ListKnowledgeRequest]) (*connect.Response[teams.ListKnowledgeResponse], error)
+	AddKnowledge(context.Context, *connect.Request[teams.AddKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
+	UpdateKnowledge(context.Context, *connect.Request[teams.UpdateKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
+	DeleteKnowledge(context.Context, *connect.Request[teams.DeleteKnowledgeRequest]) (*connect.Response[teams.DeleteKnowledgeResponse], error)
 }
 
 // NewTeamsServiceClient constructs a client for the vrooli.prompt_manager.v1.teams.TeamsService
@@ -322,6 +338,30 @@ func NewTeamsServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(teamsServiceMethods.ByName("ExportClaudeCodeTeam")),
 			connect.WithClientOptions(opts...),
 		),
+		listKnowledge: connect.NewClient[teams.ListKnowledgeRequest, teams.ListKnowledgeResponse](
+			httpClient,
+			baseURL+TeamsServiceListKnowledgeProcedure,
+			connect.WithSchema(teamsServiceMethods.ByName("ListKnowledge")),
+			connect.WithClientOptions(opts...),
+		),
+		addKnowledge: connect.NewClient[teams.AddKnowledgeRequest, teams.KnowledgeEntry](
+			httpClient,
+			baseURL+TeamsServiceAddKnowledgeProcedure,
+			connect.WithSchema(teamsServiceMethods.ByName("AddKnowledge")),
+			connect.WithClientOptions(opts...),
+		),
+		updateKnowledge: connect.NewClient[teams.UpdateKnowledgeRequest, teams.KnowledgeEntry](
+			httpClient,
+			baseURL+TeamsServiceUpdateKnowledgeProcedure,
+			connect.WithSchema(teamsServiceMethods.ByName("UpdateKnowledge")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteKnowledge: connect.NewClient[teams.DeleteKnowledgeRequest, teams.DeleteKnowledgeResponse](
+			httpClient,
+			baseURL+TeamsServiceDeleteKnowledgeProcedure,
+			connect.WithSchema(teamsServiceMethods.ByName("DeleteKnowledge")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -355,6 +395,10 @@ type teamsServiceClient struct {
 	listAvailableClaudeCodeTeams *connect.Client[teams.ListAvailableClaudeCodeTeamsRequest, teams.ListAvailableClaudeCodeTeamsResponse]
 	importClaudeCodeTeam         *connect.Client[teams.ImportClaudeCodeTeamRequest, teams.TeamDetails]
 	exportClaudeCodeTeam         *connect.Client[teams.ExportClaudeCodeTeamRequest, teams.ExportClaudeCodeTeamResponse]
+	listKnowledge                *connect.Client[teams.ListKnowledgeRequest, teams.ListKnowledgeResponse]
+	addKnowledge                 *connect.Client[teams.AddKnowledgeRequest, teams.KnowledgeEntry]
+	updateKnowledge              *connect.Client[teams.UpdateKnowledgeRequest, teams.KnowledgeEntry]
+	deleteKnowledge              *connect.Client[teams.DeleteKnowledgeRequest, teams.DeleteKnowledgeResponse]
 }
 
 // ListTeams calls vrooli.prompt_manager.v1.teams.TeamsService.ListTeams.
@@ -498,6 +542,26 @@ func (c *teamsServiceClient) ExportClaudeCodeTeam(ctx context.Context, req *conn
 	return c.exportClaudeCodeTeam.CallUnary(ctx, req)
 }
 
+// ListKnowledge calls vrooli.prompt_manager.v1.teams.TeamsService.ListKnowledge.
+func (c *teamsServiceClient) ListKnowledge(ctx context.Context, req *connect.Request[teams.ListKnowledgeRequest]) (*connect.Response[teams.ListKnowledgeResponse], error) {
+	return c.listKnowledge.CallUnary(ctx, req)
+}
+
+// AddKnowledge calls vrooli.prompt_manager.v1.teams.TeamsService.AddKnowledge.
+func (c *teamsServiceClient) AddKnowledge(ctx context.Context, req *connect.Request[teams.AddKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error) {
+	return c.addKnowledge.CallUnary(ctx, req)
+}
+
+// UpdateKnowledge calls vrooli.prompt_manager.v1.teams.TeamsService.UpdateKnowledge.
+func (c *teamsServiceClient) UpdateKnowledge(ctx context.Context, req *connect.Request[teams.UpdateKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error) {
+	return c.updateKnowledge.CallUnary(ctx, req)
+}
+
+// DeleteKnowledge calls vrooli.prompt_manager.v1.teams.TeamsService.DeleteKnowledge.
+func (c *teamsServiceClient) DeleteKnowledge(ctx context.Context, req *connect.Request[teams.DeleteKnowledgeRequest]) (*connect.Response[teams.DeleteKnowledgeResponse], error) {
+	return c.deleteKnowledge.CallUnary(ctx, req)
+}
+
 // TeamsServiceHandler is an implementation of the vrooli.prompt_manager.v1.teams.TeamsService
 // service.
 type TeamsServiceHandler interface {
@@ -529,6 +593,10 @@ type TeamsServiceHandler interface {
 	ListAvailableClaudeCodeTeams(context.Context, *connect.Request[teams.ListAvailableClaudeCodeTeamsRequest]) (*connect.Response[teams.ListAvailableClaudeCodeTeamsResponse], error)
 	ImportClaudeCodeTeam(context.Context, *connect.Request[teams.ImportClaudeCodeTeamRequest]) (*connect.Response[teams.TeamDetails], error)
 	ExportClaudeCodeTeam(context.Context, *connect.Request[teams.ExportClaudeCodeTeamRequest]) (*connect.Response[teams.ExportClaudeCodeTeamResponse], error)
+	ListKnowledge(context.Context, *connect.Request[teams.ListKnowledgeRequest]) (*connect.Response[teams.ListKnowledgeResponse], error)
+	AddKnowledge(context.Context, *connect.Request[teams.AddKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
+	UpdateKnowledge(context.Context, *connect.Request[teams.UpdateKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error)
+	DeleteKnowledge(context.Context, *connect.Request[teams.DeleteKnowledgeRequest]) (*connect.Response[teams.DeleteKnowledgeResponse], error)
 }
 
 // NewTeamsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -706,6 +774,30 @@ func NewTeamsServiceHandler(svc TeamsServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(teamsServiceMethods.ByName("ExportClaudeCodeTeam")),
 		connect.WithHandlerOptions(opts...),
 	)
+	teamsServiceListKnowledgeHandler := connect.NewUnaryHandler(
+		TeamsServiceListKnowledgeProcedure,
+		svc.ListKnowledge,
+		connect.WithSchema(teamsServiceMethods.ByName("ListKnowledge")),
+		connect.WithHandlerOptions(opts...),
+	)
+	teamsServiceAddKnowledgeHandler := connect.NewUnaryHandler(
+		TeamsServiceAddKnowledgeProcedure,
+		svc.AddKnowledge,
+		connect.WithSchema(teamsServiceMethods.ByName("AddKnowledge")),
+		connect.WithHandlerOptions(opts...),
+	)
+	teamsServiceUpdateKnowledgeHandler := connect.NewUnaryHandler(
+		TeamsServiceUpdateKnowledgeProcedure,
+		svc.UpdateKnowledge,
+		connect.WithSchema(teamsServiceMethods.ByName("UpdateKnowledge")),
+		connect.WithHandlerOptions(opts...),
+	)
+	teamsServiceDeleteKnowledgeHandler := connect.NewUnaryHandler(
+		TeamsServiceDeleteKnowledgeProcedure,
+		svc.DeleteKnowledge,
+		connect.WithSchema(teamsServiceMethods.ByName("DeleteKnowledge")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.prompt_manager.v1.teams.TeamsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case TeamsServiceListTeamsProcedure:
@@ -764,6 +856,14 @@ func NewTeamsServiceHandler(svc TeamsServiceHandler, opts ...connect.HandlerOpti
 			teamsServiceImportClaudeCodeTeamHandler.ServeHTTP(w, r)
 		case TeamsServiceExportClaudeCodeTeamProcedure:
 			teamsServiceExportClaudeCodeTeamHandler.ServeHTTP(w, r)
+		case TeamsServiceListKnowledgeProcedure:
+			teamsServiceListKnowledgeHandler.ServeHTTP(w, r)
+		case TeamsServiceAddKnowledgeProcedure:
+			teamsServiceAddKnowledgeHandler.ServeHTTP(w, r)
+		case TeamsServiceUpdateKnowledgeProcedure:
+			teamsServiceUpdateKnowledgeHandler.ServeHTTP(w, r)
+		case TeamsServiceDeleteKnowledgeProcedure:
+			teamsServiceDeleteKnowledgeHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -883,4 +983,20 @@ func (UnimplementedTeamsServiceHandler) ImportClaudeCodeTeam(context.Context, *c
 
 func (UnimplementedTeamsServiceHandler) ExportClaudeCodeTeam(context.Context, *connect.Request[teams.ExportClaudeCodeTeamRequest]) (*connect.Response[teams.ExportClaudeCodeTeamResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.ExportClaudeCodeTeam is not implemented"))
+}
+
+func (UnimplementedTeamsServiceHandler) ListKnowledge(context.Context, *connect.Request[teams.ListKnowledgeRequest]) (*connect.Response[teams.ListKnowledgeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.ListKnowledge is not implemented"))
+}
+
+func (UnimplementedTeamsServiceHandler) AddKnowledge(context.Context, *connect.Request[teams.AddKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.AddKnowledge is not implemented"))
+}
+
+func (UnimplementedTeamsServiceHandler) UpdateKnowledge(context.Context, *connect.Request[teams.UpdateKnowledgeRequest]) (*connect.Response[teams.KnowledgeEntry], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.UpdateKnowledge is not implemented"))
+}
+
+func (UnimplementedTeamsServiceHandler) DeleteKnowledge(context.Context, *connect.Request[teams.DeleteKnowledgeRequest]) (*connect.Response[teams.DeleteKnowledgeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.prompt_manager.v1.teams.TeamsService.DeleteKnowledge is not implemented"))
 }

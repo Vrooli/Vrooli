@@ -36,6 +36,7 @@ type Goal struct {
 	Created       string                 `protobuf:"bytes,8,opt,name=created,proto3" json:"created,omitempty"`
 	Updated       string                 `protobuf:"bytes,9,opt,name=updated,proto3" json:"updated,omitempty"`
 	ArchivedAt    *string                `protobuf:"bytes,10,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
+	DroppedItems  []string               `protobuf:"bytes,11,rep,name=dropped_items,json=droppedItems,proto3" json:"dropped_items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -138,6 +139,13 @@ func (x *Goal) GetArchivedAt() string {
 		return *x.ArchivedAt
 	}
 	return ""
+}
+
+func (x *Goal) GetDroppedItems() []string {
+	if x != nil {
+		return x.DroppedItems
+	}
+	return nil
 }
 
 type MilestoneRollup struct {
@@ -323,7 +331,7 @@ var File_swarm_manager_v1_domain_goal_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_goal_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/domain/goal.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\"swarm-manager/v1/shared/goal.proto\"\xe7\x02\n" +
+	"\"swarm-manager/v1/domain/goal.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\"swarm-manager/v1/shared/goal.proto\"\x8c\x03\n" +
 	"\x04Goal\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -338,7 +346,8 @@ const file_swarm_manager_v1_domain_goal_proto_rawDesc = "" +
 	"\aupdated\x18\t \x01(\tR\aupdated\x12$\n" +
 	"\varchived_at\x18\n" +
 	" \x01(\tH\x00R\n" +
-	"archivedAt\x88\x01\x01B\x0e\n" +
+	"archivedAt\x88\x01\x01\x12#\n" +
+	"\rdropped_items\x18\v \x03(\tR\fdroppedItemsB\x0e\n" +
 	"\f_archived_at\"\xb8\x01\n" +
 	"\x0fMilestoneRollup\x12%\n" +
 	"\x0emilestone_name\x18\x01 \x01(\tR\rmilestoneName\x12\x14\n" +

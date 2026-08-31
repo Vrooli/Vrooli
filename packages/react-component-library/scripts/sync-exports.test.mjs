@@ -21,6 +21,7 @@ test("sync-exports check rejects no live imports and reports the inverse count",
   assert.equal(Boolean(packageJSON.exports["./Button"]), true);
   assert.equal(Boolean(packageJSON.exports["./Button/2"]), true);
   assert.equal(Boolean(packageJSON.exports["./Button/2.2.1"]), true);
+  assert.equal(Boolean(packageJSON.exports["./Button/2/2.2.1"]), false);
 });
 
 function fixture(manifest, versions) {

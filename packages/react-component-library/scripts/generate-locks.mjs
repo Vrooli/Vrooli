@@ -20,6 +20,7 @@ const rankByRoot = new Map([
   ["patterns", 5],
   ["navigation", 5],
   ["page-templates", 6],
+  ["preview-harnesses", 7],
 ]);
 
 async function assetIndex(libraryRoot) {
@@ -101,7 +102,7 @@ export async function generateLocks({ libraryRoot = authoredRoot, resolvedAt = n
       const entry = await entryForVersion(root, asset.kind, name, version);
       if (!entry) continue;
       const versionRoot = join(root, asset.kind, name, "versions", version);
-      const imports = resolveVersionImports({ entryFile: join(root, entry.source), versionRoot, specifiersByFile });
+      const imports = await resolveVersionImports({ entryFile: join(root, entry.source), versionRoot, specifiersByFile });
       const dependencies = imports.map((specifier) => lockDependency(specifier, assets, root)).filter(Boolean);
       const unique = [...new Map(dependencies.map((dependency) => [`${dependency.libraryId}@${dependency.version}`, dependency])).values()]
         .sort((left, right) => left.libraryId.localeCompare(right.libraryId) || compareVersions(left.version, right.version));

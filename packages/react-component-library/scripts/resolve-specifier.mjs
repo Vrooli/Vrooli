@@ -59,6 +59,11 @@ export async function resolveLibrarySpecifier(specifier, { libraryRoot } = {}) {
     version = requested;
   } else if (majorPattern.test(requested)) {
     version = active.filter((candidate) => candidate.startsWith(`${requested}.`)).at(-1);
+    if (!version) {
+      // Preserve explicit historical major selectors when that major no
+      // longer has an active release. Bare selectors remain active-only.
+      version = versions.filter((candidate) => candidate.startsWith(`${requested}.`)).at(-1);
+    }
   } else if (requested === "") {
     version = active.at(-1);
   } else {
@@ -75,9 +80,23 @@ export async function resolveLibrarySpecifier(specifier, { libraryRoot } = {}) {
     kind: asset.kind,
     version,
     exactSpecifier: `${packagePrefix}${name}/${version}`,
+    majorSpecifier: `${packagePrefix}${name}/${version.split(".")[0]}`,
     sourcePath: join(versionsRoot, version, entry.name),
     libraryId: String(asset.manifest.libraryId),
   };
+}
+
+export function classifyLibrarySpecifier(specifier) {
+  if (!specifier.startsWith(packagePrefix)) return null;
+  const segments = specifier.slice(packagePrefix.length).split("/").filter(Boolean);
+  if (segments.length === 1) return "bare";
+  if (segments.length === 2 && majorPattern.test(segments[1])) return "major";
+  if (segments.length >= 2 && releasePattern.test(segments[1])) return "exact";
+  return null;
+}
+
+export function majorSpecifier(name, version) {
+  return `${packagePrefix}${name}/${String(version).split(".")[0]}`;
 }
 
 export function sourceLibraryResolver({ libraryRoot }) {

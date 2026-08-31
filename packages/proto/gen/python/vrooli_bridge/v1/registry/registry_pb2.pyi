@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from vrooli_bridge.v1.shared import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -37,7 +38,7 @@ NODE_STATUS_NEEDS_UPDATE: NodeStatus
 NODE_STATUS_REVOKED: NodeStatus
 
 class Node(_message.Message):
-    __slots__ = ("id", "name", "os", "arch", "revision", "endpoint", "capabilities", "scopes", "status", "online", "created_at", "updated_at", "last_seen_at", "revoked_at", "registry_record_present", "heartbeat_fresh", "heartbeat_age_seconds", "channel_held", "protocol_compatible", "dispatchable", "kind", "machine_arch", "binary_arch")
+    __slots__ = ("id", "name", "os", "arch", "revision", "endpoint", "capabilities", "scopes", "status", "online", "created_at", "updated_at", "last_seen_at", "revoked_at", "registry_record_present", "heartbeat_fresh", "heartbeat_age_seconds", "channel_held", "protocol_compatible", "dispatchable", "kind", "machine_arch", "binary_arch", "capability_inventory", "capability_probed_at", "configuration_op_id", "configuration_state", "configuration_at", "configuration_unmet")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     OS_FIELD_NUMBER: _ClassVar[int]
@@ -61,6 +62,12 @@ class Node(_message.Message):
     KIND_FIELD_NUMBER: _ClassVar[int]
     MACHINE_ARCH_FIELD_NUMBER: _ClassVar[int]
     BINARY_ARCH_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_INVENTORY_FIELD_NUMBER: _ClassVar[int]
+    CAPABILITY_PROBED_AT_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATION_OP_ID_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATION_STATE_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATION_AT_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATION_UNMET_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     os: str
@@ -84,7 +91,13 @@ class Node(_message.Message):
     kind: NodeKind
     machine_arch: str
     binary_arch: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., revision: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., scopes: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[NodeStatus, str]] = ..., online: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_seen_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., registry_record_present: _Optional[bool] = ..., heartbeat_fresh: _Optional[bool] = ..., heartbeat_age_seconds: _Optional[int] = ..., channel_held: _Optional[bool] = ..., protocol_compatible: _Optional[bool] = ..., dispatchable: _Optional[bool] = ..., kind: _Optional[_Union[NodeKind, str]] = ..., machine_arch: _Optional[str] = ..., binary_arch: _Optional[str] = ...) -> None: ...
+    capability_inventory: _containers.RepeatedCompositeFieldContainer[_shared_pb2.CapabilityObservation]
+    capability_probed_at: _timestamp_pb2.Timestamp
+    configuration_op_id: str
+    configuration_state: str
+    configuration_at: _timestamp_pb2.Timestamp
+    configuration_unmet: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., os: _Optional[str] = ..., arch: _Optional[str] = ..., revision: _Optional[str] = ..., endpoint: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., scopes: _Optional[_Iterable[str]] = ..., status: _Optional[_Union[NodeStatus, str]] = ..., online: _Optional[bool] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., last_seen_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., revoked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., registry_record_present: _Optional[bool] = ..., heartbeat_fresh: _Optional[bool] = ..., heartbeat_age_seconds: _Optional[int] = ..., channel_held: _Optional[bool] = ..., protocol_compatible: _Optional[bool] = ..., dispatchable: _Optional[bool] = ..., kind: _Optional[_Union[NodeKind, str]] = ..., machine_arch: _Optional[str] = ..., binary_arch: _Optional[str] = ..., capability_inventory: _Optional[_Iterable[_Union[_shared_pb2.CapabilityObservation, _Mapping]]] = ..., capability_probed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., configuration_op_id: _Optional[str] = ..., configuration_state: _Optional[str] = ..., configuration_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., configuration_unmet: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RegisterNodeRequest(_message.Message):
     __slots__ = ("name", "os", "arch", "endpoint", "capabilities", "scopes", "kind", "machine_arch", "binary_arch")

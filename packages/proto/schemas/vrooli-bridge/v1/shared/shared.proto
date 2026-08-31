@@ -30,6 +30,29 @@ message HealthSnapshot {
   bool container_runtime_up = 3;
   map<string, string> details = 4;
   google.protobuf.Timestamp reported_at = 5;
+  // Capability observations are sampled on the node, not inferred by the
+  // control plane. They are intentionally additive to the transport health
+  // fields above.
+  repeated CapabilityObservation capabilities = 6;
+}
+
+enum CapabilityObservationState {
+  CAPABILITY_OBSERVATION_STATE_UNSPECIFIED = 0;
+  CAPABILITY_OBSERVATION_STATE_READY = 1;
+  CAPABILITY_OBSERVATION_STATE_MISSING = 2;
+  CAPABILITY_OBSERVATION_STATE_NOT_APPLICABLE = 3;
+  CAPABILITY_OBSERVATION_STATE_UNKNOWN = 4;
+}
+
+message CapabilityObservation {
+  string capability = 1;
+  string id = 2;
+  string label = 3;
+  CapabilityObservationState state = 4;
+  string path = 5;
+  string version = 6;
+  google.protobuf.Timestamp probed_at = 7;
+  string detail = 8;
 }
 
 message Heartbeat {

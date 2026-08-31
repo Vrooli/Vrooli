@@ -257,7 +257,7 @@
           "evidence": [
             "manifest-validation"
           ],
-          "reason": "No native macOS whisper-server executable is currently staged."
+          "reason": "No native macOS whisper-server executable is currently staged; see scenarios/audio-tools/docs/reference/macos-speech-qualification.md."
         },
         "windows": {
           "support": "conditional",
@@ -282,41 +282,7 @@
       "cpu"
     ],
     "require": "preferred",
-    "cpu": {},
-    "claim": {
-      "resource_kind": "vram",
-      "gpu_index": 0,
-      "preferred_bytes": 5368709120,
-      "floor_bytes": 2147483648,
-      "priority": "interactive",
-      "yield_when_idle": true,
-      "idle_grace_seconds": 900,
-      "profile": {
-        "steps": [
-          {
-            "label": "large-v3",
-            "amount_bytes": 5368709120
-          },
-          {
-            "label": "medium",
-            "amount_bytes": 4294967296
-          },
-          {
-            "label": "small",
-            "amount_bytes": 2147483648
-          }
-        ],
-        "apply": {
-          "verb": "capacity",
-          "argv": [
-            "degrade",
-            "--to",
-            "{label}"
-          ]
-        },
-        "upshift": true
-      }
-    }
+    "cpu": {}
   },
   "companions": [
     {
@@ -326,7 +292,8 @@
         "activity-proxy",
         "--native"
       ],
-      "port": 8090
+      "port": 8090,
+      "required": true
     }
   ],
   "category": "ai",

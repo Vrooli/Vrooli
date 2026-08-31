@@ -97,7 +97,7 @@ type BacklogItem struct {
 	FindingRef *string `protobuf:"bytes,26,opt,name=finding_ref,json=findingRef,proto3,oneof" json:"finding_ref,omitempty"`
 	// Deterministic operator signal. It is computed on read from item age,
 	// review age, plan/acceptance validity, and is never persisted in spec.json.
-	Stale bool `protobuf:"varint,27,opt,name=stale,proto3" json:"stale,omitempty"`
+	Stale *bool `protobuf:"varint,27,opt,name=stale,proto3,oneof" json:"stale,omitempty"`
 	// Most recent explicit decision that the item remains valid without a
 	// content mutation. This is distinct from `updated`, which tracks changes
 	// to the work specification itself.
@@ -303,8 +303,8 @@ func (x *BacklogItem) GetFindingRef() string {
 }
 
 func (x *BacklogItem) GetStale() bool {
-	if x != nil {
-		return x.Stale
+	if x != nil && x.Stale != nil {
+		return *x.Stale
 	}
 	return false
 }
@@ -744,7 +744,7 @@ var File_swarm_manager_v1_domain_backlog_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\n" +
-	"%swarm-manager/v1/domain/backlog.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/shared/agent_session.proto\x1a%swarm-manager/v1/shared/backlog.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\xb9\v\n" +
+	"%swarm-manager/v1/domain/backlog.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a+swarm-manager/v1/shared/agent_session.proto\x1a%swarm-manager/v1/shared/backlog.proto\x1a&swarm-manager/v1/shared/plan_ref.proto\"\xc8\v\n" +
 	"\vBacklogItem\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -773,12 +773,12 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\x0equeue_position\x18\x18 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00H\x06R\rqueuePosition\x88\x01\x01\x12G\n" +
 	"\bplan_ref\x18\x19 \x01(\v2'.vrooli.swarm_manager.v1.shared.PlanRefH\aR\aplanRef\x88\x01\x01\x12$\n" +
 	"\vfinding_ref\x18\x1a \x01(\tH\bR\n" +
-	"findingRef\x88\x01\x01\x12\x14\n" +
-	"\x05stale\x18\x1b \x01(\bR\x05stale\x12Y\n" +
-	"\vlast_review\x18\x1c \x01(\v23.vrooli.swarm_manager.v1.domain.BacklogReviewRecordH\tR\n" +
+	"findingRef\x88\x01\x01\x12\x19\n" +
+	"\x05stale\x18\x1b \x01(\bH\tR\x05stale\x88\x01\x01\x12Y\n" +
+	"\vlast_review\x18\x1c \x01(\v23.vrooli.swarm_manager.v1.domain.BacklogReviewRecordH\n" +
+	"R\n" +
 	"lastReview\x88\x01\x01\x12\\\n" +
-	"\x0fplan_acceptance\x18\x1d \x01(\v2..vrooli.swarm_manager.v1.domain.PlanAcceptanceH\n" +
-	"R\x0eplanAcceptance\x88\x01\x01\x12a\n" +
+	"\x0fplan_acceptance\x18\x1d \x01(\v2..vrooli.swarm_manager.v1.domain.PlanAcceptanceH\vR\x0eplanAcceptance\x88\x01\x01\x12a\n" +
 	"\x13acceptance_criteria\x18\x1e \x03(\v20.vrooli.swarm_manager.v1.shared.BacklogCriterionR\x12acceptanceCriteriaB\f\n" +
 	"\n" +
 	"_milestoneB\t\n" +
@@ -789,7 +789,8 @@ const file_swarm_manager_v1_domain_backlog_proto_rawDesc = "" +
 	"\v_created_byB\x11\n" +
 	"\x0f_queue_positionB\v\n" +
 	"\t_plan_refB\x0e\n" +
-	"\f_finding_refB\x0e\n" +
+	"\f_finding_refB\b\n" +
+	"\x06_staleB\x0e\n" +
 	"\f_last_reviewB\x12\n" +
 	"\x10_plan_acceptanceJ\x04\b\n" +
 	"\x10\vJ\x04\b\x0e\x10\x0fJ\x04\b\x14\x10\x15\"\xc0\x01\n" +

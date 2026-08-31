@@ -34,6 +34,8 @@ export interface KokoroProviderOptions {
    */
   synthesizeWithMetrics?: KokoroSynthesizeWithMetricsFn;
   reportTTSPlayStart?: (metrics: TTSSynthesisMetrics) => void;
+  /** Called when the server identifies the provider that synthesized audio. */
+  onProviderResolved?: (providerId: string, providerTier?: string) => void;
 }
 
 /**
@@ -112,9 +114,11 @@ export class KokoroProvider implements TTSProvider {
 
 	private readonly synthesizeWithMetrics: KokoroSynthesizeWithMetricsFn;
 	private readonly reportTTSPlayStart?: (metrics: TTSSynthesisMetrics) => void;
+	private readonly onProviderResolved?: (providerId: string, providerTier?: string) => void;
 
 	constructor(options: KokoroProviderOptions = {}) {
 		this.reportTTSPlayStart = options.reportTTSPlayStart;
+		this.onProviderResolved = options.onProviderResolved;
     if (options.synthesizeWithMetrics) {
       this.synthesizeWithMetrics = options.synthesizeWithMetrics;
     } else if (options.synthesize) {
@@ -182,6 +186,7 @@ export class KokoroProvider implements TTSProvider {
 
     try {
       const { blob, metrics } = await this.synthesizeWithMetrics(text, opts?.voice, opts?.rate, signal, this.cacheControl(opts, 0));
+      if (metrics.providerId) this.onProviderResolved?.(metrics.providerId, metrics.providerTier);
       this.throwIfAborted(signal);
 
       // Kokoro returns 0-byte audio for non-speakable input (e.g. "---",
@@ -318,6 +323,7 @@ export class KokoroProvider implements TTSProvider {
     signal: AbortSignal,
   ): Promise<void> {
     const { blob, metrics } = await synthPromise;
+    if (metrics.providerId) this.onProviderResolved?.(metrics.providerId, metrics.providerTier);
     this.throwIfAborted(signal);
     if (blob.size === 0) return;
     await this.playBlobAndWait(blob, metrics);

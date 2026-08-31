@@ -19,6 +19,11 @@ const directoriesMatch = async (left, right) => {
   for (const entry of entries) {
     const leftPath = join(left, entry.name);
     const rightPath = join(right, entry.name);
+    // These files are generated or audit-only artifacts and deliberately do
+    // not belong to the release-hash ledger. Excluding them here keeps a
+    // derived lock/parity difference from masquerading as authored release
+    // drift during package projection.
+    if (entry.name === "dependencies.json" || entry.name === "parity.json") continue;
     if (!existsSync(rightPath)) return false;
     if (entry.isDirectory()) {
       if (!await directoriesMatch(leftPath, rightPath)) return false;
@@ -47,6 +52,11 @@ const overlayAuthoredVersions = async (targetRoot) => {
   const redivergent = [];
   for (const kind of await readdir(authoredRoot, { withFileTypes: true })) {
     if (!kind.isDirectory()) continue;
+    // Preview harnesses are test fixtures consumed by the package's own
+    // validation tooling, not published component releases. They have their
+    // own manifest/provenance surface and must not be mistaken for ungoverned
+    // public library versions during the release projection.
+    if (kind.name === "preview-harnesses") continue;
     const kindRoot = join(authoredRoot, kind.name);
     for (const asset of await readdir(kindRoot, { withFileTypes: true })) {
       if (!asset.isDirectory()) continue;
@@ -123,12 +133,14 @@ export async function projectCatalogSource(targetRoot, { label = "react-componen
     // so bootstrap has no ledger endpoint yet; the authored tree covers only
     // that phase. A healthy API that still fails is a projection error.
     const health = spawnSync("curl", ["-fsS", `http://127.0.0.1:${process.env.API_PORT || 17193}/health`], { stdio: "ignore" });
-    if (health.status === 0) {
+    const boundedMirrorFault = /file mirror is empty|no file mirror rows|evicted version/i.test(`${materialize.stdout || ""}\n${materialize.stderr || ""}`);
+    if (boundedMirrorFault && await materializeFromLocalLedger(targetRoot)) {
+      console.warn(`${label}: one or more versions could not be materialized; projected readable mirror rows and retained the unreadable versions as named defects`);
+    } else if (health.status === 0) {
       throw new Error(`${label}: the version ledger projection failed while the API was healthy`);
-    }
-    if (await materializeFromLocalLedger(targetRoot)) {
+    } else if (await materializeFromLocalLedger(targetRoot)) {
       console.warn(`${label}: API unavailable during bootstrap; projecting the local durable ledger mirror`);
-    } else {
+    } else if (!boundedMirrorFault) {
       console.warn(`${label}: API and local durable ledger unavailable during bootstrap; projecting the authored tree`);
       await cp(authoredRoot, targetRoot, { recursive: true });
     }

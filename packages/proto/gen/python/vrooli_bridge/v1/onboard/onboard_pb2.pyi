@@ -21,6 +21,7 @@ class OnboardingState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ONBOARDING_STATE_SUCCEEDED: _ClassVar[OnboardingState]
     ONBOARDING_STATE_FAILED: _ClassVar[OnboardingState]
     ONBOARDING_STATE_CANCELLED: _ClassVar[OnboardingState]
+    ONBOARDING_STATE_PAIRED: _ClassVar[OnboardingState]
 
 class SourceMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -53,6 +54,7 @@ ONBOARDING_STATE_VERIFYING: OnboardingState
 ONBOARDING_STATE_SUCCEEDED: OnboardingState
 ONBOARDING_STATE_FAILED: OnboardingState
 ONBOARDING_STATE_CANCELLED: OnboardingState
+ONBOARDING_STATE_PAIRED: OnboardingState
 SOURCE_MODE_UNSPECIFIED: SourceMode
 SOURCE_MODE_PINNED_REVISION: SourceMode
 SOURCE_MODE_WORKING_TREE: SourceMode
@@ -69,7 +71,7 @@ CONNECT_DECISION_AMBIGUOUS: ConnectDecision
 CONNECT_DECISION_HOST_KEY_REVIEW: ConnectDecision
 
 class OnboardingOp(_message.Message):
-    __slots__ = ("id", "host", "port", "user", "node_name", "target_revision", "repo_url", "state", "node_id", "failure_reason", "exit_code", "created_at", "started_at", "finished_at", "source_mode", "base_revision", "working_tree_digest", "failure_detail", "control_plane_url", "reachability_mode", "machine_id", "enrollment_attempt_id")
+    __slots__ = ("id", "host", "port", "user", "node_name", "target_revision", "repo_url", "state", "node_id", "failure_reason", "exit_code", "created_at", "started_at", "finished_at", "source_mode", "base_revision", "working_tree_digest", "failure_detail", "control_plane_url", "reachability_mode", "machine_id", "enrollment_attempt_id", "configuration_dispositions")
     ID_FIELD_NUMBER: _ClassVar[int]
     HOST_FIELD_NUMBER: _ClassVar[int]
     PORT_FIELD_NUMBER: _ClassVar[int]
@@ -92,6 +94,7 @@ class OnboardingOp(_message.Message):
     REACHABILITY_MODE_FIELD_NUMBER: _ClassVar[int]
     MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
     ENROLLMENT_ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATION_DISPOSITIONS_FIELD_NUMBER: _ClassVar[int]
     id: str
     host: str
     port: int
@@ -114,7 +117,24 @@ class OnboardingOp(_message.Message):
     reachability_mode: str
     machine_id: str
     enrollment_attempt_id: str
-    def __init__(self, id: _Optional[str] = ..., host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., state: _Optional[_Union[OnboardingState, str]] = ..., node_id: _Optional[str] = ..., failure_reason: _Optional[str] = ..., exit_code: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., base_revision: _Optional[str] = ..., working_tree_digest: _Optional[str] = ..., failure_detail: _Optional[str] = ..., control_plane_url: _Optional[str] = ..., reachability_mode: _Optional[str] = ..., machine_id: _Optional[str] = ..., enrollment_attempt_id: _Optional[str] = ...) -> None: ...
+    configuration_dispositions: _containers.RepeatedCompositeFieldContainer[ConfigurationDisposition]
+    def __init__(self, id: _Optional[str] = ..., host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., state: _Optional[_Union[OnboardingState, str]] = ..., node_id: _Optional[str] = ..., failure_reason: _Optional[str] = ..., exit_code: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., finished_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., base_revision: _Optional[str] = ..., working_tree_digest: _Optional[str] = ..., failure_detail: _Optional[str] = ..., control_plane_url: _Optional[str] = ..., reachability_mode: _Optional[str] = ..., machine_id: _Optional[str] = ..., enrollment_attempt_id: _Optional[str] = ..., configuration_dispositions: _Optional[_Iterable[_Union[ConfigurationDisposition, _Mapping]]] = ...) -> None: ...
+
+class ConfigurationDisposition(_message.Message):
+    __slots__ = ("id", "kind", "name", "disposition", "reason", "remediation")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    REMEDIATION_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    kind: str
+    name: str
+    disposition: str
+    reason: str
+    remediation: str
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., name: _Optional[str] = ..., disposition: _Optional[str] = ..., reason: _Optional[str] = ..., remediation: _Optional[str] = ...) -> None: ...
 
 class OnboardingStepEvent(_message.Message):
     __slots__ = ("op_id", "sequence", "step_id", "status", "detail", "emitted_at")

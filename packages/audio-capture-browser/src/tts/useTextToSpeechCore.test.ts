@@ -159,19 +159,19 @@ describe("useTextToSpeechCore — backend selection", () => {
   });
 
   it("downgrades to none when Kokoro is requested but unavailable", async () => {
-    const { result } = renderTTS({ backend: "kokoro", kokoroAvailable: () => Promise.resolve(false) });
+    const { result } = renderTTS({ backend: "kokoro", serverTTSAvailable: () => Promise.resolve(false) });
     await waitFor(() => expect(result.current.backend).toBe("none"));
     expect(result.current.backendReason).toMatch(/Kokoro backend was selected/);
   });
 
   it("falls back to Browser under auto when Kokoro is unavailable", async () => {
-    const { result } = renderTTS({ kokoroAvailable: () => Promise.resolve(false) });
+    const { result } = renderTTS({ serverTTSAvailable: () => Promise.resolve(false) });
     await waitFor(() => expect(result.current.backend).toBe("browser"));
     expect(result.current.backendReason).toMatch(/browser speech synthesis is active/);
   });
 
-  it("treats a throwing kokoroAvailable probe as unavailable", async () => {
-    const { result } = renderTTS({ kokoroAvailable: () => Promise.reject(new Error("boom")) });
+  it("treats a throwing server TTS probe as unavailable", async () => {
+    const { result } = renderTTS({ serverTTSAvailable: () => Promise.reject(new Error("boom")) });
     await waitFor(() => expect(result.current.backend).toBe("browser"));
   });
 });

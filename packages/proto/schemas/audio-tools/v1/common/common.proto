@@ -50,6 +50,7 @@ enum ProviderTier {
   PROVIDER_TIER_LOCAL = 1;
   PROVIDER_TIER_BYOK = 2;
   PROVIDER_TIER_VROOLI = 3;
+  PROVIDER_TIER_BROWSER = 4;
 }
 
 // AudioFormat identifies a container/codec for raw audio bytes carried on

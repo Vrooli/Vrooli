@@ -134,12 +134,13 @@ func (h *Handlers) Run(args []string) error {
 	upstream := fs.String("upstream", h.env(envUpstream, defaultUpstream), "host:port of the native whisper server (internal)")
 	debounce := fs.Duration("debounce", h.debounce(), "idle debounce after the last in-flight /asr completes")
 	native := fs.Bool("native", h.Native, "adapt the historical /asr multipart contract to whisper.cpp")
+	parent := fs.Int("parent-pid", h.ParentPID, "PID of the supervised whisper resource process")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	parentPID := h.ParentPID
-	if parentPID == 0 {
-		parentPID = os.Getppid()
+	parentPID := *parent
+	if parentPID <= 1 {
+		return fmt.Errorf("activity edge: parent PID is required (start with --parent-pid <resource-pid>)")
 	}
 
 	started := h.now()

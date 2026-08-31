@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/machines/machines.proto.
  */
 export const file_vrooli_bridge_v1_machines_machines: GenFile = /*@__PURE__*/
-  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL21hY2hpbmVzL21hY2hpbmVzLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcyJBChFDb25uZWN0aW9uTG9jYXRvchIMCgRraW5kGAEgASgJEg0KBXZhbHVlGAIgASgJEg8KB29yZGluYWwYAyABKAUiqQEKC05vZGVMaW5lYWdlEg8KB25vZGVfaWQYASABKAkSDwoHY3VycmVudBgCIAEoCBItCglsaW5rZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjEKDXN1cGVyc2VkZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmNvcnJlbGF0aW9uX2lkGAUgASgJIsMDCgdNYWNoaW5lEgoKAmlkGAEgASgJEhEKCWxpZmVjeWNsZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgDEhoKEmRlc2lyZWRfcHJvZmlsZV9pZBgEIAEoCRIfChdkZXNpcmVkX3Byb2ZpbGVfdmVyc2lvbhgFIAEoCRJFCghsb2NhdG9ycxgGIAMoCzIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkNvbm5lY3Rpb25Mb2NhdG9yEkMKDG5vZGVfbGluZWFnZRgHIAMoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk5vZGVMaW5lYWdlEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2FyY2hpdmVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpyZW1vdmVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCKaAQoUQ3JlYXRlTWFjaGluZVJlcXVlc3QSRQoIbG9jYXRvcnMYASADKAsyMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5Db25uZWN0aW9uTG9jYXRvchIaChJkZXNpcmVkX3Byb2ZpbGVfaWQYAiABKAkSHwoXZGVzaXJlZF9wcm9maWxlX3ZlcnNpb24YAyABKAkiUwoVQ3JlYXRlTWFjaGluZVJlc3BvbnNlEjoKB21hY2hpbmUYASABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lIh8KEUdldE1hY2hpbmVSZXF1ZXN0EgoKAmlkGAEgASgJIvIBChFFbnJvbGxtZW50QXR0ZW1wdBIKCgJpZBgBIAEoCRIbChNyZXRyeV9vZl9hdHRlbXB0X2lkGAIgASgJEhYKDmNvcnJlbGF0aW9uX2lkGAMgASgJEg0KBXN0YXRlGAQgASgJEhcKD3Rlcm1pbmFsX3Jlc3VsdBgFIAEoCRITCgtkaWFnbm9zdGljcxgGIAEoCRIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIvCgt0ZXJtaW5hbF9hdBgIIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiXAoVQ3VycmVudE5vZGVQcm9qZWN0aW9uEg8KB25vZGVfaWQYASABKAkSDAoEbmFtZRgCIAEoCRIUCgxjYXBhYmlsaXRpZXMYAyADKAkSDgoGb25saW5lGAQgASgIIn4KEU1hY2hpbmVBdWRpdEV2ZW50EgoKAmlkGAEgASgJEg4KBmFjdGlvbhgCIAEoCRINCgVhY3RvchgDIAEoCRIOCgZkZXRhaWwYBCABKAkSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiMgoQTWFjaGluZVJlYWRpbmVzcxINCgVyZWFkeRgBIAEoCBIPCgdyZWFzb25zGAIgAygJItEDChJHZXRNYWNoaW5lUmVzcG9uc2USOgoHbWFjaGluZRgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmUSUAoTZW5yb2xsbWVudF9hdHRlbXB0cxgCIAMoCzIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkVucm9sbG1lbnRBdHRlbXB0Ek0KDGN1cnJlbnRfbm9kZRgDIAEoCzI3LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkN1cnJlbnROb2RlUHJvamVjdGlvbhJJCgxhdWRpdF9ldmVudHMYBCADKAsyMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lQXVkaXRFdmVudBJFCglyZWFkaW5lc3MYBSABKAsyMi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lUmVhZGluZXNzEkwKEmNsZWFudXBfdG9tYnN0b25lcxgGIAMoCzIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmVDbGVhbnVwIhUKE0xpc3RNYWNoaW5lc1JlcXVlc3QiUwoUTGlzdE1hY2hpbmVzUmVzcG9uc2USOwoIbWFjaGluZXMYASADKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lIjQKFUFyY2hpdmVNYWNoaW5lUmVxdWVzdBIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIlQKFkFyY2hpdmVNYWNoaW5lUmVzcG9uc2USOgoHbWFjaGluZRgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmUiMwoUUmVtb3ZlTWFjaGluZVJlcXVlc3QSCgoCaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoAyJTChVSZW1vdmVNYWNoaW5lUmVzcG9uc2USOgoHbWFjaGluZRgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmUi0gEKDE1hY2hpbmVUcnVzdBIeChZjbGllbnRfa2V5X2ZpbmdlcnByaW50GAEgASgJEhwKFGhvc3Rfa2V5X2ZpbmdlcnByaW50GAIgASgJEhYKDmhvc3Rfa2V5X3N0YXRlGAMgASgJEi4KCnVwZGF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHNzaF91c2VyGAUgASgJEhAKCHNzaF9wb3J0GAYgASgFEhgKEGNvbm5lY3Rpb25fc3RhdGUYByABKAkiLAoWR2V0TWFjaGluZVRydXN0UmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJIlgKF0dldE1hY2hpbmVUcnVzdFJlc3BvbnNlEj0KBXRydXN0GAEgASgLMi4udnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTWFjaGluZVRydXN0IlsKG1Jldmlld01hY2hpbmVIb3N0S2V5UmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJEigKIHJlcGxhY2VtZW50X2hvc3Rfa2V5X2ZpbmdlcnByaW50GAIgASgJIl0KHFJldmlld01hY2hpbmVIb3N0S2V5UmVzcG9uc2USPQoFdHJ1c3QYASABKAsyLi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lVHJ1c3Qi9QEKDk1hY2hpbmVDbGVhbnVwEgoKAmlkGAEgASgJEhIKCm1hY2hpbmVfaWQYAiABKAkSDgoGYWN0aW9uGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIOCgZkZXRhaWwYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoPYWNrbm93bGVkZ2VkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI1Ch9SZXF1ZXN0TWFjaGluZVNTSENsZWFudXBSZXF1ZXN0EhIKCm1hY2hpbmVfaWQYASABKAkiZQogUmVxdWVzdE1hY2hpbmVTU0hDbGVhbnVwUmVzcG9uc2USQQoHY2xlYW51cBgBIAEoCzIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmVDbGVhbnVwIkkKG1VwZGF0ZU1hY2hpbmVDbGVhbnVwUmVxdWVzdBIKCgJpZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDgoGZGV0YWlsGAMgASgJImEKHFVwZGF0ZU1hY2hpbmVDbGVhbnVwUmVzcG9uc2USQQoHY2xlYW51cBgBIAEoCzIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmVDbGVhbnVwIqkBCg9FZmZlY3RpdmVQb2xpY3kSEgoKcHJvZmlsZV9pZBgBIAEoCRIXCg9wcm9maWxlX3ZlcnNpb24YAiABKAkSGQoRc2V0dXBfZW52aXJvbm1lbnQYAyABKAkSGAoQc3VnZ2VzdGVkX3Njb3BlcxgEIAMoCRIdChVyZXF1aXJlZF9jYXBhYmlsaXRpZXMYBSADKAkSFQoNc25hcHNob3RfanNvbhgGIAEoCSKnAgoZQXBwbHlNYWNoaW5lUG9saWN5UmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJEg8KB3ZlcnNpb24YAiABKAMSEgoKcHJvZmlsZV9pZBgDIAEoCRIXCg9wcm9maWxlX3ZlcnNpb24YBCABKAkSXQoJb3ZlcnJpZGVzGAUgAygLMkoudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuQXBwbHlNYWNoaW5lUG9saWN5UmVxdWVzdC5PdmVycmlkZXNFbnRyeRIOCgZyZWFzb24YBiABKAkSFwoPY29uZmlybV9yZW1vdmFsGAcgASgIGjAKDk92ZXJyaWRlc0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEimwEKGkFwcGx5TWFjaGluZVBvbGljeVJlc3BvbnNlEjoKB21hY2hpbmUYASABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lEkEKBnBvbGljeRgCIAEoCzIxLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkVmZmVjdGl2ZVBvbGljeSIuChhSZXZva2VNYWNoaW5lTm9kZVJlcXVlc3QSEgoKbWFjaGluZV9pZBgBIAEoCSJwChlSZXZva2VNYWNoaW5lTm9kZVJlc3BvbnNlEjoKB21hY2hpbmUYASABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lEhcKD3Jldm9rZWRfbm9kZV9pZBgCIAEoCSIqChRSZXBhaXJNYWNoaW5lUmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJIowBChVSZXBhaXJNYWNoaW5lUmVzcG9uc2USOgoHbWFjaGluZRgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmUSGAoQb25ib2FyZGluZ19vcF9pZBgCIAEoCRIdChVlbnJvbGxtZW50X2F0dGVtcHRfaWQYAyABKAkiSAoUTWVyZ2VNYWNoaW5lc1JlcXVlc3QSFwoPZnJvbV9tYWNoaW5lX2lkGAEgASgJEhcKD2ludG9fbWFjaGluZV9pZBgCIAEoCSJwChVNZXJnZU1hY2hpbmVzUmVzcG9uc2USOgoHbWFjaGluZRgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmUSGwoTYXJjaGl2ZWRfbWFjaGluZV9pZBgCIAEoCTKYDgoOTWFjaGluZVNlcnZpY2USgAEKDUNyZWF0ZU1hY2hpbmUSNi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5DcmVhdGVNYWNoaW5lUmVxdWVzdBo3LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkNyZWF0ZU1hY2hpbmVSZXNwb25zZRJ3CgpHZXRNYWNoaW5lEjMudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuR2V0TWFjaGluZVJlcXVlc3QaNC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5HZXRNYWNoaW5lUmVzcG9uc2USfQoMTGlzdE1hY2hpbmVzEjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTGlzdE1hY2hpbmVzUmVxdWVzdBo2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkxpc3RNYWNoaW5lc1Jlc3BvbnNlEoMBCg5BcmNoaXZlTWFjaGluZRI3LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkFyY2hpdmVNYWNoaW5lUmVxdWVzdBo4LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkFyY2hpdmVNYWNoaW5lUmVzcG9uc2USgAEKDVJlbW92ZU1hY2hpbmUSNi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5SZW1vdmVNYWNoaW5lUmVxdWVzdBo3LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLlJlbW92ZU1hY2hpbmVSZXNwb25zZRKGAQoPR2V0TWFjaGluZVRydXN0EjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuR2V0TWFjaGluZVRydXN0UmVxdWVzdBo5LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkdldE1hY2hpbmVUcnVzdFJlc3BvbnNlEpUBChRSZXZpZXdNYWNoaW5lSG9zdEtleRI9LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLlJldmlld01hY2hpbmVIb3N0S2V5UmVxdWVzdBo+LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLlJldmlld01hY2hpbmVIb3N0S2V5UmVzcG9uc2USoQEKGFJlcXVlc3RNYWNoaW5lU1NIQ2xlYW51cBJBLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLlJlcXVlc3RNYWNoaW5lU1NIQ2xlYW51cFJlcXVlc3QaQi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5SZXF1ZXN0TWFjaGluZVNTSENsZWFudXBSZXNwb25zZRKVAQoUVXBkYXRlTWFjaGluZUNsZWFudXASPS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5VcGRhdGVNYWNoaW5lQ2xlYW51cFJlcXVlc3QaPi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5VcGRhdGVNYWNoaW5lQ2xlYW51cFJlc3BvbnNlEo8BChJBcHBseU1hY2hpbmVQb2xpY3kSOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5BcHBseU1hY2hpbmVQb2xpY3lSZXF1ZXN0GjwudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuQXBwbHlNYWNoaW5lUG9saWN5UmVzcG9uc2USjAEKEVJldm9rZU1hY2hpbmVOb2RlEjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuUmV2b2tlTWFjaGluZU5vZGVSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuUmV2b2tlTWFjaGluZU5vZGVSZXNwb25zZRKAAQoNUmVwYWlyTWFjaGluZRI2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLlJlcGFpck1hY2hpbmVSZXF1ZXN0GjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuUmVwYWlyTWFjaGluZVJlc3BvbnNlEoABCg1NZXJnZU1hY2hpbmVzEjYudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTWVyZ2VNYWNoaW5lc1JlcXVlc3QaNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NZXJnZU1hY2hpbmVzUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby92cm9vbGktYnJpZGdlL3YxL21hY2hpbmVzO21hY2hpbmVzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("Cih2cm9vbGktYnJpZGdlL3YxL21hY2hpbmVzL21hY2hpbmVzLnByb3RvEiB2cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcyJBChFDb25uZWN0aW9uTG9jYXRvchIMCgRraW5kGAEgASgJEg0KBXZhbHVlGAIgASgJEg8KB29yZGluYWwYAyABKAUiqQEKC05vZGVMaW5lYWdlEg8KB25vZGVfaWQYASABKAkSDwoHY3VycmVudBgCIAEoCBItCglsaW5rZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjEKDXN1cGVyc2VkZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhYKDmNvcnJlbGF0aW9uX2lkGAUgASgJIrAECgdNYWNoaW5lEgoKAmlkGAEgASgJEhEKCWxpZmVjeWNsZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgDEhoKEmRlc2lyZWRfcHJvZmlsZV9pZBgEIAEoCRIfChdkZXNpcmVkX3Byb2ZpbGVfdmVyc2lvbhgFIAEoCRJFCghsb2NhdG9ycxgGIAMoCzIzLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkNvbm5lY3Rpb25Mb2NhdG9yEkMKDG5vZGVfbGluZWFnZRgHIAMoCzItLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk5vZGVMaW5lYWdlEi4KCmNyZWF0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2FyY2hpdmVkX2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgpyZW1vdmVkX2F0GAsgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIaChJhcHBsaWVkX3Byb2ZpbGVfaWQYDCABKAkSHwoXYXBwbGllZF9wcm9maWxlX3ZlcnNpb24YDSABKAkSLgoKYXBwbGllZF9hdBgOIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAimgEKFENyZWF0ZU1hY2hpbmVSZXF1ZXN0EkUKCGxvY2F0b3JzGAEgAygLMjMudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuQ29ubmVjdGlvbkxvY2F0b3ISGgoSZGVzaXJlZF9wcm9maWxlX2lkGAIgASgJEh8KF2Rlc2lyZWRfcHJvZmlsZV92ZXJzaW9uGAMgASgJIlMKFUNyZWF0ZU1hY2hpbmVSZXNwb25zZRI6CgdtYWNoaW5lGAEgASgLMikudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTWFjaGluZSIfChFHZXRNYWNoaW5lUmVxdWVzdBIKCgJpZBgBIAEoCSLyAQoRRW5yb2xsbWVudEF0dGVtcHQSCgoCaWQYASABKAkSGwoTcmV0cnlfb2ZfYXR0ZW1wdF9pZBgCIAEoCRIWCg5jb3JyZWxhdGlvbl9pZBgDIAEoCRINCgVzdGF0ZRgEIAEoCRIXCg90ZXJtaW5hbF9yZXN1bHQYBSABKAkSEwoLZGlhZ25vc3RpY3MYBiABKAkSLgoKY3JlYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLwoLdGVybWluYWxfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIlwKFUN1cnJlbnROb2RlUHJvamVjdGlvbhIPCgdub2RlX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSFAoMY2FwYWJpbGl0aWVzGAMgAygJEg4KBm9ubGluZRgEIAEoCCJ+ChFNYWNoaW5lQXVkaXRFdmVudBIKCgJpZBgBIAEoCRIOCgZhY3Rpb24YAiABKAkSDQoFYWN0b3IYAyABKAkSDgoGZGV0YWlsGAQgASgJEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIjIKEE1hY2hpbmVSZWFkaW5lc3MSDQoFcmVhZHkYASABKAgSDwoHcmVhc29ucxgCIAMoCSI6CgxNYWNoaW5lRHJpZnQSDAoEa2luZBgBIAEoCRIMCgRuYW1lGAIgASgJEg4KBnJlYXNvbhgDIAEoCSLdBAoSR2V0TWFjaGluZVJlc3BvbnNlEjoKB21hY2hpbmUYASABKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lElAKE2Vucm9sbG1lbnRfYXR0ZW1wdHMYAiADKAsyMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5FbnJvbGxtZW50QXR0ZW1wdBJNCgxjdXJyZW50X25vZGUYAyABKAsyNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5DdXJyZW50Tm9kZVByb2plY3Rpb24SSQoMYXVkaXRfZXZlbnRzGAQgAygLMjMudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTWFjaGluZUF1ZGl0RXZlbnQSRQoJcmVhZGluZXNzGAUgASgLMjIudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTWFjaGluZVJlYWRpbmVzcxJMChJjbGVhbnVwX3RvbWJzdG9uZXMYBiADKAsyMC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lQ2xlYW51cBI9CgVkcmlmdBgHIAMoCzIuLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmVEcmlmdBJLChBlZmZlY3RpdmVfcG9saWN5GAggASgLMjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuRWZmZWN0aXZlUG9saWN5IhUKE0xpc3RNYWNoaW5lc1JlcXVlc3QiUwoUTGlzdE1hY2hpbmVzUmVzcG9uc2USOwoIbWFjaGluZXMYASADKAsyKS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lIjQKFUFyY2hpdmVNYWNoaW5lUmVxdWVzdBIKCgJpZBgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIlQKFkFyY2hpdmVNYWNoaW5lUmVzcG9uc2USOgoHbWFjaGluZRgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmUiMwoUUmVtb3ZlTWFjaGluZVJlcXVlc3QSCgoCaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoAyJTChVSZW1vdmVNYWNoaW5lUmVzcG9uc2USOgoHbWFjaGluZRgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmUi0gEKDE1hY2hpbmVUcnVzdBIeChZjbGllbnRfa2V5X2ZpbmdlcnByaW50GAEgASgJEhwKFGhvc3Rfa2V5X2ZpbmdlcnByaW50GAIgASgJEhYKDmhvc3Rfa2V5X3N0YXRlGAMgASgJEi4KCnVwZGF0ZWRfYXQYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCHNzaF91c2VyGAUgASgJEhAKCHNzaF9wb3J0GAYgASgFEhgKEGNvbm5lY3Rpb25fc3RhdGUYByABKAkiLAoWR2V0TWFjaGluZVRydXN0UmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJIlgKF0dldE1hY2hpbmVUcnVzdFJlc3BvbnNlEj0KBXRydXN0GAEgASgLMi4udnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTWFjaGluZVRydXN0IlsKG1Jldmlld01hY2hpbmVIb3N0S2V5UmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJEigKIHJlcGxhY2VtZW50X2hvc3Rfa2V5X2ZpbmdlcnByaW50GAIgASgJIl0KHFJldmlld01hY2hpbmVIb3N0S2V5UmVzcG9uc2USPQoFdHJ1c3QYASABKAsyLi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NYWNoaW5lVHJ1c3Qi9QEKDk1hY2hpbmVDbGVhbnVwEgoKAmlkGAEgASgJEhIKCm1hY2hpbmVfaWQYAiABKAkSDgoGYWN0aW9uGAMgASgJEg4KBnN0YXR1cxgEIAEoCRIOCgZkZXRhaWwYBSABKAkSLgoKY3JlYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASMwoPYWNrbm93bGVkZ2VkX2F0GAggASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI1Ch9SZXF1ZXN0TWFjaGluZVNTSENsZWFudXBSZXF1ZXN0EhIKCm1hY2hpbmVfaWQYASABKAkiZQogUmVxdWVzdE1hY2hpbmVTU0hDbGVhbnVwUmVzcG9uc2USQQoHY2xlYW51cBgBIAEoCzIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmVDbGVhbnVwIkkKG1VwZGF0ZU1hY2hpbmVDbGVhbnVwUmVxdWVzdBIKCgJpZBgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDgoGZGV0YWlsGAMgASgJImEKHFVwZGF0ZU1hY2hpbmVDbGVhbnVwUmVzcG9uc2USQQoHY2xlYW51cBgBIAEoCzIwLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmVDbGVhbnVwItgBCg9FZmZlY3RpdmVQb2xpY3kSEgoKcHJvZmlsZV9pZBgBIAEoCRIXCg9wcm9maWxlX3ZlcnNpb24YAiABKAkSGQoRc2V0dXBfZW52aXJvbm1lbnQYAyABKAkSGAoQc3VnZ2VzdGVkX3Njb3BlcxgEIAMoCRIdChVyZXF1aXJlZF9jYXBhYmlsaXRpZXMYBSADKAkSFQoNc25hcHNob3RfanNvbhgGIAEoCRIRCglzY2VuYXJpb3MYCCADKAkSGgoSb3B0aW9uYWxfcmVzb3VyY2VzGAkgAygJIqcCChlBcHBseU1hY2hpbmVQb2xpY3lSZXF1ZXN0EhIKCm1hY2hpbmVfaWQYASABKAkSDwoHdmVyc2lvbhgCIAEoAxISCgpwcm9maWxlX2lkGAMgASgJEhcKD3Byb2ZpbGVfdmVyc2lvbhgEIAEoCRJdCglvdmVycmlkZXMYBSADKAsySi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5BcHBseU1hY2hpbmVQb2xpY3lSZXF1ZXN0Lk92ZXJyaWRlc0VudHJ5Eg4KBnJlYXNvbhgGIAEoCRIXCg9jb25maXJtX3JlbW92YWwYByABKAgaMAoOT3ZlcnJpZGVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgJOgI4ASKbAQoaQXBwbHlNYWNoaW5lUG9saWN5UmVzcG9uc2USOgoHbWFjaGluZRgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmUSQQoGcG9saWN5GAIgASgLMjEudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuRWZmZWN0aXZlUG9saWN5Ii4KGFJldm9rZU1hY2hpbmVOb2RlUmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJInAKGVJldm9rZU1hY2hpbmVOb2RlUmVzcG9uc2USOgoHbWFjaGluZRgBIAEoCzIpLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1hY2hpbmUSFwoPcmV2b2tlZF9ub2RlX2lkGAIgASgJIioKFFJlcGFpck1hY2hpbmVSZXF1ZXN0EhIKCm1hY2hpbmVfaWQYASABKAkijAEKFVJlcGFpck1hY2hpbmVSZXNwb25zZRI6CgdtYWNoaW5lGAEgASgLMikudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTWFjaGluZRIYChBvbmJvYXJkaW5nX29wX2lkGAIgASgJEh0KFWVucm9sbG1lbnRfYXR0ZW1wdF9pZBgDIAEoCSJIChRNZXJnZU1hY2hpbmVzUmVxdWVzdBIXCg9mcm9tX21hY2hpbmVfaWQYASABKAkSFwoPaW50b19tYWNoaW5lX2lkGAIgASgJInAKFU1lcmdlTWFjaGluZXNSZXNwb25zZRI6CgdtYWNoaW5lGAEgASgLMikudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTWFjaGluZRIbChNhcmNoaXZlZF9tYWNoaW5lX2lkGAIgASgJMpgOCg5NYWNoaW5lU2VydmljZRKAAQoNQ3JlYXRlTWFjaGluZRI2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkNyZWF0ZU1hY2hpbmVSZXF1ZXN0GjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuQ3JlYXRlTWFjaGluZVJlc3BvbnNlEncKCkdldE1hY2hpbmUSMy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5HZXRNYWNoaW5lUmVxdWVzdBo0LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkdldE1hY2hpbmVSZXNwb25zZRJ9CgxMaXN0TWFjaGluZXMSNS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5MaXN0TWFjaGluZXNSZXF1ZXN0GjYudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuTGlzdE1hY2hpbmVzUmVzcG9uc2USgwEKDkFyY2hpdmVNYWNoaW5lEjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuQXJjaGl2ZU1hY2hpbmVSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuQXJjaGl2ZU1hY2hpbmVSZXNwb25zZRKAAQoNUmVtb3ZlTWFjaGluZRI2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLlJlbW92ZU1hY2hpbmVSZXF1ZXN0GjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuUmVtb3ZlTWFjaGluZVJlc3BvbnNlEoYBCg9HZXRNYWNoaW5lVHJ1c3QSOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5HZXRNYWNoaW5lVHJ1c3RSZXF1ZXN0GjkudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuR2V0TWFjaGluZVRydXN0UmVzcG9uc2USlQEKFFJldmlld01hY2hpbmVIb3N0S2V5Ej0udnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuUmV2aWV3TWFjaGluZUhvc3RLZXlSZXF1ZXN0Gj4udnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuUmV2aWV3TWFjaGluZUhvc3RLZXlSZXNwb25zZRKhAQoYUmVxdWVzdE1hY2hpbmVTU0hDbGVhbnVwEkEudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuUmVxdWVzdE1hY2hpbmVTU0hDbGVhbnVwUmVxdWVzdBpCLnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLlJlcXVlc3RNYWNoaW5lU1NIQ2xlYW51cFJlc3BvbnNlEpUBChRVcGRhdGVNYWNoaW5lQ2xlYW51cBI9LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLlVwZGF0ZU1hY2hpbmVDbGVhbnVwUmVxdWVzdBo+LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLlVwZGF0ZU1hY2hpbmVDbGVhbnVwUmVzcG9uc2USjwEKEkFwcGx5TWFjaGluZVBvbGljeRI7LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLkFwcGx5TWFjaGluZVBvbGljeVJlcXVlc3QaPC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5BcHBseU1hY2hpbmVQb2xpY3lSZXNwb25zZRKMAQoRUmV2b2tlTWFjaGluZU5vZGUSOi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5SZXZva2VNYWNoaW5lTm9kZVJlcXVlc3QaOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5SZXZva2VNYWNoaW5lTm9kZVJlc3BvbnNlEoABCg1SZXBhaXJNYWNoaW5lEjYudnJvb2xpLnZyb29saV9icmlkZ2UudjEubWFjaGluZXMuUmVwYWlyTWFjaGluZVJlcXVlc3QaNy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5SZXBhaXJNYWNoaW5lUmVzcG9uc2USgAEKDU1lcmdlTWFjaGluZXMSNi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5tYWNoaW5lcy5NZXJnZU1hY2hpbmVzUmVxdWVzdBo3LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm1hY2hpbmVzLk1lcmdlTWFjaGluZXNSZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvbWFjaGluZXM7bWFjaGluZXNfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.ConnectionLocator
@@ -136,6 +136,21 @@ export type Machine = Message<"vrooli.vrooli_bridge.v1.machines.Machine"> & {
    * @generated from field: google.protobuf.Timestamp removed_at = 11;
    */
   removedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: string applied_profile_id = 12;
+   */
+  appliedProfileId: string;
+
+  /**
+   * @generated from field: string applied_profile_version = 13;
+   */
+  appliedProfileVersion: string;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp applied_at = 14;
+   */
+  appliedAt?: Timestamp | undefined;
 };
 
 /**
@@ -360,6 +375,33 @@ export const MachineReadinessSchema: GenMessage<MachineReadiness> = /*@__PURE__*
   messageDesc(file_vrooli_bridge_v1_machines_machines, 9);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.machines.MachineDrift
+ */
+export type MachineDrift = Message<"vrooli.vrooli_bridge.v1.machines.MachineDrift"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.machines.MachineDrift.
+ * Use `create(MachineDriftSchema)` to create a new message.
+ */
+export const MachineDriftSchema: GenMessage<MachineDrift> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 10);
+
+/**
  * @generated from message vrooli.vrooli_bridge.v1.machines.GetMachineResponse
  */
 export type GetMachineResponse = Message<"vrooli.vrooli_bridge.v1.machines.GetMachineResponse"> & {
@@ -395,6 +437,16 @@ export type GetMachineResponse = Message<"vrooli.vrooli_bridge.v1.machines.GetMa
    * @generated from field: repeated vrooli.vrooli_bridge.v1.machines.MachineCleanup cleanup_tombstones = 6;
    */
   cleanupTombstones: MachineCleanup[];
+
+  /**
+   * @generated from field: repeated vrooli.vrooli_bridge.v1.machines.MachineDrift drift = 7;
+   */
+  drift: MachineDrift[];
+
+  /**
+   * @generated from field: vrooli.vrooli_bridge.v1.machines.EffectivePolicy effective_policy = 8;
+   */
+  effectivePolicy?: EffectivePolicy | undefined;
 };
 
 /**
@@ -402,7 +454,7 @@ export type GetMachineResponse = Message<"vrooli.vrooli_bridge.v1.machines.GetMa
  * Use `create(GetMachineResponseSchema)` to create a new message.
  */
 export const GetMachineResponseSchema: GenMessage<GetMachineResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 10);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 11);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.ListMachinesRequest
@@ -415,7 +467,7 @@ export type ListMachinesRequest = Message<"vrooli.vrooli_bridge.v1.machines.List
  * Use `create(ListMachinesRequestSchema)` to create a new message.
  */
 export const ListMachinesRequestSchema: GenMessage<ListMachinesRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 11);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 12);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.ListMachinesResponse
@@ -432,7 +484,7 @@ export type ListMachinesResponse = Message<"vrooli.vrooli_bridge.v1.machines.Lis
  * Use `create(ListMachinesResponseSchema)` to create a new message.
  */
 export const ListMachinesResponseSchema: GenMessage<ListMachinesResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 12);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 13);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.ArchiveMachineRequest
@@ -454,7 +506,7 @@ export type ArchiveMachineRequest = Message<"vrooli.vrooli_bridge.v1.machines.Ar
  * Use `create(ArchiveMachineRequestSchema)` to create a new message.
  */
 export const ArchiveMachineRequestSchema: GenMessage<ArchiveMachineRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 13);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 14);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.ArchiveMachineResponse
@@ -471,7 +523,7 @@ export type ArchiveMachineResponse = Message<"vrooli.vrooli_bridge.v1.machines.A
  * Use `create(ArchiveMachineResponseSchema)` to create a new message.
  */
 export const ArchiveMachineResponseSchema: GenMessage<ArchiveMachineResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 14);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 15);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.RemoveMachineRequest
@@ -493,7 +545,7 @@ export type RemoveMachineRequest = Message<"vrooli.vrooli_bridge.v1.machines.Rem
  * Use `create(RemoveMachineRequestSchema)` to create a new message.
  */
 export const RemoveMachineRequestSchema: GenMessage<RemoveMachineRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 15);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 16);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.RemoveMachineResponse
@@ -510,7 +562,7 @@ export type RemoveMachineResponse = Message<"vrooli.vrooli_bridge.v1.machines.Re
  * Use `create(RemoveMachineResponseSchema)` to create a new message.
  */
 export const RemoveMachineResponseSchema: GenMessage<RemoveMachineResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 16);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 17);
 
 /**
  * Public trust metadata is deliberately fingerprint-only; private key material
@@ -560,7 +612,7 @@ export type MachineTrust = Message<"vrooli.vrooli_bridge.v1.machines.MachineTrus
  * Use `create(MachineTrustSchema)` to create a new message.
  */
 export const MachineTrustSchema: GenMessage<MachineTrust> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 17);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 18);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.GetMachineTrustRequest
@@ -577,7 +629,7 @@ export type GetMachineTrustRequest = Message<"vrooli.vrooli_bridge.v1.machines.G
  * Use `create(GetMachineTrustRequestSchema)` to create a new message.
  */
 export const GetMachineTrustRequestSchema: GenMessage<GetMachineTrustRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 18);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 19);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.GetMachineTrustResponse
@@ -594,7 +646,7 @@ export type GetMachineTrustResponse = Message<"vrooli.vrooli_bridge.v1.machines.
  * Use `create(GetMachineTrustResponseSchema)` to create a new message.
  */
 export const GetMachineTrustResponseSchema: GenMessage<GetMachineTrustResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 19);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 20);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyRequest
@@ -616,7 +668,7 @@ export type ReviewMachineHostKeyRequest = Message<"vrooli.vrooli_bridge.v1.machi
  * Use `create(ReviewMachineHostKeyRequestSchema)` to create a new message.
  */
 export const ReviewMachineHostKeyRequestSchema: GenMessage<ReviewMachineHostKeyRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 20);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 21);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyResponse
@@ -633,7 +685,7 @@ export type ReviewMachineHostKeyResponse = Message<"vrooli.vrooli_bridge.v1.mach
  * Use `create(ReviewMachineHostKeyResponseSchema)` to create a new message.
  */
 export const ReviewMachineHostKeyResponseSchema: GenMessage<ReviewMachineHostKeyResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 21);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 22);
 
 /**
  * Cleanup is an explicit durable effect, separate from local revocation and
@@ -688,7 +740,7 @@ export type MachineCleanup = Message<"vrooli.vrooli_bridge.v1.machines.MachineCl
  * Use `create(MachineCleanupSchema)` to create a new message.
  */
 export const MachineCleanupSchema: GenMessage<MachineCleanup> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 22);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 23);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupRequest
@@ -705,7 +757,7 @@ export type RequestMachineSSHCleanupRequest = Message<"vrooli.vrooli_bridge.v1.m
  * Use `create(RequestMachineSSHCleanupRequestSchema)` to create a new message.
  */
 export const RequestMachineSSHCleanupRequestSchema: GenMessage<RequestMachineSSHCleanupRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 23);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 24);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupResponse
@@ -722,7 +774,7 @@ export type RequestMachineSSHCleanupResponse = Message<"vrooli.vrooli_bridge.v1.
  * Use `create(RequestMachineSSHCleanupResponseSchema)` to create a new message.
  */
 export const RequestMachineSSHCleanupResponseSchema: GenMessage<RequestMachineSSHCleanupResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 24);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 25);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupRequest
@@ -749,7 +801,7 @@ export type UpdateMachineCleanupRequest = Message<"vrooli.vrooli_bridge.v1.machi
  * Use `create(UpdateMachineCleanupRequestSchema)` to create a new message.
  */
 export const UpdateMachineCleanupRequestSchema: GenMessage<UpdateMachineCleanupRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 25);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 26);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupResponse
@@ -766,7 +818,7 @@ export type UpdateMachineCleanupResponse = Message<"vrooli.vrooli_bridge.v1.mach
  * Use `create(UpdateMachineCleanupResponseSchema)` to create a new message.
  */
 export const UpdateMachineCleanupResponseSchema: GenMessage<UpdateMachineCleanupResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 26);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 27);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.EffectivePolicy
@@ -801,6 +853,16 @@ export type EffectivePolicy = Message<"vrooli.vrooli_bridge.v1.machines.Effectiv
    * @generated from field: string snapshot_json = 6;
    */
   snapshotJson: string;
+
+  /**
+   * @generated from field: repeated string scenarios = 8;
+   */
+  scenarios: string[];
+
+  /**
+   * @generated from field: repeated string optional_resources = 9;
+   */
+  optionalResources: string[];
 };
 
 /**
@@ -808,7 +870,7 @@ export type EffectivePolicy = Message<"vrooli.vrooli_bridge.v1.machines.Effectiv
  * Use `create(EffectivePolicySchema)` to create a new message.
  */
 export const EffectivePolicySchema: GenMessage<EffectivePolicy> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 27);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 28);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest
@@ -857,7 +919,7 @@ export type ApplyMachinePolicyRequest = Message<"vrooli.vrooli_bridge.v1.machine
  * Use `create(ApplyMachinePolicyRequestSchema)` to create a new message.
  */
 export const ApplyMachinePolicyRequestSchema: GenMessage<ApplyMachinePolicyRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 28);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 29);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
@@ -879,7 +941,7 @@ export type ApplyMachinePolicyResponse = Message<"vrooli.vrooli_bridge.v1.machin
  * Use `create(ApplyMachinePolicyResponseSchema)` to create a new message.
  */
 export const ApplyMachinePolicyResponseSchema: GenMessage<ApplyMachinePolicyResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 29);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 30);
 
 /**
  * Revocation is deliberately separate from Machine archive/removal and SSH
@@ -899,7 +961,7 @@ export type RevokeMachineNodeRequest = Message<"vrooli.vrooli_bridge.v1.machines
  * Use `create(RevokeMachineNodeRequestSchema)` to create a new message.
  */
 export const RevokeMachineNodeRequestSchema: GenMessage<RevokeMachineNodeRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 30);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 31);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse
@@ -921,7 +983,7 @@ export type RevokeMachineNodeResponse = Message<"vrooli.vrooli_bridge.v1.machine
  * Use `create(RevokeMachineNodeResponseSchema)` to create a new message.
  */
 export const RevokeMachineNodeResponseSchema: GenMessage<RevokeMachineNodeResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 31);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 32);
 
 /**
  * Repair reuses the durable Machine identity and Bridge-managed SSH key. The
@@ -942,7 +1004,7 @@ export type RepairMachineRequest = Message<"vrooli.vrooli_bridge.v1.machines.Rep
  * Use `create(RepairMachineRequestSchema)` to create a new message.
  */
 export const RepairMachineRequestSchema: GenMessage<RepairMachineRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 32);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 33);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.RepairMachineResponse
@@ -969,7 +1031,7 @@ export type RepairMachineResponse = Message<"vrooli.vrooli_bridge.v1.machines.Re
  * Use `create(RepairMachineResponseSchema)` to create a new message.
  */
 export const RepairMachineResponseSchema: GenMessage<RepairMachineResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 33);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 34);
 
 /**
  * Merge is an explicit, audited reconciliation of duplicate durable records.
@@ -995,7 +1057,7 @@ export type MergeMachinesRequest = Message<"vrooli.vrooli_bridge.v1.machines.Mer
  * Use `create(MergeMachinesRequestSchema)` to create a new message.
  */
 export const MergeMachinesRequestSchema: GenMessage<MergeMachinesRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 34);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 35);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.machines.MergeMachinesResponse
@@ -1017,7 +1079,7 @@ export type MergeMachinesResponse = Message<"vrooli.vrooli_bridge.v1.machines.Me
  * Use `create(MergeMachinesResponseSchema)` to create a new message.
  */
 export const MergeMachinesResponseSchema: GenMessage<MergeMachinesResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_machines_machines, 35);
+  messageDesc(file_vrooli_bridge_v1_machines_machines, 36);
 
 /**
  * MachineService is the intent-oriented owner surface. Registry Nodes and live

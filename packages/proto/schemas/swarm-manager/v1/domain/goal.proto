@@ -19,6 +19,7 @@ message Goal {
   string created = 8;
   string updated = 9;
   optional string archived_at = 10;
+	repeated string dropped_items = 11;
 }
 
 message MilestoneRollup {

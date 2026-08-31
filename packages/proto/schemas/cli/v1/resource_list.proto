@@ -87,6 +87,15 @@ message Resource {
 
   // Path to the resource's manifest file; empty if none.
   string manifest_path = 13;
+
+  // Scenario declarations that name this resource while it is explicitly
+  // disabled by the project or operator state.
+  repeated DisabledDependencyConsumer disabled_dependency_consumers = 17;
+}
+
+message DisabledDependencyConsumer {
+  string scenario = 1;
+  string startup_policy = 2;
 }
 
 // DiscoveryFailure is defined in cli/v1/common.proto (shared with scenario_list).

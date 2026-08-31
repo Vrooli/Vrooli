@@ -50,7 +50,7 @@ class AutoFilerSettings(_message.Message):
     def __init__(self, enabled: _Optional[bool] = ..., mode: _Optional[str] = ..., strategy: _Optional[str] = ..., max_open_auto_filed: _Optional[int] = ..., velocity_window_days: _Optional[int] = ..., min_velocity_transitions: _Optional[int] = ..., interval_minutes: _Optional[int] = ..., goal_name: _Optional[str] = ...) -> None: ...
 
 class Settings(_message.Message):
-    __slots__ = ("theme", "default_mode", "auto_fixup", "max_fixup_attempts", "review_agent_enabled", "agent_max_turns", "agent_timeout_seconds", "search_debounce_ms", "toast_duration_ms", "delete_confirmation_levels", "review_code_quality_min_score", "review_test_min_pass_rate", "review_max_blocking_violations", "review_max_warnings", "review_require_screenshots", "review_require_tests", "lane_concurrency_limits", "max_queue_depth", "circuit_breaker_threshold", "circuit_breaker_cooldown_minutes", "execution_cost_cap_per_run", "cost_per_turn_estimate", "fix_before_feature", "auto_filer")
+    __slots__ = ("theme", "default_mode", "auto_fixup", "max_fixup_attempts", "review_agent_enabled", "agent_max_turns", "agent_timeout_seconds", "search_debounce_ms", "toast_duration_ms", "delete_confirmation_levels", "review_code_quality_min_score", "review_test_min_pass_rate", "review_max_blocking_violations", "review_max_warnings", "review_require_screenshots", "review_require_tests", "lane_concurrency_limits", "max_queue_depth", "circuit_breaker_threshold", "circuit_breaker_cooldown_minutes", "execution_cost_cap_per_run", "cost_per_turn_estimate", "fix_before_feature", "auto_filer", "autonomy_gate_modes")
     class DeleteConfirmationLevelsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -65,6 +65,13 @@ class Settings(_message.Message):
         key: str
         value: int
         def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+    class AutonomyGateModesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     THEME_FIELD_NUMBER: _ClassVar[int]
     DEFAULT_MODE_FIELD_NUMBER: _ClassVar[int]
     AUTO_FIXUP_FIELD_NUMBER: _ClassVar[int]
@@ -89,6 +96,7 @@ class Settings(_message.Message):
     COST_PER_TURN_ESTIMATE_FIELD_NUMBER: _ClassVar[int]
     FIX_BEFORE_FEATURE_FIELD_NUMBER: _ClassVar[int]
     AUTO_FILER_FIELD_NUMBER: _ClassVar[int]
+    AUTONOMY_GATE_MODES_FIELD_NUMBER: _ClassVar[int]
     theme: str
     default_mode: str
     auto_fixup: bool
@@ -113,4 +121,5 @@ class Settings(_message.Message):
     cost_per_turn_estimate: float
     fix_before_feature: str
     auto_filer: AutoFilerSettings
-    def __init__(self, theme: _Optional[str] = ..., default_mode: _Optional[str] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ..., review_agent_enabled: _Optional[bool] = ..., agent_max_turns: _Optional[int] = ..., agent_timeout_seconds: _Optional[int] = ..., search_debounce_ms: _Optional[int] = ..., toast_duration_ms: _Optional[int] = ..., delete_confirmation_levels: _Optional[_Mapping[str, DeleteConfirmLevel]] = ..., review_code_quality_min_score: _Optional[float] = ..., review_test_min_pass_rate: _Optional[float] = ..., review_max_blocking_violations: _Optional[int] = ..., review_max_warnings: _Optional[int] = ..., review_require_screenshots: _Optional[bool] = ..., review_require_tests: _Optional[bool] = ..., lane_concurrency_limits: _Optional[_Mapping[str, int]] = ..., max_queue_depth: _Optional[int] = ..., circuit_breaker_threshold: _Optional[int] = ..., circuit_breaker_cooldown_minutes: _Optional[int] = ..., execution_cost_cap_per_run: _Optional[float] = ..., cost_per_turn_estimate: _Optional[float] = ..., fix_before_feature: _Optional[str] = ..., auto_filer: _Optional[_Union[AutoFilerSettings, _Mapping]] = ...) -> None: ...
+    autonomy_gate_modes: _containers.ScalarMap[str, str]
+    def __init__(self, theme: _Optional[str] = ..., default_mode: _Optional[str] = ..., auto_fixup: _Optional[bool] = ..., max_fixup_attempts: _Optional[int] = ..., review_agent_enabled: _Optional[bool] = ..., agent_max_turns: _Optional[int] = ..., agent_timeout_seconds: _Optional[int] = ..., search_debounce_ms: _Optional[int] = ..., toast_duration_ms: _Optional[int] = ..., delete_confirmation_levels: _Optional[_Mapping[str, DeleteConfirmLevel]] = ..., review_code_quality_min_score: _Optional[float] = ..., review_test_min_pass_rate: _Optional[float] = ..., review_max_blocking_violations: _Optional[int] = ..., review_max_warnings: _Optional[int] = ..., review_require_screenshots: _Optional[bool] = ..., review_require_tests: _Optional[bool] = ..., lane_concurrency_limits: _Optional[_Mapping[str, int]] = ..., max_queue_depth: _Optional[int] = ..., circuit_breaker_threshold: _Optional[int] = ..., circuit_breaker_cooldown_minutes: _Optional[int] = ..., execution_cost_cap_per_run: _Optional[float] = ..., cost_per_turn_estimate: _Optional[float] = ..., fix_before_feature: _Optional[str] = ..., auto_filer: _Optional[_Union[AutoFilerSettings, _Mapping]] = ..., autonomy_gate_modes: _Optional[_Mapping[str, str]] = ...) -> None: ...

@@ -68,6 +68,7 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
       }
 
       const active = [];
+      const materialized = [];
       for (const version of diskVersions) {
         const entry = await entryForVersion(libraryRoot, kind, name, version);
         if (!entry) {
@@ -82,12 +83,7 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
           continue;
         }
         resolutions[`./${name}/${version}`] = entry;
-        // `<name>/<major>/<version>` is the pinned form consumers write when
-        // they want the exact release and the major line it belongs to visible
-        // in the import itself. It resolves to the same entry as
-        // `<name>/<version>` — including for deprecated versions, so the two
-        // spellings never disagree about what is reachable.
-        resolutions[`./${name}/${version.split(".")[0]}/${version}`] = entry;
+        materialized.push(entry);
         if (!deprecated.has(version)) active.push(entry);
       }
       const latestEntry = active.find((entry) => entry.version === latest);
@@ -100,6 +96,14 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
         const major = entry.version.split(".")[0];
         const current = latestByMajor.get(major);
         if (!current || compareVersions(entry.version, current.version) > 0) latestByMajor.set(major, entry);
+      }
+      // Historical source files can still import a major that has since been
+      // deprecated. Preserve that major alias when no active release remains;
+      // otherwise the package cannot compile its own immutable historical
+      // sources. Bare selectors continue to resolve only active releases.
+      for (const entry of materialized) {
+        const major = entry.version.split(".")[0];
+        if (!latestByMajor.has(major)) latestByMajor.set(major, entry);
       }
       for (const [major, entry] of latestByMajor) resolutions[`./${name}/${major}`] = entry;
       resolutions[`./${name}`] = latestEntry;

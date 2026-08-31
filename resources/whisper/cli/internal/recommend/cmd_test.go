@@ -13,7 +13,7 @@ import (
 
 // testEnv isolates the process-wide fallback pin path so recommendation tests
 // exercise their supplied host snapshot rather than an operator's persisted
-// capacity-degrade choice in the developer's runtime home.
+// recommendation pin choice in the developer's runtime home.
 func testEnv(t *testing.T, values map[string]string) func(string) string {
 	t.Helper()
 	pinPath := filepath.Join(t.TempDir(), "whisper-model.pin")

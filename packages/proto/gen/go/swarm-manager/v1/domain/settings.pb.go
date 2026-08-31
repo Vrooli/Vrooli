@@ -290,10 +290,11 @@ type Settings struct {
 	// Fix-before-feature gate. "off" | "suggest" (default) | "block": when a
 	// feature item (kind=execute) is queued onto a scenario with open fix/chore
 	// items, advise or block accordingly.
-	FixBeforeFeature string             `protobuf:"bytes,35,opt,name=fix_before_feature,json=fixBeforeFeature,proto3" json:"fix_before_feature,omitempty"`
-	AutoFiler        *AutoFilerSettings `protobuf:"bytes,38,opt,name=auto_filer,json=autoFiler,proto3" json:"auto_filer,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	FixBeforeFeature  string             `protobuf:"bytes,35,opt,name=fix_before_feature,json=fixBeforeFeature,proto3" json:"fix_before_feature,omitempty"`
+	AutoFiler         *AutoFilerSettings `protobuf:"bytes,38,opt,name=auto_filer,json=autoFiler,proto3" json:"auto_filer,omitempty"`
+	AutonomyGateModes map[string]string  `protobuf:"bytes,39,rep,name=autonomy_gate_modes,json=autonomyGateModes,proto3" json:"autonomy_gate_modes,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Settings) Reset() {
@@ -494,6 +495,13 @@ func (x *Settings) GetAutoFiler() *AutoFilerSettings {
 	return nil
 }
 
+func (x *Settings) GetAutonomyGateModes() map[string]string {
+	if x != nil {
+		return x.AutonomyGateModes
+	}
+	return nil
+}
+
 var File_swarm_manager_v1_domain_settings_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
@@ -516,7 +524,7 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\xbaH\a\x1a\x05\x18\xe8\a(\x01R\x16minVelocityTransitions\x125\n" +
 	"\x10interval_minutes\x18\a \x01(\x05B\n" +
 	"\xbaH\a\x1a\x05\x18\xa0\v(\x01R\x0fintervalMinutes\x12$\n" +
-	"\tgoal_name\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bgoalName\"\x97\x11\n" +
+	"\tgoal_name\x18\b \x01(\tB\a\xbaH\x04r\x02\x10\x01R\bgoalName\"\xce\x12\n" +
 	"\bSettings\x120\n" +
 	"\x05theme\x18\x01 \x01(\tB\x1a\xbaH\x17r\x15R\x04darkR\x05lightR\x06systemR\x05theme\x126\n" +
 	"\fdefault_mode\x18\x05 \x01(\tB\x13\xbaH\x10r\x0eR\x06manualR\x04yoloR\vdefaultMode\x12\x1d\n" +
@@ -549,13 +557,17 @@ const file_swarm_manager_v1_domain_settings_proto_rawDesc = "" +
 	"\x16cost_per_turn_estimate\x18\x1e \x01(\x01B\x17\xbaH\x14\x12\x12\x19\x00\x00\x00\x00\x00\x00\x14@)\x00\x00\x00\x00\x00\x00\x00\x00R\x13costPerTurnEstimate\x12H\n" +
 	"\x12fix_before_feature\x18# \x01(\tB\x1a\xbaH\x17r\x15R\x03offR\asuggestR\x05blockR\x10fixBeforeFeature\x12P\n" +
 	"\n" +
-	"auto_filer\x18& \x01(\v21.vrooli.swarm_manager.v1.domain.AutoFilerSettingsR\tautoFiler\x1a\x7f\n" +
+	"auto_filer\x18& \x01(\v21.vrooli.swarm_manager.v1.domain.AutoFilerSettingsR\tautoFiler\x12o\n" +
+	"\x13autonomy_gate_modes\x18' \x03(\v2?.vrooli.swarm_manager.v1.domain.Settings.AutonomyGateModesEntryR\x11autonomyGateModes\x1a\x7f\n" +
 	"\x1dDeleteConfirmationLevelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12H\n" +
 	"\x05value\x18\x02 \x01(\x0e22.vrooli.swarm_manager.v1.domain.DeleteConfirmLevelR\x05value:\x028\x01\x1aH\n" +
 	"\x1aLaneConcurrencyLimitsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\t\x10\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aD\n" +
+	"\x16AutonomyGateModesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01J\x04\b\x02\x10\x03J\x04\b\x03\x10\x04J\x04\b\x04\x10\x05J\x04\b\x06\x10\aJ\x04\b\t\x10\n" +
 	"J\x04\b\x10\x10\x11J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13J\x04\b \x10!J\x04\b\f\x10\rJ\x04\b\x0f\x10\x10J\x04\b!\x10\"J\x04\b\x19\x10\x1aJ\x04\b$\x10%R\x0fmax_auto_roundsR\x18auto_initialize_workshopR\x15auto_advance_workshopR\x15auto_cascade_workshopR\x1aauto_advance_delay_secondsR\x17agent_requires_approvalR\x1bconfirm_destructive_actionsR\x13delete_confirmationR\x19max_concurrent_executions*\x9b\x01\n" +
 	"\x12DeleteConfirmLevel\x12$\n" +
 	" DELETE_CONFIRM_LEVEL_UNSPECIFIED\x10\x00\x12\x1f\n" +
@@ -576,7 +588,7 @@ func file_swarm_manager_v1_domain_settings_proto_rawDescGZIP() []byte {
 }
 
 var file_swarm_manager_v1_domain_settings_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_swarm_manager_v1_domain_settings_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_swarm_manager_v1_domain_settings_proto_goTypes = []any{
 	(DeleteConfirmLevel)(0),            // 0: vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
 	(*DeleteConfirmationSettings)(nil), // 1: vrooli.swarm_manager.v1.domain.DeleteConfirmationSettings
@@ -584,6 +596,7 @@ var file_swarm_manager_v1_domain_settings_proto_goTypes = []any{
 	(*Settings)(nil),                   // 3: vrooli.swarm_manager.v1.domain.Settings
 	nil,                                // 4: vrooli.swarm_manager.v1.domain.Settings.DeleteConfirmationLevelsEntry
 	nil,                                // 5: vrooli.swarm_manager.v1.domain.Settings.LaneConcurrencyLimitsEntry
+	nil,                                // 6: vrooli.swarm_manager.v1.domain.Settings.AutonomyGateModesEntry
 }
 var file_swarm_manager_v1_domain_settings_proto_depIdxs = []int32{
 	0, // 0: vrooli.swarm_manager.v1.domain.DeleteConfirmationSettings.backlog:type_name -> vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
@@ -592,12 +605,13 @@ var file_swarm_manager_v1_domain_settings_proto_depIdxs = []int32{
 	4, // 3: vrooli.swarm_manager.v1.domain.Settings.delete_confirmation_levels:type_name -> vrooli.swarm_manager.v1.domain.Settings.DeleteConfirmationLevelsEntry
 	5, // 4: vrooli.swarm_manager.v1.domain.Settings.lane_concurrency_limits:type_name -> vrooli.swarm_manager.v1.domain.Settings.LaneConcurrencyLimitsEntry
 	2, // 5: vrooli.swarm_manager.v1.domain.Settings.auto_filer:type_name -> vrooli.swarm_manager.v1.domain.AutoFilerSettings
-	0, // 6: vrooli.swarm_manager.v1.domain.Settings.DeleteConfirmationLevelsEntry.value:type_name -> vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	6, // 6: vrooli.swarm_manager.v1.domain.Settings.autonomy_gate_modes:type_name -> vrooli.swarm_manager.v1.domain.Settings.AutonomyGateModesEntry
+	0, // 7: vrooli.swarm_manager.v1.domain.Settings.DeleteConfirmationLevelsEntry.value:type_name -> vrooli.swarm_manager.v1.domain.DeleteConfirmLevel
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_settings_proto_init() }
@@ -611,7 +625,7 @@ func file_swarm_manager_v1_domain_settings_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_settings_proto_rawDesc), len(file_swarm_manager_v1_domain_settings_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -146,7 +146,7 @@ message BacklogItem {
 
   // Deterministic operator signal. It is computed on read from item age,
   // review age, plan/acceptance validity, and is never persisted in spec.json.
-  bool stale = 27;
+  optional bool stale = 27;
 
   // Most recent explicit decision that the item remains valid without a
   // content mutation. This is distinct from `updated`, which tracks changes

@@ -39,8 +39,20 @@ type CapabilityState struct {
 	ActionKind      string `protobuf:"bytes,11,opt,name=action_kind,json=actionKind,proto3" json:"action_kind,omitempty"`
 	ActionLabel     string `protobuf:"bytes,12,opt,name=action_label,json=actionLabel,proto3" json:"action_label,omitempty"`
 	OperatorCommand string `protobuf:"bytes,13,opt,name=operator_command,json=operatorCommand,proto3" json:"operator_command,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Independent status for each feature served by this capability.
+	FeatureStatus map[string]string `protobuf:"bytes,14,rep,name=feature_status,json=featureStatus,proto3" json:"feature_status,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Actionable reason and repair command for unavailable features.
+	FeatureReason          map[string]string `protobuf:"bytes,15,rep,name=feature_reason,json=featureReason,proto3" json:"feature_reason,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	FeatureOperatorCommand map[string]string `protobuf:"bytes,16,rep,name=feature_operator_command,json=featureOperatorCommand,proto3" json:"feature_operator_command,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Individual provider state used by consumers that prefer one provider
+	// while retaining another provider as a feature-level fallback.
+	ProviderStatus map[string]string `protobuf:"bytes,17,rep,name=provider_status,json=providerStatus,proto3" json:"provider_status,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// Feature slugs served by each provider. Values are comma-separated when a
+	// provider serves more than one feature. This keeps consumer gates generic
+	// without requiring a second vendor/provider catalogue in the UI.
+	ProviderFeatures map[string]string `protobuf:"bytes,18,rep,name=provider_features,json=providerFeatures,proto3" json:"provider_features,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CapabilityState) Reset() {
@@ -162,6 +174,41 @@ func (x *CapabilityState) GetOperatorCommand() string {
 		return x.OperatorCommand
 	}
 	return ""
+}
+
+func (x *CapabilityState) GetFeatureStatus() map[string]string {
+	if x != nil {
+		return x.FeatureStatus
+	}
+	return nil
+}
+
+func (x *CapabilityState) GetFeatureReason() map[string]string {
+	if x != nil {
+		return x.FeatureReason
+	}
+	return nil
+}
+
+func (x *CapabilityState) GetFeatureOperatorCommand() map[string]string {
+	if x != nil {
+		return x.FeatureOperatorCommand
+	}
+	return nil
+}
+
+func (x *CapabilityState) GetProviderStatus() map[string]string {
+	if x != nil {
+		return x.ProviderStatus
+	}
+	return nil
+}
+
+func (x *CapabilityState) GetProviderFeatures() map[string]string {
+	if x != nil {
+		return x.ProviderFeatures
+	}
+	return nil
 }
 
 // BackendOption mirrors the api.BackendDescriptor struct. Surfaced on
@@ -447,6 +494,7 @@ type RunActionRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CapabilityId  string                 `protobuf:"bytes,1,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
 	ActionKind    string                 `protobuf:"bytes,2,opt,name=action_kind,json=actionKind,proto3" json:"action_kind,omitempty"`
+	TargetId      string                 `protobuf:"bytes,3,opt,name=target_id,json=targetId,proto3" json:"target_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -495,15 +543,24 @@ func (x *RunActionRequest) GetActionKind() string {
 	return ""
 }
 
+func (x *RunActionRequest) GetTargetId() string {
+	if x != nil {
+		return x.TargetId
+	}
+	return ""
+}
+
 type RunActionResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Status        string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
-	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	CapabilityId  string                 `protobuf:"bytes,4,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
-	ActionKind    string                 `protobuf:"bytes,5,opt,name=action_kind,json=actionKind,proto3" json:"action_kind,omitempty"`
-	Capabilities  []*CapabilityState     `protobuf:"bytes,6,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
-	Timestamp     string                 `protobuf:"bytes,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	Success      bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Status       string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	Message      string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	CapabilityId string                 `protobuf:"bytes,4,opt,name=capability_id,json=capabilityId,proto3" json:"capability_id,omitempty"`
+	ActionKind   string                 `protobuf:"bytes,5,opt,name=action_kind,json=actionKind,proto3" json:"action_kind,omitempty"`
+	Capabilities []*CapabilityState     `protobuf:"bytes,6,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
+	Timestamp    string                 `protobuf:"bytes,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// Durable Bridge correlation/audit identifier for a remote action.
+	OperationId   string `protobuf:"bytes,8,opt,name=operation_id,json=operationId,proto3" json:"operation_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -587,11 +644,19 @@ func (x *RunActionResponse) GetTimestamp() string {
 	return ""
 }
 
+func (x *RunActionResponse) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
 var File_web_console_v1_capabilities_capabilities_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\n" +
-	".web-console/v1/capabilities/capabilities.proto\x12\"vrooli.web_console.v1.capabilities\"\xa6\x03\n" +
+	".web-console/v1/capabilities/capabilities.proto\x12\"vrooli.web_console.v1.capabilities\"\xd1\n" +
+	"\n" +
 	"\x0fCapabilityState\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -609,7 +674,27 @@ const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\vaction_kind\x18\v \x01(\tR\n" +
 	"actionKind\x12!\n" +
 	"\faction_label\x18\f \x01(\tR\vactionLabel\x12)\n" +
-	"\x10operator_command\x18\r \x01(\tR\x0foperatorCommand\"\xc5\x01\n" +
+	"\x10operator_command\x18\r \x01(\tR\x0foperatorCommand\x12m\n" +
+	"\x0efeature_status\x18\x0e \x03(\v2F.vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntryR\rfeatureStatus\x12m\n" +
+	"\x0efeature_reason\x18\x0f \x03(\v2F.vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntryR\rfeatureReason\x12\x89\x01\n" +
+	"\x18feature_operator_command\x18\x10 \x03(\v2O.vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntryR\x16featureOperatorCommand\x12p\n" +
+	"\x0fprovider_status\x18\x11 \x03(\v2G.vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntryR\x0eproviderStatus\x12v\n" +
+	"\x11provider_features\x18\x12 \x03(\v2I.vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntryR\x10providerFeatures\x1a@\n" +
+	"\x12FeatureStatusEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a@\n" +
+	"\x12FeatureReasonEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aI\n" +
+	"\x1bFeatureOperatorCommandEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
+	"\x13ProviderStatusEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aC\n" +
+	"\x15ProviderFeaturesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc5\x01\n" +
 	"\rBackendOption\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12 \n" +
@@ -627,11 +712,12 @@ const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\x0fLivenessRequest\"\x89\x01\n" +
 	"\x10LivenessResponse\x12W\n" +
 	"\fcapabilities\x18\x01 \x03(\v23.vrooli.web_console.v1.capabilities.CapabilityStateR\fcapabilities\x12\x1c\n" +
-	"\ttimestamp\x18\x02 \x01(\tR\ttimestamp\"X\n" +
+	"\ttimestamp\x18\x02 \x01(\tR\ttimestamp\"u\n" +
 	"\x10RunActionRequest\x12#\n" +
 	"\rcapability_id\x18\x01 \x01(\tR\fcapabilityId\x12\x1f\n" +
 	"\vaction_kind\x18\x02 \x01(\tR\n" +
-	"actionKind\"\x9c\x02\n" +
+	"actionKind\x12\x1b\n" +
+	"\ttarget_id\x18\x03 \x01(\tR\btargetId\"\xbf\x02\n" +
 	"\x11RunActionResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
@@ -640,7 +726,8 @@ const file_web_console_v1_capabilities_capabilities_proto_rawDesc = "" +
 	"\vaction_kind\x18\x05 \x01(\tR\n" +
 	"actionKind\x12W\n" +
 	"\fcapabilities\x18\x06 \x03(\v23.vrooli.web_console.v1.capabilities.CapabilityStateR\fcapabilities\x12\x1c\n" +
-	"\ttimestamp\x18\a \x01(\tR\ttimestamp2\xee\x02\n" +
+	"\ttimestamp\x18\a \x01(\tR\ttimestamp\x12!\n" +
+	"\foperation_id\x18\b \x01(\tR\voperationId2\xee\x02\n" +
 	"\x13CapabilitiesService\x12f\n" +
 	"\x03Get\x12..vrooli.web_console.v1.capabilities.GetRequest\x1a/.vrooli.web_console.v1.capabilities.GetResponse\x12u\n" +
 	"\bLiveness\x123.vrooli.web_console.v1.capabilities.LivenessRequest\x1a4.vrooli.web_console.v1.capabilities.LivenessResponse\x12x\n" +
@@ -658,7 +745,7 @@ func file_web_console_v1_capabilities_capabilities_proto_rawDescGZIP() []byte {
 	return file_web_console_v1_capabilities_capabilities_proto_rawDescData
 }
 
-var file_web_console_v1_capabilities_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_web_console_v1_capabilities_capabilities_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_web_console_v1_capabilities_capabilities_proto_goTypes = []any{
 	(*CapabilityState)(nil),   // 0: vrooli.web_console.v1.capabilities.CapabilityState
 	(*BackendOption)(nil),     // 1: vrooli.web_console.v1.capabilities.BackendOption
@@ -668,23 +755,33 @@ var file_web_console_v1_capabilities_capabilities_proto_goTypes = []any{
 	(*LivenessResponse)(nil),  // 5: vrooli.web_console.v1.capabilities.LivenessResponse
 	(*RunActionRequest)(nil),  // 6: vrooli.web_console.v1.capabilities.RunActionRequest
 	(*RunActionResponse)(nil), // 7: vrooli.web_console.v1.capabilities.RunActionResponse
+	nil,                       // 8: vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
+	nil,                       // 9: vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
+	nil,                       // 10: vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
+	nil,                       // 11: vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
+	nil,                       // 12: vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
 }
 var file_web_console_v1_capabilities_capabilities_proto_depIdxs = []int32{
-	0, // 0: vrooli.web_console.v1.capabilities.GetResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
-	1, // 1: vrooli.web_console.v1.capabilities.GetResponse.session_backends:type_name -> vrooli.web_console.v1.capabilities.BackendOption
-	0, // 2: vrooli.web_console.v1.capabilities.LivenessResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
-	0, // 3: vrooli.web_console.v1.capabilities.RunActionResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
-	2, // 4: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:input_type -> vrooli.web_console.v1.capabilities.GetRequest
-	4, // 5: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:input_type -> vrooli.web_console.v1.capabilities.LivenessRequest
-	6, // 6: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:input_type -> vrooli.web_console.v1.capabilities.RunActionRequest
-	3, // 7: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:output_type -> vrooli.web_console.v1.capabilities.GetResponse
-	5, // 8: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:output_type -> vrooli.web_console.v1.capabilities.LivenessResponse
-	7, // 9: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:output_type -> vrooli.web_console.v1.capabilities.RunActionResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	8,  // 0: vrooli.web_console.v1.capabilities.CapabilityState.feature_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureStatusEntry
+	9,  // 1: vrooli.web_console.v1.capabilities.CapabilityState.feature_reason:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureReasonEntry
+	10, // 2: vrooli.web_console.v1.capabilities.CapabilityState.feature_operator_command:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.FeatureOperatorCommandEntry
+	11, // 3: vrooli.web_console.v1.capabilities.CapabilityState.provider_status:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderStatusEntry
+	12, // 4: vrooli.web_console.v1.capabilities.CapabilityState.provider_features:type_name -> vrooli.web_console.v1.capabilities.CapabilityState.ProviderFeaturesEntry
+	0,  // 5: vrooli.web_console.v1.capabilities.GetResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
+	1,  // 6: vrooli.web_console.v1.capabilities.GetResponse.session_backends:type_name -> vrooli.web_console.v1.capabilities.BackendOption
+	0,  // 7: vrooli.web_console.v1.capabilities.LivenessResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
+	0,  // 8: vrooli.web_console.v1.capabilities.RunActionResponse.capabilities:type_name -> vrooli.web_console.v1.capabilities.CapabilityState
+	2,  // 9: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:input_type -> vrooli.web_console.v1.capabilities.GetRequest
+	4,  // 10: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:input_type -> vrooli.web_console.v1.capabilities.LivenessRequest
+	6,  // 11: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:input_type -> vrooli.web_console.v1.capabilities.RunActionRequest
+	3,  // 12: vrooli.web_console.v1.capabilities.CapabilitiesService.Get:output_type -> vrooli.web_console.v1.capabilities.GetResponse
+	5,  // 13: vrooli.web_console.v1.capabilities.CapabilitiesService.Liveness:output_type -> vrooli.web_console.v1.capabilities.LivenessResponse
+	7,  // 14: vrooli.web_console.v1.capabilities.CapabilitiesService.RunAction:output_type -> vrooli.web_console.v1.capabilities.RunActionResponse
+	12, // [12:15] is the sub-list for method output_type
+	9,  // [9:12] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_web_console_v1_capabilities_capabilities_proto_init() }
@@ -698,7 +795,7 @@ func file_web_console_v1_capabilities_capabilities_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_web_console_v1_capabilities_capabilities_proto_rawDesc), len(file_web_console_v1_capabilities_capabilities_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

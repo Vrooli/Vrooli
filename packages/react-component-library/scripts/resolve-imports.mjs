@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
@@ -187,14 +188,23 @@ export function serializeSourceFacts(root) {
 const resolveRelativeModule = (fromFile, specifier) => {
   if (!specifier.startsWith(".")) return null;
   const base = resolve(dirname(fromFile), specifier);
-  const candidates = extname(base)
+  const extension = extname(base);
+  const sourceBase = extension === ".js" || extension === ".jsx" ? base.slice(0, -extension.length) : base;
+  const nonModuleAsset = [".css", ".json", ".svg"].includes(extension);
+  const candidates = nonModuleAsset
     ? [base]
-    : [base, `${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx")];
+    : [base, `${sourceBase}.ts`, `${sourceBase}.tsx`, `${sourceBase}.js`, `${sourceBase}.jsx`, join(sourceBase, "index.ts"), join(sourceBase, "index.tsx")];
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 };
 
-export function resolveVersionImports({ entryFile, versionRoot, specifiersByFile }) {
+export async function resolveVersionImports({ entryFile, versionRoot, specifiersByFile }) {
   const pending = [resolve(entryFile)];
+  // Retention must see imports that are not reachable from the public entry
+  // module. Stories and preview harnesses are package consumers too.
+  const files = await readdir(resolve(versionRoot), { recursive: true, withFileTypes: true });
+  for (const entry of files) {
+    if (entry.isFile() && /\.(?:ts|tsx|js|jsx)$/.test(entry.name)) pending.push(resolve(entry.parentPath ?? versionRoot, entry.name));
+  }
   const visited = new Set();
   const specifiers = new Set();
   while (pending.length > 0) {

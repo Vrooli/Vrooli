@@ -31,6 +31,7 @@ const (
 	ProviderTier_PROVIDER_TIER_LOCAL       ProviderTier = 1
 	ProviderTier_PROVIDER_TIER_BYOK        ProviderTier = 2
 	ProviderTier_PROVIDER_TIER_VROOLI      ProviderTier = 3
+	ProviderTier_PROVIDER_TIER_BROWSER     ProviderTier = 4
 )
 
 // Enum value maps for ProviderTier.
@@ -40,12 +41,14 @@ var (
 		1: "PROVIDER_TIER_LOCAL",
 		2: "PROVIDER_TIER_BYOK",
 		3: "PROVIDER_TIER_VROOLI",
+		4: "PROVIDER_TIER_BROWSER",
 	}
 	ProviderTier_value = map[string]int32{
 		"PROVIDER_TIER_UNSPECIFIED": 0,
 		"PROVIDER_TIER_LOCAL":       1,
 		"PROVIDER_TIER_BYOK":        2,
 		"PROVIDER_TIER_VROOLI":      3,
+		"PROVIDER_TIER_BROWSER":     4,
 	}
 )
 
@@ -307,12 +310,13 @@ var File_audio_tools_v1_common_common_proto protoreflect.FileDescriptor
 
 const file_audio_tools_v1_common_common_proto_rawDesc = "" +
 	"\n" +
-	"\"audio-tools/v1/common/common.proto\x12\x1cvrooli.audio_tools.v1.common*x\n" +
+	"\"audio-tools/v1/common/common.proto\x12\x1cvrooli.audio_tools.v1.common*\x93\x01\n" +
 	"\fProviderTier\x12\x1d\n" +
 	"\x19PROVIDER_TIER_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13PROVIDER_TIER_LOCAL\x10\x01\x12\x16\n" +
 	"\x12PROVIDER_TIER_BYOK\x10\x02\x12\x18\n" +
-	"\x14PROVIDER_TIER_VROOLI\x10\x03*\xe4\x01\n" +
+	"\x14PROVIDER_TIER_VROOLI\x10\x03\x12\x19\n" +
+	"\x15PROVIDER_TIER_BROWSER\x10\x04*\xe4\x01\n" +
 	"\vAudioFormat\x12\x1c\n" +
 	"\x18AUDIO_FORMAT_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10AUDIO_FORMAT_WAV\x10\x01\x12\x14\n" +

@@ -209,6 +209,114 @@ func (x *ExecutionStrategy) GetCostBand() string {
 	return ""
 }
 
+type HumanGate struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Decides        string                 `protobuf:"bytes,2,opt,name=decides,proto3" json:"decides,omitempty"`
+	DefaultMode    string                 `protobuf:"bytes,3,opt,name=default_mode,json=defaultMode,proto3" json:"default_mode,omitempty"`
+	Threshold      float64                `protobuf:"fixed64,4,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	MinSample      int32                  `protobuf:"varint,5,opt,name=min_sample,json=minSample,proto3" json:"min_sample,omitempty"`
+	Mode           string                 `protobuf:"bytes,6,opt,name=mode,proto3" json:"mode,omitempty"`
+	AcceptanceRate float64                `protobuf:"fixed64,7,opt,name=acceptance_rate,json=acceptanceRate,proto3" json:"acceptance_rate,omitempty"`
+	SampleSize     int32                  `protobuf:"varint,8,opt,name=sample_size,json=sampleSize,proto3" json:"sample_size,omitempty"`
+	Readiness      string                 `protobuf:"bytes,9,opt,name=readiness,proto3" json:"readiness,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *HumanGate) Reset() {
+	*x = HumanGate{}
+	mi := &file_swarm_manager_v1_domain_transition_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HumanGate) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HumanGate) ProtoMessage() {}
+
+func (x *HumanGate) ProtoReflect() protoreflect.Message {
+	mi := &file_swarm_manager_v1_domain_transition_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HumanGate.ProtoReflect.Descriptor instead.
+func (*HumanGate) Descriptor() ([]byte, []int) {
+	return file_swarm_manager_v1_domain_transition_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *HumanGate) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *HumanGate) GetDecides() string {
+	if x != nil {
+		return x.Decides
+	}
+	return ""
+}
+
+func (x *HumanGate) GetDefaultMode() string {
+	if x != nil {
+		return x.DefaultMode
+	}
+	return ""
+}
+
+func (x *HumanGate) GetThreshold() float64 {
+	if x != nil {
+		return x.Threshold
+	}
+	return 0
+}
+
+func (x *HumanGate) GetMinSample() int32 {
+	if x != nil {
+		return x.MinSample
+	}
+	return 0
+}
+
+func (x *HumanGate) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *HumanGate) GetAcceptanceRate() float64 {
+	if x != nil {
+		return x.AcceptanceRate
+	}
+	return 0
+}
+
+func (x *HumanGate) GetSampleSize() int32 {
+	if x != nil {
+		return x.SampleSize
+	}
+	return 0
+}
+
+func (x *HumanGate) GetReadiness() string {
+	if x != nil {
+		return x.Readiness
+	}
+	return ""
+}
+
 type Transition struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Key              string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -220,13 +328,15 @@ type Transition struct {
 	TerminalOutcomes []string               `protobuf:"bytes,7,rep,name=terminal_outcomes,json=terminalOutcomes,proto3" json:"terminal_outcomes,omitempty"`
 	ApplyAction      string                 `protobuf:"bytes,8,opt,name=apply_action,json=applyAction,proto3" json:"apply_action,omitempty"`
 	Strategies       []*ExecutionStrategy   `protobuf:"bytes,9,rep,name=strategies,proto3" json:"strategies,omitempty"`
+	HumanGates       []*HumanGate           `protobuf:"bytes,10,rep,name=human_gates,json=humanGates,proto3" json:"human_gates,omitempty"`
+	HumanWait        bool                   `protobuf:"varint,11,opt,name=human_wait,json=humanWait,proto3" json:"human_wait,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Transition) Reset() {
 	*x = Transition{}
-	mi := &file_swarm_manager_v1_domain_transition_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_transition_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -238,7 +348,7 @@ func (x *Transition) String() string {
 func (*Transition) ProtoMessage() {}
 
 func (x *Transition) ProtoReflect() protoreflect.Message {
-	mi := &file_swarm_manager_v1_domain_transition_proto_msgTypes[2]
+	mi := &file_swarm_manager_v1_domain_transition_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -251,7 +361,7 @@ func (x *Transition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Transition.ProtoReflect.Descriptor instead.
 func (*Transition) Descriptor() ([]byte, []int) {
-	return file_swarm_manager_v1_domain_transition_proto_rawDescGZIP(), []int{2}
+	return file_swarm_manager_v1_domain_transition_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Transition) GetKey() string {
@@ -317,6 +427,20 @@ func (x *Transition) GetStrategies() []*ExecutionStrategy {
 	return nil
 }
 
+func (x *Transition) GetHumanGates() []*HumanGate {
+	if x != nil {
+		return x.HumanGates
+	}
+	return nil
+}
+
+func (x *Transition) GetHumanWait() bool {
+	if x != nil {
+		return x.HumanWait
+	}
+	return false
+}
+
 var File_swarm_manager_v1_domain_transition_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_transition_proto_rawDesc = "" +
@@ -331,7 +455,19 @@ const file_swarm_manager_v1_domain_transition_proto_rawDesc = "" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1e\n" +
 	"\vwhen_to_use\x18\x05 \x01(\tR\twhenToUse\x12\x1b\n" +
-	"\tcost_band\x18\x06 \x01(\tR\bcostBand\"\xaf\x03\n" +
+	"\tcost_band\x18\x06 \x01(\tR\bcostBand\"\x91\x02\n" +
+	"\tHumanGate\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\adecides\x18\x02 \x01(\tR\adecides\x12!\n" +
+	"\fdefault_mode\x18\x03 \x01(\tR\vdefaultMode\x12\x1c\n" +
+	"\tthreshold\x18\x04 \x01(\x01R\tthreshold\x12\x1d\n" +
+	"\n" +
+	"min_sample\x18\x05 \x01(\x05R\tminSample\x12\x12\n" +
+	"\x04mode\x18\x06 \x01(\tR\x04mode\x12'\n" +
+	"\x0facceptance_rate\x18\a \x01(\x01R\x0eacceptanceRate\x12\x1f\n" +
+	"\vsample_size\x18\b \x01(\x05R\n" +
+	"sampleSize\x12\x1c\n" +
+	"\treadiness\x18\t \x01(\tR\treadiness\"\x9a\x04\n" +
 	"\n" +
 	"Transition\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x18\n" +
@@ -344,7 +480,12 @@ const file_swarm_manager_v1_domain_transition_proto_rawDesc = "" +
 	"\fapply_action\x18\b \x01(\tR\vapplyAction\x12Q\n" +
 	"\n" +
 	"strategies\x18\t \x03(\v21.vrooli.swarm_manager.v1.domain.ExecutionStrategyR\n" +
-	"strategies*\x8f\x01\n" +
+	"strategies\x12J\n" +
+	"\vhuman_gates\x18\n" +
+	" \x03(\v2).vrooli.swarm_manager.v1.domain.HumanGateR\n" +
+	"humanGates\x12\x1d\n" +
+	"\n" +
+	"human_wait\x18\v \x01(\bR\thumanWait*\x8f\x01\n" +
 	"\x0eTransitionKind\x12\x1f\n" +
 	"\x1bTRANSITION_KIND_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17TRANSITION_KIND_SESSION\x10\x01\x12\x1c\n" +
@@ -364,22 +505,24 @@ func file_swarm_manager_v1_domain_transition_proto_rawDescGZIP() []byte {
 }
 
 var file_swarm_manager_v1_domain_transition_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_swarm_manager_v1_domain_transition_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_swarm_manager_v1_domain_transition_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_swarm_manager_v1_domain_transition_proto_goTypes = []any{
 	(TransitionKind)(0),       // 0: vrooli.swarm_manager.v1.domain.TransitionKind
 	(*WorkflowLocator)(nil),   // 1: vrooli.swarm_manager.v1.domain.WorkflowLocator
 	(*ExecutionStrategy)(nil), // 2: vrooli.swarm_manager.v1.domain.ExecutionStrategy
-	(*Transition)(nil),        // 3: vrooli.swarm_manager.v1.domain.Transition
+	(*HumanGate)(nil),         // 3: vrooli.swarm_manager.v1.domain.HumanGate
+	(*Transition)(nil),        // 4: vrooli.swarm_manager.v1.domain.Transition
 }
 var file_swarm_manager_v1_domain_transition_proto_depIdxs = []int32{
 	0, // 0: vrooli.swarm_manager.v1.domain.Transition.kind:type_name -> vrooli.swarm_manager.v1.domain.TransitionKind
 	1, // 1: vrooli.swarm_manager.v1.domain.Transition.workflow:type_name -> vrooli.swarm_manager.v1.domain.WorkflowLocator
 	2, // 2: vrooli.swarm_manager.v1.domain.Transition.strategies:type_name -> vrooli.swarm_manager.v1.domain.ExecutionStrategy
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3, // 3: vrooli.swarm_manager.v1.domain.Transition.human_gates:type_name -> vrooli.swarm_manager.v1.domain.HumanGate
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_swarm_manager_v1_domain_transition_proto_init() }
@@ -393,7 +536,7 @@ func file_swarm_manager_v1_domain_transition_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swarm_manager_v1_domain_transition_proto_rawDesc), len(file_swarm_manager_v1_domain_transition_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

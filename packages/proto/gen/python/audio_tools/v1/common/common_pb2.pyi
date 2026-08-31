@@ -10,6 +10,7 @@ class ProviderTier(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PROVIDER_TIER_LOCAL: _ClassVar[ProviderTier]
     PROVIDER_TIER_BYOK: _ClassVar[ProviderTier]
     PROVIDER_TIER_VROOLI: _ClassVar[ProviderTier]
+    PROVIDER_TIER_BROWSER: _ClassVar[ProviderTier]
 
 class AudioFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -47,6 +48,7 @@ PROVIDER_TIER_UNSPECIFIED: ProviderTier
 PROVIDER_TIER_LOCAL: ProviderTier
 PROVIDER_TIER_BYOK: ProviderTier
 PROVIDER_TIER_VROOLI: ProviderTier
+PROVIDER_TIER_BROWSER: ProviderTier
 AUDIO_FORMAT_UNSPECIFIED: AudioFormat
 AUDIO_FORMAT_WAV: AudioFormat
 AUDIO_FORMAT_MP3: AudioFormat

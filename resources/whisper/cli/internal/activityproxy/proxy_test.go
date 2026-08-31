@@ -259,11 +259,12 @@ func TestRunLogsSignalExit(t *testing.T) {
 	sigCh <- syscall.SIGTERM
 	var stderr bytes.Buffer
 	h := &Handlers{
-		Stdout:   io.Discard,
-		Stderr:   &stderr,
-		GetEnv:   func(string) string { return "" },
-		Exec:     func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
-		SignalCh: sigCh,
+		Stdout:    io.Discard,
+		Stderr:    &stderr,
+		GetEnv:    func(string) string { return "" },
+		Exec:      func(context.Context, string, ...string) ([]byte, error) { return []byte(`{}`), nil },
+		SignalCh:  sigCh,
+		ParentPID: os.Getpid(),
 	}
 	if err := h.Run([]string{"--listen", "127.0.0.1:0", "--upstream", "127.0.0.1:1"}); err != nil {
 		t.Fatalf("Run returned error: %v", err)
@@ -284,7 +285,8 @@ func TestRunLogsServeError(t *testing.T) {
 		Listen: func(string, string) (net.Listener, error) {
 			return failingListener{err: errors.New("accept boom")}, nil
 		},
-		SignalCh: make(chan os.Signal),
+		SignalCh:  make(chan os.Signal),
+		ParentPID: os.Getpid(),
 	}
 	if err := h.Run([]string{"--listen", "127.0.0.1:0", "--upstream", "127.0.0.1:1"}); err == nil {
 		t.Fatal("Run should return the serve error")

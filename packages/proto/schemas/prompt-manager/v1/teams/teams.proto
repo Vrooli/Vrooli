@@ -36,6 +36,10 @@ service TeamsService {
   rpc ListAvailableClaudeCodeTeams(ListAvailableClaudeCodeTeamsRequest) returns (ListAvailableClaudeCodeTeamsResponse);
   rpc ImportClaudeCodeTeam(ImportClaudeCodeTeamRequest) returns (TeamDetails);
   rpc ExportClaudeCodeTeam(ExportClaudeCodeTeamRequest) returns (ExportClaudeCodeTeamResponse);
+  rpc ListKnowledge(ListKnowledgeRequest) returns (ListKnowledgeResponse);
+  rpc AddKnowledge(AddKnowledgeRequest) returns (KnowledgeEntry);
+  rpc UpdateKnowledge(UpdateKnowledgeRequest) returns (KnowledgeEntry);
+  rpc DeleteKnowledge(DeleteKnowledgeRequest) returns (DeleteKnowledgeResponse);
 }
 
 message Team {
@@ -127,3 +131,41 @@ message ListAvailableClaudeCodeTeamsResponse { repeated AvailableClaudeCodeTeam 
 message ImportClaudeCodeTeamRequest { string team_name = 1; }
 message ExportClaudeCodeTeamRequest { string team_id = 1; }
 message ExportClaudeCodeTeamResponse { string team_id = 1; google.protobuf.Struct export = 2; }
+
+message KnowledgeEntry {
+  string id = 1;
+  string at = 2;
+  string topic = 3;
+  string content = 4;
+  string source = 5;
+  string supersedes = 6;
+  string caller = 7;
+  string caller_note = 8;
+  google.protobuf.Struct attribution = 9;
+}
+message ListKnowledgeRequest {
+  string team_id = 1;
+  string topic = 2;
+  string topic_prefix = 3;
+  int32 last = 4;
+}
+message ListKnowledgeResponse { string team_id = 1; repeated KnowledgeEntry entries = 2; }
+message AddKnowledgeRequest {
+  string team_id = 1;
+  string topic = 2;
+  string content = 3;
+  string caller_note = 4;
+  string source = 5;
+  string supersedes = 6;
+}
+message UpdateKnowledgeRequest {
+  string team_id = 1;
+  string knowledge_id = 2;
+  optional string topic = 3;
+  optional string content = 4;
+  optional string source = 5;
+  optional string supersedes = 6;
+  google.protobuf.FieldMask update_mask = 7;
+}
+message DeleteKnowledgeRequest { string team_id = 1; string knowledge_id = 2; }
+message DeleteKnowledgeResponse {}

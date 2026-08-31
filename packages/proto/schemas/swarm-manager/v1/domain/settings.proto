@@ -197,6 +197,7 @@ message Settings {
     ]
   }];
   AutoFilerSettings auto_filer = 38;
+  map<string, string> autonomy_gate_modes = 39;
 
   reserved 25, 36;
   reserved "max_concurrent_executions";

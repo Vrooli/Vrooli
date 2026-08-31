@@ -107,10 +107,8 @@ func (h *Handlers) Run(args []string) error {
 		return fmt.Errorf("host inventory failed: %w", err)
 	}
 
-	// Honor a capacity-broker/operator model pin first (the degrade actuation
-	// persists it): the pinned model overrides the host-derived recommendation so
-	// the next managed-service start comes up at the smaller size. The pin is honored
-	// before Pick so it works even on a host where Pick would otherwise error.
+	// Honor an explicitly persisted operator model pin before host-derived
+	// recommendation. The pin remains a read-only compatibility surface.
 	var model Model
 	var reason string
 	if pinned, ok := ReadPin(h.GetEnv); ok {

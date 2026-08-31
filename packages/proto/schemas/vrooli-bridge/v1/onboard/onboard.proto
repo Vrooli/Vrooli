@@ -90,6 +90,9 @@ enum OnboardingState {
   // Terminal: the operator cancelled the op (CancelOnboarding). The remote host
   // may be partially set up; a re-run converges (idempotent).
   ONBOARDING_STATE_CANCELLED = 8;
+  // The node paired and reached ONLINE, but no configuration selection was
+  // applied because setup was explicitly skipped or no selection was made.
+  ONBOARDING_STATE_PAIRED = 9;
 }
 
 // SourceMode selects how the node acquires the Vrooli source it builds from.
@@ -226,6 +229,16 @@ message OnboardingOp {
   // the owner of Machine enrollment history.
   string machine_id = 21;
   string enrollment_attempt_id = 22;
+  repeated ConfigurationDisposition configuration_dispositions = 23;
+}
+
+message ConfigurationDisposition {
+  string id = 1;
+  string kind = 2;
+  string name = 3;
+  string disposition = 4;
+  string reason = 5;
+  string remediation = 6;
 }
 
 // OnboardingStepEvent is one entry in an op's append-only progress history. It

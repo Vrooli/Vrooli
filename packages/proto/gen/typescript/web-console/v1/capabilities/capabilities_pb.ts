@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/capabilities/capabilities.proto.
  */
 export const file_web_console_v1_capabilities_capabilities: GenFile = /*@__PURE__*/
-  fileDesc("Ci53ZWItY29uc29sZS92MS9jYXBhYmlsaXRpZXMvY2FwYWJpbGl0aWVzLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzIpMCCg9DYXBhYmlsaXR5U3RhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIXCg9kZXBlbmRlbmN5X2tpbmQYBCABKAkSFwoPZGVwZW5kZW5jeV9zbHVnGAUgASgJEhAKCGZlYXR1cmVzGAYgAygJEg4KBnN0YXR1cxgHIAEoCRIPCgdtZXNzYWdlGAggASgJEhIKCmNoZWNrZWRfYXQYCSABKAkSEwoLcmVhc29uX2NvZGUYCiABKAkSEwoLYWN0aW9uX2tpbmQYCyABKAkSFAoMYWN0aW9uX2xhYmVsGAwgASgJEhgKEG9wZXJhdG9yX2NvbW1hbmQYDSABKAkigwEKDUJhY2tlbmRPcHRpb24SCgoCaWQYASABKAkSFAoMZGlzcGxheV9uYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhgKEHN1cnZpdmVzX3Jlc3RhcnQYBCABKAgSEQoJYXZhaWxhYmxlGAUgASgIEg4KBnJlYXNvbhgGIAEoCSIMCgpHZXRSZXF1ZXN0ItEBCgtHZXRSZXNwb25zZRJJCgxjYXBhYmlsaXRpZXMYASADKAsyMy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZRIRCgl0aW1lc3RhbXAYAiABKAkSSwoQc2Vzc2lvbl9iYWNrZW5kcxgDIAMoCzIxLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQmFja2VuZE9wdGlvbhIXCg9kZWZhdWx0X2JhY2tlbmQYBCABKAkiEQoPTGl2ZW5lc3NSZXF1ZXN0InAKEExpdmVuZXNzUmVzcG9uc2USSQoMY2FwYWJpbGl0aWVzGAEgAygLMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSEQoJdGltZXN0YW1wGAIgASgJIj4KEFJ1bkFjdGlvblJlcXVlc3QSFQoNY2FwYWJpbGl0eV9pZBgBIAEoCRITCgthY3Rpb25fa2luZBgCIAEoCSLPAQoRUnVuQWN0aW9uUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIOCgZzdGF0dXMYAiABKAkSDwoHbWVzc2FnZRgDIAEoCRIVCg1jYXBhYmlsaXR5X2lkGAQgASgJEhMKC2FjdGlvbl9raW5kGAUgASgJEkkKDGNhcGFiaWxpdGllcxgGIAMoCzIzLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlEhEKCXRpbWVzdGFtcBgHIAEoCTLuAgoTQ2FwYWJpbGl0aWVzU2VydmljZRJmCgNHZXQSLi52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkdldFJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkdldFJlc3BvbnNlEnUKCExpdmVuZXNzEjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5MaXZlbmVzc1JlcXVlc3QaNC52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkxpdmVuZXNzUmVzcG9uc2USeAoJUnVuQWN0aW9uEjQudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5SdW5BY3Rpb25SZXF1ZXN0GjUudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5SdW5BY3Rpb25SZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2NhcGFiaWxpdGllcztjYXBhYmlsaXRpZXNfdjFiBnByb3RvMw");
+  fileDesc("Ci53ZWItY29uc29sZS92MS9jYXBhYmlsaXRpZXMvY2FwYWJpbGl0aWVzLnByb3RvEiJ2cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzIqkICg9DYXBhYmlsaXR5U3RhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIXCg9kZXBlbmRlbmN5X2tpbmQYBCABKAkSFwoPZGVwZW5kZW5jeV9zbHVnGAUgASgJEhAKCGZlYXR1cmVzGAYgAygJEg4KBnN0YXR1cxgHIAEoCRIPCgdtZXNzYWdlGAggASgJEhIKCmNoZWNrZWRfYXQYCSABKAkSEwoLcmVhc29uX2NvZGUYCiABKAkSEwoLYWN0aW9uX2tpbmQYCyABKAkSFAoMYWN0aW9uX2xhYmVsGAwgASgJEhgKEG9wZXJhdG9yX2NvbW1hbmQYDSABKAkSXgoOZmVhdHVyZV9zdGF0dXMYDiADKAsyRi52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZS5GZWF0dXJlU3RhdHVzRW50cnkSXgoOZmVhdHVyZV9yZWFzb24YDyADKAsyRi52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZS5GZWF0dXJlUmVhc29uRW50cnkScQoYZmVhdHVyZV9vcGVyYXRvcl9jb21tYW5kGBAgAygLMk8udnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUuRmVhdHVyZU9wZXJhdG9yQ29tbWFuZEVudHJ5EmAKD3Byb3ZpZGVyX3N0YXR1cxgRIAMoCzJHLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlLlByb3ZpZGVyU3RhdHVzRW50cnkSZAoRcHJvdmlkZXJfZmVhdHVyZXMYEiADKAsySS52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkNhcGFiaWxpdHlTdGF0ZS5Qcm92aWRlckZlYXR1cmVzRW50cnkaNAoSRmVhdHVyZVN0YXR1c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaNAoSRmVhdHVyZVJlYXNvbkVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaPQobRmVhdHVyZU9wZXJhdG9yQ29tbWFuZEVudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoCToCOAEaNQoTUHJvdmlkZXJTdGF0dXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBGjcKFVByb3ZpZGVyRmVhdHVyZXNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoMBCg1CYWNrZW5kT3B0aW9uEgoKAmlkGAEgASgJEhQKDGRpc3BsYXlfbmFtZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIYChBzdXJ2aXZlc19yZXN0YXJ0GAQgASgIEhEKCWF2YWlsYWJsZRgFIAEoCBIOCgZyZWFzb24YBiABKAkiDAoKR2V0UmVxdWVzdCLRAQoLR2V0UmVzcG9uc2USSQoMY2FwYWJpbGl0aWVzGAEgAygLMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSEQoJdGltZXN0YW1wGAIgASgJEksKEHNlc3Npb25fYmFja2VuZHMYAyADKAsyMS52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkJhY2tlbmRPcHRpb24SFwoPZGVmYXVsdF9iYWNrZW5kGAQgASgJIhEKD0xpdmVuZXNzUmVxdWVzdCJwChBMaXZlbmVzc1Jlc3BvbnNlEkkKDGNhcGFiaWxpdGllcxgBIAMoCzIzLnZyb29saS53ZWJfY29uc29sZS52MS5jYXBhYmlsaXRpZXMuQ2FwYWJpbGl0eVN0YXRlEhEKCXRpbWVzdGFtcBgCIAEoCSJRChBSdW5BY3Rpb25SZXF1ZXN0EhUKDWNhcGFiaWxpdHlfaWQYASABKAkSEwoLYWN0aW9uX2tpbmQYAiABKAkSEQoJdGFyZ2V0X2lkGAMgASgJIuUBChFSdW5BY3Rpb25SZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEg4KBnN0YXR1cxgCIAEoCRIPCgdtZXNzYWdlGAMgASgJEhUKDWNhcGFiaWxpdHlfaWQYBCABKAkSEwoLYWN0aW9uX2tpbmQYBSABKAkSSQoMY2FwYWJpbGl0aWVzGAYgAygLMjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5DYXBhYmlsaXR5U3RhdGUSEQoJdGltZXN0YW1wGAcgASgJEhQKDG9wZXJhdGlvbl9pZBgIIAEoCTLuAgoTQ2FwYWJpbGl0aWVzU2VydmljZRJmCgNHZXQSLi52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkdldFJlcXVlc3QaLy52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkdldFJlc3BvbnNlEnUKCExpdmVuZXNzEjMudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5MaXZlbmVzc1JlcXVlc3QaNC52cm9vbGkud2ViX2NvbnNvbGUudjEuY2FwYWJpbGl0aWVzLkxpdmVuZXNzUmVzcG9uc2USeAoJUnVuQWN0aW9uEjQudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5SdW5BY3Rpb25SZXF1ZXN0GjUudnJvb2xpLndlYl9jb25zb2xlLnYxLmNhcGFiaWxpdGllcy5SdW5BY3Rpb25SZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL2NhcGFiaWxpdGllcztjYXBhYmlsaXRpZXNfdjFiBnByb3RvMw");
 
 /**
  * CapabilityState is the runtime view of a single capability. Mirrors
@@ -85,6 +85,42 @@ export type CapabilityState = Message<"vrooli.web_console.v1.capabilities.Capabi
    * @generated from field: string operator_command = 13;
    */
   operatorCommand: string;
+
+  /**
+   * Independent status for each feature served by this capability.
+   *
+   * @generated from field: map<string, string> feature_status = 14;
+   */
+  featureStatus: { [key: string]: string };
+
+  /**
+   * Actionable reason and repair command for unavailable features.
+   *
+   * @generated from field: map<string, string> feature_reason = 15;
+   */
+  featureReason: { [key: string]: string };
+
+  /**
+   * @generated from field: map<string, string> feature_operator_command = 16;
+   */
+  featureOperatorCommand: { [key: string]: string };
+
+  /**
+   * Individual provider state used by consumers that prefer one provider
+   * while retaining another provider as a feature-level fallback.
+   *
+   * @generated from field: map<string, string> provider_status = 17;
+   */
+  providerStatus: { [key: string]: string };
+
+  /**
+   * Feature slugs served by each provider. Values are comma-separated when a
+   * provider serves more than one feature. This keeps consumer gates generic
+   * without requiring a second vendor/provider catalogue in the UI.
+   *
+   * @generated from field: map<string, string> provider_features = 18;
+   */
+  providerFeatures: { [key: string]: string };
 };
 
 /**
@@ -233,6 +269,11 @@ export type RunActionRequest = Message<"vrooli.web_console.v1.capabilities.RunAc
    * @generated from field: string action_kind = 2;
    */
   actionKind: string;
+
+  /**
+   * @generated from field: string target_id = 3;
+   */
+  targetId: string;
 };
 
 /**
@@ -280,6 +321,13 @@ export type RunActionResponse = Message<"vrooli.web_console.v1.capabilities.RunA
    * @generated from field: string timestamp = 7;
    */
   timestamp: string;
+
+  /**
+   * Durable Bridge correlation/audit identifier for a remote action.
+   *
+   * @generated from field: string operation_id = 8;
+   */
+  operationId: string;
 };
 
 /**
