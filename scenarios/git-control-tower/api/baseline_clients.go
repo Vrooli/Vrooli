@@ -20,6 +20,7 @@ import (
 
 	"git-control-tower/internal/baseline"
 
+	"github.com/vrooli/cli-core/cliutil"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
@@ -77,24 +78,29 @@ type baselineExecutor struct {
 
 const baselineAdmissionCaller = "git-control-tower:baseline"
 
-var (
-	baselineAdmissionRetryDelays = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
-	baselineWaitRetryDelays      = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
-	// Test Genie publishes the terminal run record before the canonical
-	// terminal snapshot is observable through every read path. Keep the
-	// baseline handoff attached briefly so that publication ordering cannot
-	// turn valid terminal phase evidence into a false baseline failure.
-	baselineEvidenceRetryDelays = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
-)
+var baselineRunRetryDelays = []time.Duration{250 * time.Millisecond, 500 * time.Millisecond, time.Second, 2 * time.Second}
+
+// Test Genie publishes the terminal run record before the canonical
+// terminal snapshot is observable through every read path. Keep the
+// baseline handoff attached briefly so that publication ordering cannot
+// turn valid terminal phase evidence into a false baseline failure.
 
 const baselineWaitSliceSeconds = 60
 
 func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseline.RunHandle, error) {
+	return e.startRun(ctx, scenario, "", 0)
+}
+
+func (e baselineExecutor) StartRunWithReservation(ctx context.Context, scenario, reservationID string, memberCount int) (baseline.RunHandle, error) {
+	return e.startRun(ctx, scenario, reservationID, memberCount)
+}
+
+func (e baselineExecutor) startRun(ctx context.Context, scenario, reservationID string, memberCount int) (baseline.RunHandle, error) {
 	cl, err := e.runs.client(ctx)
 	if err != nil {
 		return baseline.RunHandle{}, err
 	}
-	request := baselineStartRequest(scenario)
+	request := baselineStartRequest(scenario, reservationID, memberCount)
 	resp, err := startBaselineRunWithRetry(ctx, func() (*connect.Response[runspb.StartRunResponse], error) {
 		return cl.StartRun(ctx, request)
 	})
@@ -118,10 +124,10 @@ func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseli
 func startBaselineRunWithRetry(ctx context.Context, start func() (*connect.Response[runspb.StartRunResponse], error)) (*connect.Response[runspb.StartRunResponse], error) {
 	for attempt := 0; ; attempt++ {
 		response, err := start()
-		if err == nil || !isPreviewSaturated(err) || attempt == len(baselineAdmissionRetryDelays) {
+		if err == nil || !isPreviewSaturated(err) || attempt == len(baselineRunRetryDelays) {
 			return response, err
 		}
-		timer := time.NewTimer(baselineAdmissionRetryDelays[attempt])
+		timer := time.NewTimer(baselineRunRetryDelays[attempt])
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -136,11 +142,13 @@ func isPreviewSaturated(err error) bool {
 	return errors.As(err, &connectErr) && connectErr.Code() == connect.CodeResourceExhausted
 }
 
-func baselineStartRequest(scenario string) *connect.Request[runspb.StartRunRequest] {
+func baselineStartRequest(scenario, reservationID string, memberCount int) *connect.Request[runspb.StartRunRequest] {
 	request := connect.NewRequest(&runspb.StartRunRequest{
-		Target:         scenario,
-		Preset:         "comprehensive",
-		CaptureProfile: "baseline",
+		Target:                           scenario,
+		Preset:                           "comprehensive",
+		CaptureProfile:                   "baseline",
+		CollectionReservationId:          strings.TrimSpace(reservationID),
+		CollectionReservationMemberCount: int32(memberCount),
 		// Ordinary baseline capture deliberately uses shared-scoped provenance.
 		// Strict linked-worktree evidence remains available to callers that ask
 		// for it, but is never a prerequisite for retaining before behavior.
@@ -148,7 +156,7 @@ func baselineStartRequest(scenario string) *connect.Request[runspb.StartRunReque
 	// Baselines are a trusted gateway workload. Without attribution they share
 	// Test Genie's anonymous preview bucket with unrelated clients and can be
 	// rejected despite available global capacity.
-	request.Header().Set("X-Vrooli-Caller", baselineAdmissionCaller)
+	request.Header().Set(cliutil.HeaderCaller, baselineAdmissionCaller)
 	return request
 }
 
@@ -257,8 +265,8 @@ func waitForBaselineTerminal(ctx context.Context, wait func() (*connect.Response
 	for attempt := 0; ; attempt++ {
 		response, err := wait()
 		if err != nil {
-			if isTransientBaselineWaitError(err) && attempt < len(baselineWaitRetryDelays) {
-				timer := time.NewTimer(baselineWaitRetryDelays[attempt])
+			if isTransientBaselineWaitError(err) && attempt < len(baselineRunRetryDelays) {
+				timer := time.NewTimer(baselineRunRetryDelays[attempt])
 				select {
 				case <-ctx.Done():
 					timer.Stop()
@@ -303,7 +311,7 @@ func waitForCanonicalBaselineTerminal(ctx context.Context, wait func() (*connect
 			return response, nil
 		}
 
-		if attempt == len(baselineEvidenceRetryDelays) {
+		if attempt == len(baselineRunRetryDelays) {
 			if response != nil && response.Msg != nil {
 				if reasons := response.Msg.GetDegradedReasons(); len(reasons) > 0 {
 					return nil, fmt.Errorf("terminal evidence is degraded: %s", strings.Join(reasons, "; "))
@@ -312,7 +320,7 @@ func waitForCanonicalBaselineTerminal(ctx context.Context, wait func() (*connect
 			return nil, errors.New("terminal run has no canonical terminal snapshot")
 		}
 
-		timer := time.NewTimer(baselineEvidenceRetryDelays[attempt])
+		timer := time.NewTimer(baselineRunRetryDelays[attempt])
 		select {
 		case <-ctx.Done():
 			timer.Stop()
@@ -513,7 +521,7 @@ func (c baselineRunsClient) CaptureMissingEvidence(ctx context.Context, scenario
 		Phases:         []string{"ui-health"},
 		CaptureProfile: "baseline",
 	})
-	request.Header().Set("X-Vrooli-Caller", baselineAdmissionCaller+":missing-evidence")
+	request.Header().Set(cliutil.HeaderCaller, baselineAdmissionCaller+":missing-evidence")
 	started, err := startBaselineRunWithRetry(ctx, func() (*connect.Response[runspb.StartRunResponse], error) {
 		return cl.StartRun(ctx, request)
 	})

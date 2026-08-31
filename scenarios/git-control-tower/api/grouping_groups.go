@@ -31,6 +31,29 @@ type resolvedChangeGroup struct {
 	group      ChangeGroup
 	order      int
 	sourceRank int
+	kindRank   int
+}
+
+var changeGroupKindRanks = map[string]int{
+	"scenario":      0,
+	"resource":      1,
+	"package":       2,
+	"control-plane": 3,
+	"tool":          4,
+	"safeguard":     5,
+	"team":          6,
+	"docs":          7,
+	"project":       8,
+}
+
+func changeGroupKindRank(kind string) int {
+	if kind == "" {
+		return 100
+	}
+	if rank, ok := changeGroupKindRanks[kind]; ok {
+		return rank
+	}
+	return 50
 }
 
 // ResolveChangeGroups resolves manual rules first, then contract targets, then
@@ -70,6 +93,7 @@ func ResolveChangeGroups(repoDir string, files RepoFilesStatus, config GroupingR
 					},
 					order:      0,
 					sourceRank: 1,
+					kindRank:   changeGroupKindRank(string(target.Kind)),
 				}, path)
 				continue
 			}
@@ -84,21 +108,28 @@ func ResolveChangeGroups(repoDir string, files RepoFilesStatus, config GroupingR
 	for _, group := range groups {
 		resolved = append(resolved, *group)
 	}
-	sort.SliceStable(resolved, func(i, j int) bool {
-		if resolved[i].sourceRank != resolved[j].sourceRank {
-			return resolved[i].sourceRank < resolved[j].sourceRank
-		}
-		if resolved[i].order != resolved[j].order {
-			return resolved[i].order < resolved[j].order
-		}
-		return resolved[i].group.Label < resolved[j].group.Label
-	})
+	sortResolvedChangeGroups(resolved)
 
 	result := make([]ChangeGroup, 0, len(resolved))
 	for _, group := range resolved {
 		result = append(result, group.group)
 	}
 	return result
+}
+
+func sortResolvedChangeGroups(resolved []resolvedChangeGroup) {
+	sort.SliceStable(resolved, func(i, j int) bool {
+		if resolved[i].sourceRank != resolved[j].sourceRank {
+			return resolved[i].sourceRank < resolved[j].sourceRank
+		}
+		if resolved[i].kindRank != resolved[j].kindRank {
+			return resolved[i].kindRank < resolved[j].kindRank
+		}
+		if resolved[i].order != resolved[j].order {
+			return resolved[i].order < resolved[j].order
+		}
+		return resolved[i].group.Label < resolved[j].group.Label
+	})
 }
 
 func changedPaths(files RepoFilesStatus) []string {

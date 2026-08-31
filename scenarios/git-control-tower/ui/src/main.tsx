@@ -1,3 +1,5 @@
+import { i18n } from "./i18n";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1.0.1";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -6,6 +8,7 @@ import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { onProfilerRender } from "./lib/profiler";
+import "./design-tokens.css";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -32,6 +35,8 @@ if (!rootElement) {
 }
 
 ReactDOM.createRoot(rootElement).render(
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
   <React.StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
@@ -44,4 +49,7 @@ ReactDOM.createRoot(rootElement).render(
       </QueryClientProvider>
     </ErrorBoundary>
   </React.StrictMode>
+
+    </LibraryStringsProvider>
+    // vrooli:library-strings-provider end
 );

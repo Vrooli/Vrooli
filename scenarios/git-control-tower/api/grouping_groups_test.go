@@ -84,3 +84,23 @@ func TestRepoGroupsResponseWithoutContractMetadata(t *testing.T) {
 		t.Fatalf("fallback response leaked contract metadata: %s", raw)
 	}
 }
+
+func TestResolveChangeGroupsOrdersByKind(t *testing.T) {
+	groups := []resolvedChangeGroup{
+		{group: ChangeGroup{Label: "docs"}, sourceRank: 1, kindRank: changeGroupKindRank("docs")},
+		{group: ChangeGroup{Label: "resources"}, sourceRank: 1, kindRank: changeGroupKindRank("resource")},
+		{group: ChangeGroup{Label: "scenarios"}, sourceRank: 1, kindRank: changeGroupKindRank("scenario")},
+		{group: ChangeGroup{Label: "packages"}, sourceRank: 1, kindRank: changeGroupKindRank("package")},
+		{group: ChangeGroup{Label: "manual"}, sourceRank: 0, order: 0},
+		{group: ChangeGroup{Label: "Other"}, sourceRank: 2, order: 0},
+	}
+	sortResolvedChangeGroups(groups)
+	labels := make([]string, 0, len(groups))
+	for _, group := range groups {
+		labels = append(labels, group.group.Label)
+	}
+	want := []string{"manual", "scenarios", "resources", "packages", "docs", "Other"}
+	if strings.Join(labels, ",") != strings.Join(want, ",") {
+		t.Fatalf("labels = %v, want %v", labels, want)
+	}
+}

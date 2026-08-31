@@ -2936,6 +2936,12 @@
       "backfilled": true
     },
     {
+      "libraryId": "react-component-library:Tabs",
+      "version": "1.2.0",
+      "draftVersion": "1.2.0-draft.1",
+      "publishedAt": "2026-08-31T02:56:56Z"
+    },
+    {
       "libraryId": "react-component-library:Text",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",

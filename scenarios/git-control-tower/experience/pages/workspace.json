@@ -27,6 +27,11 @@
     { "id": "workspace-root", "role": "x-application", "description": "The full Git Control Tower application surface." },
     { "id": "desktop-status-header", "role": "banner", "description": "Desktop status chrome with branch, sync, health, review, search, settings, and refresh controls." },
     { "id": "mobile-header", "role": "banner", "description": "Mobile status chrome with branch, sync, review, search, and menu controls." },
+    { "id": "status-bar-fill", "role": "region", "description": "Paintable top safe-area strip resolved by the shared chrome theme." },
+    { "id": "kind-band", "role": "region", "description": "Non-collapsible repository target-kind band in the grouped Changes list." },
+    { "id": "run-chip", "role": "button", "description": "Compact attribution control identifying the agent run that wrote a file." },
+    { "id": "run-sheet", "role": "dialog", "description": "Bottom sheet with agent-run provenance and select-only actions." },
+    { "id": "run-filter-chip", "role": "region", "description": "Changes-list filter for files attributed to agent runs." },
     { "id": "mobile-nav", "role": "navigation", "description": "Mobile bottom navigation across Changes, Diff, Commit, History, and Review panels." },
     { "id": "mobile-changes-tab", "role": "button", "name": "Changes", "description": "Mobile tab that opens the file-change panel as the current page." },
     { "id": "mobile-diff-tab", "role": "button", "name": "Diff", "description": "Mobile tab that opens the diff panel as the current page." },
@@ -115,11 +120,21 @@
       "viewports": ["mobile"]
     },
     {
-      "id": "gct-mobile-002-006-chrome-pinned",
+      "id": "gct-mobile-006-chrome-pinned",
       "type": "chrome-pinned",
       "statement": "Mobile header and bottom navigation stay inside the viewport as structural chrome without overlapping the active panel.",
       "tier": "machine",
       "elements": ["mobile-header", "mobile-nav"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-mobile-002-chrome-color-agreement",
+      "type": "chrome-color-agreement",
+      "statement": "Declared status chrome and the rendered top safe-area surface resolve to the same colour.",
+      "tier": "machine",
+      "elements": ["status-bar-fill"],
+      "params": { "reference": "mobile-header" },
       "states": ["default"],
       "viewports": ["mobile"]
     },
@@ -129,6 +144,33 @@
       "statement": "Mobile navigation controls remain tappable above device-edge safe-area zones.",
       "tier": "machine",
       "elements": ["mobile-nav", "mobile-changes-tab", "mobile-diff-tab", "mobile-commit-tab", "mobile-history-tab", "mobile-review-tab"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-changes-kind-band-present",
+      "type": "element-present",
+      "statement": "Grouped Changes identifies repository target kinds with non-collapsible bands.",
+      "tier": "machine",
+      "elements": ["kind-band"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-changes-run-filter-present",
+      "type": "element-present",
+      "statement": "Changes exposes honest attribution and status filters without an approval action.",
+      "tier": "machine",
+      "elements": ["run-filter-chip"],
+      "states": ["default"],
+      "viewports": ["mobile"]
+    },
+    {
+      "id": "gct-changes-run-chip-target",
+      "type": "tap-target-size",
+      "statement": "An attributed run chip is large enough to tap on mobile.",
+      "tier": "machine",
+      "elements": ["run-chip"],
       "states": ["default"],
       "viewports": ["mobile"]
     },
@@ -158,6 +200,11 @@
       "workspace-root": { "testid": "git-control-tower" },
       "desktop-status-header": { "testid": "status-header" },
       "mobile-header": { "testid": "mobile-header" },
+      "status-bar-fill": { "testid": "status-bar-fill" },
+      "kind-band": { "selector": "[data-testid^=file-kind-band-]" },
+      "run-chip": { "selector": "[data-testid^=run-chip-]" },
+      "run-sheet": { "testid": "run-sheet" },
+      "run-filter-chip": { "testid": "run-filter-chip" },
       "mobile-nav": { "testid": "mobile-nav" },
       "mobile-changes-tab": { "testid": "mobile-nav-changes" },
       "mobile-diff-tab": { "testid": "mobile-nav-diff" },

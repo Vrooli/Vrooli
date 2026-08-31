@@ -255,7 +255,6 @@ function baseDeps(overrides: Partial<PanelDeps> = {}): PanelDeps {
     onStageAll: vi.fn(),
     onUnstageAll: vi.fn(),
     onStagePaths: vi.fn(),
-    onStageApproved: vi.fn(),
     onDiscardPaths: vi.fn(),
     onConfirmDiscard: vi.fn(),
     onConfirmIgnore: vi.fn(),

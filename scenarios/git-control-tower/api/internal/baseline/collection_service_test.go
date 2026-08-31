@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
+
 	"git-control-tower/internal/git"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -20,6 +22,17 @@ func collectionService(t *testing.T) (*Service, *fakeExecutor) {
 	t.Helper()
 	exec := &fakeExecutor{result: ExecResult{Success: true, CompletedAt: time.Now().UTC(), TreeDigest: "tree", PhaseSetDigest: "phases", Phases: []PhaseStatus{{Name: "unit", Status: "passed"}}, CaptureProfile: CaptureProfile, DescriptorSnapshotDigest: "descriptor", DescriptorSnapshotSchemaVersion: 1}}
 	return NewService(Deps{Storage: newTestStorage(t), Exec: exec, Runs: &fakeRuns{}, CaptureGit: fixedGit(git.State{Sha: "abc", Branch: "agi"})}), exec
+}
+
+func typedSaturationError(t *testing.T) error {
+	t.Helper()
+	err := connect.NewError(connect.CodeResourceExhausted, errors.New("capacity is full"))
+	detail, detailErr := connect.NewErrorDetail(&runspb.AdmissionSaturation{LimitKind: runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_CALLER_QUEUE, Occupancy: 4, ConfiguredLimit: 4, RetryAfterSeconds: 30})
+	if detailErr != nil {
+		t.Fatal(detailErr)
+	}
+	err.AddDetail(detail)
+	return err
 }
 
 func TestCollectionDiffDetailPreservesComparisonRecovery(t *testing.T) {
@@ -167,7 +180,7 @@ func TestCollectionCaptureAdmissionSaturationDefersMemberUntilSiblingCompletes(t
 	svc, exec := collectionService(t)
 	exec.startErrs = []error{
 		nil,
-		errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)"),
+		typedSaturationError(t),
 		nil,
 	}
 	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
@@ -202,7 +215,7 @@ func TestCollectionCaptureAdmissionSaturationDefersMemberUntilSiblingCompletes(t
 func TestCollectionCaptureAdmissionSaturationRetriesWithoutSibling(t *testing.T) {
 	svc, exec := collectionService(t)
 	exec.startErrs = []error{
-		errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)"),
+		typedSaturationError(t),
 		nil,
 	}
 	repoDir := t.TempDir()
@@ -259,7 +272,7 @@ func TestFinalizeCollectionCaptureRequeuesAdmissionSaturatedRun(t *testing.T) {
 	// The run already has a durable handoff, but Test Genie reports admission
 	// saturation while that handoff is finalized. The collection must requeue
 	// the member instead of converting transient backpressure into failure.
-	exec.err = errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)")
+	exec.err = typedSaturationError(t)
 	collection, err := svc.FinalizeCollectionCapture(context.Background(), 1, started.Pending[0])
 	if err != nil {
 		t.Fatalf("admission saturation should be recoverable: %v", err)
@@ -287,7 +300,7 @@ func TestDeferredCollectionCaptureStopsAfterRequiredFailure(t *testing.T) {
 	svc, exec := collectionService(t)
 	exec.startErrs = []error{
 		nil,
-		errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)"),
+		typedSaturationError(t),
 	}
 	started, err := svc.StartCollectionCapture(context.Background(), StartCollectionCaptureRequest{
 		RepoID: 1, RepoDir: t.TempDir(), Name: "before",
@@ -729,7 +742,7 @@ func TestCollectionDiffAdmissionSaturationRemainsPendingUntilCapacityReturns(t *
 	if _, err := svc.FinalizeCollectionCapture(context.Background(), 1, captured.Pending[0]); err != nil {
 		t.Fatal(err)
 	}
-	exec.startErr = errors.New("resource_exhausted: test-genie admission is saturated (caller queued run capacity)")
+	exec.startErr = typedSaturationError(t)
 	request := StartCollectionDiffRequest{RepoID: 1, RepoDir: t.TempDir(), Branch: "agi", Name: "before", OperationID: "admission-saturation"}
 	started, err := svc.StartCollectionDiff(context.Background(), request)
 	if err != nil {
@@ -755,12 +768,29 @@ func TestCollectionDiffAdmissionSaturationRemainsPendingUntilCapacityReturns(t *
 	}
 }
 
-func TestTransientAdmissionSaturationIncludesWaitTimeout(t *testing.T) {
-	if !isTransientAdmissionSaturation(errors.New("wait for test-genie admission: context deadline exceeded")) {
-		t.Fatal("admission wait timeout should be treated as transient backpressure")
+func TestTransientAdmissionSaturationRequiresTypedDetail(t *testing.T) {
+	if isTransientAdmissionSaturation(errors.New("wait for test-genie admission: context deadline exceeded")) {
+		t.Fatal("untyped admission text must not be treated as transient backpressure")
 	}
 	if isTransientAdmissionSaturation(errors.New("test-genie binary is missing")) {
 		t.Fatal("unrelated dispatch failures must remain terminally bounded")
+	}
+}
+
+func TestTransientAdmissionSaturationReadsTypedDetail(t *testing.T) {
+	err := connect.NewError(connect.CodeResourceExhausted, errors.New("capacity is full"))
+	detail, detailErr := connect.NewErrorDetail(&runspb.AdmissionSaturation{
+		LimitKind:         runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_CALLER_QUEUE,
+		Occupancy:         4,
+		ConfiguredLimit:   4,
+		RetryAfterSeconds: 30,
+	})
+	if detailErr != nil {
+		t.Fatalf("build saturation detail: %v", detailErr)
+	}
+	err.AddDetail(detail)
+	if !isTransientAdmissionSaturation(err) {
+		t.Fatal("typed admission saturation should be treated as transient backpressure")
 	}
 }
 

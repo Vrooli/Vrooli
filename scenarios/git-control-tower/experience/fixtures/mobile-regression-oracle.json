@@ -1,4 +1,5 @@
 {
+  "$schema": "../../../../.vrooli/schemas/experience-regression-oracle.schema.json",
   "schema_version": "1.0.0",
   "scenario": "git-control-tower",
   "fixture_id": "gct-mobile-iframe-regression-v1",

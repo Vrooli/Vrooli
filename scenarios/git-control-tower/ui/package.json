@@ -10,6 +10,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "express": "^4.18.2",
@@ -53,8 +54,8 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm run type-check && vite build",
-    "build:profile": "pnpm run type-check && vite build --mode profile",
+    "build": "pnpm run type-check \u0026\u0026 vite build",
+    "build:profile": "pnpm run type-check \u0026\u0026 vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",

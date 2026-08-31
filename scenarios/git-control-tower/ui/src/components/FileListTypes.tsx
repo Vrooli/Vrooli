@@ -22,14 +22,6 @@ export interface FileListProps {
   selectedFiles?: SelectedFileEntry[];
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
-  approvedChanges?: {
-    available: boolean;
-    committableFiles: number;
-    warning?: string;
-  };
-  approvedPaths?: Set<string>;
-  onStageApproved?: () => void;
-  isStagingApproved?: boolean;
   onSelectFile: (
     path: string,
     staged: boolean,
@@ -80,6 +72,9 @@ export interface FileListProps {
   onExitSelectionMode?: () => void;
   onMobileSelectFile?: (path: string, staged: boolean, mode: "toggle" | "range") => void;
   fileHotspots?: Record<string, number>;
+  runIndex?: Map<string, import("../lib/runAttribution").RunAttribution>;
+  onRevealInTree?: (file: string) => void;
+  onOpenRun?: (runId: string) => void;
 }
 
 export interface FileSectionProps {
@@ -88,9 +83,10 @@ export interface FileSectionProps {
   files: string[];
   fileStatuses?: Record<string, string>;
   binaryFiles?: Set<string>;
+  runIndex?: Map<string, import("../lib/runAttribution").RunAttribution>;
+  onOpenRun?: (runId: string) => void;
   maxPathChars: number;
   icon: React.ReactNode;
-  approvedFiles?: Set<string>;
   selectedFiles?: SelectedFileEntry[];
   selectedKeySet?: Set<string>;
   selectionKey: (entry: SelectedFileEntry) => string;
@@ -127,6 +123,7 @@ export interface FileSectionProps {
   onMobileTap?: (file: string, staged: boolean, mode: "toggle" | "range") => void;
   onStatsClick?: () => void;
   onViewMetrics?: (file: string, category: FileCategory) => void;
+  onRevealInTree?: (file: string) => void;
 }
 
 export interface FileRowProps {
@@ -140,7 +137,8 @@ export interface FileRowProps {
   isDiscarding?: boolean;
   isIgnoring?: boolean;
   isBinary?: boolean;
-  isApproved?: boolean;
+  runAttribution?: import("../lib/runAttribution").RunAttribution;
+  onOpenRun?: (runId: string) => void;
   itemTestId?: string;
   actionTestId?: string;
   discardTestId?: string;

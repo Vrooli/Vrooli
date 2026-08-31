@@ -14,7 +14,37 @@ vi.mock("@vrooli/api-base", () => ({
 
 Element.prototype.scrollIntoView = vi.fn();
 
+if (!window.matchMedia) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
 beforeEach(() => {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
   vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
     if (typeof args[0] === "string" && args[0].startsWith("[api-base]")) {
       return;

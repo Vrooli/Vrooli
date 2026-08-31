@@ -141,6 +141,7 @@ interface BottomSheetActionProps {
   onClick: () => void;
   variant?: "default" | "danger" | "success";
   disabled?: boolean;
+  testId?: string;
 }
 
 export function BottomSheetAction({
@@ -149,7 +150,8 @@ export function BottomSheetAction({
   description,
   onClick,
   variant = "default",
-  disabled = false
+  disabled = false,
+  testId,
 }: BottomSheetActionProps) {
   const variantClasses = {
     default: "text-slate-200 hover:bg-slate-800/60 active:bg-slate-700",
@@ -162,6 +164,7 @@ export function BottomSheetAction({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      data-testid={testId}
       className={`w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]}`}
     >
       {icon && (

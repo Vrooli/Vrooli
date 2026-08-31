@@ -131,6 +131,14 @@ type Executor interface {
 	FindReusableRun(ctx context.Context, scenario string) (ReusableRun, bool, error)
 }
 
+// ReservationExecutor is the optional collection-aware start seam. Ordinary
+// baseline captures remain compatible with Executor; collection captures use
+// this method when the concrete Test Genie client can declare one logical
+// reservation for all members.
+type ReservationExecutor interface {
+	StartRunWithReservation(ctx context.Context, scenario, reservationID string, memberCount int) (RunHandle, error)
+}
+
 type RunsClient interface {
 	PinRun(ctx context.Context, scenario, runID, pinnedBy, reason string) error
 	UnpinRun(ctx context.Context, scenario, runID, pinnedBy string) error

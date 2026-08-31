@@ -53,7 +53,7 @@ describe("TrackedBinariesSection", () => {
   });
 
   it("posts the untrack request with the owning gitignore target", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (requestUrl(input).includes("/tracked-binaries/untrack")) {
         return jsonResponse({ success: true, removed_from_index: true, ignore_added_to: "scenarios/tidiness-manager/.gitignore" });
       }
@@ -68,7 +68,8 @@ describe("TrackedBinariesSection", () => {
     await waitFor(() => {
       const call = fetchMock.mock.calls.find(([input]) => requestUrl(input).includes("/tracked-binaries/untrack"));
       expect(call).toBeTruthy();
-      expect(JSON.parse(String(call?.[1]?.body))).toEqual({
+      const body = call?.[1]?.body;
+      expect(JSON.parse(typeof body === "string" ? body : JSON.stringify(body))).toEqual({
         path: "scenarios/tidiness-manager/cli/cli",
         owner_dir: "scenarios/tidiness-manager",
         ignore_pattern: "/cli/cli",

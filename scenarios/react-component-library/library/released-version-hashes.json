@@ -7846,6 +7846,26 @@
       "sha256": "44c4e47191b9fd5b359c4739af9efa58d6c1e55fec3525d1bf35127cc66c8df1"
     },
     {
+      "path": "components/Tabs/versions/1.2.0/Tabs.tsx",
+      "sha256": "fef248dc0db918f389146c55545dd853d5c96f946203d9fe2343e9a7ffcbee88"
+    },
+    {
+      "path": "components/Tabs/versions/1.2.0/dependencies.json",
+      "sha256": "02730bb0726b3644769a3736e15d3ac2ea3168b2b8539cdea5ddafb3028d00e0"
+    },
+    {
+      "path": "components/Tabs/versions/1.2.0/experience-contract.json",
+      "sha256": "d2649cd64857244d7fe791103d79483a399f39c96857f9e78d01780902798409"
+    },
+    {
+      "path": "components/Tabs/versions/1.2.0/story.json",
+      "sha256": "caf3fbb45835ec50ac4642cfc4563107e0fe1ec98bf3528a97d5108e068e1c59"
+    },
+    {
+      "path": "components/Tabs/versions/1.2.0/story.tsx",
+      "sha256": "4f5498ef0bfd263a09893f23fa6bc771e0f6d018bd0a0139fc3f2bd19444ba98"
+    },
+    {
       "path": "components/Textarea/versions/1.0.0/Textarea.tsx",
       "sha256": "7717e09df4758bf4c219112a577e0c6d8be3282be03047a64b1d0ec85541de7b"
     },

@@ -14,12 +14,6 @@ import (
 	worktreeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree/worktree_v1connect"
 )
 
-// HeaderCaller is the request header set by the CLI to advertise its
-// caller classification (human|agent|external-agent|...). When absent,
-// the server falls back to its own DetectCallerKind() which on the
-// server side will almost always be CallerKindUnknown.
-const HeaderCaller = "X-Vrooli-Caller"
-
 // HeaderAuthorized is the request header the CLI sets to "true" when
 // the user passed the agent-override flag. Satisfies the `confirm`
 // policy.
@@ -156,7 +150,7 @@ func callerFromHeader(h interface {
 	Get(string) string
 }, detection config.CallerDetection,
 ) cliutil.CallerKind {
-	switch strings.ToLower(strings.TrimSpace(h.Get(HeaderCaller))) {
+	switch strings.ToLower(strings.TrimSpace(h.Get(cliutil.HeaderCaller))) {
 	case "human":
 		return cliutil.CallerKindHuman
 	case "vrooli-agent":

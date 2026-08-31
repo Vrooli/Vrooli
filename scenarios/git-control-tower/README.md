@@ -8,7 +8,7 @@ Agent-friendly git repository control plane: a REST/Connect API, CLI, and web UI
 - **Baselines**: the primary review primitive — see below.
 - **Scenario review panel**: readiness reviews per scenario (`git-control-tower review {run,summary,status}`) running test-genie phases plus standards/tidiness/auditor dimensions.
 - **Managed pre-commit hook**: configurable hook kinds (none/gct/user/framework) running exactly one command (default `vrooli hygiene`), with one-shot skip.
-- **AI provenance**: the AI Changes tab groups pending changes by the agent-manager run that produced them (foundation built; live validation and committed-history attribution are tracked in the `git-control-tower-ai-provenance` initiative).
+- **Sandbox attribution**: changed files from sandbox runs carry their run, owner, timestamp, and line totals in the Changes surface; selection remains the operator's review gesture.
 - **Credentials**: git credential/SSH resolution for fetch/push operations.
 
 Not yet implemented (tracked as swarm-manager initiatives): merge/conflict resolution (`gct-merge-and-conflicts`), commit trailers linking to initiatives (`gct-commit-initiative-linking`), GitHub PRs/releases (`gct-github-integration`), agent-generated PR descriptions/release notes (`gct-release-pipeline`).

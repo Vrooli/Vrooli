@@ -19,8 +19,6 @@ import (
 )
 
 const (
-	// HeaderCaller mirrors api/internal/policygate.HeaderCaller.
-	HeaderCaller = "X-Vrooli-Caller"
 	// HeaderAuthorized mirrors api/internal/policygate.HeaderAuthorized.
 	HeaderAuthorized = "X-Vrooli-Authorized"
 	// EnvAuthorized is the env var the CLI's `--i-was-explicitly-authorized`
@@ -45,7 +43,7 @@ func (interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		// no-op on the server side (Connect calls WrapUnary on both
 		// client and handler, but Spec.IsClient distinguishes).
 		if req.Spec().IsClient {
-			req.Header().Set(HeaderCaller, cliutil.DetectCallerKind().String())
+			req.Header().Set(cliutil.HeaderCaller, cliutil.DetectCallerKind().String())
 			if isAuthorized() {
 				req.Header().Set(HeaderAuthorized, "true")
 			}
@@ -57,7 +55,7 @@ func (interceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 func (interceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
 	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
 		conn := next(ctx, spec)
-		conn.RequestHeader().Set(HeaderCaller, cliutil.DetectCallerKind().String())
+		conn.RequestHeader().Set(cliutil.HeaderCaller, cliutil.DetectCallerKind().String())
 		if isAuthorized() {
 			conn.RequestHeader().Set(HeaderAuthorized, "true")
 		}

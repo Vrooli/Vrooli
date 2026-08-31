@@ -55,7 +55,7 @@ audited via [CODE: api/audit_logger.go].
 | POST | `/api/v1/repo/approved-changes/preview` | Preview approved changes. |
 | GET  | `/api/v1/repo/grouping-rules`    | File grouping rules. |
 | PUT  | `/api/v1/repo/grouping-rules`    | Replace grouping rules. |
-| GET  | `/api/v1/repo/groups`             | Read-only changed-file groups: manual rules, contract targets, then `Other`. |
+| GET  | `/api/v1/repo/groups`             | Read-only changed-file groups ordered as manual rules, contract targets by fixed kind (scenario, resource, package, control-plane, tool, safeguard, team, docs, project), then `Other`. |
 | GET  | `/api/v1/repo/gitignore/health`  | .gitignore lint status. |
 | POST | `/api/v1/repo/gitignore/move`    | Move gitignore entries. |
 

@@ -36,6 +36,12 @@ Domain vocabulary used across the API, CLI, UI, and docs.
   second, and `Other` last.
 - **Contract group** — a change group derived at read time from one target in
   `.vrooli/repo-contract.json`; it is never stored in grouping rules.
+- **Kind band** — a non-collapsible Changes-list row that separates contract
+  groups by target kind in fixed operational order.
+- **Run attribution** — the run, owner, and application time associated with a
+  file written by a sandbox. It describes origin, not correctness or review.
+- **Run sheet** — the Changes-list detail surface for one sandbox run. It shows
+  provenance and line totals, and selects files for the normal review workflow.
 - **Target index** — the cached path-to-target lookup supplied by
   `packages/repo-contract-go`; it uses longest-root matching and a bounded
   ten-second freshness window.

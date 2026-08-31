@@ -10,7 +10,8 @@ export function FileSection({
   files,
   fileStatuses,
   binaryFiles,
-  approvedFiles,
+  runIndex,
+  onOpenRun,
   maxPathChars,
   icon,
   selectedFiles,
@@ -72,7 +73,7 @@ export function FileSection({
           badge,
           displayPath: formatPath(file, maxPathChars),
           isBinary: binaryFiles?.has(file) ?? false,
-          isApproved: approvedFiles?.has(file) ?? false,
+          runAttribution: runIndex?.get(file),
         };
       }),
     [
@@ -83,7 +84,7 @@ export function FileSection({
       selectionKey,
       isStaged,
       binaryFiles,
-      approvedFiles,
+      runIndex,
     ],
   );
 
@@ -129,7 +130,8 @@ export function FileSection({
               isDiscarding={isDiscarding ?? false}
               isIgnoring={isIgnoring ?? false}
               isBinary={entry.isBinary}
-              isApproved={entry.isApproved}
+              runAttribution={entry.runAttribution}
+              onOpenRun={onOpenRun}
               itemTestId={`file-item-${category}`}
               actionTestId={`file-action-${category}`}
               discardTestId={`file-discard-${category}`}

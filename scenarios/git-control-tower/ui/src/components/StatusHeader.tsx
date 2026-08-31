@@ -10,7 +10,7 @@ import type { ViewingFileBlame } from "./BlameModeHeader";
 import { BranchSelector, type BranchActions, type RepoActions } from "./BranchSelector";
 import { HealthIndicator } from "./HealthIndicator";
 import { FileStatsBadges } from "./FileStatsBadges";
-import { IconButton } from "./IconButton";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.2";
 import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { SyncButton } from "./SyncButton";
@@ -124,7 +124,9 @@ export function StatusHeader({
 
         <IconButton
           onClick={onOpenReview}
-          label="Scenario review"
+          aria-label="Scenario review"
+          size="xs"
+          surface="ghost"
           title="Scenario review"
           data-testid="review-button"
         >
@@ -133,7 +135,9 @@ export function StatusHeader({
 
         <IconButton
           onClick={onOpenFileSearch}
-          label="Search files (Ctrl+K)"
+          aria-label="Search files (Ctrl+K)"
+          size="xs"
+          surface="ghost"
           title="Search files (Ctrl+K)"
           data-testid="file-search-button"
         >
@@ -142,7 +146,7 @@ export function StatusHeader({
 
         <IconButton
           onClick={onOpenSettings}
-          label={
+          aria-label={
             healthIssueCount > 0
               ? `Open settings (${healthIssueCount} health ${healthIssueCount === 1 ? "issue" : "issues"})`
               : "Open settings"
@@ -164,7 +168,9 @@ export function StatusHeader({
         <IconButton
           onClick={onRefresh}
           disabled={isLoading}
-          label="Refresh status"
+          aria-label="Refresh status"
+          size="xs"
+          surface="ghost"
           data-testid="refresh-button"
         >
           <RefreshCw className={`h-4 w-4 text-slate-400 ${isLoading ? "animate-spin" : ""}`} />

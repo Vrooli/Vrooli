@@ -4,6 +4,8 @@ import {
   Trash2,
   EyeOff,
   BarChart3,
+  FolderTree,
+  History,
 } from "lucide-react";
 import { BottomSheet, BottomSheetAction } from "./ui/bottom-sheet";
 import type { ChangeGroupAPI } from "../lib/api";
@@ -27,6 +29,9 @@ export interface FileListMobileActionsProps {
   onIgnoreFile: (path: string, level?: "project" | "group", groupDir?: string) => void;
   openFileMetrics: (path: string, category?: FileCategory) => void;
   resolvedGroups?: ChangeGroupAPI[];
+  onRevealInTree?: (path: string) => void;
+  onOpenRun?: (runId: string) => void;
+  runId?: string;
 }
 
 export function FileListMobileActions({
@@ -39,6 +44,9 @@ export function FileListMobileActions({
   onIgnoreFile,
   openFileMetrics,
   resolvedGroups,
+  onRevealInTree,
+  onOpenRun,
+  runId,
 }: FileListMobileActionsProps) {
   if (!mobileActionFileInfo) return null;
 
@@ -151,6 +159,30 @@ export function FileListMobileActions({
                 mobileActionFileInfo.path,
                 mobileActionFileInfo.isUntracked,
               );
+              onClose();
+            }}
+          />
+        )}
+
+        {onRevealInTree && (
+          <BottomSheetAction
+            icon={<FolderTree className="h-5 w-5 text-cyan-300" />}
+            label="Reveal in file tree"
+            description="Open the full tree and scroll to this file"
+            testId="reveal-in-tree-action"
+            onClick={() => {
+              onRevealInTree(mobileActionFileInfo.path);
+              onClose();
+            }}
+          />
+        )}
+        {runId && onOpenRun && (
+          <BottomSheetAction
+            icon={<History className="h-5 w-5 text-cyan-300" />}
+            label="Show the run that changed this"
+            description="Open the sandbox run attribution"
+            onClick={() => {
+              onOpenRun(runId);
               onClose();
             }}
           />

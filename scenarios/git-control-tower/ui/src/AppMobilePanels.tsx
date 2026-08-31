@@ -48,22 +48,12 @@ export function renderMobilePanel(
       return (
         <FileList
           files={deps.statusData?.files}
+          runIndex={deps.runIndex}
+          onRevealInTree={deps.onRevealInTree}
           fileStats={deps.statusData?.file_stats}
           selectedFiles={deps.selectedFiles}
           selectedKeySet={deps.selectedKeySet}
           selectionKey={deps.selectionKey}
-          approvedChanges={
-            deps.approvedChangesData
-              ? {
-                  available: deps.approvedChangesData.available,
-                  committableFiles: deps.approvedChangesData.committableFiles,
-                  warning: deps.approvedChangesData.warning,
-                }
-              : undefined
-          }
-          approvedPaths={deps.approvedPendingSet}
-          onStageApproved={deps.onStageApproved}
-          isStagingApproved={deps.isStaging}
           onSelectFile={(path, staged, event) => {
             deps.onSelectFile(path, staged, event);
             deps.onSetMobileActivePanel("diff");
@@ -103,6 +93,7 @@ export function renderMobilePanel(
           onExitSelectionMode={deps.onExitSelectionMode}
           onMobileSelectFile={deps.onMobileSelectFile}
           fileHotspots={deps.statusData?.file_hotspots}
+          onOpenRun={deps.onOpenRun}
         />
       );
 

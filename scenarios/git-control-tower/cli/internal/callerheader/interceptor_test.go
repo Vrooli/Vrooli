@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/cli-core/cliutil"
 	worktreev1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree"
 	worktreeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree/worktree_v1connect"
 )
@@ -19,7 +20,7 @@ type recordingHandler struct {
 }
 
 func (r *recordingHandler) ListWorktrees(ctx context.Context, req *connect.Request[worktreev1.ListWorktreesRequest]) (*connect.Response[worktreev1.ListWorktreesResponse], error) {
-	r.caller = req.Header().Get(HeaderCaller)
+	r.caller = req.Header().Get(cliutil.HeaderCaller)
 	r.authorized = req.Header().Get(HeaderAuthorized)
 	return connect.NewResponse(&worktreev1.ListWorktreesResponse{}), nil
 }

@@ -13,6 +13,7 @@ import (
 
 	"git-control-tower/internal/config"
 
+	"github.com/vrooli/cli-core/cliutil"
 	worktreev1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree"
 	worktreeconnect "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/worktree/worktree_v1connect"
 )
@@ -86,7 +87,7 @@ func TestInterceptor_HumanCallerAllowed(t *testing.T) {
 	client, srv, cleanup := newTestClient(t, denyAllPolicy(), audit)
 	defer cleanup()
 	req := connect.NewRequest(&worktreev1.CreateWorktreeRequest{RepoPath: "/x", NewWorktreePath: "/y"})
-	req.Header().Set(HeaderCaller, "human")
+	req.Header().Set(cliutil.HeaderCaller, "human")
 	_, err := client.CreateWorktree(context.Background(), req)
 	if err != nil {
 		t.Fatalf("CreateWorktree as human: %v", err)
@@ -105,7 +106,7 @@ func TestInterceptor_AgentDeniedUnderConfirmWithoutOverride(t *testing.T) {
 	client, srv, cleanup := newTestClient(t, confirmPolicy(), audit)
 	defer cleanup()
 	req := connect.NewRequest(&worktreev1.CreateWorktreeRequest{RepoPath: "/x", NewWorktreePath: "/y"})
-	req.Header().Set(HeaderCaller, "external-agent")
+	req.Header().Set(cliutil.HeaderCaller, "external-agent")
 	_, err := client.CreateWorktree(context.Background(), req)
 	if err == nil {
 		t.Fatal("expected error for agent under confirm policy w/o override")
@@ -131,7 +132,7 @@ func TestInterceptor_AgentAllowedWithOverride(t *testing.T) {
 	client, srv, cleanup := newTestClient(t, confirmPolicy(), audit)
 	defer cleanup()
 	req := connect.NewRequest(&worktreev1.CreateWorktreeRequest{RepoPath: "/x", NewWorktreePath: "/y"})
-	req.Header().Set(HeaderCaller, "external-agent")
+	req.Header().Set(cliutil.HeaderCaller, "external-agent")
 	req.Header().Set(HeaderAuthorized, "true")
 	_, err := client.CreateWorktree(context.Background(), req)
 	if err != nil {
@@ -152,7 +153,7 @@ func TestInterceptor_AgentWarnRunsButSurfacesWarning(t *testing.T) {
 	client, srv, cleanup := newTestClient(t, policy, audit)
 	defer cleanup()
 	req := connect.NewRequest(&worktreev1.CreateWorktreeRequest{RepoPath: "/x", NewWorktreePath: "/y"})
-	req.Header().Set(HeaderCaller, "external-agent")
+	req.Header().Set(cliutil.HeaderCaller, "external-agent")
 	resp, err := client.CreateWorktree(context.Background(), req)
 	if err != nil {
 		t.Fatalf("warn: %v", err)
@@ -174,7 +175,7 @@ func TestInterceptor_AgentDenyAlwaysRefuses(t *testing.T) {
 	client, srv, cleanup := newTestClient(t, denyAllPolicy(), audit)
 	defer cleanup()
 	req := connect.NewRequest(&worktreev1.CreateWorktreeRequest{RepoPath: "/x", NewWorktreePath: "/y"})
-	req.Header().Set(HeaderCaller, "vrooli-agent")
+	req.Header().Set(cliutil.HeaderCaller, "vrooli-agent")
 	// Even with override flag, deny refuses.
 	req.Header().Set(HeaderAuthorized, "true")
 	_, err := client.CreateWorktree(context.Background(), req)

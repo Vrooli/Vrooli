@@ -9,6 +9,8 @@ import { X } from "lucide-react";
 import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { StatusHeader } from "./components/StatusHeader";
 import { MobileHeader } from "./components/MobileHeader";
+import TopSafeArea from "./components/TopSafeArea";
+import { chromeTheme } from "@vrooli/react-component-library/ChromeTheme";
 import { MobileNav } from "./components/MobileNav";
 import { FileList } from "./components/FileList";
 import { HistoryFileList } from "./components/HistoryFileList";
@@ -31,6 +33,8 @@ import type { GroupingRule } from "./components/FileList";
 import { fetchSyncStatus } from "./lib/api";
 import type { RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest } from "./lib/api";
 import { getFileTypeInfo } from "./lib/fileTypes";
+import { GCT_CHROME_COLOR } from "./lib/chrome";
+import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import { computeNextSelection, layoutOrder, type SelectionEntry } from "./AppSelection";
 import {
@@ -40,6 +44,7 @@ import {
   useDiff,
   useSyncStatus,
   useApprovedChanges,
+  useProvenance,
   useApprovedChangesPreview,
   useStageFiles,
   useUnstageFiles,
@@ -198,6 +203,10 @@ export default function App() {
   const [urlInitComplete, setUrlInitComplete] = useState(false);
 
   useEffect(() => {
+	chromeTheme.setBase({ statusColor: GCT_CHROME_COLOR, fillColor: GCT_CHROME_COLOR });
+	}, []);
+
+	useEffect(() => {
     if (fileViewMode !== "grouped" || groupingRules.length === 0) {
       setHistoryScopeFilter(null);
     }
@@ -419,6 +428,8 @@ export default function App() {
   const historyQuery = useRepoHistory(historyEffectiveLimit, historyNeedsDetails, repoId, historyGrepPattern, historyNeedsDetails);
   const syncStatusQuery = useSyncStatus(repoId);
   const approvedChangesQuery = useApprovedChanges(repoId);
+  const provenanceQuery = useProvenance(repoId);
+  const runIndex = useMemo(() => buildRunIndex(approvedChangesQuery.data?.files ?? [], provenanceQuery.data?.runGroups ?? []), [approvedChangesQuery.data?.files, provenanceQuery.data?.runGroups]);
   // Actionable repository-health findings, surfaced as a badge on the settings
   // gear so hygiene problems are visible without opening the modal.
   const healthIssueCount = useHealthIssueCount(repoId);
@@ -958,28 +969,6 @@ export default function App() {
     handleStagePaths(pendingStageSameNameFiles);
     setPendingStageSameNameFiles(null);
   }, [handleStagePaths, pendingStageSameNameFiles]);
-
-  const handleStageApproved = useCallback(() => {
-    const suggestedMessage = approvedChangesQuery.data?.suggestedMessage ?? "";
-    if (approvedPendingPaths.length === 0) return;
-
-    stageMutation.mutate(
-      { paths: approvedPendingPaths },
-      {
-        onSuccess: (data) => {
-          if (suggestedMessage) {
-            setCommitMessage(suggestedMessage);
-          }
-          if (data.warnings && data.warnings.length > 0) {
-            setWarningNotice({
-              message: "Some files were skipped",
-              details: data.warnings.join("\n")
-            });
-          }
-        }
-      }
-    );
-  }, [approvedChangesQuery.data?.suggestedMessage, approvedPendingPaths, stageMutation]);
 
   const handleUnstageAll = useCallback(() => {
     const files = statusQuery.data?.files;
@@ -2126,22 +2115,15 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            runIndex={runIndex}
+            onRevealInTree={(path) => {
+              setFileViewMode("tree");
+              setScrollToFile(path);
+            }}
             fileStats={statusQuery.data?.file_stats}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            approvedChanges={
-              approvedChangesQuery.data
-                ? {
-                    available: approvedChangesQuery.data.available,
-                    committableFiles: approvedChangesQuery.data.committableFiles,
-                    warning: approvedChangesQuery.data.warning
-                  }
-                : undefined
-            }
-            approvedPaths={approvedPendingSet}
-            onStageApproved={handleStageApproved}
-            isStagingApproved={isStaging}
             onSelectFile={(path, staged, event) => {
               handleSelectFile(path, staged, event);
               if (primaryPanel === "review") setPrimaryPanel("diff");
@@ -2405,22 +2387,15 @@ export default function App() {
         return (
           <FileList
             files={statusQuery.data?.files}
+            runIndex={runIndex}
+            onRevealInTree={(path) => {
+              setFileViewMode("tree");
+              setScrollToFile(path);
+            }}
             fileStats={statusQuery.data?.file_stats}
             selectedFiles={selectedFiles}
             selectedKeySet={selectedKeySet}
             selectionKey={selectionKey}
-            approvedChanges={
-              approvedChangesQuery.data
-                ? {
-                    available: approvedChangesQuery.data.available,
-                    committableFiles: approvedChangesQuery.data.committableFiles,
-                    warning: approvedChangesQuery.data.warning
-                  }
-                : undefined
-            }
-            approvedPaths={approvedPendingSet}
-            onStageApproved={handleStageApproved}
-            isStagingApproved={isStaging}
             onSelectFile={(path, staged, event) => {
               handleSelectFile(path, staged, event);
               // On mobile, switch to diff view after selecting a file
@@ -2618,6 +2593,7 @@ export default function App() {
         role="application"
       >
         {/* Mobile Header */}
+        <TopSafeArea testId="mobile-chrome">
         <MobileHeader
           status={statusQuery.data}
           health={healthQuery.data}
@@ -2641,6 +2617,7 @@ export default function App() {
           isPushing={pushMutation.isPending}
           isPulling={pullMutation.isPending}
         />
+        </TopSafeArea>
 
         {/* Main Content - Single Panel at a time */}
         <div className="gct-mobile-content" data-testid="gct-mobile-content">

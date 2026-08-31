@@ -5,19 +5,23 @@
     "scenarios": {
       "workspace-sandbox": {
         "description": "Approved changes tracking and commit preview",
-        "required": false
+        "required": false,
+        "startup_policy": "try_start"
       },
       "browser-automation-studio": {
         "description": "Visual capture and screenshot comparison for scenario UIs",
-        "required": false
+        "required": false,
+        "startup_policy": "try_start"
       },
       "test-genie": {
         "description": "Automated test execution and reporting for scenarios",
-        "required": false
+        "required": false,
+        "startup_policy": "try_start"
       },
       "tidiness-manager": {
         "description": "Code quality analysis and tidiness scoring for scenarios",
-        "required": false
+        "required": false,
+        "startup_policy": "try_start"
       },
       "agent-manager": {
         "description": "AI agent orchestration and run management through Git Control Tower's declared role-only profile",
@@ -30,7 +34,8 @@
             ]
           }
         },
-        "required": false
+        "required": false,
+        "startup_policy": "try_start"
       }
     }
   },
@@ -133,6 +138,12 @@
     "version": "1.3.0"
   },
   "version": "2.0.0",
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.6.5"
+    }
+  },
   "storage": {
     "entries": {
       "data": {

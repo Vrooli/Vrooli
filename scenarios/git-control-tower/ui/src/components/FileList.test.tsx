@@ -2,6 +2,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { RepoFilesStatus } from "../lib/api";
+import type { RunAttribution } from "../lib/runAttribution";
 import { renderWithQueryClient } from "../test-utils";
 import { FileList } from "./FileList";
 import type { FileListProps } from "./FileListTypes";
@@ -31,9 +32,6 @@ function renderFileList(overrides: Partial<FileListProps> = {}) {
     files,
     selectedFiles: [],
     selectionKey: ({ path, staged }) => `${staged ? "1" : "0"}:${path}`,
-    approvedChanges: { available: true, committableFiles: 1 },
-    approvedPaths: new Set(["src/changed.ts"]),
-    onStageApproved: vi.fn(),
     onSelectFile: vi.fn(),
     onStageFile: vi.fn(),
     onUnstageFile: vi.fn(),
@@ -100,7 +98,7 @@ describe("FileList", () => {
 
     await user.click(screen.getByTestId("file-section-toggle-untracked"));
     expect(screen.getByText("src/new.ts")).toBeInTheDocument();
-    expect(screen.getByText("approved")).toBeInTheDocument();
+    expect(screen.queryByText("approved")).not.toBeInTheDocument();
     expect(screen.getByText("bin")).toBeInTheDocument();
 
     await user.click(screen.getByTestId("stage-all-button"));
@@ -145,6 +143,56 @@ describe("FileList", () => {
     expect(screen.getByText("compiler")).toBeInTheDocument();
     expect(screen.getByText("src/changed.ts")).toBeInTheDocument();
     expect(screen.queryByText("Other")).not.toBeInTheDocument();
+  });
+
+  it("renders one kind band for each contiguous contract kind", () => {
+    renderFileList({
+      fileViewMode: "grouped",
+      resolvedGroups: [
+        { key: "contract:scenario:one", kind: "scenario", id: "one", label: "one", root: "scenarios/one/", source: "contract", files: ["src/changed.ts"] },
+        { key: "contract:resource:two", kind: "resource", id: "two", label: "two", root: "resources/two/", source: "contract", files: ["src/new.ts"] },
+        { key: "contract:package:three", kind: "package", id: "three", label: "three", root: "packages/three/", source: "contract", files: ["src/committed.ts"] },
+      ],
+    });
+
+    expect(screen.getByTestId("file-kind-band-scenario")).toHaveTextContent("Scenarios");
+    expect(screen.getByTestId("file-kind-band-resource")).toHaveTextContent("Resources");
+    expect(screen.getByTestId("file-kind-band-package")).toHaveTextContent("Packages");
+  });
+
+  it("suppresses redundant bands when all groups share one kind", () => {
+    renderFileList({
+      fileViewMode: "grouped",
+      resolvedGroups: [
+        { key: "contract:scenario:one", kind: "scenario", id: "one", label: "one", root: "scenarios/one/", source: "contract", files: ["src/changed.ts"] },
+        { key: "contract:scenario:two", kind: "scenario", id: "two", label: "two", root: "scenarios/two/", source: "contract", files: ["src/new.ts"] },
+      ],
+    });
+
+    expect(screen.getAllByTestId("file-kind-band-scenario")).toHaveLength(1);
+    expect(screen.queryByTestId("file-kind-band-resource")).not.toBeInTheDocument();
+  });
+
+  it("keeps paths for manual groups but omits them for contract groups", () => {
+    renderFileList({
+      fileViewMode: "grouped",
+      resolvedGroups: [
+        { key: "contract:scenario:one", kind: "scenario", id: "one", label: "one", root: "scenarios/one/", source: "contract", files: ["src/changed.ts"] },
+        { key: "manual:custom", kind: "", id: "", label: "custom", root: "custom/", source: "manual", files: ["src/new.ts"] },
+      ],
+    });
+
+    expect(screen.getByText("custom/")).toBeInTheDocument();
+    expect(screen.queryByText("scenarios/one/")).not.toBeInTheDocument();
+  });
+
+  it("uses full-bleed group rows instead of card containers", () => {
+    renderFileList({
+      fileViewMode: "grouped",
+      resolvedGroups: [{ key: "contract:scenario:one", kind: "scenario", id: "one", label: "one", root: "scenarios/one/", source: "contract", files: ["src/changed.ts"] }],
+    });
+
+    expect(screen.getByTestId("file-group-contract:scenario:one").className).not.toMatch(/rounded-lg|bg-slate-950\/40/);
   });
 
   it("spins only the touched row when its path is pending", () => {
@@ -251,7 +299,6 @@ describe("FileList", () => {
         unstaged: [],
         untracked: [],
       },
-      approvedChanges: undefined,
     });
 
     expect(screen.getByTestId("empty-state")).toBeInTheDocument();
@@ -259,5 +306,67 @@ describe("FileList", () => {
     expect(screen.getByText("Working directory is clean")).toBeInTheDocument();
     expect(screen.queryByTestId("stage-all-button")).not.toBeInTheDocument();
     expect(screen.queryByTestId("unstage-all-button")).not.toBeInTheDocument();
+  });
+
+  it("filters the Changes list to files with run attribution", async () => {
+    const runIndex = new Map<string, RunAttribution>([
+      ["src/changed.ts", { runId: "run-alpha", owner: "agent-a" }],
+    ]);
+    const { user } = renderFileList({ runIndex });
+
+    await user.click(screen.getByRole("tab", { name: "From agents 1" }));
+    expect(screen.getByText("src/changed.ts")).toBeInTheDocument();
+    expect(screen.queryByText("src/committed.ts")).not.toBeInTheDocument();
+  });
+
+  it("opens the run sheet from an attributed run chip", async () => {
+    const runIndex = new Map<string, RunAttribution>([
+      ["src/changed.ts", { runId: "run-alpha", owner: "agent-a", appliedAt: "2026-08-30T12:00:00Z" }],
+    ]);
+    const { user } = renderFileList({ runIndex });
+
+    await user.click(screen.getByTestId("run-chip-run-alph"));
+    expect(screen.getByTestId("run-sheet")).toHaveTextContent("Auto-applied by the sandbox. Nothing here has been reviewed.");
+    expect(screen.getByTestId("run-sheet")).toHaveTextContent("1 file in this run");
+  });
+
+  it("selects run files without invoking a staging callback", async () => {
+    const runIndex = new Map<string, RunAttribution>([
+      ["src/changed.ts", { runId: "run-alpha", owner: "agent-a" }],
+    ]);
+    const { props, user } = renderFileList({ runIndex });
+
+    await user.click(screen.getByTestId("run-chip-run-alph"));
+    await user.click(screen.getByRole("button", { name: /Select all 1/ }));
+    expect(props.onSelectFile).toHaveBeenCalledWith("src/changed.ts", false, expect.anything());
+    expect(props.onStageFile).not.toHaveBeenCalled();
+  });
+
+  it("shows one run dot per run on a collapsed group", async () => {
+    const runIndex = new Map<string, RunAttribution>([
+      ["src/changed.ts", { runId: "run-alpha", owner: "agent-a" }],
+      ["src/new.ts", { runId: "run-beta", owner: "agent-b" }],
+    ]);
+    const { user } = renderFileList({
+      fileViewMode: "grouped",
+      runIndex,
+      resolvedGroups: [{ key: "contract:scenario:one", kind: "scenario", id: "one", label: "one", root: "scenarios/one/", source: "contract", files: ["src/changed.ts", "src/new.ts"] }],
+    });
+
+    await user.click(screen.getByTestId("file-group-toggle-contract:scenario:one"));
+    expect(screen.getByTestId("group-run-dots").children).toHaveLength(2);
+  });
+
+  it("exposes Reveal in file tree from the mobile action sheet", async () => {
+    mobile.enabled = true;
+    const onRevealInTree = vi.fn();
+    try {
+      const { user } = renderFileList({ onRevealInTree });
+      await user.click(screen.getByTestId("file-item-unstaged-more-actions"));
+      await user.click(screen.getByTestId("reveal-in-tree-action"));
+      expect(onRevealInTree).toHaveBeenCalledWith("src/changed.ts");
+    } finally {
+      mobile.enabled = false;
+    }
   });
 });

@@ -19,7 +19,7 @@
     "1.0.4"
   ],
   "kind": "shell",
-  "latest": "1.1.0",
+  "latest": "1.2.0",
   "libraryId": "react-component-library:Tabs",
   "tags": [
     "navigation",

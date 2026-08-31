@@ -80,7 +80,7 @@ export function RunAnchorBadge({ manifest }: { manifest: BaselineManifest }) {
     <span className="inline-flex items-center gap-1.5 rounded border border-slate-800 px-2 py-1 text-[11px] text-slate-400">
       run <span className="font-mono text-slate-200">{manifest.run.runId}</span>
       {manifest.run.evidenceTier && <span className={manifest.run.evidenceTier === "shared-scoped" ? "text-sky-300" : manifest.run.evidenceTier === "strict" ? "text-emerald-300" : "text-amber-400"}>{manifest.run.evidenceTier}</span>}
-      {manifest.run.sourceStable === false && <span className="text-amber-400">retry needed</span>}
+      {!manifest.run.sourceStable && <span className="text-amber-400">retry needed</span>}
       {manifest.migration && <span className="text-amber-400">degraded</span>}
     </span>
   );

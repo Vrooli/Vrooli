@@ -6,5 +6,6 @@
   "roleRef": "code.default",
   "maxTurns": 500,
   "skipPermissionPrompt": true,
-  "createdBy": "git-control-tower"
+  "createdBy": "git-control-tower",
+  "effort": "medium"
 }

@@ -9,7 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"connectrpc.com/connect"
+
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
 // CollectionTarget is a caller-selected per-scenario member. Selection is
@@ -134,13 +137,19 @@ func isTransientAdmissionSaturation(err error) bool {
 	if err == nil {
 		return false
 	}
-	message := strings.ToLower(err.Error())
-	if strings.Contains(message, "resource_exhausted") &&
-		(strings.Contains(message, "admission") || strings.Contains(message, "queued run capacity")) {
-		return true
+	var connectErr *connect.Error
+	if errors.As(err, &connectErr) && connectErr.Code() == connect.CodeResourceExhausted {
+		for _, detail := range connectErr.Details() {
+			msg, detailErr := detail.Value()
+			if detailErr != nil {
+				continue
+			}
+			if saturation, ok := msg.(*runspb.AdmissionSaturation); ok && saturation.GetLimitKind() != runspb.AdmissionLimitKind_ADMISSION_LIMIT_KIND_UNSPECIFIED {
+				return true
+			}
+		}
 	}
-	return strings.Contains(message, "wait for test-genie admission") &&
-		strings.Contains(message, "context deadline exceeded")
+	return false
 }
 
 type StartCollectionDiffResult struct {
@@ -255,6 +264,7 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 		started, err := s.StartCapture(ctx, CreateRequest{
 			RepoID: req.RepoID, RepoDir: req.RepoDir, Scenario: member.Scenario,
 			Name: member.BaselineName, Branch: branch, CreatedBy: req.CreatedBy, Reason: req.Reason,
+			ReservationID: collectionReservationID(req.RepoID, branch, req.Name), ReservationMemberCount: len(collection.Members),
 		})
 		if err != nil {
 			if isTransientAdmissionSaturation(err) {
@@ -321,6 +331,7 @@ func (s *Service) startDeferredCollectionCapture(ctx context.Context, repoID int
 		started, startErr := s.StartCapture(ctx, CreateRequest{
 			RepoID: repoID, RepoDir: deferredCaptureRepoDir(collection, pending), Scenario: member.Scenario,
 			Name: member.BaselineName, Branch: pending.Branch, CreatedBy: deferredCaptureCreatedBy(collection, pending), Reason: deferredCaptureReason(collection, pending),
+			ReservationID: collectionReservationID(repoID, collection.Branch, collection.Name), ReservationMemberCount: len(collection.Members),
 		})
 		if startErr != nil {
 			if isTransientAdmissionSaturation(startErr) {
@@ -398,6 +409,7 @@ func (s *Service) retryDeferredCollectionCapture(ctx context.Context, repoID int
 				RepoID: repoID, RepoDir: collection.RepoDir, Scenario: member.Scenario,
 				Name: member.BaselineName, Branch: collection.Branch,
 				CreatedBy: collection.CreatedBy, Reason: collection.Reason,
+				ReservationID: collectionReservationID(repoID, collection.Branch, collection.Name), ReservationMemberCount: len(collection.Members),
 			}},
 		})
 		if err != nil {
@@ -446,7 +458,7 @@ func (s *Service) ExtendCollection(ctx context.Context, req ExtendCollectionRequ
 		if !added || member.Status != CollectionMemberPending || member.RunID != "" {
 			continue
 		}
-		started, startErr := s.StartCapture(ctx, CreateRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Scenario: member.Scenario, Name: member.BaselineName, Branch: branch, CreatedBy: req.CreatedBy, Reason: req.Reason})
+		started, startErr := s.StartCapture(ctx, CreateRequest{RepoID: req.RepoID, RepoDir: req.RepoDir, Scenario: member.Scenario, Name: member.BaselineName, Branch: branch, CreatedBy: req.CreatedBy, Reason: req.Reason, ReservationID: collectionReservationID(req.RepoID, branch, req.Name), ReservationMemberCount: len(collection.Members)})
 		if startErr != nil {
 			collection, err = s.storage.UpdateCollectionMember(req.RepoID, branch, req.Name, member.Scenario, func(m *CollectionMember) error {
 				m.Status, m.Error, m.UpdatedAt = CollectionMemberFailed, startErr.Error(), s.now().UTC()
@@ -465,6 +477,13 @@ func (s *Service) ExtendCollection(ctx context.Context, req ExtendCollectionRequ
 	}
 	result.Collection = collection
 	return result, nil
+}
+
+// collectionReservationID is stable across retries and process restarts, but
+// scoped to the repository branch and collection identity so independent
+// collections never share queue accounting.
+func collectionReservationID(repoID int64, branch, name string) string {
+	return fmt.Sprintf("gct:collection:%d:%s:%s", repoID, strings.TrimSpace(branch), strings.TrimSpace(name))
 }
 
 func newCollectionManifest(req StartCollectionCaptureRequest, branch string, now time.Time) CollectionManifest {

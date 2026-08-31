@@ -43,7 +43,8 @@
         { "id": "security-posture", "title": "Security Posture",      "path": "internal/SECURITY-POSTURE.md" },
         { "id": "temporal-flows",   "title": "Temporal Flows",        "path": "internal/TEMPORAL-FLOWS.md" },
         { "id": "coherence-notes",  "title": "React Coherence Notes", "path": "internal/COHERENCE-NOTES.md" },
-        { "id": "experience-audit", "title": "Experience Audit",      "path": "internal/EXPERIENCE-AUDIT.md" }
+        { "id": "experience-audit", "title": "Experience Audit",      "path": "internal/EXPERIENCE-AUDIT.md" },
+        { "id": "changes-redesign", "title": "Changes List Redesign", "path": "internal/CHANGES_LIST_REDESIGN.md" }
       ]
     },
     {
@@ -55,7 +56,7 @@
       "id": "perf",
       "title": "Performance",
       "documents": [
-        { "id": "perf-2026-05-03-discovery", "title": "2026-05-03 Discovery Audit", "path": "perf/2026-05-03-history-markdown-resize.md" },
+        { "id": "perf-2026-05-03-discovery", "title": "2026-05-03 Discovery Audit",        "path": "perf/2026-05-03-history-markdown-resize.md" },
         { "id": "perf-2026-05-03-after",     "title": "2026-05-03 After-Fixes Comparison", "path": "perf/2026-05-03-after-fixes.md" }
       ]
     }

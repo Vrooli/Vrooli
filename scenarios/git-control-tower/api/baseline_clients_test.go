@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/vrooli/cli-core/cliutil"
 	"io"
 	"strings"
 	"sync"
@@ -15,12 +16,22 @@ import (
 )
 
 func TestBaselineStartRequestHasDedicatedAdmissionCaller(t *testing.T) {
-	request := baselineStartRequest("scenario-to-desktop")
-	if got := request.Header().Get("X-Vrooli-Caller"); got != baselineAdmissionCaller {
+	request := baselineStartRequest("scenario-to-desktop", "", 0)
+	if got := request.Header().Get(cliutil.HeaderCaller); got != baselineAdmissionCaller {
 		t.Fatalf("X-Vrooli-Caller = %q, want %q", got, baselineAdmissionCaller)
 	}
 	if got := request.Msg.GetCaptureProfile(); got != "baseline" {
 		t.Fatalf("capture profile = %q, want baseline", got)
+	}
+}
+
+func TestBaselineStartRequestCarriesCollectionReservation(t *testing.T) {
+	request := baselineStartRequest("calendar", "gct:collection:7:agi:baseline", 12)
+	if got := request.Msg.GetCollectionReservationId(); got != "gct:collection:7:agi:baseline" {
+		t.Fatalf("reservation id = %q", got)
+	}
+	if got := request.Msg.GetCollectionReservationMemberCount(); got != 12 {
+		t.Fatalf("reservation member count = %d, want 12", got)
 	}
 }
 
@@ -59,9 +70,9 @@ func TestCachedScenarioURLResolverCollapsesConcurrentDiscovery(t *testing.T) {
 }
 
 func TestStartBaselineRunWithRetryRetriesResourceExhausted(t *testing.T) {
-	original := baselineAdmissionRetryDelays
-	baselineAdmissionRetryDelays = []time.Duration{time.Millisecond}
-	t.Cleanup(func() { baselineAdmissionRetryDelays = original })
+	original := baselineRunRetryDelays
+	baselineRunRetryDelays = []time.Duration{time.Millisecond}
+	t.Cleanup(func() { baselineRunRetryDelays = original })
 	attempts := 0
 	response, err := startBaselineRunWithRetry(context.Background(), func() (*connect.Response[runspb.StartRunResponse], error) {
 		attempts++
@@ -79,9 +90,9 @@ func TestStartBaselineRunWithRetryRetriesResourceExhausted(t *testing.T) {
 }
 
 func TestStartBaselineRunWithRetryDoesNotRetryOtherErrors(t *testing.T) {
-	original := baselineAdmissionRetryDelays
-	baselineAdmissionRetryDelays = []time.Duration{time.Millisecond}
-	t.Cleanup(func() { baselineAdmissionRetryDelays = original })
+	original := baselineRunRetryDelays
+	baselineRunRetryDelays = []time.Duration{time.Millisecond}
+	t.Cleanup(func() { baselineRunRetryDelays = original })
 	attempts := 0
 	_, err := startBaselineRunWithRetry(context.Background(), func() (*connect.Response[runspb.StartRunResponse], error) {
 		attempts++
@@ -116,9 +127,9 @@ func TestWaitForBaselineTerminalReattachesAfterLiveSnapshot(t *testing.T) {
 }
 
 func TestWaitForBaselineTerminalReattachesAfterUnexpectedEOF(t *testing.T) {
-	original := baselineWaitRetryDelays
-	baselineWaitRetryDelays = []time.Duration{time.Millisecond}
-	t.Cleanup(func() { baselineWaitRetryDelays = original })
+	original := baselineRunRetryDelays
+	baselineRunRetryDelays = []time.Duration{time.Millisecond}
+	t.Cleanup(func() { baselineRunRetryDelays = original })
 	attempts := 0
 	response, err := waitForBaselineTerminal(context.Background(), func() (*connect.Response[runspb.WaitRunResponse], error) {
 		attempts++
@@ -140,9 +151,9 @@ func TestWaitForBaselineTerminalReattachesAfterUnexpectedEOF(t *testing.T) {
 }
 
 func TestWaitForCanonicalBaselineTerminalRetriesSnapshotPublicationRace(t *testing.T) {
-	original := baselineEvidenceRetryDelays
-	baselineEvidenceRetryDelays = []time.Duration{time.Millisecond}
-	t.Cleanup(func() { baselineEvidenceRetryDelays = original })
+	original := baselineRunRetryDelays
+	baselineRunRetryDelays = []time.Duration{time.Millisecond}
+	t.Cleanup(func() { baselineRunRetryDelays = original })
 
 	attempts := 0
 	response, err := waitForCanonicalBaselineTerminal(context.Background(), func() (*connect.Response[runspb.WaitRunResponse], error) {
@@ -168,9 +179,9 @@ func TestWaitForCanonicalBaselineTerminalRetriesSnapshotPublicationRace(t *testi
 }
 
 func TestWaitForCanonicalBaselineTerminalRejectsPersistentDegradedEvidence(t *testing.T) {
-	original := baselineEvidenceRetryDelays
-	baselineEvidenceRetryDelays = []time.Duration{time.Millisecond}
-	t.Cleanup(func() { baselineEvidenceRetryDelays = original })
+	original := baselineRunRetryDelays
+	baselineRunRetryDelays = []time.Duration{time.Millisecond}
+	t.Cleanup(func() { baselineRunRetryDelays = original })
 
 	_, err := waitForCanonicalBaselineTerminal(context.Background(), func() (*connect.Response[runspb.WaitRunResponse], error) {
 		return connect.NewResponse(&runspb.WaitRunResponse{

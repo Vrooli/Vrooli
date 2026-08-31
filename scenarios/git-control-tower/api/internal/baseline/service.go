@@ -119,12 +119,26 @@ type CreateRequest struct {
 	Branch    string // optional override; default derived from git state
 	CreatedBy string
 	Reason    string
+	// Collection reservations let Test Genie account for a fan-out as one
+	// declared unit instead of applying the ordinary caller queue bucket to
+	// every member.
+	ReservationID          string
+	ReservationMemberCount int
 }
 
 // CreateResult is the outcome of Create.
 type CreateResult struct {
 	Manifest     BaselineManifest
 	DirtyWarning string // non-empty when captured against a dirty tree
+}
+
+func startBaselineRun(ctx context.Context, exec Executor, req CreateRequest) (RunHandle, error) {
+	if reservationID := strings.TrimSpace(req.ReservationID); reservationID != "" {
+		if reservationExec, ok := exec.(ReservationExecutor); ok {
+			return reservationExec.StartRunWithReservation(ctx, req.Scenario, reservationID, req.ReservationMemberCount)
+		}
+	}
+	return exec.StartRun(ctx, req.Scenario)
 }
 
 // LegacyOrphanReport is read-only migration evidence. It intentionally does
@@ -308,7 +322,7 @@ func (s *Service) StartCapture(ctx context.Context, req CreateRequest) (PendingC
 	if reason := s.reachabilityError(ctx); reason != "" {
 		return PendingCapture{}, fmt.Errorf("test-genie is not reachable: %s", reason)
 	}
-	h, err := s.exec.StartRun(ctx, req.Scenario)
+	h, err := startBaselineRun(ctx, s.exec, req)
 	if err != nil {
 		return PendingCapture{}, fmt.Errorf("start comprehensive run: %w", err)
 	}
@@ -352,7 +366,7 @@ func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (
 		msg := "comprehensive run failed: " + err.Error()
 		_ = s.setLifecycle(pending.Req.RepoID, pending.Manifest, LifecycleFailed, pending.Run.RunID, msg)
 		_ = s.saveSnapshotIntent(ctx, pending, "failed", msg)
-		return CreateResult{}, errors.New(msg)
+		return CreateResult{}, fmt.Errorf("%s: %w", msg, err)
 	}
 	if err := s.validateBaselineEvidence(ctx, pending.Req.Scenario, res.RunID, res.Phases); err != nil {
 		_ = s.setLifecycle(pending.Req.RepoID, pending.Manifest, LifecycleFailed, pending.Run.RunID, err.Error())

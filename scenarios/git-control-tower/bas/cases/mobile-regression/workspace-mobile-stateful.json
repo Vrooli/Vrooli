@@ -51,6 +51,27 @@
       }
     },
     {
+      "id": "capture-chrome-colors",
+      "type": "evaluate",
+      "data": {
+        "label": "Capture declared and rendered chrome colors",
+        "storeResult": "gct_chrome_colors",
+        "expression": "(() => { const fill = getComputedStyle(document.querySelector('[data-testid=status-bar-fill]')).backgroundColor; const header = getComputedStyle(document.querySelector('[data-testid=mobile-header]')).backgroundColor; const meta = (document.querySelector('meta[name=theme-color]')?.getAttribute('content') || '').trim().toLowerCase(); const hex = meta.match(/^#([0-9a-f]{6})$/); const metaRGB = hex ? `rgb(${parseInt(hex[1].slice(0,2),16)}, ${parseInt(hex[1].slice(2,4),16)}, ${parseInt(hex[1].slice(4,6),16)})` : ''; const normalize = (value) => value.replace(/\\s+/g, '').replace(/^rgba\\(([^,]+),([^,]+),([^,]+),1\\)$/, 'rgb($1,$2,$3)'); const ok = Boolean(fill && header && metaRGB && normalize(fill) === normalize(header) && normalize(fill) === normalize(metaRGB)); document.body.dataset.gctChromeColors = ok ? 'true' : 'false'; return { fill, header, meta, metaRGB, ok }; })()"
+      }
+    },
+    {
+      "id": "assert-chrome-colors",
+      "type": "assert",
+      "data": {
+        "label": "Declared and rendered chrome colors agree",
+        "selector": "body",
+        "assertMode": "attribute_equals",
+        "attributeName": "data-gct-chrome-colors",
+        "expectedValue": "true",
+        "failureMessage": "GCT-MOBILE-002: status-bar fill, header, and theme-color must resolve to the same color"
+      }
+    },
+    {
       "id": "capture-initial-screenshot",
       "type": "screenshot",
       "data": { "label": "Capture initial mobile Changes surface", "fullPage": false }
@@ -95,7 +116,9 @@
   "edges": [
     { "id": "open-to-chrome", "source": "open-workspace", "target": "assert-mobile-chrome" },
     { "id": "chrome-to-geometry", "source": "assert-mobile-chrome", "target": "capture-initial-geometry" },
-    { "id": "geometry-to-scroll", "source": "capture-initial-geometry", "target": "scroll-changes" },
+    { "id": "geometry-to-chrome", "source": "capture-initial-geometry", "target": "capture-chrome-colors" },
+    { "id": "chrome-to-assert", "source": "capture-chrome-colors", "target": "assert-chrome-colors" },
+    { "id": "assert-chrome-to-scroll", "source": "assert-chrome-colors", "target": "scroll-changes" },
     { "id": "scroll-to-shot", "source": "scroll-changes", "target": "capture-initial-screenshot" },
     { "id": "shot-to-diff", "source": "capture-initial-screenshot", "target": "open-diff-tab" },
     { "id": "diff-to-assert", "source": "open-diff-tab", "target": "assert-diff-tab" },
