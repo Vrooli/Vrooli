@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Menu
  * @displayName Menu
- * @description The menu family covering dropdowns and submenus with roving focus, typeahead, check and radio items, safe pointer corridors, shortcut hints, and async item actions.
  * @version 1.2.5
  * @tags ["overlay","menu","keyboard","typeahead","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

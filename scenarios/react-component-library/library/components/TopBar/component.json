@@ -2,25 +2,17 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "navigation.top-bar",
-  "deprecatedVersions": ["1.0.4", "1.0.5", "1.0.6"],
-  "description": "A stable application header region that adapts its navigation affordances by viewport.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.5",
+    "1.0.6"
   ],
-  "displayName": "TopBar",
   "draft": "",
-  "evictedVersions": ["1.0.4", "1.0.5", "1.0.6"],
-  "kind": "shell",
-  "latest": "1.0.7",
-  "libraryId": "react-component-library:TopBar",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.5",
+    "1.0.6"
   ],
-  "tags": ["navigation", "responsive", "token-bound"]
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:TopBar"
 }

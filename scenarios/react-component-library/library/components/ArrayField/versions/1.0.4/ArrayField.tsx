@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ArrayField
  * @displayName ArrayField
- * @description A store-backed repeating field with constrained add, duplicate, remove, and keyboard-safe reorder actions.
  * @version 1.0.4
  * @tags ["form","array","validation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

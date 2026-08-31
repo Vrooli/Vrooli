@@ -9,14 +9,6 @@
     "1.0.0",
     "2.1.2"
   ],
-  "description": "Subscribes to the writing direction in force for a subtree so a direction change re-renders its consumers.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useDirection",
   "draft": "",
   "evictedVersions": [
     "2.1.1",
@@ -25,12 +17,6 @@
     "1.0.0",
     "2.1.2"
   ],
-  "kind": "surface",
   "latest": "2.1.3",
-  "libraryId": "react-component-library:useDirection",
-  "tags": [
-    "runtime",
-    "accessibility",
-    "internationalization"
-  ]
+  "libraryId": "react-component-library:useDirection"
 }

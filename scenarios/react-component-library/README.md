@@ -1,135 +1,70 @@
 # React Component Library
 
-Central UI/API/CLI for designing, previewing, versioning, applying, and
-tracking shared React UI components across Vrooli scenarios.
+The React Component Library is Vrooli's shared, versioned UI capability. An
+asset is authored once, validated at its source, and consumed by scenario UIs
+through a governed package surface.
 
-> **Editing an existing asset:** begin with
-> `react-component-library components draft-begin <asset>`. Work only in the
-> generated draft, then use `components draft-publish`; never create or edit a
-> released version directory directly. See
-> [the asset update flow](docs/guides/asset-update-flow.md).
+## The asset loop
 
-This scenario provides
-the standard full-stack Vrooli scenario shape:
-
-- Go API (`api/`)
-- React + TypeScript + Vite UI (`ui/`)
-- CLI wrapper (`cli/`)
-- Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry + progress log (`requirements/`, `docs/internal/PROGRESS.md`)
-
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
-
-## What's In This Scenario
-
-The catalog cockpit is evidence-led: [the architecture note](docs/concepts/ARCHITECTURE.md#per-asset-gate-scoring-and-health-cockpit) describes the AssetID boundary, pinned weights, durable per-asset evidence, score history, promote/build lanes, and the shared health surfaces.
-
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with component manifests, version artifacts,
-  adoption records, per-domain service/repository/schema/handler
-  modules, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
-
-## Placeholders vs. Durable Scaffolding
-
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
-
-- Any remaining template prose that mentions `notes` as product scope.
-- Placeholder copy in secondary docs that has not yet been aligned with
-  component/version/adoption workflows.
-
-Treat these as **durable seams** to preserve, even as you rewrite the
-visual layout:
-
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- The feature-folder pattern under `ui/src/features/<name>/`.
-- The proto → API → CLI → UI vertical-slice shape.
-
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
-
-## Running The Scenario
+1. Declare or update the asset intent in `catalog/assets/<domain>/<asset>.json`.
+2. Open a writable draft, edit the implementation and story, and keep any CSS
+   companion beside the implementation.
+3. Run the generator, validate the changed asset, and publish a new immutable
+   version.
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
-make setup   # wraps `vrooli scenario setup`
-
-# Start API + UI in the background
-make start   # wraps `vrooli scenario start`
+react-component-library components draft-begin react-component-library:Button
+react-component-library catalog build
+react-component-library catalog gates story-grammar --asset-id controls.button
+react-component-library components draft-publish react-component-library:Button
 ```
 
-See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
+Only two surfaces are authored: the catalog declaration and the version
+directory. `component.json`, dependency locks, story contracts, package
+exports, release hashes, provenance, and database projections are generated
+by `react-component-library catalog build`. Never edit a released version or a
+derived artifact by hand.
 
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute react-component-library --preset comprehensive` directly for
-finer-grained presets.
+## Start the scenario
 
-### Catalog readiness
+```bash
+make setup
+make start
+react-component-library status
+```
 
-Use `react-component-library catalog readiness` for the combined evidence
-view. Its output is an `OperationalReport` with `Status`, `Triage`, and
-`Next Steps`; status names the evidence run, completion state, maturity floor,
-achieved rung, and gap. Triage is bounded to the highest-leverage 50 rows and
-reports the omitted count when more rows exist. Use `--floor <rung>` to preview
-a stricter floor without changing the catalog. `--json` carries the same
-status, triage, omission count, and runnable next-step commands for agents.
+Use [docs/START-HERE.md](docs/START-HERE.md) for orientation and
+[docs/guides/asset-update-flow.md](docs/guides/asset-update-flow.md) for the
+complete change procedure. Run the scenario-owned suite with
+`vrooli scenario test react-component-library` when a full workflow check is
+needed.
 
-## Documentation Map
+## Always and never
 
-| Need | Start Here |
-|---|---|
-| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
-| Establish UI design language | `DESIGN.md` at this scenario's root |
-| Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
-| Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
-| Map product domains | [`docs/concepts/DOMAINS.md`](docs/concepts/DOMAINS.md) |
-| Track workflows, data, and integrations | [`docs/concepts/FLOWS.md`](docs/concepts/FLOWS.md), [`docs/concepts/DATA.md`](docs/concepts/DATA.md), [`docs/concepts/INTEGRATIONS.md`](docs/concepts/INTEGRATIONS.md) |
-| Capture monetization and launch strategy | [`docs/business/MONETIZATION.md`](docs/business/MONETIZATION.md), [`docs/business/GO-TO-MARKET.md`](docs/business/GO-TO-MARKET.md) |
-| Prepare deployment and operations | [`docs/operations/DEPLOYMENT.md`](docs/operations/DEPLOYMENT.md), [`docs/operations/RUNBOOK.md`](docs/operations/RUNBOOK.md), [`docs/operations/OBSERVABILITY.md`](docs/operations/OBSERVABILITY.md) |
-| Write tests | [`docs/internal/TESTING.md`](docs/internal/TESTING.md) |
-| Add or update seams/fakes | [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) |
-| Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
-| Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
-| Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+- Always edit through `components draft-begin` and publish through the governed
+  lifecycle.
+- Always run `catalog build --check` before handing off a change.
+- Always use the narrowest applicable gate first; a zero-input result is a
+  runner failure, not evidence of quality.
+- Always treat the catalog as desired intent and source as observed behavior.
+- Never copy catalog metadata into `component.json` or a source header.
+- Never add a reconciliation script or an exemption to hide drift.
+- Never use exact intra-library version pins in newly authored source; use a
+  supported major line.
+- Never place scratch output in the scenario tree.
 
-## Working Rules
+## Package boundary
 
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Update `docs/concepts/DOMAINS.md`** before adding product code.
-6. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-7. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-8. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-9. **Keep boundaries**: only edit within this scenario's directory.
+The published package is built from the authored library and emits JavaScript
+and declarations. Authored CSS is inlined into the emitted module through the
+library stylesheet injector; CSS files are not required from a consumer's
+bundler. Package maintenance tooling lives in
+`packages/react-component-library/tooling/`.
 
-## pnpm Everywhere
+## Further reading
 
-This scenario assumes pnpm. If you run another package manager, convert
-lockfiles yourself before committing. Scripts use `pnpm` directly (no
-`npm` fallbacks) to reduce drift.
-
-## Need Inspiration?
-
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+- [Asset derivation](docs/concepts/ASSET-DERIVATION.md) — ownership and
+  generated projections.
+- [Quickstart](docs/QUICKSTART.md) — lifecycle setup and operations.
+- [Architecture](docs/concepts/ARCHITECTURE.md) — API, CLI, UI, and storage.
+- [Testing](docs/internal/TESTING.md) — targeted and scenario-owned checks.

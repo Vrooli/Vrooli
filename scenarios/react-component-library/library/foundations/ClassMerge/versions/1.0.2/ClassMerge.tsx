@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ClassMerge
  * @displayName Class Merge
- * @description The single class composition primitive used by library assets; Tailwind conflicts resolve in favor of the consumer override.
  * @version 1.0.2
  * @tags ["foundations","styling","composition"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AuthSection
  * @displayName AuthSection
- * @description Shared sign-in and sign-out actions.
  * @version 1.0.5
  * @tags ["monetization","auth"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

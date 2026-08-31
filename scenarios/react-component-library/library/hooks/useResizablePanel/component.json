@@ -2,19 +2,13 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-resizable-panel",
-  "deprecatedVersions": ["1.0.0"],
-  "description": "Pointer, keyboard and persistence behavior for one resizable panel on either logical axis.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.0"
   ],
-  "displayName": "useResizablePanel",
   "draft": "",
-  "evictedVersions": ["1.0.0"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "latest": "1.0.1",
-  "libraryId": "react-component-library:useResizablePanel",
-  "tags": ["runtime", "accessibility", "manipulation"]
+  "libraryId": "react-component-library:useResizablePanel"
 }

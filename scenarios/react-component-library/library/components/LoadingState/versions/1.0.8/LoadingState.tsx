@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:LoadingState
  * @displayName LoadingState
- * @description The full-region loading composition selecting skeletons, placeholders, or progress based on the expected content structure and the operation's likely duration.
  * @version 1.0.8
  * @tags ["feedback","async","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

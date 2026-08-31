@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:FindingList
  * @displayName FindingList
- * @description An actionable list of gate findings with severity, identity, and remediation.
  * @version 1.0.11
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

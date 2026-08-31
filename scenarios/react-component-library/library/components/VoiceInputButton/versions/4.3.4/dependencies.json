@@ -2,13 +2,8 @@
   "schemaVersion": 1,
   "libraryId": "react-component-library:VoiceInputButton",
   "version": "4.3.4",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "resolvedAt": "2026-08-31T18:37:42.112Z",
   "dependencies": [
-    {
-      "libraryId": "react-component-library:ClassMerge",
-      "version": "1.0.2",
-      "rank": 1
-    },
     {
       "libraryId": "react-component-library:IconButton",
       "version": "3.1.4",

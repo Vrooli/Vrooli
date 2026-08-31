@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:DataToolbar
  * @displayName DataToolbar
- * @description A responsive collection control surface that composes query, filters, saved views, sorting, freshness, density, and recovery actions into one accessible grammar.
  * @version 1.0.8
  * @tags ["data-display","query","filters","responsive","keyboard","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

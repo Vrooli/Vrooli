@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AsyncFormFlow
  * @displayName AsyncFormFlow
- * @description The create-or-edit workflow covering initial load, validation, submission, progress, server-error mapping, success, retry, cancellation, and the navigation that follows.
  * @version 1.0.9
  * @tags ["forms","async","recovery","offline","navigation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

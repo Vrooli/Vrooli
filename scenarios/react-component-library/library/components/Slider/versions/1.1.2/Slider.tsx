@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Slider
  * @displayName Slider
- * @description A token-bound range control with native semantics, separated live and committed change, and optional ticks, marks, and a default marker.
  * @version 1.1.2
  * @tags ["controls","input","accessibility","gesture","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

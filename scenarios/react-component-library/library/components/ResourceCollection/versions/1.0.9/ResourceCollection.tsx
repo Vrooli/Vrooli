@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ResourceCollection
  * @displayName Resource Collection
- * @description The resource-list pattern with querying, sorting, filtering, selection, row actions, pagination, every generic state, and responsive row-or-card presentation.
  * @version 1.0.9
  * @tags ["pattern","collection","resources","responsive","recovery","keyboard","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

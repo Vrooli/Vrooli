@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Stat
  * @displayName Stat
- * @description The focused metric with value, label, comparison, trend, confidence, loading treatment, locale-aware formatting, and accessible context for what the number means.
  * @version 1.0.6
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

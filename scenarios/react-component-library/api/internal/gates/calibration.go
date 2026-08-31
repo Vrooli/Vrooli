@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 type CalibrationFixture struct {
@@ -98,7 +99,7 @@ func Calibrate(root, gate string, runner GateRunner) (CalibrationReport, error) 
 			report.Results = append(report.Results, result)
 			continue
 		}
-		for _, finding := range observed.Findings {
+		for _, finding := range append(append([]Finding(nil), observed.Findings...), observed.RunnerError...) {
 			if finding.Code != fixture.RequiredFailureCode {
 				continue
 			}
@@ -235,8 +236,22 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 				return "", func() {}, err
 			}
 		}
+		// New-only gates must see the synthetic version as newly authored even
+		// when the repository policy cutoff is in the future relative to the
+		// test fixture's creation time.
+		if err := os.Chtimes(versionDir, time.Now(), time.Now()); err != nil {
+			cleanup()
+			return "", func() {}, err
+		}
 		if fixture.Mutation == "affinity-incompatible" {
 			manifest = fmt.Sprintf("{\"libraryId\":\"%s\",\"catalogId\":\"%s\",\"latest\":\"1.0.0\",\"designStyles\":[{\"styleId\":\"vrooli-default\",\"affinity\":\"native\"}]}\n", name, fixture.AssetID)
+			if err := os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+		}
+		if fixture.Mutation == "field-ownership" {
+			manifest = fmt.Sprintf("{\"libraryId\":\"%s\",\"catalogId\":\"%s\",\"latest\":\"1.0.0\",\"description\":\"duplicated\"}\n", name, fixture.AssetID)
 			if err := os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
 				cleanup()
 				return "", func() {}, err
@@ -444,7 +459,7 @@ func pruneLibraryOverlay(root string) error {
 func linkScenarioOverlay(root, tmp string) error {
 	realScenario := filepath.Join(root, "scenarios", "react-component-library")
 	tmpScenario := filepath.Join(tmp, "scenarios", "react-component-library")
-	for _, path := range []string{"ui", "catalog/config.json", "catalog/weights.json", "templates", "data"} {
+	for _, path := range []string{"ui", "catalog/config.json", "catalog/weights.json", "catalog/version-shape.json", "templates", "data"} {
 		source := filepath.Join(realScenario, path)
 		if _, err := os.Stat(source); err != nil {
 			if os.IsNotExist(err) {

@@ -1,22 +1,14 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
   "catalogId": "primitives.meter",
-  "deprecatedVersions": ["1.0.0"],
-  "description": "A semantic bounded-value meter for capacity, quota, strength, and health.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.0"
   ],
-  "displayName": "Meter",
   "draft": "",
-  "entry": "Meter.tsx",
-  "evictedVersions": ["1.0.0"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "latest": "1.0.1",
-  "libraryId": "react-component-library:Meter",
-  "tags": ["primitive", "token-bound", "status", "accessibility"],
-  "assetKind": "component"
+  "libraryId": "react-component-library:Meter"
 }

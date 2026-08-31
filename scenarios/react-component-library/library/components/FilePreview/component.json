@@ -8,22 +8,6 @@
     "1.0.0",
     "1.0.3"
   ],
-  "description": "A safe, typed file summary with status, metadata, preview fallback, and keyboard-operable actions.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "FilePreview",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -31,14 +15,6 @@
     "1.0.0",
     "1.0.3"
   ],
-  "kind": "surface",
   "latest": "1.0.4",
-  "libraryId": "react-component-library:FilePreview",
-  "tags": [
-    "media",
-    "files",
-    "status",
-    "responsive",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:FilePreview"
 }

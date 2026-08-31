@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Text
  * @displayName Text
- * @description
  * @version 1.1.2
  * @tags ["primitive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

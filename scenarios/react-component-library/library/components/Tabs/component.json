@@ -10,14 +10,6 @@
     "1.1.0",
     "1.2.0"
   ],
-  "description": "A keyboard-operable tab navigation surface with stable active state and responsive overflow.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Tabs",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -27,11 +19,6 @@
     "1.2.0",
     "1.0.0"
   ],
-  "kind": "shell",
   "latest": "1.2.3",
-  "libraryId": "react-component-library:Tabs",
-  "tags": [
-    "navigation",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Tabs"
 }

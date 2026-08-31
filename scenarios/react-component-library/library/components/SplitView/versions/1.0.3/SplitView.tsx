@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:SplitView
  * @displayName SplitView
- * @description A composed navigation workspace that keeps primary and secondary regions meaningful across breakpoints.
  * @version 1.0.3
  * @tags ["navigation","layout","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

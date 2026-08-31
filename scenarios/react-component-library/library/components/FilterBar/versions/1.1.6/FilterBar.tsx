@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:FilterBar
  * @displayName FilterBar
- * @description A responsive query surface with search, active-filter chips, reset, and explicit apply semantics.
  * @version 1.1.6
  * @tags ["data-display","form","token-bound","responsive","keyboard"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

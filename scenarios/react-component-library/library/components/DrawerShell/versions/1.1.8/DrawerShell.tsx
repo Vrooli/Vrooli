@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:DrawerShell
  * @displayName DrawerShell
- * @description The drawer presentation occupying the full application viewport while retaining source context, navigation continuity, safe areas, and route-compatible dismissal.
  * @version 1.1.8
  * @tags ["overlay","drawer","layout","reviewed","accessibility"]
  * @deps {"react":"^18"}

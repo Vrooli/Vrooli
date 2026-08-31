@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:EmptyState
  * @displayName Empty State
- * @description Compact empty-state panel with icon, copy, and optional action slots.
  * @version 1.7.14
  * @tags ["feedback","surface"]
  * @deps {"react":"^18"}

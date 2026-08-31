@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AppNavigation
  * @displayName AppNavigation
- * @description One composed navigation contract owning sidebar-to-drawer, modal-to-bottom-sheet, and header-to-bottom-navigation transformations.
  * @version 1.1.6
  * @tags ["navigation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

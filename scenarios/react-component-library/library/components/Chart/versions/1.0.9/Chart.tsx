@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Chart
  * @displayName Chart
- * @description The responsive chart framework standardizing axes, legends, tooltips, value formatting, selection, theme integration, keyboard summaries, and every generic data state around a pluggable rendering engine.
  * @version 1.0.9
  * @tags ["visualization","data","accessibility","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

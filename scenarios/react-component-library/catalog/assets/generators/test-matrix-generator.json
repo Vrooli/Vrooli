@@ -15,7 +15,8 @@
     "delivery": "generated",
     "target": {
       "priority": "P0",
-      "maturity": "verified"
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
     }
   },
   "rationale": "Derives the matrix from the catalog and capability registry rather than from hand-written test lists, which is what keeps declared intent and executed coverage from drifting apart."

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:SettingsList
  * @displayName Settings List
- * @description Container-responsive settings groups, rows, and section introductions.
  * @version 0.1.6
  * @tags ["settings","layout","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

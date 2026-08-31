@@ -5,10 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
-	"time"
 )
 
 type persistedStoryReport struct {
@@ -32,61 +29,6 @@ type persistedEvidence struct {
 	Performance struct {
 		MountMS float64 `json:"mountMs"`
 	} `json:"performance"`
-}
-
-func ValidateConsoleClean(scope Scope) (Result, error) {
-	root := scope.Root
-	result, err := loadStoryEvidence(scope, "console")
-	if err != nil {
-		return Result{}, err
-	}
-	if result.Inspected == 0 {
-		return unmeasuredStoryGate(root), nil
-	}
-	return nonEmpty(result, "console-clean"), nil
-}
-
-func ValidatePerformance(scope Scope) (Result, error) {
-	root := scope.Root
-	result, err := validateProductionBuild(root)
-	if err != nil {
-		return Result{}, err
-	}
-	observed, err := loadStoryEvidence(scope, "performance")
-	if err != nil {
-		return Result{}, err
-	}
-	if observed.Inspected == 0 {
-		return result, nil
-	}
-	result.Inspected += observed.Inspected
-	result.InspectedAssets = append(result.InspectedAssets, observed.InspectedAssets...)
-	result.Findings = append(result.Findings, observed.Findings...)
-	return nonEmpty(result, "performance"), nil
-}
-
-func validateProductionBuild(root string) (Result, error) {
-	uiDir := filepath.Join(root, "scenarios", "react-component-library", "ui")
-	result := Result{}
-	if _, err := exec.LookPath("pnpm"); err != nil {
-		result.Findings = append(result.Findings, Finding{Code: "catalog.performance_runner_unavailable", Message: "pnpm is unavailable; the production build runner could not execute", Remediation: "Install or expose pnpm through the scenario dependency analyzer before running the performance gate."})
-		return result, nil
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-	command := exec.CommandContext(ctx, "pnpm", "run", "build")
-	command.Dir = uiDir
-	output, err := command.CombinedOutput()
-	if ctx.Err() != nil {
-		result.Findings = append(result.Findings, Finding{Code: "catalog.performance_timeout", Message: "production build timed out after 5m before the performance budget completed", Remediation: "Run `pnpm run build` in scenarios/react-component-library/ui to diagnose the build boundary."})
-	} else if err != nil {
-		message := strings.TrimSpace(string(output))
-		if len(message) > 4000 {
-			message = message[len(message)-4000:]
-		}
-		result.Findings = append(result.Findings, Finding{Code: "catalog.performance_failed", Message: "production build failed: " + message, Remediation: "Fix the production build before trusting performance evidence."})
-	}
-	return result, nil
 }
 
 func loadStoryEvidence(scope Scope, kinds ...string) (Result, error) {

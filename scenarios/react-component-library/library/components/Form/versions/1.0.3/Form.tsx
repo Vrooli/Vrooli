@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Form
  * @displayName Form
- * @description A token-bound form shell that coordinates validation, submission, save state, and accessible status announcements.
  * @version 1.0.3
  * @tags ["form","state","accessibility","compound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

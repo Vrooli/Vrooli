@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Progress
  * @displayName Progress
- * @description
  * @version 1.0.5
  * @tags ["primitive","status","motion","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

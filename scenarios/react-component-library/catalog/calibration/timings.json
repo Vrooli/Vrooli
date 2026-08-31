@@ -1,8 +1,0 @@
-{
-  "schemaVersion": 1,
-  "measuredAt": "2026-08-31",
-  "coldMatrixSeconds": 38.31,
-  "warmMatrixSeconds": 0.13,
-  "singleAssetTypesSeconds": 4.78,
-  "singleAsset": "controls.button"
-}

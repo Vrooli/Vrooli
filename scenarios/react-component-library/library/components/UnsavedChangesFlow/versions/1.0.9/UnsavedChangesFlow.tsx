@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:UnsavedChangesFlow
  * @displayName UnsavedChangesFlow
- * @description The protection workflow intercepting navigation or dismissal and offering save, discard, continue editing, or background preservation of the work in progress.
  * @version 1.0.9
  * @tags ["recovery","forms","navigation","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

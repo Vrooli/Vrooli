@@ -2,21 +2,19 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "controls.checkbox",
-  "category": "controls",
-  "deprecatedVersions": ["1.0.2", "1.0.4", "1.0.3", "1.0.5"],
-  "description": "The binary or indeterminate selection control with animated state marks, validation treatment, group membership, and robust keyboard and screen-reader behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4",
+    "1.0.3",
+    "1.0.5"
   ],
-  "displayName": "Checkbox",
   "draft": "",
-  "evictedVersions": ["1.0.4", "1.0.3", "1.0.2", "1.0.5"],
-  "kind": "input",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.3",
+    "1.0.2",
+    "1.0.5"
+  ],
   "latest": "1.0.6",
-  "libraryId": "react-component-library:Checkbox",
-  "slot": "ui-primitive",
-  "tags": ["controls", "selection", "accessibility", "token-bound"]
+  "libraryId": "react-component-library:Checkbox"
 }

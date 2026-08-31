@@ -2,17 +2,9 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-resize-observer",
-  "description": "Observed border-box geometry for a ref-attached element, with an effect-owned observer.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "evictedVersions": [
+    "1.0.0"
   ],
-  "displayName": "useResizeObserver",
-  "evictedVersions": ["1.0.0"],
-  "kind": "surface",
   "latest": "1.0.1",
-  "libraryId": "react-component-library:useResizeObserver",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useResizeObserver"
 }

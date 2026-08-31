@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ProgressiveImage
  * @displayName ProgressiveImage
- * @description
  * @version 1.1.9
  * @tags ["primitive","media","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

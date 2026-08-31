@@ -15,7 +15,8 @@
     "delivery": "template-seeded",
     "target": {
       "priority": "P2",
-      "maturity": "implemented"
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
     }
   },
   "dependencies": {

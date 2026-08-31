@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useResizablePanel
  * @displayName useResizablePanel
- * @description Pointer, keyboard and persistence behavior for one resizable panel on either logical axis.
  * @version 1.0.1
  * @tags ["runtime","accessibility","manipulation"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

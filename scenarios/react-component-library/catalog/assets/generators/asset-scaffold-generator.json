@@ -15,7 +15,8 @@
     "delivery": "generated",
     "target": {
       "priority": "P0",
-      "maturity": "verified"
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
     }
   },
   "rationale": "The seam that makes the catalog actionable rather than aspirational: an agent picks the next unblocked asset and gets a correctly shaped starting point, with the declared capabilities and states already present as failing checks."

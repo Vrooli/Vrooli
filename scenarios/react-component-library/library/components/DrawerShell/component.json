@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "overlays.full-page-drawer",
-  "category": "overlays",
   "deprecatedVersions": [
     "1.1.0",
     "1.1.1",
@@ -14,25 +13,6 @@
     "1.1.6",
     "1.1.7"
   ],
-  "description": "The drawer presentation occupying the full application viewport while retaining source context, navigation continuity, safe areas, and route-compatible dismissal.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-bound surface built entirely on design-system tokens and safe-area variables",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "native",
-      "reason": "the primary full-page and compact drawer surface for command and dashboard shells",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "discouraged",
-      "reason": "a full-bleed modal drawer overwhelms marketing and landing layouts",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "DrawerShell",
   "draft": "",
   "evictedVersions": [
     "1.1.2",
@@ -44,10 +24,6 @@
     "1.1.6",
     "1.1.7"
   ],
-  "kind": "overlay",
   "latest": "1.1.8",
-  "libraryId": "react-component-library:DrawerShell",
-  "replacedBy": ["overlays.full-page-drawer", "overlays.bottom-sheet"],
-  "slot": "ui-pattern",
-  "tags": ["overlay", "drawer", "layout", "reviewed", "accessibility"]
+  "libraryId": "react-component-library:DrawerShell"
 }

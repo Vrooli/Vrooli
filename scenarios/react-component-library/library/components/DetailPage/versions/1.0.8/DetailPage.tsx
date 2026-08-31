@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:DetailPage
  * @displayName DetailPage
- * @description A record detail template with identity, metadata, and data-source-owned content.
  * @version 1.0.8
  * @tags ["template","page","data-source","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:PreviewInspector
  * @displayName PreviewInspector
- * @description A dismissible slide-over for props, inspector details, and preview events.
  * @version 1.0.2
  * @tags ["preview","overlay","inspection"]
  * @deps {"react":"^18"}

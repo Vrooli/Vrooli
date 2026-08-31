@@ -1,37 +1,19 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "category": "layout",
+  "catalogId": "react-component-library:CommandCenterShell",
   "deprecatedVersions": [
     "1.0.0",
     "1.0.1",
     "1.0.3",
     "1.0.2"
   ],
-  "description": "A responsive operational-workspace composition with navigation, summary figures, controls, and a lifecycle-aware primary region.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Command Center Shell",
   "draft": "",
   "evictedVersions": [
     "1.0.0",
     "1.0.3",
     "1.0.2"
   ],
-  "kind": "shell",
   "latest": "1.0.4",
-  "libraryId": "react-component-library:CommandCenterShell",
-  "slot": "ui-pattern",
-  "supplemental": true,
-  "tags": [
-    "layout",
-    "command-center",
-    "dashboard",
-    "responsive",
-    "experience"
-  ]
+  "libraryId": "react-component-library:CommandCenterShell"
 }

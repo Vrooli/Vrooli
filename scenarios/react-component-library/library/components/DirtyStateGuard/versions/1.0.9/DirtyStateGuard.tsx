@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:DirtyStateGuard
  * @displayName DirtyStateGuard
- * @description The navigation and dismissal guard detecting meaningful unsaved changes and offering save, discard, continue editing, or background preservation before the work is lost.
  * @version 1.0.9
  * @tags ["forms","recovery","accessibility","navigation","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

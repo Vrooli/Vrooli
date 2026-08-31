@@ -32,7 +32,7 @@ func TestReaderJoinsContractAndEvidence(t *testing.T) {
 	}
 }
 
-func TestReaderDoesNotUseMutableScenarioLevelContract(t *testing.T) {
+func TestReaderUsesCanonicalScenarioLevelContract(t *testing.T) {
 	root := t.TempDir()
 	legacy := filepath.Join(root, "scenarios", "react-component-library", "experience", "components")
 	if err := os.MkdirAll(legacy, 0o755); err != nil {
@@ -41,12 +41,12 @@ func TestReaderDoesNotUseMutableScenarioLevelContract(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(legacy, "drawer-shell.json"), []byte(`{"component":{"id":"drawer-shell"}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	r := &reader{repoRoot: root}
+	r := &reader{repoRoot: root, listEvidence: func(context.Context, string) ([]Evidence, error) { return nil, nil }}
 	got, err := r.Get(context.Background(), Component{ID: "cmp-1", Slug: "DrawerShell", Version: "1.0.0"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.EvidenceStatus != "not-configured" {
+	if got.ContractID != "drawer-shell" || got.Title != "" {
 		t.Fatalf("snapshot = %+v", got)
 	}
 }

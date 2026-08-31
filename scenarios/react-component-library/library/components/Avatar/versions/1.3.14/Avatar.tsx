@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Avatar
  * @displayName Avatar
- * @description The identity visual with progressive image loading, deterministic fallback, presence and status treatment, shape options, group behavior, and accessible naming.
  * @version 1.3.14
  * @tags ["identity","media","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,27 +1,16 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "deprecatedVersions": ["1.0.0", "1.0.1"],
-  "description": "A compact, keyboard-friendly palette for moving between declared preview stories.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "catalogId": "react-component-library:StoryPalette",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
   ],
-  "displayName": "StoryPalette",
   "draft": "",
-  "evictedVersions": ["1.0.0", "1.0.1"],
-  "kind": "surface",
-  "latest": "1.0.2",
-  "libraryId": "react-component-library:StoryPalette",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1"
   ],
-  "slot": "ui-pattern",
-  "supplemental": true,
-  "tags": ["preview", "navigation", "responsive"]
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:StoryPalette"
 }

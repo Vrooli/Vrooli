@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Timeline
  * @displayName Timeline
- * @description A chronological surface that preserves event order and readable detail in dense histories.
  * @version 1.0.6
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

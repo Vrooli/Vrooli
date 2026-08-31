@@ -15,7 +15,8 @@
     "delivery": "adopted",
     "target": {
       "priority": "P0",
-      "maturity": "production-ready"
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
     }
   },
   "dependencies": {
@@ -29,5 +30,5 @@
   "satisfies": [
     "icon-registry"
   ],
-  "rationale": "A second satisfier for the icon port alongside the template-seeded registry: the foundation defines the contract and default, this binds a specific set. Individual imports are mandatory \u2014 a broad icon-package import is one of the largest avoidable bundle costs."
+  "rationale": "A second satisfier for the icon port alongside the template-seeded registry: the foundation defines the contract and default, this binds a specific set. Individual imports are mandatory — a broad icon-package import is one of the largest avoidable bundle costs."
 }

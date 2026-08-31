@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Tabs
  * @displayName Tabs
- * @description A keyboard-operable tab navigation surface with stable active state and responsive overflow.
  * @version 1.2.3
  * @tags ["navigation","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

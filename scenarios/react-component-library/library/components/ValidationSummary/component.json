@@ -2,27 +2,23 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.validation-summary",
-  "category": "forms",
-  "deprecatedVersions": ["1.0.3", "1.0.5", "1.0.4", "1.0.6", "1.0.0", "1.0.7"],
-  "description": "The form-level error summary grouping actionable failures, linking to the fields they concern, taking focus at the right moment, and avoiding duplication of every field message.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.0",
+    "1.0.7"
   ],
-  "displayName": "ValidationSummary",
   "draft": "",
-  "evictedVersions": ["1.0.5", "1.0.3", "1.0.4", "1.0.6", "1.0.0", "1.0.7"],
-  "kind": "input",
-  "latest": "1.0.8",
-  "libraryId": "react-component-library:ValidationSummary",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.5",
+    "1.0.3",
+    "1.0.4",
+    "1.0.6",
+    "1.0.0",
+    "1.0.7"
   ],
-  "slot": "ui-primitive",
-  "tags": ["form", "validation", "accessibility", "recovery"]
+  "latest": "1.0.8",
+  "libraryId": "react-component-library:ValidationSummary"
 }

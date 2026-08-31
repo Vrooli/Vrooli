@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:FormSection
  * @displayName FormSection
- * @description A semantic form grouping with responsive rhythm, optional collapse, summaries, and visible validation counts.
  * @version 1.0.6
  * @tags ["form","layout","validation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

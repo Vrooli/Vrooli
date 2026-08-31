@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Draggable
  * @displayName Draggable
- * @description The direct-manipulation primitive with pointer capture, keyboard dragging, constraints, drag handles, cancellation, velocity reporting, position announcements, and overlay support.
  * @version 1.0.6
  * @tags ["manipulation","drag-drop","keyboard","motion","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

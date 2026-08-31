@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:FilePreview
  * @displayName FilePreview
- * @description A safe, typed file summary with status, metadata, preview fallback, and keyboard-operable actions.
  * @version 1.0.4
  * @tags ["media","files","status","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

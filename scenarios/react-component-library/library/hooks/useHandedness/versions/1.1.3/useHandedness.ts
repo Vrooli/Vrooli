@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useHandedness
  * @displayName useHandedness
- * @description Carries the reach-side preference that decides which edge panels anchor to, independently of the document writing direction.
  * @version 1.1.3
  * @tags ["runtime","accessibility","gesture"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useIconMorph
  * @displayName useIconMorph
- * @description Drives an icon swap, choosing path morphing or a crossfade from measured geometry compatibility.
  * @version 1.1.2
  * @tags ["hook","motion","icons","reduced-motion"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

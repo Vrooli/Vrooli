@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:CommandButton
  * @displayName CommandButton
- * @description An async-aware action button with stable dimensions, acknowledged progress, recovery, and retry.
  * @version 1.0.6
  * @tags ["control","async","recovery","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

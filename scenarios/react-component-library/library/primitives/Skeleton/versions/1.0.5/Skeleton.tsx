@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Skeleton
  * @displayName Skeleton
- * @description
  * @version 1.0.5
  * @tags ["primitive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

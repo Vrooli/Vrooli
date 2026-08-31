@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:StoryPalette
  * @displayName StoryPalette
- * @description A compact, keyboard-friendly palette for moving between declared preview stories.
  * @version 1.0.2
  * @tags ["preview","navigation","responsive"]
  * @deps {"react":"^18"}

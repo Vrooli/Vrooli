@@ -162,7 +162,7 @@ func (s *service) bundleCompositionHarness(ctx context.Context, harness *compone
 	if len(parts) != 2 || parts[0] != "preview" || parts[1] == "" || strings.ContainsAny(harness.Asset+harness.Version+harness.Export, `/\\`) || strings.TrimSpace(harness.Version) == "" || strings.TrimSpace(harness.Export) == "" {
 		return "", frameBundleError(harness.Asset, "invalid composition harness reference")
 	}
-	manifestPath := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses", "manifest.json")
+	manifestPath := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "harnesses", "manifest.json")
 	manifestBytes, manifestErr := os.ReadFile(manifestPath)
 	if manifestErr != nil {
 		return "", frameBundleError(harness.Asset, "composition harness registry was not found")
@@ -185,8 +185,8 @@ func (s *service) bundleCompositionHarness(ctx context.Context, harness *compone
 	if err := validateCompositionHarnessConfig(harness.Config, registered.ConfigKeys); err != nil {
 		return "", frameBundleError(harness.Asset, err.Error())
 	}
-	path := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses", parts[1], "versions", harness.Version, harness.Export+".tsx")
-	root := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "library", "preview-harnesses")
+	path := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "harnesses", parts[1], "versions", harness.Version, harness.Export+".tsx")
+	root := filepath.Join(s.repoRoot, "scenarios", "react-component-library", "harnesses")
 	cleanRoot, err := filepath.Abs(root)
 	if err != nil {
 		return "", err

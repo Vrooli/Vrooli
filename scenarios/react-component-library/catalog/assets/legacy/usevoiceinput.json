@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "react-component-library:useVoiceInput",
+    "name": "use Voice Input",
+    "kind": "runtime-hook",
+    "domain": "hooks",
+    "description": "Reusable use voice input hook implementation for the React component library.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "non-renderable",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  }
+}

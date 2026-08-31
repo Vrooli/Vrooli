@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ComputedField
  * @displayName ComputedField
- * @description A store-driven read-only field that recalculates from affected values and communicates calculated versus edited state.
  * @version 1.0.3
  * @tags ["form","computed","derived","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

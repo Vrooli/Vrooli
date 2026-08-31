@@ -9,22 +9,6 @@
     "1.1.4",
     "1.1.0"
   ],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Icon",
   "draft": "",
   "evictedVersions": [
     "1.1.2",
@@ -33,11 +17,6 @@
     "1.1.4",
     "1.1.0"
   ],
-  "kind": "control",
   "latest": "1.1.5",
-  "libraryId": "react-component-library:Icon",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Icon"
 }

@@ -1,0 +1,11 @@
+{
+  "gate": "version-shape",
+  "assetId": "calibration.version-shape",
+  "kind": "component",
+  "runner": "static",
+  "requiredFailureCode": "catalog.version_shape",
+  "source": "broken.tsx",
+  "story": "story.json",
+  "catalogAsset": "asset.json",
+  "description": "The generated dependency lock is absent from an otherwise minimal new version."
+}

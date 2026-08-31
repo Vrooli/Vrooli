@@ -12,22 +12,6 @@
     "1.0.6",
     "1.0.7"
   ],
-  "description": "The nested-object field grouping child fields, collapsing sections, summarizing nested errors, supporting optional objects, and preserving per-field subscriptions.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "ObjectField",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -39,14 +23,6 @@
     "1.0.6",
     "1.0.7"
   ],
-  "kind": "input",
   "latest": "1.0.8",
-  "libraryId": "react-component-library:ObjectField",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": ["form", "object", "nested", "validation", "token-bound"]
+  "libraryId": "react-component-library:ObjectField"
 }

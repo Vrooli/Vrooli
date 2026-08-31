@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Page
  * @displayName Page
- * @description The route content boundary that owns navigation, focus placement, and generic route state composition.
  * @version 1.0.6
  * @tags ["navigation","layout","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

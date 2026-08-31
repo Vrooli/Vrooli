@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:CartesianCharts
  * @displayName Cartesian Charts
- * @description The line, area, bar, stacked bar, scatter, and histogram family sharing one data, axis, interaction, animation, and accessibility model.
  * @version 1.0.6
  * @tags ["visualization","charts","accessible","responsive"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

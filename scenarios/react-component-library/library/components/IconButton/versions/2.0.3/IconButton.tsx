@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:IconButton
  * @displayName IconButton
- * @description Icon-only action with a real hover surface, circular by default, animating whenever its icon changes.
  * @version 2.0.3
  * @tags ["button","icon","accessibility","motion"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

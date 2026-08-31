@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:DataTable
  * @displayName Data Table
- * @description The controlled data presentation with sorting, filtering, pagination, selection, row actions, column visibility, responsive presentation modes, and server-side operation support.
  * @version 1.4.2
  * @tags ["data","table","interactive","selection","responsive","recovery","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

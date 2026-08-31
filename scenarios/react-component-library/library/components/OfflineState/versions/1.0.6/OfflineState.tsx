@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:OfflineState
  * @displayName OfflineState
- * @description The connectivity composition explaining what still works offline, what has been queued, when the surface last synchronized, and what reconnection will do.
  * @version 1.0.6
  * @tags ["feedback","async","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

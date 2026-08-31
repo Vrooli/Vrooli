@@ -7,28 +7,12 @@
     "1.1.0",
     "1.1.1"
   ],
-  "description": "Drives an icon swap, choosing path morphing or a crossfade from measured geometry compatibility.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useIconMorph",
   "draft": "",
-  "entry": "useIconMorph.ts",
   "evictedVersions": [
     "1.1.0",
     "1.0.0",
     "1.1.1"
   ],
-  "kind": "surface",
   "latest": "1.1.2",
-  "libraryId": "react-component-library:useIconMorph",
-  "tags": [
-    "hook",
-    "motion",
-    "icons",
-    "reduced-motion"
-  ]
+  "libraryId": "react-component-library:useIconMorph"
 }

@@ -5,24 +5,10 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "A scoped interaction store for active drag state, position, velocity, and keyboard movement.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Drag Drop Store",
   "draft": "",
   "evictedVersions": [
     "1.0.0"
   ],
-  "kind": "surface",
   "latest": "1.0.1",
-  "libraryId": "react-component-library:DragDropStore",
-  "tags": [
-    "runtime",
-    "drag-drop",
-    "accessibility"
-  ]
+  "libraryId": "react-component-library:DragDropStore"
 }

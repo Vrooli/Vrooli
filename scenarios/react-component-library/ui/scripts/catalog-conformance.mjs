@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -14,19 +15,14 @@ const assetRoots = [
 ];
 const eslintBin = path.join(uiDir, "node_modules", "eslint", "bin", "eslint.js");
 const typescriptBin = path.join(uiDir, "node_modules", "typescript", "bin", "tsc");
-// Keep the isolated project beneath uiDir so TypeScript's normal ancestor-based
-// node_modules lookup remains valid and ESLint can lint disposable sources
-// without treating them as outside the scenario boundary.
-// The `finally` below removes this run's scratch directory, but a kill signal
-// skips it — a terminated build leaves the directory behind forever. Sweeping
-// stale siblings here means the script owns its own residue under every exit
-// path, rather than relying on an external reaper that has to know this name.
-for (const entry of readdirSync(uiDir, { withFileTypes: true })) {
-  if (entry.isDirectory() && entry.name.startsWith(".catalog-conformance-")) {
-    rmSync(path.join(uiDir, entry.name), { force: true, recursive: true });
-  }
-}
-const scratchDir = mkdtempSync(path.join(uiDir, ".catalog-conformance-"));
+// Disposable compiler inputs live outside the source tree. The finally block
+// removes the current run; the system temporary directory also keeps an
+// interrupted run from polluting a checkout that must remain reproducible.
+const scratchDir = mkdtempSync(path.join(tmpdir(), "rcl-catalog-conformance-"));
+// Keep normal ancestor-based package resolution after moving the scratch
+// project outside ui/. The link is disposable and never exposes source-tree
+// output to the repository.
+symlinkSync(path.join(uiDir, "node_modules"), path.join(scratchDir, "node_modules"), "dir");
 const generatedTSConfig = path.join(scratchDir, "catalog-tsconfig.json");
 const packageRoot = path.resolve(uiDir, "../../../packages/react-component-library");
 const packageManifest = readJSON(path.join(packageRoot, "package.json"));
@@ -40,7 +36,7 @@ const libraryRoot = path.join(scenarioDir, "library");
 // released source. Resolving from the same authored source the other two
 // tools use removes that third answer.
 const { resolveCatalogExports } = await import(
-  pathToFileURL(path.join(packageRoot, "scripts", "export-resolution.mjs")).href
+  pathToFileURL(path.join(packageRoot, "tooling", "export-resolution.mjs")).href
 );
 // Export resolution rejects an inconsistent catalog — a manifest whose latest
 // no longer names the highest release, a version with no public entry module.

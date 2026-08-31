@@ -9,14 +9,6 @@
     "1.0.6",
     "1.0.0"
   ],
-  "description": "The top-level application frame coordinating navigation, content, overlay hosting, safe areas, responsive breakpoints, skip links, and persistent workspace regions.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "AppShell",
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -25,18 +17,6 @@
     "1.0.6",
     "1.0.0"
   ],
-  "kind": "shell",
   "latest": "1.0.7",
-  "libraryId": "react-component-library:AppShell",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "navigation",
-    "layout",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:AppShell"
 }

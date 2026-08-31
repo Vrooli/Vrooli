@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:GlobalCommandSystem
  * @displayName GlobalCommandSystem
- * @description A scoped command system that keeps registration, keyboard invocation, discovery, execution, history, and recovery in one coherent workflow.
  * @version 1.0.5
  * @tags ["pattern","commands","keyboard","recovery","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

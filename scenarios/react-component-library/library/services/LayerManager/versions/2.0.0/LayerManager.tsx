@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:LayerManager
  * @displayName LayerManager
- * @description Scoped runtime service for predictable LayerManager behavior.
  * @version 2.0.0
  * @tags ["runtime","state"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

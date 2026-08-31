@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AsyncBoundary
  * @displayName AsyncBoundary
- * @description A stable async state boundary that preserves structure while pending, failed, or retryable content changes.
  * @version 1.0.6
  * @tags ["feedback","async","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

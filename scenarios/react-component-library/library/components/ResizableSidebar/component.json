@@ -11,14 +11,6 @@
     "2.0.3",
     "2.0.4"
   ],
-  "description": "A sidebar preset over the shared resize primitive: navigation-shaped defaults, pointer and keyboard resizing, persisted width.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "ResizableSidebar",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -29,8 +21,6 @@
     "2.0.3",
     "2.0.4"
   ],
-  "kind": "shell",
   "latest": "2.0.5",
-  "libraryId": "react-component-library:ResizableSidebar",
-  "tags": ["navigation", "responsive", "token-bound"]
+  "libraryId": "react-component-library:ResizableSidebar"
 }

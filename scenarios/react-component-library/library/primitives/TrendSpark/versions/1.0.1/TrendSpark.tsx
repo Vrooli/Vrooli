@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:TrendSpark
  * @displayName TrendSpark
- * @description An accessible inline trend visualization for compact history rows.
  * @version 1.0.1
  * @tags ["primitive","data-display","visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

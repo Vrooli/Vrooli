@@ -2,26 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.surface",
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
+  "deprecatedVersions": [
+    "1.0.0"
   ],
-  "displayName": "Surface",
-  "kind": "surface",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:Surface",
-  "tags": ["primitive", "token-bound"],
   "draft": "",
-  "deprecatedVersions": ["1.0.0"]
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:Surface"
 }

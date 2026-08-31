@@ -2146,6 +2146,25 @@
       "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
     },
     {
+      "name": "shape-census",
+      "description": "Report distinct live version-directory file shapes",
+      "binding": { "kind": "local" },
+      "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+    },
+    {
+      "name": "duplication-census",
+      "description": "Report duplicated catalog metadata fields",
+      "binding": { "kind": "local" },
+      "governance": { "effect": "read", "run_eligible": true, "permissions": ["filesystem:read"] }
+    },
+    {
+      "name": "build",
+      "description": "Generate all catalog-derived artifacts from authored sources",
+      "flags": [{ "name": "check", "bool": true, "description": "Fail when derived outputs are stale" }],
+      "binding": { "kind": "local" },
+      "governance": { "effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write"] }
+    },
+    {
       "name": "evidence",
       "description": "Capture declared light/dark viewport evidence for an asset",
       "positionals": [{"name": "action", "required": true, "description": "capture", "local_only": true}, {"name": "asset-id", "required": true, "description": "Catalog asset id"}],

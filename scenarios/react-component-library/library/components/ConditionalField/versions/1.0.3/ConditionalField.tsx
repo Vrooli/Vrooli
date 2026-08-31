@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ConditionalField
  * @displayName ConditionalField
- * @description A form field boundary driven by store values with explicit hide, disable, and reset behavior.
  * @version 1.0.3
  * @tags ["form","conditional","state","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

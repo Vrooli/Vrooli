@@ -8,17 +8,31 @@
     "kind": "fixture",
     "domain": "fixtures",
     "description": "Adversarial mock records for any surface that presents a collection of named, owned, timestamped, status-bearing resources — the shape most operational collection surfaces actually render.",
-    "targets": ["react-vite"],
+    "targets": [
+      "react-vite"
+    ],
     "slot": "fixture",
     "delivery": "adopted",
-    "target": { "priority": "P0", "maturity": "verified" }
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
   },
   "expects": [],
   "fixture": {
-    "dataShapes": ["empty", "typical", "overflow", "volume", "failure"],
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "volume",
+      "failure"
+    ],
     "satisfies": {
       "capability": "data-source",
-      "typeArguments": ["ResourceRecord"]
+      "typeArguments": [
+        "ResourceRecord"
+      ]
     },
     "recordCount": {
       "typical": 12,
@@ -26,7 +40,9 @@
     }
   },
   "beauty": {
-    "avoid": ["uniform-card-grid"]
+    "avoid": [
+      "uniform-card-grid"
+    ]
   },
   "rationale": "The first fixture, and the one that proves the kind is worth having: it lets collection-page, data-table, and search-filter-results each be captured in every declared state with no scenario adopting them. Its overflow shape is deliberately hostile — 200-character resource names, absent optional owners, an Arabic name among Latin ones, and timestamps far enough apart to break naive relative formatting — because a fixture that only supplies well-formed records reproduces exactly the false confidence it exists to prevent."
 }

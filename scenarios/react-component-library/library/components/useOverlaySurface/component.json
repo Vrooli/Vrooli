@@ -1,5 +1,6 @@
 {
   "assetKind": "component",
+  "catalogId": "react-component-library:useOverlaySurface",
   "deprecatedVersions": [
     "1.0.0",
     "1.1.0",
@@ -18,17 +19,7 @@
     "1.3.11",
     "1.3.6"
   ],
-  "description": "Composes the shared lifecycle, focus, dismissal, portal, and motion contract for overlays.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useOverlaySurface",
   "draft": "",
-  "entry": "useOverlaySurface.tsx",
   "evictedVersions": [
     "1.1.0",
     "1.0.0",
@@ -47,13 +38,6 @@
     "1.3.11",
     "1.3.6"
   ],
-  "kind": "control",
   "latest": "1.3.12",
-  "libraryId": "react-component-library:useOverlaySurface",
-  "supplemental": true,
-  "tags": [
-    "runtime",
-    "overlay",
-    "accessibility"
-  ]
+  "libraryId": "react-component-library:useOverlaySurface"
 }

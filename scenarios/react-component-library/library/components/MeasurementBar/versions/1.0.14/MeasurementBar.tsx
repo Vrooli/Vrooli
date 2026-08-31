@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:MeasurementBar
  * @displayName MeasurementBar
- * @description A labeled measured-versus-required bar for evidence panels.
  * @version 1.0.14
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

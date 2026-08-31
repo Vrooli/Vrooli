@@ -5,25 +5,10 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "Field-granular form state with validation, submission, autosave, and conflict coordination.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Form Store",
   "draft": "",
   "evictedVersions": [
     "1.0.0"
   ],
-  "kind": "input",
   "latest": "1.0.1",
-  "libraryId": "react-component-library:FormStore",
-  "tags": [
-    "runtime",
-    "form",
-    "state",
-    "accessibility"
-  ]
+  "libraryId": "react-component-library:FormStore"
 }

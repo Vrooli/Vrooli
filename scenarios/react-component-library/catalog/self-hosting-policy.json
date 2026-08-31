@@ -2,6 +2,6 @@
   "schemaVersion": 1,
   "baselineCovered": 35,
   "baselineImplemented": 228,
-  "minimumCovered": 35,
+  "minimumCovered": 36,
   "exemptions": []
 }

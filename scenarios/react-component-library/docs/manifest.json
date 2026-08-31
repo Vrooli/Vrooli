@@ -1,7 +1,7 @@
 {
   "version": "2.0.0",
   "title": "React Component Library Documentation",
-  "description": "Documentation contract for the scenario generated from the react-vite template",
+  "description": "Documentation contract for the React Component Library asset and adoption workflows",
   "defaultDocument": "START-HERE.md",
   "contract": {
     "kind": "scenario-docs",
@@ -47,11 +47,7 @@
           "requiredBy": ["generated"],
           "completion": "required",
           "validation": {
-            "requiredHeadings": [
-              "What's In This Scenario",
-              "Placeholders vs. Durable Scaffolding",
-              "Documentation Map"
-            ],
+            "requiredHeadings": ["The asset loop", "Always and never", "Further reading"],
             "forbiddenPlaceholders": ["[TODO]", "[Summarize]"]
           }
         },
@@ -60,7 +56,7 @@
           "docType": "start-here",
           "title": "Start Here",
           "aliases": ["start", "orientation", "onboarding"],
-          "description": "First implementation session after scenario generation",
+          "description": "Orientation for a person or agent joining the library",
           "audience": ["developers", "agents"],
           "canonicalFor": ["orientation", "first-implementation-session"],
           "maturity": "active",
@@ -68,11 +64,7 @@
           "completion": "required",
           "ownerSkills": ["scenario-generation"],
           "validation": {
-            "requiredHeadings": [
-              "Initialization Protocol",
-              "Architecture Rules",
-              "Replacing The Example Domain"
-            ],
+            "requiredHeadings": ["First session", "Update an asset", "Validate and troubleshoot"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
         },
@@ -273,6 +265,22 @@
             ],
             "forbiddenPlaceholders": ["[TODO]"],
             "allowNotApplicable": true
+          }
+        },
+        {
+          "path": "concepts/ASSET-DERIVATION.md",
+          "docType": "asset-derivation",
+          "title": "Asset Derivation",
+          "aliases": ["ownership", "generator", "authored-surfaces"],
+          "description": "Ownership model for authored asset intent, version source, and generated projections",
+          "audience": ["developers", "agents", "designers"],
+          "canonicalFor": ["asset-ownership", "derived-artifacts", "generator-boundary"],
+          "maturity": "active",
+          "requiredBy": ["implemented", "validated"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Current and target ownership", "Decisions"],
+            "forbiddenPlaceholders": ["[TODO]"]
           }
         },
         {

@@ -2,25 +2,19 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.loading-state",
-  "deprecatedVersions": ["1.0.4", "1.0.6", "1.0.5", "1.0.7"],
-  "description": "The full-region loading composition selecting skeletons, placeholders, or progress based on the expected content structure and the operation's likely duration.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.6",
+    "1.0.5",
+    "1.0.7"
   ],
-  "displayName": "LoadingState",
   "draft": "",
-  "evictedVersions": ["1.0.6", "1.0.5", "1.0.4", "1.0.7"],
-  "kind": "surface",
-  "latest": "1.0.8",
-  "libraryId": "react-component-library:LoadingState",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.6",
+    "1.0.5",
+    "1.0.4",
+    "1.0.7"
   ],
-  "tags": ["feedback", "async", "token-bound"]
+  "latest": "1.0.8",
+  "libraryId": "react-component-library:LoadingState"
 }

@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-outside-interaction",
-  "description": "Dismissal behavior for pointer, focus, and keyboard interactions outside a layered surface.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useOutsideInteraction",
-  "kind": "control",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:useOutsideInteraction",
-  "tags": ["runtime", "overlay", "accessibility", "layering"]
+  "libraryId": "react-component-library:useOutsideInteraction"
 }

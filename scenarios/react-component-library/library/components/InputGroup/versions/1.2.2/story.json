@@ -55,7 +55,7 @@
     {
       "id": "prefix-and-segment",
       "name": "Prefix and joined segment",
-      "role": "anatomy",
+      "role": "boundary",
       "mode": "live",
       "description": "A leading adornment is a real part of the field, and a trailing segment shares the same border rather than sitting beside it.",
       "args": {},

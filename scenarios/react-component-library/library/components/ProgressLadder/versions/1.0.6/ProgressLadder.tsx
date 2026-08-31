@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ProgressLadder
  * @displayName ProgressLadder
- * @description A rung-by-rung maturity ladder showing achieved and target states.
  * @version 1.0.6
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

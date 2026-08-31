@@ -5,23 +5,10 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "Scoped runtime service for predictable ChromeTheme behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "ChromeTheme",
   "draft": "",
   "evictedVersions": [
     "1.0.0"
   ],
-  "kind": "surface",
   "latest": "1.0.1",
-  "libraryId": "react-component-library:ChromeTheme",
-  "tags": [
-    "runtime",
-    "state"
-  ]
+  "libraryId": "react-component-library:ChromeTheme"
 }

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:EditableResource
  * @displayName EditableResource
- * @description The read-and-edit workflow coordinating optimistic changes, validation, autosave, dirty-state protection, conflict handling, cancellation, and success feedback in place.
  * @version 1.0.10
  * @tags ["patterns","forms","async","recovery","conflict","responsive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

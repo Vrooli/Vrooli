@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:List
  * @displayName List
- * @description The semantic collection with sections, item actions, selection, keyboard navigation, loading placeholders, separators, and responsive density.
  * @version 1.0.6
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

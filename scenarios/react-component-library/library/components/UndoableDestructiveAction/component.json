@@ -9,22 +9,6 @@
     "1.0.7",
     "1.0.4"
   ],
-  "description": "A forgiving destructive-action pattern that completes reversible removal immediately and exposes a clear undo path.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "UndoableDestructiveAction",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -33,21 +17,6 @@
     "1.0.7",
     "1.0.4"
   ],
-  "kind": "control",
   "latest": "1.0.8",
-  "libraryId": "react-component-library:UndoableDestructiveAction",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "patterns",
-    "recovery",
-    "destructive",
-    "undo",
-    "accessibility",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:UndoableDestructiveAction"
 }

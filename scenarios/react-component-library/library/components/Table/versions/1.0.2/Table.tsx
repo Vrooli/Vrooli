@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Table
  * @displayName Table
- * @description A semantic tabular surface with honest headings and responsive overflow boundaries.
  * @version 1.0.2
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

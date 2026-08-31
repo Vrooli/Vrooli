@@ -6,32 +6,11 @@
     "1.0.0",
     "1.0.1"
   ],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Badge",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
     "1.0.0"
   ],
-  "kind": "control",
   "latest": "1.0.2",
-  "libraryId": "react-component-library:Badge",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Badge"
 }

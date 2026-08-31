@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:MasterDetail
  * @displayName MasterDetail
- * @description The coordinated collection-and-detail layout preserving selection, scroll position, route state, and transition continuity, and drilling in rather than splitting on compact viewports.
  * @version 1.0.8
  * @tags ["navigation","responsive","collection","detail","routing","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

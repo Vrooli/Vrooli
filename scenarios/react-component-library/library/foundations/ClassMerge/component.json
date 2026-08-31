@@ -6,25 +6,11 @@
     "1.0.1",
     "1.0.0"
   ],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Class Merge",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
     "1.0.0"
   ],
-  "kind": "surface",
   "latest": "1.0.2",
-  "libraryId": "react-component-library:ClassMerge",
-  "tags": [
-    "foundations",
-    "styling",
-    "composition"
-  ]
+  "libraryId": "react-component-library:ClassMerge"
 }

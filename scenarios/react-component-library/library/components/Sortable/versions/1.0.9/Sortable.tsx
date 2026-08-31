@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Sortable
  * @displayName Sortable
- * @description The reorder controller with collision strategies, animated displacement, keyboard operation, nested containers, optimistic persistence, and rollback when the write fails.
  * @version 1.0.9
  * @tags ["manipulation","sortable","keyboard","motion","async","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

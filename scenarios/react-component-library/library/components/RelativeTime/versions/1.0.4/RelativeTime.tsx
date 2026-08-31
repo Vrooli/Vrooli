@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:RelativeTime
  * @displayName RelativeTime
- * @description A semantic time value that presents a concise relative label while preserving machine-readable date context.
  * @version 1.0.4
  * @tags ["primitive","data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

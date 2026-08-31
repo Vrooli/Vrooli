@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AppShell
  * @displayName AppShell
- * @description The top-level application frame coordinating navigation, content, overlay hosting, safe areas, responsive breakpoints, skip links, and persistent workspace regions.
  * @version 1.0.7
  * @tags ["navigation","layout","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

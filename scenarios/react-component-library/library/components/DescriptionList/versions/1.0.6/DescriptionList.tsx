@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:DescriptionList
  * @displayName DescriptionList
- * @description A semantic key-value surface for readable resource metadata across narrow and wide layouts.
  * @version 1.0.6
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

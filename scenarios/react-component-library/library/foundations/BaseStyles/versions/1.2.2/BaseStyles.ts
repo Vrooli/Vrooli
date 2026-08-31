@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:BaseStyles
  * @displayName Base Styles
- * @description Shared control reset, accessibility treatments, and sizing tokens.
  * @version 1.2.2
  * @tags ["styles","controls","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

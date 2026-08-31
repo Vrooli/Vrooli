@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:GeneratedForm
  * @displayName GeneratedForm
- * @description A schema-driven form that compiles sections, field relationships, validation, nested objects, arrays, and derived values into one coherent runtime.
  * @version 1.0.8
  * @tags ["form","generated","schema","validation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:NotificationBadge
  * @displayName Notification Badge
- * @description A reusable count or dot indicator anchored to any interactive or visual surface.
  * @version 1.0.3
  * @tags ["feedback","primitive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -662,6 +662,14 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 	} else {
 		add("source", "passed", "version entry source is present", "")
 	}
+	shapeProblems, shapeErr := ValidateVersionShape(s.source.Root(), filepath.Dir(v.SourcePath), c.Slug, false)
+	if shapeErr != nil {
+		add("version-shape", "failed", shapeErr.Error(), "repair the version directory before publishing")
+	} else if len(shapeProblems) > 0 {
+		add("version-shape", "failed", FormatVersionShapeFindings(shapeProblems), "repair the version directory before publishing")
+	} else {
+		add("version-shape", "passed", "version directory matches the declared new-version shape", "")
+	}
 	if _, err := ResolveDependencyClosure(ctx, s, c.ID, version); err != nil {
 		add("dependencies", "failed", err.Error(), "repair the version-pinned dependency closure")
 	} else {
@@ -696,7 +704,7 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 	} else {
 		add("story", "passed", "story contract parsed and declared enum coverage is complete", "")
 	}
-	contractPath := filepath.Join(s.source.Root(), componentAssetRoot(c), c.Slug, "versions", version, "experience-contract.json")
+	contractPath := experienceContractPath(s.source.Root(), c.Slug, componentAssetRoot(c), version)
 	contractBytes, contractErr := os.ReadFile(contractPath)
 	if os.IsNotExist(contractErr) {
 		// Contracts were introduced after the earliest library releases. Keep

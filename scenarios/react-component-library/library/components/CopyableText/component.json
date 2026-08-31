@@ -6,31 +6,11 @@
     "1.0.4",
     "1.0.5"
   ],
-  "description": "A compact text value with a clear copy affordance and stable feedback state.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "CopyableText",
   "draft": "",
   "evictedVersions": [
     "1.0.4",
     "1.0.5"
   ],
-  "kind": "surface",
   "latest": "1.0.6",
-  "libraryId": "react-component-library:CopyableText",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "primitive",
-    "feedback",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:CopyableText"
 }

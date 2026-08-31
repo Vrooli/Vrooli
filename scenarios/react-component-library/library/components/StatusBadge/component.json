@@ -1,40 +1,17 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "category": "feedback",
+  "catalogId": "react-component-library:StatusBadge",
   "deprecatedVersions": [
     "1.2.0",
     "1.1.0",
     "1.2.1"
   ],
-  "description": "Semantic status badge with accessible labels and token-bound color roles.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "native",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Status Badge",
   "draft": "",
   "evictedVersions": [
     "1.2.1",
     "1.2.0"
   ],
-  "kind": "control",
   "latest": "1.2.2",
-  "libraryId": "react-component-library:StatusBadge",
-  "slot": "ui-primitive",
-  "supplemental": true,
-  "tags": [
-    "feedback",
-    "status"
-  ]
+  "libraryId": "react-component-library:StatusBadge"
 }

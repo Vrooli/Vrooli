@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useViewportEnvironment
  * @displayName useViewportEnvironment
- * @description Normalizes browser viewport geometry for responsive overlays and keyboard-aware application chrome.
  * @version 1.0.1
  * @tags ["runtime","responsive","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

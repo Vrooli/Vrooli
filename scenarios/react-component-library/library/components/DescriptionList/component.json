@@ -9,14 +9,6 @@
     "1.0.0",
     "1.0.5"
   ],
-  "description": "A semantic key-value surface for readable resource metadata across narrow and wide layouts.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "DescriptionList",
   "draft": "",
   "evictedVersions": [
     "1.0.2",
@@ -25,11 +17,6 @@
     "1.0.0",
     "1.0.5"
   ],
-  "kind": "surface",
   "latest": "1.0.6",
-  "libraryId": "react-component-library:DescriptionList",
-  "tags": [
-    "data-display",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:DescriptionList"
 }

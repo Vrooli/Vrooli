@@ -268,8 +268,14 @@
         "foundation",
         "primitive",
         "component",
+        "navigation",
         "runtime-hook",
-        "runtime-service"
+        "runtime-service",
+        "adapter",
+        "pattern",
+        "page-template",
+        "generator",
+        "fixture"
       ],
       "blocking": true,
       "runner": {
@@ -331,6 +337,22 @@
       "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
       "blocking": true,
       "runner": {"react-vite": "react-component-library catalog gates specifier-shape"}
+    },
+    {
+      "id": "version-shape",
+      "rung": "implemented",
+      "description": "Newly published versions contain only the declared authored and generated files.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": {"react-vite": "react-component-library catalog gates version-shape"}
+    },
+    {
+      "id": "field-ownership",
+      "rung": "implemented",
+      "description": "Catalog-owned metadata is not duplicated in generated manifests or source headers.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": {"react-vite": "react-component-library catalog gates field-ownership"}
     },
     {
       "id": "types",
@@ -757,6 +779,14 @@
       "runner": { "react-vite": "react-component-library catalog gates manifest-metadata" }
     },
     {
+      "id": "declaration-coverage",
+      "rung": "implemented",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Every implemented library asset has a matching catalog declaration.",
+      "runner": { "react-vite": "react-component-library catalog gates declaration-coverage" }
+    },
+    {
       "id": "overlay-surface-composition",
       "rung": "implemented",
       "appliesTo": ["component", "pattern"],
@@ -779,6 +809,14 @@
       "blocking": true,
       "description": "Library components use the idempotent head-mounted stylesheet injector.",
       "runner": { "react-vite": "react-component-library catalog gates style-injection" }
+    },
+    {
+      "id": "style-ownership",
+      "rung": "implemented",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "description": "Runtime source may import only an authored local CSS companion; the package generator inlines it into the emitted module.",
+      "runner": { "react-vite": "react-component-library catalog gates style-ownership" }
     },
     {
       "id": "foreign-token-classes",

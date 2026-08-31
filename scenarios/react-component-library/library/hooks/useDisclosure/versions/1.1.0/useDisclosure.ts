@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useDisclosure
  * @displayName useDisclosure
- * @description Production-ready useDisclosure hook with SSR-safe lifecycle behavior.
  * @version 1.1.0
  * @tags ["runtime","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

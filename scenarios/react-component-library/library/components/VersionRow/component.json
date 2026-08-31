@@ -10,17 +10,7 @@
     "1.0.5",
     "1.0.0"
   ],
-  "description": "A compact version-history row composed from published data-display assets.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "VersionRow",
   "draft": "",
-  "entry": "VersionRow.tsx",
   "evictedVersions": [
     "1.0.1",
     "1.0.2",
@@ -29,13 +19,6 @@
     "1.0.5",
     "1.0.0"
   ],
-  "kind": "surface",
   "latest": "1.0.6",
-  "libraryId": "react-component-library:VersionRow",
-  "tags": [
-    "component",
-    "data-display",
-    "versions",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:VersionRow"
 }

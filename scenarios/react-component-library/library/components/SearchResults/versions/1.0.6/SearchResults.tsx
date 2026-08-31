@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:SearchResults
  * @displayName SearchResults
- * @description A results surface that distinguishes no matches from an empty collection and preserves query context.
  * @version 1.0.6
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

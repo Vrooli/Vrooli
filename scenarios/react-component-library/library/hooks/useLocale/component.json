@@ -6,26 +6,12 @@
     "1.0.1",
     "1.1.0"
   ],
-  "description": "A locale primitive exposing formatting, collation, segmentation, calendar behavior, and localized accessibility labels through the localization adapter.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useLocale",
   "draft": "",
-  "entry": "useLocale.ts",
   "evictedVersions": [
     "1.0.2",
     "1.1.0",
     "1.0.1"
   ],
-  "kind": "surface",
   "latest": "1.1.1",
-  "libraryId": "react-component-library:useLocale",
-  "tags": [
-    "runtime",
-    "accessibility"
-  ]
+  "libraryId": "react-component-library:useLocale"
 }

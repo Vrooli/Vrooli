@@ -2,25 +2,15 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.timeline",
-  "deprecatedVersions": ["1.0.4", "1.0.5"],
-  "description": "A chronological surface that preserves event order and readable detail in dense histories.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.5"
   ],
-  "displayName": "Timeline",
   "draft": "",
-  "evictedVersions": ["1.0.4", "1.0.5"],
-  "kind": "surface",
-  "latest": "1.0.6",
-  "libraryId": "react-component-library:Timeline",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.5"
   ],
-  "tags": ["data-display", "token-bound"]
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:Timeline"
 }

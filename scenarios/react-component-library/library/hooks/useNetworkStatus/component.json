@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-network-status",
-  "description": "Production-ready useNetworkStatus hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useNetworkStatus",
-  "kind": "surface",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:useNetworkStatus",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useNetworkStatus"
 }

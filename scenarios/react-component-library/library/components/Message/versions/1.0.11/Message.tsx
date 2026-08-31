@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Message
  * @displayName Message
- * @description A structured conversational item that keeps identity, content, evidence, activity, recovery, and actions in one readable surface.
  * @version 1.0.11
  * @tags ["ai","conversation","content","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

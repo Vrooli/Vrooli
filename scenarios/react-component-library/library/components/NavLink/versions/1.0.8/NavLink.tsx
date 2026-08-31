@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:NavLink
  * @displayName NavLink
- * @description The router-adaptable navigation link with exact or partial active matching, pending state during navigation, prefetch policy, icons, badges, and disabled semantics.
  * @version 1.0.8
  * @tags ["navigation","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

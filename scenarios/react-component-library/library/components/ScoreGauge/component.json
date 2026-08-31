@@ -9,14 +9,6 @@
     "1.0.7",
     "1.0.9"
   ],
-  "description": "A bounded score summary with an explicit threshold and accessible value.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "ScoreGauge",
   "draft": "",
   "evictedVersions": [
     "1.0.8",
@@ -25,17 +17,6 @@
     "1.0.2",
     "1.0.9"
   ],
-  "kind": "surface",
   "latest": "1.0.10",
-  "libraryId": "react-component-library:ScoreGauge",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "data-display",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:ScoreGauge"
 }

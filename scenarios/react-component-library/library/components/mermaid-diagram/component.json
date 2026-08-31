@@ -1,22 +1,18 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "deprecatedVersions": ["0.3.1", "0.1.1", "0.3.2"],
-  "description": "Mermaid diagram source preview with an expand seam.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
+  "catalogId": "react-component-library:mermaid-diagram",
+  "deprecatedVersions": [
+    "0.3.1",
+    "0.1.1",
+    "0.3.2"
   ],
-  "displayName": "Mermaid Diagram",
   "draft": "",
-  "entry": "MermaidDiagram.tsx",
-  "evictedVersions": ["0.3.1", "0.1.1", "0.3.2"],
-  "kind": "surface",
+  "evictedVersions": [
+    "0.3.1",
+    "0.1.1",
+    "0.3.2"
+  ],
   "latest": "0.3.3",
-  "libraryId": "react-component-library:mermaid-diagram",
-  "supplemental": true,
-  "tags": ["markdown", "mermaid"]
+  "libraryId": "react-component-library:mermaid-diagram"
 }

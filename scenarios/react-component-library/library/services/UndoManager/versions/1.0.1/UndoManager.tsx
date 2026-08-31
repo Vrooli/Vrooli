@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:UndoManager
  * @displayName Undo Manager
- * @description A scoped reversible-action history service with expiry, rollback progress, and recovery.
  * @version 1.0.1
  * @tags ["runtime","feedback","recovery","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

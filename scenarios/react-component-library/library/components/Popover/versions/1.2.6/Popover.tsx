@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Popover
  * @displayName Popover
- * @description The collision-aware anchored surface with focus management, pointer-safe interaction corridors, arrow positioning, nested layering, and a responsive fallback presentation.
  * @version 1.2.6
  * @tags ["overlay","anchored","accessible","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

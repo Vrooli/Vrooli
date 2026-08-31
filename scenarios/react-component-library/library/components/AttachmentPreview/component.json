@@ -2,35 +2,17 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "media.attachment-preview",
-  "deprecatedVersions": ["1.0.1", "1.0.2", "1.0.3"],
-  "description": "An adapter-driven attachment surface with independent upload, scanning, retry, cancellation, preview, removal, and offline states.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.2",
+    "1.0.3"
   ],
-  "displayName": "AttachmentPreview",
   "draft": "",
-  "evictedVersions": ["1.0.1", "1.0.2", "1.0.3"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.2",
+    "1.0.3"
+  ],
   "latest": "1.0.4",
-  "libraryId": "react-component-library:AttachmentPreview",
-  "tags": [
-    "media",
-    "files",
-    "upload",
-    "progress",
-    "recovery",
-    "responsive",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:AttachmentPreview"
 }

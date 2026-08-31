@@ -20,7 +20,7 @@ type StoryContract = {
 type StoryModule = Record<string, unknown>;
 
 const previewHarnessModules = import.meta.glob(
-  "./preview-harnesses/**/versions/**/*.tsx",
+  "../harnesses/**/versions/**/*.tsx",
   { eager: true },
 ) as Record<string, Record<string, unknown>>;
 

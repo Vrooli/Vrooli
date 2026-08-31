@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ErrorBoundary
  * @displayName ErrorBoundary
- * @description The recoverable rendering boundary with reset keys, contextual fallback, telemetry reporting, retry, safe diagnostic disclosure, and preservation of the unaffected interface.
  * @version 1.0.8
  * @tags ["feedback","recovery","resilience","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

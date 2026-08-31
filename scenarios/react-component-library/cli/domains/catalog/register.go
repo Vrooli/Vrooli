@@ -25,6 +25,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"CatalogService.GetReadiness":      h.readiness,
 		"CatalogService.CaptureEvidence":   h.evidence,
 		"corpus-report":                    h.corpusReport,
+		"shape-census":                     h.shapeCensus,
+		"duplication-census":               h.duplicationCensus,
+		"build":                            h.build,
 		"draft":                            h.draft,
 	})
 	if err != nil {

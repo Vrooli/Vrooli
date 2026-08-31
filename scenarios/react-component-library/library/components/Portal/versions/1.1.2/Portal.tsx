@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Portal
  * @displayName Portal
- * @description Hydration-safe shared overlay portal owned by the layer manager.
  * @version 1.1.2
  * @tags ["runtime","overlay","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

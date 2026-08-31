@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AutoAnimateLayout
  * @displayName AutoAnimateLayout
- * @description A keyed FLIP layout boundary that animates displacement without tweening layout properties.
  * @version 1.0.3
  * @tags ["motion","layout","reduced-motion","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

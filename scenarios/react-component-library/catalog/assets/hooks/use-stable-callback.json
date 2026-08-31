@@ -15,7 +15,8 @@
     "delivery": "template-seeded",
     "target": {
       "priority": "P0",
-      "maturity": "production-ready"
+      "maturity": "production-ready",
+      "plannedBy": "2026-12-31"
     }
   }
 }

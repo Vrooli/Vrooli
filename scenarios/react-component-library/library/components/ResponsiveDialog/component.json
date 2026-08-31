@@ -1,18 +1,14 @@
 {
   "assetKind": "component",
   "catalogId": "overlays.responsive-dialog",
-  "deprecatedVersions": ["1.0.3", "1.2.10", "1.2.11", "1.2.8", "1.2.9"],
-  "description": "Shared overlay presentation for ResponsiveDialog.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.2.10",
+    "1.2.11",
+    "1.2.8",
+    "1.2.9"
   ],
-  "displayName": "ResponsiveDialog",
   "draft": "",
-  "entry": "ResponsiveDialog.tsx",
   "evictedVersions": [
     "1.0.2",
     "1.0.1",
@@ -41,8 +37,6 @@
     "1.2.8",
     "1.2.9"
   ],
-  "kind": "control",
   "latest": "1.2.12",
-  "libraryId": "react-component-library:ResponsiveDialog",
-  "tags": ["overlay", "accessibility", "responsive", "token-bound"]
+  "libraryId": "react-component-library:ResponsiveDialog"
 }

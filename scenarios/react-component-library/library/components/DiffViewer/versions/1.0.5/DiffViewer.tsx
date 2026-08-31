@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:DiffViewer
  * @displayName DiffViewer
- * @description A readable before-and-after surface that keeps change direction and context visible.
  * @version 1.0.5
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:PageFrame
  * @displayName Page Frame
- * @description A route-content boundary that gives navigation and page specimens a real responsive document context.
  * @version 1.0.3
  * @tags ["layout","navigation","frame"]
  * @deps {"react":"^18"}

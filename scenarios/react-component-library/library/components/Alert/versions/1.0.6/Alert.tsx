@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Alert
  * @displayName Alert
- * @description A semantic local message surface for information, success, warning, or error with resilient actions and dismissal.
  * @version 1.0.6
  * @tags ["feedback","status","recovery","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

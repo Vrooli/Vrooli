@@ -9,6 +9,8 @@
  * are a future addition — when added, layer in a `lib/preferences`
  * module and a server-side store.
  */
+import { useState } from "react";
+import { NumberField } from "@vrooli/react-component-library/NumberField/1";
 import { type Theme } from "../components/theme/theme-context";
 import { useTheme } from "../components/theme/useTheme";
 import { Select } from "../components/Select";
@@ -24,6 +26,7 @@ export function SettingsPage() {
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
   const locale = getCurrentLocale();
+  const [fontScale, setFontScale] = useState(16);
 
   return (
     <div
@@ -75,6 +78,17 @@ export function SettingsPage() {
               defaultValue: "Density will appear here when it is a real preference.",
             })}
           </p>
+          <Field label="Preview text size">
+            <NumberField
+              value={fontScale}
+              onChange={setFontScale}
+              label="Preview text size"
+              min={12}
+              max={24}
+              step={1}
+              unit="px"
+            />
+          </Field>
         </Section>
 
         <Section id="language" title={t("settings.language", { defaultValue: "Language" })}>

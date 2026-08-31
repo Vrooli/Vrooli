@@ -11,14 +11,6 @@
     "1.0.0",
     "1.1.6"
   ],
-  "description": "The coordinated group of related actions sharing borders and focus movement, with responsive collapse into an overflow menu and consistent disabled treatment.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "ButtonGroup",
   "draft": "",
   "evictedVersions": [
     "1.1.4",
@@ -29,17 +21,6 @@
     "1.0.0",
     "1.1.6"
   ],
-  "kind": "control",
   "latest": "1.1.7",
-  "libraryId": "react-component-library:ButtonGroup",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "control",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:ButtonGroup"
 }

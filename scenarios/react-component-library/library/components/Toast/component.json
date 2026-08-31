@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.toast",
-  "category": "feedback",
   "deprecatedVersions": [
     "1.0.3",
     "1.0.5",
@@ -12,18 +11,6 @@
     "1.0.8",
     "1.0.9"
   ],
-  "description": "The transient notification rendered through the shared toast service, with queueing, deduplication, in-place updates, action affordances, timeout policy, and announcement.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    }
-  ],
-  "displayName": "Toast",
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -34,15 +21,6 @@
     "1.0.8",
     "1.0.9"
   ],
-  "kind": "surface",
   "latest": "1.0.10",
-  "libraryId": "react-component-library:Toast",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "slot": "ui-pattern",
-  "tags": ["feedback", "async", "accessibility", "token-bound"]
+  "libraryId": "react-component-library:Toast"
 }

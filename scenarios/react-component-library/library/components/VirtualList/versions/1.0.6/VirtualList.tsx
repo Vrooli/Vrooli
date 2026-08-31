@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:VirtualList
  * @displayName VirtualList
- * @description The large-collection renderer with dynamic measurement, overscan, preserved focus, sticky items, scroll restoration, and accessible item-count semantics.
  * @version 1.0.6
  * @tags ["data-display","virtualization","performance","accessibility","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-roving-focus",
-  "description": "Production-ready useRovingFocus hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useRovingFocus",
-  "kind": "surface",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:useRovingFocus",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useRovingFocus"
 }

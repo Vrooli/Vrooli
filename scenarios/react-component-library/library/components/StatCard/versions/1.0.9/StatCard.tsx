@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:StatCard
  * @displayName StatCard
- * @description The metric surface combining a stat with optional visualization, actions, status, explanation, and responsive layout that keeps the number legible at every width.
  * @version 1.0.9
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

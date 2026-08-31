@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:FormStore
  * @displayName Form Store
- * @description Field-granular form state with validation, submission, autosave, and conflict coordination.
  * @version 1.0.1
  * @tags ["runtime","form","state","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

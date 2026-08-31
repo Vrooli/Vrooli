@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Pressable
  * @displayName Pressable
- * @description The shared press contract for controls, with bounded tone, pending, focus, and touch-target behavior.
  * @version 1.0.3
  * @tags ["control","interaction","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

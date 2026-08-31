@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ApprovalPrompt
  * @displayName ApprovalPrompt
- * @description The human-in-the-loop decision surface presenting the proposed action, its target, scope, consequences, alternatives, expiry, and resulting approval state.
  * @version 1.0.12
  * @tags ["ai","approval","permission","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

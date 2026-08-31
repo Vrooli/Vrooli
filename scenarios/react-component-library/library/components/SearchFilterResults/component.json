@@ -2,21 +2,17 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.search-filter-results",
-  "category": "patterns",
-  "deprecatedVersions": ["1.0.2", "1.0.0", "1.0.3"],
-  "description": "A URL-ready search and filter composition that separates no-match emptiness from loading and error states.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.0",
+    "1.0.3"
   ],
-  "displayName": "SearchFilterResults",
   "draft": "",
-  "evictedVersions": ["1.0.2", "1.0.0", "1.0.3"],
-  "kind": "input",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.0",
+    "1.0.3"
+  ],
   "latest": "1.0.4",
-  "libraryId": "react-component-library:SearchFilterResults",
-  "slot": "ui-pattern",
-  "tags": ["pattern", "data-source", "token-bound"]
+  "libraryId": "react-component-library:SearchFilterResults"
 }

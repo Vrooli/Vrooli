@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Button
  * @displayName Button
- * @description Token-bound accessible action button with variant and size styling.
  * @version 2.2.4
  * @tags ["form","interactive"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

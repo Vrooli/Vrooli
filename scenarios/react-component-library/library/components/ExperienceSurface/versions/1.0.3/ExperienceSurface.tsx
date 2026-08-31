@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ExperienceSurface
  * @displayName Experience Surface
- * @description Semantic lifecycle boundary for independently meaningful UI regions.
  * @version 1.0.3
  * @tags ["experience","lifecycle","surface","accessibility"]
  * @deps {"react":"^18"}

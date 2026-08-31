@@ -321,6 +321,44 @@ type manifestDesignAffinity struct {
 	Reason   string `json:"reason"`
 }
 
+type catalogAssetMetadata struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Slot        string `json:"slot"`
+	Domain      string `json:"domain"`
+}
+
+func catalogAssetMetadataFor(libraryRoot, catalogID string) (*catalogAssetMetadata, error) {
+	if strings.TrimSpace(catalogID) == "" {
+		return nil, nil
+	}
+	root := repositoryRootFromLibrary(libraryRoot)
+	if root == "" {
+		return nil, nil
+	}
+	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "*", "*.json"))
+	if err != nil {
+		return nil, err
+	}
+	for _, path := range paths {
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, readErr
+		}
+		var doc struct {
+			Asset catalogAssetMetadata `json:"asset"`
+		}
+		if err := json.Unmarshal(raw, &doc); err != nil {
+			return nil, fmt.Errorf("parse catalog asset %s: %w", path, err)
+		}
+		if doc.Asset.ID == catalogID {
+			return &doc.Asset, nil
+		}
+	}
+	return nil, nil
+}
+
 func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[string]string, error) {
 	raw, err := fs.ReadFile(idx.fs, path)
 	if err != nil {
@@ -334,6 +372,22 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 	assetKind, err := assetKindForManifestPath(path, mf.AssetKind)
 	if err != nil {
 		return IndexManifestInput{}, nil, err
+	}
+	if metadata, metadataErr := catalogAssetMetadataFor(idx.root, mf.CatalogID); metadataErr != nil {
+		return IndexManifestInput{}, nil, metadataErr
+	} else if metadata != nil {
+		if mf.DisplayName == "" {
+			mf.DisplayName = metadata.Name
+		}
+		if mf.Description == "" {
+			mf.Description = metadata.Description
+		}
+		if mf.Slot == "" && assetKind == AssetKindComponent {
+			mf.Slot = catalogComponentSlot(metadata.Slot)
+		}
+		if mf.Category == "" {
+			mf.Category = metadata.Domain
+		}
 	}
 	slot, err := normalizeComponentSlot(mf.Slot)
 	if err != nil && assetKind == AssetKindComponent {
@@ -498,6 +552,14 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 			versionFiles = append(versionFiles, ComponentVersionFile{Path: "experience-contract.json", Content: experienceContract, ContentSHA256: digestBytes([]byte(experienceContract))})
 		} else if !errors.Is(contractErr, fs.ErrNotExist) {
 			return IndexManifestInput{}, nil, fmt.Errorf("read experience contract %s: %w", contractPath, contractErr)
+		}
+		if experienceContract == "" {
+			if repoRoot := repositoryRootFromLibrary(idx.root); repoRoot != "" {
+				canonical := filepath.Join(repoRoot, "scenarios", "react-component-library", "experience", "components", kebabAssetName(slug)+".json")
+				if rawContract, contractErr := os.ReadFile(canonical); contractErr == nil {
+					experienceContract = string(rawContract)
+				}
+			}
 		}
 		// story.json is the declarative preview/story contract. Keep it in the
 		// version file projection so the Files tab can inspect the same artifact
@@ -696,6 +758,19 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 		}
 	}
 	return IndexManifestInput{Manifest: manifest, Versions: versions, Stories: stories, Headers: latestHeaders, Findings: findings, Warnings: warnings}, latestHeaders, nil
+}
+
+func catalogComponentSlot(slot string) string {
+	switch strings.ToLower(strings.TrimSpace(slot)) {
+	case "ui-primitive", "surface", "control":
+		return string(ComponentSlotUIPrimitive)
+	case "ui-pattern", "pattern", "page-template", "layout-shell":
+		return string(ComponentSlotUIPattern)
+	case "layout-nav", "navigation":
+		return string(ComponentSlotLayoutNav)
+	default:
+		return ""
+	}
 }
 
 type versionDependencyLock struct {

@@ -1,0 +1,2410 @@
+[
+  {
+    "shape": [
+      "Alert.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AlertDialog.strings.ts",
+      "AlertDialog.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AppNavigation.strings.ts",
+      "AppNavigation.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AppShell.strings.ts",
+      "AppShell.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ApprovalPrompt.strings.ts",
+      "ApprovalPrompt.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ArrayField.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AspectRatio.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AssetDetailShell.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AsyncBoundary.strings.ts",
+      "AsyncBoundary.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AsyncBoundary.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AsyncFormFlow.strings.ts",
+      "AsyncFormFlow.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AsyncOptionsField.strings.ts",
+      "AsyncOptionsField.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AsyncPanel.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AsyncState.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AttachmentPreview.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AuditTrail.strings.ts",
+      "AuditTrail.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AuthSection.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "AutoAnimateLayout.strings.ts",
+      "AutoAnimateLayout.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Avatar.strings.ts",
+      "Avatar.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Badge.css",
+      "Badge.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Banner.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "BaseStyles.ts",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "BottomNav.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "BottomSheet.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "BoundedMeter.strings.ts",
+      "BoundedMeter.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "BudgetBar.strings.ts",
+      "BudgetBar.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "BulkActionBar.strings.ts",
+      "BulkActionBar.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Button.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "ButtonGroup.strings.ts",
+      "ButtonGroup.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Calendar.strings.ts",
+      "Calendar.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CanvasFrame.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CaptureGrid.strings.ts",
+      "CaptureGrid.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CaptureGrid.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Card.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CardGrid.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CartesianCharts.strings.ts",
+      "CartesianCharts.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "CartesianCharts.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Chart.strings.ts",
+      "Chart.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Chart.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Checkbox.strings.ts",
+      "Checkbox.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Chip.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ChromeTheme.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ClassMerge.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "Cluster.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CodeBlock.tsx",
+      "InlineCode.tsx",
+      "MarkdownRenderer.tsx",
+      "MermaidDiagram.tsx",
+      "dependencies.json",
+      "languageDetection.ts",
+      "markdownStyles.ts",
+      "story.json",
+      "useCodeCopy.ts",
+      "useMermaidSvg.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CodeBlock.tsx",
+      "dependencies.json",
+      "languageDetection.ts",
+      "story.json",
+      "styles.ts",
+      "useCodeCopy.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CollapsibleRegion.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CollectionPage.strings.ts",
+      "CollectionPage.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ColorPicker.tsx",
+      "colorUtils.ts",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useDeferredColorCommit.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Combobox.strings.ts",
+      "Combobox.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CommandButton.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CommandCenterShell.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CommandPalette.strings.ts",
+      "CommandPalette.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CommandRegistry.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ComputedField.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ConditionalField.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ConflictResolutionFlow.strings.ts",
+      "ConflictResolutionFlow.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Container.css",
+      "Container.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ContextMenu.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Contracts.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ControlBase.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "ControlledState.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "CopyableText.strings.ts",
+      "CopyableText.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DashboardPage.strings.ts",
+      "DashboardPage.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DataState.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DataTable.strings.ts",
+      "DataTable.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DataToolbar.strings.ts",
+      "DataToolbar.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DescriptionList.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DetailPage.strings.ts",
+      "DetailPage.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Dialog.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DiffViewer.strings.ts",
+      "DiffViewer.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Direct.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DirtyStateGuard.strings.ts",
+      "DirtyStateGuard.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DirtyStateGuard.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DragDropStore.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Draggable.strings.ts",
+      "Draggable.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "DrawerShell.strings.ts",
+      "DrawerShell.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "EdgeFade.css",
+      "EdgeFade.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "EditableResource.strings.ts",
+      "EditableResource.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "EmptyState.strings.ts",
+      "EmptyState.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "EntitlementErrorCard.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ErrorBoundary.strings.ts",
+      "ErrorBoundary.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ErrorState.strings.ts",
+      "ErrorState.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "EvidenceCarousel.strings.ts",
+      "EvidenceCarousel.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "ExperienceSurface.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FilePreview.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FilterBar.strings.ts",
+      "FilterBar.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FindingList.strings.ts",
+      "FindingList.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FindingList.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Form.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FormActions.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FormField.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FormSection.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FormSection.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FormStore.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "FullPageDrawer.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "GeneratedForm.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "GestureDirection.test.ts",
+      "GestureDirection.ts",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "GlobalCommandSystem.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Heading.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "HealthIndicator.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "HookContract.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Icon.css",
+      "Icon.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Icon.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "IconButton.behavior.test.tsx",
+      "IconButton.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "IconButton.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "IconGeometry.test.ts",
+      "IconGeometry.ts",
+      "compatibility-survey.test.ts",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "IconRegistry.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Inline.css",
+      "Inline.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "InlineCode.tsx",
+      "dependencies.json",
+      "story.json",
+      "styles.ts",
+      "useCodeCopy.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Input.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "InputGroup.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "InspectorLayout.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "JsonViewer.strings.ts",
+      "JsonViewer.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "LayerManager.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "LayoutGroup.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Link.css",
+      "Link.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "List.strings.ts",
+      "List.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "LiveAnnouncer.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "LoadingState.strings.ts",
+      "LoadingState.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "MasterDetail.strings.ts",
+      "MasterDetail.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "MeasurementBar.strings.ts",
+      "MeasurementBar.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Menu.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "MermaidDiagram.tsx",
+      "dependencies.json",
+      "story.json",
+      "styles.ts",
+      "useCodeCopy.ts",
+      "useMermaidSvg.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Message.strings.ts",
+      "Message.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Meter.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "MetricBreakdown.strings.ts",
+      "MetricBreakdown.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "MetricBreakdown.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "MonetizationAccount.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "MorphingIcon.behavior.test.tsx",
+      "MorphingIcon.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "MotionPrimitive.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "NavLink.strings.ts",
+      "NavLink.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "NavigationTree.strings.ts",
+      "NavigationTree.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "NetworkGraph.strings.ts",
+      "NetworkGraph.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "NotificationBadge.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "NumberField.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ObjectField.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "OfflineState.strings.ts",
+      "OfflineState.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "OverlayCanvas.strings.ts",
+      "OverlayCanvas.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "OverlayCanvas.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "OverlayInteraction.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Page.strings.ts",
+      "Page.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "PageFrame.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "PageHeader.strings.ts",
+      "PageHeader.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "PendingSyncBadge.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "PermissionState.strings.ts",
+      "PermissionState.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Popover.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Portal.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Presence.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Pressable.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "PreviewDock.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "PreviewInspector.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "PreviewShowcase.tsx",
+      "Showcase.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Progress.strings.ts",
+      "Progress.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ProgressLadder.strings.ts",
+      "ProgressLadder.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ProgressLadder.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ProgressiveImage.strings.ts",
+      "ProgressiveImage.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "QuarantineBadge.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "RadioGroup.strings.ts",
+      "RadioGroup.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Recovery.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "RelativeTime.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Resizable.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ResizableSidebar.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ResizeHandle.strings.ts",
+      "ResizeHandle.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ResourceCollection.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ResourceDetail.strings.ts",
+      "ResourceDetail.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ResponsiveDialog.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 3
+  },
+  {
+    "shape": [
+      "ResponsiveMode.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ResponsivePanel.strings.ts",
+      "ResponsivePanel.tsx",
+      "dependencies.json",
+      "story.json",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ScoreGauge.strings.ts",
+      "ScoreGauge.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ScrollArea.css",
+      "ScrollArea.strings.ts",
+      "ScrollArea.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ScrollRestoration.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ScrollableTabs.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SearchFilterResults.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SearchInput.css",
+      "SearchInput.strings.ts",
+      "SearchInput.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SearchResults.strings.ts",
+      "SearchResults.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Select.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SelectionControl.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SelectionStore.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Separator.css",
+      "Separator.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SettingsList.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ShortcutRegistry.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SidebarShell.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "SidebarShell.tsx",
+      "dependencies.json",
+      "story.json",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Skeleton.css",
+      "Skeleton.strings.ts",
+      "Skeleton.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Slider.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Slot.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Sortable.strings.ts",
+      "Sortable.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Spinner.css",
+      "Spinner.strings.ts",
+      "Spinner.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SplitPane.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SplitView.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Stack.css",
+      "Stack.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Stack.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Stat.strings.ts",
+      "Stat.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "StatCard.strings.ts",
+      "StatCard.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "StateTransition.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "StatusBadge.tsx",
+      "dependencies.json",
+      "story.json",
+      "styles.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "StatusIndicator.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "StoryPalette.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "StyleSheet.ts",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "SubscriptionStatusCard.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Surface.css",
+      "Surface.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "SwipeActions.behavior.test.tsx",
+      "SwipeActions.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Switch.strings.ts",
+      "Switch.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Table.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Tabs.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "Text.css",
+      "Text.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "text.restyle.test.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Text.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Textarea.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Timeline.strings.ts",
+      "Timeline.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Toast.strings.ts",
+      "Toast.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ToastManager.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Toggle.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Tokens.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Tokens.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Toolbar.strings.ts",
+      "Toolbar.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Tooltip.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "TopBar.strings.ts",
+      "TopBar.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "Transition.strings.ts",
+      "Transition.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "TreeView.strings.ts",
+      "TreeView.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "TrendSpark.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "UndoBanner.strings.ts",
+      "UndoBanner.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "UndoManager.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "UndoableDestructiveAction.strings.ts",
+      "UndoableDestructiveAction.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "UnsavedChangesFlow.strings.ts",
+      "UnsavedChangesFlow.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "UpgradePrompt.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "ValidationSummary.strings.ts",
+      "ValidationSummary.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "VerdictSummary.strings.ts",
+      "VerdictSummary.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "VersionRow.tsx",
+      "dependencies.json",
+      "story.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "VirtualList.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "VisualRecipes.tsx",
+      "dependencies.json"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "VoiceInputButton.tsx",
+      "VoiceInputButtonGlyph.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "WorkspaceHeader.tsx",
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "styles.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "createScopedStore.tsx",
+      "dependencies.json"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useAbortableTask.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useAnnounce.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useAsyncAction.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useControllableState.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useDelayedPending.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useDirection.behavior.test.tsx",
+      "useDirection.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useDisclosure.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useDrag.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useElementRect.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useEscapeKey.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useFocusReturn.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useFocusTrap.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useFocusVisible.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useHandedness.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useHover.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useHydrated.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useIconMorph.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useLocale.ts"
+    ],
+    "count": 2
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useMediaQuery.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useNetworkStatus.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useOptimisticAction.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useOutsideInteraction.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useOverlaySurface.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "usePress.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useReducedMotion.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useResizablePanel.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useResizeObserver.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useRetry.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useRovingFocus.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useScrollLock.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useScrollState.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useSwipe.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useSwipeGesture.behavior.test.tsx",
+      "useSwipeGesture.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useTypeahead.ts"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "story.tsx",
+      "useViewportEnvironment.behavior.test.tsx",
+      "useViewportEnvironment.ingest.tsx",
+      "useViewportEnvironment.tsx"
+    ],
+    "count": 1
+  },
+  {
+    "shape": [
+      "dependencies.json",
+      "story.json",
+      "useVoiceInput.ts"
+    ],
+    "count": 2
+  }
+]

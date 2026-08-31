@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Container
  * @displayName Container
- * @description Container constrains readable content widths without hard-coded dimensions.
  * @version 1.1.3
  * @tags ["primitive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

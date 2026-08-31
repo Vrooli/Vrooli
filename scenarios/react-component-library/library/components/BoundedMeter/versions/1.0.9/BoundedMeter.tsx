@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:BoundedMeter
  * @displayName BoundedMeter
- * @description The bounded-value visualization for capacity, quota, strength, or health, using semantic thresholds and explicitly not implying task progress.
  * @version 1.0.9
  * @tags ["primitive","token-bound","status","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

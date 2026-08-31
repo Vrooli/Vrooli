@@ -2,41 +2,23 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.async-form-flow",
-  "deprecatedVersions": ["1.0.3", "1.0.5", "1.0.4", "1.0.6", "1.0.7", "1.0.8"],
-  "description": "The create-or-edit workflow covering initial load, validation, submission, progress, server-error mapping, success, retry, cancellation, and the navigation that follows.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8"
   ],
-  "displayName": "AsyncFormFlow",
   "draft": "",
-  "evictedVersions": ["1.0.5", "1.0.3", "1.0.4", "1.0.6", "1.0.7", "1.0.8"],
-  "kind": "input",
-  "latest": "1.0.9",
-  "libraryId": "react-component-library:AsyncFormFlow",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.5",
+    "1.0.3",
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8"
   ],
-  "tags": [
-    "forms",
-    "async",
-    "recovery",
-    "offline",
-    "navigation",
-    "responsive",
-    "token-bound"
-  ]
+  "latest": "1.0.9",
+  "libraryId": "react-component-library:AsyncFormFlow"
 }

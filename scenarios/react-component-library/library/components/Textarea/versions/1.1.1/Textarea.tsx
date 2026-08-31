@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Textarea
  * @displayName Textarea
- * @description Token-bound multiline text input with mobile-safe sizing and accessible focus styling.
  * @version 1.1.1
  * @tags ["form","interactive"]
  * @deps {"react":"^18"}

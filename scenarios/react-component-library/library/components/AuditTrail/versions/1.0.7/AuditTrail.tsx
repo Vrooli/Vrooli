@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AuditTrail
  * @displayName AuditTrail
- * @description An ordered activity surface that makes actor, action, and sequence legible.
  * @version 1.0.7
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:MonetizationAccount
  * @displayName MonetizationAccount
- * @description Shared account surface primitives for paid scenarios.
  * @version 1.0.6
  * @tags ["monetization","account"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

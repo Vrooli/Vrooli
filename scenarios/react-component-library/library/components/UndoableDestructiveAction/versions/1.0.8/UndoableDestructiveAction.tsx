@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:UndoableDestructiveAction
  * @displayName UndoableDestructiveAction
- * @description A forgiving destructive-action pattern that completes reversible removal immediately and exposes a clear undo path.
  * @version 1.0.8
  * @tags ["patterns","recovery","destructive","undo","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

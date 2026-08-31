@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:PageHeader
  * @displayName PageHeader
- * @description The responsive title region carrying breadcrumbs, description, metadata, primary and overflow actions, optional tabs, and compact behavior as the page scrolls.
  * @version 1.0.8
  * @tags ["navigation","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

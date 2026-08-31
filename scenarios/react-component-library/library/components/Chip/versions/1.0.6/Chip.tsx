@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Chip
  * @displayName Chip
- * @description A compact selectable token that preserves a full touch target while remaining visually quiet in dense collections.
  * @version 1.0.6
  * @tags ["primitive","control","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

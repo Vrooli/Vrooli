@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Surface
  * @displayName Surface
- * @description Surface maps the four elevation levels to the kit's elevation ramps.
  * @version 1.0.1
  * @tags ["primitive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

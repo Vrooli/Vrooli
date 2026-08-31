@@ -2,27 +2,15 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.edge-fade",
-  "deprecatedVersions": ["1.0.0", "1.0.1"],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
   ],
-  "displayName": "EdgeFade",
   "draft": "",
-  "evictedVersions": ["1.0.0", "1.0.1"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
   "latest": "1.0.2",
-  "libraryId": "react-component-library:EdgeFade",
-  "tags": ["primitive", "token-bound"]
+  "libraryId": "react-component-library:EdgeFade"
 }

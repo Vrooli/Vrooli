@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Transition
  * @displayName Transition
- * @description
  * @version 1.0.11
  * @tags ["primitive","motion","reduced-motion","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

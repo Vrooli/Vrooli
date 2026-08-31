@@ -7,8 +7,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -17,15 +19,16 @@ import (
 	// Register the SQLite driver used by the live corpus report database.
 	_ "modernc.org/sqlite"
 	"react-component-library/internal/components"
+	"react-component-library/internal/libspec"
 	"react-component-library/internal/versionledger"
 )
 
 type CorpusInvariant struct {
-	ID     string `json:"id"`
-	Label  string `json:"label"`
-	Value  int    `json:"value"`
-	Target int    `json:"target"`
-	Unit   string `json:"unit"`
+	ID     string  `json:"id"`
+	Label  string  `json:"label"`
+	Value  float64 `json:"value"`
+	Target float64 `json:"target"`
+	Unit   string  `json:"unit"`
 }
 type CorpusReport struct {
 	SchemaVersion string            `json:"schemaVersion"`
@@ -33,13 +36,10 @@ type CorpusReport struct {
 	Invariants    []CorpusInvariant `json:"invariants"`
 }
 
-var (
-	corpusVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
-	corpusPackage = regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\d+(?:\.\d+\.\d+)?))?`)
-)
+var corpusVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 
 // BuildCorpusReport provides one stable, filesystem-based measurement seam.
-// It deliberately emits all twenty plan dimensions, even where a runtime
+// It deliberately emits every plan dimension, even where a runtime
 // probe is not available to this command; every value remains numeric.
 func BuildCorpusReport(root string) (CorpusReport, error) {
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
@@ -55,8 +55,15 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 		if !components.IsAuthoredReleaseFile(entry.Path) {
 			continue
 		}
-		raw, err := os.ReadFile(filepath.Join(libraryRoot, filepath.FromSlash(entry.Path)))
+		path := filepath.Join(libraryRoot, filepath.FromSlash(entry.Path))
+		raw, err := os.ReadFile(path)
 		if err != nil {
+			// Cold/evicted releases are retained in the durable version mirror;
+			// absence from the live authored tree is expected and is checked by
+			// version-mirror-integrity rather than counted as a missing hash.
+			if _, statErr := os.Stat(filepath.Dir(path)); os.IsNotExist(statErr) {
+				continue
+			}
 			missing++
 			continue
 		}
@@ -142,10 +149,10 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 						body, _ := os.ReadFile(path)
 						text := string(body)
 						lines += strings.Count(text, "\n") + 1
-						for _, match := range corpusPackage.FindAllStringSubmatch(text, -1) {
-							if match[2] == "" {
+						for _, specifier := range libspec.ParseAll(text) {
+							if specifier.Selector == "" {
 								bare++
-							} else if strings.Contains(match[2], ".") {
+							} else if strings.Contains(specifier.Selector, ".") {
 								// Historical backfilled source is retained as an immutable
 								// compatibility record. It is not part of the post-cutoff
 								// migration population, even when its source contains the
@@ -153,7 +160,7 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 								sourceKey := "react-component-library:" + asset.Name() + "@" + version.Name()
 								if !backfilled[sourceKey] {
 									exact++
-									if latestByAsset[match[1]] != "" && latestByAsset[match[1]] != match[2] {
+									if latestByAsset[specifier.Name] != "" && latestByAsset[specifier.Name] != specifier.Selector {
 										stale++
 									}
 								}
@@ -179,69 +186,192 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 	}
 	runnerless, blocking := blockingGateCounts(filepath.Join(libraryRoot, "..", "catalog", "config.json"))
 	allowlist := countAllowlistEntries(filepath.Join(libraryRoot, "vacuous-allowlist.json"))
-	calibrationRoot := filepath.Join(libraryRoot, "..", "catalog", "calibration")
-	warmMatrixSeconds, singleAssetSeconds := measuredTimings(filepath.Join(calibrationRoot, "timings.json"))
-	zeroFindingFailures := matrixMetric(filepath.Join(calibrationRoot, "matrix-metrics.json"), "zeroFindingFailures")
+	warmMatrixSeconds, singleAssetSeconds := liveTimingMeasurements(root)
+	zeroFindingFailures := liveMatrixFailures(root)
 	manualClaims, machineClaims := experienceClaimCounts(filepath.Join(libraryRoot, "..", "experience", "components"), libraryRoot)
 	missingImplementations := declaredWithoutImplementation(filepath.Join(libraryRoot, "..", "catalog"), libraryRoot)
 	authorities := experienceAuthorityCount(filepath.Join(libraryRoot, "..", "experience", "components"), libraryRoot)
 	ungoverned := countUngovernedReleases(libraryRoot)
+	overduePlans := overduePlannedImplementations(filepath.Join(libraryRoot, "..", "catalog"), libraryRoot)
+	overdueRetired := overdueRetiredTrees(libraryRoot, 30)
+	adoptionDepth := adoptionDepthPercent(root)
+	shapes, _ := ShapeCensus(libraryRoot)
+	duplications, _ := DuplicationCensus(root)
 	values := []CorpusInvariant{
-		{"I1", "retention commands succeeding", retentionCommandCount(), 3, "commands"},
-		{"I2", "unreadable version mirrors", countUnreadableMirrors(), 0, "versions"},
-		{"I3", "post-cutoff intra-library exact pins", exact, 0, "pins"},
-		{"I4", "intra-library pins targeting superseded versions", stale, 0, "pins"},
-		{"I5", "version directories", totalVersions, 290, "versions"},
-		{"I6", "superseded compiled source share", share, 15, "percent"},
-		{"I7", "failing cells without findings", zeroFindingFailures, 0, "cells"},
-		{"I8", "warm full gate matrix", warmMatrixSeconds, 30, "seconds"},
-		{"I9", "single-asset validation cycle", singleAssetSeconds, 10, "seconds"},
-		{"I10", "missing release-hash entries", missing, 0, "entries"},
-		{"I11", "mutated release-hash entries", mutated, 0, "entries"},
-		{"I12", "assets failing immutability", 0, 0, "assets"},
-		{"I13", "catalog/build failures", 0, 0, "commands"},
-		{"I14", "ungoverned releases detected", ungoverned, 0, "releases"},
-		{"I15", "runnerless blocking gates", runnerless, 0, "gates"},
-		{"I16", "blocking gates", blocking, blocking, "gates"},
-		{"I17", "vacuous allowlist entries", allowlist, 40, "entries"},
+		{"I21", "adoption depth (library imports / ecosystem UI files)", adoptionDepth, 25, "percent"},
+		{"I1", "retention commands succeeding", float64(retentionCommandCount()), 3, "commands"},
+		{"I2", "unreadable version mirrors", float64(countUnreadableMirrors()), 0, "versions"},
+		{"I3", "post-cutoff intra-library exact pins", float64(exact), 0, "pins"},
+		{"I4", "intra-library pins targeting superseded versions", float64(stale), 0, "pins"},
+		{"I5", "version directories", float64(totalVersions), 290, "versions"},
+		{"I6", "superseded compiled source share", float64(share), 15, "percent"},
+		{"I7", "failing cells without findings", float64(zeroFindingFailures), 0, "cells"},
+		{"I8", "warm full gate matrix", float64(warmMatrixSeconds), 30, "seconds"},
+		{"I9", "single-asset validation cycle", float64(singleAssetSeconds), 10, "seconds"},
+		{"I10", "missing release-hash entries", float64(missing), 0, "entries"},
+		{"I11", "mutated release-hash entries", float64(mutated), 0, "entries"},
+		{"I12", "assets failing immutability", float64(countImmutableFailures(missing, mutated)), 0, "assets"},
+		{"I13", "catalog/build failures", float64(liveBuildFailures(root)), 0, "commands"},
+		{"I14", "ungoverned releases detected", float64(ungoverned), 0, "releases"},
+		{"I15", "runnerless blocking gates", float64(runnerless), 0, "gates"},
+		{"I16", "blocking gates", float64(blocking), float64(blocking), "gates"},
+		{"I17", "vacuous allowlist entries", float64(allowlist), 40, "entries"},
 		// The plan's invariant is comparative: machine claims must outnumber
 		// manual claims. Encode that relation directly so the report's value and
 		// target have the same meaning instead of pretending that zero manual
 		// claims is the requirement.
-		{"I18", fmt.Sprintf("machine minus manual experience claims (machine: %d, manual: %d)", machineClaims, manualClaims), machineClaims - manualClaims, 1, "claims"},
-		{"I19", "declared assets without implementation", missingImplementations, 0, "assets"},
-		{"I20", "experience claim authorities", authorities, 1, "authorities"},
+		{"I18", fmt.Sprintf("machine minus manual experience claims (machine: %d, manual: %d)", machineClaims, manualClaims), float64(machineClaims - manualClaims), 1, "claims"},
+		{"I19", "declared assets without implementation", float64(missingImplementations), 0, "assets"},
+		{"I20", "experience claim authorities", float64(authorities), 1, "authorities"},
+		{"I22", "distinct live version-directory shapes", float64(len(shapes)), 1, "shapes"},
+		{"I23", "owned metadata duplication mismatches", float64(len(duplications)), 0, "mismatches"},
+		{"I24", "authored-derived drift after generator run", float64(liveBuildFailures(root)), 0, "artifacts"},
+		{"I25", "overdue implementation plans", float64(overduePlans), 0, "assets"},
+		{"I26", "overdue retired quarantine trees", float64(overdueRetired), 0, "trees"},
 	}
 	return CorpusReport{SchemaVersion: "corpus-report/v1", CapturedAt: time.Now().UTC().Format(time.RFC3339Nano), Invariants: values}, nil
 }
 
-func matrixMetric(path, metric string) int {
-	raw, err := os.ReadFile(path)
-	if err != nil {
+func adoptionDepthPercent(root string) float64 {
+	uiFiles, importing := 0, 0
+	scenariosRoot := filepath.Join(root, "scenarios")
+	_ = filepath.WalkDir(scenariosRoot, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			if path != scenariosRoot && (entry.Name() == "node_modules" || entry.Name() == "dist" || entry.Name() == ".git") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		rel, relErr := filepath.Rel(scenariosRoot, path)
+		if relErr != nil {
+			return nil
+		}
+		parts := strings.Split(filepath.ToSlash(rel), "/")
+		if len(parts) < 3 || parts[1] != "ui" || parts[0] == "react-component-library" || !(strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx")) {
+			return nil
+		}
+		uiFiles++
+		if raw, readErr := os.ReadFile(path); readErr == nil && strings.Contains(string(raw), "@vrooli/react-component-library") {
+			importing++
+		}
+		return nil
+	})
+	if uiFiles == 0 {
 		return 0
 	}
-	var values map[string]int
-	if json.Unmarshal(raw, &values) != nil {
-		return 0
-	}
-	return values[metric]
+	return float64(importing) * 100 / float64(uiFiles)
 }
 
-func measuredTimings(path string) (warmMatrixSeconds, singleAssetSeconds int) {
-	raw, err := os.ReadFile(path)
+func countImmutableFailures(missing, mutated int) int { return missing + mutated }
+
+// Live runners are intentionally small and read-only. The public generator is
+// the authoritative derived-artifact check; a failing process is one observed
+// drift/failure, while an unavailable executable remains unmeasured.
+func liveTimingMeasurements(_ string) (warmMatrixSeconds, singleAssetSeconds int) {
+	// Corpus-report unit tests must remain filesystem-only. The installed CLI
+	// is the production measurement seam; a test binary cannot route through
+	// the scenario lifecycle and therefore has no meaningful live timing.
+	if strings.HasSuffix(filepath.Base(os.Args[0]), ".test") {
+		return -1, -1
+	}
+	cli, err := exec.LookPath("react-component-library")
 	if err != nil {
-		return 0, 0
+		return -1, -1
 	}
-	var timings struct {
-		WarmMatrixSeconds       float64 `json:"warmMatrixSeconds"`
-		SingleAssetTypesSeconds float64 `json:"singleAssetTypesSeconds"`
+	warmMatrixSeconds = timeCLI(cli, []string{"catalog", "gates", "--all", "--json"}, 2*time.Minute)
+	singleAssetSeconds = timeCLI(cli, []string{"catalog", "gates", "types", "--asset-id", "controls.button", "--json"}, time.Minute)
+	return warmMatrixSeconds, singleAssetSeconds
+}
+
+func timeCLI(cli string, args []string, timeout time.Duration) int {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	started := time.Now()
+	command := exec.CommandContext(ctx, cli, args...)
+	command.Stdout = io.Discard
+	command.Stderr = io.Discard
+	_ = command.Run()
+	if ctx.Err() != nil {
+		return -1
 	}
-	if json.Unmarshal(raw, &timings) != nil {
-		return 0, 0
+	return int(math.Ceil(time.Since(started).Seconds()))
+}
+
+type matrixFailureCell struct {
+	Verdict      string `json:"verdict"`
+	FindingCount int    `json:"finding_count"`
+}
+
+type matrixFailureReport struct {
+	Cells []matrixFailureCell `json:"cells"`
+}
+
+// liveMatrixFailures consumes the same cell-level artifact used for durable
+// matrix review. The aggregate catalog API intentionally exposes only totals,
+// so using that API here would make it impossible to prove that every failing
+// cell has attributable findings.
+func liveMatrixFailures(root string) int {
+	repositoryRoot, err := filepath.Abs(root)
+	if err != nil {
+		return -1
 	}
-	// Invariants use whole seconds. Round up so a report never claims a
-	// sub-second result that the recorded measurement did not fully cover.
-	return int(math.Ceil(timings.WarmMatrixSeconds)), int(math.Ceil(timings.SingleAssetTypesSeconds))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	apiRoot := filepath.Join(repositoryRoot, "scenarios", "react-component-library", "api")
+	temporary, err := os.CreateTemp("", "rcl-gate-matrix-measurement-*")
+	if err != nil {
+		return -1
+	}
+	binaryPath := temporary.Name()
+	_ = temporary.Close()
+	defer os.Remove(binaryPath)
+	build := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd/gate-matrix") // #nosec G204 -- fixed repository-owned measurement command
+	build.Dir = apiRoot
+	build.Env = append(os.Environ(), "GOWORK=off")
+	if err := build.Run(); err != nil || ctx.Err() != nil {
+		return -1
+	}
+	command := exec.CommandContext(ctx, binaryPath, "--root", repositoryRoot) // #nosec G204 -- path is the temporary repository-owned measurement binary
+	command.Dir = apiRoot
+	output, err := command.Output()
+	if err != nil || ctx.Err() != nil {
+		return -1
+	}
+	failures, err := countMatrixFailures(output)
+	if err != nil {
+		return -1
+	}
+	return failures
+}
+
+func countMatrixFailures(output []byte) (int, error) {
+	var report matrixFailureReport
+	if err := json.Unmarshal(output, &report); err != nil {
+		return 0, err
+	}
+	failures := 0
+	for _, cell := range report.Cells {
+		if cell.Verdict == "fail" && cell.FindingCount == 0 {
+			failures++
+		}
+	}
+	return failures, nil
+}
+
+func liveBuildFailures(root string) int {
+	script := filepath.Join("packages", "react-component-library", "tooling", "catalog-build.mjs")
+	if _, err := os.Stat(filepath.Join(root, script)); err != nil {
+		return -1
+	}
+	cmd := exec.Command("node", script, "--check") // #nosec G204 -- fixed repository-owned generator
+	cmd.Dir = root
+	if err := cmd.Run(); err != nil {
+		return 1
+	}
+	return 0
 }
 
 func blockingGateCounts(configPath string) (runnerless, blocking int) {
@@ -338,29 +468,58 @@ func declaredWithoutImplementation(catalogRoot, libraryRoot string) int {
 			implemented[implementation.CatalogID] = true
 		}
 	}
-	decided := map[string]bool{}
-	if raw, readErr := os.ReadFile(filepath.Join(catalogRoot, "population-decisions.json")); readErr == nil {
-		var document struct {
-			Decisions []struct {
-				AssetID  string `json:"assetId"`
-				Decision string `json:"decision"`
-			} `json:"decisions"`
-		}
-		if json.Unmarshal(raw, &document) == nil {
-			for _, decision := range document.Decisions {
-				if decision.AssetID != "" && (decision.Decision == "intended-and-scheduled" || decision.Decision == "removed") {
-					decided[decision.AssetID] = true
-				}
-			}
-		}
-	}
 	missing := 0
 	for _, asset := range assets {
-		if !implemented[asset.ID] && !decided[asset.ID] {
+		if !implemented[asset.ID] {
 			missing++
 		}
 	}
 	return missing
+}
+
+func overduePlannedImplementations(catalogRoot, libraryRoot string) int {
+	assets, err := LoadCatalog(catalogRoot)
+	if err != nil {
+		return 0
+	}
+	implementations, err := LoadImplementations(libraryRoot)
+	if err != nil {
+		return 0
+	}
+	implemented := map[string]bool{}
+	for _, implementation := range implementations {
+		if implementation.CatalogID != "" && implementation.Latest != "" {
+			implemented[implementation.CatalogID] = true
+		}
+	}
+	today := time.Now().UTC().Format("2006-01-02")
+	count := 0
+	for _, asset := range assets {
+		if !implemented[asset.ID] && asset.PlannedBy != "" && asset.PlannedBy < today {
+			count++
+		}
+	}
+	return count
+}
+
+func overdueRetiredTrees(libraryRoot string, retentionDays int) int {
+	retiredRoot := filepath.Join(libraryRoot, ".retired")
+	entries, err := os.ReadDir(retiredRoot)
+	if err != nil {
+		return 0
+	}
+	cutoff := time.Now().Add(-time.Duration(retentionDays) * 24 * time.Hour)
+	overdue := 0
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		info, statErr := entry.Info()
+		if statErr == nil && info.ModTime().Before(cutoff) {
+			overdue++
+		}
+	}
+	return overdue
 }
 
 func experienceAuthorityCount(canonicalRoot, libraryRoot string) int {

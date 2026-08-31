@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:JsonViewer
  * @displayName JsonViewer
- * @description A bounded structured-data viewer with readable overflow and machine-honest semantics.
  * @version 1.0.7
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

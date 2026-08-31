@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:DashboardPage
  * @displayName DashboardPage
- * @description A metric-first page template with data-source-owned regions and honest asynchronous states.
  * @version 1.0.8
  * @tags ["template","page","data-source","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

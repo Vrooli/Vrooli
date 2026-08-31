@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "navigation.bottom-navigation",
-  "category": "navigation",
   "deprecatedVersions": [
     "1.3.6",
     "1.3.7",
@@ -14,22 +13,6 @@
     "1.5.1",
     "1.5.2"
   ],
-  "description": "The compact-viewport navigation surface with safe-area handling, animated active state, badges, route semantics, and an explicit overflow policy for more destinations than fit.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "discouraged",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Bottom Nav",
   "draft": "",
   "evictedVersions": [
     "1.3.6",
@@ -41,13 +24,6 @@
     "1.5.1",
     "1.5.2"
   ],
-  "kind": "shell",
   "latest": "1.5.3",
-  "libraryId": "react-component-library:BottomNav",
-  "slot": "layout-nav",
-  "tags": [
-    "layout",
-    "navigation",
-    "mobile"
-  ]
+  "libraryId": "react-component-library:BottomNav"
 }

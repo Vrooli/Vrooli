@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Input
  * @displayName Input
- * @description Token-bound text input with mobile-safe font sizing and accessible focus styling.
  * @version 1.3.1
  * @tags ["form","interactive"]
  * @deps {"react":"^18"}

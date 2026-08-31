@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:TopBar
  * @displayName TopBar
- * @description A stable application header region that adapts its navigation affordances by viewport.
  * @version 1.0.7
  * @tags ["navigation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

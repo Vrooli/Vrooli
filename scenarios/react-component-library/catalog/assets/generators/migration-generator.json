@@ -15,7 +15,8 @@
     "delivery": "generated",
     "target": {
       "priority": "P2",
-      "maturity": "implemented"
+      "maturity": "implemented",
+      "plannedBy": "2026-12-31"
     }
   },
   "rationale": "Under copy-adoption a migration cannot be applied centrally, so every breaking change has to ship a codemod the adopting scenario can run on its own schedule."

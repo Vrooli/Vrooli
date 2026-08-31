@@ -2,21 +2,17 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "controls.toggle",
-  "category": "controls",
-  "deprecatedVersions": ["1.0.0", "1.0.2", "1.0.1"],
-  "description": "A token-bound pressed-state control composed over ControlBase with controlled state, native button semantics, and motion-safe feedback.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.2",
+    "1.0.1"
   ],
-  "displayName": "Toggle",
   "draft": "",
-  "evictedVersions": ["1.0.2", "1.0.0", "1.0.1"],
-  "kind": "input",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.0",
+    "1.0.1"
+  ],
   "latest": "1.0.3",
-  "libraryId": "react-component-library:Toggle",
-  "slot": "ui-primitive",
-  "tags": ["controls", "selection", "accessibility", "motion", "token-bound"]
+  "libraryId": "react-component-library:Toggle"
 }

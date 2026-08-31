@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:CaptureGrid
  * @displayName CaptureGrid
- * @description A responsive matrix of declared viewport and theme evidence captures.
  * @version 1.0.6
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

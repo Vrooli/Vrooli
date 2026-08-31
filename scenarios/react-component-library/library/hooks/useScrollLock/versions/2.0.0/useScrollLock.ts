@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useScrollLock
  * @displayName useScrollLock
- * @description Production-ready useScrollLock hook with SSR-safe lifecycle behavior.
  * @version 2.0.0
  * @tags ["runtime","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

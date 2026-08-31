@@ -15,7 +15,8 @@
     "delivery": "adopted",
     "target": {
       "priority": "P0",
-      "maturity": "verified"
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
     }
   },
   "fixture": {

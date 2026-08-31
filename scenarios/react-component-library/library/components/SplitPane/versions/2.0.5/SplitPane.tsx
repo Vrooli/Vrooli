@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:SplitPane
  * @displayName SplitPane
- * @description Two panes and one draggable, keyboard-operable splitter on either orientation.
  * @version 2.0.5
  * @tags ["layout","interaction","token-bound"]
  * @deps {"react":"^18","react-component-library:Resizable":"^2.0.0"}

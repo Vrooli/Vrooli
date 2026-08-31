@@ -6,30 +6,11 @@
     "1.0.4",
     "1.0.5"
   ],
-  "description": "A responsive matrix of declared viewport and theme evidence captures.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "CaptureGrid",
   "draft": "",
   "evictedVersions": [
     "1.0.4",
     "1.0.5"
   ],
-  "kind": "surface",
   "latest": "1.0.6",
-  "libraryId": "react-component-library:CaptureGrid",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "visualization",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:CaptureGrid"
 }

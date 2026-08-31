@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useSwipe
  * @displayName useSwipe
- * @description Production-ready useSwipe hook with SSR-safe lifecycle behavior.
  * @version 2.0.4
  * @tags ["runtime","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

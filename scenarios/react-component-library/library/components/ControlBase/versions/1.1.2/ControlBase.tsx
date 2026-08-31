@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ControlBase
  * @displayName Control Base
- * @description Shared semantic control primitive for consistent sizing, density, focus, hover, and disabled behavior.
  * @version 1.1.2
  * @tags ["control","primitive","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

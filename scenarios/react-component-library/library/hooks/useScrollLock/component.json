@@ -2,19 +2,13 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-scroll-lock",
-  "deprecatedVersions": ["1.0.0"],
-  "description": "Production-ready useScrollLock hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.0"
   ],
-  "displayName": "useScrollLock",
   "draft": "",
-  "evictedVersions": ["1.0.0"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "latest": "2.0.0",
-  "libraryId": "react-component-library:useScrollLock",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useScrollLock"
 }

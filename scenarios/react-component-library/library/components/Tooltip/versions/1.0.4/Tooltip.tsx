@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Tooltip
  * @displayName Tooltip
- * @description A concise, accessible explanation attached to a focusable trigger.
  * @version 1.0.4
  * @tags ["overlay","accessible","interaction","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

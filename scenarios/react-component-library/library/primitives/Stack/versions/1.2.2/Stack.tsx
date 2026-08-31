@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Stack
  * @displayName Stack
- * @description Stack lays out content on the block axis with a token-backed gap.
  * @version 1.2.2
  * @tags ["primitive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

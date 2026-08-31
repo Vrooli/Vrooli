@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Combobox
  * @displayName Combobox
- * @description The searchable selection field supporting local or remote options, typeahead, creation of new values, result highlighting, virtualization, async cancellation, and accessible active-option reporting.
  * @version 1.0.9
  * @tags ["forms","selection","combobox","async","keyboard","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

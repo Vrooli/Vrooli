@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Calendar
  * @displayName Calendar
- * @description The reusable calendar surface supporting single, multiple, range, week, and month selection with localization, constraints, keyboard navigation, and virtualized month rendering.
  * @version 1.0.8
  * @tags ["forms","calendar","date","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

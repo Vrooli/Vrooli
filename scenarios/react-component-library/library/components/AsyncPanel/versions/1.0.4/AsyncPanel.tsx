@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AsyncPanel
  * @displayName Async Panel
- * @description Composable presentation for an ExperienceSurface lifecycle without prescribing page layout.
  * @version 1.0.4
  * @tags ["experience","lifecycle","loading","empty","error","retry"]
  * @deps {"react":"^18"}

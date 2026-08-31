@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AttachmentPreview
  * @displayName AttachmentPreview
- * @description An adapter-driven attachment surface with independent upload, scanning, retry, cancellation, preview, removal, and offline states.
  * @version 1.0.4
  * @tags ["media","files","upload","progress","recovery","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

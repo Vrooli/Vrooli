@@ -2,20 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-escape-key",
-  "description": "Reusable Escape-key dismissal hook for accessible overlays.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    }
-  ],
-  "displayName": "useEscapeKey",
-  "kind": "surface",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:useEscapeKey",
-  "tags": ["accessibility", "keyboard", "overlay"]
+  "libraryId": "react-component-library:useEscapeKey"
 }

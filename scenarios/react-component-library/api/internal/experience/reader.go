@@ -136,6 +136,14 @@ func (r *reader) readVersionContract(component Component) ([]byte, error) {
 	if name == "" || version == "" {
 		return nil, os.ErrNotExist
 	}
+	// The scenario-level experience declaration is the surviving authority for
+	// an asset's claims. Version-local contracts are only a compatibility
+	// fallback for isolated legacy fixtures and are not consulted when the
+	// canonical declaration exists.
+	canonical := filepath.Join(r.repoRoot, "scenarios", "react-component-library", "experience", "components", kebabID(name)+".json")
+	if data, err := os.ReadFile(canonical); err == nil || !os.IsNotExist(err) {
+		return data, err
+	}
 	root := filepath.Join(r.repoRoot, "scenarios", "react-component-library", "library")
 	// Experience contracts are part of every publishable library tier. The
 	// reader used to accept only components and hooks, which silently turned

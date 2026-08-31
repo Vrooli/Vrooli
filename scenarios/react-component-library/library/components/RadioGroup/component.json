@@ -2,21 +2,19 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "controls.radio-group",
-  "category": "controls",
-  "deprecatedVersions": ["1.0.2", "1.0.4", "1.0.3", "1.0.5"],
-  "description": "The single-selection collection with roving focus, optional card-style options carrying descriptions, disabled choices, responsive layout, and animated selection.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4",
+    "1.0.3",
+    "1.0.5"
   ],
-  "displayName": "RadioGroup",
   "draft": "",
-  "evictedVersions": ["1.0.4", "1.0.2", "1.0.3", "1.0.5"],
-  "kind": "input",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.2",
+    "1.0.3",
+    "1.0.5"
+  ],
   "latest": "1.0.6",
-  "libraryId": "react-component-library:RadioGroup",
-  "slot": "ui-primitive",
-  "tags": ["controls", "selection", "forms", "accessibility", "token-bound"]
+  "libraryId": "react-component-library:RadioGroup"
 }

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:OverlayCanvas
  * @displayName OverlayCanvas
- * @description A measured subject overlay that names implicated bounds.
  * @version 1.0.14
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

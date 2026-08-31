@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:HealthIndicator
  * @displayName HealthIndicator
- * @description A semantic health label with score, staleness, and non-color status treatment.
  * @version 1.0.4
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useSwipeGesture
  * @displayName useSwipeGesture
- * @description Staged directional drag with axis locking, resistance, and velocity-aware release, reported in pixels rather than a clamped ratio.
  * @version 1.1.3
  * @tags ["runtime","gesture","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ResourceDetail
  * @displayName ResourceDetail
- * @description The detail pattern with header, metadata, sections, history, contextual actions, permission handling, responsive inspector, and editable regions.
  * @version 1.0.6
  * @tags ["pattern","data-source","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

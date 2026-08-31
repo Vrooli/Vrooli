@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:NetworkGraph
  * @displayName NetworkGraph
- * @description A canvas-rendered dependency graph with a keyboard-accessible node list.
  * @version 1.0.6
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

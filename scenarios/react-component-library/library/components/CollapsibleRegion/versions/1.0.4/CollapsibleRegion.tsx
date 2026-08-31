@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:CollapsibleRegion
  * @displayName CollapsibleRegion
- * @description A disclosure region that preserves accessible semantics while content enters and exits without clipping artifacts.
  * @version 1.0.4
  * @tags ["motion","layout","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

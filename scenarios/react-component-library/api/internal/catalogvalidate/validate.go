@@ -488,7 +488,10 @@ func slotVocabularyFindings(repoRoot string, docs []assetDoc) []Finding {
 	findings := make([]Finding, 0)
 	for _, doc := range docs {
 		slot := strings.TrimSpace(doc.Asset.Slot)
-		if slot == "" {
+		// Non-renderable assets intentionally have no scenario UI placement;
+		// their slot describes the absence of a UI surface rather than a
+		// template-manifest location.
+		if slot == "" || slot == "non-renderable" {
 			continue
 		}
 		if _, ok := manifest.Slots[slot]; ok {

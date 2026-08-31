@@ -436,7 +436,7 @@
     {
       "id": "icon-swap",
       "name": "Changing the icon animates it",
-      "role": "boundary",
+      "role": "axis",
       "covers": {
         "morph": [
           "auto",
@@ -483,7 +483,8 @@
           "selector": "[data-rcl-morphing-icon-current] rect",
           "value": "1"
         }
-      ]
+      ],
+      "axis": "morph"
     },
     {
       "id": "size-xs",

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:SearchInput
  * @displayName SearchInput
- * @description The search field with debouncing, in-flight cancellation, recent queries, clear action, keyboard shortcut binding, loading feedback, and optional suggestions.
  * @version 1.1.1
  * @tags ["form","control","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

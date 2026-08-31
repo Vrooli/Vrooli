@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.selection-store",
-  "description": "Scoped runtime service for predictable SelectionStore behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "SelectionStore",
-  "kind": "input",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:SelectionStore",
-  "tags": ["runtime", "state"]
+  "libraryId": "react-component-library:SelectionStore"
 }

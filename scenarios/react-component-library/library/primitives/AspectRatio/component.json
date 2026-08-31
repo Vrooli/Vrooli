@@ -2,39 +2,15 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.aspect-ratio",
-  "category": "layout",
   "deprecatedVersions": [
     "1.0.0",
     "1.0.1"
   ],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "AspectRatio",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
     "1.0.0"
   ],
-  "kind": "shell",
   "latest": "1.0.2",
-  "libraryId": "react-component-library:AspectRatio",
-  "slot": "ui-primitive",
-  "tags": [
-    "primitive",
-    "layout",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:AspectRatio"
 }

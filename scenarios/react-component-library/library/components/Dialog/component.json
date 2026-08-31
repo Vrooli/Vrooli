@@ -2,29 +2,12 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "overlays.dialog",
-  "category": "overlays",
   "deprecatedVersions": [
     "1.2.1",
     "1.2.2",
     "1.3.5",
     "1.1.0"
   ],
-  "description": "The modal or non-modal conversation surface with focus containment, inert background, reference-counted scroll lock, structured regions, async actions, and nested-overlay support.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "discouraged",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Dialog",
   "draft": "",
   "evictedVersions": [
     "1.2.1",
@@ -32,12 +15,6 @@
     "1.3.5",
     "1.1.0"
   ],
-  "kind": "overlay",
   "latest": "1.3.6",
-  "libraryId": "react-component-library:Dialog",
-  "slot": "ui-pattern",
-  "tags": [
-    "overlay",
-    "interactive"
-  ]
+  "libraryId": "react-component-library:Dialog"
 }

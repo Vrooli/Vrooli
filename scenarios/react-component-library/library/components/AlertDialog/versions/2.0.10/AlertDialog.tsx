@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AlertDialog
  * @displayName AlertDialog
- * @description The focused confirmation surface for consequential decisions, explaining impact, separating safe from destructive actions, and resisting accidental dismissal.
  * @version 2.0.10
  * @tags ["overlay","confirmation","destructive","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

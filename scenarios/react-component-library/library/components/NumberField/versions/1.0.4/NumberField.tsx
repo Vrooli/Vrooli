@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:NumberField
  * @displayName Number Field
- * @description Bounded numeric input with joined steppers, a bound unit suffix, and draft-then-commit editing.
  * @version 1.0.4
  * @tags ["form","control","token-bound","numeric"]
  * @deps {"react":"^18"}

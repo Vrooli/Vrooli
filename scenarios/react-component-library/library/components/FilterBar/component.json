@@ -8,14 +8,6 @@
     "1.1.5",
     "1.0.0"
   ],
-  "description": "A responsive query surface with search, active-filter chips, reset, and explicit apply semantics.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "FilterBar",
   "draft": "",
   "evictedVersions": [
     "1.1.3",
@@ -23,20 +15,6 @@
     "1.1.5",
     "1.0.0"
   ],
-  "kind": "surface",
   "latest": "1.1.6",
-  "libraryId": "react-component-library:FilterBar",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "data-display",
-    "form",
-    "token-bound",
-    "responsive",
-    "keyboard"
-  ]
+  "libraryId": "react-component-library:FilterBar"
 }

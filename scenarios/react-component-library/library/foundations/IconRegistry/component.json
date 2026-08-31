@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.icon-registry",
-  "description": "A small semantic icon registry with consistent optical sizing and direction metadata.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Icon Registry",
-  "kind": "control",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:IconRegistry",
-  "tags": ["icons", "semantics", "rtl"]
+  "libraryId": "react-component-library:IconRegistry"
 }

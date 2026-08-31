@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "motion.transition",
-  "category": "motion",
   "deprecatedVersions": [
     "1.0.2",
     "1.0.4",
@@ -14,22 +13,6 @@
     "1.0.8",
     "1.0.9"
   ],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Transition",
   "draft": "",
   "evictedVersions": [
     "1.0.4",
@@ -42,9 +25,6 @@
     "1.0.8",
     "1.0.9"
   ],
-  "kind": "surface",
   "latest": "1.0.11",
-  "libraryId": "react-component-library:Transition",
-  "slot": "ui-primitive",
-  "tags": ["primitive", "motion", "reduced-motion", "token-bound"]
+  "libraryId": "react-component-library:Transition"
 }

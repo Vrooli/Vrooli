@@ -5,31 +5,10 @@
   "deprecatedVersions": [
     "1.0.0"
   ],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Cluster",
   "draft": "",
   "evictedVersions": [
     "1.0.0"
   ],
-  "kind": "surface",
   "latest": "1.0.1",
-  "libraryId": "react-component-library:Cluster",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Cluster"
 }

@@ -8,6 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCountMatrixFailuresRequiresFindingAttribution(t *testing.T) {
+	output := []byte(`{"cells":[{"verdict":"fail","finding_count":1},{"verdict":"fail","finding_count":0},{"verdict":"pass","finding_count":0},{"verdict":"unmeasured","finding_count":0}]}`)
+	got, err := countMatrixFailures(output)
+	require.NoError(t, err)
+	require.Equal(t, 1, got)
+}
+
 func TestBuildCorpusReportEmitsAllPlanInvariants(t *testing.T) {
 	root := t.TempDir()
 	version := filepath.Join(root, "scenarios/react-component-library/library/components/Panel/versions/1.0.0")
@@ -17,9 +24,14 @@ func TestBuildCorpusReportEmitsAllPlanInvariants(t *testing.T) {
 	report, err := BuildCorpusReport(root)
 	require.NoError(t, err)
 	require.Equal(t, "corpus-report/v1", report.SchemaVersion)
-	require.Len(t, report.Invariants, 20)
+	require.Len(t, report.Invariants, 26)
+	ids := make(map[string]bool, len(report.Invariants))
 	for _, invariant := range report.Invariants {
 		require.NotEmpty(t, invariant.ID)
 		require.NotEmpty(t, invariant.Unit)
+		ids[invariant.ID] = true
+	}
+	for _, id := range []string{"I7", "I8", "I9", "I12", "I13", "I18", "I20", "I21", "I22", "I23", "I24", "I25", "I26"} {
+		require.True(t, ids[id], "missing invariant %s", id)
 	}
 }

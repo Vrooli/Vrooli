@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useOverlaySurface
  * @displayName useOverlaySurface
- * @description Composes the shared lifecycle, focus, dismissal, portal, and motion contract for overlays.
  * @version 1.3.12
  * @tags ["runtime","overlay","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

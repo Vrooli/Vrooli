@@ -11,22 +11,6 @@
     "1.2.3",
     "1.2.4"
   ],
-  "description": "The menu family covering dropdowns and submenus with roving focus, typeahead, check and radio items, safe pointer corridors, shortcut hints, and async item actions.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Menu",
   "draft": "",
   "evictedVersions": [
     "1.1.1",
@@ -37,15 +21,6 @@
     "1.2.3",
     "1.2.4"
   ],
-  "kind": "overlay",
   "latest": "1.2.5",
-  "libraryId": "react-component-library:Menu",
-  "tags": [
-    "overlay",
-    "menu",
-    "keyboard",
-    "typeahead",
-    "accessibility",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Menu"
 }

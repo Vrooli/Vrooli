@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useFocusTrap
  * @displayName useFocusTrap
- * @description Reusable focus containment primitive for accessible overlays.
  * @version 1.1.0
  * @tags ["accessibility","focus","overlay"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

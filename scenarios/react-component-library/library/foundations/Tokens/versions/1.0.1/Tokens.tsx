@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Tokens
  * @displayName Tokens
- * @description Typed semantic ramps shared by every Vrooli surface.
  * @version 1.0.1
  * @tags ["tokens","design-system","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

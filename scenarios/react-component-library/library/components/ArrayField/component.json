@@ -2,27 +2,19 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.array-field",
-  "deprecatedVersions": ["1.0.1", "1.0.2", "1.0.0", "1.0.3"],
-  "description": "A store-backed repeating field with constrained add, duplicate, remove, and keyboard-safe reorder actions.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.2",
+    "1.0.0",
+    "1.0.3"
   ],
-  "displayName": "ArrayField",
   "draft": "",
-  "evictedVersions": ["1.0.1", "1.0.2", "1.0.0", "1.0.3"],
-  "kind": "input",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.2",
+    "1.0.0",
+    "1.0.3"
+  ],
   "latest": "1.0.4",
-  "libraryId": "react-component-library:ArrayField",
-  "tags": ["form", "array", "validation", "responsive", "token-bound"]
+  "libraryId": "react-component-library:ArrayField"
 }

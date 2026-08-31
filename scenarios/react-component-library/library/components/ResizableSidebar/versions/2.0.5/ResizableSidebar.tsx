@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ResizableSidebar
  * @displayName ResizableSidebar
- * @description A sidebar preset over the shared resize primitive: navigation-shaped defaults, pointer and keyboard resizing, persisted width.
  * @version 2.0.5
  * @tags ["navigation","responsive","token-bound"]
  * @deps {"react":"^18","react-component-library:Resizable":"^2.0.0"}

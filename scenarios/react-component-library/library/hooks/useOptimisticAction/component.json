@@ -6,26 +6,11 @@
     "1.0.0",
     "1.0.1"
   ],
-  "description": "An optimistic state controller that applies a predicted change immediately and deterministically commits or rolls it back once the operation settles.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useOptimisticAction",
   "draft": "",
   "evictedVersions": [
     "1.0.0",
     "1.0.1"
   ],
-  "kind": "control",
   "latest": "1.0.2",
-  "libraryId": "react-component-library:useOptimisticAction",
-  "tags": [
-    "runtime",
-    "async",
-    "optimistic",
-    "recovery"
-  ]
+  "libraryId": "react-component-library:useOptimisticAction"
 }

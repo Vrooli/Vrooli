@@ -14,22 +14,6 @@
     "1.0.0",
     "2.0.9"
   ],
-  "description": "The focused confirmation surface for consequential decisions, explaining impact, separating safe from destructive actions, and resisting accidental dismissal.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "AlertDialog",
   "draft": "",
   "evictedVersions": [
     "1.0.4",
@@ -43,14 +27,6 @@
     "1.0.0",
     "2.0.9"
   ],
-  "kind": "overlay",
   "latest": "2.0.10",
-  "libraryId": "react-component-library:AlertDialog",
-  "tags": [
-    "overlay",
-    "confirmation",
-    "destructive",
-    "accessibility",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:AlertDialog"
 }

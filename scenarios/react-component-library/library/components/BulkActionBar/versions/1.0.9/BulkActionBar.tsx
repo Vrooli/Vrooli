@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:BulkActionBar
  * @displayName BulkActionBar
- * @description The contextual action surface activated by selection, showing counts and scope, guarding destructive operations, and reporting progress, partial failure, and cancellation.
  * @version 1.0.9
  * @tags ["data-display","selection","async","recovery","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

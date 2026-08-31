@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Inline
  * @displayName Inline
- * @description Inline lays out content on the inline axis with wrapping and alignment.
  * @version 1.1.1
  * @tags ["primitive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.swipe-actions",
-  "category": "patterns",
   "deprecatedVersions": [
     "1.0.0",
     "1.0.3",
@@ -13,22 +12,6 @@
     "1.2.0",
     "1.2.1"
   ],
-  "description": "Reveals row actions behind any content with a staged, handedness-aware drag that composes inside a swipe-to-close drawer.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "native",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "discouraged",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Swipe Actions",
   "draft": "",
   "evictedVersions": [
     "1.0.0",
@@ -42,9 +25,6 @@
     "1.2.0",
     "1.2.1"
   ],
-  "kind": "surface",
   "latest": "1.2.2",
-  "libraryId": "react-component-library:SwipeActions",
-  "slot": "ui-pattern",
-  "tags": ["gesture", "list", "mobile", "accessibility"]
+  "libraryId": "react-component-library:SwipeActions"
 }

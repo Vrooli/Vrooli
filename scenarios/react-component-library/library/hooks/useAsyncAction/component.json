@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-async-action",
-  "description": "Production-ready useAsyncAction hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useAsyncAction",
-  "kind": "control",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:useAsyncAction",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useAsyncAction"
 }

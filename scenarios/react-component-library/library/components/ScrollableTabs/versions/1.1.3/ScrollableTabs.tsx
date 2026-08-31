@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ScrollableTabs
  * @displayName ScrollableTabs
- * @description A compatibility delegate to Tabs, retained so existing pins keep resolving.
  * @version 1.1.3
  * @tags ["navigation","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

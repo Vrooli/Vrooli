@@ -6,24 +6,11 @@
     "1.0.0",
     "1.0.1"
   ],
-  "description": "A semantic tabular surface with honest headings and responsive overflow boundaries.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Table",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
     "1.0.0"
   ],
-  "kind": "control",
   "latest": "1.0.2",
-  "libraryId": "react-component-library:Table",
-  "tags": [
-    "data-display",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Table"
 }

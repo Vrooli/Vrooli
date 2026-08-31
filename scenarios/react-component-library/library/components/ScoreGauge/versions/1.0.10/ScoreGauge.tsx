@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ScoreGauge
  * @displayName ScoreGauge
- * @description A bounded score summary with an explicit threshold and accessible value.
  * @version 1.0.10
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:CardGrid
  * @displayName Card Grid
- * @description A responsive card arrangement that establishes a raised surface context for repeated records.
  * @version 1.0.3
  * @tags ["pattern","layout","context-aware"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:IconGeometry
  * @displayName Icon Geometry
- * @description Converts arbitrary SVG icon markup into sampled, morph-ready geometry and scores whether two icons should morph or crossfade.
  * @version 1.0.0
  * @tags ["foundation","icons","geometry","motion"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

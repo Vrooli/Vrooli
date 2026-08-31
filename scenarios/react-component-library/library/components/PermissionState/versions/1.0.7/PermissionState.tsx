@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:PermissionState
  * @displayName PermissionState
- * @description A permission-aware state that gives the user a clear next action without exposing unauthorized content.
  * @version 1.0.7
  * @tags ["feedback","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

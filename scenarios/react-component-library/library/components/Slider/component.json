@@ -7,17 +7,7 @@
     "1.1.0",
     "1.1.1"
   ],
-  "description": "A token-bound range control with native semantics, separated live and committed change, and optional ticks, marks, and a default marker.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Slider",
   "draft": "",
-  "entry": "Slider.tsx",
   "evictedVersions": [
     "1.0.2",
     "1.0.1",
@@ -25,14 +15,6 @@
     "1.1.0",
     "1.1.1"
   ],
-  "kind": "control",
   "latest": "1.1.2",
-  "libraryId": "react-component-library:Slider",
-  "tags": [
-    "controls",
-    "input",
-    "accessibility",
-    "gesture",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Slider"
 }

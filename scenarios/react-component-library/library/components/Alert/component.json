@@ -10,22 +10,6 @@
     "1.0.5",
     "1.0.2"
   ],
-  "description": "A semantic local message surface for information, success, warning, or error with resilient actions and dismissal.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Alert",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -35,14 +19,6 @@
     "1.0.5",
     "1.0.2"
   ],
-  "kind": "surface",
   "latest": "1.0.6",
-  "libraryId": "react-component-library:Alert",
-  "tags": [
-    "feedback",
-    "status",
-    "recovery",
-    "accessibility",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Alert"
 }

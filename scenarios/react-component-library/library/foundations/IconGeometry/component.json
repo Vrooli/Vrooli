@@ -3,18 +3,7 @@
   "assetKind": "foundation",
   "catalogId": "foundations.icon-geometry",
   "deprecatedVersions": [],
-  "description": "Converts arbitrary SVG icon markup into sampled, morph-ready geometry and scores whether two icons should morph or crossfade.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Icon Geometry",
   "draft": "",
-  "entry": "IconGeometry.ts",
-  "kind": "control",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:IconGeometry",
-  "tags": ["foundation", "icons", "geometry", "motion"]
+  "libraryId": "react-component-library:IconGeometry"
 }

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:PendingSyncBadge
  * @displayName PendingSyncBadge
- * @description Durable Class B outbox backlog indicator.
  * @version 1.0.5
  * @tags ["monetization","outbox"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Presence
  * @displayName Presence
- * @description
  * @version 1.0.2
  * @tags ["primitive","motion","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

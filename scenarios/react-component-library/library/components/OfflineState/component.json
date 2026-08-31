@@ -2,19 +2,19 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.offline-state",
-  "deprecatedVersions": ["1.0.2", "1.0.4", "1.0.3", "1.0.5"],
-  "description": "The connectivity composition explaining what still works offline, what has been queued, when the surface last synchronized, and what reconnection will do.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4",
+    "1.0.3",
+    "1.0.5"
   ],
-  "displayName": "OfflineState",
   "draft": "",
-  "evictedVersions": ["1.0.4", "1.0.3", "1.0.2", "1.0.5"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.3",
+    "1.0.2",
+    "1.0.5"
+  ],
   "latest": "1.0.6",
-  "libraryId": "react-component-library:OfflineState",
-  "tags": ["feedback", "async", "token-bound"]
+  "libraryId": "react-component-library:OfflineState"
 }

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ObjectField
  * @displayName ObjectField
- * @description The nested-object field grouping child fields, collapsing sections, summarizing nested errors, supporting optional objects, and preserving per-field subscriptions.
  * @version 1.0.8
  * @tags ["form","object","nested","validation","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

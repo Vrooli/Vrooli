@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:CanvasFrame
  * @displayName CanvasFrame
- * @description The shared preview substrate that owns fit, background, and specimen placement for focus and canvas views.
  * @version 1.0.2
  * @tags ["preview","layout","canvas"]
  * @deps {"react":"^18"}

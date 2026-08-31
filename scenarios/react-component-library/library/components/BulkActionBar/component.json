@@ -12,22 +12,6 @@
     "1.0.8",
     "1.0.4"
   ],
-  "description": "The contextual action surface activated by selection, showing counts and scope, guarding destructive operations, and reporting progress, partial failure, and cancellation.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "BulkActionBar",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -39,20 +23,6 @@
     "1.0.8",
     "1.0.4"
   ],
-  "kind": "control",
   "latest": "1.0.9",
-  "libraryId": "react-component-library:BulkActionBar",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "data-display",
-    "selection",
-    "async",
-    "recovery",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:BulkActionBar"
 }

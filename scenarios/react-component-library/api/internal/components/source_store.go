@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"react-component-library/internal/libspec"
 )
 
 const defaultInitialVersion = "0.1.0"
@@ -304,8 +306,13 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 		if err := scaffoldStoryFile(filepath.Dir(sourceAbs)); err != nil {
 			return "", "", err
 		}
-		if err := scaffoldExperienceContractFile(filepath.Dir(sourceAbs), mf.Kind, libraryID, displayName, version); err != nil {
-			return "", "", err
+		// Experience contracts belong to the scenario-level authority. Keep the
+		// legacy scaffold only for isolated fixture roots that have no canonical
+		// experience tree; real library writes must not create a version peer.
+		if repositoryRootFromLibrary(s.root) == "" {
+			if err := scaffoldExperienceContractFile(filepath.Dir(sourceAbs), mf.Kind, libraryID, displayName, version); err != nil {
+				return "", "", err
+			}
 		}
 	}
 	return manifestPath, sourcePath, nil
@@ -444,12 +451,12 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	if err := s.formatSourceArtifacts(versionDir); err != nil {
 		return "", err
 	}
-	if in.ParityReport != nil {
+	if in.ParityReport != nil && repositoryRootFromLibrary(s.root) == "" {
 		if err := writeParityReport(filepath.Join(filepath.Dir(sourceAbs), "parity.json"), *in.ParityReport); err != nil {
 			return "", err
 		}
 	}
-	if strings.TrimSpace(in.ExperienceContract) != "" {
+	if strings.TrimSpace(in.ExperienceContract) != "" && repositoryRootFromLibrary(s.root) == "" {
 		contract := []byte(in.ExperienceContract)
 		formatted, formatErr := canonicalJSON(contract)
 		if formatErr != nil {
@@ -513,14 +520,11 @@ type LibraryPackageSpecifier struct {
 // that need to reason about imports. Keeping the regexp here prevents token
 // sync, retention, and release freezing from drifting into distinct grammars.
 func LibraryPackageSpecifiers(source string) []LibraryPackageSpecifier {
-	matches := libraryPackageSpecifier.FindAllStringSubmatch(source, -1)
-	result := make([]LibraryPackageSpecifier, 0, len(matches))
+	parsed := libspec.ParseAll(source)
+	result := make([]LibraryPackageSpecifier, 0, len(parsed))
 	seen := map[LibraryPackageSpecifier]bool{}
-	for _, match := range matches {
-		if len(match) != 3 {
-			continue
-		}
-		specifier := LibraryPackageSpecifier{Name: match[1], RequestedVersion: match[2]}
+	for _, parsedSpecifier := range parsed {
+		specifier := LibraryPackageSpecifier{Name: parsedSpecifier.Name, RequestedVersion: parsedSpecifier.Selector}
 		if !seen[specifier] {
 			seen[specifier] = true
 			result = append(result, specifier)

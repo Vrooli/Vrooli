@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const scenarioRoot = path.resolve(import.meta.dirname, "../..");
-const harnessRoot = path.join(scenarioRoot, "library", "preview-harnesses");
+const harnessRoot = path.join(scenarioRoot, "harnesses");
 const manifestPath = path.join(harnessRoot, "manifest.json");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 const referenceStoriesPath = path.join(harnessRoot, manifest.referenceStories ?? "");

@@ -8,15 +8,34 @@
     "kind": "fixture",
     "domain": "fixtures",
     "description": "Deterministic workspace navigation with active, disabled, nested, and alert-bearing entries.",
-    "targets": ["react-vite"],
+    "targets": [
+      "react-vite"
+    ],
     "slot": "fixture",
     "delivery": "adopted",
-    "target": { "priority": "P0", "maturity": "verified" }
+    "target": {
+      "priority": "P0",
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
+    }
   },
   "fixture": {
-    "dataShapes": ["empty", "typical", "overflow", "failure"],
-    "satisfies": { "capability": "data-source", "typeArguments": ["NavigationNode"] },
-    "recordCount": { "typical": 8, "volume": 40 }
+    "dataShapes": [
+      "empty",
+      "typical",
+      "overflow",
+      "failure"
+    ],
+    "satisfies": {
+      "capability": "data-source",
+      "typeArguments": [
+        "NavigationNode"
+      ]
+    },
+    "recordCount": {
+      "typical": 8,
+      "volume": 40
+    }
   },
   "rationale": "Navigation stories need realistic hierarchy, current location, disabled destinations, and notification counts so a sidebar cannot pass with placeholder labels only."
 }

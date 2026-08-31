@@ -6,30 +6,11 @@
     "1.0.4",
     "1.0.5"
   ],
-  "description": "A results surface that distinguishes no matches from an empty collection and preserves query context.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "SearchResults",
   "draft": "",
   "evictedVersions": [
     "1.0.4",
     "1.0.5"
   ],
-  "kind": "input",
   "latest": "1.0.6",
-  "libraryId": "react-component-library:SearchResults",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "data-display",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:SearchResults"
 }

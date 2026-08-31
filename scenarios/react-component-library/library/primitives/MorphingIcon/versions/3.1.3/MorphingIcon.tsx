@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:MorphingIcon
  * @displayName MorphingIcon
- * @description Animates between any two icons, path-morphing when their geometry is compatible and crossfading when it is not.
  * @version 3.1.3
  * @tags ["primitive","motion","icon","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

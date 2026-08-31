@@ -10,22 +10,6 @@
     "1.0.5",
     "1.0.0"
   ],
-  "description": "A semantic form grouping with responsive rhythm, optional collapse, summaries, and visible validation counts.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "FormSection",
   "draft": "",
   "evictedVersions": [
     "1.0.2",
@@ -35,14 +19,6 @@
     "1.0.0",
     "1.0.1"
   ],
-  "kind": "input",
   "latest": "1.0.6",
-  "libraryId": "react-component-library:FormSection",
-  "tags": [
-    "form",
-    "layout",
-    "validation",
-    "responsive",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:FormSection"
 }

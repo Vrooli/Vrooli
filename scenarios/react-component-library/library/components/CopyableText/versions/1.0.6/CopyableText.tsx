@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:CopyableText
  * @displayName CopyableText
- * @description A compact text value with a clear copy affordance and stable feedback state.
  * @version 1.0.6
  * @tags ["primitive","feedback","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

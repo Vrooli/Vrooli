@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:QuarantineBadge
  * @displayName QuarantineBadge
- * @description A visible non-discriminating gate quarantine state.
  * @version 1.0.6
  * @tags ["feedback","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

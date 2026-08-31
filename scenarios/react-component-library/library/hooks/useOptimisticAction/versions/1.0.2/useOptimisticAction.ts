@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useOptimisticAction
  * @displayName useOptimisticAction
- * @description An optimistic state controller that applies a predicted change immediately and deterministically commits or rolls it back once the operation settles.
  * @version 1.0.2
  * @tags ["runtime","async","optimistic","recovery"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

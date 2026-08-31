@@ -2,7 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.empty-state",
-  "category": "feedback",
   "deprecatedVersions": [
     "1.7.5",
     "1.1.0",
@@ -17,22 +16,6 @@
     "1.7.8",
     "1.7.9"
   ],
-  "description": "Compact empty-state panel with icon, copy, and optional action slots.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Empty State",
   "draft": "",
   "evictedVersions": [
     "1.7.6",
@@ -48,15 +31,6 @@
     "1.7.8",
     "1.7.9"
   ],
-  "kind": "surface",
   "latest": "1.7.14",
-  "libraryId": "react-component-library:EmptyState",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "slot": "ui-pattern",
-  "tags": ["feedback", "surface"]
+  "libraryId": "react-component-library:EmptyState"
 }

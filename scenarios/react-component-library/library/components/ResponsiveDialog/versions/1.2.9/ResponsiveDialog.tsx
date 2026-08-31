@@ -12,8 +12,7 @@ import { Icon } from "@vrooli/react-component-library/Icon/1";
 import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { useBreakpoint } from "@vrooli/react-component-library/useMediaQuery/1";
 import { useOverlaySurface } from "@vrooli/react-component-library/useOverlaySurface/1";
-import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
-import { responsiveDialogStyles } from "./styles";
+import "./ResponsiveDialog.css";
 
 /** The inline size the centered presentation takes at and above the medium breakpoint. */
 export type ResponsiveDialogSize = "sm" | "md" | "lg";
@@ -104,7 +103,6 @@ export function ResponsiveDialog({
   contentClassName,
   backdropClassName,
 }: ResponsiveDialogProps) {
-  useLibraryStyleSheet("responsive-dialog-1.1.7", responsiveDialogStyles);
   const desktop = useBreakpoint("md");
   const showGrabber = dismissAffordance === "grabber" || (dismissAffordance === "auto" && !desktop);
   const overlay = useOverlaySurface({

@@ -72,7 +72,7 @@
     "catalog:check": "pnpm run exports:check && pnpm run type-check:catalog && pnpm run lint:catalog",
     "census": "node scripts/ecosystem-census.mjs",
     "dev": "vrooli lifecycle protect -- vite",
-    "exports:check": "node ../../../packages/react-component-library/scripts/sync-exports.mjs --check",
+    "exports:check": "node ../../../packages/react-component-library/tooling/sync-exports.mjs --check",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css,json}\"",
     "lint": "eslint . && pnpm lint:preview-assets",

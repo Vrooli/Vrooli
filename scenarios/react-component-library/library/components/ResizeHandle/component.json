@@ -2,21 +2,17 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "manipulation.resize-handle",
-  "category": "manipulation",
-  "deprecatedVersions": ["1.0.1", "1.0.0", "1.0.2"],
-  "description": "The drag affordance for a resizable region: a wide pointer target carrying a thin visual seam, operable by pointer and keyboard alike.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "1.0.2"
   ],
-  "displayName": "Resize Handle",
   "draft": "",
-  "evictedVersions": ["1.0.1", "1.0.0", "1.0.2"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0",
+    "1.0.2"
+  ],
   "latest": "1.0.3",
-  "libraryId": "react-component-library:ResizeHandle",
-  "slot": "ui-primitive",
-  "tags": ["manipulation", "interaction", "token-bound", "accessibility"]
+  "libraryId": "react-component-library:ResizeHandle"
 }

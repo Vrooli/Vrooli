@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Resizable
  * @displayName Resizable
- * @description A bounded resizable region on either logical axis, with keyboard operation, snapping, a collapse threshold and persisted size.
  * @version 2.0.4
  * @tags ["layout","interaction","token-bound"]
  * @deps {"react":"^18","react-component-library:useResizablePanel":"^1.0.0","react-component-library:ResizeHandle":"^1.0.0"}

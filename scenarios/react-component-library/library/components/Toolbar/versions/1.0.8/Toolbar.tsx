@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Toolbar
  * @displayName Toolbar
- * @description The composite action row with roving focus, logical groups, separators, overflow menu, responsive collapse, and shortcut hints.
  * @version 1.0.8
  * @tags ["controls","navigation","keyboard","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

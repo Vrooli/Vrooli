@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:NavigationTree
  * @displayName NavigationTree
- * @description The hierarchical navigation collection with expansion, selection, keyboard traversal, lazily loaded children, filtering, virtualization, persisted open state, and accessible tree semantics.
  * @version 1.1.8
  * @tags ["navigation","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

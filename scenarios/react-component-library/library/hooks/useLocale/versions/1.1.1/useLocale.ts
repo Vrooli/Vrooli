@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useLocale
  * @displayName useLocale
- * @description A locale primitive exposing formatting, collation, segmentation, calendar behavior, and localized accessibility labels through the localization adapter.
  * @version 1.1.1
  * @tags ["runtime","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

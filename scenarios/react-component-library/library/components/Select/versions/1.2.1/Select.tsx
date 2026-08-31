@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Select
  * @displayName Select
- * @description Native select wrapper styled with Vrooli tokens and mobile-safe control sizing.
  * @version 1.2.1
  * @tags ["form","interactive"]
  * @deps {"react":"^18"}

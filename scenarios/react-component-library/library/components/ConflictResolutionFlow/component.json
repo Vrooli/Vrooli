@@ -12,22 +12,6 @@
     "1.0.8",
     "1.0.9"
   ],
-  "description": "The concurrency workflow comparing local and remote change, explaining what conflicts, supporting field-level resolution, and retrying against the current version.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "ConflictResolutionFlow",
   "draft": "",
   "evictedVersions": [
     "1.0.5",
@@ -39,21 +23,6 @@
     "1.0.8",
     "1.0.9"
   ],
-  "kind": "surface",
   "latest": "1.0.10",
-  "libraryId": "react-component-library:ConflictResolutionFlow",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "patterns",
-    "conflict",
-    "recovery",
-    "forms",
-    "accessibility",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:ConflictResolutionFlow"
 }

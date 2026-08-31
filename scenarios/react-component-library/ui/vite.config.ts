@@ -4,7 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 import assetStamp from "./scripts/vite-plugin-asset-stamp.mjs";
-import { sourceLibraryResolver } from "../../../packages/react-component-library/scripts/resolve-specifier.mjs";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
 const libraryRoot = resolve(rootDir, "../library");

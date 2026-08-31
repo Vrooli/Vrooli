@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "asset": {
+    "id": "react-component-library:SettingsList",
+    "name": "Settings List",
+    "kind": "component",
+    "domain": "legacy",
+    "description": "Reusable settings list component implementation for the React component library.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-pattern",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "verified"
+    }
+  }
+}

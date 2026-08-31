@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-typeahead",
-  "description": "Production-ready useTypeahead hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useTypeahead",
-  "kind": "surface",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:useTypeahead",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useTypeahead"
 }

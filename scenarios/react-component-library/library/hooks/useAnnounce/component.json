@@ -6,23 +6,10 @@
     "1.0.0",
     "1.0.1"
   ],
-  "description": "A live-region primitive that queues, deduplicates, and times screen-reader messages through the shared announcer rather than creating competing regions.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useAnnounce",
   "draft": "",
   "evictedVersions": [
     "1.0.1"
   ],
-  "kind": "surface",
   "latest": "1.0.2",
-  "libraryId": "react-component-library:useAnnounce",
-  "tags": [
-    "runtime",
-    "accessibility"
-  ]
+  "libraryId": "react-component-library:useAnnounce"
 }

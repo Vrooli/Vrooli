@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Switch
  * @displayName Switch
- * @description The binary settings control with spring-driven thumb motion, label association, loading state for remotely persisted settings, and read-only and disabled treatments.
  * @version 1.0.12
  * @tags ["controls","selection","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

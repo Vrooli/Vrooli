@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Cluster
  * @displayName Cluster
- * @description Cluster groups variable-width items while keeping baseline alignment predictable.
  * @version 1.0.1
  * @tags ["primitive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

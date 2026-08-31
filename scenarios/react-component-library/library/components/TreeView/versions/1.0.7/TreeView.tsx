@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:TreeView
  * @displayName TreeView
- * @description The hierarchical collection with lazily loaded nodes, expansion, selection, keyboard traversal, drag reordering, filtering, virtualization, and accessible tree semantics.
  * @version 1.0.7
  * @tags ["data-display","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

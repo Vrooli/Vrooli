@@ -3,18 +3,10 @@
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-disclosure",
   "deprecatedVersions": [],
-  "description": "Production-ready useDisclosure hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useDisclosure",
   "draft": "",
-  "evictedVersions": ["1.0.0"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "latest": "1.1.0",
-  "libraryId": "react-component-library:useDisclosure",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useDisclosure"
 }

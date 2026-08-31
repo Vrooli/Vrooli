@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:VersionRow
  * @displayName VersionRow
- * @description A compact version-history row composed from published data-display assets.
  * @version 1.0.6
  * @tags ["component","data-display","versions","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

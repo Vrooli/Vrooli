@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:GestureDirection
  * @displayName Gesture Direction
- * @description Resolves a semantic gesture intent to a physical screen direction from writing direction and anchor edge, which are independent inputs.
  * @version 1.0.0
  * @tags ["foundations","gesture","accessibility","internationalization"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

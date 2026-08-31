@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-element-rect",
-  "description": "ResizeObserver-backed border-box geometry with animation-frame batched reads.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useElementRect",
-  "kind": "surface",
   "latest": "2.0.0",
-  "libraryId": "react-component-library:useElementRect",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useElementRect"
 }

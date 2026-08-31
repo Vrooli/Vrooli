@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:PreviewDock
  * @displayName PreviewDock
- * @description Overlay controls that keep preview navigation visible without taking space from the specimen.
  * @version 1.0.2
  * @tags ["preview","chrome","responsive"]
  * @deps {"react":"^18"}

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AspectRatio
  * @displayName AspectRatio
- * @description
  * @version 1.0.2
  * @tags ["primitive","layout","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:VisualRecipes
  * @displayName Visual Recipes
- * @description
  * @version 1.0.2
  * @tags ["recipes","variants","tokens"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:MetricBreakdown
  * @displayName MetricBreakdown
- * @description A compact labeled metric list with numerator and denominator context.
  * @version 1.0.6
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

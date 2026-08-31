@@ -9,14 +9,6 @@
     "1.0.0",
     "1.0.5"
   ],
-  "description": "A compact selectable token that preserves a full touch target while remaining visually quiet in dense collections.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Chip",
   "draft": "",
   "evictedVersions": [
     "1.0.2",
@@ -25,12 +17,6 @@
     "1.0.0",
     "1.0.5"
   ],
-  "kind": "control",
   "latest": "1.0.6",
-  "libraryId": "react-component-library:Chip",
-  "tags": [
-    "primitive",
-    "control",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Chip"
 }

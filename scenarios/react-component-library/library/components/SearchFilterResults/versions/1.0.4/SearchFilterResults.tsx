@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:SearchFilterResults
  * @displayName SearchFilterResults
- * @description A URL-ready search and filter composition that separates no-match emptiness from loading and error states.
  * @version 1.0.4
  * @tags ["pattern","data-source","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

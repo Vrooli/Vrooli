@@ -37,6 +37,18 @@
           "max_bytes": "1MiB",
           "rationale": "Retention receipts are bounded JSON records and must remain durable for auditability."
         }
+      },
+      "retired": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "library/.retired",
+        "regenerable": false,
+        "rationale": "Cold release source is retained for immutable-version recovery until the governed reaper's retention window expires.",
+        "budget": {
+          "max_bytes": "64MiB",
+          "rationale": "The retired source tier is currently about 19MiB; the ceiling bounds cold history while leaving room for normal release turnover."
+        }
       }
     },
     "rationale": "Storage surfaces include component data and durable gate evidence in the scenario state class."

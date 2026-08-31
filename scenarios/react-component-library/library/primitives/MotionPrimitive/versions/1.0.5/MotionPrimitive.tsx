@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:MotionPrimitive
  * @displayName MotionPrimitive
- * @description
  * @version 1.0.5
  * @tags ["primitive","motion","reduced-motion","token-bound","no-layout-animation"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

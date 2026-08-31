@@ -2,33 +2,19 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.scroll-area",
-  "deprecatedVersions": ["1.0.1", "1.0.3", "1.0.2", "1.0.4"],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.3",
+    "1.0.2",
+    "1.0.4"
   ],
-  "displayName": "ScrollArea",
   "draft": "",
-  "evictedVersions": ["1.0.3", "1.0.2", "1.0.1", "1.0.4"],
-  "kind": "surface",
-  "latest": "1.0.5",
-  "libraryId": "react-component-library:ScrollArea",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.2",
+    "1.0.1",
+    "1.0.4"
   ],
-  "tags": ["primitive", "token-bound"]
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:ScrollArea"
 }

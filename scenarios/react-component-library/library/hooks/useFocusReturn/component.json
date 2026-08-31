@@ -3,18 +3,10 @@
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-focus-return",
   "deprecatedVersions": [],
-  "description": "Production-ready useFocusReturn hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useFocusReturn",
   "draft": "",
-  "evictedVersions": ["1.0.0"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "latest": "1.1.0",
-  "libraryId": "react-component-library:useFocusReturn",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useFocusReturn"
 }

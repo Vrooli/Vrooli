@@ -1,7 +1,7 @@
 {
   "$schema": "../../test-genie/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Sample testing configuration for React + Vite template",
+  "description": "Scenario-owned tests for the React Component Library asset, generator, gate, and adoption workflows",
     "last_updated": "2026-05-03T00:00:00Z"
   },
   "version": "1.0.0",

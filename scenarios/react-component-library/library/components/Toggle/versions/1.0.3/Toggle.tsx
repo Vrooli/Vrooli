@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Toggle
  * @displayName Toggle
- * @description A token-bound pressed-state control composed over ControlBase with controlled state, native button semantics, and motion-safe feedback.
  * @version 1.0.3
  * @tags ["controls","selection","accessibility","motion","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

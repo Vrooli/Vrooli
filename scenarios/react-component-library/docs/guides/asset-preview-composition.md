@@ -38,7 +38,7 @@ own deterministic data or provider behavior.
 | Story identity, args, expectations, interactions | Version-local `story.json` and `concepts/STORY-CONTRACT.md`     | Story parser, indexer, and browser evaluator               |
 | Frame regions and accepted capabilities          | Frame catalog descriptor                                        | Frame registry and compatibility resolver                  |
 | Frame implementation version                     | `story.json` frame `version`                                    | Preview version resolver                                   |
-| Versioned harness implementation/export/config   | `story.json` `composition.harness` and `library/preview-harnesses/**` | Harness registry and path-safety checks              |
+| Versioned harness implementation/export/config   | `story.json` `composition.harness` and `harnesses/**` | Harness registry and path-safety checks              |
 | Unique behavior                                  | Version-local `story.tsx`                                       | Named-export validator and Preview runtime                 |
 | Deterministic external state                     | Fixture catalog asset and story environment                     | Fixture registry and frame resolver                        |
 | Production adoption                              | Component source and adoption manifest                          | Adoption closure validator; Preview artifacts are excluded |
@@ -98,7 +98,7 @@ Shared harnesses are Preview-only, versioned, typed renderers with an injected
 subject. They must not import a specific production component. They must not
 own story IDs, expectations, or interaction sequences.
 
-The registry at `library/preview-harnesses/manifest.json` is the source of
+The registry at `harnesses/manifest.json` is the source of
 truth for family applicability. Every family declares its supported subject
 kinds, required capability signals, and allowed configuration keys. A family
 is not valid because its TypeScript file compiles: it must pass

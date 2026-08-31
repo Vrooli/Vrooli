@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:useDirection
  * @displayName useDirection
- * @description Subscribes to the writing direction in force for a subtree so a direction change re-renders its consumers.
  * @version 2.1.3
  * @tags ["runtime","accessibility","internationalization"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -16,7 +16,8 @@
     "delivery": "generated",
     "target": {
       "priority": "P1",
-      "maturity": "verified"
+      "maturity": "verified",
+      "plannedBy": "2026-12-31"
     }
   },
   "dependencies": {

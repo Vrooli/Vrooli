@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:SubscriptionStatusCard
  * @displayName SubscriptionStatusCard
- * @description Hosted account status and lease-backed balance.
  * @version 1.0.5
  * @tags ["monetization","account"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

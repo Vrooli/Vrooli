@@ -7,14 +7,6 @@
     "2.0.1",
     "2.0.2"
   ],
-  "description": "Production-ready useSwipe hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useSwipe",
   "draft": "",
   "evictedVersions": [
     "2.0.0",
@@ -23,11 +15,6 @@
     "2.0.1",
     "2.0.2"
   ],
-  "kind": "surface",
   "latest": "2.0.4",
-  "libraryId": "react-component-library:useSwipe",
-  "tags": [
-    "runtime",
-    "accessibility"
-  ]
+  "libraryId": "react-component-library:useSwipe"
 }

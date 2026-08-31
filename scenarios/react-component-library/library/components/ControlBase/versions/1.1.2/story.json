@@ -41,7 +41,7 @@
     {
       "id": "size-xs",
       "name": "Extra small",
-      "role": "boundary",
+      "role": "anatomy",
       "mode": "pinned",
       "args": {
         "children": "XS",
@@ -59,7 +59,8 @@
     {
       "id": "size-sm",
       "name": "Small",
-      "role": "boundary",
+      "role": "axis",
+      "axis": "size",
       "mode": "pinned",
       "args": {
         "children": "SM",

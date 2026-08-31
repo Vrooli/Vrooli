@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:FormField
  * @displayName FormField
- * @description A complete accessible field composition with stable label, description, control, and error relationships.
  * @version 1.0.3
  * @tags ["form","accessibility","token-bound","compound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

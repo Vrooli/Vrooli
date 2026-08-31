@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:AsyncOptionsField
  * @displayName AsyncOptionsField
- * @description The reusable controller for remote choices with query debouncing, cancellation, caching, pagination, error handling, retry, and stale-result protection.
  * @version 1.0.8
  * @tags ["forms","async","combobox","accessibility","responsive","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

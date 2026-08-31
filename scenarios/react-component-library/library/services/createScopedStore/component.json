@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.create-scoped-store",
-  "description": "Scoped runtime service for predictable createScopedStore behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "createScopedStore",
-  "kind": "surface",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:createScopedStore",
-  "tags": ["runtime", "state"]
+  "libraryId": "react-component-library:createScopedStore"
 }

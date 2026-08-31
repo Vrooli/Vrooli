@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ErrorState
  * @displayName ErrorState
- * @description The recoverable failure composition with a plain-language explanation, a diagnostic-detail policy, retry, alternative actions, and support context that leaks nothing sensitive.
  * @version 1.0.8
  * @tags ["feedback","async","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

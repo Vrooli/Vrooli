@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:UpgradePrompt
  * @displayName UpgradePrompt
- * @description Hosted upgrade prompt for a gated capability.
  * @version 1.0.5
  * @tags ["monetization","upgrade"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -8,22 +8,6 @@
     "1.0.2",
     "1.0.4"
   ],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Skeleton",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -31,17 +15,6 @@
     "1.0.1",
     "1.0.4"
   ],
-  "kind": "surface",
   "latest": "1.0.5",
-  "libraryId": "react-component-library:Skeleton",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "libraryId": "react-component-library:Skeleton"
 }

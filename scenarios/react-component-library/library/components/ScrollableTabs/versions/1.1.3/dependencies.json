@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "libraryId": "react-component-library:ScrollableTabs",
   "version": "1.1.3",
-  "resolvedAt": "2026-08-31T05:19:22Z",
+  "resolvedAt": "2026-08-31T17:08:06.037Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:ClassMerge",
@@ -11,7 +11,7 @@
     },
     {
       "libraryId": "react-component-library:Tabs",
-      "version": "1.2.2",
+      "version": "1.2.3",
       "rank": 4
     }
   ]

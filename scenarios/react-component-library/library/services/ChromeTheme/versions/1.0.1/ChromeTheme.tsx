@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ChromeTheme
  * @displayName ChromeTheme
- * @description Scoped runtime service for predictable ChromeTheme behavior.
  * @version 1.0.1
  * @tags ["runtime","state"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

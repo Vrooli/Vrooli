@@ -2,16 +2,6 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-scroll-state",
-  "description": "Production-ready useScrollState hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "useScrollState",
-  "kind": "surface",
   "latest": "1.0.0",
-  "libraryId": "react-component-library:useScrollState",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useScrollState"
 }

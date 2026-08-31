@@ -2,29 +2,12 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.textarea",
-  "category": "forms",
   "deprecatedVersions": [
     "1.0.0",
     "1.0.1",
     "1.0.2",
     "1.1.0"
   ],
-  "description": "Token-bound multiline text input with mobile-safe sizing and accessible focus styling.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Textarea",
   "draft": "",
   "evictedVersions": [
     "1.0.0",
@@ -32,12 +15,6 @@
     "1.0.2",
     "1.1.0"
   ],
-  "kind": "input",
   "latest": "1.1.1",
-  "libraryId": "react-component-library:Textarea",
-  "slot": "ui-primitive",
-  "tags": [
-    "form",
-    "interactive"
-  ]
+  "libraryId": "react-component-library:Textarea"
 }

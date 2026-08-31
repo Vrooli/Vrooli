@@ -2,25 +2,15 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.progress-ladder",
-  "deprecatedVersions": ["1.0.4", "1.0.5"],
-  "description": "A rung-by-rung maturity ladder showing achieved and target states.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.5"
   ],
-  "displayName": "ProgressLadder",
   "draft": "",
-  "evictedVersions": ["1.0.4", "1.0.5"],
-  "kind": "surface",
-  "latest": "1.0.6",
-  "libraryId": "react-component-library:ProgressLadder",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.5"
   ],
-  "tags": ["data-display", "token-bound"]
+  "latest": "1.0.6",
+  "libraryId": "react-component-library:ProgressLadder"
 }

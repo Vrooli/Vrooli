@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:StatusIndicator
  * @displayName StatusIndicator
- * @description A compact live status signal with explicit semantic states and accessible status output.
  * @version 1.0.4
  * @tags ["primitive","feedback","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

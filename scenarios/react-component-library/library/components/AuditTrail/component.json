@@ -2,25 +2,19 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.audit-trail",
-  "deprecatedVersions": ["1.0.4", "1.0.5", "1.0.6", "1.0.0"],
-  "description": "An ordered activity surface that makes actor, action, and sequence legible.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.0"
   ],
-  "displayName": "AuditTrail",
   "draft": "",
-  "evictedVersions": ["1.0.4", "1.0.5", "1.0.6", "1.0.0"],
-  "kind": "surface",
-  "latest": "1.0.7",
-  "libraryId": "react-component-library:AuditTrail",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.0"
   ],
-  "tags": ["data-display", "token-bound"]
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:AuditTrail"
 }

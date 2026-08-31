@@ -2,33 +2,21 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.calendar",
-  "deprecatedVersions": ["1.0.3", "1.0.5", "1.0.4", "1.0.6", "1.0.7"],
-  "description": "The reusable calendar surface supporting single, multiple, range, week, and month selection with localization, constraints, keyboard navigation, and virtualized month rendering.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
+  "deprecatedVersions": [
+    "1.0.3",
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.7"
   ],
-  "displayName": "Calendar",
   "draft": "",
-  "evictedVersions": ["1.0.5", "1.0.3", "1.0.4", "1.0.6", "1.0.7"],
-  "kind": "input",
-  "latest": "1.0.8",
-  "libraryId": "react-component-library:Calendar",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
+  "evictedVersions": [
+    "1.0.5",
+    "1.0.3",
+    "1.0.4",
+    "1.0.6",
+    "1.0.7"
   ],
-  "tags": ["forms", "calendar", "date", "accessibility", "token-bound"]
+  "latest": "1.0.8",
+  "libraryId": "react-component-library:Calendar"
 }

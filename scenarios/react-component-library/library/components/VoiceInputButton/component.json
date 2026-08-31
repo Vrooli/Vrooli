@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "category": "inputs",
+  "catalogId": "react-component-library:VoiceInputButton",
   "deprecatedVersions": [
     "4.1.0",
     "4.2.0",
@@ -12,25 +12,15 @@
     "4.3.2",
     "4.3.3"
   ],
-  "description": "Accessible token-bound microphone control for a useVoiceInput lifecycle.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "native",
-      "styleId": "vrooli-command-display"
-    }
-  ],
-  "displayName": "Voice Input Button",
   "draft": "",
-  "entry": "VoiceInputButton.tsx",
-  "evictedVersions": ["3.0.0", "4.2.0", "4.1.0", "4.3.1", "4.3.2", "4.3.3"],
-  "kind": "input",
+  "evictedVersions": [
+    "3.0.0",
+    "4.2.0",
+    "4.1.0",
+    "4.3.1",
+    "4.3.2",
+    "4.3.3"
+  ],
   "latest": "4.3.4",
-  "libraryId": "react-component-library:VoiceInputButton",
-  "slot": "ui-primitive",
-  "supplemental": true,
-  "tags": ["voice", "microphone", "input", "accessibility"]
+  "libraryId": "react-component-library:VoiceInputButton"
 }

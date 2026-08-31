@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ToastManager
  * @displayName Toast Manager
- * @description A scoped transient-feedback service for queueing, deduping, updating, dismissing, and announcing toasts.
  * @version 1.0.1
  * @tags ["runtime","feedback","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

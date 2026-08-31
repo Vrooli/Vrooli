@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ValidationSummary
  * @displayName ValidationSummary
- * @description The form-level error summary grouping actionable failures, linking to the fields they concern, taking focus at the right moment, and avoiding duplication of every field message.
  * @version 1.0.8
  * @tags ["form","validation","accessibility","recovery"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

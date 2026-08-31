@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ButtonGroup
  * @displayName ButtonGroup
- * @description The coordinated group of related actions sharing borders and focus movement, with responsive collapse into an overflow menu and consistent disabled treatment.
  * @version 1.1.7
  * @tags ["control","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:UndoBanner
  * @displayName UndoBanner
- * @description A forgiving reversible-action surface with expiry, rollback progress, and recovery when undo fails.
  * @version 1.0.8
  * @tags ["feedback","recovery","undo","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

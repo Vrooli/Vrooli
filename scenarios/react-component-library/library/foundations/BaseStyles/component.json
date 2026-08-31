@@ -9,15 +9,6 @@
     "1.2.0",
     "1.2.1"
   ],
-  "description": "Shared control reset, accessibility treatments, and sizing tokens.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Base Styles",
   "draft": "",
   "evictedVersions": [
     "1.1.1",
@@ -26,13 +17,6 @@
     "1.2.0",
     "1.2.1"
   ],
-  "kind": "surface",
   "latest": "1.2.2",
-  "libraryId": "react-component-library:BaseStyles",
-  "slot": "foundation",
-  "tags": [
-    "styles",
-    "controls",
-    "accessibility"
-  ]
+  "libraryId": "react-component-library:BaseStyles"
 }

@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:EvidenceCarousel
  * @displayName EvidenceCarousel
- * @description A compact evidence reference strip for captures and diagnostics.
  * @version 1.0.14
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

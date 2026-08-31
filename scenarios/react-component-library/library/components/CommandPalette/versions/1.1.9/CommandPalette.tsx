@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:CommandPalette
  * @displayName CommandPalette
- * @description The global or scoped command interface with fuzzy search, recent actions, categories, keyboard navigation, argument collection, async execution, and command history.
  * @version 1.1.9
  * @tags ["overlay","command","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -11,11 +11,7 @@
     "1.0.8",
     "1.0.5"
   ],
-  "description": "The bounded-value visualization for capacity, quota, strength, or health, using semantic thresholds and explicitly not implying task progress.",
-  "designStyles": [],
-  "displayName": "BoundedMeter",
   "draft": "",
-  "entry": "BoundedMeter.tsx",
   "evictedVersions": [
     "1.0.4",
     "1.0.2",
@@ -25,19 +21,6 @@
     "1.0.8",
     "1.0.5"
   ],
-  "kind": "surface",
   "latest": "1.0.9",
-  "libraryId": "react-component-library:BoundedMeter",
-  "requires": [
-    {
-      "libraryId": "react-component-library:useLocale",
-      "version": "1.0.0"
-    }
-  ],
-  "tags": [
-    "primitive",
-    "token-bound",
-    "status",
-    "accessibility"
-  ]
+  "libraryId": "react-component-library:BoundedMeter"
 }

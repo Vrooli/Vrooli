@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:RadioGroup
  * @displayName RadioGroup
- * @description The single-selection collection with roving focus, optional card-style options carrying descriptions, disabled choices, responsive layout, and animated selection.
  * @version 1.0.6
  * @tags ["controls","selection","forms","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

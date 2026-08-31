@@ -37,6 +37,37 @@ func (h *handlers) corpusReport(_ cliapp.RunContext) error {
 	return cmd.Run()
 }
 
+func (h *handlers) census(ctx cliapp.RunContext, mode string) error {
+	root, err := scenarioRoot()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("go", "run", "./cmd/catalog-census", "--root", filepath.Join(root, "..", ".."), "--mode", mode) // #nosec G204 -- fixed command and repository-owned root
+	cmd.Dir = filepath.Join(root, "api")
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	return cmd.Run()
+}
+
+func (h *handlers) shapeCensus(ctx cliapp.RunContext) error { return h.census(ctx, "shape") }
+func (h *handlers) duplicationCensus(ctx cliapp.RunContext) error {
+	return h.census(ctx, "duplication")
+}
+
+func (h *handlers) build(ctx cliapp.RunContext) error {
+	root, err := scenarioRoot()
+	if err != nil {
+		return err
+	}
+	args := []string{"scripts/catalog-build.mjs"}
+	if ctx.BoolFlag("check") {
+		args = append(args, "--check")
+	}
+	cmd := exec.Command("node", args...) // #nosec G204 -- fixed repository-owned generator
+	cmd.Dir = filepath.Join(root, "..", "..", "packages", "react-component-library")
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	return cmd.Run()
+}
+
 func scenarioRoot() (string, error) {
 	starts := []string{}
 	if cwd, err := os.Getwd(); err == nil {

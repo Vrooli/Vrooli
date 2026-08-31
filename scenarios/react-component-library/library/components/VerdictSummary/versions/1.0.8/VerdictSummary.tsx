@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:VerdictSummary
  * @displayName VerdictSummary
- * @description A compact pass, fail, and unmeasured verdict census.
  * @version 1.0.8
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

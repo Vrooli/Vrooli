@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:DragDropStore
  * @displayName Drag Drop Store
- * @description A scoped interaction store for active drag state, position, velocity, and keyboard movement.
  * @version 1.0.1
  * @tags ["runtime","drag-drop","accessibility"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

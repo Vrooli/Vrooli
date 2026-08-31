@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:ConflictResolutionFlow
  * @displayName ConflictResolutionFlow
- * @description The concurrency workflow comparing local and remote change, explaining what conflicts, supporting field-level resolution, and retrying against the current version.
  * @version 1.0.10
  * @tags ["patterns","conflict","recovery","forms","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

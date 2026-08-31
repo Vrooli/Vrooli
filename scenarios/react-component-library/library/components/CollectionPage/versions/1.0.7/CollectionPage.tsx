@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:CollectionPage
  * @displayName CollectionPage
- * @description A collection template with URL-ready filtering, data-source-owned records, and recovery states.
  * @version 1.0.7
  * @tags ["template","page","data-source","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

@@ -2,27 +2,15 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.container",
-  "deprecatedVersions": ["1.1.2", "1.1.0"],
-  "description": "",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
+  "deprecatedVersions": [
+    "1.1.2",
+    "1.1.0"
   ],
-  "displayName": "Container",
   "draft": "",
-  "evictedVersions": ["1.1.0", "1.1.2"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.1.0",
+    "1.1.2"
+  ],
   "latest": "1.1.3",
-  "libraryId": "react-component-library:Container",
-  "tags": ["primitive", "token-bound"]
+  "libraryId": "react-component-library:Container"
 }

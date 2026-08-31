@@ -2,29 +2,17 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.card-grid",
-  "category": "patterns",
-  "deprecatedVersions": ["1.0.0", "1.0.1", "1.0.2"],
-  "description": "A responsive card arrangement that establishes a raised surface context for repeated records.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
   ],
-  "displayName": "Card Grid",
   "draft": "",
-  "evictedVersions": ["1.0.0", "1.0.1", "1.0.2"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
   "latest": "1.0.3",
-  "libraryId": "react-component-library:CardGrid",
-  "slot": "ui-pattern",
-  "tags": ["pattern", "layout", "context-aware"]
+  "libraryId": "react-component-library:CardGrid"
 }

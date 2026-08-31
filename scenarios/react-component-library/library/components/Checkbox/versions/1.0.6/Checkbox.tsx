@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Checkbox
  * @displayName Checkbox
- * @description The binary or indeterminate selection control with animated state marks, validation treatment, group membership, and robust keyboard and screen-reader behavior.
  * @version 1.0.6
  * @tags ["controls","selection","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

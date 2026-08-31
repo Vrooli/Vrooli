@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:BudgetBar
  * @displayName BudgetBar
- * @description A runtime budget bar for mount and rerender cost.
  * @version 1.0.14
  * @tags ["data-display","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

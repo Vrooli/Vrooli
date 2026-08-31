@@ -1,7 +1,6 @@
 /**
  * @libraryId react-component-library:Toast
  * @displayName Toast
- * @description The transient notification rendered through the shared toast service, with queueing, deduplication, in-place updates, action affordances, timeout policy, and announcement.
  * @version 1.0.10
  * @tags ["feedback","async","accessibility","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.

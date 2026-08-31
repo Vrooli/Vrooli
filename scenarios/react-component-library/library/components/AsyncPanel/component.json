@@ -1,37 +1,18 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "category": "feedback",
+  "catalogId": "react-component-library:AsyncPanel",
   "deprecatedVersions": [
     "1.0.0",
     "1.0.1",
     "1.0.3",
     "1.0.2"
   ],
-  "description": "Composable presentation for an ExperienceSurface lifecycle without prescribing page layout.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Async Panel",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
     "1.0.2"
   ],
-  "kind": "surface",
   "latest": "1.0.4",
-  "libraryId": "react-component-library:AsyncPanel",
-  "slot": "ui-pattern",
-  "supplemental": true,
-  "tags": [
-    "experience",
-    "lifecycle",
-    "loading",
-    "empty",
-    "error",
-    "retry"
-  ]
+  "libraryId": "react-component-library:AsyncPanel"
 }

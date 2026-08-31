@@ -2,23 +2,16 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "visualization.cartesian-charts",
-  "deprecatedVersions": ["1.0.2", "1.0.4", "1.0.5"],
-  "description": "The line, area, bar, stacked bar, scatter, and histogram family sharing one data, axis, interaction, animation, and accessibility model.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    }
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.4",
+    "1.0.5"
   ],
-  "displayName": "Cartesian Charts",
   "draft": "",
-  "evictedVersions": ["1.0.4", "1.0.5"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.4",
+    "1.0.5"
+  ],
   "latest": "1.0.6",
-  "libraryId": "react-component-library:CartesianCharts",
-  "tags": ["visualization", "charts", "accessible", "responsive"]
+  "libraryId": "react-component-library:CartesianCharts"
 }

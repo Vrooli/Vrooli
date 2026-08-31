@@ -37,6 +37,7 @@ type Asset struct {
 	Priority     string
 	PinnedWeight float64
 	Maturity     string
+	PlannedBy    string
 	Requires     []string
 	Suggests     []string
 	Expects      []string
@@ -89,8 +90,9 @@ type rawAsset struct {
 		Targets  []string `json:"targets"`
 		Kits     []string `json:"kits"`
 		Target   struct {
-			Priority string `json:"priority"`
-			Maturity string `json:"maturity"`
+			Priority  string `json:"priority"`
+			Maturity  string `json:"maturity"`
+			PlannedBy string `json:"plannedBy"`
 		} `json:"target"`
 	} `json:"asset"`
 	Dependencies struct {
@@ -178,7 +180,7 @@ func LoadCatalog(catalogDir string) ([]Asset, error) {
 			ID: raw.Asset.ID, Name: raw.Asset.Name, Kind: raw.Asset.Kind, Surface: raw.Asset.Surface,
 			Domain: raw.Asset.Domain, DomainOrder: orders[raw.Asset.Domain], Slot: raw.Asset.Slot, Delivery: raw.Asset.Delivery,
 			Targets: raw.Asset.Targets, Kits: raw.Asset.Kits,
-			Priority: raw.Asset.Target.Priority, Maturity: raw.Asset.Target.Maturity,
+			Priority: raw.Asset.Target.Priority, Maturity: raw.Asset.Target.Maturity, PlannedBy: raw.Asset.Target.PlannedBy,
 			Satisfies: raw.Satisfies, Capabilities: raw.RequiredCapabilities,
 			States:       raw.RequiredStates,
 			PinnedWeight: weights[raw.Asset.ID],

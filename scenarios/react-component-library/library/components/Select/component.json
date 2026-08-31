@@ -2,40 +2,17 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.select",
-  "category": "forms",
   "deprecatedVersions": [
     "1.2.0",
     "1.1.0",
     "1.1.1"
   ],
-  "description": "Native select wrapper styled with Vrooli tokens and mobile-safe control sizing.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-command-display"
-    },
-    {
-      "affinity": "compatible",
-      "styleId": "vrooli-conversion-landing"
-    }
-  ],
-  "displayName": "Select",
   "draft": "",
   "evictedVersions": [
     "1.2.0",
     "1.1.0",
     "1.1.1"
   ],
-  "kind": "input",
   "latest": "1.2.1",
-  "libraryId": "react-component-library:Select",
-  "slot": "ui-primitive",
-  "tags": [
-    "form",
-    "interactive"
-  ]
+  "libraryId": "react-component-library:Select"
 }

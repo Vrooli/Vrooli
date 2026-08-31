@@ -2,19 +2,13 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-media-query",
-  "deprecatedVersions": ["1.0.0"],
-  "description": "Production-ready useMediaQuery hook with SSR-safe lifecycle behavior.",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "styleId": "vrooli-default"
-    }
+  "deprecatedVersions": [
+    "1.0.0"
   ],
-  "displayName": "useMediaQuery",
   "draft": "",
-  "evictedVersions": ["1.0.0"],
-  "kind": "surface",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "latest": "1.1.0",
-  "libraryId": "react-component-library:useMediaQuery",
-  "tags": ["runtime", "accessibility"]
+  "libraryId": "react-component-library:useMediaQuery"
 }
