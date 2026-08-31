@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useViewportEnvironment } from "@vrooli/react-component-library/useViewportEnvironment/1.0.3";
+import { useViewportEnvironment } from "@vrooli/react-component-library/useViewportEnvironment/1";
 
 /** Project shared viewport state into Web Console's app-shell contract. */
 export function useAppViewport(options: { onKeyboardChange?: (open: boolean) => void } = {}): void {

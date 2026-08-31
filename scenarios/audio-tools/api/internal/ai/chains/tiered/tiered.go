@@ -81,6 +81,10 @@ type Options[Req, Resp any] struct {
 	EnableBYOK   bool
 	EnableVrooli bool
 	EnableLocal  bool
+	// LocalFirst changes the execution order to Local -> BYOK -> Vrooli.
+	// It is used by speech chains; the historical default remains unchanged
+	// for other capabilities such as summarization.
+	LocalFirst bool
 
 	// TTLs for the per-tier availability cache. BYOK and Vrooli are
 	// cached because their IsAvailable probes hit paid/remote providers.
@@ -111,7 +115,7 @@ type Options[Req, Resp any] struct {
 	OnFallback func(ctx context.Context, ev FallbackEvent)
 }
 
-// Coordinator orchestrates execution across BYOK -> Vrooli -> Local.
+// Coordinator orchestrates execution across the configured tier order.
 type Coordinator[Req, Resp any] struct {
 	byok   *Tier[Req, Resp]
 	vrooli *Tier[Req, Resp]
@@ -128,6 +132,7 @@ type Coordinator[Req, Resp any] struct {
 	enableBYOK   bool
 	enableVrooli bool
 	enableLocal  bool
+	localFirst   bool
 	ttlByOK      time.Duration
 	ttlVrooli    time.Duration
 	byokAvail    cachedAvail
@@ -165,6 +170,7 @@ func NewCoordinator[Req, Resp any](opts Options[Req, Resp]) *Coordinator[Req, Re
 		enableBYOK:   opts.EnableBYOK,
 		enableVrooli: opts.EnableVrooli,
 		enableLocal:  opts.EnableLocal,
+		localFirst:   opts.LocalFirst,
 		ttlByOK:      opts.TTLByOK,
 		ttlVrooli:    opts.TTLVrooli,
 		route:        opts.Route,
@@ -175,7 +181,7 @@ func NewCoordinator[Req, Resp any](opts Options[Req, Resp]) *Coordinator[Req, Re
 	}
 }
 
-// Execute walks BYOK -> Vrooli -> Local. Returns the first non-error
+// Execute walks the configured tier order. Returns the first non-error
 // result; a terminal error short-circuits; otherwise records the error
 // and falls through. Returns AllFailed if no tier was attempted.
 func (c *Coordinator[Req, Resp]) Execute(ctx context.Context, req Req) (Resp, error) {
@@ -191,7 +197,11 @@ func (c *Coordinator[Req, Resp]) Execute(ctx context.Context, req Req) (Resp, er
 		haveFirst   bool
 	)
 
-	for _, slot := range []Slot{SlotBYOK, SlotVrooli, SlotLocal} {
+	order := []Slot{SlotBYOK, SlotVrooli, SlotLocal}
+	if c.localFirst {
+		order = []Slot{SlotLocal, SlotBYOK, SlotVrooli}
+	}
+	for _, slot := range order {
 		if !c.Eligible(ctx, slot, req) {
 			continue
 		}

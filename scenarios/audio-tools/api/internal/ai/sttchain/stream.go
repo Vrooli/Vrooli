@@ -18,6 +18,14 @@ import (
 func (c *Chain) StreamCandidates(ctx context.Context, start StreamStart) []Provider {
 	out := make([]Provider, 0, 3)
 	req := Request{BYOKKey: start.BYOKKey, LPBSToken: start.LPBSToken}
+	appendLocal := func() {
+		if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) {
+			out = append(out, local)
+		}
+	}
+	if c.localFirst {
+		appendLocal()
+	}
 	if c.byok != nil && c.Eligible(ctx, tiered.SlotBYOK, req) {
 		out = append(out, c.byok)
 	}
@@ -29,8 +37,8 @@ func (c *Chain) StreamCandidates(ctx context.Context, start StreamStart) []Provi
 	// embedded coordinator's SlotLocal eligibility only knows about Whisper,
 	// so the resolved provider's IsAvailable is the authority on the
 	// streaming path.
-	if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) {
-		out = append(out, local)
+	if !c.localFirst {
+		appendLocal()
 	}
 	return out
 }
@@ -74,6 +82,20 @@ func (c *Chain) resolveLocalEngine(engineID string) Provider {
 // The returned channel is closed after the final Done. Caller must drain.
 func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan AudioChunk) (<-chan StreamEvent, error) {
 	req := Request{BYOKKey: start.BYOKKey, LPBSToken: start.LPBSToken}
+	if c.localFirst {
+		if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) && local.Traits().Stream {
+			out, err := local.TranscribeStreaming(ctx, start, chunks)
+			if err != nil && start.RequireStreaming {
+				return nil, fmt.Errorf("%w: local: %v", ErrStreamingUnavailable, err)
+			}
+			if err == nil && out != nil {
+				return out, nil
+			}
+			if start.RequireStreaming && err == nil {
+				return nil, fmt.Errorf("%w: local returned no event channel", ErrStreamingUnavailable)
+			}
+		}
+	}
 
 	if c.byok != nil && c.Eligible(ctx, tiered.SlotBYOK, req) && c.byok.Traits().Stream {
 		out, err := c.byok.TranscribeStreaming(ctx, start, chunks)
@@ -102,16 +124,18 @@ func (c *Chain) Stream(ctx context.Context, start StreamStart, chunks <-chan Aud
 			return nil, fmt.Errorf("%w: vrooli returned no event channel", ErrStreamingUnavailable)
 		}
 	}
-	if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) && local.Traits().Stream {
-		out, err := local.TranscribeStreaming(ctx, start, chunks)
-		if err != nil && start.RequireStreaming {
-			return nil, fmt.Errorf("%w: local: %v", ErrStreamingUnavailable, err)
-		}
-		if err == nil && out != nil {
-			return out, nil
-		}
-		if start.RequireStreaming && err == nil {
-			return nil, fmt.Errorf("%w: local returned no event channel", ErrStreamingUnavailable)
+	if !c.localFirst {
+		if local := c.resolveLocalEngine(start.EngineID); local != nil && c.enableLocal && local.IsAvailable(ctx) && local.Traits().Stream {
+			out, err := local.TranscribeStreaming(ctx, start, chunks)
+			if err != nil && start.RequireStreaming {
+				return nil, fmt.Errorf("%w: local: %v", ErrStreamingUnavailable, err)
+			}
+			if err == nil && out != nil {
+				return out, nil
+			}
+			if start.RequireStreaming && err == nil {
+				return nil, fmt.Errorf("%w: local returned no event channel", ErrStreamingUnavailable)
+			}
 		}
 	}
 

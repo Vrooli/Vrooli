@@ -60,6 +60,7 @@ func MultipartTranscribeHandler(d Deps) http.Handler {
 		}
 
 		env := envelope.FromHTTP(r.Header)
+		env.Provider, env.Key = h.applyDefaultCredential(r.Context(), "stt", env.Provider, env.Key)
 		format := r.FormValue("format")
 		if format == "" {
 			format = "wav"

@@ -1,12 +1,14 @@
 package stt
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
 
 	"audio-tools/internal/ai/sttchain"
+	sttpkg "audio-tools/internal/stt"
 	sttpipeline "audio-tools/internal/stt/pipeline"
 
 	sttv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt"
@@ -31,6 +33,18 @@ func TestMapChainErrorBackendDown(t *testing.T) {
 		if msg := mapChainError(e).Error(); strings.Contains(msg, "dial") || strings.Contains(msg, "tcp") {
 			t.Errorf("mapped connect error leaked transport detail: %q", msg)
 		}
+	}
+}
+
+func TestResponseFromResultProjectsProviderAndPolicyDetails(t *testing.T) {
+	h := &connectHandler{}
+	res := &sttchain.Result{Text: "hello", DetectedLanguage: "en", DurationSeconds: 2, ProviderID: "whisper", ModelID: "medium"}
+	resp := h.responseFromResult(context.Background(), res, []byte("audio"), sttpkg.StreamConfig{EngineID: "kyutai-stt"})
+	if resp.GetText() != "hello" || resp.GetProviderId() != "whisper" || resp.GetModelId() != "medium" {
+		t.Fatalf("response = %+v", resp)
+	}
+	if resp.GetPolicyDetails()["selected_engine"] != "kyutai-stt" || resp.GetPolicyDetails()["engine_substitution"] != "true" {
+		t.Fatalf("policy details = %#v", resp.GetPolicyDetails())
 	}
 }
 

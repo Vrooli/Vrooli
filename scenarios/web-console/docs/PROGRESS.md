@@ -1,5 +1,7 @@
 # Web Console Progress
 
+| 2026-08-31 | Codex | partial | **Target capability readiness.** The launcher and Machines surface derive coding-agent cards and install actions from target capability facts, with observed versions carried through the target contract. Web Console is healthy and the local live catalog reports all five agents ready. Remote proof remains open because the reference node's stale control plane rejects its acquisition install before execution; see `docs/reference/cross-platform-effort/evidence/node-capability-readiness-after-2026-08-31.md`. |
+
 | Date       | Author            | Status Snapshot | Notes |
 |------------|-------------------|-----------------|-------|
 | 2026-02-18 | Process Agent | Revived from archive | Scenario scaffolded from react-vite template; archived PRD v3.0.0 and requirements preserved as baseline; docs initialized from enhance/doc-outlines; key decisions: SQLite-only, single-user, mobile P0, api-base auth |

@@ -1,4 +1,4 @@
-import { VoiceInputButton, type ButtonSize } from "@vrooli/react-component-library/VoiceInputButton/4/4.3.1";
+import { VoiceInputButton, type ButtonSize } from "@vrooli/react-component-library/VoiceInputButton/4";
 import type { StartRecordingOpts, VoiceActivitySnapshot } from "../audio-integration";
 
 export interface VoiceMicButtonProps {
@@ -13,6 +13,8 @@ export interface VoiceMicButtonProps {
   audioLevel?: number;
   voiceActivity?: VoiceActivitySnapshot;
   backend?: string;
+  capabilityReason?: string;
+  operatorCommand?: string;
   size?: ButtonSize;
   onStart: (opts?: StartRecordingOpts) => void;
   onStop: () => void;
@@ -46,6 +48,8 @@ export default function VoiceMicButton({
   audioLevel = 0,
   voiceActivity,
   backend,
+  capabilityReason,
+  operatorCommand,
   size = "sm",
   onStart,
   onStop,
@@ -64,7 +68,11 @@ export default function VoiceMicButton({
             : error ? "error"
               : "idle";
   return (
-    <div className={className} data-voice-backend={backend}>
+    <div
+      className={className}
+      data-voice-backend={backend}
+      title={!supported ? [capabilityReason, operatorCommand && `Fix: ${operatorCommand}`].filter(Boolean).join(" ") : undefined}
+    >
       <VoiceInputButton
         state={state}
         mode={persistentMode ? "always-on" : "timeout"}
@@ -78,6 +86,7 @@ export default function VoiceMicButton({
         onStop={onStop}
         onPrepare={onPrepare}
         data-testid={testId}
+        aria-label={!supported ? ["Voice input unavailable", capabilityReason, operatorCommand && `Fix: ${operatorCommand}`].filter(Boolean).join(" — ") : undefined}
       />
     </div>
   );

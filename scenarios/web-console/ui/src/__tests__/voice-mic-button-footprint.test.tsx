@@ -86,6 +86,29 @@ describe("VoiceMicButton footprint", () => {
     });
     expect(props).not.toContain("partialTranscript");
   });
+
+  it("keeps an unavailable microphone visible and disabled", () => {
+    render(
+      <VoiceMicButton
+        supported={false}
+        isPreparing={false}
+        isRecording={false}
+        isTranscribing={false}
+        error={null}
+        capabilityReason="audio-tools is degraded: whisper-stt"
+        operatorCommand="vrooli scenario restart audio-tools --json"
+        onStart={vi.fn()}
+        onStop={vi.fn()}
+        testId="mic"
+      />,
+    );
+
+    const button = screen.getByTestId("mic");
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("aria-label", expect.stringContaining("whisper-stt"));
+    expect(button).toHaveAttribute("aria-label", expect.stringContaining("vrooli scenario restart audio-tools --json"));
+    expect(button.parentElement).toHaveAttribute("title", expect.stringContaining("whisper-stt"));
+  });
 });
 
 /**

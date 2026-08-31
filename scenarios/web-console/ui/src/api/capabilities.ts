@@ -21,6 +21,11 @@ export interface CapabilityState {
   actionKind?: string;
   actionLabel?: string;
   operatorCommand?: string;
+  featureStatus?: Record<string, CapabilityStatus>;
+  featureReason?: Record<string, string>;
+  featureOperatorCommand?: Record<string, string>;
+  providerStatus?: Record<string, CapabilityStatus>;
+  providerFeatures?: Record<string, string[]>;
   checkedAt?: string;
 }
 
@@ -37,6 +42,7 @@ export interface CapabilityActionResponse {
   message?: string;
   capabilityId: string;
   actionKind: string;
+  operationId?: string;
   capabilities: CapabilityState[];
   timestamp: string;
 }
@@ -55,6 +61,11 @@ interface ProtoCapabilityState {
   actionKind?: string;
   actionLabel?: string;
   operatorCommand?: string;
+  featureStatus?: Record<string, string>;
+  featureReason?: Record<string, string>;
+  featureOperatorCommand?: Record<string, string>;
+  providerStatus?: Record<string, string>;
+  providerFeatures?: Record<string, string>;
 }
 
 interface ProtoBackendOption {
@@ -79,21 +90,28 @@ function decodeCapabilityStatus(s: string): CapabilityStatus {
 
 function decodeCapabilitiesResponse(resp: ProtoCapabilitiesResponse): CapabilitiesResponse {
   const out: CapabilitiesResponse = {
-    capabilities: resp.capabilities.map((c) => ({
-      id: c.id,
-      name: c.name,
-      description: c.description,
-      dependencyKind: c.dependencyKind,
-      dependencySlug: c.dependencySlug,
-      features: c.features ?? [],
-      status: decodeCapabilityStatus(c.status),
-      message: c.message || undefined,
-      reasonCode: c.reasonCode || undefined,
-      actionKind: c.actionKind || undefined,
-      actionLabel: c.actionLabel || undefined,
-      operatorCommand: c.operatorCommand || undefined,
-      checkedAt: c.checkedAt || undefined,
-    })),
+    capabilities: resp.capabilities.map((c) => {
+      const featureStatus = Object.fromEntries(Object.entries(c.featureStatus ?? {}).map(([feature, status]) => [feature, decodeCapabilityStatus(status)]));
+      const decoded: CapabilityState = {
+        id: c.id, name: c.name, description: c.description,
+        dependencyKind: c.dependencyKind, dependencySlug: c.dependencySlug,
+        features: c.features ?? [], status: decodeCapabilityStatus(c.status),
+      };
+      if (c.message) decoded.message = c.message;
+      if (c.reasonCode) decoded.reasonCode = c.reasonCode;
+      if (c.actionKind) decoded.actionKind = c.actionKind;
+      if (c.actionLabel) decoded.actionLabel = c.actionLabel;
+      if (c.operatorCommand) decoded.operatorCommand = c.operatorCommand;
+      if (Object.keys(featureStatus).length > 0) decoded.featureStatus = featureStatus;
+      if (c.featureReason && Object.keys(c.featureReason).length > 0) decoded.featureReason = c.featureReason;
+      if (c.featureOperatorCommand && Object.keys(c.featureOperatorCommand).length > 0) decoded.featureOperatorCommand = c.featureOperatorCommand;
+      const providerStatus = Object.fromEntries(Object.entries(c.providerStatus ?? {}).map(([provider, status]) => [provider, decodeCapabilityStatus(status)]));
+      if (Object.keys(providerStatus).length > 0) decoded.providerStatus = providerStatus;
+      const providerFeatures = Object.fromEntries(Object.entries(c.providerFeatures ?? {}).map(([provider, features]) => [provider, features.split(",").map((feature) => feature.trim()).filter(Boolean)]));
+      if (Object.keys(providerFeatures).length > 0) decoded.providerFeatures = providerFeatures;
+      if (c.checkedAt) decoded.checkedAt = c.checkedAt;
+      return decoded;
+    }),
     timestamp: resp.timestamp,
   };
   if (resp.sessionBackends && resp.sessionBackends.length > 0) {
@@ -117,8 +135,11 @@ export async function fetchCapabilities(): Promise<CapabilitiesResponse> {
   return decodeCapabilitiesResponse(resp);
 }
 
-export async function runCapabilityAction(capabilityId: string, actionKind: string): Promise<CapabilityActionResponse> {
-  const resp = await capabilitiesClient.runAction({ capabilityId, actionKind });
+export async function runCapabilityAction(capabilityId: string, actionKind: string, targetId?: string): Promise<CapabilityActionResponse> {
+  const request = targetId ? { capabilityId, actionKind, targetId } : { capabilityId, actionKind };
+  // Older linked proto-types packages may not expose a newly generated field
+  // until the workspace link is refreshed; the wire schema is additive.
+  const resp = await capabilitiesClient.runAction(request as never);
   const decoded = decodeCapabilitiesResponse({
     capabilities: resp.capabilities,
     timestamp: resp.timestamp,
@@ -129,6 +150,7 @@ export async function runCapabilityAction(capabilityId: string, actionKind: stri
     message: resp.message || undefined,
     capabilityId: resp.capabilityId,
     actionKind: resp.actionKind,
+    operationId: (resp as typeof resp & { operationId?: string }).operationId || undefined,
     capabilities: decoded.capabilities,
     timestamp: decoded.timestamp,
   };

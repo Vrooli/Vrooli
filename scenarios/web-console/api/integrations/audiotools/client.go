@@ -18,6 +18,7 @@
 package audiotools
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -26,6 +27,8 @@ import (
 	"connectrpc.com/connect"
 
 	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
+	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	healthstatusconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status/health_status_v1connect"
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
 	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
 	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
@@ -42,11 +45,12 @@ type Client struct {
 	baseURL  string
 	resolved atomic.Bool
 
-	STT       sttconnect.STTServiceClient
-	STTAdmin  sttconnect.STTAdminServiceClient
-	TTS       ttsconnect.TTSServiceClient
-	Summarize summconnect.SummarizeServiceClient
-	Audio     audioconnect.AudioProcessingServiceClient
+	STT          sttconnect.STTServiceClient
+	STTAdmin     sttconnect.STTAdminServiceClient
+	TTS          ttsconnect.TTSServiceClient
+	Summarize    summconnect.SummarizeServiceClient
+	Audio        audioconnect.AudioProcessingServiceClient
+	HealthStatus healthstatusconnect.HealthStatusServiceClient
 }
 
 // URLResolver returns the current audio-tools base URL. Implementations
@@ -105,8 +109,22 @@ func (c *Client) refresh() error {
 	c.TTS = ttsconnect.NewTTSServiceClient(c.http, base)
 	c.Summarize = summconnect.NewSummarizeServiceClient(c.http, base)
 	c.Audio = audioconnect.NewAudioProcessingServiceClient(c.http, base)
+	c.HealthStatus = healthstatusconnect.NewHealthStatusServiceClient(c.http, base)
 	c.resolved.Store(true)
 	return nil
+}
+
+// ProviderHealth returns audio-tools' authoritative per-capability liveness
+// rollup. The caller supplies the short liveness context budget.
+func (c *Client) ProviderHealth(ctx context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
+	if err := c.Ensure(); err != nil {
+		return nil, err
+	}
+	resp, err := c.HealthStatus.GetProviderHealth(ctx, connect.NewRequest(&healthstatusv1.GetProviderHealthRequest{}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
 }
 
 // Ensure the suite of generated client interfaces is wired before each call.

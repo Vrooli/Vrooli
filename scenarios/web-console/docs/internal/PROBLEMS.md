@@ -668,3 +668,8 @@ server was cleared so new sessions inherit color-capable defaults.
 - Blocker: none. The remaining findings are diagnosable repository or environment
   debt, not missing authority.
 - Measured: 2026-08-26.
+
+- Rung: W3 (implementation/evidence)
+- Evidence: The named-goal W0 search returns only archived `hosted-cloud-tier-foundation` and `portal-front-door`; neither contradicts this speech-stack work. The provider-feature capability contract, generic TTS gate, focused UI tests, live capability RPC, and production build pass; the full scenario suite remains outside the bounded validation scope.
+- Blocker: None for targeted implementation; full-suite comparison remains unproven.
+- Measured: 2026-08-31.

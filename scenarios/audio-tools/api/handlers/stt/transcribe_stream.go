@@ -32,7 +32,9 @@ func (h *connectHandler) reportStreamActive(ctx context.Context, engineID string
 		return ""
 	}
 	if engineID == "" {
-		engineID = h.deps.Registry.DefaultEngineID()
+		if resolution, err := h.resolveEngine(ctx); err == nil {
+			engineID = resolution.Selected
+		}
 	}
 	engine, ok := h.deps.Registry.Engine(engineID)
 	if !ok || engine.Kind != sttengine.KindLocalResource || engine.Resource == "" {
@@ -161,6 +163,7 @@ func (h *connectHandler) TranscribeStream(
 	}()
 
 	env := envelope.FromConnectStream(stream.RequestHeader())
+	env.Provider, env.Key = h.applyDefaultCredential(ctx, "stt", env.Provider, env.Key)
 	start := sttchain.StreamStart{
 		ProtocolVersion:         startCfg.ProtocolVersion,
 		SessionID:               startCfg.SessionId,
@@ -180,7 +183,7 @@ func (h *connectHandler) TranscribeStream(
 	}
 
 	events := make(chan sttchain.StreamEvent, 16)
-	seg := segmenter.New(segmenter.Deps{Chain: h.deps.Chain, Selector: h.deps.Selector, Engine: h.deps.Engine, Registry: h.deps.Registry, SpeakerIsolation: currentSpeakerIsolation(h.deps), SpeakerExtraction: currentSpeakerExtraction(h.deps)})
+	seg := segmenter.New(segmenter.Deps{Chain: h.deps.Chain, Selector: h.deps.Selector, Engine: h.deps.Engine, Registry: h.deps.Registry, EngineResolver: h.deps.EngineResolver, SpeakerIsolation: currentSpeakerIsolation(h.deps), SpeakerExtraction: currentSpeakerExtraction(h.deps)})
 	cfg := h.resolveStreamPipelineConfig(ctx)
 	// StreamStart.config is the Connect transport's per-session override. The
 	// WebSocket transport already applies its request-scoped engine_id before

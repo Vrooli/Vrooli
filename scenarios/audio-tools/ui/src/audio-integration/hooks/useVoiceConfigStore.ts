@@ -104,3 +104,4 @@ useVoiceConfigStore.getState = (): VoiceConfigState & { setFromServer: typeof se
   ...state,
   setFromServer: setVoiceConfigFromServer,
 });
+// HOST DIFFERENCE: audio-tools persists voice settings in its scenario-local store.

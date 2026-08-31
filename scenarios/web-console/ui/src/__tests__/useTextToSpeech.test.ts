@@ -108,11 +108,18 @@ const defaultSettings: TTSSettings = {
   backendPreference: "auto",
 };
 
-function audioToolsCapability(status: "available" | "unavailable") {
+function audioToolsCapability(
+  status: "available" | "unavailable",
+  kokoroStatus: "available" | "unavailable" = status,
+  extraProviders: Record<string, string> = {},
+) {
   return {
     id: "audio-tools",
     status,
     features: ["voice-output", "tts-summarization", "tts-cache"],
+    featureStatus: { "voice-output": status },
+    providerStatus: { "kokoro-tts": kokoroStatus, ...extraProviders },
+    providerFeatures: { "kokoro-tts": ["voice-output"], ...Object.fromEntries(Object.keys(extraProviders).map((provider) => [provider, ["voice-output"]])) },
   };
 }
 
@@ -168,6 +175,39 @@ describe("useTextToSpeech", () => {
 
     await waitFor(() => {
       expect(result.current.backend).toBe("browser");
+    });
+    expect(result.current.supported).toBe(true);
+  });
+
+  it("uses browser fallback when the feature is available but Kokoro is down", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [audioToolsCapability("available", "unavailable")],
+      timestamp: new Date().toISOString(),
+    });
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("browser");
+    });
+    expect(result.current.backendReason).toContain("server speech provider");
+    expect(result.current.backendReason).toContain("browser");
+  });
+
+  it("keeps the server TTS path when local Kokoro is down but BYOK TTS is available", async () => {
+    mockFetchCaps.mockResolvedValue({
+      capabilities: [
+        audioToolsCapability("available", "unavailable", {
+          "openai-tts": "available",
+        }),
+      ],
+      timestamp: new Date().toISOString(),
+    });
+
+    const { result } = renderHook(() => useTextToSpeech(defaultSettings));
+
+    await waitFor(() => {
+      expect(result.current.backend).toBe("kokoro");
     });
     expect(result.current.supported).toBe(true);
   });
@@ -293,7 +333,7 @@ describe("useTextToSpeech", () => {
 
   it("speak() falls back to browser when kokoro synthesis fails at runtime", async () => {
     mockFetchCaps.mockResolvedValue({
-      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      capabilities: [audioToolsCapability("available")],
       timestamp: new Date().toISOString(),
     });
     mockGetVoices.mockResolvedValue([
@@ -336,7 +376,7 @@ describe("useTextToSpeech", () => {
 
   it("runtime fallback does not crash when both backends fail", async () => {
     mockFetchCaps.mockResolvedValue({
-      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      capabilities: [audioToolsCapability("available")],
       timestamp: new Date().toISOString(),
     });
     mockGetVoices.mockResolvedValue([
@@ -382,7 +422,7 @@ describe("useTextToSpeech", () => {
 
   it("defaults kokoro voices to af_heart when voice fetch fails", async () => {
     mockFetchCaps.mockResolvedValue({
-      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      capabilities: [audioToolsCapability("available")],
       timestamp: new Date().toISOString(),
     });
     mockGetVoices.mockRejectedValue(new Error("Failed"));
@@ -397,7 +437,7 @@ describe("useTextToSpeech", () => {
 
   it("uses strict kokoro mode without silently falling back to browser", async () => {
     mockFetchCaps.mockResolvedValue({
-      capabilities: [{ id: "kokoro-tts", status: "unavailable" }],
+      capabilities: [audioToolsCapability("unavailable")],
       timestamp: new Date().toISOString(),
     });
 
@@ -414,7 +454,7 @@ describe("useTextToSpeech", () => {
 
   it("speakParagraphs falls back to browser in auto mode when kokoro fails", async () => {
     mockFetchCaps.mockResolvedValue({
-      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      capabilities: [audioToolsCapability("available")],
       timestamp: new Date().toISOString(),
     });
     mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -462,7 +502,7 @@ describe("useTextToSpeech", () => {
 
   it("pause and resume control the active fallback browser provider after runtime kokoro failure", async () => {
     mockFetchCaps.mockResolvedValue({
-      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      capabilities: [audioToolsCapability("available")],
       timestamp: new Date().toISOString(),
     });
     mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -506,7 +546,7 @@ describe("useTextToSpeech", () => {
 
   it("playback state snapshots come from the active fallback browser provider", async () => {
     mockFetchCaps.mockResolvedValue({
-      capabilities: [{ id: "kokoro-tts", status: "available" }],
+      capabilities: [audioToolsCapability("available")],
       timestamp: new Date().toISOString(),
     });
     mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -626,7 +666,7 @@ describe("useTextToSpeech", () => {
 
     it("needsUnlock starts false", async () => {
       mockFetchCaps.mockResolvedValue({
-        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        capabilities: [audioToolsCapability("available")],
         timestamp: new Date().toISOString(),
       });
       mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -638,7 +678,7 @@ describe("useTextToSpeech", () => {
 
     it("speakParagraphs sets needsUnlock=true (not error) on NotAllowedError", async () => {
       mockFetchCaps.mockResolvedValue({
-        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        capabilities: [audioToolsCapability("available")],
         timestamp: new Date().toISOString(),
       });
       mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -664,7 +704,7 @@ describe("useTextToSpeech", () => {
 
     it("generic non-autoplay failure sets error, not needsUnlock", async () => {
       mockFetchCaps.mockResolvedValue({
-        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        capabilities: [audioToolsCapability("available")],
         timestamp: new Date().toISOString(),
       });
       mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -690,7 +730,7 @@ describe("useTextToSpeech", () => {
 
     it("unlockAudio() calls provider.unlock() and clears needsUnlock on success", async () => {
       mockFetchCaps.mockResolvedValue({
-        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        capabilities: [audioToolsCapability("available")],
         timestamp: new Date().toISOString(),
       });
       mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -721,7 +761,7 @@ describe("useTextToSpeech", () => {
 
     it("dismissNeedsUnlock clears the flag without touching the provider", async () => {
       mockFetchCaps.mockResolvedValue({
-        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        capabilities: [audioToolsCapability("available")],
         timestamp: new Date().toISOString(),
       });
       mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -750,7 +790,7 @@ describe("useTextToSpeech", () => {
       // when TTS is never used (the "web-console pauses my music on any tap"
       // bug). A gesture must flip only the no-audio readiness flag.
       mockFetchCaps.mockResolvedValue({
-        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        capabilities: [audioToolsCapability("available")],
         timestamp: new Date().toISOString(),
       });
       mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -773,7 +813,7 @@ describe("useTextToSpeech", () => {
 
     it("pause controls cached Kokoro blob playback from the active provider", async () => {
       mockFetchCaps.mockResolvedValue({
-        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        capabilities: [audioToolsCapability("available")],
         timestamp: new Date().toISOString(),
       });
       mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -806,7 +846,7 @@ describe("useTextToSpeech", () => {
 
     it("replays a fully-cached multi-paragraph message per chunk without synthesizing", async () => {
       mockFetchCaps.mockResolvedValue({
-        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        capabilities: [audioToolsCapability("available")],
         timestamp: new Date().toISOString(),
       });
       mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);
@@ -834,7 +874,7 @@ describe("useTextToSpeech", () => {
 
     it("falls through to synthesis when any chunk is a cache miss", async () => {
       mockFetchCaps.mockResolvedValue({
-        capabilities: [{ id: "kokoro-tts", status: "available" }],
+        capabilities: [audioToolsCapability("available")],
         timestamp: new Date().toISOString(),
       });
       mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);

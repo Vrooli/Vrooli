@@ -94,42 +94,37 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 		return summCfg.Model
 	}}
 	openRouterChecker := &capabilities.OpenRouterChecker{APIKey: env.OpenRouterAPIKey, BaseURL: env.OpenRouterURL, Doer: doer}
-	lpbsChecker := &capabilities.ScenarioChecker{Slug: "landing-page-business-suite"}
-	defs := append([]capabilities.Def(nil), capabilities.Known...)
-	platforms := capabilities.NewResourcePlatformResolver(capabilities.ResourcesFS(), "")
-	for i := range defs {
-		if defs[i].DependencyKind == capabilities.DependencyResource {
-			defs[i].Platform = platforms.Resolve(defs[i].DependencySlug)
-		}
-	}
+	livenessOpenRouterChecker := &capabilities.OpenRouterChecker{APIKey: env.OpenRouterAPIKey, BaseURL: env.OpenRouterURL, Doer: livenessDoer}
+	defs := capabilities.KnownForPlatform("")
 	capsCheckers := map[string]capabilities.Checker{
-		"whisper-stt":                 whisperChecker,
-		"kyutai-stt":                  &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: doer},
-		"kokoro-tts":                  kokoroChecker,
-		"speaker-verification":        speakerChecker,
-		"ollama":                      ollamaChecker,
-		"openrouter":                  openRouterChecker,
-		"audio-transcode":             &capabilities.TranscodeChecker{},
-		"landing-page-business-suite": lpbsChecker,
+		"whisper-stt":          whisperChecker,
+		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: doer},
+		"kokoro-tts":           kokoroChecker,
+		"speaker-verification": speakerChecker,
+		"ollama":               ollamaChecker,
+		"openrouter":           openRouterChecker,
+		"audio-transcode":      &capabilities.TranscodeChecker{},
 		"audio-tools": capabilities.AggregateChecker{Checkers: []capabilities.Checker{
 			whisperChecker, speakerChecker, kokoroChecker, ollamaChecker,
 		}},
 	}
 	capsRegistry := capabilities.NewRegistry(defs, capsCheckers, 30*time.Second)
-	capsRegistry.SetLivenessCheckers(map[string]capabilities.Checker{
+	livenessCheckers := map[string]capabilities.Checker{
 		"whisper-stt":          &capabilities.ResourceChecker{URL: env.WhisperURL + "/", Doer: livenessDoer},
 		"kyutai-stt":           &capabilities.ResourceChecker{URL: env.KyutaiURL + "/ready", Doer: livenessDoer},
 		"kokoro-tts":           &capabilities.ResourceChecker{URL: env.KokoroURL + "/v1/audio/voices", Doer: livenessDoer},
 		"speaker-verification": &capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: livenessDoer},
 		"ollama":               &capabilities.ResourceChecker{URL: env.OllamaURL + "/api/tags", Doer: livenessDoer},
-		"openrouter":           openRouterChecker,
+		"openrouter":           livenessOpenRouterChecker,
+		"audio-transcode":      &capabilities.TranscodeChecker{},
 		"audio-tools": capabilities.AggregateChecker{Checkers: []capabilities.Checker{
 			&capabilities.ResourceChecker{URL: env.WhisperURL + "/", Doer: livenessDoer},
 			&capabilities.ResourceChecker{URL: env.SherpaURL + "/ready", Doer: livenessDoer},
 			&capabilities.ResourceChecker{URL: env.KokoroURL + "/v1/audio/voices", Doer: livenessDoer},
 			&capabilities.ResourceChecker{URL: env.OllamaURL + "/api/tags", Doer: livenessDoer},
 		}},
-	})
+	}
+	capsRegistry.SetLivenessCheckers(livenessCheckers)
 	skipVerifyCount := &atomic.Int64{}
 	// audioEngine is the single audio-format substrate: one instance shared
 	// across the STT pipeline (Whisper-container handling), the streaming
@@ -170,20 +165,14 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 		GetConfig:     func() inttts.Config { return ttsCfg },
 		SetConfig:     func(c inttts.Config) { ttsCfg = c },
 		PersistConfig: func(inttts.Config) error { return nil },
-		// Ask the capability registry, which owns the real KokoroChecker probe
-		// and a 30s cache. This used to return a hardcoded "available", so
-		// `audio-tools settings providers` reported the local TTS tier as up
-		// with the Kokoro port closed and no process running — the operator
-		// surface asserted health instead of observing it, and Synthesize's own
-		// readiness gate could never fire.
+		// Ask the capability registry, which owns the Kokoro liveness probe.
+		// This must observe the provider rather than trust a display cache:
+		// an earlier hardcoded success let the request path use a stopped
+		// resource, while a full catalogue sweep charged synthesis for
+		// unrelated readiness probes.
 		KokoroCapability: func(ctx context.Context) (string, string) {
-			// Synthesis is a live operation. Bypass the registry's display cache
-			// here so a resource stopped after a health read cannot be used as a
-			// stale success signal by the request path.
-			for _, state := range capsRegistry.ResolveForce(ctx) {
-				if state.ID == "kokoro-tts" && state.Status == capabilities.StatusAvailable {
-					return "available", "Kokoro (Local)"
-				}
+			if capsRegistry.IsProviderLive(ctx, "kokoro-tts") {
+				return "available", "Kokoro (Local)"
 			}
 			return "unavailable", "Kokoro (Local)"
 		},
@@ -217,6 +206,26 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 		_ = db.Close()
 		return nil, nil, nil, fmt.Errorf("build stores: %w", err)
 	}
+	// BYOK provider health reports credential presence without exposing the
+	// encrypted value. Browser providers are always available in the client;
+	// they remain the labelled last-resort tier rather than a server probe.
+	for _, entry := range []struct{ id, provider, capability string }{
+		{"openai-whisper", "openai-whisper", "stt"},
+		{"deepgram", "deepgram", "stt"},
+		{"openai-tts", "openai-tts", "tts"},
+		{"elevenlabs", "elevenlabs", "tts"},
+	} {
+		livenessCheckers[entry.id] = &capabilities.BYOKCredentialChecker{
+			ProviderID: entry.provider,
+			Capability: entry.capability,
+			List:       stores.BYOK.List,
+			Get:        stores.BYOK.Get,
+			Probe:      capabilities.ProbeBYOKEndpoint(entry.provider),
+		}
+	}
+	livenessCheckers["browser-stt"] = &capabilities.StaticChecker{Available: func() (bool, string) { return true, "browser speech input is available as a last resort" }}
+	livenessCheckers["browser-tts"] = &capabilities.StaticChecker{Available: func() (bool, string) { return true, "browser speech output is available as a last resort" }}
+	capsRegistry.SetLivenessCheckers(livenessCheckers)
 
 	sessionRegistry := intsession.NewRegistry()
 	// The streaming ledger owns recoverable captured PCM until processed

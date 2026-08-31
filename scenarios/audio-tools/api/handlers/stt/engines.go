@@ -22,11 +22,22 @@ func (h *connectHandler) ListEngines(ctx context.Context, _ *connect.Request[stt
 	if h.deps.Registry == nil {
 		return connect.NewResponse(resp), nil
 	}
-	active := h.resolveStreamPipelineConfig(ctx).EngineID
+	streamConfig := h.resolveStreamPipelineConfig(ctx)
+	active := streamConfig.EngineID
+	resolution, _ := h.resolveEngine(ctx)
 	if active == "" {
-		active = h.deps.Registry.DefaultEngineID()
+		active = resolution.Selected
+	}
+	byID := make(map[string]sttengine.Candidate, len(resolution.Candidates))
+	for _, candidate := range resolution.Candidates {
+		byID[candidate.Engine.ID] = candidate
 	}
 	for _, e := range h.deps.Registry.Engines() {
+		candidate := byID[e.ID]
+		verdict, reason := candidate.Verdict, candidate.Reason
+		if active != "" && e.ID == active && streamConfig.EngineID != "" {
+			verdict, reason = "selected", "operator_pin: StreamConfig.EngineID"
+		}
 		resp.Engines = append(resp.Engines, &sttv1.EngineInfo{
 			Id:              e.ID,
 			DisplayName:     e.DisplayName,
@@ -34,9 +45,29 @@ func (h *connectHandler) ListEngines(ctx context.Context, _ *connect.Request[stt
 			Available:       h.engineAvailable(ctx, e),
 			NativeStreaming: e.Provides.NativeStreaming,
 			IsActive:        e.ID == active,
+			Verdict:         verdict,
+			Reason:          reason,
 		})
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) resolveEngine(ctx context.Context) (sttengine.Resolution, error) {
+	if h.deps.EngineResolver != nil {
+		resolution, err := h.deps.EngineResolver.Resolve(ctx, h.deps.Registry)
+		if err == nil {
+			return resolution, nil
+		}
+		// A missing or degraded control plane must not make a healthy speech
+		// service unusable. Preserve the existing provider-health signal while
+		// the cached host facts recover.
+	}
+	return h.deps.Registry.Resolve(func(id string) bool { return h.engineAvailable(ctx, mustEngine(h.deps.Registry, id)) })
+}
+
+func mustEngine(registry *sttengine.Registry, id string) sttengine.Engine {
+	engine, _ := registry.Engine(id)
+	return engine
 }
 
 // engineAvailable probes whether an engine can serve right now. Availability is

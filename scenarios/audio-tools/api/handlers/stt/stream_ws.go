@@ -334,6 +334,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		}
 
 		start := buildStreamStart(r)
+		start.BYOKProvider, start.BYOKKey = (&connectHandler{deps: d}).applyDefaultCredential(r.Context(), "stt", start.BYOKProvider, start.BYOKKey)
 		var ledger *session.Ledger
 		var ledgers *session.Registry
 		resumed := false
@@ -409,7 +410,7 @@ func StreamWSHandler(d Deps) http.Handler {
 			// The production and realtime paths retain the live speaker policy.
 			speakerIsolation = nil
 		}
-		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector, Engine: d.Engine, Registry: d.Registry, SpeakerIsolation: speakerIsolation, SpeakerExtraction: currentSpeakerExtraction(d)})
+		seg := segmenter.New(segmenter.Deps{Chain: d.Chain, Selector: d.Selector, Engine: d.Engine, Registry: d.Registry, EngineResolver: d.EngineResolver, SpeakerIsolation: speakerIsolation, SpeakerExtraction: currentSpeakerExtraction(d)})
 
 		idle := time.Duration(cfg.SessionIdleTimeoutMs) * time.Millisecond
 		if idle <= 0 {

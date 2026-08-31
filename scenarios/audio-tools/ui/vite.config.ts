@@ -53,7 +53,11 @@ export default defineConfig(({ mode }): UserConfig => {
       // The shared audio package is a workspace file. Inline it so Vitest
       // resolves its TypeScript graph through Vite instead of asking Node to
       // load extensionless ESM imports from the package's dist/ directory.
-      server: { deps: { inline: [/@vrooli\/audio-capture-browser/] } },
+      // The adopted voice-input hook imports the shared audio package through
+      // react-component-library. Inline both workspace packages so Vitest
+      // follows their TypeScript graphs instead of loading extensionless ESM
+      // from either package's dist/ directory under Node.
+      server: { deps: { inline: [/@vrooli\/(audio-capture-browser|react-component-library)/] } },
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary', 'json'],

@@ -9,8 +9,8 @@ import (
 	"github.com/vrooli/api-core/schedule"
 )
 
-// Chain composes Local + BYOK + Vrooli providers under the fixed
-// precedence BYOK -> Vrooli -> Local. Unary Execute, Reconfigure, Probe,
+// Chain composes Local + BYOK + Vrooli providers. Production speech routing
+// prefers Local, then BYOK, then Vrooli. Unary Execute, Reconfigure, Probe,
 // Eligible, and availability caching are inherited from the embedded
 // *tiered.Coordinator; streaming (Stream, StreamCandidates) lives in
 // stream.go and reaches the typed provider pointers directly.
@@ -31,6 +31,7 @@ type Chain struct {
 	// — that would cycle via egress.
 	localEngines map[string]Provider
 	enableLocal  bool
+	localFirst   bool
 }
 
 // Options configures a chain.
@@ -51,6 +52,10 @@ type Options struct {
 	EnableLocal  bool
 	EnableBYOK   bool
 	EnableVrooli bool
+	// LocalFirst selects Local -> BYOK -> Vrooli for production speech
+	// routing. It is explicit so test and evaluation chains can retain their
+	// historical order when needed.
+	LocalFirst bool
 
 	AvailTTLByOK   time.Duration
 	AvailTTLVrooli time.Duration
@@ -71,6 +76,7 @@ func NewChain(opts Options) *Chain {
 		vrooli:       opts.Vrooli,
 		localEngines: opts.LocalEngines,
 		enableLocal:  opts.EnableLocal,
+		localFirst:   opts.LocalFirst,
 	}
 	c.Coordinator = tiered.NewCredentialChain(tiered.CredentialSet[Request, *Result]{
 		BYOK:        tiered.TierFor(c.byok, (*BYOKProvider).Transcribe, (*BYOKProvider).IsAvailable),
@@ -84,6 +90,7 @@ func NewChain(opts Options) *Chain {
 		EnableBYOK:   opts.EnableBYOK,
 		EnableVrooli: opts.EnableVrooli,
 		EnableLocal:  opts.EnableLocal,
+		LocalFirst:   opts.LocalFirst,
 		TTLByOK:      opts.AvailTTLByOK,
 		TTLVrooli:    opts.AvailTTLVrooli,
 		Clock:        opts.Clock,

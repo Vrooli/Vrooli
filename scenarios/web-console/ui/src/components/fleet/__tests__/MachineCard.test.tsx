@@ -16,6 +16,7 @@ function machine(overrides: Partial<Machine["target"]> = {}): Machine {
     grant: { summary: "Read terminal", effects: ["read"], appCount: 1, coversAllApps: false, scopes: [], preset: "read" },
     heartbeatAgeSeconds: 4,
     manageable: true,
+    drift: [],
   };
 }
 
@@ -69,6 +70,12 @@ describe("MachineCard", () => {
     render(<MachineCard machine={machine({ available: false, label: "Offline host" })} onManage={() => {}} />);
     expect(screen.getByText("machines.statusNotResponding")).toBeInTheDocument();
     expect(screen.getByText("machines.reconnect")).toBeInTheDocument();
+  });
+
+  it("renders typed configuration drift from the machine projection", () => {
+    render(<MachineCard machine={{ ...machine(), drift: [{ kind: "capability", name: "ai-cli:codex", reason: "required capability is not reported by the node" }] }} />);
+    expect(screen.getByTestId("machines-drift-machine-1")).toHaveTextContent("Configuration drift");
+    expect(screen.getByText("ai-cli:codex: required capability is not reported by the node")).toBeInTheDocument();
   });
 
   it("starts a session on the selected machine while keeping management available", () => {

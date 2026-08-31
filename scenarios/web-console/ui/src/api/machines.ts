@@ -39,10 +39,17 @@ export interface Grant {
 export interface Machine {
   target: TerminalTarget;
   grant: Grant;
+  drift?: MachineDrift[];
   /** Seconds since the control plane last heard from this machine. */
   heartbeatAgeSeconds: number;
   /** False for the computer the console runs on. */
   manageable: boolean;
+}
+
+export interface MachineDrift {
+  kind: string;
+  name: string;
+  reason: string;
 }
 
 export interface JoinRequest {
@@ -133,6 +140,7 @@ export function decodeMachine(machine: MachineMessage): Machine {
   return {
     target: machine.target ? decodeTarget(machine.target) : { id: "", kind: "bridge-node", label: "", available: false },
     grant: decodeGrant(machine.grant),
+    drift: (machine.drift ?? []).map((item) => ({ kind: item.kind, name: item.name, reason: item.reason })),
     heartbeatAgeSeconds: Number(machine.heartbeatAgeSeconds),
     manageable: machine.manageable,
   };

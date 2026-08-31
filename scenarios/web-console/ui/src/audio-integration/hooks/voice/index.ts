@@ -1,5 +1,6 @@
 //
 // Barrel re-exports for the voice input module.
+// HOST DIFFERENCE: the barrel includes web-console command adapters.
 
 export type { TranscriptionProvider, VoiceBackend, VoiceState, VoiceInputState, StartRecordingOpts } from "./types";
 export { WHISPER_FAILED_SENTINEL, AUDIO_BITRATE, STREAM_CHUNK_INTERVAL_MS, computeFinalTimeout } from "./types";

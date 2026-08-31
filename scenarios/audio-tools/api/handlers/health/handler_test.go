@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -142,7 +143,7 @@ func TestHealthHandler_ProvidersDownDoesNotFlipReadiness(t *testing.T) {
 	pinger := &mocks.FakePinger{}
 	reg := capabilities.NewRegistry(
 		[]capabilities.Def{
-			{ID: "whisper-stt", DependencyKind: capabilities.DependencyResource, DependencySlug: "whisper"},
+			{ID: "whisper-stt", DependencyKind: capabilities.DependencyResource, DependencySlug: "whisper", Features: []string{"voice-input"}},
 			{ID: "audio-tools", DependencyKind: capabilities.DependencyScenario, DependencySlug: "audio-tools"},
 		},
 		map[string]capabilities.Checker{
@@ -150,6 +151,9 @@ func TestHealthHandler_ProvidersDownDoesNotFlipReadiness(t *testing.T) {
 		},
 		time.Minute,
 	)
+	reg.SetLivenessCheckers(map[string]capabilities.Checker{
+		"whisper-stt": capmocks.NewFakeChecker(capabilities.StatusUnavailable, "down"),
+	})
 	h := health.NewHandler(health.Deps{Pinger: pinger, Registry: reg, Service: "react-vite-test", Version: "1.0.0"})
 	mod := modulekit.Module{
 		Name:  "health",
@@ -170,6 +174,58 @@ func TestHealthHandler_ProvidersDownDoesNotFlipReadiness(t *testing.T) {
 	require.True(t, ok)
 	require.False(t, providers.Connected)
 	require.Contains(t, fmt.Sprint(providers.Error), "whisper-stt")
+}
+
+func TestHealthHandler_UsesLivenessTier(t *testing.T) {
+	pinger := &mocks.FakePinger{}
+	full := capmocks.NewFakeChecker(capabilities.StatusUnavailable, "full probe must not run")
+	live := capmocks.NewFakeChecker(capabilities.StatusAvailable, "live")
+	reg := capabilities.NewRegistry(
+		[]capabilities.Def{{ID: "whisper-stt", DependencyKind: capabilities.DependencyResource, DependencySlug: "whisper"}},
+		map[string]capabilities.Checker{"whisper-stt": full}, time.Minute,
+	)
+	reg.SetLivenessCheckers(map[string]capabilities.Checker{"whisper-stt": live})
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	recorder := httptest.NewRecorder()
+	health.NewHandler(health.Deps{Pinger: pinger, Registry: reg, Service: "audio-tools-api", Version: "1.0.0"}).ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
+	}
+	if full.CallCount() != 0 {
+		t.Fatalf("full checker calls = %d, want 0", full.CallCount())
+	}
+	if live.CallCount() != 1 {
+		t.Fatalf("liveness checker calls = %d, want 1", live.CallCount())
+	}
+}
+
+func TestHealthHandler_DoesNotReportUnknownAsDown(t *testing.T) {
+	pinger := &mocks.FakePinger{}
+	reg := capabilities.NewRegistry(
+		[]capabilities.Def{
+			{ID: "unreached", DependencyKind: capabilities.DependencyResource, DependencySlug: "missing"},
+			{ID: "audio-tools", DependencyKind: capabilities.DependencyScenario, DependencySlug: "audio-tools"},
+		},
+		map[string]capabilities.Checker{}, time.Minute,
+	)
+	reg.SetLivenessCheckers(map[string]capabilities.Checker{
+		"audio-tools": capmocks.NewFakeChecker(capabilities.StatusAvailable, "live"),
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	recorder := httptest.NewRecorder()
+	health.NewHandler(health.Deps{Pinger: pinger, Registry: reg, Service: "audio-tools-api", Version: "1.0.0"}).ServeHTTP(recorder, req)
+
+	var response apihealth.Response
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	providers := response.Dependencies["providers"]
+	if !providers.Connected {
+		t.Fatalf("providers connected = false, want unknown provider ignored; error=%v", providers.Error)
+	}
 }
 
 func TestHealthHandler_ReportsBuildIdentity(t *testing.T) {

@@ -7,7 +7,7 @@
 // state, and the queue-management for autoplay. This adapter contributes the
 // web-console-specific glue:
 //   - workspace-store reads (startMutedOnLoad)
-//   - Kokoro availability probe via the local capabilities surface
+//   - server-provider availability probe via the local capabilities surface
 //   - forwarding playback lifecycle events to `/api/v1/tts-hook/playback`
 
 import { useCallback, useMemo } from "react";
@@ -36,9 +36,9 @@ export interface TTSDiagnostics {
 }
 
 /** Probe `/api/capabilities` for the audio-tools TTS surface. Used by the
- *  core to decide between the audio-tools-backed Kokoro path and Browser
- *  speech synthesis on mount. */
-async function probeKokoroAvailable(): Promise<boolean> {
+ *  core to decide between any audio-tools-backed server provider (local or
+ *  BYOK) and Browser speech synthesis on mount. */
+async function probeServerTTSAvailable(): Promise<boolean> {
   // Reset the cached capabilities so a manual `refresh()` (which is what
   // resolveBackend ultimately calls) sees fresh data on each invocation,
   // matching the pre-extraction behavior of `checkBackend(forceRefresh)`.
@@ -46,14 +46,18 @@ async function probeKokoroAvailable(): Promise<boolean> {
   try {
     const caps = await fetchCapabilitiesLivenessCached();
     const voiceOutputSlug = featureSlug(AudioToolsFeature.VOICE_OUTPUT);
-    return caps.capabilities.some(
-      (c) => c.status === "available" && (
-        (c.id === AUDIO_TOOLS_CAPABILITY_SLUG && c.features.includes(voiceOutputSlug)) ||
-        // Backward-compatible for older web-console builds/tests that still
-        // exposed the pre-audio-tools resource capability directly.
-        c.id === "kokoro-tts"
-      ),
-    );
+    return caps.capabilities.some((c) => {
+      if (c.status !== "available" && c.reasonCode !== "scenario_degraded") return false;
+      if (c.id !== AUDIO_TOOLS_CAPABILITY_SLUG) return false;
+      // Feature status is an any-provider rollup: browser-tts can keep
+      // voice-output available while Kokoro is down. Auto/Kokoro selection
+      // must inspect the preferred provider itself or it will synthesize
+      // through a stopped local service instead of using the browser fallback.
+      if (c.featureStatus?.[voiceOutputSlug] !== "available") return false;
+      return Object.entries(c.providerStatus ?? {}).some(([provider, status]) =>
+        status === "available" && c.providerFeatures?.[provider]?.includes(voiceOutputSlug),
+      );
+    });
   } catch {
     return false;
   }
@@ -87,7 +91,7 @@ export function useTextToSpeech(settings: TTSSettings, diagnostics?: TTSDiagnost
       reportTTSPlayStart: ttsRuntime.reportTTSPlayStart,
     },
     onPlaybackEvent,
-    kokoroAvailable: probeKokoroAvailable,
+    serverTTSAvailable: probeServerTTSAvailable,
     // Keep in-progress speech alive across pane unmount / warm-set eviction:
     // the workspace only mounts a warm set of panes, so a session evicted
     // mid-utterance would otherwise have its provider disposed and its audio

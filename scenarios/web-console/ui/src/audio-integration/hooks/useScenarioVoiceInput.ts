@@ -1,6 +1,7 @@
 //
 // Voice Input Hook — Web-Console Adapter
 // =======================================
+// HOST DIFFERENCE: web-console owns capability probing and command parsing.
 //
 // Thin adapter over `useVoiceCore` (audio-integration). All of the state-
 // machine, VAD, RAF loop, wake-word, and provider lifecycle lives in the
@@ -66,19 +67,31 @@ export async function probeWhisperHealth(): Promise<VoiceCapabilityProbe> {
   // extraction and silently degraded voice input to Web Speech.
   const voiceInputSlug = featureSlug(AudioToolsFeature.VOICE_INPUT);
   const voiceStreamingSlug = featureSlug(AudioToolsFeature.VOICE_STREAMING);
+  const unavailable = (audio: { message?: string; operatorCommand?: string } | undefined): VoiceCapabilityProbe => ({
+    whisperHealthy: false,
+    streamingAvailable: false,
+    capabilityReason: audio?.message || "audio-tools voice input is unavailable",
+    operatorCommand: audio?.operatorCommand,
+  });
+  const fromAudio = (audio: { status?: string; reasonCode?: string; featureStatus?: Record<string, string>; featureReason?: Record<string, string>; featureOperatorCommand?: Record<string, string>; message?: string; operatorCommand?: string } | undefined): VoiceCapabilityProbe => {
+    if (!audio) return unavailable(audio);
+    if (audio.status !== "available" && audio.reasonCode !== "scenario_degraded") return unavailable(audio);
+    const input = audio.featureStatus?.[voiceInputSlug] ?? "unknown";
+    const streaming = audio.featureStatus?.[voiceStreamingSlug] ?? "unknown";
+    return {
+      whisperHealthy: input === "available",
+      streamingAvailable: streaming === "available",
+      capabilityReason: input === "available" ? undefined : audio.featureReason?.[voiceInputSlug] || `voice input is ${input}`,
+      operatorCommand: input === "available" ? undefined : audio.featureOperatorCommand?.[voiceInputSlug] || audio.operatorCommand,
+    };
+  };
 
   // Liveness snapshot is populated by refreshCapabilitiesLiveness on a 25s
   // interval. When it's available, prefer it to avoid a network roundtrip.
   const snapshot = getCapabilitiesLivenessSnapshot();
   if (snapshot) {
     const audio = snapshot.capabilities.find((c) => c.id === AUDIO_TOOLS_CAPABILITY_SLUG);
-    if (audio?.status === "available" && audio.features?.includes(voiceInputSlug)) {
-      return {
-        whisperHealthy: true,
-        streamingAvailable: audio.features?.includes(voiceStreamingSlug) ?? false,
-      };
-    }
-    return { whisperHealthy: false, streamingAvailable: false };
+    return fromAudio(audio);
   }
 
   // No snapshot yet — fetch fresh capabilities. Also kick off a liveness
@@ -86,13 +99,7 @@ export async function probeWhisperHealth(): Promise<VoiceCapabilityProbe> {
   refreshCapabilitiesLiveness().catch(() => {});
   const caps = await fetchCapabilities();
   const audio = caps.capabilities.find((c) => c.id === AUDIO_TOOLS_CAPABILITY_SLUG);
-  if (audio?.status === "available" && audio.features?.includes(voiceInputSlug)) {
-    return {
-      whisperHealthy: true,
-      streamingAvailable: audio.features?.includes(voiceStreamingSlug) ?? false,
-    };
-  }
-  return { whisperHealthy: false, streamingAvailable: false };
+  return fromAudio(audio);
 }
 
 /**
@@ -183,5 +190,8 @@ export function useScenarioVoiceInput(onTranscript: (text: string) => void) {
     capabilityCheck,
     parseCommand,
     onTranscript,
-  ]));
+  ])) as ReturnType<typeof useVoiceCore> & {
+    capabilityReason?: string;
+    operatorCommand?: string;
+  };
 }

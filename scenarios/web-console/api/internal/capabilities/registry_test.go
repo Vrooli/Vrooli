@@ -133,7 +133,7 @@ func TestRegistry_ResolveLiveness(t *testing.T) {
 	livenessChecker := &fakeChecker{status: StatusAvailable, message: "liveness ok"}
 	defs := []Def{{ID: "cap-x", Name: "Cap X"}}
 
-	t.Run("returns cached full-check results when fresh", func(t *testing.T) {
+	t.Run("does not read cached full-check results", func(t *testing.T) {
 		reg := NewRegistry(defs, map[string]Checker{"cap-x": fullChecker}, time.Minute)
 		reg.SetLivenessCheckers(map[string]Checker{"cap-x": livenessChecker})
 
@@ -146,11 +146,11 @@ func TestRegistry_ResolveLiveness(t *testing.T) {
 		}
 
 		states := reg.ResolveLiveness(context.Background())
-		if livenessChecker.calls != 0 {
-			t.Errorf("liveness checker should not be called when cache is fresh, got %d calls", livenessChecker.calls)
+		if livenessChecker.calls != 1 {
+			t.Errorf("liveness checker should be called once, got %d calls", livenessChecker.calls)
 		}
-		if len(states) != 1 || states[0].Message != "full check ok" {
-			t.Errorf("expected cached full check result, got %+v", states)
+		if len(states) != 1 || states[0].Message != "liveness ok" {
+			t.Errorf("expected independent liveness result, got %+v", states)
 		}
 	})
 
@@ -169,14 +169,17 @@ func TestRegistry_ResolveLiveness(t *testing.T) {
 		}
 	})
 
-	t.Run("falls back to full resolve when no liveness checkers configured", func(t *testing.T) {
+	t.Run("does not run full resolve when no liveness checkers configured", func(t *testing.T) {
 		reg := NewRegistry(defs, map[string]Checker{"cap-x": fullChecker}, 0)
 
 		fullChecker.calls = 0
 
-		reg.ResolveLiveness(context.Background())
-		if fullChecker.calls != 1 {
-			t.Errorf("should fall back to full checker, got %d calls", fullChecker.calls)
+		states := reg.ResolveLiveness(context.Background())
+		if fullChecker.calls != 0 {
+			t.Errorf("should not run full checker, got %d calls", fullChecker.calls)
+		}
+		if states[0].Status != StatusUnknown {
+			t.Errorf("state = %+v, want unknown", states[0])
 		}
 	})
 }

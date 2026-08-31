@@ -16,3 +16,4 @@ export function useStreamDegradation() {
   }, []);
   return { notice, observeStatus, observeCompletion };
 }
+// HOST DIFFERENCE: audio-tools exposes scenario-specific stream degradation telemetry.

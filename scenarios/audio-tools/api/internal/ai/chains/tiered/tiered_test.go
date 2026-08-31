@@ -188,6 +188,21 @@ func TestCoordinator_Execute_Precedence(t *testing.T) {
 	}
 }
 
+func TestCoordinator_Execute_LocalFirstPolicy(t *testing.T) {
+	c := tiered.NewCoordinator(tiered.Options[req, *resp]{
+		BYOK:       tier("byok", true, nil),
+		Vrooli:     tier("vrooli", true, nil),
+		Local:      tier("local", true, nil),
+		EnableBYOK: true, EnableVrooli: true, EnableLocal: true,
+		LocalFirst: true,
+		Route:      defaultRoute,
+	})
+
+	got, err := c.Execute(context.Background(), req{BYOKKey: "key", VrooliOK: "token"})
+	require.NoError(t, err)
+	require.Equal(t, "local", got.Tier)
+}
+
 func TestCoordinator_AvailabilityCache_HitAndExpiry(t *testing.T) {
 	probes := 0
 	byok := &tiered.Tier[req, *resp]{

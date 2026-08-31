@@ -6,6 +6,8 @@ import (
 	"io"
 	"os/exec"
 	"strconv"
+
+	"audio-tools/internal/controlplane"
 )
 
 // allowedSlugs is the whitelist of resource slugs CLIController will
@@ -34,20 +36,14 @@ var allowedVerbs = map[string]struct{}{
 // handlers translate to CodeUnavailable with a stable, actionable
 // message.
 type CLIController struct {
-	// vrooliBin is the absolute path to the `vrooli` binary or empty
-	// when the binary was not found at construction.
-	vrooliBin string
+	controlPlane *controlplane.Client
 }
 
 // NewCLIController resolves the `vrooli` binary once at startup. The
 // returned controller is safe even when the binary is missing — every
 // method returns ErrControllerUnavailable in that case.
 func NewCLIController() *CLIController {
-	bin, err := exec.LookPath("vrooli")
-	if err != nil {
-		return &CLIController{}
-	}
-	return &CLIController{vrooliBin: bin}
+	return &CLIController{controlPlane: controlplane.New()}
 }
 
 // Start invokes `vrooli resource start <slug>`.
@@ -71,7 +67,7 @@ func (c *CLIController) Restart(ctx context.Context, slug string) error {
 // passed-in context's deadline mechanism — callers SHOULD pass a
 // cancellable ctx and cancel() when done.
 func (c *CLIController) Logs(ctx context.Context, slug string, follow bool, tailLines int) (io.ReadCloser, error) {
-	if c.vrooliBin == "" {
+	if c.controlPlane == nil || !c.controlPlane.Available() {
 		return nil, ErrControllerUnavailable
 	}
 	if _, ok := allowedSlugs[slug]; !ok {
@@ -84,7 +80,10 @@ func (c *CLIController) Logs(ctx context.Context, slug string, follow bool, tail
 	if tailLines > 0 {
 		args = append(args, "--tail", strconv.Itoa(tailLines))
 	}
-	cmd := exec.CommandContext(ctx, c.vrooliBin, args...)
+	cmd, err := c.controlPlane.Command(ctx, args...)
+	if err != nil {
+		return nil, ErrControllerUnavailable
+	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("stdout pipe: %w", err)
@@ -102,7 +101,7 @@ func (c *CLIController) Logs(ctx context.Context, slug string, follow bool, tail
 // surface is decided at call time by the platform CLI; we encode the
 // preferred shape first and accept either exit status.
 func (c *CLIController) PullModel(ctx context.Context, model string) error {
-	if c.vrooliBin == "" {
+	if c.controlPlane == nil || !c.controlPlane.Available() {
 		return ErrControllerUnavailable
 	}
 	if model == "" {
@@ -111,8 +110,8 @@ func (c *CLIController) PullModel(ctx context.Context, model string) error {
 	// Prefer the typed subcommand; if the platform CLI exposes it the
 	// call succeeds. Otherwise we fall through to `resource exec`.
 	args := []string{"resource", "ollama", "pull-model", model}
-	cmd := exec.CommandContext(ctx, c.vrooliBin, args...)
-	if out, err := cmd.CombinedOutput(); err == nil {
+	out, err := c.controlPlane.Run(ctx, args...)
+	if err == nil {
 		_ = out
 		return nil
 	}
@@ -120,15 +119,14 @@ func (c *CLIController) PullModel(ctx context.Context, model string) error {
 	// this verb). The `--` separator guarantees `ollama pull <model>`
 	// is treated as the inner command and never reparsed.
 	fallback := []string{"resource", "exec", "ollama", "--", "ollama", "pull", model}
-	cmd = exec.CommandContext(ctx, c.vrooliBin, fallback...)
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := c.controlPlane.Run(ctx, fallback...); err != nil {
 		return fmt.Errorf("vrooli resource exec ollama -- ollama pull %s: %w: %s", model, err, string(out))
 	}
 	return nil
 }
 
 func (c *CLIController) runResourceVerb(ctx context.Context, verb, slug string) error {
-	if c.vrooliBin == "" {
+	if c.controlPlane == nil || !c.controlPlane.Available() {
 		return ErrControllerUnavailable
 	}
 	if _, ok := allowedVerbs[verb]; !ok {
@@ -137,8 +135,7 @@ func (c *CLIController) runResourceVerb(ctx context.Context, verb, slug string) 
 	if _, ok := allowedSlugs[slug]; !ok {
 		return fmt.Errorf("disallowed resource slug %q", slug)
 	}
-	cmd := exec.CommandContext(ctx, c.vrooliBin, "resource", verb, slug)
-	out, err := cmd.CombinedOutput()
+	out, err := c.controlPlane.Run(ctx, "resource", verb, slug)
 	if err != nil {
 		return fmt.Errorf("vrooli resource %s %s: %w: %s", verb, slug, err, string(out))
 	}

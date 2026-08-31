@@ -231,8 +231,9 @@ Lever rules (per [control-surface-tunable-levers-design]):
   [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md#strategy--provider-compatibility);
   forbidden pairs raise a typed error at session start rather than
   degrading silently.
-- Setting these levers does NOT pick a provider — provider tier
-  precedence remains the fixed BYOK → Vrooli → Local order defined in
+- Setting these levers does NOT pick a provider — speech provider tier
+  precedence remains Local → BYOK → Vrooli/LPBS; summarization retains its
+  BYOK → Vrooli → Local order defined in
   the PRD.
 
 ### Egress gate (post-recognition quality)

@@ -247,6 +247,19 @@ only when apply is explicit.
 
 **Refs:** `internal/voice/stream_ws.go`, `handlers/stt/stream_ws.go`, plan Phase F.
 
+### 2026-08-31 — WS provider routing delivered
+
+The browser WebSocket path now upgrades directly into the shared
+`sttchain`/segmenter pipeline. It applies the encrypted-store default BYOK
+credential when handshake headers cannot carry one, preserves explicit
+request credentials, and emits provider identity metadata. The historical
+entry above is retained as the original defect record; its workaround is no
+longer current.
+
+**Evidence:** `handlers/stt/stream_ws.go`, focused STT handler tests, and the
+live baseline transcription recorded in
+`/home/matthalloran8/.vrooli/plan-artifacts/speech-stack-ground-truth/`.
+
 ### 2026-05-27 — ScriptProcessorNode → AudioWorklet migration (deferred)
 
 **Symptom:** Two PCM capture sites use the deprecated `ScriptProcessorNode`: the wake-word `createPassiveCapturePipeline` (`hooks/voice/audioUtils.ts`) and the new streaming `createScriptProcessorPcmCapture` (`hooks/voice/pcmCapture.ts`). ScriptProcessor runs on the main thread and is deprecated in favor of `AudioWorkletNode`.
@@ -1088,3 +1101,8 @@ cannot credit that run. Future runs use the corrected source identity
 - Evidence: The deterministic named-mention search `swarm-manager goals list --json | jq ... test("audio-tools")` returned no matching swarm-manager goal. The user-supplied reliability objective and plan remain the active contract; the PRD's P0 targets cover long-form no-loss trust, provider-parity trust floors, and explicit speaker-policy safety. No unrelated goal was substituted.
 - Historical constraint: the formal W0 comparison was unverifiable without a named swarm-manager goal, and physical-microphone confirmation was never the intended automated claim. The current qualification lane uses a named Swarm Manager workflow and PipeWire device evidence to prove the operating-system capture path; it does not claim any particular microphone's analog front end.
 - Measured: 2026-08-18.
+
+- Rung: W3 (implementation/evidence)
+- Evidence: The named-goal W0 search returns only archived `hosted-cloud-tier-foundation` and `portal-front-door`; neither contradicts this speech-stack work. The current implementation and focused gates pass, while the server-owned audio-tools suite remains terminally failed on broad repository conformance/infrastructure checks rather than a speech-specific regression.
+- Blocker: None for targeted implementation; full-suite completion remains an environment/repository validation prerequisite.
+- Measured: 2026-08-31.

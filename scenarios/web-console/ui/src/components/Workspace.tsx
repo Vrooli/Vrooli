@@ -31,7 +31,7 @@ import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
 import { uploadFile } from "../api/uploads";
-import { fetchCapabilities } from "../api/capabilities";
+import { fetchCapabilities, runCapabilityAction } from "../api/capabilities";
 import { getSessionDefaults } from "../api/settings";
 import { getSession, type BackendOption, type BackendID, type ExpirationPolicy, type RecoverResult, type SessionOriginName } from "../api/sessions";
 import { listTargetCatalog, type TargetCatalog, type TerminalTarget } from "../api/targets";
@@ -170,6 +170,14 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     void refreshTargetCatalog();
   }, [refreshTargetCatalog]);
   const availableTargets: TerminalTarget[] = targetCatalog.targets;
+  const installCapability = useCallback(async (capabilityID: string, target: TerminalTarget) => {
+    try {
+      await runCapabilityAction(capabilityID, "operator_command", target.id);
+      await refreshTargetCatalog();
+    } catch (error) {
+      console.error("capability installation failed", error);
+    }
+  }, [refreshTargetCatalog]);
   const {
     panes: sessionPanes,
     isHydrated,
@@ -1145,6 +1153,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Track which panes are currently speaking so voice input can stop active TTS
   // before recording. Playback presentation belongs to the audio bar.
   const [ttsSpeakingPanes, setTtsSpeakingPanes] = useState<Set<string>>(new Set());
+  const [ttsBackendReason, setTtsBackendReason] = useState("");
+  const ttsBackendPreference = useWorkspaceStore((state) => state.ttsBackendPreference);
   const handleTtsSpeakingChange = useCallback((sessionId: string, speaking: boolean) => {
     setTtsSpeakingPanes(prev => {
       const has = prev.has(sessionId);
@@ -1156,6 +1166,9 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
       return next;
     });
   }, []);
+  const handleTtsBackendReasonChange = useCallback((sessionId: string, reason: string) => {
+    if (sessionId === workspace.activePane) setTtsBackendReason(reason);
+  }, [workspace.activePane]);
   const isTtsSpeaking = workspace.activePane ? ttsSpeakingPanes.has(workspace.activePane) : false;
 
   // ── TTS playback state polling for AudioPlayerBar ──
@@ -1731,6 +1744,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           targetsLoading={targetsLoading}
           onRefreshTargets={refreshTargetCatalog}
           onOpenMachines={openMachines}
+          onInstallCapability={installCapability}
           groups={workspaceGroups}
           pendingGroupId={launcherGroupId}
           onDestinationChange={setLauncherGroupId}
@@ -1835,9 +1849,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onStartArrangeDrag={startArrangeDrag}
         onTerminalExit={handleExit}
         onTerminalRef={registerTerminalRef}
-        onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
-        onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
+        onVoiceStart={voiceInput.startRecording}
+        onVoiceStop={voiceInput.stopRecording}
         onTtsSpeakingChange={handleTtsSpeakingChange}
+        onTtsBackendReasonChange={handleTtsBackendReasonChange}
         onSpeakingEventChange={handlePaneTransportSpeakingEvent}
         onConversationEventReceived={handleConversationEventReceived}
         onNeedsUnlock={handleNeedsUnlock}
@@ -1913,6 +1928,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         voiceLevel={voiceInput.audioLevel}
         voiceActivity={voiceInput.voiceActivity}
         voiceBackend={voiceInput.backend}
+        voiceCapabilityReason={voiceInput.capabilityReason}
+        voiceOperatorCommand={voiceInput.operatorCommand}
         onVoicePrepare={voiceInput.prepareRecording}
         onVoiceStart={handleVoiceStart}
         onVoiceStop={handleVoiceStop}
@@ -2123,9 +2140,10 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                   messagesToolbarTrailingAction={activeViewMode === "messages" && paneMeta.sessionId === workspace.activePane ? renderViewToggleButton() : undefined}
                   onTerminalExit={handleExit}
                   onTerminalRef={registerTerminalRef}
-                  onVoiceStart={voiceInput.supported ? voiceInput.startRecording : undefined}
-                  onVoiceStop={voiceInput.supported ? voiceInput.stopRecording : undefined}
+                  onVoiceStart={voiceInput.startRecording}
+                  onVoiceStop={voiceInput.stopRecording}
                   onTtsSpeakingChange={handleTtsSpeakingChange}
+                  onTtsBackendReasonChange={handleTtsBackendReasonChange}
                   onSpeakingEventChange={handlePaneTransportSpeakingEvent}
                   onConversationEventReceived={handleConversationEventReceived}
                   onNeedsUnlock={handleNeedsUnlock}
@@ -2206,6 +2224,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               volume={pb.volume}
               isMuted={pb.isMuted}
               capabilities={pb.capabilities}
+              backendReason={ttsBackendPreference === "auto" ? ttsBackendReason : undefined}
               isSummarized={isPlayingSummarized}
               hasOriginalVersion={hasOriginal}
               canSummarize={canRequestSummarize}
@@ -2275,6 +2294,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             activity: voiceInput.voiceActivity,
             partialTranscript: voiceInput.partialTranscript,
             backend: voiceInput.backend,
+            capabilityReason: voiceInput.capabilityReason,
+            operatorCommand: voiceInput.operatorCommand,
             onPrepare: voiceInput.prepareRecording,
             onStart: handleVoiceStart,
             onStop: handleVoiceStop,
@@ -2322,7 +2343,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onRemoveAttachment={composerAttachments.removeFile}
         resolveAttachmentPaths={resolveComposerAttachmentPaths}
         onClearAttachments={composerAttachments.clearAll}
-        mic={voiceInput.supported ? (
+        mic={
           <VoiceMicButton
             testId="voice-mic-btn"
             supported={voiceInput.supported}
@@ -2349,7 +2370,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             buttonClassName="flex w-full items-center justify-center"
             iconClassName="h-5 w-5"
           />
-        ) : undefined}
+        }
       />
 
       {/* Terminal Launcher */}
@@ -2366,6 +2387,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         targetsLoading={targetsLoading}
         onRefreshTargets={refreshTargetCatalog}
         onOpenMachines={openMachines}
+        onInstallCapability={installCapability}
         groups={workspaceGroups}
         pendingGroupId={launcherGroupId}
         onDestinationChange={setLauncherGroupId}
@@ -2377,7 +2399,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
         onEditTemplates={openTemplateSettings}
       />
 
-      <FleetDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} onStartSession={openLauncherForMachine} />
+      <FleetDrawer open={machinesOpen} onClose={() => { setMachinesOpen(false); }} onStartSession={openLauncherForMachine} onInstallCapability={installCapability} />
 
       {/* Settings Modal */}
       <SettingsModal

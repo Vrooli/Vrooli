@@ -10,12 +10,13 @@ import { DeviceSilhouette } from "../terminal/device/DeviceSilhouette";
 import FleetCard from "./FleetCard";
 import MachineSilhouette from "./MachineSilhouette";
 
-export function MachineCard({ machine, onManage, onStartSession, onReview }: { machine: Machine; onManage?: (machine: Machine) => void; onStartSession?: (machine: Machine) => void; onReview?: () => void }) {
+export function MachineCard({ machine, onManage, onStartSession, onInstallCapability, onReview }: { machine: Machine; onManage?: (machine: Machine) => void; onStartSession?: (machine: Machine) => void; onInstallCapability?: (capabilityID: string, target: Machine["target"]) => void; onReview?: () => void }) {
   const { t } = useTranslation();
   const isLocal = machine.target.kind === "local";
   const pill = statusPill(machine, t as (key: string, options?: Record<string, unknown>) => string);
   const title = isLocal ? t(strings.machines.thisComputer) : machine.target.label;
   const platform = [machine.target.os, machine.target.arch].filter(Boolean).join(" · ");
+  const missingCapabilities = (machine.target.readiness ?? []).filter((fact) => fact.key.startsWith("capability:") && fact.state === "missing");
   return (
     <div data-testid={`machines-row-${machineTestID(machine.target.id)}`} className="shrink-0">
       <FleetCard
@@ -37,7 +38,22 @@ export function MachineCard({ machine, onManage, onStartSession, onReview }: { m
       </> : undefined}
     >
         <GrantLine grant={machine.grant} />
+        {(machine.drift ?? []).length > 0 && (
+          <div data-testid={`machines-drift-${machineTestID(machine.target.id)}`} className="mt-2 text-xs leading-5 text-amber-200/90">
+            <span className="font-medium">Configuration drift</span>
+            {(machine.drift ?? []).map((item) => <div key={`${item.kind}:${item.name}`}>{item.name}: {item.reason}</div>)}
+          </div>
+        )}
         {!machine.target.available && machine.target.recovery_action && <span className="mt-1 block text-xs leading-5 text-amber-200/80">{machine.target.recovery_action}</span>}
+        {onInstallCapability && missingCapabilities.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {missingCapabilities.map((fact) => (
+              <Button key={fact.key} size="sm" variant="outline" onClick={() => { onInstallCapability(fact.key.slice("capability:".length), machine.target); }}>
+                Install {fact.label || fact.key.slice("capability:".length)}
+              </Button>
+            ))}
+          </div>
+        )}
         {onReview && <Button size="sm" className="mt-2 min-h-11" onClick={onReview}>{t(strings.machines.review)}</Button>}
       </FleetCard>
     </div>

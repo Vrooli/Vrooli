@@ -13,6 +13,11 @@ func TestKnownCatalogueHasLiveCheckerForEveryDeclaredIntegration(t *testing.T) {
 		"session-backend-standard":   DependencyResource,
 		"session-backend-persistent": DependencyResource,
 		"vrooli-bridge":              DependencyScenario,
+		"claude":                     DependencyResource,
+		"codex":                      DependencyResource,
+		"opencode":                   DependencyResource,
+		"grok":                       DependencyResource,
+		"agy":                        DependencyResource,
 	}
 
 	checkers := map[string]Checker{
@@ -22,6 +27,11 @@ func TestKnownCatalogueHasLiveCheckerForEveryDeclaredIntegration(t *testing.T) {
 		"session-backend-standard":   &StaticChecker{Available: func() (bool, string) { return true, "" }},
 		"session-backend-persistent": &StaticChecker{Available: func() (bool, string) { return true, "" }},
 		"vrooli-bridge":              &BridgeChecker{},
+		"claude":                     HostCapabilityChecker{},
+		"codex":                      HostCapabilityChecker{},
+		"opencode":                   HostCapabilityChecker{},
+		"grok":                       HostCapabilityChecker{},
+		"agy":                        HostCapabilityChecker{},
 	}
 
 	seen := make(map[string]bool, len(Known))

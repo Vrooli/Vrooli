@@ -159,9 +159,6 @@ func backfillStreamCfgDefaults(d streamCfgDoc) streamCfgDoc {
 	if d.StrategyPreference == "" {
 		d.StrategyPreference = def.StrategyPreference
 	}
-	if d.EngineID == "" {
-		d.EngineID = def.EngineID
-	}
 	if d.VadSilenceMs == 0 {
 		d.VadSilenceMs = def.VadSilenceMs
 	}

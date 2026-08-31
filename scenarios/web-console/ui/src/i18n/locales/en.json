@@ -1,4 +1,13 @@
 {
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "Changes saved successfully": {
+    "": "We couldn’t save your changes."
+  },
+  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
+    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
+  },
+  "Request in progress": "Ready to save",
+  "Saved": "Try again",
   "_comment": "Canonical English catalog for web-console. Keys with a leading underscore (like this one) are sentinels — skipped by codegen, parity tests, and unused-key audits. Runtime interpolation uses i18next syntax: {{count}}, {{name}}, etc.",
   "aiInput": {
     "closeAriaLabel": "Close AI input",
@@ -111,6 +120,7 @@
     "archived": "Archived {{name}}",
     "undo": "Undo"
   },
+  "asset": "preview.showcase",
   "audioPlayerBar": {
     "audioSettings": "Audio settings",
     "audioSettingsHeading": "Audio Settings",
@@ -154,6 +164,8 @@
     "showLess": "Show less",
     "trackingDegraded": "Conversation tracking may be delayed for this recovered Claude session. Terminal activity is continuing."
   },
+  "children": "Try again",
+  "component": "button",
   "composer": {
     "attachImageTitle": "Attach image",
     "closeAriaLabel": "Minimize composer",
@@ -182,6 +194,9 @@
     "confirm": "Delete permanently",
     "title": "Delete session permanently?"
   },
+  "default": "Save changes",
+  "description": "Native picker changes are committed to recents once when the input loses focus.",
+  "detail": "The generic harness supplies context; Button remains the subject.",
   "deviceFrame": {
     "caption": "{{device}} · {{cols}}×{{rows}}",
     "device": {
@@ -216,6 +231,32 @@
     "somethingWentWrong": "Something went wrong in {{region}}",
     "tryAgain": "Try Again"
   },
+  "example": "default",
+  "export": "ErrorRecoveryStory",
+  "fleet": {
+    "alsoDevice": "Also a device",
+    "devices": "Devices",
+    "devicesDescription": "Screens you are using this console from",
+    "driving": "Driving {{session}}",
+    "dropOld": "Drop the old one",
+    "following": "Following",
+    "forgetDevice": "Forget this device",
+    "giveControl": "Give control",
+    "idle": "Idle",
+    "inControl": "In control",
+    "machines": "Machines",
+    "machinesDescription": "Computers you can run terminals on",
+    "noSession": "No session open",
+    "notConnected": "Not connected",
+    "openAriaLabel": "Open devices and machines",
+    "reconnecting": "Reconnecting",
+    "rename": "Rename",
+    "startSession": "Start session",
+    "subtitle": "Where you are working from, and what you can work on.",
+    "title": "Devices \u0026 machines",
+    "unnamedDevice": "Unnamed device",
+    "you": "You"
+  },
   "floatingToolbar": {
     "aiCommandTitle": "AI Command",
     "expandComposerTitle": "Open composer (Ctrl+Shift+K)",
@@ -224,6 +265,7 @@
     "tapToRestore": "Tap to restore toolbar",
     "terminalFirstTitle": "New terminal (long-press for launcher)"
   },
+  "format": "renderable-text",
   "groupContextMenu": {
     "addRole": "Add role…",
     "closeBody": "The group and any waiting roles in it go away.",
@@ -339,6 +381,8 @@
     "surfaces": "Show in",
     "title": "Handoff suggestions"
   },
+  "iconName": "arrowEnd",
+  "id": "error-retry",
   "integrationsPanel": {
     "actionFailed": "Action failed: {{message}}",
     "actionRunning": "Running...",
@@ -362,6 +406,8 @@
     "searchPlaceholder": "Search combos…",
     "triggerTitle": "More"
   },
+  "kind": "settle",
+  "label": "Disabled",
   "launcher": {
     "addRole": "Add role",
     "agents": "Agents",
@@ -402,6 +448,7 @@
     "startsWaiting": "Waiting",
     "template": "Template"
   },
+  "libraryId": "react-component-library:Pressable",
   "machines": {
     "actionFailed": "That did not work",
     "addMachine": "Add machine",
@@ -490,30 +537,6 @@
     "unenrolledTitle": "This computer is not part of a fleet",
     "withholds": "Withholds",
     "wordsMatch": "Words match › Continue"
-  },
-  "fleet": {
-    "openAriaLabel": "Open devices and machines",
-    "title": "Devices & machines",
-    "subtitle": "Where you are working from, and what you can work on.",
-    "devices": "Devices",
-    "devicesDescription": "Screens you are using this console from",
-    "machines": "Machines",
-    "machinesDescription": "Computers you can run terminals on",
-    "unnamedDevice": "Unnamed device",
-    "you": "You",
-    "inControl": "In control",
-    "following": "Following",
-    "idle": "Idle",
-    "reconnecting": "Reconnecting",
-    "notConnected": "Not connected",
-    "giveControl": "Give control",
-    "dropOld": "Drop the old one",
-    "forgetDevice": "Forget this device",
-    "rename": "Rename",
-    "startSession": "Start session",
-    "noSession": "No session open",
-    "driving": "Driving {{session}}",
-    "alsoDevice": "Also a device"
   },
   "manageGroups": {
     "assignSession": "Add current session",
@@ -811,6 +834,10 @@
     "unsentOldest": "(oldest {{seconds}}s)",
     "uploadImageTitle": "Upload image"
   },
+  "mode": "live",
+  "module": "./story.tsx",
+  "name": "Recoverable save failure",
+  "path": "disabled",
   "playbackMode": {
     "heavy": "Heavy",
     "heavyHint": "2-3 sentences",
@@ -825,6 +852,8 @@
     "summarized": "Summarized",
     "summaryTitle": "{{level}} summary — click to switch"
   },
+  "provenance": "react-component-library:Tokens@1.0.0",
+  "purpose": "Primitive, semantic, and component token ramps used by every asset.",
   "recoverableSessions": {
     "agentLabel": "agent: {{agent}}",
     "agentNone": "none",
@@ -840,6 +869,9 @@
     "view": "View",
     "viewArchive": "View in archive"
   },
+  "ref": "../../../../../experience/components/button.json",
+  "resolvedAt": "2026-08-31T05:19:38Z",
+  "role": "boundary",
   "roles": {
     "addRole": "Add role…",
     "addRoleTitle": "Add a role to {{group}}",
@@ -862,6 +894,8 @@
     "waitingCount": "{{count}} waiting",
     "waitingCount_one": "{{count}} waiting"
   },
+  "schema": "scenario-experience-spec/v1",
+  "selector": "button",
   "sessionRecovery": {
     "recovered": "{{count}} sessions recovered",
     "recovered_one": "1 session recovered",
@@ -1321,6 +1355,7 @@
       "wakeLockUnsupported": "Your browser or connection doesn't support screen wake lock. A video-based fallback is being used instead."
     }
   },
+  "size": "lg",
   "snippets": {
     "body": "Body",
     "cancel": "Cancel",
@@ -1399,6 +1434,8 @@
       "title": "Fill variables · {{name}}"
     }
   },
+  "statement": "The foundation exposes a stable versioned contract for downstream assets.",
+  "status": "alert",
   "summarizeError": {
     "autoFailed": "Auto-summarize failed",
     "dismiss": "Dismiss",
@@ -1454,6 +1491,7 @@
   "terminalLauncher": {
     "actions": "Start with",
     "advancedHint": "Optional session behavior",
+    "agentsReady": "{{ready}}/{{total}} agents ready",
     "backendLabel": "Backend:",
     "chooseReadyLocation": "Choose a ready location to continue.",
     "closeAriaLabel": "Close launcher",
@@ -1505,6 +1543,12 @@
     "inputRejected": "That input was rejected — it never reached the terminal.",
     "uploadingImage": "Uploading image…"
   },
+  "text": "#ff6b6b",
+  "tier": "manual",
+  "title": "Button 2.2",
+  "true": "false",
+  "type": "manual-review",
+  "uncontrolled": "controlled",
   "undo": {
     "dismiss": "Dismiss",
     "groupClosed": "Closed “{{name}}”",
@@ -1514,6 +1558,10 @@
     "restored": "Group restored",
     "undo": "Undo"
   },
+  "value": "1",
+  "var(--color-foreground)": "var(--color-background)",
+  "variant": "primary",
+  "version": "1.0.0",
   "voiceCommandSuggestion": {
     "dismissTitle": "Dismiss",
     "executeTitle": "Execute command"
@@ -1547,10 +1595,10 @@
     "emptyDetail": "No words were recognized · {{duration}} kept — retry or record again",
     "emptyRetryTitle": "Try transcribing the kept audio again",
     "emptyTitle": "Couldn't transcribe your speech",
-    "explanatoryDetail": "{{reason}} (score {{score}} < threshold {{threshold}})",
+    "explanatoryDetail": "{{reason}} (score {{score}} \u003c threshold {{threshold}})",
     "retry": "Retry",
     "retryTitle": "Transcribe the audio without speaker verification",
-    "retryableDetail": "Score {{score}} < threshold {{threshold}} · {{duration}} retained",
+    "retryableDetail": "Score {{score}} \u003c threshold {{threshold}} · {{duration}} retained",
     "title": "Speech didn't match your voice",
     "transcribeAnyway": "Transcribe anyway",
     "transcribing": "Transcribing…"

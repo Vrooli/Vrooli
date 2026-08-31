@@ -4,17 +4,19 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"audio-tools/internal/controlplane"
 )
 
 func TestActiveResolvesClaimAndReports(t *testing.T) {
 	var calls [][]string
-	r := &CLIReporter{vrooliBin: "vrooli", exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+	r := &CLIReporter{controlPlane: controlplane.NewForTest("vrooli", func(_ context.Context, _ string, args ...string) ([]byte, error) {
 		calls = append(calls, args)
 		if len(args) >= 2 && args[0] == "capacity" && args[1] == "list" {
 			return []byte(`{"claims":[{"claim_id":"clm-k","owner_id":"kyutai-stt"}]}`), nil
 		}
 		return []byte(`{}`), nil
-	}}
+	})}
 
 	claimID := r.Active(context.Background(), "kyutai-stt")
 	if claimID != "clm-k" {
@@ -36,10 +38,10 @@ func TestActiveResolvesClaimAndReports(t *testing.T) {
 // contract).
 func TestActiveRejectsWhisper(t *testing.T) {
 	called := false
-	r := &CLIReporter{vrooliBin: "vrooli", exec: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+	r := &CLIReporter{controlPlane: controlplane.NewForTest("vrooli", func(_ context.Context, _ string, _ ...string) ([]byte, error) {
 		called = true
 		return nil, nil
-	}}
+	})}
 	if id := r.Active(context.Background(), "whisper"); id != "" {
 		t.Errorf("Active(whisper) = %q, want empty (whisper is edge-reported, not caller-side)", id)
 	}
@@ -50,10 +52,10 @@ func TestActiveRejectsWhisper(t *testing.T) {
 
 func TestActiveRejectsUnknownResource(t *testing.T) {
 	called := false
-	r := &CLIReporter{vrooliBin: "vrooli", exec: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+	r := &CLIReporter{controlPlane: controlplane.NewForTest("vrooli", func(_ context.Context, _ string, _ ...string) ([]byte, error) {
 		called = true
 		return nil, nil
-	}}
+	})}
 	if id := r.Active(context.Background(), "reranker"); id != "" {
 		t.Errorf("Active(reranker) = %q, want empty (not whitelisted)", id)
 	}
@@ -63,16 +65,16 @@ func TestActiveRejectsUnknownResource(t *testing.T) {
 }
 
 func TestActiveNoClaimReturnsEmpty(t *testing.T) {
-	r := &CLIReporter{vrooliBin: "vrooli", exec: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+	r := &CLIReporter{controlPlane: controlplane.NewForTest("vrooli", func(_ context.Context, _ string, _ ...string) ([]byte, error) {
 		return []byte(`{"claims":[]}`), nil
-	}}
+	})}
 	if id := r.Active(context.Background(), "kyutai-stt"); id != "" {
 		t.Errorf("Active with no claim = %q, want empty", id)
 	}
 }
 
 func TestMissingBinaryNoOps(t *testing.T) {
-	r := &CLIReporter{} // no vrooliBin
+	r := &CLIReporter{} // no control-plane client
 	if id := r.Active(context.Background(), "kyutai-stt"); id != "" {
 		t.Errorf("Active without binary = %q, want empty", id)
 	}
@@ -81,10 +83,10 @@ func TestMissingBinaryNoOps(t *testing.T) {
 
 func TestIdleReportsState(t *testing.T) {
 	var got []string
-	r := &CLIReporter{vrooliBin: "vrooli", exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+	r := &CLIReporter{controlPlane: controlplane.NewForTest("vrooli", func(_ context.Context, _ string, args ...string) ([]byte, error) {
 		got = args
 		return nil, nil
-	}}
+	})}
 	r.Idle(context.Background(), "clm-k")
 	if j := strings.Join(got, " "); !strings.Contains(j, "capacity activity --claim-id clm-k --state idle") {
 		t.Errorf("idle args = %q", j)

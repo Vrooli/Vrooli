@@ -122,3 +122,4 @@ export function getActiveAudioToolsClient(): AudioToolsClient {
 export function setActiveAudioToolsClientForTesting(client: AudioToolsClient | null): void {
   activeClient = client;
 }
+// HOST DIFFERENCE: audio-tools component adapter preserves this scenario's client composition.

@@ -1,6 +1,6 @@
 // Package sttchain implements the speech-to-text provider chain.
 //
-// Routing precedence (fixed): BYOK -> Vrooli/LPBS -> Local.
+// Production routing precedence: Local -> BYOK -> Vrooli/LPBS.
 // ErrInsufficientCredits from the Vrooli tier short-circuits and does NOT
 // fall through to Local — credit exhaustion is a billing failure, not a
 // capability failure. Per-request credentials travel through Request.

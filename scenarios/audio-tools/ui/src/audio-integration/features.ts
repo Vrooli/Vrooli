@@ -72,3 +72,4 @@ export function allFeatureSlugs(): string[] {
 }
 
 export { AudioToolsFeature };
+// HOST DIFFERENCE: audio-tools maps its generated feature enum for its local API surface.

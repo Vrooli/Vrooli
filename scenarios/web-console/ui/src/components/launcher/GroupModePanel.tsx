@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, Clock, GripVertical, Loader2, Pencil, Play, Plus, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
+import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1";
 
 import { listGroupTemplates, type GroupTemplateDTO, type StartMode, type TemplateRoleDTO } from "../../api/grouptemplates";
 import { strings } from "../../consts/strings";

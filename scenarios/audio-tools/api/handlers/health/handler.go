@@ -58,19 +58,9 @@ func NewHandler(d Deps) http.HandlerFunc {
 
 	if d.Registry != nil {
 		b = b.Check(apihealth.Func("providers", func(ctx context.Context) error {
-			states := d.Registry.Resolve(ctx)
-			var down []string
-			for _, s := range states {
-				// Skip the rollup pseudo-entry.
-				if s.Def.ID == "audio-tools" {
-					continue
-				}
-				if s.Status == capabilities.StatusUnavailable {
-					down = append(down, s.Def.ID)
-				}
-			}
-			if len(down) > 0 {
-				return errors.New(strings.Join(down, ","))
+			failures := capabilities.RequiredFailures(d.Registry.ResolveLiveness(ctx))
+			if len(failures) > 0 {
+				return errors.New(strings.Join(failures, "; "))
 			}
 			return nil
 		}), apihealth.Optional)

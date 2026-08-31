@@ -102,6 +102,8 @@ interface TerminalLauncherProps {
   onRefreshTargets?: () => void | Promise<void>;
   /** Opens the machines surface, which owns linking and permissions. */
   onOpenMachines?: () => void;
+  /** Starts the governed install action for a missing capability. */
+  onInstallCapability?: (capabilityID: string, target: TerminalTarget) => void;
   /** Opens the shortcut editor, which owns the agent list this grid renders. */
   onEditShortcuts?: () => void;
   /** Opens the template editor, which owns the saved group recipes. */
@@ -129,6 +131,28 @@ function lastSeenCopy(target: TerminalTarget, neverSeenLabel: string): string | 
   }
 }
 
+function capabilityIDForCommand(command: string): string | undefined {
+  const value = command.trim().toLowerCase();
+  if (/\bclaude(?:-code)?\b/.test(value)) return "claude";
+  if (/\bcodex\b/.test(value)) return "codex";
+  if (/\bopencode\b/.test(value)) return "opencode";
+  if (/\bgrok\b/.test(value)) return "grok";
+  if (/\b(?:agy|antigravity)\b/.test(value)) return "agy";
+  return undefined;
+}
+
+// The target catalog is authoritative for which cards exist. These commands
+// are the stable launch verbs for the catalogued capabilities; shortcut
+// profiles still supply optional attributed variants and operator-authored
+// custom commands.
+const capabilityCommands: Record<string, string> = {
+  claude: "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
+  codex: "codex --yolo",
+  opencode: "opencode",
+  grok: "grok",
+  agy: "agy",
+};
+
 export default function TerminalLauncher({
   open,
   onClose,
@@ -143,6 +167,7 @@ export default function TerminalLauncher({
   targetsLoading = false,
   onRefreshTargets,
   onOpenMachines,
+  onInstallCapability,
   onEditShortcuts,
   onEditTemplates,
   groups = [],
@@ -252,9 +277,30 @@ export default function TerminalLauncher({
     });
   }, [changeDestination, onCreateGroup]);
 
-  // Four agent cards, not eight rows: the "(attributed)" entries are the same
-  // agents with one setting changed, and the toggle below says so.
-  const agentCards = useMemo(() => foldAttributedShortcuts(shortcuts), [shortcuts]);
+  // Capability facts decide which agent cards exist. Shortcut profiles only
+  // contribute attribution variants and operator-authored custom commands.
+  const agentCards = useMemo(() => {
+    const cards = foldAttributedShortcuts(shortcuts);
+    const capabilityFacts = (selected.readiness ?? []).filter((fact) => fact.key.startsWith("capability:"));
+    if (capabilityFacts.length === 0) return cards;
+    const capabilityIDs = new Set(capabilityFacts.map((fact) => fact.key.slice("capability:".length)));
+    const capabilityCards = capabilityFacts.map((fact) => {
+      const id = fact.key.slice("capability:".length);
+      const shortcut = cards.find((card) => capabilityIDForCommand(card.command ?? "") === id);
+      return {
+        label: fact.label || shortcut?.label || id,
+        command: capabilityCommands[id] ?? shortcut?.command ?? id,
+        description: shortcut?.description ?? (fact.version ? `${fact.detail || "Installed"} (${fact.version})` : fact.detail),
+        attributedCommand: shortcut?.attributedCommand,
+        attributedDescription: shortcut?.attributedDescription,
+      };
+    });
+    const customCards = cards.filter((card) => {
+      const id = capabilityIDForCommand(card.command ?? card.attributedCommand ?? "");
+      return !id || !capabilityIDs.has(id) || card.label.toLowerCase().includes("sign-in");
+    });
+    return [...capabilityCards, ...customCards];
+  }, [selected.readiness, shortcuts]);
 
   const buildLaunchOptions = useCallback((command?: string): LaunchOptions => {
     const parsed = parsePolicySelection(selectedPolicyKey);
@@ -424,13 +470,27 @@ export default function TerminalLauncher({
               {agentCards.map((card) => {
                 const command = commandForCard(card, attributed);
                 if (!command) return null;
+                const capabilityID = capabilityIDForCommand(command);
+                const capabilityFact = capabilityID ? selected.readiness?.find((fact) => fact.key === `capability:${capabilityID}`) : undefined;
+                const capabilityBlocked = capabilityFact && capabilityFact.state !== "ready" && !capabilityFact.passed;
+                const canRecoverCapability = Boolean(capabilityBlocked && (onInstallCapability || onOpenMachines));
                 return (
                   <button
                     key={card.label}
                     type="button"
                     data-testid={`launcher-agent-${slugify(card.label)}`}
-                    onClick={() => { onLaunch(buildLaunchOptions(command)); }}
-                    disabled={isCreating || !selected.available || noBackendAvailable}
+                    data-capability-id={capabilityID ?? undefined}
+                    data-capability-state={capabilityFact?.state ?? undefined}
+                    data-capability-version={capabilityFact?.version ?? undefined}
+                    onClick={() => {
+                      if (capabilityBlocked && capabilityID) {
+                        if (onInstallCapability) onInstallCapability(capabilityID, selected);
+                        else onOpenMachines?.();
+                        return;
+                      }
+                      onLaunch(buildLaunchOptions(command));
+                    }}
+                    disabled={isCreating || !selected.available || noBackendAvailable || (Boolean(capabilityBlocked) && !canRecoverCapability)}
                     className={agentCardClass}
                     title={command}
                   >
@@ -438,7 +498,7 @@ export default function TerminalLauncher({
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-wc-text-primary">{card.label}</span>
                       <span className="block truncate text-[11px] text-wc-text-muted">
-                        {(attributed ? card.attributedDescription : card.description) ?? command}
+                        {capabilityBlocked ? `${capabilityFact?.state ?? "unknown"} — ${capabilityFact?.detail ?? "refresh the target inventory"}` : ((attributed ? card.attributedDescription : card.description) ?? command)}
                       </span>
                     </span>
                   </button>

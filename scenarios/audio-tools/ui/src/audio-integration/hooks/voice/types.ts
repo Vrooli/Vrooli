@@ -184,3 +184,4 @@ export interface TranscriptionProvider {
   onPartial?: ((text: string) => void) | null;
   onStatus?: ((status: { code: string; message: string }) => void) | null;
 }
+// HOST DIFFERENCE: audio-tools keeps compatibility types for its scenario transport.

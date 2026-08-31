@@ -20,6 +20,16 @@ For the unary `Transcribe` path, see
 [`../../reference/api-endpoints.md`](../../reference/api-endpoints.md)
 — this document covers only the streaming path.
 
+## Latency expectation
+
+The current Linux Whisper medium CPU configuration is intentionally declared
+as CPU-only because no pinned Linux CUDA server is available at the selected
+release. The same-corpus measurement is approximately 5.3 seconds for a
+two-second clip; this is above the 2.5-second interactive target and is an
+honest expectation, not a hidden performance claim. A future accelerator or
+smaller-model change must repeat the quality smoke and latency measurement
+before changing the declaration.
+
 ## Two Axes, One Pipeline
 
 Streaming STT has two independent axes that the current code partly
@@ -174,7 +184,7 @@ TRANSPORT EDGE  (translate wire format ↔ Segmenter events; no logic)
          │ uses                   │ uses                    │ uses
          ▼                        ▼                         ▼
 ┌─────────────────────────────────────────────────────────────┐
-│  Provider chain  (tier ordering: BYOK → Vrooli → Local)      │
+│  Provider chain  (tier ordering: Local → BYOK → Vrooli)      │
 │  ─────────────────────────────────────────────────────────  │
 │  Each provider declares Capabilities{Batch, Stream} via      │
 │  ProviderTraits and continues to implement Transcribe        │
@@ -487,3 +497,12 @@ Audio Tools run is never presented as Swarm Manager evidence.
 - [`../../internal/PROBLEMS.md`](../../internal/PROBLEMS.md) — current drift the target architecture closes
 - [`../../reference/configuration.md`](../../reference/configuration.md#streaming-stt-control-surface) — operator-tunable levers
 - `packages/proto/schemas/audio-tools/v1/stt/stt.proto` — wire shape (`TranscribeStreamEvent` oneof)
+# Provider tiers and BYOK fallback
+
+Audio-tools prefers an available local STT provider. When local providers are
+unavailable, the chain selects a configured BYOK provider (including the
+encrypted-store default when a caller supplies no explicit credential);
+browser speech is the final client-side fallback. BYOK credentials are managed
+through `audio-tools settings providers` and are never returned by health or
+capability endpoints. A missing credential is reported as an actionable,
+optional provider absence rather than as a failure of unrelated capabilities.

@@ -1,6 +1,6 @@
 // Package ttschain implements the text-to-speech provider chain.
 //
-// Routing precedence (fixed): BYOK -> Vrooli/LPBS -> Local.
+// Production routing precedence: Local -> BYOK -> Vrooli/LPBS.
 // ErrInsufficientCredits short-circuits (no fallthrough to Local).
 package ttschain
 

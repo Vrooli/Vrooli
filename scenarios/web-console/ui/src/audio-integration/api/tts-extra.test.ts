@@ -40,11 +40,13 @@ describe("TTS API adapters", () => {
   });
 
   it("synthesizes with metrics and degrades cache failures to misses", async () => {
-    const synth = vi.spyOn(audioRuntimeClient, "synthesize").mockResolvedValue({ audio: new Uint8Array([1]), contentType: "audio/wav" } as never);
+    const synth = vi.spyOn(audioRuntimeClient, "synthesize").mockResolvedValue({ audio: new Uint8Array([1]), contentType: "audio/wav", providerId: "openai-tts", providerTier: 2 } as never);
     vi.spyOn(audioRuntimeClient, "recordPlaybackEvent").mockResolvedValue({} as never);
     const result = await synthesizeTTSWithMetrics("hello", "v", 1, undefined, { eventId: "e", chunkIndex: 2, version: "active" });
     expect(result.blob.type).toBe("audio/wav");
     expect(result.metrics.totalChars).toBe(5);
+    expect(result.metrics.providerId).toBe("openai-tts");
+    expect(result.metrics.providerTier).toBe("2");
     await expect(synthesizeTTS("hello", "v", 1)).resolves.toBeInstanceOf(Blob);
     expect(synth).toHaveBeenCalledWith(expect.objectContaining({ text: "hello", eventId: "e", chunkIndex: 2 }), expect.objectContaining({ headers: { "x-tts-request-id": expect.any(String) } }));
 

@@ -1,4 +1,5 @@
 // TTS API client for audio-integration.
+// HOST DIFFERENCE: binds the shared browser TTS surface to audio-tools RPCs.
 //
 // Exposes the audio operations audio-tools' TTSService + SummarizeService
 // support. Consumer-scenario-specific concerns (conversation routing,

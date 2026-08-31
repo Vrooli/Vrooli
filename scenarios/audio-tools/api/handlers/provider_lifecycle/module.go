@@ -29,6 +29,9 @@ type Deps struct {
 	Controller capabilities.ResourceController
 	Logger     logx.Logger
 	Clock      schedule.Clock
+	// InvalidateEngineCache is called after a successful lifecycle mutation so
+	// the next STT selection observes the new resource state immediately.
+	InvalidateEngineCache func()
 }
 
 // Module returns the provider_lifecycle module contribution.

@@ -15,7 +15,7 @@ const viewportState = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@vrooli/react-component-library/useViewportEnvironment/1.0.3", () => ({
+vi.mock("@vrooli/react-component-library/useViewportEnvironment/1", () => ({
   useViewportEnvironment: () => viewportState.current,
 }));
 

@@ -15,7 +15,7 @@ import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
 import { SettingsSlider, SettingsToggle } from "./primitives";
 import { useSummarizeSettings } from "./useSummarizeSettings";
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.5";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
 
 // TtsSettingsSection split-of-concerns:
 //   - voice / speed / response-format / summarization knobs → audio-integration
@@ -79,6 +79,7 @@ export default function TtsSettingsSection() {
     backend,
     voices: ttsVoices,
     backendReason,
+    providerId,
     browserAudioReady,
     refresh,
     testSpeak,
@@ -89,7 +90,7 @@ export default function TtsSettingsSection() {
   } = useTextToSpeech(ttsSettings, { source: "settings_test" });
 
   const backendLabel = backend === "kokoro"
-    ? t(strings.settings.voiceOutputSection.backendKokoro)
+    ? providerId && providerId !== "kokoro-tts" ? providerId : t(strings.settings.voiceOutputSection.backendKokoro)
     : backend === "browser"
       ? t(strings.settings.voiceOutputSection.backendBrowser)
       : t(strings.settings.voiceOutputSection.backendUnavailable);

@@ -103,6 +103,30 @@ func TestServiceSynthesizeNormalizesAndCaches(t *testing.T) {
 	}
 }
 
+func TestSynthesizeDoesNotSweepCatalogue(t *testing.T) {
+	deps := testDeps()
+	var capabilityCalls int
+	var synthesisCalls int
+	deps.KokoroCapability = func(context.Context) (string, string) {
+		capabilityCalls++
+		return "available", "Kokoro available"
+	}
+	deps.SynthesizeAudio = func(context.Context, SynthesizeInput) (io.ReadCloser, string, error) {
+		synthesisCalls++
+		return io.NopCloser(strings.NewReader("audio")), "audio/mpeg", nil
+	}
+
+	if _, err := NewService(deps).Synthesize(context.Background(), SynthesizeInput{Input: "one request"}); err != nil {
+		t.Fatalf("synthesize: %v", err)
+	}
+	if capabilityCalls != 1 {
+		t.Fatalf("Kokoro capability calls = %d, want one single-provider gate", capabilityCalls)
+	}
+	if synthesisCalls != 1 {
+		t.Fatalf("synthesis calls = %d, want 1", synthesisCalls)
+	}
+}
+
 func TestServiceSynthesizeFormatValidation(t *testing.T) {
 	deps := testDeps()
 	deps.SynthesizeAudio = func(_ context.Context, in SynthesizeInput) (io.ReadCloser, string, error) {

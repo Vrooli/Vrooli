@@ -71,6 +71,8 @@ interface FloatingToolbarProps {
   voiceLevel?: number;
   voiceActivity?: VoiceActivitySnapshot;
   voiceBackend?: string;
+  voiceCapabilityReason?: string;
+  voiceOperatorCommand?: string;
   onVoiceStart?: (opts?: StartRecordingOpts) => void;
   onVoicePrepare?: () => void;
   onVoiceStop?: () => void;
@@ -98,6 +100,8 @@ export default function FloatingToolbar({
   voiceLevel = 0,
   voiceActivity,
   voiceBackend,
+  voiceCapabilityReason,
+  voiceOperatorCommand,
   onVoiceStart,
   onVoicePrepare,
   onVoiceStop,
@@ -310,10 +314,10 @@ export default function FloatingToolbar({
           <Maximize2 className="h-4 w-4" />
         </Button>
       )}
-      {voiceSupported && onVoiceStart && onVoiceStop && (
+      {onVoiceStart && onVoiceStop && (
         <VoiceMicButton
           testId="voice-mic-btn"
-          supported={voiceSupported}
+          supported={voiceSupported ?? false}
           isPreparing={voicePreparing ?? false}
           isRecording={voiceRecording ?? false}
           persistentMode={voicePersistentMode ?? false}
@@ -325,6 +329,8 @@ export default function FloatingToolbar({
           audioLevel={voiceLevel}
           voiceActivity={voiceActivity}
           backend={voiceBackend}
+          capabilityReason={voiceCapabilityReason}
+          operatorCommand={voiceOperatorCommand}
           onPrepare={onVoicePrepare}
           onStart={onVoiceStart}
           onStop={onVoiceStop}

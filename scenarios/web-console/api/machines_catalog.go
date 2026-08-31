@@ -220,6 +220,7 @@ func (h *machineRPC) readFleet(ctx context.Context) fleet {
 	}
 
 	linked := 0
+	driftByNode := h.machineDriftByNode(ctx, client)
 	for _, target := range targets {
 		// The synthetic placeholder the catalog returns when Bridge holds no
 		// nodes carries no node identity; it is a state, not a machine.
@@ -230,7 +231,7 @@ func (h *machineRPC) readFleet(ctx context.Context) fleet {
 			continue
 		}
 		linked++
-		view.machines = append(view.machines, machineFromTarget(target, view.presets))
+		view.machines = append(view.machines, machineFromTarget(target, view.presets, driftByNode[target.NodeID]))
 	}
 
 	switch {
@@ -246,15 +247,45 @@ func (h *machineRPC) readFleet(ctx context.Context) fleet {
 	return view
 }
 
+func (h *machineRPC) machineDriftByNode(ctx context.Context, client *nodeclient.Client) map[string][]*machinesv1.MachineDrift {
+	result := make(map[string][]*machinesv1.MachineDrift)
+	machines, err := client.ListMachines(ctx, bridgeCallTimeout)
+	if err != nil {
+		return result
+	}
+	for _, machine := range machines {
+		if machine == nil || machine.GetId() == "" {
+			continue
+		}
+		for _, lineage := range machine.GetNodeLineage() {
+			if !lineage.GetCurrent() || lineage.GetNodeId() == "" {
+				continue
+			}
+			detail, detailErr := client.GetMachine(ctx, machine.GetId(), bridgeCallTimeout)
+			if detailErr == nil && detail != nil {
+				for _, item := range detail.GetDrift() {
+					if item == nil {
+						continue
+					}
+					result[lineage.GetNodeId()] = append(result[lineage.GetNodeId()], &machinesv1.MachineDrift{Kind: item.GetKind(), Name: item.GetName(), Reason: item.GetReason()})
+				}
+			}
+			break
+		}
+	}
+	return result
+}
+
 // machineFromTarget projects one catalog target into the machines vocabulary.
 // The readiness facts stay untouched: the launcher and this surface must never
 // disagree about whether a machine answers.
-func machineFromTarget(target targetConnection, presets []*machinesv1.PermissionPreset) *machinesv1.Machine {
+func machineFromTarget(target targetConnection, presets []*machinesv1.PermissionPreset, drift []*machinesv1.MachineDrift) *machinesv1.Machine {
 	return &machinesv1.Machine{
 		Target:              targetToProto(target),
 		Grant:               grantFromScopes(target.Scopes, presets),
 		HeartbeatAgeSeconds: heartbeatAgeSeconds(target.LastSeenAt),
 		Manageable:          true,
+		Drift:               drift,
 	}
 }
 
@@ -286,7 +317,7 @@ func (h *machineRPC) machineForNode(node *registryv1.Node, presets []*machinesv1
 		return nil
 	}
 	_, base := bridgeNodeClient(context.Background())
-	return machineFromTarget(targetFromRegistryNode(base, node), presets)
+	return machineFromTarget(targetFromRegistryNode(base, node), presets, nil)
 }
 
 // machineByNodeID re-reads the fleet after a mutation so the client renders the

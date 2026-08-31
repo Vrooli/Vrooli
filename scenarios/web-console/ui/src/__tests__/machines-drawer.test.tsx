@@ -61,6 +61,7 @@ function machine(overrides: Partial<Machine> & { id: string; label: string }): M
     },
     heartbeatAgeSeconds: rest.heartbeatAgeSeconds ?? 8,
     manageable: rest.manageable ?? id !== "local",
+    drift: rest.drift ?? [],
   };
 }
 

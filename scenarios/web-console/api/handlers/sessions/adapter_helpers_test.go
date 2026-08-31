@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +24,10 @@ func TestAdapterPureMappingsAndErrorClassification(t *testing.T) {
 	missingScope := mapCreateError(&nodeclient.Error{Kind: nodeclient.ErrMissingScope, Scope: "vrooli-bridge:write", Err: errors.New("missing")})
 	if !strings.Contains(missingScope.Error(), "vrooli-bridge:write") || !strings.Contains(missingScope.Error(), "manage the machine permissions") {
 		t.Fatalf("missing-scope mapping = %q", missingScope)
+	}
+	capability := mapCreateError(fmt.Errorf("%w: capability %q on minimouse is missing; Install this coding agent on the selected machine", ErrTargetUnavailable, "codex"))
+	if !strings.Contains(capability.Error(), `capability "codex"`) || !strings.Contains(capability.Error(), "Install this coding agent") {
+		t.Fatalf("capability mapping = %q", capability)
 	}
 	resp := intsessions.Response{ID: "s", Shell: "/bin/sh", Cols: 80, Rows: 24, Backend: backend.Standard, SurvivesRestart: true, Policy: policy.Policy{Mode: policy.Preset, Duration: "1h"}, Recovered: true, Origin: "ui", Owner: "owner", DisplayLabel: "label"}
 	converted := responseToHandlerSession(resp)

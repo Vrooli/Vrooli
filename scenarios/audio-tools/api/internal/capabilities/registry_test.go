@@ -9,6 +9,7 @@ import (
 	"audio-tools/internal/capabilities/mocks"
 
 	"github.com/vrooli/api-core/schedule"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 )
 
 func TestRegistry_SharedContractAndMappings(t *testing.T) {
@@ -27,6 +28,14 @@ func TestRegistry_SharedContractAndMappings(t *testing.T) {
 		_, _ = capabilities.ResourceSlugForProviderID(id)
 		_ = capabilities.IsLocalProvider(id)
 	}
+	for _, id := range []string{"openai-whisper", "deepgram", "openai-tts", "elevenlabs"} {
+		if got := capabilities.TierForProviderID(id); got != commonv1.ProviderTier_PROVIDER_TIER_BYOK {
+			t.Fatalf("TierForProviderID(%q) = %s, want BYOK", id, got)
+		}
+	}
+	if got := capabilities.TierForProviderID("browser-stt"); got != commonv1.ProviderTier_PROVIDER_TIER_BROWSER {
+		t.Fatalf("TierForProviderID(browser-stt) = %s, want BROWSER", got)
+	}
 	for _, feature := range []string{"voice-input", "voice-output", "ai-command-generation", "unknown"} {
 		_, _ = capabilities.CapabilityForFeature(feature)
 	}
@@ -40,7 +49,7 @@ func TestKnownCatalogCoversOperatorHealthCapabilities(t *testing.T) {
 		}
 		seen[def.ID] = true
 	}
-	for _, want := range []string{"whisper-stt", "kyutai-stt", "kokoro-tts", "ollama", "audio-transcode"} {
+	for _, want := range []string{"whisper-stt", "kyutai-stt", "kokoro-tts", "openai-whisper", "openai-tts", "browser-stt", "browser-tts", "ollama", "audio-transcode"} {
 		if !seen[want] {
 			t.Errorf("Known catalog does not include %q", want)
 		}
@@ -103,6 +112,35 @@ func TestRegistry_Resolve(t *testing.T) {
 	}
 }
 
+func TestServiceabilityUsesAnyAvailableProviderAndReportsRequiredFailures(t *testing.T) {
+	states := []capabilities.State{
+		{Def: capabilities.Def{ID: "local-stt", Features: []string{"voice-input"}}, Status: capabilities.StatusUnavailable, Message: "whisper down"},
+		{Def: capabilities.Def{ID: "cloud-stt", Features: []string{"voice-input"}}, Status: capabilities.StatusAvailable, Message: "BYOK ready"},
+		{Def: capabilities.Def{ID: "transcode", Features: []string{"transcode"}}, Status: capabilities.StatusUnavailable, Message: "ffmpeg missing"},
+		{Def: capabilities.Def{ID: "optional", Features: []string{"ai-command-generation"}}, Status: capabilities.StatusUnavailable, Message: "optional down"},
+	}
+	groups := capabilities.Serviceability(states)
+	var stt, transcode capabilities.CapabilityServiceability
+	for _, group := range groups {
+		switch group.Capability.String() {
+		case "CAPABILITY_STT":
+			stt = group
+		case "CAPABILITY_TRANSCODE":
+			transcode = group
+		}
+	}
+	if !stt.Serviceable || len(stt.UnavailableProviders) != 1 || stt.UnavailableProviders[0] != "local-stt" {
+		t.Fatalf("STT serviceability = %+v", stt)
+	}
+	if transcode.Serviceable {
+		t.Fatalf("transcode unexpectedly serviceable: %+v", transcode)
+	}
+	failures := capabilities.RequiredFailures(states)
+	if len(failures) != 1 || failures[0] == "" {
+		t.Fatalf("required failures = %#v", failures)
+	}
+}
+
 func TestRegistry_Caching(t *testing.T) {
 	checker := mocks.NewFakeChecker(capabilities.StatusAvailable, "ok")
 	defs := []capabilities.Def{{ID: "cap-x", Name: "Cap X"}}
@@ -126,7 +164,7 @@ func TestRegistry_ResolveLiveness(t *testing.T) {
 	livenessChecker := mocks.NewFakeChecker(capabilities.StatusAvailable, "liveness ok")
 	defs := []capabilities.Def{{ID: "cap-x", Name: "Cap X"}}
 
-	t.Run("returns cached full-check results when fresh", func(t *testing.T) {
+	t.Run("does not read cached full-check results", func(t *testing.T) {
 		reg := capabilities.NewRegistry(defs, map[string]capabilities.Checker{"cap-x": fullChecker}, time.Minute)
 		reg.SetLivenessCheckers(map[string]capabilities.Checker{"cap-x": livenessChecker})
 
@@ -139,11 +177,11 @@ func TestRegistry_ResolveLiveness(t *testing.T) {
 		}
 
 		states := reg.ResolveLiveness(context.Background())
-		if got := livenessChecker.CallCount(); got != 0 {
-			t.Errorf("liveness checker should not be called when cache is fresh, got %d calls", got)
+		if got := livenessChecker.CallCount(); got != 1 {
+			t.Errorf("liveness checker should be called once, got %d calls", got)
 		}
-		if len(states) != 1 || states[0].Message != "full check ok" {
-			t.Errorf("expected cached full check result, got %+v", states)
+		if len(states) != 1 || states[0].Message != "liveness ok" {
+			t.Errorf("expected independent liveness result, got %+v", states)
 		}
 	})
 
@@ -162,14 +200,17 @@ func TestRegistry_ResolveLiveness(t *testing.T) {
 		}
 	})
 
-	t.Run("falls back to full resolve when no liveness checker map is configured", func(t *testing.T) {
+	t.Run("does not run full resolve when no liveness checker map is configured", func(t *testing.T) {
 		reg := capabilities.NewRegistry(defs, map[string]capabilities.Checker{"cap-x": fullChecker}, 0)
 
 		fullChecker.ResetCalls()
 
-		reg.ResolveLiveness(context.Background())
-		if got := fullChecker.CallCount(); got != 1 {
-			t.Errorf("should fall back to full checker, got %d calls", got)
+		states := reg.ResolveLiveness(context.Background())
+		if got := fullChecker.CallCount(); got != 0 {
+			t.Errorf("should not run full checker, got %d calls", got)
+		}
+		if states[0].Status != capabilities.StatusUnknown {
+			t.Errorf("state = %+v, want unknown", states[0])
 		}
 	})
 

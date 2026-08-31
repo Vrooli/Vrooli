@@ -60,3 +60,22 @@ func TestTranscribe_FallbackHeader_AbsentWhenFirstTierServes(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, res.Header().Get("x-audio-tools-fallback"))
 }
+
+func TestTranscribe_UsesConfiguredDefaultBYOKCredential(t *testing.T) {
+	chain := sttchain.NewChain(sttchain.Options{
+		EnableLocal: true, EnableBYOK: true, LocalFirst: true,
+		BYOK: sttchain.NewBYOKProvider(map[string]sttchain.BYOKAdapter{
+			"openai-whisper": &sttmocks.FakeBYOK{IDStr: "openai-whisper", Available: true, Result: &sttchain.Result{Text: "cloud text"}},
+		}),
+	})
+	c := newSTTRuntimeClient(t, Deps{
+		Chain: chain,
+		DefaultCredential: func(context.Context, string) (string, string, bool) {
+			return "openai-whisper", "secret-is-not-returned", true
+		},
+	})
+	res, err := c.Transcribe(context.Background(), connect.NewRequest(&sttv1.TranscribeRequest{Audio: []byte("x")}))
+	require.NoError(t, err)
+	require.Equal(t, "cloud text", res.Msg.GetText())
+	require.Equal(t, "openai-whisper", res.Msg.GetProviderId())
+}

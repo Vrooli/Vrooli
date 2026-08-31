@@ -45,30 +45,37 @@ type Snapshot struct {
 
 // CapabilityState mirrors the proto CapabilityState message.
 type CapabilityState struct {
-	ID              string
-	Name            string
-	Description     string
-	DependencyKind  string
-	DependencySlug  string
-	Features        []string
-	Status          string
-	Message         string
-	CheckedAt       string
-	ReasonCode      string
-	ActionKind      string
-	ActionLabel     string
-	OperatorCommand string
+	ID                     string
+	Name                   string
+	Description            string
+	DependencyKind         string
+	DependencySlug         string
+	Features               []string
+	Status                 string
+	Message                string
+	CheckedAt              string
+	ReasonCode             string
+	ActionKind             string
+	ActionLabel            string
+	OperatorCommand        string
+	FeatureStatus          map[string]string
+	FeatureReason          map[string]string
+	FeatureOperatorCommand map[string]string
+	ProviderStatus         map[string]string
+	ProviderFeatures       map[string]string
 }
 
 type ActionRequest struct {
 	CapabilityID string
 	ActionKind   string
+	TargetID     string
 }
 
 type ActionResult struct {
 	Success      bool
 	Status       string
 	Message      string
+	OperationID  string
 	CapabilityID string
 	ActionKind   string
 	Snapshot     Snapshot

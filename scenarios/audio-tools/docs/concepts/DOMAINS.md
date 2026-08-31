@@ -101,7 +101,7 @@ belong in [`DATA.md`](DATA.md).
 
 ### settings
 
-- Purpose: operator-facing configuration: provider defaults, per-capability tier order (BYOK → Vrooli → Local), BYOK credentials encrypted at rest, voice overrides.
+- Purpose: operator-facing configuration: provider defaults, per-capability tier order (speech Local → BYOK → Vrooli; summarization BYOK → Vrooli → Local), BYOK credentials encrypted at rest, voice overrides.
 - Primary archetype: CRUD / config.
 - Owns: provider config doc, BYOK store + AES-GCM encryptor + fingerprint, voice overrides, settings schema registration, settings handlers, chain `Reconfigure` plumbing.
 - API: `api/handlers/settings/`.

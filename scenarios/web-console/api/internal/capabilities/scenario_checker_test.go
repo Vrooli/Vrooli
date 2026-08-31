@@ -3,6 +3,7 @@ package capabilities
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -125,6 +126,22 @@ func TestScenarioChecker_Degraded(t *testing.T) {
 	}
 	if result.ActionKind != ActionKindScenarioRestart {
 		t.Fatalf("action kind = %q, want %q", result.ActionKind, ActionKindScenarioRestart)
+	}
+}
+
+func TestScenarioChecker_DegradedWithoutHealthErrorStillExplainsNextStep(t *testing.T) {
+	c := &ScenarioChecker{
+		Slug: "audio-tools",
+		Run: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
+			return []byte(`{"success":true,"scenario":{"name":"audio-tools","status":"running","health_status":"degraded","health_error":""}}`), nil
+		},
+	}
+	result := c.CheckResult(context.Background())
+	if result.Status != StatusUnavailable || result.Message == "scenario is degraded" {
+		t.Fatalf("result = %+v, want an actionable degraded reason", result)
+	}
+	if !strings.Contains(result.Message, "reported degraded without a reason") {
+		t.Fatalf("message = %q, want factual degraded reason", result.Message)
 	}
 }
 

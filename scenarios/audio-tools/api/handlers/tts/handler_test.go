@@ -56,6 +56,25 @@ func TestTTS_Synthesize_HappyPathViaVrooli(t *testing.T) {
 	require.Equal(t, commonv1.ProviderTier_PROVIDER_TIER_VROOLI, res.Msg.GetProviderTier())
 }
 
+func TestTTS_Synthesize_UsesConfiguredDefaultBYOKCredential(t *testing.T) {
+	chain := ttschain.NewChain(ttschain.Options{
+		EnableLocal: true, EnableBYOK: true, LocalFirst: true,
+		BYOK: ttschain.NewBYOKProvider(map[string]ttschain.BYOKAdapter{
+			"openai-tts": &ttsmocks.FakeBYOK{IDStr: "openai-tts", Available: true},
+		}),
+	})
+	c := newServer(t, ttsH.Deps{
+		Chain: chain,
+		DefaultCredential: func(context.Context, string) (string, string, bool) {
+			return "openai-tts", "secret-is-not-returned", true
+		},
+	})
+	res, err := c.Synthesize(context.Background(), connect.NewRequest(&ttsv1.SynthesizeRequest{Text: "hello"}))
+	require.NoError(t, err)
+	require.Equal(t, commonv1.ProviderTier_PROVIDER_TIER_BYOK, res.Msg.GetProviderTier())
+	require.Equal(t, "byok-audio", string(res.Msg.GetAudio()))
+}
+
 func TestTTS_Synthesize_NoChainReturnsUnavailable(t *testing.T) {
 	c := newServer(t, ttsH.Deps{})
 	_, err := c.Synthesize(context.Background(), connect.NewRequest(&ttsv1.SynthesizeRequest{Text: "x"}))

@@ -52,6 +52,7 @@ func (h *connectHandler) RunAction(ctx context.Context, req *connect.Request[cap
 	result, err := h.deps.Service.RunAction(ctx, ActionRequest{
 		CapabilityID: req.Msg.GetCapabilityId(),
 		ActionKind:   req.Msg.GetActionKind(),
+		TargetID:     req.Msg.GetTargetId(),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -62,6 +63,7 @@ func (h *connectHandler) RunAction(ctx context.Context, req *connect.Request[cap
 		Message:      result.Message,
 		CapabilityId: result.CapabilityID,
 		ActionKind:   result.ActionKind,
+		OperationId:  result.OperationID,
 		Capabilities: statesToProto(result.Snapshot.Capabilities),
 		Timestamp:    result.Snapshot.Timestamp,
 	}
@@ -72,19 +74,24 @@ func statesToProto(in []CapabilityState) []*capabilitiesv1.CapabilityState {
 	out := make([]*capabilitiesv1.CapabilityState, len(in))
 	for i, s := range in {
 		out[i] = &capabilitiesv1.CapabilityState{
-			Id:              s.ID,
-			Name:            s.Name,
-			Description:     s.Description,
-			DependencyKind:  s.DependencyKind,
-			DependencySlug:  s.DependencySlug,
-			Features:        s.Features,
-			Status:          s.Status,
-			Message:         s.Message,
-			CheckedAt:       s.CheckedAt,
-			ReasonCode:      s.ReasonCode,
-			ActionKind:      s.ActionKind,
-			ActionLabel:     s.ActionLabel,
-			OperatorCommand: s.OperatorCommand,
+			Id:                     s.ID,
+			Name:                   s.Name,
+			Description:            s.Description,
+			DependencyKind:         s.DependencyKind,
+			DependencySlug:         s.DependencySlug,
+			Features:               s.Features,
+			Status:                 s.Status,
+			Message:                s.Message,
+			CheckedAt:              s.CheckedAt,
+			ReasonCode:             s.ReasonCode,
+			ActionKind:             s.ActionKind,
+			ActionLabel:            s.ActionLabel,
+			OperatorCommand:        s.OperatorCommand,
+			FeatureStatus:          s.FeatureStatus,
+			FeatureReason:          s.FeatureReason,
+			FeatureOperatorCommand: s.FeatureOperatorCommand,
+			ProviderStatus:         s.ProviderStatus,
+			ProviderFeatures:       s.ProviderFeatures,
 		}
 	}
 	return out

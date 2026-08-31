@@ -7,7 +7,7 @@ import type { Profile as ShortcutProfile } from "@vrooli/proto-types/web-console
 import { shortcutsClient } from "../../api/shortcuts";
 import { strings } from "../../consts/strings";
 import { toErrorInfo } from "../../lib/errors";
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.5";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
 
 interface ShortcutDraft {
   label: string;

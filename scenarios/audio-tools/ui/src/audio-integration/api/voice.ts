@@ -1,4 +1,5 @@
 // Voice (STT) API client for audio-integration.
+// HOST DIFFERENCE: binds the shared browser voice surface to audio-tools RPCs.
 //
 // Binds to audio-tools' STTService Connect handler and exposes a hook-
 // shaped voice operation surface for consumer scenarios. WebSocket URL

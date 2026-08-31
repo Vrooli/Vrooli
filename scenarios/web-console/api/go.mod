@@ -10,10 +10,12 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/nodeclient v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
+	github.com/vrooli/vrooli/packages/capabilityprobe v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	github.com/vrooli/vrooli/scenarios/audio-tools/clients/go v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -47,7 +49,6 @@ replace github.com/vrooli/platform-go => ../../../packages/platform-go
 require (
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
-	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 )
@@ -61,6 +62,8 @@ replace github.com/vrooli/vrooli => ../../..
 replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/vrooli/packages/capabilityprobe => ../../../packages/capabilityprobe
 
 replace github.com/vrooli/vrooli/scenarios/audio-tools/clients/go => ../../../scenarios/audio-tools/clients/go
 

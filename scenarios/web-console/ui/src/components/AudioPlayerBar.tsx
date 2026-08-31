@@ -52,6 +52,8 @@ export interface AudioPlayerBarProps {
   onChangeLevel?: (level: SummarizationLevel) => void;
   /** Optional close control for manually-started playback surfaces. */
   onDismiss?: () => void;
+  /** Honest explanation when auto playback selected the browser fallback. */
+  backendReason?: string;
 }
 
 /** Anchored placement order for popovers opening above their trigger. */
@@ -102,6 +104,7 @@ export default function AudioPlayerBar({
   onToggleSummarized,
   onChangeLevel,
   onDismiss,
+  backendReason,
 }: AudioPlayerBarProps) {
   const { t } = useTranslation();
   const [showPopover, setShowPopover] = useState(false);
@@ -128,6 +131,9 @@ export default function AudioPlayerBar({
   // its shape but non-transport controls go visibly disabled to prevent the
   // layout from shifting between playing and idle.
   const isIdle = duration === null;
+  const browserFallbackActive = backendReason?.includes("browser speech synthesis is active")
+    || backendReason?.includes("Browser handled playback")
+    || false;
 
   // Desktop settings popover anchors above the audio button, end-aligned,
   // via the shared anchored-floating math (measure-then-position).
@@ -146,6 +152,11 @@ export default function AudioPlayerBar({
       data-loading={isLoading ? "true" : "false"}
       className="flex items-center gap-1.5 border-t border-wc-default bg-wc-surface-raised py-1.5 ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] text-wc-text-primary animate-in slide-in-from-bottom-2 duration-200"
     >
+      {browserFallbackActive && (
+        <div data-testid="tts-browser-fallback-notice" className="absolute -top-7 start-2 rounded bg-wc-surface-raised px-2 py-1 text-[11px] text-wc-text-muted shadow">
+          {backendReason}
+        </div>
+      )}
       <PlaybackModeControl
         testIdPrefix="tts"
         isSummarized={isSummarized}

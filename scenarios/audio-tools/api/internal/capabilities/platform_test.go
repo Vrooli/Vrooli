@@ -2,6 +2,9 @@ package capabilities_test
 
 import (
 	"context"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -9,6 +12,25 @@ import (
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/capabilities/mocks"
 )
+
+func TestResourcesFSUsesExplicitLifecycleDirectory(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "whisper"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "whisper", "resource.json"), []byte(`{"platforms":{"linux":"supported"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_RESOURCES_DIR", root)
+	t.Setenv("VROOLI_SCENARIO_DIR", "")
+	fsys := capabilities.ResourcesFS()
+	if fsys == nil {
+		t.Fatal("ResourcesFS returned nil for explicit directory")
+	}
+	if _, err := fs.ReadFile(fsys, "whisper/resource.json"); err != nil {
+		t.Fatalf("resource file unavailable: %v", err)
+	}
+}
 
 const kyutaiManifest = `{
   "platforms":{"linux":"supported","macos":"unsupported","windows":"unsupported"},
@@ -58,5 +80,59 @@ func TestRegistry_UnsupportedPlatformDoesNotProbe(t *testing.T) {
 	}
 	if states[0].Message != "unavailable by design: CUDA is unavailable on macOS" {
 		t.Fatalf("message = %q", states[0].Message)
+	}
+}
+
+func TestKnownForPlatformDarwinMarksLocalSpeechProvidersUnsupported(t *testing.T) {
+	root := t.TempDir()
+	for _, slug := range []string{"whisper", "kyutai-stt", "kokoro", "sherpa-onnx"} {
+		if err := os.Mkdir(filepath.Join(root, slug), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		manifest := `{"platforms":{"macos":"unsupported"},"deployment":{"profiles":{"desktop":{"macos":{"support":"unsupported","reason":"native artifact is not qualified"}}}}}`
+		if err := os.WriteFile(filepath.Join(root, slug, "resource.json"), []byte(manifest), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("VROOLI_RESOURCES_DIR", root)
+	defs := capabilities.KnownForPlatform("darwin")
+	want := map[string]bool{"whisper-stt": true, "kyutai-stt": true, "kokoro-tts": true, "speaker-verification": true}
+	for _, def := range defs {
+		if !want[def.ID] {
+			continue
+		}
+		if def.Platform.Support != capabilities.PlatformUnsupported || def.Platform.Reason == "" {
+			t.Errorf("%s platform = %+v, want unsupported with reason", def.ID, def.Platform)
+		}
+		delete(want, def.ID)
+	}
+	for id := range want {
+		t.Errorf("catalogue did not include %s", id)
+	}
+}
+
+func TestDarwinBYOKProvidersKeepSpeechCapabilitiesServiceable(t *testing.T) {
+	defs := []capabilities.Def{
+		{ID: "whisper-stt", Features: []string{"voice-input"}, Platform: capabilities.PlatformVerdict{Support: capabilities.PlatformUnsupported, Reason: "no native macOS artifact"}},
+		{ID: "kokoro-tts", Features: []string{"voice-output"}, Platform: capabilities.PlatformVerdict{Support: capabilities.PlatformUnsupported, Reason: "no native macOS artifact"}},
+		{ID: "openai-whisper", Features: []string{"voice-input"}},
+		{ID: "openai-tts", Features: []string{"voice-output"}},
+	}
+	reg := capabilities.NewRegistry(defs, map[string]capabilities.Checker{
+		"openai-whisper": mocks.NewFakeChecker(capabilities.StatusAvailable, "BYOK credential configured"),
+		"openai-tts":     mocks.NewFakeChecker(capabilities.StatusAvailable, "BYOK credential configured"),
+	}, time.Minute)
+	groups := capabilities.Serviceability(reg.Resolve(context.Background()))
+	seen := map[string]bool{}
+	for _, group := range groups {
+		if !group.Serviceable {
+			t.Errorf("%s is not serviceable: %+v", group.Capability, group)
+		}
+		seen[group.Capability.String()] = true
+	}
+	for _, want := range []string{"CAPABILITY_STT", "CAPABILITY_TTS"} {
+		if !seen[want] {
+			t.Errorf("missing serviceability group %s", want)
+		}
 	}
 }

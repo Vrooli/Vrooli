@@ -26,3 +26,4 @@ export function MicReadinessIndicator(props: MicReadinessIndicatorProps): JSX.El
     </span>
   );
 }
+// HOST DIFFERENCE: audio-tools presentation applies its own readiness styling and dependency text.

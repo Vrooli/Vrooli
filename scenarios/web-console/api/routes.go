@@ -101,6 +101,7 @@ func (s *Server) setupRoutes() {
 		Registry:        s.capabilities,
 		BackendRegistry: s.backendRegistry,
 		DefaultBackend:  func() string { return string(s.sessions.GetConfig().DefaultBackend) },
+		RemoteInstall:   s.installCapabilityRemote,
 	}, nil).Mount(s.router)
 
 	audioAdminH.Module(audioAdminH.Deps{

@@ -405,8 +405,9 @@ func (h *handlers) engines(ctx cliapp.RunContext) error {
 		if e.GetNativeStreaming() {
 			streaming = "native-streaming"
 		}
-		fmt.Fprintf(ctx.Stdout(), "  %s %-16s %-34s [%s, %s, %s]\n",
-			marker, e.GetId(), e.GetDisplayName(), e.GetKind(), streaming, availabilityLabel(e.GetAvailable()))
+		fmt.Fprintf(ctx.Stdout(), "  %s %-16s %-34s [%s, %s, %s, %s]\n",
+			marker, e.GetId(), e.GetDisplayName(), e.GetKind(), streaming, availabilityLabel(e.GetAvailable()), e.GetVerdict())
+		fmt.Fprintf(ctx.Stdout(), "      verdict=%s reason=%s\n", e.GetVerdict(), e.GetReason())
 	}
 	fmt.Fprintf(ctx.Stdout(), "(* = active; set with `audio-tools stt stream-config-set --engine <id>`)\n")
 	return nil
@@ -470,7 +471,7 @@ func (h *handlers) streamConfigGet(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no stream config")
 	}
 	fmt.Fprintf(ctx.Stdout(), "Streaming STT pipeline:\n")
-	fmt.Fprintf(ctx.Stdout(), "  engine_id            = %s\n", stringOrDefault(cfg.GetEngineId(), "whisper-local"))
+	fmt.Fprintf(ctx.Stdout(), "  engine_id            = %s\n", stringOrDefault(cfg.GetEngineId(), "auto (resolver)"))
 	fmt.Fprintf(ctx.Stdout(), "  streaming_mode       = %s\n", streamingModeLabel(cfg.GetStreamingMode()))
 	fmt.Fprintf(ctx.Stdout(), "  strategy_preference  = %s\n", strategyPreferenceLabel(cfg.GetStrategyPreference()))
 	fmt.Fprintf(ctx.Stdout(), "  vad_silence_ms       = %d\n", intOrDefault(cfg.GetVadSilenceMs(), 700))
@@ -589,7 +590,7 @@ func (h *handlers) streamConfigSet(ctx cliapp.RunContext) error {
 	}
 	out := resp.Msg.GetConfig()
 	fmt.Fprintf(ctx.Stdout(), "Updated. Resolved streaming STT pipeline:\n")
-	fmt.Fprintf(ctx.Stdout(), "  engine_id            = %s\n", stringOrDefault(out.GetEngineId(), "whisper-local"))
+	fmt.Fprintf(ctx.Stdout(), "  engine_id            = %s\n", stringOrDefault(out.GetEngineId(), "auto (resolver)"))
 	fmt.Fprintf(ctx.Stdout(), "  streaming_mode       = %s\n", streamingModeLabel(out.GetStreamingMode()))
 	fmt.Fprintf(ctx.Stdout(), "  strategy_preference  = %s\n", strategyPreferenceLabel(out.GetStrategyPreference()))
 	fmt.Fprintf(ctx.Stdout(), "  vad_silence_ms       = %d\n", intOrDefault(out.GetVadSilenceMs(), 700))

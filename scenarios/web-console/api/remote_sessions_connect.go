@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vrooli/api-core/targetmodel"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 	sessionsH "web-console/handlers/sessions"
 	"web-console/internal/backend"
@@ -31,6 +32,11 @@ func (s *Server) Create(ctx context.Context, in sessionsH.CreateInput) (sessions
 			reason = "target is not dispatchable"
 		}
 		return sessionsH.Session{}, fmt.Errorf("%w: %s", sessionsH.ErrTargetUnavailable, reason)
+	}
+	if in.ExecuteLaunchCommand {
+		if err := ensureLaunchCapability(target, in.LaunchCommand); err != nil {
+			return sessionsH.Session{}, err
+		}
 	}
 	if s.sessions == nil {
 		return sessionsH.Session{}, fmt.Errorf("%w: remote session manager is not configured", sessionsH.ErrRemoteUnavailable)
@@ -67,6 +73,97 @@ func (s *Server) Create(ctx context.Context, in sessionsH.CreateInput) (sessions
 		Origin: "remote", Owner: "target:" + target.ID, DisplayLabel: target.Label,
 		Target: targetToProto(target),
 	}, nil
+}
+
+// ensureLaunchCapability prevents a remote session from being created when
+// the command would immediately fail because the selected node does not have
+// the requested coding agent. Commands outside the governed agent set remain
+// valid shell commands and do not require a capability inventory entry.
+func ensureLaunchCapability(target targetConnection, command string) error {
+	capability, recognized := launchCapability(command)
+	if !recognized {
+		return nil
+	}
+	identity := targetmodel.ReadinessCapabilityPrefix + capability
+	for _, fact := range target.Readiness {
+		if fact.Identity != identity {
+			continue
+		}
+		state := fact.State
+		if state == "" {
+			if fact.Passed {
+				state = targetmodel.ReadinessReady
+			} else {
+				state = targetmodel.ReadinessMissing
+			}
+		}
+		if state == targetmodel.ReadinessReady {
+			return nil
+		}
+		return fmt.Errorf("%w: capability %q on %s is %s; %s", sessionsH.ErrTargetUnavailable, capability, target.Label, state, fact.RecoveryAction)
+	}
+	return fmt.Errorf("%w: capability %q on %s is unknown; refresh the target inventory before launching", sessionsH.ErrTargetUnavailable, capability, target.Label)
+}
+
+func launchCapability(command string) (string, bool) {
+	fields := strings.Fields(strings.ToLower(strings.TrimSpace(command)))
+	if len(fields) == 0 {
+		return "", false
+	}
+	base := func(value string) string {
+		value = strings.TrimSpace(value)
+		if index := strings.LastIndex(value, "/"); index >= 0 {
+			value = value[index+1:]
+		}
+		return value
+	}
+	for index, field := range fields {
+		switch base(field) {
+		case "claude", "claude-code":
+			return "claude", true
+		case "codex":
+			return "codex", true
+		case "opencode":
+			return "opencode", true
+		case "grok":
+			return "grok", true
+		case "agy", "antigravity":
+			return "agy", true
+		case "vrooli-agent-launcher":
+			for _, arg := range fields[index+1:] {
+				if strings.HasPrefix(arg, "--agent=") {
+					return normalizeLaunchRunner(strings.TrimPrefix(arg, "--agent="))
+				}
+			}
+		case "vrooli":
+			if index+2 < len(fields) && fields[index+1] == "agent" && fields[index+2] == "launch" {
+				for offset := index + 3; offset < len(fields); offset++ {
+					if strings.HasPrefix(fields[offset], "--runner=") {
+						return normalizeLaunchRunner(strings.TrimPrefix(fields[offset], "--runner="))
+					}
+				}
+				return "claude", true
+			}
+		}
+	}
+	return "", false
+}
+
+func normalizeLaunchRunner(runner string) (string, bool) {
+	switch runner {
+	case "claude", "claude-code":
+		return "claude", true
+	case "codex":
+		return "codex", true
+	case "opencode":
+		return "opencode", true
+	case "grok":
+		return "grok", true
+	case "agy", "antigravity":
+		return "agy", true
+	default:
+		return "", false
+	}
 }
 
 func (s *Server) List(ctx context.Context) ([]sessionsH.Session, error) {

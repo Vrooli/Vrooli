@@ -45,6 +45,7 @@ func testDefs() []capabilities.Def {
 func newHandlerHarness(t *testing.T, checkers map[string]capabilities.Checker, ttl time.Duration) (*health_status.Deps, *capabilities.Registry, *scheduletest.FakeClock, *mocks.FakeLogger) {
 	t.Helper()
 	reg := capabilities.NewRegistry(testDefs(), checkers, ttl)
+	reg.SetLivenessCheckers(checkers)
 	clk := scheduletest.New(canonicalNow)
 	logger := mocks.NewFakeLogger()
 	deps := &health_status.Deps{Registry: reg, Logger: logger, Clock: clk}

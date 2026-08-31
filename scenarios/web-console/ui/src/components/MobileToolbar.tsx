@@ -118,6 +118,8 @@ export interface MobileToolbarVoiceProps {
   activity?: VoiceActivitySnapshot;
   partialTranscript?: string;
   backend?: string;
+  capabilityReason?: string;
+  operatorCommand?: string;
   onStart?: (opts?: StartRecordingOpts) => void;
   onPrepare?: () => void;
   onStop?: () => void;
@@ -225,6 +227,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     activity: voiceActivity,
     partialTranscript: voicePartialTranscript,
     backend: voiceBackend,
+    capabilityReason: voiceCapabilityReason,
+    operatorCommand: voiceOperatorCommand,
     onStart: onVoiceStart,
     onPrepare: onVoicePrepare,
     onStop: onVoiceStop,
@@ -513,7 +517,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   // call with a simulated width drives the settings preview.
   const [keysAreaRef, measuredWidth] = useElementWidth();
 
-  const voiceAvailable = Boolean(voiceSupported && onVoiceStart && onVoiceStop);
+  const voiceAvailable = Boolean(onVoiceStart && onVoiceStop);
 
   /** Controls whose feature is not wired up this render claim no width. */
   const unavailable = useMemo<ToolbarControlId[]>(() => {
@@ -544,7 +548,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   }), [t]);
 
   const voiceProps = useMemo(() => (voiceAvailable && onVoiceStart && onVoiceStop ? {
-    supported: true,
+    supported: voiceSupported ?? false,
     isPreparing: voicePreparing ?? false,
     isRecording: voiceRecording ?? false,
     persistentMode: voicePersistentMode ?? false,
@@ -555,6 +559,8 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
     audioLevel: voiceLevel,
     voiceActivity: voiceActivity,
     backend: voiceBackend,
+    capabilityReason: voiceCapabilityReason,
+    operatorCommand: voiceOperatorCommand,
     onPrepare: onVoicePrepare,
     onStart: onVoiceStart,
     onStop: onVoiceStop,
@@ -562,6 +568,7 @@ export default forwardRef<MobileToolbarHandle, MobileToolbarProps>(function Mobi
   } : undefined), [
     voiceAvailable, voicePreparing, voiceRecording, voicePersistentMode, voiceListening,
     voicePassive, voiceTranscribing, voiceError, voiceLevel, voiceActivity, voiceBackend,
+    voiceCapabilityReason, voiceOperatorCommand,
     onVoicePrepare, onVoiceStart, onVoiceStop, onVoiceExitPassive,
   ]);
 

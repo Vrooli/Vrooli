@@ -1,10 +1,6 @@
-// audio-integration — governed adapter surface for adopters of
-// audio-tools.
-//
-// This folder exists verbatim in audio-tools/ui (canonical) and is copied
-// byte-for-byte into each consumer scenario (e.g. web-console). There is
-// no cross-scenario import path; each scenario owns its own copy. See
-// README.md.
+// audio-integration — audio-tools' scenario-local transport adapter surface.
+// HOST DIFFERENCE: this adapter binds the shared browser package to the
+// audio-tools-owned API and is not a shared implementation to copy.
 
 import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
 import { buildVoiceStreamWsUrl, transcribeAudioWithRetry, transcribeAudioWithRetryDetailed } from "./api/voice";

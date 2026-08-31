@@ -81,6 +81,17 @@ Browsers require a user interaction (click, keypress) before audio can play. Set
 
 If `backend=auto` and Kokoro fails at runtime, the frontend attempts a browser fallback and updates the backend reason accordingly. If both fail, a transient amber error banner appears in the terminal pane for 5 seconds.
 
+When browser speech is active, the playback surface also shows a visible notice:
+`Kokoro is unavailable, so browser speech synthesis is active`. This is an
+intentional fallback, not a claim that Kokoro is healthy. To restore Kokoro,
+check the capability message and run the displayed operator command (usually
+`vrooli resource start kokoro`).
+
+If audio-tools reports a degraded scenario, the microphone remains in the
+toolbar as a disabled control. Its accessible label and tooltip identify the
+provider that failed and the command that repairs it; the control is not
+removed and voice input is not silently replaced by browser speech.
+
 ### Check 7: Use the built-in Test button
 
 Settings -> Voice Output (TTS) -> `Test`

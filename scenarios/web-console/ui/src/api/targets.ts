@@ -17,6 +17,9 @@ export interface TargetReadinessFact {
   label: string;
   passed: boolean;
   detail: string;
+  state?: "ready" | "missing" | "not_applicable" | "unknown";
+  version?: string;
+  recovery_action?: string;
 }
 
 export interface TerminalTarget {
@@ -107,6 +110,12 @@ export function decodeTarget(target: Target): TerminalTarget {
       label: fact.label,
       passed: fact.passed,
       detail: fact.detail,
+      // The checked-in generated package may lag until the workspace's proto
+      // link is refreshed; keep decoding tolerant while the wire field is
+      // already present in the generated source tree.
+      state: (fact as typeof fact & { state?: string }).state as TargetReadinessFact["state"],
+      version: (fact as typeof fact & { version?: string }).version || undefined,
+      recovery_action: (fact as typeof fact & { recoveryAction?: string }).recoveryAction || undefined,
     })),
     failure_rung: target.failureRung || undefined,
     state: targetState(target),

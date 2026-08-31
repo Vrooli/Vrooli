@@ -1,3 +1,5 @@
+// HOST DIFFERENCE: supplies audio-tools API and provider adapters to the
+// shared browser voice orchestration.
 import {
   bytesToFeatures,
   createWakeWordEngine,

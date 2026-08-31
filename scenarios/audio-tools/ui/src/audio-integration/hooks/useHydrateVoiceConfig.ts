@@ -35,3 +35,4 @@ export function useHydrateVoiceConfig(): void {
     };
   }, [unavailableReason]);
 }
+// HOST DIFFERENCE: audio-tools hydrates voice configuration from its own settings surface.

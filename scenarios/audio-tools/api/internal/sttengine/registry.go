@@ -17,6 +17,7 @@ package sttengine
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"audio-tools/internal/stt/egress"
@@ -99,7 +100,15 @@ type SpeakerIsolation struct {
 // Manifest is the decoded manifest.json.
 type Manifest struct {
 	Engines          []Engine         `json:"engines"`
+	SelectionPolicy  SelectionPolicy  `json:"selectionPolicy"`
 	SpeakerIsolation SpeakerIsolation `json:"speakerIsolation"`
+}
+
+type SelectionPolicy struct {
+	HardFilters       []string `json:"hardFilters"`
+	RankedPreferences []string `json:"rankedPreferences"`
+	TiebreakRank      []string `json:"tiebreakRank"`
+	ProbeTTLSeconds   int      `json:"probeTtlSeconds"`
 }
 
 // Registry is the loaded, validated engine manifest.
@@ -155,13 +164,171 @@ func (r *Registry) Engine(id string) (Engine, bool) {
 	return e, ok
 }
 
-// DefaultEngineID returns the id used when a session declares none — the first
-// declared engine (manifest order is the precedence the operator controls).
-func (r *Registry) DefaultEngineID() string {
-	if len(r.manifest.Engines) == 0 {
+var ErrNoServiceableEngine = errors.New("no_serviceable_engine")
+
+type Candidate struct {
+	Engine   Engine `json:"engine"`
+	Verdict  string `json:"verdict"`
+	Reason   string `json:"reason"`
+	Selected bool   `json:"selected"`
+}
+
+type Resolution struct {
+	Selected   string      `json:"selected"`
+	Candidates []Candidate `json:"candidates"`
+}
+
+// EngineFacts are the bounded host observations used by ResolveFacts. They
+// are intentionally supplied by the caller so the registry remains portable
+// and testable; control-plane probing belongs to the audio-tools integration
+// seam, not to this static manifest package.
+type EngineFacts struct {
+	PlatformSupported bool   `json:"platformSupported"`
+	Installed         bool   `json:"installed"`
+	Running           bool   `json:"running"`
+	Healthy           bool   `json:"healthy"`
+	WorkloadCapable   bool   `json:"workloadCapable"`
+	Accelerated       bool   `json:"accelerated"`
+	SignalUnavailable bool   `json:"signalUnavailable"`
+	Reason            string `json:"reason,omitempty"`
+}
+
+// Resolve chooses from observed serviceability and declared capabilities. The
+// registry owns policy ordering; callers provide the live liveness seam. A
+// native-streaming engine is preferred because it avoids buffered fallback,
+// while manifest order remains the deterministic tie-break.
+func (r *Registry) Resolve(available func(string) bool) (Resolution, error) {
+	facts := make(map[string]EngineFacts, len(r.manifest.Engines))
+	for _, e := range r.manifest.Engines {
+		ok := available == nil || available(e.ID)
+		facts[e.ID] = EngineFacts{
+			PlatformSupported: true,
+			Installed:         ok,
+			Running:           ok,
+			Healthy:           ok,
+			WorkloadCapable:   true,
+			Reason:            "serviceability signal: backing engine is available",
+		}
+	}
+	return r.ResolveFacts(facts)
+}
+
+// ResolveFacts chooses an engine from explicit host facts. Hard filters reject
+// candidates before ranked preferences are applied. The final tie-break is
+// manifest order, which is deterministic but never the primary selection
+// signal.
+func (r *Registry) ResolveFacts(facts map[string]EngineFacts) (Resolution, error) {
+	resolution := Resolution{Candidates: make([]Candidate, 0, len(r.manifest.Engines))}
+	hardFilters := r.manifest.SelectionPolicy.HardFilters
+	if len(hardFilters) == 0 {
+		hardFilters = []string{"platform_supported", "resource_serviceable"}
+	}
+	for _, e := range r.manifest.Engines {
+		candidate := Candidate{Engine: e, Verdict: "rejected"}
+		fact, ok := facts[e.ID]
+		if !ok {
+			candidate.Reason = "signal_unavailable: no host facts for candidate"
+			resolution.Candidates = append(resolution.Candidates, candidate)
+			continue
+		}
+		for _, filter := range hardFilters {
+			var rejected string
+			switch filter {
+			case "platform_supported":
+				if !fact.PlatformSupported {
+					rejected = "platform_unsupported: observed platform is unsupported"
+				}
+			case "resource_serviceable":
+				if !fact.Installed {
+					rejected = "not_installed: backing resource is not installed"
+				} else if !fact.Running || !fact.Healthy {
+					rejected = "not_serviceable: observed running=false or healthy=false"
+				}
+			case "workload_capable":
+				if !fact.WorkloadCapable {
+					rejected = "capability_mismatch: workload_capable=false"
+				}
+			}
+			if rejected != "" {
+				if fact.Reason != "" {
+					rejected += " (" + fact.Reason + ")"
+				}
+				candidate.Reason = rejected
+				resolution.Candidates = append(resolution.Candidates, candidate)
+				break
+			}
+		}
+		if candidate.Reason != "" {
+			continue
+		}
+		candidate.Verdict = "candidate"
+		candidate.Reason = fact.Reason
+		if candidate.Reason == "" {
+			candidate.Reason = "serviceability signal: backing engine is available"
+		}
+		if fact.SignalUnavailable {
+			candidate.Reason = "signal_unavailable: " + candidate.Reason
+		}
+		resolution.Candidates = append(resolution.Candidates, candidate)
+	}
+	selected := -1
+	for i := range resolution.Candidates {
+		if resolution.Candidates[i].Verdict != "candidate" {
+			continue
+		}
+		if selected < 0 || betterByPolicy(r.manifest.SelectionPolicy, resolution.Candidates[i].Engine, resolution.Candidates[selected].Engine, facts) {
+			selected = i
+		}
+	}
+	if selected < 0 {
+		return resolution, fmt.Errorf("%w: start a configured STT resource", ErrNoServiceableEngine)
+	}
+	resolution.Candidates[selected].Selected = true
+	resolution.Candidates[selected].Verdict = "selected"
+	resolution.Candidates[selected].Reason = selectionReason(r.manifest.SelectionPolicy, resolution.Candidates, selected, facts)
+	resolution.Selected = resolution.Candidates[selected].Engine.ID
+	return resolution, nil
+}
+
+func selectionReason(policy SelectionPolicy, candidates []Candidate, selected int, facts map[string]EngineFacts) string {
+	for _, preference := range policy.RankedPreferences {
+		if preference == "accelerated" {
+			if facts[candidates[selected].Engine.ID].Accelerated {
+				return "accelerated=true ranked above non-accelerated candidates"
+			}
+			return "accelerated=false for all candidates; tiebreak=manifest_order"
+		}
+		if preference == "native_streaming" && candidates[selected].Engine.Provides.NativeStreaming {
+			return "native_streaming=true ranked above buffered candidates"
+		}
+	}
+	return "tiebreak: declared policy then manifest order"
+}
+
+func betterByPolicy(policy SelectionPolicy, left, right Engine, facts map[string]EngineFacts) bool {
+	for _, preference := range policy.RankedPreferences {
+		switch preference {
+		case "accelerated":
+			if facts[left.ID].Accelerated != facts[right.ID].Accelerated {
+				return facts[left.ID].Accelerated
+			}
+		case "native_streaming":
+			if left.Provides.NativeStreaming != right.Provides.NativeStreaming {
+				return left.Provides.NativeStreaming
+			}
+		}
+	}
+	return false
+}
+
+// ResolveEngineID is the compact seam used by pipeline components that need
+// only the selected id. It replaces positional defaults.
+func (r *Registry) ResolveEngineID(available func(string) bool) string {
+	resolution, err := r.Resolve(available)
+	if err != nil {
 		return ""
 	}
-	return r.manifest.Engines[0].ID
+	return resolution.Selected
 }
 
 // EligibleStrategies returns the strategy whitelist for an engine as raw
@@ -260,12 +427,33 @@ var knownStrategies = map[string]struct{}{
 	"buffered_fallback": {},
 }
 
+var knownSelectionSignals = map[string]struct{}{
+	"platform_supported":   {},
+	"resource_serviceable": {},
+	"workload_capable":     {},
+	"accelerated":          {},
+	"native_streaming":     {},
+}
+
 // Validate enforces the manifest invariants the schema cannot express in pure
 // JSON-schema terms (cross-field rules). registry_test.go additionally checks
 // the manifest against schema.json.
 func (r *Registry) Validate() error {
 	if len(r.manifest.Engines) == 0 {
 		return fmt.Errorf("manifest must declare at least one engine")
+	}
+	for _, signal := range append(append([]string{}, r.manifest.SelectionPolicy.HardFilters...), r.manifest.SelectionPolicy.RankedPreferences...) {
+		if _, ok := knownSelectionSignals[signal]; !ok {
+			return fmt.Errorf("selectionPolicy: unknown signal %q", signal)
+		}
+	}
+	for _, tie := range r.manifest.SelectionPolicy.TiebreakRank {
+		if tie != "manifest_order" {
+			return fmt.Errorf("selectionPolicy: unknown tiebreak %q", tie)
+		}
+	}
+	if r.manifest.SelectionPolicy.ProbeTTLSeconds < 0 {
+		return fmt.Errorf("selectionPolicy.probeTtlSeconds must not be negative")
 	}
 	seen := make(map[string]struct{}, len(r.manifest.Engines))
 	for _, e := range r.manifest.Engines {

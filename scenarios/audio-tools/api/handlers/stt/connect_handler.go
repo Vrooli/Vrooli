@@ -50,7 +50,9 @@ type Deps struct {
 	// Capacity reports streaming transcription activity to the platform capacity
 	// broker so the backing local resource (whisper/kyutai-stt) is marked active
 	// (protected from idle reclaim) while a session is live. nil = no reporting.
-	Capacity sttcapacity.Reporter
+	Capacity          sttcapacity.Reporter
+	DefaultCredential DefaultCredentialResolver
+	EngineResolver    *sttengine.LiveResolver
 	// Sessions is the server-owned replay ledger registry shared by Connect
 	// and WebSocket transports. Module supplies a bounded default when unset.
 	Sessions *session.Registry
@@ -58,6 +60,17 @@ type Deps struct {
 	// leased DB-and-file isolation session installed. Qualification faults are
 	// accepted only while this is true and the individual request opts in.
 	TestIsolationActive func() bool
+}
+
+func (h *connectHandler) applyDefaultCredential(ctx context.Context, capability, provider, key string) (string, string) {
+	if key != "" || h.deps.DefaultCredential == nil {
+		return provider, key
+	}
+	defaultProvider, defaultKey, ok := h.deps.DefaultCredential(ctx, capability)
+	if ok {
+		return defaultProvider, defaultKey
+	}
+	return provider, key
 }
 
 // UsageRecorder is the handler-owned port for non-blocking usage submission.
@@ -99,6 +112,7 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 			fmt.Errorf("audio exceeds maximum size of %d bytes", sttpipeline.MaxAudioSize))
 	}
 	env := envelope.FromConnectRequest(req)
+	env.Provider, env.Key = h.applyDefaultCredential(ctx, "stt", env.Provider, env.Key)
 	cfg := h.resolveStreamPipelineConfig(ctx)
 	chainReq := sttchain.Request{
 		Audio:                   req.Msg.Audio,

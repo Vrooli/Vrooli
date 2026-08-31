@@ -10,7 +10,7 @@ import (
 	"audio-tools/internal/capabilities"
 	"audio-tools/internal/protoint"
 
-	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
+	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 	hsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 )
@@ -33,7 +33,7 @@ func (h *connectHandler) GetProviderHealth(ctx context.Context, _ *connect.Reque
 	if h.deps.Registry == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("capabilities registry not configured"))
 	}
-	states := h.deps.Registry.Resolve(ctx)
+	states := h.deps.Registry.ResolveLiveness(ctx)
 	resp := &hsv1.GetProviderHealthResponse{
 		Capabilities:    buildCapabilities(states),
 		GeneratedAt:     h.deps.Clock.Now().UTC().Format(time.RFC3339),
@@ -71,7 +71,7 @@ func (h *connectHandler) StreamProviderHealth(ctx context.Context, _ *connect.Re
 		case <-ctx.Done():
 			return nil
 		case <-t.C:
-			states := h.deps.Registry.Resolve(ctx)
+			states := h.deps.Registry.ResolveLiveness(ctx)
 			event := &hsv1.ProviderHealthEvent{
 				GeneratedAt:  h.deps.Clock.Now().UTC().Format(time.RFC3339),
 				Capabilities: buildCapabilities(states),
@@ -99,72 +99,46 @@ func ttlSeconds(d time.Duration) int32 {
 //   - serving: requires routing visibility, not yet plumbed.
 //   - latency_ms: registry.State doesn't carry per-check latency yet.
 func buildCapabilities(states []capabilities.State) []*hsv1.CapabilityHealth {
-	type capabilityIdentifier = diagv1.Capability
-	byCap := make(map[capabilityIdentifier][]*sharedv1.ProviderHealth)
-	order := make([]capabilityIdentifier, 0, 4)
-
-	for _, st := range states {
-		// Skip the rollup pseudo-entry — it's a scenario advertisement,
-		// not a real provider row.
-		if st.Def.ID == "audio-tools" {
-			continue
-		}
-		seen := make(map[capabilityIdentifier]struct{})
-		for _, feat := range st.Def.Features {
-			cap, ok := capabilities.CapabilityForFeature(feat)
-			if !ok {
-				continue
-			}
-			if _, dup := seen[cap]; dup {
-				continue
-			}
-			seen[cap] = struct{}{}
-
+	groups := capabilities.Serviceability(states)
+	out := make([]*hsv1.CapabilityHealth, 0, len(groups))
+	for _, group := range groups {
+		providers := make([]*sharedv1.ProviderHealth, 0, len(group.Providers))
+		for _, st := range group.Providers {
 			row := &sharedv1.ProviderHealth{
-				Capability:    cap,
+				Capability:    group.Capability,
 				Tier:          capabilities.TierForProviderID(st.Def.ID),
 				ProviderId:    st.Def.ID,
 				State:         stateToProto(st.Status),
 				LastCheckedAt: st.CheckedAt,
-				// TODO(phase2): wire routing visibility for `serving`.
-				Serving: false,
-				// TODO(phase2): registry doesn't carry latency yet.
-				LatencyMs: 0,
+				Serving:       false,
+				LatencyMs:     0,
 			}
 			if st.Status == capabilities.StatusUnavailable {
 				row.ErrorCode = "provider_unavailable"
 				row.ErrorMessage = st.Message
 			}
-
-			if _, ok := byCap[cap]; !ok {
-				order = append(order, cap)
-			}
-			byCap[cap] = append(byCap[cap], row)
+			providers = append(providers, row)
 		}
-	}
-
-	out := make([]*hsv1.CapabilityHealth, 0, len(order))
-	for _, cap := range order {
-		providers := byCap[cap]
 		out = append(out, &hsv1.CapabilityHealth{
-			Capability:     cap,
+			Capability:     group.Capability,
 			Providers:      providers,
-			EffectiveState: rollup(providers),
+			EffectiveState: effectiveState(group.Providers),
 		})
 	}
 	return out
 }
 
-func rollup(providers []*sharedv1.ProviderHealth) sharedv1.ProviderState {
+func effectiveState(states []capabilities.State) sharedv1.ProviderState {
+	if capabilityregistry.Serviceable(states) {
+		return sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE
+	}
 	hasUnknown := false
 	hasUnavailable := false
-	for _, p := range providers {
-		switch p.GetState() {
-		case sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE:
-			return sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE
-		case sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE:
+	for _, state := range states {
+		switch state.Status {
+		case capabilities.StatusUnavailable:
 			hasUnavailable = true
-		default:
+		case capabilities.StatusUnknown:
 			hasUnknown = true
 		}
 	}

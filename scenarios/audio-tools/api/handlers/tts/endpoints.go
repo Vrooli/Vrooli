@@ -12,7 +12,7 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Path:        "/vrooli.audio_tools.v1.tts.TTSService/Synthesize",
 		Method:      "POST",
 		Summary:     "Synthesize speech audio via the TTS provider chain",
-		Description: "BYOK -> Vrooli -> Local. Audio bytes returned inline; voice_overrides and event_id cache controls supported.",
+		Description: "Local -> BYOK -> Vrooli. Audio bytes returned inline; voice_overrides and event_id cache controls supported.",
 		Category:    "tts",
 	},
 	{

@@ -39,7 +39,7 @@ func New(cfg sttpkg.StreamConfig, registry *sttengine.Registry, speaker egress.S
 	if registry != nil {
 		engineID := cfg.EngineID
 		if engineID == "" {
-			engineID = registry.DefaultEngineID()
+			engineID = registry.ResolveEngineID(nil)
 		}
 		return Policy{gate: egress.NewGate(registry.EgressStages(engineID, params)...)}
 	}

@@ -84,9 +84,11 @@ func TestTargetFromRegistryNodeUsesDispatchabilityAndReadinessRung(t *testing.T)
 		Kind:                  registryv1.NodeKind_NODE_KIND_AGENT,
 		RegistryRecordPresent: true,
 		HeartbeatFresh:        true,
+		Online:                true,
 		ChannelHeld:           true,
 		ProtocolCompatible:    true,
 		Dispatchable:          true,
+		Scopes:                []string{"vrooli-bridge:write"},
 	})
 	if !ready.Available || ready.ID != "bridge-node:node-ready" {
 		t.Fatalf("ready target was not projected correctly: %+v", ready)
@@ -96,6 +98,7 @@ func TestTargetFromRegistryNodeUsesDispatchabilityAndReadinessRung(t *testing.T)
 	wantFacts := []string{
 		targetmodel.ReadinessRegistry, targetmodel.ReadinessHeartbeat, targetmodel.ReadinessChannel,
 		targetmodel.ReadinessProtocol, targetmodel.ReadinessDispatch, targetmodel.ReadinessBridgeScope,
+		targetmodel.ReadinessSessionSupport,
 	}
 	got := make(map[string]bool, len(ready.Readiness))
 	for _, fact := range ready.Readiness {

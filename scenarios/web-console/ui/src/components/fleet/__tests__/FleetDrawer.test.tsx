@@ -50,6 +50,7 @@ describe("FleetDrawer", () => {
       grant: { summary: "Read terminal", effects: ["read"], appCount: 1, coversAllApps: false, scopes: [], preset: "read" },
       heartbeatAgeSeconds: 2,
       manageable: true,
+      drift: [],
     };
     fleetMock.data = { ...fleetMock.data, machines: [machine] };
     const onStartSession = vi.fn();

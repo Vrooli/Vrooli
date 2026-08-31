@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { Check, ChevronDown, CircleAlert, Monitor, Plus, RefreshCw, Server, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1.0.0";
+import { useEscapeKey } from "@vrooli/react-component-library/useEscapeKey/1";
 
 import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
@@ -72,15 +72,20 @@ const ledClass: Record<ReturnType<typeof toneFor>, string> = {
  * detail that used to need its own grid, which is what lets the full-width
  * target cards go.
  */
-function metaFor(target: TerminalTarget, neverSeen: string): string {
-  if (target.kind === "local") return "Web Console host";
+function metaFor(target: TerminalTarget, neverSeen: string, agentsReady: (ready: number, total: number) => string): string {
   const platform = [target.os, target.arch].filter(Boolean).join("/");
-  const failing = target.readiness?.find((fact) => !fact.passed);
-  if (failing) return [platform, failing.label].filter(Boolean).join(" · ");
+  const capabilityFacts = target.readiness?.filter((fact) => fact.key.startsWith("capability:")) ?? [];
+  const capabilitySummary = capabilityFacts.length
+    ? agentsReady(capabilityFacts.filter((fact) => fact.state === "ready").length, capabilityFacts.length)
+    : undefined;
+  const transportFailure = target.readiness?.find((fact) => !fact.passed && !fact.key.startsWith("capability:"));
+  const capabilityFailure = capabilityFacts.find((fact) => fact.state !== "ready");
+  if (target.kind === "local" && !capabilityFacts.length) return "Web Console host";
+  if (transportFailure || capabilityFailure) return [platform, capabilitySummary, transportFailure?.label, capabilityFailure?.label].filter(Boolean).join(" · ");
   if (!target.available) {
-    return [platform, target.recovery_action ?? target.failure_rung ?? neverSeen].filter(Boolean).join(" · ");
+    return [platform, capabilitySummary, target.recovery_action ?? target.failure_rung ?? neverSeen].filter(Boolean).join(" · ");
   }
-  return platform || target.node_id || target.id;
+  return [platform, capabilitySummary].filter(Boolean).join(" · ") || target.node_id || target.id;
 }
 
 /** The grant chip: what the caller is actually allowed to do here. */
@@ -139,6 +144,7 @@ export default function MachinePicker({
   }, [open, activeIndex]);
 
   const neverSeen = t(strings.terminalLauncher.neverSeen);
+  const agentsReady = (ready: number, total: number) => t(strings.terminalLauncher.agentsReady, { ready, total });
 
   const handleListKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (ordered.length === 0) return;
@@ -187,7 +193,7 @@ export default function MachinePicker({
       >
         <span className={cn("h-2 w-2 shrink-0 rounded-full", ledClass[toneFor(selected)])} aria-hidden />
         <span className="min-w-0 flex-1 truncate">{selected.label}</span>
-        <span className="shrink-0 truncate text-xs text-wc-text-faint">{metaFor(selected, neverSeen)}</span>
+        <span className="shrink-0 truncate text-xs text-wc-text-faint">{metaFor(selected, neverSeen, agentsReady)}</span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 text-wc-text-faint transition", open && "rotate-180")} aria-hidden />
       </button>
 
@@ -256,7 +262,7 @@ export default function MachinePicker({
                     : <Server className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-wc-text-primary">{target.label}</span>
-                    <span className="block truncate text-[11px] text-wc-text-faint">{metaFor(target, neverSeen)}</span>
+                    <span className="block truncate text-[11px] text-wc-text-faint">{metaFor(target, neverSeen, agentsReady)}</span>
                   </span>
                   {isSelected
                     ? <Check className="h-4 w-4 shrink-0 text-wc-accent" aria-hidden />

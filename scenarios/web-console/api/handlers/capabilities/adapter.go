@@ -27,6 +27,7 @@ type Adapter struct {
 	Logger          *log.Logger
 	ActionRunner    caps.CommandRunner
 	CLIPath         string
+	RemoteInstall   func(context.Context, string, string) (caps.LifecycleActionResult, error)
 }
 
 // Describe exposes the registry contract used by the settings surface and
@@ -73,6 +74,16 @@ func (a *Adapter) Liveness(ctx context.Context) Snapshot {
 }
 
 func (a *Adapter) RunAction(ctx context.Context, req ActionRequest) (ActionResult, error) {
+	if req.TargetID != "" && req.TargetID != "local" && req.ActionKind == string(caps.ActionKindOperatorCommand) {
+		if a.RemoteInstall == nil {
+			return ActionResult{}, fmt.Errorf("remote capability installation is not configured")
+		}
+		result, err := a.RemoteInstall(ctx, req.TargetID, req.CapabilityID)
+		if err != nil {
+			return ActionResult{}, err
+		}
+		return ActionResult{Success: result.Success, Status: result.Status, Message: result.Message, OperationID: result.OperationID, CapabilityID: result.CapabilityID, ActionKind: string(result.ActionKind), Snapshot: a.Resolve(ctx)}, nil
+	}
 	svc := caps.LifecycleActionService{
 		Defs:    caps.Known,
 		Runner:  a.ActionRunner,
@@ -93,6 +104,7 @@ func (a *Adapter) RunAction(ctx context.Context, req ActionRequest) (ActionResul
 		Success:      result.Success,
 		Status:       result.Status,
 		Message:      result.Message,
+		OperationID:  result.OperationID,
 		CapabilityID: result.CapabilityID,
 		ActionKind:   string(result.ActionKind),
 		Snapshot:     snap,
@@ -111,19 +123,24 @@ func capsToTransport(in []caps.State) []CapabilityState {
 	out := make([]CapabilityState, len(in))
 	for i, c := range in {
 		out[i] = CapabilityState{
-			ID:              c.ID,
-			Name:            c.Name,
-			Description:     c.Description,
-			DependencyKind:  string(c.DependencyKind),
-			DependencySlug:  c.DependencySlug,
-			Features:        c.Features,
-			Status:          string(c.Status),
-			Message:         c.Message,
-			CheckedAt:       c.CheckedAt,
-			ReasonCode:      c.ReasonCode,
-			ActionKind:      string(c.ActionKind),
-			ActionLabel:     c.ActionLabel,
-			OperatorCommand: c.OperatorCommand,
+			ID:                     c.ID,
+			Name:                   c.Name,
+			Description:            c.Description,
+			DependencyKind:         string(c.DependencyKind),
+			DependencySlug:         c.DependencySlug,
+			Features:               c.Features,
+			Status:                 string(c.Status),
+			Message:                c.Message,
+			CheckedAt:              c.CheckedAt,
+			ReasonCode:             c.ReasonCode,
+			ActionKind:             string(c.ActionKind),
+			ActionLabel:            c.ActionLabel,
+			OperatorCommand:        c.OperatorCommand,
+			FeatureStatus:          c.FeatureStatus,
+			FeatureReason:          c.FeatureReason,
+			FeatureOperatorCommand: c.FeatureOperatorCommand,
+			ProviderStatus:         c.ProviderStatus,
+			ProviderFeatures:       c.ProviderFeatures,
 		}
 	}
 	return out

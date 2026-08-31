@@ -7,9 +7,89 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+
+	"audio-tools/internal/byokstore"
 )
+
+func TestBYOKCredentialCheckerProbesConfiguredEndpointWithoutExposingSecret(t *testing.T) {
+	var probed string
+	checker := &BYOKCredentialChecker{
+		ProviderID: "openai-tts", Capability: "tts",
+		List: func(context.Context) ([]byokstore.Credential, error) {
+			return []byokstore.Credential{{ProviderID: "openai-tts", Capability: "tts"}}, nil
+		},
+		Get:   func(context.Context, string, string) (string, bool, error) { return "secret-key", true, nil },
+		Probe: func(_ context.Context, key string) error { probed = key; return nil },
+	}
+	status, message := checker.Check(context.Background())
+	if status != StatusAvailable || message != "BYOK credential configured" || probed != "secret-key" {
+		t.Fatalf("status=%q message=%q probed=%q", status, message, probed)
+	}
+}
+
+func TestBYOKCredentialCheckerReportsEndpointFailureWithoutSecret(t *testing.T) {
+	checker := &BYOKCredentialChecker{
+		ProviderID: "openai-whisper", Capability: "stt",
+		List: func(context.Context) ([]byokstore.Credential, error) {
+			return []byokstore.Credential{{ProviderID: "openai-whisper", Capability: "stt"}}, nil
+		},
+		Get:   func(context.Context, string, string) (string, bool, error) { return "secret-key", true, nil },
+		Probe: func(context.Context, string) error { return errors.New("network failure") },
+	}
+	status, message := checker.Check(context.Background())
+	if status != StatusUnavailable || strings.Contains(message, "secret-key") || !strings.Contains(message, "endpoint") {
+		t.Fatalf("status=%q message=%q", status, message)
+	}
+}
+
+func TestBYOKCredentialCheckerHandlesStoreAndCredentialFailures(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		list func(context.Context) ([]byokstore.Credential, error)
+		get  func(context.Context, string, string) (string, bool, error)
+		want Status
+	}{
+		{name: "missing store", want: StatusUnknown},
+		{name: "store error", list: func(context.Context) ([]byokstore.Credential, error) { return nil, errors.New("store down") }, want: StatusUnknown},
+		{name: "missing credential", list: func(context.Context) ([]byokstore.Credential, error) { return []byokstore.Credential{}, nil }, want: StatusUnavailable},
+		{name: "secret unavailable", list: func(context.Context) ([]byokstore.Credential, error) {
+			return []byokstore.Credential{{ProviderID: "p", Capability: "c"}}, nil
+		}, get: func(context.Context, string, string) (string, bool, error) { return "", false, nil }, want: StatusUnavailable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			checker := &BYOKCredentialChecker{ProviderID: "p", Capability: "c", List: tt.list, Get: tt.get, Probe: func(context.Context, string) error { return nil }}
+			status, _ := checker.Check(context.Background())
+			if status != tt.want {
+				t.Fatalf("status = %q, want %q", status, tt.want)
+			}
+		})
+	}
+}
+
+type recordingDoer struct {
+	method string
+}
+
+func (d *recordingDoer) Do(req *http.Request) (*http.Response, error) {
+	d.method = req.Method
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}, nil
+}
+
+func TestResourceChecker_UsesGETForLivenessProbe(t *testing.T) {
+	doer := &recordingDoer{}
+	status, _ := (&ResourceChecker{URL: "http://provider.invalid/health", Doer: doer}).Check(context.Background())
+	if status != StatusAvailable {
+		t.Fatalf("status = %q, want %q", status, StatusAvailable)
+	}
+	if doer.method != http.MethodGet {
+		t.Fatalf("method = %q, want %q", doer.method, http.MethodGet)
+	}
+}
 
 func TestResourceChecker_HTTPStatuses(t *testing.T) {
 	t.Parallel()
@@ -55,6 +135,32 @@ func TestResourceChecker_ConnectionRefused(t *testing.T) {
 		t.Errorf("message = %q, want %q", msg, "resource is not responding")
 	}
 }
+
+func TestProbeBYOKEndpointUsesProviderAuthentication(t *testing.T) {
+	previous := http.DefaultClient
+	t.Cleanup(func() { http.DefaultClient = previous })
+	var got *http.Request
+	http.DefaultClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		got = req.Clone(req.Context())
+		return &http.Response{StatusCode: http.StatusNoContent, Body: io.NopCloser(strings.NewReader(""))}, nil
+	})}
+	for _, provider := range []string{"openai-whisper", "openai-tts", "deepgram", "elevenlabs"} {
+		got = nil
+		if err := ProbeBYOKEndpoint(provider)(context.Background(), "secret"); err != nil {
+			t.Fatalf("%s probe: %v", provider, err)
+		}
+		if got == nil || got.Method != http.MethodGet || got.Header.Get("Authorization") == "" && got.Header.Get("xi-api-key") == "" {
+			t.Fatalf("%s request did not carry authentication: %+v", provider, got)
+		}
+	}
+	if err := ProbeBYOKEndpoint("unknown")(context.Background(), "secret"); err == nil {
+		t.Fatal("unknown provider unexpectedly probed")
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
 
 func TestOllamaChecker_VerifiesConfiguredSummarizeModel(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

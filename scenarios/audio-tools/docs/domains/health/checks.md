@@ -20,6 +20,19 @@ process serve requests at all?" (single dependency: the database).
 Capabilities answer "which optional providers are reachable right
 now?" — that's a richer surface used by consumer scenarios.
 
+## Criticality and serviceability
+
+Capability criticality is declared on each catalogue definition. It defaults
+to `optional`; only a definition explicitly marked `required` may gate the
+service health verdict. A capability is serviceable when at least one provider
+serving it is available. An optional, unavailable, or platform-absent provider
+is still reported with its reason and operator command, but it never degrades
+an unrelated capability or the owning service.
+
+Consumers must use the per-feature projection (`featureStatus`, plus
+`featureReason` and `featureOperatorCommand` when unavailable). They must not
+gate a feature on the scenario-level status.
+
 ## Purpose
 
 `handlers/health/handler.go:31` owns the `/health` HTTP endpoint.
@@ -83,11 +96,12 @@ The capability registry's read methods return `[]State`
 | `Message` | Human-readable check message ("resource is healthy", "resource is not responding", etc.). |
 | `CheckedAt` | RFC3339 UTC. |
 
-`Resolve(ctx)` returns the cached, full-check view (refreshed when
-the cache is older than `cacheTTL`). `ResolveLiveness(ctx)` returns
-a cheap-check view that does NOT update the main cache — so a
-service that is broken-but-live cannot trick the full cache into
-showing it as healthy.
+`Resolve(ctx)` returns the cached, full/readiness view (refreshed when
+the cache is older than `cacheTTL`). `ResolveLiveness(ctx)` returns a
+cheap-check view backed by a separate cache. Neither tier reads or
+writes the other tier. Each checker receives its own bounded context;
+an expired checker is unavailable while providers not reached before
+the caller deadline remain unknown.
 
 ## Internal Chain
 
@@ -112,15 +126,15 @@ Capability check (called by handlers/capabilities, downstream scenarios):
     ▼
 Registry.Resolve(ctx)
     │
-    ├── cached && time.Since(cachedAt) < cacheTTL → return copy
+    ├── full cache fresh → return copy
     │
     └── refresh:
           for each Def in defs:
               if checker := checkers[Def.ID]; ok:
-                  state.Status, state.Message = checker.Check(ctx)
+                  state.Status, state.Message = checker.Check(own deadline)
               else:
                   Status = StatusUnknown
-          write to cache
+          write to full cache
           return copy
 
 
@@ -129,15 +143,15 @@ Capability check (liveness mode):
     ▼
 Registry.ResolveLiveness(ctx)
     │
-    ├── cached && time.Since(cachedAt) < cacheTTL → return copy (same as Resolve)
+    ├── liveness cache fresh → return copy (never the full cache)
     │
     └── liveness-only:
           for each Def in defs:
               if checker := livenessCheckers[Def.ID]; ok:
-                  state.Status, state.Message = checker.Check(ctx)
+                  state.Status, state.Message = checker.Check(own 3s deadline)
               else:
                   Status = StatusUnknown
-              (does NOT write to cache)
+          write to liveness cache only
           return states
 ```
 
@@ -148,7 +162,7 @@ truth for what audio-tools advertises:
 
 | ID | Kind | Features |
 |---|---|---|
-| `whisper-stt` | resource | `voice-input`, `voice-streaming` |
+| `whisper-stt` | resource | `voice-input` |
 | `kyutai-stt` | resource | `voice-streaming` |
 | `speaker-verification` | resource | `voice-speaker-verification`, `voice-enrollment` |
 | `kokoro-tts` | resource | `voice-output` |
@@ -208,7 +222,7 @@ the actual cost.
 | Checker missing for a registered `Def` | State returned with `Status = StatusUnknown` and blank message. |
 | Cache stale during `ResolveLiveness` with a liveness checker map but no checker for that Def | Returns `StatusUnknown`; liveness mode does not run full ASR/synthesis/model-readiness checks as a fallback. |
 | Concurrent `Resolve` calls during refresh | Both grab the write lock; the second sees a fresh cache and returns immediately. |
-| `livenessCheckers` not set | `ResolveLiveness` returns `Resolve(ctx)` (full check). |
+| `livenessCheckers` not set | `ResolveLiveness` returns `StatusUnknown` states; it never falls back to the full tier. Configure an explicit cheap checker for each provider a liveness surface needs. |
 
 There is no automatic retry inside checkers — the injected HTTP timeout
 either succeeds or fails. The TTL is the implicit retry cadence.
@@ -220,8 +234,8 @@ intentionally cheap so a load balancer can poll at 1 Hz without
 adding meaningful load.
 
 Capability checks are at most `len(Known)` HTTP round-trips per
-refresh (currently 6 entries: 5 resources + the audio-tools
-self-entry which has no checker). With a 30 s TTL and the typical
+refresh (currently 8 entries: 7 provider capabilities plus the
+audio-tools self-entry). With a 30 s TTL and the typical
 operator-UI poll cadence (seconds to minutes), the refresh cost is
 amortised. The cache copy returned to callers is a fresh slice so
 mutating it cannot corrupt the cached state.

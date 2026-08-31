@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"time"
 
 	audioH "audio-tools/handlers/audio"
 	corpusH "audio-tools/handlers/corpus"
@@ -28,6 +29,7 @@ import (
 	"audio-tools/internal/buildidentity"
 	"audio-tools/internal/byokstore"
 	"audio-tools/internal/capabilities"
+	"audio-tools/internal/controlplane"
 	intcorpus "audio-tools/internal/corpus"
 	diagcore "audio-tools/internal/diagnostics"
 	inteval "audio-tools/internal/eval"
@@ -107,10 +109,39 @@ func Compose(d CompositionDeps) *Server {
 	voice, speakerResource, audioEngine, engineRegistry, usage := d.Voice, d.SpeakerResource, d.AudioEngine, d.EngineRegistry, d.Usage
 	stores, sessions, streamLedgers, tts, cache := d.Stores, d.Sessions, d.StreamLedgers, d.TTS, d.Cache
 	summarizeConfig, corpus, experimentManager, experiments := d.SummarizeConfig, d.Corpus, d.ExperimentManager, d.Experiments
+	engineResolver := sttengine.NewLiveResolver(controlplane.New().Run, 30*time.Second)
+	engineResolver.SetAvailability(func(ctx context.Context, id string) bool {
+		return chains.STT != nil && chains.STT.LocalEngineAvailable(ctx, id)
+	})
+	selector := sttpkg.NewSelectorWithRegistry(chains.STT, audioEngine, engineRegistry)
+	selector.EngineResolver = engineResolver
+	defaultCredential := func(ctx context.Context, capability string) (string, string, bool) {
+		if stores.BYOK == nil {
+			return "", "", false
+		}
+		credentials, err := stores.BYOK.List(ctx)
+		if err != nil {
+			return "", "", false
+		}
+		for _, credential := range credentials {
+			if credential.Capability != capability {
+				continue
+			}
+			key, ok, err := stores.BYOK.Get(ctx, credential.ProviderID, credential.Capability)
+			if err == nil && ok && key != "" {
+				return credential.ProviderID, key, true
+			}
+		}
+		return "", "", false
+	}
 	sttDeps := sttH.Deps{
+		// The resolver combines bounded control-plane facts with the chain's
+		// provider-owned liveness signal. Its cache is shared by the picker and
+		// automatic stream selection.
 		Chain:               chains.STT,
-		Selector:            sttpkg.NewSelectorWithRegistry(chains.STT, audioEngine, engineRegistry),
+		Selector:            selector,
 		Registry:            engineRegistry,
+		EngineResolver:      engineResolver,
 		Voice:               voice,
 		SpeakerResource:     speakerResource,
 		Engine:              audioEngine,
@@ -124,6 +155,7 @@ func Compose(d CompositionDeps) *Server {
 		Capacity:            sttcapacity.NewCLIReporter(),
 		Sessions:            streamLedgers,
 		TestIsolationActive: env.TestIsolationActive,
+		DefaultCredential:   defaultCredential,
 	}
 	diagnostics := diagcore.New(diagcore.Deps{
 		STT:       chains.STT,
@@ -145,7 +177,7 @@ func Compose(d CompositionDeps) *Server {
 			SourceIdentity: buildidentity.SourceIdentity,
 		}),
 		hsH.Module(hsH.Deps{Registry: capsRegistry, Logger: logger, Clock: schedule.System()}),
-		plH.Module(plH.Deps{Registry: capsRegistry, Controller: capabilities.NewCLIController(), Logger: logger, Clock: schedule.System()}),
+		plH.Module(plH.Deps{Registry: capsRegistry, Controller: capabilities.NewCLIController(), Logger: logger, Clock: schedule.System(), InvalidateEngineCache: engineResolver.Invalidate}),
 		audioH.Module(logger),
 		sessionH.Module(sessions, logger, schedule.System()),
 		settingsH.Module(settingsH.Deps{Logger: logger, ProviderConfig: stores.ProviderConfig, BYOK: stores.BYOK, VoiceOverrides: stores.VoiceOverrides, Coordinator: chains.Coordinator}),
@@ -153,7 +185,7 @@ func Compose(d CompositionDeps) *Server {
 		summarizeH.Module(chains.Summarize, func() intsumm.SummarizeConfig { return *summarizeConfig }, func(c intsumm.SummarizeConfig) { *summarizeConfig = c }, func(ctx context.Context) ([]intsumm.SummarizeModelInfo, error) {
 			return intsumm.ListSummarizeModels(ctx, env.OllamaURL, httpc.DefaultDoer())
 		}, logger, schedule.System(), usage),
-		ttsH.Module(ttsH.Deps{Chain: chains.TTS, SummarizeChain: chains.Summarize, TTSService: tts, Engine: audioEngine, Logger: logger, Clock: schedule.System(), Usage: usage, Cache: cache, ConfigStore: stores.TTSConfig, Playback: stores.Playback}),
+		ttsH.Module(ttsH.Deps{Chain: chains.TTS, SummarizeChain: chains.Summarize, TTSService: tts, Engine: audioEngine, Logger: logger, Clock: schedule.System(), Usage: usage, Cache: cache, ConfigStore: stores.TTSConfig, Playback: stores.Playback, DefaultCredential: defaultCredential}),
 		usageH.Module(usageH.Deps{Logger: logger, Clock: schedule.System(), Store: stores.Usage}),
 		corpusH.Module(corpusH.Deps{Logger: logger, Clock: schedule.System(), Service: corpus}),
 		experimentH.Module(experimentH.Deps{Logger: logger, Manager: experimentManager, Service: experiments, EstimateClipSeconds: expreport.EstimateClipSeconds(corpus)}),

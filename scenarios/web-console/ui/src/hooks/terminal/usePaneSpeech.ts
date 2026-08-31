@@ -28,6 +28,7 @@ export interface PaneSpeechPlaybackHandle {
   setVolume: (level: number) => void;
   setMuted: (next: boolean) => void;
   getState: () => TTSPlaybackState | null;
+  getBackendReason?: () => string;
 }
 
 function utf8ByteLength(value: string): number {
@@ -90,7 +91,7 @@ export function usePaneSpeech(options: {
   }), [ttsVoice, ttsRate, ttsPitch, kokoroVoice, kokoroSpeed, ttsBackendPreference]);
   const {
     speakParagraphs, stop, pause, resume, seek, setPlaybackRate, setVolume, setMuted,
-    getPlaybackState, supported, isSpeaking, needsUnlock, unlockAudio,
+    getPlaybackState, backendReason, supported, isSpeaking, needsUnlock, unlockAudio,
   } = useTextToSpeech(resolvedSettings, { source: "terminal_auto", sessionId });
 
   const onSpeakingEventChangeRef = useRef(onSpeakingEventChange);
@@ -177,7 +178,8 @@ export function usePaneSpeech(options: {
     setVolume,
     setMuted,
     getState: getPlaybackState,
-  }), [getPlaybackState, pause, resume, seek, setMuted, setPlaybackRate, setVolume, speak, stop]);
+    getBackendReason: () => backendReason,
+  }), [backendReason, getPlaybackState, pause, resume, seek, setMuted, setPlaybackRate, setVolume, speak, stop]);
 
   return { supported, playback };
 }

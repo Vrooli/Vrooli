@@ -6,19 +6,22 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"audio-tools/internal/controlplane"
 )
 
 // newTestEnsurer builds a CLIEnsurer with a fake binary + injectable exec/clock
 // so no real `vrooli` is shelled.
 func newTestEnsurer(run func(ctx context.Context, bin string, args ...string) error, now func() time.Time) *CLIEnsurer {
 	return &CLIEnsurer{
-		vrooliBin: "/fake/vrooli",
-		exec:      run,
-		now:       now,
-		timeout:   DefaultEnsureTimeout,
-		cooldown:  DefaultCooldown,
-		inflight:  map[string]*ensureCall{},
-		last:      map[string]ensureOutcome{},
+		controlPlane: controlplane.NewForTest("/fake/vrooli", func(ctx context.Context, bin string, args ...string) ([]byte, error) {
+			return nil, run(ctx, bin, args...)
+		}),
+		now:      now,
+		timeout:  DefaultEnsureTimeout,
+		cooldown: DefaultCooldown,
+		inflight: map[string]*ensureCall{},
+		last:     map[string]ensureOutcome{},
 	}
 }
 
@@ -120,7 +123,7 @@ func TestEnsureRunningAllowlist(t *testing.T) {
 
 // A missing vrooli binary returns an error rather than panicking.
 func TestEnsureRunningMissingBinary(t *testing.T) {
-	e := &CLIEnsurer{vrooliBin: "", now: time.Now, inflight: map[string]*ensureCall{}, last: map[string]ensureOutcome{}}
+	e := &CLIEnsurer{controlPlane: controlplane.NewForTest("", nil), now: time.Now, inflight: map[string]*ensureCall{}, last: map[string]ensureOutcome{}}
 	if err := e.EnsureRunning(context.Background(), "whisper"); err == nil {
 		t.Fatal("EnsureRunning with no vrooli binary should error")
 	}

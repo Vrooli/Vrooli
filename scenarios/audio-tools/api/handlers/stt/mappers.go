@@ -142,10 +142,13 @@ func defaultStreamCfg() streamCfgDoc {
 	return streamCfgDoc{
 		FlushIntervalMs: 250, MinDeltaBytes: 16384, OverlapBytes: 2048,
 		PersistentMode: false, WakeWordEnabled: false, WakeWordThreshold: 0.6,
-		SegmentSilenceMs:           800,
-		StreamingMode:              "auto",
-		StrategyPreference:         "auto",
-		EngineID:                   "whisper-local",
+		SegmentSilenceMs:   800,
+		StreamingMode:      "auto",
+		StrategyPreference: "auto",
+		// Empty means unpinned. The resolver selects the serviceable engine
+		// from live host facts; the CLI/UI may render Whisper as a display
+		// fallback when no live selection is available.
+		EngineID:                   "",
 		VadSilenceMs:               sttpkg.DefaultVADSilenceMs,
 		OverlapWindowMs:            2000,
 		OverlapCommitRuns:          2,

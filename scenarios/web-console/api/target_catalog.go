@@ -11,6 +11,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/api-core/targetmodel"
+	"github.com/vrooli/vrooli/packages/capabilityprobe"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -92,7 +93,31 @@ func localTerminalTarget() targetmodel.Target {
 		Available: true, Mode: "dispatchable", SurvivesRestart: true,
 		Transport: targetmodel.Transport{Kind: targetmodel.TransportLocal, ID: "local", Available: true},
 		Health:    targetmodel.TargetHealth{Status: "LOCAL"},
-		Readiness: []targetmodel.ReadinessCheck{{Identity: "local_process", Label: "Web Console process", Passed: true, Detail: "This machine is available to the Web Console"}},
+		Readiness: append([]targetmodel.ReadinessCheck{{Identity: "local_process", Label: "Web Console process", Passed: true, State: targetmodel.ReadinessReady, Detail: "This machine is available to the Web Console"}}, localCapabilityFacts()...),
+	}
+}
+
+func localCapabilityFacts() []targetmodel.ReadinessCheck {
+	observations := capabilityprobe.Probe(context.Background(), capabilityprobe.AITools)
+	result := make([]targetmodel.ReadinessCheck, 0, len(observations))
+	for _, item := range observations {
+		fact := targetmodel.CapabilityReadinessCheck(item.ID, targetmodel.ReadinessState(item.State), item.Detail, capabilityRecovery(item.State))
+		fact.Version = item.Version
+		result = append(result, fact)
+	}
+	return result
+}
+
+func capabilityRecovery(state capabilityprobe.State) string {
+	switch state {
+	case capabilityprobe.Missing:
+		return "Install this coding agent on the selected machine"
+	case capabilityprobe.Unknown:
+		return "Refresh the capability probe and check that the node is reporting"
+	case capabilityprobe.NotApplicable:
+		return "Choose another coding agent or a supported machine"
+	default:
+		return ""
 	}
 }
 
@@ -105,7 +130,7 @@ func readinessFactsForNode(node *registryv1.Node) []targetmodel.ReadinessCheck {
 			break
 		}
 	}
-	return []targetmodel.ReadinessCheck{
+	result := []targetmodel.ReadinessCheck{
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessRegistry, node.GetRegistryRecordPresent(), "Bridge registry record is present"),
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessHeartbeat, node.GetHeartbeatFresh(), "Node heartbeat is within the freshness window"),
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessChannel, node.GetChannelHeld(), "Bridge has a live channel to this node"),
@@ -114,6 +139,25 @@ func readinessFactsForNode(node *registryv1.Node) []targetmodel.ReadinessCheck {
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessBridgeScope, hasSessionGrant, grantDetailForScopes(node.GetScopes())),
 		targetmodel.ReadinessCheckFor(targetmodel.ReadinessSessionSupport, hasSessionGrant && node.GetKind() == registryv1.NodeKind_NODE_KIND_AGENT, "Interactive sessions require a Bridge agent and the vrooli-bridge:write grant"),
 	}
+	for _, item := range node.GetCapabilityInventory() {
+		state := targetmodel.ReadinessUnknown
+		switch item.GetState() {
+		case 1:
+			state = targetmodel.ReadinessReady
+		case 2:
+			state = targetmodel.ReadinessMissing
+		case 3:
+			state = targetmodel.ReadinessNotApplicable
+		}
+		fact := targetmodel.CapabilityReadinessCheck(item.GetId(), state, item.GetDetail(), capabilityRecoveryString(string(state)))
+		fact.Version = item.GetVersion()
+		result = append(result, fact)
+	}
+	return result
+}
+
+func capabilityRecoveryString(state string) string {
+	return capabilityRecovery(capabilityprobe.State(state))
 }
 
 func grantSummaryForScopes(scopes []string) string {
@@ -205,7 +249,7 @@ func remoteCatalogState(targets []targetConnection) (targetsv1.CatalogState, str
 func targetToProto(target targetConnection) *sharedv1.Target {
 	facts := make([]*sharedv1.ReadinessFact, 0, len(target.Readiness))
 	for _, fact := range target.Readiness {
-		facts = append(facts, &sharedv1.ReadinessFact{Key: fact.Identity, Label: fact.Label, Passed: fact.Passed, Detail: fact.Detail})
+		facts = append(facts, &sharedv1.ReadinessFact{Key: fact.Identity, Label: fact.Label, Passed: fact.Passed, Detail: fact.Detail, State: string(fact.State), Version: fact.Version, RecoveryAction: fact.RecoveryAction})
 	}
 	var lastSeen *timestamppb.Timestamp
 	if !target.LastSeenAt.IsZero() {

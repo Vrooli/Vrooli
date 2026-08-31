@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -135,7 +136,7 @@ func TestLifecycleActionServiceReportsWaitFailure(t *testing.T) {
 	}
 }
 
-func TestLifecycleActionServiceRejectsUndeclaredAndResourceCapabilities(t *testing.T) {
+func TestLifecycleActionServiceRejectsUndeclaredAndResourceCapabilitiesForLifecycle(t *testing.T) {
 	runner := &fakeCommandRunner{}
 	svc := lifecycleActionTestService(runner)
 
@@ -146,6 +147,23 @@ func TestLifecycleActionServiceRejectsUndeclaredAndResourceCapabilities(t *testi
 	}
 	if len(runner.calls) != 0 {
 		t.Fatalf("calls = %d, want 0", len(runner.calls))
+	}
+}
+
+func TestLifecycleActionServiceRunsDeclaredResourceOperatorAction(t *testing.T) {
+	runner := &fakeCommandRunner{results: []CommandResult{{Stdout: []byte(`{"success":true}`), ExitCode: 0}}}
+	svc := LifecycleActionService{
+		Defs:    []Def{{ID: "codex", DependencyKind: DependencyResource, DependencySlug: "codex", ActionKind: ActionKindOperatorCommand, OperatorCommand: "resource install codex --json"}},
+		Runner:  runner,
+		CLIPath: "vrooli",
+		Timeout: time.Second,
+	}
+	result, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "codex", ActionKind: ActionKindOperatorCommand})
+	if err != nil || !result.Success {
+		t.Fatalf("Run() = %+v, err=%v", result, err)
+	}
+	if len(runner.calls) != 1 || strings.Join(runner.calls[0].args, " ") != "resource install codex --json" {
+		t.Fatalf("calls = %#v", runner.calls)
 	}
 }
 

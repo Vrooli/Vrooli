@@ -14,6 +14,12 @@ import (
 //
 // The returned channel is closed after the final frame.
 func (c *Chain) Stream(ctx context.Context, req Request) (<-chan AudioFrame, error) {
+	if c.Coordinator != nil && c.Local != nil && c.localFirst && c.Eligible(ctx, tiered.SlotLocal, req) && c.Local.StreamingCapability() {
+		out, err := c.Local.SynthesizeStreaming(ctx, req)
+		if err == nil && out != nil {
+			return out, nil
+		}
+	}
 	if c.BYOK != nil && c.Eligible(ctx, tiered.SlotBYOK, req) && c.BYOK.StreamingCapability() {
 		out, err := c.BYOK.SynthesizeStreaming(ctx, req)
 		if err != nil {
@@ -30,7 +36,7 @@ func (c *Chain) Stream(ctx context.Context, req Request) (<-chan AudioFrame, err
 			return out, nil
 		}
 	}
-	if c.Local != nil && c.Eligible(ctx, tiered.SlotLocal, req) && c.Local.StreamingCapability() {
+	if !c.localFirst && c.Local != nil && c.Eligible(ctx, tiered.SlotLocal, req) && c.Local.StreamingCapability() {
 		out, err := c.Local.SynthesizeStreaming(ctx, req)
 		if err == nil && out != nil {
 			return out, nil

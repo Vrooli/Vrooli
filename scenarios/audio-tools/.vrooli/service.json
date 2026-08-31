@@ -153,23 +153,28 @@
     "resources": {
       "whisper": {
         "required": false,
-        "description": "Local STT tier (faster-whisper engine)"
+        "description": "Local STT tier (faster-whisper engine)",
+        "startup_policy": "try_start"
       },
       "kyutai-stt": {
         "required": false,
-        "description": "Optional Linux/CUDA streaming STT accelerator"
+        "description": "Optional Linux/CUDA streaming STT accelerator",
+        "startup_policy": "try_start"
       },
       "kokoro": {
         "required": false,
-        "description": "Local TTS tier"
+        "description": "Local TTS tier",
+        "startup_policy": "try_start"
       },
       "sherpa-onnx": {
         "required": false,
-        "description": "Native local TTS, streaming STT, speaker enrollment/verification, and source separation"
+        "description": "Native local TTS, streaming STT, speaker enrollment/verification, and source separation",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "required": false,
-        "description": "Local summarize tier"
+        "description": "Local summarize tier",
+        "startup_policy": "try_start"
       },
       "openrouter": {
         "type": "openrouter",
@@ -177,11 +182,13 @@
         "model_roles": [
           "summarize.default"
         ],
-        "description": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role"
+        "description": "Cloud summarize tier (BYOK); model resolved via OpenRouter policy role",
+        "startup_policy": "try_start"
       },
       "postgres": {
         "required": false,
-        "description": "Optional usage history backend; sqlite is default"
+        "description": "Optional usage history backend; sqlite is default",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {

@@ -15,4 +15,5 @@ contract, and shared UI-facing types. This directory contains only
 web-console's same-origin API/proto adapters, health probes, and presentation
 bindings. A local file must either re-export the package or document a genuine
 host difference with `HOST DIFFERENCE`; do not duplicate this directory into
-another scenario.
+another scenario. The boundary test rejects unmarked divergent files and
+requires each retained host difference to carry a `HOST DIFFERENCE:` marker.

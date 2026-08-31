@@ -12,6 +12,15 @@
 // function takes as its first argument.
 
 export const strings = {
+  $schema: "$schema",
+  "Changes saved successfully": {
+    "": "Changes saved successfully.",
+  },
+  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
+    "": "Disabled states retain the same geometry and clearly communicate that the action is unavailable.",
+  },
+  "Request in progress": "Request in progress",
+  Saved: "Saved",
   aiInput: {
     closeAriaLabel: "aiInput.closeAriaLabel",
     copyTitle: "aiInput.copyTitle",
@@ -123,6 +132,7 @@ export const strings = {
     archived: "archiveToast.archived",
     undo: "archiveToast.undo",
   },
+  asset: "asset",
   audioPlayerBar: {
     audioSettings: "audioPlayerBar.audioSettings",
     audioSettingsHeading: "audioPlayerBar.audioSettingsHeading",
@@ -166,6 +176,8 @@ export const strings = {
     showLess: "banners.showLess",
     trackingDegraded: "banners.trackingDegraded",
   },
+  children: "children",
+  component: "component",
   composer: {
     attachImageTitle: "composer.attachImageTitle",
     closeAriaLabel: "composer.closeAriaLabel",
@@ -194,6 +206,9 @@ export const strings = {
     confirm: "confirmDelete.confirm",
     title: "confirmDelete.title",
   },
+  default: "default",
+  description: "description",
+  detail: "detail",
   deviceFrame: {
     caption: "deviceFrame.caption",
     device: {
@@ -228,6 +243,32 @@ export const strings = {
     somethingWentWrong: "errorBoundary.somethingWentWrong",
     tryAgain: "errorBoundary.tryAgain",
   },
+  example: "example",
+  export: "export",
+  fleet: {
+    alsoDevice: "fleet.alsoDevice",
+    devices: "fleet.devices",
+    devicesDescription: "fleet.devicesDescription",
+    driving: "fleet.driving",
+    dropOld: "fleet.dropOld",
+    following: "fleet.following",
+    forgetDevice: "fleet.forgetDevice",
+    giveControl: "fleet.giveControl",
+    idle: "fleet.idle",
+    inControl: "fleet.inControl",
+    machines: "fleet.machines",
+    machinesDescription: "fleet.machinesDescription",
+    noSession: "fleet.noSession",
+    notConnected: "fleet.notConnected",
+    openAriaLabel: "fleet.openAriaLabel",
+    reconnecting: "fleet.reconnecting",
+    rename: "fleet.rename",
+    startSession: "fleet.startSession",
+    subtitle: "fleet.subtitle",
+    title: "fleet.title",
+    unnamedDevice: "fleet.unnamedDevice",
+    you: "fleet.you",
+  },
   floatingToolbar: {
     aiCommandTitle: "floatingToolbar.aiCommandTitle",
     expandComposerTitle: "floatingToolbar.expandComposerTitle",
@@ -236,6 +277,7 @@ export const strings = {
     tapToRestore: "floatingToolbar.tapToRestore",
     terminalFirstTitle: "floatingToolbar.terminalFirstTitle",
   },
+  format: "format",
   groupContextMenu: {
     addRole: "groupContextMenu.addRole",
     closeBody: "groupContextMenu.closeBody",
@@ -351,6 +393,8 @@ export const strings = {
     surfaces: "handoffRules.surfaces",
     title: "handoffRules.title",
   },
+  iconName: "iconName",
+  id: "id",
   integrationsPanel: {
     actionFailed: "integrationsPanel.actionFailed",
     actionRunning: "integrationsPanel.actionRunning",
@@ -374,6 +418,8 @@ export const strings = {
     searchPlaceholder: "keyComboPicker.searchPlaceholder",
     triggerTitle: "keyComboPicker.triggerTitle",
   },
+  kind: "kind",
+  label: "label",
   launcher: {
     addRole: "launcher.addRole",
     agents: "launcher.agents",
@@ -414,6 +460,7 @@ export const strings = {
     startsWaiting: "launcher.startsWaiting",
     template: "launcher.template",
   },
+  libraryId: "libraryId",
   machines: {
     actionFailed: "machines.actionFailed",
     addMachine: "machines.addMachine",
@@ -502,30 +549,6 @@ export const strings = {
     unenrolledTitle: "machines.unenrolledTitle",
     withholds: "machines.withholds",
     wordsMatch: "machines.wordsMatch",
-  },
-  fleet: {
-    openAriaLabel: "fleet.openAriaLabel",
-    title: "fleet.title",
-    subtitle: "fleet.subtitle",
-    devices: "fleet.devices",
-    devicesDescription: "fleet.devicesDescription",
-    machines: "fleet.machines",
-    machinesDescription: "fleet.machinesDescription",
-    unnamedDevice: "fleet.unnamedDevice",
-    you: "fleet.you",
-    inControl: "fleet.inControl",
-    following: "fleet.following",
-    idle: "fleet.idle",
-    reconnecting: "fleet.reconnecting",
-    notConnected: "fleet.notConnected",
-    giveControl: "fleet.giveControl",
-    dropOld: "fleet.dropOld",
-    forgetDevice: "fleet.forgetDevice",
-    rename: "fleet.rename",
-    startSession: "fleet.startSession",
-    noSession: "fleet.noSession",
-    driving: "fleet.driving",
-    alsoDevice: "fleet.alsoDevice",
   },
   manageGroups: {
     assignSession: "manageGroups.assignSession",
@@ -823,6 +846,10 @@ export const strings = {
     unsentOldest: "mobileToolbar.unsentOldest",
     uploadImageTitle: "mobileToolbar.uploadImageTitle",
   },
+  mode: "mode",
+  module: "module",
+  name: "name",
+  path: "path",
   playbackMode: {
     heavy: "playbackMode.heavy",
     heavyHint: "playbackMode.heavyHint",
@@ -837,6 +864,8 @@ export const strings = {
     summarized: "playbackMode.summarized",
     summaryTitle: "playbackMode.summaryTitle",
   },
+  provenance: "provenance",
+  purpose: "purpose",
   recoverableSessions: {
     agentLabel: "recoverableSessions.agentLabel",
     agentNone: "recoverableSessions.agentNone",
@@ -852,6 +881,9 @@ export const strings = {
     view: "recoverableSessions.view",
     viewArchive: "recoverableSessions.viewArchive",
   },
+  ref: "ref",
+  resolvedAt: "resolvedAt",
+  role: "role",
   roles: {
     addRole: "roles.addRole",
     addRoleTitle: "roles.addRoleTitle",
@@ -874,6 +906,8 @@ export const strings = {
     waitingCount: "roles.waitingCount",
     waitingCount_one: "roles.waitingCount_one",
   },
+  schema: "schema",
+  selector: "selector",
   sessionRecovery: {
     recovered: "sessionRecovery.recovered",
     recovered_one: "sessionRecovery.recovered_one",
@@ -1333,6 +1367,7 @@ export const strings = {
       wakeLockUnsupported: "settings.workspaceSection.wakeLockUnsupported",
     },
   },
+  size: "size",
   snippets: {
     body: "snippets.body",
     cancel: "snippets.cancel",
@@ -1411,6 +1446,8 @@ export const strings = {
       title: "snippets.variables.title",
     },
   },
+  statement: "statement",
+  status: "status",
   summarizeError: {
     autoFailed: "summarizeError.autoFailed",
     dismiss: "summarizeError.dismiss",
@@ -1466,6 +1503,7 @@ export const strings = {
   terminalLauncher: {
     actions: "terminalLauncher.actions",
     advancedHint: "terminalLauncher.advancedHint",
+    agentsReady: "terminalLauncher.agentsReady",
     backendLabel: "terminalLauncher.backendLabel",
     chooseReadyLocation: "terminalLauncher.chooseReadyLocation",
     closeAriaLabel: "terminalLauncher.closeAriaLabel",
@@ -1517,6 +1555,12 @@ export const strings = {
     inputRejected: "terminalPane.inputRejected",
     uploadingImage: "terminalPane.uploadingImage",
   },
+  text: "text",
+  tier: "tier",
+  title: "title",
+  true: "true",
+  type: "type",
+  uncontrolled: "uncontrolled",
   undo: {
     dismiss: "undo.dismiss",
     groupClosed: "undo.groupClosed",
@@ -1526,6 +1570,10 @@ export const strings = {
     restored: "undo.restored",
     undo: "undo.undo",
   },
+  value: "value",
+  "var(--color-foreground)": "var(--color-foreground)",
+  variant: "variant",
+  version: "version",
   voiceCommandSuggestion: {
     dismissTitle: "voiceCommandSuggestion.dismissTitle",
     executeTitle: "voiceCommandSuggestion.executeTitle",

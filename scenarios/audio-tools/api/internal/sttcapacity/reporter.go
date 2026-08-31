@@ -25,7 +25,9 @@ package sttcapacity
 import (
 	"context"
 	"encoding/json"
-	"os/exec"
+	"fmt"
+
+	"audio-tools/internal/controlplane"
 )
 
 // allowedResources is the whitelist of backing STT resources whose capacity
@@ -52,28 +54,20 @@ type Reporter interface {
 // `vrooli capacity …` CLI (plan §8.4) so audio-tools never couples to the
 // broker's storage internals.
 type CLIReporter struct {
-	// vrooliBin is the absolute path to the vrooli binary, or "" when absent.
-	vrooliBin string
-	// exec runs vrooli with the given args and returns stdout. Injectable for
-	// tests; nil uses vrooliBin via os/exec.
-	exec func(ctx context.Context, bin string, args ...string) ([]byte, error)
+	controlPlane *controlplane.Client
 }
 
 // NewCLIReporter resolves the vrooli binary once at startup. The returned
 // reporter is safe even when the binary is missing (every method no-ops).
 func NewCLIReporter() *CLIReporter {
-	bin, err := exec.LookPath("vrooli")
-	if err != nil {
-		return &CLIReporter{}
-	}
-	return &CLIReporter{vrooliBin: bin}
+	return &CLIReporter{controlPlane: controlplane.New()}
 }
 
 func (r *CLIReporter) run(ctx context.Context, args ...string) ([]byte, error) {
-	if r.exec != nil {
-		return r.exec(ctx, r.vrooliBin, args...)
+	if r.controlPlane == nil || !r.controlPlane.Available() {
+		return nil, fmt.Errorf("vrooli binary not found on PATH")
 	}
-	return exec.CommandContext(ctx, r.vrooliBin, args...).Output()
+	return r.controlPlane.Run(ctx, args...)
 }
 
 type listResponse struct {
@@ -86,7 +80,7 @@ type listResponse struct {
 // Active resolves the resource's active capacity claim and marks it
 // activity=active, returning the claim id (or "" if none/failed).
 func (r *CLIReporter) Active(ctx context.Context, resource string) string {
-	if r.vrooliBin == "" || resource == "" {
+	if r.controlPlane == nil || !r.controlPlane.Available() || resource == "" {
 		return ""
 	}
 	if _, ok := allowedResources[resource]; !ok {
@@ -114,7 +108,7 @@ func (r *CLIReporter) Active(ctx context.Context, resource string) string {
 
 // Idle marks the given claim activity=idle (best-effort).
 func (r *CLIReporter) Idle(ctx context.Context, claimID string) {
-	if r.vrooliBin == "" || claimID == "" {
+	if r.controlPlane == nil || !r.controlPlane.Available() || claimID == "" {
 		return
 	}
 	_, _ = r.run(ctx, "capacity", "activity", "--claim-id", claimID, "--state", "idle", "--json")

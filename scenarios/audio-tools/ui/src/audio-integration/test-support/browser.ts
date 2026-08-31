@@ -12,3 +12,4 @@ export function makeMediaStream(
     getTracks: () => [{ readyState, stop: onStop }],
   } as unknown as MediaStream;
 }
+// HOST DIFFERENCE: audio-tools test support owns this scenario's browser harness.

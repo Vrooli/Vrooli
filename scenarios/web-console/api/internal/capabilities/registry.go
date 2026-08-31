@@ -62,6 +62,11 @@ var knownCatalogue = []Def{
 	{ID: "session-backend-standard", Name: "Standard Terminal Sessions", Description: "Local PTY terminal sessions", DependencyKind: DependencyResource, DependencySlug: "session-backend-standard"},
 	{ID: "session-backend-persistent", Name: "Persistent Terminal Sessions", Description: "tmux-backed terminal sessions that survive API restarts", DependencyKind: DependencyResource, DependencySlug: "session-backend-persistent"},
 	{ID: "vrooli-bridge", Name: "Remote Terminals", Description: "Bridged terminal sessions on registered nodes", DependencyKind: DependencyScenario, DependencySlug: "vrooli-bridge", ActionKind: ActionKindScenarioStart, ActionLabel: "Start Bridge", OperatorCommand: "vrooli scenario start vrooli-bridge --json"},
+	{ID: "claude", Name: "Claude Code", Description: "Coding agent available on the selected machine", DependencyKind: DependencyResource, DependencySlug: "claude-code", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install Claude Code", OperatorCommand: "vrooli resource install claude-code --json"},
+	{ID: "codex", Name: "Codex", Description: "Coding agent available on the selected machine", DependencyKind: DependencyResource, DependencySlug: "codex", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install Codex", OperatorCommand: "vrooli resource install codex --json"},
+	{ID: "opencode", Name: "OpenCode", Description: "Coding agent available on the selected machine", DependencyKind: DependencyResource, DependencySlug: "opencode", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install OpenCode", OperatorCommand: "vrooli resource install opencode --json"},
+	{ID: "grok", Name: "Grok", Description: "Coding agent available on the selected machine", DependencyKind: DependencyResource, DependencySlug: "grok", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install Grok", OperatorCommand: "vrooli resource install grok --json"},
+	{ID: "agy", Name: "Antigravity", Description: "Coding agent available on the selected machine", DependencyKind: DependencyResource, DependencySlug: "antigravity", ActionKind: ActionKindOperatorCommand, ActionLabel: "Install Antigravity", OperatorCommand: "vrooli resource install antigravity --json"},
 }
 
 // Known is the catalogue for the current host. Platform-specific backend

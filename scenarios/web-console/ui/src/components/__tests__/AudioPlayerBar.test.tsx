@@ -58,6 +58,21 @@ function makeEvent(id: string, sequence: number): ConversationEvent {
 }
 
 describe("AudioPlayerBar", () => {
+  it("announces the browser fallback when auto playback cannot use Kokoro", () => {
+    render(<AudioPlayerBar {...makeProps({ backendReason: "Kokoro is unavailable, so browser speech synthesis is active" })} />);
+    expect(screen.getByTestId("tts-browser-fallback-notice")).toHaveTextContent("Kokoro is unavailable");
+  });
+
+  it("announces a browser fallback after Kokoro fails at runtime", () => {
+    render(<AudioPlayerBar {...makeProps({ backendReason: "Kokoro failed at runtime; Browser handled playback for this request" })} />);
+    expect(screen.getByTestId("tts-browser-fallback-notice")).toHaveTextContent("Kokoro failed at runtime");
+  });
+
+  it("does not show a fallback notice for an explicit browser preference", () => {
+    render(<AudioPlayerBar {...makeProps({ backendReason: undefined })} />);
+    expect(screen.queryByTestId("tts-browser-fallback-notice")).toBeNull();
+  });
+
   it("renders pause icon when not paused", () => {
     render(<AudioPlayerBar {...makeProps({ isPaused: false })} />);
     const btn = screen.getByTestId("tts-play-pause");

@@ -29,6 +29,12 @@
       "strategies": ["passthrough"]
     }
   ],
+  "selectionPolicy": {
+    "hardFilters": ["platform_supported", "resource_serviceable", "workload_capable"],
+    "rankedPreferences": ["accelerated"],
+    "tiebreakRank": ["manifest_order"],
+    "probeTtlSeconds": 30
+  },
   "speakerIsolation": {
     "active": "verification",
     "methods": {

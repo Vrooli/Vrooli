@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	bridgeSharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/shared"
 	targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/targets"
 )
@@ -154,6 +155,35 @@ func TestTargetCatalogProjectsReadinessAndRecoveryText(t *testing.T) {
 	}
 	if targetText(nil, "failure_rung") != "" {
 		t.Fatal("nil target text should be empty")
+	}
+}
+
+func TestTargetCatalogProjectsCapabilityInventory(t *testing.T) {
+	node := &registryv1.Node{
+		Kind:                  registryv1.NodeKind_NODE_KIND_AGENT,
+		RegistryRecordPresent: true,
+		CapabilityInventory: []*bridgeSharedv1.CapabilityObservation{{
+			Capability: "ai-cli", Id: "codex", Label: "Codex",
+			State:  bridgeSharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_MISSING,
+			Version: "1.2.3", Detail: "codex is not installed",
+		}},
+	}
+	facts := readinessFactsForNode(node)
+	var found *targetmodel.ReadinessCheck
+	for index := range facts {
+		if facts[index].Identity == "capability:codex" {
+			found = &facts[index]
+			break
+		}
+	}
+	if found == nil || found.State != targetmodel.ReadinessMissing || found.Passed || found.Version != "1.2.3" {
+		t.Fatalf("capability readiness = %+v", found)
+	}
+	projected := targetToProto(targetConnection{Target: targetmodel.Target{Readiness: facts}})
+	for _, fact := range projected.GetReadiness() {
+		if fact.GetKey() == "capability:codex" && fact.GetState() != "missing" {
+			t.Fatalf("projected capability state = %q", fact.GetState())
+		}
 	}
 }
 

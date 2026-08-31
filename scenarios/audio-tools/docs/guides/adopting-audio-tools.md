@@ -68,6 +68,17 @@ The adopter supplies only transport functions, API/proto mapping, and themed
 presentation. The microphone surface comes from the released
 `react-component-library` `VoiceInputButton` component.
 
+## 4. Gate on the feature projection
+
+The audio-tools capability row carries `featureStatus`, keyed by feature slug,
+and provides `featureReason` and `featureOperatorCommand` for unavailable
+features. Gate microphone input on `voice-input`, streaming on
+`voice-streaming`, and playback on `voice-output`. Never gate one feature on
+the scenario-level `status`: an unrelated optional provider may be absent
+while the requested feature remains serviceable. The audio-integration drift
+guard enforces the shared-package import boundary and reports any unmarked
+host-specific file.
+
 Example adapter:
 
 ```tsx

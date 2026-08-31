@@ -40,10 +40,12 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/packages/capabilityprobe"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
+	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
 	_ "modernc.org/sqlite"
 	audiotoolsint "web-console/integrations/audiotools"
 	intai "web-console/internal/ai"
@@ -348,7 +350,14 @@ func NewServer(db *database.RoutedDB) *Server {
 		log.Printf("bridge endpoint warning: %s", warning)
 	}
 
-	checkers := newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken, bridgeReauthToken)
+	var audioToolsClient *audiotoolsint.Client
+	audioProviderHealth := func(ctx context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
+		if audioToolsClient == nil {
+			return nil, fmt.Errorf("audio-tools client is not initialized")
+		}
+		return audioToolsClient.ProviderHealth(ctx)
+	}
+	checkers := newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken, bridgeReauthToken, audioProviderHealth)
 	srv.capabilities = capabilities.NewRegistry(capabilities.Known, checkers, 30*time.Second)
 	srv.capabilities.SetLivenessCheckers(map[string]capabilities.Checker{
 		"ollama": &capabilities.ResourceChecker{
@@ -358,7 +367,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		"openrouter": &capabilities.OpenRouterChecker{
 			APIKey: openrouterKey,
 		},
-		"audio-tools": &capabilities.ScenarioChecker{Slug: "audio-tools"},
+		"audio-tools": &capabilities.AudioToolsChecker{Scenario: capabilities.ScenarioChecker{Slug: "audio-tools"}, ProviderHealth: audioProviderHealth, Features: capabilities.Known[0].Features, Timeout: time.Second},
 		"vrooli-bridge": &capabilities.BridgeChecker{
 			BaseURL: bridgeURL, OwnerToken: bridgeOwnerToken, ReauthToken: bridgeReauthToken,
 			Client: &http.Client{Timeout: 3 * time.Second}, Probe: true,
@@ -396,6 +405,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		Required:       false,
 		PerCallTimeout: 150 * time.Second,
 	})
+	audioToolsClient = atClient
 	if err != nil {
 		// Required:false never returns an error today (lazy resolution), but keep
 		// this non-fatal so a future change can't silently reintroduce a
@@ -477,8 +487,12 @@ func bridgeURLSecurityWarning(raw string) string {
 // server construction so tests can assert that every catalogue entry has a
 // real status producer. The integrations panel must never silently fall back
 // to a fixture or an unregistered capability.
-func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken, bridgeReauthToken string) map[string]capabilities.Checker {
-	return map[string]capabilities.Checker{
+func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken, bridgeReauthToken string, audioClient ...func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error)) map[string]capabilities.Checker {
+	var providerHealth func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error)
+	if len(audioClient) > 0 {
+		providerHealth = audioClient[0]
+	}
+	checkers := map[string]capabilities.Checker{
 		"ollama": &capabilities.OllamaChecker{
 			BaseURL: ollamaURL,
 			Client:  &http.Client{Timeout: 5 * time.Second},
@@ -493,7 +507,7 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 		// calling another scenario's API directly — see
 		// project_wrap_not_use_principle. audio-tools owns Whisper / Kokoro /
 		// speaker-verification end-to-end.
-		"audio-tools":                &capabilities.ScenarioChecker{Slug: "audio-tools"},
+		"audio-tools":                &capabilities.AudioToolsChecker{Scenario: capabilities.ScenarioChecker{Slug: "audio-tools"}, ProviderHealth: providerHealth, Features: capabilities.Known[0].Features, Timeout: time.Second},
 		"session-backend-standard":   &capabilities.StaticChecker{Available: probeStandard},
 		"session-backend-persistent": &capabilities.StaticChecker{Available: backend.CheckTmuxAvailable},
 		"vrooli-bridge": &capabilities.BridgeChecker{
@@ -501,6 +515,10 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 			Client: &http.Client{Timeout: 3 * time.Second}, Probe: true,
 		},
 	}
+	for _, definition := range capabilityprobe.AITools {
+		checkers[definition.ID] = capabilities.HostCapabilityChecker{Definition: definition}
+	}
+	return checkers
 }
 
 // Handler returns the router wrapped with CORS, security, and panic-recovery

@@ -125,6 +125,8 @@ export interface TTSSynthesisMetrics {
   requestId: string;
   synthStartMs: number; // performance.now() at synth start
   totalChars: number;
+  providerTier?: string;
+  providerId?: string;
 }
 
 function newTtsRequestId(): string {
@@ -199,7 +201,16 @@ export async function synthesizeTTSWithMetrics(
     const blob = new Blob([resp.audio as Uint8Array<ArrayBuffer>], {
       type: resp.contentType || "audio/mpeg",
     });
-    return { blob, metrics: { requestId, synthStartMs, totalChars } };
+    return {
+      blob,
+      metrics: {
+        requestId,
+        synthStartMs,
+        totalChars,
+        providerTier: String(resp.providerTier ?? ""),
+        providerId: resp.providerId || undefined,
+      },
+    };
   } catch (err) {
     emitTtsTiming({
       requestId,

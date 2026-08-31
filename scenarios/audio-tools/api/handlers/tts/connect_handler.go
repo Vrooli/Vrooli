@@ -25,6 +25,17 @@ type connectHandler struct {
 	deps Deps
 }
 
+func (h *connectHandler) applyDefaultCredential(ctx context.Context, capability, provider, key string) (string, string) {
+	if key != "" || h.deps.DefaultCredential == nil {
+		return provider, key
+	}
+	defaultProvider, defaultKey, ok := h.deps.DefaultCredential(ctx, capability)
+	if ok {
+		return defaultProvider, defaultKey
+	}
+	return provider, key
+}
+
 // NewConnectHandler constructs a Connect handler. The Chain is required for
 // Synthesize; admin methods (config/status/cache/playback) bind to their
 // respective stores via the corresponding Deps fields. Deps.Logger and
@@ -86,6 +97,7 @@ func (h *connectHandler) SynthesizeStream(ctx context.Context, req *connect.Requ
 		return connect.NewError(connect.CodeUnavailable, fmt.Errorf("tts chain not configured"))
 	}
 	env := envelope.FromConnectRequest(req)
+	env.Provider, env.Key = h.applyDefaultCredential(ctx, "tts", env.Provider, env.Key)
 	chainReq := ttschain.Request{
 		Text:           req.Msg.Text,
 		Voice:          req.Msg.Voice,
@@ -133,6 +145,7 @@ func (h *connectHandler) Synthesize(ctx context.Context, req *connect.Request[tt
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("tts chain not configured"))
 	}
 	env := envelope.FromConnectRequest(req)
+	env.Provider, env.Key = h.applyDefaultCredential(ctx, "tts", env.Provider, env.Key)
 	chainReq := ttschain.Request{
 		Text:           req.Msg.Text,
 		Voice:          req.Msg.Voice,

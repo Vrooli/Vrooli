@@ -80,7 +80,7 @@ type CredentialSet[Req, Resp any] struct {
 }
 
 // CredentialOptions holds the common provider pointers and runtime knobs for
-// capability chains using the BYOK -> Vrooli -> Local routing policy.
+// capability chains using the default BYOK -> Vrooli -> Local routing policy.
 type CredentialOptions[Local, BYOK, Vrooli any] struct {
 	Local  *Local
 	BYOK   *BYOK
@@ -89,6 +89,9 @@ type CredentialOptions[Local, BYOK, Vrooli any] struct {
 	EnableLocal  bool
 	EnableBYOK   bool
 	EnableVrooli bool
+	// LocalFirst selects Local -> BYOK -> Vrooli. Speech chains use this
+	// policy so local inference is preferred when it is available.
+	LocalFirst bool
 
 	AvailTTLByOK   time.Duration
 	AvailTTLVrooli time.Duration
@@ -111,6 +114,7 @@ type ChainOptions struct {
 	EnableBYOK   bool
 	EnableVrooli bool
 	EnableLocal  bool
+	LocalFirst   bool
 
 	TTLByOK   time.Duration
 	TTLVrooli time.Duration
@@ -133,6 +137,7 @@ func NewChainFromSet[Req, Resp any](set ProviderSet[Req, Resp], opts ChainOption
 		EnableBYOK:   opts.EnableBYOK,
 		EnableVrooli: opts.EnableVrooli,
 		EnableLocal:  opts.EnableLocal,
+		LocalFirst:   opts.LocalFirst,
 		TTLByOK:      opts.TTLByOK,
 		TTLVrooli:    opts.TTLVrooli,
 		Route:        set.Route,
@@ -143,7 +148,7 @@ func NewChainFromSet[Req, Resp any](set ProviderSet[Req, Resp], opts ChainOption
 	})
 }
 
-// NewCredentialChain constructs the shared BYOK -> Vrooli -> Local policy.
+// NewCredentialChain constructs the shared credential-routed policy.
 // It keeps capability-specific provider methods and error values at the
 // domain boundary while centralizing the routing and terminal-error rules.
 func NewCredentialChain[Req, Resp any](set CredentialSet[Req, Resp], opts ChainOptions) *Coordinator[Req, Resp] {
@@ -174,6 +179,7 @@ func NewCredentialCoordinator[Req, Resp, Local, BYOK, Vrooli any](opts Credentia
 		EnableBYOK:   opts.EnableBYOK,
 		EnableVrooli: opts.EnableVrooli,
 		EnableLocal:  opts.EnableLocal,
+		LocalFirst:   opts.LocalFirst,
 		TTLByOK:      opts.AvailTTLByOK,
 		TTLVrooli:    opts.AvailTTLVrooli,
 		Clock:        opts.Clock,

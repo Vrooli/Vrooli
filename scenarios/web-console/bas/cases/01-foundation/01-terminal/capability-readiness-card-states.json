@@ -1,0 +1,37 @@
+{
+  "id": "d7e7fb0e-2d0a-4d9c-8de5-2d4a7b1e6c90",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "capability-readiness-card-states",
+  "folder_path": "/bas/cases/01-foundation/01-terminal",
+  "description": "Verify the launcher renders target capability facts with the four-state vocabulary, keeps missing capabilities visible and non-launchable, and shows versions for ready agents.",
+  "metadata": {
+    "name": "capability-readiness-card-states",
+    "description": "Verify the launcher renders target capability facts with the four-state vocabulary, keeps missing capabilities visible and non-launchable, and shows versions for ready agents.",
+    "execution_mode": "read_only",
+    "reset": "none",
+    "labels": {
+      "reset": "none",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "requirements_json": "[\"REQ-P1-013d\", \"REQ-P1-013e\"]"
+    }
+  },
+  "tags": ["reset:none", "requirements_json:[\"REQ-P1-013d\", \"REQ-P1-013e\"]"],
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "nodes": [
+      { "id": "open-workspace", "action": { "type": "ACTION_TYPE_SUBFLOW", "subflow": { "workflow_path": "actions/open-workspace.json" } } },
+      { "id": "open-launcher", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid='new-terminal-button'], [data-testid='toolbar-new']" } } },
+      { "id": "wait-grid", "action": { "type": "ACTION_TYPE_WAIT", "wait": { "selector": "[data-testid='launcher-agent-grid']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000 } } },
+      { "id": "assert-readiness-vocabulary", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const allowed = new Set(['ready','missing','not_applicable','unknown']); const cards = [...document.querySelectorAll('[data-capability-id]')]; const valid = cards.length > 0 && cards.every((card) => allowed.has(card.getAttribute('data-capability-state') || '')); const readyVersioned = cards.filter((card) => card.getAttribute('data-capability-state') === 'ready').every((card) => Boolean(card.getAttribute('data-capability-version'))); document.body.setAttribute('data-capability-readiness-valid', valid && readyVersioned ? 'true' : 'false'); })()" } } },
+      { "id": "verify-readiness-vocabulary", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-capability-readiness-valid='true']", "timeout_ms": 5000, "failure_message": "Expected capability cards to carry an allowed readiness state and versions for ready agents" } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "open-workspace", "target": "open-launcher", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e2", "source": "open-launcher", "target": "wait-grid", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e3", "source": "wait-grid", "target": "assert-readiness-vocabulary", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e4", "source": "assert-readiness-vocabulary", "target": "verify-readiness-vocabulary", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    ]
+  }
+}

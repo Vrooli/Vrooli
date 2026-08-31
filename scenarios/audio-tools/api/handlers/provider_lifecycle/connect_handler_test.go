@@ -40,6 +40,7 @@ func newHandlerHarness(t *testing.T, ctrl capabilities.ResourceController, check
 		checkers = map[string]capabilities.Checker{}
 	}
 	reg := capabilities.NewRegistry(testDefs(), checkers, time.Minute)
+	reg.SetLivenessCheckers(checkers)
 	logger := mocks.NewFakeLogger()
 	deps := &provider_lifecycle.Deps{
 		Registry:   reg,
@@ -144,6 +145,23 @@ func TestStartProvider_NonLocalProviderReturnsFailedPrecondition(t *testing.T) {
 	require.Equal(t, connect.CodeFailedPrecondition, connErr.Code())
 }
 
+func TestStartProvider_PlatformUnsupportedReturnsFailedPrecondition(t *testing.T) {
+	ctrl := &capmocks.FakeController{}
+	defs := testDefs()
+	defs[2].Platform = capabilities.PlatformVerdict{Support: capabilities.PlatformUnsupported, Reason: "no native adapter on this platform"}
+	reg := capabilities.NewRegistry(defs, nil, time.Minute)
+	deps := &provider_lifecycle.Deps{Registry: reg, Controller: ctrl, Logger: mocks.NewFakeLogger(), Clock: scheduletest.New(canonicalNow)}
+	h := provider_lifecycle.NewConnectHandler(*deps)
+
+	_, err := h.StartProvider(context.Background(), connect.NewRequest(&plv1.StartProviderRequest{ProviderId: "speaker-verification"}))
+	require.Error(t, err)
+	var connErr *connect.Error
+	require.True(t, errors.As(err, &connErr))
+	require.Equal(t, connect.CodeFailedPrecondition, connErr.Code())
+	require.Contains(t, connErr.Message(), "no native adapter on this platform")
+	require.Empty(t, ctrl.StartCalls)
+}
+
 func TestStartProvider_ControllerUnavailableReturnsUnavailable(t *testing.T) {
 	ctrl := &capmocks.FakeController{StartErr: capabilities.ErrControllerUnavailable}
 	deps, _, _ := newHandlerHarness(t, ctrl, nil)
@@ -229,7 +247,7 @@ func TestStop_Restart_InvokeController(t *testing.T) {
 
 	_, err = h.RestartProvider(context.Background(), connect.NewRequest(&plv1.RestartProviderRequest{ProviderId: "kokoro-tts"}))
 	require.NoError(t, err)
-	require.Equal(t, []string{"sherpa-onnx"}, ctrl.RestartCalls)
+	require.Equal(t, []string{"kokoro"}, ctrl.RestartCalls)
 }
 
 func contains(haystack, needle string) bool { return strings.Contains(haystack, needle) }

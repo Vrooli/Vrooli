@@ -345,28 +345,51 @@ explanation and the planned fix.
 There is no functional gap — every consumer still sees the final
 transcript — only the latency benefit of live partials is missing.
 
-### WebSocket handler not chain-routed
+### WebSocket provider routing
 
-**Symptom:** Browser voice input over `GET /api/v1/voice/stream`
-works and returns a final transcript, but provider trace fields
-(`provider`, `provider_attempts`, fallback reason, etc.) are missing
-from the resulting event metadata. BYOK keys set in the configuration
-UI are silently ignored on this transport, even though they work for
-the unary RPC.
+The browser WebSocket path now uses the same `sttchain` provider chain as
+the Connect transport. A configured server-side BYOK credential is applied
+when the browser cannot attach custom handshake headers; explicit request
+credentials still take precedence. Provider identity and terminal routing
+metadata are emitted on the stream, so the browser path and Connect path
+have the same provider-selection semantics.
 
-**Diagnosis:** The WebSocket handler still routes through the legacy
-`voice.Service.HandleStreamWS` direct path instead of the
-`sttchain` provider chain. Only the Connect bidi RPC currently goes
-through the chain, so only that transport sees BYOK / Vrooli tier
-routing and trace metadata. This is `internal/PROBLEMS.md` entry
-**"WS handler not yet chain-routed"**.
+If the stream reports `provider_failure`, inspect the provider identity and
+the capability projection first. Configure or repair the named provider from
+**Settings → Providers**, or use the unary upload path when a provider does
+not support native streaming.
 
-**Fix:** for any session where you need BYOK routing, fallback trace
-metadata, or Vrooli-tier providers, drive the streaming Connect RPC
-(`STTService.TranscribeStream`) instead of the WebSocket path. The
-browser voice panel will be migrated to the chain-routed WS path in a
-follow-up; until then, use the Connect transport from non-browser
-clients.
+### Voice works but sounds different
+
+**Symptom:** Voice output works, but the voice, pronunciation, or timing is
+different from the local Kokoro result.
+
+**Diagnosis:** The selected provider is the declared browser speech tier or a
+BYOK provider. Browser speech synthesis is last-resort, browser-dependent
+output and does not guarantee Kokoro voice quality. Check the response tier
+and the capability feature status before treating this as an audio failure.
+
+**Fix:** Start Kokoro for local output, or configure a BYOK TTS credential in
+**Settings → Providers**. If browser output is intentional, select a browser
+voice explicitly and treat its quality as host-dependent.
+
+### Voice is disabled and the engines are healthy
+
+**Diagnosis:** Inspect the consumer feature projection and the audio provider
+rollup. A healthy scenario can still have one unavailable feature, while a
+stopped scenario has no feature projection:
+
+```bash
+curl -s -X POST localhost:$WEB_CONSOLE_PORT/vrooli.web_console.v1.capabilities.CapabilitiesService/Liveness \
+  -H 'Content-Type: application/json' -d '{}' | jq '.capabilities[] | select(.id=="audio-tools")'
+curl -s -X POST localhost:$AUDIO_TOOLS_PORT/vrooli.audio_tools.v1.health_status.HealthStatusService/GetProviderHealth \
+  -H 'Content-Type: application/json' -d '{}' | jq '.capabilities'
+```
+
+Gate on the needed `featureStatus` entry. If it is unavailable, follow its
+`featureReason` and `featureOperatorCommand`; for an unsupported speaker
+provider, inspect `vrooli resource status sherpa-onnx --json` rather than
+trying to start it.
 
 ### Provider BYOK missing or invalid key
 

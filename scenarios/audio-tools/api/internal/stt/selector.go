@@ -246,6 +246,9 @@ type Selector struct {
 	// the manifest is the single source of truth. nil falls back to provider
 	// traits (preserves pre-manifest behavior for tests).
 	Registry *sttengine.Registry
+	// EngineResolver supplies the live engine choice when the session has no
+	// operator pin. It is optional for isolated selector tests.
+	EngineResolver *sttengine.LiveResolver
 }
 
 // NewSelector constructs a Selector with the given batch executor and no
@@ -290,7 +293,7 @@ func (s *Selector) canDecodeStream(inputFormat string) bool {
 }
 
 // Select chooses the (Strategy, Provider) pair for the session.
-// providers is the precedence-ordered list (BYOK -> Vrooli -> Local)
+// providers is the production precedence-ordered list (Local -> BYOK -> Vrooli)
 // the caller prepared from the chain.
 func (s *Selector) Select(
 	ctx context.Context,
@@ -474,8 +477,13 @@ func explicitStrategyPreference(pref StrategyPreference) (sttchain.StrategyKind,
 func (s *Selector) eligibleStrategy(cfg StreamConfig, chosen ProviderEligibility, traits sttchain.ProviderTraits) func(sttchain.StrategyKind) bool {
 	if s.Registry != nil && chosen.Tier == sttchain.TierLocal {
 		engineID := cfg.EngineID
+		if engineID == "" && s.EngineResolver != nil {
+			if resolution, err := s.EngineResolver.Resolve(context.Background(), s.Registry); err == nil {
+				engineID = resolution.Selected
+			}
+		}
 		if engineID == "" {
-			engineID = s.Registry.DefaultEngineID()
+			engineID = s.Registry.ResolveEngineID(nil)
 		}
 		if strs := s.Registry.EligibleStrategies(engineID); len(strs) > 0 {
 			set := make(map[sttchain.StrategyKind]bool, len(strs))

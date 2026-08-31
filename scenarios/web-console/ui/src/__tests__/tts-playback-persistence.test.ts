@@ -107,7 +107,7 @@ beforeEach(() => {
   useWorkspaceStore.setState({ startMutedOnLoad: false });
   mockSynthGetVoices.mockReturnValue([]);
   mockFetchCaps.mockResolvedValue({
-    capabilities: [{ id: "kokoro-tts", status: "available" }],
+    capabilities: [{ id: "audio-tools", status: "available", featureStatus: { "voice-output": "available" } }],
     timestamp: new Date().toISOString(),
   });
   mockGetVoices.mockResolvedValue([{ id: "af_heart", name: "af_heart" }]);

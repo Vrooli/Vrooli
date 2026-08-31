@@ -32,6 +32,7 @@ interface TerminalPaneProps {
   onVoiceStop?: () => void;
   /** Called when TTS speaking state changes for this pane. */
   onTtsSpeakingChange?: (speaking: boolean) => void;
+  onTtsBackendReasonChange?: (reason: string) => void;
   /** Called when the currently-speaking conversation event changes (for summarize controls). */
   onSpeakingEventChange?: (eventId: string | null) => void;
   onConversationEventReceived?: (
@@ -78,7 +79,7 @@ export interface TerminalPaneHandle {
 
 // [REQ:P0-002d] xterm.js Terminal Rendering
 const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
-	function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived, viewMode = "terminal" }, ref) {
+	function TerminalPane({ sessionId, onExit, onVoiceStart, onVoiceStop, onTtsSpeakingChange, onTtsBackendReasonChange, onSpeakingEventChange, onNeedsUnlock, onConversationEventReceived, viewMode = "terminal" }, ref) {
     const { t } = useTranslation();
     const paneStatus = useWorkspaceStore((state) => state.paneStatuses?.[sessionId] ?? null);
     const updatePaneStatus = useWorkspaceStore((state) => state.setPaneStatus);
@@ -220,6 +221,7 @@ const TerminalPane = forwardRef<TerminalPaneHandle, TerminalPaneProps>(
       onConversationEventReceived,
       sendConversationAck,
     });
+    useEffect(() => onTtsBackendReasonChange?.(playback.getBackendReason?.() ?? ""), [onTtsBackendReasonChange, playback]);
 
     // Pending-input draft round-trip. Offscreen terminals are unmounted to keep
     // cost flat in N; without this, anything typed-but-not-yet-sent would be

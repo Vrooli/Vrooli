@@ -960,6 +960,13 @@ func mapCreateError(err error) error {
 	case errors.Is(err, ErrTargetNotFound):
 		return fmt.Errorf("%w: remote node was not found; refresh the machine catalog", ErrTargetNotFound)
 	case errors.Is(err, ErrTargetUnavailable):
+		// Capability preflight errors are already operator-safe and carry the
+		// capability id plus its recovery action. Preserve that detail so a
+		// refused launch explains what the operator can do next. Transport
+		// failures keep the deliberately generic message below.
+		if strings.Contains(err.Error(), `capability "`) {
+			return fmt.Errorf("%w: %s", ErrTargetUnavailable, strings.TrimPrefix(err.Error(), ErrTargetUnavailable.Error()+": "))
+		}
 		return fmt.Errorf("%w: the remote target is unavailable; refresh the machine catalog and try again", ErrTargetUnavailable)
 	case errors.Is(err, ErrRemoteUnavailable):
 		return fmt.Errorf("%w: remote session service is unavailable; reconnect the machine and try again", ErrRemoteUnavailable)

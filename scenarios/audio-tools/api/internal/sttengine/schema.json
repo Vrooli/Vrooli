@@ -4,7 +4,7 @@
   "description": "Single source of truth for selectable STT engines and the speaker-isolation axis. The selector derives strategy eligibility from each engine's strategies[]; the egress gate derives stage applicability from provides.*. Adding an engine is a JSON edit (plus a resource folder + provider adapter for kind=local_resource). Invariants are enforced by registry.go + registry_test.go.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["engines", "speakerIsolation"],
+  "required": ["engines", "speakerIsolation", "selectionPolicy"],
   "properties": {
     "engines": {
       "type": "array",
@@ -52,6 +52,17 @@
             }
           }
         }
+      }
+    },
+    "selectionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hardFilters", "rankedPreferences", "tiebreakRank", "probeTtlSeconds"],
+      "properties": {
+        "hardFilters": { "type": "array", "items": { "type": "string" } },
+        "rankedPreferences": { "type": "array", "items": { "type": "string" } },
+        "tiebreakRank": { "type": "array", "items": { "type": "string" } },
+        "probeTtlSeconds": { "type": "integer", "minimum": 1 }
       }
     },
     "speakerIsolation": {

@@ -2,7 +2,7 @@
 
 This document is the canonical architecture reference for text-to-speech
 inside audio-tools. It explains how a `Synthesize` request is routed
-through the three provider tiers (BYOK → Vrooli/LPBS → Local sherpa-onnx/Kokoro)
+through the three provider tiers (Local Kokoro → BYOK → Vrooli/LPBS)
 and how the chain keeps a single wire shape across unary and streaming
 calls.
 
@@ -11,8 +11,8 @@ Read this first when:
 - adding a new BYOK TTS adapter (OpenAI TTS, ElevenLabs, future
   vendors),
 - enabling native streaming on a tier that currently buffered-falls-back,
-- debugging "why did my BYOK key get used when I expected Vrooli?" or
-  "why did the chain fall through to local sherpa-onnx?",
+- debugging "why did the chain fall through from local to BYOK?" or
+  "why did the chain fall through to Vrooli/LPBS?",
 - changing voice-override resolution or the canonical voice catalog.
 
 For the streaming STT counterpart, see
@@ -27,7 +27,7 @@ domains evolve together; see
 home for the question *"which provider synthesizes this request?"*.
 It owns:
 
-- tier precedence (fixed: BYOK → Vrooli/LPBS → Local),
+- tier precedence (production: Local → BYOK → Vrooli/LPBS),
 - availability caching with per-tier TTLs (BYOK 5 min, Vrooli 30 s),
 - short-circuit error semantics (`ErrInsufficientCredits`,
   `ErrUnknownBYOKProvider`, `ErrMissingBYOKProvider` do not fall
@@ -114,17 +114,17 @@ ttschain.Chain.Execute / Stream      ← tier ordering + availability gates
             sherpa-onnx HTTP endpoint          (api/internal/tts/kokoro_synthesize.go)
 ```
 
-Execution order (`api/internal/ai/ttschain/chain.go:59`):
+Production execution order (`api/internal/ai/chains/tiered/tiered.go`):
 
-1. **BYOK tier** is tried iff `enableBYOK && req.BYOKKey != "" && availFor(BYOK)`.
+1. **Local tier** is tried first iff `enableLocal && local.IsAvailable(ctx)`.
+2. **BYOK tier** is tried iff `enableBYOK && req.BYOKKey != "" && availFor(BYOK)`.
    - `ErrUnknownBYOKProvider` / `ErrMissingBYOKProvider` short-circuit
      (configuration error — do not silently swap tiers).
    - Other errors record `lastErr` and fall through.
-2. **Vrooli tier** is tried iff `enableVrooli && req.LPBSToken != "" && availFor(Vrooli)`.
+3. **Vrooli tier** is tried iff `enableVrooli && req.LPBSToken != "" && availFor(Vrooli)`.
    - `ErrInsufficientCredits` short-circuits (do not silently swap to
      Local — the user is owed the explicit price-gate error).
    - Other errors record `lastErr` and fall through.
-3. **Local tier** is tried iff `enableLocal && local.IsAvailable(ctx)`.
 4. If every eligible tier failed, returns `lastErr`; if no tier was
    eligible, returns `ErrAllProvidersFailed`.
 
@@ -230,9 +230,19 @@ does — adding it follows the same shape.
 ## Cross-References
 
 - [`../../internal/SEAMS.md`](../../internal/SEAMS.md) — full seam registry
-- [`../../internal/DECISIONS.md`](../../internal/DECISIONS.md) — durable decisions (BYOK-first ordering, credit short-circuit)
+- [`../../internal/DECISIONS.md`](../../internal/DECISIONS.md) — durable decisions (local-first speech ordering, credit short-circuit)
 - [`../../internal/PROBLEMS.md`](../../internal/PROBLEMS.md) — current drift
 - [`../../reference/configuration.md`](../../reference/configuration.md) — operator-tunable levers
 - [`../summarize/chain.md`](../summarize/chain.md) — sibling chain with identical tier shape
 - [`../settings/byok-and-voice-overrides.md`](../settings/byok-and-voice-overrides.md) — credential & voice-mapping storage
 - `packages/proto/schemas/audio-tools/v1/tts/tts.proto` — wire shape
+# Provider tiers and BYOK fallback
+
+Audio-tools prefers Kokoro when it is available. A configured BYOK TTS
+provider is the next service tier, followed by Vrooli/LPBS and browser speech
+synthesis in the adopting UI. Configure BYOK credentials with `audio-tools
+settings providers`; server-side requests use the configured encrypted-store
+credential when no explicit request credential is supplied.
+Health responses expose provider state and the selected tier, but never expose
+credential values. Browser fallback must be announced to the user with its
+reason.

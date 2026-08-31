@@ -135,3 +135,4 @@ export class WhisperProvider implements TranscriptionProvider {
     this.lastTurn = null;
   }
 }
+// HOST DIFFERENCE: audio-tools owns the provider transport adapter for its API.

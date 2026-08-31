@@ -35,6 +35,9 @@ const mockCapabilities = (whisperAvailable: boolean) => {
         id: "audio-tools",
         status: whisperAvailable ? "available" : "unavailable",
         features: whisperAvailable ? ["voice-input", "voice-streaming"] : [],
+        featureStatus: whisperAvailable
+          ? { "voice-input": "available", "voice-streaming": "available" }
+          : { "voice-input": "unavailable", "voice-streaming": "unavailable" },
       },
     ],
     timestamp: new Date().toISOString(),

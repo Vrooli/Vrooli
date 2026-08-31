@@ -43,6 +43,18 @@ func noKeepAliveClient() *http.Client {
 	return &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{DisableKeepAlives: true}}
 }
 
+func TestNormalizeChunksEmptyUndeclaredStreamReturnsClosedPCMChannel(t *testing.T) {
+	chunks := make(chan sttchain.AudioChunk)
+	close(chunks)
+	events := make(chan sttchain.StreamEvent, 1)
+	out, rewritten, cleanup, err := New(Deps{}).normalizeChunks(context.Background(), sttchain.StreamStart{}, chunks, events)
+	require.NoError(t, err)
+	cleanup()
+	require.Equal(t, "", rewritten.InputFormat)
+	_, ok := <-out
+	require.False(t, ok, "empty undeclared input must produce a closed channel")
+}
+
 // availableWhisperRegistry builds a registry reporting whisper-stt
 // available so the LocalProvider is eligible.
 func availableWhisperRegistry() *capabilities.Registry {

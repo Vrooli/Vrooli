@@ -21,6 +21,7 @@ type LifecycleActionResult struct {
 	Success      bool
 	Status       string
 	Message      string
+	OperationID  string
 	CapabilityID string
 	ActionKind   ActionKind
 }
@@ -65,9 +66,18 @@ type LifecycleActionService struct {
 }
 
 func (s LifecycleActionService) Run(ctx context.Context, req LifecycleActionRequest) (LifecycleActionResult, error) {
-	def, ok := s.scenarioDef(req.CapabilityID)
+	def, ok := s.definition(req.CapabilityID)
 	if !ok {
-		return LifecycleActionResult{}, fmt.Errorf("capability %q is not a declared scenario dependency", req.CapabilityID)
+		return LifecycleActionResult{}, fmt.Errorf("capability %q is not declared", req.CapabilityID)
+	}
+	if req.ActionKind == ActionKindOperatorCommand {
+		if def.OperatorCommand == "" {
+			return LifecycleActionResult{}, fmt.Errorf("capability %q has no operator action", req.CapabilityID)
+		}
+		return s.runOperatorCommand(ctx, req, def)
+	}
+	if def.DependencyKind != DependencyScenario || def.DependencySlug == "" {
+		return LifecycleActionResult{}, fmt.Errorf("capability %q is not a scenario dependency", req.CapabilityID)
 	}
 	verb, err := lifecycleVerb(req.ActionKind)
 	if err != nil {
@@ -106,12 +116,46 @@ func (s LifecycleActionService) Run(ctx context.Context, req LifecycleActionRequ
 }
 
 func (s LifecycleActionService) scenarioDef(capabilityID string) (Def, bool) {
+	def, ok := s.definition(capabilityID)
+	return def, ok && def.DependencyKind == DependencyScenario
+}
+
+func (s LifecycleActionService) definition(capabilityID string) (Def, bool) {
 	for _, def := range s.Defs {
-		if def.ID == capabilityID && def.DependencyKind == DependencyScenario && def.DependencySlug != "" {
+		if def.ID == capabilityID {
 			return def, true
 		}
 	}
 	return Def{}, false
+}
+
+func (s LifecycleActionService) runOperatorCommand(ctx context.Context, req LifecycleActionRequest, def Def) (LifecycleActionResult, error) {
+	args := strings.Fields(def.OperatorCommand)
+	if len(args) == 0 {
+		return LifecycleActionResult{}, fmt.Errorf("capability %q has an empty operator action", req.CapabilityID)
+	}
+	cli := strings.TrimSpace(s.CLIPath)
+	if cli == "" {
+		cli = "vrooli"
+	}
+	runner := s.Runner
+	if runner == nil {
+		runner = ExecCommandRunner{}
+	}
+	actionCtx, cancel := context.WithTimeout(ctx, actionTimeout(s.Timeout))
+	defer cancel()
+	result, err := runner.Run(actionCtx, cli, args...)
+	if err != nil {
+		return lifecycleFailure(req, "operator action failed", result, err), nil
+	}
+	return lifecycleSuccess(req, result), nil
+}
+
+func actionTimeout(timeout time.Duration) time.Duration {
+	if timeout <= 0 {
+		return defaultLifecycleActionTimeout
+	}
+	return timeout
 }
 
 func lifecycleVerb(kind ActionKind) (string, error) {

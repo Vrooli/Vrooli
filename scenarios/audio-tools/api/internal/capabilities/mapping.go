@@ -41,8 +41,10 @@ func CapabilityForFeature(feature string) (diagv1.Capability, bool) {
 // Anything else falls through to UNSPECIFIED.
 func TierForProviderID(id string) commonv1.ProviderTier {
 	switch id {
-	case "openrouter":
+	case "openrouter", "openai-whisper", "deepgram", "openai-tts", "elevenlabs":
 		return commonv1.ProviderTier_PROVIDER_TIER_BYOK
+	case "browser-stt", "browser-tts":
+		return commonv1.ProviderTier_PROVIDER_TIER_BROWSER
 	case "whisper-stt", "kyutai-stt", "kokoro-tts", "ollama", "speaker-verification":
 		return commonv1.ProviderTier_PROVIDER_TIER_LOCAL
 	default:

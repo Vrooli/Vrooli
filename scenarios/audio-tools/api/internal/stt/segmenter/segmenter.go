@@ -41,7 +41,8 @@ type Deps struct {
 	// Registry is the engine-capability manifest. When set, the egress gate's
 	// stage set is derived from the active engine's manifest entry. nil falls
 	// back to a direct cfg-driven gate (preserves pre-manifest test behavior).
-	Registry *sttengine.Registry
+	Registry       *sttengine.Registry
+	EngineResolver *sttengine.LiveResolver
 
 	// SpeakerIsolation is the per-session audio-domain identity check, built by
 	// the transport from the live SpeakerConfig + resource client (nil when
@@ -99,7 +100,22 @@ func (s *Segmenter) Run(
 	// of the transports.
 	engineID := cfg.EngineID
 	if engineID == "" && s.deps.Registry != nil {
-		engineID = s.deps.Registry.DefaultEngineID()
+		if s.deps.EngineResolver != nil {
+			if resolution, err := s.deps.EngineResolver.Resolve(ctx, s.deps.Registry); err == nil {
+				engineID = resolution.Selected
+			}
+		}
+		if engineID == "" {
+			engineID = s.deps.Registry.ResolveEngineID(func(id string) bool {
+				e, ok := s.deps.Registry.Engine(id)
+				return ok && s.deps.Chain.LocalEngineAvailable(ctx, id) && e.Kind == sttengine.KindLocalResource
+			})
+		}
+		if engineID == "" {
+			err := sttengine.ErrNoServiceableEngine
+			emitTerminal(events, err)
+			return err
+		}
 	}
 	start.EngineID = engineID
 

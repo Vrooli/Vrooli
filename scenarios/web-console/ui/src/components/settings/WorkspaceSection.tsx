@@ -10,7 +10,7 @@ import LocaleSwitcher from "../LocaleSwitcher";
 import ToolbarCustomizer from "./ToolbarCustomizer";
 import { deviceIdentity, setDeviceLabel } from "../../lib/deviceIdentity";
 import { useSecureContextCapabilities } from "../../hooks/useSecureContextCapabilities";
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0.1.5";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
 
 const STATUS_HINT_KEYS = {
   active: strings.settings.workspaceSection.wakeLockActive,

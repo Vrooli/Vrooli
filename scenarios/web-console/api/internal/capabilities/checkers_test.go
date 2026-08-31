@@ -2,10 +2,107 @@ package capabilities
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	diagnosticsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
+	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 )
+
+func TestAudioToolsChecker_ProjectsFeatureSpecificHealth(t *testing.T) {
+	checker := &AudioToolsChecker{
+		Scenario: ScenarioChecker{Slug: "audio-tools", Run: func(context.Context, string, ...string) ([]byte, error) {
+			return []byte(`{"scenario":{"name":"audio-tools","status":"running"}}`), nil
+		}},
+		Features: []string{"voice-input", "voice-output"},
+		ProviderHealth: func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
+			return &healthstatusv1.GetProviderHealthResponse{Capabilities: []*healthstatusv1.CapabilityHealth{
+				{Capability: diagnosticsv1.Capability_CAPABILITY_STT, EffectiveState: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE},
+				{Capability: diagnosticsv1.Capability_CAPABILITY_TTS, EffectiveState: sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE},
+			}}, nil
+		},
+	}
+	result := checker.CheckResult(context.Background())
+	if result.Status != StatusAvailable || result.FeatureStatus["voice-input"] != string(StatusAvailable) || result.FeatureStatus["voice-output"] != string(StatusUnavailable) {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestAudioToolsChecker_HealthFailureIsUnknown(t *testing.T) {
+	checker := &AudioToolsChecker{
+		Scenario: ScenarioChecker{Slug: "audio-tools", Run: func(context.Context, string, ...string) ([]byte, error) {
+			return []byte(`{"scenario":{"name":"audio-tools","status":"running"}}`), nil
+		}},
+		Features: []string{"voice-input"}, Timeout: time.Millisecond,
+		ProviderHealth: func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
+			return nil, errors.New("unreachable")
+		},
+	}
+	result := checker.CheckResult(context.Background())
+	if result.Status != StatusAvailable || result.FeatureStatus["voice-input"] != string(StatusUnknown) {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestAudioToolsChecker_EnrichesReachableDegradedScenario(t *testing.T) {
+	checker := &AudioToolsChecker{
+		Scenario: ScenarioChecker{Slug: "audio-tools", Run: func(context.Context, string, ...string) ([]byte, error) {
+			return []byte(`{"scenario":{"name":"audio-tools","status":"running","health_status":"degraded","health_error":"tts provider down"}}`), nil
+		}},
+		Features: []string{"voice-input", "voice-output"},
+		ProviderHealth: func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
+			return &healthstatusv1.GetProviderHealthResponse{Capabilities: []*healthstatusv1.CapabilityHealth{
+				{Capability: diagnosticsv1.Capability_CAPABILITY_STT, EffectiveState: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE},
+				{Capability: diagnosticsv1.Capability_CAPABILITY_TTS, EffectiveState: sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE},
+			}}, nil
+		},
+	}
+	result := checker.CheckResult(context.Background())
+	if result.Status != StatusUnavailable || result.ReasonCode != "scenario_degraded" || result.FeatureStatus["voice-input"] != string(StatusAvailable) || result.FeatureStatus["voice-output"] != string(StatusUnavailable) {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func TestAudioToolsCheckerKeepsProviderFeaturesIndependent(t *testing.T) {
+	checker := &AudioToolsChecker{
+		Scenario: ScenarioChecker{Slug: "audio-tools", Run: func(context.Context, string, ...string) ([]byte, error) {
+			return []byte(`{"scenario":{"name":"audio-tools","status":"running"}}`), nil
+		}},
+		Features: []string{"voice-input", "voice-speaker-verification", "voice-enrollment"},
+		ProviderHealth: func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
+			return &healthstatusv1.GetProviderHealthResponse{Capabilities: []*healthstatusv1.CapabilityHealth{
+				{Capability: diagnosticsv1.Capability_CAPABILITY_STT, EffectiveState: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE, Providers: []*sharedv1.ProviderHealth{
+					{ProviderId: "whisper-stt", State: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE},
+					{ProviderId: "speaker-verification", State: sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE},
+					{ProviderId: "browser-stt", State: sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE},
+				}},
+			}}, nil
+		},
+	}
+	result := checker.CheckResult(context.Background())
+	if result.FeatureStatus["voice-input"] != string(StatusAvailable) {
+		t.Fatalf("voice-input = %q, want available", result.FeatureStatus["voice-input"])
+	}
+	if result.ProviderStatus["whisper-stt"] != string(StatusAvailable) || result.ProviderStatus["speaker-verification"] != string(StatusUnavailable) {
+		t.Fatalf("provider statuses = %#v, want individual provider verdicts", result.ProviderStatus)
+	}
+	if _, ok := result.ProviderStatus["browser-stt"]; ok {
+		t.Fatalf("client-owned browser provider leaked into server provider statuses: %#v", result.ProviderStatus)
+	}
+	if result.FeatureStatus["voice-speaker-verification"] != string(StatusUnavailable) || result.FeatureStatus["voice-enrollment"] != string(StatusUnavailable) {
+		t.Fatalf("speaker features = %#v, want unavailable", result.FeatureStatus)
+	}
+	if result.FeatureStatus["voice-input"] != string(StatusAvailable) {
+		t.Fatalf("browser provider should remain part of feature serviceability: %#v", result.FeatureStatus)
+	}
+	if result.FeatureReason["voice-speaker-verification"] == "" || result.FeatureOperatorCommand["voice-speaker-verification"] != "vrooli resource status sherpa-onnx --json" {
+		t.Fatalf("speaker remediation = reason %q command %q", result.FeatureReason["voice-speaker-verification"], result.FeatureOperatorCommand["voice-speaker-verification"])
+	}
+}
 
 func TestStaticChecker_ConfigurationAndProbeResults(t *testing.T) {
 	for _, tc := range []struct {

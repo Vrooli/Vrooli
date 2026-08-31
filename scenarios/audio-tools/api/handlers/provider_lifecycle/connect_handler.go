@@ -59,7 +59,7 @@ func (h *connectHandler) ListLocalProviders(ctx context.Context, _ *connect.Requ
 	if h.deps.Registry == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("capabilities registry not configured"))
 	}
-	states := h.deps.Registry.Resolve(ctx)
+	states := h.deps.Registry.ResolveLiveness(ctx)
 	stateByID := make(map[string]capabilities.Status, len(states))
 	nameByID := make(map[string]string, len(states))
 	for _, s := range states {
@@ -137,6 +137,9 @@ func (h *connectHandler) runProviderAction(ctx context.Context, id string, heade
 	}
 	if err := action(ctx, slug); err != nil {
 		return providerActionResult{}, h.mapControllerErr(ctx, operation, err)
+	}
+	if h.deps.InvalidateEngineCache != nil {
+		h.deps.InvalidateEngineCache()
 	}
 	h.scheduleResolveForce()
 	return providerActionResult{verb: verb}, nil
@@ -219,6 +222,18 @@ func (h *connectHandler) validateLocalProvider(id string) (string, *connect.Erro
 			return "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("provider %q is not a local-tier provider; lifecycle actions only apply to local resources", id))
 		}
 		return "", connect.NewError(connect.CodeNotFound, fmt.Errorf("unknown provider_id %q", id))
+	}
+	if h.deps.Registry != nil {
+		for _, state := range h.deps.Registry.ResolveLiveness(context.Background()) {
+			if state.Def.ID != id || state.Def.Platform.Support != capabilities.PlatformUnsupported {
+				continue
+			}
+			reason := state.Def.Platform.Reason
+			if reason == "" {
+				reason = "the provider is unsupported on this platform"
+			}
+			return "", connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("provider %q cannot be started: %s", id, reason))
+		}
 	}
 	if h.deps.Controller == nil {
 		return "", connect.NewError(connect.CodeUnavailable, errors.New("resource controller not configured"))

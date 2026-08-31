@@ -8,6 +8,13 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/packages/capabilityprobe"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
+	diagv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/diagnostics"
+	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
+	"github.com/vrooli/vrooli/scenarios/audio-tools/clients/go/audiotools"
 )
 
 type ResourceChecker struct {
@@ -15,10 +22,175 @@ type ResourceChecker struct {
 	Client *http.Client
 }
 
+// AudioToolsChecker preserves scenario reachability while enriching the row
+// with audio-tools' authoritative per-feature liveness rollup.
+type AudioToolsChecker struct {
+	Scenario       ScenarioChecker
+	ProviderHealth func(context.Context) (*healthstatusv1.GetProviderHealthResponse, error)
+	Features       []string
+	Timeout        time.Duration
+}
+
+func (c *AudioToolsChecker) Check(ctx context.Context) (Status, string) {
+	r := c.CheckResult(ctx)
+	return r.Status, r.Message
+}
+
+func (c *AudioToolsChecker) CheckResult(ctx context.Context) CheckResult {
+	base := c.Scenario.CheckResult(ctx)
+	// A reachable but degraded scenario still has authoritative provider
+	// health. Only stopped/unreachable rows should skip the RPC entirely.
+	if (base.Status != StatusAvailable && base.ReasonCode != "scenario_degraded") || c.ProviderHealth == nil {
+		return base
+	}
+	featureStatus := make(map[string]string, len(c.Features))
+	featureReason := make(map[string]string)
+	featureOperatorCommand := make(map[string]string)
+	providerStatus := make(map[string]string)
+	providerFeatures := make(map[string]string)
+	for _, feature := range c.Features {
+		featureStatus[feature] = string(StatusUnknown)
+	}
+	timeout := c.Timeout
+	if timeout <= 0 {
+		timeout = time.Second
+	}
+	callCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	resp, err := c.ProviderHealth(callCtx)
+	if err != nil {
+		base.FeatureStatus = featureStatus
+		return base
+	}
+	for _, capHealth := range resp.GetCapabilities() {
+		providers := capHealth.GetProviders()
+		if len(providers) == 0 {
+			status := providerStateStatus(capHealth.GetEffectiveState())
+			for _, feature := range featuresForCapability(capHealth.GetCapability()) {
+				featureStatus[feature] = status
+			}
+			continue
+		}
+		for _, provider := range providers {
+			status := providerStateStatus(provider.GetState())
+			features := featuresForProvider(provider.GetProviderId())
+			if len(features) > 0 {
+				providerFeatures[provider.GetProviderId()] = strings.Join(features, ",")
+			}
+			// Browser speech is client-owned. Keep it in the feature rollup so
+			// consumers can describe the last-resort path, but do not publish it
+			// as a server provider that a server-TTS gate could select.
+			if provider.GetProviderId() != "browser-stt" && provider.GetProviderId() != "browser-tts" {
+				providerStatus[provider.GetProviderId()] = status
+			}
+			for _, feature := range featuresForProvider(provider.GetProviderId()) {
+				featureStatus[feature] = status
+				if status == string(StatusUnavailable) {
+					reason := provider.GetErrorMessage()
+					if reason == "" {
+						reason = "provider " + provider.GetProviderId() + " is unavailable"
+					}
+					featureReason[feature] = reason
+					featureOperatorCommand[feature] = operatorCommandForProvider(provider.GetProviderId())
+				} else if status == string(StatusAvailable) {
+					delete(featureReason, feature)
+					delete(featureOperatorCommand, feature)
+				}
+			}
+		}
+	}
+	for feature := range featureReason {
+		if featureStatus[feature] != string(StatusUnavailable) {
+			delete(featureReason, feature)
+			delete(featureOperatorCommand, feature)
+		}
+	}
+	base.FeatureStatus = featureStatus
+	base.ProviderStatus = providerStatus
+	base.ProviderFeatures = providerFeatures
+	if len(featureReason) > 0 {
+		base.FeatureReason = featureReason
+		base.FeatureOperatorCommand = featureOperatorCommand
+	}
+	return base
+}
+
+func providerStateStatus(state sharedv1.ProviderState) string {
+	switch state {
+	case sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE:
+		return string(StatusAvailable)
+	case sharedv1.ProviderState_PROVIDER_STATE_UNAVAILABLE:
+		return string(StatusUnavailable)
+	default:
+		return string(StatusUnknown)
+	}
+}
+
+func featuresForProvider(providerID string) []string {
+	features := map[string][]string{
+		"whisper-stt":          {"voice-input"},
+		"openai-whisper":       {"voice-input"},
+		"browser-stt":          {"voice-input", "voice-streaming"},
+		"kyutai-stt":           {"voice-streaming"},
+		"deepgram":             {"voice-streaming"},
+		"kokoro-tts":           {"voice-output"},
+		"openai-tts":           {"voice-output"},
+		"elevenlabs":           {"voice-output"},
+		"browser-tts":          {"voice-output"},
+		"speaker-verification": {"voice-speaker-verification", "voice-enrollment"},
+	}
+	return features[providerID]
+}
+
+func operatorCommandForProvider(providerID string) string {
+	commands := map[string]string{
+		"whisper-stt":          "vrooli resource start whisper",
+		"kyutai-stt":           "vrooli resource start kyutai-stt",
+		"kokoro-tts":           "vrooli resource start kokoro",
+		"speaker-verification": "vrooli resource status sherpa-onnx --json",
+	}
+	if command, ok := commands[providerID]; ok {
+		return command
+	}
+	return "audio-tools settings providers"
+}
+
+func featuresForCapability(capability diagv1.Capability) []string {
+	features := map[diagv1.Capability][]commonv1.AudioToolsFeature{
+		diagv1.Capability_CAPABILITY_STT:       {commonv1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_INPUT, commonv1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_STREAMING, commonv1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_SPEAKER_VERIFICATION, commonv1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_ENROLLMENT},
+		diagv1.Capability_CAPABILITY_TTS:       {commonv1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_VOICE_OUTPUT},
+		diagv1.Capability_CAPABILITY_SUMMARIZE: {commonv1.AudioToolsFeature_AUDIO_TOOLS_FEATURE_TTS_SUMMARIZATION},
+	}
+	out := make([]string, 0, len(features[capability]))
+	for _, feature := range features[capability] {
+		out = append(out, audiotools.FeatureSlug(feature))
+	}
+	return out
+}
+
 // StaticChecker adapts a host probe to the capability registry without
 // duplicating the registry's status vocabulary in a handler.
 type StaticChecker struct {
 	Available func() (bool, string)
+}
+
+// HostCapabilityChecker adapts the shared ai-cli probe to the integrations
+// registry. The target catalog uses the full observation (including version),
+// while this surface only needs the registry's availability vocabulary.
+type HostCapabilityChecker struct {
+	Definition capabilityprobe.Definition
+}
+
+func (c HostCapabilityChecker) Check(ctx context.Context) (Status, string) {
+	observations := capabilityprobe.Probe(ctx, []capabilityprobe.Definition{c.Definition})
+	if len(observations) == 0 {
+		return StatusUnknown, "host capability probe returned no observation"
+	}
+	observation := observations[0]
+	if observation.State == capabilityprobe.Ready {
+		return StatusAvailable, observation.Version
+	}
+	return StatusUnavailable, observation.Detail
 }
 
 func (c *StaticChecker) Check(context.Context) (Status, string) {
@@ -380,9 +552,13 @@ func classifyScenarioHealth(slug string, item scenarioStatusItem) CheckResult {
 	case "healthy", "running":
 		return CheckResult{Status: StatusAvailable, Message: "scenario is healthy"}
 	case "degraded":
+		detail := item.HealthError
+		if detail == "" {
+			detail = "scenario reported degraded without a reason"
+		}
 		return CheckResult{
 			Status:          StatusUnavailable,
-			Message:         joinStatusMessage("scenario is degraded", item.HealthError),
+			Message:         joinStatusMessage("scenario is degraded", detail),
 			ReasonCode:      "scenario_degraded",
 			ActionKind:      ActionKindScenarioRestart,
 			ActionLabel:     "Restart scenario",

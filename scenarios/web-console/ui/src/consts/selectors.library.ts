@@ -12,19 +12,24 @@ export const librarySelectors = {
   },
 
 
-      "foundations.visual-recipes": {
+        "foundations.visual-recipes": {
     "root": "foundations.visual-recipes",
   },
 
 
-      "foundations.tokens": {
+
+        "foundations.tokens": {
     "root": "foundations.tokens",
+    "semanticCount": "foundations.tokens.semantic-count",
+    "spaceCount": "foundations.tokens.space-count",
   },
 
 
-      "controls.pressable": {
+
+        "controls.pressable": {
     "root": "controls.pressable",
   },
+
 
 
         "controls.icon-button": {
@@ -43,17 +48,20 @@ export const librarySelectors = {
   },
 
 
-      "forms.color-picker": {
+        "forms.color-picker": {
     "root": "forms.color-picker",
+    "formsColorPickerColorPickerCustomInput": "forms.color-picker.forms.color-picker-color-picker-custom-input",
     "selectedColor": "forms.color-picker.selected-color",
   },
 
 
-                  "controls.button": {
+
+                    "controls.button": {
     "root": "controls.button",
     "icon": "controls.button.icon",
     "label": "controls.button.label",
   },
+
 
 
 
@@ -77,11 +85,12 @@ export const librarySelectors = {
     "subheader": "overlays.responsive-dialog.subheader",
   },
 
-  "navigation.tabs": {
+    "navigation.tabs": {
     "root": "navigation.tabs",
     "links": "navigation.tabs.Links",
     "settingsTabSessions": "navigation.tabs.settings-tab-sessions",
   },
+
   "overlays.bottom-sheet": {
     "root": "overlays.bottom-sheet",
     "close": "overlays.bottom-sheet.close",
@@ -91,8 +100,9 @@ export const librarySelectors = {
   "useviewportenvironment": {
     "root": "useviewportenvironment",
   },
-  "hooks.use-viewport-environment": {
+    "hooks.use-viewport-environment": {
     "root": "hooks.use-viewport-environment",
   },
+
 } as const;
 // vrooli:library-selectors end

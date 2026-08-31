@@ -25,9 +25,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
 	"sync"
 	"time"
+
+	"audio-tools/internal/controlplane"
 )
 
 // ErrResourceNotAllowed is returned when EnsureRunning is asked to start a
@@ -68,11 +69,7 @@ type Ensurer interface {
 // `vrooli resource start <resource>` (consistent with how sttcapacity shells
 // `vrooli capacity …`) so audio-tools never couples to lifecycle internals.
 type CLIEnsurer struct {
-	// vrooliBin is the absolute path to the vrooli binary, or "" when absent.
-	vrooliBin string
-	// exec runs vrooli with the given args. Injectable for tests; nil uses
-	// vrooliBin via os/exec.
-	exec func(ctx context.Context, bin string, args ...string) error
+	controlPlane *controlplane.Client
 	// now is the clock seam (tests inject a fake to exercise the cooldown).
 	now func() time.Time
 
@@ -98,14 +95,13 @@ type ensureOutcome struct {
 // is safe even when the binary is missing (EnsureRunning then returns an error
 // the caller maps to a typed message).
 func NewCLIEnsurer() *CLIEnsurer {
-	bin, _ := exec.LookPath("vrooli")
 	return &CLIEnsurer{
-		vrooliBin: bin,
-		now:       time.Now,
-		timeout:   DefaultEnsureTimeout,
-		cooldown:  DefaultCooldown,
-		inflight:  map[string]*ensureCall{},
-		last:      map[string]ensureOutcome{},
+		controlPlane: controlplane.New(),
+		now:          time.Now,
+		timeout:      DefaultEnsureTimeout,
+		cooldown:     DefaultCooldown,
+		inflight:     map[string]*ensureCall{},
+		last:         map[string]ensureOutcome{},
 	}
 }
 
@@ -114,7 +110,7 @@ func (e *CLIEnsurer) EnsureRunning(ctx context.Context, resource string) error {
 	if _, ok := allowedResources[resource]; !ok {
 		return fmt.Errorf("%w: %q", ErrResourceNotAllowed, resource)
 	}
-	if e.vrooliBin == "" {
+	if e.controlPlane == nil || !e.controlPlane.Available() {
 		return fmt.Errorf("cannot start %q: vrooli binary not found on PATH", resource)
 	}
 
@@ -156,13 +152,7 @@ func (e *CLIEnsurer) EnsureRunning(ctx context.Context, resource string) error {
 func (e *CLIEnsurer) runStart(ctx context.Context, resource string) error {
 	cctx, cancel := context.WithTimeout(ctx, e.timeout)
 	defer cancel()
-	run := e.exec
-	if run == nil {
-		run = func(c context.Context, bin string, args ...string) error {
-			return exec.CommandContext(c, bin, args...).Run()
-		}
-	}
-	if err := run(cctx, e.vrooliBin, "resource", "start", resource); err != nil {
+	if _, err := e.controlPlane.Run(cctx, "resource", "start", resource); err != nil {
 		return fmt.Errorf("vrooli resource start %s: %w", resource, err)
 	}
 	return nil

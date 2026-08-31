@@ -54,6 +54,7 @@ interface WorkspacePaneShellProps {
   onVoiceStart?: () => void;
   onVoiceStop?: () => void;
   onTtsSpeakingChange: (sessionId: string, speaking: boolean) => void;
+  onTtsBackendReasonChange?: (sessionId: string, reason: string) => void;
   onSpeakingEventChange: (sessionId: string, eventId: string | null) => void;
   onConversationEventReceived: (
     sessionId: string,
@@ -103,6 +104,7 @@ function WorkspacePaneShell({
   onVoiceStart,
   onVoiceStop,
   onTtsSpeakingChange,
+  onTtsBackendReasonChange,
   onSpeakingEventChange,
   onConversationEventReceived,
   onNeedsUnlock,
@@ -207,6 +209,7 @@ function WorkspacePaneShell({
             onVoiceStart={onVoiceStart}
             onVoiceStop={onVoiceStop}
             onTtsSpeakingChange={(speaking) => { onTtsSpeakingChange(sessionId, speaking); }}
+            onTtsBackendReasonChange={(reason) => { onTtsBackendReasonChange?.(sessionId, reason); }}
             onSpeakingEventChange={(eventId) => { onSpeakingEventChange(sessionId, eventId); }}
             onConversationEventReceived={onConversationEventReceived}
             onNeedsUnlock={onNeedsUnlock}

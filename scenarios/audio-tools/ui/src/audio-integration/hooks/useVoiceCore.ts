@@ -2,7 +2,7 @@ import {
   useVoiceInput as useAdoptedVoiceInput,
   type VoiceInputOptions as AdoptedVoiceInputOptions,
   type VoiceCapabilityProbe,
-} from "@vrooli/react-component-library/useVoiceInput/3.0.0";
+} from "@vrooli/react-component-library/useVoiceInput/3";
 import { voiceCoreServices } from "../voiceCoreServices";
 
 export type { VoiceCapabilityProbe };
@@ -18,3 +18,4 @@ export function useScenarioVoiceCore(opts: UseVoiceCoreOptions) {
     services: voiceCoreServices,
   });
 }
+// HOST DIFFERENCE: audio-tools binds the shared voice core to its own transport and settings.

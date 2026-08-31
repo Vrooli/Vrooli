@@ -29,6 +29,8 @@ import (
 	"connectrpc.com/connect"
 
 	audioconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio/audio_v1connect"
+	healthstatusv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status"
+	healthstatusconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/health_status/health_status_v1connect"
 	sessionconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/session/session_v1connect"
 	settingsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings/settings_v1connect"
 	sttconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/stt/stt_v1connect"
@@ -75,13 +77,14 @@ type Policy struct {
 // endpoint (REST exception) and lives outside this struct; adopters
 // call /health via Client.HealthURL() + http.Get.
 type Client struct {
-	STT       sttconnect.STTServiceClient
-	TTS       ttsconnect.TTSServiceClient
-	Summarize summarizeconnect.SummarizeServiceClient
-	Audio     audioconnect.AudioProcessingServiceClient
-	Session   sessionconnect.SessionServiceClient
-	Settings  settingsconnect.SettingsServiceClient
-	Usage     usageconnect.UsageServiceClient
+	STT          sttconnect.STTServiceClient
+	TTS          ttsconnect.TTSServiceClient
+	Summarize    summarizeconnect.SummarizeServiceClient
+	Audio        audioconnect.AudioProcessingServiceClient
+	Session      sessionconnect.SessionServiceClient
+	Settings     settingsconnect.SettingsServiceClient
+	Usage        usageconnect.UsageServiceClient
+	HealthStatus healthstatusconnect.HealthStatusServiceClient
 
 	resolver URLResolver
 	policy   Policy
@@ -170,6 +173,7 @@ func (c *Client) bindClients(baseURL string) {
 	c.Session = sessionconnect.NewSessionServiceClient(httpc, baseURL, opts...)
 	c.Settings = settingsconnect.NewSettingsServiceClient(httpc, baseURL, opts...)
 	c.Usage = usageconnect.NewUsageServiceClient(httpc, baseURL, opts...)
+	c.HealthStatus = healthstatusconnect.NewHealthStatusServiceClient(httpc, baseURL, opts...)
 }
 
 // HealthURL returns the /health endpoint URL for the currently bound
@@ -181,4 +185,23 @@ func (c *Client) HealthURL() string {
 		return ""
 	}
 	return c.baseURL + "/health"
+}
+
+// ProviderHealth returns audio-tools' authoritative per-capability liveness
+// rollup for adopters that need to gate individual features.
+func (c *Client) ProviderHealth(ctx context.Context) (*healthstatusv1.GetProviderHealthResponse, error) {
+	if _, err := c.Ensure(ctx); err != nil {
+		return nil, err
+	}
+	callCtx := ctx
+	if c.policy.PerCallTimeout > 0 {
+		var cancel context.CancelFunc
+		callCtx, cancel = context.WithTimeout(ctx, c.policy.PerCallTimeout)
+		defer cancel()
+	}
+	resp, err := c.HealthStatus.GetProviderHealth(callCtx, connect.NewRequest(&healthstatusv1.GetProviderHealthRequest{}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
 }

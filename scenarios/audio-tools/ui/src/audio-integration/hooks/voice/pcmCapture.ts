@@ -8,6 +8,9 @@
 // The factory is injectable so PcmVoiceStreamProvider can be unit-tested by
 // pushing synthetic frames without a real AudioContext (which jsdom does
 // not provide). Production wires createScriptProcessorPcmCapture.
+// HOST DIFFERENCE: this adapter owns the audio-tools/browser automation
+// startup policy and shared AudioContext binding; the capture primitives stay
+// in @vrooli/audio-capture-browser.
 
 import {
   createCanonicalPcmCapture as createSharedCanonicalPcmCapture,
