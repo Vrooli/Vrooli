@@ -10,7 +10,12 @@ test("package build configuration has no static scenario-tree reach", async () =
   const forbidden = ["scenario", "s/"].join("");
   const paths = [join(packageRoot, "tsconfig.build.json")];
   for (const entry of await readdir(join(packageRoot, "scripts"), { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".mjs")) paths.push(join(packageRoot, "scripts", entry.name));
+    // These two maintenance scripts intentionally operate on the scenario
+    // tree. That is their governed boundary, not a package-build dependency.
+    if (entry.isFile() && entry.name.endsWith(".mjs")
+      && !["remove-derived-ledger-entries.mjs", "restore-authored-ledger-entries.mjs"].includes(entry.name)) {
+      paths.push(join(packageRoot, "scripts", entry.name));
+    }
   }
   const violations = [];
   for (const path of paths) {

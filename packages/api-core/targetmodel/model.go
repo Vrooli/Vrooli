@@ -107,14 +107,25 @@ func ReadinessCheckFor(identity string, passed bool, detail string) ReadinessChe
 // CapabilityReadinessCheck creates the operator-facing fact for one named
 // capability. Unlike transport readiness, missing capability facts do not
 // make the target itself undispatchable.
-func CapabilityReadinessCheck(capability string, state ReadinessState, detail, recovery string) ReadinessCheck {
+//
+// label is the capability's human name ("Claude Code"), which every producer
+// already carries: the host probe defines it and the Bridge heartbeat forwards
+// it intact. Before this parameter existed the constructor set Label to the
+// slug, so the name was discarded at the last hop and every consumer rendered
+// "claude". A blank label still falls back to the slug, because a fact with no
+// name at all is worse than one named after its id.
+func CapabilityReadinessCheck(capability, label string, state ReadinessState, detail, recovery string) ReadinessCheck {
 	capability = strings.TrimSpace(capability)
+	label = strings.TrimSpace(label)
+	if label == "" {
+		label = capability
+	}
 	if state != ReadinessReady && state != ReadinessMissing && state != ReadinessNotApplicable && state != ReadinessUnknown {
 		state = ReadinessUnknown
 	}
 	return ReadinessCheck{
 		Identity:       ReadinessCapabilityPrefix + capability,
-		Label:          capability,
+		Label:          label,
 		Passed:         state == ReadinessReady,
 		State:          state,
 		Detail:         detail,

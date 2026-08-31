@@ -83,6 +83,8 @@ type AcquisitionTarget struct {
 	// explicit: a managed service may reuse a separately governed host tool,
 	// but it may not discover an arbitrary running process or binary.
 	Executable  string            `json:"executable,omitempty"`
+	Package     string            `json:"package,omitempty"`
+	Version     string            `json:"version,omitempty"`
 	RuntimeEnv  map[string]string `json:"runtime_env,omitempty"`
 	Unsupported string            `json:"unsupported,omitempty"`
 	Compose     []ComposeStep     `json:"compose,omitempty"`
@@ -116,7 +118,7 @@ func (a Acquisition) EffectiveKind(target AcquisitionTarget) string {
 
 func validAcquisitionKind(kind string) bool {
 	switch kind {
-	case "url", "oci-image", "none", "composed":
+	case "url", "oci-image", "none", "composed", "npm":
 		return true
 	}
 	return false
@@ -135,7 +137,7 @@ func (a Acquisition) Validate() error {
 		}
 		unsupported := strings.TrimSpace(target.Unsupported)
 		if unsupported != "" {
-			if target.URL != "" || target.Image != "" || target.SHA256 != "" || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || target.Executable != "" || len(target.RuntimeEnv) != 0 || len(target.Compose) != 0 {
+			if target.URL != "" || target.Image != "" || target.Package != "" || target.Version != "" || target.SHA256 != "" || target.ArtifactSHA256 != "" || target.Archive != "" || target.Layout != "" || target.BinPath != "" || target.Executable != "" || len(target.RuntimeEnv) != 0 || len(target.Compose) != 0 {
 				return fmt.Errorf("acquisition target %d: unsupported target cannot also declare an artifact", index)
 			}
 			continue
@@ -155,6 +157,13 @@ func (a Acquisition) Validate() error {
 			}
 			if len(strings.TrimSpace(target.SHA256)) != 64 {
 				return fmt.Errorf("acquisition target %d: sha256 must be a 64-character digest", index)
+			}
+		case "npm":
+			if strings.TrimSpace(target.Package) == "" || strings.TrimSpace(target.Version) == "" {
+				return fmt.Errorf("acquisition target %d: npm requires package and pinned version", index)
+			}
+			if !isDigest(target.SHA256) {
+				return fmt.Errorf("acquisition target %d: npm requires sha256", index)
 			}
 		case "oci-image":
 			if strings.TrimSpace(target.Image) == "" {

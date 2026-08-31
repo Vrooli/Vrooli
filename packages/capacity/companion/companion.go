@@ -102,7 +102,7 @@ type Config struct {
 	// Log receives one line per ledger action. nil discards them.
 	Log io.Writer
 	// ParentPID makes a companion self-terminating when its owning process is
-	// gone. Zero disables the guard; command wrappers normally set it to ppid.
+	// gone. A positive value identifies the resource process that owns it.
 	ParentPID int
 	// ParentAlive is injectable for deterministic parent-death tests.
 	ParentAlive func(int) bool
@@ -185,7 +185,7 @@ func (r *Runner) parentGone() bool {
 	if r.cfg.ParentAlive != nil {
 		return !r.cfg.ParentAlive(r.cfg.ParentPID)
 	}
-	return platform.IsPIDRunning(r.cfg.ParentPID)
+	return !platform.IsPIDRunning(r.cfg.ParentPID)
 }
 
 // SyncOnce reconciles the ledger against one observation. Every step fails

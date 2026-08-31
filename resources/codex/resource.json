@@ -97,6 +97,15 @@
     ]
   },
   "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@openai/codex", "version": "0.141.0", "sha256": "9ad570849477d217386d740e2e342de38f6d64ef0bcab98911b1437c30fc09cf"}
+    ]
+  },
   "provider_policy": {
     "default_mode": "managed-discovered",
     "allowed_modes": [
@@ -114,9 +123,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "codex"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -132,9 +138,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "codex"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -149,9 +152,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "codex"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."

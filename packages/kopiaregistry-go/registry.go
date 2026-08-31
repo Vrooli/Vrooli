@@ -193,11 +193,11 @@ func (r *Registry) save(entries []Entry) error {
 	if err != nil {
 		return fmt.Errorf("encode registry: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(r.Path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(r.Path), 0o700); err != nil { //nolint:mnd // private registry directory mode
 		return fmt.Errorf("create registry dir: %w", err)
 	}
 	tmp := r.Path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil { //nolint:mnd // private registry file mode
 		return fmt.Errorf("write registry: %w", err)
 	}
 	if err := os.Rename(tmp, r.Path); err != nil {

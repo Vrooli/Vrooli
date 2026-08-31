@@ -1,127 +1,92 @@
 :root {
+  /* @tier Expression */
   --color-background: #07090f;
+  /* @tier Expression */
   --color-shell: var(--color-background);
+  /* @tier Expression */
   --color-surface: var(--color-surface-primary);
+  /* @tier Expression */
   --color-surface-raised: var(--color-surface-primary);
+  /* @tier Expression */
   --color-foreground: var(--color-text-primary);
+  /* @tier Expression */
   --color-muted-foreground: var(--color-text-secondary);
+  /* @tier Expression */
   --color-border: var(--color-border-subtle);
+  /* @tier Expression */
   --color-primary: var(--color-accent-primary);
+  /* @tier Expression */
   --color-primary-foreground: #07090f;
+  /* @tier Expression */
   --color-accent: var(--color-accent-secondary);
+  /* @tier Expression */
   --color-info: var(--color-accent-secondary);
+  /* @tier Contract */
   --color-focus: var(--color-accent-secondary);
+  /* @tier Expression */
   --color-surface-primary: #0f172a;
+  /* @tier Expression */
   --color-surface-muted: #1e2433;
+  /* @tier Expression */
   --color-surface-deep: #0b1020;
+  /* @tier Expression */
   --color-surface-darker: #05070e;
+  /* @tier Expression */
   --color-surface-alt: #f6f5f2;
+  /* @tier Expression */
   --color-text-primary: #f3f4f6;
+  /* @tier Expression */
   --color-text-secondary: #94a3b8;
+  /* @tier Expression */
   --color-text-muted: #64748b;
+  /* @tier Expression */
   --color-accent-primary: #f97316;
+  /* @tier Expression */
   --color-accent-secondary: #38bdf8;
+  /* @tier Expression */
   --color-accent-tertiary: #7c3aed;
+  /* @tier Expression */
   --color-success: #10b981;
+  /* @tier Expression */
   --color-warning: #fbbf24;
+  /* @tier Expression */
   --color-danger: #ef4444;
+  /* @tier Expression */
   --color-border-subtle: rgba(255, 255, 255, 0.08);
+  /* @tier Expression */
   --font-headline: "Space Grotesk", Inter, ui-sans-serif, system-ui, sans-serif;
+  /* @tier Expression */
   --font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  /* @tier Expression */
   --section-spacing: clamp(5rem, 10vw, 10rem);
+  /* @tier Expression */
   --container-max-width: 1200px;
+  /* @tier Expression */
   --radius-control: 9999px;
+  /* @tier Expression */
   --radius-card: 1.5rem;
+  /* @tier Expression */
   --radius-panel: 1.75rem;
+  /* @tier Expression */
   --radius-sheet: 2rem;
-  --radius-pill: 9999px;
+  /* @tier Expression */
   --shadow-panel: 0 18px 40px rgba(0, 0, 0, 0.45);
+  /* @tier Expression */
   --shadow-card: 0 25px 50px rgba(0, 0, 0, 0.35);
-  --elev-flat: none;
+  /* @tier Expression */
   --elev-raised: var(--shadow-card);
+  /* @tier Expression */
   --elev-overlay: var(--shadow-panel);
+  /* @tier Expression */
   --elev-modal: var(--shadow-card);
+  /* @tier Expression */
   --font-sans: var(--font-body);
-  --touch-target: 44px;
-  --space-3xs: 4px;
-  --space-2xs: 8px;
-  --space-xs: 12px;
-  --space-sm: 16px;
-  --space-md: 24px;
-  --space-lg: 32px;
-  --space-xl: 40px;
-  --space-2xl: 48px;
-  --tap-target-min: 44px;
-  --text-display-size: 32px;
-  --text-display-line: 38px;
-  --text-title-size: 24px;
-  --text-title-line: 30px;
-  --text-heading-size: 18px;
-  --text-heading-line: 24px;
-  --text-subheading-size: 15px;
-  --text-subheading-line: 20px;
-  --text-body-size: 14px;
-  --text-body-line: 22px;
-  --text-body-sm-size: 13px;
-  --text-body-sm-line: 20px;
-  --text-label-size: 12px;
-  --text-label-line: 16px;
-  --text-caption-size: 11px;
-  --text-caption-line: 16px;
-  --elev-flat: none;
+  /* @tier Expression */
   --elev-raised: 0 2px 6px rgba(0, 0, 0, .18), 0 8px 20px rgba(0, 0, 0, .12);
+  /* @tier Expression */
   --elev-overlay: 0 8px 24px rgba(0, 0, 0, .24), 0 20px 48px rgba(0, 0, 0, .18);
+  /* @tier Expression */
   --elev-modal: 0 12px 32px rgba(0, 0, 0, .30), 0 28px 72px rgba(0, 0, 0, .24);
-  --layer-base: 0;
-  --layer-sticky: 100;
-  --layer-dropdown: 200;
-  --layer-overlay: 300;
-  --layer-modal: 400;
-  --layer-toast: 500;
-  --layer-tooltip: 600;
-  --border-hairline: 1px;
-  --border-strong: 2px;
-  --opacity-disabled: .40;
-  --opacity-muted: .64;
-  --opacity-scrim: .72;
-  --dur-instant: 120ms;
-  --dur-quick: 180ms;
-  --dur-moderate: 280ms;
-  --dur-deliberate: 400ms;
-  --ease-standard: cubic-bezier(.2, 0, 0, 1);
-  --ease-enter: cubic-bezier(0, 0, 0, 1);
-  --ease-exit: cubic-bezier(.3, 0, 1, 1);
-  --spring-subtle: cubic-bezier(.2, .8, .2, 1.05);
-  --spring-expressive: cubic-bezier(.16, 1.2, .3, 1.05);
-  --control-height: 2.75rem;
-  --control-height-lg: 3.25rem;
-  --control-height-sm: 2.25rem;
-  --control-padding: var(--space-sm);
-  --control-radius: var(--radius-control);
-  --dur-fast: var(--dur-instant);
-  --dur-normal: var(--dur-moderate);
-  --dur-slow: var(--dur-deliberate);
-  --elev-floating: 0 4px 12px rgba(9, 18, 22, 0.12);
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-focus) 35%, transparent);
-  --layer-popover: 200;
-  --layer-raised: 150;
-  --panel-padding: var(--space-md);
-  --panel-radius: var(--radius-panel);
-  --radius-lg: 0.75rem;
-  --radius-md: 0.5rem;
-  --radius-none: 0;
-  --radius-sm: 0.25rem;
-  --radius-xl: 1.25rem;
-  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
-  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
-  --text-code: 500 0.8125rem/1.25rem var(--font-mono);
-  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-sans);
-  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
-  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
-  --text-label-tracking: 0.005em;
-  --text-overline: 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
-  --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
   color-scheme: dark;
 }
 

@@ -24,7 +24,7 @@ func AcquisitionSchema() map[string]any {
 		"required":             []string{"kind", "targets"},
 		"additionalProperties": false,
 		"properties": map[string]any{
-			"kind":    map[string]any{"type": "string", "enum": []string{"url", "oci-image", "none", "composed"}},
+			"kind":    map[string]any{"type": "string", "enum": []string{"url", "oci-image", "none", "composed", "npm"}},
 			"license": map[string]any{"type": "string"},
 			"targets": map[string]any{
 				"type": "array", "minItems": 1,
@@ -32,7 +32,7 @@ func AcquisitionSchema() map[string]any {
 					"type": "object", "additionalProperties": false,
 					"properties": map[string]any{
 						"when":            map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
-						"kind":            map[string]any{"type": "string", "enum": []string{"url", "oci-image", "none", "composed"}},
+						"kind":            map[string]any{"type": "string", "enum": []string{"url", "oci-image", "none", "composed", "npm"}},
 						"url":             map[string]any{"type": "string", "format": "uri"},
 						"image":           map[string]any{"type": "string"},
 						"sha256":          map[string]any{"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
@@ -42,6 +42,8 @@ func AcquisitionSchema() map[string]any {
 						"bin_path":        map[string]any{"type": "string"},
 						"mode":            map[string]any{"type": "string", "pattern": "^0[0-7]{3}$"},
 						"executable":      map[string]any{"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+						"package":         map[string]any{"type": "string", "minLength": 1},
+						"version":         map[string]any{"type": "string", "minLength": 1},
 						"runtime_env":     map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
 						"unsupported":     map[string]any{"type": "string", "minLength": 1},
 						"compose": map[string]any{

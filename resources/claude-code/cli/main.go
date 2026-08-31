@@ -76,7 +76,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	commands := append(app.StandardLifecycleCommands(),
-		cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "claude", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".claude"), Version: upstreamPinnedVersion, NPM: "@anthropic-ai/claude-code"})}},
+		cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{ResourceName: appName, Binary: "claude", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".claude")})}},
 		cliapp.CommandGroup{Title: "Execution", Commands: []cliapp.Command{{
 			Name:        "run",
 			Description: "Run the resource-owned Claude Code executable",

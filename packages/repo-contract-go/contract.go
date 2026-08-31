@@ -60,6 +60,12 @@ type Layout struct {
 	CommandDir       string `json:"command_dir"`
 	InternalDir      string `json:"internal_dir"`
 	DocsDir          string `json:"docs_dir"`
+	// ScratchDir is the repo-root agent-scratch fallback. It is optional: a
+	// checkout without one is valid, and consumers must treat an empty value as
+	// "this repository has no scratch directory" rather than defaulting a path.
+	// See docs/reference/storage-retention.md for why it is the single
+	// source-tree location a cleanup provider is allowed to reap.
+	ScratchDir string `json:"scratch_dir,omitempty"`
 }
 
 type ScenarioSpec struct {

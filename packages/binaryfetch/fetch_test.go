@@ -41,6 +41,22 @@ func serve(t *testing.T, body []byte) *httptest.Server {
 	return srv
 }
 
+func TestVerifyURLChecksResponseBody(t *testing.T) {
+	body := bigBinary()
+	srv := serve(t, body)
+	defer srv.Close()
+
+	old := HTTPClient
+	HTTPClient = srv.Client()
+	t.Cleanup(func() { HTTPClient = old })
+	if err := VerifyURL(context.Background(), srv.URL, sha256hex(body)); err != nil {
+		t.Fatalf("VerifyURL() error = %v", err)
+	}
+	if err := VerifyURL(context.Background(), srv.URL, sha256hex([]byte("different"))); !errors.Is(err, ErrChecksumMismatch) {
+		t.Fatalf("VerifyURL() error = %v, want checksum mismatch", err)
+	}
+}
+
 func TestFetchRawHappyPath(t *testing.T) {
 	body := bigBinary()
 	srv := serve(t, body)

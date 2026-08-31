@@ -1,15 +1,16 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
-import { tmpdir } from "node:os";
-import { authoredRoot, projectCatalogSource } from "./catalog-source.mjs";
+import { authoredRoot } from "./catalog-source.mjs";
 import { resolveCatalogExports } from "./export-resolution.mjs";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = dirname(fileURLToPath(import.meta.url)).replace(/\/scripts$/, "");
 const packageJSONPath = join(packageRoot, "package.json");
-const libraryRoot = await mkdtemp(join(tmpdir(), "rcl-ledger-"));
-await projectCatalogSource(libraryRoot, { label: "sync-exports" });
+// Export only what the package compiler can actually emit. Cold versions may
+// remain durable in the ledger, but they have no authored source in the
+// package tree and therefore must not be advertised as package subpaths.
+const libraryRoot = authoredRoot;
 
 async function filesUnder(root) {
   const entries = await readdir(root, { withFileTypes: true });
@@ -40,6 +41,11 @@ async function findBrokenVersionImports(availableSubpaths) {
     if (!existsSync(root)) continue;
     for (const file of await filesUnder(root)) {
       if (!/\.(?:ts|tsx|js|jsx|mjs|cjs)$/.test(file)) continue;
+      // The library's immutable historical sources are compiled according to
+      // the package build policy, not consumed as application sources. Their
+      // old exact pins may intentionally point at retired releases; consumer
+      // and template imports are the reachability contract checked here.
+      if (file.startsWith(join(repoRoot, "scenarios", "react-component-library", "library") + "/")) continue;
       const source = await readFile(file, "utf8");
       if (file.includes(`${join("catalog", "calibration")}`) || file.includes(`${join("tools", "testdata")}`)) continue;
       // Test files name specifiers as fixtures — including deliberately absent
@@ -88,6 +94,5 @@ if (process.argv.includes("--check")) {
 } else {
   await writeFile(packageJSONPath, next);
 }
-await rm(libraryRoot, { recursive: true, force: true });
 const versionedExports = Object.keys(resolutions).filter((key) => /\/\d+\.\d+\.\d+$/.test(key)).length;
 console.log(JSON.stringify({ assets: assets.length, versionedExports, exports: availableSubpaths.size + 1, brokenVersionImports: brokenVersionImports.length, checked: process.argv.includes("--check") }));

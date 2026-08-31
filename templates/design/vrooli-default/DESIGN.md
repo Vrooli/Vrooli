@@ -3,152 +3,27 @@ id: vrooli-default
 version: 0.2.0
 name: Vrooli Operational Console
 description: Dense, responsive, customizable operational UI for generated Vrooli scenarios.
-colors:
-  primary: "#2563eb"
-  secondary: "#0891b2"
-  neutral: "#f8fafc"
-  surface: "#ffffff"
-  on-surface: "#0f172a"
-  error: "#dc2626"
-  success: "#16a34a"
-  warning: "#d97706"
-typography:
-  body-md:
-    fontFamily: Inter
-    fontSize: 16px
-    fontWeight: "400"
-    lineHeight: 1.5
-    letterSpacing: 0em
-  body-sm:
-    fontFamily: Inter
-    fontSize: 14px
-    fontWeight: "400"
-    lineHeight: 1.45
-    letterSpacing: 0em
-  label-md:
-    fontFamily: Inter
-    fontSize: 14px
-    fontWeight: "600"
-    lineHeight: 1.25
-    letterSpacing: 0em
-  code-md:
-    fontFamily: JetBrains Mono
-    fontSize: 14px
-    fontWeight: "400"
-    lineHeight: 1.5
-    letterSpacing: 0em
-rounded:
-  sm: 0.375rem
-  md: 0.5rem
-  lg: 1rem
-  full: 9999px
-spacing:
-  unit: 0.25rem
-  touch: 44px
-  sidebar: 20rem
-  panel-gap: 1rem
 components:
   button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "#ffffff"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.sm}"
-    height: "{spacing.touch}"
-    padding: 0 1rem
+    tokenSource: design-tokens.css
   button-primary-loading:
-    backgroundColor: "{colors.primary}"
-    textColor: "#ffffff"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.sm}"
-    height: "{spacing.touch}"
-    padding: 0 1rem
+    tokenSource: design-tokens.css
   button-disabled:
-    backgroundColor: "#cbd5e1"
-    textColor: "#64748b"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.sm}"
-    height: "{spacing.touch}"
-    padding: 0 1rem
+    tokenSource: design-tokens.css
   input-error:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.on-surface}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.sm}"
-    padding: 0.75rem
+    tokenSource: design-tokens.css
   alert-error:
-    backgroundColor: "#fef2f2"
-    textColor: "{colors.error}"
-    typography: "{typography.body-sm}"
-    rounded: "{rounded.md}"
-    padding: 1rem
+    tokenSource: design-tokens.css
   toast-success:
-    backgroundColor: "#ecfdf5"
-    textColor: "{colors.success}"
-    typography: "{typography.body-sm}"
-    rounded: "{rounded.md}"
-    padding: 0.75rem
+    tokenSource: design-tokens.css
   empty-state:
-    backgroundColor: "#f1f5f9"
-    textColor: "#64748b"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: 1.5rem
+    tokenSource: design-tokens.css
   skeleton:
-    backgroundColor: "#e2e8f0"
-    rounded: "{rounded.sm}"
-    height: 1rem
+    tokenSource: design-tokens.css
   inline-progress:
-    backgroundColor: "#dbeafe"
-    textColor: "{colors.primary}"
-    typography: "{typography.body-sm}"
-    rounded: "{rounded.full}"
-    padding: 0.25rem 0.625rem
+    tokenSource: design-tokens.css
   retry-action:
-    backgroundColor: "transparent"
-    textColor: "{colors.primary}"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.sm}"
-    height: "{spacing.touch}"
-    padding: 0 0.75rem
-tokens:
-  color:
-    background: "#f8fafc"
-    shell: "#020617"
-    surface: "#ffffff"
-    surfaceMuted: "#f1f5f9"
-    surfaceRaised: "#ffffff"
-    foreground: "#0f172a"
-    mutedForeground: "#64748b"
-    border: "#cbd5e1"
-    primary: "#2563eb"
-    primaryForeground: "#ffffff"
-    accent: "#0891b2"
-    success: "#16a34a"
-    danger: "#dc2626"
-    warning: "#d97706"
-    info: "#0284c7"
-    darkBackground: "#020617"
-    darkSurface: "#0f172a"
-    darkSurfaceMuted: "#1e293b"
-    darkForeground: "#f8fafc"
-    darkMutedForeground: "#94a3b8"
-    darkBorder: "#334155"
-  radius:
-    control: "0.375rem"
-    panel: "0.5rem"
-    sheet: "1rem"
-    pill: "9999px"
-  typography:
-    fontFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    monoFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace"
-    baseSize: "16px"
-    lineHeight: "1.5"
-  spacing:
-    unit: "0.25rem"
-    touchTarget: "44px"
-    desktopSidebar: "20rem"
-    desktopSidebarMin: "16.25rem"
-    desktopSidebarMax: "30rem"
+    tokenSource: design-tokens.css
 constraints:
   letterSpacing: "0"
   cardRadiusMaximum: "0.5rem"

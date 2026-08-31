@@ -1,100 +1,100 @@
 :root {
+  /* @tier Expression */
   --color-background: var(--display-background-deep);
+  /* @tier Expression */
   --color-shell: var(--display-background);
+  /* @tier Expression */
   --color-surface: var(--display-surface);
+  /* @tier Expression */
   --color-surface-muted: var(--display-surface-muted);
+  /* @tier Expression */
   --color-surface-raised: var(--display-surface);
+  /* @tier Expression */
   --color-foreground: var(--display-foreground);
+  /* @tier Expression */
   --color-muted-foreground: var(--display-muted-foreground);
+  /* @tier Expression */
   --color-border: var(--display-border);
+  /* @tier Expression */
   --color-primary: var(--display-primary);
+  /* @tier Expression */
   --color-primary-foreground: var(--display-primary-foreground);
+  /* @tier Expression */
   --color-accent: var(--display-accent);
+  /* @tier Expression */
   --color-success: var(--display-success);
+  /* @tier Expression */
   --color-danger: var(--display-danger);
+  /* @tier Expression */
   --color-warning: var(--display-warning);
+  /* @tier Expression */
   --color-info: var(--display-primary);
+  /* @tier Contract */
   --color-focus: var(--display-primary);
+  /* @tier Expression */
   --display-background: #020617;
+  /* @tier Expression */
   --display-background-deep: #000000;
+  /* @tier Expression */
   --display-surface: rgba(15, 23, 42, 0.72);
+  /* @tier Expression */
   --display-surface-muted: rgba(30, 41, 59, 0.64);
+  /* @tier Expression */
   --display-border: rgba(148, 163, 184, 0.28);
+  /* @tier Expression */
   --display-foreground: #f8fafc;
+  /* @tier Expression */
   --display-muted-foreground: #94a3b8;
+  /* @tier Expression */
   --display-primary: #38bdf8;
+  /* @tier Expression */
   --display-primary-foreground: #020617;
+  /* @tier Expression */
   --display-accent: #22d3ee;
+  /* @tier Expression */
   --display-success: #22c55e;
+  /* @tier Expression */
   --display-warning: #f59e0b;
+  /* @tier Expression */
   --display-danger: #f87171;
+  /* @tier Expression */
   --display-gap: #a78bfa;
+  /* @tier Expression */
   --display-stale: #fbbf24;
+  /* @tier Expression */
   --display-glow: 0 0 32px rgba(56, 189, 248, 0.28);
+  /* @tier Expression */
   --display-panel-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+  /* @tier Expression */
   --display-radius-panel: 1rem;
+  /* @tier Expression */
   --display-radius-tile: 1.25rem;
+  /* @tier Expression */
   --display-radius-pill: 9999px;
+  /* @tier Expression */
   --radius-control: 10px;
+  /* @tier Expression */
   --radius-panel: 16px;
+  /* @tier Expression */
   --radius-sheet: 24px;
-  --radius-pill: 9999px;
+  /* @tier Expression */
   --display-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* @tier Expression */
   --display-font-numeric: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  /* @tier Expression */
   --display-viewport-padding: clamp(1rem, 2.2vw, 3rem);
+  /* @tier Expression */
   --display-remote-target: 64px;
+  /* @tier Expression */
   --display-cycle-duration: 60s;
+  /* @tier Expression */
   --display-transition-duration: 700ms;
-  --space-3xs: 4px;
-  --space-2xs: 8px;
-  --space-xs: 12px;
-  --space-sm: 16px;
-  --space-md: 24px;
-  --space-lg: 32px;
-  --space-xl: 40px;
-  --space-2xl: 48px;
-  --tap-target-min: 44px;
-  --text-display-size: 32px;
-  --text-display-line: 38px;
-  --text-title-size: 24px;
-  --text-title-line: 30px;
-  --text-heading-size: 18px;
-  --text-heading-line: 24px;
-  --text-subheading-size: 15px;
-  --text-subheading-line: 20px;
-  --text-body-size: 14px;
-  --text-body-line: 22px;
-  --text-body-sm-size: 13px;
-  --text-body-sm-line: 20px;
-  --text-label-size: 12px;
-  --text-label-line: 16px;
-  --text-caption-size: 11px;
-  --text-caption-line: 16px;
-  --elev-flat: none;
+  /* @tier Expression */
   --elev-raised: 0 1px 2px rgba(0, 0, 0, .40);
+  /* @tier Expression */
   --elev-overlay: 0 4px 16px rgba(0, 0, 0, .50);
+  /* @tier Expression */
   --elev-modal: 0 16px 48px rgba(0, 0, 0, .60);
-  --layer-base: 0;
-  --layer-sticky: 100;
-  --layer-dropdown: 200;
-  --layer-overlay: 300;
-  --layer-modal: 400;
-  --layer-toast: 500;
-  --layer-tooltip: 600;
-  --border-hairline: 1px;
-  --border-strong: 2px;
-  --opacity-disabled: .40;
-  --opacity-muted: .64;
-  --opacity-scrim: .72;
-  --dur-instant: 120ms;
-  --dur-quick: 180ms;
-  --dur-moderate: 280ms;
-  --dur-deliberate: 400ms;
-  --ease-standard: cubic-bezier(.2, 0, 0, 1);
-  --ease-enter: cubic-bezier(0, 0, 0, 1);
-  --ease-exit: cubic-bezier(.3, 0, 1, 1);
-  --spring-subtle: cubic-bezier(.2, .8, .2, 1.05);
-  --spring-expressive: cubic-bezier(.16, 1.2, .3, 1.05);
   color-scheme: dark;
 }
 

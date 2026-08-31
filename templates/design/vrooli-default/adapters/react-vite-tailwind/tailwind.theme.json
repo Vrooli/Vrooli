@@ -1,96 +1,165 @@
 {
-  "colors": {
-    "app-background": "var(--color-background)",
-    "app-shell": "var(--color-shell)",
-    "app-surface": "var(--color-surface)",
-    "app-surface-muted": "var(--color-surface-muted)",
-    "app-surface-raised": "var(--color-surface-raised)",
-    "app-foreground": "var(--color-foreground)",
-    "app-muted-foreground": "var(--color-muted-foreground)",
-    "app-border": "var(--color-border)",
-    "app-primary": "var(--color-primary)",
-    "app-primary-foreground": "var(--color-primary-foreground)",
-    "app-accent": "var(--color-accent)",
-    "app-success": "var(--color-success)",
-    "app-danger": "var(--color-danger)",
-    "app-warning": "var(--color-warning)",
-    "app-info": "var(--color-info)",
-    "app-focus": "var(--color-focus)"
-  },
   "borderRadius": {
     "control": "var(--radius-control)",
+    "overlay": "var(--radius-overlay)",
     "panel": "var(--radius-panel)",
-    "sheet": "var(--radius-sheet)",
-    "pill": "var(--radius-pill)"
+    "pill": "var(--radius-pill)",
+    "sheet": "var(--radius-sheet)"
+  },
+  "borderWidth": {
+    "focus": "var(--border-focus)",
+    "hairline": "var(--border-hairline)",
+    "medium": "var(--border-medium)",
+    "strong": "var(--border-strong)",
+    "thin": "var(--border-thin)"
   },
   "boxShadow": {
     "flat": "var(--elev-flat)",
-    "raised": "var(--elev-raised)",
+    "floating": "var(--elev-floating)",
+    "modal": "var(--elev-modal)",
     "overlay": "var(--elev-overlay)",
-    "modal": "var(--elev-modal)"
+    "raised": "var(--elev-raised)",
+    "subtle": "var(--elev-subtle)"
   },
-  "fontSize": {
-    "display": ["var(--text-display-size)", {"lineHeight": "var(--text-display-line)", "fontWeight": "650", "letterSpacing": "-0.02em"}],
-    "title": ["var(--text-title-size)", {"lineHeight": "var(--text-title-line)", "fontWeight": "650", "letterSpacing": "-0.015em"}],
-    "heading": ["var(--text-heading-size)", {"lineHeight": "var(--text-heading-line)", "fontWeight": "600", "letterSpacing": "-0.01em"}],
-    "subheading": ["var(--text-subheading-size)", {"lineHeight": "var(--text-subheading-line)", "fontWeight": "600"}],
-    "body": ["var(--text-body-size)", {"lineHeight": "var(--text-body-line)", "fontWeight": "400"}],
-    "body-sm": ["var(--text-body-sm-size)", {"lineHeight": "var(--text-body-sm-line)", "fontWeight": "400"}],
-    "label": ["var(--text-label-size)", {"lineHeight": "var(--text-label-line)", "fontWeight": "500", "letterSpacing": "0.005em"}],
-    "caption": ["var(--text-caption-size)", {"lineHeight": "var(--text-caption-line)", "fontWeight": "600", "letterSpacing": "0.06em"}]
+  "colors": {
+    "app-accent": "var(--color-accent)",
+    "app-background": "var(--color-background)",
+    "app-border": "var(--color-border)",
+    "app-danger": "var(--color-danger)",
+    "app-focus": "var(--color-focus)",
+    "app-foreground": "var(--color-foreground)",
+    "app-info": "var(--color-info)",
+    "app-muted-foreground": "var(--color-muted-foreground)",
+    "app-primary": "var(--color-primary)",
+    "app-primary-foreground": "var(--color-primary-foreground)",
+    "app-shell": "var(--color-shell)",
+    "app-success": "var(--color-success)",
+    "app-surface": "var(--color-surface)",
+    "app-surface-muted": "var(--color-surface-muted)",
+    "app-surface-raised": "var(--color-surface-raised)",
+    "app-warning": "var(--color-warning)"
   },
   "fontFamily": {
-    "sans": "var(--font-sans)",
-    "mono": "var(--font-mono)"
+    "mono": "var(--font-mono)",
+    "sans": "var(--font-sans)"
   },
-  "spacing": {
-    "space-3xs": "var(--space-3xs)",
-    "space-2xs": "var(--space-2xs)",
-    "space-xs": "var(--space-xs)",
-    "space-sm": "var(--space-sm)",
-    "space-md": "var(--space-md)",
-    "space-lg": "var(--space-lg)",
-    "space-xl": "var(--space-xl)",
-    "space-2xl": "var(--space-2xl)",
-    "touch": "var(--touch-target)",
-    "sidebar": "var(--sidebar-width)"
+  "fontSize": {
+    "body": [
+      "var(--text-body-size)",
+      {
+        "fontWeight": "400",
+        "lineHeight": "var(--text-body-line)"
+      }
+    ],
+    "body-sm": [
+      "var(--text-body-sm-size)",
+      {
+        "fontWeight": "400",
+        "lineHeight": "var(--text-body-sm-line)"
+      }
+    ],
+    "caption": [
+      "var(--text-caption-size)",
+      {
+        "fontWeight": "600",
+        "letterSpacing": "0.06em",
+        "lineHeight": "var(--text-caption-line)"
+      }
+    ],
+    "display": [
+      "var(--text-display-size)",
+      {
+        "fontWeight": "650",
+        "letterSpacing": "-0.02em",
+        "lineHeight": "var(--text-display-line)"
+      }
+    ],
+    "heading": [
+      "var(--text-heading-size)",
+      {
+        "fontWeight": "600",
+        "letterSpacing": "-0.01em",
+        "lineHeight": "var(--text-heading-line)"
+      }
+    ],
+    "label": [
+      "var(--text-label-size)",
+      {
+        "fontWeight": "500",
+        "letterSpacing": "0.005em",
+        "lineHeight": "var(--text-label-line)"
+      }
+    ],
+    "subheading": [
+      "var(--text-subheading-size)",
+      {
+        "fontWeight": "600",
+        "lineHeight": "var(--text-subheading-line)"
+      }
+    ],
+    "title": [
+      "var(--text-title-size)",
+      {
+        "fontWeight": "650",
+        "letterSpacing": "-0.015em",
+        "lineHeight": "var(--text-title-line)"
+      }
+    ]
   },
-  "zIndex": {
-    "base": "var(--layer-base)",
-    "sticky": "var(--layer-sticky)",
-    "dropdown": "var(--layer-dropdown)",
-    "overlay": "var(--layer-overlay)",
-    "modal": "var(--layer-modal)",
-    "toast": "var(--layer-toast)",
-    "tooltip": "var(--layer-tooltip)"
+  "maxWidth": {
+    "sidebar": "var(--sidebar-max-width)"
   },
-  "borderWidth": {
-    "hairline": "var(--border-hairline)",
-    "strong": "var(--border-strong)"
+  "minWidth": {
+    "sidebar": "var(--sidebar-min-width)",
+    "touch": "var(--touch-target)"
   },
   "opacity": {
     "disabled": "var(--opacity-disabled)",
     "muted": "var(--opacity-muted)",
     "scrim": "var(--opacity-scrim)"
   },
+  "spacing": {
+    "sidebar": "var(--sidebar-width)",
+    "space-2xl": "var(--space-2xl)",
+    "space-2xs": "var(--space-2xs)",
+    "space-3xs": "var(--space-3xs)",
+    "space-4xl": "var(--space-4xl)",
+    "space-4xs": "var(--space-4xs)",
+    "space-lg": "var(--space-lg)",
+    "space-md": "var(--space-md)",
+    "space-sm": "var(--space-sm)",
+    "space-xl": "var(--space-xl)",
+    "space-xs": "var(--space-xs)",
+    "touch": "var(--touch-target)"
+  },
   "transitionDuration": {
+    "deliberate": "var(--dur-deliberate)",
+    "enter": "var(--dur-enter)",
+    "fast": "var(--dur-fast)",
     "instant": "var(--dur-instant)",
-    "quick": "var(--dur-quick)",
     "moderate": "var(--dur-moderate)",
-    "deliberate": "var(--dur-deliberate)"
+    "normal": "var(--dur-normal)",
+    "quick": "var(--dur-quick)",
+    "slow": "var(--dur-slow)"
   },
   "transitionTimingFunction": {
-    "standard": "var(--ease-standard)",
     "enter": "var(--ease-enter)",
     "exit": "var(--ease-exit)",
+    "spring-expressive": "var(--spring-expressive)",
     "spring-subtle": "var(--spring-subtle)",
-    "spring-expressive": "var(--spring-expressive)"
+    "standard": "var(--ease-standard)"
   },
-  "minWidth": {
-    "touch": "var(--touch-target)",
-    "sidebar": "var(--sidebar-min-width)"
-  },
-  "maxWidth": {
-    "sidebar": "var(--sidebar-max-width)"
+  "zIndex": {
+    "alert": "var(--layer-alert)",
+    "base": "var(--layer-base)",
+    "dropdown": "var(--layer-dropdown)",
+    "menu": "var(--layer-menu)",
+    "modal": "var(--layer-modal)",
+    "overlay": "var(--layer-overlay)",
+    "popover": "var(--layer-popover)",
+    "raised": "var(--layer-raised)",
+    "sticky": "var(--layer-sticky)",
+    "toast": "var(--layer-toast)",
+    "tooltip": "var(--layer-tooltip)"
   }
 }

@@ -22,11 +22,20 @@ const (
 )
 
 // Shortcut is a single launch shortcut: a labelled command line.
+//
+// agent_id typed-links an entry to one coding agent in the capability
+// catalogue ("claude", "codex", "opencode", "grok", "agy"). It exists so
+// surfaces stop pattern-matching command text to guess which agent an entry
+// launches -- a guess any operator-authored wrapper defeats. Empty means the
+// entry is a plain operator command that belongs to no agent. The server
+// derives it from the command when a client omits it, so older clients keep
+// working and the derivation lives in exactly one place.
 type Shortcut struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Label         string                 `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
 	Command       string                 `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
 	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	AgentId       string                 `protobuf:"bytes,4,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -78,6 +87,13 @@ func (x *Shortcut) GetCommand() string {
 func (x *Shortcut) GetDescription() string {
 	if x != nil {
 		return x.Description
+	}
+	return ""
+}
+
+func (x *Shortcut) GetAgentId() string {
+	if x != nil {
+		return x.AgentId
 	}
 	return ""
 }
@@ -204,9 +220,20 @@ func (*GetEffectiveRequest) Descriptor() ([]byte, []int) {
 	return file_web_console_v1_shortcuts_shortcuts_proto_rawDescGZIP(), []int{2}
 }
 
+// GetEffectiveResponse carries the resolved list plus the identity of the
+// profile it came from, so a client that lets the operator reorder or edit
+// the effective list can write it back without re-deriving scope priority.
+// profile_id is empty when no profile exists and the built-in defaults are
+// being served; a client must then create a profile rather than update one.
 type GetEffectiveResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Shortcuts     []*Shortcut            `protobuf:"bytes,1,rep,name=shortcuts,proto3" json:"shortcuts,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Shortcuts []*Shortcut            `protobuf:"bytes,1,rep,name=shortcuts,proto3" json:"shortcuts,omitempty"`
+	ProfileId string                 `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	Scope     string                 `protobuf:"bytes,3,opt,name=scope,proto3" json:"scope,omitempty"`
+	// The profile's name, which UpsertProfile requires and rejects when blank.
+	// Without it a client writing an edited list back has to invent a name and
+	// would silently rename the operator's profile.
+	ProfileName   string `protobuf:"bytes,4,opt,name=profile_name,json=profileName,proto3" json:"profile_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -246,6 +273,27 @@ func (x *GetEffectiveResponse) GetShortcuts() []*Shortcut {
 		return x.Shortcuts
 	}
 	return nil
+}
+
+func (x *GetEffectiveResponse) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *GetEffectiveResponse) GetScope() string {
+	if x != nil {
+		return x.Scope
+	}
+	return ""
+}
+
+func (x *GetEffectiveResponse) GetProfileName() string {
+	if x != nil {
+		return x.ProfileName
+	}
+	return ""
 }
 
 type ListProfilesRequest struct {
@@ -529,11 +577,12 @@ var File_web_console_v1_shortcuts_shortcuts_proto protoreflect.FileDescriptor
 
 const file_web_console_v1_shortcuts_shortcuts_proto_rawDesc = "" +
 	"\n" +
-	"(web-console/v1/shortcuts/shortcuts.proto\x12\x1fvrooli.web_console.v1.shortcuts\"\\\n" +
+	"(web-console/v1/shortcuts/shortcuts.proto\x12\x1fvrooli.web_console.v1.shortcuts\"w\n" +
 	"\bShortcut\x12\x14\n" +
 	"\x05label\x18\x01 \x01(\tR\x05label\x12\x18\n" +
 	"\acommand\x18\x02 \x01(\tR\acommand\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\"\xca\x01\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x19\n" +
+	"\bagent_id\x18\x04 \x01(\tR\aagentId\"\xca\x01\n" +
 	"\aProfile\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05scope\x18\x02 \x01(\tR\x05scope\x12\x12\n" +
@@ -543,9 +592,13 @@ const file_web_console_v1_shortcuts_shortcuts_proto_rawDesc = "" +
 	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
 	"updated_at\x18\x06 \x01(\tR\tupdatedAt\"\x15\n" +
-	"\x13GetEffectiveRequest\"_\n" +
+	"\x13GetEffectiveRequest\"\xb7\x01\n" +
 	"\x14GetEffectiveResponse\x12G\n" +
-	"\tshortcuts\x18\x01 \x03(\v2).vrooli.web_console.v1.shortcuts.ShortcutR\tshortcuts\"\x15\n" +
+	"\tshortcuts\x18\x01 \x03(\v2).vrooli.web_console.v1.shortcuts.ShortcutR\tshortcuts\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\tprofileId\x12\x14\n" +
+	"\x05scope\x18\x03 \x01(\tR\x05scope\x12!\n" +
+	"\fprofile_name\x18\x04 \x01(\tR\vprofileName\"\x15\n" +
 	"\x13ListProfilesRequest\"\\\n" +
 	"\x14ListProfilesResponse\x12D\n" +
 	"\bprofiles\x18\x01 \x03(\v2(.vrooli.web_console.v1.shortcuts.ProfileR\bprofiles\"\x99\x01\n" +

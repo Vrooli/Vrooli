@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -36,8 +35,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const bridgeURLOverride = "BRIDGE_URL"
-
 // ErrorKind classifies node-client failures for product surfaces and logs.
 type ErrorKind string
 
@@ -45,9 +42,11 @@ const (
 	ErrBridgeUnavailable ErrorKind = "bridge_unavailable"
 	ErrNodeNotFound      ErrorKind = "node_not_found"
 	ErrNodeUnavailable   ErrorKind = "node_unavailable"
+	ErrMissingReauth     ErrorKind = "missing_reauth"
 	ErrMissingScope      ErrorKind = "missing_scope"
 	ErrTransport         ErrorKind = "transport"
 	ErrStreaming         ErrorKind = "streaming_unavailable"
+	ErrHandshakeRejected ErrorKind = "handshake_rejected"
 	// ErrInvalidRequest covers a caller-side mistake the control plane
 	// refused, including an enrollment approval whose confirmation words do
 	// not match the derived value.
@@ -62,6 +61,14 @@ type Error struct {
 	Verb  string
 	Scope string
 	Err   error
+}
+
+func interactiveTransportScope() string {
+	scope, ok := scopecatalog.TransportScope("interactive-session:write")
+	if !ok {
+		panic("invalid interactive session transport scope")
+	}
+	return scope
 }
 
 func (e *Error) Error() string {
@@ -114,11 +121,12 @@ type Client struct {
 	tokenProvider    func(context.Context) (string, error)
 	reauthToken      string
 	scopeResolver    func(string) (string, bool)
+	dialer           websocket.Dialer
 }
 
-// New constructs a node client. The BRIDGE_URL environment variable is read as
-// an override at request time, while the default source remains scenario slug
-// discovery through api-core.
+// New constructs a node client. An explicit BridgeURL wins over slug discovery;
+// endpoint selection is typed configuration and is never overridden by a
+// request-time environment variable.
 func New(cfg Config) *Client {
 	httpClient := cfg.HTTPClient
 	if httpClient == nil {
@@ -138,9 +146,6 @@ func New(cfg Config) *Client {
 }
 
 func (c *Client) endpoint(ctx context.Context) (string, error) {
-	if override := strings.TrimRight(strings.TrimSpace(os.Getenv(bridgeURLOverride)), "/"); override != "" {
-		return override, nil
-	}
 	if c.bridgeURL != "" {
 		return c.bridgeURL, nil
 	}
@@ -211,6 +216,26 @@ func (c *Client) ListMachines(ctx context.Context, timeout time.Duration) ([]*ma
 		return nil, &Error{Kind: ErrTransport, Err: errors.New("Bridge returned no machine list")}
 	}
 	return append([]*machinesv1.Machine(nil), resp.Msg.GetMachines()...), nil
+}
+
+// GetMachine returns the durable machine detail, including its read-time
+// readiness and drift projection.
+func (c *Client) GetMachine(ctx context.Context, machineID string, timeout time.Duration) (*machinesv1.GetMachineResponse, error) {
+	callCtx, cancel := c.requestContext(ctx, timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	client := machinesconnect.NewMachineServiceClient(c.transport(callCtx, baseURL), baseURL)
+	resp, err := client.GetMachine(callCtx, connect.NewRequest(&machinesv1.GetMachineRequest{Id: machineID}))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Err: errors.New("Bridge returned no machine detail")}
+	}
+	return resp.Msg, nil
 }
 
 // CallRequest is a typed short-lived relay request. Args are never flattened
@@ -396,14 +421,30 @@ type OpenRequest struct {
 // Session is the typed bidirectional Bridge channel. Frames are translated
 // here, keeping protobuf and WebSocket details out of product consumers.
 type Session struct {
-	conn    *websocket.Conn
-	mu      sync.Mutex
-	readCh  chan []byte
-	doneCh  chan struct{}
-	readyCh chan error
-	closed  bool
-	seq     uint64
-	pending []byte
+	conn         *websocket.Conn
+	mu           sync.Mutex
+	readCh       chan []byte
+	doneCh       chan struct{}
+	readyCh      chan error
+	closed       bool
+	seq          uint64
+	pending      []byte
+	terminalErr  error
+	terminal     TerminalStatus
+	reconnectCtx context.Context
+	cancel       context.CancelFunc
+	endpoint     string
+	header       http.Header
+	dialer       websocket.Dialer
+	timeout      time.Duration
+}
+
+// TerminalStatus explains why the Bridge ended a session. It remains
+// available after Read returns so callers can render a close reason without
+// parsing a transport error string.
+type TerminalStatus struct {
+	Code   string
+	Reason string
 }
 
 // Open connects to a node's interactive session endpoint and waits for the
@@ -427,7 +468,10 @@ func (c *Client) Open(ctx context.Context, req OpenRequest, timeout time.Duratio
 	u.Path = strings.TrimRight(u.Path, "/") + "/api/v1/channel/session"
 	query := u.Query()
 	query.Set("node", req.NodeID)
-	query.Set("scopes", "vrooli-bridge:session")
+	// Session transport uses Bridge's ordinary write-effect grant. The query is
+	// retained for compatibility with test-only handlers; production handlers
+	// resolve grants from the registry.
+	query.Set("scopes", interactiveTransportScope())
 	if req.SessionID != "" {
 		query.Set("session_id", req.SessionID)
 	}
@@ -452,15 +496,43 @@ func (c *Client) Open(ctx context.Context, req OpenRequest, timeout time.Duratio
 	if c.reauthToken != "" {
 		header.Set("X-Bridge-Owner-Reauth", c.reauthToken)
 	}
-	conn, _, err := websocket.DefaultDialer.DialContext(callCtx, u.String(), header)
+	dialer := c.dialer
+	dialer.HandshakeTimeout = timeout
+	conn, response, err := dialer.DialContext(callCtx, u.String(), header)
 	if err != nil {
+		if response != nil && response.Body != nil {
+			defer response.Body.Close()
+			body, _ := io.ReadAll(io.LimitReader(response.Body, 16*1024))
+			reason := strings.TrimSpace(string(body))
+			if reason == "" {
+				reason = response.Status
+			}
+			kind := ErrTransport
+			switch response.StatusCode {
+			case http.StatusUnauthorized:
+				kind = ErrMissingReauth
+			case http.StatusForbidden:
+				kind = ErrMissingScope
+			case http.StatusNotFound:
+				kind = ErrNodeNotFound
+			case http.StatusServiceUnavailable:
+				kind = ErrNodeUnavailable
+			case http.StatusSwitchingProtocols:
+				kind = ErrHandshakeRejected
+			}
+			return nil, &Error{Kind: kind, Node: req.NodeID, Verb: req.Command, Scope: interactiveTransportScope(), Err: fmt.Errorf("Bridge rejected session handshake: %s", reason)}
+		}
 		kind := ErrTransport
 		if errors.Is(callCtx.Err(), context.DeadlineExceeded) {
 			kind = ErrStreaming
 		}
 		return nil, &Error{Kind: kind, Node: req.NodeID, Verb: req.Command, Err: err}
 	}
-	session := &Session{conn: conn, readCh: make(chan []byte, 64), doneCh: make(chan struct{}), readyCh: make(chan error, 1)}
+	reconnectCtx, reconnectCancel := context.WithCancel(context.Background())
+	session := &Session{
+		conn: conn, readCh: make(chan []byte, 64), doneCh: make(chan struct{}), readyCh: make(chan error, 1),
+		reconnectCtx: reconnectCtx, cancel: reconnectCancel, endpoint: u.String(), header: header.Clone(), dialer: dialer, timeout: timeout,
+	}
 	go session.readLoop()
 	select {
 	case readyErr := <-session.readyCh:
@@ -479,8 +551,21 @@ func (s *Session) readLoop() {
 	defer close(s.doneCh)
 	defer close(s.readCh)
 	for {
-		kind, payload, err := s.conn.ReadMessage()
+		s.mu.Lock()
+		conn := s.conn
+		closed := s.closed
+		s.mu.Unlock()
+		if closed {
+			return
+		}
+		kind, payload, err := conn.ReadMessage()
 		if err != nil {
+			_ = conn.Close()
+			if s.reconnect() {
+				continue
+			}
+			reconnectErr := fmt.Errorf("Bridge session reconnect exhausted: %w", err)
+			s.setTerminalStatus("reconnect_exhausted", reconnectErr.Error(), reconnectErr)
 			signalReady(s.readyCh, err)
 			return
 		}
@@ -489,7 +574,9 @@ func (s *Session) readLoop() {
 		}
 		var frame sessionv1.Frame
 		if err := (proto.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(payload, &frame); err != nil {
-			signalReady(s.readyCh, fmt.Errorf("decode Bridge session frame: %w", err))
+			decodeErr := fmt.Errorf("decode Bridge session frame: %w", err)
+			s.setTerminalStatus("protocol_error", decodeErr.Error(), decodeErr)
+			signalReady(s.readyCh, decodeErr)
 			return
 		}
 		switch payload := frame.Payload.(type) {
@@ -504,10 +591,80 @@ func (s *Session) readLoop() {
 				}
 			}
 		case *sessionv1.Frame_Close:
-			signalReady(s.readyCh, errors.New(payload.Close.GetReason()))
+			reason := strings.TrimSpace(payload.Close.GetReason())
+			if reason == "" {
+				reason = "session closed by Bridge"
+			}
+			code := strings.TrimSpace(payload.Close.GetCode())
+			if code == "" {
+				code = "closed"
+			}
+			closeErr := errors.New(reason)
+			s.setTerminalStatus(code, reason, closeErr)
+			signalReady(s.readyCh, closeErr)
 			return
 		}
 	}
+}
+
+const (
+	maxReconnectAttempts  = 5
+	initialReconnectDelay = 250 * time.Millisecond
+	maxReconnectDelay     = 5 * time.Second
+)
+
+func (s *Session) reconnect() bool {
+	for attempt := 0; attempt < maxReconnectAttempts; attempt++ {
+		delay := initialReconnectDelay << attempt
+		if delay > maxReconnectDelay {
+			delay = maxReconnectDelay
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-timer.C:
+		case <-s.reconnectCtx.Done():
+			timer.Stop()
+			return false
+		}
+
+		conn, _, err := s.dialer.DialContext(s.reconnectCtx, s.endpoint, s.header)
+		if err == nil {
+			s.mu.Lock()
+			if s.closed {
+				s.mu.Unlock()
+				_ = conn.Close()
+				return false
+			}
+			s.conn = conn
+			s.mu.Unlock()
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Session) setTerminalErr(err error) {
+	s.setTerminalStatus("transport_error", err.Error(), err)
+}
+
+func (s *Session) setTerminalStatus(code, reason string, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.terminalErr == nil {
+		s.terminalErr = err
+		s.terminal = TerminalStatus{Code: code, Reason: reason}
+	}
+}
+
+// TerminalStatus returns the final Bridge close or transport status, if one
+// has been observed.
+func (s *Session) TerminalStatus() (TerminalStatus, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.terminalErr == nil {
+		return TerminalStatus{}, false
+	}
+	return s.terminal, true
 }
 
 func signalReady(ch chan error, err error) {
@@ -529,12 +686,24 @@ func (s *Session) Read(dst []byte) (int, error) {
 	select {
 	case data, ok := <-s.readCh:
 		if !ok {
+			s.mu.Lock()
+			err := s.terminalErr
+			s.mu.Unlock()
+			if err != nil {
+				return 0, err
+			}
 			return 0, io.EOF
 		}
 		n := copy(dst, data)
 		s.pending = data[n:]
 		return n, nil
 	case <-s.doneCh:
+		s.mu.Lock()
+		err := s.terminalErr
+		s.mu.Unlock()
+		if err != nil {
+			return 0, err
+		}
 		return 0, io.EOF
 	}
 }
@@ -580,6 +749,9 @@ func (s *Session) Close() error {
 		return nil
 	}
 	s.closed = true
+	if s.cancel != nil {
+		s.cancel()
+	}
 	_ = s.writeFrame(&sessionv1.Frame{Payload: &sessionv1.Frame_Close{Close: &sessionv1.Close{Code: "close", Reason: "node client session closed"}}})
 	err := s.conn.Close()
 	s.mu.Unlock()

@@ -28,6 +28,21 @@ const generatedConfigPath = join(packageRoot, ".build-tsconfig.json");
 const baseConfig = JSON.parse(await readFile(join(packageRoot, "tsconfig.build.json"), "utf8"));
 const packageNodeModules = join(packageRoot, "node_modules");
 const packageManifest = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"));
+const evictedSourceRoots = [];
+for (const kindEntry of await readdir(sourceRoot, { withFileTypes: true })) {
+  if (!kindEntry.isDirectory()) continue;
+  const kindRoot = join(sourceRoot, kindEntry.name);
+  for (const assetEntry of await readdir(kindRoot, { withFileTypes: true })) {
+    if (!assetEntry.isDirectory()) continue;
+    const manifestPath = join(kindRoot, assetEntry.name, "component.json");
+    if (!existsSync(manifestPath)) continue;
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    for (const version of Array.isArray(manifest.evictedVersions) ? manifest.evictedVersions : []) {
+      const versionRoot = join(kindRoot, assetEntry.name, "versions", version);
+      if (existsSync(versionRoot)) evictedSourceRoots.push(versionRoot);
+    }
+  }
+}
 // Dependencies are discovered from package.json. Only the workspace package
 // keeps an explicit override because it is intentionally linked outside this
 // package's node_modules tree.
@@ -51,6 +66,10 @@ baseConfig.exclude = [
   join(sourceRoot, "**/*.spec.tsx"),
   join(sourceRoot, "story-contracts.spec.ts"),
   join(sourceRoot, "preview-harnesses/**"),
+  // Evicted source remains durable for recovery and ledger operations, but is
+  // not part of the published package or its compiler input. Derive this from
+  // each component manifest so retention never needs component-name cases.
+  ...evictedSourceRoots,
 ];
 await writeFile(generatedConfigPath, `${JSON.stringify(baseConfig, null, 2)}\n`);
 

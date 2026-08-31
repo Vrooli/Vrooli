@@ -10,10 +10,18 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file web-console/v1/shortcuts/shortcuts.proto.
  */
 export const file_web_console_v1_shortcuts_shortcuts: GenFile = /*@__PURE__*/
-  fileDesc("Cih3ZWItY29uc29sZS92MS9zaG9ydGN1dHMvc2hvcnRjdXRzLnByb3RvEh92cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzIj8KCFNob3J0Y3V0Eg0KBWxhYmVsGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkimAEKB1Byb2ZpbGUSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEbmFtZRgDIAEoCRI8CglzaG9ydGN1dHMYBCADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0EhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCSIVChNHZXRFZmZlY3RpdmVSZXF1ZXN0IlQKFEdldEVmZmVjdGl2ZVJlc3BvbnNlEjwKCXNob3J0Y3V0cxgBIAMoCzIpLnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuU2hvcnRjdXQiFQoTTGlzdFByb2ZpbGVzUmVxdWVzdCJSChRMaXN0UHJvZmlsZXNSZXNwb25zZRI6Cghwcm9maWxlcxgBIAMoCzIoLnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuUHJvZmlsZSJ9ChRVcHNlcnRQcm9maWxlUmVxdWVzdBIKCgJpZBgBIAEoCRINCgVzY29wZRgCIAEoCRIMCgRuYW1lGAMgASgJEjwKCXNob3J0Y3V0cxgEIAMoCzIpLnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuU2hvcnRjdXQiUgoVVXBzZXJ0UHJvZmlsZVJlc3BvbnNlEjkKB3Byb2ZpbGUYASABKAsyKC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlByb2ZpbGUiIgoURGVsZXRlUHJvZmlsZVJlcXVlc3QSCgoCaWQYASABKAkiFwoVRGVsZXRlUHJvZmlsZVJlc3BvbnNlMowEChBTaG9ydGN1dHNTZXJ2aWNlEnsKDEdldEVmZmVjdGl2ZRI0LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuR2V0RWZmZWN0aXZlUmVxdWVzdBo1LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuR2V0RWZmZWN0aXZlUmVzcG9uc2USewoMTGlzdFByb2ZpbGVzEjQudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5MaXN0UHJvZmlsZXNSZXF1ZXN0GjUudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5MaXN0UHJvZmlsZXNSZXNwb25zZRJ+Cg1VcHNlcnRQcm9maWxlEjUudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5VcHNlcnRQcm9maWxlUmVxdWVzdBo2LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuVXBzZXJ0UHJvZmlsZVJlc3BvbnNlEn4KDURlbGV0ZVByb2ZpbGUSNS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLkRlbGV0ZVByb2ZpbGVSZXF1ZXN0GjYudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5EZWxldGVQcm9maWxlUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby93ZWItY29uc29sZS92MS9zaG9ydGN1dHM7c2hvcnRjdXRzX3YxYgZwcm90bzM");
+  fileDesc("Cih3ZWItY29uc29sZS92MS9zaG9ydGN1dHMvc2hvcnRjdXRzLnByb3RvEh92cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzIlEKCFNob3J0Y3V0Eg0KBWxhYmVsGAEgASgJEg8KB2NvbW1hbmQYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEAoIYWdlbnRfaWQYBCABKAkimAEKB1Byb2ZpbGUSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEbmFtZRgDIAEoCRI8CglzaG9ydGN1dHMYBCADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0EhIKCmNyZWF0ZWRfYXQYBSABKAkSEgoKdXBkYXRlZF9hdBgGIAEoCSIVChNHZXRFZmZlY3RpdmVSZXF1ZXN0Io0BChRHZXRFZmZlY3RpdmVSZXNwb25zZRI8CglzaG9ydGN1dHMYASADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0EhIKCnByb2ZpbGVfaWQYAiABKAkSDQoFc2NvcGUYAyABKAkSFAoMcHJvZmlsZV9uYW1lGAQgASgJIhUKE0xpc3RQcm9maWxlc1JlcXVlc3QiUgoUTGlzdFByb2ZpbGVzUmVzcG9uc2USOgoIcHJvZmlsZXMYASADKAsyKC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlByb2ZpbGUifQoUVXBzZXJ0UHJvZmlsZVJlcXVlc3QSCgoCaWQYASABKAkSDQoFc2NvcGUYAiABKAkSDAoEbmFtZRgDIAEoCRI8CglzaG9ydGN1dHMYBCADKAsyKS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlNob3J0Y3V0IlIKFVVwc2VydFByb2ZpbGVSZXNwb25zZRI5Cgdwcm9maWxlGAEgASgLMigudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5Qcm9maWxlIiIKFERlbGV0ZVByb2ZpbGVSZXF1ZXN0EgoKAmlkGAEgASgJIhcKFURlbGV0ZVByb2ZpbGVSZXNwb25zZTKMBAoQU2hvcnRjdXRzU2VydmljZRJ7CgxHZXRFZmZlY3RpdmUSNC52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLkdldEVmZmVjdGl2ZVJlcXVlc3QaNS52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLkdldEVmZmVjdGl2ZVJlc3BvbnNlEnsKDExpc3RQcm9maWxlcxI0LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuTGlzdFByb2ZpbGVzUmVxdWVzdBo1LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuTGlzdFByb2ZpbGVzUmVzcG9uc2USfgoNVXBzZXJ0UHJvZmlsZRI1LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuVXBzZXJ0UHJvZmlsZVJlcXVlc3QaNi52cm9vbGkud2ViX2NvbnNvbGUudjEuc2hvcnRjdXRzLlVwc2VydFByb2ZpbGVSZXNwb25zZRJ+Cg1EZWxldGVQcm9maWxlEjUudnJvb2xpLndlYl9jb25zb2xlLnYxLnNob3J0Y3V0cy5EZWxldGVQcm9maWxlUmVxdWVzdBo2LnZyb29saS53ZWJfY29uc29sZS52MS5zaG9ydGN1dHMuRGVsZXRlUHJvZmlsZVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vd2ViLWNvbnNvbGUvdjEvc2hvcnRjdXRzO3Nob3J0Y3V0c192MWIGcHJvdG8z");
 
 /**
  * Shortcut is a single launch shortcut: a labelled command line.
+ *
+ * agent_id typed-links an entry to one coding agent in the capability
+ * catalogue ("claude", "codex", "opencode", "grok", "agy"). It exists so
+ * surfaces stop pattern-matching command text to guess which agent an entry
+ * launches -- a guess any operator-authored wrapper defeats. Empty means the
+ * entry is a plain operator command that belongs to no agent. The server
+ * derives it from the command when a client omits it, so older clients keep
+ * working and the derivation lives in exactly one place.
  *
  * @generated from message vrooli.web_console.v1.shortcuts.Shortcut
  */
@@ -32,6 +40,11 @@ export type Shortcut = Message<"vrooli.web_console.v1.shortcuts.Shortcut"> & {
    * @generated from field: string description = 3;
    */
   description: string;
+
+  /**
+   * @generated from field: string agent_id = 4;
+   */
+  agentId: string;
 };
 
 /**
@@ -100,6 +113,12 @@ export const GetEffectiveRequestSchema: GenMessage<GetEffectiveRequest> = /*@__P
   messageDesc(file_web_console_v1_shortcuts_shortcuts, 2);
 
 /**
+ * GetEffectiveResponse carries the resolved list plus the identity of the
+ * profile it came from, so a client that lets the operator reorder or edit
+ * the effective list can write it back without re-deriving scope priority.
+ * profile_id is empty when no profile exists and the built-in defaults are
+ * being served; a client must then create a profile rather than update one.
+ *
  * @generated from message vrooli.web_console.v1.shortcuts.GetEffectiveResponse
  */
 export type GetEffectiveResponse = Message<"vrooli.web_console.v1.shortcuts.GetEffectiveResponse"> & {
@@ -107,6 +126,25 @@ export type GetEffectiveResponse = Message<"vrooli.web_console.v1.shortcuts.GetE
    * @generated from field: repeated vrooli.web_console.v1.shortcuts.Shortcut shortcuts = 1;
    */
   shortcuts: Shortcut[];
+
+  /**
+   * @generated from field: string profile_id = 2;
+   */
+  profileId: string;
+
+  /**
+   * @generated from field: string scope = 3;
+   */
+  scope: string;
+
+  /**
+   * The profile's name, which UpsertProfile requires and rejects when blank.
+   * Without it a client writing an edited list back has to invent a name and
+   * would silently rename the operator's profile.
+   *
+   * @generated from field: string profile_name = 4;
+   */
+  profileName: string;
 };
 
 /**

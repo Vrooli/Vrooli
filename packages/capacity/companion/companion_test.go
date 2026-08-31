@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -51,6 +52,55 @@ func TestRunnerStopsAfterParentDeath(t *testing.T) {
 	}
 	if !strings.Contains(log.String(), "parent_gone") {
 		t.Fatalf("log = %q, want one typed parent_gone state", log.String())
+	}
+}
+
+func TestRunnerUsesLiveParentPIDWithoutInjectedSeam(t *testing.T) {
+	var log bytes.Buffer
+	observed := 0
+	parent := exec.Command("sleep", "1")
+	if err := parent.Start(); err != nil {
+		t.Fatalf("start live parent fixture: %v", err)
+	}
+	defer func() { _ = parent.Process.Kill(); _ = parent.Wait() }()
+	runner, err := companion.New(companion.Config{
+		Resource: "demo",
+		Observer: companion.ObserverFunc(func(context.Context) (companion.Footprint, error) {
+			observed++
+			return companion.Footprint{}, nil
+		}),
+		Exec:      func(context.Context, string, ...string) ([]byte, error) { return []byte(`{"claims":[]}`), nil },
+		ParentPID: parent.Process.Pid,
+		Interval:  time.Millisecond,
+		Log:       &log,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
+	defer cancel()
+	if err := runner.Run(ctx); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if observed == 0 {
+		t.Fatal("runner with a live production parent PID did not observe once")
+	}
+	if strings.Contains(log.String(), "parent_gone") {
+		t.Fatalf("live parent was incorrectly reported gone: %q", log.String())
+	}
+}
+
+func TestCommandRequiresExplicitParentPID(t *testing.T) {
+	err := companion.Run(companion.CommandOptions{
+		Config: companion.Config{
+			Resource: "demo",
+			Observer: companion.ObserverFunc(func(context.Context) (companion.Footprint, error) { return companion.Footprint{}, nil }),
+			Exec:     func(context.Context, string, ...string) ([]byte, error) { return []byte(`{"claims":[]}`), nil },
+		},
+		Stderr: &bytes.Buffer{},
+	}, []string{"--once"})
+	if err == nil || !strings.Contains(err.Error(), "--parent-pid is required") {
+		t.Fatalf("Run without parent PID = %v, want explicit-parent error", err)
 	}
 }
 

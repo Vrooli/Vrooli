@@ -21,6 +21,8 @@ import (
 	"github.com/vrooli/api-core/consumeridentity"
 )
 
+const entitlementHTTPTimeout = 15 * time.Second
+
 var (
 	ErrLeaseMalformed       = errors.New("entitlement lease is malformed")
 	ErrLeaseSignature       = errors.New("entitlement lease signature is invalid")
@@ -150,7 +152,7 @@ type Client struct {
 
 func NewClient(baseURL string, resolve func(context.Context, string) (string, error), httpClient *http.Client) *Client {
 	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 15 * time.Second}
+		httpClient = &http.Client{Timeout: entitlementHTTPTimeout} //nolint:mnd // bounded entitlement transport timeout
 	}
 	return &Client{BaseURL: strings.TrimRight(strings.TrimSpace(baseURL), "/"), ResolveAccess: resolve, HTTPClient: httpClient, Now: time.Now, cache: make(map[string]Payload)}
 }

@@ -16,7 +16,7 @@ const source = join(
   "components",
   "SidebarShell",
   "versions",
-  "2.2.0",
+  "2.6.3",
   "SidebarShell.tsx",
 );
 
@@ -37,5 +37,5 @@ test("structured TSX facts preserve computed overlay roles", () => {
   assert.ok(sidebar.calls.includes("assignRef"), sidebar.calls.join("\n"));
   assert.equal(sidebar.inlineStyleElements, (readFileSync(source, "utf8").match(/style=\{\{/g) ?? []).length);
   assert.ok(sidebar.imports.includes("react"), sidebar.imports.join("\n"));
-  assert.ok(sidebar.imports.includes("@vrooli/react-component-library/ResizeHandle/1.0.0"), sidebar.imports.join("\n"));
+  assert.ok(sidebar.imports.includes("@vrooli/react-component-library/ResizeHandle/1"), sidebar.imports.join("\n"));
 });

@@ -3,6 +3,7 @@ package companion
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -49,18 +50,19 @@ func Run(options CommandOptions, args []string) error {
 	if cfg.Log == nil {
 		cfg.Log = stderr
 	}
-	if cfg.ParentPID == 0 {
-		cfg.ParentPID = os.Getppid()
-	}
-
 	set := flag.NewFlagSet("capacity-sync", flag.ContinueOnError)
 	set.SetOutput(stderr)
 	interval := set.Duration("interval", cfg.interval(), "poll interval")
 	once := set.Bool("once", false, "run one reconciliation and exit")
+	parentPID := set.Int("parent-pid", cfg.ParentPID, "PID of the resource process that owns this companion")
 	if err := set.Parse(args); err != nil {
 		return err
 	}
 	cfg.Interval = *interval
+	cfg.ParentPID = *parentPID
+	if cfg.ParentPID <= 1 {
+		return fmt.Errorf("capacity companion: --parent-pid is required and must be greater than 1")
+	}
 
 	runner, err := New(cfg)
 	if err != nil {

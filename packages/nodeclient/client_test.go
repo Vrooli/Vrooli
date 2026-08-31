@@ -3,16 +3,22 @@ package nodeclient
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 
 	"connectrpc.com/connect"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	relayconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay/relayv1connect"
+	sessionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/session"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestCallRequestPreservesTypedArguments(t *testing.T) {
@@ -61,6 +67,171 @@ func TestOpenReturnsTypedTransportFailure(t *testing.T) {
 	_, err := c.Open(context.Background(), OpenRequest{NodeID: "n", Command: "shell"}, time.Second)
 	if !IsKind(err, ErrTransport) {
 		t.Fatalf("Open error = %v, want typed transport failure", err)
+	}
+}
+
+func TestOpenClassifiesHandshakeRejectionAndKeepsBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "node lacks required transport scope vrooli-bridge:write", http.StatusForbidden)
+	}))
+	defer server.Close()
+
+	client := New(Config{BridgeURL: server.URL})
+	_, err := client.Open(context.Background(), OpenRequest{NodeID: "node-1", Command: "shell"}, time.Second)
+	if !IsKind(err, ErrMissingScope) {
+		t.Fatalf("Open error = %v, want missing-scope classification", err)
+	}
+	if !strings.Contains(err.Error(), "vrooli-bridge:write") {
+		t.Fatalf("Open error = %v, want server rejection body", err)
+	}
+}
+
+func TestOpenClassifiesHandshakeHTTPStatuses(t *testing.T) {
+	for _, tc := range []struct {
+		status int
+		kind   ErrorKind
+	}{
+		{http.StatusUnauthorized, ErrMissingReauth},
+		{http.StatusForbidden, ErrMissingScope},
+		{http.StatusNotFound, ErrNodeNotFound},
+		{http.StatusServiceUnavailable, ErrNodeUnavailable},
+		{http.StatusBadRequest, ErrTransport},
+	} {
+		t.Run(http.StatusText(tc.status), func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				http.Error(w, "handshake diagnostic", tc.status)
+			}))
+			defer server.Close()
+
+			client := New(Config{BridgeURL: server.URL})
+			_, err := client.Open(context.Background(), OpenRequest{NodeID: "node-1"}, time.Second)
+			if !IsKind(err, tc.kind) {
+				t.Fatalf("status %d classified as %v, want %v (%v)", tc.status, err, tc.kind, err)
+			}
+			if !strings.Contains(err.Error(), "handshake diagnostic") {
+				t.Fatalf("status %d error = %v, want response body", tc.status, err)
+			}
+		})
+	}
+}
+
+func TestSessionReadReturnsBridgeCloseReason(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		open, _ := proto.Marshal(&sessionv1.Frame{Payload: &sessionv1.Frame_Open{Open: &sessionv1.Open{SessionId: "s1"}}})
+		closeFrame, _ := proto.Marshal(&sessionv1.Frame{Payload: &sessionv1.Frame_Close{Close: &sessionv1.Close{Reason: "shell_not_allowed"}}})
+		_ = conn.WriteMessage(websocket.BinaryMessage, open)
+		_ = conn.WriteMessage(websocket.BinaryMessage, closeFrame)
+		select {}
+	}))
+	defer server.Close()
+
+	client := New(Config{BridgeURL: server.URL})
+	sess, err := client.Open(context.Background(), OpenRequest{NodeID: "node-1"}, time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	buf := make([]byte, 1)
+	_, err = sess.Read(buf)
+	if err == nil || !strings.Contains(err.Error(), "shell_not_allowed") {
+		t.Fatalf("Read error = %v, want close reason", err)
+	}
+	status, ok := sess.TerminalStatus()
+	if !ok || status.Code != "closed" || status.Reason != "shell_not_allowed" {
+		t.Fatalf("TerminalStatus() = (%+v, %t), want close reason", status, ok)
+	}
+}
+
+func TestSessionReconnectsAndPreservesSessionID(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	var connections atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("upgrade: %v", err)
+			return
+		}
+		defer conn.Close()
+		if got := r.URL.Query().Get("session_id"); got != "session-1" {
+			t.Errorf("session_id = %q, want session-1", got)
+		}
+		open, _ := proto.Marshal(&sessionv1.Frame{Payload: &sessionv1.Frame_Open{Open: &sessionv1.Open{SessionId: "session-1"}}})
+		if err := conn.WriteMessage(websocket.BinaryMessage, open); err != nil {
+			t.Errorf("write open: %v", err)
+			return
+		}
+		if connections.Add(1) == 1 {
+			time.Sleep(50 * time.Millisecond)
+			return
+		}
+		data, _ := proto.Marshal(&sessionv1.Frame{Payload: &sessionv1.Frame_Data{Data: &sessionv1.Data{Data: []byte("reconnected")}}})
+		_ = conn.WriteMessage(websocket.BinaryMessage, data)
+		select {}
+	}))
+	defer server.Close()
+
+	client := New(Config{BridgeURL: server.URL})
+	sess, err := client.Open(context.Background(), OpenRequest{NodeID: "node-1", SessionID: "session-1"}, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	buf := make([]byte, len("reconnected"))
+	if _, err := io.ReadFull(sess, buf); err != nil {
+		t.Fatalf("read after reconnect: %v", err)
+	}
+	if string(buf) != "reconnected" {
+		t.Fatalf("read after reconnect = %q", buf)
+	}
+}
+
+func TestSessionReportsReconnectExhaustion(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
+	var connections atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if connections.Add(1) > 1 {
+			http.Error(w, "node offline", http.StatusServiceUnavailable)
+			return
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		open, _ := proto.Marshal(&sessionv1.Frame{Payload: &sessionv1.Frame_Open{Open: &sessionv1.Open{SessionId: "session-2"}}})
+		_ = conn.WriteMessage(websocket.BinaryMessage, open)
+		_ = conn.Close()
+	}))
+	defer server.Close()
+
+	client := New(Config{BridgeURL: server.URL})
+	sess, err := client.Open(context.Background(), OpenRequest{NodeID: "node-1", SessionID: "session-2"}, 2*time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+	result := make(chan error, 1)
+	go func() {
+		_, readErr := sess.Read(make([]byte, 1))
+		result <- readErr
+	}()
+	select {
+	case readErr := <-result:
+		if readErr == nil || !strings.Contains(readErr.Error(), "reconnect exhausted") {
+			t.Fatalf("Read error = %v, want reconnect exhaustion", readErr)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Read remained blocked after reconnect attempts")
+	}
+	status, ok := sess.TerminalStatus()
+	if !ok || status.Code != "reconnect_exhausted" {
+		t.Fatalf("TerminalStatus() = (%+v, %t), want reconnect_exhausted", status, ok)
 	}
 }
 

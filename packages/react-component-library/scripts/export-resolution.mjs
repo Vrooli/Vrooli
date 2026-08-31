@@ -70,15 +70,14 @@ export async function resolveCatalogExports({ libraryRoot, manifestRoot = librar
       const active = [];
       const materialized = [];
       for (const version of diskVersions) {
+        // Eviction removes a version from the package's reachable export
+        // surface even when its historical source is still present as a
+        // cleanup/recovery mirror. Durable retention history is not a build
+        // input: advertising it would create aliases whose transitive source
+        // dependencies are intentionally no longer published.
+        if (evicted.has(version)) continue;
         const entry = await entryForVersion(libraryRoot, kind, name, version);
         if (!entry) {
-          // Evicted releases remain in the manifest as durable lifecycle
-          // history, and an offline materialization pass can temporarily
-          // restore an incomplete retirement mirror during bootstrap. That
-          // mirror is not an export-resolution failure. An evicted release
-          // that still has its canonical entry remains exactly reproducible
-          // for pinned consumers until its source is actually reclaimed.
-          if (evicted.has(version)) continue;
           failures.push(`${relative(manifestRoot, manifestPath)}: ${version} has no public entry module`);
           continue;
         }

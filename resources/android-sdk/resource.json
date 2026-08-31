@@ -8,28 +8,153 @@
   "cli": {
     "enabled": true,
     "command": "resource-android-sdk",
-    "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "invoke": {"kind": "installed_command", "command": "resource-android-sdk"},
-    "distribution": {"kind": "prebuilt_artifact", "artifact_name": "resource-android-sdk_${os}_${arch}"},
-    "source_build": {"kind": "go_module"},
-    "freshness": {"inputs": ["cli/**", "README.md", "resource.json"]}
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "resource-android-sdk"
+    },
+    "distribution": {
+      "kind": "prebuilt_artifact",
+      "artifact_name": "resource-android-sdk_${os}_${arch}"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "README.md",
+        "resource.json"
+      ]
+    }
   },
-  "version_args": ["version"],
-  "category": "development",
-  "platforms": {"linux":"supported", "macos":"supported", "windows":"supported"},
-  "requirements": {"ram_mb":4096,"disk_mb":20000,"cpu_cores":2,"network":"required","bucket":"large","source":"estimated","confidence":"medium","class":"development","weight":3},
-  "storage": {"root":"~/.vrooli/resources/android-sdk","byte_budget":20000000000,"retention":"replaceable-sdk-toolchain"},
-  "health_checks": [
-    {"type":"command","kind":"liveness","command":["adb","version"],"timeout_seconds":15},
-    {"type":"command","kind":"liveness","command":["sdkmanager","--version"],"timeout_seconds":30},
-    {"type":"command","kind":"liveness","command":["avdmanager","--version"],"timeout_seconds":30},
-    {"type":"command","kind":"liveness","command":["emulator","-version"],"timeout_seconds":30},
-    {"type":"command","kind":"liveness","command":["javac","-version"],"timeout_seconds":30},
-    {"type":"command","kind":"liveness","command":["gradle","--version"],"timeout_seconds":30}
+  "version_args": [
+    "version"
   ],
-  "orchestration": {"startup_order":300,"startup_timeout_seconds":30,"startup_time_estimate":"10-60s","dependencies":[],"recovery_attempts":2,"priority":"normal"},
-  "install": {"platforms":{"linux":["android-sdk","install-direct"],"macos":["android-sdk","install-direct"],"windows":["android-sdk","install-direct"]}},
-  "capabilities":{"supports_logs":true},
+  "category": "development",
+  "platforms": {
+    "linux": "supported",
+    "macos": "supported",
+    "windows": "supported"
+  },
+  "requirements": {
+    "ram_mb": 4096,
+    "disk_mb": 20000,
+    "cpu_cores": 2,
+    "network": "required",
+    "bucket": "large",
+    "source": "estimated",
+    "confidence": "medium",
+    "class": "development",
+    "weight": 3
+  },
+  "storage": {
+    "entries": {
+      "sdk": {
+        "rung": "pinned",
+        "path": {
+          "linux": "$USER_HOME/.vrooli/resources/android-sdk",
+          "macos": "$USER_HOME/.vrooli/resources/android-sdk",
+          "windows": "$USER_HOME/.vrooli/resources/android-sdk"
+        },
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Downloaded Android SDK components: cmdline-tools, platform-tools, build-tools, platforms, and system-images. Re-downloadable from Google, so regenerable. Pinned rather than relocatable because the location is currently hardcoded in resources/android-sdk/cli/internal/androidsdk/implementation.go and scenarios/scenario-to-android/api/internal/builds/builder.go; relocating it to the declared resource root under $USER_HOME/.local/share/vrooli/resources is separate work that must change those call sites first.",
+        "budget": {
+          "max_bytes": "20GiB",
+          "rationale": "A full SDK with one system image measured 6.0GB on 2026-08-30. The ceiling leaves room for additional API levels and build-tools revisions while bounding a toolchain that is re-downloadable rather than durable."
+        }
+      }
+    },
+    "rationale": "The Android SDK is the resource's only on-disk surface; it is declared through the shared storageSurface vocabulary so cleanup and budget consumers can read it."
+  },
+  "health_checks": [
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "adb",
+        "version"
+      ],
+      "timeout_seconds": 15
+    },
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "sdkmanager",
+        "--version"
+      ],
+      "timeout_seconds": 30
+    },
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "avdmanager",
+        "--version"
+      ],
+      "timeout_seconds": 30
+    },
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "emulator",
+        "-version"
+      ],
+      "timeout_seconds": 30
+    },
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "javac",
+        "-version"
+      ],
+      "timeout_seconds": 30
+    },
+    {
+      "type": "command",
+      "kind": "liveness",
+      "command": [
+        "gradle",
+        "--version"
+      ],
+      "timeout_seconds": 30
+    }
+  ],
+  "orchestration": {
+    "startup_order": 300,
+    "startup_timeout_seconds": 30,
+    "startup_time_estimate": "10-60s",
+    "dependencies": [],
+    "recovery_attempts": 2,
+    "priority": "normal"
+  },
+  "install": {
+    "platforms": {
+      "linux": [
+        "android-sdk",
+        "install-direct"
+      ],
+      "macos": [
+        "android-sdk",
+        "install-direct"
+      ],
+      "windows": [
+        "android-sdk",
+        "install-direct"
+      ]
+    }
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
   "lifecycle": {
     "avd_create": "resource-android-sdk avd-create",
     "avd_start": "resource-android-sdk avd-start",
@@ -37,8 +162,61 @@
     "avd_delete": "resource-android-sdk avd-delete",
     "toolchain_install": "resource-android-sdk toolchain-install"
   },
-  "privilege":"user",
-  "bundling":"host-required",
-  "template_version":"2"
-  ,"deployment":{"profiles":{"desktop":{"linux":{"support":"conditional","mode":"native-host-tool","architectures":["amd64","arm64"],"requires":[],"limitations":["Android SDK, JDK 17, Gradle 8.10.2, platform-tools, and emulator images are installed under the governed resource root."],"evidence":["manifest-validation","host-tool-preflight"]},"macos":{"support":"conditional","mode":"native-host-tool","architectures":["amd64","arm64"],"requires":[],"limitations":["Android SDK, JDK 17, Gradle 8.10.2, platform-tools, and emulator images are installed under the governed resource root."],"evidence":["manifest-validation","host-tool-preflight"]},"windows":{"support":"conditional","mode":"native-host-tool","architectures":["amd64","arm64"],"requires":[],"limitations":["Android SDK, JDK 17, Gradle 8.10.2, platform-tools, and emulator images are installed under the governed resource root."],"evidence":["manifest-validation","host-tool-preflight"]}}}}
+  "privilege": "user",
+  "bundling": "host-required",
+  "template_version": "2",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Android SDK, JDK 17, Gradle 8.10.2, platform-tools, and emulator images are installed under the governed resource root."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "macos": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Android SDK, JDK 17, Gradle 8.10.2, platform-tools, and emulator images are installed under the governed resource root."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        },
+        "windows": {
+          "support": "conditional",
+          "mode": "native-host-tool",
+          "architectures": [
+            "amd64",
+            "arm64"
+          ],
+          "requires": [],
+          "limitations": [
+            "Android SDK, JDK 17, Gradle 8.10.2, platform-tools, and emulator images are installed under the governed resource root."
+          ],
+          "evidence": [
+            "manifest-validation",
+            "host-tool-preflight"
+          ]
+        }
+      }
+    }
+  }
 }

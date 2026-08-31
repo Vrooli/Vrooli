@@ -619,11 +619,31 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
               vadRef.current.segmentBoundaryEmitted = false;
             }
           } else if (result === "no-speech") {
-            console.info(`[voice] S${sessionCountRef.current} VAD no-speech after ${vadNow - vadRef.current.recordingStart}ms, rms=${rms.toFixed(4)}`);
+            const tracks = stream.getAudioTracks?.() ?? stream.getTracks();
+            const trackUnavailable = tracks.length === 0
+              || tracks.some((track) => track.readyState !== "live" || track.muted);
+            const monitorUnavailable = ctx.state !== "running";
+            const sourceUnavailable = trackUnavailable || monitorUnavailable;
+            const terminalMessage = sourceUnavailable
+              ? "Microphone audio became unavailable — tap to try again"
+              : "No speech detected";
+            console.info(`[voice] S${sessionCountRef.current} VAD no-speech after ${vadNow - vadRef.current.recordingStart}ms, rms=${rms.toFixed(4)}, sourceUnavailable=${sourceUnavailable}, trackUnavailable=${trackUnavailable}, ctx=${ctx.state}`);
             vadActiveRef.current = false;
             vadRef.current.state = "idle";
             endCaptureRef.current?.({ reason: "auto" });
-            setState((s) => ({ ...s, error: "No speech detected" }));
+            // `endCapture` stops the provider asynchronously. Keep the UI's
+            // workflow state ahead of that callback so the next tap is a new
+            // start, rather than being interpreted as a second stop. Whisper
+            // still needs its final transcription settlement; other providers
+            // can return directly to idle.
+            setState((s) => ({
+              ...s,
+              voiceState: backendRef.current === "whisper" ? "transcribing" : "idle",
+              error: terminalMessage,
+              audioLevel: 0,
+              voiceActivity: IDLE_VOICE_ACTIVITY,
+              partialTranscript: "",
+            }));
           }
 
           // One-shot auto-stop SSOT: server-VAD-led with client-VAD fallback.

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
@@ -20,8 +20,21 @@ test("sync-exports check rejects no live imports and reports the inverse count",
   assert.equal(report.versionedExports > 0, true);
   assert.equal(Boolean(packageJSON.exports["./Button"]), true);
   assert.equal(Boolean(packageJSON.exports["./Button/2"]), true);
-  assert.equal(Boolean(packageJSON.exports["./Button/2.2.1"]), true);
-  assert.equal(Boolean(packageJSON.exports["./Button/2/2.2.1"]), false);
+  assert.equal(Boolean(packageJSON.exports["./Button/2.2.4"]), true);
+  assert.equal(Boolean(packageJSON.exports["./Button/2/2.2.4"]), false);
+});
+
+test("every advertised subpath has a declaration in the built artifact", () => {
+  const packageRoot = join(scriptsRoot, "..");
+  const packageJSON = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8"));
+  for (const [subpath, target] of Object.entries(packageJSON.exports)) {
+    if (subpath === ".") continue;
+    assert.equal(
+      existsSync(join(packageRoot, target.types)),
+      true,
+      `${subpath} advertises a missing declaration ${target.types}`,
+    );
+  }
 });
 
 function fixture(manifest, versions) {
@@ -66,6 +79,21 @@ test("incomplete evicted retirement mirrors are ignored during export resolution
     const { resolutions } = await resolveCatalogExports({ libraryRoot: root });
     assert.equal(resolutions["./Panel/1.0.0"], undefined);
     assert.equal(resolutions["./Panel/1/1.0.0"], undefined);
+    assert.equal(resolutions["./Panel"].version, "2.0.0");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("complete evicted source is durable history, not a package export", async () => {
+  const root = fixture(
+    { latest: "2.0.0", deprecatedVersions: ["1.0.0"], evictedVersions: ["1.0.0"] },
+    ["1.0.0", "2.0.0"],
+  );
+  try {
+    const { resolutions } = await resolveCatalogExports({ libraryRoot: root });
+    assert.equal(resolutions["./Panel/1.0.0"], undefined);
+    assert.equal(resolutions["./Panel/1"], undefined);
     assert.equal(resolutions["./Panel"].version, "2.0.0");
   } finally {
     rmSync(root, { recursive: true, force: true });

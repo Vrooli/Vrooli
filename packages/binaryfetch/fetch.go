@@ -111,6 +111,40 @@ func (p ProgressFunc) emit(progress Progress) {
 // HTTPClient is the client used for downloads; overridable in tests.
 var HTTPClient = http.DefaultClient
 
+// VerifyURL downloads url and verifies its complete response body against the
+// expected SHA-256 without retaining the artifact. It is used for package
+// managers whose install command owns extraction, while keeping the manifest's
+// checksum contract meaningful before that command runs.
+func VerifyURL(ctx context.Context, url, expectedSHA256 string) error {
+	if strings.TrimSpace(url) == "" {
+		return fmt.Errorf("binaryfetch: verification URL is required")
+	}
+	if strings.TrimSpace(expectedSHA256) == "" {
+		return fmt.Errorf("binaryfetch: verification SHA256 is required")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("binaryfetch: build verification request: %w", err)
+	}
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("binaryfetch: verify download %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("binaryfetch: verify download %s: unexpected status %s", url, resp.Status)
+	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, resp.Body); err != nil {
+		return fmt.Errorf("binaryfetch: verify download %s: %w", url, err)
+	}
+	actual := hex.EncodeToString(hash.Sum(nil))
+	if !strings.EqualFold(actual, strings.TrimSpace(expectedSHA256)) {
+		return fmt.Errorf("%w: got %s want %s", ErrChecksumMismatch, actual, strings.TrimSpace(expectedSHA256))
+	}
+	return nil
+}
+
 // Fetch downloads the target into destDir and returns the absolute path of the
 // installed binary. It is context-cancelable, verifies the SHA-256, rejects HTML
 // pages and truncated downloads, extracts archives, and atomically places the

@@ -56,7 +56,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	app.SetCommandsWithSubgroups(
-		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "agy", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".gemini"), Version: upstreamPinnedVersion, URLTemplate: "https://antigravity-cli-auto-updater-974169037036.us-central1.run.app/artifacts/${os}_${arch}.tar.gz", ArchiveEntry: "antigravity"})}}),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{ResourceName: appName, Binary: "agy", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".gemini")})}}),
 		[]cliapp.SubcommandGroup{
 			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Antigravity permissions and the projected PreToolUse hook require a live canary before being treated as enforced."}}}),
 			// Antigravity is not on npm/GitHub releases — its latest version is

@@ -3,12 +3,15 @@
   "runner": "antigravity",
   "provenance": {
     "source": "Antigravity agy 1.0.13 print surface; unauthenticated installs expose no stable model inventory",
-    "observed_at": "2026-08-19"
+    "observed_at": "2026-08-30"
   },
+  "billing": {"mode": "unknown", "source": "operator-not-declared"},
   "roles": {
     "code.default": {"model": "default", "description": "Antigravity runner-selected default for balanced coding work.", "capabilities": ["code", "tools"]},
     "code.fast": {"model": "default", "description": "Antigravity runner-selected default for low-latency coding work.", "capabilities": ["code", "tools"]},
     "code.smart": {"model": "default", "description": "Antigravity runner-selected default for complex coding work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.judgment": {"model": "default", "description": "Fallback for high-level judgment and strategic reasoning work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.inspection": {"model": "default", "description": "Code inspection, reproduction, execution, and evidence gathering.", "capabilities": ["code", "tools"]},
     "code.cheap": {"model": "default", "description": "Antigravity runner-selected default for cost-conscious coding work.", "capabilities": ["code", "tools"]}
   }
 }

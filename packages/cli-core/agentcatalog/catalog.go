@@ -33,6 +33,11 @@ type CodingRoleCatalog struct {
 	Provenance          CatalogProvenance     `json:"provenance"`
 	Billing             *Billing              `json:"billing,omitempty"`
 	StalenessBudgetDays int                   `json:"staleness_budget_days,omitempty"`
+	// LiveCatalogMode is "curated" when a provider exposes a large dynamic
+	// marketplace that is intentionally broader than the fleet's policy.
+	// In that mode role mappings remain validated, while every marketplace
+	// listing is not treated as policy drift.
+	LiveCatalogMode string `json:"live_catalog_mode,omitempty"`
 }
 
 type Billing struct {
@@ -176,6 +181,9 @@ func liveCatalogFindings(c CodingRoleCatalog, live LiveModelCatalog) []PolicyVal
 			}
 		}
 	}
+	if c.LiveCatalogMode == "curated" {
+		return findings
+	}
 	for _, model := range live.Models {
 		if _, ok := named[model]; !ok {
 			findings = append(findings, PolicyValidationFinding{Type: "unnamed_live_model", Severity: "warning", Model: model, Message: "runner offers a live model not named by this policy"})
@@ -230,7 +238,7 @@ func validateCodingRoleCatalog(c CodingRoleCatalog, expectedRunner string) error
 	}
 	for name, role := range c.Roles {
 		if !hasAllowedCodingRoleNamespace(name) {
-			errs = append(errs, fmt.Errorf("role %q must use an allowed namespace (code.* or write.*)", name))
+			errs = append(errs, fmt.Errorf("role %q must use an allowed namespace (code.*, write.*, judgment.*, or inspection.*)", name))
 		}
 		if strings.TrimSpace(role.Model) == "" {
 			errs = append(errs, fmt.Errorf("role %q has an empty model", name))
@@ -243,7 +251,7 @@ func validateCodingRoleCatalog(c CodingRoleCatalog, expectedRunner string) error
 }
 
 func hasAllowedCodingRoleNamespace(name string) bool {
-	for _, prefix := range []string{"code.", "write."} {
+	for _, prefix := range []string{"code.", "write.", "judgment.", "inspection."} {
 		if strings.HasPrefix(name, prefix) {
 			return true
 		}

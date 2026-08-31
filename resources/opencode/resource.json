@@ -121,6 +121,15 @@
     ]
   },
   "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "opencode-ai", "version": "1.17.9", "sha256": "c943d8f0bde6192f0b8744a0cf9388b4d3d417bec010707da45d50dac960a369"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "opencode-ai", "version": "1.17.9", "sha256": "c943d8f0bde6192f0b8744a0cf9388b4d3d417bec010707da45d50dac960a369"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "opencode-ai", "version": "1.17.9", "sha256": "c943d8f0bde6192f0b8744a0cf9388b4d3d417bec010707da45d50dac960a369"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "opencode-ai", "version": "1.17.9", "sha256": "c943d8f0bde6192f0b8744a0cf9388b4d3d417bec010707da45d50dac960a369"}
+    ]
+  },
   "deployment": {
     "profiles": {
       "desktop": {
@@ -130,9 +139,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "opencode"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
@@ -149,9 +155,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "opencode"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -166,9 +169,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "opencode"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."

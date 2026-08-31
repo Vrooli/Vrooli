@@ -3,140 +3,27 @@ id: vrooli-conversion-landing
 version: 0.2.0
 name: Vrooli Conversion Landing
 description: High-converting landing pages for scenarios, bundles, apps, downloads, demos, and waitlists.
-colors:
-  primary: "#f97316"
-  secondary: "#38bdf8"
-  neutral: "#07090f"
-  surface: "#0f172a"
-  on-surface: "#f3f4f6"
-  error: "#ef4444"
-  success: "#10b981"
-  warning: "#fbbf24"
-typography:
-  headline-lg:
-    fontFamily: Space Grotesk
-    fontSize: 48px
-    fontWeight: "700"
-    lineHeight: 1.05
-    letterSpacing: 0em
-  body-lg:
-    fontFamily: Inter
-    fontSize: 17px
-    fontWeight: "400"
-    lineHeight: 1.65
-    letterSpacing: 0em
-  body-md:
-    fontFamily: Inter
-    fontSize: 16px
-    fontWeight: "400"
-    lineHeight: 1.55
-    letterSpacing: 0em
-  label-md:
-    fontFamily: Inter
-    fontSize: 14px
-    fontWeight: "700"
-    lineHeight: 1.2
-    letterSpacing: 0em
-rounded:
-  md: 1.5rem
-  lg: 1.75rem
-  full: 9999px
-spacing:
-  touch: 44px
-  container-max: 1200px
-  section: 6rem
-  gutter: 1.5rem
 components:
   button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "#07090f"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.full}"
-    height: "{spacing.touch}"
-    padding: 0 1.25rem
+    tokenSource: design-tokens.css
   button-primary-loading:
-    backgroundColor: "{colors.primary}"
-    textColor: "#07090f"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.full}"
-    height: "{spacing.touch}"
-    padding: 0 1.25rem
+    tokenSource: design-tokens.css
   button-disabled:
-    backgroundColor: "#1e293b"
-    textColor: "#64748b"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.full}"
-    height: "{spacing.touch}"
-    padding: 0 1.25rem
+    tokenSource: design-tokens.css
   input-error:
-    backgroundColor: "#1f1111"
-    textColor: "{colors.error}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: 1rem
+    tokenSource: design-tokens.css
   alert-error:
-    backgroundColor: "#1f1111"
-    textColor: "{colors.error}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: 1rem
+    tokenSource: design-tokens.css
   toast-success:
-    backgroundColor: "#06281f"
-    textColor: "{colors.success}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: 0.875rem
+    tokenSource: design-tokens.css
   empty-state:
-    backgroundColor: "#1e2433"
-    textColor: "#94a3b8"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: 1.5rem
+    tokenSource: design-tokens.css
   skeleton:
-    backgroundColor: "#1e2433"
-    rounded: "{rounded.md}"
-    height: 1rem
+    tokenSource: design-tokens.css
   inline-progress:
-    backgroundColor: "#431407"
-    textColor: "{colors.primary}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.full}"
-    padding: 0.25rem 0.75rem
+    tokenSource: design-tokens.css
   retry-action:
-    backgroundColor: "transparent"
-    textColor: "{colors.secondary}"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.full}"
-    height: "{spacing.touch}"
-    padding: 0 1rem
-tokens:
-  color:
-    background: "#07090f"
-    surfacePrimary: "#0f172a"
-    surfaceMuted: "#1e2433"
-    surfaceAlt: "#f6f5f2"
-    textPrimary: "#f3f4f6"
-    textSecondary: "#94a3b8"
-    textMuted: "#64748b"
-    accentPrimary: "#f97316"
-    accentSecondary: "#38bdf8"
-    success: "#10b981"
-    warning: "#fbbf24"
-    danger: "#ef4444"
-    borderSubtle: "rgba(255,255,255,0.08)"
-  typography:
-    headlineFamily: "Space Grotesk, Inter, ui-sans-serif, system-ui, sans-serif"
-    bodyFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    bodySize: "17px"
-    bodyLineHeight: "1.65"
-  radius:
-    control: "9999px"
-    card: "1.5rem"
-    panel: "1.75rem"
-  layout:
-    containerMaxWidth: "1200px"
-    gridColumns: 12
-    sectionSpacing: "clamp(5rem, 10vw, 10rem)"
+    tokenSource: design-tokens.css
 constraints:
   primaryPurpose: "conversion"
   defaultAesthetic: "premium-b2b-case-study"

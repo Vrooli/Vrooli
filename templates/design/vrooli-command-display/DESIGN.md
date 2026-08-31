@@ -3,145 +3,27 @@ id: vrooli-command-display
 version: 0.2.0
 name: Vrooli Command Display
 description: Fullscreen war-room, kiosk, TV, and ambient command-center display language.
-colors:
-  primary: "#38bdf8"
-  secondary: "#22d3ee"
-  neutral: "#020617"
-  surface: "#0f172a"
-  on-surface: "#f8fafc"
-  error: "#f87171"
-  success: "#22c55e"
-  warning: "#f59e0b"
-typography:
-  display-lg:
-    fontFamily: Inter
-    fontSize: 84px
-    fontWeight: "700"
-    lineHeight: 0.9
-    letterSpacing: 0em
-  body-md:
-    fontFamily: Inter
-    fontSize: 18px
-    fontWeight: "400"
-    lineHeight: 1.35
-    letterSpacing: 0em
-  label-md:
-    fontFamily: Inter
-    fontSize: 14px
-    fontWeight: "600"
-    lineHeight: 1.2
-    letterSpacing: 0em
-  telemetry-md:
-    fontFamily: JetBrains Mono
-    fontSize: 18px
-    fontWeight: "500"
-    lineHeight: 1.25
-    letterSpacing: 0em
-rounded:
-  md: 1rem
-  lg: 1.25rem
-  full: 9999px
-spacing:
-  viewport: 2rem
-  remote-target: 64px
-  panel-gap: 1.25rem
-  cycle-duration: 60s
 components:
   button-primary:
-    backgroundColor: "{colors.primary}"
-    textColor: "#020617"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.full}"
-    height: "{spacing.remote-target}"
-    padding: 0 1.25rem
+    tokenSource: design-tokens.css
   button-primary-loading:
-    backgroundColor: "{colors.primary}"
-    textColor: "#020617"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.full}"
-    height: "{spacing.remote-target}"
-    padding: 0 1.25rem
+    tokenSource: design-tokens.css
   button-disabled:
-    backgroundColor: "#334155"
-    textColor: "#94a3b8"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.full}"
-    height: "{spacing.remote-target}"
-    padding: 0 1.25rem
+    tokenSource: design-tokens.css
   input-error:
-    backgroundColor: "#450a0a"
-    textColor: "{colors.error}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: 1rem
+    tokenSource: design-tokens.css
   alert-error:
-    backgroundColor: "#450a0a"
-    textColor: "{colors.error}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: 1.25rem
+    tokenSource: design-tokens.css
   toast-success:
-    backgroundColor: "#052e16"
-    textColor: "{colors.success}"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: 1rem
+    tokenSource: design-tokens.css
   empty-state:
-    backgroundColor: "#111827"
-    textColor: "#94a3b8"
-    typography: "{typography.body-md}"
-    rounded: "{rounded.md}"
-    padding: 1.5rem
+    tokenSource: design-tokens.css
   skeleton:
-    backgroundColor: "#1e293b"
-    rounded: "{rounded.md}"
-    height: 1rem
+    tokenSource: design-tokens.css
   inline-progress:
-    backgroundColor: "#082f49"
-    textColor: "{colors.primary}"
-    typography: "{typography.telemetry-md}"
-    rounded: "{rounded.full}"
-    padding: 0.375rem 0.875rem
+    tokenSource: design-tokens.css
   retry-action:
-    backgroundColor: "transparent"
-    textColor: "{colors.primary}"
-    typography: "{typography.label-md}"
-    rounded: "{rounded.full}"
-    height: "{spacing.remote-target}"
-    padding: 0 1rem
-tokens:
-  color:
-    background: "#020617"
-    backgroundDeep: "#000000"
-    surface: "#0f172a"
-    surfaceMuted: "#1e293b"
-    foreground: "#f8fafc"
-    mutedForeground: "#94a3b8"
-    border: "#334155"
-    primary: "#38bdf8"
-    primaryForeground: "#020617"
-    accent: "#22d3ee"
-    success: "#22c55e"
-    warning: "#f59e0b"
-    danger: "#f87171"
-    gap: "#a78bfa"
-    stale: "#fbbf24"
-  typography:
-    displayFamily: "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    numericFamily: "JetBrains Mono, Fira Code, SF Mono, Consolas, Liberation Mono, Menlo, monospace"
-    baseSize: "18px"
-    lineHeight: "1.35"
-  motion:
-    pageTransition: "fade-through-black"
-    cycleDefault: "60s"
-    reducedMotionFallback: "crossfade-only"
-  radius:
-    panel: "1rem"
-    tile: "1.25rem"
-    pill: "9999px"
-  spacing:
-    viewportPadding: "clamp(1rem, 2.2vw, 3rem)"
-    remoteTarget: "64px"
+    tokenSource: design-tokens.css
 constraints:
   defaultMode: "dark"
   supportedModes: ["dark"]

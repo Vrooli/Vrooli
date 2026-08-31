@@ -70,7 +70,6 @@ type BackendKind string
 const (
 	BackendLocal BackendKind = "local"
 	BackendAgent BackendKind = "node-agent"
-	BackendSSH   BackendKind = "ssh"
 )
 
 // Backend is the interchangeable backend seam used by higher-level session
@@ -197,67 +196,6 @@ func (p *agentPTY) Kill() error                                { return p.Close(
 func (p *agentPTY) ExitCode() int                              { return -1 }
 func (p *agentPTY) ProbeReady(context.Context) error           { return nil }
 func (p *agentPTY) CurrentDir(context.Context) (string, error) { return "", nil }
-
-// SSHSession is the small capability surface needed by the SSH backend. The
-// scenario-to-cloud adapter can implement it with x/crypto/ssh without making
-// this shared package depend on a particular SSH library.
-type SSHSession interface {
-	io.Reader
-	io.Writer
-	RequestPTY(term string, rows, cols uint16) error
-	Resize(rows, cols uint16) error
-	Start() error
-	Wait() error
-	Close() error
-}
-
-type (
-	SSHOpener  func(context.Context, LaunchSpec) (SSHSession, error)
-	sshBackend struct{ open SSHOpener }
-)
-
-func NewSSHBackend(open SSHOpener) Backend { return sshBackend{open: open} }
-func (sshBackend) Kind() BackendKind       { return BackendSSH }
-
-func (b sshBackend) Open(ctx context.Context, spec LaunchSpec) (PTY, error) {
-	if b.open == nil {
-		return nil, errors.New("SSH opener is not configured")
-	}
-	s, err := b.open(ctx, spec)
-	if err != nil {
-		return nil, err
-	}
-	if s == nil {
-		return nil, errors.New("SSH opener returned a nil session")
-	}
-	term := spec.Shell
-	if term == "" {
-		term = "xterm-256color"
-	}
-	if err := s.RequestPTY(term, spec.Rows, spec.Cols); err != nil {
-		_ = s.Close()
-		return nil, err
-	}
-	if err := s.Start(); err != nil {
-		_ = s.Close()
-		return nil, err
-	}
-	return &sshPTY{session: s}, nil
-}
-
-type sshPTY struct{ session SSHSession }
-
-func (p *sshPTY) Read(dst []byte) (int, error) { return p.session.Read(dst) }
-func (p *sshPTY) WriteInput(data []byte, _ InputKind) error {
-	_, err := p.session.Write(data)
-	return err
-}
-func (p *sshPTY) SetSize(cols, rows uint16) error            { return p.session.Resize(rows, cols) }
-func (p *sshPTY) Close() error                               { return p.session.Close() }
-func (p *sshPTY) Kill() error                                { return p.session.Close() }
-func (p *sshPTY) ExitCode() int                              { return -1 }
-func (p *sshPTY) ProbeReady(context.Context) error           { return nil }
-func (p *sshPTY) CurrentDir(context.Context) (string, error) { return "", nil }
 
 // SameOrigin validates a browser Origin against the request host. It accepts
 // only an explicit HTTP(S) origin with the same authority; callers may handle

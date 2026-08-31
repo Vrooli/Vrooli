@@ -7,14 +7,16 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Shortcut(_message.Message):
-    __slots__ = ("label", "command", "description")
+    __slots__ = ("label", "command", "description", "agent_id")
     LABEL_FIELD_NUMBER: _ClassVar[int]
     COMMAND_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     label: str
     command: str
     description: str
-    def __init__(self, label: _Optional[str] = ..., command: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
+    agent_id: str
+    def __init__(self, label: _Optional[str] = ..., command: _Optional[str] = ..., description: _Optional[str] = ..., agent_id: _Optional[str] = ...) -> None: ...
 
 class Profile(_message.Message):
     __slots__ = ("id", "scope", "name", "shortcuts", "created_at", "updated_at")
@@ -37,10 +39,16 @@ class GetEffectiveRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetEffectiveResponse(_message.Message):
-    __slots__ = ("shortcuts",)
+    __slots__ = ("shortcuts", "profile_id", "scope", "profile_name")
     SHORTCUTS_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_NAME_FIELD_NUMBER: _ClassVar[int]
     shortcuts: _containers.RepeatedCompositeFieldContainer[Shortcut]
-    def __init__(self, shortcuts: _Optional[_Iterable[_Union[Shortcut, _Mapping]]] = ...) -> None: ...
+    profile_id: str
+    scope: str
+    profile_name: str
+    def __init__(self, shortcuts: _Optional[_Iterable[_Union[Shortcut, _Mapping]]] = ..., profile_id: _Optional[str] = ..., scope: _Optional[str] = ..., profile_name: _Optional[str] = ...) -> None: ...
 
 class ListProfilesRequest(_message.Message):
     __slots__ = ()
