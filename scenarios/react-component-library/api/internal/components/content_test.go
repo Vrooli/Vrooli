@@ -2,6 +2,8 @@ package components
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -173,6 +175,37 @@ func TestFSContentStore_MaterializeRestoresByteIdenticalFiles(t *testing.T) {
 	}
 	if string(got) != version.Files[0].Content || digest(got) != version.Files[0].ContentSHA256 {
 		t.Fatalf("materialized bytes differ: %q", got)
+	}
+}
+
+func TestFSContentStore_RestoreRetiredSourceUsesDurableArchive(t *testing.T) {
+	root := t.TempDir()
+	version := ComponentVersion{
+		LibraryID:  "react-component-library:Icon",
+		Version:    "1.1.3",
+		SourcePath: "components/Icon/versions/1.1.3/Icon.tsx",
+	}
+	key := sha256.Sum256([]byte(version.LibraryID + "@" + version.Version))
+	archive := filepath.Join(root, ".retired", hex.EncodeToString(key[:]))
+	if err := os.MkdirAll(archive, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(archive, "Icon.tsx"), []byte("export const Icon = () => null;\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	restored, err := NewFSContentStore(root).RestoreRetiredSource(version)
+	if err != nil {
+		t.Fatalf("RestoreRetiredSource: %v", err)
+	}
+	if !restored {
+		t.Fatal("expected the durable retired archive to be restored")
+	}
+	if _, err := os.Stat(filepath.Join(root, version.SourcePath)); err != nil {
+		t.Fatalf("restored source missing: %v", err)
+	}
+	if _, err := os.Stat(archive); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("retired archive should move atomically, stat error=%v", err)
 	}
 }
 

@@ -5,7 +5,13 @@
   "category": "patterns",
   "deprecatedVersions": [
     "1.0.1",
-    "1.0.3"
+    "1.0.3",
+    "1.0.2",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8"
   ],
   "description": "The resource-list pattern with querying, sorting, filtering, selection, row actions, pagination, every generic state, and responsive row-or-card presentation.",
   "designStyles": [
@@ -27,10 +33,15 @@
   "evictedVersions": [
     "1.0.3",
     "1.0.1",
-    "1.0.2"
+    "1.0.2",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8"
   ],
   "kind": "surface",
-  "latest": "1.0.4",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:ResourceCollection",
   "requires": [
     {

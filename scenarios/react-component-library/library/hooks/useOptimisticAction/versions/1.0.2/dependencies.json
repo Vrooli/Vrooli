@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:useOptimisticAction",
+  "version": "1.0.2",
+  "resolvedAt": "2026-08-31T05:48:44Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:useAsyncAction",
+      "version": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

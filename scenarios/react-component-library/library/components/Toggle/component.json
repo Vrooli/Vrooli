@@ -3,9 +3,7 @@
   "assetKind": "component",
   "catalogId": "controls.toggle",
   "category": "controls",
-  "deprecatedVersions": [
-    "1.0.0"
-  ],
+  "deprecatedVersions": ["1.0.0", "1.0.2", "1.0.1"],
   "description": "A token-bound pressed-state control composed over ControlBase with controlled state, native button semantics, and motion-safe feedback.",
   "designStyles": [
     {
@@ -14,16 +12,11 @@
     }
   ],
   "displayName": "Toggle",
-  "kind": "input",
   "draft": "",
-  "latest": "1.0.1",
+  "evictedVersions": ["1.0.2", "1.0.0", "1.0.1"],
+  "kind": "input",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:Toggle",
   "slot": "ui-primitive",
-  "tags": [
-    "controls",
-    "selection",
-    "accessibility",
-    "motion",
-    "token-bound"
-  ]
+  "tags": ["controls", "selection", "accessibility", "motion", "token-bound"]
 }

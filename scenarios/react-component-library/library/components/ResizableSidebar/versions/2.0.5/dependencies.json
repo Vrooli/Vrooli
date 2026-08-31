@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:ResizableSidebar",
+  "version": "2.0.5",
+  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Resizable",
+      "version": "2.0.4",
+      "rank": 4
+    }
+  ]
+}

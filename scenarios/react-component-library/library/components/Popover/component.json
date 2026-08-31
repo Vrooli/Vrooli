@@ -1,25 +1,24 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "api": {
-    "levels": [
-      "compound",
-      "convenience"
-    ],
-    "modes": [
-      "controlled",
-      "uncontrolled"
-    ],
-    "parts": [
-      "trigger",
-      "content",
-      "arrow"
-    ]
+    "levels": ["compound", "convenience"],
+    "modes": ["controlled", "uncontrolled"],
+    "parts": ["trigger", "content", "arrow"]
   },
   "assetKind": "component",
   "catalogId": "overlays.popover",
   "category": "overlays",
   "deprecatedVersions": [
-    "1.1.1"
+    "1.1.1",
+    "1.1.2",
+    "1.2.0",
+    "1.2.2",
+    "1.2.3",
+    "1.1.0",
+    "1.2.1",
+    "1.0.0",
+    "1.2.4",
+    "1.2.5"
   ],
   "description": "The collision-aware anchored surface with focus management, pointer-safe interaction corridors, arrow positioning, nested layering, and a responsive fallback presentation.",
   "designStyles": [
@@ -38,17 +37,17 @@
     "1.1.1",
     "1.2.2",
     "1.2.0",
-    "1.1.2"
+    "1.1.2",
+    "1.2.3",
+    "1.1.0",
+    "1.2.1",
+    "1.0.0",
+    "1.2.4",
+    "1.2.5"
   ],
   "kind": "overlay",
-  "latest": "1.2.4",
+  "latest": "1.2.6",
   "libraryId": "react-component-library:Popover",
   "slot": "ui-pattern",
-  "tags": [
-    "overlay",
-    "anchored",
-    "accessible",
-    "responsive",
-    "token-bound"
-  ]
+  "tags": ["overlay", "anchored", "accessible", "responsive", "token-bound"]
 }

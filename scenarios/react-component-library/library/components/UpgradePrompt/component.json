@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "monetization.upgrade-prompt",
-  "deprecatedVersions": [
-    "1.0.2"
-  ],
+  "deprecatedVersions": ["1.0.2", "1.0.3", "1.0.4"],
   "description": "Hosted upgrade prompt for a gated capability.",
   "designStyles": [
     {
@@ -18,14 +16,9 @@
   ],
   "displayName": "UpgradePrompt",
   "draft": "",
-  "evictedVersions": [
-    "1.0.2"
-  ],
+  "evictedVersions": ["1.0.2", "1.0.3", "1.0.4"],
   "kind": "surface",
-  "latest": "1.0.3",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:UpgradePrompt",
-  "tags": [
-    "monetization",
-    "upgrade"
-  ]
+  "tags": ["monetization", "upgrade"]
 }

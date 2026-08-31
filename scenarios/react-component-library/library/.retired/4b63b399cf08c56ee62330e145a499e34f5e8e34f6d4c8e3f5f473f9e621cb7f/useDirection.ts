@@ -30,7 +30,10 @@ export type { WritingDirection };
  * the document's direction to a component sitting inside an `rtl` island.
  */
 const subscribe = (onChange: () => void) => {
-  if (typeof document === "undefined" || typeof MutationObserver === "undefined") {
+  if (
+    typeof document === "undefined" ||
+    typeof MutationObserver === "undefined"
+  ) {
     return () => {};
   }
   const observer = new MutationObserver(onChange);
@@ -44,7 +47,9 @@ const subscribe = (onChange: () => void) => {
   };
 };
 
-const readDirection = (element: Element | null | undefined): WritingDirection => {
+const readDirection = (
+  element: Element | null | undefined,
+): WritingDirection => {
   if (typeof document === "undefined") return "ltr";
   const target = element ?? document.documentElement;
 
@@ -63,7 +68,10 @@ const readDirection = (element: Element | null | undefined): WritingDirection =>
   // Direction set through a stylesheet rather than an attribute. This is also
   // the read SidebarShell performed privately before it was routed through this
   // hook, so the fallback preserves the answer that component already had.
-  if (typeof window !== "undefined" && typeof window.getComputedStyle === "function") {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.getComputedStyle === "function"
+  ) {
     return normalizeWritingDirection(window.getComputedStyle(target).direction);
   }
   return normalizeWritingDirection(target.getAttribute?.("dir"));
@@ -83,7 +91,12 @@ const getServerSnapshot = (): WritingDirection => "ltr";
  * anchored to — that is an ergonomic preference carried by `useHandedness`, and
  * the two are combined by `resolveGestureDirection`.
  */
-export function useDirection(elementRef?: RefObject<Element | null>): WritingDirection {
-  const getSnapshot = useCallback(() => readDirection(elementRef?.current), [elementRef]);
+export function useDirection(
+  elementRef?: RefObject<Element | null>,
+): WritingDirection {
+  const getSnapshot = useCallback(
+    () => readDirection(elementRef?.current),
+    [elementRef],
+  );
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

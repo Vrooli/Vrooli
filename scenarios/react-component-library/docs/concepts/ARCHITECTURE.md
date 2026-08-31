@@ -103,6 +103,13 @@ declared light/dark viewport capture matrix.
 Released version directories are immutable. An update begins in a governed
 draft directory, where source, story, and generated obligations can change;
 promotion creates the next released version and records the superseded version
+
+Intra-library imports in newly published source use a major-line selector such
+as `@vrooli/react-component-library/Icon/1`. The generated
+`dependencies.json` remains the derived exact-resolution record and may be
+regenerated without changing authored-source immutability. Retention uses the
+same transitive reachability closure for candidate reporting, eviction, and
+reconciliation.
 in `deprecatedVersions`. The catalog command surface owns open, promote, and
 discard, while the indexer remains the admission boundary for hashes,
 dependencies, and story contracts.

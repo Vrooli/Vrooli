@@ -1,5 +1,9 @@
 import { screen } from "@testing-library/react";
-import { LibraryStringsProvider, defineStrings, useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import {
+  LibraryStringsProvider,
+  defineStrings,
+  useStrings,
+} from "@vrooli/react-component-library/useLocale/1";
 import { renderWithProviders } from "../../test-utils";
 
 function Probe() {
@@ -16,7 +20,9 @@ describe("library strings seam", () => {
     renderWithProviders(
       <LibraryStringsProvider
         strings={defineStrings("controls.example", { "controls.example.save": "Save changes" })}
-        translate={(key, fallback) => (key === "controls.example.save" ? "Guardar cambios" : fallback)}
+        translate={(key, fallback) =>
+          key === "controls.example.save" ? "Guardar cambios" : fallback
+        }
       >
         <Probe />
       </LibraryStringsProvider>,

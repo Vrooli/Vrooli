@@ -130,7 +130,7 @@ export function ThemeSwitcher({
             <select
               data-testid={selectors.components.themeSwitcher.kitSelect}
               value={kit}
-              onChange={(event) => setKit(event.target.value as PreviewKit)}
+              onChange={(event) => setKit(event.target.value)}
               className="h-control-sm min-h-control-sm w-full rounded-md border border-app-border bg-app-surface px-space-2xs text-xs text-app-foreground"
             >
               {previewKits.map((option) => (

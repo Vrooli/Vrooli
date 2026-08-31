@@ -32,7 +32,6 @@ import ar from "./locales/ar.json";
 import en from "./locales/en.json";
 import ja from "./locales/ja.json";
 
-
 interface LocaleConfig {
   /** Native-language label shown in switchers; never translated. */
   nativeLabel: string;
@@ -62,7 +61,7 @@ const detectInitialLocale = (): Locale => {
   if (typeof window === "undefined") return "en";
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (isSupported(stored)) return stored;
-  const primary = window.navigator.language.split("-")[0]?.toLowerCase();
+  const primary = (window.navigator.language ?? "").split("-")[0]?.toLowerCase();
   return isSupported(primary) ? primary : "en";
 };
 

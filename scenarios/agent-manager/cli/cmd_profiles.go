@@ -20,7 +20,7 @@ import (
 
 func (a *App) cmdProfile(args []string) error {
 	if len(args) == 0 {
-		return a.profileHelp()
+		return nil
 	}
 
 	switch args[0] {
@@ -39,36 +39,10 @@ func (a *App) cmdProfile(args []string) error {
 	case "reconcile-scenario":
 		return a.profileReconcileScenario(args[1:])
 	case "help", "-h", "--help":
-		return a.profileHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown profile subcommand: %s\n\nRun 'agent-manager profile help' for usage", args[0])
 	}
-}
-
-func (a *App) profileHelp() error {
-	fmt.Println(`Usage: agent-manager profile <subcommand> [options]
-
-Subcommands:
-  list              List all agent profiles
-  get <id>          Get profile details
-  create            Create a new profile
-  update <id>       Update an existing profile
-  delete <id>       Delete a profile
-  ensure            Resolve profile by key, creating with defaults if needed
-  reconcile-scenario Reconcile profile files declared by a scenario
-
-Options:
-  --json            Output raw JSON
-  --quiet           Output only IDs (for piping)
-
-Examples:
-  agent-manager profile list
-  agent-manager profile get abc123
-  agent-manager profile create --name "My Agent" --role-ref code.default
-  agent-manager profile delete abc123
-  agent-manager profile ensure --key "my-agent" --name "My Agent" --role-ref code.default
-  agent-manager profile reconcile-scenario --scenario swarm-manager`)
-	return nil
 }
 
 // =============================================================================
@@ -138,18 +112,39 @@ func (a *App) profileList(args []string) error {
 func (a *App) profileGet(args []string) error {
 	fs := flag.NewFlagSet("profile get", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
+	key := fs.String("key", "", "Profile key")
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 
 	remaining := fs.Args()
-	if len(remaining) == 0 {
-		return fmt.Errorf("usage: agent-manager profile get <id>")
+	if len(remaining) == 0 && strings.TrimSpace(*key) == "" {
+		return fmt.Errorf("usage: agent-manager profile get <id> | --key <profile-key>")
+	}
+	if len(remaining) > 0 && strings.TrimSpace(*key) != "" {
+		return fmt.Errorf("profile get accepts either an id or --key, not both")
 	}
 
-	id := remaining[0]
-	body, profile, err := a.services.Profiles.Get(id)
+	var body []byte
+	var profile *domainpb.AgentProfile
+	var err error
+	if strings.TrimSpace(*key) != "" {
+		var profiles []*domainpb.AgentProfile
+		body, profiles, err = a.services.Profiles.List(0, 0)
+		for _, candidate := range profiles {
+			if candidate.GetProfileKey() == strings.TrimSpace(*key) {
+				profile = candidate
+				body, err = protoMarshalOptions.Marshal(&apipb.GetProfileResponse{Profile: candidate})
+				break
+			}
+		}
+		if err == nil && profile == nil {
+			err = fmt.Errorf("profile key %q not found", strings.TrimSpace(*key))
+		}
+	} else {
+		body, profile, err = a.services.Profiles.Get(remaining[0])
+	}
 	if err != nil {
 		return err
 	}

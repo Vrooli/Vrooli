@@ -24,6 +24,29 @@ import (
 	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
+func TestPatchVersion(t *testing.T) {
+	require.Equal(t, "1.2.4", patchVersion("1.2.3"))
+	require.Equal(t, "1.2.3-draft", patchVersion("1.2.3-draft"))
+}
+
+func TestMigrationDependencyRankUsesSourceLayer(t *testing.T) {
+	for _, test := range []struct {
+		path string
+		rank int
+	}{
+		{path: "foundations/Tokens/versions/1.0.0/Tokens.tsx", rank: 1},
+		{path: "hooks/useLocale/versions/1.0.0/useLocale.ts", rank: 2},
+		{path: "services/ToastManager/versions/1.0.0/ToastManager.tsx", rank: 3},
+		{path: "primitives/Icon/versions/1.0.0/Icon.tsx", rank: 4},
+		{path: "components/Button/versions/1.0.0/Button.tsx", rank: 5},
+	} {
+		t.Run(test.path, func(t *testing.T) {
+			component := &componentsv1.Component{SourcePath: test.path}
+			require.Equal(t, test.rank, migrationDependencyRank(component))
+		})
+	}
+}
+
 // componentsService is a hand-written ComponentsServiceHandler used as a fake
 // API behind the Connect mux. Mirrors the notes-domain test stub shape.
 type componentsService struct {
@@ -632,7 +655,6 @@ func TestComponentsVersionCreate_ForwardsIntent(t *testing.T) {
 		Flags: []cliapp.Flag{
 			{Name: "from-version"},
 			{Name: "draft"},
-			{Name: "release"},
 			{Name: "file-name"},
 			{Name: "source-file"},
 			{Name: "parity-report"},

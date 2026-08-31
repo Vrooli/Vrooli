@@ -4,7 +4,9 @@
   "catalogId": "primitives.skeleton",
   "deprecatedVersions": [
     "1.0.1",
-    "1.0.3"
+    "1.0.3",
+    "1.0.2",
+    "1.0.4"
   ],
   "description": "",
   "designStyles": [
@@ -26,10 +28,11 @@
   "evictedVersions": [
     "1.0.3",
     "1.0.2",
-    "1.0.1"
+    "1.0.1",
+    "1.0.4"
   ],
   "kind": "surface",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:Skeleton",
   "requires": [
     {

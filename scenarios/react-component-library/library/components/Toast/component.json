@@ -5,7 +5,12 @@
   "category": "feedback",
   "deprecatedVersions": [
     "1.0.3",
-    "1.0.5"
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9"
   ],
   "description": "The transient notification rendered through the shared toast service, with queueing, deduplication, in-place updates, action affordances, timeout policy, and announcement.",
   "designStyles": [
@@ -23,10 +28,14 @@
   "evictedVersions": [
     "1.0.5",
     "1.0.3",
-    "1.0.4"
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9"
   ],
   "kind": "surface",
-  "latest": "1.0.7",
+  "latest": "1.0.10",
   "libraryId": "react-component-library:Toast",
   "requires": [
     {
@@ -35,10 +44,5 @@
     }
   ],
   "slot": "ui-pattern",
-  "tags": [
-    "feedback",
-    "async",
-    "accessibility",
-    "token-bound"
-  ]
+  "tags": ["feedback", "async", "accessibility", "token-bound"]
 }

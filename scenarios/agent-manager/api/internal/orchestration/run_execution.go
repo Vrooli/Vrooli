@@ -278,8 +278,10 @@ func (o *Orchestrator) resumeConversation(ctx context.Context, run *domain.Run, 
 // does not race the background executeContinuation goroutine.
 func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.Run, task *domain.Task, profile *domain.AgentProfile, workDir string) (map[string]string, error) {
 	scopePath := ""
+	repoRoot := ""
 	if task != nil {
 		scopePath = task.ScopePath
+		repoRoot = task.ProjectRoot
 	}
 	identityToken := ""
 	if len(o.identitySecret) > 0 {
@@ -299,6 +301,7 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 		RunMode:       run.RunMode,
 		SandboxID:     run.SandboxID,
 		WorkDir:       workDir,
+		RepoRoot:      repoRoot,
 		ScopePath:     scopePath,
 		IdentityToken: identityToken,
 	})

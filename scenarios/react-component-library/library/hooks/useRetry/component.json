@@ -13,10 +13,5 @@
   "kind": "surface",
   "latest": "1.0.0",
   "libraryId": "react-component-library:useRetry",
-  "tags": [
-    "runtime",
-    "recovery",
-    "async",
-    "accessibility"
-  ]
+  "tags": ["runtime", "recovery", "async", "accessibility"]
 }

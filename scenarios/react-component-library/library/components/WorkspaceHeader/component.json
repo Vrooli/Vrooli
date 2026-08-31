@@ -1,8 +1,10 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
   "category": "navigation",
   "deprecatedVersions": [
-    "1.0.0"
+    "1.0.0",
+    "1.0.1"
   ],
   "description": "A responsive page header with navigation, context, and action slots for operational workspaces.",
   "designStyles": [
@@ -12,17 +14,20 @@
     }
   ],
   "displayName": "Workspace Header",
-  "kind": "shell",
   "draft": "",
-  "latest": "1.0.1",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
+  "kind": "shell",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:WorkspaceHeader",
   "slot": "layout-nav",
+  "supplemental": true,
   "tags": [
     "layout",
     "header",
     "workspace",
     "navigation"
-  ],
-  "assetKind": "component",
-  "supplemental": true
+  ]
 }

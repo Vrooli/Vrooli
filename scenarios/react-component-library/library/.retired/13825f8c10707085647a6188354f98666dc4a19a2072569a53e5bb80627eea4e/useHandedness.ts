@@ -7,7 +7,13 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource hooks.use-handedness */
-import { createContext, createElement, useContext, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useMemo,
+  type ReactNode,
+} from "react";
 
 import {
   resolveAnchorEdge,
@@ -47,7 +53,10 @@ export interface HandednessProviderProps {
  * and whether it syncs across a user's devices, is an application decision; the
  * library's job is to make one answer reach every consumer consistently.
  */
-export function HandednessProvider({ value, children }: HandednessProviderProps) {
+export function HandednessProvider({
+  value,
+  children,
+}: HandednessProviderProps) {
   return createElement(
     HandednessContext.Provider,
     { value: value ?? DEFAULT_HANDEDNESS },
@@ -82,7 +91,9 @@ export interface ResolvedGestureDirection {
  * stylesheet beside it, which is exactly how a drawer ends up gesturing one way
  * and animating the other.
  */
-export function useGestureDirection(intent: GestureIntent): ResolvedGestureDirection {
+export function useGestureDirection(
+  intent: GestureIntent,
+): ResolvedGestureDirection {
   const writingDirection = useDirection();
   const handedness = useHandedness();
   return useMemo(

@@ -1,10 +1,13 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
   "catalogId": "forms.input-group",
   "category": "forms",
   "deprecatedVersions": [
     "1.0.0",
-    "1.1.0"
+    "1.1.0",
+    "1.2.0",
+    "1.2.1"
   ],
   "description": "Field shell that owns border, background and focus ring so an input, its adornments and its buttons render as one control.",
   "designStyles": [
@@ -25,10 +28,12 @@
   "draft": "",
   "evictedVersions": [
     "1.1.0",
-    "1.0.0"
+    "1.0.0",
+    "1.2.0",
+    "1.2.1"
   ],
   "kind": "input",
-  "latest": "1.2.1",
+  "latest": "1.2.2",
   "libraryId": "react-component-library:InputGroup",
   "slot": "ui-primitive",
   "tags": [
@@ -36,6 +41,5 @@
     "control",
     "token-bound",
     "compound"
-  ],
-  "assetKind": "component"
+  ]
 }

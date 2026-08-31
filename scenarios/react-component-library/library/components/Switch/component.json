@@ -5,7 +5,14 @@
   "category": "controls",
   "deprecatedVersions": [
     "1.0.2",
-    "1.0.4"
+    "1.0.4",
+    "1.0.10",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9",
+    "1.0.11"
   ],
   "description": "The binary settings control with spring-driven thumb motion, label association, loading state for remotely persisted settings, and read-only and disabled treatments.",
   "designStyles": [
@@ -25,16 +32,12 @@
     "1.0.8",
     "1.0.7",
     "1.0.6",
-    "1.0.10"
+    "1.0.10",
+    "1.0.11"
   ],
   "kind": "input",
-  "latest": "1.0.11",
+  "latest": "1.0.12",
   "libraryId": "react-component-library:Switch",
   "slot": "ui-primitive",
-  "tags": [
-    "controls",
-    "selection",
-    "accessibility",
-    "token-bound"
-  ]
+  "tags": ["controls", "selection", "accessibility", "token-bound"]
 }

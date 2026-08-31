@@ -63,7 +63,16 @@ func AnnotateFindings(root, gate string, result *gates.Result) error {
 }
 
 func annotateFinding(root, gate string, finding *gates.Finding) error {
-	if finding.AssetID == "" || len(finding.AssetID) >= 10 && finding.AssetID[:10] == "__corpus__." {
+	if finding.AssetID == "" || isNonCatalogObservation(finding.AssetID) {
+		finding.RuleSource = gates.RuleSourceCorpus
+		finding.RuleDeclaredIn = filepath.ToSlash(filepath.Join("scenarios", "react-component-library", "catalog", "config.json"))
+		return nil
+	}
+	// Corpus-scoped runners may include the most useful source asset in their
+	// diagnostic, but that asset is context rather than the rule's attribution
+	// boundary. Keep the finding corpus-scoped instead of requiring an
+	// applicability binding that the corpus gate intentionally does not have.
+	if definition, ok := gates.Lookup(gate); ok && definition.CorpusScoped {
 		finding.RuleSource = gates.RuleSourceCorpus
 		finding.RuleDeclaredIn = filepath.ToSlash(filepath.Join("scenarios", "react-component-library", "catalog", "config.json"))
 		return nil

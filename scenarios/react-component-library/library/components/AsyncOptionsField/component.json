@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.async-options-field",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.5"
-  ],
+  "deprecatedVersions": ["1.0.3", "1.0.5", "1.0.4", "1.0.6", "1.0.7", "1.0.0"],
   "description": "The reusable controller for remote choices with query debouncing, cancellation, caching, pagination, error handling, retry, and stale-result protection.",
   "designStyles": [
     {
@@ -23,13 +20,9 @@
   ],
   "displayName": "AsyncOptionsField",
   "draft": "",
-  "evictedVersions": [
-    "1.0.5",
-    "1.0.3",
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.5", "1.0.3", "1.0.4", "1.0.6", "1.0.7", "1.0.0"],
   "kind": "input",
-  "latest": "1.0.7",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:AsyncOptionsField",
   "requires": [
     {

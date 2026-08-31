@@ -14,44 +14,11 @@ import (
 // =============================================================================
 
 func (a *App) cmdRunner(args []string) error {
-	if len(args) == 0 {
-		return a.runnerHelp()
-	}
-
-	switch args[0] {
-	case "list":
-		return a.runnerList(args[1:])
-	case "probe":
-		return a.runnerProbe(args[1:])
-	case "tools":
-		return a.runnerTools(args[1:])
-	case "help", "-h", "--help":
-		return a.runnerHelp()
-	default:
-		return fmt.Errorf("unknown runner subcommand: %s\n\nRun 'agent-manager runner help' for usage", args[0])
-	}
-}
-
-func (a *App) runnerHelp() error {
-	fmt.Println(`Usage: agent-manager runner <subcommand> [options]
-
-Subcommands:
-  list              List all runners and their status
-  probe <type>      Probe a specific runner to verify it can respond
-  tools             List canonical tools and each runner's enforcement mapping
-
-Runner Types:
-  claude-code       Claude Code runner
-  codex             OpenAI Codex runner
-  opencode          OpenCode runner
-
-Options:
-  --json            Output raw JSON
-
-Examples:
-  agent-manager runner list
-  agent-manager runner probe claude-code`)
-	return nil
+	return dispatchSubcommand(args, "runner", map[string]subcommandHandler{
+		"list":  a.runnerList,
+		"probe": a.runnerProbe,
+		"tools": a.runnerTools,
+	})
 }
 
 func (a *App) runnerTools(args []string) error {

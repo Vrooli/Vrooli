@@ -14,5 +14,6 @@
     "manualReview": true
   },
   "networkAccess": "NETWORK_ACCESS_LOCALHOST",
-  "createdBy": "agent-manager"
+  "createdBy": "agent-manager",
+  "effort": "medium"
 }

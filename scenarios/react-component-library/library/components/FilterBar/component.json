@@ -3,7 +3,10 @@
   "assetKind": "component",
   "catalogId": "data-display.filter-bar",
   "deprecatedVersions": [
-    "1.1.3"
+    "1.1.3",
+    "1.1.4",
+    "1.1.5",
+    "1.0.0"
   ],
   "description": "A responsive query surface with search, active-filter chips, reset, and explicit apply semantics.",
   "designStyles": [
@@ -15,10 +18,13 @@
   "displayName": "FilterBar",
   "draft": "",
   "evictedVersions": [
-    "1.1.3"
+    "1.1.3",
+    "1.1.4",
+    "1.1.5",
+    "1.0.0"
   ],
   "kind": "surface",
-  "latest": "1.1.4",
+  "latest": "1.1.6",
   "libraryId": "react-component-library:FilterBar",
   "requires": [
     {

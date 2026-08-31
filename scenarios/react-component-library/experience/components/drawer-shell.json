@@ -6,7 +6,7 @@
     "id": "drawer-shell",
     "title": "DrawerShell",
     "purpose": "Provide an accessible overlay that names its purpose, exposes a close action, and keeps its dialog content distinct from the underlying workspace.",
-    "storyRef": "../../library/components/DrawerShell/versions/1.1.3/story.json",
+    "storyRef": "../../library/components/DrawerShell/versions/1.1.8/story.json",
     "prd_refs": ["OT-P0-001", "OT-P0-003"]
   },
   "priorities": [

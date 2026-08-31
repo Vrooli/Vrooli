@@ -2,6 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "motion.presence",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -18,17 +22,18 @@
     }
   ],
   "displayName": "Presence",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
   "kind": "surface",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:Presence",
   "tags": [
     "primitive",
     "motion",
     "accessibility",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
   ]
 }

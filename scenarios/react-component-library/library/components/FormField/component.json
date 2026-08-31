@@ -2,6 +2,11 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.form-field",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
   "description": "A complete accessible field composition with stable label, description, control, and error relationships.",
   "designStyles": [
     {
@@ -10,17 +15,19 @@
     }
   ],
   "displayName": "FormField",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
   "kind": "input",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:FormField",
   "tags": [
     "form",
     "accessibility",
     "token-bound",
     "compound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
   ]
 }

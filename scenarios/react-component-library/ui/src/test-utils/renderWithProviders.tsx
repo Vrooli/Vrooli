@@ -44,13 +44,12 @@ export function renderWithProviders(
   const entries = routerEntries ?? initialEntries ?? (route ? [route] : ["/"]);
   const shouldUseRouter = withRouter === undefined ? !withoutRouter : withRouter;
   const routed = shouldUseRouter ? (
-    <MemoryRouter
-      initialEntries={entries}
-      initialIndex={initialIndex}
-    >
+    <MemoryRouter initialEntries={entries} initialIndex={initialIndex}>
       {ui}
     </MemoryRouter>
-  ) : ui;
+  ) : (
+    ui
+  );
 
   return renderWithBaseProviders(routed, {
     i18n,

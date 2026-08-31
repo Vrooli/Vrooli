@@ -3,6 +3,9 @@ package catalog
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -20,6 +23,40 @@ type handlers struct {
 	client     catalogconnect.CatalogServiceClient
 	components componentsconnect.ComponentsServiceClient
 	lifecycle  versionsconnect.VersionLifecycleServiceClient
+}
+
+func (h *handlers) corpusReport(_ cliapp.RunContext) error {
+	root, err := scenarioRoot()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("go", "run", "./cmd/corpus-report", "--root", filepath.Join(root, "..", "..")) // #nosec G204 -- fixed command and repository-owned root
+	cmd.Dir = filepath.Join(root, "api")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+func scenarioRoot() (string, error) {
+	starts := []string{}
+	if cwd, err := os.Getwd(); err == nil {
+		starts = append(starts, cwd)
+	}
+	if envRoot := os.Getenv("SCENARIO_PATH"); envRoot != "" {
+		starts = append(starts, envRoot)
+	}
+	for _, start := range starts {
+		for current := filepath.Clean(start); ; current = filepath.Dir(current) {
+			if _, err := os.Stat(filepath.Join(current, "api", "cmd", "corpus-report", "main.go")); err == nil {
+				return current, nil
+			}
+			parent := filepath.Dir(current)
+			if parent == current {
+				break
+			}
+		}
+	}
+	return "", fmt.Errorf("cannot locate react-component-library scenario root")
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -141,31 +178,6 @@ func (h *handlers) scoreHistory(ctx cliapp.RunContext) error {
 		results = append(results, fmt.Sprintf("%s score %.1f%%; at 100%% %d; below 50%% %d", point.RecordedAt, point.Score, point.AssetsAt_100, point.AssetsBelow_50))
 	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Score history: %d day(s).", len(results))}, ResultsHeading: "Daily score", Results: results})
-}
-
-func (h *handlers) health(ctx cliapp.RunContext) error {
-	resp, err := h.client.GetHealthOverview(context.Background(), connect.NewRequest(&catalogv1.GetHealthOverviewRequest{}))
-	if err != nil {
-		return cliapp.WrapAPIError("get catalog health", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no catalog health")
-	}
-	results := make([]string, 0, len(resp.Msg.Nodes))
-	for _, node := range resp.Msg.Nodes {
-		if node.Asset != nil {
-			results = append(results, fmt.Sprintf("%s %s score %.1f%% stale %.1fd", node.Asset.AssetId, node.Health, node.Score, node.StalenessDays))
-		}
-	}
-	for _, mismatch := range resp.Msg.KindMismatches {
-		results = append(results, fmt.Sprintf("kind mismatch %s: declared %s, derived %s", mismatch.AssetId, mismatch.DeclaredKind, mismatch.DerivedKind))
-	}
-	for _, capability := range resp.Msg.Coverage.GetCapabilityCoverage() {
-		if !capability.GetCheckable() {
-			results = append(results, fmt.Sprintf("capability %s: %s; declared by %d asset(s); %s", capability.GetCapability(), capability.GetStatus(), capability.GetDeclaredAssetCount(), strings.Join(capability.GetBlockers(), "; ")))
-		}
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Health nodes: %d; promote: %d; quarantined gates: %d; kind mismatches: %d; instrument-moved: %d; composition median %.3f across %d captured asset(s); bespoke escapes %d; declared capabilities %d across %d asset(s); uncheckable %d asset(s); unmeasured %d asset(s).", len(resp.Msg.Nodes), len(resp.Msg.Promote), len(resp.Msg.QuarantinedGates), resp.Msg.KindMismatchCount, resp.Msg.InstrumentMovedCount, resp.Msg.Coverage.GetCompositionMedian(), len(resp.Msg.Coverage.GetCompositionScores()), resp.Msg.Coverage.GetBespokeEscapeCount(), resp.Msg.Coverage.GetCapabilityDeclarationCount(), resp.Msg.Coverage.GetDeclaredCapabilityAssetCount(), resp.Msg.Coverage.GetDeclaredUncheckableAssetCount(), resp.Msg.Coverage.GetUnmeasuredCapabilityAssetCount())}, ResultsHeading: "Asset health", Results: results})
 }
 
 func (h *handlers) readiness(ctx cliapp.RunContext) error {

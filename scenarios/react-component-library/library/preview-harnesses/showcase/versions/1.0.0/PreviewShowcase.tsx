@@ -50,7 +50,9 @@ export function PreviewShowcase({
         borderRadius: "var(--radius-panel, 12px)",
         background: "var(--color-surface-raised)",
         color: "var(--color-foreground)",
-        boxShadow: compact ? "none" : "var(--elev-raised, 0 12px 32px rgb(15 23 42 / 12%))",
+        boxShadow: compact
+          ? "none"
+          : "var(--elev-raised, 0 12px 32px rgb(15 23 42 / 12%))",
       }}
     >
       <header
@@ -85,7 +87,11 @@ export function PreviewShowcase({
       </header>
       <div
         data-preview-harness-subject
-        style={{ display: "grid", justifyItems: compact ? "start" : "center", minWidth: 0 }}
+        style={{
+          display: "grid",
+          justifyItems: compact ? "start" : "center",
+          minWidth: 0,
+        }}
       >
         <Subject {...args} />
       </div>

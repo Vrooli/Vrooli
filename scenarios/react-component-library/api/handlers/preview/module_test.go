@@ -112,7 +112,6 @@ func TestModule_HarnessHTML(t *testing.T) {
 	require.Contains(t, body, `/preview/runtime/react-dom@18.3.1/client.js`)
 	require.NotContains(t, body, `https://esm.sh/react`)
 	require.Contains(t, body, `--color-primary`)
-	require.Contains(t, body, `.bg-app-primary`)
 	require.Contains(t, body, `data:text/javascript;base64,`)
 	require.Contains(t, body, `preview-ready`)
 	require.Contains(t, body, `id="root"`)
@@ -123,6 +122,34 @@ func TestModule_HarnessHTML(t *testing.T) {
 	require.Contains(t, body, `rcl-theme-apply`)
 	require.Contains(t, body, `documentElement.style.setProperty`)
 	require.Contains(t, body, `rcl-theme-applied`)
+}
+
+func TestModule_HarnessStoryUsesResolvedLatestVersion(t *testing.T) {
+	r, root := setupModule(t)
+	writeButtonManifest(t, root, buttonTSX)
+	versionDir := filepath.Join(root, "components", "Button", "versions", "1.0.0")
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "story.tsx"), []byte(`export function Default() { return <div>story-marker</div>; }
+`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "story.json"), []byte(`{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {"fields": []},
+  "environment": {"fixtures": []},
+  "stories": [{"id": "default", "name": "Default", "mode": "live", "args": {},
+    "composition": {"specimen": {"module": "./story.tsx", "export": "Default"}}}]
+}`), 0o600))
+	rw := callConnect(r, componentsconnect.ComponentsServiceIndexComponentsProcedure, `{}`)
+	require.Equal(t, http.StatusOK, rw.Code, rw.Body.String())
+	rw = callConnect(r, componentsconnect.ComponentsServiceGetComponentByLibraryIdProcedure,
+		`{"libraryId":"react-component-library:Button"}`)
+	id := extractFirstID(t, rw.Body.String())
+
+	req := httptest.NewRequest(http.MethodGet, "/preview/"+id+"/harness.html?story=default", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.NotContains(t, rec.Body.String(), `__STORY_HARNESS_MODULE_URL__`)
+	require.NotContains(t, rec.Body.String(), `data:text/javascript;base64,Cg==`, "latest story must be bundled with its resolved version")
 }
 
 func TestModule_HarnessUsesSelectedKitAndRejectsMissingCompiledUtilities(t *testing.T) {

@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "useOverlaySurface",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Default" }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface.backdrop']"
+        }
+      ]
+    },
+    {
+      "id": "with-swipe-dismissal",
+      "name": "With swipe dismissal",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "WithSwipeDismissal" }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='runtime.use-overlay-surface.grabber']"
+        }
+      ]
+    }
+  ]
+}

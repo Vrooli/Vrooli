@@ -1,12 +1,17 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
   "catalogId": "controls.icon-button",
   "deprecatedVersions": [
     "2.0.0",
     "2.0.1",
     "3.0.0",
     "3.0.1",
-    "3.1.0"
+    "3.1.0",
+    "3.1.1",
+    "2.0.2",
+    "3.1.3",
+    "3.1.2"
   ],
   "description": "Icon-only action with a real hover surface, circular by default, animating whenever its icon changes.",
   "designStyles": [
@@ -19,18 +24,19 @@
   "draft": "",
   "entry": "IconButton.tsx",
   "evictedVersions": [
-    "3.1.0",
-    "3.0.1",
-    "3.0.0"
+    "3.1.3",
+    "3.1.1",
+    "2.0.2",
+    "2.0.1",
+    "3.1.2"
   ],
   "kind": "control",
-  "latest": "3.1.2",
+  "latest": "3.1.4",
   "libraryId": "react-component-library:IconButton",
   "tags": [
     "button",
     "icon",
     "accessibility",
     "motion"
-  ],
-  "assetKind": "component"
+  ]
 }

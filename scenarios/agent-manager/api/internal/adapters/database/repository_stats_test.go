@@ -80,7 +80,7 @@ func TestStatsRepositoryAggregatesDurableRunEvidence(t *testing.T) {
 	if rate, err := stats.GetSuccessRate(ctx, filter); err != nil || rate != 0.5 {
 		t.Fatalf("success rate=%v err=%v", rate, err)
 	}
-	if duration, err := stats.GetDurationStats(ctx, filter); err != nil || duration.Count != 2 || duration.AvgMs <= 0 {
+	if duration, err := stats.GetDurationStats(ctx, filter); err != nil || duration.Count != 2 || duration.AvgMs <= 0 || duration.P50Ms != 2000 || duration.P95Ms != 4000 || duration.P99Ms != 4000 {
 		t.Fatalf("duration stats=%+v err=%v", duration, err)
 	}
 	cost, err := stats.GetCostStats(ctx, filter)
@@ -90,7 +90,7 @@ func TestStatsRepositoryAggregatesDurableRunEvidence(t *testing.T) {
 	if runners, err := stats.GetRunnerBreakdown(ctx, filter); err != nil || len(runners) != 2 {
 		t.Fatalf("runner breakdown=%+v err=%v", runners, err)
 	}
-	if profiles, err := stats.GetProfileBreakdown(ctx, filter, 10); err != nil || len(profiles) != 1 || profiles[0].ProfileID != profile.ID || profiles[0].ProfileName != profile.Name {
+	if profiles, err := stats.GetProfileBreakdown(ctx, filter, 10); err != nil || len(profiles) != 1 || profiles[0].ProfileID != profile.ID.String() || profiles[0].ProfileName != profile.Name {
 		t.Fatalf("profile breakdown=%+v err=%v", profiles, err)
 	}
 	if models, err := stats.GetModelBreakdown(ctx, filter, 10); err != nil || len(models) != 2 {
@@ -151,5 +151,30 @@ func TestStatsRepositoryAggregatesDurableRunEvidence(t *testing.T) {
 		if getBucketSQL(bucket) == "" {
 			t.Fatalf("bucket SQL empty for %s", bucket)
 		}
+	}
+}
+
+func TestStatsRepositoryReportsLiteralHistoricalIdentifiers(t *testing.T) {
+	ctx := context.Background()
+	db, cleanup := setupTestDB(t)
+	t.Cleanup(cleanup)
+	stats := NewRepositories(db, logrus.New()).Stats
+	now := time.Date(2026, 1, 2, 12, 0, 0, 0, time.UTC)
+	readModel := NewRepositories(db, logrus.New()).InvocationReadModel.(invocationreadmodel.RunStore)
+	if err := readModel.ReplaceRun(ctx, invocationreadmodel.RunFact{
+		RunID: "unknown-stats-run", OccurredAt: now, CreatedAt: now, DurationMS: 1000,
+		Status: "complete", ProfileID: "unknown", RunnerType: "codex", Model: "unknown",
+		ProjectedAt: now,
+	}); err != nil {
+		t.Fatalf("project historical run: %v", err)
+	}
+	filter := repository.StatsFilter{Window: repository.StatsTimeWindow{Start: now.Add(-time.Hour), End: now.Add(time.Hour)}}
+	profiles, err := stats.GetProfileBreakdown(ctx, filter, 10)
+	if err != nil || len(profiles) != 1 || profiles[0].ProfileID != "unknown" {
+		t.Fatalf("profile breakdown=%+v err=%v", profiles, err)
+	}
+	models, err := stats.GetModelBreakdown(ctx, filter, 10)
+	if err != nil || len(models) != 1 || models[0].Model != "unknown" {
+		t.Fatalf("model breakdown=%+v err=%v", models, err)
 	}
 }

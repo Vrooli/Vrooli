@@ -25,14 +25,20 @@ export type { WritingDirection };
  * treats the reduced-motion media query.
  */
 const subscribe = (onChange: () => void) => {
-  if (typeof document === "undefined" || typeof MutationObserver === "undefined") {
+  if (
+    typeof document === "undefined" ||
+    typeof MutationObserver === "undefined"
+  ) {
     return () => {};
   }
   // `dir` is inherited, so a change on either the root or the body can alter
   // what a subtree resolves to. Watching both costs one observer and closes the
   // common case where an app sets direction on `body`.
   const observer = new MutationObserver(onChange);
-  const options: MutationObserverInit = { attributes: true, attributeFilter: ["dir", "lang"] };
+  const options: MutationObserverInit = {
+    attributes: true,
+    attributeFilter: ["dir", "lang"],
+  };
   observer.observe(document.documentElement, options);
   if (document.body) observer.observe(document.body, options);
   return () => {
@@ -47,7 +53,10 @@ const getSnapshot = (): WritingDirection => {
   // SidebarShell has always compared against — reading the same source keeps
   // the hook and the components that bypassed it from disagreeing.
   const root = document.documentElement;
-  if (typeof window !== "undefined" && typeof window.getComputedStyle === "function") {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.getComputedStyle === "function"
+  ) {
     return normalizeWritingDirection(window.getComputedStyle(root).direction);
   }
   return normalizeWritingDirection(root.dir);

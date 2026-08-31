@@ -2,9 +2,12 @@ package components
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,7 +23,10 @@ import (
 	componenttestsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/componenttests/componenttests_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 )
+
+var migrationLibrarySpecifier = regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\d+(?:\.\d+\.\d+)?))?`)
 
 // handlers bundles the closure over *cliapp.ScenarioApp + the generated
 // Connect-Go client, mirroring the cli/domains/notes/ shape.
@@ -410,8 +416,6 @@ func (h *handlers) versionCreate(ctx cliapp.RunContext) error {
 	switch {
 	case ctx.Flag("draft") == "true":
 		req.Intent = componentsv1.ComponentVersionIntent_COMPONENT_VERSION_INTENT_DRAFT
-	case ctx.Flag("release") == "true":
-		req.Intent = componentsv1.ComponentVersionIntent_COMPONENT_VERSION_INTENT_RELEASE
 	}
 	if src := ctx.Flag("source-file"); src != "" {
 		body, err := readSourceArg(src)
@@ -535,11 +539,12 @@ func (h *handlers) republishDependents(ctx cliapp.RunContext) error {
 	}
 	var dependents []*componentsv1.Component
 	for _, component := range listed.Msg.Components {
-		for _, dependency := range component.Dependencies {
-			if dependency.LibraryId == asset && dependency.Version != targetVersion {
-				dependents = append(dependents, component)
-				break
-			}
+		// The indexed dependency version is the resolved lock, not the
+		// authored selector. Inspect the latest authored source as well so a
+		// one-time migration can republish exact pins even when the selected
+		// release is already the dependency's latest release.
+		if hasExactLibrarySpecifier(component, asset) {
+			dependents = append(dependents, component)
 		}
 	}
 	sort.Slice(dependents, func(i, j int) bool {
@@ -557,6 +562,9 @@ func (h *handlers) republishDependents(ctx cliapp.RunContext) error {
 			if beginErr != nil {
 				return cliapp.WrapAPIError("begin dependent draft", beginErr, nil)
 			}
+			if normalizeErr := h.normalizeDraftLibrarySpecifiers(component, draft.Msg.Version.Version, listed.Msg.Components); normalizeErr != nil {
+				return normalizeErr
+			}
 			published, publishErr := h.client.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{Component: component.LibraryId, DraftVersion: draft.Msg.Version.Version}))
 			if publishErr != nil {
 				return cliapp.WrapAPIError("publish dependent", publishErr, nil)
@@ -570,9 +578,273 @@ func (h *handlers) republishDependents(ctx cliapp.RunContext) error {
 		mode = "applied"
 	}
 	return cliapp.RenderProtoList(ctx, listed.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Dependent republish %s: %d asset(s) reference an older %s release.", mode, len(dependents), asset)},
+		Summary:        []string{fmt.Sprintf("Dependent republish %s: %d asset(s) contain exact selectors for %s (requested target %s).", mode, len(dependents), asset, targetVersion)},
 		ResultsHeading: "Dependents in dependency-rank order", Results: results,
 	})
+}
+
+func (h *handlers) migrateSpecifiers(ctx cliapp.RunContext) error {
+	listed, err := h.client.ListComponents(context.Background(), connect.NewRequest(&componentsv1.ListComponentsRequest{Limit: 1000}))
+	if err != nil {
+		return cliapp.WrapAPIError("list components for specifier migration", err, nil)
+	}
+	dependents := make([]*componentsv1.Component, 0)
+	for _, component := range listed.Msg.Components {
+		if hasAnyExactLibrarySpecifier(component) {
+			dependents = append(dependents, component)
+		}
+	}
+	sort.Slice(dependents, func(i, j int) bool { return dependents[i].LibraryId < dependents[j].LibraryId })
+	apply := ctx.Flag("apply") != ""
+	results := make([]string, 0, len(dependents))
+	for _, component := range dependents {
+		line := fmt.Sprintf("%s current=%s", component.LibraryId, component.LatestVersion)
+		if apply {
+			draft, beginErr := h.client.BeginComponentVersion(context.Background(), connect.NewRequest(&componentsv1.BeginComponentVersionRequest{Component: component.LibraryId, Bump: "patch"}))
+			if beginErr != nil {
+				return cliapp.WrapAPIError("begin specifier migration draft", beginErr, nil)
+			}
+			if normalizeErr := h.normalizeDraftLibrarySpecifiers(component, draft.Msg.Version.Version, listed.Msg.Components); normalizeErr != nil {
+				return normalizeErr
+			}
+			published, publishErr := h.client.PublishComponentVersion(context.Background(), connect.NewRequest(&componentsv1.PublishComponentVersionRequest{Component: component.LibraryId, DraftVersion: draft.Msg.Version.Version}))
+			if publishErr != nil {
+				return cliapp.WrapAPIError("publish specifier migration", publishErr, nil)
+			}
+			line += " published=" + published.Msg.Version.Version
+		}
+		results = append(results, line)
+	}
+	mode := "dry-run"
+	if apply {
+		mode = "applied"
+	}
+	return cliapp.RenderProtoList(ctx, listed.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Specifier migration %s: %d latest asset(s) contain exact selectors.", mode, len(dependents))},
+		ResultsHeading: "Assets requiring major-line migration", Results: results,
+	})
+}
+
+type specifierMigrationPlanItem struct {
+	Order          int    `json:"order"`
+	LibraryID      string `json:"library_id"`
+	Current        string `json:"current_version"`
+	Next           string `json:"next_version"`
+	DependencyRank int    `json:"dependency_rank"`
+}
+
+// republishPlan is deliberately read-only. It records the deterministic
+// migration order before any draft is opened, so an interrupted migration can
+// be resumed from an explicit plan rather than from a partially observed tree.
+func (h *handlers) republishPlan(ctx cliapp.RunContext) error {
+	listed, err := h.client.ListComponents(context.Background(), connect.NewRequest(&componentsv1.ListComponentsRequest{Limit: 1000}))
+	if err != nil {
+		return cliapp.WrapAPIError("list components for republish plan", err, nil)
+	}
+	items := make([]specifierMigrationPlanItem, 0)
+	for _, component := range listed.Msg.Components {
+		if !hasAnyExactLibrarySpecifier(component) {
+			continue
+		}
+		rank := migrationDependencyRank(component)
+		items = append(items, specifierMigrationPlanItem{
+			LibraryID: component.LibraryId, Current: component.LatestVersion,
+			Next: patchVersion(component.LatestVersion), DependencyRank: rank,
+		})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].DependencyRank != items[j].DependencyRank {
+			return items[i].DependencyRank < items[j].DependencyRank
+		}
+		return items[i].LibraryID < items[j].LibraryID
+	})
+	for i := range items {
+		items[i].Order = i + 1
+	}
+	payload := struct {
+		SchemaVersion int                          `json:"schema_version"`
+		Count         int                          `json:"count"`
+		Items         []specifierMigrationPlanItem `json:"items"`
+	}{SchemaVersion: 1, Count: len(items), Items: items}
+	if ctx.JSON() {
+		return cliapp.PrintJSON(ctx.Stdout(), payload)
+	}
+	results := make([]string, 0, len(items))
+	for _, item := range items {
+		results = append(results, fmt.Sprintf("%03d rank=%d %s current=%s next=%s", item.Order, item.DependencyRank, item.LibraryID, item.Current, item.Next))
+	}
+	return ctx.RenderList(cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Specifier republish plan: %d asset(s).", len(items))},
+		ResultsHeading: "Dependency-rank-ordered migration", Results: results,
+	})
+}
+
+func patchVersion(version string) string {
+	parts := strings.Split(version, ".")
+	if len(parts) != 3 {
+		return version
+	}
+	patch, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return version
+	}
+	return fmt.Sprintf("%s.%s.%d", parts[0], parts[1], patch+1)
+}
+
+func migrationDependencyRank(component *componentsv1.Component) int {
+	if component == nil {
+		return 0
+	}
+	// Lower-level assets must be republished before their consumers. The
+	// SourcePath carries the catalog's stable dependency-layer ordering. The
+	// generated Component message intentionally exposes only component versus
+	// hook, which is not enough to order foundations, services, and primitives.
+	parts := strings.Split(filepath.ToSlash(component.SourcePath), "/")
+	if len(parts) == 0 {
+		return 5
+	}
+	switch parts[0] {
+	case "foundations":
+		return 1
+	case "hooks":
+		return 2
+	case "services", "adapters":
+		return 3
+	case "primitives":
+		return 4
+	default:
+		return 5
+	}
+}
+
+func hasExactLibrarySpecifier(component *componentsv1.Component, asset string) bool {
+	if component == nil || component.SourcePath == "" {
+		return false
+	}
+	root := cliutil.ResolveRepoRoot()
+	assetRoot := filepath.Join(root, "scenarios/react-component-library/library", filepath.FromSlash(component.SourcePath))
+	marker := string(filepath.Separator) + "versions" + string(filepath.Separator)
+	if index := strings.Index(assetRoot, marker); index >= 0 {
+		assetRoot = assetRoot[:index]
+	}
+	manifestPath := filepath.Join(assetRoot, "component.json")
+	manifest, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return false
+	}
+	var metadata struct {
+		Latest string `json:"latest"`
+	}
+	if err := json.Unmarshal(manifest, &metadata); err != nil || metadata.Latest == "" {
+		return false
+	}
+	versionRoot := filepath.Join(assetRoot, "versions", metadata.Latest)
+	entries, err := os.ReadDir(versionRoot)
+	if err != nil {
+		return false
+	}
+	name := strings.TrimPrefix(asset, "react-component-library:")
+	exact := regexp.MustCompile(`@vrooli/react-component-library/` + regexp.QuoteMeta(name) + `/\d+\.\d+\.\d+`)
+	for _, entry := range entries {
+		if entry.IsDir() || (filepath.Ext(entry.Name()) != ".ts" && filepath.Ext(entry.Name()) != ".tsx") {
+			continue
+		}
+		body, readErr := os.ReadFile(filepath.Join(versionRoot, entry.Name()))
+		if readErr == nil && exact.Match(body) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAnyExactLibrarySpecifier(component *componentsv1.Component) bool {
+	if component == nil || component.SourcePath == "" {
+		return false
+	}
+	root := cliutil.ResolveRepoRoot()
+	assetRoot := filepath.Join(root, "scenarios/react-component-library/library", filepath.FromSlash(component.SourcePath))
+	marker := string(filepath.Separator) + "versions" + string(filepath.Separator)
+	if index := strings.Index(assetRoot, marker); index >= 0 {
+		assetRoot = assetRoot[:index]
+	}
+	manifest, err := os.ReadFile(filepath.Join(assetRoot, "component.json"))
+	if err != nil {
+		return false
+	}
+	var metadata struct {
+		Latest string `json:"latest"`
+	}
+	if json.Unmarshal(manifest, &metadata) != nil || metadata.Latest == "" {
+		return false
+	}
+	versionRoot := filepath.Join(assetRoot, "versions", metadata.Latest)
+	exact := regexp.MustCompile(`@vrooli/react-component-library/[A-Za-z][A-Za-z0-9-]*/\d+\.\d+\.\d+`)
+	var found bool
+	_ = filepath.WalkDir(versionRoot, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() || found || (filepath.Ext(entry.Name()) != ".ts" && filepath.Ext(entry.Name()) != ".tsx") {
+			return nil
+		}
+		body, readErr := os.ReadFile(path)
+		if readErr == nil && exact.Match(body) {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
+
+// normalizeDraftLibrarySpecifiers changes only the newly-created draft. A
+// republish must migrate copied historical source whose exact dependency has
+// since been retired; the release publisher then freezes the major-line
+// imports into the new release and regenerates its exact-resolution lock.
+func (h *handlers) normalizeDraftLibrarySpecifiers(component *componentsv1.Component, draftVersion string, candidates []*componentsv1.Component) error {
+	latest := make(map[string]string, len(candidates))
+	for _, candidate := range candidates {
+		latest[candidate.LibraryId] = candidate.LatestVersion
+	}
+	repoRoot := cliutil.ResolveRepoRoot()
+	versionDir := filepath.Dir(filepath.Join(repoRoot, "scenarios/react-component-library/library", filepath.FromSlash(component.SourcePath)))
+	draftDir := filepath.Join(filepath.Dir(versionDir), draftVersion)
+	entries, err := os.ReadDir(draftDir)
+	if err != nil {
+		return fmt.Errorf("read dependent draft %s: %w", component.LibraryId, err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || (filepath.Ext(entry.Name()) != ".ts" && filepath.Ext(entry.Name()) != ".tsx") {
+			continue
+		}
+		path := filepath.Join(draftDir, entry.Name())
+		body, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read dependent draft file %s: %w", path, err)
+		}
+		normalized := migrationLibrarySpecifier.ReplaceAllStringFunc(string(body), func(specifier string) string {
+			match := migrationLibrarySpecifier.FindStringSubmatch(specifier)
+			if len(match) != 3 {
+				return specifier
+			}
+			active := latest["react-component-library:"+match[1]]
+			if active == "" {
+				return specifier
+			}
+			return "@vrooli/react-component-library/" + match[1] + "/" + strings.Split(active, ".")[0]
+		})
+		if normalized == string(body) {
+			continue
+		}
+		if _, err := h.client.UpdateComponentContent(context.Background(), connect.NewRequest(&componentsv1.UpdateComponentContentRequest{Id: component.LibraryId, Path: entry.Name(), Content: normalized})); err != nil {
+			return cliapp.WrapAPIError("normalize dependent draft", err, nil)
+		}
+	}
+	contractPath := filepath.Join(draftDir, "experience-contract.json")
+	if _, err := os.Stat(contractPath); err == nil {
+		catalogSlug := strings.ToLower(strings.ReplaceAll(component.CatalogId, ".", "-"))
+		contract := fmt.Sprintf("{\n  \"kind\": \"experience-reference\",\n  \"component\": \"%s\",\n  \"ref\": \"../../../../../experience/components/%s.json\"\n}\n", component.CatalogId, catalogSlug)
+		if _, err := h.client.UpdateComponentContent(context.Background(), connect.NewRequest(&componentsv1.UpdateComponentContentRequest{Id: component.LibraryId, Path: "experience-contract.json", Content: contract})); err != nil {
+			return cliapp.WrapAPIError("normalize dependent experience reference", err, nil)
+		}
+	}
+	return nil
 }
 
 func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {

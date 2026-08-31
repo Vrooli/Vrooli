@@ -15,13 +15,15 @@
         }
       }
     },
-    "cleanup_providers": [{
-      "id": "architecture-cartographer-snapshots",
-      "name": "Architecture Cartographer graph snapshots",
-      "safety_tier": "safe_with_owner",
-      "default_mode": "disabled",
-      "default_approval": "owner"
-    }],
+    "cleanup_providers": [
+      {
+        "id": "architecture-cartographer-snapshots",
+        "name": "Architecture Cartographer graph snapshots",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
   },
   "service": {
@@ -124,7 +126,8 @@
         "startup_policy": "try_start",
         "freshness_policy": "reuse_running",
         "description": "Provides import, endpoint, CLI, and proto adoption facts used to enrich domain evidence.",
-        "degraded_behavior": "Audit still runs with graph/domain evidence, but domain enrichment omits code-facts-backed proofs while the dependency is unavailable."
+        "degraded_behavior": "Audit still runs with graph/domain evidence, but domain enrichment omits code-facts-backed proofs while the dependency is unavailable.",
+        "supervision_precedence": "required"
       },
       "go-code-graph": {
         "enabled": true,
@@ -132,7 +135,8 @@
         "startup_policy": "try_start",
         "freshness_policy": "reuse_running",
         "description": "Extracts Go code graphs for cartographer graph snapshots.",
-        "degraded_behavior": "Go graph extraction fails for scenarios with Go surfaces until go-code-graph is available."
+        "degraded_behavior": "Go graph extraction fails for scenarios with Go surfaces until go-code-graph is available.",
+        "supervision_precedence": "required"
       },
       "typescript-code-graph": {
         "enabled": true,
@@ -140,7 +144,8 @@
         "startup_policy": "try_start",
         "freshness_policy": "reuse_running",
         "description": "Extracts TypeScript code graphs for cartographer graph snapshots.",
-        "degraded_behavior": "TypeScript graph extraction fails for scenarios with TypeScript surfaces until typescript-code-graph is available."
+        "degraded_behavior": "TypeScript graph extraction fails for scenarios with TypeScript surfaces until typescript-code-graph is available.",
+        "supervision_precedence": "required"
       }
     },
     "resources": {

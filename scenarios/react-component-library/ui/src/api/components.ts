@@ -54,7 +54,7 @@ export interface ComponentStory {
   libraryId: string;
   version: string;
   schemaVersion: number;
-  kind: "component" | "hook" | string;
+  kind: string;
   title: string;
   argsJson: string;
   environmentJson: string;
@@ -125,7 +125,7 @@ export interface ComponentExperienceClaim {
   id: string;
   type: string;
   statement: string;
-  tier: "machine" | "manual" | "aspirational" | string;
+  tier: string;
   states: string[];
 }
 

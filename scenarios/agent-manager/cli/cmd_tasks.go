@@ -16,7 +16,7 @@ import (
 
 func (a *App) cmdTask(args []string) error {
 	if len(args) == 0 {
-		return a.taskHelp()
+		return nil
 	}
 
 	switch args[0] {
@@ -33,37 +33,10 @@ func (a *App) cmdTask(args []string) error {
 	case "cancel":
 		return a.taskCancel(args[1:])
 	case "help", "-h", "--help":
-		return a.taskHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown task subcommand: %s\n\nRun 'agent-manager task help' for usage", args[0])
 	}
-}
-
-func (a *App) taskHelp() error {
-	fmt.Println(`Usage: agent-manager task <subcommand> [options]
-
-Subcommands:
-  list              List all tasks
-  get <id>          Get task details
-  create            Create a new task
-  update <id>       Update an existing task
-  delete <id>       Delete a cancelled task
-  cancel <id>       Cancel a queued or running task
-
-Options:
-  --json            Output raw JSON
-  --quiet           Output only IDs (for piping)
-  --status          Filter by status (queued, running, complete, failed, cancelled)
-
-Examples:
-  agent-manager task list
-  agent-manager task list --status running
-  agent-manager task get abc123
-  agent-manager task create --title "Fix bug" --scope-path ./src
-  agent-manager task update abc123 --title "Updated title"
-  agent-manager task delete abc123 --force
-  agent-manager task cancel abc123`)
-	return nil
 }
 
 // =============================================================================

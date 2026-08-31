@@ -30,6 +30,12 @@ uses SQLite as an indexed registry and adoption ledger.
 | Component version test rollups | componenttests | SQLite `component_version_test_rollup` | Component test report writer | Until the version is retired | Lossless pass/fail/blocked totals keyed by stable library id and version. |
 | Version ledger | versionledger | SQLite `version_ledger` | Replayable projection of indexed versions, gate evidence, test rollups, and adoption facts | Durable, including evicted and retired versions | Stable `(library_id, version)` analytical row; source content is never copied into this projection. `versions export-archive` is the portable backup of the identity and file mirror tables. |
 
+Released authored source (`*.ts`, `*.tsx`, stories, and experience contracts)
+is immutable and hash-protected. `dependencies.json` is a derived lock: it
+stores exact resolutions for major-line imports and is regenerated when the
+active dependency changes, so it is intentionally excluded from the release
+hash ledger.
+
 ## Cold version tier
 
 Version identity and version bytes have separate placement. The reachability

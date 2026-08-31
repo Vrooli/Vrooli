@@ -2,6 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-drag",
+  "deprecatedVersions": ["1.0.0"],
   "description": "Pointer-capture drag controller with keyboard stepping, cancellation and stable handler identity.",
   "designStyles": [
     {
@@ -10,11 +11,9 @@
     }
   ],
   "displayName": "useDrag",
+  "evictedVersions": ["1.0.0"],
   "kind": "surface",
   "latest": "1.1.0",
   "libraryId": "react-component-library:useDrag",
-  "tags": [
-    "runtime",
-    "accessibility"
-  ]
+  "tags": ["runtime", "accessibility"]
 }

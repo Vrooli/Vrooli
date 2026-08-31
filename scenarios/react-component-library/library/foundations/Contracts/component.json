@@ -13,9 +13,5 @@
   "kind": "surface",
   "latest": "1.0.0",
   "libraryId": "react-component-library:Contracts",
-  "tags": [
-    "contracts",
-    "types",
-    "runtime"
-  ]
+  "tags": ["contracts", "types", "runtime"]
 }

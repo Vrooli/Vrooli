@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "manipulation.resizable",
-  "deprecatedVersions": [
-    "1.0.2",
-    "1.0.3"
-  ],
+  "deprecatedVersions": ["1.0.2", "1.0.3", "2.0.0", "2.0.1", "2.0.2", "2.0.3"],
   "description": "A bounded resizable region on either logical axis, with keyboard operation, snapping, a collapse threshold and persisted size.",
   "designStyles": [
     {
@@ -15,16 +12,9 @@
   ],
   "displayName": "Resizable",
   "draft": "",
-  "evictedVersions": [
-    "1.0.3",
-    "1.0.2"
-  ],
+  "evictedVersions": ["1.0.3", "1.0.2", "2.0.0", "2.0.1", "2.0.2", "2.0.3"],
   "kind": "surface",
-  "latest": "2.0.1",
+  "latest": "2.0.4",
   "libraryId": "react-component-library:Resizable",
-  "tags": [
-    "layout",
-    "interaction",
-    "token-bound"
-  ]
+  "tags": ["layout", "interaction", "token-bound"]
 }

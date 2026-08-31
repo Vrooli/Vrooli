@@ -6,12 +6,7 @@
         "default": "success",
         "kind": "enum",
         "label": "Tone",
-        "options": [
-          "success",
-          "warning",
-          "info",
-          "danger"
-        ],
+        "options": ["success", "warning", "info", "danger"],
         "path": "tone",
         "required": true
       },
@@ -69,12 +64,7 @@
       "role": "axis",
       "axis": "tone",
       "covers": {
-        "tone": [
-          "success",
-          "warning",
-          "info",
-          "danger"
-        ]
+        "tone": ["success", "warning", "info", "danger"]
       }
     },
     {

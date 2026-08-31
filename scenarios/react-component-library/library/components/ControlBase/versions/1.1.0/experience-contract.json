@@ -1,8 +1,0 @@
-{
-  "contract": { "kind": "rcl-component-experience-contract", "schema": "scenario-experience-spec/v1", "provenance": "react-component-library/ControlBase@1.1.0" },
-  "component": { "id": "control-base", "title": "Control Base", "purpose": "Owns the documented six-rung control geometry, focus, hover, disabled, and density contract." },
-  "states": [{ "id": "primary", "example": "size-md", "description": "A primary control at a documented size." }, { "id": "compact", "example": "density-compact", "description": "The same geometry with reduced internal spacing." }],
-  "elements": [{ "id": "control", "role": "button", "description": "The shared native control." }],
-  "claims": [{ "id": "size-scale", "type": "manual-review", "statement": "Each public size resolves the documented minimum geometry.", "tier": "manual", "elements": ["control"] }, { "id": "hover-state-contrast", "type": "state-contrast", "statement": "The hover treatment retains readable foreground contrast.", "tier": "machine", "elements": ["control"], "states": ["primary"], "params": { "background": "surface", "state": "hover", "minContrastRatio": 3 } }],
-  "bindings": { "elements": { "control": { "testid": "control-base-root" } } }
-}

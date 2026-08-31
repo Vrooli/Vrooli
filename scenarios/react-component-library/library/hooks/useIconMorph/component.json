@@ -4,7 +4,8 @@
   "catalogId": "hooks.use-icon-morph",
   "deprecatedVersions": [
     "1.0.0",
-    "1.1.0"
+    "1.1.0",
+    "1.1.1"
   ],
   "description": "Drives an icon swap, choosing path morphing or a crossfade from measured geometry compatibility.",
   "designStyles": [
@@ -17,10 +18,12 @@
   "draft": "",
   "entry": "useIconMorph.ts",
   "evictedVersions": [
-    "1.1.0"
+    "1.1.0",
+    "1.0.0",
+    "1.1.1"
   ],
   "kind": "surface",
-  "latest": "1.1.1",
+  "latest": "1.1.2",
   "libraryId": "react-component-library:useIconMorph",
   "tags": [
     "hook",

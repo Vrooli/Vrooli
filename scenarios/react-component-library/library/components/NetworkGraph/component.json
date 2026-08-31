@@ -2,11 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "visualization.network-graph",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.4",
-    "1.0.0"
-  ],
+  "deprecatedVersions": ["1.0.3", "1.0.4", "1.0.0"],
   "description": "A canvas-rendered dependency graph with a keyboard-accessible node list.",
   "designStyles": [
     {
@@ -16,11 +12,9 @@
   ],
   "displayName": "NetworkGraph",
   "draft": "",
-  "evictedVersions": [
-    "1.0.3"
-  ],
+  "evictedVersions": ["1.0.3"],
   "kind": "surface",
-  "latest": "1.0.5",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:NetworkGraph",
   "requires": [
     {
@@ -28,8 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "visualization",
-    "token-bound"
-  ]
+  "tags": ["visualization", "token-bound"]
 }

@@ -311,6 +311,13 @@ func (h *Handler) GetRunDiff(w http.ResponseWriter, r *http.Request) {
 			Files:       files,
 			UnifiedDiff: diff.UnifiedDiff,
 			Generated:   diff.Generated,
+			Stats: protoconv.DiffStats{
+				FilesChanged:  diff.Stats.FilesChanged,
+				FilesAdded:    diff.Stats.FilesAdded,
+				FilesModified: diff.Stats.FilesModified,
+				FilesDeleted:  diff.Stats.FilesDeleted,
+			},
+			ArchiveState: string(diff.ArchiveState),
 		}),
 	})
 }
@@ -364,6 +371,7 @@ func (h *Handler) ApproveRun(w http.ResponseWriter, r *http.Request) {
 			Remaining:  result.Remaining,
 			IsPartial:  result.IsPartial,
 			CommitHash: result.CommitHash,
+			AppliedAt:  result.AppliedAt,
 			ErrorMsg:   result.ErrorMsg,
 		}),
 	})
@@ -473,6 +481,7 @@ func (h *Handler) PartialApproveRun(w http.ResponseWriter, r *http.Request) {
 			Remaining:  result.Remaining,
 			IsPartial:  result.IsPartial,
 			CommitHash: result.CommitHash,
+			AppliedAt:  result.AppliedAt,
 			ErrorMsg:   result.ErrorMsg,
 		}),
 	})
@@ -565,15 +574,32 @@ func (h *Handler) GetRunnerStatus(w http.ResponseWriter, r *http.Request) {
 			Available: s.Available,
 			Message:   s.Message,
 			Capabilities: protoconv.RunnerCapabilities{
-				SupportsMessages:        s.Capabilities.SupportsMessages,
-				SupportsToolEvents:      s.Capabilities.SupportsToolEvents,
-				SupportsCostTracking:    s.Capabilities.SupportsCostTracking,
-				SupportsStreaming:       s.Capabilities.SupportsStreaming,
-				SupportsCancellation:    s.Capabilities.SupportsCancellation,
-				MaxTurns:                s.Capabilities.MaxTurns,
-				SupportedModels:         s.Capabilities.SupportedModels,
-				SupportsToolRestriction: s.Capabilities.SupportsToolRestriction,
-				ToolRestrictionMappings: s.Capabilities.ToolRestrictionMappings,
+				SpawnCapabilities: func() []protoconv.SpawnCapability {
+					result := make([]protoconv.SpawnCapability, 0, len(s.Capabilities.SpawnCapabilities))
+					for _, capability := range s.Capabilities.SpawnCapabilities {
+						result = append(result, protoconv.SpawnCapability{ExecutionMode: capability.ExecutionMode, SandboxModes: capability.SandboxModes, NativeObjective: capability.NativeObjective})
+					}
+					return result
+				}(),
+				SupportsMessages:         s.Capabilities.SupportsMessages,
+				SupportsToolEvents:       s.Capabilities.SupportsToolEvents,
+				SupportsCostTracking:     s.Capabilities.SupportsCostTracking,
+				SupportsStreaming:        s.Capabilities.SupportsStreaming,
+				SupportsCancellation:     s.Capabilities.SupportsCancellation,
+				SupportsContinuation:     s.Capabilities.SupportsContinuation,
+				SupportsWarmIteration:    s.Capabilities.SupportsWarmIteration,
+				SupportsImageAttachments: s.Capabilities.SupportsImageAttachments,
+				SupportsEffort:           s.Capabilities.SupportsEffort,
+				EffortMappings:           s.Capabilities.EffortMappings,
+				EffortModelSpecific:      s.Capabilities.EffortModelSpecific,
+				MaxTurns:                 s.Capabilities.MaxTurns,
+				SupportedModels:          s.Capabilities.SupportedModels,
+				SupportsRunnerDefault:    s.Capabilities.SupportsRunnerDefault,
+				DynamicModelPrefixes:     s.Capabilities.DynamicModelPrefixes,
+				SupportedFeatures:        s.Capabilities.SupportedFeatures,
+				AllowedExtraFlags:        s.Capabilities.AllowedExtraFlags,
+				SupportsToolRestriction:  s.Capabilities.SupportsToolRestriction,
+				ToolRestrictionMappings:  s.Capabilities.ToolRestrictionMappings,
 			},
 		}
 	}

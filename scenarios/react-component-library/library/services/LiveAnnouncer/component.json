@@ -13,9 +13,5 @@
   "kind": "surface",
   "latest": "1.0.0",
   "libraryId": "react-component-library:LiveAnnouncer",
-  "tags": [
-    "runtime",
-    "accessibility",
-    "announcement"
-  ]
+  "tags": ["runtime", "accessibility", "announcement"]
 }

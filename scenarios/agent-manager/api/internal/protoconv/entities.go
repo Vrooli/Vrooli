@@ -1276,6 +1276,7 @@ type ApproveResult struct {
 	Remaining  int
 	IsPartial  bool
 	CommitHash string
+	AppliedAt  time.Time
 	ErrorMsg   string
 }
 
@@ -1412,10 +1413,21 @@ func extractDiffPath(line string) string {
 
 // DiffResult mirrors sandbox.DiffResult for import avoidance.
 type DiffResult struct {
-	SandboxID   uuid.UUID
-	Files       []FileChange
-	UnifiedDiff string
-	Generated   time.Time
+	SandboxID    uuid.UUID
+	Files        []FileChange
+	UnifiedDiff  string
+	Generated    time.Time
+	Stats        DiffStats
+	ArchiveState string
+}
+
+// DiffStats mirrors the value nested in sandbox.DiffResult without importing
+// the sandbox package and recreating the cycle this conversion seam avoids.
+type DiffStats struct {
+	FilesChanged  int
+	FilesAdded    int
+	FilesModified int
+	FilesDeleted  int
 }
 
 // FileChange mirrors sandbox.FileChange for import avoidance.
@@ -1444,18 +1456,85 @@ func OrchestratorRunnerStatusToProto(r *OrchestratorRunnerStatus) *pb.RunnerStat
 		Message:     r.Message,
 		InstallHint: "",
 		Capabilities: &pb.RunnerCapabilities{
-			SupportsStreaming:       r.Capabilities.SupportsStreaming,
-			SupportsMessages:        r.Capabilities.SupportsMessages,
-			SupportsToolEvents:      r.Capabilities.SupportsToolEvents,
-			SupportsCostTracking:    r.Capabilities.SupportsCostTracking,
-			SupportsCancellation:    r.Capabilities.SupportsCancellation,
-			MaxTurns:                int32(r.Capabilities.MaxTurns),
-			SupportedFeatures:       r.Capabilities.SupportedFeatures,
-			AllowedExtraFlags:       r.Capabilities.AllowedExtraFlags,
-			SupportsToolRestriction: r.Capabilities.SupportsToolRestriction,
-			ToolRestrictionMappings: r.Capabilities.ToolRestrictionMappings,
+			SpawnCapabilities:        SpawnCapabilitiesToProto(r.Capabilities.SpawnCapabilities),
+			SupportsStreaming:        r.Capabilities.SupportsStreaming,
+			SupportsMessages:         r.Capabilities.SupportsMessages,
+			SupportsToolEvents:       r.Capabilities.SupportsToolEvents,
+			SupportsCostTracking:     r.Capabilities.SupportsCostTracking,
+			SupportsCancellation:     r.Capabilities.SupportsCancellation,
+			SupportsContinuation:     r.Capabilities.SupportsContinuation,
+			SupportsWarmIteration:    r.Capabilities.SupportsWarmIteration,
+			SupportsImageAttachments: r.Capabilities.SupportsImageAttachments,
+			SupportsEffort:           r.Capabilities.SupportsEffort,
+			EffortMappings:           r.Capabilities.EffortMappings,
+			EffortModelSpecific:      r.Capabilities.EffortModelSpecific,
+			SupportsRunnerDefault:    r.Capabilities.SupportsRunnerDefault,
+			DynamicModelPrefixes:     r.Capabilities.DynamicModelPrefixes,
+			MaxTurns:                 int32(r.Capabilities.MaxTurns),
+			SupportedFeatures:        r.Capabilities.SupportedFeatures,
+			AllowedExtraFlags:        r.Capabilities.AllowedExtraFlags,
+			SupportsToolRestriction:  r.Capabilities.SupportsToolRestriction,
+			ToolRestrictionMappings:  r.Capabilities.ToolRestrictionMappings,
 		},
 		SupportedModels: r.Capabilities.SupportedModels,
+	}
+}
+
+func SpawnCapabilitiesToProto(capabilities []SpawnCapability) []*pb.SpawnCapability {
+	result := make([]*pb.SpawnCapability, 0, len(capabilities))
+	for _, capability := range capabilities {
+		result = append(result, &pb.SpawnCapability{
+			ExecutionMode:   capability.ExecutionMode,
+			SandboxModes:    capability.SandboxModes,
+			NativeObjective: capability.NativeObjective,
+		})
+	}
+	return result
+}
+
+func spawnCapabilitiesFromProto(capabilities []*pb.SpawnCapability) []SpawnCapability {
+	result := make([]SpawnCapability, 0, len(capabilities))
+	for _, capability := range capabilities {
+		if capability == nil {
+			continue
+		}
+		result = append(result, SpawnCapability{
+			ExecutionMode:   capability.ExecutionMode,
+			SandboxModes:    capability.SandboxModes,
+			NativeObjective: capability.NativeObjective,
+		})
+	}
+	return result
+}
+
+// RunnerCapabilitiesFromProto reconstructs the import-avoiding capability
+// mirror. Supported models live on RunnerStatus in the wire contract, so the
+// caller supplies that adjacent field for a lossless round trip.
+func RunnerCapabilitiesFromProto(capabilities *pb.RunnerCapabilities, supportedModels []string) RunnerCapabilities {
+	if capabilities == nil {
+		return RunnerCapabilities{SupportedModels: supportedModels}
+	}
+	return RunnerCapabilities{
+		SpawnCapabilities:        spawnCapabilitiesFromProto(capabilities.SpawnCapabilities),
+		SupportsMessages:         capabilities.SupportsMessages,
+		SupportsToolEvents:       capabilities.SupportsToolEvents,
+		SupportsCostTracking:     capabilities.SupportsCostTracking,
+		SupportsStreaming:        capabilities.SupportsStreaming,
+		SupportsCancellation:     capabilities.SupportsCancellation,
+		SupportsContinuation:     capabilities.SupportsContinuation,
+		SupportsWarmIteration:    capabilities.SupportsWarmIteration,
+		SupportsImageAttachments: capabilities.SupportsImageAttachments,
+		SupportsToolRestriction:  capabilities.SupportsToolRestriction,
+		ToolRestrictionMappings:  capabilities.ToolRestrictionMappings,
+		SupportsEffort:           capabilities.SupportsEffort,
+		EffortMappings:           capabilities.EffortMappings,
+		EffortModelSpecific:      capabilities.EffortModelSpecific,
+		MaxTurns:                 int(capabilities.MaxTurns),
+		SupportedModels:          supportedModels,
+		SupportsRunnerDefault:    capabilities.SupportsRunnerDefault,
+		DynamicModelPrefixes:     capabilities.DynamicModelPrefixes,
+		SupportedFeatures:        capabilities.SupportedFeatures,
+		AllowedExtraFlags:        capabilities.AllowedExtraFlags,
 	}
 }
 
@@ -1478,15 +1557,30 @@ type OrchestratorRunnerStatus struct {
 
 // RunnerCapabilities mirrors runner.Capabilities for import avoidance.
 type RunnerCapabilities struct {
-	SupportsMessages        bool
-	SupportsToolEvents      bool
-	SupportsCostTracking    bool
-	SupportsStreaming       bool
-	SupportsCancellation    bool
-	MaxTurns                int
-	SupportedModels         []string
-	SupportedFeatures       []string
-	AllowedExtraFlags       []string
-	SupportsToolRestriction bool
-	ToolRestrictionMappings map[string]string
+	SpawnCapabilities        []SpawnCapability
+	SupportsMessages         bool
+	SupportsToolEvents       bool
+	SupportsCostTracking     bool
+	SupportsStreaming        bool
+	SupportsCancellation     bool
+	SupportsContinuation     bool
+	SupportsWarmIteration    bool
+	SupportsImageAttachments bool
+	SupportsToolRestriction  bool
+	ToolRestrictionMappings  map[string]string
+	SupportsEffort           bool
+	EffortMappings           map[string]string
+	EffortModelSpecific      bool
+	MaxTurns                 int
+	SupportedModels          []string
+	SupportsRunnerDefault    bool
+	DynamicModelPrefixes     []string
+	SupportedFeatures        []string
+	AllowedExtraFlags        []string
+}
+
+type SpawnCapability struct {
+	ExecutionMode   string
+	SandboxModes    []string
+	NativeObjective bool
 }

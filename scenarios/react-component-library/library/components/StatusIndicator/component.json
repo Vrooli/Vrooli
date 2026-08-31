@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "primitives.status-indicator",
-  "deprecatedVersions": [
-    "1.0.2"
-  ],
+  "deprecatedVersions": ["1.0.2", "1.0.0", "1.0.3"],
   "description": "A compact live status signal with explicit semantic states and accessible status output.",
   "designStyles": [
     {
@@ -14,15 +12,9 @@
   ],
   "displayName": "StatusIndicator",
   "draft": "",
-  "evictedVersions": [
-    "1.0.2"
-  ],
+  "evictedVersions": ["1.0.2", "1.0.0", "1.0.3"],
   "kind": "surface",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:StatusIndicator",
-  "tags": [
-    "primitive",
-    "feedback",
-    "token-bound"
-  ]
+  "tags": ["primitive", "feedback", "token-bound"]
 }

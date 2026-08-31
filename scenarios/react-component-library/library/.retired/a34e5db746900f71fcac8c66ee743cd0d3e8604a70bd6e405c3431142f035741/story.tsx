@@ -2,7 +2,11 @@ import { useDirection } from "./useDirection";
 
 export function Default() {
   return (
-    <div data-testid="hooks.use-direction" role="status" data-direction={useDirection()}>
+    <div
+      data-testid="hooks.use-direction"
+      role="status"
+      data-direction={useDirection()}
+    >
       {useDirection()}
     </div>
   );
@@ -16,7 +20,11 @@ export function RightToLeft() {
   const direction = useDirection();
   return (
     <div dir="rtl">
-      <div data-testid="hooks.use-direction.rtl" role="status" data-direction={direction}>
+      <div
+        data-testid="hooks.use-direction.rtl"
+        role="status"
+        data-direction={direction}
+      >
         {direction}
       </div>
     </div>

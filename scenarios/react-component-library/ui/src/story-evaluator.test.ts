@@ -19,7 +19,11 @@ describe("shared preview story evaluator", () => {
         ],
       },
       { document, window },
-      { ...jsdomEnv, queries: testingLibraryDOM, report: (...args: unknown[]) => reports.push(args) },
+      {
+        ...jsdomEnv,
+        queries: testingLibraryDOM,
+        report: (...args: unknown[]) => reports.push(args),
+      },
     );
 
     expect(result.passed).toBe(true);

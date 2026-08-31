@@ -1,9 +1,12 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
   "category": "actions",
   "deprecatedVersions": [
     "1.0.0",
-    "1.0.1"
+    "1.0.1",
+    "1.1.1",
+    "1.1.0"
   ],
   "description": "Shared semantic control primitive for consistent sizing, density, focus, hover, and disabled behavior.",
   "designStyles": [
@@ -15,17 +18,18 @@
   "displayName": "Control Base",
   "draft": "",
   "evictedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.1.1",
+    "1.1.0"
   ],
   "kind": "control",
-  "latest": "1.1.1",
+  "latest": "1.1.2",
   "libraryId": "react-component-library:ControlBase",
   "slot": "ui-primitive",
+  "supplemental": true,
   "tags": [
     "control",
     "primitive",
     "accessibility"
-  ],
-  "assetKind": "component",
-  "supplemental": true
+  ]
 }

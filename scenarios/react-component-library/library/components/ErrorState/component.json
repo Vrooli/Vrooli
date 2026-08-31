@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.error-state",
-  "deprecatedVersions": [
-    "1.0.4",
-    "1.0.6"
-  ],
+  "deprecatedVersions": ["1.0.4", "1.0.6", "1.0.5", "1.0.0", "1.0.7"],
   "description": "The recoverable failure composition with a plain-language explanation, a diagnostic-detail policy, retry, alternative actions, and support context that leaks nothing sensitive.",
   "designStyles": [
     {
@@ -15,13 +12,9 @@
   ],
   "displayName": "ErrorState",
   "draft": "",
-  "evictedVersions": [
-    "1.0.6",
-    "1.0.5",
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.6", "1.0.5", "1.0.4", "1.0.0", "1.0.7"],
   "kind": "surface",
-  "latest": "1.0.7",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:ErrorState",
   "requires": [
     {
@@ -29,9 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "feedback",
-    "async",
-    "token-bound"
-  ]
+  "tags": ["feedback", "async", "token-bound"]
 }

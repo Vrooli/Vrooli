@@ -1,6 +1,7 @@
 {
+  "assetKind": "component",
   "catalogId": "overlays.bottom-sheet",
-  "deprecatedVersions": [],
+  "deprecatedVersions": ["1.0.5", "1.2.7", "1.0.4", "1.2.6", "1.2.8", "1.2.9"],
   "description": "Shared overlay presentation for BottomSheet.",
   "designStyles": [
     {
@@ -29,16 +30,18 @@
     "1.0.6",
     "1.0.5",
     "1.2.2",
-    "1.2.1"
+    "1.2.1",
+    "1.2.5",
+    "1.2.4",
+    "1.2.3",
+    "1.2.7",
+    "1.0.4",
+    "1.2.6",
+    "1.2.8",
+    "1.2.9"
   ],
   "kind": "control",
-  "latest": "1.2.6",
+  "latest": "1.2.10",
   "libraryId": "react-component-library:BottomSheet",
-  "tags": [
-    "overlay",
-    "accessibility",
-    "responsive",
-    "token-bound"
-  ],
-  "assetKind": "component"
+  "tags": ["overlay", "accessibility", "responsive", "token-bound"]
 }

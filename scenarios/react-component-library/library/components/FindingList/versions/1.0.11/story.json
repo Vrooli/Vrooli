@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "findings": [
+          {
+            "assetId": "data-display.score-gauge",
+            "id": "a11y",
+            "message": "Missing evidence",
+            "remediation": "Capture the declared viewports.",
+            "severity": "error"
+          }
+        ]
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Missing evidence"
+        }
+      ],
+      "id": "default",
+      "mode": "pinned",
+      "name": "Default",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "findings": []
+      },
+      "composition": {
+        "harness": {
+          "asset": "preview.direct",
+          "version": "1.0.0",
+          "export": "Direct"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No findings."
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty",
+      "role": "boundary"
+    }
+  ],
+  "title": "FindingList"
+}

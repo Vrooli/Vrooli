@@ -240,7 +240,7 @@ func (r resourceRoleResponse) validate() error {
 		return errors.New("challenger requires a model and sample_rate between 0 and 1")
 	}
 	switch r.Enforcement.Permissions {
-	case "native", "hook_backed", "hook_unverified", "intent_only":
+	case "native", "hook_backed", "hook_verified", "hook_unverified", "intent_only":
 	default:
 		return fmt.Errorf("enforcement.permissions %q is unsupported", r.Enforcement.Permissions)
 	}

@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "navigation.page",
-  "deprecatedVersions": [
-    "1.0.4"
-  ],
+  "deprecatedVersions": ["1.0.4", "1.0.5"],
   "description": "The route content boundary that owns navigation, focus placement, and generic route state composition.",
   "designStyles": [
     {
@@ -14,11 +12,9 @@
   ],
   "displayName": "Page",
   "draft": "",
-  "evictedVersions": [
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.4", "1.0.5"],
   "kind": "shell",
-  "latest": "1.0.5",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:Page",
   "requires": [
     {
@@ -26,9 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "navigation",
-    "layout",
-    "token-bound"
-  ]
+  "tags": ["navigation", "layout", "token-bound"]
 }

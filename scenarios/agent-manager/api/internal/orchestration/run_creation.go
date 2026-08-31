@@ -632,6 +632,13 @@ func (o *Orchestrator) markIdempotencyComplete(ctx context.Context, key string, 
 func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunRequest) (*domain.RunConfig, *domain.AgentProfile, error) {
 	cfg := domain.DefaultRunConfig()
 	var profile *domain.AgentProfile
+	workTimeoutCeiling, maxTurnsCeiling, hasGlobalCeilings := o.runExecutionCeilings()
+	if hasGlobalCeilings {
+		// The persisted settings are both the defaults visible in resolved_config
+		// and the global ceilings for profile/inline requests.
+		cfg.Timeout = workTimeoutCeiling
+		cfg.MaxTurns = maxTurnsCeiling
+	}
 
 	// Load profile if provided
 	if req.AgentProfileID != nil {
@@ -640,7 +647,6 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 		if err != nil {
 			return nil, nil, err
 		}
-		cfg.ApplyProfile(profile)
 	}
 
 	// Resolve profile by key if provided
@@ -671,8 +677,22 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 			}
 			profile = result.Profile
 		}
-		if profile != nil {
-			cfg.ApplyProfile(profile)
+	}
+
+	if profile != nil {
+		if hasGlobalCeilings {
+			if err := validateRunDurationCeilings("profile", profile.Timeout, profile.MaxTurns, workTimeoutCeiling, maxTurnsCeiling); err != nil {
+				return nil, nil, err
+			}
+		}
+		cfg.ApplyProfile(profile)
+		// Zero means the profile did not request a value. Persist the effective
+		// global default so run reads and the executor enforce the same numbers.
+		if hasGlobalCeilings && cfg.Timeout <= 0 {
+			cfg.Timeout = workTimeoutCeiling
+		}
+		if hasGlobalCeilings && cfg.MaxTurns <= 0 {
+			cfg.MaxTurns = maxTurnsCeiling
 		}
 	}
 
@@ -685,6 +705,11 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 	if req.Timeout != nil {
 		cfg.Timeout = *req.Timeout
+	}
+	if hasGlobalCeilings {
+		if err := validateRunDurationCeilings("inline", cfg.Timeout, cfg.MaxTurns, workTimeoutCeiling, maxTurnsCeiling); err != nil {
+			return nil, nil, err
+		}
 	}
 	if strings.TrimSpace(req.Until) != "" {
 		if len(req.Until) > 2048 {
@@ -768,6 +793,35 @@ func (o *Orchestrator) resolveRunConfig(ctx context.Context, req CreateRunReques
 	}
 
 	return cfg, profile, nil
+}
+
+// runExecutionCeilings returns the runtime-owned work limits. Health settings
+// deliberately do not participate: executor liveness and agent work duration
+// are separate control surfaces.
+func (o *Orchestrator) runExecutionCeilings() (time.Duration, int, bool) {
+	if o.orchestrationSettings == nil {
+		return 0, 0, false
+	}
+	settings := o.orchestrationSettings.Get()
+	return time.Duration(settings.RunExecution.RunTimeoutMinutes) * time.Minute, settings.RunExecution.MaxTurns, true
+}
+
+func validateRunDurationCeilings(source string, requestedTimeout time.Duration, requestedMaxTurns int, timeoutCeiling time.Duration, maxTurnsCeiling int) error {
+	if requestedTimeout > timeoutCeiling {
+		return domain.NewValidationErrorWithHint(
+			source+".timeout",
+			fmt.Sprintf("requested timeout %ds exceeds global work-time ceiling %ds", int64(requestedTimeout/time.Second), int64(timeoutCeiling/time.Second)),
+			"Lower the requested timeout or deliberately raise orchestration runExecution.runTimeoutMinutes",
+		)
+	}
+	if requestedMaxTurns > maxTurnsCeiling {
+		return domain.NewValidationErrorWithHint(
+			source+".maxTurns",
+			fmt.Sprintf("requested max turns %d exceeds global turn ceiling %d", requestedMaxTurns, maxTurnsCeiling),
+			"Lower the requested turns or deliberately raise orchestration runExecution.maxTurns",
+		)
+	}
+	return nil
 }
 
 // applyModelOverride applies an explicit per-run model only after role policy

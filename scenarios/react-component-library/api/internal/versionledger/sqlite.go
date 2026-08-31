@@ -180,20 +180,9 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 		return nil, "", err
 	}
 	rows.Close()
-	sourceRefs, err := r.sourceReferences(ctx)
+	graph, err := r.BuildReachability(ctx)
 	if err != nil {
-		return nil, "", fmt.Errorf("build source reference graph: %w", err)
-	}
-	// Generated version locks are the authoritative record of what a version
-	// imports, and unlike the scans above they do not depend on the index
-	// having seen the referring asset. Merging them in is what makes an edge
-	// spelled as a package subpath visible to retention at all.
-	lockRefs, err := r.lockReferences(ctx)
-	if err != nil {
-		return nil, "", fmt.Errorf("build version lock reference graph: %w", err)
-	}
-	for key, refs := range lockRefs {
-		sourceRefs[key] = appendUniqueReferences(sourceRefs[key], refs)
+		return nil, "", err
 	}
 	var items []CleanupItem
 	for _, raw := range rawRows {
@@ -204,29 +193,48 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 			item.Reason = "latest version"
 		} else if item.Candidate.Version == raw.draft || strings.Contains(strings.ToLower(item.Candidate.Status), "draft") {
 			item.Reason = "active draft"
-		} else if strings.EqualFold(item.Candidate.Status, "retired") {
+		} else if strings.EqualFold(item.Candidate.Status, "retired") || r.isEvicted(ctx, item.Candidate.ComponentID, item.Candidate.Version) {
 			item.Reason = "already retired"
+		} else if hasUnreadableVersion(graph.Unreadable, item.Candidate.LibraryID, item.Candidate.Version) {
+			// An evicted version without mirror bytes is a repair defect, not
+			// cleanup work. Keep it visible to doctor/purge and never transition
+			// it through the destructive retirement path.
+			item.Reason = "unreadable mirror"
 		} else {
 			var directAdoptions int
-			_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_records WHERE (component_id = ? OR library_id = ?) AND adopted_version = ?`, item.Candidate.ComponentID, item.Candidate.LibraryID, item.Candidate.Version).Scan(&directAdoptions)
+			_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_records WHERE (component_id = ? OR library_id = ?) AND adopted_version = ? AND lower(COALESCE(mode, 'copied')) <> 'ejected'`, item.Candidate.ComponentID, item.Candidate.LibraryID, item.Candidate.Version).Scan(&directAdoptions)
 			var fileAdoptions int
-			_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_files WHERE source_library_id = ? AND source_version = ?`, item.Candidate.LibraryID, item.Candidate.Version).Scan(&fileAdoptions)
+			_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id WHERE f.source_library_id = ? AND f.source_version = ? AND lower(COALESCE(a.mode, 'copied')) <> 'ejected'`, item.Candidate.LibraryID, item.Candidate.Version).Scan(&fileAdoptions)
 			item.AdoptionCount = directAdoptions
 			if fileAdoptions > item.AdoptionCount {
 				item.AdoptionCount = fileAdoptions
 			}
 			_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_asset_dependencies WHERE library_id = ? AND version = ?`, item.Candidate.LibraryID, item.Candidate.Version).Scan(&item.DependencyCount)
-			item.References = sourceRefs[sourceReferenceKey(item.Candidate.LibraryID, item.Candidate.Version)]
+			item.References = graph.References[sourceReferenceKey(item.Candidate.LibraryID, item.Candidate.Version)]
+			if graph.IsReachable(item.Candidate.LibraryID, item.Candidate.Version) {
+				item.Reason = "referenced by source import"
+				items = append(items, item)
+				continue
+			}
+			if r.hasUnindexedReference(ctx, item.References) {
+				// A lock or source reference whose owner is absent from the
+				// index is an unobserved consumer. Retention cannot prove that
+				// owner will be retired with this plan, so keep the target.
+				item.Reason = "referenced by source import"
+				items = append(items, item)
+				continue
+			}
 			switch {
 			case item.AdoptionCount > 0:
 				item.Reason = "referenced by adoption"
-			case item.DependencyCount > 0:
-				item.Reason = "pinned dependency"
-			case len(item.References) > 0:
-				item.Reason = "referenced by source import"
 			case scope.OlderThanDays > 0 && item.AgeDays < scope.OlderThanDays:
 				item.Reason = fmt.Sprintf("younger than %d days", scope.OlderThanDays)
 			default:
+				// References from an unreachable historical owner do not keep
+				// this candidate live: that owner is itself outside the root
+				// closure and can be retired in the same governed cleanup plan.
+				// References from live owners were handled by graph.IsReachable
+				// above, and external references are roots in BuildReachability.
 				item.Eligible = true
 				item.Reason = "safe to retire"
 			}
@@ -234,6 +242,31 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 		items = append(items, item)
 	}
 	return items, cleanupPlanHash(items, scope), nil
+}
+
+func (r *Repository) isEvicted(ctx context.Context, componentID, version string) bool {
+	var presence string
+	err := r.db.QueryRowContext(ctx, `SELECT presence FROM component_versions WHERE component_id=? AND version=?`, componentID, version).Scan(&presence)
+	return err == nil && strings.EqualFold(presence, "evicted")
+}
+
+func (r *Repository) hasUnindexedReference(ctx context.Context, references []VersionReference) bool {
+	for _, ref := range references {
+		if strings.TrimSpace(ref.OwnerLibraryID) == "" || strings.TrimSpace(ref.OwnerVersion) == "" {
+			continue
+		}
+		var exists int
+		err := r.db.QueryRowContext(ctx, `
+			SELECT EXISTS(
+				SELECT 1 FROM components c
+				JOIN component_versions v ON v.component_id = c.id
+				WHERE c.library_id = ? AND v.version = ?
+			)`, ref.OwnerLibraryID, ref.OwnerVersion).Scan(&exists)
+		if err == nil && exists == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func versionAgeDays(created, released string) int {
@@ -341,11 +374,11 @@ func (r *Repository) CleanupDraft(ctx context.Context, componentID string, older
 }
 
 func (r *Repository) RetireCandidates(ctx context.Context, componentID string) ([]Candidate, error) {
-	refs, err := r.sourceReferences(ctx)
+	graph, err := r.BuildReachability(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("build source reference graph: %w", err)
+		return nil, err
 	}
-	query := `SELECT c.id, c.library_id, v.version, v.status FROM components c JOIN component_versions v ON v.component_id = c.id WHERE v.version <> c.latest_version AND v.version <> c.draft_version AND lower(v.status) NOT LIKE 'draft%' AND lower(v.status) <> 'retired' AND NOT EXISTS (SELECT 1 FROM adoption_records a WHERE a.component_id = c.id AND a.adopted_version = v.version AND lower(COALESCE(a.mode, 'copied')) <> 'ejected') AND NOT EXISTS (SELECT 1 FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id WHERE f.source_library_id = c.library_id AND f.source_version = v.version AND lower(COALESCE(a.mode, 'copied')) <> 'ejected') AND NOT EXISTS (SELECT 1 FROM component_asset_dependencies d WHERE d.library_id = c.library_id AND d.version = v.version)`
+	query := `SELECT c.id, c.library_id, v.version, v.status FROM components c JOIN component_versions v ON v.component_id = c.id WHERE v.version <> c.latest_version AND v.version <> c.draft_version AND lower(v.status) NOT LIKE 'draft%' AND lower(v.status) <> 'retired' AND NOT EXISTS (SELECT 1 FROM adoption_records a WHERE a.component_id = c.id AND a.adopted_version = v.version AND lower(COALESCE(a.mode, 'copied')) <> 'ejected') AND NOT EXISTS (SELECT 1 FROM adoption_files f JOIN adoption_records a ON a.id = f.adoption_id WHERE f.source_library_id = c.library_id AND f.source_version = v.version AND lower(COALESCE(a.mode, 'copied')) <> 'ejected')`
 	args := []any{}
 	if componentID != "" {
 		query += " AND (c.id = ? OR c.library_id = ?)"
@@ -364,7 +397,7 @@ func (r *Repository) RetireCandidates(ctx context.Context, componentID string) (
 		if err := rows.Scan(&c.ComponentID, &c.LibraryID, &c.Version, &c.Status); err != nil {
 			return nil, err
 		}
-		if len(refs[sourceReferenceKey(c.LibraryID, c.Version)]) > 0 {
+		if graph.IsReachable(c.LibraryID, c.Version) || hasUnreadableVersion(graph.Unreadable, c.LibraryID, c.Version) {
 			continue
 		}
 		out = append(out, c)
@@ -413,6 +446,14 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 			if !allowed {
 				return c, fmt.Errorf("version %s is still referenced and is not safe to retire", version)
 			}
+		}
+		var mirrorRows int
+		mirrorErr := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_version_files WHERE version_id=(SELECT id FROM component_versions WHERE component_id=? AND version=?)`, c.ComponentID, version).Scan(&mirrorRows)
+		if mirrorErr == nil && mirrorRows == 0 {
+			return c, fmt.Errorf("refusing to retire %s@%s: file mirror is empty", c.LibraryID, version)
+		}
+		if mirrorErr != nil && !strings.Contains(strings.ToLower(mirrorErr.Error()), "no such table") {
+			return c, fmt.Errorf("check retirement mirror: %w", mirrorErr)
 		}
 		// Record the retirement in the manifest before removing its source
 		// directory. The manifest is the durable catalog declaration and must
@@ -466,6 +507,9 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 			_ = os.Remove(filepath.Dir(versionDir))
 			_ = os.Remove(filepath.Dir(manifest))
 		}
+		if err := r.removeReleaseLedgerEntries(sourcePath); err != nil {
+			return c, fmt.Errorf("remove retired version ledger entries: %w", err)
+		}
 		return c, nil
 	}
 	if state == "deprecated" || state == "archived" {
@@ -498,6 +542,109 @@ func (r *Repository) Transition(ctx context.Context, componentID, version, state
 	}
 	c.Status = state
 	return c, nil
+}
+
+// PurgeUnreadableVersion permanently removes a named evicted version whose
+// mirror is empty. This is a repair operation, not a retention outcome: the
+// caller must name the version explicitly and the reachability graph must
+// contain no incoming edge before the transaction is allowed to proceed.
+func (r *Repository) PurgeUnreadableVersion(ctx context.Context, libraryID, version string, confirm bool) error {
+	if !confirm {
+		return fmt.Errorf("purging an unreadable version requires explicit confirmation")
+	}
+	graph, err := r.BuildReachability(ctx)
+	if err != nil {
+		return err
+	}
+	key := sourceReferenceKey(libraryID, version)
+	if refs := graph.References[key]; len(refs) > 0 {
+		return fmt.Errorf("refusing to purge %s@%s: %d incoming references remain", libraryID, version, len(refs))
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var versionID, presence, sourcePath string
+	err = tx.QueryRowContext(ctx, `SELECT id, COALESCE(presence, 'materialized'), source_path FROM component_versions WHERE library_id=? AND version=?`, libraryID, version).Scan(&versionID, &presence, &sourcePath)
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(presence, "evicted") {
+		return fmt.Errorf("refusing to purge %s@%s: presence is %s, not evicted", libraryID, version, presence)
+	}
+	var mirrorRows int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM component_version_files WHERE version_id=?`, versionID).Scan(&mirrorRows); err != nil {
+		return err
+	}
+	if mirrorRows != 0 {
+		return fmt.Errorf("refusing to purge %s@%s: mirror has %d rows", libraryID, version, mirrorRows)
+	}
+	for _, statement := range []string{
+		`DELETE FROM component_version_kit_compatibility WHERE version_id=?`,
+		`DELETE FROM component_version_required_token_patterns WHERE version_id=?`,
+		`DELETE FROM component_version_required_tokens WHERE version_id=?`,
+		`DELETE FROM component_version_parity_reports WHERE version_id=?`,
+		`DELETE FROM component_stories WHERE library_id=? AND version=?`,
+		`DELETE FROM component_version_test_rollup WHERE library_id=? AND version=?`,
+		`DELETE FROM component_version_files WHERE version_id=?`,
+		`DELETE FROM version_ledger WHERE library_id=? AND version=?`,
+		`DELETE FROM component_versions WHERE id=?`,
+	} {
+		args := []any{versionID}
+		if strings.Contains(statement, "library_id=?") {
+			args = []any{libraryID, version}
+		}
+		if _, err := tx.ExecContext(ctx, statement, args...); err != nil {
+			return fmt.Errorf("purge %s@%s: %w", libraryID, version, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if err := r.removeReleaseLedgerEntries(sourcePath); err != nil {
+		return fmt.Errorf("remove purged version ledger entries: %w", err)
+	}
+	return nil
+}
+
+// removeReleaseLedgerEntries keeps the append-only hash ledger aligned with
+// the governed removal of a version. Derived locks are deliberately included
+// in this cleanup even though they are not immutable; authored entries for a
+// removed version must not become orphaned integrity failures.
+func (r *Repository) removeReleaseLedgerEntries(sourcePath string) error {
+	path := filepath.Join(r.sourceRoot, "released-version-hashes.json")
+	raw, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var ledger struct {
+		SchemaVersion int `json:"schemaVersion"`
+		Entries       []struct {
+			Path   string `json:"path"`
+			SHA256 string `json:"sha256"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &ledger); err != nil {
+		return err
+	}
+	prefix := filepath.ToSlash(filepath.Dir(sourcePath)) + "/"
+	filtered := ledger.Entries[:0]
+	for _, entry := range ledger.Entries {
+		if !strings.HasPrefix(filepath.ToSlash(entry.Path), prefix) {
+			filtered = append(filtered, entry)
+		}
+	}
+	ledger.Entries = filtered
+	out, err := json.MarshalIndent(ledger, "", "  ")
+	if err != nil {
+		return err
+	}
+	out = append(out, '\n')
+	return os.WriteFile(path, out, 0o600)
 }
 
 func (r *Repository) reclaimRetiredMaterialization(ctx context.Context, c Candidate, sourcePath, manifestPath string) error {
@@ -533,7 +680,10 @@ func (r *Repository) reclaimRetiredMaterialization(ctx context.Context, c Candid
 		return err
 	}
 	_, err := r.db.ExecContext(ctx, `UPDATE version_ledger SET lifecycle_state='retired' WHERE library_id=? AND version=?`, c.LibraryID, c.Version)
-	return err
+	if err != nil {
+		return err
+	}
+	return r.removeReleaseLedgerEntries(sourcePath)
 }
 
 func (r *Repository) verifyVersionDirectory(ctx context.Context, c Candidate, versionDir string) error {
@@ -640,11 +790,11 @@ func (r *Repository) validateAssetRetirement(ctx context.Context, c Candidate, d
 			return fmt.Errorf("version %s is still referenced and is not safe to retire", c.Version)
 		}
 	}
-	refs, err := r.sourceReferences(ctx)
+	graph, err := r.BuildReachability(ctx)
 	if err != nil {
 		return fmt.Errorf("build source reference graph: %w", err)
 	}
-	if len(refs[sourceReferenceKey(c.LibraryID, c.Version)]) != 0 {
+	if len(graph.References[sourceReferenceKey(c.LibraryID, c.Version)]) != 0 || hasUnreadableVersion(graph.Unreadable, c.LibraryID, c.Version) {
 		return fmt.Errorf("version %s is still referenced and is not safe to retire", c.Version)
 	}
 	return nil
@@ -722,7 +872,10 @@ func (r *Repository) evictVersion(ctx context.Context, c Candidate, version, man
 		return err
 	}
 	_, err = r.db.ExecContext(ctx, `UPDATE version_ledger SET lifecycle_state='archived' WHERE library_id=? AND version=?`, c.LibraryID, version)
-	return err
+	if err != nil {
+		return err
+	}
+	return r.removeReleaseLedgerEntries(sourcePath)
 }
 
 func (r *Repository) retiredSourcePath(libraryID, version string) string {

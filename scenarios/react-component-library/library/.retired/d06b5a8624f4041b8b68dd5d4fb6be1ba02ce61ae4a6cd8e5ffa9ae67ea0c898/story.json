@@ -15,36 +15,21 @@
         "default": "lg",
         "kind": "enum",
         "label": "Size",
-        "options": [
-          "xs",
-          "sm",
-          "md",
-          "lg",
-          "xl"
-        ],
+        "options": ["xs", "sm", "md", "lg", "xl"],
         "path": "size"
       },
       {
         "default": "circle",
         "kind": "enum",
         "label": "Shape",
-        "options": [
-          "circle",
-          "rounded",
-          "square"
-        ],
+        "options": ["circle", "rounded", "square"],
         "path": "shape"
       },
       {
         "default": "online",
         "kind": "enum",
         "label": "Presence",
-        "options": [
-          "online",
-          "away",
-          "busy",
-          "offline"
-        ],
+        "options": ["online", "away", "busy", "offline"],
         "path": "presence"
       },
       {
@@ -57,11 +42,7 @@
         "default": "loaded",
         "kind": "enum",
         "label": "Image state",
-        "options": [
-          "loading",
-          "loaded",
-          "error"
-        ],
+        "options": ["loading", "loaded", "error"],
         "path": "imageState"
       }
     ]
@@ -142,13 +123,7 @@
       "role": "axis",
       "axis": "size",
       "covers": {
-        "size": [
-          "xs",
-          "sm",
-          "md",
-          "lg",
-          "xl"
-        ]
+        "size": ["xs", "sm", "md", "lg", "xl"]
       }
     },
     {
@@ -191,11 +166,7 @@
       "role": "axis",
       "axis": "shape",
       "covers": {
-        "shape": [
-          "circle",
-          "rounded",
-          "square"
-        ]
+        "shape": ["circle", "rounded", "square"]
       }
     },
     {
@@ -232,12 +203,7 @@
       "role": "axis",
       "axis": "presence",
       "covers": {
-        "presence": [
-          "online",
-          "away",
-          "busy",
-          "offline"
-        ]
+        "presence": ["online", "away", "busy", "offline"]
       }
     },
     {
@@ -272,11 +238,7 @@
       "role": "axis",
       "axis": "imageState",
       "covers": {
-        "imageState": [
-          "loading",
-          "loaded",
-          "error"
-        ]
+        "imageState": ["loading", "loaded", "error"]
       }
     },
     {

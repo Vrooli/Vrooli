@@ -1,12 +1,15 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -27,9 +30,11 @@ type matrixCell struct {
 	Gate                   string   `json:"gate"`
 	Verdict                string   `json:"verdict"`
 	FindingCodes           []string `json:"finding_codes"`
+	FindingMessages        []string `json:"finding_messages,omitempty"`
 	FindingCount           int      `json:"finding_count"`
 	Inspected              int      `json:"inspected"`
 	FindingsWithoutAssetID int      `json:"findings_without_asset_id"`
+	RunnerMessages         []string `json:"runner_messages,omitempty"`
 }
 
 func main() {
@@ -55,6 +60,19 @@ func main() {
 }
 
 func buildMatrix(root string) (matrix, error) {
+	key, keyErr := matrixInputFingerprint(root)
+	if keyErr == nil {
+		cachePath := filepath.Join(os.TempDir(), "rcl-gate-matrix-"+key+".json")
+		if raw, readErr := os.ReadFile(cachePath); readErr == nil {
+			var cached struct {
+				Key    string `json:"key"`
+				Matrix matrix `json:"matrix"`
+			}
+			if json.Unmarshal(raw, &cached) == nil && cached.Key == key {
+				return cached.Matrix, nil
+			}
+		}
+	}
 	catalogRoot := filepath.Join(root, "scenarios", "react-component-library", "catalog")
 	assets, err := catalogcoverage.LoadCatalog(catalogRoot)
 	if err != nil {
@@ -75,16 +93,43 @@ func buildMatrix(root string) (matrix, error) {
 		return matrix{}, err
 	}
 	results := make(map[string]gates.Result, len(definitions))
+	var resultsMu sync.Mutex
+	jobs := make(chan catalogcoverage.GateDefinition)
+	var firstErr error
+	var errMu sync.Mutex
+	const workers = 8
+	var wait sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			for definition := range jobs {
+				runner := gates.GateRunnerFor(definition.ID)
+				if runner == nil {
+					continue
+				}
+				result, runErr := runner(gates.Scope{Root: root})
+				if runErr != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = fmt.Errorf("run gate %s: %w", definition.ID, runErr)
+					}
+					errMu.Unlock()
+					continue
+				}
+				resultsMu.Lock()
+				results[definition.ID] = gates.NormalizeResult(root, result)
+				resultsMu.Unlock()
+			}
+		}()
+	}
 	for _, definition := range definitions {
-		runner := gates.GateRunnerFor(definition.ID)
-		if runner == nil {
-			continue
-		}
-		result, runErr := runner(gates.Scope{Root: root})
-		if runErr != nil {
-			return matrix{}, fmt.Errorf("run gate %s: %w", definition.ID, runErr)
-		}
-		results[definition.ID] = gates.NormalizeResult(root, result)
+		jobs <- definition
+	}
+	close(jobs)
+	wait.Wait()
+	if firstErr != nil {
+		return matrix{}, firstErr
 	}
 
 	var cells []matrixCell
@@ -102,9 +147,13 @@ func buildMatrix(root string) (matrix, error) {
 				cell.Inspected = result.Inspected
 				cell.FindingsWithoutAssetID = len(result.RunnerError)
 				cell.FindingCodes = codesFor(result.Findings, asset.ID, implNames[asset.ID])
+				cell.FindingMessages = messagesFor(result.Findings, asset.ID, implNames[asset.ID])
 				cell.FindingCount = len(cell.FindingCodes)
 				cell.Verdict = "pass"
-				if len(cell.FindingCodes) > 0 || len(result.RunnerError) > 0 {
+				// Runner errors are corpus-level execution evidence. They cannot
+				// be attributed to an asset, so never smear them into an asset
+				// failure. The asset is unmeasured until the runner can execute.
+				if len(cell.FindingCodes) > 0 {
 					cell.Verdict = "fail"
 				}
 				if result.Status == "unmeasured" || contains(result.UnmeasuredAssets, asset.ID) {
@@ -123,11 +172,20 @@ func buildMatrix(root string) (matrix, error) {
 		if measured {
 			cell.Inspected = result.Inspected
 			cell.FindingsWithoutAssetID = len(result.RunnerError)
+			for _, finding := range result.RunnerError {
+				if finding.Message != "" && !contains(cell.RunnerMessages, finding.Message) {
+					cell.RunnerMessages = append(cell.RunnerMessages, finding.Message)
+				}
+			}
 			cell.FindingCodes = codesFor(result.Findings, "__corpus__")
+			cell.FindingMessages = messagesFor(result.Findings, "__corpus__")
 			cell.FindingCount = len(cell.FindingCodes)
 			cell.Verdict = "pass"
-			if cell.FindingCount > 0 || len(result.RunnerError) > 0 {
+			if cell.FindingCount > 0 {
 				cell.Verdict = "fail"
+			}
+			if len(result.RunnerError) > 0 {
+				cell.Verdict = "unmeasured"
 			}
 		}
 		cells = append(cells, cell)
@@ -138,7 +196,55 @@ func buildMatrix(root string) (matrix, error) {
 		}
 		return cells[i].Gate < cells[j].Gate
 	})
-	return matrix{SchemaVersion: "gate-matrix/v1", GeneratedAt: time.Unix(0, 0).UTC().Format(time.RFC3339), AssetCount: len(assets), GateCount: len(definitions), Cells: cells}, nil
+	current := matrix{SchemaVersion: "gate-matrix/v1", GeneratedAt: time.Unix(0, 0).UTC().Format(time.RFC3339), AssetCount: len(assets), GateCount: len(definitions), Cells: cells}
+	if keyErr == nil {
+		cachePath := filepath.Join(os.TempDir(), "rcl-gate-matrix-"+key+".json")
+		if raw, marshalErr := json.Marshal(struct {
+			Key    string `json:"key"`
+			Matrix matrix `json:"matrix"`
+		}{key, current}); marshalErr == nil {
+			_ = os.WriteFile(cachePath, raw, 0o600)
+		}
+	}
+	return current, nil
+}
+
+func matrixInputFingerprint(root string) (string, error) {
+	hash := sha256.New()
+	for _, relative := range []string{
+		"scenarios/react-component-library/catalog",
+		"scenarios/react-component-library/library",
+		"scenarios/react-component-library/ui/src",
+		"scenarios/react-component-library/api/internal/gates",
+		"scenarios/react-component-library/api/internal/catalogcoverage",
+		"scenarios/react-component-library/api/cmd/gate-matrix",
+	} {
+		base := filepath.Join(root, relative)
+		err := filepath.WalkDir(base, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() {
+				if entry.Name() == "node_modules" || entry.Name() == "dist" || entry.Name() == ".retired" {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			_, _ = hash.Write([]byte(filepath.ToSlash(path)))
+			_, _ = hash.Write([]byte{0})
+			_, _ = hash.Write(data)
+			_, _ = hash.Write([]byte{0})
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
 func hasKind(kinds []string, wanted string) bool {
@@ -167,6 +273,24 @@ func codesFor(findings []gates.Finding, ids ...string) []string {
 	}
 	sort.Strings(codes)
 	return codes
+}
+
+func messagesFor(findings []gates.Finding, ids ...string) []string {
+	allowed := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		allowed[id] = true
+	}
+	seen := map[string]bool{}
+	messages := []string{}
+	for _, finding := range findings {
+		if !allowed[finding.AssetID] || finding.Message == "" || seen[finding.Message] {
+			continue
+		}
+		seen[finding.Message] = true
+		messages = append(messages, finding.Message)
+	}
+	sort.Strings(messages)
+	return messages
 }
 
 func contains(values []string, wanted string) bool {

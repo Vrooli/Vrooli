@@ -2,6 +2,9 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.chrome-theme",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
   "description": "Scoped runtime service for predictable ChromeTheme behavior.",
   "designStyles": [
     {
@@ -10,13 +13,15 @@
     }
   ],
   "displayName": "ChromeTheme",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "kind": "surface",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:ChromeTheme",
   "tags": [
     "runtime",
     "state"
-  ],
-  "draft": "",
-  "deprecatedVersions": []
+  ]
 }

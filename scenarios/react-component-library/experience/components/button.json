@@ -6,7 +6,7 @@
     "id": "button",
     "title": "Button",
     "purpose": "Provide a token-bound action control whose accessible name, spacing, state treatment, and size remain consistent across reuse.",
-    "storyRef": "../../library/components/Button/versions/2.0.0/story.json"
+    "storyRef": "../../library/components/Button/versions/2.2.4/story.json"
   },
   "states": [
     { "id": "primary", "example": "primary", "description": "Primary action." },

@@ -6,7 +6,7 @@
     "id": "app-navigation",
     "title": "AppNavigation",
     "purpose": "One navigation model changes presentation with viewport while preserving its content and capability parity.",
-    "storyRef": "../../library/components/AppNavigation/versions/1.1.0/story.json"
+    "storyRef": "../../library/components/AppNavigation/versions/1.1.6/story.json"
   },
   "states": [
     {

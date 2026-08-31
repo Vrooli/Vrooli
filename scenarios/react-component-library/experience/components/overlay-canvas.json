@@ -6,7 +6,7 @@
     "id": "overlay-canvas",
     "title": "OverlayCanvas",
     "purpose": "Locate measured claim subjects on rendered evidence without obscuring their names.",
-    "storyRef": "../../library/components/OverlayCanvas/versions/1.0.7/story.json"
+    "storyRef": "../../library/components/OverlayCanvas/versions/1.0.14/story.json"
   },
   "states": [
     {

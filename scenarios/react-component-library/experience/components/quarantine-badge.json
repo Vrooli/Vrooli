@@ -6,7 +6,7 @@
     "id": "quarantine-badge",
     "title": "QuarantineBadge",
     "purpose": "Make non-discriminating enforcement and its reason visible without relying on color.",
-    "storyRef": "../../library/components/QuarantineBadge/versions/1.0.3/story.json"
+    "storyRef": "../../library/components/QuarantineBadge/versions/1.0.6/story.json"
   },
   "states": [
     {

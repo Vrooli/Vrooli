@@ -74,22 +74,15 @@ func NewAntigravityForTestWithBinary(path string) *Antigravity {
 func (c *Antigravity) ToolCapabilityMap() map[string]string { return map[string]string{} }
 
 func (c *Antigravity) Capabilities() runner.Capabilities {
-	return runner.Capabilities{
-		SupportsMessages:         true,
+	return codingAgentCapabilities(runner.Capabilities{
 		SupportsToolEvents:       false,
 		SupportsCostTracking:     false,
-		SupportsStreaming:        true,
-		SupportsCancellation:     true,
-		SupportsContinuation:     true,
-		SupportsWarmIteration:    true,
 		SupportsImageAttachments: false,
 		SupportsToolRestriction:  false,
 		SupportsEffort:           false,
-		MaxTurns:                 0,
-		SupportsRunnerDefault:    true,
 		SupportedFeatures:        []string{},
 		AllowedExtraFlags:        nil,
-	}
+	})
 }
 
 func (c *Antigravity) ControlArgs(_ *domain.RunConfig) ([]string, error) { return nil, nil }
@@ -214,13 +207,7 @@ func (p *antigravityTranscriptParser) ParseTranscriptLine(runID uuid.UUID, line 
 }
 
 func (c *Antigravity) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionMetrics, lastAssistant *string) {
-	if event == nil {
-		return
-	}
-	if message, ok := event.Data.(*domain.MessageEventData); ok && message.Role == "assistant" {
-		*lastAssistant = message.Content
-		metrics.TurnsUsed++
-	}
+	updateAssistantMetrics(event, metrics, lastAssistant)
 }
 
 func (c *Antigravity) OnEarlyTerminate(_ State, _ string) bool       { return false }

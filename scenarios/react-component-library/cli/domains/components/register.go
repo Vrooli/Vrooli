@@ -43,6 +43,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		// manifest command with no entry in this map is a startup panic, not
 		// a missing subcommand.
 		"republish-dependents": h.republishDependents,
+		"migrate-specifiers":   h.migrateSpecifiers,
+		"republish-plan":       h.republishPlan,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

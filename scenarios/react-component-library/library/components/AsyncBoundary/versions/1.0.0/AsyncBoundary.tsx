@@ -1,5 +1,5 @@
 /** @vrooliComponentSource react-component-library:AsyncBoundary */
-import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import {
   useEffect,
   useId,

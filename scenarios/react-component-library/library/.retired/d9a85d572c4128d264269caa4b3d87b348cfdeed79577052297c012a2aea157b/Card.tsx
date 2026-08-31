@@ -24,7 +24,8 @@ export interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
   children: ReactNode;
 }
 
-export interface CardDescriptionProps extends HTMLAttributes<HTMLParagraphElement> {
+export interface CardDescriptionProps
+  extends HTMLAttributes<HTMLParagraphElement> {
   children: ReactNode;
 }
 
@@ -32,11 +33,14 @@ export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-const cn = (...inputs: Array<string | undefined>) => inputs.filter(Boolean).join(" ");
+const cn = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
 export function Card({ children, className, ...props }: CardProps) {
   const { elevation = "flat" } = useSurfaceContext();
-  const testId = (props as CardProps & { "data-testid"?: string })["data-testid"];
+  const testId = (props as CardProps & { "data-testid"?: string })[
+    "data-testid"
+  ];
   const surfaceStyle: CSSProperties = {
     boxShadow: `var(--elev-${elevation})`,
     ...props.style,
@@ -50,7 +54,10 @@ export function Card({ children, className, ...props }: CardProps) {
       data-testid={testId ?? "rcl-card"}
       style={surfaceStyle}
     >
-      <style data-rcl-card-styles dangerouslySetInnerHTML={{ __html: cardStyles }} />
+      <style
+        data-rcl-card-styles
+        dangerouslySetInnerHTML={{ __html: cardStyles }}
+      />
       {children}
     </div>
   );
@@ -72,7 +79,11 @@ export function CardTitle({ children, className, ...props }: CardTitleProps) {
   );
 }
 
-export function CardDescription({ children, className, ...props }: CardDescriptionProps) {
+export function CardDescription({
+  children,
+  className,
+  ...props
+}: CardDescriptionProps) {
   return (
     <p className={cn("rcl-card__description", className)} {...props}>
       {children}
@@ -80,7 +91,11 @@ export function CardDescription({ children, className, ...props }: CardDescripti
   );
 }
 
-export function CardContent({ children, className, ...props }: CardContentProps) {
+export function CardContent({
+  children,
+  className,
+  ...props
+}: CardContentProps) {
   return (
     <div className={cn("rcl-card__content", className)} {...props}>
       {children}

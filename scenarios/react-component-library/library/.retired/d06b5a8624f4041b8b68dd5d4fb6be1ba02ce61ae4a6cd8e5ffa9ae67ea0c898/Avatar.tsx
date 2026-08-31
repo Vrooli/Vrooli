@@ -13,7 +13,7 @@ import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1"
 import { Children, useMemo, type CSSProperties, type ReactNode } from "react";
 import { ProgressiveImage } from "@vrooli/react-component-library/ProgressiveImage/1.1.0";
 import { Presence } from "@vrooli/react-component-library/Presence/1.0.0";
-import { Text } from "@vrooli/react-component-library/Text/1.0.0";
+import { Text } from "@vrooli/react-component-library/Text/1";
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 export type AvatarShape = "circle" | "rounded" | "square";
@@ -86,13 +86,17 @@ export const Avatar = withClassName(function Avatar({
   style,
 }: AvatarProps) {
   const fallback = useMemo(() => initials(name), [name]);
-  const accessiblePresence = presenceLabel ?? `${name} is ${presence ?? "offline"}`;
+  const accessiblePresence =
+    presenceLabel ?? `${name} is ${presence ?? "offline"}`;
   const resolvedPlaceholder = placeholder ?? (
     <span data-testid="primitives.avatar" aria-hidden="true" />
   );
   return (
     <>
-      <style data-rcl-avatar-styles dangerouslySetInnerHTML={{ __html: styles }} />
+      <style
+        data-rcl-avatar-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
       <span data-rcl-avatar-shell>
         <span
           data-rcl-avatar
@@ -131,7 +135,11 @@ export const Avatar = withClassName(function Avatar({
         </span>
         <Presence present={Boolean(presence)} as="span" duration="quick">
           {presence ? (
-            <span data-rcl-avatar-presence={presence} role="status" aria-label={accessiblePresence}>
+            <span
+              data-rcl-avatar-presence={presence}
+              role="status"
+              aria-label={accessiblePresence}
+            >
               <span aria-hidden="true" />
             </span>
           ) : null}
@@ -167,11 +175,23 @@ export const AvatarGroup = withClassName(function AvatarGroup({
   const overflow = Math.max(0, items.length - visible.length);
   return (
     <>
-      <style data-rcl-avatar-group-styles dangerouslySetInnerHTML={{ __html: styles }} />
-      <div data-rcl-avatar-group role="group" aria-label={label} className={className}>
+      <style
+        data-rcl-avatar-group-styles
+        dangerouslySetInnerHTML={{ __html: styles }}
+      />
+      <div
+        data-rcl-avatar-group
+        role="group"
+        aria-label={label}
+        className={className}
+      >
         {visible}
         {overflow > 0 ? (
-          <span data-rcl-avatar-overflow role="img" aria-label={overflowLabel(overflow)}>
+          <span
+            data-rcl-avatar-overflow
+            role="img"
+            aria-label={overflowLabel(overflow)}
+          >
             <Text as="span">+{overflow}</Text>
           </span>
         ) : null}

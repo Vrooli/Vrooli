@@ -173,9 +173,7 @@ func (r *Repository) ImportArchive(ctx context.Context, path string, overwrite b
 			}
 		}
 		quoted := make([]string, len(archive.Columns))
-		for i, column := range archive.Columns {
-			quoted[i] = column
-		}
+		copy(quoted, archive.Columns)
 		placeholders := strings.TrimRight(strings.Repeat("?,", len(quoted)), ",")
 		query := `INSERT INTO ` + table + ` (` + strings.Join(quoted, ",") + `) VALUES (` + placeholders + `)`
 		for _, row := range archive.Rows {

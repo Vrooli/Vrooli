@@ -52,7 +52,7 @@ func TestRepositoryCatalogIsStrictAndModelFree(t *testing.T) {
 		t.Fatalf("Load repository role catalog: %v", err)
 	}
 	catalog := revision.Catalog()
-	if catalog.DefaultRole != "code.default" || len(catalog.Roles) != 7 {
+	if catalog.DefaultRole != "code.default" || len(catalog.Roles) != 9 {
 		t.Fatalf("catalog = %#v", catalog)
 	}
 	if _, exists := catalog.Roles["extract.structured"]; exists {

@@ -46,6 +46,30 @@ func canonicalToolMappings(translations map[domain.CanonicalTool]string) map[str
 	return result
 }
 
+// codingAgentCapabilities applies only the capability values shared by every
+// coding-agent codec. Each caller supplies its runner-specific contract so
+// differences remain visible beside the runner implementation.
+func codingAgentCapabilities(specific runner.Capabilities) runner.Capabilities {
+	specific.SupportsMessages = true
+	specific.SupportsStreaming = true
+	specific.SupportsCancellation = true
+	specific.SupportsContinuation = true
+	specific.SupportsWarmIteration = true
+	specific.MaxTurns = 0
+	specific.SupportsRunnerDefault = true
+	return specific
+}
+
+func updateAssistantMetrics(event *domain.RunEvent, metrics *runner.ExecutionMetrics, lastAssistant *string) {
+	if event == nil {
+		return
+	}
+	if message, ok := event.Data.(*domain.MessageEventData); ok && message.Role == "assistant" {
+		*lastAssistant = message.Content
+		metrics.TurnsUsed++
+	}
+}
+
 // Codec is the runner-specific seam.
 //
 // Codec implementations MUST be safe for concurrent use across multiple

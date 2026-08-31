@@ -5,7 +5,8 @@
   "deprecatedVersions": [
     "1.0.0",
     "1.1.0",
-    "1.1.1"
+    "1.1.1",
+    "1.1.2"
   ],
   "description": "Staged directional drag with axis locking, resistance, and velocity-aware release, reported in pixels rather than a clamped ratio.",
   "designStyles": [
@@ -18,10 +19,12 @@
   "draft": "",
   "evictedVersions": [
     "1.0.0",
-    "1.1.1"
+    "1.1.1",
+    "1.1.0",
+    "1.1.2"
   ],
   "kind": "surface",
-  "latest": "1.1.2",
+  "latest": "1.1.3",
   "libraryId": "react-component-library:useSwipeGesture",
   "tags": [
     "runtime",

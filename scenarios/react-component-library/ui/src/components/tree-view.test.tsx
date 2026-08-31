@@ -2,7 +2,7 @@ import { vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeView/1.0.0";
+import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeView/1";
 import { renderWithProviders } from "../test-utils";
 
 describe("TreeView", () => {

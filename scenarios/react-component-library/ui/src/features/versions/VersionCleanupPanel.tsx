@@ -14,15 +14,6 @@ interface Props {
   compact?: boolean;
 }
 
-interface CleanupReference {
-  ownerLibraryId: string;
-  ownerVersion: string;
-  ownerPath: string;
-  importSpecifier: string;
-}
-
-type CleanupItemWithReferences = CleanupItem & { references?: CleanupReference[] };
-
 function eligibleItems(items: CleanupItem[]) {
   return items.filter((item) => item.eligible);
 }
@@ -173,32 +164,35 @@ export function VersionCleanupPanel({ componentId, compact = false }: Props) {
               </div>
               <ul className="max-h-48 space-y-space-3xs overflow-y-auto text-xs">
                 {plan.items.map((rawItem) => {
-                  const item = rawItem as CleanupItemWithReferences;
+                  const item = rawItem;
                   const references = item.references ?? [];
                   return (
-                  <li
-                    key={`${item.version?.libraryId}:${item.version?.version}`}
-                    className="flex flex-wrap items-center justify-between gap-space-xs"
-                  >
-                    <span className="font-mono">{item.version?.version}</span>
-                    <span className="flex flex-wrap items-center justify-end gap-space-2xs text-right">
-                      <StatusBadge tone={item.eligible ? "warning" : "neutral"}>
-                        {item.eligible ? "Eligible" : "Protected"}
-                      </StatusBadge>
-                      <span className="text-app-muted-foreground">
-                        {item.ageDays}d old · {item.reason}
+                    <li
+                      key={`${item.version?.libraryId}:${item.version?.version}`}
+                      className="flex flex-wrap items-center justify-between gap-space-xs"
+                    >
+                      <span className="font-mono">{item.version?.version}</span>
+                      <span className="flex flex-wrap items-center justify-end gap-space-2xs text-right">
+                        <StatusBadge tone={item.eligible ? "warning" : "neutral"}>
+                          {item.eligible ? "Eligible" : "Protected"}
+                        </StatusBadge>
+                        <span className="text-app-muted-foreground">
+                          {item.ageDays}d old · {item.reason}
+                        </span>
                       </span>
-                    </span>
-                    {references.length > 0 && (
-                      <div className="basis-full pl-space-xs text-[0.7rem] text-app-muted-foreground">
-                        {references.map((reference) => (
-                          <div key={`${reference.ownerLibraryId}:${reference.ownerVersion}:${reference.ownerPath}:${reference.importSpecifier}`}>
-                            ← {reference.ownerLibraryId}@{reference.ownerVersion} · {reference.ownerPath} imports {reference.importSpecifier}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </li>
+                      {references.length > 0 && (
+                        <div className="basis-full pl-space-xs text-[0.7rem] text-app-muted-foreground">
+                          {references.map((reference) => (
+                            <div
+                              key={`${reference.ownerLibraryId}:${reference.ownerVersion}:${reference.ownerPath}:${reference.importSpecifier}`}
+                            >
+                              ← {reference.ownerLibraryId}@{reference.ownerVersion} ·{" "}
+                              {reference.ownerPath} imports {reference.importSpecifier}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </li>
                   );
                 })}
               </ul>

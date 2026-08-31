@@ -3,7 +3,13 @@
   "assetKind": "component",
   "catalogId": "overlays.menu",
   "deprecatedVersions": [
-    "1.1.1"
+    "1.1.1",
+    "1.1.2",
+    "1.2.0",
+    "1.2.1",
+    "1.2.2",
+    "1.2.3",
+    "1.2.4"
   ],
   "description": "The menu family covering dropdowns and submenus with roving focus, typeahead, check and radio items, safe pointer corridors, shortcut hints, and async item actions.",
   "designStyles": [
@@ -26,10 +32,13 @@
     "1.1.1",
     "1.2.1",
     "1.2.0",
-    "1.1.2"
+    "1.1.2",
+    "1.2.2",
+    "1.2.3",
+    "1.2.4"
   ],
   "kind": "overlay",
-  "latest": "1.2.2",
+  "latest": "1.2.5",
   "libraryId": "react-component-library:Menu",
   "tags": [
     "overlay",

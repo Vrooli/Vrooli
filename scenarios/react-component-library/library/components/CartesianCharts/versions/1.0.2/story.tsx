@@ -1,4 +1,4 @@
-import { resolveStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { resolveStrings } from "@vrooli/react-component-library/useLocale/1";
 import { CartesianCharts } from "./CartesianCharts";
 
 const data = [

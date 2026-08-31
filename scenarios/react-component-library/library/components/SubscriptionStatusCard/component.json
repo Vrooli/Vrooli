@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "monetization.subscription-status-card",
-  "deprecatedVersions": [
-    "1.0.2"
-  ],
+  "deprecatedVersions": ["1.0.2", "1.0.3", "1.0.4"],
   "description": "Hosted account status and lease-backed balance.",
   "designStyles": [
     {
@@ -18,14 +16,9 @@
   ],
   "displayName": "SubscriptionStatusCard",
   "draft": "",
-  "evictedVersions": [
-    "1.0.2"
-  ],
+  "evictedVersions": ["1.0.2", "1.0.3", "1.0.4"],
   "kind": "surface",
-  "latest": "1.0.3",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:SubscriptionStatusCard",
-  "tags": [
-    "monetization",
-    "account"
-  ]
+  "tags": ["monetization", "account"]
 }

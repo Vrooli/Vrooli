@@ -1,8 +1,12 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
   "deprecatedVersions": [
     "0.3.2",
-    "0.1.1"
+    "0.1.1",
+    "0.3.3",
+    "0.4.0",
+    "0.4.1"
   ],
   "description": "Syntax-highlighted fenced code block with bounded cache and copy feedback.",
   "designStyles": [
@@ -13,20 +17,22 @@
     }
   ],
   "displayName": "Markdown Renderer",
-  "draft": "0.4.2-draft.1",
+  "draft": "",
   "entry": "MarkdownRenderer.tsx",
   "evictedVersions": [
     "0.3.3",
-    "0.1.1"
+    "0.1.1",
+    "0.4.0",
+    "0.4.1",
+    "0.3.2"
   ],
   "kind": "surface",
-  "latest": "0.4.1",
+  "latest": "0.4.2",
   "libraryId": "react-component-library:markdown-renderer",
+  "supplemental": true,
   "tags": [
     "markdown",
     "rendering",
     "gfm"
-  ],
-  "assetKind": "component",
-  "supplemental": true
+  ]
 }

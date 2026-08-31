@@ -3,7 +3,10 @@
   "assetKind": "component",
   "catalogId": "feedback.async-boundary",
   "deprecatedVersions": [
-    "1.0.3"
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.1"
   ],
   "description": "A stable async state boundary that preserves structure while pending, failed, or retryable content changes.",
   "designStyles": [
@@ -15,10 +18,13 @@
   "displayName": "AsyncBoundary",
   "draft": "",
   "evictedVersions": [
-    "1.0.3"
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.1"
   ],
   "kind": "surface",
-  "latest": "1.0.5",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:AsyncBoundary",
   "requires": [
     {

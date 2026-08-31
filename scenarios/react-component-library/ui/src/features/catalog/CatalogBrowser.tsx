@@ -10,12 +10,12 @@ import { strings } from "../../consts/strings.generated";
 import { useTranslation } from "../../i18n";
 import { Input } from "../../components/Input";
 import { Button } from "../../components/Button";
-import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
-import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeView/1.0.0";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
+import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeView/1";
 import {
   ExperienceSurface,
   type ExperienceSurfaceState,
-} from "@vrooli/react-component-library/ExperienceSurface/1.0.2";
+} from "@vrooli/react-component-library/ExperienceSurface/1";
 import { CreateComponentDialog } from "../components/CreateComponentDialog";
 import { AdoptedAssetShowcase } from "./AdoptedAssetShowcase";
 import { workflowsClient } from "../../api/workflows";

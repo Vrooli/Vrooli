@@ -32,3 +32,24 @@ func Command(name, description string, run CommandFunc) cliapp.Command {
 		Run:         run,
 	}
 }
+
+// Subcommand adapts an existing group dispatcher to cliapp's discoverable
+// subcommand model while the command-specific flag parsing remains local.
+func Subcommand(name, description string, dispatch CommandFunc) cliapp.Command {
+	return cliapp.Command{
+		Name:        name,
+		NeedsAPI:    true,
+		Description: description,
+		Run: func(args []string) error {
+			return dispatch(append([]string{name}, args...))
+		},
+	}
+}
+
+func SubcommandGroup(name, description string, dispatch CommandFunc, commands ...[2]string) cliapp.SubcommandGroup {
+	subcommands := make([]cliapp.Command, 0, len(commands))
+	for _, command := range commands {
+		subcommands = append(subcommands, Subcommand(command[0], command[1], dispatch))
+	}
+	return cliapp.SubcommandGroup{Name: name, Description: description, NeedsAPI: true, Subcommands: subcommands}
+}

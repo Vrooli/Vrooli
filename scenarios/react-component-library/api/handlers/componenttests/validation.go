@@ -264,19 +264,18 @@ func (h *sharedHandler) coverageReport(ctx context.Context) (*catalogcoverage.Re
 				return nil, fmt.Errorf("load catalog coverage gates: %w", err)
 			}
 			// Component validation already runs against the durable BAS evidence
-			// store. Do not re-fetch Experience Manager for every implementation
-			// here: that enrichment belongs to the explicit catalog-evidence path
-			// and makes the server-owned validation RPC exceed its deadline when
-			// repeated across the full corpus.
-			evidence, err := catalogcoverage.MergedEvidence(ctx, root, h.evidence)
-			if err != nil {
-				// Evidence maturity is a supporting report for this provider. A
-				// busy SQLite evidence store must not turn component validation
-				// itself into a transport failure at the request deadline.
-				if errors.Is(err, context.DeadlineExceeded) {
-					return nil, nil
+			// store. Read that snapshot only: recomputing every deterministic gate
+			// here is unbounded supporting work and can outlive the validation RPC
+			// deadline. The explicit catalog-evidence path owns freshness merges.
+			var evidence []catalogcoverage.GateEvidence
+			if h.evidence != nil {
+				evidence, err = h.evidence.List(ctx)
+				if err != nil {
+					if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+						return nil, nil
+					}
+					return nil, fmt.Errorf("load catalog gate evidence snapshot: %w", err)
 				}
-				return nil, fmt.Errorf("load catalog gate evidence: %w", err)
 			}
 			report := catalogcoverage.ComputeWithEvidence(assets, impls, evidence, gates)
 			return &report, nil

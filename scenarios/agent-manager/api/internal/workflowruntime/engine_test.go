@@ -1143,6 +1143,61 @@ func TestAuthoredPhasedPlanCreatesFreshRunForNextSlice(t *testing.T) { // [REQ:R
 	}
 }
 
+func TestAuthoredPhasedPlanAutoModeSkipsApprovalWait(t *testing.T) { // [REQ:SWM-AUTONOMY-001]
+	definition := loadAuthoredPhasedPlanDefinition(t)
+	engine, _, children := testEngine(t, definition)
+	reviews := &fakeSubworkflows{states: map[uuid.UUID]SubworkflowState{}, byKey: map[string]uuid.UUID{}}
+	engine.Subworkflows = reviews
+	execution, err := engine.Start(context.Background(), revision(definition), phasedPlanInput(2, "auto"), "authored-auto-mode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "auto-slice", "correctionRequired": false, "approvalRequired": true})
+	for i := 0; i < 4; i++ {
+		mustAdvance(t, engine, execution.ID)
+	}
+	completeLatestReview(t, reviews, true, "accepted")
+	for i := 0; i < 5; i++ {
+		mustAdvance(t, engine, execution.ID)
+	}
+	if len(children.requests) != 2 {
+		t.Fatalf("automatic gate still waited for approval: got %d slice runs", len(children.requests))
+	}
+}
+
+func TestAuthoredPhasedPlanManualModeRestoresApprovalWait(t *testing.T) { // [REQ:SWM-AUTONOMY-002]
+	definition := loadAuthoredPhasedPlanDefinition(t)
+	engine, _, children := testEngine(t, definition)
+	reviews := &fakeSubworkflows{states: map[uuid.UUID]SubworkflowState{}, byKey: map[string]uuid.UUID{}}
+	engine.Subworkflows = reviews
+	execution, err := engine.Start(context.Background(), revision(definition), phasedPlanInput(2, "manual"), "authored-manual-mode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustAdvance(t, engine, execution.ID)
+	mustAdvance(t, engine, execution.ID)
+	completeStructured(children, children.requests[0].runID, map[string]any{"outcome": "continue", "handoff": "manual-slice", "correctionRequired": false, "approvalRequired": true})
+	for i := 0; i < 4; i++ {
+		mustAdvance(t, engine, execution.ID)
+	}
+	completeLatestReview(t, reviews, true, "accepted")
+	for i := 0; i < 5; i++ {
+		mustAdvance(t, engine, execution.ID)
+	}
+	if len(children.requests) != 1 {
+		t.Fatalf("manual gate bypassed approval: got %d slice runs", len(children.requests))
+	}
+	state, err := engine.Store.Get(context.Background(), execution.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.CurrentNodeID != "approval" {
+		t.Fatalf("manual mode current node = %q, want approval", state.CurrentNodeID)
+	}
+}
+
 func TestAuthoredPhasedPlanFeedsCorrectedHandoffToNextSlice(t *testing.T) { // [REQ:REQ-P2-001]
 	definition := loadAuthoredPhasedPlanDefinition(t)
 	engine, _, children := testEngine(t, definition)
@@ -1228,12 +1283,17 @@ func reconciledSkillTemplate(t *testing.T, skillID string) string {
 	return string(content)
 }
 
-func phasedPlanInput(maxSlices int) json.RawMessage {
+func phasedPlanInput(maxSlices int, modes ...string) json.RawMessage {
+	mode := "manual"
+	if len(modes) > 0 {
+		mode = modes[0]
+	}
 	value, _ := json.Marshal(map[string]any{
+		"projectRoot":     "/repo",
 		"plan":            map[string]any{"reference": "plan-1", "frontierDigest": "sha256:frontier"},
 		"planExecutionId": "plan-execution-1",
 		"consumer":        map[string]any{"executionId": "execution-1", "entityKind": "execute", "entityName": "plan", "entityVersion": "sha256:entity"},
-		"constraints":     map[string]any{"maxSlices": maxSlices, "writeScope": []string{"scenarios/example/**"}},
+		"constraints":     map[string]any{"maxSlices": maxSlices, "writeScope": []string{"scenarios/example/**"}, "sliceApprovalMode": mode},
 	})
 	return value
 }
@@ -1253,7 +1313,7 @@ func completeLatestReview(t *testing.T, reviews *fakeSubworkflows, accepted bool
 	}
 	start := reviews.starts[len(reviews.starts)-1]
 	id := reviews.byKey[start.IdempotencyKey]
-	output, _ := json.Marshal(map[string]any{"review": map[string]any{"accepted": accepted, "note": note}})
+	output, _ := json.Marshal(map[string]any{"result": map[string]any{"accepted": accepted, "note": note}})
 	reviews.states[id] = SubworkflowState{ExecutionID: id, Terminal: true, Status: domain.WorkflowExecutionSucceeded, Output: output}
 }
 

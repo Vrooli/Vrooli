@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Badge } from "@vrooli/react-component-library/Badge/1.0.0";
-import { Icon } from "@vrooli/react-component-library/Icon/1.1.0";
-import { NavLink } from "@vrooli/react-component-library/NavLink/1.0.0";
+import { Badge } from "@vrooli/react-component-library/Badge/1";
+import { Icon } from "@vrooli/react-component-library/Icon/1";
+import { NavLink } from "@vrooli/react-component-library/NavLink/1";
 import { SidebarShell } from "./SidebarShell";
 
 function NavigationSpecimen() {

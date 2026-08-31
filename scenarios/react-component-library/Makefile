@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints matrix matrix-diff determinism determinism-check
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints matrix matrix-diff determinism determinism-check corpus-report ledger-audit restore-authored-mirror remove-derived-ledger-entries restore-authored-ledger-entries purge-unreadable reconcile-ledger reconcile-mirror
 
 .DEFAULT_GOAL := help
 
@@ -138,6 +138,30 @@ matrix: ## Emit the deterministic catalog gate verdict matrix
 
 matrix-diff: ## Compare the live verdict matrix with the committed baseline
 	@cd api && GOWORK=off go run ./cmd/gate-matrix --root ../../.. --diff ../catalog/calibration/verdict-matrix-baseline.json
+
+corpus-report: ## Emit version and retention corpus invariants
+	@cd api && GOWORK=off go run ./cmd/corpus-report --root ../../..
+
+ledger-audit: ## Audit authored release-hash entries without changing the tree
+	@cd api && GOWORK=off go run ./cmd/ledger-audit --root ../../..
+
+restore-authored-mirror: ## Preview or restore authored release files from the durable mirror
+	@cd api && GOWORK=off go run ./cmd/restore-authored-mirror --root ../../.. $(ARGS)
+
+remove-derived-ledger-entries: ## Remove generated dependency locks from the release hash ledger
+	@node ../../packages/react-component-library/scripts/remove-derived-ledger-entries.mjs library/released-version-hashes.json
+
+restore-authored-ledger-entries: ## Restore on-disk authored story rows from the prior ledger
+	@node ../../packages/react-component-library/scripts/restore-authored-ledger-entries.mjs ../..
+
+purge-unreadable: ## Purge one explicitly named evicted version with no mirror
+	@cd api && GOWORK=off go run ./cmd/purge-unreadable --root ../../.. $(ARGS)
+
+reconcile-ledger: ## Report or apply safe release-hash ledger reconciliation
+	@cd api && GOWORK=off go run ./cmd/reconcile-ledger --root ../../.. $(ARGS)
+
+reconcile-mirror: ## Accept current authored bytes into one durable version mirror
+	@cd api && GOWORK=off go run ./cmd/reconcile-mirror --root ../../.. $(ARGS)
 
 determinism: ## Generate test-genie determinism capabilities from the gate registry
 	@cd api && GOWORK=off go run ./cmd/gen-determinism --output ../.vrooli/test-genie.json

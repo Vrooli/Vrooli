@@ -2,6 +2,7 @@ package components
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"path"
@@ -14,6 +15,7 @@ import (
 // indexable and makes missing or dead pins fail before partial indexing.
 func ValidateVersionDependencyLocks(fsys fs.FS) error {
 	versionDirs := map[string]struct{}{}
+	provenanced := provenancedReleases(fsys)
 	if err := fs.WalkDir(fsys, ".", func(filePath string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -40,7 +42,12 @@ func ValidateVersionDependencyLocks(fsys fs.FS) error {
 		lockPath := path.Join(directory, "dependencies.json")
 		raw, err := fs.ReadFile(fsys, lockPath)
 		if err != nil {
-			findings = append(findings, fmt.Sprintf("%s: missing dependencies.json", directory))
+			// dependencies.json is a derived projection. It may be absent in a
+			// source checkout and is regenerated from the authored import graph.
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			findings = append(findings, fmt.Sprintf("%s: cannot read dependencies.json: %v", directory, err))
 			continue
 		}
 		var lock versionDependencyLock
@@ -49,8 +56,10 @@ func ValidateVersionDependencyLocks(fsys fs.FS) error {
 			continue
 		}
 		for _, dependency := range lock.Dependencies {
-			name := strings.TrimPrefix(strings.TrimSpace(dependency.LibraryID), "react-component-library:")
-			if name == "" || name == dependency.LibraryID || !dependencyTargetExists(fsys, name, strings.TrimSpace(dependency.Version)) {
+			libraryID := strings.TrimSpace(dependency.LibraryID)
+			name := strings.TrimPrefix(libraryID, "react-component-library:")
+			version := strings.TrimSpace(dependency.Version)
+			if name == "" || name == libraryID || (!dependencyTargetExists(fsys, name, version) && !provenanced[libraryID+"@"+version]) {
 				findings = append(findings, fmt.Sprintf("%s: dependency %s@%s has no materialized version directory", directory, dependency.LibraryID, dependency.Version))
 			}
 		}
@@ -59,6 +68,36 @@ func ValidateVersionDependencyLocks(fsys fs.FS) error {
 		return fmt.Errorf("version dependency lock validation failed:\n  - %s", strings.Join(findings, "\n  - "))
 	}
 	return nil
+}
+
+// provenancedReleases records versions whose bytes may intentionally live in
+// the durable cold mirror rather than in the working tree. The filesystem-only
+// validator cannot inspect SQLite mirrors, but the release provenance ledger is
+// enough to distinguish a real historical release from a made-up dependency;
+// the mirror-integrity/doctor gate remains responsible for proving its bytes.
+func provenancedReleases(fsys fs.FS) map[string]bool {
+	result := map[string]bool{}
+	raw, err := fs.ReadFile(fsys, "release-provenance.json")
+	if err != nil {
+		return result
+	}
+	var ledger struct {
+		Entries []struct {
+			LibraryID string `json:"libraryId"`
+			Version   string `json:"version"`
+		} `json:"entries"`
+	}
+	if json.Unmarshal(raw, &ledger) != nil {
+		return result
+	}
+	for _, entry := range ledger.Entries {
+		libraryID := strings.TrimSpace(entry.LibraryID)
+		version := strings.TrimSpace(entry.Version)
+		if libraryID != "" && version != "" {
+			result[libraryID+"@"+version] = true
+		}
+	}
+	return result
 }
 
 func dependencyAssetRoot(root string) bool {

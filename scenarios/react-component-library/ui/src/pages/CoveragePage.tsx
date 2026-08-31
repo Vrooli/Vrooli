@@ -12,7 +12,7 @@ import { HealthIndicator } from "../../../library/components/HealthIndicator/ver
 import { MetricBreakdown } from "../../../library/components/MetricBreakdown/versions/1.0.0/MetricBreakdown";
 import { NetworkGraph } from "../../../library/components/NetworkGraph/versions/1.0.5/NetworkGraph";
 import { ProgressLadder } from "../../../library/components/ProgressLadder/versions/1.0.0/ProgressLadder";
-import { ScoreGauge } from "@vrooli/react-component-library/ScoreGauge/1.0.9";
+import { ScoreGauge } from "@vrooli/react-component-library/ScoreGauge/1";
 
 const maturityLabels: Record<string, string> = {
   missing: "Missing",

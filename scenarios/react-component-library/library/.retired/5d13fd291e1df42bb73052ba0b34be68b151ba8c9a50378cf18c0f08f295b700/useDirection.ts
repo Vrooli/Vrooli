@@ -30,7 +30,10 @@ export type { WritingDirection };
  * the document's direction to a component sitting inside an `rtl` island.
  */
 const subscribe = (onChange: () => void) => {
-  if (typeof document === "undefined" || typeof MutationObserver === "undefined") {
+  if (
+    typeof document === "undefined" ||
+    typeof MutationObserver === "undefined"
+  ) {
     return () => {};
   }
   const observer = new MutationObserver(onChange);
@@ -44,7 +47,9 @@ const subscribe = (onChange: () => void) => {
   };
 };
 
-const readDirection = (element: Element | null | undefined): WritingDirection => {
+const readDirection = (
+  element: Element | null | undefined,
+): WritingDirection => {
   if (typeof document === "undefined") return "ltr";
   const target = element ?? document.documentElement;
   // The computed direction, not the `dir` attribute: an element reports its own
@@ -52,7 +57,10 @@ const readDirection = (element: Element | null | undefined): WritingDirection =>
   // the computed value is also what SidebarShell did when it resolved direction
   // privately, so routing that component through this hook cannot change the
   // answer it was already getting.
-  if (typeof window !== "undefined" && typeof window.getComputedStyle === "function") {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.getComputedStyle === "function"
+  ) {
     return normalizeWritingDirection(window.getComputedStyle(target).direction);
   }
   return normalizeWritingDirection(target.getAttribute?.("dir"));
@@ -72,7 +80,12 @@ const getServerSnapshot = (): WritingDirection => "ltr";
  * anchored to — that is an ergonomic preference carried by `useHandedness`, and
  * the two are combined by `resolveGestureDirection`.
  */
-export function useDirection(elementRef?: RefObject<Element | null>): WritingDirection {
-  const getSnapshot = useCallback(() => readDirection(elementRef?.current), [elementRef]);
+export function useDirection(
+  elementRef?: RefObject<Element | null>,
+): WritingDirection {
+  const getSnapshot = useCallback(
+    () => readDirection(elementRef?.current),
+    [elementRef],
+  );
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

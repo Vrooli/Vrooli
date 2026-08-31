@@ -4,7 +4,9 @@ export const NetworkGraphStrings = defineStrings(
   "react-component-library:NetworkGraph",
   {
     "visualization.network-graph.dependency-network": "Dependency network",
-    "visualization.network-graph.keyboard-accessible-dependency-nodes-style-displ": "Keyboard accessible dependency nodes",
-    "visualization.network-graph.select-dependency-node": "Select dependency node",
+    "visualization.network-graph.keyboard-accessible-dependency-nodes-style-displ":
+      "Keyboard accessible dependency nodes",
+    "visualization.network-graph.select-dependency-node":
+      "Select dependency node",
   },
 );

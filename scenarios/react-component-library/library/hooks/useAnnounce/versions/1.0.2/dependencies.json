@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:useAnnounce",
+  "version": "1.0.2",
+  "resolvedAt": "2026-08-31T05:48:42Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:LiveAnnouncer",
+      "version": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

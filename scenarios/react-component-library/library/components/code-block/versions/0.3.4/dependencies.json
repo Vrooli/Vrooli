@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:code-block",
+  "version": "0.3.4",
+  "resolvedAt": "2026-08-31T05:24:26Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

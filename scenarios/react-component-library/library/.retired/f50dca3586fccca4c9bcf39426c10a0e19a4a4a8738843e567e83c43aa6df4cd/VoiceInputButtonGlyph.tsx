@@ -25,25 +25,27 @@ const paths: Record<VoiceInputGlyphKind, ReactNode> = {
   ),
 };
 
-export const VoiceInputButtonGlyph = withClassName(function VoiceInputButtonGlyph({
-  kind,
-  className = "",
-  ...props
-}: SVGProps<SVGSVGElement> & { kind: VoiceInputGlyphKind }) {
-  return (
-    <svg
-      {...props}
-      data-rcl-voice-glyph
-      aria-hidden="true"
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {paths[kind]}
-    </svg>
-  );
-});
+export const VoiceInputButtonGlyph = withClassName(
+  function VoiceInputButtonGlyph({
+    kind,
+    className = "",
+    ...props
+  }: SVGProps<SVGSVGElement> & { kind: VoiceInputGlyphKind }) {
+    return (
+      <svg
+        {...props}
+        data-rcl-voice-glyph
+        aria-hidden="true"
+        className={className}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {paths[kind]}
+      </svg>
+    );
+  },
+);

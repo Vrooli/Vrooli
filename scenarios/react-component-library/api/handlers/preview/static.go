@@ -120,13 +120,20 @@ func (h *HarnessHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if override := queryFrameOverride(r); override != nil {
 		frame = override
 	}
+	version := strings.TrimSpace(r.URL.Query().Get("version"))
+	if version == "" {
+		// resolveStory has already selected the catalog version that owns the
+		// story contract. Carry that selection into bundling so live specimens
+		// are loaded from the same immutable version as their metadata.
+		version = story.Version
+	}
 	var bundle internalpreview.Bundle
 	if composer, ok := h.service.(interface {
 		GetBundleVersionWithFrameAndHarness(context.Context, string, string, *components.StoryFrame, *components.StoryHarnessRef) (internalpreview.Bundle, error)
 	}); ok {
-		bundle, err = composer.GetBundleVersionWithFrameAndHarness(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame, harness)
+		bundle, err = composer.GetBundleVersionWithFrameAndHarness(r.Context(), componentID, version, frame, harness)
 	} else {
-		bundle, err = h.service.GetBundleVersionWithFrame(r.Context(), componentID, strings.TrimSpace(r.URL.Query().Get("version")), frame)
+		bundle, err = h.service.GetBundleVersionWithFrame(r.Context(), componentID, version, frame)
 	}
 	if err != nil {
 		writeHarnessError(w, h.logger, id, err)
@@ -533,6 +540,7 @@ func renderHarnessHTML(id string, b internalpreview.Bundle, ex harnessStory, des
 	sb.WriteString(`>
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>preview: `)
 	sb.WriteString(html.EscapeString(b.SourcePath))
 	sb.WriteString(`</title>

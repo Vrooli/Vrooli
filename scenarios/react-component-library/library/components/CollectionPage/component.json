@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "templates.collection-page",
-  "deprecatedVersions": [
-    "1.0.3"
-  ],
+  "deprecatedVersions": ["1.0.3", "1.0.4", "1.0.5", "1.0.6"],
   "description": "A collection template with URL-ready filtering, data-source-owned records, and recovery states.",
   "designStyles": [
     {
@@ -14,11 +12,9 @@
   ],
   "displayName": "CollectionPage",
   "draft": "",
-  "evictedVersions": [
-    "1.0.3"
-  ],
+  "evictedVersions": ["1.0.3", "1.0.4", "1.0.5", "1.0.6"],
   "kind": "surface",
-  "latest": "1.0.6",
+  "latest": "1.0.7",
   "libraryId": "react-component-library:CollectionPage",
   "requires": [
     {
@@ -26,10 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "template",
-    "page",
-    "data-source",
-    "token-bound"
-  ]
+  "tags": ["template", "page", "data-source", "token-bound"]
 }

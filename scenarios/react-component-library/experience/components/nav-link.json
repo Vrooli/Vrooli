@@ -6,7 +6,7 @@
     "id": "nav-link",
     "title": "NavLink",
     "purpose": "A named navigation link with a stable current-page indicator and bounded label.",
-    "storyRef": "../../library/components/NavLink/versions/1.0.0/story.json"
+    "storyRef": "../../library/components/NavLink/versions/1.0.8/story.json"
   },
   "states": [
     { "id": "default", "example": "default", "description": "The navigation link is available." },

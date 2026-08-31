@@ -60,7 +60,10 @@ function isEditable(element: Element | null) {
   );
 }
 
-function snapshotsEqual(a: ViewportEnvironmentSnapshot, b: ViewportEnvironmentSnapshot) {
+function snapshotsEqual(
+  a: ViewportEnvironmentSnapshot,
+  b: ViewportEnvironmentSnapshot,
+) {
   return (Object.keys(a) as Array<keyof ViewportEnvironmentSnapshot>).every(
     (key) => a[key] === b[key],
   );
@@ -91,8 +94,12 @@ class BrowserViewportEnvironment {
     window.addEventListener("resize", this.schedule, { passive: true });
     document.addEventListener("focusin", this.schedule, true);
     document.addEventListener("focusout", this.schedule, true);
-    window.visualViewport?.addEventListener("resize", this.schedule, { passive: true });
-    window.visualViewport?.addEventListener("scroll", this.schedule, { passive: true });
+    window.visualViewport?.addEventListener("resize", this.schedule, {
+      passive: true,
+    });
+    window.visualViewport?.addEventListener("scroll", this.schedule, {
+      passive: true,
+    });
     this.measure();
   }
 
@@ -130,15 +137,20 @@ class BrowserViewportEnvironment {
     const offsetTop = Math.max(0, visual?.offsetTop ?? 0);
     const scale = visual?.scale && visual.scale > 0 ? visual.scale : 1;
     const rawInset = Math.max(0, layoutHeight - visibleHeight - offsetTop);
-    const minimumInset = Math.max(keyboardMinimumPixels, layoutHeight * keyboardMinimumRatio);
-    const eligible = isEditable(document.activeElement) && Math.abs(scale - 1) < 0.01;
+    const minimumInset = Math.max(
+      keyboardMinimumPixels,
+      layoutHeight * keyboardMinimumRatio,
+    );
+    const eligible =
+      isEditable(document.activeElement) && Math.abs(scale - 1) < 0.01;
 
     if (!eligible || rawInset < minimumInset) {
       this.keyboardEstablished = false;
       this.candidateInset = 0;
       this.candidateSamples = 0;
     } else if (!this.keyboardEstablished) {
-      if (Math.abs(rawInset - this.candidateInset) <= stableDeltaPixels) this.candidateSamples += 1;
+      if (Math.abs(rawInset - this.candidateInset) <= stableDeltaPixels)
+        this.candidateSamples += 1;
       else {
         this.candidateInset = rawInset;
         this.candidateSamples = 1;
@@ -173,8 +185,15 @@ export interface ViewportEnvironmentProviderProps {
   children: ReactNode;
 }
 
-export function ViewportEnvironmentProvider({ value, children }: ViewportEnvironmentProviderProps) {
-  return <overrideContext.Provider value={value}>{children}</overrideContext.Provider>;
+export function ViewportEnvironmentProvider({
+  value,
+  children,
+}: ViewportEnvironmentProviderProps) {
+  return (
+    <overrideContext.Provider value={value}>
+      {children}
+    </overrideContext.Provider>
+  );
 }
 
 export function useViewportEnvironment() {
@@ -197,6 +216,12 @@ export function useViewportEnvironmentStyle(): ViewportEnvironmentStyle {
       "--rcl-viewport-offset-top": `${viewport.offsetTop}px`,
       "--rcl-keyboard-inset": `${viewport.keyboardInset}px`,
     }),
-    [viewport.keyboardInset, viewport.offsetLeft, viewport.offsetTop, viewport.visibleHeight, viewport.visibleWidth],
+    [
+      viewport.keyboardInset,
+      viewport.offsetLeft,
+      viewport.offsetTop,
+      viewport.visibleHeight,
+      viewport.visibleWidth,
+    ],
   );
 }

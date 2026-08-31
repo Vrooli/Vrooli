@@ -1,9 +1,6 @@
 import type { Adoption } from "./adoptions";
 import { adoptionsClient } from "./adoptions";
-import {
-  listComponentTestReports,
-  type ComponentTestReport,
-} from "./componentTests";
+import { listComponentTestReports, type ComponentTestReport } from "./componentTests";
 import { listVersionLedger, type VersionLedgerRow } from "./versionLedger";
 import { versionsClient, type Version } from "./versions";
 

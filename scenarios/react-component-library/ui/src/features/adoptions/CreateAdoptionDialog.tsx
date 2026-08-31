@@ -61,23 +61,22 @@ export function CreateAdoptionDialog({ open, onClose, initial }: Props) {
   const [replaceExisting, setReplaceExisting] = useState(false);
 
   useEffect(() => {
-    if (!open) {
-      setComponentId(initial?.componentId ?? "");
-      setScenario(initial?.scenario ?? "");
-      setAdoptedPath("");
-      setPathUserEdited(false);
-      setPathSource(ResolveSource.UNSPECIFIED);
-      setPathWarnings([]);
-      setPathResolving(false);
-      setAdoptedVersion("");
-      setAck(false);
-      setVerdict(null);
-      setStyleVerdict(null);
-      setValidating(false);
-      setStyleValidating(false);
-      setOverwriteRequired(false);
-      setReplaceExisting(false);
-    }
+    if (!open) return;
+    setComponentId(initial?.componentId ?? "");
+    setScenario(initial?.scenario ?? "");
+    setAdoptedPath("");
+    setPathUserEdited(false);
+    setPathSource(ResolveSource.UNSPECIFIED);
+    setPathWarnings([]);
+    setPathResolving(false);
+    setAdoptedVersion("");
+    setAck(false);
+    setVerdict(null);
+    setStyleVerdict(null);
+    setValidating(false);
+    setStyleValidating(false);
+    setOverwriteRequired(false);
+    setReplaceExisting(false);
   }, [open, initial]);
 
   // ResolveAdoptionPath pre-fills the adopted-path input from the target

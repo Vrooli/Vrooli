@@ -4,7 +4,12 @@
   "catalogId": "navigation.resizable-sidebar",
   "deprecatedVersions": [
     "1.0.2",
-    "1.0.3"
+    "1.0.3",
+    "2.0.0",
+    "2.0.1",
+    "2.0.2",
+    "2.0.3",
+    "2.0.4"
   ],
   "description": "A sidebar preset over the shared resize primitive: navigation-shaped defaults, pointer and keyboard resizing, persisted width.",
   "designStyles": [
@@ -17,14 +22,15 @@
   "draft": "",
   "evictedVersions": [
     "1.0.3",
-    "1.0.2"
+    "1.0.2",
+    "2.0.0",
+    "2.0.1",
+    "2.0.2",
+    "2.0.3",
+    "2.0.4"
   ],
   "kind": "shell",
-  "latest": "2.0.1",
+  "latest": "2.0.5",
   "libraryId": "react-component-library:ResizableSidebar",
-  "tags": [
-    "navigation",
-    "responsive",
-    "token-bound"
-  ]
+  "tags": ["navigation", "responsive", "token-bound"]
 }

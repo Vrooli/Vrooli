@@ -63,14 +63,20 @@ export const CommandCenterShell = withClassName(function CommandCenterShell({
         data-rcl-command-center-styles
         dangerouslySetInnerHTML={{ __html: commandCenterShellStyles }}
       />
-      <nav aria-label={`${title} navigation`} className="rcl-command-center__navigation">
+      <nav
+        aria-label={`${title} navigation`}
+        className="rcl-command-center__navigation"
+      >
         {navigation}
       </nav>
       <section className="rcl-command-center__body">
         <header className="rcl-command-center__header">
           <h1 className="rcl-command-center__title">{title}</h1>
           {controls ? (
-            <div aria-label={`${title} controls`} className="rcl-command-center__controls">
+            <div
+              aria-label={`${title} controls`}
+              className="rcl-command-center__controls"
+            >
               {controls}
             </div>
           ) : null}
@@ -78,10 +84,16 @@ export const CommandCenterShell = withClassName(function CommandCenterShell({
         <dl className="rcl-command-center__metrics">
           {metrics.map((metric) => (
             <div key={metric.label} className="rcl-command-center__metric">
-              <dt className="rcl-command-center__metric-label">{metric.label}</dt>
-              <dd className="rcl-command-center__metric-value">{metric.value}</dd>
+              <dt className="rcl-command-center__metric-label">
+                {metric.label}
+              </dt>
+              <dd className="rcl-command-center__metric-value">
+                {metric.value}
+              </dd>
               {metric.detail ? (
-                <p className="rcl-command-center__metric-detail">{metric.detail}</p>
+                <p className="rcl-command-center__metric-detail">
+                  {metric.detail}
+                </p>
               ) : null}
             </div>
           ))}

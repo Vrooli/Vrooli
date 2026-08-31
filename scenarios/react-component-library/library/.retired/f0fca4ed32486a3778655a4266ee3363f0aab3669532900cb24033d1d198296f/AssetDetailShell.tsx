@@ -56,12 +56,18 @@ export const AssetDetailShell = withClassName(function AssetDetailShell({
           <header data-rcl-asset-detail-header>
             <h1 data-rcl-asset-detail-title>{title}</h1>
             {actions ? (
-              <div data-rcl-asset-detail-actions aria-label={`${title} actions`}>
+              <div
+                data-rcl-asset-detail-actions
+                aria-label={`${title} actions`}
+              >
                 {actions}
               </div>
             ) : null}
           </header>
-          <section aria-label={`${title} preview`} data-rcl-asset-detail-preview>
+          <section
+            aria-label={`${title} preview`}
+            data-rcl-asset-detail-preview
+          >
             {preview}
           </section>
           <AsyncPanel

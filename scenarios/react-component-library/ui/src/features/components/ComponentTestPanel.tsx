@@ -105,7 +105,10 @@ function StageRow({ result }: { result: ComponentTestResult }) {
           <p className="mt-space-3xs text-xs text-app-muted-foreground">
             Rule: <span className="font-mono">{result.ruleSource || "unknown"}</span>
             {result.ruleDeclaredIn && (
-              <>{" · "}<code>{result.ruleDeclaredIn}</code></>
+              <>
+                {" · "}
+                <code>{result.ruleDeclaredIn}</code>
+              </>
             )}
           </p>
         )}
@@ -282,7 +285,7 @@ function PerformanceArtifactSummary({ value }: { value: Record<string, unknown> 
                     <span className="truncate font-mono">{item.name ?? "Unnamed event"}</span>
                     <span className="text-app-muted-foreground">{count}</span>
                   </div>
-                  <div className="mt-1 h-1.5 overflow-hidden rounded-pill bg-app-surface-muted">
+                  <div className="mt-space-3xs h-1.5 overflow-hidden rounded-pill bg-app-surface-muted">
                     <div
                       className="h-full rounded-pill bg-app-primary"
                       style={{ width: `${Math.max(4, (count / max) * 100)}%` }}
@@ -405,7 +408,10 @@ function ScreenshotArtifact({
   return (
     <div className="relative flex min-h-[18rem] items-center justify-center overflow-auto bg-app-surface-muted p-space-sm">
       {status === "loading" ? (
-        <div role="status" className="absolute inset-0 flex items-center justify-center text-xs text-app-muted-foreground">
+        <div
+          role="status"
+          className="absolute inset-0 flex items-center justify-center text-xs text-app-muted-foreground"
+        >
           Loading captured screenshot…
         </div>
       ) : null}
@@ -702,7 +708,8 @@ function Report({ report }: { report: ComponentTestReport }) {
                     <strong className="text-app-foreground">{passedCount}</strong> passed
                     {attentionCount ? (
                       <>
-                        , <strong className="text-app-foreground">{attentionCount}</strong> need attention
+                        , <strong className="text-app-foreground">{attentionCount}</strong> need
+                        attention
                       </>
                     ) : null}
                     .
@@ -725,7 +732,10 @@ function Report({ report }: { report: ComponentTestReport }) {
               {[...report.results]
                 .sort((a, b) => Number(a.verdict === "passed") - Number(b.verdict === "passed"))
                 .map((result, index) => (
-                  <StageRow key={`${result.stage}-${result.assetLibraryId}-${index}`} result={result} />
+                  <StageRow
+                    key={`${result.stage}-${result.assetLibraryId}-${index}`}
+                    result={result}
+                  />
                 ))}
             </ul>
           </details>
@@ -802,16 +812,23 @@ export function ComponentTestPanel({
   const capturedStoryIDs = Array.from(
     new Set(
       capturedArtifacts
-        .filter((artifact) => artifact.kind === "bas-story-sheet" || artifact.kind === "bas-screenshot")
+        .filter(
+          (artifact) => artifact.kind === "bas-story-sheet" || artifact.kind === "bas-screenshot",
+        )
         .map((artifact) => artifact.storyId)
         .filter((storyID): storyID is string => Boolean(storyID)),
     ),
   );
   const storySheets = capturedArtifacts.filter((artifact) => artifact.kind === "bas-story-sheet");
   const defaultStoryID =
-    capturedStoryIDs.find((storyID) => storyID.startsWith("review-sheet:")) ?? capturedStoryIDs[0] ?? "";
+    capturedStoryIDs.find((storyID) => storyID.startsWith("review-sheet:")) ??
+    capturedStoryIDs[0] ??
+    "";
   const activeStoryID = selectedStoryID || defaultStoryID;
-  const storyChoices = capturedStoryIDs.map((storyID) => ({ id: storyID, label: storyCaptureLabel(storyID) }));
+  const storyChoices = capturedStoryIDs.map((storyID) => ({
+    id: storyID,
+    label: storyCaptureLabel(storyID),
+  }));
   const activeClaimID = selectedClaimID || failedClaims[0]?.id || "";
   const activeClaim = experience?.claims.find((claim) => claim.id === activeClaimID);
   const activeEvidence = experience?.evidence.find(
@@ -831,7 +848,8 @@ export function ComponentTestPanel({
     kind: id,
     label,
     artifact: capturedArtifacts.find(
-      (candidate) => aliases.includes(candidate.kind) && (!activeStoryID || candidate.storyId === activeStoryID),
+      (candidate) =>
+        aliases.includes(candidate.kind) && (!activeStoryID || candidate.storyId === activeStoryID),
     ),
   })).map((item) => ({
     ...item,
@@ -839,7 +857,9 @@ export function ComponentTestPanel({
     status: item.artifact ? ("available" as const) : ("missing" as const),
   }));
   const hasBASArtifacts = capturedArtifacts.some((artifact) => artifact.kind.startsWith("bas-"));
-  const preferredCaptureKind = capturedArtifacts.some((artifact) => artifact.kind === "bas-story-sheet")
+  const preferredCaptureKind = capturedArtifacts.some(
+    (artifact) => artifact.kind === "bas-story-sheet",
+  )
     ? "story-sheet"
     : "screenshot";
   const selectedCapture =

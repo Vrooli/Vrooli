@@ -37,7 +37,11 @@ export const InspectorPanel = withClassName(function InspectorPanel({
       style={{ ...panel, display: "grid", gap: 16 }}
     >
       {children ?? "Inspector details"}
-      <button data-testid="overlays.inspector-panel" type="button" onClick={onClose}>
+      <button
+        data-testid="overlays.inspector-panel"
+        type="button"
+        onClick={onClose}
+      >
         {strings("overlays.inspector-panel.close", "Close")}
       </button>
     </section>

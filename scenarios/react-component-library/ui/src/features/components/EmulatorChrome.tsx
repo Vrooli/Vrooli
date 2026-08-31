@@ -39,10 +39,7 @@ const deviceGroup = (id: DevicePresetId): "phone" | "tablet" | "desktop" | "resp
   return "desktop";
 };
 
-const deviceGroupLabel = (
-  group: "phone" | "tablet" | "desktop",
-  t: (key: string) => unknown,
-) => {
+const deviceGroupLabel = (group: "phone" | "tablet" | "desktop", t: (key: string) => unknown) => {
   if (group === "phone") return String(t(strings.components.emulator.deviceGroups.phone));
   if (group === "tablet") return String(t(strings.components.emulator.deviceGroups.tablet));
   return String(t(strings.components.emulator.deviceGroups.desktop));

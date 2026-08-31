@@ -2,6 +2,7 @@ package runreport
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -111,6 +112,29 @@ func TestBuildPrefersDetailedCostEventsOverSummary(t *testing.T) {
 	}
 	if report.Tokens != 10 || report.CostUSD != 0.12 {
 		t.Fatalf("event cost should replace summary, got tokens=%d cost=%f", report.Tokens, report.CostUSD)
+	}
+}
+
+func TestTextLabelsNonMeteredAndUnpricedCostHonestly(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		source string
+		reason string
+		want   string
+	}{
+		{name: "subscription", source: "subscription", want: "cost: subscription"},
+		{name: "local", source: "local", want: "cost: local"},
+		{name: "unpriced", source: "unpriced", reason: "model_unpriced", want: "cost: unpriced (model_unpriced)"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			text := Text(&RunReport{CostUSD: 0, CostSource: test.source, ChargeReason: test.reason})
+			if !strings.Contains(text, test.want) {
+				t.Fatalf("report=%q want %q", text, test.want)
+			}
+			if test.source != "metered" && strings.Contains(text, "cost: $0.00") {
+				t.Fatalf("non-metered report presented zero as a dollar charge: %q", text)
+			}
+		})
 	}
 }
 

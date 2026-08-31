@@ -4,7 +4,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
-import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeView/1.0.0";
+import { TreeView, type TreeNode } from "@vrooli/react-component-library/TreeView/1";
 
 describe("released TreeView 1.0.0", () => {
   it("renders the empty state and legacy string nodes", () => {
@@ -36,7 +36,10 @@ describe("released TreeView 1.0.0", () => {
     renderWithProviders(<TreeView items={[folder]} defaultSelectedId="file" onSelect={onSelect} />);
     const folderItem = screen.getByRole("treeitem", { name: "Project folder" });
     expect(screen.getByRole("treeitem", { name: "Readme" })).toBeVisible();
-    expect(screen.getByRole("treeitem", { name: "Readme" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("treeitem", { name: "Readme" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
 
     await user.click(folderItem);
     expect(onSelect).toHaveBeenCalledWith(folder);
@@ -45,7 +48,11 @@ describe("released TreeView 1.0.0", () => {
 
   it("opens and closes folders through disclosure and arrow keys", async () => {
     const user = userEvent.setup();
-    const parent: TreeNode = { id: "parent", label: "Parent", children: [{ id: "child", label: "Child" }] };
+    const parent: TreeNode = {
+      id: "parent",
+      label: "Parent",
+      children: [{ id: "child", label: "Child" }],
+    };
     renderWithProviders(<TreeView items={[parent]} />);
 
     const parentItem = screen.getByRole("treeitem", { name: "Parent" });

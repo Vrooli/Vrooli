@@ -29,7 +29,7 @@
       "accessibility": {
         "inputs": [
           "catalog/config.json",
-          "library/**"
+          "ui/src/**"
         ],
         "mode": "file-determined"
       },
@@ -42,35 +42,35 @@
       },
       "api": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "bas-genericity": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "composition": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "composition-contract": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "conformance": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
@@ -84,42 +84,43 @@
       },
       "consumer-pin": {
         "inputs": [
-          "catalog/config.json",
-          "library/**"
+          "catalog/assets/**",
+          "library/**",
+          "ui/src/**"
         ],
         "mode": "file-determined"
       },
       "dependency-rank": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "deprecated-import": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "documentation": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "evidence-freshness": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "examples": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
@@ -133,7 +134,7 @@
       },
       "fixture-adversarial": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
@@ -147,7 +148,7 @@
       },
       "graph-reconciled": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
@@ -162,7 +163,7 @@
       "interaction": {
         "inputs": [
           "catalog/config.json",
-          "library/**"
+          "ui/src/**"
         ],
         "mode": "file-determined"
       },
@@ -182,35 +183,35 @@
       },
       "manifest-identity": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "manifest-metadata": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "overlay-surface-composition": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "performance": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "provenance-stamp": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
@@ -224,14 +225,14 @@
       },
       "release-provenance": {
         "inputs": [
-          "catalog/config.json",
+          "library/release-provenance.json",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "released-version-immutable": {
         "inputs": [
-          "catalog/config.json",
+          "library/released-version-hashes.json",
           "library/**"
         ],
         "mode": "file-determined"
@@ -239,13 +240,13 @@
       "responsive": {
         "inputs": [
           "catalog/config.json",
-          "library/**"
+          "ui/src/**"
         ],
         "mode": "file-determined"
       },
       "restyle-contract": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
@@ -260,7 +261,8 @@
       "scenario-token-requirements": {
         "inputs": [
           "catalog/config.json",
-          "library/**"
+          "library/**",
+          "ui/src/**"
         ],
         "mode": "file-determined"
       },
@@ -273,35 +275,42 @@
       },
       "self-hosting": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "shared-style-ownership": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "specifier-shape": {
+        "inputs": [
+          "library/**",
+          "catalog/config.json"
         ],
         "mode": "file-determined"
       },
       "story-distinctness": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "story-grammar": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
       },
       "style-injection": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
@@ -315,7 +324,7 @@
       },
       "token-ramp-complete": {
         "inputs": [
-          "catalog/config.json",
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
@@ -336,7 +345,8 @@
       },
       "types": {
         "inputs": [
-          "catalog/config.json",
+          "package.json",
+          "pnpm-lock.yaml",
           "library/**"
         ],
         "mode": "file-determined"
@@ -344,7 +354,7 @@
       "unit": {
         "inputs": [
           "catalog/config.json",
-          "library/**"
+          "ui/src/**"
         ],
         "mode": "file-determined"
       },
@@ -357,7 +367,12 @@
       },
       "version-liveness": {
         "inputs": [
-          "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "version-mirror-integrity": {
+        "inputs": [
           "library/**"
         ],
         "mode": "file-determined"
@@ -365,7 +380,7 @@
       "visual": {
         "inputs": [
           "catalog/config.json",
-          "library/**"
+          "ui/src/**"
         ],
         "mode": "file-determined"
       }

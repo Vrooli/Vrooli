@@ -34,69 +34,67 @@ type Definition struct {
 }
 
 var registry = []Definition{
-	registeredDefinition("graph-reconciled", false, ValidateGraphReconciled),
-	registeredDefinition("dependency-rank", true, ValidateDependencyRank),
-	registeredDefinition("self-hosting", true, ValidateSelfHosting),
-	registeredDefinition("bas-genericity", true, ValidateBASGenericity),
-	registeredDefinition("token-vocabulary", true, ValidateTokenVocabulary),
-	registeredDefinition("fallback-parity", false, ValidateFallbackParity),
-	registeredDefinition("kit-compatibility", false, ValidateKitCompatibility),
-	registeredDefinition("affinity-compatible", false, ValidateAffinityNotBroaderThanCompatibility),
-	registeredDefinition("token-ramp-complete", true, ValidateTokenRampComplete),
-	registeredDefinition("scenario-token-requirements", true, ValidateScenarioTokenRequirements),
-	registeredDefinition("released-version-immutable", false, ValidateReleasedVersionImmutable),
-	registeredDefinition("release-provenance", true, ValidateReleaseProvenance),
-	registeredDefinition("version-liveness", true, ValidateVersionLiveness),
-	scopedDefinition("types", false, func(scope Scope) (Result, error) {
+	registeredDefinition("graph-reconciled", false, ValidateGraphReconciled, "catalog/assets/**", "library/**"),
+	registeredDefinition("dependency-rank", true, ValidateDependencyRank, "catalog/assets/**", "library/**"),
+	registeredDefinition("self-hosting", true, ValidateSelfHosting, "catalog/assets/**", "library/**"),
+	registeredDefinition("bas-genericity", true, ValidateBASGenericity, "catalog/assets/**", "library/**"),
+	registeredDefinition("token-vocabulary", true, ValidateTokenVocabulary, "catalog/config.json", "library/**"),
+	registeredDefinition("fallback-parity", false, ValidateFallbackParity, "catalog/config.json", "library/**"),
+	registeredDefinition("kit-compatibility", false, ValidateKitCompatibility, "catalog/config.json", "library/**"),
+	registeredDefinition("affinity-compatible", false, ValidateAffinityNotBroaderThanCompatibility, "catalog/config.json", "library/**"),
+	registeredDefinition("token-ramp-complete", true, ValidateTokenRampComplete, "catalog/assets/**", "library/**"),
+	registeredDefinition("scenario-token-requirements", true, ValidateScenarioTokenRequirements, "catalog/config.json", "library/**", "ui/src/**"),
+	registeredDefinition("released-version-immutable", false, ValidateReleasedVersionImmutable, "library/released-version-hashes.json", "library/**"),
+	registeredDefinition("version-mirror-integrity", false, ValidateVersionMirrorIntegrity, "library/**"),
+	registeredDefinition("specifier-shape", false, ValidateSpecifierShape, "library/**", "catalog/config.json"),
+	registeredDefinition("release-provenance", true, ValidateReleaseProvenance, "library/release-provenance.json", "library/**"),
+	registeredDefinition("version-liveness", true, ValidateVersionLiveness, "library/**"),
+	registeredDefinition("types", false, func(scope Scope) (Result, error) {
 		return ValidateTypes(scope)
-	}),
-	registeredDefinition("api", false, ValidateAPI),
-	declarationOnlyDefinition("unit", false),
-	declarationOnlyDefinition("interaction", false),
-	declarationOnlyDefinition("accessibility", false),
-	declarationOnlyDefinition("responsive", false),
-	declarationOnlyDefinition("visual", false),
-	registeredDefinition("rtl", false, ValidateRTL),
-	registeredDefinition("reduced-motion", false, ValidateReducedMotion),
-	registeredDefinition("performance", true, ValidatePerformance),
-	registeredDefinition("console-clean", false, ValidateConsoleClean),
-	registeredDefinition("surface-discipline", false, ValidateSurfaceDiscipline),
-	registeredDefinition("composition", false, ValidateComposition),
-	registeredDefinition("composition-contract", false, ValidateCompositionContract),
-	registeredDefinition("documentation", false, ValidateDocumentation),
-	registeredDefinition("examples", false, ValidateExamples),
-	registeredDefinition("fixture-adversarial", false, ValidateFixtures),
-	registeredDefinition("tokens", true, ValidateTokens),
-	registeredDefinition("conformance", true, ValidateConformance),
-	registeredDefinition("lifecycle", false, ValidateLifecycle),
-	registeredDefinition("i18n", false, ValidateI18n),
-	scopedDefinition("selector-coverage", false, ValidateSelectorCoverage),
-	registeredDefinition("restyle-contract", true, ValidateRestyleContract),
-	registeredDefinition("manifest-identity", true, ValidateManifestIdentity),
-	registeredDefinition("manifest-metadata", true, ValidateManifestMetadata),
-	registeredDefinition("overlay-surface-composition", true, ValidateOverlaySurfaceComposition),
-	registeredDefinition("shared-style-ownership", true, ValidateSharedStyleOwnership),
-	registeredDefinition("style-injection", true, ValidateStyleInjection),
-	registeredDefinition("foreign-token-classes", true, ValidateForeignTokenClasses),
-	registeredDefinition("utility-class", true, ValidateNoUtilityClasses),
-	registeredDefinition("consumer-pin", true, ValidateConsumerPins),
-	registeredDefinition("deprecated-import", true, ValidateDeprecatedImports),
-	registeredDefinition("provenance-stamp", true, ValidateProvenanceStamp),
-	registeredDefinition("story-grammar", true, ValidateStoryGrammar),
-	registeredDefinition("story-distinctness", true, ValidateStoryDistinctness),
-	registeredDefinition("evidence-freshness", true, ValidateEvidenceFreshness),
+	}, "package.json", "pnpm-lock.yaml", "library/**"),
+	registeredDefinition("api", false, ValidateAPI, "catalog/assets/**", "library/**"),
+	declarationOnlyDefinition("unit", false, "catalog/config.json", "ui/src/**"),
+	declarationOnlyDefinition("interaction", false, "catalog/config.json", "ui/src/**"),
+	declarationOnlyDefinition("accessibility", false, "catalog/config.json", "ui/src/**"),
+	declarationOnlyDefinition("responsive", false, "catalog/config.json", "ui/src/**"),
+	declarationOnlyDefinition("visual", false, "catalog/config.json", "ui/src/**"),
+	registeredDefinition("rtl", false, ValidateRTL, "catalog/config.json", "library/**"),
+	registeredDefinition("reduced-motion", false, ValidateReducedMotion, "catalog/config.json", "library/**"),
+	registeredDefinition("performance", true, ValidatePerformance, "catalog/assets/**", "library/**"),
+	registeredDefinition("console-clean", false, ValidateConsoleClean, "catalog/config.json", "library/**"),
+	registeredDefinition("surface-discipline", false, ValidateSurfaceDiscipline, "catalog/config.json", "library/**"),
+	registeredDefinition("composition", false, ValidateComposition, "catalog/assets/**", "library/**"),
+	registeredDefinition("composition-contract", false, ValidateCompositionContract, "catalog/assets/**", "library/**"),
+	registeredDefinition("documentation", false, ValidateDocumentation, "catalog/assets/**", "library/**"),
+	registeredDefinition("examples", false, ValidateExamples, "catalog/assets/**", "library/**"),
+	registeredDefinition("fixture-adversarial", false, ValidateFixtures, "catalog/assets/**", "library/**"),
+	registeredDefinition("tokens", true, ValidateTokens, "catalog/config.json", "library/**"),
+	registeredDefinition("conformance", true, ValidateConformance, "catalog/assets/**", "library/**"),
+	registeredDefinition("lifecycle", false, ValidateLifecycle, "catalog/config.json", "library/**"),
+	registeredDefinition("i18n", false, ValidateI18n, "catalog/config.json", "library/**"),
+	registeredDefinition("selector-coverage", false, ValidateSelectorCoverage, "catalog/config.json", "library/**"),
+	registeredDefinition("restyle-contract", true, ValidateRestyleContract, "catalog/assets/**", "library/**"),
+	registeredDefinition("manifest-identity", true, ValidateManifestIdentity, "catalog/assets/**", "library/**"),
+	registeredDefinition("manifest-metadata", true, ValidateManifestMetadata, "catalog/assets/**", "library/**"),
+	registeredDefinition("overlay-surface-composition", true, ValidateOverlaySurfaceComposition, "catalog/assets/**", "library/**"),
+	registeredDefinition("shared-style-ownership", true, ValidateSharedStyleOwnership, "catalog/assets/**", "library/**"),
+	registeredDefinition("style-injection", true, ValidateStyleInjection, "catalog/assets/**", "library/**"),
+	registeredDefinition("foreign-token-classes", true, ValidateForeignTokenClasses, "catalog/config.json", "library/**"),
+	registeredDefinition("utility-class", true, ValidateNoUtilityClasses, "catalog/config.json", "library/**"),
+	registeredDefinition("consumer-pin", true, ValidateConsumerPins, "catalog/assets/**", "library/**", "ui/src/**"),
+	registeredDefinition("deprecated-import", true, ValidateDeprecatedImports, "catalog/assets/**", "library/**"),
+	registeredDefinition("provenance-stamp", true, ValidateProvenanceStamp, "catalog/assets/**", "library/**"),
+	registeredDefinition("story-grammar", true, ValidateStoryGrammar, "catalog/assets/**", "library/**"),
+	registeredDefinition("story-distinctness", true, ValidateStoryDistinctness, "catalog/assets/**", "library/**"),
+	registeredDefinition("evidence-freshness", true, ValidateEvidenceFreshness, "catalog/assets/**", "library/**"),
 }
 
-func registeredDefinition(id string, corpus bool, run Runner) Definition {
-	return Definition{ID: id, CorpusScoped: corpus, Run: run, DeterminismInputs: []string{"catalog/config.json", "library/**"}}
+func registeredDefinition(id string, corpus bool, run Runner, inputs ...string) Definition {
+	return Definition{ID: id, CorpusScoped: corpus, Run: run, DeterminismInputs: append([]string(nil), inputs...)}
 }
 
-func scopedDefinition(id string, corpus bool, run Runner) Definition {
-	return Definition{ID: id, CorpusScoped: corpus, Run: run, DeterminismInputs: []string{"catalog/config.json", "library/**"}}
-}
-
-func declarationOnlyDefinition(id string, corpus bool) Definition {
-	return Definition{ID: id, CorpusScoped: corpus, DeterminismInputs: []string{"catalog/config.json", "library/**"}}
+func declarationOnlyDefinition(id string, corpus bool, inputs ...string) Definition {
+	return Definition{ID: id, CorpusScoped: corpus, DeterminismInputs: append([]string(nil), inputs...)}
 }
 
 // Definitions returns a copy so callers cannot mutate the executable order.

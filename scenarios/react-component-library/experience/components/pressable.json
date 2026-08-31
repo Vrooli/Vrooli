@@ -6,7 +6,7 @@
     "id": "pressable",
     "title": "Pressable",
     "purpose": "Shared press behavior with stable ready and pending geometry.",
-    "storyRef": "../../library/components/Pressable/versions/1.0.0/story.json"
+    "storyRef": "../../library/components/Pressable/versions/1.0.3/story.json"
   },
   "states": [
     {

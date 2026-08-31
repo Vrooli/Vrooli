@@ -4,7 +4,10 @@
   "catalogId": "navigation.navigation-tree",
   "deprecatedVersions": [
     "1.1.4",
-    "1.1.6"
+    "1.1.6",
+    "1.1.5",
+    "1.1.7",
+    "1.1.0"
   ],
   "description": "The hierarchical navigation collection with expansion, selection, keyboard traversal, lazily loaded children, filtering, virtualization, persisted open state, and accessible tree semantics.",
   "designStyles": [
@@ -18,10 +21,12 @@
   "evictedVersions": [
     "1.1.6",
     "1.1.4",
-    "1.1.5"
+    "1.1.5",
+    "1.1.7",
+    "1.1.0"
   ],
   "kind": "shell",
-  "latest": "1.1.7",
+  "latest": "1.1.8",
   "libraryId": "react-component-library:NavigationTree",
   "requires": [
     {

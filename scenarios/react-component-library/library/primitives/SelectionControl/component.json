@@ -3,7 +3,14 @@
   "assetKind": "primitive",
   "category": "foundation",
   "deprecatedVersions": [
-    "1.0.0"
+    "1.0.0",
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7"
   ],
   "description": "",
   "designStyles": [
@@ -15,17 +22,24 @@
   "displayName": "SelectionControl",
   "draft": "",
   "evictedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.0",
+    "1.0.7"
   ],
   "kind": "input",
-  "latest": "1.0.7",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:SelectionControl",
   "slot": "ui-primitive",
+  "supplemental": true,
   "tags": [
     "primitive",
     "selection",
     "accessibility",
     "token-bound"
-  ],
-  "supplemental": true
+  ]
 }

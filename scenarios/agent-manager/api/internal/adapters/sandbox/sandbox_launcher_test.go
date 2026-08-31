@@ -932,7 +932,7 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	proc, err := launcher.Launch(ctx, runner.LaunchRequest{
 		Command:    "claude",
 		WorkingDir: host,
-		Env:        []string{"VROOLI_SANDBOX_MERGED=" + host, "PATH=/usr/bin", "HOME=.home"},
+		Env:        []string{"VROOLI_SANDBOX_MERGED=" + host, "VROOLI_SANDBOX_MERGED_HOST=" + host, "PATH=/usr/bin", "HOME=.home"},
 	})
 	if err != nil {
 		t.Fatalf("Launch: %v", err)
@@ -949,6 +949,9 @@ func TestSandboxLauncher_LaunchTranslatesHostMergedPath(t *testing.T) {
 	envAny, _ := body["env"].(map[string]any)
 	if got, _ := envAny["VROOLI_SANDBOX_MERGED"].(string); got != nsPath {
 		t.Errorf("env VROOLI_SANDBOX_MERGED = %q; want %q", got, nsPath)
+	}
+	if got, _ := envAny["VROOLI_SANDBOX_MERGED_HOST"].(string); got != host {
+		t.Errorf("env VROOLI_SANDBOX_MERGED_HOST = %q; want host path %q", got, host)
 	}
 	if got, _ := envAny["VROOLI_HOST_LIFECYCLE_BASE"].(string); got != server.URL {
 		t.Errorf("env VROOLI_HOST_LIFECYCLE_BASE = %q; want %q", got, server.URL)

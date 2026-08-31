@@ -195,6 +195,36 @@ func TestSQLiteRepository_UpsertManifestPreservesCreatedAtAndReleasedAt(t *testi
 	require.Equal(t, 1, count)
 }
 
+func TestSQLiteRepository_UpsertManifestPreservesEvictedPresence(t *testing.T) {
+	d, repo, _ := newComponentsRawDB(t)
+	ctx := context.Background()
+	input := components.IndexManifestInput{
+		Manifest: components.ComponentManifest{
+			LibraryID:     "react-component-library:ColdButton",
+			Slug:          "ColdButton",
+			DisplayName:   "Cold Button",
+			LatestVersion: "1.0.0",
+		},
+		Versions: []components.ComponentVersion{{
+			Version:       "1.0.0",
+			Status:        components.VersionStatusReleased,
+			SourcePath:    "components/ColdButton/versions/1.0.0/ColdButton.tsx",
+			Content:       "export const ColdButton = () => null;",
+			ContentSHA256: testDigest("export const ColdButton = () => null;"),
+		}},
+	}
+	component, err := repo.UpsertManifest(ctx, input)
+	require.NoError(t, err)
+	_, err = d.ExecContext(ctx, `UPDATE component_versions SET presence='evicted' WHERE component_id=?`, component.ID)
+	require.NoError(t, err)
+
+	_, err = repo.UpsertManifest(ctx, input)
+	require.NoError(t, err)
+	var presence string
+	require.NoError(t, d.QueryRowContext(ctx, `SELECT presence FROM component_versions WHERE component_id=? AND version=?`, component.ID, "1.0.0").Scan(&presence))
+	require.Equal(t, "evicted", presence)
+}
+
 func TestSQLiteRepository_UpsertManifestPersistsDesignAffinitiesAndFilters(t *testing.T) {
 	repo, _ := newComponentsDB(t)
 	ctx := context.Background()

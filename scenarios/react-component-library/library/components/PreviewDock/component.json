@@ -1,9 +1,7 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
-  "deprecatedVersions": [
-    "1.0.0"
-  ],
+  "deprecatedVersions": ["1.0.0", "1.0.1"],
   "description": "Overlay controls that keep preview navigation visible without taking space from the specimen.",
   "designStyles": [
     {
@@ -13,11 +11,9 @@
   ],
   "displayName": "PreviewDock",
   "draft": "",
-  "evictedVersions": [
-    "1.0.0"
-  ],
+  "evictedVersions": ["1.0.0", "1.0.1"],
   "kind": "surface",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:PreviewDock",
   "requires": [
     {
@@ -26,10 +22,6 @@
     }
   ],
   "slot": "ui-pattern",
-  "tags": [
-    "preview",
-    "chrome",
-    "responsive"
-  ],
-  "supplemental": true
+  "supplemental": true,
+  "tags": ["preview", "chrome", "responsive"]
 }

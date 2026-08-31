@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Base Styles",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "mounted",
+      "name": "Mounted",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Mounted" }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='foundations.base-styles']"
+        }
+      ]
+    },
+    {
+      "id": "viewport-contract-overridden",
+      "name": "Viewport contract overridden",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ViewportContractOverridden"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='foundations.base-styles.host-override']"
+        }
+      ]
+    }
+  ]
+}

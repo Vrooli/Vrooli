@@ -116,24 +116,17 @@ func NewGrokForTestWithBinary(path string) *Grok {
 // (R3 — no vaporware): grok headless surfaces assistant text and a session id
 // but no tool events and no token/cost data.
 func (c *Grok) Capabilities() runner.Capabilities {
-	return runner.Capabilities{
-		SupportsMessages:         true,  // "text" events carry assistant output
+	return codingAgentCapabilities(runner.Capabilities{
 		SupportsToolEvents:       false, // headless stdout never surfaces tool calls/results
 		SupportsCostTracking:     false, // no usage/cost in the stream
-		SupportsStreaming:        true,  // streaming-json delta events
-		SupportsCancellation:     true,  // process-kill cancellation like peers
-		SupportsContinuation:     true,  // `grok --resume <session-id>` (trace-proven)
-		SupportsWarmIteration:    true,
 		SupportsImageAttachments: false, // no headless image-attachment flag
 		SupportsToolRestriction:  true,
 		ToolRestrictionMappings:  canonicalToolMappings(grokToolTranslations),
 		SupportsEffort:           true,
 		EffortMappings:           map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
-		MaxTurns:                 0, // unlimited (configurable via --max-turns)
-		SupportsRunnerDefault:    true,
 		SupportedFeatures:        []string{},
 		AllowedExtraFlags:        nil,
-	}
+	})
 }
 
 // BuildEnv satisfies [Codec]. The tag is written to GROK_AGENT_TAG; codec
@@ -343,13 +336,7 @@ func decodeGrokStreamEvent(line string) (*GrokStreamEvent, bool) {
 // UpdateMetrics satisfies [Codec]. Grok emits no tool or cost events, so only
 // the assistant-message turn counter is tracked.
 func (c *Grok) UpdateMetrics(event *domain.RunEvent, metrics *runner.ExecutionMetrics, lastAssistant *string) {
-	if event == nil {
-		return
-	}
-	if data, ok := event.Data.(*domain.MessageEventData); ok && data.Role == "assistant" {
-		*lastAssistant = data.Content
-		metrics.TurnsUsed++
-	}
+	updateAssistantMetrics(event, metrics, lastAssistant)
 }
 
 // =============================================================================

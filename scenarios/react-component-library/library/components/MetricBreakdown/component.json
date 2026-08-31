@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.metric-breakdown",
-  "deprecatedVersions": [
-    "1.0.4"
-  ],
+  "deprecatedVersions": ["1.0.4", "1.0.5"],
   "description": "A compact labeled metric list with numerator and denominator context.",
   "designStyles": [
     {
@@ -14,11 +12,9 @@
   ],
   "displayName": "MetricBreakdown",
   "draft": "",
-  "evictedVersions": [
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.4", "1.0.5"],
   "kind": "surface",
-  "latest": "1.0.5",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:MetricBreakdown",
   "requires": [
     {
@@ -26,8 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "data-display",
-    "token-bound"
-  ]
+  "tags": ["data-display", "token-bound"]
 }

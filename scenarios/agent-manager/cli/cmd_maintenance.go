@@ -16,34 +16,17 @@ import (
 
 func (a *App) cmdMaintenance(args []string) error {
 	if len(args) == 0 {
-		return a.maintenanceHelp()
+		return nil
 	}
 
 	switch args[0] {
 	case "purge":
 		return a.maintenancePurge(args[1:])
 	case "help", "-h", "--help":
-		return a.maintenanceHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown maintenance subcommand: %s\n\nRun 'agent-manager maintenance help' for usage", args[0])
 	}
-}
-
-func (a *App) maintenanceHelp() error {
-	fmt.Println(`Usage: agent-manager maintenance <subcommand> [options]
-
-Subcommands:
-  purge             Delete profiles, tasks, or runs matching a regex pattern
-
-Options:
-  --pattern         Regex pattern to match against names/IDs (required)
-  --targets         Comma-separated targets: profiles,tasks,runs (required)
-  --dry-run         Preview what would be deleted without actually deleting
-
-Examples:
-  agent-manager maintenance purge --pattern "^test-.*" --targets profiles,tasks,runs --dry-run
-  agent-manager maintenance purge --pattern "^old-" --targets runs`)
-	return nil
 }
 
 // =============================================================================

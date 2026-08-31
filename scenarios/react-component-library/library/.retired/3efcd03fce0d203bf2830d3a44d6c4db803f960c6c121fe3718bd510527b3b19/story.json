@@ -12,10 +12,18 @@
       "role": "anatomy",
       "mode": "live",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "Rows" } },
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Rows" }
+      },
       "expect": [
-        { "kind": "visible", "selector": "[data-testid='patterns.swipe-actions.credential-blast-radius']" },
-        { "kind": "visible", "selector": "[data-testid='patterns.swipe-actions.credential-blast-radius.face']" },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='patterns.swipe-actions.credential-blast-radius']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='patterns.swipe-actions.credential-blast-radius.face']"
+        },
         {
           "kind": "attribute",
           "selector": "[data-testid='patterns.swipe-actions.credential-blast-radius']",
@@ -36,9 +44,14 @@
       "role": "boundary",
       "mode": "live",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "AutoCommit" } },
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "AutoCommit" }
+      },
       "expect": [
-        { "kind": "visible", "selector": "[data-testid='patterns.swipe-actions.host-cleanup-sweep.action.close']" }
+        {
+          "kind": "visible",
+          "selector": "[data-testid='patterns.swipe-actions.host-cleanup-sweep.action.close']"
+        }
       ]
     },
     {
@@ -47,7 +60,9 @@
       "role": "boundary",
       "mode": "live",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "EndAnchored" } },
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "EndAnchored" }
+      },
       "expect": [
         {
           "kind": "attribute",
@@ -63,7 +78,9 @@
       "role": "boundary",
       "mode": "live",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "InsideDrawer" } },
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "InsideDrawer" }
+      },
       "expect": [
         {
           "kind": "attribute",

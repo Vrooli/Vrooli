@@ -190,6 +190,8 @@ type RunReport struct {
 	Turns                  int                         `json:"turns"`
 	Tokens                 int                         `json:"tokens"`
 	CostUSD                float64                     `json:"costUsd"`
+	CostSource             string                      `json:"costSource,omitempty"`
+	ChargeReason           string                      `json:"chargeReason,omitempty"`
 	Result                 ResultSummary               `json:"result"`
 	Events                 map[string]int              `json:"events"`
 	Tools                  []ToolSummary               `json:"tools"`
@@ -625,6 +627,12 @@ func (r *RunReport) foldEvent(event *domain.RunEvent, tools map[string]*ToolSumm
 		if data.AmountMicroUSD != nil {
 			r.CostUSD += float64(*data.AmountMicroUSD) / 1_000_000
 		}
+		if r.CostSource == "" || r.CostSource == "unknown" {
+			r.CostSource = string(data.Basis)
+		}
+		if r.ChargeReason == "" {
+			r.ChargeReason = data.ChargeReason
+		}
 	case *domain.ToolCallEventData:
 		r.foldToolCall(data, toolSummary(tools, data.ToolName))
 	case *domain.ToolResultEventData:
@@ -683,7 +691,7 @@ func Text(r *RunReport) string {
 	if r.Error != "" {
 		fmt.Fprintf(&b, "Error: %s\n", r.Error)
 	}
-	fmt.Fprintf(&b, "Duration: %s | heartbeat gap: %s\nTurns: %d | tokens: %d | cost: $%.4f\n", r.Duration.Round(0), r.HeartbeatGap.Round(0), r.Turns, r.Tokens, r.CostUSD)
+	fmt.Fprintf(&b, "Duration: %s | heartbeat gap: %s\nTurns: %d | tokens: %d | cost: %s\n", r.Duration.Round(0), r.HeartbeatGap.Round(0), r.Turns, r.Tokens, costText(r))
 	fmt.Fprintf(&b, "Final output: %s (%s), candidates=%d\n", r.Result.SelectionStatus, r.Result.SelectionRule, r.Result.CandidateCount)
 	if r.Result.StructuredStatus != "" {
 		fmt.Fprintf(&b, "Structured result: %s (%s) diagnostics=%s\n", r.Result.StructuredStatus, r.Result.StructuredMethod, strings.Join(r.Result.DiagnosticCodes, ","))
@@ -715,4 +723,20 @@ func unavailable(value string) string {
 		return "unavailable"
 	}
 	return value
+}
+
+func costText(r *RunReport) string {
+	switch strings.ToLower(strings.TrimSpace(r.CostSource)) {
+	case "subscription":
+		return "subscription (allocated outside per-run charge)"
+	case "local":
+		return "local (no monetary charge)"
+	case "unpriced", "unknown", "":
+		if r.ChargeReason != "" {
+			return "unpriced (" + r.ChargeReason + ")"
+		}
+		return "unpriced"
+	default:
+		return fmt.Sprintf("$%.4f (%s)", r.CostUSD, r.CostSource)
+	}
 }

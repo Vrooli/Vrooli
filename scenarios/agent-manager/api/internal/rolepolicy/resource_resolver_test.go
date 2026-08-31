@@ -59,6 +59,20 @@ func TestResourceRoleResolverAcceptsUnverifiedHookPosture(t *testing.T) {
 	}
 }
 
+func TestResourceRoleResolverAcceptsVerifiedHookPosture(t *testing.T) {
+	response := string(validResponse(`"runner":"claude-code"`))
+	response = strings.Replace(response, `"role":"code.default"`, `"role":"code.judgment"`, 1)
+	response = strings.Replace(response, `"permissions":"intent_only"`, `"permissions":"hook_verified"`, 1)
+	executor := &fakeCommandExecutor{output: []byte(response)}
+	resolved, err := NewResourceRoleResolver(executor).Resolve(context.Background(), domain.RunnerTypeClaudeCode, "code.judgment")
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if resolved.Enforcement.Permissions != "hook_verified" {
+		t.Fatalf("permissions = %q, want hook_verified", resolved.Enforcement.Permissions)
+	}
+}
+
 func TestResourceRoleResolverRejectsMismatchedIdentity(t *testing.T) {
 	executor := &fakeCommandExecutor{output: validResponse(`"runner":"claude-code"`)}
 	_, err := NewResourceRoleResolver(executor).Resolve(context.Background(), domain.RunnerTypeCodex, "code.default")

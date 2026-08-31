@@ -2,6 +2,9 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.form-store",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
   "description": "Field-granular form state with validation, submission, autosave, and conflict coordination.",
   "designStyles": [
     {
@@ -10,8 +13,12 @@
     }
   ],
   "displayName": "Form Store",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "kind": "input",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:FormStore",
   "tags": [
     "runtime",

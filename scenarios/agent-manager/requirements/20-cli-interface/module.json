@@ -48,6 +48,23 @@
           "type": "test"
         }
       ]
+    },
+    {
+      "category": "cli",
+      "description": "The global --node selector must never be silently ignored: when Agent Manager has no governed remote runner route, it must fail explicitly instead of returning local runner results.",
+      "id": "REQ-P1-009a",
+      "prd_ref": "OT-P1-009",
+      "status": "implemented",
+      "title": "Unsupported remote runner targets fail closed",
+      "validation": [
+        {
+          "notes": "Rejects a non-empty --node target before runner commands can be treated as local execution.",
+          "phase": "unit",
+          "ref": "cli/app_test.go",
+          "status": "passing",
+          "type": "test"
+        }
+      ]
     }
   ],
   "title": "CLI Interface"

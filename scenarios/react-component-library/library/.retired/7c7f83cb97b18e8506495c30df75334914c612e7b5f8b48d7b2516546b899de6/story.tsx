@@ -22,24 +22,44 @@ export function CardGrid({ args }: StoryHarnessProps) {
 export function MetricCard() {
   return (
     <Card>
-      <CardHeader><CardTitle>Adoption health</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>Adoption health</CardTitle>
+      </CardHeader>
       <CardContent>8 scenarios current</CardContent>
     </Card>
   );
 }
 
 export function EmptyTool() {
-  return <Card><CardContent>No drift detected</CardContent></Card>;
+  return (
+    <Card>
+      <CardContent>No drift detected</CardContent>
+    </Card>
+  );
 }
 
 export function CompactRecord() {
-  return <Card><CardContent>Button / v1.2.0 / native</CardContent></Card>;
+  return (
+    <Card>
+      <CardContent>Button / v1.2.0 / native</CardContent>
+    </Card>
+  );
 }
 
 export function StandaloneFlat() {
-  return <Card><CardContent>Standalone surface</CardContent></Card>;
+  return (
+    <Card>
+      <CardContent>Standalone surface</CardContent>
+    </Card>
+  );
 }
 
 export function CardGridRaised() {
-  return <CardGridSurface><Card><CardContent>Grid surface</CardContent></Card></CardGridSurface>;
+  return (
+    <CardGridSurface>
+      <Card>
+        <CardContent>Grid surface</CardContent>
+      </Card>
+    </CardGridSurface>
+  );
 }

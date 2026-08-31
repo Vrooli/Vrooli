@@ -1,0 +1,38 @@
+/**
+ * @libraryId react-component-library:QuarantineBadge
+ * @displayName QuarantineBadge
+ * @description A visible non-discriminating gate quarantine state.
+ * @version 1.0.6
+ * @tags ["feedback","token-bound"]
+ * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
+ */
+/** @vrooliComponentSource react-component-library:QuarantineBadge */
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
+
+import {
+  CONTROL_VARIANTS,
+  SURFACE_ELEVATIONS,
+} from "@vrooli/react-component-library/VisualRecipes/1";
+export const QuarantineBadge = withClassName(function QuarantineBadge({
+  gate = "visual",
+  reason = "calibration failed",
+}: {
+  gate?: string;
+  reason?: string;
+}) {
+  return (
+    <section
+      role="status"
+      className={`${SURFACE_ELEVATIONS.raised} ${CONTROL_VARIANTS.secondary}`}
+      aria-label={`Gate ${gate} quarantined`}
+      data-gate={gate}
+      data-rcl-asset="feedback.quarantine-badge"
+      data-rcl-version="1.0.3"
+      data-rcl-stamp="source"
+      data-testid="feedback-quarantine-badge"
+      style={{ boxShadow: "var(--elev-raised)", padding: "var(--space-2xs)" }}
+    >
+      Quarantined · {gate} · {reason}
+    </section>
+  );
+});

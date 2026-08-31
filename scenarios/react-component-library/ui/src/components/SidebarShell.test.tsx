@@ -115,7 +115,10 @@ describe("SidebarShell", () => {
     expect(shell).toHaveAttribute("data-mode", "overlay");
     expect(shell).toHaveAttribute("role", "dialog");
     expect(shell).toHaveAttribute("data-open", "true");
-    expect(screen.getByTestId("navigation.sidebar-backdrop")).toHaveAttribute("data-mode", "overlay");
+    expect(screen.getByTestId("navigation.sidebar-backdrop")).toHaveAttribute(
+      "data-mode",
+      "overlay",
+    );
     expect(screen.getByTestId("mobile-shell-title")).toBeInTheDocument();
   });
 
@@ -145,7 +148,9 @@ describe("SidebarShell", () => {
     expect(shell).toHaveStyle({ width: "360px" });
     expect(screen.queryByTestId("navigation.sidebar-backdrop")).not.toBeInTheDocument();
     expect(screen.queryByTestId("navigation.sidebar-close")).not.toBeInTheDocument();
-    expect(screen.getByTestId("navigation.sidebar-resize-handle").className).not.toContain("md:block");
+    expect(screen.getByTestId("navigation.sidebar-resize-handle").className).not.toContain(
+      "md:block",
+    );
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onMobileClose).not.toHaveBeenCalled();

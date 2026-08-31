@@ -2,6 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "motion.auto-animate-layout",
+  "deprecatedVersions": ["1.0.0", "1.0.1", "1.0.2"],
   "description": "A keyed FLIP layout boundary that animates displacement without tweening layout properties.",
   "designStyles": [
     {
@@ -18,23 +19,16 @@
     }
   ],
   "displayName": "AutoAnimateLayout",
+  "draft": "",
+  "evictedVersions": ["1.0.0", "1.0.1", "1.0.2"],
   "kind": "shell",
-  "latest": "1.0.1",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:AutoAnimateLayout",
-  "tags": [
-    "motion",
-    "layout",
-    "reduced-motion",
-    "token-bound"
-  ],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
-  ]
+  "tags": ["motion", "layout", "reduced-motion", "token-bound"]
 }

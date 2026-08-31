@@ -61,7 +61,10 @@ export const NetworkGraph = withClassName(function NetworkGraph({
   }, [nodes, edges]);
   return (
     <section
-      aria-label={strings("visualization.network-graph.dependency-network", "Dependency network")}
+      aria-label={strings(
+        "visualization.network-graph.dependency-network",
+        "Dependency network",
+      )}
       style={{ display: "grid", gap: "var(--space-xs)" }}
     >
       <div role="img" aria-label={`${nodes.length} dependency nodes`}>

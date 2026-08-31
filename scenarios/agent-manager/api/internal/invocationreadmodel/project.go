@@ -466,6 +466,8 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 	}
 	incurredByCall, noPrecedingToolCallTokens, hasEligibleUsage := attributeIncurred(events, preambleInjectedTokens, preambleFixedTokens)
 	var incurredTokens int64
+	costSource := "unknown"
+	chargeReason := ""
 	for _, incurred := range incurredByCall {
 		incurredTokens += incurred.Input + incurred.Output + incurred.CacheRead + incurred.CacheCreation
 	}
@@ -475,6 +477,12 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 		}
 		if charge.Basis == domain.ChargeBasisUnpriced {
 			unpriced = true
+		}
+		if costSource == "unknown" || costSource == "" {
+			costSource = string(charge.Basis)
+		}
+		if charge.ChargeReason != "" && chargeReason == "" {
+			chargeReason = charge.ChargeReason
 		}
 		if charge.AmountMicroUSD == nil {
 			return
@@ -573,7 +581,7 @@ func ProjectRun(run *domain.Run, events []*domain.RunEvent, projectedAt time.Tim
 		// durable so cost aggregates can exclude it or report it explicitly.
 		costBasis = "unknown"
 	}
-	return RunFact{RunID: run.ID.String(), GoalID: run.GoalID, GoalStatus: "", OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: run.Workload.Instance, TotalCostUSD: cost, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, PreambleInjectedTokens: preambleInjectedTokens, PreambleFixedTokens: preambleFixedTokens, PreambleTokenBasis: preambleBasis, UnattributedTokens: unattributedTokens, UnattributedReason: unattributedReason, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: costBasis, TimeBasis: eventTimeBasis, ProjectedAt: projectedAt}
+	return RunFact{RunID: run.ID.String(), GoalID: run.GoalID, GoalStatus: "", OccurredAt: occurredAt, CreatedAt: run.CreatedAt, StartedAt: run.StartedAt, EndedAt: run.EndedAt, DurationMS: duration, Status: string(run.Status), ProfileID: profileID, RunnerType: runnerType, Model: model, Tag: tag, WorkloadKind: workloadKind, WorkloadKey: workloadKey, WorkloadInstance: run.Workload.Instance, TotalCostUSD: cost, CostSource: costSource, ChargeReason: chargeReason, InputCostUSD: inputCost, OutputCostUSD: outputCost, CacheReadCostUSD: cacheReadCost, CacheCreationCostUSD: cacheCreationCost, TotalTokens: tokens, InputTokens: inputTokens, OutputTokens: outputTokens, CacheReadTokens: cacheReadTokens, CacheCreationTokens: cacheCreationTokens, Turns: turns, ToolCalls: toolCalls, TotalChargeMicroUSD: totalChargeMicroUSD, MeteredChargeMicroUSD: meteredChargeMicroUSD, UnpricedTokenCount: unpricedTokenCount, PreambleInjectedTokens: preambleInjectedTokens, PreambleFixedTokens: preambleFixedTokens, PreambleTokenBasis: preambleBasis, UnattributedTokens: unattributedTokens, UnattributedReason: unattributedReason, ReadCalls: readCalls, FileRereads: rereads, TimeAccounting: runsignal.DeriveTimeAccounting(events, run.StartedAt, run.EndedAt), CostTimeBasis: costBasis, TimeBasis: eventTimeBasis, ProjectedAt: projectedAt}
 }
 
 func hasEventTimestamp(events []*domain.RunEvent) bool {

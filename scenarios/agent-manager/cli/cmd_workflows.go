@@ -15,11 +15,11 @@ import (
 
 func (a *App) cmdWorkflow(args []string) error {
 	if len(args) == 0 {
-		return a.workflowHelp()
+		return nil
 	}
 	switch args[0] {
 	case "help", "-h", "--help":
-		return a.workflowHelp()
+		return nil
 	case "validate":
 		return a.workflowValidate(args[1:])
 	case "plan":
@@ -59,41 +59,6 @@ func (a *App) cmdWorkflow(args []string) error {
 	default:
 		return fmt.Errorf("unknown workflow command %q", args[0])
 	}
-}
-
-func (a *App) workflowHelp() error {
-	fmt.Println(`Usage: agent-manager workflow <subcommand> [options]
-
-Subcommands:
-  validate           Validate and canonicalize a workflow definition file
-  plan               Validate a scenario's workflow sources without writes
-  reconcile-scenario Reconcile a scenario's workflow sources into the catalog
-  reload             Reload a scenario's workflow sources (alias of reconcile)
-  list               List workflow revisions for an owner
-  get                Get a workflow revision by owner/key or digest
-  explain            Explain the active workflow revision
-  simulate           Simulate a workflow execution plan from input
-  start              Start a workflow execution
-  execution-list     List workflow executions
-  execution-runs     List node attempts and dispatched runs for one execution
-  execution-get      Get a workflow execution
-  execution-result   Get a workflow execution with input/output payloads
-  execution-advance  Advance a workflow execution (ops recovery)
-  execution-wait     Block until a workflow execution is terminal or times out
-  trace              Show a workflow execution journal
-  signal             Deliver a signal to a waiting execution
-  cancel             Cancel a workflow execution
-  retry              Retry a workflow execution
-  resume             Resume a workflow execution
-
-Options:
-  --json             Output raw JSON
-
-Examples:
-  agent-manager workflow validate --file definition.json
-  agent-manager workflow reconcile-scenario --scenario swarm-manager
-  agent-manager workflow list --owner swarm-manager`)
-	return nil
 }
 
 func (a *App) workflowExecutionList(args []string) error {

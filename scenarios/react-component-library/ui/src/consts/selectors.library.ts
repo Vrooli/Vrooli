@@ -13,7 +13,6 @@ export const librarySelectors = {
 
   "primitives.text": {
     root: "primitives.text",
-    rclTextSample: "primitives.text.rcl-text-sample",
   },
 
   "primitives.icon": {
@@ -34,6 +33,8 @@ export const librarySelectors = {
 
   "navigation.tabs": {
     root: "navigation.tabs",
+    links: "navigation.tabs.Links",
+    settingsTabSessions: "navigation.tabs.settings-tab-sessions",
   },
 
   "navigation.sidebar": {
@@ -60,7 +61,7 @@ export const librarySelectors = {
     header: "navigation.app-shell.header",
     main: "navigation.app-shell.main",
     navigation: "navigation.app-shell.navigation",
-    skip: "navigation.app-shell.skip",
+    navigationAppShellSkip: "navigation.app-shell.navigation.app-shell-skip",
   },
 
   "navigation.app-navigation": {
@@ -85,6 +86,8 @@ export const librarySelectors = {
 
   "foundations.tokens": {
     root: "foundations.tokens",
+    semanticCount: "foundations.tokens.semantic-count",
+    spaceCount: "foundations.tokens.space-count",
   },
 
   "foundations.icon-registry": {

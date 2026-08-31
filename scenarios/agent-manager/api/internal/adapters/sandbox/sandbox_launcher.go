@@ -950,6 +950,10 @@ func translateEnvHostPaths(env map[string]string, hostMerged, workspacePath stri
 	}
 	out := make(map[string]string, len(env))
 	for k, v := range env {
+		if k == "VROOLI_SANDBOX_MERGED_HOST" {
+			out[k] = v
+			continue
+		}
 		out[k] = translateHostPathToNamespace(v, hostMerged, workspacePath)
 	}
 	return out

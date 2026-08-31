@@ -19,6 +19,8 @@ export interface ComponentTestResult {
   verdict: string;
   message: string;
   remediation: string;
+  ruleSource?: string;
+  ruleDeclaredIn?: string;
 }
 export interface ComponentTestArtifact {
   kind: string;

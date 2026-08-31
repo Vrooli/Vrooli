@@ -4,8 +4,8 @@ import type { editor } from "monaco-editor";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
-import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
-import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1.0.2";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
+import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

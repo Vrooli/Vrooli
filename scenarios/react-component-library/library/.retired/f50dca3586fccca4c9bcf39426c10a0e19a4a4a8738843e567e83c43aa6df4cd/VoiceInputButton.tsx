@@ -21,7 +21,10 @@ import type {
   ControlDensity,
   ControlSize,
 } from "@vrooli/react-component-library/ControlBase/1.0.0";
-import { VoiceInputButtonGlyph as Glyph, type VoiceInputGlyphKind } from "./VoiceInputButtonGlyph";
+import {
+  VoiceInputButtonGlyph as Glyph,
+  type VoiceInputGlyphKind,
+} from "./VoiceInputButtonGlyph";
 import { voiceInputButtonStyles } from "./styles";
 
 export type VoiceInputButtonState =
@@ -90,10 +93,13 @@ export const VoiceInputButton = withClassName(function VoiceInputButton({
   ...props
 }: VoiceInputButtonProps) {
   const pressStartedAt = useRef(0);
-  const pressIntent = useRef<"start" | "stop" | "exit-passive" | "cancel" | "none">("none");
+  const pressIntent = useRef<
+    "start" | "stop" | "exit-passive" | "cancel" | "none"
+  >("none");
   const skipClick = useRef(false);
   const active = state === "recording" || state === "recovering";
-  const cancellable = state === "transcribing" && !disabled && Boolean(onCancel);
+  const cancellable =
+    state === "transcribing" && !disabled && Boolean(onCancel);
   const canInteract =
     !disabled &&
     state !== "preparing" &&
@@ -102,7 +108,8 @@ export const VoiceInputButton = withClassName(function VoiceInputButton({
   const progress = Math.max(0, Math.min(1, timeoutProgress));
   const normalizedLevel = Math.max(0, Math.min(1, level));
   const accessibleLabel =
-    props["aria-label"] ?? (cancellable ? "Cancel transcription" : labels[state]);
+    props["aria-label"] ??
+    (cancellable ? "Cancel transcription" : labels[state]);
   const handlePointerDown = useCallback(
     (event: PointerEvent<HTMLButtonElement>) => {
       event.preventDefault();
@@ -114,7 +121,8 @@ export const VoiceInputButton = withClassName(function VoiceInputButton({
         return;
       }
       if (active) {
-        pressIntent.current = state === "recovering" && onExitPassive ? "exit-passive" : "stop";
+        pressIntent.current =
+          state === "recovering" && onExitPassive ? "exit-passive" : "stop";
         return;
       }
       pressIntent.current = "start";
@@ -128,7 +136,11 @@ export const VoiceInputButton = withClassName(function VoiceInputButton({
     if (intent === "cancel") onCancel?.();
     if (intent === "stop") onStop?.();
     if (intent === "exit-passive") onExitPassive?.();
-    if (intent === "start" && Date.now() - pressStartedAt.current >= LONG_PRESS_MS) onStop?.();
+    if (
+      intent === "start" &&
+      Date.now() - pressStartedAt.current >= LONG_PRESS_MS
+    )
+      onStop?.();
   }, [onCancel, onExitPassive, onStop]);
   const handleClick = useCallback(() => {
     if (skipClick.current) {
@@ -144,7 +156,16 @@ export const VoiceInputButton = withClassName(function VoiceInputButton({
       if (state === "recovering" && onExitPassive) onExitPassive();
       else onStop?.();
     } else onStart?.();
-  }, [active, canInteract, cancellable, onCancel, onExitPassive, onStart, onStop, state]);
+  }, [
+    active,
+    canInteract,
+    cancellable,
+    onCancel,
+    onExitPassive,
+    onStart,
+    onStop,
+    state,
+  ]);
   const glyph: VoiceInputGlyphKind =
     state === "transcribing"
       ? "loader"
@@ -187,8 +208,9 @@ export const VoiceInputButton = withClassName(function VoiceInputButton({
         data-size={size}
         data-density={density}
         data-testid={
-          (props as VoiceInputButtonProps & { "data-testid"?: string })["data-testid"] ??
-          "voice-input-control"
+          (props as VoiceInputButtonProps & { "data-testid"?: string })[
+            "data-testid"
+          ] ?? "voice-input-control"
         }
         type="button"
         aria-label={accessibleLabel}
@@ -219,15 +241,25 @@ export const VoiceInputButton = withClassName(function VoiceInputButton({
         )}
         style={controlStyle}
       >
-        <Glyph kind={glyph} className={iconClassName} data-rcl-voice-glyph-role="primary" />
+        <Glyph
+          kind={glyph}
+          className={iconClassName}
+          data-rcl-voice-glyph-role="primary"
+        />
         {cancellable ? (
-          <Glyph kind="cancel" className={iconClassName} data-rcl-voice-glyph-role="cancel" />
+          <Glyph
+            kind="cancel"
+            className={iconClassName}
+            data-rcl-voice-glyph-role="cancel"
+          />
         ) : null}
         {active ? (
           <span
             data-rcl-voice-level
             aria-hidden="true"
-            className={mode === "always-on" ? "bg-app-primary/60" : "bg-app-warning/70"}
+            className={
+              mode === "always-on" ? "bg-app-primary/60" : "bg-app-warning/70"
+            }
             style={{
               blockSize: `${Math.round(normalizedLevel * 100)}%`,
               height: `${Math.round(normalizedLevel * 100)}%`,
@@ -235,7 +267,11 @@ export const VoiceInputButton = withClassName(function VoiceInputButton({
           />
         ) : null}
         {state === "recording" && mode === "timeout" ? (
-          <svg data-rcl-voice-timeout-ring aria-hidden="true" viewBox="0 0 44 44">
+          <svg
+            data-rcl-voice-timeout-ring
+            aria-hidden="true"
+            viewBox="0 0 44 44"
+          >
             <circle
               cx="22"
               cy="22"

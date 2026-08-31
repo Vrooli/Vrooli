@@ -1,11 +1,11 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
-import { AsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1.0.2";
-import { AsyncPanel as AssetDetailAsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1.0.2";
-import { AsyncPanel as InspectorAsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1.0.2";
-import { AssetDetailShell } from "@vrooli/react-component-library/AssetDetailShell/1.1.2";
-import { InspectorLayout } from "@vrooli/react-component-library/InspectorLayout/1.1.2";
+import { AsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1";
+import { AsyncPanel as AssetDetailAsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1";
+import { AsyncPanel as InspectorAsyncPanel } from "@vrooli/react-component-library/AsyncPanel/1";
+import { AssetDetailShell } from "@vrooli/react-component-library/AssetDetailShell/1";
+import { InspectorLayout } from "@vrooli/react-component-library/InspectorLayout/1";
 
 describe("AsyncPanel", () => {
   it.each([
@@ -116,7 +116,11 @@ describe("AsyncPanel", () => {
 
   it("keeps optional shell actions and toolbars accessible", () => {
     const { rerender } = renderWithProviders(
-      <AssetDetailShell title="Button" preview={<div>Preview</div>} metadata={<div>Metadata</div>} />,
+      <AssetDetailShell
+        title="Button"
+        preview={<div>Preview</div>}
+        metadata={<div>Metadata</div>}
+      />,
     );
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
     rerender(
@@ -130,7 +134,11 @@ describe("AsyncPanel", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeVisible();
 
     rerender(
-      <InspectorLayout title="Inspector" canvas={<div>Canvas</div>} inspector={<div>Inspector</div>} />,
+      <InspectorLayout
+        title="Inspector"
+        canvas={<div>Canvas</div>}
+        inspector={<div>Inspector</div>}
+      />,
     );
     expect(screen.getByRole("heading", { name: "Inspector" })).toBeInTheDocument();
     rerender(

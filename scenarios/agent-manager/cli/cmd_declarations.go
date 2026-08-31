@@ -12,7 +12,7 @@ import (
 
 func (a *App) cmdDeclarations(args []string) error {
 	if len(args) == 0 {
-		return a.declarationsHelp()
+		return nil
 	}
 	switch args[0] {
 	case "reconcile-scenario":
@@ -20,29 +20,10 @@ func (a *App) cmdDeclarations(args []string) error {
 	case "plan":
 		return a.declarationsReconcile(args[1:], "/api/v1/declarations/plan", true)
 	case "help", "-h", "--help":
-		return a.declarationsHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown declarations subcommand: %s\n\nRun 'agent-manager declarations help' for usage", args[0])
 	}
-}
-
-func (a *App) declarationsHelp() error {
-	fmt.Println(`Usage: agent-manager declarations <subcommand> [options]
-
-Subcommands:
-  reconcile-scenario  Reconcile a scenario's unified declaration block (profiles + workflows)
-  plan                Validate every declaration source without writing
-
-Options:
-  --scenario <slug>   Owning scenario whose manifest declares config.declarations.sources (required)
-  --dry-run           Validate and report actions without writing
-  --validate-only     Only validate sources; never modify state
-  --json              Output raw JSON
-
-Examples:
-  agent-manager declarations reconcile-scenario --scenario swarm-manager
-  agent-manager declarations plan --scenario swarm-manager`)
-	return nil
 }
 
 func (a *App) declarationsReconcile(args []string, path string, forceDry bool) error {

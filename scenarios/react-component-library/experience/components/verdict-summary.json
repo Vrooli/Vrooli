@@ -6,7 +6,7 @@
     "id": "verdict-summary",
     "title": "VerdictSummary",
     "purpose": "Keep pass, fail, and unmeasured counts equally visible in the testing surface.",
-    "storyRef": "../../library/components/VerdictSummary/versions/1.0.5/story.json"
+    "storyRef": "../../library/components/VerdictSummary/versions/1.0.8/story.json"
   },
   "states": [
     {

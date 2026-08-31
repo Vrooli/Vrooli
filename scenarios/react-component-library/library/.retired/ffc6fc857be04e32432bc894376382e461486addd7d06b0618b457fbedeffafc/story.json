@@ -21,23 +21,13 @@
       {
         "path": "mode",
         "kind": "enum",
-        "options": [
-          "always-on",
-          "timeout"
-        ],
+        "options": ["always-on", "timeout"],
         "required": true
       },
       {
         "path": "size",
         "kind": "enum",
-        "options": [
-          "xs",
-          "sm",
-          "md",
-          "lg",
-          "xl",
-          "icon"
-        ],
+        "options": ["xs", "sm", "md", "lg", "xl", "icon"],
         "required": true
       }
     ]

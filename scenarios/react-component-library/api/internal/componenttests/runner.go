@@ -180,7 +180,12 @@ func (r Runner) Run(ctx context.Context, request Request) (Report, error) {
 	if r.Now != nil {
 		now = r.Now().UTC()
 	}
-	report := Report{RootComponentID: request.ComponentID, RootLibraryID: closure[len(closure)-1].Asset.LibraryID, RootVersion: request.Version, IncludeClosure: request.IncludeClosure, CreatedAt: now}
+	// ResolveDependencyClosure accepts every public component identifier the
+	// components service supports (internal id, library id, catalog id, or
+	// slug). Persist the canonical internal id so rerun/list operations use
+	// the same identity regardless of which public identifier started the run.
+	root := closure[len(closure)-1].Asset
+	report := Report{RootComponentID: root.ID, RootLibraryID: root.LibraryID, RootVersion: request.Version, IncludeClosure: request.IncludeClosure, CreatedAt: now}
 	report.ID = reportID(report)
 	for _, resolved := range closure {
 		asset, version := resolved.Asset, resolved.Version

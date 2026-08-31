@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.scroll-area",
-  "deprecatedVersions": [
-    "1.0.1",
-    "1.0.3"
-  ],
+  "deprecatedVersions": ["1.0.1", "1.0.3", "1.0.2", "1.0.4"],
   "description": "",
   "designStyles": [
     {
@@ -23,13 +20,9 @@
   ],
   "displayName": "ScrollArea",
   "draft": "",
-  "evictedVersions": [
-    "1.0.3",
-    "1.0.2",
-    "1.0.1"
-  ],
+  "evictedVersions": ["1.0.3", "1.0.2", "1.0.1", "1.0.4"],
   "kind": "surface",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:ScrollArea",
   "requires": [
     {
@@ -37,8 +30,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "tags": ["primitive", "token-bound"]
 }

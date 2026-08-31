@@ -1,0 +1,136 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "BottomSheet",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "sheet",
+      "name": "Sheet",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Sheet"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "role": "dialog"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.bottom-sheet']"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.bottom-sheet.grabber']"
+        }
+      ]
+    },
+    {
+      "id": "with-close-button",
+      "name": "With close button",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithCloseButton"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.bottom-sheet.close']"
+        }
+      ]
+    },
+    {
+      "id": "flush-content",
+      "name": "Flush content with subheader",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "FlushContentWithSubheader"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.bottom-sheet.subheader']"
+        }
+      ]
+    },
+    {
+      "id": "with-footer",
+      "name": "With footer",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "WithFooter"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='overlays.bottom-sheet'] > footer"
+        }
+      ]
+    },
+    {
+      "id": "avoiding-keyboard",
+      "name": "Avoiding the keyboard",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AvoidingKeyboard"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-bottom-sheet][data-avoid-keyboard]"
+        }
+      ]
+    },
+    {
+      "id": "comfortable-content",
+      "name": "Comfortable content padding",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ComfortableContent"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-bottom-sheet][data-content-padding='comfortable']"
+        }
+      ]
+    }
+  ]
+}

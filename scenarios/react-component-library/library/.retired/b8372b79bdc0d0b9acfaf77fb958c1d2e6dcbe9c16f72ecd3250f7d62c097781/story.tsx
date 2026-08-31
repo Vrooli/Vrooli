@@ -1,6 +1,10 @@
 import { useRef } from "react";
 
-import { HandednessProvider, useGestureDirection, useHandedness } from "./useHandedness";
+import {
+  HandednessProvider,
+  useGestureDirection,
+  useHandedness,
+} from "./useHandedness";
 
 function Readout({ testId }: { testId: string }) {
   const ref = useRef<HTMLDivElement>(null);

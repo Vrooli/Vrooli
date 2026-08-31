@@ -411,12 +411,15 @@ type RunnerBreakdown struct {
 
 // ProfileBreakdown contains stats grouped by agent profile.
 type ProfileBreakdown struct {
-	ProfileID    uuid.UUID `json:"profileId" db:"profile_id"`
-	ProfileName  string    `json:"profileName" db:"profile_name"`
-	RunCount     int       `json:"runCount" db:"run_count"`
-	SuccessCount int       `json:"successCount" db:"success_count"`
-	FailedCount  int       `json:"failedCount" db:"failed_count"`
-	TotalCostUSD float64   `json:"totalCostUsd" db:"total_cost_usd"`
+	// ProfileID is intentionally text. Historical read-model rows may contain
+	// sentinel values such as "unknown" instead of UUIDs, and stats must report
+	// those rows rather than making the whole projection unreadable.
+	ProfileID    string  `json:"profileId" db:"profile_id"`
+	ProfileName  string  `json:"profileName" db:"profile_name"`
+	RunCount     int     `json:"runCount" db:"run_count"`
+	SuccessCount int     `json:"successCount" db:"success_count"`
+	FailedCount  int     `json:"failedCount" db:"failed_count"`
+	TotalCostUSD float64 `json:"totalCostUsd" db:"total_cost_usd"`
 }
 
 // ModelBreakdown contains stats grouped by model.
@@ -434,10 +437,11 @@ type ModelBreakdown struct {
 
 // ToolUsageStats contains tool call frequency data.
 type ToolUsageStats struct {
-	ToolName     string `json:"toolName" db:"tool_name"`
-	CallCount    int    `json:"callCount" db:"call_count"`
-	SuccessCount int    `json:"successCount" db:"success_count"`
-	FailedCount  int    `json:"failedCount" db:"failed_count"`
+	ToolName     string  `json:"toolName" db:"tool_name"`
+	CallCount    int     `json:"callCount" db:"call_count"`
+	SuccessCount int     `json:"successCount" db:"success_count"`
+	FailedCount  int     `json:"failedCount" db:"failed_count"`
+	FailureRate  float64 `json:"failureRate" db:"failure_rate"`
 }
 
 // ToolUsageModelBreakdown contains tool usage grouped by model.

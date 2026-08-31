@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-08-30",
+  "branch": "agi",
+  "note": "Independent re-measurement of scenarios/react-component-library. Inputs to the version-model-and-corpus-tax plan. Regenerate the reach/blast blocks with the sibling probe scripts.",
+  "gateMatrix": {
+    "asset_count": 435,
+    "gate_count": 49,
+    "cells": 3738,
+    "verdicts": {
+      "fail": 956,
+      "pass": 1312,
+      "unmeasured": 1470
+    },
+    "fail_by_gate": {
+      "composition": 1,
+      "composition-contract": 1,
+      "consumer-pin": 1,
+      "deprecated-import": 1,
+      "documentation": 174,
+      "evidence-freshness": 1,
+      "i18n": 161,
+      "lifecycle": 43,
+      "manifest-identity": 1,
+      "performance": 1,
+      "provenance-stamp": 1,
+      "released-version-immutable": 188,
+      "restyle-contract": 1,
+      "selector-coverage": 161,
+      "shared-style-ownership": 1,
+      "story-grammar": 1,
+      "style-injection": 1,
+      "surface-discipline": 6,
+      "types": 210,
+      "version-liveness": 1
+    },
+    "fail_cells_with_zero_findings": 506,
+    "unmeasured_by_gate": {
+      "accessibility": 161,
+      "composition": 149,
+      "interaction": 161,
+      "reduced-motion": 161,
+      "responsive": 161,
+      "rtl": 161,
+      "surface-discipline": 151,
+      "unit": 204,
+      "visual": 161
+    }
+  },
+  "reachability": {
+    "versions": 488,
+    "externalNonLatestPins": 31,
+    "exact_reachable": 359,
+    "exact_garbage": 129,
+    "float_reachable": 280,
+    "float_garbage": 208,
+    "freedByFloatingIntraLibraryImports": 79,
+    "reachable_nonLatest_exact": 116,
+    "reachable_nonLatest_float": 37
+  },
+  "republishBlastRadius": {
+    "liveAssets": 243,
+    "top10BlastRadius": [
+      {
+        "asset": "ClassMerge",
+        "dependents": 157
+      },
+      {
+        "asset": "StyleSheet",
+        "dependents": 135
+      },
+      {
+        "asset": "useLocale",
+        "dependents": 91
+      },
+      {
+        "asset": "useReducedMotion",
+        "dependents": 31
+      },
+      {
+        "asset": "Tokens",
+        "dependents": 23
+      },
+      {
+        "asset": "VisualRecipes",
+        "dependents": 22
+      },
+      {
+        "asset": "LiveAnnouncer",
+        "dependents": 21
+      },
+      {
+        "asset": "useAnnounce",
+        "dependents": 20
+      },
+      {
+        "asset": "useControllableState",
+        "dependents": 18
+      },
+      {
+        "asset": "BaseStyles",
+        "dependents": 16
+      }
+    ],
+    "medianBlastRadius": 1,
+    "assetsWithZeroDependents": 110
+  },
+  "retentionBlindSpots": {
+    "distinctTargetsRecordedInLocks": 176,
+    "distinctTargetsPinnedByStories": 26,
+    "storyPinsInvisibleToLocks": 3,
+    "sampleInvisibleStoryPins": [
+      "react-component-library:Popover@1.1.0",
+      "react-component-library:Tooltip@1.0.1",
+      "react-component-library:IconButton@2.0.0"
+    ],
+    "distinctTargetsPinnedByPreviewHarnesses": 0,
+    "harnessPinsInvisibleToLocks": 0,
+    "sampleInvisibleHarnessPins": []
+  }
+}

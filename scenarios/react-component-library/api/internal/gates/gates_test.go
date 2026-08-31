@@ -1019,6 +1019,7 @@ func TestValidateReleaseProvenanceRejectsHandCreatedRelease(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Findings, 1)
 	require.Equal(t, "catalog.release_provenance_missing", result.Findings[0].Code)
+	require.Equal(t, "react-component-library:Dialog", result.Findings[0].AssetID)
 }
 
 func TestLiveReleaseProvenanceCoversEveryMaterializedRelease(t *testing.T) {

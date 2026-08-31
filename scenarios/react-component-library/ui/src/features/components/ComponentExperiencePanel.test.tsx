@@ -16,9 +16,27 @@ function experience(overrides: Partial<ComponentExperience> = {}): ComponentExpe
     evidenceMessage: "Evidence is measured from the isolated story harness.",
     states: [{ id: "primary", exampleName: "primary", description: "Primary action." }],
     claims: [
-      { id: "machine", type: "element-present", statement: "The action is present.", tier: "machine", states: ["primary"] },
-      { id: "manual", type: "manual-review", statement: "The action is understandable.", tier: "manual", states: [] },
-      { id: "aspirational", type: "future", statement: "The action can be improved.", tier: "aspirational", states: [] },
+      {
+        id: "machine",
+        type: "element-present",
+        statement: "The action is present.",
+        tier: "machine",
+        states: ["primary"],
+      },
+      {
+        id: "manual",
+        type: "manual-review",
+        statement: "The action is understandable.",
+        tier: "manual",
+        states: [],
+      },
+      {
+        id: "aspirational",
+        type: "future",
+        statement: "The action can be improved.",
+        tier: "aspirational",
+        states: [],
+      },
     ],
     evidence: [
       {
@@ -105,7 +123,10 @@ describe("ComponentExperiencePanel", () => {
     const { getByText } = renderWithProviders(
       <ComponentExperiencePanel
         isLoading={false}
-        experience={experience({ evidenceStatus: "not-configured", evidenceMessage: "No contract is registered yet." })}
+        experience={experience({
+          evidenceStatus: "not-configured",
+          evidenceMessage: "No contract is registered yet.",
+        })}
       />,
     );
 

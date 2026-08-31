@@ -1,5 +1,5 @@
 /** @vrooliComponentSource react-component-library:Chart */
-import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import {
   useId,
   useMemo,

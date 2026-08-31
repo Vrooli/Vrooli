@@ -101,9 +101,7 @@
       "role": "boundary",
       "mode": "live",
       "args": {},
-      "states": [
-        "rtl"
-      ],
+      "states": ["rtl"],
       "composition": {
         "specimen": {
           "module": "./story.tsx",

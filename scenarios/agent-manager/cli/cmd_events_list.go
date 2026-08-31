@@ -18,34 +18,16 @@ import (
 
 func (a *App) cmdEvents(args []string) error {
 	if len(args) == 0 {
-		return a.eventsHelp()
+		return nil
 	}
 	switch args[0] {
 	case "list":
 		return a.eventsList(args[1:])
 	case "help", "-h", "--help":
-		return a.eventsHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown events subcommand: %s\n\nRun 'agent-manager events help' for usage", args[0])
 	}
-}
-
-func (a *App) eventsHelp() error {
-	fmt.Println(`Usage: agent-manager events <subcommand> [options]
-
-Typed-operational event log queries. Live per-run streaming is on
-'agent-manager run watch'; this command is for historical queries.
-
-Subcommands:
-  list   Query typed events with optional filters
-
-list options:
-  --run=<id>     Filter to one run id (UUID)
-  --type=<name>  Filter to one event type (e.g., model.fallback.attempted)
-  --since=<ts>   RFC3339 lower bound on timestamp (with --type only)
-  --limit=<n>    Max rows (default 100, max 1000)
-  --json         Output the raw server response`)
-	return nil
 }
 
 func (a *App) eventsList(args []string) error {

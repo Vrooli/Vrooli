@@ -3,9 +3,7 @@
   "assetKind": "component",
   "catalogId": "forms.form",
   "category": "forms",
-  "deprecatedVersions": [
-    "1.0.0"
-  ],
+  "deprecatedVersions": ["1.0.0", "1.0.1", "1.0.2"],
   "description": "A token-bound form shell that coordinates validation, submission, save state, and accessible status announcements.",
   "designStyles": [
     {
@@ -13,17 +11,13 @@
       "styleId": "vrooli-default"
     }
   ],
-  "entry": "Form.tsx",
   "displayName": "Form",
-  "kind": "input",
   "draft": "",
-  "latest": "1.0.2",
+  "entry": "Form.tsx",
+  "evictedVersions": ["1.0.1", "1.0.0", "1.0.2"],
+  "kind": "input",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:Form",
   "slot": "ui-primitive",
-  "tags": [
-    "form",
-    "state",
-    "accessibility",
-    "compound"
-  ]
+  "tags": ["form", "state", "accessibility", "compound"]
 }

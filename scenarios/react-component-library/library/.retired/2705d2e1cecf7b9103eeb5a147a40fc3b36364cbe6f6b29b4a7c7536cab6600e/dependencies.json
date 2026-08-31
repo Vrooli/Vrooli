@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:AlertDialog",
+  "version": "2.0.8",
+  "resolvedAt": "2026-08-31T05:02:39Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:Portal",
+      "version": "1.1.1",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.1.0",
+      "rank": 2
+    },
+    {
+      "libraryId": "react-component-library:useOverlaySurface",
+      "version": "1.2.0",
+      "rank": 4
+    }
+  ]
+}

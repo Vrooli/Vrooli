@@ -38,6 +38,21 @@ type App struct {
 	services *Services
 }
 
+type subcommandHandler func([]string) error
+
+func dispatchSubcommand(args []string, group string, handlers map[string]subcommandHandler) error {
+	if len(args) == 0 {
+		return nil
+	}
+	if args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		return nil
+	}
+	if handler, ok := handlers[args[0]]; ok {
+		return handler(args[1:])
+	}
+	return fmt.Errorf("unknown %s subcommand: %s\n\nRun 'agent-manager %s help' for usage", group, args[0], group)
+}
+
 func NewApp() (*App, error) {
 	app := &App{}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
@@ -50,6 +65,9 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
+		Preflight: func(_ cliapp.Command, global cliapp.GlobalOptions, _ *cliapp.ScenarioApp) error {
+			return rejectUnsupportedNodeTarget(global.Node)
+		},
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 			app.core = core
 			return app.customCommandGroups()
@@ -65,6 +83,14 @@ func NewApp() (*App, error) {
 	app.core = core
 	app.services = NewServices(core.APIClient)
 	return app, nil
+}
+
+func rejectUnsupportedNodeTarget(node string) error {
+	node = strings.TrimSpace(node)
+	if node == "" {
+		return nil
+	}
+	return fmt.Errorf("agent-manager does not support remote --node routing for %q; use an addressed scenario command or Web Console", node)
 }
 
 func (a *App) Run(args []string) error {

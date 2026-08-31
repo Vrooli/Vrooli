@@ -89,6 +89,30 @@
         {"runner": "grok", "resourceRole": "write.default"},
         {"runner": "antigravity", "resourceRole": "write.default"}
       ]
+    },
+    "code.judgment": {
+      "description": "High-level judgment, challenge, and strategic reasoning work.",
+      "intent": "judgment and reasoning",
+      "orderingReason": "Claude Code is preferred for judgment work, with Codex as the first independent fallback.",
+      "candidates": [
+        {"runner": "claude-code", "resourceRole": "code.judgment"},
+        {"runner": "codex", "resourceRole": "code.judgment"},
+        {"runner": "opencode", "resourceRole": "code.judgment"},
+        {"runner": "grok", "resourceRole": "code.judgment"},
+        {"runner": "antigravity", "resourceRole": "code.judgment"}
+      ]
+    },
+    "code.inspection": {
+      "description": "Code inspection, reproduction, execution, and evidence gathering.",
+      "intent": "inspection and execution",
+      "orderingReason": "Codex is preferred for repeatable inspection and execution work.",
+      "candidates": [
+        {"runner": "codex", "resourceRole": "code.inspection"},
+        {"runner": "claude-code", "resourceRole": "code.inspection"},
+        {"runner": "opencode", "resourceRole": "code.inspection"},
+        {"runner": "grok", "resourceRole": "code.inspection"},
+        {"runner": "antigravity", "resourceRole": "code.inspection"}
+      ]
     }
   }
 }

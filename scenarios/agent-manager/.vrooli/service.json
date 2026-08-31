@@ -119,19 +119,22 @@
         "type": "claude-code",
         "enabled": true,
         "required": false,
-        "description": "Runner adapter for Claude Code agent execution"
+        "description": "Runner adapter for Claude Code agent execution",
+        "startup_policy": "try_start"
       },
       "codex": {
         "type": "codex",
         "enabled": true,
         "required": false,
-        "description": "Runner adapter for OpenAI Codex agent execution"
+        "description": "Runner adapter for OpenAI Codex agent execution",
+        "startup_policy": "try_start"
       },
       "opencode": {
         "type": "opencode",
         "enabled": true,
         "required": false,
-        "description": "Runner adapter for open-source code model execution"
+        "description": "Runner adapter for open-source code model execution",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
@@ -140,7 +143,8 @@
         "description": "Local LLM for recommendation extraction from investigation outputs",
         "model_roles": [
           "code.local"
-        ]
+        ],
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {
@@ -148,7 +152,8 @@
         "type": "scenario",
         "enabled": true,
         "required": true,
-        "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution"
+        "description": "Provides sandbox creation, diff generation, and patch application for isolated agent execution",
+        "startup_policy": "must_start"
       },
       "vrooli-events": {
         "type": "scenario",
@@ -159,7 +164,8 @@
           "declarations": [
             ".vrooli/vrooli-events/receipt-capture.json"
           ]
-        }
+        },
+        "startup_policy": "try_start"
       }
     }
   },

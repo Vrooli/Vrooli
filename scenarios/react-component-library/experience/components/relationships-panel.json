@@ -6,7 +6,7 @@
     "id": "relationships-panel",
     "title": "Catalog Relationships Panel",
     "purpose": "Expose dependency closure, reverse dependents, rung bands, blast radius, and host obligations for an asset.",
-    "storyRef": "../../library/components/TreeView/versions/1.0.0/story.json"
+    "storyRef": "../../library/components/TreeView/versions/1.0.7/story.json"
   },
   "states": [
     { "id": "loading", "example": "default", "description": "Relationship data is loading." },

@@ -53,6 +53,49 @@ func TestRunHeartbeatLoopStopsWithoutWaitingForNextTick(t *testing.T) {
 	}
 }
 
+func TestRunHeartbeatLoopTicksWithoutAgentOutput(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	task := &domain.Task{ID: uuid.New(), Title: "timer heartbeat", ScopePath: ".", Status: domain.TaskStatusQueued}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+
+	levers := config.DefaultLevers()
+	levers.Heartbeat.RunHeartbeatInterval = 10 * time.Millisecond
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go RunHeartbeatLoop(ctx, HeartbeatLoopInput{Deps: Deps{Runs: repos.Runs, Clock: time.Now}, Run: run, Levers: levers, Stop: stop, Done: done})
+	var first *time.Time
+	deadline := time.After(time.Second)
+	for {
+		persisted, err := repos.Runs.Get(ctx, run.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if first == nil && persisted.LastHeartbeat != nil {
+			observed := *persisted.LastHeartbeat
+			first = &observed
+		} else if first != nil && persisted.LastHeartbeat != nil && persisted.LastHeartbeat.After(*first) {
+			break
+		}
+		select {
+		case <-deadline:
+			close(stop)
+			<-done
+			t.Fatal("timer did not emit a second heartbeat without agent output")
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
+	close(stop)
+	<-done
+}
+
 // panickingHeartbeatRepo simulates a defect inside the heartbeat persist path.
 type panickingHeartbeatRepo struct{ repository.RunRepository }
 

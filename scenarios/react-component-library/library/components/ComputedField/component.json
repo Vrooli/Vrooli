@@ -2,6 +2,11 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.computed-field",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
   "description": "A store-driven read-only field that recalculates from affected values and communicates calculated versus edited state.",
   "designStyles": [
     {
@@ -17,10 +22,16 @@
       "styleId": "vrooli-conversion-landing"
     }
   ],
-  "entry": "ComputedField.tsx",
   "displayName": "ComputedField",
+  "draft": "",
+  "entry": "ComputedField.tsx",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
   "kind": "input",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:ComputedField",
   "tags": [
     "form",
@@ -28,9 +39,5 @@
     "derived",
     "accessibility",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
   ]
 }

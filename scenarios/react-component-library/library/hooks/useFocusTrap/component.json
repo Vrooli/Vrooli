@@ -2,6 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-focus-trap",
+  "deprecatedVersions": ["1.0.0"],
   "description": "Reusable focus containment primitive for accessible overlays.",
   "designStyles": [
     {
@@ -14,14 +15,10 @@
     }
   ],
   "displayName": "useFocusTrap",
+  "draft": "",
+  "evictedVersions": ["1.0.0"],
   "kind": "overlay",
   "latest": "1.1.0",
   "libraryId": "react-component-library:useFocusTrap",
-  "tags": [
-    "accessibility",
-    "focus",
-    "overlay"
-  ],
-  "draft": "",
-  "deprecatedVersions": []
+  "tags": ["accessibility", "focus", "overlay"]
 }

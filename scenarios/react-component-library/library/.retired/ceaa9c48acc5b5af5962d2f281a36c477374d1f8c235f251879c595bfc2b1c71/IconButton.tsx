@@ -8,7 +8,12 @@
  */
 /** @vrooliComponentSource controls.icon-button */
 import { cn } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-import { forwardRef, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from "react";
+import {
+  forwardRef,
+  type ButtonHTMLAttributes,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 import { MorphingIcon } from "@vrooli/react-component-library/MorphingIcon/3.0.1";
 import type { IconMorphMode } from "@vrooli/react-component-library/useIconMorph/1.0.0";
@@ -70,8 +75,18 @@ export type IconButtonSize = "xs" | "sm" | "md" | "lg";
 
 /** 2.x variant names, kept so existing call sites compile unchanged. */
 export type LegacyIconButtonVariant =
-  | "primary" | "secondary" | "ghost" | "danger" | "default" | "outline"
-  | "destructive" | "info" | "success" | "warning" | "error" | "pipeline";
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "danger"
+  | "default"
+  | "outline"
+  | "destructive"
+  | "info"
+  | "success"
+  | "warning"
+  | "error"
+  | "pipeline";
 
 const SURFACE_BY_LEGACY: Record<LegacyIconButtonVariant, IconButtonSurface> = {
   ghost: "ghost",
@@ -207,7 +222,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         aria-busy={ariaBusy ?? (pending || undefined)}
         // `selected` is a toggle; leaving it undefined keeps the button a plain
         // action rather than announcing an unpressed toggle that does not exist.
-        aria-pressed={ariaPressed ?? (selected === undefined ? undefined : selected)}
+        aria-pressed={
+          ariaPressed ?? (selected === undefined ? undefined : selected)
+        }
         data-rcl-icon-button=""
         data-rcl-surface={resolvedSurface}
         data-rcl-shape={shape}
@@ -215,7 +232,10 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         data-rcl-pending={pending ? "true" : "false"}
         data-rcl-tap-target={denseTapTarget ? "dense" : "comfortable"}
       >
-        <span data-rcl-icon-button-glyph="" style={{ inlineSize: GLYPH_SIZE[size], blockSize: GLYPH_SIZE[size] }}>
+        <span
+          data-rcl-icon-button-glyph=""
+          style={{ inlineSize: GLYPH_SIZE[size], blockSize: GLYPH_SIZE[size] }}
+        >
           <MorphingIcon morph={morph} iconKey={iconKey} size={size}>
             {children}
           </MorphingIcon>

@@ -52,7 +52,7 @@ func TestPublishFreezesBareLibrarySpecifierAndDependencyLock(t *testing.T) {
 
 	source, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", released.Version.Version, "Panel.tsx"))
 	require.NoError(t, err)
-	require.Contains(t, string(source), "@vrooli/react-component-library/Stack/1.0.0")
+	require.Contains(t, string(source), "@vrooli/react-component-library/Stack/1")
 	lock, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", released.Version.Version, "dependencies.json"))
 	require.NoError(t, err)
 	require.JSONEq(t, `{"schemaVersion":1,"libraryId":"react-component-library:Panel","version":"1.0.1","resolvedAt":"`+extractResolvedAt(t, lock)+`","dependencies":[{"libraryId":"react-component-library:Stack","version":"1.0.0","rank":4}]}`, string(lock))
@@ -86,7 +86,7 @@ func TestPublishPreservesExplicitLibraryPinAndOlderReleaseBytes(t *testing.T) {
 	require.NoError(t, err)
 	panelBefore, err := os.ReadFile(filepath.Join(root, "components", "Panel", "versions", "1.0.1", "Panel.tsx"))
 	require.NoError(t, err)
-	require.Contains(t, string(panelBefore), "Stack/1.0.0")
+	require.Contains(t, string(panelBefore), "Stack/1")
 
 	stackDraft, err := authoring.BeginComponentVersion(context.Background(), components.BeginComponentVersionInput{Component: "react-component-library:Stack", Bump: "patch"})
 	require.NoError(t, err)
@@ -242,6 +242,21 @@ func TestService_GetAcceptsLibraryIDOrInternalID(t *testing.T) {
 	byLibraryID, err := svc.Get(context.Background(), created.LibraryID)
 	require.NoError(t, err)
 	require.Equal(t, byID.ID, byLibraryID.ID)
+}
+
+func TestService_GetAcceptsCatalogID(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	svc := components.NewService(repo)
+
+	created, err := svc.Upsert(context.Background(), components.UpsertInput{
+		LibraryID: "react-component-library:Slider",
+		CatalogID: "controls.slider",
+	})
+	require.NoError(t, err)
+
+	byCatalogID, err := svc.Get(context.Background(), "controls.slider")
+	require.NoError(t, err)
+	require.Equal(t, created.ID, byCatalogID.ID)
 }
 
 func TestService_UpdateManifestRepairsAuthoredComponentMissingFromIndex(t *testing.T) {

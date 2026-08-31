@@ -13,7 +13,8 @@
     "1.0.7",
     "1.0.8",
     "1.0.9",
-    "1.0.10"
+    "1.0.10",
+    "1.0.12"
   ],
   "description": "Application-level notice chrome with priority arbitration, temporal damping, and status-bar tinting.",
   "designStyles": [
@@ -35,14 +36,12 @@
     "1.0.2",
     "1.0.10",
     "1.0.1",
-    "1.0.0"
+    "1.0.0",
+    "1.0.11",
+    "1.0.12"
   ],
   "kind": "surface",
-  "latest": "1.0.12",
+  "latest": "1.0.13",
   "libraryId": "react-component-library:Banner",
-  "tags": [
-    "feedback",
-    "status",
-    "chrome"
-  ]
+  "tags": ["feedback", "status", "chrome"]
 }

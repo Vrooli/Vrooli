@@ -160,10 +160,11 @@ func (h *connectHandler) MaterializeVersion(ctx context.Context, req *connect.Re
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
 			for _, version := range versions {
-				// Retired versions remain in the durable ledger with an unspecified
-				// catalog status, and drafts are mutable authoring state. Neither is
-				// part of an --all release projection used by package builds.
-				if version.Status != components.VersionStatusReleased &&
+				// Retired versions remain cold in the live store. They are included
+				// only in transient projections (into is set), where historical
+				// released sources may still need their exact relative dependencies.
+				// A normal materialize --all must never warm the retired corpus.
+				if req.Msg.GetInto() == "" && version.Status != components.VersionStatusReleased &&
 					version.Status != components.VersionStatusDeprecated &&
 					version.Status != components.VersionStatusArchived {
 					continue
@@ -256,7 +257,31 @@ func (h *connectHandler) ReconcilePresence(ctx context.Context, req *connect.Req
 				}
 				continue
 			}
-			if _, safe := candidateByVersion[row.Version]; !safe && row.Presence == "evicted" {
+			// A candidate that is already evicted is in the intended cold tier.
+			// Do not rematerialize it merely because the catalog row is still a
+			// released status; the reachability graph has already authorized its
+			// absence from the live source tree.
+			if _, safe := candidateByVersion[row.Version]; safe && row.Presence == "evicted" {
+				response.Unchanged = append(response.Unchanged, candidate)
+				continue
+			}
+			// Retired versions are intentionally cold-tier records. Reclaim any
+			// stale warm materialization, but never rematerialize an evicted
+			// retired row during reconciliation.
+			if string(row.Status) == "retired" {
+				if row.Presence != "evicted" {
+					response.Evict = append(response.Evict, candidate)
+					if req.Msg.GetApply() {
+						if _, reclaimErr := h.deps.Ledger.Transition(ctx, asset.ID, row.Version, "retired", true); reclaimErr != nil {
+							return nil, connect.NewError(connect.CodeFailedPrecondition, reclaimErr)
+						}
+					}
+				} else {
+					response.Unchanged = append(response.Unchanged, candidate)
+				}
+				continue
+			}
+			if row.Status != components.VersionStatusArchived && row.Presence == "evicted" {
 				response.Materialize = append(response.Materialize, candidate)
 				if req.Msg.GetApply() {
 					if _, materializeErr := materializer.EnsureMaterialized(ctx, asset.ID, row.Version, ""); materializeErr != nil {

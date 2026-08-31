@@ -1,67 +1,65 @@
 {
- "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
- "args": {
-  "fields": []
- },
- "environment": {
-  "fixtures": []
- },
- "kind": "hook",
- "schemaVersion": 5,
- "stories": [
-  {
-   "args": {},
-   "composition": {
-    "specimen": {
-     "export": "Default",
-     "module": "./story.tsx"
-    }
-   },
-   "expect": [
-    {
-     "kind": "visible",
-     "selector": "[data-testid='hooks.use-direction']"
-    },
-    {
-     "kind": "attribute",
-     "selector": "[data-testid='hooks.use-direction']",
-     "attribute": "data-direction",
-     "value": "ltr"
-    }
-   ],
-   "id": "default",
-   "mode": "live",
-   "name": "Default",
-   "role": "anatomy"
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
   },
-  {
-   "args": {},
-   "composition": {
-    "specimen": {
-     "export": "RightToLeft",
-     "module": "./story.tsx"
-    }
-   },
-   "expect": [
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "hook",
+  "schemaVersion": 5,
+  "stories": [
     {
-     "kind": "visible",
-     "selector": "[data-testid='hooks.use-direction.rtl']"
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='hooks.use-direction']"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-direction']",
+          "attribute": "data-direction",
+          "value": "ltr"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Default",
+      "role": "anatomy"
     },
     {
-     "kind": "attribute",
-     "selector": "[data-testid='hooks.use-direction.rtl']",
-     "attribute": "data-direction",
-     "value": "rtl"
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "RightToLeft",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-testid='hooks.use-direction.rtl']"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='hooks.use-direction.rtl']",
+          "attribute": "data-direction",
+          "value": "rtl"
+        }
+      ],
+      "id": "right-to-left",
+      "mode": "live",
+      "name": "Right to left",
+      "role": "boundary",
+      "states": ["rtl"]
     }
-   ],
-   "id": "right-to-left",
-   "mode": "live",
-   "name": "Right to left",
-   "role": "boundary",
-   "states": [
-    "rtl"
-   ]
-  }
- ],
- "title": "useDirection"
+  ],
+  "title": "useDirection"
 }

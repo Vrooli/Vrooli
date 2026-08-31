@@ -1,0 +1,363 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "Close panel",
+        "kind": "text",
+        "label": "Accessible label",
+        "path": "aria-label"
+      },
+      {
+        "default": "",
+        "kind": "structured",
+        "label": "Icon",
+        "path": "children"
+      },
+      {
+        "default": "ghost",
+        "kind": "enum",
+        "label": "Variant",
+        "options": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ],
+        "path": "variant",
+        "required": true
+      },
+      {
+        "default": "icon",
+        "kind": "enum",
+        "label": "Size",
+        "options": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ],
+        "path": "size",
+        "required": true
+      },
+      {
+        "default": "comfortable",
+        "kind": "enum",
+        "label": "Density",
+        "options": [
+          "comfortable",
+          "compact"
+        ],
+        "path": "density",
+        "required": true
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Disabled",
+        "path": "disabled"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "variant": "primary"
+      },
+      "composition": {
+        "specimen": {
+          "export": "VariantPrimary",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Play",
+          "role": "button"
+        }
+      ],
+      "id": "variant-primary",
+      "mode": "pinned",
+      "name": "Primary",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "variant": "secondary"
+      },
+      "axis": "variant",
+      "composition": {
+        "specimen": {
+          "export": "VariantSecondary",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "variant": [
+          "primary",
+          "secondary",
+          "ghost",
+          "danger"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Settings",
+          "role": "button"
+        }
+      ],
+      "id": "variant-secondary",
+      "mode": "pinned",
+      "name": "Secondary",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "variant": "ghost"
+      },
+      "axis": "size",
+      "composition": {
+        "specimen": {
+          "export": "VariantGhost",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "size": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl",
+          "icon"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Close",
+          "role": "button"
+        }
+      ],
+      "id": "variant-ghost",
+      "mode": "pinned",
+      "name": "Ghost",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "variant": "danger"
+      },
+      "axis": "density",
+      "composition": {
+        "specimen": {
+          "export": "VariantDanger",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "density": [
+          "comfortable",
+          "compact"
+        ]
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Delete",
+          "role": "button"
+        }
+      ],
+      "id": "variant-danger",
+      "mode": "pinned",
+      "name": "Danger",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "size": "xs"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeXs",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "XS",
+          "role": "button"
+        }
+      ],
+      "id": "size-xs",
+      "mode": "pinned",
+      "name": "XS",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "size": "sm"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeSm",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "SM",
+          "role": "button"
+        }
+      ],
+      "id": "size-sm",
+      "mode": "pinned",
+      "name": "SM",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "size": "md"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeMd",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "MD",
+          "role": "button"
+        }
+      ],
+      "id": "size-md",
+      "mode": "pinned",
+      "name": "MD",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "size": "lg"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeLg",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "LG",
+          "role": "button"
+        }
+      ],
+      "id": "size-lg",
+      "mode": "pinned",
+      "name": "LG",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "size": "xl"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeXl",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "XL",
+          "role": "button"
+        }
+      ],
+      "id": "size-xl",
+      "mode": "pinned",
+      "name": "XL",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "size": "icon"
+      },
+      "composition": {
+        "specimen": {
+          "export": "SizeIcon",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Icon",
+          "role": "button"
+        }
+      ],
+      "id": "size-icon",
+      "mode": "pinned",
+      "name": "Icon",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "density": "comfortable"
+      },
+      "composition": {
+        "specimen": {
+          "export": "DensityComfortable",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Comfortable",
+          "role": "button"
+        }
+      ],
+      "id": "density-comfortable",
+      "mode": "pinned",
+      "name": "Comfortable",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "density": "compact"
+      },
+      "composition": {
+        "specimen": {
+          "export": "DensityCompact",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Compact",
+          "role": "button"
+        }
+      ],
+      "id": "density-compact",
+      "mode": "pinned",
+      "name": "Compact",
+      "role": "boundary"
+    }
+  ],
+  "title": "IconButton 2.0"
+}

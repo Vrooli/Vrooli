@@ -92,11 +92,15 @@ export function SwipeActions({
   // Reveal runs away from the edge an anchored drawer sits against, so a row
   // inside a swipe-to-close sidebar can never contend with it: the two live on
   // opposite signs of the same axis and the sign alone says which was meant.
-  const { direction, sign } = useGestureDirection("reveal", { elementRef: rootRef });
+  const { direction, sign } = useGestureDirection("reveal", {
+    elementRef: rootRef,
+  });
 
   const enabled = !disabled && actions.length > 0;
   const travel = actions.length * actionWidth;
-  const stages = actions.map((_, index) => (index + 1) * actionWidth * ARM_RATIO);
+  const stages = actions.map(
+    (_, index) => (index + 1) * actionWidth * ARM_RATIO,
+  );
 
   const openRef = useRef(isOpen);
   openRef.current = isOpen;
@@ -106,7 +110,8 @@ export function SwipeActions({
     if (!face) return;
     face.dataset.dragging = dragging ? "true" : "false";
     face.dataset.settling = dragging ? "false" : "true";
-    face.style.transform = translate === 0 ? "" : `translateX(${String(translate)}px)`;
+    face.style.transform =
+      translate === 0 ? "" : `translateX(${String(translate)}px)`;
   }, []);
 
   // Keep the rendered offset in step with `open` whenever it changes for a

@@ -2,7 +2,7 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "component": { "id": "bottom-nav", "title": "BottomNav", "purpose": "A fixed compact navigation surface with current-page semantics, stable tap targets, and safe-area support.", "storyRef": "../../library/components/BottomNav/versions/1.4.0/story.json" },
+  "component": { "id": "bottom-nav", "title": "BottomNav", "purpose": "A fixed compact navigation surface with current-page semantics, stable tap targets, and safe-area support.", "storyRef": "../../library/components/BottomNav/versions/1.5.3/story.json" },
   "states": [
     { "id": "mobile-primary", "example": "mobile-primary", "description": "Primary mobile destinations are available." },
     { "id": "disabled-item", "example": "disabled-item", "description": "Disabled destinations remain announced and non-operable." },

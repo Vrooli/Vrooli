@@ -1,6 +1,16 @@
 {
+  "assetKind": "component",
   "catalogId": "overlays.context-menu",
-  "deprecatedVersions": [],
+  "deprecatedVersions": [
+    "0.1.0",
+    "1.0.0",
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.1.0",
+    "1.1.1",
+    "1.2.9"
+  ],
   "description": "Shared overlay presentation for ContextMenu.",
   "designStyles": [
     {
@@ -26,16 +36,14 @@
     "1.2.5",
     "1.2.4",
     "1.2.3",
-    "1.2.2"
+    "1.2.2",
+    "1.2.8",
+    "1.2.7",
+    "1.2.6",
+    "1.2.9"
   ],
   "kind": "control",
-  "latest": "1.2.9",
+  "latest": "1.2.10",
   "libraryId": "react-component-library:ContextMenu",
-  "tags": [
-    "overlay",
-    "accessibility",
-    "responsive",
-    "token-bound"
-  ],
-  "assetKind": "component"
+  "tags": ["overlay", "accessibility", "responsive", "token-bound"]
 }

@@ -22,10 +22,7 @@
         "default": "always-on",
         "kind": "enum",
         "label": "Mode",
-        "options": [
-          "always-on",
-          "timeout"
-        ],
+        "options": ["always-on", "timeout"],
         "path": "mode",
         "required": true
       },
@@ -33,14 +30,7 @@
         "default": "sm",
         "kind": "enum",
         "label": "Size",
-        "options": [
-          "xs",
-          "sm",
-          "md",
-          "lg",
-          "xl",
-          "icon"
-        ],
+        "options": ["xs", "sm", "md", "lg", "xl", "icon"],
         "path": "size",
         "required": true
       },
@@ -48,10 +38,7 @@
         "default": "comfortable",
         "kind": "enum",
         "label": "Density",
-        "options": [
-          "comfortable",
-          "compact"
-        ],
+        "options": ["comfortable", "compact"],
         "path": "density",
         "required": true
       },
@@ -78,11 +65,7 @@
       {
         "adapter": "voice-input",
         "key": "voiceInput",
-        "options": [
-          "idle",
-          "recording",
-          "permission-denied"
-        ]
+        "options": ["idle", "recording", "permission-denied"]
       }
     ]
   },
@@ -174,10 +157,7 @@
       "role": "axis",
       "axis": "mode",
       "covers": {
-        "mode": [
-          "always-on",
-          "timeout"
-        ]
+        "mode": ["always-on", "timeout"]
       }
     },
     {
@@ -204,14 +184,7 @@
       "role": "axis",
       "axis": "size",
       "covers": {
-        "size": [
-          "xs",
-          "sm",
-          "md",
-          "lg",
-          "xl",
-          "icon"
-        ]
+        "size": ["xs", "sm", "md", "lg", "xl", "icon"]
       }
     },
     {
@@ -237,10 +210,7 @@
       "role": "axis",
       "axis": "density",
       "covers": {
-        "density": [
-          "comfortable",
-          "compact"
-        ]
+        "density": ["comfortable", "compact"]
       }
     },
     {
@@ -264,9 +234,7 @@
       "mode": "live",
       "name": "Unavailable",
       "role": "boundary",
-      "states": [
-        "error"
-      ]
+      "states": ["error"]
     }
   ],
   "title": "VoiceInputButton"

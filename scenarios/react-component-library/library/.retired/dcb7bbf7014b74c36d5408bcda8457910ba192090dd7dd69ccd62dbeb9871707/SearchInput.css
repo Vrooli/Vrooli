@@ -1,0 +1,22 @@
+[data-rcl-search-input] {
+  display: grid;
+  gap: 6px;
+  width: min(100%, 360px);
+}
+[data-rcl-search-input-label] {
+  color: var(--color-muted-foreground, #64748b);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+[data-rcl-search-input-field] {
+  box-sizing: border-box;
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: var(--radius-control, 0.5rem);
+  background: var(--color-surface, #fff);
+  color: var(--color-foreground, #0f172a);
+  padding-inline: 16px;
+  font: inherit;
+}

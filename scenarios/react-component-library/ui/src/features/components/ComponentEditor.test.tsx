@@ -646,9 +646,7 @@ describe("ComponentEditor", () => {
       );
       await screen.findByRole("button", { name: "Primary" });
       await screen.findByTestId(selectors.components.editor.previewToolsPanel);
-      const diagnostics = await screen.findByTestId(
-        selectors.components.editor.previewDiagnostics,
-      );
+      const diagnostics = await screen.findByTestId(selectors.components.editor.previewDiagnostics);
       expect(diagnostics).toHaveTextContent('"componentId": "cmp-events"');
       expect(diagnostics).toHaveTextContent('"storyId": "primary"');
       const writeText = vi.fn().mockResolvedValue(undefined);

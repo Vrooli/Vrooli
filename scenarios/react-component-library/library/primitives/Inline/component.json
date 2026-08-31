@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.inline",
-  "deprecatedVersions": [
-    "1.1.0"
-  ],
+  "deprecatedVersions": ["1.1.0"],
   "description": "",
   "designStyles": [
     {
@@ -22,14 +20,9 @@
   ],
   "displayName": "Inline",
   "draft": "",
-  "evictedVersions": [
-    "1.1.0"
-  ],
+  "evictedVersions": ["1.1.0"],
   "kind": "surface",
   "latest": "1.1.1",
   "libraryId": "react-component-library:Inline",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "tags": ["primitive", "token-bound"]
 }

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement } from "react";
-import { ControlBase } from "@vrooli/react-component-library/ControlBase/1.1.0";
+import { ControlBase } from "@vrooli/react-component-library/ControlBase/1";
 import { renderWithProviders } from "../test-utils";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
@@ -50,14 +50,18 @@ describe("ControlBase documented geometry", () => {
   });
 
   it("keeps the direct-child icon scale monotonic and tokenized", () => {
-    expect(baseStylesSource).toContain('--control-icon-size-xs: 12px');
-    expect(baseStylesSource).toContain('--control-icon-size-sm: 14px');
-    expect(baseStylesSource).toContain('--control-icon-size-md: 16px');
-    expect(baseStylesSource).toContain('--control-icon-size-lg: 18px');
-    expect(baseStylesSource).toContain('--control-icon-size-xl: 20px');
-    expect(baseStylesSource).toContain('--control-icon-size-icon: 16px');
-    expect(baseStylesSource).toContain('[data-control-size="xs"] { --control-icon-size: var(--control-icon-size-xs); }');
-    expect(baseStylesSource).toContain('[data-control-size="icon"] { --control-icon-size: var(--control-icon-size-icon); }');
+    expect(baseStylesSource).toContain("--control-icon-size-xs: 12px");
+    expect(baseStylesSource).toContain("--control-icon-size-sm: 14px");
+    expect(baseStylesSource).toContain("--control-icon-size-md: 16px");
+    expect(baseStylesSource).toContain("--control-icon-size-lg: 18px");
+    expect(baseStylesSource).toContain("--control-icon-size-xl: 20px");
+    expect(baseStylesSource).toContain("--control-icon-size-icon: 16px");
+    expect(baseStylesSource).toContain(
+      '[data-control-size="xs"] { --control-icon-size: var(--control-icon-size-xs); }',
+    );
+    expect(baseStylesSource).toContain(
+      '[data-control-size="icon"] { --control-icon-size: var(--control-icon-size-icon); }',
+    );
   });
 
   afterEach(() => {
@@ -72,10 +76,12 @@ describe("ControlBase documented geometry", () => {
   // a contract the consumers get.
   it("states each rung's pixels once and derives the tap-target marking from them", () => {
     expect(controlBaseSource).toContain(
-      'const sizePixels: Record<ControlSize, number> = { xs: 32, sm: 36, md: 40, lg: 44, xl: 48, icon: 40, default: 40 };',
+      "const sizePixels: Record<ControlSize, number> = { xs: 32, sm: 36, md: 40, lg: 44, xl: 48, icon: 40, default: 40 };",
     );
     expect(controlBaseSource).toContain("const tapTargetMinimum = 44;");
-    expect(controlBaseSource).toContain("const belowTapTarget = sizePixels[size] < tapTargetMinimum;");
+    expect(controlBaseSource).toContain(
+      "const belowTapTarget = sizePixels[size] < tapTargetMinimum;",
+    );
 
     for (const rung of documentedRungs) {
       const documented = Number(rung.pixels);
@@ -96,9 +102,7 @@ describe("ControlBase documented geometry", () => {
 
   it("marks dense rungs in the DOM without blocking rendering", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    renderWithProviders(
-      createElement(ControlBase, { size: "xs", children: "Compact action" }),
-    );
+    renderWithProviders(createElement(ControlBase, { size: "xs", children: "Compact action" }));
 
     expect(screen.getByRole("button", { name: "Compact action" })).toHaveAttribute(
       "data-control-below-tap-target",
@@ -108,9 +112,7 @@ describe("ControlBase documented geometry", () => {
   });
 
   it("leaves comfortable rungs unmarked", () => {
-    renderWithProviders(
-      createElement(ControlBase, { size: "lg", children: "Roomy action" }),
-    );
+    renderWithProviders(createElement(ControlBase, { size: "lg", children: "Roomy action" }));
 
     expect(screen.getByRole("button", { name: "Roomy action" })).not.toHaveAttribute(
       "data-control-below-tap-target",
@@ -125,6 +127,9 @@ describe("ControlBase documented geometry", () => {
 
     rerender(createElement(ControlBase, { density: "compact", children: "Action" }));
     expect(screen.getByRole("button", { name: "Action" })).toHaveStyle({ gap: "var(--space-3xs)" });
-    expect(screen.getByRole("button", { name: "Action" })).toHaveAttribute("data-control-size", "md");
+    expect(screen.getByRole("button", { name: "Action" })).toHaveAttribute(
+      "data-control-size",
+      "md",
+    );
   });
 });

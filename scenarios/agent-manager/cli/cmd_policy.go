@@ -11,7 +11,7 @@ import (
 
 func (a *App) cmdPolicy(args []string) error {
 	if len(args) == 0 {
-		return a.policyHelp()
+		return nil
 	}
 	switch args[0] {
 	case "status":
@@ -25,26 +25,10 @@ func (a *App) cmdPolicy(args []string) error {
 	case "explain":
 		return a.policyExplain(args[1:])
 	case "help", "-h", "--help":
-		return a.policyHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown role-policy subcommand: %s\n\nRun 'agent-manager role-policy help' for usage", args[0])
 	}
-}
-
-func (a *App) policyHelp() error {
-	fmt.Println(`Usage: agent-manager role-policy <subcommand> [options]
-
-Subcommands:
-  status                 Show active revision, path, readiness, and latest diagnostic
-  catalog                Inspect the active portable role catalog
-  validate               Validate configured declared state without activation
-  reload                 Validate and atomically activate configured declared state
-  explain profile <id>   Resolve a profile against the active catalog
-  explain run <id>       Show the immutable snapshot stored with a run
-
-Options:
-  --json                 Output the generated API response as JSON`)
-	return nil
 }
 
 func parsePolicyFlags(name string, args []string) (*bool, error) {

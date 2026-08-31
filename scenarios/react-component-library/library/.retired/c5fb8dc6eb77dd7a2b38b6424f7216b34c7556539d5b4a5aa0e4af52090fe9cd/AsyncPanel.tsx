@@ -70,7 +70,9 @@ export const AsyncPanel = withClassName(function AsyncPanel({
                 </>
               ));
   const statusMessage =
-    state === "loading" || state === "partial" || state === "error" ? fallback[state] : undefined;
+    state === "loading" || state === "partial" || state === "error"
+      ? fallback[state]
+      : undefined;
   return (
     <ExperienceSurface
       surfaceId={surfaceId}

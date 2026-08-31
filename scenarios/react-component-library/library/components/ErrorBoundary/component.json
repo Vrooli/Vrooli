@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.error-boundary",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.5"
-  ],
+  "deprecatedVersions": ["1.0.3", "1.0.5", "1.0.4", "1.0.6", "1.0.7"],
   "description": "The recoverable rendering boundary with reset keys, contextual fallback, telemetry reporting, retry, safe diagnostic disclosure, and preservation of the unaffected interface.",
   "designStyles": [
     {
@@ -23,13 +20,9 @@
   ],
   "displayName": "ErrorBoundary",
   "draft": "",
-  "evictedVersions": [
-    "1.0.5",
-    "1.0.4",
-    "1.0.3"
-  ],
+  "evictedVersions": ["1.0.5", "1.0.4", "1.0.3", "1.0.6", "1.0.7"],
   "kind": "surface",
-  "latest": "1.0.6",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:ErrorBoundary",
   "requires": [
     {
@@ -37,11 +30,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "feedback",
-    "recovery",
-    "resilience",
-    "accessibility",
-    "token-bound"
-  ]
+  "tags": ["feedback", "recovery", "resilience", "accessibility", "token-bound"]
 }

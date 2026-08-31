@@ -182,6 +182,42 @@ INSERT INTO component_versions(id, component_id, library_id, version, status, so
 	require.Equal(t, "workbench-source-import", target.References[0].Kind)
 }
 
+func TestExperienceStoryReferencesProtectVersion(t *testing.T) {
+	database := databasetest.NewSQLite(t)
+	scenarioRoot := t.TempDir()
+	root := filepath.Join(scenarioRoot, "library")
+	writeVersion(t, root, "components", "Button", "1.0.0", "export const Button = () => null;", `{"schemaVersion":1,"libraryId":"react-component-library:Button","version":"1.0.0","dependencies":[]}`)
+	writeVersion(t, root, "components", "Button", "1.1.0", "export const Button = () => null;", `{"schemaVersion":1,"libraryId":"react-component-library:Button","version":"1.1.0","dependencies":[]}`)
+
+	experienceRoot := filepath.Join(scenarioRoot, "experience", "components")
+	require.NoError(t, os.MkdirAll(experienceRoot, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(experienceRoot, "button.json"), []byte(`{"storyRef":"../../library/components/Button/versions/1.0.0/story.json"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json"), []byte(`{"title":"Button"}`), 0o644))
+
+	_, err := database.ExecContext(context.Background(), cleanupSchema+`
+INSERT INTO components(id, library_id, latest_version, draft_version) VALUES ('c-button', 'react-component-library:Button', '1.1.0', '');
+INSERT INTO component_versions(id, component_id, library_id, version, status, source_path) VALUES
+  ('v-1-0-0', 'c-button', 'react-component-library:Button', '1.0.0', 'deprecated', 'components/Button/versions/1.0.0/Button.tsx'),
+  ('v-1-1-0', 'c-button', 'react-component-library:Button', '1.1.0', 'released', 'components/Button/versions/1.1.0/Button.tsx');
+`)
+	require.NoError(t, err)
+
+	items, _, err := NewRepository(database, root).PlanCleanup(context.Background(), CleanupScope{})
+	require.NoError(t, err)
+	var target *CleanupItem
+	for index := range items {
+		if items[index].Candidate.Version == "1.0.0" {
+			target = &items[index]
+		}
+	}
+	require.NotNil(t, target)
+	require.False(t, target.Eligible, "a canonical experience story reference must protect its version")
+	require.Len(t, target.References, 1)
+	require.Equal(t, "experience-story-ref", target.References[0].Kind)
+	require.Equal(t, filepath.Join(experienceRoot, "button.json"), target.References[0].OwnerPath)
+	require.Equal(t, "../../library/components/Button/versions/1.0.0/story.json", target.References[0].ImportSpecifier)
+}
+
 // A bare specifier follows whatever the manifest calls latest, so it says
 // nothing about any particular version and must not pin one.
 func TestBarePackageSpecifierPinsNothing(t *testing.T) {

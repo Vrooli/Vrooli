@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { StatusBadge } from "../components/StatusBadge";
 import {
   componentsClient,
@@ -285,7 +285,9 @@ export function ComponentDetailPage() {
     queryKey: ["components", "experience", id],
     queryFn: () => getComponentExperience(data?.component?.id ?? ""),
     enabled:
-      Boolean(id) && Boolean(data?.component) && (infoTab === "overview" || infoTab === "experience"),
+      Boolean(id) &&
+      Boolean(data?.component) &&
+      (infoTab === "overview" || infoTab === "experience"),
     retry: false,
   });
   const sourceContentQuery = useQuery({

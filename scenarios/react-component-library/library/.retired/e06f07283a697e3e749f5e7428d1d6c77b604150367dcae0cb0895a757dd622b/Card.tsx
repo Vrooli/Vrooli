@@ -27,7 +27,8 @@ export interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
   children: ReactNode;
 }
 
-export interface CardDescriptionProps extends HTMLAttributes<HTMLParagraphElement> {
+export interface CardDescriptionProps
+  extends HTMLAttributes<HTMLParagraphElement> {
   children: ReactNode;
 }
 
@@ -35,11 +36,18 @@ export interface CardContentProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-const cn = (...inputs: Array<string | undefined>) => inputs.filter(Boolean).join(" ");
+const cn = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
-export const Card = withClassName(function Card({ children, className, ...props }: CardProps) {
+export const Card = withClassName(function Card({
+  children,
+  className,
+  ...props
+}: CardProps) {
   const { elevation = "flat" } = useSurfaceContext();
-  const testId = (props as CardProps & { "data-testid"?: string })["data-testid"];
+  const testId = (props as CardProps & { "data-testid"?: string })[
+    "data-testid"
+  ];
   const surfaceStyle: CSSProperties = {
     boxShadow: `var(--elev-${elevation})`,
     ...props.style,

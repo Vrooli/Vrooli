@@ -24,7 +24,7 @@ func testDigest(body string) string {
 }
 
 func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
-	raw, err := os.ReadFile("../../../library/components/DrawerShell/versions/1.1.3/dependencies.json")
+	raw, err := os.ReadFile("../../../library/components/DrawerShell/versions/1.1.8/dependencies.json")
 	require.NoError(t, err)
 	var lock struct {
 		Dependencies []struct {
@@ -37,7 +37,7 @@ func TestIndexer_DrawerShellDeclaresReusableHookDependencies(t *testing.T) {
 	require.Contains(t, lock.Dependencies, struct {
 		LibraryID string `json:"libraryId"`
 		Version   string `json:"version"`
-	}{LibraryID: "react-component-library:BottomSheet", Version: "1.0.4"})
+	}{LibraryID: "react-component-library:BottomSheet", Version: "1.2.10"})
 }
 
 const buttonTSX = `/**
@@ -345,6 +345,24 @@ func TestCanonicalCatalogRootsMatchTestGenieApplicability(t *testing.T) {
 		}
 	}
 	require.Equal(t, got, applicable, "test-genie applicability roots must match canonical catalog roots")
+}
+
+func TestAssetKindForManifestPathNormalizesCatalogRuntimeAliases(t *testing.T) {
+	fs := fstest.MapFS{
+		"hooks/useAbortableTask/component.json":                     {Data: []byte(`{"assetKind":"runtime-hook","displayName":"useAbortableTask","latest":"1.0.0","libraryId":"react-component-library:useAbortableTask"}`)},
+		"hooks/useAbortableTask/versions/1.0.0/useAbortableTask.ts": {Data: []byte(`export function useAbortableTask() {}`)},
+		"services/ToastStore/component.json":                        {Data: []byte(`{"assetKind":"runtime-service","displayName":"ToastStore","latest":"1.0.0","libraryId":"react-component-library:ToastStore"}`)},
+		"services/ToastStore/versions/1.0.0/ToastStore.tsx":         {Data: []byte(`export const ToastStore = () => null`)},
+	}
+	repo := mocks.NewFakeRepository()
+	_, err := components.NewIndexer(repo, ".", fs).Run(context.Background())
+	require.NoError(t, err)
+	hook, err := repo.GetByLibraryID(context.Background(), "react-component-library:useAbortableTask")
+	require.NoError(t, err)
+	require.Equal(t, components.AssetKindHook, hook.AssetKind)
+	service, err := repo.GetByLibraryID(context.Background(), "react-component-library:ToastStore")
+	require.NoError(t, err)
+	require.Equal(t, components.AssetKindComponent, service.AssetKind)
 }
 
 func TestIndexer_RunRejectsNestedCompanionFixture(t *testing.T) {

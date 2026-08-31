@@ -23,9 +23,10 @@ type OrchestrationSettings struct {
 
 // RunExecutionSettings control how agent runs execute.
 type RunExecutionSettings struct {
-	// RunTimeoutMinutes is the maximum execution time for a single run.
-	// Higher = more time for complex tasks, but longer resource usage.
-	// Range: 1–9999. Default: 30.
+	// RunTimeoutMinutes is the global wall-clock ceiling, in minutes, for one
+	// agent work turn. A profile or inline request may ask for less, but run
+	// creation refuses requests above this value rather than truncating them.
+	// Range: 1–9999. Default: 120.
 	RunTimeoutMinutes int `json:"runTimeoutMinutes"`
 
 	// MaxConcurrentRuns limits total simultaneous runs.
@@ -33,9 +34,9 @@ type RunExecutionSettings struct {
 	// Range: 1–9999. Default: 10.
 	MaxConcurrentRuns int `json:"maxConcurrentRuns"`
 
-	// MaxTurns limits conversation turns per run.
-	// Higher = more agent autonomy, but potential for runaway loops.
-	// Range: 1–9999. Default: 100.
+	// MaxTurns is the global conversation-turn ceiling for one run. A profile or
+	// inline request may ask for less; larger requests are refused explicitly.
+	// Range: 1–9999. Default: 1000.
 	MaxTurns int `json:"maxTurns"`
 }
 
@@ -57,19 +58,22 @@ type SafetyIsolationSettings struct {
 
 // HealthDetectionSettings control how the system monitors run health.
 type HealthDetectionSettings struct {
-	// HeartbeatIntervalSeconds is how often runs send heartbeat signals.
-	// Lower = faster detection of stale runs, but more overhead.
-	// Range: 1–9999. Default: 15.
+	// HeartbeatIntervalSeconds is the executor-owned liveness pulse cadence, in
+	// seconds. It runs on a timer independent of agent output or work progress.
+	// Range: 1–9999. Default: 60.
 	HeartbeatIntervalSeconds int `json:"heartbeatIntervalSeconds"`
 
-	// StaleThresholdSeconds is how long without a heartbeat before a run is stale.
+	// StaleThresholdSeconds is the executor-liveness warning threshold, in
+	// seconds without a heartbeat. It does not limit agent work duration.
 	// Must be greater than HeartbeatIntervalSeconds.
-	// Range: 10–9999. Default: 300.
+	// Range: 10–9999. Default: 1000.
 	StaleThresholdSeconds int `json:"staleThresholdSeconds"`
 
-	// MaxRecoveryAgeSeconds is the maximum age of a stale run eligible for recovery.
-	// Must be greater than StaleThresholdSeconds.
-	// Range: 30–9999. Default: 600.
+	// MaxRecoveryAgeSeconds is the executor-liveness failure threshold, in
+	// seconds without a heartbeat. Beyond it, a live child process is reaped
+	// instead of recovered. It is measured from executor behavior and is not an
+	// agent work timeout. Must be greater than StaleThresholdSeconds.
+	// Range: 30–9999. Default: 1100.
 	MaxRecoveryAgeSeconds int `json:"maxRecoveryAgeSeconds"`
 
 	// ReconcilerIntervalSeconds is how often the reconciler checks for stale runs.
@@ -108,9 +112,9 @@ type ProcessTerminationSettings struct {
 func DefaultOrchestrationSettings() OrchestrationSettings {
 	return OrchestrationSettings{
 		RunExecution: RunExecutionSettings{
-			RunTimeoutMinutes: 60,
+			RunTimeoutMinutes: 120,
 			MaxConcurrentRuns: 10,
-			MaxTurns:          100,
+			MaxTurns:          1000,
 		},
 		SafetyIsolation: SafetyIsolationSettings{
 			RequireSandbox:  true,
@@ -118,9 +122,9 @@ func DefaultOrchestrationSettings() OrchestrationSettings {
 			NetworkAccess:   "localhost",
 		},
 		HealthDetection: HealthDetectionSettings{
-			HeartbeatIntervalSeconds:  15,
-			StaleThresholdSeconds:     300,
-			MaxRecoveryAgeSeconds:     600,
+			HeartbeatIntervalSeconds:  60,
+			StaleThresholdSeconds:     1000,
+			MaxRecoveryAgeSeconds:     1100,
 			ReconcilerIntervalSeconds: 30,
 		},
 		ProcessTermination: ProcessTerminationSettings{

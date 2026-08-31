@@ -38,7 +38,8 @@ function Harness({ onFrames, ...overrides }: HarnessProps) {
     onStageChange: setStage,
     onRelease: (result) => {
       setRelease(result);
-      restingRef.current = result.outcome === "rest" ? STAGES[STAGES.length - 1] : 0;
+      restingRef.current =
+        result.outcome === "rest" ? STAGES[STAGES.length - 1] : 0;
     },
     ...overrides,
   });
@@ -61,7 +62,9 @@ function Harness({ onFrames, ...overrides }: HarnessProps) {
  * driven as the browser would deliver it: one down on the element, moves and the
  * release on the window, each carrying a monotonic timeStamp.
  */
-function pointer(overrides: { x?: number; y?: number; t?: number; id?: number } = {}) {
+function pointer(
+  overrides: { x?: number; y?: number; t?: number; id?: number } = {},
+) {
   return {
     pointerId: overrides.id ?? 1,
     clientX: overrides.x ?? 0,
@@ -74,12 +77,21 @@ function pointer(overrides: { x?: number; y?: number; t?: number; id?: number } 
   };
 }
 
-function drag(points: Array<{ x: number; y?: number; t?: number }>, end: "up" | "cancel" = "up") {
+function drag(
+  points: Array<{ x: number; y?: number; t?: number }>,
+  end: "up" | "cancel" = "up",
+) {
   const surface = screen.getByTestId("surface");
   const first = points[0];
-  fireEvent.pointerDown(surface, pointer({ x: first.x, y: first.y ?? 0, t: first.t ?? 0 }));
+  fireEvent.pointerDown(
+    surface,
+    pointer({ x: first.x, y: first.y ?? 0, t: first.t ?? 0 }),
+  );
   for (const point of points.slice(1)) {
-    fireEvent.pointerMove(window, pointer({ x: point.x, y: point.y ?? 0, t: point.t ?? 0 }));
+    fireEvent.pointerMove(
+      window,
+      pointer({ x: point.x, y: point.y ?? 0, t: point.t ?? 0 }),
+    );
   }
   const last = points[points.length - 1];
   const event = pointer({ x: last.x, y: last.y ?? 0, t: last.t ?? 0 });
@@ -114,11 +126,13 @@ describe("axis locking", () => {
 
   it("abandons a gesture that starts vertically", () => {
     const frames: SwipeGestureFrame[] = [];
-    const surface = (renderWithProviders(<Harness onMove={(f) => frames.push(f)} />), drag([
-      { x: 0, y: 0 },
-      { x: 4, y: 40 },
-      { x: 90, y: 60 },
-    ]));
+    const surface =
+      (renderWithProviders(<Harness onMove={(f) => frames.push(f)} />),
+      drag([
+        { x: 0, y: 0 },
+        { x: 4, y: 40 },
+        { x: 90, y: 60 },
+      ]));
     expect(frames).toHaveLength(0);
     expect(surface.getAttribute("data-outcome")).toBe("abort");
   });
@@ -126,7 +140,11 @@ describe("axis locking", () => {
   it("does not re-decide the axis once locked", () => {
     const frames: SwipeGestureFrame[] = [];
     renderWithProviders(<Harness onMove={(f) => frames.push(f)} />);
-    drag([{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 45, y: 300 }]);
+    drag([
+      { x: 0, y: 0 },
+      { x: 40, y: 0 },
+      { x: 45, y: 300 },
+    ]);
     expect(frames).toHaveLength(2);
   });
 
@@ -141,14 +159,18 @@ describe("axis locking", () => {
 describe("staged thresholds", () => {
   it("arms each stage in turn", () => {
     const changes: number[] = [];
-    renderWithProviders(<Harness onStageChange={(stage) => changes.push(stage)} />);
+    renderWithProviders(
+      <Harness onStageChange={(stage) => changes.push(stage)} />,
+    );
     drag([{ x: 0 }, { x: 30 }, { x: 70 }, { x: 150 }]);
     expect(changes).toEqual([1, 2]);
   });
 
   it("disarms when the finger comes back", () => {
     const changes: number[] = [];
-    renderWithProviders(<Harness onStageChange={(stage) => changes.push(stage)} />);
+    renderWithProviders(
+      <Harness onStageChange={(stage) => changes.push(stage)} />,
+    );
     drag([{ x: 0 }, { x: 150 }, { x: 20 }]);
     expect(changes).toEqual([2, 0]);
   });
@@ -170,7 +192,9 @@ describe("resistance", () => {
 
   it("damps overtravel past the last threshold", () => {
     const frames: SwipeGestureFrame[] = [];
-    renderWithProviders(<Harness onMove={(f) => frames.push(f)} resistance={0.5} />);
+    renderWithProviders(
+      <Harness onMove={(f) => frames.push(f)} resistance={0.5} />,
+    );
     drag([{ x: 0 }, { x: 240 }]);
     // 140 of real travel, then half of the remaining 100.
     expect(frames.at(-1)?.offset).toBe(190);
@@ -178,7 +202,9 @@ describe("resistance", () => {
 
   it("pins the surface at the ceiling when resistance is zero", () => {
     const frames: SwipeGestureFrame[] = [];
-    renderWithProviders(<Harness onMove={(f) => frames.push(f)} resistance={0} />);
+    renderWithProviders(
+      <Harness onMove={(f) => frames.push(f)} resistance={0} />,
+    );
     drag([{ x: 0 }, { x: 400 }]);
     expect(frames.at(-1)?.offset).toBe(140);
   });
@@ -187,7 +213,9 @@ describe("resistance", () => {
 describe("direction", () => {
   it("signs the translation leftward for a left gesture", () => {
     const frames: SwipeGestureFrame[] = [];
-    renderWithProviders(<Harness direction="left" onMove={(f) => frames.push(f)} />);
+    renderWithProviders(
+      <Harness direction="left" onMove={(f) => frames.push(f)} />,
+    );
     drag([{ x: 0 }, { x: -100 }]);
     expect(frames.at(-1)?.distance).toBe(100);
     expect(frames.at(-1)?.translate).toBe(-100);
@@ -204,25 +232,37 @@ describe("direction", () => {
 describe("release", () => {
   it("returns when the gesture stops short of every threshold", () => {
     renderWithProviders(<Harness />);
-    const surface = drag([{ x: 0, t: 0 }, { x: 30, t: 400 }]);
+    const surface = drag([
+      { x: 0, t: 0 },
+      { x: 30, t: 400 },
+    ]);
     expect(surface.getAttribute("data-outcome")).toBe("return");
   });
 
   it("rests open past a threshold by default", () => {
     renderWithProviders(<Harness />);
-    const surface = drag([{ x: 0, t: 0 }, { x: 100, t: 400 }]);
+    const surface = drag([
+      { x: 0, t: 0 },
+      { x: 100, t: 400 },
+    ]);
     expect(surface.getAttribute("data-outcome")).toBe("rest");
   });
 
   it("commits past a threshold when asked to", () => {
     renderWithProviders(<Harness releaseMode="commit" />);
-    const surface = drag([{ x: 0, t: 0 }, { x: 100, t: 400 }]);
+    const surface = drag([
+      { x: 0, t: 0 },
+      { x: 100, t: 400 },
+    ]);
     expect(surface.getAttribute("data-outcome")).toBe("commit");
   });
 
   it("accepts a fast flick that never reached a threshold", () => {
     renderWithProviders(<Harness />);
-    const surface = drag([{ x: 0, t: 0 }, { x: 40, t: 10 }]);
+    const surface = drag([
+      { x: 0, t: 0 },
+      { x: 40, t: 10 },
+    ]);
     expect(surface.getAttribute("data-outcome")).toBe("rest");
   });
 
@@ -252,13 +292,25 @@ describe("cancellation", () => {
   // just stopped asking for. This is the regression that shipped once already.
   it("aborts rather than committing when the browser cancels", () => {
     renderWithProviders(<Harness releaseMode="commit" />);
-    const surface = drag([{ x: 0, t: 0 }, { x: 300, t: 100 }], "cancel");
+    const surface = drag(
+      [
+        { x: 0, t: 0 },
+        { x: 300, t: 100 },
+      ],
+      "cancel",
+    );
     expect(surface.getAttribute("data-outcome")).toBe("abort");
   });
 
   it("aborts even from past the final threshold", () => {
     renderWithProviders(<Harness />);
-    const surface = drag([{ x: 0, t: 0 }, { x: 500, t: 100 }], "cancel");
+    const surface = drag(
+      [
+        { x: 0, t: 0 },
+        { x: 500, t: 100 },
+      ],
+      "cancel",
+    );
     expect(surface.getAttribute("data-outcome")).toBe("abort");
   });
 });
@@ -287,7 +339,13 @@ describe("lifecycle", () => {
     const frames: SwipeGestureFrame[] = [];
     renderWithProviders(<Harness onMove={(f) => frames.push(f)} />);
     const surface = screen.getByTestId("surface");
-    fireEvent.pointerDown(surface, { pointerId: 3, clientX: 0, clientY: 0, button: 2, pointerType: "mouse" });
+    fireEvent.pointerDown(surface, {
+      pointerId: 3,
+      clientX: 0,
+      clientY: 0,
+      button: 2,
+      pointerType: "mouse",
+    });
     fireEvent.pointerMove(window, pointer({ id: 3, x: 200 }));
     expect(frames).toHaveLength(0);
   });
@@ -306,7 +364,10 @@ describe("lifecycle", () => {
 
   it("resumes from a rested offset instead of jumping to zero", () => {
     renderWithProviders(<Harness />);
-    drag([{ x: 0, t: 0 }, { x: 200, t: 400 }]);
+    drag([
+      { x: 0, t: 0 },
+      { x: 200, t: 400 },
+    ]);
     const frames: SwipeGestureFrame[] = [];
     const surface = screen.getByTestId("surface");
     fireEvent.pointerDown(surface, pointer({ x: 0 }));

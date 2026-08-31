@@ -1,24 +1,5 @@
 {
-  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "$text": "Save",
-  "Access limited": "Update needs attention",
-  "Content failed to load": {
-    "": "Content is ready."
-  },
-  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
-    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
-  },
-  "Name": "Alpha",
-  "Reconnect to refresh this view": {
-    "": "No content is available yet."
-  },
-  "State": "Ready",
-  "Try again": "Retry",
-  "Trying again…": "Try again",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like React Component Library are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
-  "activityState": "error",
-  "activitySurfaceId": "asset-activity",
-  "adapter": "voice-input",
   "adoptions": {
     "create": {
       "ackLabel": "I understand and want to proceed anyway.",
@@ -88,20 +69,10 @@
     "title": "Adoptions",
     "versionLabel": "v{{version}}"
   },
-  "alert": "mic",
   "app": {
     "brand": "Component Library",
     "title": "React Component Library"
   },
-  "aria-label": "locked",
-  "assertive": "polite",
-  "asset": "navigation.page",
-  "axis": "inline",
-  "background": "action",
-  "bg-app-primary/60": "bg-app-warning/70",
-  "border-app-info bg-app-info/20 text-app-info": "border-app-danger bg-app-danger/20 text-app-danger",
-  "border-app-warning bg-app-warning/10 text-app-warning": "border-app-border bg-app-surface text-app-muted-foreground",
-  "capability": "navigation",
   "catalog": {
     "addAssisted": "Assisted extraction",
     "addManual": "Add component",
@@ -113,20 +84,15 @@
     "components": "Components",
     "hook": "Hook",
     "hooks": "Hooks",
-    "noPreview": "No live preview — hooks are non-renderable.",
     "search": "Search catalog",
     "searchPlaceholder": "Search assets",
     "source": "Source",
-    "sourceError": "Source could not be loaded.",
     "sourcePath": "Source path",
     "sourcePathPlaceholder": "e.g. ui/src/components/Example.tsx",
     "sourceScenario": "Source scenario",
     "subtitle": "Find reusable components and non-renderable hooks.",
-    "title": "Library workspace",
-    "versionsCount": "{{count}} versions"
+    "title": "Library workspace"
   },
-  "closeLabel": "Close",
-  "clsx": "^2.1.1",
   "componentDetail": {
     "experience": {
       "allStates": "all declared states",
@@ -153,11 +119,9 @@
       "description": "Test pass rate across every version; retired versions remain on the axis.",
       "error": "Progression is unavailable right now.",
       "loading": "Loading progression…",
-      "tab": "Progression",
       "title": "Version progression"
     }
   },
-  "componentId": "react-component-library:AssetDetailShell",
   "components": {
     "affinityLabel": "Affinity",
     "affinityPlaceholder": "native, compatible, discouraged",
@@ -189,25 +153,14 @@
       "categoryLabel": "Category",
       "clearEvents": "Clear events",
       "close": "Back to list",
-      "codeMode": "Code",
-      "compareStory": "Compare story",
       "comparing": "Comparing selected stories",
       "dirty": "Unsaved changes",
       "events": "Events",
       "files": "Files",
-      "focusStory": "Focus story",
-      "indexedPropsLabel": "Indexed props, editable as JSON",
       "info": "Component details",
       "libraryIdLabel": "Library ID",
-      "loading": "Loading source…",
       "noEvents": "Interactions will appear here.",
       "noInfo": "No additional component details are available.",
-      "paneDragCancelled": "Pane reorder cancelled.",
-      "paneDragCancelledWithPane": "Reordering {{pane}} pane was cancelled.",
-      "paneDragEnded": "Moved {{pane}} pane to position {{position}} of {{total}}.",
-      "paneDragInstructions": "To reorder this pane, press Space or Enter. Use Left and Right Arrow to choose a position, then press Space or Enter to drop. Press Escape to cancel.",
-      "paneDragOver": "{{pane}} pane is over position {{position}} of {{total}}.",
-      "paneDragStarted": "Picked up {{pane}} pane.",
       "previewDiagnostics": "Preview diagnostics",
       "previewDiagnosticsCopied": "Diagnostics copied",
       "previewDiagnosticsCopy": "Copy",
@@ -218,16 +171,12 @@
       "previewReady": "Rendered",
       "previewRetry": "Retry",
       "previewTimeout": "Preview did not report ready before the timeout.",
-      "propsApplied": "Applied to this story",
       "propsJsonError": "Fix the JSON before applying the experiment.",
-      "propsObjectError": "Props must be a JSON object, for example { \"title\": \"Preview\" }.",
       "propsRejected": "Props override was rejected.",
-      "reorderPane": "Reorder {{pane}} pane",
       "resetIndexedProps": "Reset to indexed props",
       "save": "Save",
       "saved": "Saved.",
       "saving": "Saving…",
-      "sha": "sha256 {{sha}}",
       "showAllStories": "Show all stories",
       "slotLabel": "Slot",
       "storiesLabel": "Component stories",
@@ -236,7 +185,6 @@
       "tagsLabel": "Tags",
       "title": "Editing {{libraryId}}",
       "tryProps": "Try props",
-      "tryPropsDescription": "Temporary for this story. It disappears when the preview reloads or you leave the editor.",
       "viewingVersion": "Viewing immutable version {{version}}. Select Current in the Info panel to edit."
     },
     "empty": "No components yet. Create the first library component or re-index Git-tracked source that already exists on disk.",
@@ -310,17 +258,13 @@
     "tagsFilterLabel": "Tags (any of)",
     "tagsFilterPlaceholder": "e.g. form, input",
     "tagsLabel": "Tags: {{tags}}",
+    "versionLabel": "v{{version}}",
     "themeSwitcher": {
       "appearanceDescription": "Choose a color mode, token source, and visual simulation for every story in this preview session.",
       "appearanceLabel": "Appearance \u0026 visual checks",
       "applied": "Applied {{name}}",
       "kitDescription": "Render every preview with a real kit stylesheet and its compiled utilities.",
       "kitLabel": "Design kit",
-      "kitOptions": {
-        "commandDisplay": "Command Display",
-        "conversionLanding": "Conversion Landing",
-        "default": "Vrooli Default"
-      },
       "loading": "Loading theme…",
       "mode": {
         "dark": "Dark",
@@ -332,18 +276,8 @@
       "visualDescription": "Simulate color-vision conditions or blur the rendered preview without changing component data.",
       "visualLabel": "Visual simulation"
     },
-    "title": "Component Library",
-    "versionLabel": "v{{version}}"
+    "title": "Component Library"
   },
-  "default": "comfortable",
-  "defaultValue": "Locked by release",
-  "density": "compact",
-  "desc": "asc",
-  "description": "The current navigation destination.",
-  "detail": "3 need attention",
-  "dialog": "complementary",
-  "drawer": "sidebar",
-  "error": "idle",
   "errorBoundary": {
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again",
@@ -367,13 +301,6 @@
     "unimplemented": "Not yet implemented.",
     "unknown": "An unknown error occurred."
   },
-  "escaped": "waiting",
-  "example": "mobile",
-  "exit-passive": "stop",
-  "expect": "raised",
-  "export": "DensityCompact",
-  "fixture": "fixtures.user-directory",
-  "format": "renderable-text",
   "health": {
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
     "loading": "Checking API status…",
@@ -385,21 +312,9 @@
     "timestampLabel": "Timestamp:",
     "title": "API Health"
   },
-  "id": "mobile",
-  "idle": "recording",
-  "inspectorState": "error",
-  "inspectorSurfaceId": "inspector",
-  "key": "voiceInput",
-  "kind": "text",
-  "label": "Disabled",
   "locale": {
     "switcherLabel": "Language"
   },
-  "lucide-react": "^0.424.0",
-  "metric": "surface-elevation",
-  "mode": "pinned",
-  "module": "./story.tsx",
-  "name": "Mobile",
   "nav": {
     "browseAssets": "Browse assets",
     "closeDrawer": "Close navigation",
@@ -418,25 +333,9 @@
     "summary_one": "1 notification",
     "summary_zero": "No notifications"
   },
-  "online": "offline",
-  "path": "disabled",
-  "permission-denied": "adapter-failed",
-  "placeholder": "Describe the component",
-  "provenance": "react-component-library:Tokens@1.0.0",
-  "purpose": "One navigation model changes presentation with viewport while preserving its content and capability parity.",
-  "react": "^18",
-  "react-component-library:useEscapeKey": "^1.0.0",
-  "region": "navigation",
-  "regionId": "operations-runs",
-  "regionState": "error",
-  "require": "contexts-differ",
-  "role": "link",
   "route": {
     "loading": "Loading…"
   },
-  "schema": "scenario-experience-spec/v1",
-  "schemaVersion": "1.1.0",
-  "selector": "link",
   "settings": {
     "appearance": "Appearance",
     "language": "Language",
@@ -444,69 +343,35 @@
     "theme": "Theme",
     "title": "Settings"
   },
-  "shape": "pill",
-  "size": "icon",
-  "state": "rest",
-  "statement": "Navigation presentation changes do not create document-level horizontal overflow.",
-  "statusMessage": "Results could not load",
-  "story": "card-grid-raised",
-  "storyRef": "../../library/components/AppNavigation/versions/1.0.0/story.json",
-  "style": "overline",
-  "subject": "card",
-  "surfaceId": "activity",
-  "tailwind-merge": "^2.3.0",
-  "testid": "button-label",
-  "text": "Escape",
   "theme": {
     "dark": "Dark theme",
     "light": "Light theme",
     "system": "System theme"
   },
-  "tier": "machine",
-  "title": "AppNavigation",
-  "tone": "danger",
-  "true": "false",
-  "type": "no-document-horizontal-overflow",
-  "uncontrolled": "controlled",
-  "value": "Home",
-  "var(--radius-pill)": "var(--radius-control)",
-  "var(--space-3xs)": "var(--space-2xs)",
-  "variant": "danger",
-  "version": "1.0.0",
   "versions": {
-    "createdAt": "First seen {{when}}",
     "currentSource": "Current editable source",
     "diff": {
-      "copied": "Copied",
-      "copy": "Copy",
+      
       "empty": "Pick two versions and press Compare.",
       "fromLabel": "From",
-      "modeLabel": "Diff display mode",
+      
       "runAction": "Compare",
       "running": "Comparing…",
-      "split": "Split",
+      
       "summary": "{{from}} → {{to}} : +{{additions}} / -{{removals}} ({{rows}} rows)",
       "title": "Diff",
-      "toLabel": "To",
-      "unified": "Unified",
-      "viewerLabel": "Version diff"
+      "toLabel": "To"
+      
     },
     "empty": "No recorded versions yet — save a change to the component to record one.",
     "loading": "Loading versions…",
-    "recordedAt": "Recorded {{when}}",
-    "shaLabel": "sha256 {{sha}}",
     "summary": "{{count}} version(s)",
-    "title": "Version history",
-    "versionLabel": "v{{version}}",
-    "viewVersion": "View this version",
-    "viewingVersion": "Viewing this version"
+    "title": "Version history"
   },
-  "voiceInput": "idle",
   "workflows": {
     "active": "Active work",
     "none": "No active assisted work.",
     "retry": "Retry",
     "stop": "Stop"
-  },
-  "↑": "↓"
+  }
 }

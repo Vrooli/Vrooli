@@ -3,7 +3,9 @@
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-swipe",
   "deprecatedVersions": [
-    "2.0.3"
+    "2.0.3",
+    "2.0.1",
+    "2.0.2"
   ],
   "description": "Production-ready useSwipe hook with SSR-safe lifecycle behavior.",
   "designStyles": [
@@ -16,7 +18,10 @@
   "draft": "",
   "evictedVersions": [
     "2.0.0",
-    "1.0.0"
+    "1.0.0",
+    "2.0.3",
+    "2.0.1",
+    "2.0.2"
   ],
   "kind": "surface",
   "latest": "2.0.4",

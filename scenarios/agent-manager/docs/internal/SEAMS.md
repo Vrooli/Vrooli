@@ -120,7 +120,7 @@ errors, time series, and model catalog against projected data.
 
 **Contract:**
 - `VROOLI_AGENT_IDENTITY_TOKEN` is the only identity variable Agent Manager injects into spawned agent processes.
-- Sandboxed runs also receive `VROOLI_SANDBOX_ID`, `VROOLI_SANDBOX_MERGED`, and `VROOLI_SANDBOX_SCOPE` so lifecycle-aware tools can resolve the copy-on-write workspace.
+- Sandboxed runs also receive a four-part path contract. `VROOLI_SANDBOX_MERGED` is rewritten to the agent-visible workspace path; `VROOLI_SANDBOX_MERGED_HOST` preserves the same overlay's physical host path for host services such as test-genie; `VROOLI_SANDBOX_REPO_ROOT` is the canonical logical repository root; and `VROOLI_SANDBOX_SCOPE` identifies the scoped path. The merged pair is emitted from one source before translation, and only the agent-visible member is rewritten.
 - Agent Manager must not synthesize API-base variables for Swarm Manager, Prompt Manager, Workspace Sandbox, Agent Manager, or any other scenario. Scenario CLIs discover their own APIs through `cli-core` lifecycle discovery, and scenario APIs use `api-core/discovery` for peer calls.
 
 **Testability:**

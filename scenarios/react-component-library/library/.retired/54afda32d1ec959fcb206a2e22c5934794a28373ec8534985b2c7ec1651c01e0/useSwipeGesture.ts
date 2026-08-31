@@ -7,9 +7,17 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 /** @vrooliComponentSource hooks.use-swipe-gesture */
-import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
-import { edgeSign, type PhysicalEdge } from "@vrooli/react-component-library/GestureDirection/1.0.0";
+import {
+  edgeSign,
+  type PhysicalEdge,
+} from "@vrooli/react-component-library/GestureDirection/1.0.0";
 
 /** How a finished gesture resolved. */
 export type SwipeOutcome =
@@ -149,7 +157,11 @@ export function useSwipeGesture(options: UseSwipeGestureOptions) {
     detach.current = null;
     const gesture = active.current;
     if (gesture) {
-      withPointerCapture(gesture.target, gesture.pointerId, "releasePointerCapture");
+      withPointerCapture(
+        gesture.target,
+        gesture.pointerId,
+        "releasePointerCapture",
+      );
     }
     active.current = null;
   }, []);
@@ -190,13 +202,20 @@ export function useSwipeGesture(options: UseSwipeGestureOptions) {
         base,
         axis: "undecided",
         stage: stageFor(settings.stages, base),
-        frame: { distance: base, offset: base, translate: base * edgeSign(settings.direction), stage: 0 },
+        frame: {
+          distance: base,
+          offset: base,
+          translate: base * edgeSign(settings.direction),
+          stage: 0,
+        },
         // `event.nativeEvent`, not the synthetic event: React falls back to
         // `Date.now()` whenever a native timeStamp is falsy, and epoch
         // milliseconds are not comparable with the time-origin milliseconds
         // that every later window event reports. Mixing the two makes a slow
         // drag read as an instantaneous flick.
-        samples: [{ position: event.clientX, time: event.nativeEvent.timeStamp }],
+        samples: [
+          { position: event.clientX, time: event.nativeEvent.timeStamp },
+        ],
       };
       withPointerCapture(target, event.pointerId, "setPointerCapture");
 
@@ -209,8 +228,10 @@ export function useSwipeGesture(options: UseSwipeGestureOptions) {
         const dy = native.clientY - gesture.startY;
 
         if (gesture.axis === "undecided") {
-          if (Math.abs(dx) < (current.axisSlop ?? DEFAULT_AXIS_SLOP)
-            && Math.abs(dy) < (current.axisSlop ?? DEFAULT_AXIS_SLOP)) {
+          if (
+            Math.abs(dx) < (current.axisSlop ?? DEFAULT_AXIS_SLOP) &&
+            Math.abs(dy) < (current.axisSlop ?? DEFAULT_AXIS_SLOP)
+          ) {
             return;
           }
           // A drag that starts vertically belongs to the scroll container, and
@@ -229,19 +250,28 @@ export function useSwipeGesture(options: UseSwipeGestureOptions) {
         // The listener is registered non-passive precisely so this is allowed.
         if (native.cancelable) native.preventDefault();
 
-        gesture.samples.push({ position: native.clientX, time: native.timeStamp });
+        gesture.samples.push({
+          position: native.clientX,
+          time: native.timeStamp,
+        });
         while (
-          gesture.samples.length > 2
-          && native.timeStamp - gesture.samples[0].time > VELOCITY_WINDOW_MS
+          gesture.samples.length > 2 &&
+          native.timeStamp - gesture.samples[0].time > VELOCITY_WINDOW_MS
         ) {
           gesture.samples.shift();
         }
 
         const sign = edgeSign(current.direction);
         const distance = Math.max(0, (dx + gesture.base * sign) * sign);
-        const ceiling = current.stages.length > 0 ? current.stages[current.stages.length - 1] : 0;
+        const ceiling =
+          current.stages.length > 0
+            ? current.stages[current.stages.length - 1]
+            : 0;
         const resistance = current.resistance ?? DEFAULT_RESISTANCE;
-        const offset = distance > ceiling ? ceiling + (distance - ceiling) * resistance : distance;
+        const offset =
+          distance > ceiling
+            ? ceiling + (distance - ceiling) * resistance
+            : distance;
         const stage = stageFor(current.stages, distance);
 
         gesture.frame = { distance, offset, translate: offset * sign, stage };
@@ -269,7 +299,8 @@ export function useSwipeGesture(options: UseSwipeGestureOptions) {
         const travelled = (native.clientX - oldest.position) * sign;
         const velocity = travelled / elapsed;
 
-        const flick = velocity >= (current.flickVelocity ?? DEFAULT_FLICK_VELOCITY);
+        const flick =
+          velocity >= (current.flickVelocity ?? DEFAULT_FLICK_VELOCITY);
         const armed = gesture.frame.stage > 0;
         // A flick that never reached the first threshold still counts, but only
         // if it is a flick in the intended direction and moved at all.
@@ -278,7 +309,10 @@ export function useSwipeGesture(options: UseSwipeGestureOptions) {
           finish("return", velocity);
           return;
         }
-        finish((current.releaseMode ?? "rest") === "commit" ? "commit" : "rest", velocity);
+        finish(
+          (current.releaseMode ?? "rest") === "commit" ? "commit" : "rest",
+          velocity,
+        );
       };
 
       const handleCancel = (native: PointerEvent) => {

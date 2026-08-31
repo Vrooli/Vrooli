@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -176,27 +177,48 @@ func (r *statsRepository) GetSuccessRate(ctx context.Context, filter repository.
 func (r *statsRepository) GetDurationStats(ctx context.Context, filter repository.StatsFilter) (*repository.DurationStats, error) {
 	args := []interface{}{SQLiteTime(filter.Window.Start), SQLiteTime(filter.Window.End)}
 
-	// SQLite: use simple AVG, MIN, MAX (no native percentiles)
+	// SQLite has no native percentile aggregate. Read the sorted duration set and
+	// calculate nearest-rank percentiles in Go so p50/p95/p99 remain distinct.
 	query := `
-		SELECT
-			COALESCE(CAST(AVG(duration_ms) AS INTEGER), 0) as avg_ms,
-			COALESCE(CAST(AVG(duration_ms) AS INTEGER), 0) as p50_ms,
-			COALESCE(CAST(AVG(duration_ms) AS INTEGER), 0) as p95_ms,
-			COALESCE(CAST(AVG(duration_ms) AS INTEGER), 0) as p99_ms,
-			COALESCE(MIN(duration_ms), 0) as min_ms,
-			COALESCE(MAX(duration_ms), 0) as max_ms,
-			COUNT(*) as count
+		SELECT duration_ms
 		FROM invocation_read_model_runs
 		WHERE created_at >= ? AND created_at < ?
-		  AND duration_ms > 0`
+		  AND duration_ms > 0
+		ORDER BY duration_ms`
 
 	query, args = r.appendDurableRunFilters(query, args, filter, "")
 
-	var stats repository.DurationStats
-	if err := r.db.GetContext(ctx, &stats, query, args...); err != nil {
+	var durations []int64
+	if err := r.db.SelectContext(ctx, &durations, query, args...); err != nil {
 		return nil, wrapDBError("get_duration_stats", "Stats", "", err)
 	}
-	return &stats, nil
+	if len(durations) == 0 {
+		return &repository.DurationStats{}, nil
+	}
+	var total int64
+	for _, duration := range durations {
+		total += duration
+	}
+	return &repository.DurationStats{
+		AvgMs: total / int64(len(durations)),
+		P50Ms: nearestRank(durations, 0.50),
+		P95Ms: nearestRank(durations, 0.95),
+		P99Ms: nearestRank(durations, 0.99),
+		MinMs: durations[0],
+		MaxMs: durations[len(durations)-1],
+		Count: len(durations),
+	}, nil
+}
+
+func nearestRank(sorted []int64, percentile float64) int64 {
+	index := int(math.Ceil(percentile*float64(len(sorted)))) - 1
+	if index < 0 {
+		index = 0
+	}
+	if index >= len(sorted) {
+		index = len(sorted) - 1
+	}
+	return sorted[index]
 }
 
 // GetCostStats aggregates cost data from metric events.
@@ -281,7 +303,7 @@ func (r *statsRepository) GetProfileBreakdown(ctx context.Context, filter reposi
 
 	query := `
 		SELECT
-			r.profile_id as profile_id,
+			CAST(r.profile_id AS TEXT) as profile_id,
 			COALESCE(p.name, 'Unknown') as profile_name,
 			COUNT(*) as run_count,
 			SUM(CASE WHEN r.status = 'complete' THEN 1 ELSE 0 END) as success_count,
@@ -293,7 +315,7 @@ func (r *statsRepository) GetProfileBreakdown(ctx context.Context, filter reposi
 		  AND r.profile_id != ''`
 	query, args = r.appendDurableRunFilters(query, args, filter, "r")
 	query += `
-		GROUP BY r.profile_id, p.name
+		GROUP BY CAST(r.profile_id AS TEXT), p.name
 		ORDER BY run_count DESC
 		LIMIT ?`
 	args = append(args, limit)
@@ -311,7 +333,7 @@ func (r *statsRepository) GetModelBreakdown(ctx context.Context, filter reposito
 
 	query := `
 		SELECT
-			model,
+			CAST(model AS TEXT) as model,
 			COUNT(*) as run_count,
 			SUM(CASE WHEN status = 'complete' THEN 1 ELSE 0 END) as success_count,
 			COALESCE(SUM(total_cost_usd), 0) as total_cost_usd,
@@ -324,7 +346,7 @@ func (r *statsRepository) GetModelBreakdown(ctx context.Context, filter reposito
 		WHERE created_at >= ? AND created_at < ?`
 	query, args = r.appendDurableRunFilters(query, args, filter, "")
 	query += `
-		GROUP BY model
+		GROUP BY CAST(model AS TEXT)
 		ORDER BY run_count DESC
 		LIMIT ?`
 	args = append(args, limit)
@@ -345,7 +367,8 @@ func (r *statsRepository) GetToolUsageStats(ctx context.Context, filter reposito
 			CASE WHEN f.tool_name = '' THEN 'unknown' ELSE f.tool_name END as tool_name,
 			COUNT(*) as call_count,
 			SUM(CASE WHEN f.outcome = 'success' THEN 1 ELSE 0 END) as success_count,
-			SUM(CASE WHEN f.outcome = 'failure' THEN 1 ELSE 0 END) as failed_count
+			SUM(CASE WHEN f.outcome = 'failure' THEN 1 ELSE 0 END) as failed_count,
+			CAST(SUM(CASE WHEN f.outcome = 'failure' THEN 1 ELSE 0 END) AS REAL) / COUNT(*) as failure_rate
 		FROM invocation_read_model_facts f
 		JOIN invocation_read_model_runs r ON r.run_id = f.run_id
 		WHERE r.created_at >= ? AND r.created_at < ?`

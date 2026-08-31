@@ -12,7 +12,7 @@ import (
 
 func (a *App) cmdSubscription(args []string) error {
 	if len(args) < 2 || args[0] != "periods" {
-		return a.subscriptionHelp()
+		return nil
 	}
 	switch args[1] {
 	case "create":
@@ -24,14 +24,6 @@ func (a *App) cmdSubscription(args []string) error {
 	default:
 		return fmt.Errorf("unknown subscription periods subcommand: %s", args[1])
 	}
-}
-
-func (a *App) subscriptionHelp() error {
-	fmt.Println("Usage: agent-manager subscription periods <create|list|remove>")
-	fmt.Println("  create --provider P --plan-ref PLAN --from RFC3339 --to RFC3339 --amount-micro-usd N [--quota-tokens N]")
-	fmt.Println("  list [--provider P] [--plan-ref PLAN] [--json]")
-	fmt.Println("  remove <id>")
-	return nil
 }
 
 func (a *App) subscriptionCreate(args []string) error {

@@ -11,7 +11,13 @@ import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1"
 /** @vrooliComponentSource react-component-library:EvidenceCarousel */
 import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
 import type { ReactNode } from "react";
-import { CheckCircle2, CircleAlert, FileText, Image, ScanSearch } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleAlert,
+  FileText,
+  Image,
+  ScanSearch,
+} from "lucide-react";
 
 export interface EvidenceItem {
   id: string;
@@ -43,7 +49,11 @@ function kindLabel(kind: string) {
 }
 
 function iconFor(kind: string) {
-  return kind === "screenshot" ? Image : kind === "accessibility-tree" ? ScanSearch : FileText;
+  return kind === "screenshot"
+    ? Image
+    : kind === "accessibility-tree"
+      ? ScanSearch
+      : FileText;
 }
 
 function statusIcon(status: EvidenceItem["status"]) {
@@ -59,7 +69,8 @@ export const EvidenceCarousel = withClassName(function EvidenceCarousel({
 }: EvidenceCarouselProps) {
   const strings = useStrings();
   const selected = items.find((item) => item.id === selectedId) ?? items[0];
-  const selectedContent = selected && renderContent ? renderContent(selected) : null;
+  const selectedContent =
+    selected && renderContent ? renderContent(selected) : null;
 
   return (
     <section
@@ -76,12 +87,16 @@ export const EvidenceCarousel = withClassName(function EvidenceCarousel({
       <div className="border-b border-app-border bg-app-surface-muted px-space-sm pt-space-xs">
         <div className="flex items-center justify-end gap-space-xs pb-space-xs">
           <span className="text-xs text-app-muted-foreground">
-            {items.filter((item) => item.status === "available").length}/{items.length} captured
+            {items.filter((item) => item.status === "available").length}/
+            {items.length} captured
           </span>
         </div>
         <div
           role="tablist"
-          aria-label={strings("visualization.evidence-carousel.evidence-types", "Evidence types")}
+          aria-label={strings(
+            "visualization.evidence-carousel.evidence-types",
+            "Evidence types",
+          )}
           className="flex gap-space-2xs overflow-x-auto"
         >
           {items.map((item) => {
@@ -125,7 +140,9 @@ export const EvidenceCarousel = withClassName(function EvidenceCarousel({
               {renderControls(selected)}
             </div>
           ) : null}
-          <div className="min-h-content bg-app-background">{selectedContent}</div>
+          <div className="min-h-content bg-app-background">
+            {selectedContent}
+          </div>
         </div>
       ) : (
         <div className="flex min-h-content items-center justify-center p-space-md">

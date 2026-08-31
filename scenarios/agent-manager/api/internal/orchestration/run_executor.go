@@ -533,14 +533,17 @@ func (e *RunExecutor) deps() phases.Deps {
 // Sandbox and identity vars take precedence on key conflicts.
 func (e *RunExecutor) MergedEnvVars() map[string]string {
 	scope := ""
+	repoRoot := ""
 	if e.task != nil {
 		scope = e.task.ScopePath
+		repoRoot = e.task.ProjectRoot
 	}
 	env := phases.AssembleRunEnv(phases.AssembleRunEnvInput{
 		Custom:        e.customEnv,
 		RunMode:       e.run.RunMode,
 		SandboxID:     e.sandboxID,
 		WorkDir:       e.workDir,
+		RepoRoot:      repoRoot,
 		ScopePath:     scope,
 		IdentityToken: e.identityToken,
 	})

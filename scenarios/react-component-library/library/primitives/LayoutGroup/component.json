@@ -2,6 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "motion.layout-group",
+  "deprecatedVersions": ["1.0.0", "1.0.1"],
   "description": "",
   "designStyles": [
     {
@@ -18,15 +19,10 @@
     }
   ],
   "displayName": "LayoutGroup",
-  "kind": "shell",
-  "latest": "1.0.1",
-  "libraryId": "react-component-library:LayoutGroup",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ],
   "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
-  ]
+  "evictedVersions": ["1.0.0", "1.0.1"],
+  "kind": "shell",
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:LayoutGroup",
+  "tags": ["primitive", "token-bound"]
 }

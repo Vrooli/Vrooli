@@ -1,0 +1,183 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Resizable",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Bounded region",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "A bounded inline-axis region with a real seam, replacing a placeholder that resized nothing.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "separator",
+          "name": "Resize Inspector"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.resizable-handle']",
+          "attribute": "aria-valuenow",
+          "value": "240"
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-testid='manipulation.resizable']",
+          "noOverflow": true
+        }
+      ]
+    },
+    {
+      "id": "axis-block",
+      "name": "Block axis",
+      "role": "axis",
+      "axis": "axis",
+      "covers": {
+        "axis": ["block"]
+      },
+      "mode": "live",
+      "description": "The same component driving a horizontal seam.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AxisBlock"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.resizable-handle']",
+          "attribute": "data-axis",
+          "value": "block"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.resizable-handle']",
+          "attribute": "aria-orientation",
+          "value": "horizontal"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.resizable-handle']",
+          "attribute": "aria-valuenow",
+          "value": "120"
+        }
+      ]
+    },
+    {
+      "id": "keyboard",
+      "name": "Keyboard resize",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Arrow keys resize the region with no pointer involved.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Keyboard"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Inspector"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Inspector"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.resizable-handle']",
+          "attribute": "aria-valuenow",
+          "value": "256"
+        }
+      ]
+    },
+    {
+      "id": "collapsed",
+      "name": "Below the collapse threshold",
+      "role": "boundary",
+      "states": ["empty"],
+      "mode": "live",
+      "description": "Driven under its threshold the region reports itself collapsed and the seam stays present.",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Collapsed"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Inspector"
+          },
+          "text": "Home"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.resizable-handle']",
+          "attribute": "data-collapsed",
+          "value": "true"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-testid='manipulation.resizable-handle']",
+          "attribute": "aria-valuetext",
+          "value": "Inspector collapsed"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='manipulation.resizable-handle']"
+        }
+      ]
+    }
+  ]
+}

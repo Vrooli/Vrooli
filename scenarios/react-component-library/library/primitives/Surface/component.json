@@ -21,12 +21,7 @@
   "kind": "surface",
   "latest": "1.0.1",
   "libraryId": "react-component-library:Surface",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ],
+  "tags": ["primitive", "token-bound"],
   "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
-  ]
+  "deprecatedVersions": ["1.0.0"]
 }

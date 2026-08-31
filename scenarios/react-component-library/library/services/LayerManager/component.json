@@ -2,6 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.layer-manager",
+  "deprecatedVersions": ["1.0.0"],
   "description": "Scoped runtime service for predictable LayerManager behavior.",
   "designStyles": [
     {
@@ -10,13 +11,10 @@
     }
   ],
   "displayName": "LayerManager",
+  "draft": "",
+  "evictedVersions": ["1.0.0"],
   "kind": "surface",
   "latest": "2.0.0",
   "libraryId": "react-component-library:LayerManager",
-  "tags": [
-    "runtime",
-    "state"
-  ],
-  "draft": "",
-  "deprecatedVersions": []
+  "tags": ["runtime", "state"]
 }

@@ -3,7 +3,8 @@
   "assetKind": "component",
   "catalogId": "primitives.copyable-text",
   "deprecatedVersions": [
-    "1.0.4"
+    "1.0.4",
+    "1.0.5"
   ],
   "description": "A compact text value with a clear copy affordance and stable feedback state.",
   "designStyles": [
@@ -15,10 +16,11 @@
   "displayName": "CopyableText",
   "draft": "",
   "evictedVersions": [
-    "1.0.4"
+    "1.0.4",
+    "1.0.5"
   ],
   "kind": "surface",
-  "latest": "1.0.5",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:CopyableText",
   "requires": [
     {

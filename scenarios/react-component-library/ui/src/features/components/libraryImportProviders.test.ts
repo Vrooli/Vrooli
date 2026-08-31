@@ -36,7 +36,10 @@ describe("library import Monaco providers", () => {
       undefined as never,
     );
 
-    expect(resolve).toHaveBeenCalledWith(resolved.specifier, "components/Consumer/versions/1.0.0/Consumer.tsx");
+    expect(resolve).toHaveBeenCalledWith(
+      resolved.specifier,
+      "components/Consumer/versions/1.0.0/Consumer.tsx",
+    );
     expect(hover?.contents[0]).toMatchObject({
       value: expect.stringContaining("controls.button"),
     });
@@ -54,9 +57,13 @@ describe("library import Monaco providers", () => {
     const monaco = {
       Uri: { parse: (value: string) => ({ toString: () => value }) },
     } as never;
-    const provider = createLibraryImportDefinitionProvider(monaco, resolve, async (_result, uri) => {
-      loaded.push(uri.toString());
-    });
+    const provider = createLibraryImportDefinitionProvider(
+      monaco,
+      resolve,
+      async (_result, uri) => {
+        loaded.push(uri.toString());
+      },
+    );
     const definition = await provider.provideDefinition(
       model('import { Button } from "@vrooli/react-component-library/Button/2";'),
       { lineNumber: 1, column: 48 } as never,
@@ -98,14 +105,20 @@ describe("library import Monaco providers", () => {
       diagnostic: "relative import is local to the current file",
     });
     const source = model('import { Button } from "../Button";');
-    expect(importAtPosition(source, { lineNumber: 1, column: 30 } as never)?.specifier).toBe("../Button");
+    expect(importAtPosition(source, { lineNumber: 1, column: 30 } as never)?.specifier).toBe(
+      "../Button",
+    );
 
     const monaco = {
       Uri: { parse: (value: string) => ({ value }) },
     } as never;
     const provider = createLibraryImportDefinitionProvider(monaco, resolve);
     await expect(
-      provider.provideDefinition(source, { lineNumber: 1, column: 30 } as never, undefined as never),
+      provider.provideDefinition(
+        source,
+        { lineNumber: 1, column: 30 } as never,
+        undefined as never,
+      ),
     ).resolves.toBeUndefined();
   });
 });

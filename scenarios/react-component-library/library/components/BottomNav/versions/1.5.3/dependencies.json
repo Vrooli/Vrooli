@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:BottomNav",
+  "version": "1.5.3",
+  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:NotificationBadge",
+      "version": "1.0.3",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

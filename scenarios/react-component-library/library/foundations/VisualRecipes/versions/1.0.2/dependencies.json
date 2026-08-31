@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:VisualRecipes",
+  "version": "1.0.2",
+  "resolvedAt": "2026-08-31T05:18:32Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Tokens",
+      "version": "1.0.1",
+      "rank": 1
+    }
+  ]
+}

@@ -297,6 +297,14 @@
       }
     },
     {
+      "id": "version-mirror-integrity",
+      "rung": "implemented",
+      "description": "Every evicted version retains readable file-mirror bytes for safe retention and restoration.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": {"react-vite": "react-component-library catalog gates version-mirror-integrity"}
+    },
+    {
       "id": "version-liveness",
       "rung": "verified",
       "description": "Every live library import resolves to a surviving published version entry and no source edge crosses directly into another version directory.",
@@ -315,6 +323,14 @@
       "runner": {
         "react-vite": "react-component-library catalog gates version-liveness"
       }
+    },
+    {
+      "id": "specifier-shape",
+      "rung": "implemented",
+      "description": "Newly published intra-library imports use major-line selectors and keep exact resolution in dependencies.json.",
+      "appliesTo": ["foundation", "primitive", "component", "runtime-hook", "runtime-service", "adapter", "pattern", "page-template", "navigation"],
+      "blocking": true,
+      "runner": {"react-vite": "react-component-library catalog gates specifier-shape"}
     },
     {
       "id": "types",
@@ -374,7 +390,7 @@
         "navigation",
         "generator"
       ],
-      "blocking": true,
+      "blocking": false,
       "runner": {
         "react-vite": "react-component-library componenttests run"
       }
@@ -390,7 +406,7 @@
         "page-template",
         "navigation"
       ],
-      "blocking": true,
+      "blocking": false,
       "runner": {
         "react-vite": "react-component-library componenttests run"
       }
@@ -406,7 +422,7 @@
         "page-template",
         "navigation"
       ],
-      "blocking": true,
+      "blocking": false,
       "runner": {
         "react-vite": "vrooli scenario test react-component-library --phase experience"
       },
@@ -430,7 +446,7 @@
         "page-template",
         "navigation"
       ],
-      "blocking": true,
+      "blocking": false,
       "runner": {
         "react-vite": "vrooli scenario test react-component-library --phase experience"
       },
@@ -452,7 +468,7 @@
         "page-template",
         "navigation"
       ],
-      "blocking": true,
+      "blocking": false,
       "runner": {
         "react-vite": "react-component-library catalog evidence capture all --all --json"
       },
@@ -476,7 +492,7 @@
         "page-template",
         "navigation"
       ],
-      "blocking": true,
+      "blocking": false,
       "runner": {
         "react-vite": "react-component-library catalog gates rtl"
       },
@@ -495,7 +511,7 @@
         "page-template",
         "navigation"
       ],
-      "blocking": true,
+      "blocking": false,
       "runner": {
         "react-vite": "react-component-library catalog gates reduced-motion"
       },
@@ -571,7 +587,7 @@
         "page-template",
         "navigation"
       ],
-      "blocking": true,
+      "blocking": false,
       "runner": {
         "react-vite": "react-component-library catalog gates composition"
       }

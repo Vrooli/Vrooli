@@ -17,7 +17,8 @@ export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   "data-testid"?: string;
 };
 
-const joinClasses = (...inputs: Array<string | undefined>) => inputs.filter(Boolean).join(" ");
+const joinClasses = (...inputs: Array<string | undefined>) =>
+  inputs.filter(Boolean).join(" ");
 
 const styleSheet = `
 [data-rcl-input] {
@@ -45,13 +46,19 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 ) {
   return (
     <>
-      <style data-rcl-input-styles dangerouslySetInnerHTML={{ __html: styleSheet }} />
+      <style
+        data-rcl-input-styles
+        dangerouslySetInnerHTML={{ __html: styleSheet }}
+      />
       <input
         ref={ref}
         type={type}
         data-testid={testID ?? "forms.input"}
         data-rcl-input="true"
-        className={joinClasses("rounded-control border border-app-border", className)}
+        className={joinClasses(
+          "rounded-control border border-app-border",
+          className,
+        )}
         {...props}
       />
     </>

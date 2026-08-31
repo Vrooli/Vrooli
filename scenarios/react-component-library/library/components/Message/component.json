@@ -3,7 +3,14 @@
   "assetKind": "component",
   "catalogId": "ai.message",
   "deprecatedVersions": [
-    "1.0.3"
+    "1.0.3",
+    "1.0.4",
+    "1.0.10",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9"
   ],
   "description": "A structured conversational item that keeps identity, content, evidence, activity, recovery, and actions in one readable surface.",
   "designStyles": [
@@ -23,10 +30,17 @@
   "displayName": "Message",
   "draft": "",
   "evictedVersions": [
-    "1.0.3"
+    "1.0.3",
+    "1.0.4",
+    "1.0.10",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9"
   ],
   "kind": "surface",
-  "latest": "1.0.5",
+  "latest": "1.0.11",
   "libraryId": "react-component-library:Message",
   "requires": [
     {
@@ -34,11 +48,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "ai",
-    "conversation",
-    "content",
-    "accessibility",
-    "token-bound"
-  ]
+  "tags": ["ai", "conversation", "content", "accessibility", "token-bound"]
 }

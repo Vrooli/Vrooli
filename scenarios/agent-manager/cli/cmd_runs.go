@@ -20,7 +20,7 @@ import (
 
 func (a *App) cmdRun(args []string) error {
 	if len(args) == 0 {
-		return a.runHelp()
+		return nil
 	}
 	if err := rejectRunIdentityLifecycleCommand(args[0]); err != nil {
 		return err
@@ -132,74 +132,10 @@ func (a *App) cmdRun(args []string) error {
 	case "events":
 		return a.runEvents(args[1:])
 	case "help", "-h", "--help":
-		return a.runHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown run subcommand: %s\n\nRun 'agent-manager run help' for usage", args[0])
 	}
-}
-
-func (a *App) runHelp() error {
-	fmt.Println(`Usage: agent-manager run <subcommand> [options]
-
-Subcommands:
-  list                        List runs (with optional filters)
-  get <id>                    Get run details by UUID
-  report <id>                 Show bounded investigation diagnostics
-	attach --harness-kind kind --harness-session-id id  Attach an external harness session
-	detach <id>                 Close an attached harness session
-	  recent                      Show recent work, lanes, coverage, and durability
-	  cohort-report --run-ids ids  Show ranked, bounded evidence across selected runs
-	  invocation-facts <id>        Drill into redacted normalized invocation evidence
-	  replay-invocation-facts <id> Rebuild durable invocation evidence from retained events
-	  refresh-invocation-facts <id> Refresh evidence only when events advanced
-	  replay-invocation-corpus    Rebuild or refresh a filtered run corpus
-	  import-session-corpus       Import a bounded, reproducible runner-session corpus
-	  import-sweep                Run the scheduled transcript import sweep now
-	  backfill-labels              Recover labels from retained imported transcripts
-	  invocation-aggregate        Aggregate durable invocation facts
-	  invocation-cohort           Select run IDs from durable invocation facts
-	  invocation-metrics          Calculate durable friction metric counts
-  result <id>                 Show final-output and structured-result provenance
-  tools <id>                  Show tool events (--failed limits to failures)
-  messages <id>               Show recorded agent messages
-  receipts <id>               Show observed receipt state and evidence
-  get-by-tag <tag>            Get run details by custom tag
-  create                      Create and start a new run
-  delete <id>                 Delete a run
-  stop <id>                   Stop a run by UUID
-  stop-by-tag <tag>           Stop a run by custom tag
-  stop-all                    Stop all running runs
-  quiesce --scenario <s>      Drain in-flight runs targeting a scenario (promote)
-  continue <id>               Continue a run with a follow-up message
-  park <id>                   Park a run on externally-owned async work (durable park/resume)
-  wake <id>                   Wake a parked run with a result (ops/manual recovery)
-  await-result <id>           Re-fetch a run's last awaited result (non-blocking; no re-run)
-  recover <id>                Drain transcript and reconcile a run
-  investigate                 Create an investigation run from existing runs
-  apply-investigation <id>    Apply investigation recommendations
-  sandbox-sync <id>           Sync run state from sandbox
-  approve <id>                Approve run changes
-  reject <id>                 Reject run changes
-  diff <id>                   Show sandbox diff
-  events <id>                 Get run events (--after-sequence for gap-fill, --follow for streaming)
-
-Filters (for 'list'):
-  --task-id         Filter by task ID
-  --profile-id      Filter by profile ID
-  --status          Filter by status (running, pending, complete, etc.)
-  --tag-prefix      Filter by tag prefix (e.g., "ecosystem-")
-
-Options:
-  --json            Output raw JSON
-  --quiet           Output only IDs (for piping)
-
-Examples:
-  agent-manager run list
-  agent-manager run create --task-id abc123 --profile-id def456
-  agent-manager run investigate --run-ids id1,id2 --depth standard
-  agent-manager run investigate --filter-json '{"runnerType":"codex","runStatus":"failed"}'
-  agent-manager run cohort-report --run-ids id1,id2`)
-	return nil
 }
 
 // =============================================================================

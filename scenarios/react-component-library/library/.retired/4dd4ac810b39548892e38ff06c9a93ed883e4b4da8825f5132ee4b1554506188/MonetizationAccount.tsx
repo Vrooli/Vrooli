@@ -8,7 +8,12 @@
  */
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
 
-export type EntitlementStatus = "active" | "trialing" | "past_due" | "canceled" | "inactive";
+export type EntitlementStatus =
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "canceled"
+  | "inactive";
 export type PlanTier = "free" | "solo" | "pro" | "studio" | "business";
 
 export const PLAN_CONFIG: Record<
@@ -65,29 +70,31 @@ export const PlanBadge = withClassName(function PlanBadge({
   );
 });
 
-export const SubscriptionStatusCard = withClassName(function SubscriptionStatusCard({
-  plan,
-  status,
-  credits,
-  multiplier = 1,
-  label = "credits",
-}: {
-  plan: string;
-  status: EntitlementStatus;
-  credits: number;
-  multiplier?: number;
-  label?: string;
-}) {
-  return (
-    <section aria-label="Subscription status">
-      <strong>{plan}</strong>
-      <span>{status}</span>
-      <span>
-        {credits * multiplier} {label}
-      </span>
-    </section>
-  );
-});
+export const SubscriptionStatusCard = withClassName(
+  function SubscriptionStatusCard({
+    plan,
+    status,
+    credits,
+    multiplier = 1,
+    label = "credits",
+  }: {
+    plan: string;
+    status: EntitlementStatus;
+    credits: number;
+    multiplier?: number;
+    label?: string;
+  }) {
+    return (
+      <section aria-label="Subscription status">
+        <strong>{plan}</strong>
+        <span>{status}</span>
+        <span>
+          {credits * multiplier} {label}
+        </span>
+      </section>
+    );
+  },
+);
 
 export const AuthSection = withClassName(function AuthSection({
   signedIn,
@@ -148,7 +155,12 @@ export const SubscriptionBadge = withClassName(function SubscriptionBadge({
   onClick?: () => void;
 }) {
   return (
-    <button type="button" onClick={onClick} aria-label="Manage subscription" className="relative">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Manage subscription"
+      className="relative"
+    >
       <span>{plan}</span>
       <span>{status}</span>
       <span>{credits} credits</span>
@@ -157,44 +169,46 @@ export const SubscriptionBadge = withClassName(function SubscriptionBadge({
   );
 });
 
-export const EntitlementErrorCard = withClassName(function EntitlementErrorCard({
-  errorType,
-  title = "Subscription access unavailable",
-  message = "Subscription access is temporarily unavailable.",
-  plan,
-  creditsUsed,
-  creditsLimit,
-  resetDate,
-  onManage,
-}: {
-  errorType: string;
-  title?: string;
-  message?: string;
-  plan?: string;
-  creditsUsed?: number;
-  creditsLimit?: number;
-  resetDate?: string;
-  onManage?: () => void;
-}) {
-  return (
-    <section role="alert" data-error-type={errorType}>
-      <strong>{title}</strong>
-      <p>{message}</p>
-      {plan ? <span>Current plan: {plan}</span> : null}
-      {creditsLimit && creditsLimit > 0 ? (
-        <span>
-          {creditsUsed ?? creditsLimit} / {creditsLimit} credits used
-        </span>
-      ) : null}
-      {resetDate ? <span>{resetDate}</span> : null}
-      {onManage ? (
-        <button type="button" onClick={onManage}>
-          Manage subscription
-        </button>
-      ) : null}
-    </section>
-  );
-});
+export const EntitlementErrorCard = withClassName(
+  function EntitlementErrorCard({
+    errorType,
+    title = "Subscription access unavailable",
+    message = "Subscription access is temporarily unavailable.",
+    plan,
+    creditsUsed,
+    creditsLimit,
+    resetDate,
+    onManage,
+  }: {
+    errorType: string;
+    title?: string;
+    message?: string;
+    plan?: string;
+    creditsUsed?: number;
+    creditsLimit?: number;
+    resetDate?: string;
+    onManage?: () => void;
+  }) {
+    return (
+      <section role="alert" data-error-type={errorType}>
+        <strong>{title}</strong>
+        <p>{message}</p>
+        {plan ? <span>Current plan: {plan}</span> : null}
+        {creditsLimit && creditsLimit > 0 ? (
+          <span>
+            {creditsUsed ?? creditsLimit} / {creditsLimit} credits used
+          </span>
+        ) : null}
+        {resetDate ? <span>{resetDate}</span> : null}
+        {onManage ? (
+          <button type="button" onClick={onManage}>
+            Manage subscription
+          </button>
+        ) : null}
+      </section>
+    );
+  },
+);
 
 export function useEntitlement<
   T extends { features?: string[]; planRank?: number; stale?: boolean },

@@ -4,7 +4,10 @@
   "catalogId": "data-display.tree-view",
   "deprecatedVersions": [
     "1.0.3",
-    "1.0.5"
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.0"
   ],
   "description": "The hierarchical collection with lazily loaded nodes, expansion, selection, keyboard traversal, drag reordering, filtering, virtualization, and accessible tree semantics.",
   "designStyles": [],
@@ -13,10 +16,12 @@
   "evictedVersions": [
     "1.0.5",
     "1.0.3",
-    "1.0.4"
+    "1.0.4",
+    "1.0.6",
+    "1.0.0"
   ],
   "kind": "control",
-  "latest": "1.0.6",
+  "latest": "1.0.7",
   "libraryId": "react-component-library:TreeView",
   "requires": [
     {

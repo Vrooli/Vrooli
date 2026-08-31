@@ -64,7 +64,10 @@ export const BottomNav = withClassName(function BottomNav({
 
   return (
     <>
-      <style data-rcl-bottom-nav-styles dangerouslySetInnerHTML={{ __html: bottomNavStyles }} />
+      <style
+        data-rcl-bottom-nav-styles
+        dangerouslySetInnerHTML={{ __html: bottomNavStyles }}
+      />
       <nav
         data-testid={testId}
         data-rcl-bottom-nav
@@ -77,7 +80,9 @@ export const BottomNav = withClassName(function BottomNav({
             itemClassNameOverride,
             item.active ? activeItemClassName : inactiveItemClassName,
           );
-          const handleClick = (event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>) => {
+          const handleClick = (
+            event: MouseEvent<HTMLAnchorElement | HTMLButtonElement>,
+          ) => {
             if (item.disabled) {
               event.preventDefault();
               return;

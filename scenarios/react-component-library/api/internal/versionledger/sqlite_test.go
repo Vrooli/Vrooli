@@ -104,6 +104,29 @@ INSERT INTO version_ledger(library_id, version, lifecycle_state) VALUES ('librar
 	}
 }
 
+func TestPlanCleanupIgnoresEjectedAdoptions(t *testing.T) {
+	database := databasetest.NewSQLite(t)
+	_, err := database.ExecContext(context.Background(), `
+CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL);
+CREATE TABLE component_versions (component_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT);
+CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
+INSERT INTO components VALUES ('component-1', 'library-1', '2.0.0', '');
+INSERT INTO component_versions VALUES ('component-1', '1.0.0', 'released', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z');
+INSERT INTO component_versions VALUES ('component-1', '2.0.0', 'released', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
+INSERT INTO adoption_records VALUES ('adoption-1', 'consumer-1', 'library-1', '1.0.0', 'ejected');
+INSERT INTO adoption_files VALUES ('adoption-1', 'library-1', '1.0.0');
+`)
+	require.NoError(t, err)
+
+	items, _, err := NewRepository(database, t.TempDir()).PlanCleanup(context.Background(), CleanupScope{ComponentID: "library-1"})
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.True(t, items[0].Eligible)
+	require.Equal(t, "safe to retire", items[0].Reason)
+}
+
 func TestTransitionRetireCanBeRestoredByArchive(t *testing.T) {
 	database := databasetest.NewSQLite(t)
 	root := t.TempDir()
@@ -211,8 +234,8 @@ CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adop
 CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
 CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
 INSERT INTO components VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.7', '', 'primitives/MorphingIcon/component.json');
-INSERT INTO component_versions VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.0', 'released', 'primitives/MorphingIcon/versions/2.0.0/MorphingIcon.tsx', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z');
-INSERT INTO component_versions VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.7', 'released', 'primitives/MorphingIcon/versions/2.0.7/MorphingIcon.tsx', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
+INSERT INTO component_versions(component_id, library_id, version, status, source_path, created_at, released_at) VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.0', 'released', 'primitives/MorphingIcon/versions/2.0.0/geometry.ts', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z');
+INSERT INTO component_versions(component_id, library_id, version, status, source_path, created_at, released_at) VALUES ('morphing-icon', 'react-component-library:MorphingIcon', '2.0.7', 'released', 'primitives/MorphingIcon/versions/2.0.7/geometry.ts', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
 `)
 	require.NoError(t, err)
 
@@ -225,6 +248,45 @@ INSERT INTO component_versions VALUES ('morphing-icon', 'react-component-library
 	require.Equal(t, "2.0.7", items[0].References[0].OwnerVersion)
 	require.Equal(t, "../2.0.0/geometry", items[0].References[0].ImportSpecifier)
 	require.Contains(t, items[0].References[0].Evidence, "surviving version")
+}
+
+func TestPlanCleanupIgnoresReferencesFromUnreachableHistoricalOwners(t *testing.T) {
+	database := databasetest.NewSQLite(t)
+	root := t.TempDir()
+	targetOld := filepath.Join(root, "components/Target/versions/1.0.0")
+	targetLatest := filepath.Join(root, "components/Target/versions/1.0.1")
+	ownerOld := filepath.Join(root, "components/Owner/versions/1.0.0")
+	ownerLatest := filepath.Join(root, "components/Owner/versions/1.0.1")
+	for _, dir := range []string{targetOld, targetLatest, ownerOld, ownerLatest} {
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(targetOld, "Target.tsx"), []byte("export const oldTarget = true;"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(targetLatest, "Target.tsx"), []byte("export const latestTarget = true;"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(ownerOld, "Owner.tsx"), []byte(`import { oldTarget } from "../../../Target/versions/1.0.0/Target"; export { oldTarget };`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(ownerLatest, "Owner.tsx"), []byte("export const latestOwner = true;"), 0o644))
+	_, err := database.ExecContext(context.Background(), `
+CREATE TABLE components (id TEXT PRIMARY KEY, library_id TEXT NOT NULL, latest_version TEXT NOT NULL, draft_version TEXT NOT NULL, manifest_path TEXT NOT NULL);
+CREATE TABLE component_versions (component_id TEXT NOT NULL, library_id TEXT NOT NULL, version TEXT NOT NULL, status TEXT NOT NULL, source_path TEXT NOT NULL, presence TEXT NOT NULL DEFAULT 'materialized', id TEXT NOT NULL, created_at TEXT NOT NULL, released_at TEXT NOT NULL);
+CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
+CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
+INSERT INTO components VALUES
+  ('target', 'react-component-library:Target', '1.0.1', '', 'components/Target/component.json'),
+  ('owner', 'react-component-library:Owner', '1.0.1', '', 'components/Owner/component.json');
+INSERT INTO component_versions VALUES
+  ('target', 'react-component-library:Target', '1.0.0', 'released', 'components/Target/versions/1.0.0/Target.tsx', 'materialized', 'target-old', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z'),
+  ('target', 'react-component-library:Target', '1.0.1', 'released', 'components/Target/versions/1.0.1/Target.tsx', 'materialized', 'target-latest', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z'),
+  ('owner', 'react-component-library:Owner', '1.0.0', 'released', 'components/Owner/versions/1.0.0/Owner.tsx', 'materialized', 'owner-old', '2025-01-01T00:00:00Z', '2025-01-02T00:00:00Z'),
+  ('owner', 'react-component-library:Owner', '1.0.1', 'released', 'components/Owner/versions/1.0.1/Owner.tsx', 'materialized', 'owner-latest', '2026-01-01T00:00:00Z', '2026-01-02T00:00:00Z');
+`)
+	require.NoError(t, err)
+
+	items, _, err := NewRepository(database, root).PlanCleanup(context.Background(), CleanupScope{LibraryID: "react-component-library:Target"})
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	require.True(t, items[0].Eligible)
+	require.Equal(t, "safe to retire", items[0].Reason)
+	require.Len(t, items[0].References, 1)
 }
 
 func TestCleanupDraftRequiresAgeAndClearsManifest(t *testing.T) {

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:DrawerShell",
+  "version": "1.1.5",
+  "resolvedAt": "2026-08-31T05:05:37Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:BottomSheet",
+      "version": "1.2.6",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:FullPageDrawer",
+      "version": "1.2.7",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

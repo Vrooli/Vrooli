@@ -45,6 +45,16 @@ func validateExperienceContract(raw []byte, story StoryContract) []string {
 	if err := json.Unmarshal(raw, &document); err != nil {
 		return []string{"experience-contract.json is not valid JSON: " + err.Error()}
 	}
+	// Version folders may carry a non-authoritative pointer to the canonical
+	// experience spec. The canonical spec under experience/components is the
+	// only claims authority; references intentionally do not duplicate states
+	// or claims and therefore require no story-local validation.
+	if stringValue(document["kind"]) == "experience-reference" {
+		if stringValue(document["ref"]) == "" && stringValue(document["component"]) == "" {
+			return []string{"experience reference is missing ref or component"}
+		}
+		return nil
+	}
 	kind := stringValue(document["kind"])
 	if nested, ok := document["contract"].(map[string]any); ok {
 		kind = stringValue(nested["kind"])

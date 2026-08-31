@@ -25,9 +25,29 @@ The "Internal" sections back individual machinery; operators rarely touch them d
 
 ## Loading order
 
-`Levers` is constructed via `config.DefaultLevers()` at startup. The orchestration service applies any `OrchestrationSettings` overrides from the database via `executorLevers()` in `service.go`, then injects the merged value into `RunExecutor` via `WithLevers(...)` and into `Reconciler` via `WithReconcilerLevers(...)`.
+`Levers` is constructed via `config.DefaultLevers()` at startup. The orchestration service applies persisted `OrchestrationSettings` from `config/orchestration.json`, then injects the merged values into run execution and the reconciler. The settings API and `agent-manager settings orchestration` command update that same runtime store.
 
 Validation happens at construction (`Levers.Validate()`); invalid values fail fast at startup rather than producing strange runtime behavior.
+
+## Runtime orchestration settings
+
+The persisted run-execution settings are authoritative at run creation. A
+profile or inline run request may select smaller limits, but a request above a
+global ceiling is refused with both requested and ceiling values; it is never
+silently truncated. The accepted values are copied into `run.resolvedConfig`,
+which is the value the executor enforces and the run read APIs report.
+
+| JSON field | Unit | Default | Protects |
+|---|---:|---:|---|
+| `runExecution.runTimeoutMinutes` | minutes | 120 | Agent work duration for one turn; global wall-clock ceiling, sized to the largest declared fleet profile. |
+| `runExecution.maxTurns` | turns | 1000 | Agent autonomy; global conversation-turn ceiling, sized to the largest declared fleet profile. |
+| `healthDetection.heartbeatIntervalSeconds` | seconds | 60 | Executor liveness; timer-driven and independent of agent output. |
+| `healthDetection.staleThresholdSeconds` | seconds without an executor heartbeat | 1000 | Marks an executor stale before destructive recovery. |
+| `healthDetection.maxRecoveryAgeSeconds` | seconds without an executor heartbeat | 1100 | Reaps an unrecoverable live child process. This measured liveness threshold is not an agent work timeout. |
+| `healthDetection.reconcilerIntervalSeconds` | seconds | 30 | How frequently stale executor state is examined. |
+
+`heartbeatIntervalSeconds < staleThresholdSeconds < maxRecoveryAgeSeconds` is
+required. Settings updates that violate this ordering are rejected.
 
 ## Role-policy catalog
 

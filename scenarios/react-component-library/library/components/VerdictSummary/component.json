@@ -3,7 +3,10 @@
   "assetKind": "component",
   "catalogId": "data-display.verdict-summary",
   "deprecatedVersions": [
-    "1.0.4"
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.5"
   ],
   "description": "A compact pass, fail, and unmeasured verdict census.",
   "designStyles": [
@@ -15,10 +18,13 @@
   "displayName": "VerdictSummary",
   "draft": "",
   "evictedVersions": [
-    "1.0.4"
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.5"
   ],
   "kind": "surface",
-  "latest": "1.0.5",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:VerdictSummary",
   "requires": [
     {

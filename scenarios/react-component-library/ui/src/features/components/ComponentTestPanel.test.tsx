@@ -31,10 +31,12 @@ describe("ComponentTestPanel", () => {
     expect(verdictLabel("blocked")).toBe("Blocked");
     expect(verdictLabel("unmeasured")).toBe("Unmeasured");
     expect(verdictLabel("unknown")).toBe("Inconclusive");
-    expect(browserVisibleArtifactUrl("/embedded/browser-automation-studio/api/v1/artifacts/a"))
-      .toContain("/embedded/browser-automation-studio/api/v1/artifacts/a");
-    expect(browserVisibleArtifactUrl("http://127.0.0.1:17116/api/v1/artifacts/a.png"))
-      .toContain("/embedded/browser-automation-studio/api/v1/artifacts/a.png");
+    expect(
+      browserVisibleArtifactUrl("/embedded/browser-automation-studio/api/v1/artifacts/a"),
+    ).toContain("/embedded/browser-automation-studio/api/v1/artifacts/a");
+    expect(browserVisibleArtifactUrl("http://127.0.0.1:17116/api/v1/artifacts/a.png")).toContain(
+      "/embedded/browser-automation-studio/api/v1/artifacts/a.png",
+    );
     expect(browserVisibleArtifactUrl("provenance:capture")).toBe("provenance:capture");
     expect(summarizePerformance(null).summary.value).toBeNull();
     expect(summarizePerformance([]).summary.value).toEqual([]);
@@ -239,35 +241,44 @@ describe("ComponentTestPanel", () => {
     renderWithProviders(<ComponentTestPanel componentId="button-id" version="1.0.0" />);
     const image = await screen.findByRole("img", { name: "Captured component screenshot" });
     fireEvent.error(image);
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Screenshot could not be displayed",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Screenshot could not be displayed");
   });
 
   it("reviews measured claims and structured evidence without rendering the raw trace", async () => {
-    const fetchMock = vi.fn().mockImplementation(
-      () =>
-        Promise.resolve(
-          new Response(
-        JSON.stringify({
-          traceEvents: [
-            { name: "paint", ts: 1000, dur: 2000 },
-            { name: "paint", ts: 4000, dur: 1000 },
-            {},
-            null,
-          ],
-          metadata: { lcp: 120 },
-        }),
-        { headers: { "content-type": "application/json" } },
-          ),
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            traceEvents: [
+              { name: "paint", ts: 1000, dur: 2000 },
+              { name: "paint", ts: 4000, dur: 1000 },
+              {},
+              null,
+            ],
+            metadata: { lcp: 120 },
+          }),
+          { headers: { "content-type": "application/json" } },
         ),
+      ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
     const experience = {
       claims: [
-        { id: "claim-1", statement: "The result stays readable", type: "visual", tier: "machine", states: [] },
-        { id: "claim-2", statement: "The fallback is explicit", type: "behavior", tier: "manual", states: [] },
+        {
+          id: "claim-1",
+          statement: "The result stays readable",
+          type: "visual",
+          tier: "machine",
+          states: [],
+        },
+        {
+          id: "claim-2",
+          statement: "The fallback is explicit",
+          type: "behavior",
+          tier: "manual",
+          states: [],
+        },
       ],
       evidence: [
         {
@@ -286,7 +297,9 @@ describe("ComponentTestPanel", () => {
             required: "16",
             unit: "px",
             metric: "font-size",
-            subjects: [{ testId: "result", value: "12px", bounds: { x: 4, y: 8, width: 100, height: 20 } }],
+            subjects: [
+              { testId: "result", value: "12px", bounds: { x: 4, y: 8, width: 100, height: 20 } },
+            ],
           },
         },
         {
@@ -311,10 +324,42 @@ describe("ComponentTestPanel", () => {
         includeClosure: false,
         verdict: "failed",
         results: [
-          { stage: "contract", assetLibraryId: "rcl:Button", version: "2.2.0", subject: "", verdict: "passed", message: "", remediation: "" },
-          { stage: "behavior", assetLibraryId: "rcl:Button", version: "2.2.0", subject: "", verdict: "passed", message: "", remediation: "" },
-          { stage: "experience", assetLibraryId: "rcl:Button", version: "2.2.0", subject: "", verdict: "passed", message: "", remediation: "" },
-          { stage: "performance", assetLibraryId: "rcl:Button", version: "2.2.0", subject: "", verdict: "passed", message: "", remediation: "" },
+          {
+            stage: "contract",
+            assetLibraryId: "rcl:Button",
+            version: "2.2.0",
+            subject: "",
+            verdict: "passed",
+            message: "",
+            remediation: "",
+          },
+          {
+            stage: "behavior",
+            assetLibraryId: "rcl:Button",
+            version: "2.2.0",
+            subject: "",
+            verdict: "passed",
+            message: "",
+            remediation: "",
+          },
+          {
+            stage: "experience",
+            assetLibraryId: "rcl:Button",
+            version: "2.2.0",
+            subject: "",
+            verdict: "passed",
+            message: "",
+            remediation: "",
+          },
+          {
+            stage: "performance",
+            assetLibraryId: "rcl:Button",
+            version: "2.2.0",
+            subject: "",
+            verdict: "passed",
+            message: "",
+            remediation: "",
+          },
         ],
         artifacts: [
           "bas-screenshot",
@@ -412,9 +457,7 @@ describe("ComponentTestPanel", () => {
     expect(screen.getByRole("tab", { name: "Screenshot: Not captured" })).toBeInTheDocument();
     expect(screen.getByText("Screenshot is not captured")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Run component tests" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "component contract is unavailable",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("component contract is unavailable");
   });
 
   it("keeps selected-report failures and malformed structured artifacts legible", async () => {
@@ -466,7 +509,10 @@ describe("ComponentTestPanel", () => {
         ],
       },
     ]);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ metadata: {} }))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ metadata: {} }))),
+    );
     renderWithProviders(<ComponentTestPanel componentId="button-id" version="1.0.0" />);
     fireEvent.click(await screen.findByRole("tab", { name: "Performance: Captured" }));
     expect(await screen.findByText("No trace events were recorded.")).toBeInTheDocument();

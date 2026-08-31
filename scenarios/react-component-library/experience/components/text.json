@@ -2,7 +2,7 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "component": { "id": "text", "title": "Text", "purpose": "A token-bound structural typography primitive.", "storyRef": "../../library/primitives/Text/versions/1.0.0/story.json" },
+  "component": { "id": "text", "title": "Text", "purpose": "A token-bound structural typography primitive.", "storyRef": "../../library/primitives/Text/versions/1.1.2/story.json" },
   "states": [
     { "id": "display", "example": "scale", "description": "Display typography." },
     { "id": "title", "example": "scale", "description": "Title typography." },

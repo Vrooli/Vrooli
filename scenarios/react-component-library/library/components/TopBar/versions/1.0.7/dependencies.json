@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:TopBar",
+  "version": "1.0.7",
+  "resolvedAt": "2026-08-31T05:06:08Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

@@ -620,7 +620,8 @@ const dynamicSelectorDefinitions = {
     harness: {
       ready: defineDynamicSelector({
         description: "Component story harness in its ready state",
-        selectorPattern: '[data-experience-surface="component-harness"][data-experience-state="ready"]',
+        selectorPattern:
+          '[data-experience-surface="component-harness"][data-experience-state="ready"]',
       }),
       surface: defineDynamicSelector({
         description: "Component story harness experience surface",
@@ -696,7 +697,10 @@ const dynamicSelectorDefinitions = {
   },
 } satisfies DynamicSelectorTree;
 
-const registry = createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry(
+  { library: librarySelectors, ...literalSelectors },
+  dynamicSelectorDefinitions,
+);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

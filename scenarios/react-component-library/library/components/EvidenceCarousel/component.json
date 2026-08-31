@@ -2,11 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "visualization.evidence-carousel",
-  "deprecatedVersions": [
-    "1.0.12",
-    "1.0.13",
-    "1.0.9"
-  ],
+  "deprecatedVersions": ["1.0.12", "1.0.13", "1.0.9"],
   "description": "A compact evidence reference strip for captures and diagnostics.",
   "designStyles": [
     {
@@ -16,11 +12,9 @@
   ],
   "displayName": "EvidenceCarousel",
   "draft": "",
-  "evictedVersions": [
-    "1.0.12"
-  ],
+  "evictedVersions": ["1.0.12"],
   "kind": "surface",
-  "latest": "1.0.14",
+  "latest": "1.0.15",
   "libraryId": "react-component-library:EvidenceCarousel",
   "requires": [
     {
@@ -28,8 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "visualization",
-    "token-bound"
-  ]
+  "tags": ["visualization", "token-bound"]
 }

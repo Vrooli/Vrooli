@@ -4,7 +4,12 @@
   "catalogId": "patterns.editable-resource",
   "deprecatedVersions": [
     "1.0.3",
-    "1.0.5"
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9"
   ],
   "description": "The read-and-edit workflow coordinating optimistic changes, validation, autosave, dirty-state protection, conflict handling, cancellation, and success feedback in place.",
   "designStyles": [
@@ -26,10 +31,14 @@
   "evictedVersions": [
     "1.0.5",
     "1.0.3",
-    "1.0.4"
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9"
   ],
   "kind": "control",
-  "latest": "1.0.7",
+  "latest": "1.0.10",
   "libraryId": "react-component-library:EditableResource",
   "requires": [
     {

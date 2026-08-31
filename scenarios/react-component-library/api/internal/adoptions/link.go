@@ -359,9 +359,7 @@ func canonicalSelectorID(root, value string) string {
 	if strings.HasPrefix(value, last+"-") {
 		value = strings.TrimPrefix(value, last+"-")
 	}
-	if strings.HasPrefix(value, "shell-") {
-		value = strings.TrimPrefix(value, "shell-")
-	}
+	value = strings.TrimPrefix(value, "shell-")
 	if value == "" {
 		return root
 	}
@@ -502,7 +500,7 @@ func composeSelectorRegistry(ctx context.Context, files ScenarioFileWriter, scen
 	}
 	source := string(raw)
 	updated := source
-	if !strings.Contains(updated, `from "./selectors.library"`) && !strings.Contains(updated, `from './selectors.library'`) {
+	if !librarySelectorsImportPresent(updated) {
 		updated = "import { librarySelectors } from \"./selectors.library\";\n" + updated
 	}
 	if !strings.Contains(updated, "export { librarySelectors }") {
@@ -516,6 +514,10 @@ func composeSelectorRegistry(ctx context.Context, files ScenarioFileWriter, scen
 		return false, fmt.Errorf("write adopter selector composition: %w", err)
 	}
 	return true, nil
+}
+
+func librarySelectorsImportPresent(source string) bool {
+	return regexp.MustCompile(`(?m)from\s+["']\./selectors\.library(?:\.[cm]?[jt]sx?)?["']`).MatchString(source)
 }
 
 // mountLibraryStringsProvider makes the adopter's existing i18n translator

@@ -46,7 +46,11 @@ export const PageFrame = withClassName(function PageFrame({
       `,
         }}
       />
-      <div data-testid="page-frame" data-frame-asset="navigation.page" data-rcl-page-frame>
+      <div
+        data-testid="page-frame"
+        data-frame-asset="navigation.page"
+        data-rcl-page-frame
+      >
         <a href="#page-frame-content" className="rcl-page-frame-skip">
           Skip to content
         </a>

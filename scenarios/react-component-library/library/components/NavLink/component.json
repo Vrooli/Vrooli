@@ -4,7 +4,10 @@
   "catalogId": "navigation.nav-link",
   "deprecatedVersions": [
     "1.0.4",
-    "1.0.6"
+    "1.0.6",
+    "1.0.5",
+    "1.0.7",
+    "1.0.0"
   ],
   "description": "The router-adaptable navigation link with exact or partial active matching, pending state during navigation, prefetch policy, icons, badges, and disabled semantics.",
   "designStyles": [
@@ -18,10 +21,12 @@
   "evictedVersions": [
     "1.0.6",
     "1.0.4",
-    "1.0.5"
+    "1.0.5",
+    "1.0.7",
+    "1.0.0"
   ],
   "kind": "shell",
-  "latest": "1.0.7",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:NavLink",
   "requires": [
     {

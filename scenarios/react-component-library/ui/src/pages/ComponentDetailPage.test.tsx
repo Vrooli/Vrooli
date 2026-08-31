@@ -190,7 +190,9 @@ describe("ComponentDetailPage", () => {
     );
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
     expect(screen.getByTestId("versions-card")).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "componentDetail.info.adoptions" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "componentDetail.info.adoptions" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows version and adoption totals in the detail tab notification bubbles", async () => {
@@ -213,7 +215,9 @@ describe("ComponentDetailPage", () => {
     expect(
       await screen.findByRole("tab", { name: "componentDetail.info.versions" }),
     ).toHaveTextContent("3");
-    expect(screen.queryByRole("tab", { name: "componentDetail.info.adoptions" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "componentDetail.info.adoptions" }),
+    ).not.toBeInTheDocument();
   });
 
   it("links a component's shared hook dependencies from its overview", async () => {
@@ -293,7 +297,9 @@ describe("ComponentDetailPage", () => {
     expect(await screen.findByTestId("monaco-stub")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "componentDetail.info.versions" }));
     expect(screen.getByTestId("hook-workspace-details")).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "componentDetail.info.adoptions" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "componentDetail.info.adoptions" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders loading while the component lookup is pending", () => {

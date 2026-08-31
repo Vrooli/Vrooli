@@ -6,7 +6,7 @@
     "id": "sidebar-shell",
     "title": "SidebarShell",
     "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.",
-    "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json"
+    "storyRef": "../../library/components/SidebarShell/versions/2.6.3/story.json"
   },
   "states": [
     {

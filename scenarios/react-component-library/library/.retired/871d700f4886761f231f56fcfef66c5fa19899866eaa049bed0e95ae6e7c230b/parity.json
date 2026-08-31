@@ -1,0 +1,6 @@
+{
+  "originFiles": ["CodeBlock.tsx", "languageDetection.ts", "useCodeCopy.ts"],
+  "harvestedFiles": ["CodeBlock.tsx", "languageDetection.ts", "useCodeCopy.ts"],
+  "findings": null,
+  "acknowledged": false
+}

@@ -90,7 +90,11 @@ describe("ComponentsCard", () => {
               { styleId: "vrooli-default", affinity: 1 },
               { styleId: "vrooli-conversion-landing", affinity: 3 },
             ],
-            kitCompatibility: { verdict: 1, compatibleKitIds: ["vrooli-default"], unsatisfiedProperties: [] },
+            kitCompatibility: {
+              verdict: 1,
+              compatibleKitIds: ["vrooli-default"],
+              unsatisfiedProperties: [],
+            },
           }),
           makeComponent({
             id: "b",

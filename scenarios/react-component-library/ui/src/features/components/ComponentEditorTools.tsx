@@ -168,7 +168,9 @@ export function ComponentEditorTools(props: ToolProps) {
       >
         <div className="mb-space-2xs flex items-center justify-between gap-space-2xs">
           <div>
-            <h3 className="text-sm font-semibold">{t(strings.components.editor.previewDiagnostics)}</h3>
+            <h3 className="text-sm font-semibold">
+              {t(strings.components.editor.previewDiagnostics)}
+            </h3>
             <p className="text-xs text-app-muted-foreground">
               {t(strings.components.editor.previewDiagnosticsDescription)}
             </p>

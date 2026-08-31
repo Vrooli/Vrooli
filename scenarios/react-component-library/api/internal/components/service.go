@@ -192,12 +192,13 @@ func (s *service) Get(ctx context.Context, id string) (Component, error) {
 	return s.getBySlug(ctx, id)
 }
 
-// getBySlug resolves an unqualified component name. It matches the catalog slug
-// case-insensitively and in kebab-case, and refuses an ambiguous match rather
-// than picking one, so the caller is told to qualify the id.
+// getBySlug resolves an unqualified component name or stable catalog id. It
+// matches catalog ids exactly (case-insensitively), then matches the catalog
+// slug case-insensitively and in kebab-case. It refuses an ambiguous match
+// rather than picking one, so the caller is told to qualify the id.
 func (s *service) getBySlug(ctx context.Context, name string) (Component, error) {
 	wanted := strings.TrimSpace(name)
-	if wanted == "" || strings.Contains(wanted, ":") {
+	if wanted == "" {
 		return Component{}, ErrComponentNotFound{IDOrLibraryID: name}
 	}
 	all, listErr := s.repo.List(ctx, SearchQuery{Limit: maxSlugResolutionScan})
@@ -206,6 +207,13 @@ func (s *service) getBySlug(ctx context.Context, name string) (Component, error)
 	}
 	var matches []Component
 	for _, candidate := range all {
+		if strings.EqualFold(strings.TrimSpace(candidate.CatalogID), wanted) {
+			matches = append(matches, candidate)
+			continue
+		}
+		if strings.Contains(wanted, ":") {
+			continue
+		}
 		slug := strings.TrimSpace(candidate.Slug)
 		if slug == "" {
 			continue
@@ -378,6 +386,21 @@ func (s *service) EnsureMaterialized(ctx context.Context, componentID, version, 
 	v, err := s.repo.GetVersion(ctx, c.ID, strings.TrimSpace(version))
 	if err != nil {
 		return MaterializeResult{}, err
+	}
+	if len(v.Files) == 0 && strings.TrimSpace(into) == "" && v.Presence == "evicted" {
+		restored, restoreErr := store.RestoreRetiredSource(v)
+		if restoreErr != nil {
+			return MaterializeResult{}, restoreErr
+		}
+		if restored {
+			if _, indexErr := NewIndexer(s.repo, store.Root(), nil).IndexManifest(ctx, c.ManifestPath); indexErr != nil {
+				return MaterializeResult{}, fmt.Errorf("re-index restored retired source: %w", indexErr)
+			}
+			v, err = s.repo.GetVersion(ctx, c.ID, strings.TrimSpace(version))
+			if err != nil {
+				return MaterializeResult{}, err
+			}
+		}
 	}
 	result, err := store.Materialize(ctx, v, into)
 	if err != nil {
@@ -644,6 +667,11 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 	} else {
 		add("dependencies", "passed", "version-pinned dependency closure resolved", "")
 	}
+	if !requiresStoryValidation(c) {
+		add("story", "passed", "story contract is not applicable to this non-renderable asset", "")
+		add("experience-contract", "passed", "experience contract is not applicable to this non-renderable asset", "")
+		return result, nil
+	}
 	storyPath := filepath.Join(s.source.Root(), componentAssetRoot(c), c.Slug, "versions", version, "story.json")
 	story, err := os.ReadFile(storyPath)
 	if err != nil {
@@ -683,6 +711,11 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 		add("experience-contract", "passed", "experience contract is readable and its state references match story.json", "")
 	}
 	return result, nil
+}
+
+func requiresStoryValidation(c Component) bool {
+	root := componentAssetRoot(c)
+	return root == "components" || root == "primitives"
 }
 
 func (s *service) PublishComponentVersion(ctx context.Context, in PublishComponentVersionInput) (AuthoringVersionResult, error) {
@@ -785,6 +818,13 @@ func (s *service) CreateComponentVersion(ctx context.Context, in CreateComponent
 		intent = VersionIntentRelease
 	}
 	if intent == VersionIntentRelease {
+		check, checkErr := s.CheckComponentVersion(ctx, c.ID, firstNonEmpty(in.FromVersion, in.Version))
+		if checkErr != nil {
+			return CreateComponentVersionResult{}, checkErr
+		}
+		if !check.Passed {
+			return CreateComponentVersionResult{}, ErrVersionCheckFailed{LibraryID: c.LibraryID, Version: check.Version, Checks: check.Checks}
+		}
 		coverageVersion := firstNonEmpty(in.FromVersion, in.Version)
 		if err := releaseStoryCoverage(s.source.Root(), c, coverageVersion); err != nil {
 			return CreateComponentVersionResult{}, err

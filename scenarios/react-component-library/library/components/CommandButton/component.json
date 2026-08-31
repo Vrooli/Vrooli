@@ -3,9 +3,7 @@
   "assetKind": "component",
   "catalogId": "controls.command-button",
   "category": "actions",
-  "deprecatedVersions": [
-    "1.0.1"
-  ],
+  "deprecatedVersions": ["1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5"],
   "description": "An async-aware action button with stable dimensions, acknowledged progress, recovery, and retry.",
   "designStyles": [
     {
@@ -19,17 +17,10 @@
   ],
   "displayName": "CommandButton",
   "draft": "",
-  "evictedVersions": [
-    "1.0.1"
-  ],
+  "evictedVersions": ["1.0.1", "1.0.2", "1.0.3", "1.0.4", "1.0.5"],
   "kind": "control",
-  "latest": "1.0.2",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:CommandButton",
   "slot": "ui-primitive",
-  "tags": [
-    "control",
-    "async",
-    "recovery",
-    "token-bound"
-  ]
+  "tags": ["control", "async", "recovery", "token-bound"]
 }

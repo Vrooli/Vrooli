@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.stack",
-  "deprecatedVersions": [
-    "1.2.1"
-  ],
+  "deprecatedVersions": ["1.2.1"],
   "description": "",
   "designStyles": [
     {
@@ -21,12 +19,10 @@
     }
   ],
   "displayName": "Stack",
-  "kind": "surface",
   "draft": "",
+  "evictedVersions": ["1.2.1"],
+  "kind": "surface",
   "latest": "1.2.2",
   "libraryId": "react-component-library:Stack",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "tags": ["primitive", "token-bound"]
 }

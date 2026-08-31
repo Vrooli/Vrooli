@@ -38,6 +38,7 @@ func TestSandboxEnvVars_PopulatedForSandboxed(t *testing.T) {
 		RunMode:   domain.RunModeSandboxed,
 		SandboxID: &id,
 		WorkDir:   "/tmp/sbx/merged",
+		RepoRoot:  "/repo/Vrooli",
 		ScopePath: "scenarios/foo",
 	})
 	if got["VROOLI_SANDBOX_ID"] != id.String() {
@@ -45,6 +46,12 @@ func TestSandboxEnvVars_PopulatedForSandboxed(t *testing.T) {
 	}
 	if got["VROOLI_SANDBOX_MERGED"] != "/tmp/sbx/merged" {
 		t.Errorf("VROOLI_SANDBOX_MERGED mismatch: %q", got["VROOLI_SANDBOX_MERGED"])
+	}
+	if got["VROOLI_SANDBOX_MERGED_HOST"] != got["VROOLI_SANDBOX_MERGED"] {
+		t.Errorf("merged path pair disagrees at source: %v", got)
+	}
+	if got["VROOLI_SANDBOX_REPO_ROOT"] != "/repo/Vrooli" {
+		t.Errorf("VROOLI_SANDBOX_REPO_ROOT mismatch: %q", got["VROOLI_SANDBOX_REPO_ROOT"])
 	}
 	if got["VROOLI_SANDBOX_SCOPE"] != "scenarios/foo" {
 		t.Errorf("VROOLI_SANDBOX_SCOPE mismatch: %q", got["VROOLI_SANDBOX_SCOPE"])

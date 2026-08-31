@@ -6,7 +6,7 @@
     "id": "control-base",
     "title": "ControlBase",
     "purpose": "Own the shared control geometry, focus treatment, hover treatment, disabled treatment, size scale, and density contract.",
-    "storyRef": "../../library/components/ControlBase/versions/1.0.0/story.json"
+    "storyRef": "../../library/components/ControlBase/versions/1.1.2/story.json"
   },
   "priorities": [
     {

@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.container",
-  "deprecatedVersions": [
-    "1.1.2"
-  ],
+  "deprecatedVersions": ["1.1.2", "1.1.0"],
   "description": "",
   "designStyles": [
     {
@@ -22,14 +20,9 @@
   ],
   "displayName": "Container",
   "draft": "",
-  "evictedVersions": [
-    "1.1.0"
-  ],
+  "evictedVersions": ["1.1.0", "1.1.2"],
   "kind": "surface",
   "latest": "1.1.3",
   "libraryId": "react-component-library:Container",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "tags": ["primitive", "token-bound"]
 }

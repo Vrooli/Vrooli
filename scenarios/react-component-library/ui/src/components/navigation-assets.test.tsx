@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../test-utils";
-import { AppNavigation } from "@vrooli/react-component-library/AppNavigation/1.1.0";
-import { NavigationTree } from "@vrooli/react-component-library/NavigationTree/1.1.0";
-import { NavLink } from "@vrooli/react-component-library/NavLink/1.0.0";
+import { AppNavigation } from "@vrooli/react-component-library/AppNavigation/1";
+import { NavigationTree } from "@vrooli/react-component-library/NavigationTree/1";
+import { NavLink } from "@vrooli/react-component-library/NavLink/1";
 
 describe("adopted navigation assets", () => {
   afterEach(() => cleanup());

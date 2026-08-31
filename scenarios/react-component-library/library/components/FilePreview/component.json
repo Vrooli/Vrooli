@@ -3,7 +3,10 @@
   "assetKind": "component",
   "catalogId": "media.file-preview",
   "deprecatedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.0.2",
+    "1.0.0",
+    "1.0.3"
   ],
   "description": "A safe, typed file summary with status, metadata, preview fallback, and keyboard-operable actions.",
   "designStyles": [
@@ -23,10 +26,13 @@
   "displayName": "FilePreview",
   "draft": "",
   "evictedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.0.2",
+    "1.0.0",
+    "1.0.3"
   ],
   "kind": "surface",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:FilePreview",
   "tags": [
     "media",

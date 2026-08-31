@@ -46,6 +46,7 @@ type SandboxEnvInput struct {
 	RunMode   domain.RunMode
 	SandboxID *uuid.UUID
 	WorkDir   string
+	RepoRoot  string
 	ScopePath string
 }
 
@@ -59,9 +60,13 @@ func SandboxEnvVars(in SandboxEnvInput) map[string]string {
 		return nil
 	}
 	vars := map[string]string{
-		"VROOLI_SANDBOX_ID":     in.SandboxID.String(),
-		"VROOLI_SANDBOX_MERGED": in.WorkDir,
-		"VROOLI_SANDBOX_SCOPE":  ".",
+		"VROOLI_SANDBOX_ID":          in.SandboxID.String(),
+		"VROOLI_SANDBOX_MERGED":      in.WorkDir,
+		"VROOLI_SANDBOX_MERGED_HOST": in.WorkDir,
+		"VROOLI_SANDBOX_SCOPE":       ".",
+	}
+	if in.RepoRoot != "" {
+		vars["VROOLI_SANDBOX_REPO_ROOT"] = in.RepoRoot
 	}
 	if in.ScopePath != "" {
 		vars["VROOLI_SANDBOX_SCOPE"] = in.ScopePath
@@ -103,6 +108,7 @@ type AssembleRunEnvInput struct {
 	RunMode   domain.RunMode
 	SandboxID *uuid.UUID
 	WorkDir   string
+	RepoRoot  string
 	ScopePath string
 
 	// IdentityToken is the plaintext identity token for this turn. Empty when
@@ -120,6 +126,7 @@ func AssembleRunEnv(in AssembleRunEnvInput) map[string]string {
 			RunMode:   in.RunMode,
 			SandboxID: in.SandboxID,
 			WorkDir:   in.WorkDir,
+			RepoRoot:  in.RepoRoot,
 			ScopePath: in.ScopePath,
 		}),
 		Identity: IdentityEnvVars(in.IdentityToken),

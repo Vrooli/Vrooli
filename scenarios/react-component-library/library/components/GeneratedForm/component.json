@@ -3,7 +3,13 @@
   "assetKind": "component",
   "catalogId": "forms.generated-form",
   "deprecatedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7"
   ],
   "description": "A schema-driven form that compiles sections, field relationships, validation, nested objects, arrays, and derived values into one coherent runtime.",
   "designStyles": [
@@ -23,10 +29,16 @@
   "displayName": "GeneratedForm",
   "draft": "",
   "evictedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7"
   ],
   "kind": "input",
-  "latest": "1.0.3",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:GeneratedForm",
   "tags": [
     "form",

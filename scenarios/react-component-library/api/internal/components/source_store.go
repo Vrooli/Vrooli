@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -66,6 +67,45 @@ type sourceDesignAffinity struct {
 }
 
 func (s *FSContentStore) Root() string { return s.root }
+
+// RestoreRetiredSource restores a version directory from the durable cold
+// source archive. This is a recovery path for databases whose file mirror was
+// lost after the version was evicted; it does not synthesize or alter bytes.
+func (s *FSContentStore) RestoreRetiredSource(v ComponentVersion) (bool, error) {
+	if s == nil {
+		return false, fmt.Errorf("source store is not configured")
+	}
+	if strings.TrimSpace(v.LibraryID) == "" || strings.TrimSpace(v.Version) == "" {
+		return false, fmt.Errorf("library id and version are required to restore retired source")
+	}
+	if filepath.IsAbs(v.SourcePath) || filepath.Clean(v.SourcePath) != filepath.ToSlash(v.SourcePath) {
+		return false, ErrPathEscape{SourcePath: v.SourcePath, Root: s.root}
+	}
+	key := sha256.Sum256([]byte(v.LibraryID + "@" + v.Version))
+	backup := filepath.Join(s.root, ".retired", hex.EncodeToString(key[:]))
+	if _, err := os.Stat(backup); errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	} else if err != nil {
+		return false, fmt.Errorf("inspect retired source archive: %w", err)
+	}
+	destination := filepath.Clean(filepath.Join(s.root, filepath.Dir(v.SourcePath)))
+	root := filepath.Clean(s.root) + string(os.PathSeparator)
+	if destination != filepath.Clean(s.root) && !strings.HasPrefix(destination, root) {
+		return false, ErrPathEscape{SourcePath: v.SourcePath, Root: s.root}
+	}
+	if _, err := os.Stat(destination); err == nil {
+		return false, fmt.Errorf("refusing to restore retired source over existing directory %q", destination)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return false, fmt.Errorf("inspect retired source destination: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return false, fmt.Errorf("create retired source destination: %w", err)
+	}
+	if err := os.Rename(backup, destination); err != nil {
+		return false, fmt.Errorf("restore retired source: %w", err)
+	}
+	return true, nil
+}
 
 // Materialize restores one version from the database mirror. Validation is
 // completed before any destination is touched, then the complete version unit
@@ -542,7 +582,9 @@ func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, 
 				return specifier
 			}
 			dependencies[dependency.LibraryID+"@"+dependency.Version] = dependency
-			return "@vrooli/react-component-library/" + match[1] + "/" + dependency.Version
+			// Published source floats within the dependency's major line. The
+			// generated lock above remains the exact reproducibility record.
+			return "@vrooli/react-component-library/" + match[1] + "/" + strings.Split(dependency.Version, ".")[0]
 		})
 		if resolveErr != nil {
 			return nil, resolveErr
@@ -654,7 +696,10 @@ func (s *FSContentStore) recordReleasedVersionHashes(versionDir string) (func() 
 		return nil, err
 	}
 	for _, entry := range entries {
-		if entry.IsDir() {
+		// dependencies.json is derived from the source graph. It is regenerated
+		// when a major-line dependency resolves differently and is intentionally
+		// outside the released authored-source hash ledger.
+		if entry.IsDir() || !IsAuthoredReleaseFile(entry.Name()) {
 			continue
 		}
 		raw, readErr := os.ReadFile(filepath.Join(versionDir, entry.Name()))
@@ -1191,20 +1236,6 @@ func normalizeSlug(raw string) string {
 	raw = strings.ReplaceAll(raw, ":", "-")
 	raw = slugInvalidRe.ReplaceAllString(raw, "-")
 	return strings.Trim(raw, "-_")
-}
-
-func normalizeTSXFileName(raw string) (string, error) {
-	name := strings.TrimSpace(raw)
-	if name == "" {
-		return "", ErrInvalidHeader{SourcePath: "component source", Field: "fileName", Reason: "required"}
-	}
-	if filepath.Base(name) != name || strings.Contains(name, "..") || filepath.IsAbs(name) {
-		return "", ErrInvalidHeader{SourcePath: name, Field: "fileName", Reason: "must be a single TSX file name"}
-	}
-	if !strings.HasSuffix(name, ".tsx") {
-		name += ".tsx"
-	}
-	return name, nil
 }
 
 func validateVersionToken(version string) error {

@@ -2,6 +2,11 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "motion.collapsible-region",
+  "deprecatedVersions": [
+    "1.0.2",
+    "1.0.3",
+    "1.0.0"
+  ],
   "description": "A disclosure region that preserves accessible semantics while content enters and exits without clipping artifacts.",
   "designStyles": [
     {
@@ -10,16 +15,18 @@
     }
   ],
   "displayName": "CollapsibleRegion",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.3",
+    "1.0.0",
+    "1.0.2"
+  ],
   "kind": "surface",
-  "latest": "1.0.3",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:CollapsibleRegion",
   "tags": [
     "motion",
     "layout",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.2"
   ]
 }

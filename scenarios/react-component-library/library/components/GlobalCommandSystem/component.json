@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.global-command-system",
-  "deprecatedVersions": [
-    "1.0.1"
-  ],
+  "deprecatedVersions": ["1.0.1", "1.0.2", "1.0.3", "1.0.4"],
   "description": "A scoped command system that keeps registration, keyboard invocation, discovery, execution, history, and recovery in one coherent workflow.",
   "designStyles": [
     {
@@ -22,11 +20,9 @@
   ],
   "displayName": "GlobalCommandSystem",
   "draft": "",
-  "evictedVersions": [
-    "1.0.1"
-  ],
+  "evictedVersions": ["1.0.1", "1.0.2", "1.0.3", "1.0.4"],
   "kind": "surface",
-  "latest": "1.0.3",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:GlobalCommandSystem",
   "tags": [
     "pattern",

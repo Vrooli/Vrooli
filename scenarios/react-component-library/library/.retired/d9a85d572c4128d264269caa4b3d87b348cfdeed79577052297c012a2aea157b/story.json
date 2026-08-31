@@ -19,10 +19,7 @@
       },
       "evidence": {
         "reviewSet": "card-core",
-        "states": [
-          "ready",
-          "semantic-status"
-        ]
+        "states": ["ready", "semantic-status"]
       },
       "expect": [
         {
@@ -51,9 +48,7 @@
       },
       "evidence": {
         "reviewSet": "card-empty",
-        "states": [
-          "empty"
-        ]
+        "states": ["empty"]
       },
       "expect": [
         {
@@ -76,10 +71,7 @@
       },
       "evidence": {
         "reviewSet": "card-long-content",
-        "states": [
-          "long-content",
-          "wrap"
-        ]
+        "states": ["long-content", "wrap"]
       },
       "expect": [
         {
@@ -102,9 +94,7 @@
       },
       "evidence": {
         "reviewSet": "card-context",
-        "states": [
-          "raised-grid"
-        ]
+        "states": ["raised-grid"]
       },
       "expect": [
         {

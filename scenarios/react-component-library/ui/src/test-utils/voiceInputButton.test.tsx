@@ -18,7 +18,9 @@ describe("VoiceInputButton", () => {
   });
 
   it("renders exactly one control in every state", () => {
-    const { getAllByRole, rerender, queryByRole, queryByText, getByRole } = renderVoiceInput(<VoiceInputButton state="idle" size="lg" />);
+    const { getAllByRole, rerender, queryByRole, queryByText, getByRole } = renderVoiceInput(
+      <VoiceInputButton state="idle" size="lg" />,
+    );
     for (const state of [
       "idle",
       "preparing",
@@ -54,6 +56,15 @@ describe("VoiceInputButton", () => {
     expect(onStart).toHaveBeenCalledOnce();
     expect(onStop).not.toHaveBeenCalled();
 
+    // A mobile press can last longer than the old 300ms hold threshold. It is
+    // still a start gesture, not an implicit stop that submits empty audio.
+    vi.spyOn(Date, "now").mockReturnValueOnce(1000).mockReturnValueOnce(1500);
+    fireEvent.pointerDown(idle);
+    fireEvent.pointerUp(idle);
+    expect(onStart).toHaveBeenCalledTimes(2);
+    expect(onStop).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+
     rerender(
       <VoiceInputButton
         state="recording"
@@ -71,6 +82,15 @@ describe("VoiceInputButton", () => {
     fireEvent.pointerDown(recording);
     fireEvent.pointerUp(recording);
     expect(onStop).toHaveBeenCalledOnce();
+  });
+
+  it("allows a host to request a borderless rounded toolbar surface", () => {
+    const { getByRole } = renderVoiceInput(
+      <VoiceInputButton state="idle" surface="ghost" shape="rounded" />,
+    );
+    const button = getByRole("button", { name: "Start voice input" });
+    expect(button).toHaveAttribute("data-surface", "ghost");
+    expect(button).toHaveAttribute("data-rcl-shape", "rounded");
   });
 
   it("uses the web-console cyan listening treatment for always-on audio level", () => {

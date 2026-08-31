@@ -40,7 +40,7 @@ export interface CapabilityDefinition {
 }
 
 export interface CapabilityState extends CapabilityDefinition {
-  status: "available" | "unavailable" | "unknown" | string;
+  status: string;
   message?: string;
   reasonCode?: string;
   checkedAt?: string;

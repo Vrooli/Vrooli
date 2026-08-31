@@ -1,9 +1,14 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
   "category": "layout",
   "deprecatedVersions": [
     "1.1.0",
-    "1.1.1"
+    "1.1.1",
+    "1.1.3",
+    "1.1.4",
+    "1.1.5",
+    "1.1.2"
   ],
   "description": "A responsive asset-detail composition with preview, metadata, and lifecycle-aware supporting activity.",
   "designStyles": [
@@ -15,19 +20,22 @@
   "displayName": "Asset Detail Shell",
   "draft": "",
   "evictedVersions": [
-    "1.1.0"
+    "1.1.0",
+    "1.1.3",
+    "1.1.4",
+    "1.1.5",
+    "1.1.2"
   ],
   "kind": "shell",
-  "latest": "1.1.2",
+  "latest": "1.1.6",
   "libraryId": "react-component-library:AssetDetailShell",
   "slot": "ui-pattern",
+  "supplemental": true,
   "tags": [
     "layout",
     "asset-detail",
     "preview",
     "metadata",
     "experience"
-  ],
-  "assetKind": "component",
-  "supplemental": true
+  ]
 }

@@ -53,7 +53,7 @@ func TestModuleFailsValidationBeforeSchedulingWhenExecutorUnavailable(t *testing
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "components", "Button", "versions", "1.0.0"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "component.json"), []byte(`{"libraryId":"rcl:Button","displayName":"Button","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "component.json"), []byte(`{"libraryId":"rcl:Button","catalogId":"controls.button","displayName":"Button","latest":"1.0.0"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "Button.tsx"), []byte("export const Button = () => null;"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json"), []byte(`{"schemaVersion":5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"idle","name":"Idle","args":{},"expect":[]}]}`), 0o644))
 	assets, repo := components.BuildService(database, schedule.System(), root)
@@ -74,7 +74,7 @@ func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
 	root := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(root, "components", "Button", "versions", "1.0.0"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "component.json"), []byte(`{"libraryId":"rcl:Button","displayName":"Button","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "component.json"), []byte(`{"libraryId":"rcl:Button","catalogId":"controls.button","displayName":"Button","latest":"1.0.0"}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "Button.tsx"), []byte("/**\n * @libraryId rcl:Button\n * @version 1.0.0\n */\nexport const Button = () => null;"), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(root, "components", "Button", "versions", "1.0.0", "story.json"), []byte(`{"schemaVersion":5,"kind":"component","args":{"fields":[]},"environment":{"fixtures":[]},"stories":[{"id":"idle","name":"Idle","args":{},"expect":[{"kind":"role","role":"button","name":"Button"}]}]}`), 0o644))
 	assets, repo := components.BuildService(database, schedule.System(), root)
@@ -98,7 +98,7 @@ func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
 	start := strings.Index(byID.Body.String(), `"id":"`) + 6
 	end := start + strings.Index(byID.Body.String()[start:], `"`)
 	id := byID.Body.String()[start:end]
-	run := call(router, testsconnect.ComponentTestsServiceRunComponentTestProcedure, `{"componentId":"`+id+`","version":"1.0.0","includeClosure":true}`)
+	run := call(router, testsconnect.ComponentTestsServiceRunComponentTestProcedure, `{"componentId":"controls.button","version":"1.0.0","includeClosure":true}`)
 	require.Equal(t, http.StatusOK, run.Code, run.Body.String())
 	require.Contains(t, run.Body.String(), `"verdict":"passed"`)
 	runIDStart := strings.Index(run.Body.String(), `"id":"`) + len(`"id":"`)

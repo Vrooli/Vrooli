@@ -5,7 +5,14 @@
   "category": "motion",
   "deprecatedVersions": [
     "1.0.2",
-    "1.0.4"
+    "1.0.4",
+    "1.0.3",
+    "1.0.10",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9"
   ],
   "description": "",
   "designStyles": [
@@ -27,16 +34,17 @@
   "evictedVersions": [
     "1.0.4",
     "1.0.3",
-    "1.0.2"
+    "1.0.2",
+    "1.0.10",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.9"
   ],
   "kind": "surface",
-  "latest": "1.0.5",
+  "latest": "1.0.11",
   "libraryId": "react-component-library:Transition",
   "slot": "ui-primitive",
-  "tags": [
-    "primitive",
-    "motion",
-    "reduced-motion",
-    "token-bound"
-  ]
+  "tags": ["primitive", "motion", "reduced-motion", "token-bound"]
 }

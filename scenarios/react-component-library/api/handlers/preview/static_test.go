@@ -102,6 +102,7 @@ func TestStorySheetPublishesTheSharedReadinessMarker(t *testing.T) {
 func TestHarnessPublishesConsumerContrastFloor(t *testing.T) {
 	html := renderHarnessHTML("component", internalpreview.Bundle{}, harnessStory{}, "", false, "", "plain-consumer", "light", "4.5")
 	require.Contains(t, html, `<meta name="consumer-contrast-floor" content="4.5" />`)
+	require.Contains(t, html, `<meta name="viewport" content="width=device-width, initial-scale=1" />`)
 }
 
 const testPreviewCSS = `:root { --color-primary: #2563eb; } .bg-app-primary { background: var(--color-primary); } .rounded-control { border-radius: var(--radius-control); }`

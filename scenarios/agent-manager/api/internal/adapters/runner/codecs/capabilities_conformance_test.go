@@ -1,8 +1,10 @@
 package codecs
 
 import (
-	"slices"
+	"reflect"
 	"testing"
+
+	"agent-manager/internal/adapters/runner"
 )
 
 // TestCapabilitiesConformance pins the per-runner capability contract to the
@@ -13,66 +15,50 @@ import (
 // honest contract because its stable surface does not include tools, usage, or
 // image attachments.
 func TestCapabilitiesConformance(t *testing.T) {
-	type want struct {
-		messages, toolEvents, cost, streaming, cancel, continuation, image bool
-		maxTurns                                                           int
-		supportsRunnerDefault                                              bool
-		supportsToolRestriction                                            bool
-		supportsEffort                                                     bool
-		effortModelSpecific                                                bool
-		effortMappingCount                                                 int
-		mappingCount                                                       int
-		dynamicModelPrefixes                                               []string
-	}
-	// The uniform boolean contract: every coding agent supports all six.
-	uniform := want{
-		messages: true, toolEvents: true, cost: true,
-		streaming: true, cancel: true, continuation: true, image: true,
-		maxTurns: 0,
-	}
-
 	cases := []struct {
 		name  string
 		codec Codec
-		want  want
+		want  runner.Capabilities
 	}{
 		{
 			name:  "claude",
 			codec: NewClaudeForTest(),
-			want: func() want {
-				w := uniform
-				w.supportsRunnerDefault = true
-				w.supportsToolRestriction = true
-				w.mappingCount = len(CanonicalToolNamesForTest())
-				w.supportsEffort = true
-				w.effortMappingCount = 5
-				return w
-			}(),
+			want: runner.Capabilities{
+				SupportsMessages: true, SupportsToolEvents: true, SupportsCostTracking: true,
+				SupportsStreaming: true, SupportsCancellation: true, SupportsContinuation: true,
+				SupportsWarmIteration: true, SupportsImageAttachments: true,
+				SupportsToolRestriction: true,
+				ToolRestrictionMappings: map[string]string{"read": "Read", "write": "Write", "edit": "Edit", "glob": "Glob", "grep": "Grep", "shell": "Bash", "web_search": "WebSearch", "web_fetch": "WebFetch"},
+				SupportsEffort:          true, EffortMappings: map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+				SupportsRunnerDefault: true, SupportedFeatures: []string{"EnableBrowser"},
+			},
 		},
 		{
 			name:  "codex",
 			codec: NewCodexForTest(),
-			want: func() want {
-				w := uniform
-				w.supportsRunnerDefault = true
-				w.dynamicModelPrefixes = []string{ollamaModelPrefix}
-				w.supportsEffort = true
-				w.effortMappingCount = 4
-				return w
-			}(),
+			want: runner.Capabilities{
+				SpawnCapabilities: []runner.SpawnCapability{{ExecutionMode: "codec_pipe", SandboxModes: []string{"protected", "tracking", "off"}}, {ExecutionMode: "interactive", SandboxModes: []string{"tracking", "off"}, NativeObjective: true}},
+				SupportsMessages:  true, SupportsToolEvents: true, SupportsCostTracking: true,
+				SupportsStreaming: true, SupportsCancellation: true, SupportsContinuation: true,
+				SupportsWarmIteration: true, SupportsImageAttachments: true,
+				ToolRestrictionMappings: map[string]string{}, SupportsEffort: true,
+				EffortMappings:        map[string]string{"low": "model_reasoning_effort=low", "medium": "model_reasoning_effort=medium", "high": "model_reasoning_effort=high", "xhigh": "model_reasoning_effort=xhigh"},
+				SupportsRunnerDefault: true, DynamicModelPrefixes: []string{ollamaModelPrefix},
+				SupportedFeatures: []string{}, AllowedExtraFlags: []string{"--verbose", "-c"},
+			},
 		},
 		{
 			name:  "opencode",
 			codec: NewOpenCodeForTest(),
-			want: func() want {
-				w := uniform
-				w.supportsRunnerDefault = true
-				w.dynamicModelPrefixes = []string{ollamaModelPrefix}
-				w.supportsEffort = true
-				w.effortModelSpecific = true
-				w.effortMappingCount = 0
-				return w
-			}(),
+			want: runner.Capabilities{
+				SupportsMessages: true, SupportsToolEvents: true, SupportsCostTracking: true,
+				SupportsStreaming: true, SupportsCancellation: true, SupportsContinuation: true,
+				SupportsWarmIteration: true, SupportsImageAttachments: true,
+				ToolRestrictionMappings: map[string]string{}, SupportsEffort: true,
+				EffortMappings: map[string]string{}, EffortModelSpecific: true,
+				SupportsRunnerDefault: true, DynamicModelPrefixes: []string{ollamaModelPrefix},
+				SupportedFeatures: []string{}, AllowedExtraFlags: []string{"--verbose"},
+			},
 		},
 		{
 			// Grok intentionally diverges from the uniform contract: its
@@ -81,25 +67,22 @@ func TestCapabilitiesConformance(t *testing.T) {
 			// honest, not aspirational.
 			name:  "grok",
 			codec: NewGrokForTest(),
-			want: want{
-				messages: true, toolEvents: false, cost: false,
-				streaming: true, cancel: true, continuation: true, image: false,
-				maxTurns:                0,
-				supportsRunnerDefault:   true,
-				supportsToolRestriction: true,
-				supportsEffort:          true,
-				effortMappingCount:      5,
-				mappingCount:            len(CanonicalToolNamesForTest()),
+			want: runner.Capabilities{
+				SupportsMessages: true, SupportsStreaming: true, SupportsCancellation: true,
+				SupportsContinuation: true, SupportsWarmIteration: true,
+				SupportsToolRestriction: true,
+				ToolRestrictionMappings: map[string]string{"read": "Read", "write": "Write", "edit": "Edit", "glob": "Glob", "grep": "Grep", "shell": "Bash", "web_search": "WebSearch", "web_fetch": "WebFetch"},
+				SupportsEffort:          true, EffortMappings: map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
+				SupportsRunnerDefault: true, SupportedFeatures: []string{},
 			},
 		},
 		{
 			name:  "antigravity",
 			codec: NewAntigravityForTest(),
-			want: want{
-				messages: true, toolEvents: false, cost: false,
-				streaming: true, cancel: true, continuation: true, image: false,
-				maxTurns:              0,
-				supportsRunnerDefault: true,
+			want: runner.Capabilities{
+				SupportsMessages: true, SupportsStreaming: true, SupportsCancellation: true,
+				SupportsContinuation: true, SupportsWarmIteration: true,
+				SupportsRunnerDefault: true, SupportedFeatures: []string{},
 			},
 		},
 	}
@@ -109,40 +92,8 @@ func TestCapabilitiesConformance(t *testing.T) {
 			if _, ok := tc.codec.(CommandExtractor); !ok {
 				t.Fatal("codec does not implement CommandExtractor")
 			}
-			caps := tc.codec.Capabilities()
-			checkBool(t, "SupportsMessages", caps.SupportsMessages, tc.want.messages)
-			checkBool(t, "SupportsToolEvents", caps.SupportsToolEvents, tc.want.toolEvents)
-			checkBool(t, "SupportsCostTracking", caps.SupportsCostTracking, tc.want.cost)
-			checkBool(t, "SupportsStreaming", caps.SupportsStreaming, tc.want.streaming)
-			checkBool(t, "SupportsCancellation", caps.SupportsCancellation, tc.want.cancel)
-			checkBool(t, "SupportsContinuation", caps.SupportsContinuation, tc.want.continuation)
-			checkBool(t, "SupportsImageAttachments", caps.SupportsImageAttachments, tc.want.image)
-			if caps.MaxTurns != tc.want.maxTurns {
-				t.Errorf("MaxTurns = %d, want %d", caps.MaxTurns, tc.want.maxTurns)
-			}
-			if caps.SupportsRunnerDefault != tc.want.supportsRunnerDefault {
-				t.Errorf("SupportsRunnerDefault = %v, want %v", caps.SupportsRunnerDefault, tc.want.supportsRunnerDefault)
-			}
-			if caps.SupportsToolRestriction != tc.want.supportsToolRestriction {
-				t.Errorf("SupportsToolRestriction = %v, want %v", caps.SupportsToolRestriction, tc.want.supportsToolRestriction)
-			}
-			if caps.SupportsEffort != tc.want.supportsEffort {
-				t.Errorf("SupportsEffort = %v, want %v", caps.SupportsEffort, tc.want.supportsEffort)
-			}
-			if caps.EffortModelSpecific != tc.want.effortModelSpecific {
-				t.Errorf("EffortModelSpecific = %v, want %v", caps.EffortModelSpecific, tc.want.effortModelSpecific)
-			}
-			if len(caps.EffortMappings) != tc.want.effortMappingCount {
-				t.Errorf("EffortMappings = %v, want %d mappings", caps.EffortMappings, tc.want.effortMappingCount)
-			}
-			if len(caps.ToolRestrictionMappings) != tc.want.mappingCount {
-				t.Errorf("ToolRestrictionMappings = %v, want %d entries", caps.ToolRestrictionMappings, tc.want.mappingCount)
-			}
-			if !slices.Equal(caps.DynamicModelPrefixes, tc.want.dynamicModelPrefixes) {
-				t.Errorf("DynamicModelPrefixes = %v, want %v", caps.DynamicModelPrefixes, tc.want.dynamicModelPrefixes)
-			}
-			if len(caps.SupportedModels) != 0 {
-				t.Errorf("raw codec compiled static models into capabilities: %v", caps.SupportedModels)
+			if got := tc.codec.Capabilities(); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("capabilities changed:\n got: %#v\nwant: %#v", got, tc.want)
 			}
 		})
 	}
@@ -150,11 +101,4 @@ func TestCapabilitiesConformance(t *testing.T) {
 
 func CanonicalToolNamesForTest() []string {
 	return []string{"read", "write", "edit", "glob", "grep", "shell", "web_search", "web_fetch"}
-}
-
-func checkBool(t *testing.T, field string, got, want bool) {
-	t.Helper()
-	if got != want {
-		t.Errorf("%s = %v, want %v", field, got, want)
-	}
 }

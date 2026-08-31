@@ -6,11 +6,11 @@
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
-import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
+import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 
 /** @vrooliComponentSource react-component-library:EvidenceCarousel */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { useStrings } from "@vrooli/react-component-library/useLocale/1";
 import type { ReactNode } from "react";
 import { CheckCircle2, CircleAlert, FileText, Image, ScanSearch } from "lucide-react";
 

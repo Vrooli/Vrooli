@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "navigation.page-header",
-  "deprecatedVersions": [
-    "1.0.4",
-    "1.0.6"
-  ],
+  "deprecatedVersions": ["1.0.4", "1.0.6", "1.0.5", "1.0.7", "1.0.0"],
   "description": "The responsive title region carrying breadcrumbs, description, metadata, primary and overflow actions, optional tabs, and compact behavior as the page scrolls.",
   "designStyles": [
     {
@@ -15,13 +12,9 @@
   ],
   "displayName": "PageHeader",
   "draft": "",
-  "evictedVersions": [
-    "1.0.6",
-    "1.0.4",
-    "1.0.5"
-  ],
+  "evictedVersions": ["1.0.6", "1.0.4", "1.0.5", "1.0.7", "1.0.0"],
   "kind": "shell",
-  "latest": "1.0.7",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:PageHeader",
   "requires": [
     {
@@ -29,8 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "navigation",
-    "token-bound"
-  ]
+  "tags": ["navigation", "token-bound"]
 }

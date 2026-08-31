@@ -46,16 +46,56 @@ export function PreviewShowcase({
         borderRadius: "var(--radius-panel, 12px)",
         background: "var(--color-surface-raised)",
         color: "var(--color-foreground)",
-        boxShadow: compact ? "none" : "var(--elev-raised, 0 12px 32px rgb(15 23 42 / 12%))",
+        boxShadow: compact
+          ? "none"
+          : "var(--elev-raised, 0 12px 32px rgb(15 23 42 / 12%))",
       }}
     >
-      <header data-preview-harness-header style={{ display: "grid", gap: "var(--space-2xs, 8px)" }}>
-        <span data-preview-harness-family style={{ color: "var(--color-primary)", font: "var(--text-overline, 700 0.75rem/1.2 sans-serif)", letterSpacing: ".08em", textTransform: "uppercase" }}>{label}</span>
-        <strong data-preview-harness-title style={{ font: "var(--text-title, 700 1.5rem/1.2 sans-serif)" }}>{config?.title || label}</strong>
-        {(config?.detail || description) && <span data-preview-harness-description style={{ color: "var(--color-muted-foreground)" }}>{config?.detail || description}</span>}
+      <header
+        data-preview-harness-header
+        style={{ display: "grid", gap: "var(--space-2xs, 8px)" }}
+      >
+        <span
+          data-preview-harness-family
+          style={{
+            color: "var(--color-primary)",
+            font: "var(--text-overline, 700 0.75rem/1.2 sans-serif)",
+            letterSpacing: ".08em",
+            textTransform: "uppercase",
+          }}
+        >
+          {label}
+        </span>
+        <strong
+          data-preview-harness-title
+          style={{ font: "var(--text-title, 700 1.5rem/1.2 sans-serif)" }}
+        >
+          {config?.title || label}
+        </strong>
+        {(config?.detail || description) && (
+          <span
+            data-preview-harness-description
+            style={{ color: "var(--color-muted-foreground)" }}
+          >
+            {config?.detail || description}
+          </span>
+        )}
       </header>
-      <div data-preview-harness-subject style={{ display: "grid", justifyItems: compact ? "start" : "center", minWidth: 0 }}><Subject {...args} /></div>
-      {config?.status && <output data-preview-harness-status role="status">{config.status}</output>}
+      <div
+        data-preview-harness-subject
+        style={{
+          display: "grid",
+          justifyItems: compact ? "start" : "center",
+          minWidth: 0,
+        }}
+      >
+        <Subject {...args} />
+      </div>
+      {config?.status && (
+        <output data-preview-harness-status role="status">
+          {config.status}
+        </output>
+      )}
       {children && <footer data-preview-harness-actions>{children}</footer>}
     </section>
   );

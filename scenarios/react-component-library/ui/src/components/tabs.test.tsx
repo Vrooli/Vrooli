@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
-import { Tabs } from "@vrooli/react-component-library/Tabs/1.0.0";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { renderWithProviders } from "../test-utils";
 
 describe("Tabs", () => {

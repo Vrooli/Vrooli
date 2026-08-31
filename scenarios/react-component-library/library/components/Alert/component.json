@@ -3,7 +3,12 @@
   "assetKind": "component",
   "catalogId": "feedback.alert",
   "deprecatedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.0.0",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.2"
   ],
   "description": "A semantic local message surface for information, success, warning, or error with resilient actions and dismissal.",
   "designStyles": [
@@ -23,10 +28,15 @@
   "displayName": "Alert",
   "draft": "",
   "evictedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.0.0",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.2"
   ],
   "kind": "surface",
-  "latest": "1.0.3",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:Alert",
   "tags": [
     "feedback",

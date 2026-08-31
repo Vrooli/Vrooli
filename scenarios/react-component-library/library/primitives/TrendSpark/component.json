@@ -2,13 +2,26 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "data-display.trend-spark",
-  "libraryId": "react-component-library:TrendSpark",
-  "displayName": "TrendSpark",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
   "description": "An accessible inline trend visualization for compact history rows.",
-  "kind": "surface",
-  "latest": "1.0.0",
-  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "TrendSpark",
+  "draft": "",
   "entry": "TrendSpark.tsx",
+  "evictedVersions": [
+    "1.0.0"
+  ],
+  "kind": "surface",
+  "latest": "1.0.1",
+  "libraryId": "react-component-library:TrendSpark",
   "tags": [
     "primitive",
     "data-display",

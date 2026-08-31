@@ -203,3 +203,58 @@ a migration handoff with a planned retirement path back into
 - Evidence: The scoped runner registry, declaration resolver, per-asset rule-set digest, generated determinism block, canonical asset-kind migration, protobuf provenance fields, and scoped gate CLI path compile and pass focused tests. The server-owned run `20260829-150711-c0e6c86f` finished 20/27 phases passed, 6 failed, 1 skipped. Remaining failures include inherited performance/unit/component-test baseline debt and an empty `react-component-library:Input@1.2.0` file mirror that prevents UI export materialization.
 - Outstanding: Full suite health and the remaining historical selector/provenance corpus findings are retained as validation evidence; they are not repaired by weakening this gate-loop refactor.
 - Measured: 2026-08-29.
+
+- Rung: W3 / R0 — version-model and preview closure re-measurement
+- Evidence: Preview resolution now carries the story-selected version into bundle assembly, resolves major selectors to the newest compatible release, publishes a mobile viewport contract, and the targeted preview tests pass. Workflow run `20260831-131617-f4b8e470` passed. Legacy unprotected experience contracts were collapsed to canonical references or removed when orphaned; the live corpus has one experience authority and zero vacuous-allowlist entries. Governed presence reconciliation completed without errors after the changed retired mirrors were explicitly reconciled.
+- Outstanding: The current corpus snapshot reports 61 evicted versions without file mirrors and two mutated release-hash entries belonging to the pre-existing staged `VoiceInputButton@4.3.4` work; these prevent claiming I2/I11 until the owning release state is reconciled. Experience run `20260831-133255-ecdb5972` was still server-owned at measurement time, so its terminal result remains required.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — production lint triage
+- Evidence: Removed redundant literal-union constituents from the hand-written UI API types and corrected an unnecessary optional clipboard chain. The three affected production files now lint cleanly without changing runtime behavior.
+- Outstanding: Scenario-wide lint still has 198 production copy-registry findings plus test-query and catalog-key debt; these remain broad pre-existing UI hygiene work rather than version-model or retention failures.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — translation registry cleanup
+- Evidence: Removed only entries proven orphaned by `strings/no-unused-keys` (including stale metadata-shaped top-level entries), regenerated `strings.generated.ts`, and restored the single real `components.versionLabel` callsite revealed by the catalog type-check. The generated registry now has zero orphan diagnostics; `catalog:check` and the UI build exit 0.
+- Outstanding: Full UI lint still reports 328 copy-stability findings plus unrelated design/test hygiene rules. The safety rule remains enabled; no lint category was disabled.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — export manifest regression guard
+- Evidence: Added a generic package test that checks every advertised `package.json` subpath has a corresponding built declaration. The sync-export suite is 6/6, and the authored-source projection remains at 244 assets / 280 versioned exports / zero broken imports.
+- Outstanding: The DOD audit remains open only for the previously recorded broad validation and baseline-producer divergences; package build exclusions are now derived from manifest eviction metadata rather than component names.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — authored export projection and consumer reachability closure
+- Evidence: Package export generation no longer projects cold ledger history into the published manifest. It now shares the authored source root with the package compiler, eliminating 767 advertised-but-unbuilt export warnings. The live export check reports 244 assets, 280 versioned exports, and zero broken imports; catalog conformance exits zero with only the existing 14 non-blocking lint warnings. Four template consumers were migrated from the retired `Button/1` major to `Button/2`. Package build, boundary/sync-export tests, catalog check, UI build, and `git-control-tower`, `offer-desk`, and `web-console` builds all pass. Matrix diff reports zero changed cells with a failed verdict.
+- Outstanding: Scenario-wide lint/check and the comprehensive server-owned Test Genie run remain red on inherited findings. This export correction does not claim those unrelated gates.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — comprehensive final validation re-measurement
+- Evidence: Server-owned run `20260831-141046-f498387d` reached terminal `FAIL` after 1390.6 seconds, with 234 errors and 1,729 warnings. Plan-specific catalog type-check, build, targeted API/CLI tests, cold-source recovery, doctor, and release-ledger audit pass; `catalog:check` passes after reconciling the staged VoiceInputButton authored bytes and durable mirror.
+- Outstanding: inherited experience, security, unit, performance, and broad UI-quality findings remain. The fresh corpus report has I5=313 versus 290 and I6=18% versus 15%; these are reachable-corpus/fixture debt, not unreadable mirrors. The plan is not complete.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — retention floor and provenance re-measurement
+- Evidence: `make restart` is healthy; catalog type-check, focused components/preview/gates/version-ledger Go suites, and CLI component tests pass. Governed materialization restored Icon, StatusBadge, and Tabs from exact cold archives; `versions doctor --json` is empty. Explicit governed retirement reclaimed five legacy directories and four further safe candidates. Fresh corpus report is I2=0, I13=0, and I20=1.
+- Outstanding: corpus size is 313 directories against I5 target 290, superseded compiled-source share is 18% against I6 target 15%, and I11 remains two mutated staged `VoiceInputButton@4.3.4` release-hash entries. `catalog:check`/`exports:check` therefore still reject the current staged release as ledger-stale. The broad experience run retains inherited failures. The refused `ClassMerge@1.0.1` retirement is still referenced and was correctly preserved.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — final retention/provenance re-measurement
+- Evidence: Governed cleanup reduced the retained candidate set to 278 rows: 244 latest releases, 33 source-referenced releases, and one already-retired row; no safe candidates remain. `versions doctor --json` is `{}`. The durable corpus report now records I5=290, I6=12%, I10=0, I11=0, I13=0, and I20=1. Package build, export sync, boundary tests (6/6), sync-export tests (5/5), focused API/CLI suites, experience-manager spec tests, catalog check, and all three consumer builds (`git-control-tower`, `offer-desk`, `web-console`) pass. The offer-desk failure was traced to stale lifecycle-provisioned package output and cleared by `make setup`.
+- Outstanding: The server-owned comprehensive run `20260831-141046-f498387d` remains terminal FAIL with inherited experience, security, unit, performance, and broad UI-quality findings; scenario `make lint`/`make check` therefore remain non-green outside the focused plan gates. The catalog check has no errors but retains 14 lint warnings. No further retention is safe without changing declared latest/source dependencies.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — matrix and authoritative-command audit
+- Evidence: `make ledger-audit`, `make matrix-diff`, and the scenario UI production build exit zero. The matrix diff confirms the repaired attribution invariant remains intact: no changed cell is a zero-finding `fail`; previous corpus-wide mirror/runner failures are now represented as passing or attributable/unmeasured results. The diff also identifies one current `navigation.tabs` documentation finding for exported `TabsDensity` and `TabsVariant`; it is retained as a release/documentation issue because the source is an immutable released version. Readiness remains `NOT_READY` with 2,381 omitted triage rows and inherited catalog evidence debt.
+- Outstanding: D7, D38, and D39 are not complete: scenario-wide lint/check and the comprehensive Test Genie run remain red, and the matrix baseline is not behaviorally clean until the Tabs documentation delta and inherited findings are resolved or explicitly accepted by the owning workflow. Plan-specific retention, provenance, export, catalog, and consumer-stability evidence remains green.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — Tabs documentation regression closure
+- Evidence: Opened and published `Tabs@1.2.3` through the governed draft path with documentation-only changes for `TabsDensity` and `TabsVariant`, updated the single canonical experience story reference, and retired `Tabs@1.2.2` using the exact cleanup hash. Package build, boundary/export tests, catalog check, matrix diff, and all three post-publish consumer setup/build proofs pass. The durable corpus remains I5=290 and I6=12%; `versions doctor` remains empty.
+- Outstanding: D7 and D38 remain open for inherited scenario-wide lint/check and comprehensive Test Genie failures. D39's plan-owned Tabs documentation delta is resolved; the current matrix also surfaces an independent `controls.slider` documentation finding plus attribution/corpus baseline changes and inherited findings.
+- Measured: 2026-08-31.
+
+- Rung: W3 / R0 — Slider documentation regression closure
+- Evidence: Opened and published `Slider@1.1.2` through the governed patch path, adding TSDoc for the public value-display type and props interface without editing `Slider@1.1.1`. Retired the predecessor with the exact cleanup hash. The immutable component test for `react-component-library:Slider@1.1.2` passed all closure, source, contract, declared-behavior, and experience-evidence stages; package build, export/boundary tests, catalog check, and the key corpus invariants pass.
+- Outstanding: D7 and D38 remain open for inherited scenario-wide lint/check and comprehensive Test Genie failures. Slider's documentation finding is resolved; current matrix output shows documentation `pass` for `controls.slider`.
+- Measured: 2026-08-31.

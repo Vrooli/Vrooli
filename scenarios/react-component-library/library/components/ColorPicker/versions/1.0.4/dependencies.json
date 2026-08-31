@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:ColorPicker",
+  "version": "1.0.4",
+  "resolvedAt": "2026-08-31T05:48:26Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    }
+  ]
+}

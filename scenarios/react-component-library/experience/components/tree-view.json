@@ -6,7 +6,7 @@
     "id": "data-display-tree-view",
     "title": "TreeView",
     "purpose": "A navigable hierarchical surface for files and structured resources.",
-    "storyRef": "../../library/components/TreeView/versions/1.0.0/story.json"
+    "storyRef": "../../library/components/TreeView/versions/1.0.7/story.json"
   },
   "states": [
     {

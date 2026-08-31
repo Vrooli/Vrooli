@@ -4,7 +4,13 @@
   "catalogId": "forms.dirty-state-guard",
   "deprecatedVersions": [
     "1.0.3",
-    "1.0.5"
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.0",
+    "1.0.1"
   ],
   "description": "The navigation and dismissal guard detecting meaningful unsaved changes and offering save, discard, continue editing, or background preservation before the work is lost.",
   "designStyles": [
@@ -26,10 +32,15 @@
   "evictedVersions": [
     "1.0.5",
     "1.0.3",
-    "1.0.4"
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.0",
+    "1.0.1"
   ],
   "kind": "input",
-  "latest": "1.0.8",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:DirtyStateGuard",
   "requires": [
     {

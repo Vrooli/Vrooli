@@ -2,6 +2,9 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-service",
   "catalogId": "services.undo-manager",
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
   "description": "A scoped reversible-action history service with expiry, rollback progress, and recovery.",
   "designStyles": [
     {
@@ -10,8 +13,12 @@
     }
   ],
   "displayName": "Undo Manager",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.0"
+  ],
   "kind": "surface",
-  "latest": "1.0.0",
+  "latest": "1.0.1",
   "libraryId": "react-component-library:UndoManager",
   "tags": [
     "runtime",

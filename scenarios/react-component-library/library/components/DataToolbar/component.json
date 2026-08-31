@@ -3,9 +3,7 @@
   "assetKind": "component",
   "catalogId": "data-display.data-toolbar",
   "category": "data-display",
-  "deprecatedVersions": [
-    "1.0.3"
-  ],
+  "deprecatedVersions": ["1.0.3", "1.0.4", "1.0.0", "1.0.5", "1.0.6", "1.0.7"],
   "description": "A responsive collection control surface that composes query, filters, saved views, sorting, freshness, density, and recovery actions into one accessible grammar.",
   "designStyles": [
     {
@@ -23,11 +21,9 @@
   ],
   "displayName": "DataToolbar",
   "draft": "",
-  "evictedVersions": [
-    "1.0.3"
-  ],
+  "evictedVersions": ["1.0.3", "1.0.4", "1.0.0", "1.0.5", "1.0.6", "1.0.7"],
   "kind": "control",
-  "latest": "1.0.4",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:DataToolbar",
   "requires": [
     {

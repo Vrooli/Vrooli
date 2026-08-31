@@ -12,9 +12,14 @@
       "role": "anatomy",
       "mode": "live",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Default" }
+      },
       "expect": [
-        { "kind": "visible", "selector": "[data-testid='hooks.use-handedness']" },
+        {
+          "kind": "visible",
+          "selector": "[data-testid='hooks.use-handedness']"
+        },
         {
           "kind": "attribute",
           "selector": "[data-testid='hooks.use-handedness']",
@@ -29,7 +34,9 @@
       "role": "boundary",
       "mode": "live",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "WithoutProvider" } },
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "WithoutProvider" }
+      },
       "expect": [
         {
           "kind": "attribute",
@@ -51,7 +58,9 @@
       "role": "boundary",
       "mode": "live",
       "args": {},
-      "composition": { "specimen": { "module": "./story.tsx", "export": "EndAnchored" } },
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "EndAnchored" }
+      },
       "expect": [
         {
           "kind": "attribute",

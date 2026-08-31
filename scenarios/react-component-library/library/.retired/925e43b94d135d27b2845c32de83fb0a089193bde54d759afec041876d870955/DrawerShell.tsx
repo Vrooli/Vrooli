@@ -82,7 +82,9 @@ export const DrawerShell = withClassName(function DrawerShell({
               <h2 id={titleId} data-rcl-drawer-shell-title>
                 {title}
               </h2>
-              {headerActions ? <div data-rcl-drawer-shell-actions>{headerActions}</div> : null}
+              {headerActions ? (
+                <div data-rcl-drawer-shell-actions>{headerActions}</div>
+              ) : null}
               <button
                 ref={closeButtonRef}
                 type="button"
@@ -93,7 +95,9 @@ export const DrawerShell = withClassName(function DrawerShell({
                 <span aria-hidden="true">×</span>
               </button>
             </div>
-            {headerExtra ? <div data-rcl-drawer-shell-extra>{headerExtra}</div> : null}
+            {headerExtra ? (
+              <div data-rcl-drawer-shell-extra>{headerExtra}</div>
+            ) : null}
           </header>
           <div data-rcl-drawer-shell-body>{children}</div>
         </section>

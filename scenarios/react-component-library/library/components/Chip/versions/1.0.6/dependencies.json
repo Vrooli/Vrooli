@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:Chip",
+  "version": "1.0.6",
+  "resolvedAt": "2026-08-31T05:48:24Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    }
+  ]
+}

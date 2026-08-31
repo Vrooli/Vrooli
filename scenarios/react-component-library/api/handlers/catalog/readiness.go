@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	"react-component-library/internal/catalogcoverage"
+	"react-component-library/internal/gates"
 )
 
 type readinessConfigFile struct {
@@ -115,6 +116,17 @@ func readinessConfigProjection(config readinessConfigFile, report *catalogcovera
 		floor = floors[0]
 	}
 	achieved := achievedRung(report)
+	attributable, corpus := 0, 0
+	for _, definition := range gates.Definitions() {
+		if definition.Run == nil {
+			continue
+		}
+		if definition.CorpusScoped {
+			corpus++
+		} else {
+			attributable++
+		}
+	}
 	return &catalogv1.ReadinessConfig{
 		DeclaredFloor:     floor,
 		AchievedRung:      achieved,
@@ -122,8 +134,8 @@ func readinessConfigProjection(config readinessConfigFile, report *catalogcovera
 		BlockingGates:     int32(countGates(config.Gates, func(g readinessConfigFileGate) bool { return g.Blocking })),
 		AdvisoryGates:     int32(countGates(config.Gates, func(g readinessConfigFileGate) bool { return !g.Blocking })),
 		QuarantinedGates:  int32(0),
-		AttributableGates: int32(countGates(config.Gates, func(g readinessConfigFileGate) bool { return g.Attribution == "attributable" })),
-		CorpusGates:       int32(countGates(config.Gates, func(g readinessConfigFileGate) bool { return g.Attribution == "corpus" })),
+		AttributableGates: int32(attributable),
+		CorpusGates:       int32(corpus),
 	}
 }
 

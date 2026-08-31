@@ -4,7 +4,10 @@
   "catalogId": "data-display.virtual-list",
   "deprecatedVersions": [
     "1.0.1",
-    "1.0.3"
+    "1.0.3",
+    "1.0.2",
+    "1.0.5",
+    "1.0.4"
   ],
   "description": "The large-collection renderer with dynamic measurement, overscan, preserved focus, sticky items, scroll restoration, and accessible item-count semantics.",
   "designStyles": [
@@ -26,10 +29,12 @@
   "evictedVersions": [
     "1.0.3",
     "1.0.1",
-    "1.0.2"
+    "1.0.2",
+    "1.0.5",
+    "1.0.4"
   ],
   "kind": "surface",
-  "latest": "1.0.5",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:VirtualList",
   "requires": [
     {

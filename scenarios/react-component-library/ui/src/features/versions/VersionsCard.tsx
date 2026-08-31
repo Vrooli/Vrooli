@@ -2,23 +2,23 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Alert } from "@vrooli/react-component-library/Alert/1.0.2";
-import { type CaptureCell } from "@vrooli/react-component-library/CaptureGrid/1.0.5";
-import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1.0.5";
-import { BulkActionBar } from "@vrooli/react-component-library/BulkActionBar/1.0.4";
+import { Alert } from "@vrooli/react-component-library/Alert/1";
+import { type CaptureCell } from "@vrooli/react-component-library/CaptureGrid/1";
+import { BoundedMeter } from "@vrooli/react-component-library/BoundedMeter/1";
+import { BulkActionBar } from "@vrooli/react-component-library/BulkActionBar/1";
 import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
-import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1.0.2";
-import { FindingList, type Finding } from "@vrooli/react-component-library/FindingList/1.0.9";
-import { Select } from "@vrooli/react-component-library/Select/1.1.1";
-import { Skeleton } from "@vrooli/react-component-library/Skeleton/1.0.4";
-import { UndoableDestructiveAction } from "@vrooli/react-component-library/UndoableDestructiveAction/1.0.4";
-import { VerdictSummary } from "@vrooli/react-component-library/VerdictSummary/1.0.5";
-import { VirtualList } from "@vrooli/react-component-library/VirtualList/1.0.4";
+import { DiffViewer } from "@vrooli/react-component-library/DiffViewer/1";
+import { FindingList, type Finding } from "@vrooli/react-component-library/FindingList/1";
+import { Select } from "@vrooli/react-component-library/Select/1";
+import { Skeleton } from "@vrooli/react-component-library/Skeleton/1";
+import { UndoableDestructiveAction } from "@vrooli/react-component-library/UndoableDestructiveAction/1";
+import { VerdictSummary } from "@vrooli/react-component-library/VerdictSummary/1";
+import { VirtualList } from "@vrooli/react-component-library/VirtualList/1";
 import {
   VersionRow,
   type VersionAdopter,
   type VersionDiffSummary,
-} from "@vrooli/react-component-library/VersionRow/1.0.0";
+} from "@vrooli/react-component-library/VersionRow/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

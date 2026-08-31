@@ -1201,11 +1201,6 @@
               "local_only": true
             },
             {
-              "name": "release",
-              "description": "Treat the new version as latest release",
-              "local_only": true
-            },
-            {
               "name": "file-name",
               "description": "TSX file name in the new folder"
             },
@@ -1262,6 +1257,29 @@
             "effect": "write",
             "run_eligible": false,
             "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "migrate-specifiers",
+          "description": "List or republish latest assets whose authored source still uses exact library selectors",
+          "flags": [
+            {"name": "apply", "description": "Create and publish patch drafts; omission is a dry run", "local_only": true}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "republish-plan",
+          "description": "Emit the dependency-rank-ordered plan for migrating latest assets to major-line selectors",
+          "binding": {"kind": "local"},
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal", "filesystem:read"]
           }
         },
         {
@@ -2053,7 +2071,7 @@
             {
               "name": "gate",
               "required": false,
-              "description": "Gate: types, api, tokens, conformance, token-vocabulary, token-ramp-complete, fallback-parity, kit-compatibility, affinity-compatible, scenario-token-requirements, released-version-immutable, lifecycle, fixture-adversarial, or examples"
+              "description": "Gate: types, api, tokens, conformance, token-vocabulary, token-ramp-complete, fallback-parity, kit-compatibility, affinity-compatible, scenario-token-requirements, released-version-immutable, version-mirror-integrity, specifier-shape, lifecycle, fixture-adversarial, or examples"
             }
           ],
           "flags": [{"name": "all", "bool": true, "description": "Run every declared catalog gate"}, {"name": "asset-id", "description": "Run the gate for one catalog asset only"}, {"name": "calibration-only", "bool": true, "description": "Run gate-owned planted-error fixtures without inspecting the corpus"}],
@@ -2120,6 +2138,12 @@
       "flags": [{"name": "floor", "description": "Preview a stricter maturity floor without changing catalog config"}],
       "binding": {"kind": "connect-rpc", "service": "CatalogService", "method": "GetReadiness"},
       "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:read"]}
+    },
+    {
+      "name": "corpus-report",
+      "description": "Emit all version and retention corpus invariants",
+      "binding": {"kind": "local"},
+      "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read"]}
     },
     {
       "name": "evidence",

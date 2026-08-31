@@ -54,7 +54,10 @@ export interface HandednessProviderProps {
  * and whether it syncs across a user's devices, is an application decision; the
  * library's job is to make one answer reach every consumer consistently.
  */
-export function HandednessProvider({ value, children }: HandednessProviderProps) {
+export function HandednessProvider({
+  value,
+  children,
+}: HandednessProviderProps) {
   return createElement(
     HandednessContext.Provider,
     { value: value ?? DEFAULT_HANDEDNESS },

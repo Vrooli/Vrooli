@@ -1,6 +1,7 @@
 {
+  "assetKind": "component",
   "catalogId": "overlays.full-page-drawer",
-  "deprecatedVersions": [],
+  "deprecatedVersions": ["1.0.4", "1.2.8", "1.0.3", "1.2.10", "1.2.7", "1.2.9"],
   "description": "Shared overlay presentation for FullPageDrawer.",
   "designStyles": [
     {
@@ -29,16 +30,18 @@
     "1.0.4",
     "1.2.3",
     "1.2.2",
-    "1.2.1"
+    "1.2.1",
+    "1.2.6",
+    "1.2.5",
+    "1.2.4",
+    "1.2.8",
+    "1.0.3",
+    "1.2.10",
+    "1.2.7",
+    "1.2.9"
   ],
   "kind": "control",
-  "latest": "1.2.7",
+  "latest": "1.2.11",
   "libraryId": "react-component-library:FullPageDrawer",
-  "tags": [
-    "overlay",
-    "accessibility",
-    "responsive",
-    "token-bound"
-  ],
-  "assetKind": "component"
+  "tags": ["overlay", "accessibility", "responsive", "token-bound"]
 }

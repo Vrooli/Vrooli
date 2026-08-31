@@ -6,7 +6,7 @@
     "id": "inspector-layout",
     "title": "InspectorLayout",
     "purpose": "Keep a canvas-first workbench with a responsive inspector whose lifecycle does not displace the primary task.",
-    "storyRef": "../../library/components/InspectorLayout/versions/1.1.2/story.json"
+    "storyRef": "../../library/components/InspectorLayout/versions/1.1.4/story.json"
   },
   "states": [
     { "id": "ready-inspector", "example": "ready-inspector", "description": "The inspector is usable." },

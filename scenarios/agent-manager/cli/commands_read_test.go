@@ -134,14 +134,14 @@ func TestPrettyPrintJSONPreservesInvalidPayloads(t *testing.T) {
 }
 
 func TestCommandHelpSurfacesRemainAvailable(t *testing.T) {
-	app := &App{}
-	for _, help := range []func() error{app.workflowHelp, app.settingsHelp, app.healthHelp, app.opsHelp, app.permissionPolicyHelp, app.policyHelp, app.runnerHelp, app.profileHelp, app.taskHelp, app.runHelp, app.maintenanceHelp, app.declarationsHelp, app.eventsHelp} {
-		if err := help(); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := app.settingsInvestigationHelp(); err != nil {
+	app, err := NewApp()
+	if err != nil {
 		t.Fatal(err)
+	}
+	for _, group := range []string{"workflow", "settings", "health", "ops", "permission-policy", "role-policy", "runner", "profile", "task", "run", "maintenance", "declarations", "events"} {
+		if err := app.Run([]string{group, "help"}); err != nil {
+			t.Fatalf("%s help: %v", group, err)
+		}
 	}
 }
 

@@ -4,14 +4,23 @@ import { fireEvent, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../../../../../ui/src/test-utils";
 import { HandednessProvider } from "@vrooli/react-component-library/useHandedness/1.1.2";
-import { SwipeActions, type SwipeAction, type SwipeActionsProps } from "./SwipeActions";
+import {
+  SwipeActions,
+  type SwipeAction,
+  type SwipeActionsProps,
+} from "./SwipeActions";
 
 const WIDTH = 76;
 
 function makeActions(onSelect: Record<string, () => void> = {}): SwipeAction[] {
   return [
     { id: "unread", label: "Unread", onSelect: onSelect.unread ?? (() => {}) },
-    { id: "close", label: "Close", tone: "destructive", onSelect: onSelect.close ?? (() => {}) },
+    {
+      id: "close",
+      label: "Close",
+      tone: "destructive",
+      onSelect: onSelect.close ?? (() => {}),
+    },
   ];
 }
 
@@ -34,7 +43,10 @@ function root() {
 
 /** Drives a gesture the way the browser delivers one: down on the element, the
  *  rest on the window, with controllable timestamps so velocity is decidable. */
-function drag(xs: number[], opts: { end?: "up" | "cancel"; step?: number } = {}) {
+function drag(
+  xs: number[],
+  opts: { end?: "up" | "cancel"; step?: number } = {},
+) {
   const step = opts.step ?? 200;
   const target = face();
   fireEvent.pointerDown(target, {
@@ -209,7 +221,9 @@ describe("auto-commit release", () => {
   it("fires the first action when only it is armed", () => {
     const unread = vi.fn();
     const close = vi.fn();
-    renderWithProviders(<Row releaseMode="commit" actions={makeActions({ unread, close })} />);
+    renderWithProviders(
+      <Row releaseMode="commit" actions={makeActions({ unread, close })} />,
+    );
     drag([0, 60]);
     expect(unread).toHaveBeenCalledTimes(1);
     expect(close).not.toHaveBeenCalled();
@@ -218,7 +232,9 @@ describe("auto-commit release", () => {
   it("fires the further action when the drag reaches it", () => {
     const unread = vi.fn();
     const close = vi.fn();
-    renderWithProviders(<Row releaseMode="commit" actions={makeActions({ unread, close })} />);
+    renderWithProviders(
+      <Row releaseMode="commit" actions={makeActions({ unread, close })} />,
+    );
     drag([0, 130]);
     expect(close).toHaveBeenCalledTimes(1);
     expect(unread).not.toHaveBeenCalled();
@@ -226,7 +242,9 @@ describe("auto-commit release", () => {
 
   it("fires nothing below the first threshold", () => {
     const unread = vi.fn();
-    renderWithProviders(<Row releaseMode="commit" actions={makeActions({ unread })} />);
+    renderWithProviders(
+      <Row releaseMode="commit" actions={makeActions({ unread })} />,
+    );
     drag([0, 20]);
     expect(unread).not.toHaveBeenCalled();
   });
@@ -244,7 +262,9 @@ describe("cancellation", () => {
   // path as pointerup performs the action the user just stopped asking for.
   it("fires nothing when the browser cancels a committing drag", () => {
     const close = vi.fn();
-    renderWithProviders(<Row releaseMode="commit" actions={makeActions({ close })} />);
+    renderWithProviders(
+      <Row releaseMode="commit" actions={makeActions({ close })} />,
+    );
     drag([0, 300], { end: "cancel" });
     expect(close).not.toHaveBeenCalled();
   });
@@ -281,13 +301,17 @@ describe("accessibility", () => {
     drag([0, 200]);
     const track = root().querySelector("[data-rcl-swipe-actions-track]");
     expect(track?.getAttribute("aria-hidden")).toBeNull();
-    expect(screen.getByRole("button", { name: "Unread" }).getAttribute("tabindex")).toBe("0");
+    expect(
+      screen.getByRole("button", { name: "Unread" }).getAttribute("tabindex"),
+    ).toBe("0");
   });
 
   it("names the revealed group", () => {
     renderWithProviders(<Row />);
     drag([0, 200]);
-    expect(screen.getByRole("group", { name: "Row actions" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Row actions" }),
+    ).toBeInTheDocument();
   });
 
   it("runs an action when its button is activated", () => {

@@ -149,6 +149,8 @@ CREATE TABLE IF NOT EXISTS invocation_read_model_runs (
     workload_key TEXT NOT NULL DEFAULT '',
     workload_instance TEXT NOT NULL DEFAULT '',
     total_cost_usd REAL NOT NULL DEFAULT 0,
+    cost_source TEXT NOT NULL DEFAULT 'unknown',
+    charge_reason TEXT NOT NULL DEFAULT '',
     input_cost_usd REAL NOT NULL DEFAULT 0,
     output_cost_usd REAL NOT NULL DEFAULT 0,
     cache_read_cost_usd REAL NOT NULL DEFAULT 0,

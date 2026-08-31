@@ -3,6 +3,7 @@ package orchestration_test
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +33,93 @@ func newTestOrchestrationSettings(t *testing.T, runTimeoutMinutes int) *agentcon
 		t.Fatalf("update orchestration settings: %v", err)
 	}
 	return store
+}
+
+func TestCreateRun_RefusesProfileLimitsAboveGlobalCeilings(t *testing.T) {
+	ctx := context.Background()
+	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+
+	settingsStore := newTestOrchestrationSettings(t, 60)
+	settings := settingsStore.Get()
+	settings.RunExecution.MaxTurns = 600
+	if err := settingsStore.Update(settings); err != nil {
+		t.Fatalf("update orchestration settings: %v", err)
+	}
+
+	runnerRegistry := runner.NewRegistry()
+	mockRunner := runner.NewMockRunner(domain.RunnerTypeClaudeCode)
+	mockRunner.SetAvailable(true, "available")
+	if err := runnerRegistry.Register(mockRunner); err != nil {
+		t.Fatalf("register runner: %v", err)
+	}
+
+	svc := orchestration.New(
+		repos.Profiles,
+		repos.Tasks,
+		repos.Runs,
+		orchestration.WithEvents(eventStore),
+		orchestration.WithRunners(runnerRegistry),
+		orchestration.WithOrchestrationSettings(settingsStore),
+		newTestRolePolicyOption(t),
+	)
+	task := mustCreateTask(t, svc, ctx, &domain.Task{Title: "duration ceiling", ScopePath: "src/"})
+
+	tests := []struct {
+		name       string
+		timeout    time.Duration
+		maxTurns   int
+		wantValues []string
+	}{
+		{name: "timeout", timeout: 61 * time.Minute, maxTurns: 600, wantValues: []string{"3660s", "3600s"}},
+		{name: "turns", timeout: 60 * time.Minute, maxTurns: 601, wantValues: []string{"601", "600"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+				Name:          "above-" + tt.name,
+				ProfileKey:    "above-" + tt.name + "-" + uuid.NewString()[:8],
+				RoleRef:       "code.default",
+				Timeout:       tt.timeout,
+				MaxTurns:      tt.maxTurns,
+				SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+			})
+
+			_, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+				TaskID:         task.ID,
+				AgentProfileID: &profile.ID,
+				Prompt:         "prove ceiling validation",
+			})
+			if err == nil {
+				t.Fatal("CreateRun() succeeded with profile above the global ceiling")
+			}
+			for _, want := range tt.wantValues {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("CreateRun() error %q does not name %q", err, want)
+				}
+			}
+		})
+	}
+
+	profile := mustCreateProfile(t, svc, ctx, &domain.AgentProfile{
+		Name:          "within-ceilings",
+		ProfileKey:    "within-ceilings-" + uuid.NewString()[:8],
+		RoleRef:       "code.default",
+		Timeout:       45 * time.Minute,
+		MaxTurns:      450,
+		SandboxConfig: &domain.SandboxConfig{Mode: domain.SandboxModeOff},
+	})
+	run, err := svc.CreateRun(ctx, orchestration.CreateRunRequest{
+		TaskID:         task.ID,
+		AgentProfileID: &profile.ID,
+		Prompt:         "prove effective resolved limits",
+	})
+	if err != nil {
+		t.Fatalf("CreateRun() within ceilings: %v", err)
+	}
+	if run.ResolvedConfig == nil || run.ResolvedConfig.Timeout != 45*time.Minute || run.ResolvedConfig.MaxTurns != 450 {
+		t.Fatalf("resolved limits = %+v, want timeout=45m maxTurns=450", run.ResolvedConfig)
+	}
 }
 
 func TestContinuation_HasPerTurnTimeout(t *testing.T) {

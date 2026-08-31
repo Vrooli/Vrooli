@@ -3,10 +3,7 @@
   "assetKind": "component",
   "catalogId": "forms.validation-summary",
   "category": "forms",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.5"
-  ],
+  "deprecatedVersions": ["1.0.3", "1.0.5", "1.0.4", "1.0.6", "1.0.0", "1.0.7"],
   "description": "The form-level error summary grouping actionable failures, linking to the fields they concern, taking focus at the right moment, and avoiding duplication of every field message.",
   "designStyles": [
     {
@@ -16,13 +13,9 @@
   ],
   "displayName": "ValidationSummary",
   "draft": "",
-  "evictedVersions": [
-    "1.0.5",
-    "1.0.3",
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.5", "1.0.3", "1.0.4", "1.0.6", "1.0.0", "1.0.7"],
   "kind": "input",
-  "latest": "1.0.7",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:ValidationSummary",
   "requires": [
     {
@@ -31,10 +24,5 @@
     }
   ],
   "slot": "ui-primitive",
-  "tags": [
-    "form",
-    "validation",
-    "accessibility",
-    "recovery"
-  ]
+  "tags": ["form", "validation", "accessibility", "recovery"]
 }

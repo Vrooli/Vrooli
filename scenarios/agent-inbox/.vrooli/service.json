@@ -110,7 +110,8 @@
         "description": "Local LLM for automatic chat naming",
         "model_roles": [
           "chat.default"
-        ]
+        ],
+        "startup_policy": "must_start"
       },
       "openrouter": {
         "type": "openrouter",
@@ -119,7 +120,8 @@
         "description": "Multi-model chat completions API",
         "model_roles": [
           "chat.default"
-        ]
+        ],
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {
@@ -136,19 +138,22 @@
               ".vrooli/agent-manager/default.json"
             ]
           }
-        }
+        },
+        "startup_policy": "try_start"
       },
       "scenario-to-cloud": {
         "type": "scenario",
         "enabled": true,
         "required": false,
-        "description": "Provides VPS deployment lifecycle management (create, execute, stop, inspect deployments)"
+        "description": "Provides VPS deployment lifecycle management (create, execute, stop, inspect deployments)",
+        "startup_policy": "try_start"
       },
       "prompt-manager": {
         "type": "scenario",
         "enabled": true,
         "required": false,
-        "description": "Provides skills/prompts for agent context injection (optional - graceful degradation)"
+        "description": "Provides skills/prompts for agent context injection (optional - graceful degradation)",
+        "startup_policy": "try_start"
       }
     }
   },

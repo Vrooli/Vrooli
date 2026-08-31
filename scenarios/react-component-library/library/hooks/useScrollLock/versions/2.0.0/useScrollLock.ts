@@ -14,7 +14,7 @@ let scrollY = 0;
 let previous: Partial<CSSStyleDeclaration> = {};
 
 function lockDocument() {
-  if (locks++ > 0 || typeof document === "undefined") return;
+  if (locks++ > 0 || typeof document === "undefined" || typeof window === "undefined") return;
   scrollY = window.scrollY;
   const body = document.body;
   previous = {
@@ -33,7 +33,7 @@ function lockDocument() {
 }
 
 function unlockDocument() {
-  if (locks === 0 || --locks > 0 || typeof document === "undefined") return;
+  if (locks === 0 || --locks > 0 || typeof document === "undefined" || typeof window === "undefined") return;
   Object.assign(document.body.style, previous);
   window.scrollTo({ top: scrollY, behavior: "instant" });
   previous = {};

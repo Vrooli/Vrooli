@@ -4,7 +4,12 @@
   "catalogId": "visualization.chart",
   "deprecatedVersions": [
     "1.0.3",
-    "1.0.5"
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.1"
   ],
   "description": "The responsive chart framework standardizing axes, legends, tooltips, value formatting, selection, theme integration, keyboard summaries, and every generic data state around a pluggable rendering engine.",
   "designStyles": [
@@ -26,10 +31,14 @@
   "evictedVersions": [
     "1.0.5",
     "1.0.3",
-    "1.0.4"
+    "1.0.4",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.1"
   ],
   "kind": "surface",
-  "latest": "1.0.8",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:Chart",
   "requires": [
     {

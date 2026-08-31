@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.combobox",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.5"
-  ],
+  "deprecatedVersions": ["1.0.3", "1.0.5", "1.0.4", "1.0.6", "1.0.7", "1.0.8"],
   "description": "The searchable selection field supporting local or remote options, typeahead, creation of new values, result highlighting, virtualization, async cancellation, and accessible active-option reporting.",
   "designStyles": [
     {
@@ -23,13 +20,9 @@
   ],
   "displayName": "Combobox",
   "draft": "",
-  "evictedVersions": [
-    "1.0.5",
-    "1.0.3",
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.5", "1.0.3", "1.0.4", "1.0.6", "1.0.7", "1.0.8"],
   "kind": "input",
-  "latest": "1.0.8",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:Combobox",
   "requires": [
     {
@@ -37,12 +30,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "forms",
-    "selection",
-    "combobox",
-    "async",
-    "keyboard",
-    "token-bound"
-  ]
+  "tags": ["forms", "selection", "combobox", "async", "keyboard", "token-bound"]
 }

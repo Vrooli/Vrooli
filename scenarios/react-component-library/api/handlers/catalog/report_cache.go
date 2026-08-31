@@ -74,8 +74,20 @@ var fingerprintRoots = []string{
 // Paths are sorted before hashing so filesystem traversal order cannot change
 // the cache key.
 func fingerprint(repoRoot string) (string, error) {
-	if key, ok := assetCacheFingerprint(repoRoot); ok {
-		return key, nil
+	if fingerprints, ok := assetCacheFingerprints(repoRoot); ok {
+		hash := sha256.New()
+		ids := make([]string, 0, len(fingerprints))
+		for assetID := range fingerprints {
+			ids = append(ids, assetID)
+		}
+		sort.Strings(ids)
+		for _, assetID := range ids {
+			_, _ = hash.Write([]byte(assetID))
+			_, _ = hash.Write([]byte{0})
+			_, _ = hash.Write([]byte(fingerprints[assetID]))
+			_, _ = hash.Write([]byte{0})
+		}
+		return hex.EncodeToString(hash.Sum(nil)), nil
 	}
 	type input struct {
 		path string
@@ -132,20 +144,21 @@ func fingerprint(repoRoot string) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
-// assetCacheFingerprint is the freshness authority for a real catalog report.
-// It hashes the per-asset revision and resolved rule-set digest, so unrelated
-// assets do not share one invalidation bucket. The file-tree fallback remains
-// useful for isolated cache unit fixtures that intentionally have no catalog.
-func assetCacheFingerprint(repoRoot string) (string, bool) {
+// assetCacheFingerprints is the freshness authority for real catalog
+// evidence. Each asset gets its own revision/rule-set key, and dependency
+// changes are folded into BuildRevisionIndex. The report-level cache hashes
+// these keys only to decide whether a refresh is needed; evidence rows remain
+// independently reusable by asset and gate.
+func assetCacheFingerprints(repoRoot string) (map[string]string, bool) {
 	revisions, err := catalogcoverage.BuildRevisionIndex(repoRoot)
 	if err != nil {
-		return "", false
+		return nil, false
 	}
 	assets, err := catalogcoverage.LoadCatalog(filepath.Join(repoRoot, "scenarios", "react-component-library", "catalog"))
 	if err != nil || len(assets) == 0 {
-		return "", false
+		return nil, false
 	}
-	hash := sha256.New()
+	fingerprints := make(map[string]string, len(assets))
 	for _, asset := range assets {
 		revision, ok := revisions[asset.ID]
 		if !ok {
@@ -153,16 +166,11 @@ func assetCacheFingerprint(repoRoot string) (string, bool) {
 		}
 		digest, digestErr := catalogcoverage.RuleSetDigest(repoRoot, asset.ID)
 		if digestErr != nil {
-			return "", false
+			return nil, false
 		}
-		_, _ = hash.Write([]byte(asset.ID))
-		_, _ = hash.Write([]byte{0})
-		_, _ = hash.Write([]byte(revision))
-		_, _ = hash.Write([]byte{0})
-		_, _ = hash.Write([]byte(digest))
-		_, _ = hash.Write([]byte{0})
+		fingerprints[asset.ID] = revision + "\x00" + digest
 	}
-	return hex.EncodeToString(hash.Sum(nil)), true
+	return fingerprints, true
 }
 
 // get returns a report for the current inputs. A cache hit returns

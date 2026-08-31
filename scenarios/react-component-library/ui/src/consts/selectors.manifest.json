@@ -1341,11 +1341,7 @@
         {
           "name": "code",
           "type": "enum",
-          "values": [
-            "en",
-            "ja",
-            "ar"
-          ]
+          "values": ["en", "ja", "ar"]
         }
       ]
     }

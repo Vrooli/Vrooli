@@ -1,0 +1,122 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "activity",
+        "kind": "text",
+        "label": "Surface Id",
+        "path": "surfaceId"
+      },
+      {
+        "default": "loading",
+        "kind": "text",
+        "label": "State",
+        "path": "state"
+      },
+      {
+        "default": "Content",
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "state": "loading",
+        "surfaceId": "activity"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Loading…",
+          "role": "status"
+        }
+      ],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Loading data",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "state": "ready",
+        "surfaceId": "activity"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Recent activity"
+        }
+      ],
+      "id": "ready",
+      "mode": "pinned",
+      "name": "Ready data",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Ready"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "empty",
+        "surfaceId": "activity"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing to show yet."
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty result",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "partial",
+        "surfaceId": "activity"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Some information is unavailable.",
+          "role": "status"
+        }
+      ],
+      "id": "partial",
+      "mode": "pinned",
+      "name": "Partial data",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "error",
+        "surfaceId": "activity"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "This section could not be loaded.",
+          "role": "status"
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Retryable error",
+      "role": "boundary"
+    }
+  ],
+  "title": "AsyncPanel"
+}

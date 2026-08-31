@@ -134,32 +134,25 @@ func NewCodexForTestWithBinary(path string) *Codex {
 // discovered via the cached lister; resource role resolution owns concrete
 // coding-agent model selection.
 func (c *Codex) Capabilities() runner.Capabilities {
-	return runner.Capabilities{
+	return codingAgentCapabilities(runner.Capabilities{
 		SpawnCapabilities: []runner.SpawnCapability{
 			{ExecutionMode: "codec_pipe", SandboxModes: []string{"protected", "tracking", "off"}},
 			{ExecutionMode: "interactive", SandboxModes: []string{"tracking", "off"}, NativeObjective: true},
 		},
-		SupportsMessages:         true,
 		SupportsToolEvents:       true,
 		SupportsCostTracking:     true,
-		SupportsStreaming:        true, // codec only supports JSON-stream path
-		SupportsCancellation:     true,
-		SupportsContinuation:     true, // `codex exec resume <thread_id>`
-		SupportsWarmIteration:    true,
 		SupportsImageAttachments: true,  // `codex exec -i/--image <FILE>`
 		SupportsToolRestriction:  false, // Codex has no per-launch allowlist for its native tools.
 		ToolRestrictionMappings:  canonicalToolMappings(codexToolTranslations),
 		SupportsEffort:           true,
 		// Codex config documents minimal, low, medium, high, and xhigh. The
 		// portable scale has no minimal level, so max must not be claimed here.
-		EffortMappings:        map[string]string{"low": "model_reasoning_effort=low", "medium": "model_reasoning_effort=medium", "high": "model_reasoning_effort=high", "xhigh": "model_reasoning_effort=xhigh"},
-		MaxTurns:              0,
-		SupportedModels:       c.ollama.list(),
-		SupportsRunnerDefault: true,
-		DynamicModelPrefixes:  []string{ollamaModelPrefix},
-		SupportedFeatures:     []string{},
-		AllowedExtraFlags:     []string{"--verbose", "-c"},
-	}
+		EffortMappings:       map[string]string{"low": "model_reasoning_effort=low", "medium": "model_reasoning_effort=medium", "high": "model_reasoning_effort=high", "xhigh": "model_reasoning_effort=xhigh"},
+		SupportedModels:      c.ollama.list(),
+		DynamicModelPrefixes: []string{ollamaModelPrefix},
+		SupportedFeatures:    []string{},
+		AllowedExtraFlags:    []string{"--verbose", "-c"},
+	})
 }
 
 // BuildEnv satisfies [Codec]. Codex reads model + limits from environment

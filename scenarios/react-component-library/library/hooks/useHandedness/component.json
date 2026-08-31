@@ -5,7 +5,8 @@
   "deprecatedVersions": [
     "1.0.0",
     "1.1.1",
-    "1.1.0"
+    "1.1.0",
+    "1.1.2"
   ],
   "description": "Carries the reach-side preference that decides which edge panels anchor to, independently of the document writing direction.",
   "designStyles": [
@@ -19,10 +20,11 @@
   "evictedVersions": [
     "1.1.1",
     "1.1.0",
-    "1.0.0"
+    "1.0.0",
+    "1.1.2"
   ],
   "kind": "surface",
-  "latest": "1.1.2",
+  "latest": "1.1.3",
   "libraryId": "react-component-library:useHandedness",
   "tags": [
     "runtime",

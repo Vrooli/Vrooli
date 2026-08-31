@@ -6,7 +6,7 @@
     "id": "budget-bar",
     "title": "BudgetBar",
     "purpose": "Make runtime cost comparable with its declared budget.",
-    "storyRef": "../../library/components/BudgetBar/versions/1.0.13/story.json"
+    "storyRef": "../../library/components/BudgetBar/versions/1.0.14/story.json"
   },
   "states": [
     {

@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.text",
-  "deprecatedVersions": [
-    "1.1.0"
-  ],
+  "deprecatedVersions": ["1.1.0", "1.1.1"],
   "description": "",
   "designStyles": [
     {
@@ -21,12 +19,10 @@
     }
   ],
   "displayName": "Text",
-  "kind": "surface",
   "draft": "",
-  "latest": "1.1.1",
+  "evictedVersions": ["1.1.0", "1.1.1"],
+  "kind": "surface",
+  "latest": "1.1.2",
   "libraryId": "react-component-library:Text",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "tags": ["primitive", "token-bound"]
 }

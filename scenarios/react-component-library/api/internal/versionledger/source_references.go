@@ -2,6 +2,7 @@ package versionledger
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -29,7 +30,11 @@ type adoptedSourceFile struct {
 	sourceLibraryID, sourceVersion    string
 }
 
-func (r *Repository) sourceReferences(ctx context.Context) (map[string][]VersionReference, error) {
+func (r *Repository) sourceReferencesDetailed(ctx context.Context) (map[string][]VersionReference, []UnreadableVersion, error) {
+	var unreadable []UnreadableVersion
+	if r.db == nil {
+		return map[string][]VersionReference{}, nil, nil
+	}
 	rows, err := r.db.QueryContext(ctx, `SELECT c.library_id, v.version, v.status, v.presence, v.id, v.source_path FROM components c JOIN component_versions v ON v.component_id = c.id`)
 	legacyPresence := false
 	if err != nil {
@@ -41,14 +46,14 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 			legacyPresence = true
 			if err != nil {
 				if strings.Contains(strings.ToLower(err.Error()), "no such column") {
-					return map[string][]VersionReference{}, nil
+					return map[string][]VersionReference{}, nil, nil
 				}
-				return nil, err
+				return nil, nil, err
 			}
 		} else if strings.Contains(strings.ToLower(err.Error()), "no such column") {
-			return map[string][]VersionReference{}, nil
+			return map[string][]VersionReference{}, nil, nil
 		} else {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	defer rows.Close()
@@ -58,11 +63,11 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 		var sourcePath string
 		if legacyPresence {
 			if err := rows.Scan(&v.libraryID, &v.version, &v.status, &sourcePath); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			v.presence = "materialized"
 		} else if err := rows.Scan(&v.libraryID, &v.version, &v.status, &v.presence, &v.id, &sourcePath); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if strings.TrimSpace(sourcePath) == "" {
 			continue
@@ -72,10 +77,10 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		return nil, err
+		return nil, nil, err
 	}
 	if err := rows.Close(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Longest directory first prevents a nested version directory from being
@@ -94,23 +99,24 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 		if strings.EqualFold(owner.presence, "evicted") {
 			mirrorRows, err := r.db.QueryContext(ctx, `SELECT path, content FROM component_version_files WHERE version_id = ? ORDER BY path`, owner.id)
 			if err != nil {
-				return nil, fmt.Errorf("read evicted source mirror for %s@%s: %w", owner.libraryID, owner.version, err)
+				return nil, nil, fmt.Errorf("read evicted source mirror for %s@%s: %w", owner.libraryID, owner.version, err)
 			}
 			for mirrorRows.Next() {
 				var path, content string
 				if err := mirrorRows.Scan(&path, &content); err != nil {
 					mirrorRows.Close()
-					return nil, fmt.Errorf("scan evicted source mirror for %s@%s: %w", owner.libraryID, owner.version, err)
+					return nil, nil, fmt.Errorf("scan evicted source mirror for %s@%s: %w", owner.libraryID, owner.version, err)
 				}
 				sourceFiles = append(sourceFiles, sourceFile{path: filepath.Join(owner.directory, path), body: []byte(content)})
 			}
 			if err := mirrorRows.Err(); err != nil {
 				mirrorRows.Close()
-				return nil, err
+				return nil, nil, err
 			}
 			mirrorRows.Close()
 			if len(sourceFiles) == 0 {
-				return nil, fmt.Errorf("evicted version %s@%s has no file mirror rows", owner.libraryID, owner.version)
+				unreadable = append(unreadable, UnreadableVersion{LibraryID: owner.libraryID, Version: owner.version, Reason: "evicted version has no file mirror rows"})
+				continue
 			}
 		} else if err := filepath.WalkDir(owner.directory, func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
@@ -128,7 +134,7 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 			}
 			return nil
 		}); err != nil {
-			return nil, fmt.Errorf("scan source references for %s@%s: %w", owner.libraryID, owner.version, err)
+			return nil, nil, fmt.Errorf("scan source references for %s@%s: %w", owner.libraryID, owner.version, err)
 		}
 		sort.Slice(sourceFiles, func(i, j int) bool { return sourceFiles[i].path < sourceFiles[j].path })
 		for _, file := range sourceFiles {
@@ -136,11 +142,21 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 			if body == nil {
 				body, err = os.ReadFile(file.path)
 				if err != nil {
-					return nil, fmt.Errorf("read source reference file %s: %w", file.path, err)
+					return nil, nil, fmt.Errorf("read source reference file %s: %w", file.path, err)
 				}
 			}
 			for _, match := range sourceImportRE.FindAllStringSubmatch(string(body), -1) {
 				specifier := match[1]
+				if libraryID, version, ok := exactPackageSpecifier(specifier); ok {
+					rel, _ := filepath.Rel(r.sourceRoot, file.path)
+					key := sourceReferenceKey(libraryID, version)
+					byVersion[key] = appendUniqueReference(byVersion[key], VersionReference{
+						Kind: "package-import", OwnerLibraryID: owner.libraryID, OwnerVersion: owner.version,
+						OwnerPath: filepath.ToSlash(rel), ImportSpecifier: specifier,
+						Evidence: "library source imports an exact package export",
+					})
+					continue
+				}
 				if !strings.HasPrefix(specifier, ".") {
 					continue
 				}
@@ -170,16 +186,86 @@ func (r *Repository) sourceReferences(ctx context.Context) (map[string][]Version
 	// protect its pinned relative imports just like imports between library
 	// versions; otherwise a cleanup can leave the UI with a broken module path.
 	if err := r.workbenchSourceReferences(byVersion, versions); err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	if err := r.experienceStoryReferences(byVersion, versions); err != nil {
+		return nil, nil, err
 	}
 	adoptedRefs, err := r.adoptedSourceReferences(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for key, refs := range adoptedRefs {
 		byVersion[key] = appendUniqueReferences(byVersion[key], refs)
 	}
-	return byVersion, nil
+	return byVersion, unreadable, nil
+}
+
+// experienceStoryReferences makes the canonical experience registry an
+// external root. Story files are not imported by component source, so a
+// TypeScript-only scan cannot see them; retiring a referenced story makes the
+// experience profile unreadable even though the component itself has no code
+// dependency on that version.
+func (r *Repository) experienceStoryReferences(byVersion map[string][]VersionReference, versions []sourceVersion) error {
+	root := filepath.Join(filepath.Dir(r.sourceRoot), "experience", "components")
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("inspect experience registry root: %w", err)
+	}
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || filepath.Ext(path) != ".json" {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read experience registry %s: %w", path, err)
+		}
+		var document any
+		if err := json.Unmarshal(raw, &document); err != nil {
+			return nil
+		}
+		var refs []string
+		collectStoryRefs(document, &refs)
+		for _, storyRef := range refs {
+			target := filepath.Clean(filepath.Join(filepath.Dir(path), filepath.FromSlash(storyRef)))
+			for _, targetVersion := range versions {
+				storyPath := filepath.Join(targetVersion.directory, "story.json")
+				if target != storyPath {
+					continue
+				}
+				key := sourceReferenceKey(targetVersion.libraryID, targetVersion.version)
+				byVersion[key] = appendUniqueReference(byVersion[key], VersionReference{
+					Kind: "experience-story-ref", OwnerPath: filepath.ToSlash(path),
+					ImportSpecifier: storyRef, Evidence: "canonical experience registry references this version story",
+				})
+				break
+			}
+		}
+		return nil
+	})
+}
+
+func collectStoryRefs(value any, refs *[]string) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			if key == "storyRef" {
+				if ref, ok := child.(string); ok && strings.TrimSpace(ref) != "" {
+					*refs = append(*refs, ref)
+				}
+			}
+			collectStoryRefs(child, refs)
+		}
+	case []any:
+		for _, child := range typed {
+			collectStoryRefs(child, refs)
+		}
+	}
 }
 
 func (r *Repository) workbenchSourceReferences(byVersion map[string][]VersionReference, versions []sourceVersion) error {

@@ -66,11 +66,8 @@ function controlsFor(storyContract?: ComponentStory): ControlDefinition[] {
     const value = field as Record<string, unknown>;
     if (typeof value.path !== "string" || !value.path.trim()) return [];
     const kind = value.kind === "enum" ? "select" : value.kind;
-    const controlKind = ["object", "array", "structured"].includes(String(kind))
-      ? "json"
-      : kind;
-    if (!["text", "number", "boolean", "select", "json"].includes(String(controlKind)))
-      return [];
+    const controlKind = ["object", "array", "structured"].includes(String(kind)) ? "json" : kind;
+    if (!["text", "number", "boolean", "select", "json"].includes(String(controlKind))) return [];
     const visibleWhen = value.visibleWhen;
     return [
       {
@@ -145,7 +142,7 @@ function environmentControls(storyContract?: ComponentStory): EnvironmentControl
             key: value.key,
             label: value.key,
             adapter: typeof value.adapter === "string" ? value.adapter : "fixture",
-            options: value.options as string[],
+            options: value.options,
           },
         ]
       : [];
@@ -202,7 +199,10 @@ function controlId(path: string): string {
 
 function isVisible(control: ControlDefinition, values: Record<string, unknown>): boolean {
   if (!control.visibleWhen) return true;
-  return optionKey(valueAtPath(values, control.visibleWhen.path)) === optionKey(control.visibleWhen.equals);
+  return (
+    optionKey(valueAtPath(values, control.visibleWhen.path)) ===
+    optionKey(control.visibleWhen.equals)
+  );
 }
 
 function defaultEnvironment(
@@ -224,18 +224,39 @@ function validateControls(
     if (!isVisible(control, values)) continue;
     const value = valueAtPath(values, control.key);
     if (value === undefined) {
-      if (control.required && control.defaultValue === undefined) errors[control.key] = "A value is required.";
+      if (control.required && control.defaultValue === undefined)
+        errors[control.key] = "A value is required.";
       continue;
     }
     if (control.kind === "text" && typeof value !== "string") errors[control.key] = "Must be text.";
-    if (control.kind === "number" && (typeof value !== "number" || !Number.isFinite(value))) errors[control.key] = "Must be a finite number.";
-    if (control.kind === "boolean" && typeof value !== "boolean") errors[control.key] = "Must be true or false.";
-    if (control.kind === "select" && control.options && !control.options.some((option) => optionKey(option) === optionKey(value))) errors[control.key] = "Choose one of the declared options.";
-    if (control.kind === "json" && (value === null || typeof value !== "object")) errors[control.key] = "Must be structured JSON.";
-    if (typeof control.minimum === "number" && typeof value === "number" && value < control.minimum) errors[control.key] = `Must be at least ${control.minimum}.`;
-    if (typeof control.maximum === "number" && typeof value === "number" && value > control.maximum) errors[control.key] = `Must be at most ${control.maximum}.`;
-    if (typeof control.minLength === "number" && typeof value === "string" && value.length < control.minLength) errors[control.key] = `Must be at least ${control.minLength} characters.`;
-    if (typeof control.maxLength === "number" && typeof value === "string" && value.length > control.maxLength) errors[control.key] = `Must be at most ${control.maxLength} characters.`;
+    if (control.kind === "number" && (typeof value !== "number" || !Number.isFinite(value)))
+      errors[control.key] = "Must be a finite number.";
+    if (control.kind === "boolean" && typeof value !== "boolean")
+      errors[control.key] = "Must be true or false.";
+    if (
+      control.kind === "select" &&
+      control.options &&
+      !control.options.some((option) => optionKey(option) === optionKey(value))
+    )
+      errors[control.key] = "Choose one of the declared options.";
+    if (control.kind === "json" && (value === null || typeof value !== "object"))
+      errors[control.key] = "Must be structured JSON.";
+    if (typeof control.minimum === "number" && typeof value === "number" && value < control.minimum)
+      errors[control.key] = `Must be at least ${control.minimum}.`;
+    if (typeof control.maximum === "number" && typeof value === "number" && value > control.maximum)
+      errors[control.key] = `Must be at most ${control.maximum}.`;
+    if (
+      typeof control.minLength === "number" &&
+      typeof value === "string" &&
+      value.length < control.minLength
+    )
+      errors[control.key] = `Must be at least ${control.minLength} characters.`;
+    if (
+      typeof control.maxLength === "number" &&
+      typeof value === "string" &&
+      value.length > control.maxLength
+    )
+      errors[control.key] = `Must be at most ${control.maxLength} characters.`;
   }
   return errors;
 }
@@ -394,8 +415,8 @@ export function PropsExperimentPanel({
             const id = controlId(control.key);
             const value = valueAtPath(values, control.key);
             const error = fieldErrors[control.key];
-            const hint = control.format ||
-              (control.kind === "json" ? "Structured JSON" : undefined);
+            const hint =
+              control.format || (control.kind === "json" ? "Structured JSON" : undefined);
             return (
               <div key={control.key} className="min-w-0">
                 {control.kind === "boolean" ? (
@@ -421,20 +442,30 @@ export function PropsExperimentPanel({
                     <span className="flex items-center justify-between gap-space-xs">
                       <span>
                         {control.label}
-                        {control.required && <span className="ml-space-3xs text-app-danger">*</span>}
+                        {control.required && (
+                          <span className="ml-space-3xs text-app-danger">*</span>
+                        )}
                       </span>
-                      {hint && <span className="font-normal text-app-muted-foreground">{hint}</span>}
+                      {hint && (
+                        <span className="font-normal text-app-muted-foreground">{hint}</span>
+                      )}
                     </span>
                     {control.kind === "select" ? (
                       <select
                         id={id}
                         aria-label={control.label}
                         className="mt-space-3xs h-control-sm w-full rounded-control border border-app-border bg-app-background px-space-2xs text-sm"
-                        value={control.options?.some((option) => optionKey(option) === optionKey(value)) ? optionKey(value) : ""}
+                        value={
+                          control.options?.some((option) => optionKey(option) === optionKey(value))
+                            ? optionKey(value)
+                            : ""
+                        }
                         required={control.required}
                         aria-invalid={error ? "true" : undefined}
                         onChange={(event) => {
-                          const next = control.options?.find((option) => optionKey(option) === event.target.value);
+                          const next = control.options?.find(
+                            (option) => optionKey(option) === event.target.value,
+                          );
                           setValue(control.key, next);
                         }}
                       >
@@ -459,7 +490,10 @@ export function PropsExperimentPanel({
                           try {
                             setValue(control.key, JSON.parse(raw));
                           } catch {
-                            setFieldErrors((current) => ({ ...current, [control.key]: "Invalid JSON." }));
+                            setFieldErrors((current) => ({
+                              ...current,
+                              [control.key]: "Invalid JSON.",
+                            }));
                           }
                         }}
                       />
@@ -478,7 +512,14 @@ export function PropsExperimentPanel({
                         aria-invalid={error ? "true" : undefined}
                         onChange={(event) => {
                           const raw = event.target.value;
-                          setValue(control.key, control.kind === "number" ? (raw === "" ? undefined : Number(raw)) : raw);
+                          setValue(
+                            control.key,
+                            control.kind === "number"
+                              ? raw === ""
+                                ? undefined
+                                : Number(raw)
+                              : raw,
+                          );
                         }}
                       />
                     )}
@@ -514,7 +555,11 @@ export function PropsExperimentPanel({
             External adapter states declared by this story contract.
           </p>
           {fixtures.map((fixture) => (
-            <label key={fixture.key} htmlFor={`rcl-preview-fixture-${fixture.key}`} className="block text-xs font-medium text-app-foreground">
+            <label
+              key={fixture.key}
+              htmlFor={`rcl-preview-fixture-${fixture.key}`}
+              className="block text-xs font-medium text-app-foreground"
+            >
               <span className="flex items-center justify-between gap-space-xs">
                 <span>{fixture.label}</span>
                 <span className="font-normal text-app-muted-foreground">{fixture.adapter}</span>
@@ -524,7 +569,9 @@ export function PropsExperimentPanel({
                 aria-label={fixture.label}
                 className="mt-space-3xs h-control-sm w-full rounded-control border border-app-border bg-app-background px-space-2xs text-sm"
                 value={environment[fixture.key] ?? fixture.options[0] ?? ""}
-                onChange={(event) => setEnvironment((current) => ({ ...current, [fixture.key]: event.target.value }))}
+                onChange={(event) =>
+                  setEnvironment((current) => ({ ...current, [fixture.key]: event.target.value }))
+                }
               >
                 {fixture.options.map((option) => (
                   <option key={option} value={option}>

@@ -432,6 +432,8 @@ type RunFact struct {
 	WorkloadKey            string
 	WorkloadInstance       string
 	TotalCostUSD           float64
+	CostSource             string
+	ChargeReason           string
 	InputCostUSD           float64
 	OutputCostUSD          float64
 	CacheReadCostUSD       float64

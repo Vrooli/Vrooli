@@ -102,10 +102,10 @@ describe("adopted foundation entry points", () => {
         <FullPageDrawer open title="Drawer" closeLabel="Close drawer">
           Drawer content
         </FullPageDrawer>
-        <Text style={{ letterSpacing: "0.02em" }} textStyle="caption" truncate balance numeric>
+        <Text textStyle="caption" truncate balance numeric>
           Styled metadata
         </Text>
-        <Text style="body">String style</Text>
+        <Text textStyle="body">String style</Text>
         <Icon name="close" size="lg" tone="danger" />
         <EmptyState
           title="Actionable empty"

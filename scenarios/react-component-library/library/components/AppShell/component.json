@@ -4,7 +4,10 @@
   "catalogId": "navigation.app-shell",
   "deprecatedVersions": [
     "1.0.3",
-    "1.0.5"
+    "1.0.5",
+    "1.0.4",
+    "1.0.6",
+    "1.0.0"
   ],
   "description": "The top-level application frame coordinating navigation, content, overlay hosting, safe areas, responsive breakpoints, skip links, and persistent workspace regions.",
   "designStyles": [
@@ -18,10 +21,12 @@
   "evictedVersions": [
     "1.0.5",
     "1.0.3",
-    "1.0.4"
+    "1.0.4",
+    "1.0.6",
+    "1.0.0"
   ],
   "kind": "shell",
-  "latest": "1.0.6",
+  "latest": "1.0.7",
   "libraryId": "react-component-library:AppShell",
   "requires": [
     {

@@ -1,11 +1,18 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
   "catalogId": "overlays.full-page-drawer",
   "category": "overlays",
   "deprecatedVersions": [
     "1.1.0",
     "1.1.1",
-    "1.0.0"
+    "1.0.0",
+    "1.1.2",
+    "1.1.3",
+    "1.1.4",
+    "1.1.5",
+    "1.1.6",
+    "1.1.7"
   ],
   "description": "The drawer presentation occupying the full application viewport while retaining source context, navigation continuity, safe areas, and route-compatible dismissal.",
   "designStyles": [
@@ -30,22 +37,17 @@
   "evictedVersions": [
     "1.1.2",
     "1.1.0",
-    "1.0.0"
+    "1.0.0",
+    "1.1.3",
+    "1.1.4",
+    "1.1.5",
+    "1.1.6",
+    "1.1.7"
   ],
   "kind": "overlay",
-  "latest": "1.1.4",
+  "latest": "1.1.8",
   "libraryId": "react-component-library:DrawerShell",
-  "replacedBy": [
-    "overlays.full-page-drawer",
-    "overlays.bottom-sheet"
-  ],
+  "replacedBy": ["overlays.full-page-drawer", "overlays.bottom-sheet"],
   "slot": "ui-pattern",
-  "tags": [
-    "overlay",
-    "drawer",
-    "layout",
-    "reviewed",
-    "accessibility"
-  ],
-  "assetKind": "component"
+  "tags": ["overlay", "drawer", "layout", "reviewed", "accessibility"]
 }

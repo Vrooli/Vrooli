@@ -2,6 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-announce",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
   "description": "A live-region primitive that queues, deduplicates, and times screen-reader messages through the shared announcer rather than creating competing regions.",
   "designStyles": [
     {
@@ -10,15 +14,15 @@
     }
   ],
   "displayName": "useAnnounce",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
   "kind": "surface",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:useAnnounce",
   "tags": [
     "runtime",
     "accessibility"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
   ]
 }

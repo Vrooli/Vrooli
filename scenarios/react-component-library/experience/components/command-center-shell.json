@@ -6,7 +6,7 @@
     "id": "command-center-shell",
     "title": "Command Center Shell",
     "purpose": "Compose operational navigation, metrics, controls, and an observable primary work region.",
-    "storyRef": "../../library/components/CommandCenterShell/versions/1.0.2/story.json"
+    "storyRef": "../../library/components/CommandCenterShell/versions/1.0.4/story.json"
   },
   "states": [
     {

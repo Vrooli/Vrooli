@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "overlays.responsive-panel",
-  "deprecatedVersions": [
-    "1.1.3"
-  ],
+  "deprecatedVersions": ["1.1.3", "1.1.4"],
   "description": "One responsive layered panel contract that preserves open state while moving between desktop and mobile presentations.",
   "designStyles": [
     {
@@ -14,24 +12,16 @@
   ],
   "displayName": "ResponsivePanel",
   "draft": "",
-  "evictedVersions": [
-    "1.1.3"
-  ],
+  "evictedVersions": ["1.1.3", "1.1.4"],
   "kind": "overlay",
-  "latest": "1.1.4",
+  "latest": "1.1.5",
   "libraryId": "react-component-library:ResponsivePanel",
+  "replacedBy": ["navigation.sidebar"],
   "requires": [
     {
       "libraryId": "react-component-library:useLocale",
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "overlay",
-    "responsive",
-    "token-bound"
-  ],
-  "replacedBy": [
-    "navigation.sidebar"
-  ]
+  "tags": ["overlay", "responsive", "token-bound"]
 }

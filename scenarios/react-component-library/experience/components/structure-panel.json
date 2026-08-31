@@ -2,7 +2,7 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "component": { "id": "structure-panel", "title": "Catalog Structure Panel", "purpose": "Orient maintainers with rung population, graph invariants, and largest blast radii.", "storyRef": "../../library/components/TreeView/versions/1.0.0/story.json" },
+  "component": { "id": "structure-panel", "title": "Catalog Structure Panel", "purpose": "Orient maintainers with rung population, graph invariants, and largest blast radii.", "storyRef": "../../library/components/TreeView/versions/1.0.7/story.json" },
   "states": [
     { "id": "loading", "example": "default", "description": "Structure data is loading." },
     { "id": "empty", "example": "empty", "description": "No structure projection is available." },

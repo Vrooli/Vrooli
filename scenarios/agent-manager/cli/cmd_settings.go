@@ -15,37 +15,87 @@ import (
 
 func (a *App) cmdSettings(args []string) error {
 	if len(args) == 0 {
-		return a.settingsHelp()
+		return nil
 	}
 
 	switch args[0] {
 	case "investigation":
 		return a.settingsInvestigation(args[1:])
+	case "orchestration":
+		return a.settingsOrchestration(args[1:])
 	case "help", "-h", "--help":
-		return a.settingsHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown settings subcommand: %s\n\nRun 'agent-manager settings help' for usage", args[0])
 	}
 }
 
-func (a *App) settingsHelp() error {
-	fmt.Println(`Usage: agent-manager settings <subcommand> [options]
+func (a *App) settingsOrchestration(args []string) error {
+	if len(args) == 0 {
+		return a.settingsOrchestrationGet(nil)
+	}
+	switch args[0] {
+	case "get":
+		return a.settingsOrchestrationGet(args[1:])
+	case "update":
+		return a.settingsOrchestrationUpdate(args[1:])
+	case "reset":
+		return a.settingsOrchestrationReset(args[1:])
+	default:
+		return fmt.Errorf("unknown orchestration subcommand: %s", args[0])
+	}
+}
 
-Subcommands:
-  investigation     Manage investigation settings
+func (a *App) settingsOrchestrationGet(args []string) error {
+	fs := flag.NewFlagSet("settings orchestration get", flag.ContinueOnError)
+	_ = cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.services.Settings.api.Get("/api/v1/orchestration-settings", nil)
+	if err != nil {
+		return err
+	}
+	cliutil.PrintJSON(body)
+	return nil
+}
 
-Investigation Subcommands:
-  investigation get     Get current investigation settings
-  investigation update  Update investigation settings from JSON file
-  investigation reset   Reset investigation settings to defaults
+func (a *App) settingsOrchestrationUpdate(args []string) error {
+	fs := flag.NewFlagSet("settings orchestration update", flag.ContinueOnError)
+	file := fs.String("file", "", "JSON settings file")
+	_ = cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *file == "" {
+		return fmt.Errorf("--file is required")
+	}
+	data, err := os.ReadFile(*file)
+	if err != nil {
+		return fmt.Errorf("read orchestration settings: %w", err)
+	}
+	if !json.Valid(data) {
+		return fmt.Errorf("orchestration settings file must contain valid JSON")
+	}
+	body, err := a.services.Settings.api.Request("PUT", "/api/v1/orchestration-settings", nil, json.RawMessage(data))
+	if err != nil {
+		return err
+	}
+	cliutil.PrintJSON(body)
+	return nil
+}
 
-Options:
-  --json            Output raw JSON
-
-Examples:
-  agent-manager settings investigation get
-  agent-manager settings investigation update --file settings.json
-  agent-manager settings investigation reset`)
+func (a *App) settingsOrchestrationReset(args []string) error {
+	fs := flag.NewFlagSet("settings orchestration reset", flag.ContinueOnError)
+	_ = cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.services.Settings.api.Request("POST", "/api/v1/orchestration-settings/reset", nil, nil)
+	if err != nil {
+		return err
+	}
+	cliutil.PrintJSON(body)
 	return nil
 }
 
@@ -66,34 +116,10 @@ func (a *App) settingsInvestigation(args []string) error {
 	case "reset":
 		return a.settingsInvestigationReset(args[1:])
 	case "help", "-h", "--help":
-		return a.settingsInvestigationHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown investigation subcommand: %s", args[0])
 	}
-}
-
-func (a *App) settingsInvestigationHelp() error {
-	fmt.Println(`Usage: agent-manager settings investigation <subcommand> [options]
-
-Subcommands:
-  get       Get current investigation settings
-  update    Update investigation settings from JSON file
-  reset     Reset investigation settings to defaults
-
-Update File Format:
-  {
-    "promptTemplate": "...",
-    "applyPromptTemplate": "...",
-    "defaultDepth": "quick|standard|deep",
-    "defaultContext": { ... },
-    "investigationTagAllowlist": [ ... ]
-  }
-
-Examples:
-  agent-manager settings investigation get
-  agent-manager settings investigation update --file settings.json
-  agent-manager settings investigation reset`)
-	return nil
 }
 
 // =============================================================================

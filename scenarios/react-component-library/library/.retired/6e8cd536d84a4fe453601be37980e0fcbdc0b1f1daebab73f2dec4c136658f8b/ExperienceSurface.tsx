@@ -11,7 +11,13 @@ import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1"
 
 import type { HTMLAttributes, ReactNode } from "react";
 
-export type ExperienceSurfaceState = "loading" | "ready" | "empty" | "partial" | "error" | "static";
+export type ExperienceSurfaceState =
+  | "loading"
+  | "ready"
+  | "empty"
+  | "partial"
+  | "error"
+  | "static";
 
 export interface ExperienceSurfaceProps extends HTMLAttributes<HTMLElement> {
   /** Stable authored region identity, never a CSS selector. */
@@ -46,7 +52,12 @@ export const ExperienceSurface = withClassName(function ExperienceSurface({
       aria-busy={state === "loading" || undefined}
     >
       {live && statusMessage ? (
-        <p role="status" aria-live="polite" aria-label={statusMessage} className="sr-only">
+        <p
+          role="status"
+          aria-live="polite"
+          aria-label={statusMessage}
+          className="sr-only"
+        >
           {statusMessage}
         </p>
       ) : null}

@@ -208,5 +208,10 @@
     "asset": "react-component-library:mermaid-diagram",
     "kind": "backlog",
     "reason": "Diagram renderer with no owned catalog asset yet; catalogue it under visualization."
+  },
+  {
+    "asset": "react-component-library:NotificationBadge",
+    "kind": "backlog",
+    "reason": "Supplemental badge implementation has no catalog asset yet; catalogue it under feedback before treating it as a governed catalog release."
   }
 ]

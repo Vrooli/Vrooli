@@ -2,6 +2,14 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.form-section",
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.0"
+  ],
   "description": "A semantic form grouping with responsive rhythm, optional collapse, summaries, and visible validation counts.",
   "designStyles": [
     {
@@ -18,8 +26,17 @@
     }
   ],
   "displayName": "FormSection",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.5",
+    "1.0.0",
+    "1.0.1"
+  ],
   "kind": "input",
-  "latest": "1.0.4",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:FormSection",
   "tags": [
     "form",
@@ -27,9 +44,5 @@
     "validation",
     "responsive",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1"
   ]
 }

@@ -7,12 +7,12 @@
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
 import type { ReactNode, RefObject } from "react";
-import { Portal } from "@vrooli/react-component-library/Portal/1.1.1";
-import { Icon } from "@vrooli/react-component-library/Icon/1.1.3";
-import { IconButton } from "@vrooli/react-component-library/IconButton/2.0.1";
-import { useBreakpoint } from "@vrooli/react-component-library/useMediaQuery/1.1.0";
-import { useOverlaySurface } from "@vrooli/react-component-library/useOverlaySurface/1.3.6";
-import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
+import { Portal } from "@vrooli/react-component-library/Portal/1";
+import { Icon } from "@vrooli/react-component-library/Icon/1";
+import { IconButton } from "@vrooli/react-component-library/IconButton/2";
+import { useBreakpoint } from "@vrooli/react-component-library/useMediaQuery/1";
+import { useOverlaySurface } from "@vrooli/react-component-library/useOverlaySurface/1";
+import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import { responsiveDialogStyles } from "./styles";
 
 /** The inline size the centered presentation takes at and above the medium breakpoint. */

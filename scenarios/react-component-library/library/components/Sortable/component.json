@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "manipulation.sortable",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.5"
-  ],
+  "deprecatedVersions": ["1.0.3", "1.0.5", "1.0.4", "1.0.6", "1.0.7", "1.0.8"],
   "description": "The reorder controller with collision strategies, animated displacement, keyboard operation, nested containers, optimistic persistence, and rollback when the write fails.",
   "designStyles": [
     {
@@ -23,13 +20,9 @@
   ],
   "displayName": "Sortable",
   "draft": "",
-  "evictedVersions": [
-    "1.0.5",
-    "1.0.3",
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.5", "1.0.3", "1.0.4", "1.0.6", "1.0.7", "1.0.8"],
   "kind": "control",
-  "latest": "1.0.7",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:Sortable",
   "requires": [
     {

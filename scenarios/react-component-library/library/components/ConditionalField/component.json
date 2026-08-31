@@ -2,6 +2,11 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "forms.conditional-field",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
   "description": "A form field boundary driven by store values with explicit hide, disable, and reset behavior.",
   "designStyles": [
     {
@@ -17,10 +22,16 @@
       "styleId": "vrooli-conversion-landing"
     }
   ],
-  "entry": "ConditionalField.tsx",
   "displayName": "ConditionalField",
+  "draft": "",
+  "entry": "ConditionalField.tsx",
+  "evictedVersions": [
+    "1.0.0",
+    "1.0.1",
+    "1.0.2"
+  ],
   "kind": "input",
-  "latest": "1.0.2",
+  "latest": "1.0.3",
   "libraryId": "react-component-library:ConditionalField",
   "tags": [
     "form",
@@ -28,9 +39,5 @@
     "state",
     "accessibility",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
   ]
 }

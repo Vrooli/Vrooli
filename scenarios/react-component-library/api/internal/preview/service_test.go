@@ -23,6 +23,19 @@ type fakeComponentsService struct {
 	getVersionContentFn func(ctx context.Context, id, version string) (components.Content, error)
 }
 
+func TestResolveLocalVrooliPackageResolvesMajorSelectorToNewestVersion(t *testing.T) {
+	root := t.TempDir()
+	assetRoot := filepath.Join(root, "library", "components", "Portal", "versions")
+	for _, version := range []string{"1.0.0", "1.2.0", "2.0.0"} {
+		dir := filepath.Join(assetRoot, version)
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "Portal.tsx"), []byte("export const Portal = null;"), 0o600))
+	}
+	got, ok := resolveLocalVrooliPackage("@vrooli/react-component-library/Portal/1", filepath.Join(root, "library", "components", "Demo", "versions", "1.0.0"))
+	require.True(t, ok)
+	require.Equal(t, filepath.Join(assetRoot, "1.2.0", "Portal.tsx"), got)
+}
+
 func (f *fakeComponentsService) GetContent(ctx context.Context, id string) (components.Content, error) {
 	return f.getContentFn(ctx, id)
 }

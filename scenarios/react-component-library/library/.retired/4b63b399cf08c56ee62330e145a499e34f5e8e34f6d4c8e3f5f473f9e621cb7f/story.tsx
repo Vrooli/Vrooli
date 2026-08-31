@@ -6,7 +6,12 @@ function Readout({ testId }: { testId: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const direction = useDirection(ref);
   return (
-    <div ref={ref} data-testid={testId} role="status" data-direction={direction}>
+    <div
+      ref={ref}
+      data-testid={testId}
+      role="status"
+      data-direction={direction}
+    >
       {direction}
     </div>
   );

@@ -2,6 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.badge",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -18,15 +22,16 @@
     }
   ],
   "displayName": "Badge",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
   "kind": "control",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:Badge",
   "tags": [
     "primitive",
     "token-bound"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
   ]
 }

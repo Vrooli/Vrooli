@@ -2,6 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.visual-recipes",
+  "deprecatedVersions": [
+    "1.0.0",
+    "1.0.1"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -10,16 +14,16 @@
     }
   ],
   "displayName": "Visual Recipes",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1"
+  ],
   "kind": "surface",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:VisualRecipes",
   "tags": [
     "recipes",
     "variants",
     "tokens"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.0"
   ]
 }

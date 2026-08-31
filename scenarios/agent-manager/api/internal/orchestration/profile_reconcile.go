@@ -13,6 +13,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/protoconv"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -107,6 +108,27 @@ func (o *Orchestrator) reconcileProfileSource(ctx context.Context, scenario, sce
 		item.Status = ProfileReconcileStatusFailedValidation
 		item.Message = err.Error()
 		return item
+	}
+	// A declaration may intentionally rename its profile key. Match the
+	// previous projection by owning scenario and source path before attempting
+	// Create; otherwise the repository's unique name constraint turns a normal
+	// declaration rename into a false validation failure.
+	if existing == nil {
+		profiles, listErr := o.profiles.List(ctx, repository.ListFilter{})
+		if listErr != nil {
+			item.Status = ProfileReconcileStatusFailedValidation
+			item.Message = listErr.Error()
+			return item
+		}
+		for _, candidate := range profiles {
+			if candidate == nil || candidate.OwnerScenario != scenario {
+				continue
+			}
+			if candidate.SourcePath == source || candidate.Name == profile.Name {
+				existing = candidate
+				break
+			}
+		}
 	}
 	if existing == nil {
 		if dryRun {

@@ -90,10 +90,10 @@ type sqlExecutor interface {
 }
 
 func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationreadmodel.RunFact) error {
-	values := strings.Repeat("?,", 38) + "?"
+	values := strings.Repeat("?,", 40) + "?"
 	query := `INSERT INTO invocation_read_model_runs (
 		run_id,goal_id,goal_status,occurred_at,created_at,started_at,ended_at,duration_ms,status,profile_id,runner_type,model,tag,
-		workload_kind,workload_key,workload_instance,total_cost_usd,input_cost_usd,output_cost_usd,cache_read_cost_usd,
+		workload_kind,workload_key,workload_instance,total_cost_usd,cost_source,charge_reason,input_cost_usd,output_cost_usd,cache_read_cost_usd,
 		cache_creation_cost_usd,total_tokens,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,turns,
 		tool_calls,total_charge_micro_usd,metered_charge_micro_usd,unpriced_token_count,preamble_injected_tokens,preamble_fixed_tokens,preamble_token_basis,unattributed_tokens,unattributed_reason,cost_time_basis,time_basis,projected_at
 	) VALUES (` + values + `)
@@ -101,7 +101,7 @@ func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationread
 		goal_id=excluded.goal_id,goal_status=excluded.goal_status,occurred_at=excluded.occurred_at,created_at=excluded.created_at,started_at=excluded.started_at,ended_at=excluded.ended_at,
 		duration_ms=excluded.duration_ms,status=excluded.status,profile_id=excluded.profile_id,runner_type=excluded.runner_type,
 		model=excluded.model,tag=excluded.tag,workload_kind=excluded.workload_kind,workload_key=excluded.workload_key,
-		workload_instance=excluded.workload_instance,total_cost_usd=excluded.total_cost_usd,input_cost_usd=excluded.input_cost_usd,
+		workload_instance=excluded.workload_instance,total_cost_usd=excluded.total_cost_usd,cost_source=excluded.cost_source,charge_reason=excluded.charge_reason,input_cost_usd=excluded.input_cost_usd,
 		output_cost_usd=excluded.output_cost_usd,cache_read_cost_usd=excluded.cache_read_cost_usd,
 		cache_creation_cost_usd=excluded.cache_creation_cost_usd,total_tokens=excluded.total_tokens,input_tokens=excluded.input_tokens,
 		output_tokens=excluded.output_tokens,cache_read_tokens=excluded.cache_read_tokens,cache_creation_tokens=excluded.cache_creation_tokens,
@@ -110,7 +110,7 @@ func replaceRunTx(ctx context.Context, executor sqlExecutor, fact invocationread
 		preamble_injected_tokens=excluded.preamble_injected_tokens,preamble_fixed_tokens=excluded.preamble_fixed_tokens,preamble_token_basis=excluded.preamble_token_basis,
 		unattributed_tokens=excluded.unattributed_tokens,unattributed_reason=excluded.unattributed_reason,
 		cost_time_basis=excluded.cost_time_basis,time_basis=excluded.time_basis,projected_at=excluded.projected_at`
-	if _, err := executor.ExecContext(ctx, query, fact.RunID, fact.GoalID, fact.GoalStatus, SQLiteTime(fact.OccurredAt), SQLiteTime(fact.CreatedAt), nullableSQLiteTime(fact.StartedAt), nullableSQLiteTime(fact.EndedAt), fact.DurationMS, fact.Status, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.WorkloadKind, fact.WorkloadKey, fact.WorkloadInstance, fact.TotalCostUSD, fact.InputCostUSD, fact.OutputCostUSD, fact.CacheReadCostUSD, fact.CacheCreationCostUSD, fact.TotalTokens, fact.InputTokens, fact.OutputTokens, fact.CacheReadTokens, fact.CacheCreationTokens, fact.Turns, fact.ToolCalls, fact.TotalChargeMicroUSD, fact.MeteredChargeMicroUSD, fact.UnpricedTokenCount, fact.PreambleInjectedTokens, fact.PreambleFixedTokens, fact.PreambleTokenBasis, fact.UnattributedTokens, fact.UnattributedReason, fact.CostTimeBasis, fact.TimeBasis, SQLiteTime(fact.ProjectedAt)); err != nil {
+	if _, err := executor.ExecContext(ctx, query, fact.RunID, fact.GoalID, fact.GoalStatus, SQLiteTime(fact.OccurredAt), SQLiteTime(fact.CreatedAt), nullableSQLiteTime(fact.StartedAt), nullableSQLiteTime(fact.EndedAt), fact.DurationMS, fact.Status, fact.ProfileID, fact.RunnerType, fact.Model, fact.Tag, fact.WorkloadKind, fact.WorkloadKey, fact.WorkloadInstance, fact.TotalCostUSD, fact.CostSource, fact.ChargeReason, fact.InputCostUSD, fact.OutputCostUSD, fact.CacheReadCostUSD, fact.CacheCreationCostUSD, fact.TotalTokens, fact.InputTokens, fact.OutputTokens, fact.CacheReadTokens, fact.CacheCreationTokens, fact.Turns, fact.ToolCalls, fact.TotalChargeMicroUSD, fact.MeteredChargeMicroUSD, fact.UnpricedTokenCount, fact.PreambleInjectedTokens, fact.PreambleFixedTokens, fact.PreambleTokenBasis, fact.UnattributedTokens, fact.UnattributedReason, fact.CostTimeBasis, fact.TimeBasis, SQLiteTime(fact.ProjectedAt)); err != nil {
 		return fmt.Errorf("upsert run read-model fact: %w", err)
 	}
 	if _, err := executor.ExecContext(ctx, `INSERT INTO invocation_read_model_run_signals (run_id,read_calls,files_read_more_than_once) VALUES (?,?,?) ON CONFLICT(run_id) DO UPDATE SET read_calls=excluded.read_calls,files_read_more_than_once=excluded.files_read_more_than_once`, fact.RunID, fact.ReadCalls, fact.FileRereads); err != nil {

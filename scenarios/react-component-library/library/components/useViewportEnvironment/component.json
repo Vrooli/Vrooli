@@ -1,9 +1,8 @@
 {
+  "assetKind": "component",
+  "catalogId": "hooks.use-viewport-environment",
   "category": "uncategorized",
-  "deprecatedVersions": [
-    "1.0.0",
-    "1.0.1"
-  ],
+  "deprecatedVersions": ["1.0.0", "1.0.1", "1.0.2"],
   "description": "Normalizes browser viewport geometry for responsive overlays and keyboard-aware application chrome.",
   "designStyles": [
     {
@@ -15,19 +14,10 @@
   "displayName": "useViewportEnvironment",
   "draft": "",
   "entry": "useViewportEnvironment.ingest.tsx",
-  "evictedVersions": [
-    "1.0.1",
-    "1.0.0"
-  ],
+  "evictedVersions": ["1.0.1", "1.0.0", "1.0.2"],
   "kind": "control",
   "latest": "1.0.3",
   "libraryId": "react-component-library:useViewportEnvironment",
   "slot": "ui-pattern",
-  "tags": [
-    "runtime",
-    "responsive",
-    "accessibility"
-  ],
-  "catalogId": "hooks.use-viewport-environment",
-  "assetKind": "component"
+  "tags": ["runtime", "responsive", "accessibility"]
 }

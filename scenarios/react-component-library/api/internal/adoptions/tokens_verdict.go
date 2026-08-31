@@ -10,8 +10,10 @@ import (
 	"react-component-library/internal/components"
 )
 
-var scenarioTokenDeclarationRE = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
-var scenarioRuntimeTokenWriteRE = regexp.MustCompile(`\.setProperty\s*\(\s*["'](--[A-Za-z0-9_-]+)["']`)
+var (
+	scenarioTokenDeclarationRE  = regexp.MustCompile(`(--[A-Za-z0-9_-]+)\s*:`)
+	scenarioRuntimeTokenWriteRE = regexp.MustCompile(`\.setProperty\s*\(\s*["'](--[A-Za-z0-9_-]+)["']`)
+)
 
 // TokenVerdict is the read-only styling-contract result for an adoption
 // closure. Required is the exact derived set; RequiredPatterns represents

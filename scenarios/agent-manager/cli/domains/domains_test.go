@@ -7,13 +7,15 @@ import (
 )
 
 func TestCommandGroupsRegistersEveryTopLevelCommand(t *testing.T) {
-	groups := CommandGroups(support.Dependencies{})
-	if len(groups) != 15 {
-		t.Fatalf("group count = %d, want 15", len(groups))
-	}
+	groups := SubcommandGroups(support.Dependencies{})
+	want := map[string]bool{"profile": true, "role-policy": true, "settings": true, "permission-policy": true, "runner": true, "declarations": true, "workflow": true, "task": true, "maintenance": true, "ops": true, "health": true, "events": true, "findings": true, "subscription": true, "space": true}
 	for _, group := range groups {
-		if group.Title == "" || len(group.Commands) == 0 {
-			t.Fatalf("invalid group: %+v", group)
+		if len(group.Subcommands) == 0 {
+			t.Fatalf("registered group %q has no subcommands", group.Name)
 		}
+		delete(want, group.Name)
+	}
+	if len(want) != 0 {
+		t.Fatalf("missing registered groups: %v", want)
 	}
 }

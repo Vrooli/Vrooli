@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "corpus-report/v1",
+  "capturedAt": "2026-08-31T15:11:00Z",
+  "invariants": [
+    {"id":"I1","label":"retention commands succeeding","value":3,"target":3,"unit":"commands"},
+    {"id":"I2","label":"unreadable version mirrors","value":0,"target":0,"unit":"versions"},
+    {"id":"I3","label":"post-cutoff intra-library exact pins","value":0,"target":0,"unit":"pins"},
+    {"id":"I4","label":"intra-library pins targeting superseded versions","value":0,"target":0,"unit":"pins"},
+    {"id":"I5","label":"version directories","value":290,"target":290,"unit":"versions"},
+    {"id":"I6","label":"superseded compiled source share","value":12,"target":15,"unit":"percent"},
+    {"id":"I7","label":"failing cells without findings","value":0,"target":0,"unit":"cells"},
+    {"id":"I8","label":"warm full gate matrix","value":1,"target":30,"unit":"seconds"},
+    {"id":"I9","label":"single-asset validation cycle","value":5,"target":10,"unit":"seconds"},
+    {"id":"I10","label":"missing release-hash entries","value":0,"target":0,"unit":"entries"},
+    {"id":"I11","label":"mutated release-hash entries","value":0,"target":0,"unit":"entries"},
+    {"id":"I12","label":"assets failing immutability","value":0,"target":0,"unit":"assets"},
+    {"id":"I13","label":"catalog/build failures","value":0,"target":0,"unit":"commands"},
+    {"id":"I14","label":"ungoverned releases detected","value":0,"target":0,"unit":"releases"},
+    {"id":"I15","label":"runnerless blocking gates","value":0,"target":0,"unit":"gates"},
+    {"id":"I16","label":"blocking gates","value":40,"target":40,"unit":"gates"},
+    {"id":"I17","label":"vacuous allowlist entries","value":0,"target":40,"unit":"entries"},
+    {"id":"I18","label":"machine minus manual experience claims (machine: 51, manual: 36)","value":15,"target":1,"unit":"claims"},
+    {"id":"I19","label":"declared assets without implementation","value":0,"target":0,"unit":"assets"},
+    {"id":"I20","label":"experience claim authorities","value":1,"target":1,"unit":"authorities"}
+  ]
+}

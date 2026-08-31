@@ -6,7 +6,7 @@
     "id": "undoable-destructive-action",
     "title": "UndoableDestructiveAction",
     "purpose": "Make destructive work forgiving through immediate completion and a visible recovery path.",
-    "storyRef": "../../library/components/UndoableDestructiveAction/versions/1.0.4/story.json"
+    "storyRef": "../../library/components/UndoableDestructiveAction/versions/1.0.8/story.json"
   },
   "states": [
     {

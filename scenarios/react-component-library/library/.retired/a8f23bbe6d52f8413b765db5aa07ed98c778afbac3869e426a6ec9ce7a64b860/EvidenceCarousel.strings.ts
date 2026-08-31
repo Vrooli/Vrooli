@@ -5,6 +5,7 @@ export const EvidenceCarouselStrings = defineStrings(
   {
     "visualization.evidence-carousel.evidence-types": "Evidence types",
     "visualization.evidence-carousel.evidence-workspace": "Evidence workspace",
-    "visualization.evidence-carousel.no-evidence-captured": "No evidence captured.",
+    "visualization.evidence-carousel.no-evidence-captured":
+      "No evidence captured.",
   },
 );

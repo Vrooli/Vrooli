@@ -634,6 +634,26 @@ func (idx *Indexer) buildManifestInput(path string) (IndexManifestInput, map[str
 				"component has no ledger row, so declared evicted versions cannot be restored from a mirror"))
 		} else {
 			for _, version := range sortedVersions(evicted) {
+				// The filesystem walk above is authoritative whenever the version
+				// directory exists, including after cold-source restoration.
+				// Checking the directory explicitly also covers a stale repository
+				// projection whose version metadata is incomplete.
+				if _, statErr := fs.Stat(idx.fs, filepath.ToSlash(filepath.Join(versionRoot, version))); statErr == nil {
+					continue
+				}
+				// A restored cold version is already represented by the authored
+				// directory above. Do not append its durable projection a second
+				// time; doing so reuses the same version ID and duplicates files.
+				materialized := false
+				for _, indexed := range versions {
+					if indexed.Version == version {
+						materialized = true
+						break
+					}
+				}
+				if materialized {
+					continue
+				}
 				stored, err := idx.repo.GetVersion(context.Background(), component.ID, version)
 				if err != nil {
 					findings = append(findings, unrecoverableEvictedFinding(path, manifest.LibraryID, []string{version},
@@ -891,6 +911,15 @@ func assetKindForManifestPath(path, declared string) (AssetKind, error) {
 		return inferred, nil
 	}
 	kind := AssetKind(strings.ToLower(strings.TrimSpace(declared)))
+	// Catalog manifests use the public vocabulary while the registry keeps a
+	// smaller internal kind set. Normalize aliases before validating the
+	// declared kind so runtime assets are indexed rather than silently omitted.
+	if kind == "runtime-hook" {
+		kind = AssetKindHook
+	}
+	if kind == "runtime-service" {
+		kind = AssetKindComponent
+	}
 	// "primitive" is the authored vocabulary for a renderable asset in the
 	// primitives root; the registry intentionally normalizes it to the stable
 	// component kind used by the API and dependency resolver.
@@ -904,25 +933,6 @@ func assetKindForManifestPath(path, declared string) (AssetKind, error) {
 		return "", ErrInvalidHeader{SourcePath: path, Field: "assetKind", Reason: "must match authored asset root " + string(inferred)}
 	}
 	return kind, nil
-}
-
-func normalizeAssetDependencies(path string, in []AssetDependency) ([]AssetDependency, error) {
-	seen := map[string]struct{}{}
-	out := make([]AssetDependency, 0, len(in))
-	for _, dep := range in {
-		dep.LibraryID = strings.TrimSpace(dep.LibraryID)
-		dep.Version = strings.TrimSpace(dep.Version)
-		if dep.LibraryID == "" || dep.Version == "" {
-			return nil, ErrInvalidHeader{SourcePath: path, Field: "dependencies", Reason: "each dependency requires libraryId and version"}
-		}
-		key := dep.LibraryID + "\x00" + dep.Version
-		if _, exists := seen[key]; exists {
-			return nil, ErrInvalidHeader{SourcePath: path, Field: "dependencies", Reason: "duplicate dependency " + dep.LibraryID + "@" + dep.Version}
-		}
-		seen[key] = struct{}{}
-		out = append(out, dep)
-	}
-	return out, nil
 }
 
 func validEntryExtension(name string, kind AssetKind) bool {

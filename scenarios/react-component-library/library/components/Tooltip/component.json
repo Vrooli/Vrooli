@@ -1,8 +1,8 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
-  "deprecatedVersions": [
-    "1.0.1"
-  ],
+  "assetKind": "component",
+  "catalogId": "overlays.tooltip",
+  "deprecatedVersions": ["1.0.1", "1.0.2", "1.0.3"],
   "description": "A concise, accessible explanation attached to a focusable trigger.",
   "designStyles": [
     {
@@ -12,17 +12,11 @@
     }
   ],
   "displayName": "Tooltip",
-  "kind": "overlay",
-  "catalogId": "overlays.tooltip",
   "draft": "",
   "entry": "Tooltip.tsx",
-  "latest": "1.0.3",
+  "evictedVersions": ["1.0.2", "1.0.1", "1.0.3"],
+  "kind": "overlay",
+  "latest": "1.0.4",
   "libraryId": "react-component-library:Tooltip",
-  "tags": [
-    "overlay",
-    "accessible",
-    "interaction",
-    "token-bound"
-  ],
-  "assetKind": "component"
+  "tags": ["overlay", "accessible", "interaction", "token-bound"]
 }

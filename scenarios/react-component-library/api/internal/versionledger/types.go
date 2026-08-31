@@ -54,6 +54,33 @@ type VersionReference struct {
 	AdoptionID      string
 }
 
+// UnreadableVersion is a bounded retention defect. The version remains
+// protected, but its owning asset can be reported without aborting the whole
+// reference graph.
+type UnreadableVersion struct {
+	LibraryID string
+	Version   string
+	Reason    string
+}
+
+// Reachability is the single retention view shared by cleanup, retirement,
+// and presence reconciliation. References are reverse edges: the map key is
+// the target and each value identifies an owner that imports it.
+type Reachability struct {
+	References map[string][]VersionReference
+	Reachable  map[string]struct{}
+	Unreadable []UnreadableVersion
+}
+
+func hasUnreadableVersion(items []UnreadableVersion, libraryID, version string) bool {
+	for _, item := range items {
+		if item.LibraryID == libraryID && item.Version == version {
+			return true
+		}
+	}
+	return false
+}
+
 // ErrEvictionMirrorMismatch prevents destructive removal when the durable
 // mirror no longer describes the bytes on disk.
 type ErrEvictionMirrorMismatch struct {

@@ -6,7 +6,7 @@
     "id": "app-shell",
     "title": "AppShell",
     "purpose": "A responsive application frame with named navigation, a skip link, and scroll-safe main content.",
-    "storyRef": "../../library/components/AppShell/versions/1.0.0/story.json"
+    "storyRef": "../../library/components/AppShell/versions/1.0.7/story.json"
   },
   "states": [
     {

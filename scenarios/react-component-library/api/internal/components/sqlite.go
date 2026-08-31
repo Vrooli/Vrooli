@@ -179,7 +179,14 @@ ON CONFLICT(component_id, version) DO UPDATE SET
   content_sha256 = excluded.content_sha256,
   changelog_md = excluded.changelog_md,
   indexed_at = excluded.indexed_at,
-  presence = excluded.presence,
+  -- A re-index observes the authored working tree, but it must not promote a
+  -- cold release back into the hot tier. Presence is lifecycle state owned by
+  -- the reconciler; only an explicit materialization operation may change an
+  -- existing evicted row.
+  presence = CASE
+    WHEN component_versions.presence = 'evicted' THEN 'evicted'
+    ELSE excluded.presence
+  END,
   released_at = CASE
     WHEN component_versions.released_at <> '' THEN component_versions.released_at
     ELSE excluded.released_at

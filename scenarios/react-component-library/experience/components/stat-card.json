@@ -6,7 +6,7 @@
     "id": "stat-card",
     "title": "StatCard",
     "purpose": "StatCard preserves semantic structure and token ownership.",
-    "storyRef": "../../library/components/StatCard/versions/1.0.7/story.json"
+    "storyRef": "../../library/components/StatCard/versions/1.0.9/story.json"
   },
   "states": [
     {

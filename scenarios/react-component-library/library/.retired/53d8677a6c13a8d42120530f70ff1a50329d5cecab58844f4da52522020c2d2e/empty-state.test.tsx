@@ -19,6 +19,8 @@ describe("EmptyState", () => {
     expect(screen.getByText(/Try another filter/)).toBeInTheDocument();
     expect(screen.getByTestId("empty-icon")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Retry/ })).toBeInTheDocument();
-    expect(screen.getByText(/Nothing here/).parentElement?.parentElement).toHaveClass("custom-empty");
+    expect(
+      screen.getByText(/Nothing here/).parentElement?.parentElement,
+    ).toHaveClass("custom-empty");
   });
 });

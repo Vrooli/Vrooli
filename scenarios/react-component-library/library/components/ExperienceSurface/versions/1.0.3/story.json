@@ -1,0 +1,177 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": "results",
+        "kind": "text",
+        "label": "Surface Id",
+        "path": "surfaceId"
+      },
+      {
+        "default": "ready",
+        "kind": "text",
+        "label": "State",
+        "path": "state"
+      },
+      {
+        "default": "Content",
+        "kind": "structured",
+        "label": "Children",
+        "path": "children"
+      },
+      {
+        "default": "Loading results",
+        "kind": "text",
+        "label": "Status Message",
+        "path": "statusMessage"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "state": "ready",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Results are ready"
+        }
+      ],
+      "id": "ready",
+      "mode": "pinned",
+      "name": "Ready",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Ready"
+        }
+      },
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "state": "static",
+        "surfaceId": "guidance"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Static guidance"
+        }
+      ],
+      "id": "static",
+      "mode": "pinned",
+      "name": "Static",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Static"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "loading",
+        "statusMessage": "Loading results",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Loading results",
+          "role": "status"
+        }
+      ],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Loading",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Loading"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "empty",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "No results"
+        }
+      ],
+      "id": "empty",
+      "mode": "pinned",
+      "name": "Empty",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Empty"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "partial",
+        "statusMessage": "Some results are unavailable",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Some results are unavailable",
+          "role": "status"
+        }
+      ],
+      "id": "partial",
+      "mode": "pinned",
+      "name": "Partial",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Partial"
+        }
+      },
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "state": "error",
+        "statusMessage": "Results could not load",
+        "surfaceId": "results"
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Results could not load",
+          "role": "status"
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Error",
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Error"
+        }
+      },
+      "role": "boundary"
+    }
+  ],
+  "title": "ExperienceSurface"
+}

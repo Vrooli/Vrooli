@@ -2,7 +2,7 @@
   "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
   "kind": "experience-component",
   "schemaVersion": "1.1.0",
-  "component": {"id":"cartesian-charts","title":"Cartesian Charts","purpose":"Accessible progression chart family.","storyRef":"../../library/components/CartesianCharts/versions/1.0.5/story.json"},
+  "component": {"id":"cartesian-charts","title":"Cartesian Charts","purpose":"Accessible progression chart family.","storyRef":"../../library/components/CartesianCharts/versions/1.0.6/story.json"},
   "states": [{"id":"default","example":"default","description":"The chart exposes values and interaction controls."}],
   "elements": [{"id":"chart","role":"x-chart","description":"The chart plot."},{"id":"values","role":"table","description":"The accessible tabular equivalent."}],
   "claims": [

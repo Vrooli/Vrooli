@@ -11,7 +11,7 @@ import (
 
 func (a *App) cmdPermissionPolicy(args []string) error {
 	if len(args) == 0 {
-		return a.permissionPolicyHelp()
+		return nil
 	}
 	switch args[0] {
 	case "status":
@@ -29,29 +29,10 @@ func (a *App) cmdPermissionPolicy(args []string) error {
 	case "doctor":
 		return a.permissionPolicyDoctor(args[1:])
 	case "help", "-h", "--help":
-		return a.permissionPolicyHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown permission-policy subcommand: %s\n\nRun 'agent-manager permission-policy help' for usage", args[0])
 	}
-}
-
-func (a *App) permissionPolicyHelp() error {
-	fmt.Println(`Usage: agent-manager permission-policy <subcommand> [options]
-
-Subcommands:
-  status                 Show activation state and the last reconcile evidence
-  catalog                Inspect the active portable desired-permissions catalog
-  validate               Validate declared state without activation
-  reload                 Validate and atomically activate declared state
-  plan                   Report resource-owned projection drift without mutation
-  reconcile              Apply the whole declared document through every resource
-  doctor                 Summarize catalog readiness and hard-enforcement coverage
-
-Options:
-  --json                 Output the generated API response as JSON
-  --i-was-explicitly-authorized
-                         Required for reconcile; only use with explicit human authorization`)
-	return nil
 }
 
 func parsePermissionPolicyFlags(name string, args []string, reconciliation bool) (*bool, *bool, error) {

@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "data-display.stat-card",
-  "deprecatedVersions": [
-    "1.0.4",
-    "1.0.6"
-  ],
+  "deprecatedVersions": ["1.0.4", "1.0.6", "1.0.5", "1.0.7", "1.0.8"],
   "description": "The metric surface combining a stat with optional visualization, actions, status, explanation, and responsive layout that keeps the number legible at every width.",
   "designStyles": [
     {
@@ -15,13 +12,9 @@
   ],
   "displayName": "StatCard",
   "draft": "",
-  "evictedVersions": [
-    "1.0.6",
-    "1.0.5",
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.6", "1.0.5", "1.0.4", "1.0.7", "1.0.8"],
   "kind": "surface",
-  "latest": "1.0.8",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:StatCard",
   "requires": [
     {
@@ -29,8 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "data-display",
-    "token-bound"
-  ]
+  "tags": ["data-display", "token-bound"]
 }

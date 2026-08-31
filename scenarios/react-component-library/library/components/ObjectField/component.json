@@ -4,7 +4,13 @@
   "catalogId": "forms.object-field",
   "deprecatedVersions": [
     "1.0.1",
-    "1.0.3"
+    "1.0.3",
+    "1.0.2",
+    "1.0.4",
+    "1.0.5",
+    "1.0.0",
+    "1.0.6",
+    "1.0.7"
   ],
   "description": "The nested-object field grouping child fields, collapsing sections, summarizing nested errors, supporting optional objects, and preserving per-field subscriptions.",
   "designStyles": [
@@ -26,10 +32,15 @@
   "evictedVersions": [
     "1.0.3",
     "1.0.1",
-    "1.0.2"
+    "1.0.2",
+    "1.0.4",
+    "1.0.5",
+    "1.0.0",
+    "1.0.6",
+    "1.0.7"
   ],
   "kind": "input",
-  "latest": "1.0.5",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:ObjectField",
   "requires": [
     {
@@ -37,11 +48,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "form",
-    "object",
-    "nested",
-    "validation",
-    "token-bound"
-  ]
+  "tags": ["form", "object", "nested", "validation", "token-bound"]
 }

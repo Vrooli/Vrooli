@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"react-component-library/internal/gates"
@@ -39,6 +40,29 @@ func TestEvidenceFromUnmeasuredResultNeverWritesPass(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, "unmeasured", rows[0].Result)
+}
+
+func TestEvidenceFromResultSkipsNonCatalogObservations(t *testing.T) {
+	root := t.TempDir()
+	assetDir := filepath.Join(root, "scenarios", "react-component-library", "catalog", "assets", "controls")
+	componentDir := filepath.Join(root, "scenarios", "react-component-library", "library", "components", "Button")
+	versionDir := filepath.Join(componentDir, "versions", "1.0.0")
+	require.NoError(t, os.MkdirAll(assetDir, 0o755))
+	require.NoError(t, os.MkdirAll(versionDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(assetDir, "button.json"), []byte(`{"kind":"catalog-asset","asset":{"id":"controls.button","kind":"component"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(`{"catalogId":"controls.button","latest":"1.0.0"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(versionDir, "Button.tsx"), []byte("export const Button = () => null;"), 0o644))
+	rows, err := EvidenceFromResult(context.Background(), root, GateDefinition{ID: "types", Attribution: "attributable", AppliesTo: []string{"component"}}, gates.Result{
+		InspectedAssets: []string{"workbench.conformance", "__corpus__.dependency-rank"},
+	}, nil)
+	if err != nil {
+		t.Fatalf("pseudo-asset evidence: %v", err)
+	}
+	for _, row := range rows {
+		if row.AssetID == "workbench.conformance" || strings.HasPrefix(row.AssetID, "__corpus__") {
+			t.Fatalf("pseudo-asset row persisted: %+v", row)
+		}
+	}
 }
 
 func TestMergedEvidenceTreatsStalePersistedRowsAsAbsent(t *testing.T) {

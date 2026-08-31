@@ -6,7 +6,7 @@
     "id": "empty-state",
     "title": "EmptyState",
     "purpose": "Explain an empty surface and offer its most relevant next action.",
-    "storyRef": "../../library/components/EmptyState/versions/1.7.7/story.json"
+    "storyRef": "../../library/components/EmptyState/versions/1.7.14/story.json"
   },
   "states": [
     {

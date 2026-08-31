@@ -251,57 +251,6 @@ func readKitProperties(root string) (map[string][]string, error) {
 	return result, nil
 }
 
-func compatibleKits(required []string, kits map[string][]string, kitIDs []string) ([]string, bool) {
-	compatible := make([]string, 0, len(kitIDs))
-	hasUndefined := false
-	for _, property := range required {
-		if !publishedByAnyKit(property, kits) {
-			hasUndefined = true
-		}
-	}
-	if hasUndefined {
-		return compatible, true
-	}
-	for _, kitID := range kitIDs {
-		published := stringSet(kits[kitID])
-		complete := true
-		for _, property := range required {
-			if _, ok := published[property]; !ok {
-				complete = false
-				break
-			}
-		}
-		if complete {
-			compatible = append(compatible, kitID)
-		}
-	}
-	return compatible, false
-}
-
-func classifyCompatibility(totalKits, compatibleKits int, hasUndefined bool) CompatibilityVerdict {
-	if hasUndefined {
-		return CompatibilityUndefinedVocabulary
-	}
-	if compatibleKits == totalKits {
-		return CompatibilityUniversal
-	}
-	if compatibleKits > 0 {
-		return CompatibilityRestricted
-	}
-	return CompatibilityUnsatisfiable
-}
-
-func publishedByAnyKit(property string, kits map[string][]string) bool {
-	for _, properties := range kits {
-		for _, candidate := range properties {
-			if candidate == property {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func readScenarioRamps(root string) ([]ScenarioRampCensus, error) {
 	paths, err := filepath.Glob(filepath.Join(root, "scenarios", "*", "ui", "src", "design-tokens.css"))
 	if err != nil {
@@ -327,15 +276,6 @@ func readScenarioRamps(root string) ([]ScenarioRampCensus, error) {
 }
 
 func sortedSet(values map[string]struct{}) []string {
-	result := make([]string, 0, len(values))
-	for value := range values {
-		result = append(result, value)
-	}
-	sort.Strings(result)
-	return result
-}
-
-func sortedKeys[V any](values map[string]V) []string {
 	result := make([]string, 0, len(values))
 	for value := range values {
 		result = append(result, value)

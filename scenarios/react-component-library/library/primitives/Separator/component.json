@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "primitive",
   "catalogId": "primitives.separator",
-  "deprecatedVersions": [
-    "1.0.0"
-  ],
+  "deprecatedVersions": ["1.0.0", "1.0.1"],
   "description": "",
   "designStyles": [
     {
@@ -22,14 +20,9 @@
   ],
   "displayName": "Separator",
   "draft": "",
-  "evictedVersions": [
-    "1.0.0"
-  ],
+  "evictedVersions": ["1.0.0", "1.0.1"],
   "kind": "surface",
-  "latest": "1.0.1",
+  "latest": "1.0.2",
   "libraryId": "react-component-library:Separator",
-  "tags": [
-    "primitive",
-    "token-bound"
-  ]
+  "tags": ["primitive", "token-bound"]
 }

@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "feedback.permission-state",
-  "deprecatedVersions": [
-    "1.0.4"
-  ],
+  "deprecatedVersions": ["1.0.4", "1.0.5", "1.0.6"],
   "description": "A permission-aware state that gives the user a clear next action without exposing unauthorized content.",
   "designStyles": [
     {
@@ -14,11 +12,9 @@
   ],
   "displayName": "PermissionState",
   "draft": "",
-  "evictedVersions": [
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.4", "1.0.5", "1.0.6"],
   "kind": "surface",
-  "latest": "1.0.6",
+  "latest": "1.0.7",
   "libraryId": "react-component-library:PermissionState",
   "requires": [
     {
@@ -26,9 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "feedback",
-    "accessibility",
-    "token-bound"
-  ]
+  "tags": ["feedback", "accessibility", "token-bound"]
 }

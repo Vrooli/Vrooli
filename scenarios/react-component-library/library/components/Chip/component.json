@@ -3,7 +3,11 @@
   "assetKind": "component",
   "catalogId": "primitives.chip",
   "deprecatedVersions": [
-    "1.0.2"
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.0",
+    "1.0.5"
   ],
   "description": "A compact selectable token that preserves a full touch target while remaining visually quiet in dense collections.",
   "designStyles": [
@@ -15,10 +19,14 @@
   "displayName": "Chip",
   "draft": "",
   "evictedVersions": [
-    "1.0.2"
+    "1.0.2",
+    "1.0.3",
+    "1.0.4",
+    "1.0.0",
+    "1.0.5"
   ],
   "kind": "control",
-  "latest": "1.0.5",
+  "latest": "1.0.6",
   "libraryId": "react-component-library:Chip",
   "tags": [
     "primitive",

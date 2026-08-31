@@ -1,4 +1,11 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, type CardProps } from "./Card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  type CardProps,
+} from "./Card";
 
 type CardStoryArgs = Pick<CardProps, "className">;
 
@@ -30,7 +37,9 @@ export function MetricCard({ args }: StoryHarnessProps) {
             ✓
           </span>
         </div>
-        <CardDescription>Current coverage across active scenarios</CardDescription>
+        <CardDescription>
+          Current coverage across active scenarios
+        </CardDescription>
       </CardHeader>
       <CardContent style={{ display: "grid", gap: "var(--space-xs)" }}>
         <strong
@@ -91,14 +100,15 @@ export function LongContentCard({ args }: StoryHarnessProps) {
       <CardHeader>
         <CardTitle>Workspace configuration review</CardTitle>
         <CardDescription>
-          A deliberately long description demonstrates wrapping without breaking the card header or
-          pushing the primary content beyond its readable measure.
+          A deliberately long description demonstrates wrapping without breaking
+          the card header or pushing the primary content beyond its readable
+          measure.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <span>
-          Review and apply all pending workspace configuration changes before publishing the next
-          adoption report.
+          Review and apply all pending workspace configuration changes before
+          publishing the next adoption report.
         </span>
       </CardContent>
     </Card>

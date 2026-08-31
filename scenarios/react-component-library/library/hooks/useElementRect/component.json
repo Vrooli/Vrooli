@@ -13,8 +13,5 @@
   "kind": "surface",
   "latest": "2.0.0",
   "libraryId": "react-component-library:useElementRect",
-  "tags": [
-    "runtime",
-    "accessibility"
-  ]
+  "tags": ["runtime", "accessibility"]
 }

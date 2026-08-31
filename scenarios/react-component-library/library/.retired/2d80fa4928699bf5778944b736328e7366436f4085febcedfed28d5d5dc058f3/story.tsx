@@ -5,7 +5,11 @@ import { HandednessProvider } from "@vrooli/react-component-library/useHandednes
 import { SwipeActions, type SwipeAction } from "./SwipeActions";
 
 const ROWS = [
-  { id: "credential-blast-radius", name: "credential blast radius", time: "14:22" },
+  {
+    id: "credential-blast-radius",
+    name: "credential blast radius",
+    time: "14:22",
+  },
   { id: "host-cleanup-sweep", name: "host cleanup sweep", time: "09:41" },
 ];
 
@@ -74,7 +78,12 @@ function List({ releaseMode }: { releaseMode?: "rest" | "commit" }) {
         {last}
       </div>
       {ROWS.map((row) => (
-        <Row key={row.id} {...row} releaseMode={releaseMode} onAction={setLast} />
+        <Row
+          key={row.id}
+          {...row}
+          releaseMode={releaseMode}
+          onAction={setLast}
+        />
       ))}
     </div>
   );

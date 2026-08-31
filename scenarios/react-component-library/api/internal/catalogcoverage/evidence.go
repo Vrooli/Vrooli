@@ -232,6 +232,9 @@ func EvidenceFromResult(ctx context.Context, root string, gate GateDefinition, r
 		}
 		revision, known := revisions[id]
 		if !known {
+			if isNonCatalogObservation(id) {
+				continue
+			}
 			return nil, fmt.Errorf("catalog asset %q not found", id)
 		}
 		resultValue := "pass"
@@ -248,6 +251,12 @@ func EvidenceFromResult(ctx context.Context, root string, gate GateDefinition, r
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].AssetID < out[j].AssetID })
 	return out, nil
+}
+
+func isNonCatalogObservation(assetID string) bool {
+	return strings.HasPrefix(assetID, "__corpus__") ||
+		strings.HasPrefix(assetID, "workbench.") ||
+		strings.HasPrefix(assetID, "supplemental.")
 }
 
 func (s *EvidenceStore) Save(ctx context.Context, evidence []GateEvidence) error {
@@ -760,6 +769,12 @@ func MergedEvidence(ctx context.Context, root string, store *EvidenceStore) ([]G
 			computed = append(computed, item)
 			continue
 		}
+		// Older evidence producers could persist pseudo-assets such as
+		// workbench.conformance. They are corpus observations, not catalog
+		// assets, and must never enter the attributable revision join.
+		if _, known := revisions[item.AssetID]; !known {
+			continue
+		}
 		if revisions[item.AssetID] != item.SourceRevision {
 			continue
 		}
@@ -978,6 +993,12 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 	// is evaluated; otherwise one old skipped capture can poison a current pass.
 	latest := map[string]ExperienceCapture{}
 	for _, capture := range captures {
+		// Experience Manager may retain observations for workbench or
+		// supplemental surfaces that are not catalog assets. They cannot be
+		// scored by this catalog and must not make the evidence join fail.
+		if _, known := revisions[capture.AssetID]; !known {
+			continue
+		}
 		claim := capture.ClaimID
 		if claim == "" {
 			claim = capture.ClaimType
@@ -1059,6 +1080,9 @@ func deriveExperienceEvidence(root string, captures []ExperienceCapture, definit
 	}
 	matrixByAsset := map[string]*matrix{}
 	for _, capture := range latest {
+		if _, known := revisions[capture.AssetID]; !known {
+			continue
+		}
 		key := capture.AssetID + "\x00" + capture.Target
 		entry := matrixByAsset[key]
 		if entry == nil {

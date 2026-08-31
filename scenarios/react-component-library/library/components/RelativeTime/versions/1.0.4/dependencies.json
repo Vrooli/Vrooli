@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:RelativeTime",
+  "version": "1.0.4",
+  "resolvedAt": "2026-08-31T05:24:22Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 {
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
+  "assetKind": "component",
   "catalogId": "navigation.sidebar",
   "category": "navigation",
   "deprecatedVersions": [
@@ -8,7 +9,11 @@
     "2.5.1",
     "2.5.0",
     "2.5.2",
-    "2.5.3"
+    "2.5.3",
+    "2.4.0",
+    "2.6.1",
+    "2.6.0",
+    "2.6.2"
   ],
   "description": "Responsive sidebar parent that owns desktop resizing and mobile full-width safe-area drawer behavior.",
   "designStyles": [
@@ -37,16 +42,14 @@
     "2.5.1",
     "2.5.2",
     "2.5.3",
-    "2.4.0"
+    "2.4.0",
+    "2.6.1",
+    "2.6.0",
+    "2.6.2"
   ],
   "kind": "shell",
-  "latest": "2.6.1",
+  "latest": "2.6.3",
   "libraryId": "react-component-library:SidebarShell",
   "slot": "layout-nav",
-  "tags": [
-    "layout",
-    "navigation",
-    "responsive"
-  ],
-  "assetKind": "component"
+  "tags": ["layout", "navigation", "responsive"]
 }

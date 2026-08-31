@@ -6,7 +6,7 @@
     "id": "drawer",
     "title": "Drawer",
     "purpose": "A layered side surface with an explicit dialog boundary.",
-    "storyRef": "../../library/components/FullPageDrawer/versions/1.2.0/story.json"
+    "storyRef": "../../library/components/FullPageDrawer/versions/1.2.11/story.json"
   },
   "states": [
     { "id": "open", "example": "desktop-card", "description": "The drawer is open." }

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:EdgeFade",
+  "version": "1.0.2",
+  "resolvedAt": "2026-08-31T05:18:49Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    }
+  ]
+}

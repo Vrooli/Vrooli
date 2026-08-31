@@ -6,7 +6,7 @@
     "id": "use-voice-input",
     "title": "useVoiceInput",
     "purpose": "Provide a deterministic browser voice-input lifecycle with explicit timeout and always-on modes.",
-    "storyRef": "../../library/hooks/useVoiceInput/versions/1.0.0/story.json",
+    "storyRef": "../../library/hooks/useVoiceInput/versions/3.0.0/story.json",
     "prd_refs": ["OT-P0-008"]
   },
   "priorities": [

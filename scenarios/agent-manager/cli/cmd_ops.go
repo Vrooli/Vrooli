@@ -18,7 +18,7 @@ import (
 
 func (a *App) cmdOps(args []string) error {
 	if len(args) == 0 {
-		return a.opsHelp()
+		return nil
 	}
 	switch args[0] {
 	case "summary":
@@ -36,32 +36,10 @@ func (a *App) cmdOps(args []string) error {
 	case "retry":
 		return a.opsCategory("retry", args[1:])
 	case "help", "-h", "--help":
-		return a.opsHelp()
+		return nil
 	default:
 		return fmt.Errorf("unknown ops subcommand: %s\n\nRun 'agent-manager ops help' for usage", args[0])
 	}
-}
-
-func (a *App) opsHelp() error {
-	fmt.Println(`Usage: agent-manager ops <subcommand> [options]
-
-Operational stats derived from the typed event log (fallbacks, health
-transitions, sandbox operations, heartbeat misses, checkpoint failures,
-retries).
-
-Subcommands:
-  summary      Bundled snapshot across every category
-  fallback     Runner + model fallback insights
-  health       Engine-derived health transitions (use 'health' command
-               for the authoritative current snapshot)
-  sandbox      Sandbox operation success/failure summary
-  heartbeat    Heartbeat-miss counters
-  checkpoint   Checkpoint-failure counters
-  retry        Retry-attempt counters
-
-Options:
-  --json   Output the raw server response`)
-	return nil
 }
 
 func (a *App) opsCategory(category string, args []string) error {

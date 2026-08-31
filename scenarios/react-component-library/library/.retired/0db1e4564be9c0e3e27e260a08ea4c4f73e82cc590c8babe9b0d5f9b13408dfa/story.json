@@ -1,0 +1,425 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "ResizeHandle",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "At rest",
+      "role": "anatomy",
+      "description": "A vertical seam between a sidebar and a workspace, at its default size.",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Default"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "role",
+          "role": "separator",
+          "name": "Resize Sessions"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuenow",
+          "value": "240"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuetext",
+          "value": "Sessions 240 pixels"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-controls"
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-resizable-panel]",
+          "noOverflow": true
+        }
+      ]
+    },
+    {
+      "id": "axis-inline",
+      "name": "Inline axis",
+      "role": "axis",
+      "axis": "axis",
+      "covers": {
+        "axis": ["inline"]
+      },
+      "description": "A vertical separator between two inline-flow regions.",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AxisInline"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "data-axis",
+          "value": "inline"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-orientation",
+          "value": "vertical"
+        }
+      ]
+    },
+    {
+      "id": "axis-block",
+      "name": "Block axis",
+      "role": "axis",
+      "axis": "axis",
+      "covers": {
+        "axis": ["block"]
+      },
+      "description": "The same component driving a horizontal seam, which is the coverage a width-only resizer cannot produce at all.",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AxisBlock"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Output"
+          },
+          "text": "ArrowDown"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "data-axis",
+          "value": "block"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-orientation",
+          "value": "horizontal"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuenow",
+          "value": "128"
+        }
+      ]
+    },
+    {
+      "id": "keyboard-resize",
+      "name": "Keyboard resize",
+      "role": "boundary",
+      "description": "Three arrow presses move the panel by three keyboard steps without a pointer ever being involved.",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Keyboard"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sessions"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sessions"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sessions"
+          },
+          "text": "ArrowRight"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuenow",
+          "value": "264"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuetext",
+          "value": "Sessions 264 pixels"
+        }
+      ]
+    },
+    {
+      "id": "at-minimum",
+      "name": "At the minimum",
+      "role": "boundary",
+      "states": ["truncate"],
+      "description": "Driven to the floor with Home. The panel keeps its content legible and never reports a value below its declared minimum.",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "AtMinimum"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sessions"
+          },
+          "text": "Home"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sessions"
+          },
+          "text": "ArrowLeft"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuenow",
+          "value": "160"
+        },
+        {
+          "kind": "layout",
+          "selector": "[data-rcl-resizable-panel]",
+          "noOverflow": true
+        }
+      ]
+    },
+    {
+      "id": "snapped",
+      "name": "Snapped to a declared point",
+      "role": "boundary",
+      "description": "PageDown moves to the next declared snap point below the current size and says so in the announcement.",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Snapped"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sessions"
+          },
+          "text": "PageDown"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "data-snapped",
+          "value": "true"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuenow",
+          "value": "200"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuetext",
+          "value": "Sessions 200 pixels, snapped"
+        }
+      ]
+    },
+    {
+      "id": "collapsed",
+      "name": "Below the collapse threshold",
+      "role": "boundary",
+      "states": ["empty"],
+      "description": "Under its collapse threshold the panel reports itself collapsed and the handle stays present as the way back out.",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Collapsed"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sessions"
+          },
+          "text": "Home"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "data-collapsed",
+          "value": "true"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuetext",
+          "value": "Sessions collapsed"
+        },
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-resize-handle]"
+        }
+      ]
+    },
+    {
+      "id": "rtl",
+      "name": "Right to left",
+      "role": "boundary",
+      "states": ["rtl"],
+      "description": "Under dir=rtl an end-edge panel grows toward the left, so ArrowLeft must increase its size. A physical-coordinate resizer inverts here.",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "Rtl"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sessions"
+          },
+          "text": "ArrowLeft"
+        },
+        {
+          "kind": "key",
+          "target": {
+            "role": "separator",
+            "name": "Resize Sessions"
+          },
+          "text": "ArrowLeft"
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "aria-valuenow",
+          "value": "256"
+        }
+      ]
+    },
+    {
+      "id": "forced-colors",
+      "name": "Forced colors",
+      "role": "boundary",
+      "states": ["forced-colors"],
+      "description": "With author background colors discarded the seam is still perceivable, because it is painted as a bar rather than as a fill on the hit area.",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": {
+          "module": "./story.tsx",
+          "export": "ForcedColors"
+        }
+      },
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-resize-handle] .rcl-resize-handle__bar"
+        },
+        {
+          "kind": "attribute",
+          "selector": "[data-rcl-resize-handle]",
+          "attribute": "data-edge",
+          "value": "end"
+        }
+      ]
+    }
+  ]
+}

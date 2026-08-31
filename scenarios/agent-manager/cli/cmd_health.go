@@ -14,46 +14,11 @@ import (
 )
 
 func (a *App) cmdHealth(args []string) error {
-	if len(args) == 0 {
-		return a.healthHelp()
-	}
-	switch args[0] {
-	case "models":
-		return a.healthModels(args[1:])
-	case "runners":
-		return a.healthRunners(args[1:])
-	case "audit":
-		return a.healthAudit(args[1:])
-	case "help", "-h", "--help":
-		return a.healthHelp()
-	default:
-		return fmt.Errorf("unknown health subcommand: %s\n\nRun 'agent-manager health help' for usage", args[0])
-	}
-}
-
-func (a *App) healthHelp() error {
-	fmt.Println(`Usage: agent-manager health <subcommand> [options]
-
-Persisted health snapshots and audit history.
-
-Subcommands:
-  models     Current snapshot of every (runner, model) pair
-  runners    Current snapshot of every runner
-  audit      Paginated audit history (model_health_audit by default;
-             use --scope=runner for runner_health_audit)
-
-Audit options:
-  --scope=model|runner   Audit table to query (default: model)
-  --runner=<type>        Filter by runner_type
-  --model=<id>           Filter by model_id (model scope only)
-  --status=<state>       Filter by status: ok|unknown|failed
-  --since=<RFC3339>      Lower bound on timestamp
-  --until=<RFC3339>      Upper bound on timestamp
-  --limit=<n>            Max rows (default 100)
-
-Output:
-  --json   Output the raw server response`)
-	return nil
+	return dispatchSubcommand(args, "health", map[string]subcommandHandler{
+		"models":  a.healthModels,
+		"runners": a.healthRunners,
+		"audit":   a.healthAudit,
+	})
 }
 
 func (a *App) healthModels(args []string) error {

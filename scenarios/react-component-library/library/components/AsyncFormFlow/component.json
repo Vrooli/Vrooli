@@ -2,10 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "patterns.async-form-flow",
-  "deprecatedVersions": [
-    "1.0.3",
-    "1.0.5"
-  ],
+  "deprecatedVersions": ["1.0.3", "1.0.5", "1.0.4", "1.0.6", "1.0.7", "1.0.8"],
   "description": "The create-or-edit workflow covering initial load, validation, submission, progress, server-error mapping, success, retry, cancellation, and the navigation that follows.",
   "designStyles": [
     {
@@ -23,13 +20,9 @@
   ],
   "displayName": "AsyncFormFlow",
   "draft": "",
-  "evictedVersions": [
-    "1.0.5",
-    "1.0.3",
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.5", "1.0.3", "1.0.4", "1.0.6", "1.0.7", "1.0.8"],
   "kind": "input",
-  "latest": "1.0.7",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:AsyncFormFlow",
   "requires": [
     {

@@ -110,6 +110,9 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 
 ## Decision Log
 
+| 2026-08-31 | Record unresolved catalog population as intended roadmap work | The catalog contains 225 declared IDs with no manifest-backed implementation. Existing fixture and roadmap consumers still depend on these declarations, so deleting them would erase useful intent and break fixture validation. | Every unresolved ID is recorded in `catalog/population-decisions.json` as `intended-and-scheduled`; readiness and I19 count only unresolved IDs without a recorded decision. The declarations remain non-implemented and cannot earn maturity until a governed manifest and evidence contract exist. | Revisit an ID when a governed implementation is available, or change its decision to `removed` with an explicit review record. |
+
+
 | Date | Decision | Context | Consequences | Revisit Trigger |
 |---|---|---|---|---|
 | 2026-08-10 | Keep hover intent pointer-aware and focus-complete | Hover-only activation excludes touch and pen users, while a hover hook that ignores related floating surfaces closes menus while the pointer travels to them. | `useHover` gates pointer activation through the hover/fine media capability, treats keyboard focus as an independent open path, delays entry/exit, and accepts related refs for handoff. The current preview sweep remains component-only; hook behavior is validated through closure and a retained interactive story until a hook-aware visual runner exists. | Revisit when capability-detection becomes a registered closure asset or the preview harness can mount behavior-only stories with pointer/focus interaction assertions. |
@@ -178,6 +181,15 @@ memory.
 Indexing never repairs a released hash by rewriting source. Existing source /
 ledger mismatches are surfaced as errors and withheld from automatic eviction
 until the owning release is repaired or explicitly retired.
+
+### 2026-08-31 — Restore authored bytes only from the durable mirror
+
+When a materialized release file is changed by an unsafe formatter or stale
+projection, `make restore-authored-mirror` is the recovery boundary. The
+command previews the exact paths, restores only bytes that exist in the
+SQLite mirror, excludes derived locks, and requires `--apply`; current bytes
+are never accepted as provenance by the repair path. Materialized retired
+versions are reclaimed through the lifecycle CLI after mirror verification.
 
 ### 2026-08-27 — Bound evidence by measured payload workload
 
@@ -437,6 +449,8 @@ instrument to mature; source drift still fails the gate and requires a new
 released version or restoration of the recorded source bytes.
 # Calibration corpus and evaluator evidence
 
+| 2026-08-31 | Transiently project retired dependencies without warming them | Historical released source can still contain a relative dependency on a retired version, so a package projection must be able to compile that source while retention keeps the version cold. | `versions materialize --all --into <directory>` includes retired mirror rows only for the transient destination; normal materialization still excludes retired rows. The selected `restore-authored-mirror --retired asset@version --apply` repair records mirror hashes and restores authored files atomically. | Revisit if historical source is migrated away from exact relative dependencies; until then, keep transient projection separate from live presence. |
+
 The frozen calibration corpus lives under `scenarios/react-component-library/calibration/`. It references versioned library assets, is excluded from catalog coverage ratios, and stores the P2 oracle in `verdicts.json`; later capture-performance work must compare against that file rather than regenerate it. `content-not-clipped` is the first computed visual-bar check: it consumes BAS accessibility nodes enriched with client/scroll dimensions and computed overflow, failing only when overflow is clipped without a reachable scroll affordance.
 
 # Final validation evidence is split by oracle
@@ -452,3 +466,4 @@ durable hierarchy and Preview-composition facts are owned by
 `docs/guides/preview-composition-migration.md`. Current counts must be
 recreated from the catalog index for each validation run; they must not be
 copied forward from the historical report.
+| 2026-08-31 | Keep retired rows cold during presence reconciliation | Retired versions are deliberately evicted and retained only in the durable mirror. The reconciler previously treated every evicted row outside the current retire-candidate set as a warm-tier repair, which proposed rematerializing all 737 retired rows. | Presence reconciliation now excludes rows whose lifecycle status is `retired` (and the legacy `archived` status) from materialization. A live rebuilt API preview now reports 0 materializations and 1,070 unchanged rows while preserving the 19 current eviction candidates. | Revisit if lifecycle state is normalized so retired rows no longer appear as a component-version status; keep the cold-tier invariant regardless of storage representation. |

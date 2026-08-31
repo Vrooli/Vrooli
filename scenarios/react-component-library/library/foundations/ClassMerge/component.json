@@ -2,6 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.class-merge",
+  "deprecatedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
   "description": "",
   "designStyles": [
     {
@@ -10,6 +14,11 @@
     }
   ],
   "displayName": "Class Merge",
+  "draft": "",
+  "evictedVersions": [
+    "1.0.1",
+    "1.0.0"
+  ],
   "kind": "surface",
   "latest": "1.0.2",
   "libraryId": "react-component-library:ClassMerge",
@@ -17,9 +26,5 @@
     "foundations",
     "styling",
     "composition"
-  ],
-  "draft": "",
-  "deprecatedVersions": [
-    "1.0.1"
   ]
 }

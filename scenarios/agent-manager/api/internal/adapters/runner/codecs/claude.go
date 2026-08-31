@@ -112,24 +112,17 @@ func (c *Claude) HasChargeSource() bool { return true }
 
 // Capabilities satisfies [Codec].
 func (c *Claude) Capabilities() runner.Capabilities {
-	return runner.Capabilities{
-		SupportsMessages:         true,
+	return codingAgentCapabilities(runner.Capabilities{
 		SupportsToolEvents:       true,
 		SupportsCostTracking:     true,
-		SupportsStreaming:        true,
-		SupportsCancellation:     true,
-		SupportsContinuation:     true, // Claude Code supports --resume
-		SupportsWarmIteration:    true,
 		SupportsImageAttachments: true,
 		SupportsToolRestriction:  true,
 		ToolRestrictionMappings:  canonicalToolMappings(claudeToolTranslations),
 		SupportsEffort:           true,
 		EffortMappings:           map[string]string{"low": "low", "medium": "medium", "high": "high", "xhigh": "xhigh", "max": "max"},
-		MaxTurns:                 0, // unlimited
-		SupportsRunnerDefault:    true,
 		SupportedFeatures:        []string{"EnableBrowser"},
 		AllowedExtraFlags:        nil,
-	}
+	})
 }
 
 // BuildEnv satisfies [Codec]. The tag is the value the launcher writes to

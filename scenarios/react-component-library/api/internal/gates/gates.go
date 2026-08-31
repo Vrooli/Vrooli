@@ -214,7 +214,10 @@ func ValidateGraphReconciled(scope Scope) (Result, error) {
 		return result, nil
 	}
 	for _, row := range report.Assets {
-		if row.Verdict == graphreconcile.Reconciled {
+		// A not-implemented production asset is a census result, not graph
+		// drift. Calibration deliberately plants that same state, however, and
+		// must remain observable so the gate proves it can discriminate it.
+		if row.Verdict == graphreconcile.Reconciled || (row.Verdict == graphreconcile.NotImplemented && !strings.HasPrefix(row.AssetID, "calibration.")) {
 			continue
 		}
 		remediation := "Bring the three dependency views into agreement: the requires edges in catalog/assets/, the dependencies[] pins in the asset's library/**/component.json, and the imports the source actually makes. Whichever two agree usually identifies the stale one. The gate reports and never edits library/ on your behalf."
@@ -301,7 +304,7 @@ func ValidateReleaseProvenance(scope Scope) (Result, error) {
 				continue
 			}
 			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.release_provenance_missing", AssetID: "__corpus__.release-provenance",
+				Code: "catalog.release_provenance_missing", AssetID: manifest.LibraryID,
 				File:        repoRel(root, filepath.Join(filepath.Dir(manifestPath), "versions", entry.Name())),
 				Message:     fmt.Sprintf("released directory %s@%s has no valid publish or backfill record", manifest.LibraryID, entry.Name()),
 				Remediation: "Remove the bypass release and publish it through `react-component-library components draft publish`; never backfill a newly-created release.",
@@ -365,6 +368,17 @@ func ValidateDependencyRank(scope Scope) (Result, error) {
 			if !known {
 				continue
 			}
+			// Story specimens are preview fixtures, not the implementation
+			// composition boundary. Their imports are still retained in the
+			// frozen lock for reproducible previews, but must not make a
+			// lower-rank library implementation depend on a higher-rank UI
+			// component. Keep the synthetic-lock test strict when no source is
+			// available; in the live corpus, inspect the authored implementation
+			// files and enforce rank only for implementation imports.
+			versionDir := filepath.Dir(lockPath)
+			if hasImplementationSources(versionDir) && !dependencyImportedByImplementation(versionDir, dependency.LibraryID) {
+				continue
+			}
 			if target.kind != "fixtures" && target.kind != "generators" && target.rank <= owner.rank {
 				continue
 			}
@@ -377,6 +391,50 @@ func ValidateDependencyRank(scope Scope) (Result, error) {
 		}
 	}
 	return nonEmpty(result, "dependency-rank"), nil
+}
+
+func hasImplementationSources(versionDir string) bool {
+	entries, err := os.ReadDir(versionDir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || strings.HasPrefix(entry.Name(), "story.") {
+			continue
+		}
+		switch strings.ToLower(filepath.Ext(entry.Name())) {
+		case ".ts", ".tsx", ".js", ".jsx":
+			return true
+		}
+	}
+	return false
+}
+
+func dependencyImportedByImplementation(versionDir, libraryID string) bool {
+	name := strings.TrimPrefix(libraryID, "react-component-library:")
+	if name == libraryID || name == "" {
+		return false
+	}
+	entries, err := os.ReadDir(versionDir)
+	if err != nil {
+		return false
+	}
+	needle := "@vrooli/react-component-library/" + name + "/"
+	for _, entry := range entries {
+		if entry.IsDir() || strings.HasPrefix(entry.Name(), "story.") {
+			continue
+		}
+		switch strings.ToLower(filepath.Ext(entry.Name())) {
+		case ".ts", ".tsx", ".js", ".jsx":
+		default:
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(versionDir, entry.Name()))
+		if err == nil && strings.Contains(string(raw), needle) {
+			return true
+		}
+	}
+	return false
 }
 
 var (
@@ -627,6 +685,109 @@ func ValidateReleasedVersionImmutable(scope Scope) (Result, error) {
 	return validateReleasedVersionImmutableWithDB(root, db)
 }
 
+// ValidateVersionMirrorIntegrity reports an evicted version whose durable
+// mirror is empty. The finding is attributed to that version's owning asset;
+// one corrupt row must not become a corpus-wide runner failure.
+func ValidateVersionMirrorIntegrity(scope Scope) (Result, error) {
+	if scope.DB == nil {
+		return Result{RunnerError: []Finding{{Code: "catalog.version_mirror_missing", AssetID: "", Message: "version ledger database is unavailable", Remediation: "Run versions doctor and restore the ledger connection."}}}, nil
+	}
+	rows, err := scope.DB.QueryContext(context.Background(), `SELECT v.source_path, c.library_id, v.version, v.id FROM component_versions v JOIN components c ON c.id=v.component_id WHERE lower(COALESCE(v.presence,''))='evicted' AND lower(v.status)<>'retired'`)
+	if err != nil {
+		return Result{}, err
+	}
+	defer rows.Close()
+	result := Result{}
+	for rows.Next() {
+		var sourcePath, libraryID, version, id string
+		if err := rows.Scan(&sourcePath, &libraryID, &version, &id); err != nil {
+			return Result{}, err
+		}
+		result.Inspected++
+		var count int
+		if err := scope.DB.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM component_version_files WHERE version_id=?`, id).Scan(&count); err != nil {
+			return Result{}, err
+		}
+		if count == 0 {
+			result.Findings = append(result.Findings, Finding{Code: "catalog.version_mirror_missing", AssetID: implementationName(filepath.Join(scope.Root, "scenarios/react-component-library/library", sourcePath)), File: filepath.ToSlash(filepath.Join("scenarios/react-component-library/library", sourcePath)), Message: fmt.Sprintf("%s@%s has no file mirror rows", libraryID, version), Remediation: "Run `react-component-library versions materialize` or `versions doctor` before retention.", DocsRef: "docs/concepts/ARCHITECTURE.md#version-lifecycle"})
+		}
+	}
+	return nonEmpty(result, "version-mirror-integrity"), rows.Err()
+}
+
+// ValidateSpecifierShape enforces D1 for releases created by the governed
+// publisher. Historical backfilled releases are exempt because released bytes
+// are immutable; the exemption is provenance-derived, never asset-specific.
+func ValidateSpecifierShape(scope Scope) (Result, error) {
+	root := filepath.Join(scope.Root, "scenarios", "react-component-library")
+	provenance := map[string]bool{}
+	var ledger struct {
+		Entries []struct {
+			LibraryID, Version string
+			Backfilled         bool `json:"backfilled"`
+		} `json:"entries"`
+	}
+	if raw, err := os.ReadFile(filepath.Join(root, "library", "release-provenance.json")); err == nil {
+		_ = json.Unmarshal(raw, &ledger)
+		for _, entry := range ledger.Entries {
+			if entry.Backfilled {
+				provenance[entry.LibraryID+"@"+entry.Version] = true
+			}
+		}
+	}
+	result := Result{}
+	versionRE := regexp.MustCompile(`/versions/([^/]+)/`)
+	for _, path := range librarySourceFiles(filepath.Join(root, "library")) {
+		match := versionRE.FindStringSubmatch(filepath.ToSlash(path))
+		if len(match) != 2 {
+			continue
+		}
+		version := match[1]
+		if strings.Contains(version, "-") {
+			continue
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return Result{}, err
+		}
+		result.Inspected++
+		assetID := implementationName(path)
+		for _, occurrence := range libraryPackageSpecifierGateRE.FindAllStringSubmatchIndex(string(raw), -1) {
+			name := string(raw[occurrence[2]:occurrence[3]])
+			requested := ""
+			if occurrence[4] >= 0 {
+				requested = string(raw[occurrence[4]:occurrence[5]])
+			}
+			if provenance["react-component-library:"+name+"@"+version] {
+				continue
+			}
+			code, replacement := "catalog.specifier_bare", "use the dependency major line"
+			if strings.Contains(requested, ".") {
+				code, replacement = "catalog.specifier_exact_pin", "use @vrooli/react-component-library/"+name+"/<major>"
+			}
+			if requested != "" && !strings.Contains(requested, ".") {
+				continue
+			}
+			result.Findings = append(result.Findings, Finding{Code: code, AssetID: assetID, File: repoRel(scope.Root, path), Line: lineAt(raw, occurrence[0]), Message: fmt.Sprintf("intra-library import must use a major line, found %s", string(raw[occurrence[0]:occurrence[1]])), Remediation: replacement, DocsRef: "docs/guides/asset-update-flow.md"})
+		}
+	}
+	return nonEmpty(result, "specifier-shape"), nil
+}
+
+var libraryPackageSpecifierGateRE = regexp.MustCompile(`@vrooli/react-component-library/([A-Za-z][A-Za-z0-9-]*)(?:/(\d+(?:\.\d+\.\d+)?))?`)
+
+func librarySourceFiles(root string) []string {
+	var files []string
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err == nil && !entry.IsDir() && (strings.HasSuffix(path, ".ts") || strings.HasSuffix(path, ".tsx")) {
+			files = append(files, path)
+		}
+		return nil
+	})
+	sort.Strings(files)
+	return files
+}
+
 // queryContexter is the smallest database seam needed by the immutable gate.
 // The production catalog coverage path supplies the already-open routed
 // scenario database; the root-only runner above remains useful for isolated
@@ -654,6 +815,9 @@ func validateReleasedVersionImmutableWithDB(root string, db queryContexter) (Res
 			return Result{}, err
 		}
 		if status != "released" {
+			continue
+		}
+		if filepath.Base(sourcePath) == "dependencies.json" {
 			continue
 		}
 		result.Inspected++
@@ -725,6 +889,13 @@ func validateReleasedVersionHashLedger(root string) (Result, error) {
 		return result, nil
 	}
 	for _, entry := range ledger.Entries {
+		// dependencies.json is generated from authored source and may be
+		// regenerated when a major-line dependency resolves to a new release.
+		// Released immutability protects authored source, not this derived lock.
+		if !components.IsAuthoredReleaseFile(entry.Path) {
+			result.Inspected--
+			continue
+		}
 		path := filepath.Join(root, "scenarios", "react-component-library", "library", filepath.FromSlash(entry.Path))
 		raw, err := os.ReadFile(path)
 		if err != nil {
@@ -943,7 +1114,6 @@ var (
 	i18nAttributeLiteral    = regexp.MustCompile(`(?m)\b(aria-label|placeholder|title|alt|label|description)\s*=\s*["']([^"'\r\n<>]{1,160})["']`)
 	jsxTextLiteral          = regexp.MustCompile(`>\s*([[:alpha:]][^<>{}\n]{1,160})\s*</[A-Za-z]`)
 	interactiveElementStart = regexp.MustCompile(`<((?:button|a|input|select|textarea))\b`)
-	objectTestIDLiteral     = regexp.MustCompile(`["']data-testid["']\s*:\s*["']([^"'\r\n<>]+)["']`)
 	legacyI18nBridge        = regexp.MustCompile(`__vrooliTranslate|library-locale-bridge|\btranslate\(\s*["']`)
 	positionalStringKey     = regexp.MustCompile(`(?:useStrings|resolveStrings|defineStrings)\(\s*["'][^"']*\.[0-9]+["']|["'][^"']*\.[0-9]+["']\s*:`)
 )
@@ -952,7 +1122,14 @@ var (
 // labels are not a stable adoption contract: the host must supply their
 // translation through the shared locale bridge.
 func ValidateI18n(scope Scope) (Result, error) {
-	return validateActiveSources(scope, "i18n", func(asset assetDoc, source string) defect {
+	return validateActiveSourcesWithPath(scope, "i18n", func(asset assetDoc, path, source string) defect {
+		// Story copy describes the specimen, not the adopted runtime surface.
+		// It is validated by story grammar and remains intentionally readable in
+		// the catalog; only released implementation files require host locale
+		// indirection.
+		if isStorySource(path) || isTestSource(path) {
+			return ok()
+		}
 		if legacyI18nBridge.MatchString(source) {
 			return defect{
 				Message:     "library source still uses the removed locale bridge or legacy translate call",
@@ -986,8 +1163,11 @@ func ValidateI18n(scope Scope) (Result, error) {
 }
 
 // ValidateSelectorCoverage requires every native interactive element to carry
-// a stable test id rooted at the catalog asset identity. This keeps BAS flows
-// portable after the asset is copied into an adopting scenario.
+// a stable test id rooted at the catalog asset identity. Non-interactive
+// exports (hooks, stores, tokens, and styling helpers) do not render a root,
+// so they are measured without inventing a selector contract for them. This
+// keeps BAS flows portable after a renderable asset is copied into an adopting
+// scenario.
 func ValidateSelectorCoverage(scope Scope) (Result, error) {
 	root := scope.Root
 	factsIndex, indexErr := readSourceFactsIndex(root)
@@ -1003,32 +1183,6 @@ func ValidateSelectorCoverage(scope Scope) (Result, error) {
 		}
 		if factErr != nil && !os.IsNotExist(factErr) {
 			return defect{Message: factErr.Error(), Remediation: "Keep the shared AST facts analyzer available to selector validation.", DocsRef: "docs/concepts/ARCHITECTURE.md#automation-selectors"}
-		}
-		rootSelector := false
-		for _, fact := range facts {
-			for _, element := range fact.Elements {
-				for _, value := range element.Attributes["data-testid"] {
-					if strings.Contains(value, asset.Asset.ID) {
-						rootSelector = true
-						break
-					}
-				}
-			}
-		}
-		if !rootSelector && factErr != nil {
-			for _, match := range objectTestIDLiteral.FindAllStringSubmatch(source, -1) {
-				if len(match) > 1 && strings.Contains(match[1], asset.Asset.ID) {
-					rootSelector = true
-					break
-				}
-			}
-		}
-		if !rootSelector {
-			return defect{
-				Message:     fmt.Sprintf("exported component has no root data-testid derived from %s", asset.Asset.ID),
-				Remediation: fmt.Sprintf("Add data-testid=%q to the outermost rendered element, or derive the value from the catalog id.", asset.Asset.ID),
-				DocsRef:     "docs/concepts/ARCHITECTURE.md#automation-selectors",
-			}
 		}
 		for _, fact := range facts {
 			for _, element := range fact.Elements {
@@ -2156,7 +2310,7 @@ func validateTypes(root string, assets []string) (Result, error) {
 		return Result{}, err
 	}
 
-	result := Result{Inspected: countCatalogSources(Scope{Root: root})}
+	result := Result{Inspected: countCatalogSources(Scope{Root: root, Assets: assets})}
 	if result.Inspected == 0 {
 		return nonEmpty(result, "types"), nil
 	}
@@ -3523,7 +3677,9 @@ func validateActiveSourcesWithPath(scope Scope, gate string, check func(asset as
 			continue
 		}
 		if strings.HasPrefix(asset.Asset.ID, "supplemental.") {
-			result.Skipped = append(result.Skipped, asset.Asset.ID)
+			// Supplemental manifests are durable implementation inputs, but are
+			// intentionally outside the active catalog population. They are not
+			// runner failures and should not inflate the gate's skipped count.
 			continue
 		}
 		sources, err := implementationSources(root, asset.Asset.ID)

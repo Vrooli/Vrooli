@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:DragDropStore",
+  "version": "1.0.1",
+  "resolvedAt": "2026-08-31T05:48:31Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:createScopedStore",
+      "version": "1.0.0",
+      "rank": 2
+    }
+  ]
+}

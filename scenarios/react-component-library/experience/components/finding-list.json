@@ -6,7 +6,7 @@
     "id": "finding-list",
     "title": "FindingList",
     "purpose": "Pair each actionable defect with identity, severity, and remediation.",
-    "storyRef": "../../library/components/FindingList/versions/1.0.7/story.json"
+    "storyRef": "../../library/components/FindingList/versions/1.0.11/story.json"
   },
   "states": [
     {

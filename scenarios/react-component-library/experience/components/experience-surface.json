@@ -6,7 +6,7 @@
     "id": "experience-surface",
     "title": "Experience Surface",
     "purpose": "Expose the lifecycle of an independently meaningful rendered region without imposing layout or visual presentation.",
-    "storyRef": "../../library/components/ExperienceSurface/versions/1.0.2/story.json"
+    "storyRef": "../../library/components/ExperienceSurface/versions/1.0.3/story.json"
   },
   "states": [
     {

@@ -2,7 +2,7 @@ Run 11111111-1111-1111-1111-111111111111
 Status: failed
 Error: tool failed
 Duration: 0s | heartbeat gap: 0s
-Turns: 3 | tokens: 42 | cost: $0.2500
+Turns: 3 | tokens: 42 | cost: unpriced
 Final output: ambiguous (multiple), candidates=2
 Structured result: invalid () diagnostics=schema_invalid
 Model: requested=primary actual=fallback fallbacks=1

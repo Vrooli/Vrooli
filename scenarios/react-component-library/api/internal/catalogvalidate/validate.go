@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"react-component-library/internal/assetrung"
+	"react-component-library/internal/gates"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
 )
@@ -61,6 +62,7 @@ func (v *Validator) Validate() ([]Finding, error) {
 		}
 	}
 	findings = append(findings, crossRegistryFindings(v.RepoRoot, catalogDir)...)
+	findings = append(findings, blockingRunnerFindings(v.RepoRoot, catalogDir)...)
 	findings = append(findings, implementationIdentityFindings(v.RepoRoot)...)
 	findings = append(findings, vacuousAllowlistFindings(v.RepoRoot)...)
 	sort.Slice(findings, func(i, j int) bool {
@@ -73,6 +75,38 @@ func (v *Validator) Validate() ([]Finding, error) {
 		return findings[i].Message < findings[j].Message
 	})
 	return findings, nil
+}
+
+// blockingRunnerFindings keeps the catalog's blocking contract honest at the
+// boundary where declarations are loaded. A declaration-only gate may remain
+// advisory, but it cannot claim to block a release when the executable gate
+// registry has no in-process runner for it.
+func blockingRunnerFindings(repoRoot, catalogDir string) []Finding {
+	data, err := os.ReadFile(filepath.Join(catalogDir, "config.json"))
+	if err != nil {
+		return nil
+	}
+	var config struct {
+		Gates []struct {
+			ID       string `json:"id"`
+			Blocking bool   `json:"blocking"`
+		} `json:"gates"`
+	}
+	if json.Unmarshal(data, &config) != nil {
+		return nil
+	}
+	var findings []Finding
+	for _, gate := range config.Gates {
+		definition, ok := gates.Lookup(gate.ID)
+		if gate.Blocking && (!ok || definition.Run == nil) {
+			findings = append(findings, Finding{
+				Code: "catalog.blocking_gate_without_runner", Severity: "error",
+				Location: rel(repoRoot, filepath.Join(catalogDir, "config.json")),
+				Message:  fmt.Sprintf("blocking gate %q has no in-process runner; add one or set blocking to false and document the advisory gate", gate.ID),
+			})
+		}
+	}
+	return findings
 }
 
 // implementationIdentityFindings closes the join between authored library

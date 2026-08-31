@@ -2,9 +2,7 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "component",
   "catalogId": "templates.detail-page",
-  "deprecatedVersions": [
-    "1.0.4"
-  ],
+  "deprecatedVersions": ["1.0.4", "1.0.5", "1.0.6", "1.0.7"],
   "description": "A record detail template with identity, metadata, and data-source-owned content.",
   "designStyles": [
     {
@@ -14,11 +12,9 @@
   ],
   "displayName": "DetailPage",
   "draft": "",
-  "evictedVersions": [
-    "1.0.4"
-  ],
+  "evictedVersions": ["1.0.4", "1.0.5", "1.0.6", "1.0.7"],
   "kind": "surface",
-  "latest": "1.0.7",
+  "latest": "1.0.8",
   "libraryId": "react-component-library:DetailPage",
   "requires": [
     {
@@ -26,10 +22,5 @@
       "version": "1.0.0"
     }
   ],
-  "tags": [
-    "template",
-    "page",
-    "data-source",
-    "token-bound"
-  ]
+  "tags": ["template", "page", "data-source", "token-bound"]
 }

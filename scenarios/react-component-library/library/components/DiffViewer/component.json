@@ -3,7 +3,11 @@
   "assetKind": "component",
   "catalogId": "data-display.diff-viewer",
   "deprecatedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.0.3",
+    "1.0.0",
+    "1.0.4",
+    "1.0.2"
   ],
   "description": "A readable before-and-after surface that keeps change direction and context visible.",
   "designStyles": [
@@ -15,10 +19,14 @@
   "displayName": "DiffViewer",
   "draft": "",
   "evictedVersions": [
-    "1.0.1"
+    "1.0.1",
+    "1.0.3",
+    "1.0.0",
+    "1.0.4",
+    "1.0.2"
   ],
   "kind": "surface",
-  "latest": "1.0.4",
+  "latest": "1.0.5",
   "libraryId": "react-component-library:DiffViewer",
   "requires": [
     {

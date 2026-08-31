@@ -124,27 +124,20 @@ func (c *OpenCode) HasChargeSource() bool { return true }
 // discovered through OpenCode's first-class provider block; resource role
 // resolution owns concrete coding-agent model selection.
 func (c *OpenCode) Capabilities() runner.Capabilities {
-	return runner.Capabilities{
-		SupportsMessages:         true,
+	return codingAgentCapabilities(runner.Capabilities{
 		SupportsToolEvents:       true,
-		SupportsCostTracking:     true, // step_finish tokens + cost parsed in handleStepFinish
-		SupportsStreaming:        true, // JSON event stream via `run --format json`
-		SupportsCancellation:     true,
-		SupportsContinuation:     true, // `--session <id>`
-		SupportsWarmIteration:    true,
+		SupportsCostTracking:     true,  // step_finish tokens + cost parsed in handleStepFinish
 		SupportsImageAttachments: true,  // `opencode run -f/--file <FILE>`
 		SupportsToolRestriction:  false, // OpenCode has no per-launch allowlist for its native tools.
 		ToolRestrictionMappings:  canonicalToolMappings(openCodeToolTranslations),
 		SupportsEffort:           true,
 		EffortMappings:           map[string]string{}, // --variant is provider/model-specific; see ControlArgs.
 		EffortModelSpecific:      true,
-		MaxTurns:                 0,
 		SupportedModels:          c.ollama.list(),
-		SupportsRunnerDefault:    true,
 		DynamicModelPrefixes:     []string{ollamaModelPrefix},
 		SupportedFeatures:        []string{},
 		AllowedExtraFlags:        []string{"--verbose"},
-	}
+	})
 }
 
 // ProbeModel satisfies [Codec]. Lightweight by design — it never makes a

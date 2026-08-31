@@ -1,5 +1,5 @@
-import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1.0.1";
-import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1.0.0";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { i18n } from "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -69,20 +69,20 @@ async function bootstrap() {
   ReactDOM.createRoot(appRoot).render(
     // vrooli:library-strings-provider start
     <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
-<React.StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <ErrorBoundary>
-            <BaseStyles />
-            <BrowserRouter basename={normalizeRouterBasename(import.meta.env.BASE_URL)}>
-              <React.Profiler id="App" onRender={onProfilerRender}>
-                <App />
-              </React.Profiler>
-            </BrowserRouter>
-          </ErrorBoundary>
-        </ThemeProvider>
-      </QueryClientProvider>
-    </React.StrictMode>
+      <React.StrictMode>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <ErrorBoundary>
+              <BaseStyles />
+              <BrowserRouter basename={normalizeRouterBasename(import.meta.env.BASE_URL)}>
+                <React.Profiler id="App" onRender={onProfilerRender}>
+                  <App />
+                </React.Profiler>
+              </BrowserRouter>
+            </ErrorBoundary>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </React.StrictMode>
     </LibraryStringsProvider>,
     // vrooli:library-strings-provider end
   );

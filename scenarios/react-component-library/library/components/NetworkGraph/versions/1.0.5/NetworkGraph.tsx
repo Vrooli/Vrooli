@@ -6,10 +6,10 @@
  * @tags ["visualization","token-bound"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import { withClassName } from "@vrooli/react-component-library/ClassMerge/1.0.1";
+import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 /** @vrooliComponentSource react-component-library:NetworkGraph */
-import { useStrings } from "@vrooli/react-component-library/useLocale/1.0.1";
+import { useStrings } from "@vrooli/react-component-library/useLocale/1";
 import { useEffect, useRef } from "react";
 export interface GraphNode {
   id: string;

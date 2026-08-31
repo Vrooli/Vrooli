@@ -4,7 +4,13 @@
   "catalogId": "data-display.bulk-action-bar",
   "deprecatedVersions": [
     "1.0.1",
-    "1.0.3"
+    "1.0.3",
+    "1.0.2",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.4"
   ],
   "description": "The contextual action surface activated by selection, showing counts and scope, guarding destructive operations, and reporting progress, partial failure, and cancellation.",
   "designStyles": [
@@ -26,10 +32,15 @@
   "evictedVersions": [
     "1.0.3",
     "1.0.1",
-    "1.0.2"
+    "1.0.2",
+    "1.0.5",
+    "1.0.6",
+    "1.0.7",
+    "1.0.8",
+    "1.0.4"
   ],
   "kind": "control",
-  "latest": "1.0.4",
+  "latest": "1.0.9",
   "libraryId": "react-component-library:BulkActionBar",
   "requires": [
     {

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "libraryId": "react-component-library:BulkActionBar",
+  "version": "1.0.5",
+  "resolvedAt": "2026-08-31T05:05:21Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:Button",
+      "version": "2.2.1",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ButtonGroup",
+      "version": "1.1.5",
+      "rank": 4
+    },
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:useLocale",
+      "version": "1.1.1",
+      "rank": 2
+    }
+  ]
+}

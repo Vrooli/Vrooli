@@ -16,7 +16,11 @@ const shell = {
 const nav = (
   <nav
     aria-label="Sections"
-    style={{ display: "grid", gap: "var(--space-2xs, 8px)", padding: "var(--space-sm, 16px)" }}
+    style={{
+      display: "grid",
+      gap: "var(--space-2xs, 8px)",
+      padding: "var(--space-sm, 16px)",
+    }}
   >
     <a href="#catalog">Catalog</a>
     <a href="#coverage">Coverage</a>
@@ -71,7 +75,13 @@ function Rig({
       >
         {nav}
       </SidebarShell>
-      <main style={{ flex: "1 1 auto", minInlineSize: 0, padding: "var(--space-sm, 16px)" }}>
+      <main
+        style={{
+          flex: "1 1 auto",
+          minInlineSize: 0,
+          padding: "var(--space-sm, 16px)",
+        }}
+      >
         <p style={{ margin: 0 }}>Workspace</p>
       </main>
     </div>
@@ -106,7 +116,13 @@ export function LegacyHandle() {
  * and the uncovered remainder dismisses on tap.
  */
 export function SwipeDrawer() {
-  return <Rig mode="overlay" mobileOpen mobileWidth="min(18rem, calc(100% - 3rem))" />;
+  return (
+    <Rig
+      mode="overlay"
+      mobileOpen
+      mobileWidth="min(18rem, calc(100% - 3rem))"
+    />
+  );
 }
 
 /** A drawer may opt out of the gesture and rely on its close button alone. */
@@ -130,7 +146,12 @@ export function EdgeSwipeToOpen() {
  */
 export function EndAnchored() {
   return (
-    <Rig mode="overlay" mobileOpen side="inline-end" mobileWidth="min(18rem, calc(100% - 3rem))" />
+    <Rig
+      mode="overlay"
+      mobileOpen
+      side="inline-end"
+      mobileWidth="min(18rem, calc(100% - 3rem))"
+    />
   );
 }
 
@@ -142,7 +163,11 @@ export function EndAnchored() {
 export function RightToLeft() {
   return (
     <div dir="rtl">
-      <Rig mode="overlay" mobileOpen mobileWidth="min(18rem, calc(100% - 3rem))" />
+      <Rig
+        mode="overlay"
+        mobileOpen
+        mobileWidth="min(18rem, calc(100% - 3rem))"
+      />
     </div>
   );
 }

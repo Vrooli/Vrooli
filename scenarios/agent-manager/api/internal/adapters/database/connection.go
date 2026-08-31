@@ -528,6 +528,8 @@ var invocationReadModelRunColumnMigrations = []columnMigration{
 	{column: "goal_id", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_id TEXT NOT NULL DEFAULT ''"},
 	{column: "goal_status", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN goal_status TEXT NOT NULL DEFAULT ''"},
 	{column: "input_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN input_cost_usd REAL NOT NULL DEFAULT 0"},
+	{column: "cost_source", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cost_source TEXT NOT NULL DEFAULT 'unknown'"},
+	{column: "charge_reason", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN charge_reason TEXT NOT NULL DEFAULT ''"},
 	{column: "output_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN output_cost_usd REAL NOT NULL DEFAULT 0"},
 	{column: "cache_read_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_read_cost_usd REAL NOT NULL DEFAULT 0"},
 	{column: "cache_creation_cost_usd", ddl: "ALTER TABLE invocation_read_model_runs ADD COLUMN cache_creation_cost_usd REAL NOT NULL DEFAULT 0"},
