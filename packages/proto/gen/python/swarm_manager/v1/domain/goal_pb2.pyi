@@ -9,7 +9,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Goal(_message.Message):
-    __slots__ = ("name", "title", "description", "status", "priority", "targets", "milestones", "created", "updated", "archived_at", "dropped_items")
+    __slots__ = ("name", "title", "description", "status", "priority", "targets", "milestones", "created", "updated", "archived_at", "dropped_items", "serves_deliverable")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
@@ -21,6 +21,7 @@ class Goal(_message.Message):
     UPDATED_FIELD_NUMBER: _ClassVar[int]
     ARCHIVED_AT_FIELD_NUMBER: _ClassVar[int]
     DROPPED_ITEMS_FIELD_NUMBER: _ClassVar[int]
+    SERVES_DELIVERABLE_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
@@ -32,7 +33,8 @@ class Goal(_message.Message):
     updated: str
     archived_at: str
     dropped_items: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., targets: _Optional[_Iterable[str]] = ..., milestones: _Optional[_Iterable[_Union[_goal_pb2.Milestone, _Mapping]]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., archived_at: _Optional[str] = ..., dropped_items: _Optional[_Iterable[str]] = ...) -> None: ...
+    serves_deliverable: str
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[int] = ..., targets: _Optional[_Iterable[str]] = ..., milestones: _Optional[_Iterable[_Union[_goal_pb2.Milestone, _Mapping]]] = ..., created: _Optional[str] = ..., updated: _Optional[str] = ..., archived_at: _Optional[str] = ..., dropped_items: _Optional[_Iterable[str]] = ..., serves_deliverable: _Optional[str] = ...) -> None: ...
 
 class MilestoneRollup(_message.Message):
     __slots__ = ("milestone_name", "total", "completed", "ready", "blocked", "orphaned")

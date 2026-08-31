@@ -146,7 +146,8 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "Receives one idempotent money event per settled charge through its existing inbound contract. The direction is one-way; money-ledger has no knowledge of this scenario, which is what preserves its neutrality as the journal.",
-        "degraded_behavior": "Emission queues and retries with its own idempotency. Settlement is never blocked, because money that already moved must still be recorded locally; local evidence is authoritative until the emission is accepted."
+        "degraded_behavior": "Emission queues and retries with its own idempotency. Settlement is never blocked, because money that already moved must still be recorded locally; local evidence is authoritative until the emission is accepted.",
+        "supervision_precedence": "required"
       },
       "secrets-manager": {
         "type": "scenario",

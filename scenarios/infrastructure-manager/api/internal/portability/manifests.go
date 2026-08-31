@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/internal/deployability"
 )
 
@@ -93,6 +94,45 @@ type Vocabulary struct {
 	ControlPolicyReasons map[string]map[string]map[string]string `json:"control_policy_reasons,omitempty"`
 }
 
+// UnmarshalJSON keeps the resolver-facing policy representation small while
+// accepting the richer authored form used by the vocabulary schema. Policy
+// values may be legacy strings or objects carrying status, rationale and
+// review metadata; the grid only needs the status token.
+func (v *Vocabulary) UnmarshalJSON(data []byte) error {
+	type wire struct {
+		Capabilities     []string                                `json:"capabilities"`
+		PlatformPolicies map[string]map[string]json.RawMessage   `json:"platform_policies"`
+		ControlPolicies  map[string]map[string]map[string]string `json:"control_policies"`
+		ControlReasons   map[string]map[string]map[string]string `json:"control_policy_reasons"`
+	}
+	var decoded wire
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	v.Capabilities = decoded.Capabilities
+	v.ControlPolicies = decoded.ControlPolicies
+	v.ControlPolicyReasons = decoded.ControlReasons
+	v.PlatformPolicies = make(map[string]map[string]string, len(decoded.PlatformPolicies))
+	for capability, byOS := range decoded.PlatformPolicies {
+		v.PlatformPolicies[capability] = make(map[string]string, len(byOS))
+		for target, raw := range byOS {
+			var token string
+			if err := json.Unmarshal(raw, &token); err == nil {
+				v.PlatformPolicies[capability][target] = token
+				continue
+			}
+			var object struct {
+				Status string `json:"status"`
+			}
+			if err := json.Unmarshal(raw, &object); err != nil {
+				return fmt.Errorf("platform policy %s/%s is neither a token nor an object: %w", capability, target, err)
+			}
+			v.PlatformPolicies[capability][target] = object.Status
+		}
+	}
+	return nil
+}
+
 // Manifest is one capability declaration as authored. Status stays a raw
 // string here: turning a token into vocabulary is the resolver's job, and a
 // token outside the vocabulary must reach the resolver intact so it can be
@@ -112,8 +152,53 @@ type Manifest struct {
 }
 
 type PlatformDeclaration struct {
+	Status    string                    `json:"status"`
+	Mechanism string                    `json:"mechanism"`
+	Since     string                    `json:"since"`
+	ReviewBy  string                    `json:"review_by"`
+	Evidence  json.RawMessage           `json:"evidence"`
+	Pairs     []PlatformPairDeclaration `json:"pairs,omitempty"`
+}
+
+// PlatformCapabilityDeclarations is the wire shape of one service
+// capability. Platform declarations are keyed by OS, while the schema also
+// permits a sibling "pairs" array for console/node combinations. Keeping the
+// normalization here prevents callers from having to know that those two
+// forms use different JSON shapes.
+type PlatformCapabilityDeclarations map[string]PlatformDeclaration
+
+func (d *PlatformCapabilityDeclarations) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	decoded := make(PlatformCapabilityDeclarations, len(raw))
+	for name, value := range raw {
+		if name == "pairs" {
+			var pairs []PlatformPairDeclaration
+			if err := json.Unmarshal(value, &pairs); err != nil {
+				return fmt.Errorf("platform capability pairs: %w", err)
+			}
+			decoded[name] = PlatformDeclaration{Pairs: pairs}
+			continue
+		}
+		var declaration PlatformDeclaration
+		if err := json.Unmarshal(value, &declaration); err != nil {
+			return fmt.Errorf("platform capability %s: %w", name, err)
+		}
+		decoded[name] = declaration
+	}
+	*d = decoded
+	return nil
+}
+
+type PlatformPairDeclaration struct {
+	Console   string          `json:"console"`
+	Node      string          `json:"node"`
 	Status    string          `json:"status"`
 	Mechanism string          `json:"mechanism"`
+	Since     string          `json:"since"`
+	ReviewBy  string          `json:"review_by"`
 	Evidence  json.RawMessage `json:"evidence"`
 }
 
@@ -128,18 +213,39 @@ func evidenceValue(raw json.RawMessage) *deployability.Evidence {
 	return &evidence
 }
 
+func evidenceRawValue(raw json.RawMessage) string {
+	var authoredPath string
+	if json.Unmarshal(raw, &authoredPath) == nil {
+		return authoredPath
+	}
+	return string(raw)
+}
+
 // ResourceInput is the slice of a resource manifest the fleet view reads.
 type ResourceInput struct {
-	Name         string                              `json:"name"`
-	Bundling     deployability.Bundling              `json:"bundling"`
-	Platforms    map[string]string                   `json:"platforms"`
-	Requirements *deployability.ResourceRequirements `json:"requirements"`
-	Deployment   ResourceDeploymentInput             `json:"deployment"`
+	Name           string                              `json:"name"`
+	Driver         string                              `json:"driver"`
+	Bundling       deployability.Bundling              `json:"bundling"`
+	Platforms      map[string]string                   `json:"platforms"`
+	Requirements   *deployability.ResourceRequirements `json:"requirements"`
+	Deployment     ResourceDeploymentInput             `json:"deployment"`
+	ManagedService *ResourceManagedServiceInput        `json:"managed_service"`
+	Acquisition    *ResourceAcquisitionInput           `json:"acquisition"`
+}
+
+type ResourceManagedServiceInput struct {
+	Acquisition ResourceAcquisitionInput `json:"acquisition"`
+}
+
+type ResourceAcquisitionInput struct {
+	Kind    string                          `json:"kind"`
+	Targets []binaryfetch.AcquisitionTarget `json:"targets"`
 }
 
 type ResourceProfileInput struct {
 	Requires      []string `json:"requires"`
 	Architectures []string `json:"architectures"`
+	Support       string   `json:"support"`
 }
 
 type ResourceDeploymentInput struct {
@@ -228,7 +334,7 @@ func (r *Reader) CapabilityManifests() ([]Manifest, error) {
 			Service struct {
 				Name                 string                                    `json:"name"`
 				Capabilities         []string                                  `json:"capabilities"`
-				PlatformCapabilities map[string]map[string]PlatformDeclaration `json:"platform_capabilities"`
+				PlatformCapabilities map[string]PlatformCapabilityDeclarations `json:"platform_capabilities"`
 			} `json:"service"`
 		}
 		if err := json.Unmarshal(data, &service); err != nil {

@@ -75,7 +75,7 @@ func (s *Service) GetSettings(ctx context.Context, bundleKey string) (*StorageSe
 
 	query := `
 		SELECT id, bundle_key, provider, bucket, region, endpoint, force_path_style, default_prefix,
-		       signed_url_ttl_seconds, public_base_url, access_key_id, secret_access_key, session_token,
+		       signed_url_ttl_seconds, public_base_url,
 		       created_at, updated_at
 		FROM download_storage_settings
 		WHERE bundle_key = $1
@@ -85,7 +85,6 @@ func (s *Service) GetSettings(ctx context.Context, bundleKey string) (*StorageSe
 	row := s.db.QueryRowContext(ctx, query, bundleKey)
 	var settings StorageSettings
 	var provider, bucket, region, endpoint, defaultPrefix, publicBaseURL sql.NullString
-	var accessKeyID, secretAccessKey, sessionToken sql.NullString
 	var ttl sql.NullInt64
 	if err := row.Scan(
 		&settings.ID,
@@ -98,9 +97,6 @@ func (s *Service) GetSettings(ctx context.Context, bundleKey string) (*StorageSe
 		&defaultPrefix,
 		&ttl,
 		&publicBaseURL,
-		&accessKeyID,
-		&secretAccessKey,
-		&sessionToken,
 		&settings.CreatedAt,
 		&settings.UpdatedAt,
 	); err != nil {
@@ -119,9 +115,6 @@ func (s *Service) GetSettings(ctx context.Context, bundleKey string) (*StorageSe
 	settings.Endpoint = strings.TrimSpace(endpoint.String)
 	settings.DefaultPrefix = strings.TrimSpace(defaultPrefix.String)
 	settings.PublicBaseURL = strings.TrimSpace(publicBaseURL.String)
-	settings.AccessKeyID = strings.TrimSpace(accessKeyID.String)
-	settings.SecretAccessKey = strings.TrimSpace(secretAccessKey.String)
-	settings.SessionToken = strings.TrimSpace(sessionToken.String)
 	if ttl.Valid && ttl.Int64 > 0 {
 		settings.SignedURLTTLSeconds = int(ttl.Int64)
 	} else {
@@ -139,29 +132,24 @@ func (s *Service) SettingsSnapshot(ctx context.Context, bundleKey string) (*Stor
 
 	if settings == nil {
 		return &StorageSettingsSnapshot{
-			Provider:             "s3",
-			SignedURLTTLSeconds:  900,
-			CredentialsFromEnv:   true,
-			SettingsRowAvailable: false,
+			Provider:                 "s3",
+			SignedURLTTLSeconds:      900,
+			CredentialsFromAuthority: true,
+			SettingsRowAvailable:     false,
 		}, nil
 	}
 
-	credentialsFromEnv := strings.TrimSpace(settings.AccessKeyID) == "" && strings.TrimSpace(settings.SecretAccessKey) == ""
-
 	return &StorageSettingsSnapshot{
-		Provider:             settings.Provider,
-		Bucket:               settings.Bucket,
-		Region:               settings.Region,
-		Endpoint:             settings.Endpoint,
-		ForcePathStyle:       settings.ForcePathStyle,
-		DefaultPrefix:        settings.DefaultPrefix,
-		SignedURLTTLSeconds:  settings.SignedURLTTLSeconds,
-		PublicBaseURL:        settings.PublicBaseURL,
-		AccessKeyIDSet:       strings.TrimSpace(settings.AccessKeyID) != "",
-		SecretAccessKeySet:   strings.TrimSpace(settings.SecretAccessKey) != "",
-		SessionTokenSet:      strings.TrimSpace(settings.SessionToken) != "",
-		CredentialsFromEnv:   credentialsFromEnv,
-		SettingsRowAvailable: true,
+		Provider:                 settings.Provider,
+		Bucket:                   settings.Bucket,
+		Region:                   settings.Region,
+		Endpoint:                 settings.Endpoint,
+		ForcePathStyle:           settings.ForcePathStyle,
+		DefaultPrefix:            settings.DefaultPrefix,
+		SignedURLTTLSeconds:      settings.SignedURLTTLSeconds,
+		PublicBaseURL:            settings.PublicBaseURL,
+		CredentialsFromAuthority: true,
+		SettingsRowAvailable:     true,
 	}, nil
 }
 
@@ -181,6 +169,9 @@ func (s *Service) SaveSettings(ctx context.Context, bundleKey string, update Sto
 	bundleKey = strings.TrimSpace(bundleKey)
 	if bundleKey == "" {
 		return nil, fmt.Errorf("bundle_key is required")
+	}
+	if update.AccessKeyID != nil || update.SecretAccessKey != nil || update.SessionToken != nil {
+		return nil, fmt.Errorf("download credentials must be provisioned through the credential authority")
 	}
 
 	existing, err := s.GetSettings(ctx, bundleKey)
@@ -206,8 +197,8 @@ func (s *Service) SaveSettings(ctx context.Context, bundleKey string, update Sto
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO download_storage_settings (
 			bundle_key, provider, bucket, region, endpoint, force_path_style, default_prefix,
-			signed_url_ttl_seconds, public_base_url, access_key_id, secret_access_key, session_token, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12, NOW())
+			signed_url_ttl_seconds, public_base_url, updated_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, NOW())
 		ON CONFLICT (bundle_key) DO UPDATE SET
 			provider = EXCLUDED.provider,
 			bucket = EXCLUDED.bucket,
@@ -217,9 +208,6 @@ func (s *Service) SaveSettings(ctx context.Context, bundleKey string, update Sto
 			default_prefix = EXCLUDED.default_prefix,
 			signed_url_ttl_seconds = EXCLUDED.signed_url_ttl_seconds,
 			public_base_url = EXCLUDED.public_base_url,
-			access_key_id = EXCLUDED.access_key_id,
-			secret_access_key = EXCLUDED.secret_access_key,
-			session_token = EXCLUDED.session_token,
 			updated_at = NOW()
 	`, bundleKey, settings.Provider,
 		normalizeOptionalString(&settings.Bucket),
@@ -229,9 +217,6 @@ func (s *Service) SaveSettings(ctx context.Context, bundleKey string, update Sto
 		normalizeOptionalString(&settings.DefaultPrefix),
 		settings.SignedURLTTLSeconds,
 		normalizeOptionalString(&settings.PublicBaseURL),
-		normalizeOptionalString(&settings.AccessKeyID),
-		normalizeOptionalString(&settings.SecretAccessKey),
-		normalizeOptionalString(&settings.SessionToken),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("save download storage settings: %w", err)

@@ -102,7 +102,8 @@
         "startup_policy": "try_start",
         "purpose": "Holder and minter identity. A holder's view must be genuinely authenticated; a client-side role flag would make the multi-holder isolation boundary (TKE-P0-006) cosmetic.",
         "description": "Tokens are verified locally against the published JWKS. This scenario never stores a credential and never performs a per-request authorization callback.",
-        "degraded_behavior": "Fail closed. Authenticated surfaces refuse rather than falling back to an unauthenticated view, because the isolation boundary cannot be enforced without a verifiable identity. Health reports the dependency as degraded."
+        "degraded_behavior": "Fail closed. Authenticated surfaces refuse rather than falling back to an unauthenticated view, because the isolation boundary cannot be enforced without a verifiable identity. Health reports the dependency as degraded.",
+        "supervision_precedence": "required"
       },
       "notification-hub": {
         "type": "scenario",

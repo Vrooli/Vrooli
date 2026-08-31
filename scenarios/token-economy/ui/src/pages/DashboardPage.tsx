@@ -4,10 +4,10 @@ import { BookOpenCheck, Coins, Gift, Users } from "lucide-react";
 import { minterClient } from "../api/tokenEconomy";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { HealthCard } from "../components/HealthCard";
 import { Metric } from "../components/Metric";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { useTranslation } from "../i18n";
 
 /**

@@ -1,0 +1,38 @@
+{
+  "source": "scenarios/*/.vrooli/monetization.json",
+  "meters": [
+    {
+      "limit_key": "ai_credits",
+      "class": "A",
+      "declared_by": [
+        "audio-tools",
+        "browser-automation-studio",
+        "landing-page-business-suite"
+      ],
+      "bundle_keys": [
+        "business_suite"
+      ],
+      "byok": true
+    },
+    {
+      "limit_key": "voice_minutes",
+      "class": "B",
+      "declared_by": [
+        "web-console"
+      ],
+      "bundle_keys": [
+        "business_suite"
+      ]
+    },
+    {
+      "limit_key": "workflow_executions",
+      "class": "B",
+      "declared_by": [
+        "browser-automation-studio"
+      ],
+      "bundle_keys": [
+        "business_suite"
+      ]
+    }
+  ]
+}

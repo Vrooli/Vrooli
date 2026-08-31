@@ -11,5 +11,6 @@
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_OFF"
   },
-  "createdBy": "content-desk"
+  "createdBy": "content-desk",
+  "effort": "medium"
 }

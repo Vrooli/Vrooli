@@ -1,7 +1,7 @@
 import { selectors } from "../consts/selectors";
 import type { ChangeEvent } from "react";
 import { strings } from "../consts/strings";
-import { Select } from "@vrooli/react-component-library/Select/1.1.1";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import { useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 

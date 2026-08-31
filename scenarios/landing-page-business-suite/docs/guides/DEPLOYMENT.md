@@ -20,6 +20,7 @@ This guide covers how to deploy your landing page from development to production
 6. [Environment Configuration](#environment-configuration)
 7. [Health Checks & Monitoring](#health-checks--monitoring)
 8. [Rollback Procedures](#rollback-procedures)
+9. [Credential Authority and Recovery](#credential-authority-and-recovery)
 
 ---
 
@@ -33,6 +34,33 @@ Landing pages can be deployed through multiple methods:
 | **Docker** | Containerized deployments | Medium |
 | **Traditional VPS** | Full control | Medium |
 | **PaaS (Railway, Render)** | Managed infrastructure | Low |
+
+## Credential Authority and Recovery
+
+LPBS resolves its generated identity, session, encryption, Stripe, and delivery
+credentials through the Vrooli credential authority. Do not put those values in
+`.env` files or database settings. The Stripe and S3 admin forms write through
+to the authority and fail closed when it is unavailable.
+
+Before production deployment, verify the inventory and recovery state:
+
+```bash
+vrooli credentials doctor --format json
+vrooli credentials recovery export --all
+```
+
+If an existing installation still has the retired cleartext payment or delivery
+columns, run the one-shot migration against a database copy before deploying
+the new schema:
+
+```bash
+go run ./cmd/migrate-legacy-credentials
+```
+
+The command writes only values missing from the authority and prints migrated
+counts. It refuses to run when the authority is unavailable. Keep the encrypted
+off-host copy receipt current; a missing receipt is a recovery blocker, not a
+reason to mint replacement generated keys.
 
 ---
 
@@ -113,9 +141,11 @@ docker build -t my-landing:latest .
 docker run -d \
   -p 3000:3000 \
   -e DATABASE_URL="postgres://..." \
-  -e STRIPE_SECRET_KEY="sk_live_..." \
   my-landing:latest
 ```
+
+Provision Stripe credentials through the credential authority before starting
+the container; do not inject them as process environment variables.
 
 ### Option 3: Traditional VPS
 
@@ -284,10 +314,10 @@ Create `api/internal/<domain>/configuration/<slug>.env` with production values:
 # Database
 DATABASE_URL=postgres://prod_user:secure_password@db.example.com:5432/landing_prod
 
-# Stripe (LIVE keys)
-STRIPE_PUBLISHABLE_KEY=pk_live_...
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+# Stripe credentials are provisioned through the credential authority:
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-publishable-key
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-secret-key
+vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-webhook-secret
 
 # Application
 NODE_ENV=production
@@ -295,8 +325,7 @@ API_PORT=3000
 UI_PORT=3001
 
 # Security
-ADMIN_EMAIL=admin@yourdomain.com
-SESSION_SECRET=<random-64-char-string>
+# LPBS generated credentials are minted by the application and recorded in the authority.
 
 # Optional
 ANALYTICS_ENABLED=true
@@ -309,7 +338,7 @@ SENTRY_DSN=https://...@sentry.io/...
 
 Options:
 1. **Environment files**: Use `.env` files (gitignored)
-2. **Vrooli Secrets Manager**: `vrooli secret set <slug> STRIPE_SECRET_KEY`
+2. **Vrooli credential authority**: `vrooli credentials provision --identity vrooli/landing-page-business-suite --field stripe-secret-key`
 3. **Cloud provider**: Use Railway/Render/Fly secrets
 4. **Vault**: For enterprise deployments
 

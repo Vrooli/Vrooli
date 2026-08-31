@@ -1,6 +1,11 @@
 import { strings } from "../../consts/strings.generated";
 import { useTranslation } from "../../i18n";
-import { type PortabilityCell, type PortabilityRow } from "./model";
+import {
+  type PlatformSkipBudget,
+  type PortabilityCell,
+  type PortabilityRow,
+  type ResourceClaim,
+} from "./model";
 
 /**
  * The portability matrix: capabilities down, operating systems across.
@@ -197,6 +202,98 @@ export function PortabilityLegend({ rungs }: { rungs: readonly string[] }) {
         );
       })}
     </ul>
+  );
+}
+
+export interface ResourceClaimsProps {
+  resources: readonly ResourceClaim[];
+  skipBudget: PlatformSkipBudget | null;
+}
+
+/**
+ * The resource side of the portability readout. It stays separate from the
+ * capability matrix because resources have a different denominator: one row
+ * per resource, with an explicit acquisition kind and six OS/architecture
+ * cells. The component never substitutes a zero when the skip-budget source
+ * did not answer.
+ */
+export function ResourceClaims({ resources, skipBudget }: ResourceClaimsProps) {
+  const { t } = useTranslation();
+  const budgetEntries = skipBudget
+    ? Object.entries(skipBudget.budgets).sort(([left], [right]) => left.localeCompare(right))
+    : [];
+  const budgetSummary = budgetEntries.map(([os, budget]) => `${os}=${budget}`).join(", ");
+
+  return (
+    <div className="flex flex-col gap-space-md">
+      <div className="scroller">
+        <table className="annunciator">
+          <caption>{t(strings.pages.substrate.resourceClaimsCaption, { count: resources.length })}</caption>
+          <thead>
+            <tr>
+              <th scope="col">{t(strings.pages.substrate.resourceNameColumn)}</th>
+              <th scope="col">{t(strings.pages.substrate.resourceDriverColumn)}</th>
+              <th scope="col">{t(strings.pages.substrate.resourceAcquisitionColumn)}</th>
+              <th scope="col">{t(strings.pages.substrate.resourcePlatformColumn)}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resources.map((resource) => (
+              <tr key={resource.name}>
+                <th scope="row" className="annunciator__device">{resource.name}</th>
+                <td className="font-mono text-body-sm">{resource.driver}</td>
+                <td className="font-mono text-body-sm">{resource.acquisitionKind}</td>
+                <td>
+                  <div className="flex flex-col gap-space-2xs">
+                    {resource.platforms.map((platform) => (
+                      <div key={platform.hostOs} className="flex flex-wrap gap-x-space-sm gap-y-space-2xs">
+                        <span className="font-mono uppercase">{platform.hostOs}</span>
+                        <span>{platform.support}</span>
+                        {platform.mismatch ? <span className="text-app-danger">mismatch: {platform.reason}</span> : null}
+                        {platform.architectures.map((architecture) => (
+                          <span key={architecture.architecture} className="font-mono text-body-sm" title={architecture.reason}>
+                            {architecture.architecture}={architecture.support}
+                          </span>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <section aria-labelledby="substrate-skip-budget" className="flex flex-col gap-space-2xs">
+        <h3 id="substrate-skip-budget" className="font-mono text-body-sm uppercase tracking-[0.12em]">
+          {t(strings.pages.substrate.skipBudgetHeading)}
+        </h3>
+        <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">
+          {t(strings.pages.substrate.skipBudgetNote)}
+        </p>
+        {!skipBudget || !skipBudget.available ? (
+          <p className="text-body-sm text-app-danger">
+            {t(strings.pages.substrate.skipBudgetUnavailable, {
+              reason: skipBudget?.reason ?? "the portability grid did not supply a measurement",
+            })}
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-x-space-md gap-y-space-2xs text-body-sm">
+            <span>{t(strings.pages.substrate.skipBudgetSummary, {
+              measured: skipBudget.measured,
+              budgets: budgetSummary,
+              ratchet: skipBudget.ratchetDirection ?? "unspecified",
+            })}</span>
+            <span className={skipBudget.lastRunWithinBudget ? "text-app-foreground" : "text-app-danger"}>
+              {skipBudget.lastRunWithinBudget
+                ? t(strings.pages.substrate.skipBudgetWithin)
+                : t(strings.pages.substrate.skipBudgetOver)}
+            </span>
+            {skipBudget.reason ? <span>{skipBudget.reason}</span> : null}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 

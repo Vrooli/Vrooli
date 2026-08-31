@@ -200,7 +200,8 @@ func NewStripeServiceWithSettings(db StripeServiceStore, planService *commerce.P
 	return service
 }
 
-// RefreshConfig reloads Stripe credentials from DB/env.
+// RefreshConfig reloads Stripe credentials from the authority-backed payment
+// settings seam and keeps only non-secret transport configuration in env.
 func (s *StripeService) RefreshConfig(ctx context.Context) error {
 	s.mu.RLock()
 	loader := s.configLoader
@@ -249,71 +250,51 @@ func (s *StripeService) UseIntroCouponConfig(config IntroCouponConfig) {
 }
 
 func (s *StripeService) loadStripeConfig(ctx context.Context) (stripeRuntimeConfig, error) {
-	// Start with environment defaults.
-	envPublishable := strings.TrimSpace(envx.Get("STRIPE_PUBLISHABLE_KEY"))
-	envSecret := strings.TrimSpace(envx.Get("STRIPE_SECRET_KEY"))
-	envWebhook := strings.TrimSpace(envx.Get("STRIPE_WEBHOOK_SECRET"))
+	// PaymentSettingsService owns the authority-backed credential seam. The
+	// transport model may contain values in tests, but production wiring reads
+	// these through credential authority callbacks and never from SQL columns.
+	settings, err := s.paymentSettings.GetStripeSettings(ctx)
+	if err != nil {
+		return stripeRuntimeConfig{}, err
+	}
+	var publishableKey, secretKey, webhookSecret string
+	if settings != nil {
+		publishableKey = strings.TrimSpace(settings.GetPublishableKey())
+		secretKey = strings.TrimSpace(settings.GetSecretKey())
+		webhookSecret = strings.TrimSpace(settings.GetWebhookSecret())
+	}
 	apiBase := strings.TrimSpace(envx.Get("STRIPE_API_BASE"))
 	if apiBase == "" {
 		apiBase = "https://api.stripe.com"
 	}
 
 	cfg := stripeRuntimeConfig{
-		publishableKey: envPublishable,
-		secretKey:      envSecret,
-		webhookSecret:  envWebhook,
+		publishableKey: publishableKey,
+		secretKey:      secretKey,
+		webhookSecret:  webhookSecret,
 		apiBase:        apiBase,
-		hasPublishable: envPublishable != "",
-		hasSecret:      envSecret != "",
-		hasWebhook:     envWebhook != "",
-		source:         "env",
-	}
-
-	// Overlay database/admin overrides when present; keep env values for fields not provided.
-	if s.paymentSettings != nil {
-		record, err := s.paymentSettings.GetStripeSettings(ctx)
-		if err != nil {
-			return cfg, err
-		}
-		if record != nil {
-			fromDB := false
-			if publishable := strings.TrimSpace(record.PublishableKey); publishable != "" {
-				cfg.publishableKey = publishable
-				cfg.hasPublishable = true
-				fromDB = true
-			}
-			if secret := strings.TrimSpace(record.SecretKey); secret != "" {
-				cfg.secretKey = secret
-				cfg.hasSecret = true
-				fromDB = true
-			}
-			if webhook := strings.TrimSpace(record.WebhookSecret); webhook != "" {
-				cfg.webhookSecret = webhook
-				cfg.hasWebhook = true
-				fromDB = true
-			}
-			if fromDB {
-				cfg.source = "database"
-			}
-		}
+		hasPublishable: publishableKey != "",
+		hasSecret:      secretKey != "",
+		hasWebhook:     webhookSecret != "",
+		source:         "authority",
 	}
 
 	if !cfg.hasPublishable {
-		logStructured("STRIPE_PUBLISHABLE_KEY missing", map[string]interface{}{
+		logStructured("Stripe publishable key missing", map[string]interface{}{
 			"level":   "warn",
-			"message": "STRIPE_PUBLISHABLE_KEY is not set",
+			"message": "stripe-publishable-key is not configured in the credential authority",
 		})
 	}
 	if !cfg.hasSecret {
-		logStructured("STRIPE_SECRET_KEY (restricted) missing", map[string]interface{}{
+		logStructured("Stripe restricted key missing", map[string]interface{}{
 			"level":   "warn",
-			"message": "STRIPE_SECRET_KEY (restricted key) is not set",
+			"message": "stripe-secret-key is not configured in the credential authority",
 		})
 	}
 	if !cfg.hasWebhook {
-		logStructured("STRIPE_WEBHOOK_SECRET missing", map[string]interface{}{
+		logStructured("Stripe webhook secret missing", map[string]interface{}{
 			"level":   "warn",
-			"message": "STRIPE_WEBHOOK_SECRET is not set",
+			"message": "stripe-webhook-secret is not configured in the credential authority",
 		})
 	}
 

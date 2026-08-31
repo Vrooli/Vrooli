@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 
-import { Button } from "@vrooli/react-component-library/Button/2.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.2.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";

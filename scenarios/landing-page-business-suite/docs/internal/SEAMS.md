@@ -78,7 +78,9 @@ assertion, reusable fake, and row in the same change.
 `PlanService`, `StripeService`, `PaymentSettingsService`, `VariantService`, `VariantSectionService`, `SEOService`, and `MetricsService` contain business rules and orchestration. Presentation layers must not reach into SQL, Stripe, or experimentation storage directly. SEO persistence flows through `SEOService.UpdateVariantSEO` and its narrow `SEOStore` seam, so the admin handler remains transport-only while API composition owns JSON encoding and configuration writes. JSON-backed landing sections are addressed by a durable key scoped to their variant, never by a synthetic global numeric ID.
 
 **Infrastructure/data**  
-SQL access lives inside services (`plan_service.go`, `stripe_service.go`, `payment_settings_service.go`, etc.). Environment parsing and router wiring live in `main.go`.
+SQL access lives inside services (`plan_service.go`, the internal commerce Stripe
+services, `payment_settings_service.go`, etc.). Non-secret environment parsing
+and router wiring live in `main.go`.
 
 **UI contracts**  
 Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React surfaces (public landing + admin portal). Controllers such as `seoController.ts` adapt those clients for components so React views no longer make raw `fetch` calls.
@@ -96,9 +98,9 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
 ## Stripe Seams (priority)
 
 - **Config loading seam** (`StripeService.RefreshConfig`)  
-  - Source of truth is `loadStripeConfig`: pulls env vars (`STRIPE_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, optional `STRIPE_API_BASE`) then overlays admin overrides from `PaymentSettingsService.GetStripeSettings`.  
+  - Source of truth is `loadStripeConfig`: resolves the three Stripe credentials through the credential-authority-backed `PaymentSettingsService`; only the non-secret `STRIPE_API_BASE` configuration remains environment-backed.
   - Tests can bypass env + DB by injecting a loader via `StripeService.UseConfigLoader(...)` and calling `RefreshConfig` to apply.  
-  - Placeholders keep `hasSecret/hasWebhook` false when keys are absent, preventing accidental live calls.
+  - Placeholders keep `hasSecret/hasWebhook` false when operator credentials are absent, preventing accidental live calls.
 
 - **HTTP seam for Stripe calls** (`StripeService.doStripeRequest`)  
   - All Stripe network traffic flows through `stripeAPIURL` + injected client.  
@@ -106,7 +108,7 @@ Typed clients under `ui/src/shared/api/*.ts` are the sole boundary for React sur
   - This keeps checkout/portal/subscription calls testable without real Stripe access.
 
 - **Admin settings seam** (`api/handlers/commerce/payment_settings_connect.go`, `api/internal/commerce/payment_settings_service.go`)
-  - Generated Connect procedures handle normalization, redaction, and persistence of Stripe keys.
+  - Generated Connect procedures handle normalization, redaction, and authority write-through of Stripe keys; the database row retains only non-secret configuration.
   - After writes, `StripeService.RefreshConfig` is invoked so runtime state follows storage.  
   - `ConfigSnapshot` redacts secrets while exposing `*_set` flags and source to the UI.
 

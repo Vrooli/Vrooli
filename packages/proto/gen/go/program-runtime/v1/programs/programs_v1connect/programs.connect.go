@@ -54,6 +54,9 @@ const (
 	// ProgramServiceMineUnresolvedBindingsProcedure is the fully-qualified name of the ProgramService's
 	// MineUnresolvedBindings RPC.
 	ProgramServiceMineUnresolvedBindingsProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/MineUnresolvedBindings"
+	// ProgramServiceGovernanceShareProcedure is the fully-qualified name of the ProgramService's
+	// GovernanceShare RPC.
+	ProgramServiceGovernanceShareProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/GovernanceShare"
 	// ProgramServiceRunAuthoringEvalProcedure is the fully-qualified name of the ProgramService's
 	// RunAuthoringEval RPC.
 	ProgramServiceRunAuthoringEvalProcedure = "/vrooli.program_runtime.v1.programs.ProgramService/RunAuthoringEval"
@@ -69,6 +72,7 @@ type ProgramServiceClient interface {
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
 	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
 	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
+	GovernanceShare(context.Context, *connect.Request[programs.GovernanceShareRequest]) (*connect.Response[programs.GovernanceShareResponse], error)
 	RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error)
 }
 
@@ -126,6 +130,12 @@ func NewProgramServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(programServiceMethods.ByName("MineUnresolvedBindings")),
 			connect.WithClientOptions(opts...),
 		),
+		governanceShare: connect.NewClient[programs.GovernanceShareRequest, programs.GovernanceShareResponse](
+			httpClient,
+			baseURL+ProgramServiceGovernanceShareProcedure,
+			connect.WithSchema(programServiceMethods.ByName("GovernanceShare")),
+			connect.WithClientOptions(opts...),
+		),
 		runAuthoringEval: connect.NewClient[programs.RunAuthoringEvalRequest, programs.RunAuthoringEvalResponse](
 			httpClient,
 			baseURL+ProgramServiceRunAuthoringEvalProcedure,
@@ -144,6 +154,7 @@ type programServiceClient struct {
 	mineFailures           *connect.Client[programs.MineFailuresRequest, programs.MineFailuresResponse]
 	mineRefusals           *connect.Client[programs.MineRefusalsRequest, programs.MineRefusalsResponse]
 	mineUnresolvedBindings *connect.Client[programs.MineUnresolvedBindingsRequest, programs.MineUnresolvedBindingsResponse]
+	governanceShare        *connect.Client[programs.GovernanceShareRequest, programs.GovernanceShareResponse]
 	runAuthoringEval       *connect.Client[programs.RunAuthoringEvalRequest, programs.RunAuthoringEvalResponse]
 }
 
@@ -183,6 +194,11 @@ func (c *programServiceClient) MineUnresolvedBindings(ctx context.Context, req *
 	return c.mineUnresolvedBindings.CallUnary(ctx, req)
 }
 
+// GovernanceShare calls vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare.
+func (c *programServiceClient) GovernanceShare(ctx context.Context, req *connect.Request[programs.GovernanceShareRequest]) (*connect.Response[programs.GovernanceShareResponse], error) {
+	return c.governanceShare.CallUnary(ctx, req)
+}
+
 // RunAuthoringEval calls vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval.
 func (c *programServiceClient) RunAuthoringEval(ctx context.Context, req *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error) {
 	return c.runAuthoringEval.CallUnary(ctx, req)
@@ -198,6 +214,7 @@ type ProgramServiceHandler interface {
 	MineFailures(context.Context, *connect.Request[programs.MineFailuresRequest]) (*connect.Response[programs.MineFailuresResponse], error)
 	MineRefusals(context.Context, *connect.Request[programs.MineRefusalsRequest]) (*connect.Response[programs.MineRefusalsResponse], error)
 	MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error)
+	GovernanceShare(context.Context, *connect.Request[programs.GovernanceShareRequest]) (*connect.Response[programs.GovernanceShareResponse], error)
 	RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error)
 }
 
@@ -250,6 +267,12 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 		connect.WithSchema(programServiceMethods.ByName("MineUnresolvedBindings")),
 		connect.WithHandlerOptions(opts...),
 	)
+	programServiceGovernanceShareHandler := connect.NewUnaryHandler(
+		ProgramServiceGovernanceShareProcedure,
+		svc.GovernanceShare,
+		connect.WithSchema(programServiceMethods.ByName("GovernanceShare")),
+		connect.WithHandlerOptions(opts...),
+	)
 	programServiceRunAuthoringEvalHandler := connect.NewUnaryHandler(
 		ProgramServiceRunAuthoringEvalProcedure,
 		svc.RunAuthoringEval,
@@ -272,6 +295,8 @@ func NewProgramServiceHandler(svc ProgramServiceHandler, opts ...connect.Handler
 			programServiceMineRefusalsHandler.ServeHTTP(w, r)
 		case ProgramServiceMineUnresolvedBindingsProcedure:
 			programServiceMineUnresolvedBindingsHandler.ServeHTTP(w, r)
+		case ProgramServiceGovernanceShareProcedure:
+			programServiceGovernanceShareHandler.ServeHTTP(w, r)
 		case ProgramServiceRunAuthoringEvalProcedure:
 			programServiceRunAuthoringEvalHandler.ServeHTTP(w, r)
 		default:
@@ -309,6 +334,10 @@ func (UnimplementedProgramServiceHandler) MineRefusals(context.Context, *connect
 
 func (UnimplementedProgramServiceHandler) MineUnresolvedBindings(context.Context, *connect.Request[programs.MineUnresolvedBindingsRequest]) (*connect.Response[programs.MineUnresolvedBindingsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings is not implemented"))
+}
+
+func (UnimplementedProgramServiceHandler) GovernanceShare(context.Context, *connect.Request[programs.GovernanceShareRequest]) (*connect.Response[programs.GovernanceShareResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare is not implemented"))
 }
 
 func (UnimplementedProgramServiceHandler) RunAuthoringEval(context.Context, *connect.Request[programs.RunAuthoringEvalRequest]) (*connect.Response[programs.RunAuthoringEvalResponse], error) {

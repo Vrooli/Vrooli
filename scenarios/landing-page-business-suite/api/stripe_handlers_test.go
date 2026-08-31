@@ -120,7 +120,7 @@ func TestHandleCheckoutCreateAndWebhookEndToEnd(t *testing.T) {
 	}
 	payload, _ := json.Marshal(body)
 
-	handler := handleStripeWebhook(stripeService)
+	handler := billinghttp.Webhook(billingWebhookDependencies(stripeService))
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(payload))
 	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "", "whsec_handlers"))
 	rec := httptest.NewRecorder()
@@ -201,7 +201,7 @@ func TestHandleStripeWebhookCreditTopup(t *testing.T) {
 	req.Header.Set("Stripe-Signature", signStripePayload(t, payload, "", "whsec_handlers"))
 	rec := httptest.NewRecorder()
 
-	handleStripeWebhook(stripeService).ServeHTTP(rec, req)
+	billinghttp.Webhook(billingWebhookDependencies(stripeService)).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("webhook handler failed: %d %s", rec.Code, rec.Body.String())
 	}
@@ -256,7 +256,7 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	reqPaid := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawPaid))
 	reqPaid.Header.Set("Stripe-Signature", signStripePayload(t, rawPaid, "", "whsec_handlers"))
 	recPaid := httptest.NewRecorder()
-	handleStripeWebhook(stripeService).ServeHTTP(recPaid, reqPaid)
+	billinghttp.Webhook(billingWebhookDependencies(stripeService)).ServeHTTP(recPaid, reqPaid)
 	if recPaid.Code != http.StatusOK {
 		t.Fatalf("invoice.paid handler returned %d: %s", recPaid.Code, recPaid.Body.String())
 	}
@@ -287,7 +287,7 @@ func TestHandleStripeWebhookInvoiceEvents(t *testing.T) {
 	reqFailed := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewReader(rawFailed))
 	reqFailed.Header.Set("Stripe-Signature", signStripePayload(t, rawFailed, "", "whsec_handlers"))
 	recFailed := httptest.NewRecorder()
-	handleStripeWebhook(stripeService).ServeHTTP(recFailed, reqFailed)
+	billinghttp.Webhook(billingWebhookDependencies(stripeService)).ServeHTTP(recFailed, reqFailed)
 	if recFailed.Code != http.StatusOK {
 		t.Fatalf("invoice.payment_failed handler returned %d: %s", recFailed.Code, recFailed.Body.String())
 	}
@@ -348,7 +348,7 @@ func TestHandleStripeWebhookSubscriptionLifecycle(t *testing.T) {
 		req.Header.Set("Stripe-Signature", signStripePayload(t, raw, "", "whsec_handlers"))
 		rec := httptest.NewRecorder()
 
-		handleStripeWebhook(stripeService).ServeHTTP(rec, req)
+		billinghttp.Webhook(billingWebhookDependencies(stripeService)).ServeHTTP(rec, req)
 		if rec.Code != http.StatusOK {
 			t.Fatalf("event %d (%s) failed: %d %s", i, evt.eventType, rec.Code, rec.Body.String())
 		}
@@ -434,7 +434,7 @@ func TestHandleStripeWebhookRequiresSignature(t *testing.T) {
 	resetStripeTestData(t, db)
 
 	stripeService := ConfigureStripeServiceSimple(t, db)
-	handler := handleStripeWebhook(stripeService)
+	handler := billinghttp.Webhook(billingWebhookDependencies(stripeService))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/webhooks/stripe", bytes.NewBufferString(`{"type":"test.event"}`))
 	rec := httptest.NewRecorder()

@@ -104,6 +104,22 @@ identity  →  telemetry  →  anticipation
 
 A device class cannot hold a higher rung than the one below it, because you cannot anticipate a failure on a device you cannot name. The ladder joins three typed sources through `api-core/discovery` — `system-monitor/device-graph`, this scenario's own `portability` domain, and `vrooli-autoheal/check-platforms` — and reports source availability explicitly, so an unreadable source becomes a visible entry rather than a silently shorter grid.
 
+## Falsifiable Platform Declarations
+
+The declaration contract makes absence testable. A `not_applicable` cell must
+carry a platform fact and a dated `review_by`, and it must not name a
+mechanism. A `not_implemented` cell is counted as open work: it must name the
+native mechanism to wire, carry a `since` date, and describe the gap without
+using circular phrases such as “no implementation”. Platform policy
+`no_equivalent_ever` uses the same dated rationale contract. The conformance
+validator rejects these malformed shapes before the grid is computed.
+
+The grid reports both architecture cells (`amd64` and `arm64`) for each of
+`linux`, `macos`, and `windows`. It also carries the resource architecture
+claims and the measured `.vrooli/skip-budgets.json` surface. If the skip-budget
+source cannot be read, the ledger says `unavailable` with a reason; it never
+turns missing evidence into a healthy zero.
+
 ### The single-host limit is structural, and must read as such
 
 Every ladder cell for a host OS other than the one this instrument runs on reports `unread` with zero devices seen. **You cannot read a Windows thermal sensor from a Linux host.** No amount of sensor work changes that; it needs a second machine.
@@ -141,14 +157,20 @@ Recorded as data. The distance between this model and the code is the point of m
 
 | Model element | State | Evidence |
 |---|---|---|
-| Capability vocabulary as single source | **Held by a live drift gate.** Both consumer schema enums are checked against the 41-name vocabulary in the control-plane test surface. | `internal/deployability/capabilityvocabulary_test.go` |
+| Capability vocabulary as single source | **Held by a live drift gate.** Consumer schema enums are checked against the 52-name vocabulary in the control-plane test surface, including service-declared platform capabilities. | `internal/deployability/capabilityvocabulary_test.go` |
 | `control` role | **Implemented.** Safeguards declare `control`; providers remain `primary` or `peer`. | `.vrooli/schemas/safeguard.schema.json`, `internal/safeguards/*/safeguard.json` |
 | `AND` resolution for controls | **Implemented.** A provider only resolves fully when every control resolves; incomplete cells retain the provider and name absent controls. | `internal/deployability/capability.go` |
 | Absent declarers reported | **Implemented.** Every resolution branch reports unresolved declarers, including the winner branch. | `internal/deployability/capability.go` |
 | Declared vs observed qualification | **Implemented.** The portability grid keeps declaration resolution unchanged while attaching per-declarer control-plane state, an observed qualification, and an explicit `host_not_sampled` reason for non-local platforms. | `api/internal/portability/grid.go`, `packages/hostreq`, `packages/proto/schemas/infrastructure-manager/v1/portability/portability.proto` |
 | Scenario participation | **Derived for the fleet; 2 of 120 also author overrides.** `scenario-dependency-analyzer` computes all scenario/resource closure verdicts; `system-monitor` and `vrooli-autoheal` retain `service.platform_capabilities` only for capability truth the closure cannot see. | `scenarios/scenario-dependency-analyzer/api/internal/deployment/platform_verdict.go`, `scenarios/*/.vrooli/service.json` |
 | Safeguard enumeration | **Available.** `vrooli host safeguard list` reports every manifest with capability, role, declared platforms, and an explicit observed-state value; focused lookup accepts hyphenated and underscored names. | `internal/cli/vroolicli/hostinstall.go` |
-| Conformance gate | **Available.** `vrooli capability conformance` discovers claims, cross-compiles their Go modules, and fails with manifest-level compiler evidence; the repo contract names the gate. | `internal/deployability/conformance.go`, `.vrooli/repo-contract.json` |
+| Conformance gate | **Implemented, currently red in the dirty tree.** `vrooli capability conformance` discovers claims, cross-compiles their Go modules across six OS/architecture cells, separates vet warnings from hard load failures, and retains manifest-level compiler evidence. The current run found 86 hard findings and 72 warnings across 1794 targets, so this is not yet a passing repository gate. | `internal/deployability/conformance.go`, `.vrooli/repo-contract.json`, `/tmp/portability-conformance-g7.out` |
+| Declaration contract | **Implemented.** Closed cells require dated platform evidence and no mechanism; open cells require a native mechanism, `since`, and non-circular gap evidence. Policy exclusions require dated rationales. | `.vrooli/schemas/common.schema.json`, `internal/deployability/manifestvalidation.go`, `internal/deployability/capabilityvocabulary.go` |
+| Six-cell conformance matrix | **Implemented.** Go-backed claims are checked with `go vet` for Linux/macOS/Windows × amd64/arm64, and findings retain manifest, OS, architecture, and module. | `internal/deployability/conformance.go` |
+| Runtime portability lint | **Implemented with dated exceptions.** AST rules cover shell boundaries and kernel-filesystem reads; findings require a reason and review date in the allowlist. | `.ast-grep/rules/`, `.vrooli/portability-lint-allowlist.json`, `Makefile` |
+| Source-derived fleet verdict | **Implemented.** SDA merges dependency closure with named scenario-source signals and emits `sda_source_verdict` for Linux-only desktop/namespace seams and unguarded app-monitor shell-outs. | `scenarios/scenario-dependency-analyzer/api/internal/deployment/platform_verdict.go` |
+| Resource and skip-budget projection | **Implemented and live.** The ledger exposes all 29 resources, each with driver, acquisition kind, three host-OS rows, and both amd64/arm64 cells. It also exposes the measured skip budget (155), per-OS budgets, ratchet direction, and last-run status; a missing source is unavailable with a reason. | `api/internal/portability/grid.go`, `api/internal/portability/grid_test.go`, `packages/proto/schemas/infrastructure-manager/v1/portability/portability.proto`, `docs/reference/cross-platform-effort/evidence/portability-iii-final-validation-2026-08-26.md` |
+| Resource managed-service closure | **Implemented for the migrated audio resources.** Kokoro, Kyutai STT, and Speaker Verification use managed-service manifests with composed, digest-pinned Linux artifacts and explicit unsupported target declarations. The declaration-only resource gate reports zero findings for the migrated set. | `internal/deployability/resource_conformance.go`, `resources/kokoro/resource.json`, `resources/kyutai-stt/resource.json`, `resources/speaker-verification/resource.json` |
 | `unread` vs `untrusted` on non-local OSes | **Distinguished.** Non-local ladder rows carry `host_not_sampled`, while an observed but unverifiable reading remains `UNTRUSTED`. | `api/internal/ladder/` |
 
 ## Governing Principles

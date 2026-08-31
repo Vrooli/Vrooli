@@ -8,7 +8,7 @@ audience: ["developers", "operators"]
 
 # Stripe Restricted Keys
 
-Use Stripe's restricted keys to shrink blast radius while keeping all billing features working (checkout, portal, subscription cancel, webhook reconciliation). The app still reads the value from `STRIPE_SECRET_KEY` (now labeled “Restricted Key”) but the value should be the restricted key (`rk_...`), not a full-access secret (`sk_...`).
+Use Stripe's restricted keys to shrink blast radius while keeping all billing features working (checkout, portal, subscription cancel, webhook reconciliation). Provision the restricted key (`rk_...`) through Vrooli's credential authority; LPBS resolves it in process and does not read the secret from the environment.
 
 ## Required permissions
 
@@ -31,11 +31,11 @@ Everything else should stay **No access**. If you do not cancel subscriptions fr
 
 ## Wire it into this app
 
-You can set these via the admin portal (Billing → Stripe) or environment variables:
+Provision these through the admin portal (Billing → Stripe) or the credential-authority provisioning flow:
 
-- `STRIPE_PUBLISHABLE_KEY`: `pk_...` (unchanged)
-- `STRIPE_SECRET_KEY`: the **restricted** key `rk_...` (admin UI labels this as “Restricted Key”)
-- `STRIPE_WEBHOOK_SECRET`: `whsec_...` from your webhook endpoint configuration
+- `stripe-publishable-key`: `pk_...` (the descriptor retains `STRIPE_PUBLISHABLE_KEY` only for the browser projection)
+- `stripe-secret-key`: the **restricted** key `rk_...` (admin UI labels this as “Restricted Key”)
+- `stripe-webhook-secret`: `whsec_...` from your webhook endpoint configuration
 
 Webhook setup: in Stripe → Developers → Webhooks, add `https://<your-domain>/api/v1/webhooks/stripe` and select:
 - `checkout.session.completed`

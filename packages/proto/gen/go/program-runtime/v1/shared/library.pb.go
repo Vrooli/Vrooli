@@ -38,6 +38,11 @@ type LibraryProgram struct {
 	PromotionReason  string                 `protobuf:"bytes,10,opt,name=promotion_reason,json=promotionReason,proto3" json:"promotion_reason,omitempty"`
 	Current          bool                   `protobuf:"varint,11,opt,name=current,proto3" json:"current,omitempty"`
 	CalledBindingIds []string               `protobuf:"bytes,12,rep,name=called_binding_ids,json=calledBindingIds,proto3" json:"called_binding_ids,omitempty"`
+	Tier             string                 `protobuf:"bytes,13,opt,name=tier,proto3" json:"tier,omitempty"`
+	DeclaredInputs   []string               `protobuf:"bytes,14,rep,name=declared_inputs,json=declaredInputs,proto3" json:"declared_inputs,omitempty"`
+	DeclaredOutputs  []string               `protobuf:"bytes,15,rep,name=declared_outputs,json=declaredOutputs,proto3" json:"declared_outputs,omitempty"`
+	Coverage         string                 `protobuf:"bytes,16,opt,name=coverage,proto3" json:"coverage,omitempty"`
+	ValidatedAt      string                 `protobuf:"bytes,17,opt,name=validated_at,json=validatedAt,proto3" json:"validated_at,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -156,11 +161,46 @@ func (x *LibraryProgram) GetCalledBindingIds() []string {
 	return nil
 }
 
+func (x *LibraryProgram) GetTier() string {
+	if x != nil {
+		return x.Tier
+	}
+	return ""
+}
+
+func (x *LibraryProgram) GetDeclaredInputs() []string {
+	if x != nil {
+		return x.DeclaredInputs
+	}
+	return nil
+}
+
+func (x *LibraryProgram) GetDeclaredOutputs() []string {
+	if x != nil {
+		return x.DeclaredOutputs
+	}
+	return nil
+}
+
+func (x *LibraryProgram) GetCoverage() string {
+	if x != nil {
+		return x.Coverage
+	}
+	return ""
+}
+
+func (x *LibraryProgram) GetValidatedAt() string {
+	if x != nil {
+		return x.ValidatedAt
+	}
+	return ""
+}
+
 var File_program_runtime_v1_shared_library_proto protoreflect.FileDescriptor
 
 const file_program_runtime_v1_shared_library_proto_rawDesc = "" +
 	"\n" +
-	"'program-runtime/v1/shared/library.proto\x12 vrooli.program_runtime.v1.shared\"\xff\x02\n" +
+	"'program-runtime/v1/shared/library.proto\x12 vrooli.program_runtime.v1.shared\"\xa6\x04\n" +
 	"\x0eLibraryProgram\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -176,7 +216,12 @@ const file_program_runtime_v1_shared_library_proto_rawDesc = "" +
 	"\x10promotion_reason\x18\n" +
 	" \x01(\tR\x0fpromotionReason\x12\x18\n" +
 	"\acurrent\x18\v \x01(\bR\acurrent\x12,\n" +
-	"\x12called_binding_ids\x18\f \x03(\tR\x10calledBindingIdsBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1b\x06proto3"
+	"\x12called_binding_ids\x18\f \x03(\tR\x10calledBindingIds\x12\x12\n" +
+	"\x04tier\x18\r \x01(\tR\x04tier\x12'\n" +
+	"\x0fdeclared_inputs\x18\x0e \x03(\tR\x0edeclaredInputs\x12)\n" +
+	"\x10declared_outputs\x18\x0f \x03(\tR\x0fdeclaredOutputs\x12\x1a\n" +
+	"\bcoverage\x18\x10 \x01(\tR\bcoverage\x12!\n" +
+	"\fvalidated_at\x18\x11 \x01(\tR\vvalidatedAtBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared;shared_v1b\x06proto3"
 
 var (
 	file_program_runtime_v1_shared_library_proto_rawDescOnce sync.Once

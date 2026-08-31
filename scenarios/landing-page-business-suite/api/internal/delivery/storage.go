@@ -36,9 +36,6 @@ type StorageSettings struct {
 	DefaultPrefix       string
 	SignedURLTTLSeconds int
 	PublicBaseURL       string
-	AccessKeyID         string
-	SecretAccessKey     string
-	SessionToken        string
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 }

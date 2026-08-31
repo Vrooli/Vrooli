@@ -7,10 +7,10 @@ import {
   resolveApproval,
   type ApprovalRequest,
 } from "../api/approvals";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

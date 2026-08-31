@@ -50,10 +50,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Work ladder
 
-- Rung: W0
-- Evidence: The required W0 goal query could not run because `swarm-manager` is stopped; lifecycle start fails during setup at `scenarios/swarm-manager/ui/src/components/settings/GoalDrainToggle.tsx:33` with a TypeScript `AutoDrainState`/`Updater` mismatch. Money Ledger's PRD P0 targets and this execution plan were read, but no goal comparison was inferred from the unavailable runtime.
-- Blocker: W0 contract comparison is currently unverifiable; the unrelated `swarm-manager` UI build defect is outside this scenario's scope.
-- Measured: 2026-08-16
+- Rung: W1 (contract gate satisfied; implementation/evidence work remains)
+- Compared goal: `release-ladder-money-ledger`; title `Money Ledger release-ladder contract`; description quotation: “Money Ledger supplies the financial actuals and subscription evidence required to make the release ladder commercially accountable, including explicit unavailable and stale states rather than invented revenue.”
+- Compared target: the goal is the named commercial dependency for the release ladder.
+- Evidence: the named-mention query now returns `release-ladder-money-ledger`; structural health remains supplemental evidence, not contract evidence.
+- Measured: 2026-08-31 (16 of 26 requirements passing (62%), composite 55/100; maturity rung R0 unsatisfied, 0 test phases recorded)
 
 ### Scaffold health is complete; capture is an external boundary
 

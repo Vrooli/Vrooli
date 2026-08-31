@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"meta-optimization-manager/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/packages/proto/modeltest"
 
 	"github.com/stretchr/testify/require"
 )

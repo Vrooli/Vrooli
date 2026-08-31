@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -45,46 +46,22 @@ const (
 	seededAdminID     = 1 // Reserved ID for the seeded/default admin account
 )
 
-// resolveSecret reads an operator credential directly from the authority. The
-// test-only environment hook is installed by testing_main_test.go so unit
-// tests can inject values without making production code depend on /proc
-// visible process environment state.
-func resolveSecret(key string) string {
-	if envx.Get("LPBS_TEST_CREDENTIAL_FALLBACK") == "1" {
-		return strings.TrimSpace(envx.Get(key))
-	}
-	switch key {
-	case "ADMIN_DEFAULT_PASSWORD", "SESSION_SECRET", "LPBS_API_KEY_ENCRYPTION_KEY", "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY", "SENDGRID_API_KEY", "AUTH_MAGIC_LINK_BASE_URL":
-		// authority-backed operator credentials
-	default:
-		return resolveConfig(key)
-	}
-	authority, err := credentialauthority.Default()
-	if err != nil {
-		logStructured("credential_authority_unavailable", map[string]interface{}{"level": "warn", "key": key, "error": err.Error()})
-		return ""
-	}
-	field := strings.ToLower(strings.NewReplacer("_", "-", ".", "-").Replace(strings.TrimSpace(key)))
-	switch key {
-	case "SESSION_SECRET":
-		field = "session-secret"
-	case "LPBS_API_KEY_ENCRYPTION_KEY":
-		field = "api-key-encryption-key"
-	case "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY":
-		field = "remote-profile-encryption-key"
-	case "ADMIN_DEFAULT_PASSWORD":
-		field = "admin-default-password"
-	case "AUTH_MAGIC_LINK_BASE_URL":
-		field = "auth-magic-link-base-url"
-	}
-	value, err := authority.Resolve(credentialauthority.Identity("vrooli/landing-page-business-suite"), field)
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(value)
+func resolveAuthorityCredential(key string) (string, error) {
+	return administration.ResolveAuthorityCredential(key)
 }
 
-func resolveConfig(key string) string { return strings.TrimSpace(envx.Get(key)) }
+// resolveSecret is retained for optional credentials and compatibility edges.
+// Security-critical generated/operator credentials use resolveAuthorityCredential
+// directly so provider failures cannot become an empty-string fallback.
+func resolveSecret(key string) string {
+	return administration.ResolveSecret(key, logStructured)
+}
+
+func resolveGeneratedSecret(key string, mint func() (string, error)) (string, error) {
+	return administration.ResolveGeneratedSecret(key, mint)
+}
+
+func resolveConfig(key string) string { return administration.ResolveConfig(key) }
 
 // getAdminDefaults returns an explicitly configured admin credential. Development
 // uses an ephemeral password so a committed default can never authenticate a user.
@@ -95,7 +72,10 @@ func getAdminDefaults() (email string, passwordHash string, err error) {
 	}
 
 	// Check for plaintext password override (will be hashed)
-	plaintextPassword := resolveSecret("ADMIN_DEFAULT_PASSWORD")
+	plaintextPassword, credentialErr := resolveAuthorityCredential("ADMIN_DEFAULT_PASSWORD")
+	if credentialErr != nil && !errors.Is(credentialErr, credentialauthority.ErrUnconfigured) {
+		return "", "", fmt.Errorf("resolve admin password: %w", credentialErr)
+	}
 	if plaintextPassword != "" {
 		hash, err := bcrypt.GenerateFromPassword([]byte(plaintextPassword), bcrypt.DefaultCost)
 		if err != nil {
@@ -123,8 +103,16 @@ func getAdminDefaults() (email string, passwordHash string, err error) {
 
 // initSessionManager creates and returns a SessionManager for the server.
 func initSessionManager() SessionManager {
-	secret := resolveSecret("SESSION_SECRET")
+	secret, err := resolveGeneratedSecret("SESSION_SECRET", func() (string, error) {
+		return credentialauthority.RandomBase64(32)
+	})
+	if err != nil {
+		panic(fmt.Sprintf("resolve session secret: %v", err))
+	}
 	if secret == "" {
+		if envx.Get("LPBS_TEST_CREDENTIAL_FALLBACK") != "1" {
+			panic("credential authority returned an empty session-secret")
+		}
 		ephemeral := make([]byte, 32)
 		if _, err := rand.Read(ephemeral); err != nil {
 			panic(fmt.Sprintf("generate ephemeral session key: %v", err))
@@ -136,7 +124,42 @@ func initSessionManager() SessionManager {
 		})
 		secret = hex.EncodeToString(ephemeral)
 	}
-	return NewCookieSessionManager(secret)
+	previous := ""
+	if envx.Get("LPBS_TEST_CREDENTIAL_FALLBACK") == "1" {
+		previous = strings.TrimSpace(envx.Get("SESSION_SECRET_PREVIOUS"))
+	} else {
+		resolved, resolveErr := resolveAuthorityCredential("SESSION_SECRET_PREVIOUS")
+		if resolveErr != nil && !errors.Is(resolveErr, credentialauthority.ErrUnconfigured) {
+			panic(fmt.Sprintf("resolve previous session secret: %v", resolveErr))
+		}
+		previous = resolved
+	}
+	return NewCookieSessionManager(secret, previous)
+}
+
+// RotateSessionSecret overlaps verification: the old secret remains readable
+// for the session lifetime while only the new active secret signs cookies.
+func RotateSessionSecret() error {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return fmt.Errorf("initialize credential authority: %w", err)
+	}
+	identity := credentialauthority.Identity("vrooli/landing-page-business-suite")
+	active, err := authority.Require(identity, "session-secret")
+	if err != nil {
+		return fmt.Errorf("resolve active session secret: %w", err)
+	}
+	if err := authority.Put(identity, "session-secret-previous", active); err != nil {
+		return fmt.Errorf("retain previous session secret: %w", err)
+	}
+	newSecret, err := credentialauthority.RandomBase64(32)
+	if err != nil {
+		return err
+	}
+	if err := authority.Put(identity, "session-secret", newSecret); err != nil {
+		return fmt.Errorf("store rotated session secret: %w", err)
+	}
+	return nil
 }
 
 func isProductionSecurityEnvironment() bool {
@@ -148,17 +171,20 @@ func validateProductionCredentials() error {
 	if !isProductionSecurityEnvironment() {
 		return nil
 	}
-	if strings.TrimSpace(resolveSecret("SESSION_SECRET")) == "" {
+	if _, err := resolveAuthorityCredential("SESSION_SECRET"); err != nil {
 		return fmt.Errorf("SESSION_SECRET must be configured in production")
 	}
-	adminPassword := resolveSecret("ADMIN_DEFAULT_PASSWORD")
+	adminPassword, err := resolveAuthorityCredential("ADMIN_DEFAULT_PASSWORD")
+	if err != nil {
+		return fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be configured in production: %w", err)
+	}
 	if strings.TrimSpace(adminPassword) == "" {
 		return fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be configured in production")
 	}
 	if len([]rune(adminPassword)) < 12 {
 		return fmt.Errorf("ADMIN_DEFAULT_PASSWORD must be at least 12 characters in production")
 	}
-	magicLinkBaseURL := strings.TrimSpace(resolveSecret("AUTH_MAGIC_LINK_BASE_URL"))
+	magicLinkBaseURL := resolveConfig("AUTH_MAGIC_LINK_BASE_URL")
 	if magicLinkBaseURL == "" {
 		return fmt.Errorf("AUTH_MAGIC_LINK_BASE_URL must be configured in production")
 	}

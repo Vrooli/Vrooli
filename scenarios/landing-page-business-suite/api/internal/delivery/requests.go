@@ -13,19 +13,19 @@ import (
 // configuration. Credential values are deliberately represented only by
 // presence flags.
 type StorageSettingsSnapshot struct {
-	Provider             string `json:"provider"`
-	Bucket               string `json:"bucket,omitempty"`
-	Region               string `json:"region,omitempty"`
-	Endpoint             string `json:"endpoint,omitempty"`
-	ForcePathStyle       bool   `json:"force_path_style"`
-	DefaultPrefix        string `json:"default_prefix,omitempty"`
-	SignedURLTTLSeconds  int    `json:"signed_url_ttl_seconds"`
-	PublicBaseURL        string `json:"public_base_url,omitempty"`
-	AccessKeyIDSet       bool   `json:"access_key_id_set"`
-	SecretAccessKeySet   bool   `json:"secret_access_key_set"`
-	SessionTokenSet      bool   `json:"session_token_set"`
-	CredentialsFromEnv   bool   `json:"credentials_from_env"`
-	SettingsRowAvailable bool   `json:"settings_row_available"`
+	Provider                 string `json:"provider"`
+	Bucket                   string `json:"bucket,omitempty"`
+	Region                   string `json:"region,omitempty"`
+	Endpoint                 string `json:"endpoint,omitempty"`
+	ForcePathStyle           bool   `json:"force_path_style"`
+	DefaultPrefix            string `json:"default_prefix,omitempty"`
+	SignedURLTTLSeconds      int    `json:"signed_url_ttl_seconds"`
+	PublicBaseURL            string `json:"public_base_url,omitempty"`
+	AccessKeyIDSet           bool   `json:"access_key_id_set"`
+	SecretAccessKeySet       bool   `json:"secret_access_key_set"`
+	SessionTokenSet          bool   `json:"session_token_set"`
+	CredentialsFromAuthority bool   `json:"credentials_from_authority"`
+	SettingsRowAvailable     bool   `json:"settings_row_available"`
 }
 
 type StorageSettingsUpdate struct {

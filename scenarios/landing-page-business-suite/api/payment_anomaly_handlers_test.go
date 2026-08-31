@@ -71,8 +71,8 @@ func TestUpdate_RefreshesAnomalyConfig(t *testing.T) {
 	// Easier: preload the settings row directly to skip the https validation,
 	// then PATCH with just anomaly_webhook_enabled.
 	if _, err := db.Exec(`
-		INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at)
-		VALUES (1, '', '', '', $1, FALSE, '{}'::jsonb, NOW())
+		INSERT INTO payment_settings (id, anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at)
+		VALUES (1, $1, FALSE, '{}'::jsonb, NOW())
 		ON CONFLICT (id) DO UPDATE SET anomaly_webhook_url = EXCLUDED.anomaly_webhook_url
 	`, stub.URL); err != nil {
 		t.Fatal(err)
@@ -138,8 +138,8 @@ func TestReveal_AnomalyWebhookURL(t *testing.T) {
 	stripeService := NewStripeServiceWithSettings(db, NewPlanService(db), paymentService)
 
 	if _, err := db.Exec(`
-		INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at)
-		VALUES (1, '', '', '', 'https://hooks.example.com/anomaly', TRUE, '{}'::jsonb, NOW())
+		INSERT INTO payment_settings (id, anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at)
+		VALUES (1, 'https://hooks.example.com/anomaly', TRUE, '{}'::jsonb, NOW())
 		ON CONFLICT (id) DO UPDATE SET anomaly_webhook_url = EXCLUDED.anomaly_webhook_url, anomaly_webhook_enabled = EXCLUDED.anomaly_webhook_enabled
 	`); err != nil {
 		t.Fatal(err)

@@ -13,21 +13,38 @@ import (
 // StripeImportPreview is the provider-neutral result used by admin transport
 // to review Stripe catalog changes before importing them.
 type StripeImportPreview struct {
-	BundleKey          string
-	BundleProductID    string
-	BundleProductFound bool
-	BundlePlanCount    int
-	Products           []StripeProductWithPrices
-	TotalPrices        int
-	ConflictCount      int
-	NewCount           int
+	BundleKey          string                    `json:"bundle_key,omitempty"`
+	BundleProductID    string                    `json:"bundle_product_id,omitempty"`
+	BundleProductFound bool                      `json:"bundle_product_found"`
+	BundlePlanCount    int                       `json:"bundle_plan_count"`
+	Products           []StripeProductWithPrices `json:"products"`
+	TotalPrices        int                       `json:"total_prices"`
+	ConflictCount      int                       `json:"conflict_count"`
+	NewCount           int                       `json:"new_count"`
 }
 
 type StripeProductWithPrices struct {
-	ProductID       string
-	ProductName     string
-	IsCurrentBundle bool
-	Prices          []StripePriceImport
+	ProductID       string              `json:"product_id"`
+	ProductName     string              `json:"product_name"`
+	IsCurrentBundle bool                `json:"is_current_bundle"`
+	Prices          []StripePriceImport `json:"prices"`
+}
+
+// ListStripeProductsWithPrices discovers the provider catalog through the
+// authenticated requester and returns the commerce-owned reconciliation
+// projection. API transport code supplies the requester and plan store.
+func ListStripeProductsWithPrices(ctx context.Context, requester StripeRequester, planStore *PlanStore, logf func(string, map[string]interface{})) (*StripeImportPreview, error) {
+	preview, err := NewStripeImportProvider(requester, planStore, logf).ListProductsWithPrices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return preview, nil
+}
+
+// FetchStripePriceDetails fetches one provider price through the commerce
+// requester boundary.
+func FetchStripePriceDetails(ctx context.Context, requester StripeRequester, priceID string, planStore *PlanStore, logf func(string, map[string]interface{})) (*StripePriceImport, error) {
+	return NewStripeImportProvider(requester, planStore, logf).FetchPrice(ctx, priceID)
 }
 
 // StripeImportProvider owns provider catalog discovery and reconciliation

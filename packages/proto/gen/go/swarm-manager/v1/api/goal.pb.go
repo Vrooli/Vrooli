@@ -255,14 +255,15 @@ func (x *UnarchiveGoalRequest) GetName() string {
 }
 
 type CreateGoalRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Priority      int32                  `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
-	Targets       []string               `protobuf:"bytes,5,rep,name=targets,proto3" json:"targets,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Title             string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Description       string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Priority          int32                  `protobuf:"varint,4,opt,name=priority,proto3" json:"priority,omitempty"`
+	Targets           []string               `protobuf:"bytes,5,rep,name=targets,proto3" json:"targets,omitempty"`
+	ServesDeliverable string                 `protobuf:"bytes,6,opt,name=serves_deliverable,json=servesDeliverable,proto3" json:"serves_deliverable,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *CreateGoalRequest) Reset() {
@@ -330,14 +331,22 @@ func (x *CreateGoalRequest) GetTargets() []string {
 	return nil
 }
 
+func (x *CreateGoalRequest) GetServesDeliverable() string {
+	if x != nil {
+		return x.ServesDeliverable
+	}
+	return ""
+}
+
 type UpdateGoalRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Title         *string                `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
-	Description   *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
-	Priority      *int32                 `protobuf:"varint,4,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Title             *string                `protobuf:"bytes,2,opt,name=title,proto3,oneof" json:"title,omitempty"`
+	Description       *string                `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Priority          *int32                 `protobuf:"varint,4,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
+	ServesDeliverable *string                `protobuf:"bytes,5,opt,name=serves_deliverable,json=servesDeliverable,proto3,oneof" json:"serves_deliverable,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *UpdateGoalRequest) Reset() {
@@ -396,6 +405,13 @@ func (x *UpdateGoalRequest) GetPriority() int32 {
 		return *x.Priority
 	}
 	return 0
+}
+
+func (x *UpdateGoalRequest) GetServesDeliverable() string {
+	if x != nil && x.ServesDeliverable != nil {
+		return *x.ServesDeliverable
+	}
+	return ""
 }
 
 type UpdateGoalTargetsRequest struct {
@@ -1230,21 +1246,24 @@ const file_swarm_manager_v1_api_goal_proto_rawDesc = "" +
 	"\x05force\x18\x02 \x01(\bR\x05force\x12\x14\n" +
 	"\x05actor\x18\x03 \x01(\tR\x05actor\"3\n" +
 	"\x14UnarchiveGoalRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\x95\x01\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"\xc4\x01\n" +
 	"\x11CreateGoalRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1a\n" +
 	"\bpriority\x18\x04 \x01(\x05R\bpriority\x12\x18\n" +
-	"\atargets\x18\x05 \x03(\tR\atargets\"\xb1\x01\n" +
+	"\atargets\x18\x05 \x03(\tR\atargets\x12-\n" +
+	"\x12serves_deliverable\x18\x06 \x01(\tR\x11servesDeliverable\"\xfc\x01\n" +
 	"\x11UpdateGoalRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x19\n" +
 	"\x05title\x18\x02 \x01(\tH\x00R\x05title\x88\x01\x01\x12%\n" +
 	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\x1f\n" +
-	"\bpriority\x18\x04 \x01(\x05H\x02R\bpriority\x88\x01\x01B\b\n" +
+	"\bpriority\x18\x04 \x01(\x05H\x02R\bpriority\x88\x01\x01\x122\n" +
+	"\x12serves_deliverable\x18\x05 \x01(\tH\x03R\x11servesDeliverable\x88\x01\x01B\b\n" +
 	"\x06_titleB\x0e\n" +
 	"\f_descriptionB\v\n" +
-	"\t_priority\"H\n" +
+	"\t_priorityB\x15\n" +
+	"\x13_serves_deliverable\"H\n" +
 	"\x18UpdateGoalTargetsRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\atargets\x18\x02 \x03(\tR\atargets\"~\n" +

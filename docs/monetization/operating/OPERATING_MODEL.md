@@ -103,6 +103,8 @@ flowchart LR
   MODEL[/docs/monetization/operating/OPERATING_MODEL.md/]
   %% @node MV member:market-validator
   MV[Market Validator]
+  %% @node OFFERDESK instrument:offer-desk
+  OFFERDESK[offer-desk]
   %% @node OIN topic:opportunity-inbox/*
   OIN[(opportunity-inbox/*)]
   %% @node OP external:operator
@@ -137,8 +139,6 @@ flowchart LR
   VAIN[(validation-inbox/*)]
   %% @node VW external:vision-walk
   VW([Vision Walk])
-  %% @node OFFERDESK instrument:offer-desk
-  OFFERDESK[offer-desk]
 
   OP --> CS
   OP --> FT

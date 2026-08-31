@@ -1,14 +1,18 @@
 import { createClient } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
-import { AddFactRequestSchema, BoardService, CatalogService, CreateEdgeRequestSchema, CreateNodeRequestSchema, EdgeSchema, GatesService, DeclareTriggerRequestSchema, EvaluateRequestSchema, FactSchema, ListEdgesRequestSchema, ListNodesRequestSchema, ListProposalsRequestSchema, MergeNodesRequestSchema, NodeKind, PromoteRequestSchema, ProjectionRequestSchema, SourceMode, Status, TransitionRequestSchema, TriggerClauseSchema, TriggerComposition, TriggerSchema, VerifyCatalogRequestSchema } from "@vrooli/proto-types/offer-desk/v1/offers/offers_pb";
+import { AddFactRequestSchema, BoardService, CatalogService, CreateEdgeRequestSchema, CreateNodeRequestSchema, EdgeSchema, GatesService, DeclareTriggerRequestSchema, EvaluateRequestSchema, FactSchema, ListEdgesRequestSchema, ListNodesRequestSchema, ListProposalsRequestSchema, MergeNodesRequestSchema, NodeKind, PromoteRequestSchema, ProjectionRequestSchema, ReleaseLadderRequestSchema, ReleaseLadderService, PrerequisiteWalkRequestSchema, SetReleaseRankRequestSchema, SourceMode, Status, TransitionRequestSchema, TriggerClauseSchema, TriggerComposition, TriggerSchema, VerifyCatalogRequestSchema } from "@vrooli/proto-types/offer-desk/v1/offers/offers_pb";
 import { transport } from "./client";
 
 export const boardClient = createClient(BoardService, transport);
 export const catalogClient = createClient(CatalogService, transport);
 export const gatesClient = createClient(GatesService, transport);
+export const releaseLadderClient = createClient(ReleaseLadderService, transport);
 export function fetchBoard() { return boardClient.getBoard(create(ProjectionRequestSchema)); }
 export function fetchNodes() { return catalogClient.listNodes(create(ListNodesRequestSchema)); }
+export function fetchReleaseLadder(includeRetired = false) { return releaseLadderClient.getReleaseLadder(create(ReleaseLadderRequestSchema, { includeRetired })); }
+export function fetchPrerequisites(streamNodeId: string) { return releaseLadderClient.getPrerequisites(create(PrerequisiteWalkRequestSchema, { streamNodeId })); }
+export function setReleaseRank(input: { nodeId: string; releaseRank: number }) { return catalogClient.setReleaseRank(create(SetReleaseRankRequestSchema, { ...input, actor: "operator" })); }
 export function fetchEdges() { return catalogClient.listEdges(create(ListEdgesRequestSchema)); }
 export function fetchCatalogVerification(sourcePath = "docs/monetization") {
   return catalogClient.verifyCatalog(create(VerifyCatalogRequestSchema, { sourcePath, sourceMode: SourceMode.OPERATOR_SUPPLIED }));

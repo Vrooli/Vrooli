@@ -28,7 +28,14 @@ func NewStore(db *database.RoutedDB, now func() time.Time) *Store {
 	if now == nil {
 		now = time.Now
 	}
-	return &Store{db: db, now: now}
+	s := &Store{db: db, now: now}
+	// Keep the declarative schema useful for greenfield databases while making
+	// the additive release-rank field safe for already-running SQLite stores.
+	var present int
+	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM pragma_table_info('nodes') WHERE name='release_rank'`).Scan(&present); err == nil && present == 0 {
+		_, _ = db.ExecContext(context.Background(), `ALTER TABLE nodes ADD COLUMN release_rank INTEGER NOT NULL DEFAULT 0`)
+	}
+	return s
 }
 func (s *Store) DB() *database.RoutedDB { return s.db }
 func (s *Store) Schema() string         { b, _ := schemaSQL.ReadFile("schema.sql"); return string(b) }
@@ -57,12 +64,12 @@ func (s *Store) CreateNode(ctx context.Context, kind offerspb.NodeKind, name str
 			return nil, errors.New("rule candidate_requires_trigger refused creation: candidate nodes require an attached machine-evaluable trigger")
 		}
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO nodes(id,kind,name,status,trigger_id,created_at,actual_account_id) VALUES(?,?,?,?,?,?,?)`, n.Id, int32(kind), n.Name, int32(status), trigger, n.CreatedAt.AsTime().UTC().Format(time.RFC3339Nano), actualAccountID)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO nodes(id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank) VALUES(?,?,?,?,?,?,?,?)`, n.Id, int32(kind), n.Name, int32(status), trigger, n.CreatedAt.AsTime().UTC().Format(time.RFC3339Nano), actualAccountID, 0)
 	return n, err
 }
 
 func (s *Store) ListNodes(ctx context.Context, kind offerspb.NodeKind, status offerspb.Status) ([]*offerspb.Node, error) {
-	q := `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id FROM nodes WHERE 1=1`
+	q := `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank FROM nodes WHERE 1=1`
 	args := []any{}
 	if kind != offerspb.NodeKind_NODE_KIND_UNSPECIFIED {
 		q += ` AND kind=?`
@@ -83,7 +90,7 @@ func (s *Store) ListNodes(ctx context.Context, kind offerspb.NodeKind, status of
 		var n offerspb.Node
 		var k, st int32
 		var ts string
-		if err := rows.Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId); err != nil {
+		if err := rows.Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId, &n.ReleaseRank); err != nil {
 			return nil, err
 		}
 		n.Kind = offerspb.NodeKind(k)
@@ -143,7 +150,7 @@ func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, a
 	var n offerspb.Node
 	var k, st int32
 	var ts string
-	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id FROM nodes WHERE id=?`, id).Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank FROM nodes WHERE id=?`, id).Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId, &n.ReleaseRank); err != nil {
 		return nil, fmt.Errorf("node %q not found: %w", id, err)
 	}
 	n.Kind = offerspb.NodeKind(k)
@@ -225,7 +232,9 @@ func (s *Store) CreateEdge(ctx context.Context, e *offerspb.Edge) (*offerspb.Edg
 	valid := (e.Kind == "sells_at" && from == int32(offerspb.NodeKind_OFFER) && to == int32(offerspb.NodeKind_VARIANT)) ||
 		(e.Kind == "feeds" && from == int32(offerspb.NodeKind_CHANNEL) && to == int32(offerspb.NodeKind_REVENUE_LINE)) ||
 		(e.Kind == "belongs_to" && from == int32(offerspb.NodeKind_DELIVERABLE) && to == int32(offerspb.NodeKind_OFFER)) ||
-		(e.Kind == "requires" && from == int32(offerspb.NodeKind_OFFER) && to == int32(offerspb.NodeKind_OFFER))
+		(e.Kind == "requires" && from == int32(offerspb.NodeKind_OFFER) && to == int32(offerspb.NodeKind_OFFER)) ||
+		(e.Kind == "unlocks" && from == int32(offerspb.NodeKind_DELIVERABLE) && (to == int32(offerspb.NodeKind_RAMP) || to == int32(offerspb.NodeKind_STREAM))) ||
+		(e.Kind == "serves" && ((from == int32(offerspb.NodeKind_DELIVERABLE) && to == int32(offerspb.NodeKind_AUDIENCE)) || (from == int32(offerspb.NodeKind_AUDIENCE) && to == int32(offerspb.NodeKind_AUDIENCE))))
 	if !valid {
 		return nil, fmt.Errorf("rule typed_edge_matrix refused %s -> %s for edge kind %q", offerspb.NodeKind(from).String(), offerspb.NodeKind(to).String(), e.Kind)
 	}
@@ -286,7 +295,7 @@ func (s *Store) MergeNodes(ctx context.Context, request *offerspb.MergeNodesRequ
 	}
 	load := func(id string) (*nodeRow, error) {
 		row := &nodeRow{}
-		if err := tx.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id FROM nodes WHERE id=?`, id).Scan(&row.node.Id, &row.kind, &row.node.Name, &row.status, &row.node.TriggerId, &row.createdAt, &row.node.ActualAccountId); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank FROM nodes WHERE id=?`, id).Scan(&row.node.Id, &row.kind, &row.node.Name, &row.status, &row.node.TriggerId, &row.createdAt, &row.node.ActualAccountId, &row.node.ReleaseRank); err != nil {
 			return row, fmt.Errorf("merge refused: node %q not found: %w", id, err)
 		}
 		row.node.Kind = offerspb.NodeKind(row.kind)
@@ -753,8 +762,8 @@ func (s *Store) MapAccount(ctx context.Context, request *offerspb.MapAccountRequ
 	var node offerspb.Node
 	var kind, status int32
 	var created string
-	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id FROM nodes WHERE id=?`, request.NodeId).
-		Scan(&node.Id, &kind, &node.Name, &status, &node.TriggerId, &created, &node.ActualAccountId); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank FROM nodes WHERE id=?`, request.NodeId).
+		Scan(&node.Id, &kind, &node.Name, &status, &node.TriggerId, &created, &node.ActualAccountId, &node.ReleaseRank); err != nil {
 		return nil, "", fmt.Errorf("node %q not found: %w", request.NodeId, err)
 	}
 	node.Kind = offerspb.NodeKind(kind)

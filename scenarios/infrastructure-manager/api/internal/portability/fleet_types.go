@@ -46,6 +46,7 @@ type DerivedScenarioPlatformVerdict struct {
 	HostOS             deployability.HostOS
 	Status             string
 	Reason             string
+	ReasonCode         string
 	BlockingDependency string
 }
 

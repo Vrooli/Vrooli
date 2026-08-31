@@ -42,30 +42,34 @@ class UnarchiveGoalRequest(_message.Message):
     def __init__(self, name: _Optional[str] = ...) -> None: ...
 
 class CreateGoalRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority", "targets")
+    __slots__ = ("name", "title", "description", "priority", "targets", "serves_deliverable")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
     TARGETS_FIELD_NUMBER: _ClassVar[int]
+    SERVES_DELIVERABLE_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
     priority: int
     targets: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., targets: _Optional[_Iterable[str]] = ...) -> None: ...
+    serves_deliverable: str
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., targets: _Optional[_Iterable[str]] = ..., serves_deliverable: _Optional[str] = ...) -> None: ...
 
 class UpdateGoalRequest(_message.Message):
-    __slots__ = ("name", "title", "description", "priority")
+    __slots__ = ("name", "title", "description", "priority", "serves_deliverable")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
+    SERVES_DELIVERABLE_FIELD_NUMBER: _ClassVar[int]
     name: str
     title: str
     description: str
     priority: int
-    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ...) -> None: ...
+    serves_deliverable: str
+    def __init__(self, name: _Optional[str] = ..., title: _Optional[str] = ..., description: _Optional[str] = ..., priority: _Optional[int] = ..., serves_deliverable: _Optional[str] = ...) -> None: ...
 
 class UpdateGoalTargetsRequest(_message.Message):
     __slots__ = ("name", "targets")

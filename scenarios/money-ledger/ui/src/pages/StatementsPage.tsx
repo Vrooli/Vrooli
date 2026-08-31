@@ -3,11 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.1";
-import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1.0.1";
-import { Button } from "@vrooli/react-component-library/Button/2.2.0";
+import { FormSection } from "@vrooli/react-component-library/FormSection/1";
+import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Input } from "../components/ui/input";
-import { DataTable } from "@vrooli/react-component-library/DataTable/1.3.1";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";

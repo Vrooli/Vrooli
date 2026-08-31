@@ -345,6 +345,11 @@ type FilesystemManifestSource struct {
 // Manifest returns the raw manifest bytes, or (nil, nil) when the scenario has no
 // CLI manifest (it simply declares no measures).
 func (f FilesystemManifestSource) Manifest(scenario string) ([]byte, error) {
+	if strings.TrimSpace(scenario) == "control-plane" {
+		// The control plane has no scenario CLI manifest. It is a valid,
+		// intentionally empty measures target rather than an unresolved scenario.
+		return nil, nil
+	}
 	path, err := repocontract.ScenarioCLIManifestPath(f.RepoRoot, scenario)
 	if err != nil {
 		return nil, err

@@ -5,11 +5,14 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"landing-page-business-suite-api/internal/securevalue"
 )
 
@@ -31,12 +34,13 @@ type APIKeyStore interface {
 
 // APIKeyService manages encrypted API keys for AI providers.
 type APIKeyService struct {
-	db            APIKeyStore
-	encryptionKey []byte // 32 bytes for AES-256
-	httpClient    APIKeyHTTPDoer
-	dialect       string
-	logEvent      func(string, map[string]interface{})
-	logError      func(string, map[string]interface{})
+	db             APIKeyStore
+	encryptionKey  []byte // 32 bytes for AES-256
+	encryptionRing securevalue.Ring
+	httpClient     APIKeyHTTPDoer
+	dialect        string
+	logEvent       func(string, map[string]interface{})
+	logError       func(string, map[string]interface{})
 }
 
 // APIKey represents an AI provider API key (without the actual key value).
@@ -59,14 +63,31 @@ type APIKeyCreateRequest struct {
 // NewAPIKeyServiceWithRuntime wires application-owned secret, environment,
 // and logging behavior at the composition boundary.
 func NewAPIKeyServiceWithRuntime(db APIKeyStore, httpClient APIKeyHTTPDoer, dialect string, resolveSecret func(string) string, isProduction func() bool, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*APIKeyService, error) {
+	if resolveSecret == nil {
+		return nil, fmt.Errorf("API key secret resolver is required")
+	}
+	return newAPIKeyServiceWithCredentialResolver(db, httpClient, dialect, func(key string) (string, error) {
+		return resolveSecret(key), nil
+	}, isProduction, logEvent, logError)
+}
+
+// NewAPIKeyServiceWithCredentialResolver wires the API-key service to an
+// authority resolver that preserves provider failures. A truthful
+// ErrUnconfigured remains the normal missing-key path; provider failures fail
+// startup instead of being mistaken for an empty key.
+func NewAPIKeyServiceWithCredentialResolver(db APIKeyStore, httpClient APIKeyHTTPDoer, dialect string, resolveCredential func(string) (string, error), isProduction func() bool, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*APIKeyService, error) {
+	return newAPIKeyServiceWithCredentialResolver(db, httpClient, dialect, resolveCredential, isProduction, logEvent, logError)
+}
+
+func newAPIKeyServiceWithCredentialResolver(db APIKeyStore, httpClient APIKeyHTTPDoer, dialect string, resolveCredential func(string) (string, error), isProduction func() bool, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*APIKeyService, error) {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 15 * time.Second}
 	}
 	if dialect == "" {
 		dialect = "postgres"
 	}
-	if resolveSecret == nil {
-		return nil, fmt.Errorf("API key secret resolver is required")
+	if resolveCredential == nil {
+		return nil, fmt.Errorf("API key credential resolver is required")
 	}
 	if isProduction == nil {
 		return nil, fmt.Errorf("API key production policy is required")
@@ -74,15 +95,25 @@ func NewAPIKeyServiceWithRuntime(db APIKeyStore, httpClient APIKeyHTTPDoer, dial
 	if err := ensureAPIKeyEncryptionState(db, dialect); err != nil {
 		return nil, fmt.Errorf("ensure api key encryption state: %w", err)
 	}
-	keyStr := resolveSecret("LPBS_API_KEY_ENCRYPTION_KEY")
+	keyStr, resolveErr := resolveCredential("LPBS_API_KEY_ENCRYPTION_KEY")
+	if resolveErr != nil && !errors.Is(resolveErr, credentialauthority.ErrUnconfigured) {
+		return nil, fmt.Errorf("resolve API key encryption credential: %w", resolveErr)
+	}
 	if keyStr == "" {
-		if isProduction() {
-			return nil, fmt.Errorf("LPBS_API_KEY_ENCRYPTION_KEY is required in production; provision it with `vrooli credentials provision`")
+		// A missing encryption credential is safe only in development. The
+		// production policy is injected so this domain constructor does not
+		// infer deployment mode from process-global state. Test fallback is
+		// retained for isolated fixtures, but cannot weaken production refusal.
+		if !isProduction() || os.Getenv("LPBS_TEST_CREDENTIAL_FALLBACK") == "1" {
+			if isProduction() {
+				return nil, fmt.Errorf("LPBS_API_KEY_ENCRYPTION_KEY is required in production; refusing to store API keys without encryption")
+			}
+			return &APIKeyService{db: db, httpClient: httpClient, dialect: dialect, logEvent: logEvent, logError: logError}, nil
 		}
-		if logEvent != nil {
-			logEvent("apikeys_no_encryption_key_dev", map[string]interface{}{"level": "warn", "message": "LPBS_API_KEY_ENCRYPTION_KEY not set; API keys will be stored unencrypted", "security": true, "action": "Set LPBS_API_KEY_ENCRYPTION_KEY before deploying to production"})
-		}
-		return &APIKeyService{db: db, httpClient: httpClient, dialect: dialect, logEvent: logEvent, logError: logError}, nil
+		return nil, fmt.Errorf("LPBS_API_KEY_ENCRYPTION_KEY is required in production; refusing to store API keys without encryption")
+	}
+	if ring, ringErr := securevalue.ParseRing(keyStr); ringErr == nil {
+		return &APIKeyService{db: db, encryptionRing: ring, httpClient: httpClient, dialect: dialect, logEvent: logEvent, logError: logError}, nil
 	}
 	key, err := base64.StdEncoding.DecodeString(keyStr)
 	if err != nil {
@@ -135,12 +166,75 @@ func (s *APIKeyService) logFailure(event string, fields map[string]interface{}) 
 
 // encrypt encrypts plaintext using AES-256-GCM.
 func (s *APIKeyService) encrypt(plaintext string) (string, error) {
+	if len(s.encryptionRing.Keys) > 0 {
+		return securevalue.EncryptRing(s.encryptionRing, plaintext)
+	}
 	return securevalue.Encrypt(s.encryptionKey, plaintext)
 }
 
 // decrypt decrypts ciphertext using AES-256-GCM.
 func (s *APIKeyService) decrypt(ciphertext string) (string, error) {
+	if len(s.encryptionRing.Keys) > 0 {
+		return securevalue.DecryptRing(s.encryptionRing, ciphertext)
+	}
 	return securevalue.Decrypt(s.encryptionKey, ciphertext)
+}
+
+// MigrateEncryption re-seals every stored API key with the active ring
+// version. It is a one-shot brownfield migration and deliberately requires a
+// ring; a legacy single key cannot safely establish versioned ownership.
+func (s *APIKeyService) MigrateEncryption(ctx context.Context) (int, error) {
+	if len(s.encryptionRing.Keys) == 0 {
+		return 0, fmt.Errorf("api-key encryption migration requires a versioned key ring")
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT provider, encrypted_key FROM api_keys`)
+	if err != nil {
+		return 0, fmt.Errorf("list API keys for encryption migration: %w", err)
+	}
+	defer rows.Close()
+	var entries []struct {
+		provider   string
+		ciphertext string
+	}
+	for rows.Next() {
+		var entry struct {
+			provider   string
+			ciphertext string
+		}
+		if err := rows.Scan(&entry.provider, &entry.ciphertext); err != nil {
+			_ = rows.Close()
+			return 0, fmt.Errorf("scan API key for encryption migration: %w", err)
+		}
+		entries = append(entries, entry)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return 0, fmt.Errorf("iterate API keys for encryption migration: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close API key migration rows: %w", err)
+	}
+	activeState := fmt.Sprintf("v%d", s.encryptionRing.Active)
+	update := `UPDATE api_keys SET encrypted_key = $1, encryption_state = $2 WHERE provider = $3`
+	if s.isSQLite() {
+		update = `UPDATE api_keys SET encrypted_key = ?, encryption_state = ? WHERE provider = ?`
+	}
+	count := 0
+	for _, entry := range entries {
+		plaintext, err := s.decrypt(entry.ciphertext)
+		if err != nil {
+			return count, fmt.Errorf("decrypt API key %s for encryption migration: %w", entry.provider, err)
+		}
+		sealed, err := securevalue.EncryptRing(s.encryptionRing, plaintext)
+		if err != nil {
+			return count, fmt.Errorf("re-seal API key %s: %w", entry.provider, err)
+		}
+		if _, err := s.db.ExecContext(ctx, update, sealed, activeState, entry.provider); err != nil {
+			return count, fmt.Errorf("update API key %s encryption state: %w", entry.provider, err)
+		}
+		count++
+	}
+	return count, nil
 }
 
 // getKeyHint returns the last 4 characters of a key for display.
@@ -211,7 +305,7 @@ func (s *APIKeyService) Store(ctx context.Context, provider, key string) (*APIKe
 		return nil, fmt.Errorf("store api key: %w", err)
 	}
 	state := "sealed"
-	if s.encryptionKey == nil {
+	if s.encryptionKey == nil && len(s.encryptionRing.Keys) == 0 {
 		state = "unsealed"
 	}
 	if _, err := s.db.ExecContext(ctx, s.encryptionStateUpdateQuery(), state, provider); err != nil {

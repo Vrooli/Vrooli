@@ -20,4 +20,9 @@ message LibraryProgram {
   string promotion_reason = 10;
   bool current = 11;
   repeated string called_binding_ids = 12;
+  string tier = 13;
+  repeated string declared_inputs = 14;
+  repeated string declared_outputs = 15;
+  string coverage = 16;
+  string validated_at = 17;
 }

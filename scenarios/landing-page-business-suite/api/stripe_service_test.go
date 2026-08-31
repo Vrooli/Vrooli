@@ -20,16 +20,20 @@ import (
 	"landing-page-business-suite-api/internal/commerce"
 )
 
-// [REQ:STRIPE-CONFIG] Test Stripe environment configuration
+// [REQ:STRIPE-CONFIG] Test Stripe credential-authority configuration
 func TestNewStripeService(t *testing.T) {
 	db := setupTestDB(t)
 
-	// Set environment variables using t.Setenv for parallel safety
-	t.Setenv("STRIPE_PUBLISHABLE_KEY", "pk_test_123")
-	t.Setenv("STRIPE_SECRET_KEY", "sk_test_123")
-	t.Setenv("STRIPE_WEBHOOK_SECRET", "whsec_123")
+	payment := NewPaymentSettingsService(db)
+	if _, err := payment.SaveStripeSettings(context.Background(), commerce.StripeSettingsInput{
+		PublishableKey: ptrStripe("pk_test_123"),
+		SecretKey:      ptrStripe("sk_test_123"),
+		WebhookSecret:  ptrStripe("whsec_123"),
+	}); err != nil {
+		t.Fatalf("failed to seed authority-backed test credentials: %v", err)
+	}
 
-	service := NewStripeService(db)
+	service := NewStripeServiceWithSettings(db, NewPlanService(db), payment)
 	if service == nil {
 		t.Fatal("NewStripeService returned nil")
 	}

@@ -14,9 +14,11 @@ import (
 	"testing"
 	"time"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	adminhttp "landing-page-business-suite-api/handlers/administration"
 	"landing-page-business-suite-api/internal/administration"
 	"landing-page-business-suite-api/internal/envx"
+	"landing-page-business-suite-api/internal/securevalue"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -658,27 +660,23 @@ func TestAPIKeyService_NoEncryptionKey_StoresPlaintext(t *testing.T) {
 // ============================================================================
 
 func TestAPIKeyService_ProductionMode_RequiresEncryptionKey(t *testing.T) {
-	// Save current environment
-	oldEnv := envx.Get("LPBS_ENVIRONMENT")
-	oldKey := envx.Get("LPBS_API_KEY_ENCRYPTION_KEY")
-	defer func() {
-		os.Setenv("LPBS_ENVIRONMENT", oldEnv)
-		if oldKey != "" {
-			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
-		} else {
-			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
-		}
-	}()
-
-	// Set production mode without encryption key
-	os.Setenv("LPBS_ENVIRONMENT", "production")
-	os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+	// The package test harness enables fallback credentials for ordinary unit
+	// tests; this test explicitly injects an unconfigured authority result and
+	// verifies the production refusal path without depending on host state.
+	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "")
 
 	db := createTestAPIKeysDB(t)
 	defer db.Close()
 
-	// Attempting to create service without encryption key in production should fail
-	_, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	// Attempting to create the service without an authority value in
+	// production should fail.
+	_, err := administration.NewAPIKeyServiceWithCredentialResolver(
+		db, nil, "sqlite",
+		func(string) (string, error) {
+			return "", fmt.Errorf("%w: api-key-encryption-key", credentialauthority.ErrUnconfigured)
+		},
+		func() bool { return true }, nil, nil,
+	)
 	if err == nil {
 		t.Error("Expected error when creating API key service in production without encryption key")
 	}
@@ -724,32 +722,80 @@ func TestAPIKeyService_ProductionMode_WithEncryptionKey_Succeeds(t *testing.T) {
 	}
 }
 
-func TestAPIKeyService_DevelopmentMode_WithoutEncryptionKey_Succeeds(t *testing.T) {
-	// Save current environment
-	oldEnv := envx.Get("LPBS_ENVIRONMENT")
-	oldKey := envx.Get("LPBS_API_KEY_ENCRYPTION_KEY")
-	defer func() {
-		if oldEnv != "" {
-			os.Setenv("LPBS_ENVIRONMENT", oldEnv)
-		} else {
-			os.Unsetenv("LPBS_ENVIRONMENT")
-		}
-		if oldKey != "" {
-			os.Setenv("LPBS_API_KEY_ENCRYPTION_KEY", oldKey)
-		} else {
-			os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
-		}
-	}()
+func TestAPIKeyService_MigrateEncryptionResealsLegacyRows(t *testing.T) {
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+	legacyKey := make([]byte, 32)
+	for i := range legacyKey {
+		legacyKey[i] = byte(i + 1)
+	}
+	legacyCiphertext, err := securevalue.Encrypt(legacyKey, "legacy-api-key")
+	if err != nil {
+		t.Fatalf("encrypt legacy key: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO api_keys (provider, encrypted_key, key_hint) VALUES ('openrouter', ?, '****key')`, legacyCiphertext); err != nil {
+		t.Fatalf("insert legacy key: %v", err)
+	}
+	ring := securevalue.Ring{Active: 1, Keys: []securevalue.VersionedKey{{Version: 1, Key: base64.StdEncoding.EncodeToString(legacyKey)}}}
+	ring, err = ring.Rotate()
+	if err != nil {
+		t.Fatalf("rotate ring: %v", err)
+	}
+	serialized, err := ring.Marshal()
+	if err != nil {
+		t.Fatalf("marshal ring: %v", err)
+	}
+	svc, err := administration.NewAPIKeyServiceWithRuntime(db, nil, "sqlite", func(string) string { return serialized }, func() bool { return false }, nil, nil)
+	if err != nil {
+		t.Fatalf("construct ring service: %v", err)
+	}
+	count, err := svc.MigrateEncryption(context.Background())
+	if err != nil || count != 1 {
+		t.Fatalf("migration count=%d err=%v, want 1", count, err)
+	}
+	got, err := svc.Get(context.Background(), "openrouter")
+	if err != nil || got != "legacy-api-key" {
+		t.Fatalf("migrated key=%q err=%v", got, err)
+	}
+	var state string
+	if err := db.QueryRow(`SELECT encryption_state FROM api_keys WHERE provider = 'openrouter'`).Scan(&state); err != nil {
+		t.Fatal(err)
+	}
+	if state != "v2" {
+		t.Fatalf("encryption state=%q, want v2", state)
+	}
+}
 
-	// Set development mode (or empty, which defaults to dev)
-	os.Setenv("LPBS_ENVIRONMENT", "development")
-	os.Unsetenv("LPBS_API_KEY_ENCRYPTION_KEY")
+func TestAPIKeyService_PropagatesCredentialProviderFailure(t *testing.T) {
+	db := createTestAPIKeysDB(t)
+	defer db.Close()
+	providerErr := fmt.Errorf("provider unavailable: %w", credentialauthority.ErrProviderUnavailable)
+
+	_, err := administration.NewAPIKeyServiceWithCredentialResolver(
+		db, nil, "sqlite",
+		func(string) (string, error) { return "", providerErr },
+		func() bool { return false }, nil, nil,
+	)
+	if err == nil || !strings.Contains(err.Error(), "resolve API key encryption credential") {
+		t.Fatalf("expected provider failure to propagate, got %v", err)
+	}
+}
+
+func TestAPIKeyService_DevelopmentMode_WithoutEncryptionKey_Succeeds(t *testing.T) {
+	// Keep this test independent of the host authority store.
+	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "")
 
 	db := createTestAPIKeysDB(t)
 	defer db.Close()
 
-	// Should succeed in development without encryption key (with warning)
-	svc, err := NewAPIKeyServiceWithOptions(db, nil, "sqlite")
+	// Should succeed in development without an encryption key.
+	svc, err := administration.NewAPIKeyServiceWithCredentialResolver(
+		db, nil, "sqlite",
+		func(string) (string, error) {
+			return "", fmt.Errorf("%w: api-key-encryption-key", credentialauthority.ErrUnconfigured)
+		},
+		func() bool { return false }, nil, nil,
+	)
 	if err != nil {
 		t.Fatalf("Expected success in development without encryption key, got error: %v", err)
 	}

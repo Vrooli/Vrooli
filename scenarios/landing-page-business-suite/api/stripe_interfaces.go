@@ -2,11 +2,129 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
 	"landing-page-business-suite-api/internal/commerce"
 )
+
+// StripeImportPreview and StripeProductWithPrices are aliases for the
+// commerce-owned provider reconciliation model. The API composition layer
+// exposes the same JSON projection without duplicating domain types.
+type (
+	StripeImportPreview     = commerce.StripeImportPreview
+	StripeProductWithPrices = commerce.StripeProductWithPrices
+)
+
+// GetSecretValue returns a specific configuration secret value.
+func (s *StripeService) GetSecretValue(field string) (string, bool) {
+	cfg := s.getConfig()
+	switch field {
+	case "publishable_key":
+		return cfg.publishableKey, cfg.hasPublishable
+	case "secret_key":
+		return cfg.secretKey, cfg.hasSecret
+	case "webhook_secret":
+		return cfg.webhookSecret, cfg.hasWebhook
+	default:
+		return "", false
+	}
+}
+
+// ConfigSnapshot returns a redacted view of active Stripe configuration.
+func (s *StripeService) ConfigSnapshot() *landing_page_business_suite_v1.StripeConfigSnapshot {
+	cfg := s.getConfig()
+	source := landing_page_business_suite_v1.ConfigSource_CONFIG_SOURCE_ENV
+	if cfg.source == "database" || cfg.source == "authority" {
+		source = landing_page_business_suite_v1.ConfigSource_CONFIG_SOURCE_DATABASE
+	}
+	preview := ""
+	if cfg.hasPublishable {
+		preview = maskValue(cfg.publishableKey)
+	}
+	return &landing_page_business_suite_v1.StripeConfigSnapshot{PublishableKeyPreview: preview, PublishableKeySet: cfg.hasPublishable, SecretKeySet: cfg.hasSecret, WebhookSecretSet: cfg.hasWebhook, Source: source}
+}
+
+func (s *StripeService) ListStripeProductsWithPrices(ctx context.Context, planStore *commerce.PlanStore) (*StripeImportPreview, error) {
+	preview, err := commerce.ListStripeProductsWithPrices(ctx, stripeCouponRequester{service: s}, planStore, logStructuredError)
+	if err != nil {
+		return nil, err
+	}
+	return preview, nil
+}
+
+func (s *StripeService) FetchStripePriceDetails(ctx context.Context, priceID string) (*commerce.StripePriceImport, error) {
+	return commerce.FetchStripePriceDetails(ctx, stripeCouponRequester{service: s}, priceID, nil, logStructuredError)
+}
+
+func (s *StripeService) webhookService() *commerce.StripeWebhookService {
+	return commerce.NewStripeWebhookService(commerce.StripeWebhookOptions{
+		DB:          s.db,
+		PlanService: s.planService,
+		Config: func() commerce.StripeWebhookConfig {
+			cfg := s.getConfig()
+			return commerce.StripeWebhookConfig{WebhookSecret: cfg.webhookSecret, HasWebhook: cfg.hasWebhook}
+		},
+		NormalizeEmail: NormalizeEmail,
+		LoadCheckoutSession: func(id string) (*commerce.CheckoutSessionRecord, error) {
+			record, err := s.loadCheckoutSession(id)
+			if err != nil {
+				return nil, err
+			}
+			return &commerce.CheckoutSessionRecord{
+				SessionID: record.SessionID, Status: record.Status, PriceID: record.PriceID,
+				SessionType: record.SessionType.String, AmountCents: record.AmountCents,
+				ScheduleID: record.ScheduleID, CustomerID: record.CustomerID,
+				CustomerEmail: record.CustomerEmail, SubscriptionID: record.SubscriptionID,
+			}, nil
+		},
+		ExtractAmount: func(obj map[string]interface{}, record *commerce.CheckoutSessionRecord) int64 {
+			var legacy *checkoutSessionRecord
+			if record != nil {
+				legacy = &checkoutSessionRecord{
+					SessionID: record.SessionID, Status: record.Status, PriceID: record.PriceID,
+					SessionType: sql.NullString{String: record.SessionType, Valid: record.SessionType != ""}, AmountCents: record.AmountCents,
+					ScheduleID: record.ScheduleID, CustomerID: record.CustomerID,
+					CustomerEmail: record.CustomerEmail, SubscriptionID: record.SubscriptionID,
+				}
+			}
+			return s.extractAmount(obj, legacy)
+		},
+		HandleCreditTopup: func(email string, amount int64, plan *commerce.PlanOption, eventID string, metadata map[string]interface{}) error {
+			return s.handleCreditTopup(email, amount, plan, eventID, metadata)
+		},
+		RefreshSubscription:   s.refreshSubscriptionFromStripe,
+		PersistSubscription:   s.persistSubscriptionFromStripe,
+		CheckIntroEligibility: s.checkIntroEligibility,
+		MarkIntroUsed:         s.markIntroUsed,
+		ExtractIntroCoupon:    s.extractIntroCouponFromInvoice,
+		LogIntroAnomaly:       s.logIntroAnomaly,
+		Log:                   logStructured,
+		LogError:              logStructuredError,
+	})
+}
+
+func (s *StripeService) HandleWebhook(body []byte, signature string) error {
+	return s.webhookService().HandleWebhook(body, signature)
+}
+
+func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string) bool {
+	return s.webhookService().VerifyWebhookSignature(payload, signature)
+}
+
+func (s *StripeService) handleCustomerUpdated(obj map[string]interface{}) error {
+	return s.webhookService().HandleCustomerUpdatedForComposition(obj)
+}
+
+func (s *StripeService) persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status string) error {
+	return s.webhookService().PersistInvoiceStatusForComposition(subscriptionID, customerID, customerEmail, priceID, status)
+}
+
+func (s *StripeService) billingIntervalDuration(interval shared.BillingInterval) time.Duration {
+	return s.webhookService().BillingIntervalDurationForComposition(interval)
+}
 
 // StripeCheckoutService handles checkout session creation and price verification.
 type StripeCheckoutService interface {

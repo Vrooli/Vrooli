@@ -3,7 +3,7 @@ import { ShieldAlert, XCircle } from "lucide-react";
 import { MandateStatus } from "@vrooli/proto-types/treasury/v1/mandate/mandate_pb";
 
 import { cancelStandingMandate, getScenarioFrozen, listOperatorMandates, setScenarioFrozen, type Mandate } from "../api/controls";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { selectors } from "../consts/selectors";

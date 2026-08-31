@@ -39,6 +39,18 @@ Individual desktop/iOS/Android apps wrapped from a Vrooli scenario. A subscriber
 
 The current lifecycle and headliner membership are read from Offer Desk.
 
+## Vocabulary translation
+
+These axes describe different decisions and must not be collapsed:
+
+| Planning axis | Values | Runtime axis | Values |
+|---|---|---|---|
+| `delivery_tier` — how the bundle reaches a user | `bundle_apps`, `self_hosted`, `hosted_cloud`, `hardware_appliance` | `plan_tier` — entitlement level in the signed lease and commerce database | `free`, `solo`, `pro`, `studio`, `business` |
+
+Metered capability names are a third axis. The generated inventory at
+`packages/monetization-go/meter-inventory.json` is derived from every scenario's
+`.vrooli/monetization.json`; its keys are not delivery tiers or plan tiers.
+
 ### Tier 2 — Self-hosted full Vrooli runtime
 
 The user downloads and runs the full Vrooli project on their own hardware. The subscription provides the convenience layer (integrated API access, gateway routing) and confirms bundle membership for the scenarios the subscriber owns. The free/OSS path remains open — a user who brings their own API keys runs the same runtime at no cost, just without the integrated gateway.

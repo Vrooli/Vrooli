@@ -47,14 +47,16 @@ The user-facing security surface is also covered by `docs/reference/SECURITY.md`
 |-----------|----------|---------|----------|
 | **bcrypt password + cookie session** | Admin (operator) | `admin_sessions` row + `Set-Cookie` HttpOnly | Manual via admin profile page |
 | **Magic-link → JWT (access + refresh)** | End users | `auth_tokens`, `user_sessions`; refresh token rotates on use | Refresh-on-use; revocation flips `user_sessions.revoked` |
-| **Service bearer token** | s2s (CLI, sister scenarios) | Env var on the caller; verified against an HMAC of a shared secret | Manual; rotate via lifecycle env update |
+| **Service bearer token** | s2s (CLI, sister scenarios) | Authority-backed shared secret resolved in process | Manual; rotate through the credential authority |
 | **Stripe webhook signature** | Stripe → us | n/a (header-based) | Per Stripe key rotation |
 
 ## Secrets handling
 
-- Secrets are injected into the process by the Vrooli credential authority. The API does not read `~/.vrooli/secrets.json` or any tracked file.
+- Secrets are resolved in process by the Vrooli credential authority. The API does not read `~/.vrooli/secrets.json` or any tracked file, and generated credentials are witness-gated so a lost value cannot be silently re-minted over persisted data.
 - Stripe restricted keys are preferred (`docs/reference/STRIPE_RESTRICTED_KEYS.md`).
-- Remote-profile sessions are encrypted-at-rest in `remote_profiles.encrypted_session`. The key lives in env, not in the DB.
+- Remote-profile sessions are encrypted-at-rest in `remote_profiles.encrypted_session`. The versioned key ring lives in the credential authority, not in the DB or environment.
+- Stripe and delivery credentials are write-through authority values; `payment_settings` and `download_storage_settings` retain only non-secret configuration.
+- Session-secret rotation retains the previous codec key for overlap, so active users are not signed out by a rotation.
 - The admin reset procedure (`AdminResetService/ResetDemoData`) does **not** wipe `admin_users` — credentials persist across resets.
 
 ## Authorization model

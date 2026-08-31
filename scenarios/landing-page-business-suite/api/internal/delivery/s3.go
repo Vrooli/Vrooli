@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 type s3Storage struct {
@@ -19,12 +21,16 @@ type s3Storage struct {
 
 // S3StorageProvider is the AWS S3-compatible storage implementation for the
 // delivery domain, including custom endpoints such as MinIO and R2.
-type S3StorageProvider struct{}
+type CredentialResolver func(context.Context, string) (string, error)
+
+type S3StorageProvider struct {
+	ResolveCredential CredentialResolver
+}
 
 func (S3StorageProvider) ProviderKey() string { return "s3" }
 
-func (S3StorageProvider) New(ctx context.Context, settings StorageSettings) (Storage, error) {
-	return newS3Storage(ctx, settings)
+func (p S3StorageProvider) New(ctx context.Context, settings StorageSettings) (Storage, error) {
+	return newS3Storage(ctx, settings, p.ResolveCredential)
 }
 
 //nolint:staticcheck // legacy resolver remains required by custom S3-compatible endpoints.
@@ -37,7 +43,7 @@ func endpointResolverForS3(endpointURL string) aws.EndpointResolverWithOptionsFu
 	}
 }
 
-func newS3Storage(ctx context.Context, settings StorageSettings) (*s3Storage, error) {
+func newS3Storage(ctx context.Context, settings StorageSettings, resolve CredentialResolver) (*s3Storage, error) {
 	region := strings.TrimSpace(settings.Region)
 	if region == "" {
 		region = "us-east-1"
@@ -47,8 +53,16 @@ func newS3Storage(ctx context.Context, settings StorageSettings) (*s3Storage, er
 		//nolint:staticcheck // legacy resolver remains required by custom S3-compatible endpoints.
 		loadOptions = append(loadOptions, config.WithEndpointResolverWithOptions(endpointResolverForS3(settings.Endpoint)))
 	}
-	if strings.TrimSpace(settings.AccessKeyID) != "" || strings.TrimSpace(settings.SecretAccessKey) != "" {
-		loadOptions = append(loadOptions, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(settings.AccessKeyID, settings.SecretAccessKey, settings.SessionToken)))
+	if resolve != nil {
+		accessKey, accessErr := resolveOptionalS3Credential(ctx, resolve, "delivery-s3-access-key-id")
+		secretKey, secretErr := resolveOptionalS3Credential(ctx, resolve, "delivery-s3-secret-access-key")
+		sessionToken, sessionErr := resolveOptionalS3Credential(ctx, resolve, "delivery-s3-session-token")
+		if accessErr != nil || secretErr != nil || sessionErr != nil {
+			return nil, fmt.Errorf("resolve download bucket credentials: %w", firstCredentialError(accessErr, secretErr, sessionErr))
+		}
+		if strings.TrimSpace(accessKey) != "" || strings.TrimSpace(secretKey) != "" {
+			loadOptions = append(loadOptions, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, sessionToken)))
+		}
 	}
 	awsCfg, err := config.LoadDefaultConfig(ctx, loadOptions...)
 	if err != nil {
@@ -56,6 +70,26 @@ func newS3Storage(ctx context.Context, settings StorageSettings) (*s3Storage, er
 	}
 	client := s3.NewFromConfig(awsCfg, func(options *s3.Options) { options.UsePathStyle = settings.ForcePathStyle })
 	return &s3Storage{client: client, presigner: s3.NewPresignClient(client)}, nil
+}
+
+func resolveOptionalS3Credential(ctx context.Context, resolve CredentialResolver, field string) (string, error) {
+	value, err := resolve(ctx, field)
+	if errors.Is(err, credentialauthority.ErrUnconfigured) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(value), nil
+}
+
+func firstCredentialError(errs ...error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *s3Storage) TestConnection(ctx context.Context, bucket string) error {

@@ -20,6 +20,9 @@ class NodeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CHANNEL: _ClassVar[NodeKind]
     REVENUE_LINE: _ClassVar[NodeKind]
     DELIVERABLE: _ClassVar[NodeKind]
+    RAMP: _ClassVar[NodeKind]
+    STREAM: _ClassVar[NodeKind]
+    AUDIENCE: _ClassVar[NodeKind]
 
 class Status(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -63,6 +66,9 @@ VARIANT: NodeKind
 CHANNEL: NodeKind
 REVENUE_LINE: NodeKind
 DELIVERABLE: NodeKind
+RAMP: NodeKind
+STREAM: NodeKind
+AUDIENCE: NodeKind
 STATUS_UNSPECIFIED: Status
 IDEA: Status
 CANDIDATE: Status
@@ -87,7 +93,7 @@ ALL: TriggerComposition
 ANY: TriggerComposition
 
 class Node(_message.Message):
-    __slots__ = ("id", "kind", "name", "status", "trigger_id", "created_at", "actual_account_id")
+    __slots__ = ("id", "kind", "name", "status", "trigger_id", "created_at", "actual_account_id", "release_rank")
     ID_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -95,6 +101,7 @@ class Node(_message.Message):
     TRIGGER_ID_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
     ACTUAL_ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_RANK_FIELD_NUMBER: _ClassVar[int]
     id: str
     kind: NodeKind
     name: str
@@ -102,7 +109,8 @@ class Node(_message.Message):
     trigger_id: str
     created_at: _timestamp_pb2.Timestamp
     actual_account_id: str
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[NodeKind, str]] = ..., name: _Optional[str] = ..., status: _Optional[_Union[Status, str]] = ..., trigger_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actual_account_id: _Optional[str] = ...) -> None: ...
+    release_rank: int
+    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[NodeKind, str]] = ..., name: _Optional[str] = ..., status: _Optional[_Union[Status, str]] = ..., trigger_id: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., actual_account_id: _Optional[str] = ..., release_rank: _Optional[int] = ...) -> None: ...
 
 class Edge(_message.Message):
     __slots__ = ("id", "from_id", "to_id", "kind", "intended_price_minor", "currency", "intended_price_declared")
@@ -625,3 +633,67 @@ class SpaceResponse(_message.Message):
     source: str
     cells: _containers.RepeatedCompositeFieldContainer[SpaceCell]
     def __init__(self, schema_version: _Optional[str] = ..., projection: _Optional[str] = ..., owner: _Optional[str] = ..., denominator_confidence: _Optional[str] = ..., confidence_rationale: _Optional[str] = ..., source: _Optional[str] = ..., cells: _Optional[_Iterable[_Union[SpaceCell, _Mapping]]] = ...) -> None: ...
+
+class ReleaseLadderRequest(_message.Message):
+    __slots__ = ("include_retired",)
+    INCLUDE_RETIRED_FIELD_NUMBER: _ClassVar[int]
+    include_retired: bool
+    def __init__(self, include_retired: _Optional[bool] = ...) -> None: ...
+
+class ReleaseLadderEntry(_message.Message):
+    __slots__ = ("deliverable", "unlocked_ramps", "unlocked_streams", "audiences", "cumulative_ramps")
+    DELIVERABLE_FIELD_NUMBER: _ClassVar[int]
+    UNLOCKED_RAMPS_FIELD_NUMBER: _ClassVar[int]
+    UNLOCKED_STREAMS_FIELD_NUMBER: _ClassVar[int]
+    AUDIENCES_FIELD_NUMBER: _ClassVar[int]
+    CUMULATIVE_RAMPS_FIELD_NUMBER: _ClassVar[int]
+    deliverable: Node
+    unlocked_ramps: _containers.RepeatedCompositeFieldContainer[Node]
+    unlocked_streams: _containers.RepeatedCompositeFieldContainer[Node]
+    audiences: _containers.RepeatedCompositeFieldContainer[Node]
+    cumulative_ramps: _containers.RepeatedCompositeFieldContainer[Node]
+    def __init__(self, deliverable: _Optional[_Union[Node, _Mapping]] = ..., unlocked_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., unlocked_streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., cumulative_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ...) -> None: ...
+
+class ReleaseLadderResponse(_message.Message):
+    __slots__ = ("entries", "ramps", "streams", "audiences")
+    ENTRIES_FIELD_NUMBER: _ClassVar[int]
+    RAMPS_FIELD_NUMBER: _ClassVar[int]
+    STREAMS_FIELD_NUMBER: _ClassVar[int]
+    AUDIENCES_FIELD_NUMBER: _ClassVar[int]
+    entries: _containers.RepeatedCompositeFieldContainer[ReleaseLadderEntry]
+    ramps: _containers.RepeatedCompositeFieldContainer[Node]
+    streams: _containers.RepeatedCompositeFieldContainer[Node]
+    audiences: _containers.RepeatedCompositeFieldContainer[Node]
+    def __init__(self, entries: _Optional[_Iterable[_Union[ReleaseLadderEntry, _Mapping]]] = ..., ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ...) -> None: ...
+
+class SetReleaseRankRequest(_message.Message):
+    __slots__ = ("node_id", "release_rank", "actor")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    RELEASE_RANK_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    node_id: str
+    release_rank: int
+    actor: str
+    def __init__(self, node_id: _Optional[str] = ..., release_rank: _Optional[int] = ..., actor: _Optional[str] = ...) -> None: ...
+
+class SetReleaseRankResponse(_message.Message):
+    __slots__ = ("node", "prior_release_rank")
+    NODE_FIELD_NUMBER: _ClassVar[int]
+    PRIOR_RELEASE_RANK_FIELD_NUMBER: _ClassVar[int]
+    node: Node
+    prior_release_rank: int
+    def __init__(self, node: _Optional[_Union[Node, _Mapping]] = ..., prior_release_rank: _Optional[int] = ...) -> None: ...
+
+class PrerequisiteWalkRequest(_message.Message):
+    __slots__ = ("stream_node_id",)
+    STREAM_NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    stream_node_id: str
+    def __init__(self, stream_node_id: _Optional[str] = ...) -> None: ...
+
+class PrerequisiteWalkResponse(_message.Message):
+    __slots__ = ("deliverables", "unshipped")
+    DELIVERABLES_FIELD_NUMBER: _ClassVar[int]
+    UNSHIPPED_FIELD_NUMBER: _ClassVar[int]
+    deliverables: _containers.RepeatedCompositeFieldContainer[Node]
+    unshipped: _containers.RepeatedCompositeFieldContainer[Node]
+    def __init__(self, deliverables: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., unshipped: _Optional[_Iterable[_Union[Node, _Mapping]]] = ...) -> None: ...

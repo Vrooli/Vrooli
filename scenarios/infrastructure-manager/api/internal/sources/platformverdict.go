@@ -14,8 +14,10 @@ import (
 	"github.com/vrooli/vrooli/scenarios/infrastructure-manager/api/internal/portability"
 )
 
-const platformVerdictScenario = "scenario-dependency-analyzer"
-const platformVerdictVerb = "vrooli.scenario_dependency_analyzer.v1.platform_verdict.PlatformVerdictService/ListPlatformVerdicts"
+const (
+	platformVerdictScenario = "scenario-dependency-analyzer"
+	platformVerdictVerb     = "vrooli.scenario_dependency_analyzer.v1.platform_verdict.PlatformVerdictService/ListPlatformVerdicts"
+)
 
 type PlatformVerdictReader struct {
 	Resolver *discovery.Resolver
@@ -37,6 +39,7 @@ func (r PlatformVerdictReader) ListPlatformVerdicts(ctx context.Context) ([]port
 				HostOS:             portabilityHostOS(platform.GetHostOs()),
 				Status:             platform.GetStatus(),
 				Reason:             platform.GetReason(),
+				ReasonCode:         platform.GetReasonCode(),
 				BlockingDependency: platform.GetBlockingDependency(),
 			})
 		}
@@ -54,7 +57,7 @@ func (r PlatformVerdictReader) ListPlatformFleet(ctx context.Context) (portabili
 	result := portability.DerivedPlatformFleet{}
 	for _, scenario := range response.GetScenarios() {
 		for _, platform := range scenario.GetPlatforms() {
-			result.Scenarios = append(result.Scenarios, portability.DerivedScenarioPlatformVerdict{Scenario: scenario.GetScenario(), HostOS: portabilityHostOS(platform.GetHostOs()), Status: platform.GetStatus(), Reason: platform.GetReason(), BlockingDependency: platform.GetBlockingDependency()})
+			result.Scenarios = append(result.Scenarios, portability.DerivedScenarioPlatformVerdict{Scenario: scenario.GetScenario(), HostOS: portabilityHostOS(platform.GetHostOs()), Status: platform.GetStatus(), Reason: platform.GetReason(), ReasonCode: platform.GetReasonCode(), BlockingDependency: platform.GetBlockingDependency()})
 		}
 	}
 	for _, block := range response.GetDockerBlocked() {

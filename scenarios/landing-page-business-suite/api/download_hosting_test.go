@@ -257,14 +257,6 @@ func TestDownloadHostingService_SaveSettings_ValidationErrors(t *testing.T) {
 				return DownloadStorageSettingsUpdate{Bucket: &bucket, SignedURLTTLSeconds: &ttl}
 			}(),
 		},
-		{
-			name: "mismatched credentials",
-			update: func() DownloadStorageSettingsUpdate {
-				bucket := "test-bucket"
-				accessKey := "key"
-				return DownloadStorageSettingsUpdate{Bucket: &bucket, AccessKeyID: &accessKey}
-			}(),
-		},
 	}
 
 	for _, tt := range tests {
@@ -300,8 +292,8 @@ func TestDownloadHostingService_SettingsSnapshot_NotConfigured(t *testing.T) {
 	if snapshot.SignedURLTTLSeconds != 900 {
 		t.Errorf("Expected default TTL 900, got %d", snapshot.SignedURLTTLSeconds)
 	}
-	if !snapshot.CredentialsFromEnv {
-		t.Error("Expected CredentialsFromEnv to be true for unconfigured settings")
+	if !snapshot.CredentialsFromAuthority {
+		t.Error("Expected CredentialsFromAuthority to be true for unconfigured settings")
 	}
 }
 
@@ -1179,12 +1171,11 @@ func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t 
 		Provider:            "s3",
 		Bucket:              "test-bucket",
 		SignedURLTTLSeconds: 900,
-		AccessKeyID:         "access-key",
 	}
 
 	err := service.ValidateStorageSettings(settings)
-	if err == nil {
-		t.Error("expected error for mismatched credentials")
+	if err != nil {
+		t.Errorf("credential authority keeps credentials out of settings; got: %v", err)
 	}
 
 	// Only secret, no access key
@@ -1192,12 +1183,11 @@ func TestDownloadHostingService_ValidateStorageSettings_MismatchedCredentials(t 
 		Provider:            "s3",
 		Bucket:              "test-bucket",
 		SignedURLTTLSeconds: 900,
-		SecretAccessKey:     "secret-key",
 	}
 
 	err = service.ValidateStorageSettings(settings)
-	if err == nil {
-		t.Error("expected error for mismatched credentials")
+	if err != nil {
+		t.Errorf("credential authority keeps credentials out of settings; got: %v", err)
 	}
 }
 
@@ -1212,8 +1202,6 @@ func TestDownloadHostingService_ValidateStorageSettings_ValidSettings(t *testing
 		Region:              "us-east-1",
 		Endpoint:            "https://s3.amazonaws.com",
 		SignedURLTTLSeconds: 900,
-		AccessKeyID:         "access-key",
-		SecretAccessKey:     "secret-key",
 	}
 
 	err := service.ValidateStorageSettings(settings)

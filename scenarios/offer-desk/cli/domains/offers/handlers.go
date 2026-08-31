@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/vrooli/cli-core/cliapp"
 	offerspb "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
@@ -17,12 +19,13 @@ type handlers struct {
 	c oc.CatalogServiceClient
 	g oc.GatesServiceClient
 	b oc.BoardServiceClient
+	l oc.ReleaseLadderServiceClient
 	s oc.SpaceServiceClient
 }
 
 func newHandlers(a *cliapp.ScenarioApp) *handlers {
 	hc, base := cliapp.NewConnectHTTPClient(a)
-	return &handlers{c: oc.NewCatalogServiceClient(hc, base), g: oc.NewGatesServiceClient(hc, base), b: oc.NewBoardServiceClient(hc, base), s: oc.NewSpaceServiceClient(hc, base)}
+	return &handlers{c: oc.NewCatalogServiceClient(hc, base), g: oc.NewGatesServiceClient(hc, base), b: oc.NewBoardServiceClient(hc, base), l: oc.NewReleaseLadderServiceClient(hc, base), s: oc.NewSpaceServiceClient(hc, base)}
 }
 
 func (h *handlers) list(_ cliapp.OperationContext) (*offerspb.ListNodesResponse, error) {
@@ -117,8 +120,14 @@ func parseKind(v string) (offerspb.NodeKind, error) {
 		return offerspb.NodeKind_REVENUE_LINE, nil
 	case "deliverable":
 		return offerspb.NodeKind_DELIVERABLE, nil
+	case "ramp":
+		return offerspb.NodeKind_RAMP, nil
+	case "stream":
+		return offerspb.NodeKind_STREAM, nil
+	case "audience":
+		return offerspb.NodeKind_AUDIENCE, nil
 	default:
-		return offerspb.NodeKind_OFFER, fmt.Errorf("unknown node kind %q; expected offer, variant, channel, revenue-line, or deliverable", v)
+		return offerspb.NodeKind_OFFER, fmt.Errorf("unknown node kind %q; expected offer, variant, channel, revenue-line, deliverable, ramp, stream, or audience", v)
 	}
 }
 
@@ -180,7 +189,16 @@ func (h *handlers) trigger(c cliapp.OperationContext) (*offerspb.DeclareTriggerR
 }
 
 func (h *handlers) fact(c cliapp.OperationContext) (*offerspb.AddFactResponse, error) {
-	r, e := h.g.AddFact(context.Background(), connect.NewRequest(&offerspb.AddFactRequest{Fact: &offerspb.Fact{Name: c.Flag("name"), Value: parseFloat(c.Flag("value")), StaleAfterDays: int32(parseInt(c.Flag("stale-after-days")))}}))
+	observedAt := time.Now().UTC()
+	if raw := strings.TrimSpace(c.Flag("observed-at")); raw != "" {
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			return nil, fmt.Errorf("--observed-at must be RFC3339: %w", err)
+		}
+		observedAt = parsed
+	}
+	fact := &offerspb.Fact{Name: c.Flag("name"), Value: parseFloat(c.Flag("value")), StaleAfterDays: int32(parseInt(c.Flag("stale-after-days"))), Dimension: strings.TrimSpace(c.Flag("dimension")), ObservedAt: timestamppb.New(observedAt)}
+	r, e := h.g.AddFact(context.Background(), connect.NewRequest(&offerspb.AddFactRequest{Fact: fact}))
 	if e != nil {
 		return nil, e
 	}
@@ -215,6 +233,31 @@ func (h *handlers) board(_ cliapp.OperationContext) (*offerspb.BoardResponse, er
 	r, e := h.b.GetBoard(context.Background(), connect.NewRequest(&offerspb.ProjectionRequest{}))
 	if e != nil {
 		return nil, e
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) ladder(c cliapp.OperationContext) (*offerspb.ReleaseLadderResponse, error) {
+	r, err := h.l.GetReleaseLadder(context.Background(), connect.NewRequest(&offerspb.ReleaseLadderRequest{IncludeRetired: strings.EqualFold(c.Flag("include-retired"), "true")}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) rank(c cliapp.OperationContext) (*offerspb.SetReleaseRankResponse, error) {
+	rank := int32(parseInt(c.Flag("release-rank")))
+	r, err := h.c.SetReleaseRank(context.Background(), connect.NewRequest(&offerspb.SetReleaseRankRequest{NodeId: c.Flag("node-id"), ReleaseRank: rank, Actor: "operator"}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) prerequisites(c cliapp.OperationContext) (*offerspb.PrerequisiteWalkResponse, error) {
+	r, err := h.l.GetPrerequisites(context.Background(), connect.NewRequest(&offerspb.PrerequisiteWalkRequest{StreamNodeId: c.Flag("stream-node-id")}))
+	if err != nil {
+		return nil, err
 	}
 	return r.Msg, nil
 }
@@ -270,6 +313,23 @@ func boardReport(_ cliapp.OperationContext, m *offerspb.BoardResponse) cliapp.Li
 		r[i] = fmt.Sprintf("%s — %s [%s]", e.Title, e.RankReason, e.Status.String())
 	}
 	return cliapp.ListReport{Summary: []string{"Offer Desk board"}, ResultsHeading: "Priority", Results: r}
+}
+
+func ladderReport(_ cliapp.OperationContext, m *offerspb.ReleaseLadderResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d scheduled deliverable(s).", len(m.Entries))}, ResultsHeading: "Release ladder", Results: mapStrings(len(m.Entries), func(i int) string {
+		e := m.Entries[i]
+		return fmt.Sprintf("%d. %s — ramps=%d streams=%d audiences=%d cumulative_ramps=%d", e.Deliverable.ReleaseRank, e.Deliverable.Name, len(e.UnlockedRamps), len(e.UnlockedStreams), len(e.Audiences), len(e.CumulativeRamps))
+	})}
+}
+
+func rankReport(_ cliapp.OperationContext, m *offerspb.SetReleaseRankResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Set %s release rank to %d (was %d).", m.Node.Name, m.Node.ReleaseRank, m.PriorReleaseRank)}}
+}
+
+func prerequisitesReport(_ cliapp.OperationContext, m *offerspb.PrerequisiteWalkResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d prerequisite deliverable(s); %d unshipped.", len(m.Deliverables), len(m.Unshipped))}, ResultsHeading: "Prerequisites", Results: mapStrings(len(m.Deliverables), func(i int) string {
+		return fmt.Sprintf("%s — %s", m.Deliverables[i].Name, m.Deliverables[i].Status.String())
+	})}
 }
 
 func catalogImportReport(_ cliapp.OperationContext, m *offerspb.ImportCatalogResponse) cliapp.MutationReport {

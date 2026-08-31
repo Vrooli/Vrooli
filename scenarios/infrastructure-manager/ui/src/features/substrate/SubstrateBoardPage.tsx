@@ -6,12 +6,12 @@ import { LegendPlate } from "../../components/instrument/LegendPlate";
 import { Lamp, LampLegend } from "../../components/instrument/Lamp";
 import { StatPlate, StatStrip } from "../../components/instrument/StatPlate";
 import { AnnunciatorGrid, type AnnunciatorRow } from "../../components/instrument/AnnunciatorGrid";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 import { RUNG_ORDER, type SignalState } from "../../theme/instrument";
 import { DeviceConstellation, describeConstellation } from "./DeviceConstellation";
 import { DeviceDrilldown, type DeviceDrilldownLabels } from "./DeviceDrilldown";
-import { PortabilityLegend, PortabilityMatrix, QUALIFICATION_ORDER } from "./PortabilityMatrix";
+import { PortabilityLegend, PortabilityMatrix, QUALIFICATION_ORDER, ResourceClaims } from "./PortabilityMatrix";
 import {
   isUnseen,
   ladderCoverage,
@@ -361,6 +361,25 @@ export function SubstrateBoardPage() {
               </div>
             </>
           ) : (
+            <EmptyState
+              title={t(strings.pages.substrate.unavailableTitle)}
+              description={t(strings.pages.substrate.unavailableBody)}
+            />
+          )}
+        </ExperienceSurface>
+      </section>
+
+      <section aria-labelledby="substrate-resource-claims" className="flex flex-col gap-space-sm">
+        <LegendPlate
+          id="substrate-resource-claims"
+          legend={t(strings.pages.substrate.resourceClaimsHeading)}
+          aside={board ? `${board.resources.length}` : undefined}
+        />
+        <p className="max-w-[66ch] text-body-sm text-app-muted-foreground">
+          {t(strings.pages.substrate.resourceClaimsNote)}
+        </p>
+        <ExperienceSurface surfaceId="resource-claims" data-testid="substrate-resource-claims" state={state} statusMessage={statusMessage}>
+          {board ? <ResourceClaims resources={board.resources} skipBudget={board.skipBudget} /> : (
             <EmptyState
               title={t(strings.pages.substrate.unavailableTitle)}
               description={t(strings.pages.substrate.unavailableBody)}

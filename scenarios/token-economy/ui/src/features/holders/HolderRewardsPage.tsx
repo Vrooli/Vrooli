@@ -3,8 +3,8 @@ import { CircleCheck, Gift, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 
 import { holderClient, nextIdempotencyKey } from "../../api/tokenEconomy";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { eligibleGrantId, holderEconomyKey, useHolderCatalog, useHolderEconomy } from "./useHolderEconomy";

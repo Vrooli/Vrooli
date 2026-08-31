@@ -1,4 +1,4 @@
-package main
+package commerce
 
 import (
 	"context"
@@ -14,23 +14,154 @@ import (
 	"time"
 
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1/shared"
-	"landing-page-business-suite-api/internal/commerce"
 )
+
+// StripeWebhookService owns signature verification and Stripe event
+// processing. Application composition injects provider configuration,
+// normalization, logging, and workflows that belong to adjacent domains.
+type StripeWebhookService struct {
+	db                    StripeStore
+	planService           *PlanService
+	getConfig             func() StripeWebhookConfig
+	normalizeEmailFn      func(string) string
+	loadCheckoutSession   func(string) (*CheckoutSessionRecord, error)
+	extractAmount         func(map[string]interface{}, *CheckoutSessionRecord) int64
+	handleCreditTopup     func(string, int64, *PlanOption, string, map[string]interface{}) error
+	refreshSubscription   func(string, string) (*shared.SubscriptionStatus, error)
+	persistSubscription   func(string, *StripeSubscription) (*shared.SubscriptionStatus, error)
+	checkIntroEligibility func(context.Context, string) (bool, error)
+	markIntroUsed         func(context.Context, string, string, string, string, string) error
+	extractIntroCoupon    func(map[string]interface{}) string
+	logIntroAnomaly       func(string, string, string, string, map[string]interface{})
+	logf                  func(string, map[string]interface{})
+	logErrorf             func(string, map[string]interface{})
+}
+
+type StripeWebhookConfig struct {
+	WebhookSecret string
+	HasWebhook    bool
+}
+
+func (s *StripeWebhookService) log(message string, fields map[string]interface{}) {
+	if s.logf != nil {
+		s.logf(message, fields)
+	}
+}
+
+func (s *StripeWebhookService) logError(message string, fields map[string]interface{}) {
+	if s.logErrorf != nil {
+		s.logErrorf(message, fields)
+	}
+}
+
+func (s *StripeWebhookService) normalizeEmail(value string) string {
+	if s.normalizeEmailFn != nil {
+		return s.normalizeEmailFn(value)
+	}
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+type StripeWebhookOptions struct {
+	DB                    StripeStore
+	PlanService           *PlanService
+	Config                func() StripeWebhookConfig
+	NormalizeEmail        func(string) string
+	LoadCheckoutSession   func(string) (*CheckoutSessionRecord, error)
+	ExtractAmount         func(map[string]interface{}, *CheckoutSessionRecord) int64
+	HandleCreditTopup     func(string, int64, *PlanOption, string, map[string]interface{}) error
+	RefreshSubscription   func(string, string) (*shared.SubscriptionStatus, error)
+	PersistSubscription   func(string, *StripeSubscription) (*shared.SubscriptionStatus, error)
+	CheckIntroEligibility func(context.Context, string) (bool, error)
+	MarkIntroUsed         func(context.Context, string, string, string, string, string) error
+	ExtractIntroCoupon    func(map[string]interface{}) string
+	LogIntroAnomaly       func(string, string, string, string, map[string]interface{})
+	Log                   func(string, map[string]interface{})
+	LogError              func(string, map[string]interface{})
+}
+
+func NewStripeWebhookService(options StripeWebhookOptions) *StripeWebhookService {
+	return &StripeWebhookService{
+		db: options.DB, planService: options.PlanService, getConfig: options.Config,
+		normalizeEmailFn: options.NormalizeEmail, loadCheckoutSession: options.LoadCheckoutSession,
+		extractAmount: options.ExtractAmount, handleCreditTopup: options.HandleCreditTopup,
+		refreshSubscription: options.RefreshSubscription, persistSubscription: options.PersistSubscription,
+		checkIntroEligibility: options.CheckIntroEligibility, markIntroUsed: options.MarkIntroUsed,
+		extractIntroCoupon: options.ExtractIntroCoupon, logIntroAnomaly: options.LogIntroAnomaly,
+		logf: options.Log, logErrorf: options.LogError,
+	}
+}
+
+func withTransaction(ctx context.Context, db StripeStore, fn func(*sql.Tx) error) (err error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+	if err = fn(tx); err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	err = tx.Commit()
+	return err
+}
+
+func (s *StripeWebhookService) config() StripeWebhookConfig {
+	if s.getConfig != nil {
+		return s.getConfig()
+	}
+	return StripeWebhookConfig{}
+}
+
+func (s *StripeWebhookService) subscriptionRefresh(identity, subscriptionID string) (*shared.SubscriptionStatus, error) {
+	if s.refreshSubscription == nil {
+		return nil, errors.New("subscription refresh unavailable")
+	}
+	return s.refreshSubscription(identity, subscriptionID)
+}
+
+func (s *StripeWebhookService) subscriptionPersist(identity string, subscription *StripeSubscription) (*shared.SubscriptionStatus, error) {
+	if s.persistSubscription == nil {
+		return nil, errors.New("subscription persistence unavailable")
+	}
+	return s.persistSubscription(identity, subscription)
+}
+
+func (s *StripeWebhookService) persistSubscriptionFromStripe(identity string, subscription *StripeSubscription) (*shared.SubscriptionStatus, error) {
+	return s.subscriptionPersist(identity, subscription)
+}
+
+func (s *StripeWebhookService) extractIntroCouponFromInvoice(obj map[string]interface{}) string {
+	if s.extractIntroCoupon == nil {
+		return ""
+	}
+	return s.extractIntroCoupon(obj)
+}
+
+func (s *StripeWebhookService) refreshSubscriptionFromStripe(identity, subscriptionID string) (*shared.SubscriptionStatus, error) {
+	return s.subscriptionRefresh(identity, subscriptionID)
+}
 
 // webhookTimestampTolerance defines the maximum age of webhook timestamps
 // to prevent replay attacks. Stripe recommends 5 minutes.
-const webhookTimestampTolerance = 5 * time.Minute
+const (
+	webhookTimestampTolerance = 5 * time.Minute
+	sessionTypeSubscription   = "subscription"
+)
 
 // --- StripeWebhookService Interface Implementation ---
 // This file contains webhook signature verification and event handling.
 
 // VerifyWebhookSignature validates the Stripe webhook signature
 // [REQ:STRIPE-SIG] Webhook signature verification
-func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string) bool {
-	cfg := s.getConfig()
-	// [REQ:STRIPE-CONFIG] Uses webhook secret from environment/admin settings
-	if !cfg.hasWebhook {
-		logStructured("Stripe webhook secret not configured", map[string]interface{}{"level": "warn"})
+func (s *StripeWebhookService) VerifyWebhookSignature(payload []byte, signature string) bool {
+	cfg := s.config()
+	// [REQ:STRIPE-CONFIG] Uses the authority-backed webhook secret supplied by the caller
+	if !cfg.HasWebhook {
+		s.log("Stripe webhook secret not configured", map[string]interface{}{"level": "warn"})
 		return false
 	}
 
@@ -57,7 +188,7 @@ func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string)
 	// Validate timestamp is within acceptable window to prevent replay attacks
 	timestampInt, err := strconv.ParseInt(timestamp, 10, 64)
 	if err != nil {
-		logStructuredError("webhook_timestamp_invalid", map[string]interface{}{
+		s.logError("webhook_timestamp_invalid", map[string]interface{}{
 			"timestamp": timestamp,
 			"error":     err.Error(),
 		})
@@ -69,7 +200,7 @@ func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string)
 		age = -age // Handle future timestamps (clock skew)
 	}
 	if age > webhookTimestampTolerance {
-		logStructuredError("webhook_timestamp_out_of_range", map[string]interface{}{
+		s.logError("webhook_timestamp_out_of_range", map[string]interface{}{
 			"timestamp":    timestamp,
 			"event_time":   eventTime.Format(time.RFC3339),
 			"age_seconds":  age.Seconds(),
@@ -82,7 +213,7 @@ func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string)
 	signedPayload := timestamp + "." + string(payload)
 
 	// Compute HMAC-SHA256
-	mac := hmac.New(sha256.New, []byte(cfg.webhookSecret))
+	mac := hmac.New(sha256.New, []byte(cfg.WebhookSecret))
 	mac.Write([]byte(signedPayload))
 	expectedSig := hex.EncodeToString(mac.Sum(nil))
 
@@ -92,7 +223,7 @@ func (s *StripeService) VerifyWebhookSignature(payload []byte, signature string)
 
 // HandleWebhook processes Stripe webhook events
 // [REQ:STRIPE-ROUTES] POST /api/webhooks/stripe endpoint
-func (s *StripeService) HandleWebhook(body []byte, signature string) error {
+func (s *StripeWebhookService) HandleWebhook(body []byte, signature string) error {
 	// [REQ:STRIPE-SIG] Verify signature before processing
 	if !s.VerifyWebhookSignature(body, signature) {
 		return errors.New("invalid webhook signature")
@@ -111,7 +242,7 @@ func (s *StripeService) HandleWebhook(body []byte, signature string) error {
 	// Extract event ID for idempotency - required for safe webhook processing
 	eventID, ok := event["id"].(string)
 	if !ok || eventID == "" {
-		logStructuredError("webhook_missing_event_id", map[string]interface{}{
+		s.logError("webhook_missing_event_id", map[string]interface{}{
 			"event_type": eventType,
 		})
 		return errors.New("missing or invalid event ID - cannot process webhook safely")
@@ -144,7 +275,7 @@ func (s *StripeService) HandleWebhook(body []byte, signature string) error {
 	case "invoice.payment_failed":
 		return s.handleInvoicePaymentFailed(obj)
 	default:
-		logStructured("Unhandled webhook event", map[string]interface{}{
+		s.log("Unhandled webhook event", map[string]interface{}{
 			"event_type": eventType,
 		})
 	}
@@ -152,7 +283,21 @@ func (s *StripeService) HandleWebhook(body []byte, signature string) error {
 	return nil
 }
 
-func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stripeEventID string) error {
+// HandleCustomerUpdatedForComposition exposes the domain operation to the API
+// composition adapter without exposing the service's internal dispatch shape.
+func (s *StripeWebhookService) HandleCustomerUpdatedForComposition(obj map[string]interface{}) error {
+	return s.handleCustomerUpdated(obj)
+}
+
+func (s *StripeWebhookService) PersistInvoiceStatusForComposition(subscriptionID, customerID, customerEmail, priceID, status string) error {
+	return s.persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status)
+}
+
+func (s *StripeWebhookService) BillingIntervalDurationForComposition(interval shared.BillingInterval) time.Duration {
+	return s.billingIntervalDuration(interval)
+}
+
+func (s *StripeWebhookService) handleCheckoutCompleted(obj map[string]interface{}, stripeEventID string) error {
 	sessionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing session id")
@@ -163,19 +308,19 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 	subscriptionID, _ := obj["subscription"].(string)
 
 	// Normalize email for consistency
-	customerEmail = NormalizeEmail(customerEmail)
+	customerEmail = s.normalizeEmail(customerEmail)
 
 	// Link user account to Stripe customer (creates user if not exists)
 	if customerEmail != "" && customerID != "" {
-		if err := commerce.NewAccountLinkService(s.db).LinkUserToStripeCustomer(customerEmail, customerID); err != nil {
-			logStructuredError("link_stripe_customer_failed", map[string]interface{}{
+		if err := NewAccountLinkService(s.db).LinkUserToStripeCustomer(customerEmail, customerID); err != nil {
+			s.logError("link_stripe_customer_failed", map[string]interface{}{
 				"email":       customerEmail,
 				"customer_id": customerID,
 				"error":       err.Error(),
 			})
 			// Continue - don't fail checkout for this
 		} else {
-			logStructured("stripe_customer_linked", map[string]interface{}{
+			s.log("stripe_customer_linked", map[string]interface{}{
 				"level":       "info",
 				"email":       customerEmail,
 				"customer_id": customerID,
@@ -189,18 +334,18 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 	}
 
 	if sessionRec.Status == "complete" {
-		logStructured("checkout.session.completed ignored (duplicate)", map[string]interface{}{
+		s.log("checkout.session.completed ignored (duplicate)", map[string]interface{}{
 			"session_id": sessionID,
 		})
 		return nil
 	}
 
-	var plan *commerce.PlanOption
+	var plan *PlanOption
 	if sessionRec.PriceID.Valid {
 		if p, planErr := s.planService.GetPlanByPriceID(sessionRec.PriceID.String); planErr == nil {
 			plan = p
 		} else {
-			logStructured("plan metadata missing during checkout completion", map[string]interface{}{
+			s.log("plan metadata missing during checkout completion", map[string]interface{}{
 				"price_id": sessionRec.PriceID.String,
 				"error":    planErr.Error(),
 			})
@@ -229,14 +374,14 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 		`, "complete", subscriptionID, customerID, customerEmail, time.Now(), sessionID); err != nil {
 			return err
 		}
-		logStructured("supporter contribution received", map[string]interface{}{
+		s.log("supporter contribution received", map[string]interface{}{
 			"session_id": sessionID,
 			"email":      customerEmail,
 			"amount":     amountCents,
 		})
 		return nil
 	default:
-		return WithTransaction(context.Background(), s.db, nil, func(tx *sql.Tx) error {
+		return withTransaction(context.Background(), s.db, func(tx *sql.Tx) error {
 			if _, err := tx.Exec(`
 				UPDATE checkout_sessions
 				SET status = $1, subscription_id = $2, customer_id = $3, customer_email = $4, updated_at = $5
@@ -249,7 +394,7 @@ func (s *StripeService) handleCheckoutCompleted(obj map[string]interface{}, stri
 	}
 }
 
-func (s *StripeService) handleSubscriptionCompletion(tx *sql.Tx, subscriptionID, customerID, customerEmail string, plan *commerce.PlanOption, session *checkoutSessionRecord, amountCents int64) error {
+func (s *StripeWebhookService) handleSubscriptionCompletion(tx *sql.Tx, subscriptionID, customerID, customerEmail string, plan *PlanOption, session *CheckoutSessionRecord, amountCents int64) error {
 	if plan == nil {
 		// Without plan metadata we cannot create enriched entries
 		return nil
@@ -301,12 +446,12 @@ func (s *StripeService) handleSubscriptionCompletion(tx *sql.Tx, subscriptionID,
 	if session != nil {
 		meta["session_id"] = session.SessionID
 	}
-	logStructured("Checkout session completed", meta)
+	s.log("Checkout session completed", meta)
 
 	return nil
 }
 
-func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID string, plan *commerce.PlanOption, amountCents int64) (string, error) {
+func (s *StripeWebhookService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID string, plan *PlanOption, amountCents int64) (string, error) {
 	if plan == nil || subscriptionID == "" {
 		return "", nil
 	}
@@ -322,7 +467,7 @@ func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID st
 		"plan_rank":          plan.PlanRank,
 		"intro_enabled":      plan.IntroEnabled,
 		"intro_periods":      plan.IntroPeriods,
-		"billing_interval":   commerce.BillingIntervalLabel(plan.BillingInterval),
+		"billing_interval":   BillingIntervalLabel(plan.BillingInterval),
 		"subscription_price": plan.AmountCents,
 	}
 	metaBytes, _ := json.Marshal(meta)
@@ -345,7 +490,7 @@ func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID st
 			status = 'active',
 			metadata = EXCLUDED.metadata,
 			updated_at = NOW()
-	`, scheduleID, subscriptionID, plan.StripePriceId, commerce.BillingIntervalLabel(plan.BillingInterval),
+	`, scheduleID, subscriptionID, plan.StripePriceId, BillingIntervalLabel(plan.BillingInterval),
 		plan.IntroEnabled, plan.IntroAmountCents, plan.IntroPeriods, amountCents,
 		nextBilling, string(metaBytes))
 	if err != nil {
@@ -355,7 +500,7 @@ func (s *StripeService) createSubscriptionSchedule(tx *sql.Tx, subscriptionID st
 	return scheduleID, nil
 }
 
-func (s *StripeService) billingIntervalDuration(interval shared.BillingInterval) time.Duration {
+func (s *StripeWebhookService) billingIntervalDuration(interval shared.BillingInterval) time.Duration {
 	switch interval {
 	case shared.BillingInterval_BILLING_INTERVAL_YEAR:
 		return 365 * 24 * time.Hour
@@ -366,7 +511,7 @@ func (s *StripeService) billingIntervalDuration(interval shared.BillingInterval)
 	}
 }
 
-func (s *StripeService) handleSubscriptionCreated(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleSubscriptionCreated(obj map[string]interface{}) error {
 	subscriptionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing subscription id")
@@ -385,7 +530,7 @@ func (s *StripeService) handleSubscriptionCreated(obj map[string]interface{}) er
 	return err
 }
 
-func (s *StripeService) handleSubscriptionUpdated(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleSubscriptionUpdated(obj map[string]interface{}) error {
 	subscriptionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing subscription id")
@@ -393,7 +538,7 @@ func (s *StripeService) handleSubscriptionUpdated(obj map[string]interface{}) er
 
 	status, _ := obj["status"].(string)
 	if payload, err := json.Marshal(obj); err == nil {
-		var sub commerce.StripeSubscription
+		var sub StripeSubscription
 		if err := json.Unmarshal(payload, &sub); err == nil && sub.ID != "" {
 			if _, persistErr := s.persistSubscriptionFromStripe("", &sub); persistErr == nil {
 				return nil
@@ -411,7 +556,7 @@ func (s *StripeService) handleSubscriptionUpdated(obj map[string]interface{}) er
 	return err
 }
 
-func (s *StripeService) handleSubscriptionDeleted(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleSubscriptionDeleted(obj map[string]interface{}) error {
 	subscriptionID, ok := obj["id"].(string)
 	if !ok {
 		return errors.New("missing subscription id")
@@ -419,7 +564,7 @@ func (s *StripeService) handleSubscriptionDeleted(obj map[string]interface{}) er
 
 	now := time.Now()
 	if payload, err := json.Marshal(obj); err == nil {
-		var sub commerce.StripeSubscription
+		var sub StripeSubscription
 		if err := json.Unmarshal(payload, &sub); err == nil && sub.ID != "" {
 			sub.Status = "canceled"
 			sub.CanceledAt = now.Unix()
@@ -438,7 +583,7 @@ func (s *StripeService) handleSubscriptionDeleted(obj map[string]interface{}) er
 	return err
 }
 
-func (s *StripeService) extractInvoicePriceID(obj map[string]interface{}) string {
+func (s *StripeWebhookService) extractInvoicePriceID(obj map[string]interface{}) string {
 	// Invoice price may live under lines.data[0].price.id
 	lines, ok := obj["lines"].(map[string]interface{})
 	if !ok {
@@ -462,7 +607,7 @@ func (s *StripeService) extractInvoicePriceID(obj map[string]interface{}) string
 	return ""
 }
 
-func (s *StripeService) persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status string) error {
+func (s *StripeWebhookService) persistInvoiceStatus(subscriptionID, customerID, customerEmail, priceID, status string) error {
 	if subscriptionID == "" {
 		return nil
 	}
@@ -476,7 +621,7 @@ func (s *StripeService) persistInvoiceStatus(subscriptionID, customerID, custome
 				bundleKey = plan.BundleKey
 			}
 		} else {
-			logStructured("stripe_plan_lookup_failed", map[string]interface{}{
+			s.log("stripe_plan_lookup_failed", map[string]interface{}{
 				"level":    "warn",
 				"price_id": priceID,
 				"error":    err.Error(),
@@ -491,13 +636,13 @@ func (s *StripeService) persistInvoiceStatus(subscriptionID, customerID, custome
 		}
 	}
 	if strings.TrimSpace(planTier) == "" && strings.TrimSpace(priceID) != "" {
-		if inferred, ok := commerce.DetectTierToken(priceID); ok {
+		if inferred, ok := DetectTierToken(priceID); ok {
 			planTier = inferred
 		}
 	}
 	if strings.TrimSpace(planTier) != "" {
-		if _, err := commerce.NormalizePlanTier(planTier); err != nil {
-			logStructured("stripe_subscription_plan_tier_invalid", map[string]interface{}{
+		if _, err := NormalizePlanTier(planTier); err != nil {
+			s.log("stripe_subscription_plan_tier_invalid", map[string]interface{}{
 				"level":        "warn",
 				"plan_tier":    planTier,
 				"price_id":     priceID,
@@ -523,7 +668,7 @@ func (s *StripeService) persistInvoiceStatus(subscriptionID, customerID, custome
 	return err
 }
 
-func (s *StripeService) handleInvoicePaid(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleInvoicePaid(obj map[string]interface{}) error {
 	subscriptionID, _ := obj["subscription"].(string)
 	customerID, _ := obj["customer"].(string)
 	customerEmail, _ := obj["customer_email"].(string)
@@ -543,7 +688,7 @@ func (s *StripeService) handleInvoicePaid(obj map[string]interface{}) error {
 			// This catches cases where eligibility changed between checkout and payment
 			eligible, eligErr := s.checkIntroEligibility(context.Background(), customerEmail)
 			if eligErr != nil {
-				logStructuredError("payment_time_eligibility_check_failed", map[string]interface{}{
+				s.logError("payment_time_eligibility_check_failed", map[string]interface{}{
 					"email":           customerEmail,
 					"customer_id":     customerID,
 					"coupon_id":       couponID,
@@ -570,7 +715,7 @@ func (s *StripeService) handleInvoicePaid(obj map[string]interface{}) error {
 			}
 
 			if err := s.markIntroUsed(context.Background(), customerEmail, customerID, couponID, planTier, subscriptionID); err != nil {
-				logStructuredError("mark_intro_used_failed", map[string]interface{}{
+				s.logError("mark_intro_used_failed", map[string]interface{}{
 					"email":           customerEmail,
 					"customer_id":     customerID,
 					"coupon_id":       couponID,
@@ -591,7 +736,7 @@ func (s *StripeService) handleInvoicePaid(obj map[string]interface{}) error {
 	return nil
 }
 
-func (s *StripeService) handleInvoicePaymentFailed(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleInvoicePaymentFailed(obj map[string]interface{}) error {
 	subscriptionID, _ := obj["subscription"].(string)
 	customerID, _ := obj["customer"].(string)
 	customerEmail, _ := obj["customer_email"].(string)
@@ -606,14 +751,14 @@ func (s *StripeService) handleInvoicePaymentFailed(obj map[string]interface{}) e
 // handleCustomerUpdated handles the customer.updated webhook event.
 // When a user changes their email in the Stripe billing portal, this updates
 // all local records to prevent orphaned data.
-func (s *StripeService) handleCustomerUpdated(obj map[string]interface{}) error {
+func (s *StripeWebhookService) handleCustomerUpdated(obj map[string]interface{}) error {
 	customerID, ok := obj["id"].(string)
 	if !ok || customerID == "" {
 		return errors.New("missing customer id in customer.updated event")
 	}
 
 	newEmail, _ := obj["email"].(string)
-	newEmail = NormalizeEmail(newEmail)
+	newEmail = s.normalizeEmail(newEmail)
 	if newEmail == "" {
 		// No email to update
 		return nil
@@ -623,7 +768,7 @@ func (s *StripeService) handleCustomerUpdated(obj map[string]interface{}) error 
 	var oldEmail string
 	if prevAttrs, ok := obj["previous_attributes"].(map[string]interface{}); ok {
 		if prevEmail, ok := prevAttrs["email"].(string); ok {
-			oldEmail = NormalizeEmail(prevEmail)
+			oldEmail = s.normalizeEmail(prevEmail)
 		}
 	}
 
@@ -638,7 +783,7 @@ func (s *StripeService) handleCustomerUpdated(obj map[string]interface{}) error 
 		if err != nil && err != sql.ErrNoRows {
 			return fmt.Errorf("lookup old email for customer %s: %w", customerID, err)
 		}
-		oldEmail = NormalizeEmail(oldEmail)
+		oldEmail = s.normalizeEmail(oldEmail)
 	}
 
 	// If emails are the same or we don't have an old email, nothing to update
@@ -646,7 +791,7 @@ func (s *StripeService) handleCustomerUpdated(obj map[string]interface{}) error 
 		return nil
 	}
 
-	logStructured("customer_email_migration_starting", map[string]interface{}{
+	s.log("customer_email_migration_starting", map[string]interface{}{
 		"level":       "info",
 		"customer_id": customerID,
 		"old_email":   oldEmail,
@@ -724,7 +869,7 @@ func (s *StripeService) handleCustomerUpdated(obj map[string]interface{}) error 
 		return fmt.Errorf("commit email migration transaction: %w", err)
 	}
 
-	logStructured("customer_email_migration_completed", map[string]interface{}{
+	s.log("customer_email_migration_completed", map[string]interface{}{
 		"level":       "info",
 		"customer_id": customerID,
 		"old_email":   oldEmail,

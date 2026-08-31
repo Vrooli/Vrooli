@@ -64,9 +64,11 @@ make stop
 
 Vrooli assigns `API_PORT` and `UI_PORT` at startup. For development access,
 use the administrator credentials configured in the scenario's local secret
-surface. For production, configure `SESSION_SECRET`, an administrator password,
-and `AUTH_MAGIC_LINK_BASE_URL` through the supported secrets workflow before
-starting the scenario. Production requires an absolute HTTPS magic-link URL.
+surface. For production, provision the administrator password through the
+credential authority and configure `AUTH_MAGIC_LINK_BASE_URL` through the
+supported configuration workflow before starting the scenario. LPBS generates
+and witnesses its session and encryption credentials; production requires an
+absolute HTTPS magic-link URL.
 
 ---
 

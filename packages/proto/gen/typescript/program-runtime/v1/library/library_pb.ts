@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file program-runtime/v1/library/library.proto.
  */
 export const file_program_runtime_v1_library_library: GenFile = /*@__PURE__*/
-  fileDesc("Cihwcm9ncmFtLXJ1bnRpbWUvdjEvbGlicmFyeS9saWJyYXJ5LnByb3RvEiF2cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkiFAoSTGlzdExpYnJhcnlSZXF1ZXN0IlkKE0xpc3RMaWJyYXJ5UmVzcG9uc2USQgoIcHJvZ3JhbXMYASADKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnNoYXJlZC5MaWJyYXJ5UHJvZ3JhbSIyChFHZXRMaWJyYXJ5UmVxdWVzdBIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAMiVwoSR2V0TGlicmFyeVJlc3BvbnNlEkEKB3Byb2dyYW0YASABKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnNoYXJlZC5MaWJyYXJ5UHJvZ3JhbSJzChVQcm9tb3RlTGlicmFyeVJlcXVlc3QSEgoKcHJvZ3JhbV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhMKC3Byb21vdGVkX2J5GAQgASgJEg4KBnJlYXNvbhgFIAEoCSJbChZQcm9tb3RlTGlicmFyeVJlc3BvbnNlEkEKB3Byb2dyYW0YASABKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnNoYXJlZC5MaWJyYXJ5UHJvZ3JhbSI5ChhTZXRDdXJyZW50TGlicmFyeVJlcXVlc3QSDAoEbmFtZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgDIl4KGVNldEN1cnJlbnRMaWJyYXJ5UmVzcG9uc2USQQoHcHJvZ3JhbRgBIAEoCzIwLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkLkxpYnJhcnlQcm9ncmFtMqIECg5MaWJyYXJ5U2VydmljZRJ8CgtMaXN0TGlicmFyeRI1LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5MaXN0TGlicmFyeVJlcXVlc3QaNi52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuTGlzdExpYnJhcnlSZXNwb25zZRJ5CgpHZXRMaWJyYXJ5EjQudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXF1ZXN0GjUudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LkdldExpYnJhcnlSZXNwb25zZRKFAQoOUHJvbW90ZUxpYnJhcnkSOC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuUHJvbW90ZUxpYnJhcnlSZXF1ZXN0GjkudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlByb21vdGVMaWJyYXJ5UmVzcG9uc2USjgEKEVNldEN1cnJlbnRMaWJyYXJ5EjsudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlNldEN1cnJlbnRMaWJyYXJ5UmVxdWVzdBo8LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5TZXRDdXJyZW50TGlicmFyeVJlc3BvbnNlQlZaVGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvZ3JhbS1ydW50aW1lL3YxL2xpYnJhcnk7bGlicmFyeV92MWIGcHJvdG8z", [file_program_runtime_v1_shared_library]);
+  fileDesc("Cihwcm9ncmFtLXJ1bnRpbWUvdjEvbGlicmFyeS9saWJyYXJ5LnByb3RvEiF2cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkiFAoSTGlzdExpYnJhcnlSZXF1ZXN0IlkKE0xpc3RMaWJyYXJ5UmVzcG9uc2USQgoIcHJvZ3JhbXMYASADKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnNoYXJlZC5MaWJyYXJ5UHJvZ3JhbSIyChFHZXRMaWJyYXJ5UmVxdWVzdBIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAMiiQEKDEJpbmRpbmdEcmlmdBISCgpiaW5kaW5nX2lkGAEgASgJEhQKDHZhbGlkYXRlZF9hdBgCIAEoCRIYChBnZW5lcmF0aW9uX210aW1lGAMgASgJEhQKDGRyaWZ0X3N0YXR1cxgEIAEoCRIPCgdjaGFuZ2VkGAUgASgIEg4KBnJlYXNvbhgGIAEoCSKXAQoSR2V0TGlicmFyeVJlc3BvbnNlEkEKB3Byb2dyYW0YASABKAsyMC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLnNoYXJlZC5MaWJyYXJ5UHJvZ3JhbRI+CgVkcmlmdBgCIAMoCzIvLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5CaW5kaW5nRHJpZnQiuAEKFVByb21vdGVMaWJyYXJ5UmVxdWVzdBISCgpwcm9ncmFtX2lkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSEwoLcHJvbW90ZWRfYnkYBCABKAkSDgoGcmVhc29uGAUgASgJEhAKCGNvdmVyYWdlGAYgASgJEhcKD2RlY2xhcmVkX2lucHV0cxgHIAMoCRIYChBkZWNsYXJlZF9vdXRwdXRzGAggAygJIlsKFlByb21vdGVMaWJyYXJ5UmVzcG9uc2USQQoHcHJvZ3JhbRgBIAEoCzIwLnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEuc2hhcmVkLkxpYnJhcnlQcm9ncmFtIjkKGFNldEN1cnJlbnRMaWJyYXJ5UmVxdWVzdBIMCgRuYW1lGAEgASgJEg8KB3ZlcnNpb24YAiABKAMiXgoZU2V0Q3VycmVudExpYnJhcnlSZXNwb25zZRJBCgdwcm9ncmFtGAEgASgLMjAudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5zaGFyZWQuTGlicmFyeVByb2dyYW0yogQKDkxpYnJhcnlTZXJ2aWNlEnwKC0xpc3RMaWJyYXJ5EjUudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5Lkxpc3RMaWJyYXJ5UmVxdWVzdBo2LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5MaXN0TGlicmFyeVJlc3BvbnNlEnkKCkdldExpYnJhcnkSNC52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuR2V0TGlicmFyeVJlcXVlc3QaNS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuR2V0TGlicmFyeVJlc3BvbnNlEoUBCg5Qcm9tb3RlTGlicmFyeRI4LnZyb29saS5wcm9ncmFtX3J1bnRpbWUudjEubGlicmFyeS5Qcm9tb3RlTGlicmFyeVJlcXVlc3QaOS52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuUHJvbW90ZUxpYnJhcnlSZXNwb25zZRKOAQoRU2V0Q3VycmVudExpYnJhcnkSOy52cm9vbGkucHJvZ3JhbV9ydW50aW1lLnYxLmxpYnJhcnkuU2V0Q3VycmVudExpYnJhcnlSZXF1ZXN0GjwudnJvb2xpLnByb2dyYW1fcnVudGltZS52MS5saWJyYXJ5LlNldEN1cnJlbnRMaWJyYXJ5UmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wcm9ncmFtLXJ1bnRpbWUvdjEvbGlicmFyeTtsaWJyYXJ5X3YxYgZwcm90bzM", [file_program_runtime_v1_shared_library]);
 
 /**
  * @generated from message vrooli.program_runtime.v1.library.ListLibraryRequest
@@ -67,6 +67,48 @@ export const GetLibraryRequestSchema: GenMessage<GetLibraryRequest> = /*@__PURE_
   messageDesc(file_program_runtime_v1_library_library, 2);
 
 /**
+ * @generated from message vrooli.program_runtime.v1.library.BindingDrift
+ */
+export type BindingDrift = Message<"vrooli.program_runtime.v1.library.BindingDrift"> & {
+  /**
+   * @generated from field: string binding_id = 1;
+   */
+  bindingId: string;
+
+  /**
+   * @generated from field: string validated_at = 2;
+   */
+  validatedAt: string;
+
+  /**
+   * @generated from field: string generation_mtime = 3;
+   */
+  generationMtime: string;
+
+  /**
+   * @generated from field: string drift_status = 4;
+   */
+  driftStatus: string;
+
+  /**
+   * @generated from field: bool changed = 5;
+   */
+  changed: boolean;
+
+  /**
+   * @generated from field: string reason = 6;
+   */
+  reason: string;
+};
+
+/**
+ * Describes the message vrooli.program_runtime.v1.library.BindingDrift.
+ * Use `create(BindingDriftSchema)` to create a new message.
+ */
+export const BindingDriftSchema: GenMessage<BindingDrift> = /*@__PURE__*/
+  messageDesc(file_program_runtime_v1_library_library, 3);
+
+/**
  * @generated from message vrooli.program_runtime.v1.library.GetLibraryResponse
  */
 export type GetLibraryResponse = Message<"vrooli.program_runtime.v1.library.GetLibraryResponse"> & {
@@ -74,6 +116,11 @@ export type GetLibraryResponse = Message<"vrooli.program_runtime.v1.library.GetL
    * @generated from field: vrooli.program_runtime.v1.shared.LibraryProgram program = 1;
    */
   program?: LibraryProgram | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.program_runtime.v1.library.BindingDrift drift = 2;
+   */
+  drift: BindingDrift[];
 };
 
 /**
@@ -81,7 +128,7 @@ export type GetLibraryResponse = Message<"vrooli.program_runtime.v1.library.GetL
  * Use `create(GetLibraryResponseSchema)` to create a new message.
  */
 export const GetLibraryResponseSchema: GenMessage<GetLibraryResponse> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_library_library, 3);
+  messageDesc(file_program_runtime_v1_library_library, 4);
 
 /**
  * @generated from message vrooli.program_runtime.v1.library.PromoteLibraryRequest
@@ -111,6 +158,21 @@ export type PromoteLibraryRequest = Message<"vrooli.program_runtime.v1.library.P
    * @generated from field: string reason = 5;
    */
   reason: string;
+
+  /**
+   * @generated from field: string coverage = 6;
+   */
+  coverage: string;
+
+  /**
+   * @generated from field: repeated string declared_inputs = 7;
+   */
+  declaredInputs: string[];
+
+  /**
+   * @generated from field: repeated string declared_outputs = 8;
+   */
+  declaredOutputs: string[];
 };
 
 /**
@@ -118,7 +180,7 @@ export type PromoteLibraryRequest = Message<"vrooli.program_runtime.v1.library.P
  * Use `create(PromoteLibraryRequestSchema)` to create a new message.
  */
 export const PromoteLibraryRequestSchema: GenMessage<PromoteLibraryRequest> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_library_library, 4);
+  messageDesc(file_program_runtime_v1_library_library, 5);
 
 /**
  * @generated from message vrooli.program_runtime.v1.library.PromoteLibraryResponse
@@ -135,7 +197,7 @@ export type PromoteLibraryResponse = Message<"vrooli.program_runtime.v1.library.
  * Use `create(PromoteLibraryResponseSchema)` to create a new message.
  */
 export const PromoteLibraryResponseSchema: GenMessage<PromoteLibraryResponse> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_library_library, 5);
+  messageDesc(file_program_runtime_v1_library_library, 6);
 
 /**
  * @generated from message vrooli.program_runtime.v1.library.SetCurrentLibraryRequest
@@ -157,7 +219,7 @@ export type SetCurrentLibraryRequest = Message<"vrooli.program_runtime.v1.librar
  * Use `create(SetCurrentLibraryRequestSchema)` to create a new message.
  */
 export const SetCurrentLibraryRequestSchema: GenMessage<SetCurrentLibraryRequest> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_library_library, 6);
+  messageDesc(file_program_runtime_v1_library_library, 7);
 
 /**
  * @generated from message vrooli.program_runtime.v1.library.SetCurrentLibraryResponse
@@ -174,7 +236,7 @@ export type SetCurrentLibraryResponse = Message<"vrooli.program_runtime.v1.libra
  * Use `create(SetCurrentLibraryResponseSchema)` to create a new message.
  */
 export const SetCurrentLibraryResponseSchema: GenMessage<SetCurrentLibraryResponse> = /*@__PURE__*/
-  messageDesc(file_program_runtime_v1_library_library, 7);
+  messageDesc(file_program_runtime_v1_library_library, 8);
 
 /**
  * @generated from service vrooli.program_runtime.v1.library.LibraryService

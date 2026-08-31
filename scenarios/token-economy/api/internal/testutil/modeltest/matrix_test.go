@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"token-economy/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/packages/proto/modeltest"
 
 	"github.com/stretchr/testify/require"
 )

@@ -1,78 +1,148 @@
 {
+  "$rowKey": "id",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "$text": "Blocked",
+  "Changes saved successfully": {
+    "": "We couldn’t save your changes."
+  },
+  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
+    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
+  },
+  "Request in progress": "Ready to save",
+  "Saved": "Try again",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Notification Hub are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Notification Hub",
+    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.",
     "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Notification Hub"
   },
+  "aria-label": "Release notes",
+  "ascending": "descending",
+  "asset": "navigation.page",
+  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
+  "capability": "navigation",
+  "caption": "No rows table",
+  "children": "Try again",
+  "clsx": "^2.1.1",
+  "component": "button",
+  "default": "No scenarios match",
+  "defaultValue": "Locked by release",
+  "desc": "asc",
+  "description": "The responsive navigation shell.",
+  "detail": "The generic harness supplies context; Button remains the subject.",
+  "dialog": "complementary",
+  "emptyMessage": "No scenarios match",
+  "equals": "Current",
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "example": "overlay-open",
+  "export": "ResponsiveClosed",
+  "field": "name",
+  "fixture": "fixtures.resource-collection",
+  "format": "renderable-text",
+  "header": "Scenario",
+  "health": {
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "statusLabel": "Status:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
+  },
+  "iconName": "arrowEnd",
+  "id": "empty",
+  "kind": "role",
+  "label": "Current",
   "layout": {
-    "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
       "settings": "Settings"
-    }
-  },
-  "theme": {
-    "switcherLabel": "Theme",
-    "choice": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    }
-  },
-  "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
     },
-    "settings": {
-      "title": "Settings",
-      "themeHeading": "Appearance",
-      "localeHeading": "Language"
-    }
+    "sidebarLabel": "Primary navigation"
   },
-  "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "errors": {
-    "canceled": "Operation canceled.",
-    "unknown": "An unknown error occurred.",
-    "invalid_argument": "Invalid input: {{message}}",
-    "deadline_exceeded": "Operation timed out.",
-    "not_found": "Resource not found.",
-    "already_exists": "Already exists.",
-    "permission_denied": "Permission denied.",
-    "resource_exhausted": "Resource limit reached.",
-    "failed_precondition": "Cannot perform this action: {{message}}",
-    "aborted": "Operation aborted.",
-    "out_of_range": "Out of range.",
-    "unimplemented": "Not yet implemented.",
-    "internal": "Something went wrong. Please try again.",
-    "unavailable": "Service temporarily unavailable.",
-    "data_loss": "Data loss detected.",
-    "unauthenticated": "Please sign in to continue."
-  },
+  "libraryId": "react-component-library:Pressable",
   "locale": {
     "switcherLabel": "Language"
   },
-  "errorBoundary": {
-    "title": "Something went wrong",
-    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
-    "retry": "Try again"
-  }
+  "lucide-react": "^0.424.0",
+  "mode": "pinned",
+  "module": "./story.tsx",
+  "name": "Empty",
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat",
+      "title": "Dashboard"
+    },
+    "settings": {
+      "localeHeading": "Language",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    }
+  },
+  "path": "emptyMessage",
+  "placeholder": "Describe the component",
+  "provenance": "react-component-library/Button@1.2.0",
+  "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.",
+  "react": "^18",
+  "react-component-library:useEscapeKey": "^1.0.0",
+  "ref": "../../../../../experience/components/button.json",
+  "region": "navigation",
+  "resolvedAt": "2026-08-31T05:19:38Z",
+  "role": "table",
+  "schema": "scenario-experience-spec/v1",
+  "schemaVersion": "1.1.0",
+  "selector": "[data-testid=",
+  "size": "lg",
+  "statement": "The shell remains bounded by the document viewport in both presentations.",
+  "status": "Behind",
+  "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json",
+  "tailwind-merge": "^2.3.0",
+  "testid": "sidebar-shell",
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  },
+  "tier": "machine",
+  "title": "DataTable",
+  "tone": "danger",
+  "true": "false",
+  "type": "no-document-horizontal-overflow",
+  "value": "No scenarios match",
+  "variant": "primary",
+  "version": "1.0.0"
 }

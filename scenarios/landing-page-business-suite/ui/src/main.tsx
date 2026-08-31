@@ -1,3 +1,5 @@
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { i18n } from "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -71,11 +73,15 @@ if (!root) {
 }
 
 ReactDOM.createRoot(root).render(
-  <React.StrictMode>
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
+<React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <React.Profiler id="App" onRender={onProfilerRender}>
         <App />
       </React.Profiler>
     </QueryClientProvider>
   </React.StrictMode>
-);
+    </LibraryStringsProvider>,
+    // vrooli:library-strings-provider end
+  );

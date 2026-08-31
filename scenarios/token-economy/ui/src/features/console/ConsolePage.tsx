@@ -1,7 +1,7 @@
 import type { FormEventHandler, ReactNode } from "react";
 import { AlertCircle, CheckCircle2, LoaderCircle } from "lucide-react";
 
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { ExperienceSurface } from "../../components/experience/ExperienceSurface";
 

@@ -143,7 +143,8 @@ Updates the admin email and/or password. `current_password` is required for all 
 
 Remote profiles let the admin UI/CLI manage a deployed LPBS instance by storing an encrypted
 `admin_session` cookie and proxying allowlisted admin requests. Remote sessions are encrypted
-at rest using `LPBS_REMOTE_PROFILE_ENCRYPTION_KEY` (or `LPBS_API_KEY_ENCRYPTION_KEY` fallback).
+at rest using the independent credential-authority-backed
+`remote-profile-encryption-key` ring.
 
 ### GET /admin/remote-profiles
 

@@ -3,11 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
-import { FormSection } from "@vrooli/react-component-library/FormSection/1.0.1";
-import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1.0.1";
-import { Button } from "@vrooli/react-component-library/Button/2.2.0";
+import { FormSection } from "@vrooli/react-component-library/FormSection/1";
+import { DirtyStateGuard } from "@vrooli/react-component-library/DirtyStateGuard/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Input } from "../components/ui/input";
-import { Select } from "@vrooli/react-component-library/Select/1.1.1";
+import { Select } from "@vrooli/react-component-library/Select/1";
 import { HealthCard } from "../features/health/HealthCard";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -17,8 +17,8 @@ import { formatCurrency, formatDate } from "../i18n/format";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { SustainPeriodUnit } from "@vrooli/proto-types/money-ledger/v1/ledger/ledger_pb";
 import { Basis } from "@vrooli/proto-types/money-ledger/v1/shared/ledger_types_pb";
-import { CartesianCharts } from "@vrooli/react-component-library/CartesianCharts/1.0.2";
-import type { ChartDatum } from "@vrooli/react-component-library/Chart/1.0.1";
+import { CartesianCharts } from "@vrooli/react-component-library/CartesianCharts/1";
+import type { ChartDatum } from "@vrooli/react-component-library/Chart/1";
 
 interface PositionView {
   cashMinor: bigint;

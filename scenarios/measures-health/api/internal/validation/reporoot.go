@@ -8,11 +8,11 @@ import (
 
 // ResolveRepoRoot finds the Vrooli monorepo root: the nearest ancestor of the
 // process working directory that contains both a scenarios/ and a packages/
-// directory. MEASURES_HEALTH_REPO_ROOT (or VROOLI_REPO_ROOT) overrides the
+// directory. MEASURES_HEALTH_REPO_ROOT (or VROOLI_ROOT) overrides the
 // search. It degrades to "." when nothing matches so the validator constructs;
 // reads then fail per-call rather than crashing boot.
 func ResolveRepoRoot() string {
-	for _, env := range []string{"MEASURES_HEALTH_REPO_ROOT", "VROOLI_REPO_ROOT"} {
+	for _, env := range []string{"MEASURES_HEALTH_REPO_ROOT", "VROOLI_ROOT"} {
 		if v := strings.TrimSpace(os.Getenv(env)); v != "" {
 			return v
 		}

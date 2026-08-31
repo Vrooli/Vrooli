@@ -1404,6 +1404,210 @@ func (x *MineUnresolvedBindingsResponse) GetCount() int64 {
 	return 0
 }
 
+type GovernanceShareRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	WindowSeconds   int64                  `protobuf:"varint,1,opt,name=window_seconds,json=windowSeconds,proto3" json:"window_seconds,omitempty"`
+	IncludeOperator bool                   `protobuf:"varint,2,opt,name=include_operator,json=includeOperator,proto3" json:"include_operator,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GovernanceShareRequest) Reset() {
+	*x = GovernanceShareRequest{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GovernanceShareRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GovernanceShareRequest) ProtoMessage() {}
+
+func (x *GovernanceShareRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GovernanceShareRequest.ProtoReflect.Descriptor instead.
+func (*GovernanceShareRequest) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GovernanceShareRequest) GetWindowSeconds() int64 {
+	if x != nil {
+		return x.WindowSeconds
+	}
+	return 0
+}
+
+func (x *GovernanceShareRequest) GetIncludeOperator() bool {
+	if x != nil {
+		return x.IncludeOperator
+	}
+	return false
+}
+
+type ObservedCommand struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AttemptedName string                 `protobuf:"bytes,1,opt,name=attempted_name,json=attemptedName,proto3" json:"attempted_name,omitempty"`
+	Count         int64                  `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	LastSeen      string                 `protobuf:"bytes,3,opt,name=last_seen,json=lastSeen,proto3" json:"last_seen,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ObservedCommand) Reset() {
+	*x = ObservedCommand{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ObservedCommand) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ObservedCommand) ProtoMessage() {}
+
+func (x *ObservedCommand) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ObservedCommand.ProtoReflect.Descriptor instead.
+func (*ObservedCommand) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ObservedCommand) GetAttemptedName() string {
+	if x != nil {
+		return x.AttemptedName
+	}
+	return ""
+}
+
+func (x *ObservedCommand) GetCount() int64 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *ObservedCommand) GetLastSeen() string {
+	if x != nil {
+		return x.LastSeen
+	}
+	return ""
+}
+
+type GovernanceShareResponse struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	GovernedCalls    int64                  `protobuf:"varint,1,opt,name=governed_calls,json=governedCalls,proto3" json:"governed_calls,omitempty"`
+	ObservedCalls    int64                  `protobuf:"varint,2,opt,name=observed_calls,json=observedCalls,proto3" json:"observed_calls,omitempty"`
+	GovernedShare    float64                `protobuf:"fixed64,3,opt,name=governed_share,json=governedShare,proto3" json:"governed_share,omitempty"`
+	WindowSeconds    int64                  `protobuf:"varint,4,opt,name=window_seconds,json=windowSeconds,proto3" json:"window_seconds,omitempty"`
+	WindowStart      string                 `protobuf:"bytes,5,opt,name=window_start,json=windowStart,proto3" json:"window_start,omitempty"`
+	WindowEnd        string                 `protobuf:"bytes,6,opt,name=window_end,json=windowEnd,proto3" json:"window_end,omitempty"`
+	ObservedCommands []*ObservedCommand     `protobuf:"bytes,7,rep,name=observed_commands,json=observedCommands,proto3" json:"observed_commands,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *GovernanceShareResponse) Reset() {
+	*x = GovernanceShareResponse{}
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GovernanceShareResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GovernanceShareResponse) ProtoMessage() {}
+
+func (x *GovernanceShareResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GovernanceShareResponse.ProtoReflect.Descriptor instead.
+func (*GovernanceShareResponse) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GovernanceShareResponse) GetGovernedCalls() int64 {
+	if x != nil {
+		return x.GovernedCalls
+	}
+	return 0
+}
+
+func (x *GovernanceShareResponse) GetObservedCalls() int64 {
+	if x != nil {
+		return x.ObservedCalls
+	}
+	return 0
+}
+
+func (x *GovernanceShareResponse) GetGovernedShare() float64 {
+	if x != nil {
+		return x.GovernedShare
+	}
+	return 0
+}
+
+func (x *GovernanceShareResponse) GetWindowSeconds() int64 {
+	if x != nil {
+		return x.WindowSeconds
+	}
+	return 0
+}
+
+func (x *GovernanceShareResponse) GetWindowStart() string {
+	if x != nil {
+		return x.WindowStart
+	}
+	return ""
+}
+
+func (x *GovernanceShareResponse) GetWindowEnd() string {
+	if x != nil {
+		return x.WindowEnd
+	}
+	return ""
+}
+
+func (x *GovernanceShareResponse) GetObservedCommands() []*ObservedCommand {
+	if x != nil {
+		return x.ObservedCommands
+	}
+	return nil
+}
+
 type RunAuthoringEvalRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Suite         string                 `protobuf:"bytes,1,opt,name=suite,proto3" json:"suite,omitempty"`
@@ -1414,7 +1618,7 @@ type RunAuthoringEvalRequest struct {
 
 func (x *RunAuthoringEvalRequest) Reset() {
 	*x = RunAuthoringEvalRequest{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[19]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1426,7 +1630,7 @@ func (x *RunAuthoringEvalRequest) String() string {
 func (*RunAuthoringEvalRequest) ProtoMessage() {}
 
 func (x *RunAuthoringEvalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[19]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1439,7 +1643,7 @@ func (x *RunAuthoringEvalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunAuthoringEvalRequest.ProtoReflect.Descriptor instead.
 func (*RunAuthoringEvalRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{19}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RunAuthoringEvalRequest) GetSuite() string {
@@ -1477,7 +1681,7 @@ type AuthoringCaseResult struct {
 
 func (x *AuthoringCaseResult) Reset() {
 	*x = AuthoringCaseResult{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[20]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1489,7 +1693,7 @@ func (x *AuthoringCaseResult) String() string {
 func (*AuthoringCaseResult) ProtoMessage() {}
 
 func (x *AuthoringCaseResult) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[20]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1502,7 +1706,7 @@ func (x *AuthoringCaseResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthoringCaseResult.ProtoReflect.Descriptor instead.
 func (*AuthoringCaseResult) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{20}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *AuthoringCaseResult) GetCaseId() string {
@@ -1571,7 +1775,7 @@ type AuthoringRuleMiss struct {
 
 func (x *AuthoringRuleMiss) Reset() {
 	*x = AuthoringRuleMiss{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[21]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1583,7 +1787,7 @@ func (x *AuthoringRuleMiss) String() string {
 func (*AuthoringRuleMiss) ProtoMessage() {}
 
 func (x *AuthoringRuleMiss) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[21]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1596,7 +1800,7 @@ func (x *AuthoringRuleMiss) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthoringRuleMiss.ProtoReflect.Descriptor instead.
 func (*AuthoringRuleMiss) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{21}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *AuthoringRuleMiss) GetRuleId() string {
@@ -1640,7 +1844,7 @@ type RunAuthoringEvalResponse struct {
 
 func (x *RunAuthoringEvalResponse) Reset() {
 	*x = RunAuthoringEvalResponse{}
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[22]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1652,7 +1856,7 @@ func (x *RunAuthoringEvalResponse) String() string {
 func (*RunAuthoringEvalResponse) ProtoMessage() {}
 
 func (x *RunAuthoringEvalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[22]
+	mi := &file_program_runtime_v1_programs_programs_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1665,7 +1869,7 @@ func (x *RunAuthoringEvalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunAuthoringEvalResponse.ProtoReflect.Descriptor instead.
 func (*RunAuthoringEvalResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{22}
+	return file_program_runtime_v1_programs_programs_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *RunAuthoringEvalResponse) GetSuite() string {
@@ -1856,7 +2060,23 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\tlast_seen\x18\x03 \x01(\tR\blastSeen\"\x8a\x01\n" +
 	"\x1eMineUnresolvedBindingsResponse\x12R\n" +
 	"\x06shapes\x18\x01 \x03(\v2:.vrooli.program_runtime.v1.programs.UnresolvedBindingShapeR\x06shapes\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x03R\x05count\"L\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\"j\n" +
+	"\x16GovernanceShareRequest\x12%\n" +
+	"\x0ewindow_seconds\x18\x01 \x01(\x03R\rwindowSeconds\x12)\n" +
+	"\x10include_operator\x18\x02 \x01(\bR\x0fincludeOperator\"k\n" +
+	"\x0fObservedCommand\x12%\n" +
+	"\x0eattempted_name\x18\x01 \x01(\tR\rattemptedName\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\x03R\x05count\x12\x1b\n" +
+	"\tlast_seen\x18\x03 \x01(\tR\blastSeen\"\xd9\x02\n" +
+	"\x17GovernanceShareResponse\x12%\n" +
+	"\x0egoverned_calls\x18\x01 \x01(\x03R\rgovernedCalls\x12%\n" +
+	"\x0eobserved_calls\x18\x02 \x01(\x03R\robservedCalls\x12%\n" +
+	"\x0egoverned_share\x18\x03 \x01(\x01R\rgovernedShare\x12%\n" +
+	"\x0ewindow_seconds\x18\x04 \x01(\x03R\rwindowSeconds\x12!\n" +
+	"\fwindow_start\x18\x05 \x01(\tR\vwindowStart\x12\x1d\n" +
+	"\n" +
+	"window_end\x18\x06 \x01(\tR\twindowEnd\x12`\n" +
+	"\x11observed_commands\x18\a \x03(\v23.vrooli.program_runtime.v1.programs.ObservedCommandR\x10observedCommands\"L\n" +
 	"\x17RunAuthoringEvalRequest\x12\x14\n" +
 	"\x05suite\x18\x01 \x01(\tR\x05suite\x12\x1b\n" +
 	"\tmax_cases\x18\x02 \x01(\x05R\bmaxCases\"\x81\x02\n" +
@@ -1918,7 +2138,7 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\x12 \n" +
 	"\x1cFAILURE_CAUSE_KERNEL_RUNTIME\x10\v\x12\"\n" +
 	"\x1eFAILURE_CAUSE_BRIDGE_TRANSPORT\x10\f\x12\x1e\n" +
-	"\x1aFAILURE_CAUSE_UNCLASSIFIED\x10\r2\xdc\b\n" +
+	"\x1aFAILURE_CAUSE_UNCLASSIFIED\x10\r2\xe9\t\n" +
 	"\x0eProgramService\x12\x84\x01\n" +
 	"\rSubmitProgram\x128.vrooli.program_runtime.v1.programs.SubmitProgramRequest\x1a9.vrooli.program_runtime.v1.programs.SubmitProgramResponse\x12{\n" +
 	"\n" +
@@ -1927,7 +2147,8 @@ const file_program_runtime_v1_programs_programs_proto_rawDesc = "" +
 	"\fListPrograms\x127.vrooli.program_runtime.v1.programs.ListProgramsRequest\x1a8.vrooli.program_runtime.v1.programs.ListProgramsResponse\x12\x81\x01\n" +
 	"\fMineFailures\x127.vrooli.program_runtime.v1.programs.MineFailuresRequest\x1a8.vrooli.program_runtime.v1.programs.MineFailuresResponse\x12\x81\x01\n" +
 	"\fMineRefusals\x127.vrooli.program_runtime.v1.programs.MineRefusalsRequest\x1a8.vrooli.program_runtime.v1.programs.MineRefusalsResponse\x12\x9f\x01\n" +
-	"\x16MineUnresolvedBindings\x12A.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest\x1aB.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse\x12\x8d\x01\n" +
+	"\x16MineUnresolvedBindings\x12A.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest\x1aB.vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse\x12\x8a\x01\n" +
+	"\x0fGovernanceShare\x12:.vrooli.program_runtime.v1.programs.GovernanceShareRequest\x1a;.vrooli.program_runtime.v1.programs.GovernanceShareResponse\x12\x8d\x01\n" +
 	"\x10RunAuthoringEval\x12;.vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest\x1a<.vrooli.program_runtime.v1.programs.RunAuthoringEvalResponseBXZVgithub.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs;programs_v1b\x06proto3"
 
 var (
@@ -1943,7 +2164,7 @@ func file_program_runtime_v1_programs_programs_proto_rawDescGZIP() []byte {
 }
 
 var file_program_runtime_v1_programs_programs_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_program_runtime_v1_programs_programs_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_program_runtime_v1_programs_programs_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_program_runtime_v1_programs_programs_proto_goTypes = []any{
 	(Provenance)(0),                        // 0: vrooli.program_runtime.v1.programs.Provenance
 	(ProgramStatus)(0),                     // 1: vrooli.program_runtime.v1.programs.ProgramStatus
@@ -1967,10 +2188,13 @@ var file_program_runtime_v1_programs_programs_proto_goTypes = []any{
 	(*MineUnresolvedBindingsRequest)(nil),  // 19: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
 	(*UnresolvedBindingShape)(nil),         // 20: vrooli.program_runtime.v1.programs.UnresolvedBindingShape
 	(*MineUnresolvedBindingsResponse)(nil), // 21: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
-	(*RunAuthoringEvalRequest)(nil),        // 22: vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
-	(*AuthoringCaseResult)(nil),            // 23: vrooli.program_runtime.v1.programs.AuthoringCaseResult
-	(*AuthoringRuleMiss)(nil),              // 24: vrooli.program_runtime.v1.programs.AuthoringRuleMiss
-	(*RunAuthoringEvalResponse)(nil),       // 25: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
+	(*GovernanceShareRequest)(nil),         // 22: vrooli.program_runtime.v1.programs.GovernanceShareRequest
+	(*ObservedCommand)(nil),                // 23: vrooli.program_runtime.v1.programs.ObservedCommand
+	(*GovernanceShareResponse)(nil),        // 24: vrooli.program_runtime.v1.programs.GovernanceShareResponse
+	(*RunAuthoringEvalRequest)(nil),        // 25: vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
+	(*AuthoringCaseResult)(nil),            // 26: vrooli.program_runtime.v1.programs.AuthoringCaseResult
+	(*AuthoringRuleMiss)(nil),              // 27: vrooli.program_runtime.v1.programs.AuthoringRuleMiss
+	(*RunAuthoringEvalResponse)(nil),       // 28: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
 }
 var file_program_runtime_v1_programs_programs_proto_depIdxs = []int32{
 	0,  // 0: vrooli.program_runtime.v1.programs.Program.provenance:type_name -> vrooli.program_runtime.v1.programs.Provenance
@@ -1985,29 +2209,32 @@ var file_program_runtime_v1_programs_programs_proto_depIdxs = []int32{
 	14, // 9: vrooli.program_runtime.v1.programs.MineFailuresResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.FailureShape
 	17, // 10: vrooli.program_runtime.v1.programs.MineRefusalsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.RefusalShape
 	20, // 11: vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse.shapes:type_name -> vrooli.program_runtime.v1.programs.UnresolvedBindingShape
-	23, // 12: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse.results:type_name -> vrooli.program_runtime.v1.programs.AuthoringCaseResult
-	24, // 13: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse.rule_misses:type_name -> vrooli.program_runtime.v1.programs.AuthoringRuleMiss
-	5,  // 14: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
-	7,  // 15: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
-	9,  // 16: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:input_type -> vrooli.program_runtime.v1.programs.WaitForProgramRequest
-	11, // 17: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
-	13, // 18: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
-	16, // 19: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
-	19, // 20: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
-	22, // 21: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:input_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
-	6,  // 22: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
-	8,  // 23: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
-	10, // 24: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:output_type -> vrooli.program_runtime.v1.programs.WaitForProgramResponse
-	12, // 25: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
-	15, // 26: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
-	18, // 27: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
-	21, // 28: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
-	25, // 29: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:output_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
-	22, // [22:30] is the sub-list for method output_type
-	14, // [14:22] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	23, // 12: vrooli.program_runtime.v1.programs.GovernanceShareResponse.observed_commands:type_name -> vrooli.program_runtime.v1.programs.ObservedCommand
+	26, // 13: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse.results:type_name -> vrooli.program_runtime.v1.programs.AuthoringCaseResult
+	27, // 14: vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse.rule_misses:type_name -> vrooli.program_runtime.v1.programs.AuthoringRuleMiss
+	5,  // 15: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:input_type -> vrooli.program_runtime.v1.programs.SubmitProgramRequest
+	7,  // 16: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:input_type -> vrooli.program_runtime.v1.programs.GetProgramRequest
+	9,  // 17: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:input_type -> vrooli.program_runtime.v1.programs.WaitForProgramRequest
+	11, // 18: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:input_type -> vrooli.program_runtime.v1.programs.ListProgramsRequest
+	13, // 19: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:input_type -> vrooli.program_runtime.v1.programs.MineFailuresRequest
+	16, // 20: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:input_type -> vrooli.program_runtime.v1.programs.MineRefusalsRequest
+	19, // 21: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:input_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsRequest
+	22, // 22: vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare:input_type -> vrooli.program_runtime.v1.programs.GovernanceShareRequest
+	25, // 23: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:input_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalRequest
+	6,  // 24: vrooli.program_runtime.v1.programs.ProgramService.SubmitProgram:output_type -> vrooli.program_runtime.v1.programs.SubmitProgramResponse
+	8,  // 25: vrooli.program_runtime.v1.programs.ProgramService.GetProgram:output_type -> vrooli.program_runtime.v1.programs.GetProgramResponse
+	10, // 26: vrooli.program_runtime.v1.programs.ProgramService.WaitForProgram:output_type -> vrooli.program_runtime.v1.programs.WaitForProgramResponse
+	12, // 27: vrooli.program_runtime.v1.programs.ProgramService.ListPrograms:output_type -> vrooli.program_runtime.v1.programs.ListProgramsResponse
+	15, // 28: vrooli.program_runtime.v1.programs.ProgramService.MineFailures:output_type -> vrooli.program_runtime.v1.programs.MineFailuresResponse
+	18, // 29: vrooli.program_runtime.v1.programs.ProgramService.MineRefusals:output_type -> vrooli.program_runtime.v1.programs.MineRefusalsResponse
+	21, // 30: vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings:output_type -> vrooli.program_runtime.v1.programs.MineUnresolvedBindingsResponse
+	24, // 31: vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare:output_type -> vrooli.program_runtime.v1.programs.GovernanceShareResponse
+	28, // 32: vrooli.program_runtime.v1.programs.ProgramService.RunAuthoringEval:output_type -> vrooli.program_runtime.v1.programs.RunAuthoringEvalResponse
+	24, // [24:33] is the sub-list for method output_type
+	15, // [15:24] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_programs_programs_proto_init() }
@@ -2021,7 +2248,7 @@ func file_program_runtime_v1_programs_programs_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_program_runtime_v1_programs_programs_proto_rawDesc), len(file_program_runtime_v1_programs_programs_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   23,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

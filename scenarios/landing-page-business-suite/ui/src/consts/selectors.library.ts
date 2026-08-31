@@ -1,11 +1,21 @@
 
 // vrooli:library-selectors start
 export const librarySelectors = {
-  "statusbadge": {
+      "statusbadge": {
     "root": "statusbadge",
   },
-  "feedback.empty-state": {
+
+
+                "feedback.empty-state": {
     "root": "feedback.empty-state",
+    "emptyIcon": "feedback.empty-state.empty-icon",
   },
+
+
+
+
+
+
+
 } as const;
 // vrooli:library-selectors end

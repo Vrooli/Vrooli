@@ -9,13 +9,27 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/program-runt
 message ListLibraryRequest {}
 message ListLibraryResponse { repeated vrooli.program_runtime.v1.shared.LibraryProgram programs = 1; }
 message GetLibraryRequest { string name = 1; int64 version = 2; }
-message GetLibraryResponse { vrooli.program_runtime.v1.shared.LibraryProgram program = 1; }
+message BindingDrift {
+  string binding_id = 1;
+  string validated_at = 2;
+  string generation_mtime = 3;
+  string drift_status = 4;
+  bool changed = 5;
+  string reason = 6;
+}
+message GetLibraryResponse {
+  vrooli.program_runtime.v1.shared.LibraryProgram program = 1;
+  repeated BindingDrift drift = 2;
+}
 message PromoteLibraryRequest {
   string program_id = 1;
   string name = 2;
   string description = 3;
   string promoted_by = 4;
   string reason = 5;
+  string coverage = 6;
+  repeated string declared_inputs = 7;
+  repeated string declared_outputs = 8;
 }
 message PromoteLibraryResponse { vrooli.program_runtime.v1.shared.LibraryProgram program = 1; }
 message SetCurrentLibraryRequest { string name = 1; int64 version = 2; }

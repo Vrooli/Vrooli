@@ -35,8 +35,8 @@ func configureAnomalyWebhook(t *testing.T, svc *commerce.PaymentAnomalyService, 
 		rateLimits = "{}"
 	}
 	_, err := db.Exec(`
-		INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at)
-		VALUES (1, '', '', '', $1, TRUE, $2::jsonb, NOW())
+		INSERT INTO payment_settings (id, anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at)
+		VALUES (1, $1, TRUE, $2::jsonb, NOW())
 		ON CONFLICT (id) DO UPDATE SET
 			anomaly_webhook_url = EXCLUDED.anomaly_webhook_url,
 			anomaly_webhook_enabled = EXCLUDED.anomaly_webhook_enabled,

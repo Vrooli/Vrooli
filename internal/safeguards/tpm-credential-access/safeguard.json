@@ -43,12 +43,12 @@
     },
     "macos": {
       "status": "not_applicable",
-      "evidence": "Windows does not expose the Linux host interface used by safeguard tpm_credential_access; the platform has a distinct host security and lifecycle model.",
+      "evidence": "macOS does not expose the Linux TPM device and tpm2-tools interface used by safeguard tpm_credential_access; the platform has a distinct host security and lifecycle model.",
       "review_by": "2027-08-26"
     },
     "windows": {
       "status": "not_applicable",
-      "evidence": "Windows does not expose the Linux host interface used by safeguard tpm_credential_access; the platform has a distinct host security and lifecycle model.",
+      "evidence": "Windows does not expose the Linux TPM device and tpm2-tools interface used by safeguard tpm_credential_access; the platform has a distinct host security and lifecycle model.",
       "review_by": "2027-08-26"
     }
   },

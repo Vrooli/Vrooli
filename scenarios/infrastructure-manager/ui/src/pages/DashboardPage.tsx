@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { Figure } from "../components/ui/instrument-status";
 import { Lamp } from "../components/instrument/Lamp";
 import { LegendPlate } from "../components/instrument/LegendPlate";

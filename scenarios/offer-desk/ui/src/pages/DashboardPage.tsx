@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { DataTable } from "@vrooli/react-component-library/DataTable/1.2.0";
+import { DataTable } from "@vrooli/react-component-library/DataTable/1";
 import { ExperienceSurface } from "../components/experience/ExperienceSurface";
 import { useSurfaceState } from "../hooks/useSurfaceState";
 import { HealthCard } from "../features/health/HealthCard";
@@ -103,6 +103,7 @@ export function DashboardPage() {
         <Card>
           <CardHeader><CardTitle className="text-sm uppercase text-app-muted-foreground">{t(strings.pages.dashboard.priorityBoard)}</CardTitle></CardHeader>
           <CardContent>
+            <div data-testid={selectors.pages.boardRanking}>
             <DataTable
               rows={entries}
               columns={rankingColumns}
@@ -111,8 +112,9 @@ export function DashboardPage() {
               searchLabel={t(strings.pages.dashboard.priorityBoard)}
               searchPlaceholder={t(strings.pages.dashboard.boardOffer)}
               emptyMessage={t(strings.pages.dashboard.noCurrentRecords)}
-              tableTestId={selectors.pages.boardRanking}
+              tableTestId="board-ranking-table"
             />
+            </div>
           </CardContent>
         </Card>
         <Card>

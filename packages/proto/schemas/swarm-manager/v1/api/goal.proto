@@ -59,12 +59,14 @@ message CreateGoalRequest {
   string description = 3;
   int32 priority = 4;
   repeated string targets = 5;
+	string serves_deliverable = 6;
 }
 message UpdateGoalRequest {
   string name = 1;
   optional string title = 2;
   optional string description = 3;
   optional int32 priority = 4;
+	optional string serves_deliverable = 5;
 }
 message UpdateGoalTargetsRequest {
   string name = 1;

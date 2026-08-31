@@ -97,10 +97,19 @@ func (s *Service) Fleet(ctx context.Context) (FleetReadout, error) {
 		if item.Status != "blocked" || item.BlockingDependency == "" {
 			continue
 		}
+		kind := "resource"
+		if item.ReasonCode == "sda_source_verdict" {
+			kind = "source"
+		}
 		readout.BlockedByOS = append(readout.BlockedByOS, ScenarioBlock{
-			Scenario:     item.Scenario,
-			HostOS:       item.HostOS,
-			Dependencies: []deployability.DependencyResult{{Kind: "resource", Name: item.BlockingDependency, Required: true, Verdict: deployability.VerdictIneligible, Reasons: []deployability.Reason{{Code: "sda_platform_verdict", Dependency: item.BlockingDependency, Message: item.Reason}}}},
+			Scenario: item.Scenario,
+			HostOS:   item.HostOS,
+			Dependencies: []deployability.DependencyResult{{Kind: kind, Name: item.BlockingDependency, Required: true, Verdict: deployability.VerdictIneligible, Reasons: []deployability.Reason{{Code: func() string {
+				if item.ReasonCode != "" {
+					return item.ReasonCode
+				}
+				return "sda_platform_verdict"
+			}(), Dependency: item.BlockingDependency, Message: item.Reason}}}},
 		})
 	}
 	for _, item := range derived.DockerBlocked {

@@ -71,9 +71,11 @@ func (f *fakeMeteredInferenceUsageSource) FinalizeReservation(_ context.Context,
 	f.finalizedAmount = amount
 	return f.err
 }
+
 func (f *fakeMeteredInferenceUsageSource) ReleaseReservation(context.Context, string) error {
 	return f.err
 }
+
 func (f *fakeMeteredInferenceUsageSource) AdjustUsage(_ context.Context, _ string, _ string, adjustment int64, _ string) error {
 	f.adjustment = adjustment
 	return f.err

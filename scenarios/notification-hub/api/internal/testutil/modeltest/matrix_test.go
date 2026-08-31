@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"notification-hub/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/packages/proto/modeltest"
 
 	"github.com/stretchr/testify/require"
 )

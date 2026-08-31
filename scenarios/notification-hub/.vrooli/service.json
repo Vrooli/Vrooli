@@ -179,7 +179,8 @@
         "runtime_only": true,
         "runtime_only_rationale": "Identity is verified locally against the authenticator's published JWKS through packages/api-core/owneridentity. The authenticator is resolved by slug at runtime over HTTP; no Go package from that scenario is imported here, so no import-graph edge exists.",
         "degraded_behavior": "Authenticated surfaces fail closed when the authenticator is unreachable: the API rejects requests it cannot attribute to a verified identity. Already-accepted notifications continue to drain through the delivery worker, because their recipient was resolved at acceptance time.",
-        "description": "Owner identity for every authenticated API, CLI, and UI surface. This scenario issues no API key and stores no password."
+        "description": "Owner identity for every authenticated API, CLI, and UI surface. This scenario issues no API key and stores no password.",
+        "supervision_precedence": "required"
       },
       "tunnel-manager": {
         "type": "scenario",
@@ -189,7 +190,8 @@
         "runtime_only": true,
         "runtime_only_rationale": "Public exposure is reconciled by tunnel-manager against the core-set authority. This scenario imports no tunnel-manager Go package; it only requires that its own origin stays reachable and stable.",
         "degraded_behavior": "Without tunnel-manager, no new device can subscribe to push and the push channel reports unavailable with a stated reason. Already-registered subscriptions continue to receive deliveries while the origin remains resolvable. No local channel is affected.",
-        "description": "Stable, never-expiring public origin for the installed progressive web app. A Web Push subscription is bound to an origin and dies with it."
+        "description": "Stable, never-expiring public origin for the installed progressive web app. A Web Push subscription is bound to an origin and dies with it.",
+        "supervision_precedence": "required"
       },
       "vrooli-bridge": {
         "type": "scenario",

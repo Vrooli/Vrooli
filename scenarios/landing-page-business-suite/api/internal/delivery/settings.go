@@ -32,15 +32,6 @@ func ApplySettingsUpdate(settings StorageSettings, update StorageSettingsUpdate)
 	if update.PublicBaseURL != nil {
 		settings.PublicBaseURL = strings.TrimSpace(*update.PublicBaseURL)
 	}
-	if update.AccessKeyID != nil {
-		settings.AccessKeyID = strings.TrimSpace(*update.AccessKeyID)
-	}
-	if update.SecretAccessKey != nil {
-		settings.SecretAccessKey = strings.TrimSpace(*update.SecretAccessKey)
-	}
-	if update.SessionToken != nil {
-		settings.SessionToken = strings.TrimSpace(*update.SessionToken)
-	}
 	return settings
 }
 
@@ -59,9 +50,6 @@ func ValidateSettings(settings StorageSettings) error {
 	}
 	if settings.SignedURLTTLSeconds > 86400 {
 		return fmt.Errorf("signed_url_ttl_seconds must be <= 86400")
-	}
-	if (strings.TrimSpace(settings.AccessKeyID) != "") != (strings.TrimSpace(settings.SecretAccessKey) != "") {
-		return fmt.Errorf("access_key_id and secret_access_key must both be provided (or both left blank)")
 	}
 	return nil
 }

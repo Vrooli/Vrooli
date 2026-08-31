@@ -25,20 +25,21 @@ const (
 
 // Goal is the single work-grouping entity. Its scope is derived from targets.
 type Goal struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Priority      int32                  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
-	Targets       []string               `protobuf:"bytes,6,rep,name=targets,proto3" json:"targets,omitempty"`
-	Milestones    []*shared.Milestone    `protobuf:"bytes,7,rep,name=milestones,proto3" json:"milestones,omitempty"`
-	Created       string                 `protobuf:"bytes,8,opt,name=created,proto3" json:"created,omitempty"`
-	Updated       string                 `protobuf:"bytes,9,opt,name=updated,proto3" json:"updated,omitempty"`
-	ArchivedAt    *string                `protobuf:"bytes,10,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
-	DroppedItems  []string               `protobuf:"bytes,11,rep,name=dropped_items,json=droppedItems,proto3" json:"dropped_items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Name              string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Title             string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Description       string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Status            string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	Priority          int32                  `protobuf:"varint,5,opt,name=priority,proto3" json:"priority,omitempty"`
+	Targets           []string               `protobuf:"bytes,6,rep,name=targets,proto3" json:"targets,omitempty"`
+	Milestones        []*shared.Milestone    `protobuf:"bytes,7,rep,name=milestones,proto3" json:"milestones,omitempty"`
+	Created           string                 `protobuf:"bytes,8,opt,name=created,proto3" json:"created,omitempty"`
+	Updated           string                 `protobuf:"bytes,9,opt,name=updated,proto3" json:"updated,omitempty"`
+	ArchivedAt        *string                `protobuf:"bytes,10,opt,name=archived_at,json=archivedAt,proto3,oneof" json:"archived_at,omitempty"`
+	DroppedItems      []string               `protobuf:"bytes,11,rep,name=dropped_items,json=droppedItems,proto3" json:"dropped_items,omitempty"`
+	ServesDeliverable string                 `protobuf:"bytes,12,opt,name=serves_deliverable,json=servesDeliverable,proto3" json:"serves_deliverable,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Goal) Reset() {
@@ -146,6 +147,13 @@ func (x *Goal) GetDroppedItems() []string {
 		return x.DroppedItems
 	}
 	return nil
+}
+
+func (x *Goal) GetServesDeliverable() string {
+	if x != nil {
+		return x.ServesDeliverable
+	}
+	return ""
 }
 
 type MilestoneRollup struct {
@@ -331,7 +339,7 @@ var File_swarm_manager_v1_domain_goal_proto protoreflect.FileDescriptor
 
 const file_swarm_manager_v1_domain_goal_proto_rawDesc = "" +
 	"\n" +
-	"\"swarm-manager/v1/domain/goal.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\"swarm-manager/v1/shared/goal.proto\"\x8c\x03\n" +
+	"\"swarm-manager/v1/domain/goal.proto\x12\x1evrooli.swarm_manager.v1.domain\x1a\x1bbuf/validate/validate.proto\x1a\"swarm-manager/v1/shared/goal.proto\"\xbb\x03\n" +
 	"\x04Goal\x12\x1b\n" +
 	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\x12\x1d\n" +
 	"\x05title\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05title\x12 \n" +
@@ -347,7 +355,8 @@ const file_swarm_manager_v1_domain_goal_proto_rawDesc = "" +
 	"\varchived_at\x18\n" +
 	" \x01(\tH\x00R\n" +
 	"archivedAt\x88\x01\x01\x12#\n" +
-	"\rdropped_items\x18\v \x03(\tR\fdroppedItemsB\x0e\n" +
+	"\rdropped_items\x18\v \x03(\tR\fdroppedItems\x12-\n" +
+	"\x12serves_deliverable\x18\f \x01(\tR\x11servesDeliverableB\x0e\n" +
 	"\f_archived_at\"\xb8\x01\n" +
 	"\x0fMilestoneRollup\x12%\n" +
 	"\x0emilestone_name\x18\x01 \x01(\tR\rmilestoneName\x12\x14\n" +

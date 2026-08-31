@@ -151,7 +151,7 @@ api/
 ├── account_*.go             # Subscription / credits / entitlements for end users
 ├── handlers/intelligence/   # Metered Inference transport plus commerce-usage adapter
 ├── billing_*.go             # Stripe checkout + portal + webhook
-├── stripe_service.go        # Stripe client + plan/coupon import
+├── internal/commerce/        # Stripe transport, webhook, payment, and pricing policy
 ├── plan_catalog.go          # Commerce catalog composition adapter
 ├── download_*.go            # Download hosting, entitlement gating, S3 storage
 ├── handlers/content/        # Content HTTP + Connect transport: SEO and assets

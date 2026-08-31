@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"landing-page-business-suite-api/internal/securevalue"
 )
 
@@ -172,14 +173,16 @@ func (e *RemoteProfileError) Error() string {
 
 // RemoteProfileService manages remote profile storage and remote admin sessions.
 type RemoteProfileService struct {
-	DB            RemoteProfileStore
-	EncryptionKey []byte
-	HTTPClient    HTTPDoer
-	Now           func() time.Time
-	ResolveSecret func(string) string
-	IsProduction  func() bool
-	LogEvent      func(string, map[string]interface{})
-	LogError      func(string, map[string]interface{})
+	DB                RemoteProfileStore
+	EncryptionKey     []byte
+	EncryptionRing    securevalue.Ring
+	HTTPClient        HTTPDoer
+	Now               func() time.Time
+	ResolveSecret     func(string) string
+	ResolveCredential func(string) (string, error)
+	IsProduction      func() bool
+	LogEvent          func(string, map[string]interface{})
+	LogError          func(string, map[string]interface{})
 }
 
 // NewRemoteProfileService creates a RemoteProfileService with defaults.
@@ -201,11 +204,28 @@ func NewRemoteProfileServiceWithOptions(db RemoteProfileStore, client HTTPDoer) 
 // NewRemoteProfileServiceWithRuntime wires application-owned secret, environment,
 // and logging behavior at the composition boundary.
 func NewRemoteProfileServiceWithRuntime(db RemoteProfileStore, client HTTPDoer, resolveSecret func(string) string, isProduction func() bool, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*RemoteProfileService, error) {
+	return newRemoteProfileServiceWithCredentialResolver(db, client, resolveSecret, nil, isProduction, logEvent, logError)
+}
+
+// NewRemoteProfileServiceWithCredentialResolver wires the destructive
+// encryption ring to an authority resolver that preserves provider failures.
+// The string resolver remains available for non-secret configuration such as
+// the optional origin label.
+func NewRemoteProfileServiceWithCredentialResolver(db RemoteProfileStore, client HTTPDoer, resolveSecret func(string) string, resolveCredential func(string) (string, error), isProduction func() bool, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*RemoteProfileService, error) {
+	return newRemoteProfileServiceWithCredentialResolver(db, client, resolveSecret, resolveCredential, isProduction, logEvent, logError)
+}
+
+func newRemoteProfileServiceWithCredentialResolver(db RemoteProfileStore, client HTTPDoer, resolveSecret func(string) string, resolveCredential func(string) (string, error), isProduction func() bool, logEvent func(string, map[string]interface{}), logError func(string, map[string]interface{})) (*RemoteProfileService, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 20 * time.Second}
 	}
 	if resolveSecret == nil {
 		resolveSecret = resolveRemoteProfileSecret
+	}
+	if resolveCredential == nil {
+		resolveCredential = func(name string) (string, error) {
+			return resolveSecret(name), nil
+		}
 	}
 	if isProduction == nil {
 		isProduction = isRemoteProfileProductionEnvironment
@@ -221,75 +241,123 @@ func NewRemoteProfileServiceWithRuntime(db RemoteProfileStore, client HTTPDoer, 
 			return nil, fmt.Errorf("ensure remote profile encryption state: %w", err)
 		}
 	}
-	key, err := loadRemoteProfileEncryptionKey(resolveSecret, isProduction, logEvent)
+	ring, err := loadRemoteProfileEncryptionRingWithCredentialResolver(resolveCredential, isProduction, logEvent)
 	if err != nil {
 		return nil, err
 	}
+	key, _ := ring.ActiveKey()
 	now := time.Now
 	return &RemoteProfileService{
-		DB:            db,
-		EncryptionKey: key,
-		HTTPClient:    client,
-		Now:           now,
-		ResolveSecret: resolveSecret,
-		IsProduction:  isProduction,
-		LogEvent:      logEvent,
-		LogError:      logError,
+		DB:                db,
+		EncryptionKey:     key,
+		EncryptionRing:    ring,
+		HTTPClient:        client,
+		Now:               now,
+		ResolveSecret:     resolveSecret,
+		ResolveCredential: resolveCredential,
+		IsProduction:      isProduction,
+		LogEvent:          logEvent,
+		LogError:          logError,
 	}, nil
 }
 
-func loadRemoteProfileEncryptionKey(resolveSecret func(string) string, isProduction func() bool, logEvent func(string, map[string]interface{})) ([]byte, error) {
-	keyStr := resolveSecret("LPBS_REMOTE_PROFILE_ENCRYPTION_KEY")
+func loadRemoteProfileEncryptionRingWithCredentialResolver(resolveCredential func(string) (string, error), isProduction func() bool, logEvent func(string, map[string]interface{})) (securevalue.Ring, error) {
+	keyStr, resolveErr := resolveCredential("LPBS_REMOTE_PROFILE_ENCRYPTION_KEY")
+	if resolveErr != nil && !errors.Is(resolveErr, credentialauthority.ErrUnconfigured) {
+		return securevalue.Ring{}, fmt.Errorf("resolve remote profile encryption credential: %w", resolveErr)
+	}
 	keySource := "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY"
 	if keyStr == "" {
-		fallback := resolveSecret("LPBS_API_KEY_ENCRYPTION_KEY")
-		if fallback != "" {
-			keyStr = fallback
-			keySource = "LPBS_API_KEY_ENCRYPTION_KEY"
-			logEvent("remote_profiles_encryption_key_fallback", map[string]interface{}{
-				"level":    "warn",
-				"message":  "LPBS_REMOTE_PROFILE_ENCRYPTION_KEY not set; falling back to LPBS_API_KEY_ENCRYPTION_KEY",
-				"security": true,
-				"action":   "Set LPBS_REMOTE_PROFILE_ENCRYPTION_KEY before production use",
-			})
+		if os.Getenv("LPBS_TEST_CREDENTIAL_FALLBACK") == "1" {
+			return securevalue.Ring{}, nil
 		}
+		return securevalue.Ring{}, fmt.Errorf("LPBS_REMOTE_PROFILE_ENCRYPTION_KEY is required in production and development; refusing to store profiles without encryption")
 	}
-	if keyStr == "" {
-		if isProduction() {
-			return nil, fmt.Errorf(
-				"LPBS_REMOTE_PROFILE_ENCRYPTION_KEY is required in production. " +
-					"Set LPBS_REMOTE_PROFILE_ENCRYPTION_KEY (preferred) or LPBS_API_KEY_ENCRYPTION_KEY as a fallback",
-			)
-		}
-		logEvent("remote_profiles_no_encryption_key_dev", map[string]interface{}{
-			"level":    "warn",
-			"message":  "Remote profile sessions will be stored unencrypted (development mode)",
-			"security": true,
-			"action":   "Set LPBS_REMOTE_PROFILE_ENCRYPTION_KEY before deploying to production",
-		})
-		return nil, nil
+	if ring, ringErr := securevalue.ParseRing(keyStr); ringErr == nil {
+		return ring, nil
 	}
 	key, err := base64.StdEncoding.DecodeString(keyStr)
 	if err != nil {
-		return nil, fmt.Errorf("decode %s: %w", keySource, err)
+		return securevalue.Ring{}, fmt.Errorf("decode %s: %w", keySource, err)
 	}
 	if len(key) != 32 {
-		return nil, fmt.Errorf("%s must be 32 bytes (got %d)", keySource, len(key))
+		return securevalue.Ring{}, fmt.Errorf("%s must be 32 bytes (got %d)", keySource, len(key))
 	}
-	return key, nil
+	return securevalue.Ring{Active: 1, Keys: []securevalue.VersionedKey{{Version: 1, Key: base64.StdEncoding.EncodeToString(key)}}}, nil
 }
 
 func (s *RemoteProfileService) encrypt(plaintext string) (string, error) {
+	if len(s.EncryptionRing.Keys) > 0 {
+		return securevalue.EncryptRing(s.EncryptionRing, plaintext)
+	}
 	return securevalue.Encrypt(s.EncryptionKey, plaintext)
 }
 
 func (s *RemoteProfileService) decrypt(ciphertext string) (string, error) {
+	if len(s.EncryptionRing.Keys) > 0 {
+		return securevalue.DecryptRing(s.EncryptionRing, ciphertext)
+	}
 	return securevalue.Decrypt(s.EncryptionKey, ciphertext)
 }
 
 func (s *RemoteProfileService) Encrypt(plaintext string) (string, error) { return s.encrypt(plaintext) }
 func (s *RemoteProfileService) Decrypt(ciphertext string) (string, error) {
 	return s.decrypt(ciphertext)
+}
+
+// MigrateEncryption re-seals every stored remote session under the active
+// version of the profile key ring. It is intended for one-shot brownfield
+// migration before rotating or removing the legacy single-key representation.
+func (s *RemoteProfileService) MigrateEncryption(ctx context.Context) (int, error) {
+	if len(s.EncryptionRing.Keys) == 0 {
+		return 0, fmt.Errorf("remote-profile encryption migration requires a versioned key ring")
+	}
+	rows, err := s.DB.QueryContext(ctx, `SELECT id, encrypted_session FROM remote_profiles WHERE encrypted_session IS NOT NULL`)
+	if err != nil {
+		return 0, fmt.Errorf("list remote profiles for encryption migration: %w", err)
+	}
+	defer rows.Close()
+	type legacyProfile struct {
+		id         int64
+		ciphertext string
+	}
+	var profiles []legacyProfile
+	for rows.Next() {
+		var profile legacyProfile
+		var ciphertext sql.NullString
+		if err := rows.Scan(&profile.id, &ciphertext); err != nil {
+			_ = rows.Close()
+			return len(profiles), fmt.Errorf("scan remote profile for encryption migration: %w", err)
+		}
+		if ciphertext.Valid && strings.TrimSpace(ciphertext.String) != "" {
+			profile.ciphertext = ciphertext.String
+			profiles = append(profiles, profile)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return len(profiles), fmt.Errorf("iterate remote profiles for encryption migration: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return 0, fmt.Errorf("close remote profiles encryption migration rows: %w", err)
+	}
+	state := fmt.Sprintf("v%d", s.EncryptionRing.Active)
+	count := 0
+	for _, profile := range profiles {
+		plaintext, err := s.decrypt(profile.ciphertext)
+		if err != nil {
+			return count, fmt.Errorf("decrypt remote profile %d for encryption migration: %w", profile.id, err)
+		}
+		sealed, err := securevalue.EncryptRing(s.EncryptionRing, plaintext)
+		if err != nil {
+			return count, fmt.Errorf("re-seal remote profile %d: %w", profile.id, err)
+		}
+		if _, err := s.DB.ExecContext(ctx, `UPDATE remote_profiles SET encrypted_session = $1, encryption_state = $2 WHERE id = $3`, sealed, state, profile.id); err != nil {
+			return count, fmt.Errorf("update remote profile %d encryption state: %w", profile.id, err)
+		}
+		count++
+	}
+	return count, nil
 }
 func NormalizeRemoteProfileTag(tag string) (string, error) { return normalizeRemoteProfileTag(tag) }
 func NormalizeRemoteProfileLabel(label string) *string     { return normalizeRemoteProfileLabel(label) }

@@ -5,8 +5,8 @@ const (
 	seedAdminSQL                = `INSERT INTO admin_users (id, email, password_hash) VALUES ($1, $2, $3)
 		 ON CONFLICT (id) DO NOTHING`
 	seedAdminSequenceSQL   = `SELECT setval(pg_get_serial_sequence('admin_users', 'id'), (SELECT COALESCE(MAX(id), 1) FROM admin_users), true)`
-	seedPaymentSettingsSQL = `INSERT INTO payment_settings (id, publishable_key, secret_key, webhook_secret, dashboard_url, updated_at)
-		VALUES (1, NULL, NULL, NULL, NULL, NOW())
+	seedPaymentSettingsSQL = `INSERT INTO payment_settings (id, dashboard_url, updated_at)
+		VALUES (1, NULL, NOW())
 		ON CONFLICT (id) DO NOTHING`
 	seedDownloadAppCountSQL = `SELECT COUNT(*) FROM download_apps`
 	seedDownloadAppSQL      = `INSERT INTO download_apps (bundle_key, app_key, name, tagline, description, install_overview, install_steps, storefronts, metadata, display_order)

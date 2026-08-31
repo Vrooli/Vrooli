@@ -50,10 +50,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Work ladder
 
-- Rung: W0
-- Evidence: The required W0 goal query could not run because `swarm-manager` is stopped; lifecycle start fails during setup at `scenarios/swarm-manager/ui/src/components/settings/GoalDrainToggle.tsx:33` with a TypeScript `AutoDrainState`/`Updater` mismatch. Offer Desk's PRD P0 targets and this execution plan were read, but no goal comparison was inferred from the unavailable runtime.
-- Blocker: W0 contract comparison is currently unverifiable; the unrelated `swarm-manager` UI build defect is outside this scenario's scope.
-- Measured: 2026-08-16
+- Rung: W1 (contract gate satisfied; implementation/evidence work remains)
+- Compared goal: `release-ladder-offer-desk`; title `Offer Desk release-ladder contract`; description quotation: “Offer Desk is the typed commercial release-ladder catalog: it stores deliverables, release order, distribution ramps, metered streams, audiences, unlock relationships, and operator-owned promotion evidence.”
+- Compared target: `serves_deliverable=web-console`.
+- Evidence: the named-mention query now returns `release-ladder-offer-desk`; structural health remains supplemental evidence, not contract evidence.
+- Measured: 2026-08-31 (23 of 26 requirements passing (88%), composite 65/100; maturity rung R0 unsatisfied, 0 test phases recorded)
 
 ### Scaffold health is complete; capture is an external boundary
 

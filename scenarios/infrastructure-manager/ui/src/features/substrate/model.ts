@@ -81,6 +81,37 @@ export interface PortabilityCell {
   declarers?: readonly { name: string; role: string; resolved: boolean; reason: string }[];
 }
 
+/** One resource's platform and architecture claims, keyed by host OS. */
+export interface ResourceArchitectureStatus {
+  architecture: string;
+  support: string;
+  reason: string;
+}
+
+export interface ResourcePlatformClaim {
+  hostOs: string;
+  support: string;
+  architectures: readonly ResourceArchitectureStatus[];
+  mismatch: boolean;
+  reason: string | null;
+}
+
+export interface ResourceClaim {
+  name: string;
+  driver: string;
+  acquisitionKind: string;
+  platforms: readonly ResourcePlatformClaim[];
+}
+
+export interface PlatformSkipBudget {
+  available: boolean;
+  measured: number | null;
+  budgets: Readonly<Record<string, number>>;
+  ratchetDirection: string | null;
+  lastRunWithinBudget: boolean | null;
+  reason: string | null;
+}
+
 /**
  * A source the board read from, and whether it answered.
  *
@@ -114,6 +145,8 @@ export interface SubstrateBoard {
   host: { name: string; os: string };
   classes: readonly DeviceClassNode[];
   portability: readonly PortabilityRow[];
+  resources: readonly ResourceClaim[];
+  skipBudget: PlatformSkipBudget | null;
   sources: readonly SourceStatus[];
   checkPlatforms: readonly CheckPlatformCoverage[];
   /**

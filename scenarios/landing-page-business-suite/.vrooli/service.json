@@ -23,7 +23,8 @@
         "enabled": true,
         "required": true,
         "schema": "landing-page-business-suite",
-        "type": "postgres"
+        "type": "postgres",
+        "startup_policy": "must_start"
       }
     }
   },
@@ -174,7 +175,9 @@
         "description": "Previous session signing secret retained for verification after rotation; LPBS writes it during rotation and there is nothing for an operator to enter.",
         "required": false,
         "provisioning": "generated",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -210,9 +213,9 @@
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "admin-default-password",
         "label": "Seeded admin password",
-      "description": "Password for the seeded admin account. Resolve it through the credential authority; it is never injected into the LPBS process environment.",
-      "required": true,
-      "provisioning": "operator",
+        "description": "Password for the seeded admin account. Resolve it through the credential authority; it is never injected into the LPBS process environment.",
+        "required": true,
+        "provisioning": "operator",
         "tiers": [
           "tier-1-local"
         ]
@@ -232,10 +235,10 @@
         "logical_id": "vrooli/landing-page-business-suite",
         "field": "sendgrid-api-key",
         "env": "SENDGRID_API_KEY",
-      "label": "SendGrid API key",
-      "description": "Authenticates outbound transactional email delivery.",
-      "required": false,
-      "provisioning": "operator"
+        "label": "SendGrid API key",
+        "description": "Authenticates outbound transactional email delivery.",
+        "required": false,
+        "provisioning": "operator"
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -245,7 +248,9 @@
         "required": true,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -255,7 +260,9 @@
         "required": true,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/webhooks",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -266,7 +273,9 @@
         "required": true,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -275,7 +284,9 @@
         "description": "Optional account identifier for signing desktop download URLs; leave unset when using an instance role.",
         "required": false,
         "provisioning": "operator",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -284,7 +295,9 @@
         "description": "Optional signing key for desktop download URLs; leave unset when using an instance role.",
         "required": false,
         "provisioning": "operator",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -293,7 +306,9 @@
         "description": "Optional session token for temporary download-bucket credentials.",
         "required": false,
         "provisioning": "operator",
-        "tiers": ["tier-1-local"]
+        "tiers": [
+          "tier-1-local"
+        ]
       }
     ]
   },

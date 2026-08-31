@@ -8,6 +8,19 @@
   "phases": {
     "ui-health": {
       "timeout": "15m"
+    },
+    "tidiness": {
+      "budgets": {
+        "ratchet": true,
+        "duplication_line_debt": 126,
+        "baseline_duplication_line_debt": 127,
+        "long_files": 1,
+        "baseline_long_files": 2,
+        "complexity_over_threshold": 22,
+        "baseline_complexity_over_threshold": 23,
+        "reserve": 1,
+        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
+      }
     }
   },
   "lint": {

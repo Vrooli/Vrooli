@@ -34,6 +34,17 @@ func repoRoot(t *testing.T) string {
 	}
 }
 
+func TestCapabilityManifestsDecodeEveryServiceManifest(t *testing.T) {
+	reader := liveReader(t)
+	manifests, err := reader.CapabilityManifests()
+	if err != nil {
+		t.Fatalf("decode repository service capability manifests: %v", err)
+	}
+	if len(manifests) == 0 {
+		t.Fatal("expected at least one capability manifest")
+	}
+}
+
 func TestAttachObservedQualificationsSeparatesDeclarationFromHostEvidence(t *testing.T) {
 	grid := Grid{Capabilities: []Entry{{
 		Capability: "credential-storage",
@@ -333,10 +344,60 @@ func TestGridExposesBothArchitectureCells(t *testing.T) {
 	if len(grid.Resources) == 0 {
 		t.Fatal("resource profile architecture declarations were not read into the grid")
 	}
+	if len(grid.Resources) != 29 {
+		t.Fatalf("resource ledger entries = %d, want 29", len(grid.Resources))
+	}
 	for _, claim := range grid.Resources {
-		if claim.Mismatch {
-			t.Fatalf("live resource architecture claim is contradictory: %+v", claim)
+		if claim.Name == "" || claim.Driver == "" || claim.AcquisitionKind == "" {
+			t.Fatalf("resource ledger entry is missing identity/acquisition fields: %+v", claim)
 		}
+		if len(claim.Platforms) != len(operatingSystems) {
+			t.Fatalf("resource %s has %d OS claims, want %d: %+v", claim.Name, len(claim.Platforms), len(operatingSystems), claim)
+		}
+		for _, platform := range claim.Platforms {
+			if platform.Mismatch {
+				t.Fatalf("live resource architecture claim is contradictory: %+v", claim)
+			}
+			if len(platform.Architectures) != 2 {
+				t.Fatalf("resource %s/%s has %d architecture claims, want 2: %+v", claim.Name, platform.HostOS, len(platform.Architectures), platform)
+			}
+		}
+	}
+}
+
+func TestReadSkipBudgetDoesNotTurnMissingSourceIntoZero(t *testing.T) {
+	root := t.TempDir()
+	writeVocabulary(t, root, []string{"probe"}, nil)
+	reader, err := NewReader(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	budget, err := reader.ReadSkipBudget()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if budget.Available || budget.Measured != 0 || !strings.Contains(budget.Reason, "unavailable") {
+		t.Fatalf("missing skip budget was reported as a healthy measurement: %+v", budget)
+	}
+}
+
+func TestReadSkipBudgetProjectsMeasuredAndPerOSBudgets(t *testing.T) {
+	root := t.TempDir()
+	writeVocabulary(t, root, []string{"probe"}, nil)
+	data := []byte(`{"measured_platform_gated_skips":155,"budgets":{"linux":155,"macos":155,"windows":155},"policy":{"ratchet_direction":"down"}}`)
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "skip-budgets.json"), data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reader, err := NewReader(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	budget, err := reader.ReadSkipBudget()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !budget.Available || budget.Measured != 155 || budget.Budgets[deployability.HostOSWindows] != 155 || budget.RatchetDirection != "down" || !budget.LastRunWithinBudget {
+		t.Fatalf("skip budget projection = %+v", budget)
 	}
 }
 
@@ -454,7 +515,7 @@ func TestEveryPlatformStatusResolvesThroughTheGrid(t *testing.T) {
 		deployability.StatusUnqualified:    {deployability.CapabilityImplemented, deployability.QualificationUnqualified},
 		deployability.StatusPartial:        {deployability.CapabilityDegraded, deployability.QualificationDegraded},
 		deployability.StatusUnsupported:    {deployability.CapabilityIneligible, deployability.QualificationIneligible},
-		deployability.StatusNotImplemented: {deployability.CapabilityIneligible, deployability.QualificationIneligible},
+		deployability.StatusNotImplemented: {deployability.CapabilityUnwired, deployability.QualificationUndeclared},
 		deployability.StatusNotApplicable:  {deployability.CapabilityIneligible, deployability.QualificationIneligible},
 	}
 	if len(want) != len(deployability.PlatformStatuses()) {
@@ -642,6 +703,15 @@ func writeToolFixtureWithEvidence(t *testing.T, root, name, capability string, p
 		declaration := PlatformDeclaration{Status: status}
 		if includeEvidence && status == string(deployability.StatusSupported) {
 			declaration.Evidence = json.RawMessage(`{"run_id":"fixture-run","host":"fixture-host","os":"linux","arch":"amd64","date":"2026-08-25","surface":"grid-test","artifact_uri":"artifact://fixture-run"}`)
+		}
+		if status == string(deployability.StatusNotImplemented) {
+			declaration.Mechanism = "fixture-platform-provider"
+			declaration.Since = "2026-08-25"
+			declaration.Evidence = json.RawMessage(`"fixture provider gap"`)
+		}
+		if status == string(deployability.StatusNotApplicable) {
+			declaration.ReviewBy = "2027-08-25"
+			declaration.Evidence = json.RawMessage(`"fixture platform fact"`)
 		}
 		declarations[hostOS] = declaration
 	}

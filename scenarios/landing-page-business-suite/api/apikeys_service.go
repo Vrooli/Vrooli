@@ -25,7 +25,7 @@ func NewAPIKeyServiceWithHTTPClient(db administration.APIKeyStore, client admini
 }
 
 func NewAPIKeyServiceWithOptions(db administration.APIKeyStore, client administration.APIKeyHTTPDoer, dialect string) (*administration.APIKeyService, error) {
-	return administration.NewAPIKeyServiceWithRuntime(db, client, dialect, resolveSecret, isProductionEnvironment, logStructured, logStructuredError)
+	return administration.NewAPIKeyServiceWithCredentialResolver(db, client, dialect, resolveAuthorityCredential, isProductionEnvironment, logStructured, logStructuredError)
 }
 
 func newAPIKeyServiceForTest(db administration.APIKeyStore, client administration.APIKeyHTTPDoer, dialect string, key []byte) *administration.APIKeyService {

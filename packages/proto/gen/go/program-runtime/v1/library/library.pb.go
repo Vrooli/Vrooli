@@ -154,16 +154,101 @@ func (x *GetLibraryRequest) GetVersion() int64 {
 	return 0
 }
 
+type BindingDrift struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	BindingId       string                 `protobuf:"bytes,1,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
+	ValidatedAt     string                 `protobuf:"bytes,2,opt,name=validated_at,json=validatedAt,proto3" json:"validated_at,omitempty"`
+	GenerationMtime string                 `protobuf:"bytes,3,opt,name=generation_mtime,json=generationMtime,proto3" json:"generation_mtime,omitempty"`
+	DriftStatus     string                 `protobuf:"bytes,4,opt,name=drift_status,json=driftStatus,proto3" json:"drift_status,omitempty"`
+	Changed         bool                   `protobuf:"varint,5,opt,name=changed,proto3" json:"changed,omitempty"`
+	Reason          string                 `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *BindingDrift) Reset() {
+	*x = BindingDrift{}
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BindingDrift) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BindingDrift) ProtoMessage() {}
+
+func (x *BindingDrift) ProtoReflect() protoreflect.Message {
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BindingDrift.ProtoReflect.Descriptor instead.
+func (*BindingDrift) Descriptor() ([]byte, []int) {
+	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *BindingDrift) GetBindingId() string {
+	if x != nil {
+		return x.BindingId
+	}
+	return ""
+}
+
+func (x *BindingDrift) GetValidatedAt() string {
+	if x != nil {
+		return x.ValidatedAt
+	}
+	return ""
+}
+
+func (x *BindingDrift) GetGenerationMtime() string {
+	if x != nil {
+		return x.GenerationMtime
+	}
+	return ""
+}
+
+func (x *BindingDrift) GetDriftStatus() string {
+	if x != nil {
+		return x.DriftStatus
+	}
+	return ""
+}
+
+func (x *BindingDrift) GetChanged() bool {
+	if x != nil {
+		return x.Changed
+	}
+	return false
+}
+
+func (x *BindingDrift) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 type GetLibraryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Program       *shared.LibraryProgram `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
+	Drift         []*BindingDrift        `protobuf:"bytes,2,rep,name=drift,proto3" json:"drift,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetLibraryResponse) Reset() {
 	*x = GetLibraryResponse{}
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[3]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -175,7 +260,7 @@ func (x *GetLibraryResponse) String() string {
 func (*GetLibraryResponse) ProtoMessage() {}
 
 func (x *GetLibraryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[3]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -188,7 +273,7 @@ func (x *GetLibraryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLibraryResponse.ProtoReflect.Descriptor instead.
 func (*GetLibraryResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{3}
+	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GetLibraryResponse) GetProgram() *shared.LibraryProgram {
@@ -198,20 +283,30 @@ func (x *GetLibraryResponse) GetProgram() *shared.LibraryProgram {
 	return nil
 }
 
+func (x *GetLibraryResponse) GetDrift() []*BindingDrift {
+	if x != nil {
+		return x.Drift
+	}
+	return nil
+}
+
 type PromoteLibraryRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ProgramId     string                 `protobuf:"bytes,1,opt,name=program_id,json=programId,proto3" json:"program_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	PromotedBy    string                 `protobuf:"bytes,4,opt,name=promoted_by,json=promotedBy,proto3" json:"promoted_by,omitempty"`
-	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	ProgramId       string                 `protobuf:"bytes,1,opt,name=program_id,json=programId,proto3" json:"program_id,omitempty"`
+	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description     string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	PromotedBy      string                 `protobuf:"bytes,4,opt,name=promoted_by,json=promotedBy,proto3" json:"promoted_by,omitempty"`
+	Reason          string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	Coverage        string                 `protobuf:"bytes,6,opt,name=coverage,proto3" json:"coverage,omitempty"`
+	DeclaredInputs  []string               `protobuf:"bytes,7,rep,name=declared_inputs,json=declaredInputs,proto3" json:"declared_inputs,omitempty"`
+	DeclaredOutputs []string               `protobuf:"bytes,8,rep,name=declared_outputs,json=declaredOutputs,proto3" json:"declared_outputs,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PromoteLibraryRequest) Reset() {
 	*x = PromoteLibraryRequest{}
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[4]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -223,7 +318,7 @@ func (x *PromoteLibraryRequest) String() string {
 func (*PromoteLibraryRequest) ProtoMessage() {}
 
 func (x *PromoteLibraryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[4]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -236,7 +331,7 @@ func (x *PromoteLibraryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteLibraryRequest.ProtoReflect.Descriptor instead.
 func (*PromoteLibraryRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{4}
+	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *PromoteLibraryRequest) GetProgramId() string {
@@ -274,6 +369,27 @@ func (x *PromoteLibraryRequest) GetReason() string {
 	return ""
 }
 
+func (x *PromoteLibraryRequest) GetCoverage() string {
+	if x != nil {
+		return x.Coverage
+	}
+	return ""
+}
+
+func (x *PromoteLibraryRequest) GetDeclaredInputs() []string {
+	if x != nil {
+		return x.DeclaredInputs
+	}
+	return nil
+}
+
+func (x *PromoteLibraryRequest) GetDeclaredOutputs() []string {
+	if x != nil {
+		return x.DeclaredOutputs
+	}
+	return nil
+}
+
 type PromoteLibraryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Program       *shared.LibraryProgram `protobuf:"bytes,1,opt,name=program,proto3" json:"program,omitempty"`
@@ -283,7 +399,7 @@ type PromoteLibraryResponse struct {
 
 func (x *PromoteLibraryResponse) Reset() {
 	*x = PromoteLibraryResponse{}
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[5]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -295,7 +411,7 @@ func (x *PromoteLibraryResponse) String() string {
 func (*PromoteLibraryResponse) ProtoMessage() {}
 
 func (x *PromoteLibraryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[5]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -308,7 +424,7 @@ func (x *PromoteLibraryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteLibraryResponse.ProtoReflect.Descriptor instead.
 func (*PromoteLibraryResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{5}
+	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PromoteLibraryResponse) GetProgram() *shared.LibraryProgram {
@@ -328,7 +444,7 @@ type SetCurrentLibraryRequest struct {
 
 func (x *SetCurrentLibraryRequest) Reset() {
 	*x = SetCurrentLibraryRequest{}
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[6]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -340,7 +456,7 @@ func (x *SetCurrentLibraryRequest) String() string {
 func (*SetCurrentLibraryRequest) ProtoMessage() {}
 
 func (x *SetCurrentLibraryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[6]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -353,7 +469,7 @@ func (x *SetCurrentLibraryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCurrentLibraryRequest.ProtoReflect.Descriptor instead.
 func (*SetCurrentLibraryRequest) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{6}
+	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SetCurrentLibraryRequest) GetName() string {
@@ -379,7 +495,7 @@ type SetCurrentLibraryResponse struct {
 
 func (x *SetCurrentLibraryResponse) Reset() {
 	*x = SetCurrentLibraryResponse{}
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[7]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -391,7 +507,7 @@ func (x *SetCurrentLibraryResponse) String() string {
 func (*SetCurrentLibraryResponse) ProtoMessage() {}
 
 func (x *SetCurrentLibraryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_program_runtime_v1_library_library_proto_msgTypes[7]
+	mi := &file_program_runtime_v1_library_library_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -404,7 +520,7 @@ func (x *SetCurrentLibraryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCurrentLibraryResponse.ProtoReflect.Descriptor instead.
 func (*SetCurrentLibraryResponse) Descriptor() ([]byte, []int) {
-	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{7}
+	return file_program_runtime_v1_library_library_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SetCurrentLibraryResponse) GetProgram() *shared.LibraryProgram {
@@ -424,9 +540,18 @@ const file_program_runtime_v1_library_library_proto_rawDesc = "" +
 	"\bprograms\x18\x01 \x03(\v20.vrooli.program_runtime.v1.shared.LibraryProgramR\bprograms\"A\n" +
 	"\x11GetLibraryRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x03R\aversion\"`\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\"\xd0\x01\n" +
+	"\fBindingDrift\x12\x1d\n" +
+	"\n" +
+	"binding_id\x18\x01 \x01(\tR\tbindingId\x12!\n" +
+	"\fvalidated_at\x18\x02 \x01(\tR\vvalidatedAt\x12)\n" +
+	"\x10generation_mtime\x18\x03 \x01(\tR\x0fgenerationMtime\x12!\n" +
+	"\fdrift_status\x18\x04 \x01(\tR\vdriftStatus\x12\x18\n" +
+	"\achanged\x18\x05 \x01(\bR\achanged\x12\x16\n" +
+	"\x06reason\x18\x06 \x01(\tR\x06reason\"\xa7\x01\n" +
 	"\x12GetLibraryResponse\x12J\n" +
-	"\aprogram\x18\x01 \x01(\v20.vrooli.program_runtime.v1.shared.LibraryProgramR\aprogram\"\xa5\x01\n" +
+	"\aprogram\x18\x01 \x01(\v20.vrooli.program_runtime.v1.shared.LibraryProgramR\aprogram\x12E\n" +
+	"\x05drift\x18\x02 \x03(\v2/.vrooli.program_runtime.v1.library.BindingDriftR\x05drift\"\x95\x02\n" +
 	"\x15PromoteLibraryRequest\x12\x1d\n" +
 	"\n" +
 	"program_id\x18\x01 \x01(\tR\tprogramId\x12\x12\n" +
@@ -434,7 +559,10 @@ const file_program_runtime_v1_library_library_proto_rawDesc = "" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1f\n" +
 	"\vpromoted_by\x18\x04 \x01(\tR\n" +
 	"promotedBy\x12\x16\n" +
-	"\x06reason\x18\x05 \x01(\tR\x06reason\"d\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x12\x1a\n" +
+	"\bcoverage\x18\x06 \x01(\tR\bcoverage\x12'\n" +
+	"\x0fdeclared_inputs\x18\a \x03(\tR\x0edeclaredInputs\x12)\n" +
+	"\x10declared_outputs\x18\b \x03(\tR\x0fdeclaredOutputs\"d\n" +
 	"\x16PromoteLibraryResponse\x12J\n" +
 	"\aprogram\x18\x01 \x01(\v20.vrooli.program_runtime.v1.shared.LibraryProgramR\aprogram\"H\n" +
 	"\x18SetCurrentLibraryRequest\x12\x12\n" +
@@ -461,36 +589,38 @@ func file_program_runtime_v1_library_library_proto_rawDescGZIP() []byte {
 	return file_program_runtime_v1_library_library_proto_rawDescData
 }
 
-var file_program_runtime_v1_library_library_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_program_runtime_v1_library_library_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_program_runtime_v1_library_library_proto_goTypes = []any{
 	(*ListLibraryRequest)(nil),        // 0: vrooli.program_runtime.v1.library.ListLibraryRequest
 	(*ListLibraryResponse)(nil),       // 1: vrooli.program_runtime.v1.library.ListLibraryResponse
 	(*GetLibraryRequest)(nil),         // 2: vrooli.program_runtime.v1.library.GetLibraryRequest
-	(*GetLibraryResponse)(nil),        // 3: vrooli.program_runtime.v1.library.GetLibraryResponse
-	(*PromoteLibraryRequest)(nil),     // 4: vrooli.program_runtime.v1.library.PromoteLibraryRequest
-	(*PromoteLibraryResponse)(nil),    // 5: vrooli.program_runtime.v1.library.PromoteLibraryResponse
-	(*SetCurrentLibraryRequest)(nil),  // 6: vrooli.program_runtime.v1.library.SetCurrentLibraryRequest
-	(*SetCurrentLibraryResponse)(nil), // 7: vrooli.program_runtime.v1.library.SetCurrentLibraryResponse
-	(*shared.LibraryProgram)(nil),     // 8: vrooli.program_runtime.v1.shared.LibraryProgram
+	(*BindingDrift)(nil),              // 3: vrooli.program_runtime.v1.library.BindingDrift
+	(*GetLibraryResponse)(nil),        // 4: vrooli.program_runtime.v1.library.GetLibraryResponse
+	(*PromoteLibraryRequest)(nil),     // 5: vrooli.program_runtime.v1.library.PromoteLibraryRequest
+	(*PromoteLibraryResponse)(nil),    // 6: vrooli.program_runtime.v1.library.PromoteLibraryResponse
+	(*SetCurrentLibraryRequest)(nil),  // 7: vrooli.program_runtime.v1.library.SetCurrentLibraryRequest
+	(*SetCurrentLibraryResponse)(nil), // 8: vrooli.program_runtime.v1.library.SetCurrentLibraryResponse
+	(*shared.LibraryProgram)(nil),     // 9: vrooli.program_runtime.v1.shared.LibraryProgram
 }
 var file_program_runtime_v1_library_library_proto_depIdxs = []int32{
-	8, // 0: vrooli.program_runtime.v1.library.ListLibraryResponse.programs:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
-	8, // 1: vrooli.program_runtime.v1.library.GetLibraryResponse.program:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
-	8, // 2: vrooli.program_runtime.v1.library.PromoteLibraryResponse.program:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
-	8, // 3: vrooli.program_runtime.v1.library.SetCurrentLibraryResponse.program:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
-	0, // 4: vrooli.program_runtime.v1.library.LibraryService.ListLibrary:input_type -> vrooli.program_runtime.v1.library.ListLibraryRequest
-	2, // 5: vrooli.program_runtime.v1.library.LibraryService.GetLibrary:input_type -> vrooli.program_runtime.v1.library.GetLibraryRequest
-	4, // 6: vrooli.program_runtime.v1.library.LibraryService.PromoteLibrary:input_type -> vrooli.program_runtime.v1.library.PromoteLibraryRequest
-	6, // 7: vrooli.program_runtime.v1.library.LibraryService.SetCurrentLibrary:input_type -> vrooli.program_runtime.v1.library.SetCurrentLibraryRequest
-	1, // 8: vrooli.program_runtime.v1.library.LibraryService.ListLibrary:output_type -> vrooli.program_runtime.v1.library.ListLibraryResponse
-	3, // 9: vrooli.program_runtime.v1.library.LibraryService.GetLibrary:output_type -> vrooli.program_runtime.v1.library.GetLibraryResponse
-	5, // 10: vrooli.program_runtime.v1.library.LibraryService.PromoteLibrary:output_type -> vrooli.program_runtime.v1.library.PromoteLibraryResponse
-	7, // 11: vrooli.program_runtime.v1.library.LibraryService.SetCurrentLibrary:output_type -> vrooli.program_runtime.v1.library.SetCurrentLibraryResponse
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	9, // 0: vrooli.program_runtime.v1.library.ListLibraryResponse.programs:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
+	9, // 1: vrooli.program_runtime.v1.library.GetLibraryResponse.program:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
+	3, // 2: vrooli.program_runtime.v1.library.GetLibraryResponse.drift:type_name -> vrooli.program_runtime.v1.library.BindingDrift
+	9, // 3: vrooli.program_runtime.v1.library.PromoteLibraryResponse.program:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
+	9, // 4: vrooli.program_runtime.v1.library.SetCurrentLibraryResponse.program:type_name -> vrooli.program_runtime.v1.shared.LibraryProgram
+	0, // 5: vrooli.program_runtime.v1.library.LibraryService.ListLibrary:input_type -> vrooli.program_runtime.v1.library.ListLibraryRequest
+	2, // 6: vrooli.program_runtime.v1.library.LibraryService.GetLibrary:input_type -> vrooli.program_runtime.v1.library.GetLibraryRequest
+	5, // 7: vrooli.program_runtime.v1.library.LibraryService.PromoteLibrary:input_type -> vrooli.program_runtime.v1.library.PromoteLibraryRequest
+	7, // 8: vrooli.program_runtime.v1.library.LibraryService.SetCurrentLibrary:input_type -> vrooli.program_runtime.v1.library.SetCurrentLibraryRequest
+	1, // 9: vrooli.program_runtime.v1.library.LibraryService.ListLibrary:output_type -> vrooli.program_runtime.v1.library.ListLibraryResponse
+	4, // 10: vrooli.program_runtime.v1.library.LibraryService.GetLibrary:output_type -> vrooli.program_runtime.v1.library.GetLibraryResponse
+	6, // 11: vrooli.program_runtime.v1.library.LibraryService.PromoteLibrary:output_type -> vrooli.program_runtime.v1.library.PromoteLibraryResponse
+	8, // 12: vrooli.program_runtime.v1.library.LibraryService.SetCurrentLibrary:output_type -> vrooli.program_runtime.v1.library.SetCurrentLibraryResponse
+	9, // [9:13] is the sub-list for method output_type
+	5, // [5:9] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_program_runtime_v1_library_library_proto_init() }
@@ -504,7 +634,7 @@ func file_program_runtime_v1_library_library_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_program_runtime_v1_library_library_proto_rawDesc), len(file_program_runtime_v1_library_library_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

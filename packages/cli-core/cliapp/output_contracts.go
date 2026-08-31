@@ -30,6 +30,10 @@ type ListReport struct {
 	ResultsHeading string   `json:"results_heading,omitempty"`
 	Results        []string `json:"results,omitempty"`
 	RetrievalHints []string `json:"retrieval_hints,omitempty"`
+	// ListShaped marks reports whose summary describes a collection. ResultCount
+	// lets the renderer guard against silently hiding a non-empty collection.
+	ListShaped  bool `json:"list_shaped,omitempty"`
+	ResultCount int  `json:"result_count,omitempty"`
 }
 
 // MutationReport renders the canonical human-first contract for mutations:
@@ -87,6 +91,9 @@ func RenderOperationalReport(w io.Writer, report OperationalReport) error {
 }
 
 func RenderListReport(w io.Writer, report ListReport) error {
+	if report.ListShaped && report.ResultCount > 0 && len(report.Results) == 0 {
+		return fmt.Errorf("list-shaped report declares %d results but renders no rows", report.ResultCount)
+	}
 	if err := printSectionLines(w, "Summary", report.Summary, "(no summary available)"); err != nil {
 		return err
 	}

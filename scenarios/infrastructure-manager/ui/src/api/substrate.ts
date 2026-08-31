@@ -23,6 +23,9 @@ import type {
   CheckPlatformCoverage,
   DeviceClassNode,
   PortabilityRow,
+  PlatformSkipBudget as PlatformSkipBudgetModel,
+  ResourceClaim,
+  ResourceArchitectureStatus as ResourceArchitectureStatusModel,
   RungDetail,
   SourceStatus,
   SubstrateBoard,
@@ -185,7 +188,9 @@ export async function fetchSubstrateBoard(): Promise<SubstrateBoard> {
   return {
     host: ladder.host,
     classes,
-    portability,
+    portability: portability.rows,
+    resources: portability.resources,
+    skipBudget: portability.skipBudget,
     sources,
     checkPlatforms: ladder.checkPlatforms,
     coverageAvailable: ladder.coverageAvailable,
@@ -394,7 +399,49 @@ const HOST_OS_NAMES: Record<number, string> = {
  * treatment, so a wire value nobody handled becomes visible instead of quietly
  * rendering as the most flattering thing on the list.
  */
-async function readPortability(sources: SourceStatus[]): Promise<readonly PortabilityRow[]> {
+interface PortabilityRead {
+  rows: readonly PortabilityRow[];
+  resources: readonly ResourceClaim[];
+  skipBudget: PlatformSkipBudgetModel | null;
+}
+
+// These wire views are kept local so this boundary remains readable even in a
+// checkout whose pnpm workspace snapshot has not yet refreshed the generated
+// package. The governed proto generator remains the source of the runtime
+// descriptors and the fields intentionally mirror that generated contract.
+interface ResourceArchitectureStatusWire {
+  architecture: string;
+  support: string;
+  reason: string;
+}
+
+interface ResourcePlatformClaimWire {
+  hostOs: HostOS;
+  support: string;
+  architectures: ResourceArchitectureStatusWire[];
+  mismatch: boolean;
+  reason: string;
+}
+
+interface ResourceArchitectureClaimWire {
+  name: string;
+  driver: string;
+  acquisitionKind: string;
+  platforms: ResourcePlatformClaimWire[];
+}
+
+interface PlatformSkipBudgetWire {
+  available: boolean;
+  measured: number;
+  budgets: { [key: string]: number };
+  reason: string;
+  ratchetDirection: string;
+  lastRunWithinBudget: boolean;
+}
+
+const EMPTY_PORTABILITY: PortabilityRead = { rows: [], resources: [], skipBudget: null };
+
+async function readPortability(sources: SourceStatus[]): Promise<PortabilityRead> {
   try {
     const response = await fetchPortabilityGrid();
     const grid = response.grid;
@@ -404,14 +451,18 @@ async function readPortability(sources: SourceStatus[]): Promise<readonly Portab
         verdict: VERDICT_UNAVAILABLE,
         reason: "the portability domain answered without a grid",
       });
-      return [];
+      return EMPTY_PORTABILITY;
     }
     sources.push({
       name: "portability",
       verdict: VERDICT_VALID,
       reason: `${grid.manifestsRead} manifests read from ${grid.manifestRoot}`,
     });
-    return grid.capabilities.map((entry) => ({
+    const wireGrid = grid as unknown as {
+      resources: ResourceArchitectureClaimWire[];
+      skipBudget?: PlatformSkipBudgetWire;
+    };
+    const rows = grid.capabilities.map((entry) => ({
       capability: entry.capability,
       platforms: Object.fromEntries(
         entry.platforms
@@ -422,14 +473,51 @@ async function readPortability(sources: SourceStatus[]): Promise<readonly Portab
           .filter(([os]) => Boolean(os)),
       ),
     }));
+    return {
+      rows,
+      resources: wireGrid.resources.map(toResourceClaim),
+      skipBudget: wireGrid.skipBudget ? toSkipBudget(wireGrid.skipBudget) : null,
+    };
   } catch (error) {
     sources.push({
       name: "portability",
       verdict: VERDICT_UNAVAILABLE,
       reason: describeError(error),
     });
-    return [];
+    return EMPTY_PORTABILITY;
   }
+}
+
+function toResourceClaim(resource: ResourceArchitectureClaimWire): ResourceClaim {
+  return {
+    name: resource.name,
+    driver: resource.driver,
+    acquisitionKind: resource.acquisitionKind,
+    platforms: resource.platforms
+      .map((platform) => ({
+        hostOs: HOST_OS_NAMES[platform.hostOs] ?? "unknown",
+        support: platform.support,
+        architectures: platform.architectures.map((architecture): ResourceArchitectureStatusModel => ({
+          architecture: architecture.architecture,
+          support: architecture.support,
+          reason: architecture.reason,
+        })),
+        mismatch: platform.mismatch,
+        reason: text(platform.reason),
+      }))
+      .filter((platform) => platform.hostOs !== "unknown"),
+  };
+}
+
+function toSkipBudget(budget: PlatformSkipBudgetWire): PlatformSkipBudgetModel {
+  return {
+    available: budget.available,
+    measured: budget.available ? budget.measured : null,
+    budgets: budget.budgets,
+    ratchetDirection: text(budget.ratchetDirection),
+    lastRunWithinBudget: budget.available ? budget.lastRunWithinBudget : null,
+    reason: text(budget.reason),
+  };
 }
 
 function toCell(platform: PlatformEntry) {

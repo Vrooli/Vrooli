@@ -7,6 +7,13 @@ re-discovering the same constraint.
 This file ships empty in newly generated scenarios. Append entries as
 they appear.
 
+## Work ladder
+
+- Rung: W0 (contract)
+- Evidence: The deterministic goal search for `infrastructure-manager` returned no named goal. The PRD has P0 targets for the live cell grid and setpoint integrity, but the W0 goal-to-PRD comparison is unverifiable without a named goal; the typed portability implementation and live ledger are W3 evidence and do not close W0.
+- Blocker: contract comparison is unverifiable until a goal names this scenario or an explicit goal is filed; this does not invalidate the portability implementation evidence.
+- Measured: 2026-08-26
+
 ## What belongs here
 
 - **Known bugs** that are real but not yet worth fixing

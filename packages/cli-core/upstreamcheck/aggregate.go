@@ -22,9 +22,27 @@ type AggregateEntry struct {
 // AggregateReport is the combined verdict across several resources, with the
 // behind/unknown names pulled out so callers can act on drift at a glance.
 type AggregateReport struct {
-	Resources []Report `json:"resources"`
-	Behind    []string `json:"behind"`
-	Unknown   []string `json:"unknown"`
+	Resources []Report          `json:"resources"`
+	Behind    []string          `json:"behind"`
+	Unknown   []string          `json:"unknown"`
+	Artifacts []ArtifactFinding `json:"artifacts,omitempty"`
+}
+
+// ArtifactFinding is a read-only liveness observation for a resource
+// acquisition target. It is optional so existing coding-agent consumers keep
+// their established report shape.
+type ArtifactFinding struct {
+	Resource      string            `json:"resource"`
+	Target        int               `json:"target"`
+	Kind          string            `json:"kind"`
+	Reference     string            `json:"reference"`
+	Predicate     map[string]string `json:"predicate,omitempty"`
+	CheckedAt     string            `json:"checked_at"`
+	FirstFailedAt string            `json:"first_failed_at,omitempty"`
+	Status        int               `json:"status,omitempty"`
+	Reachable     bool              `json:"reachable"`
+	Stale         bool              `json:"stale"`
+	Note          string            `json:"note,omitempty"`
 }
 
 // RunnerFunc runs a resource check command and returns its raw JSON stdout.

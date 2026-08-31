@@ -106,13 +106,19 @@ func protoDeclarers(declarers []deployability.CapabilityDeclarer) []*portability
 
 func protoEntry(entry internalportability.Entry) *portabilityv1.CapabilityEntry {
 	out := &portabilityv1.CapabilityEntry{
-		Capability:      entry.Capability,
-		Situation:       protoSituation(entry.Situation),
-		SituationReason: entry.SituationReason,
-		Platforms:       make([]*portabilityv1.PlatformEntry, 0, len(entry.Platforms)),
+		Capability:         entry.Capability,
+		Situation:          protoSituation(entry.Situation),
+		SituationReason:    entry.SituationReason,
+		Platforms:          make([]*portabilityv1.PlatformEntry, 0, len(entry.Platforms)),
+		PlatformSituations: make([]*portabilityv1.PlatformSituation, 0, len(entry.PlatformSituations)),
 	}
 	for _, platform := range entry.Platforms {
 		out.Platforms = append(out.Platforms, protoPlatform(platform))
+	}
+	for _, platform := range entry.PlatformSituations {
+		out.PlatformSituations = append(out.PlatformSituations, &portabilityv1.PlatformSituation{
+			HostOs: protoHostOS(platform.HostOS), Situation: protoSituation(platform.Situation), Reason: platform.Reason,
+		})
 	}
 	return out
 }
@@ -125,6 +131,8 @@ func protoGrid(grid internalportability.Grid, entries []internalportability.Entr
 		Capabilities:       make([]*portabilityv1.CapabilityEntry, 0, len(entries)),
 		ObservedSafeguards: make([]*portabilityv1.ObservedSafeguard, 0, len(grid.ObservedSafeguards)),
 		NativeEvidence:     make([]*portabilityv1.NativeEvidence, 0, len(grid.NativeEvidence)),
+		Resources:          make([]*portabilityv1.ResourceArchitectureClaim, 0, len(grid.Resources)),
+		SkipBudget:         &portabilityv1.PlatformSkipBudget{Available: grid.SkipBudget.Available, Measured: int32(grid.SkipBudget.Measured), Budgets: make(map[string]int32, len(grid.SkipBudget.Budgets)), Reason: grid.SkipBudget.Reason, RatchetDirection: grid.SkipBudget.RatchetDirection, LastRunWithinBudget: grid.SkipBudget.LastRunWithinBudget},
 	}
 	for _, entry := range entries {
 		out.Capabilities = append(out.Capabilities, protoEntry(entry))
@@ -144,6 +152,29 @@ func protoGrid(grid internalportability.Grid, entries []internalportability.Entr
 			Source: evidence.Source, RunId: evidence.RunID, Host: evidence.Host, Surface: evidence.Surface,
 			ArtifactUri: evidence.ArtifactURI, Capabilities: evidence.Capabilities,
 		})
+	}
+	for _, resource := range grid.Resources {
+		claim := &portabilityv1.ResourceArchitectureClaim{
+			Name: resource.Name, Driver: resource.Driver, AcquisitionKind: resource.AcquisitionKind,
+			Platforms: make([]*portabilityv1.ResourcePlatformClaim, 0, len(resource.Platforms)),
+		}
+		for _, platform := range resource.Platforms {
+			platformClaim := &portabilityv1.ResourcePlatformClaim{
+				HostOs: protoHostOS(platform.HostOS), Support: platform.Support,
+				Architectures: make([]*portabilityv1.ResourceArchitectureStatus, 0, len(platform.Architectures)),
+				Mismatch:      platform.Mismatch, Reason: platform.Reason,
+			}
+			for _, architecture := range platform.Architectures {
+				platformClaim.Architectures = append(platformClaim.Architectures, &portabilityv1.ResourceArchitectureStatus{
+					Architecture: architecture.Architecture, Support: architecture.Support, Reason: architecture.Reason,
+				})
+			}
+			claim.Platforms = append(claim.Platforms, platformClaim)
+		}
+		out.Resources = append(out.Resources, claim)
+	}
+	for hostOS, budget := range grid.SkipBudget.Budgets {
+		out.SkipBudget.Budgets[string(hostOS)] = int32(budget)
 	}
 	return out
 }

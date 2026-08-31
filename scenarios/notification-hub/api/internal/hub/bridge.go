@@ -5,40 +5,31 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
-	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
-	dispatchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch/dispatch_v1connect"
-	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
-	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
+	"github.com/vrooli/nodeclient"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
-	runsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
 )
 
 type bridgeRemote struct {
-	machines   machinesconnect.MachineServiceClient
-	dispatcher dispatchconnect.DispatchServiceClient
-	runs       runsconnect.RunsServiceClient
+	client *nodeclient.Client
 }
 
 func NewBridgeRemoteFromEnvironment() RemoteDelivery {
-	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_URL")), "/")
-	if baseURL == "" {
-		return nil
+	client := nodeclient.New(nodeclient.Config{
+		Token: firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if nodes, err := client.List(ctx, 5*time.Second); err != nil {
+		slog.Warn("vrooli-bridge unavailable; remote notification delivery will retry", "error", err)
+	} else {
+		slog.Info("vrooli-bridge reachable for remote notification delivery", "nodes", len(nodes))
 	}
-	httpClient := &http.Client{Timeout: 3 * time.Minute}
-	if token := strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_API_TOKEN")); token != "" {
-		httpClient.Transport = bearerTransport{base: http.DefaultTransport, token: token}
-	}
-	return &bridgeRemote{
-		machines:   machinesconnect.NewMachineServiceClient(httpClient, baseURL),
-		dispatcher: dispatchconnect.NewDispatchServiceClient(httpClient, baseURL),
-		runs:       runsconnect.NewRunsServiceClient(httpClient, baseURL),
-	}
+	return &bridgeRemote{client: client}
 }
 
 func (b *bridgeRemote) Deliver(ctx context.Context, machineID string, n Notification, body string) (string, error) {
@@ -59,29 +50,26 @@ func (b *bridgeRemote) Deliver(ctx context.Context, machineID string, n Notifica
 		return "", err
 	}
 	encoded := base64.RawStdEncoding.EncodeToString(payload)
-	response, err := b.dispatcher.DispatchJob(ctx, connect.NewRequest(&dispatchv1.DispatchJobRequest{
-		NodeId:         nodeID,
-		Verb:           "notification-hub notifications relay",
-		Args:           []string{"--payload-base64", encoded},
-		TimeoutSeconds: 120,
-	}))
+	dispatched, err := b.client.Dispatch(ctx, nodeclient.DispatchRequest{
+		NodeID: nodeID, Verb: "notification-hub notifications relay", Args: []string{"--payload-base64", encoded}, Timeout: 120 * time.Second,
+	})
 	if err != nil {
 		return "", fmt.Errorf("bridge dispatch: %w", err)
 	}
-	if response == nil || response.Msg == nil || response.Msg.GetRunId() == "" {
+	if strings.TrimSpace(dispatched.RunID) == "" {
 		return "", fmt.Errorf("bridge returned no durable run id")
 	}
-	waited, err := b.runs.WaitRun(ctx, connect.NewRequest(&runsv1.WaitRunRequest{Id: response.Msg.GetRunId(), TimeoutSeconds: 120}))
+	run, timedOut, err := b.client.Wait(ctx, dispatched.RunID, 120*time.Second)
 	if err != nil {
 		return "", fmt.Errorf("wait bridge run: %w", err)
 	}
-	if waited == nil || waited.Msg == nil || waited.Msg.GetRun() == nil {
+	if timedOut || run == nil {
 		return "", fmt.Errorf("bridge returned no completed run")
 	}
-	if waited.Msg.GetRun().GetStatus() != runsv1.RunStatus_RUN_STATUS_PASSED {
-		return "", fmt.Errorf("remote relay run %s ended with status %s", response.Msg.GetRunId(), waited.Msg.GetRun().GetStatus().String())
+	if run.GetStatus() != runsv1.RunStatus_RUN_STATUS_PASSED {
+		return "", fmt.Errorf("remote relay run %s ended with status %s", dispatched.RunID, run.GetStatus().String())
 	}
-	return response.Msg.GetRunId(), nil
+	return dispatched.RunID, nil
 }
 
 func (b *bridgeRemote) ChannelsStatus(ctx context.Context, machineID, _ string) (ChannelStatus, error) {
@@ -95,14 +83,14 @@ func (b *bridgeRemote) ChannelsStatus(ctx context.Context, machineID, _ string) 
 }
 
 func (b *bridgeRemote) currentNode(ctx context.Context, machineID string) (string, error) {
-	response, err := b.machines.ListMachines(ctx, connect.NewRequest(&machinesv1.ListMachinesRequest{}))
+	machines, err := b.client.ListMachines(ctx, 10*time.Second)
 	if err != nil {
 		return "", fmt.Errorf("list bridge machines: %w", err)
 	}
-	if response == nil || response.Msg == nil {
+	if machines == nil {
 		return "", fmt.Errorf("bridge returned no machine inventory")
 	}
-	for _, machine := range response.Msg.GetMachines() {
+	for _, machine := range machines {
 		if machine.GetId() != machineID {
 			continue
 		}
@@ -116,15 +104,13 @@ func (b *bridgeRemote) currentNode(ctx context.Context, machineID string) (strin
 	return "", fmt.Errorf("machine %q is not registered with bridge", machineID)
 }
 
-type bearerTransport struct {
-	base  http.RoundTripper
-	token string
-}
-
-func (t bearerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	clone := req.Clone(req.Context())
-	clone.Header.Set("Authorization", "Bearer "+t.token)
-	return t.base.RoundTrip(clone)
-}
-
 var _ RemoteDelivery = (*bridgeRemote)(nil)
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}

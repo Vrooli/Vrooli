@@ -8,3 +8,9 @@ CREATE INDEX IF NOT EXISTS idx_remote_profiles_status ON remote_profiles(status)
 CREATE TABLE IF NOT EXISTS admin_sessions (id TEXT PRIMARY KEY, admin_email TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW(), last_activity TIMESTAMP DEFAULT NOW(), expires_at TIMESTAMP NOT NULL, ip_address TEXT, user_agent TEXT);
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_email ON admin_sessions(admin_email);
 CREATE INDEX IF NOT EXISTS idx_admin_sessions_expires ON admin_sessions(expires_at);
+CREATE TABLE IF NOT EXISTS credential_mint_witness (
+  logical_id TEXT NOT NULL,
+  field TEXT NOT NULL,
+  minted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (logical_id, field)
+);

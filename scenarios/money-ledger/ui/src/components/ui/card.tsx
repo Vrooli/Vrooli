@@ -11,7 +11,7 @@
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
-import { useSurfaceContext } from "@vrooli/react-component-library/Contracts/1.0.0";
+import { useSurfaceContext } from "@vrooli/react-component-library/Contracts/1";
 import { cardStyles } from "./styles";
 export const CARD_PARTS = ["header", "media", "body", "footer"] as const;
 

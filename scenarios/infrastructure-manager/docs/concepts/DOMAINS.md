@@ -144,6 +144,10 @@ belong in [`DATA.md`](DATA.md).
 - **The resolver is not here and must not move here.** `internal/deployability` stays in the control plane because `vrooli setup` has to resolve a capability with no scenario running. This domain is the aggregation half of that split; `vrooli capability ledger` is the flat half.
 - **Situation is separate from status.** The resolution status answers "does this run on that OS?"; the situation answers the question an operator actually asks — "is the absence a gap, or a decision?" The closed vocabulary is `built_everywhere`, `no_work_required`, `no_equivalent_ever`, `real_peer_nobody_wired`.
 - **Qualification is separate from status.** A cross-compiled implementation and one proven on real hardware both resolve as implemented and are not the same claim.
+- **The readout is falsifiable.** It reports both `amd64` and `arm64` cells for every host OS, resource architecture claims, the measured platform-skip budget, declaration age, and dated review metadata. Missing skip-budget input is unavailable with a reason, never zero.
+- Resource rows are one resource per row with nested host-OS and architecture cells. Each row retains the manifest driver and acquisition kind, so a platform verdict cannot hide whether support comes from a native, composed, or managed-service path.
+- The skip-budget verdict is measured at read time. It reports the count, per-OS budgets, ratchet direction, and last-run status; absent or malformed policy input is unavailable with a reason.
+- **Source verdicts remain owned by SDA.** The fleet projection consumes SDA's `sda_source_verdict` signals and combines them with dependency blocks; infrastructure-manager does not rescan scenario source or recompute dependency closures.
 - Does not own: the resolver, the capability vocabulary, the declarations themselves, or any judgment about whether a gap is worth closing.
 - API: `api/internal/portability/`, `api/handlers/portability/`.
 - CLI: `portability grid`, `portability capability <name>`, `portability situations`, `portability fleet`.

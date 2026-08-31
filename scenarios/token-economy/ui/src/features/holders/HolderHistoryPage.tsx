@@ -1,7 +1,7 @@
 import { ArrowDownCircle, ArrowUpCircle, History } from "lucide-react";
 import { EventKind } from "@vrooli/proto-types/token-economy/v1/access/access_pb";
 
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { eventDate, useHolderEconomy } from "./useHolderEconomy";

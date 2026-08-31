@@ -20,6 +20,7 @@ message Goal {
   string updated = 9;
   optional string archived_at = 10;
 	repeated string dropped_items = 11;
+	string serves_deliverable = 12;
 }
 
 message MilestoneRollup {

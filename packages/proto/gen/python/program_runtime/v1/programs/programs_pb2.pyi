@@ -263,6 +263,42 @@ class MineUnresolvedBindingsResponse(_message.Message):
     count: int
     def __init__(self, shapes: _Optional[_Iterable[_Union[UnresolvedBindingShape, _Mapping]]] = ..., count: _Optional[int] = ...) -> None: ...
 
+class GovernanceShareRequest(_message.Message):
+    __slots__ = ("window_seconds", "include_operator")
+    WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_OPERATOR_FIELD_NUMBER: _ClassVar[int]
+    window_seconds: int
+    include_operator: bool
+    def __init__(self, window_seconds: _Optional[int] = ..., include_operator: _Optional[bool] = ...) -> None: ...
+
+class ObservedCommand(_message.Message):
+    __slots__ = ("attempted_name", "count", "last_seen")
+    ATTEMPTED_NAME_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    LAST_SEEN_FIELD_NUMBER: _ClassVar[int]
+    attempted_name: str
+    count: int
+    last_seen: str
+    def __init__(self, attempted_name: _Optional[str] = ..., count: _Optional[int] = ..., last_seen: _Optional[str] = ...) -> None: ...
+
+class GovernanceShareResponse(_message.Message):
+    __slots__ = ("governed_calls", "observed_calls", "governed_share", "window_seconds", "window_start", "window_end", "observed_commands")
+    GOVERNED_CALLS_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_CALLS_FIELD_NUMBER: _ClassVar[int]
+    GOVERNED_SHARE_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_START_FIELD_NUMBER: _ClassVar[int]
+    WINDOW_END_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_COMMANDS_FIELD_NUMBER: _ClassVar[int]
+    governed_calls: int
+    observed_calls: int
+    governed_share: float
+    window_seconds: int
+    window_start: str
+    window_end: str
+    observed_commands: _containers.RepeatedCompositeFieldContainer[ObservedCommand]
+    def __init__(self, governed_calls: _Optional[int] = ..., observed_calls: _Optional[int] = ..., governed_share: _Optional[float] = ..., window_seconds: _Optional[int] = ..., window_start: _Optional[str] = ..., window_end: _Optional[str] = ..., observed_commands: _Optional[_Iterable[_Union[ObservedCommand, _Mapping]]] = ...) -> None: ...
+
 class RunAuthoringEvalRequest(_message.Message):
     __slots__ = ("suite", "max_cases")
     SUITE_FIELD_NUMBER: _ClassVar[int]

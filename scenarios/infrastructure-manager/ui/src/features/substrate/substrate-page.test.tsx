@@ -98,6 +98,8 @@ function board(overrides: Partial<SubstrateBoard> = {}): SubstrateBoard {
         },
       },
     ],
+    resources: [],
+    skipBudget: null,
     sources: [
       { name: "device-graph", verdict: "VALID", reason: null },
       { name: "portability", verdict: "VALID", reason: "41 manifests read" },

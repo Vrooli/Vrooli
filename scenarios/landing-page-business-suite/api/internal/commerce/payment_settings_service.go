@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	landing_page_business_suite_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-business-suite/v1"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -24,7 +25,14 @@ type PaymentSettingsStore interface {
 
 // PaymentSettingsService manages Stripe configuration stored by admins.
 type PaymentSettingsService struct {
-	db PaymentSettingsStore
+	db              PaymentSettingsStore
+	readCredential  func(context.Context, string) (string, error)
+	writeCredential func(context.Context, string, string) error
+	testCredentials map[string]string
+}
+
+func NewPaymentSettingsServiceWithCredentials(db PaymentSettingsStore, read func(context.Context, string) (string, error), write func(context.Context, string, string) error) *PaymentSettingsService {
+	return &PaymentSettingsService{db: db, readCredential: read, writeCredential: write}
 }
 
 // StripeSettingsInput captures optional fields for upserts.
@@ -39,37 +47,41 @@ type StripeSettingsInput struct {
 }
 
 func NewPaymentSettingsService(db PaymentSettingsStore) *PaymentSettingsService {
-	return &PaymentSettingsService{db: db}
+	return &PaymentSettingsService{db: db, testCredentials: make(map[string]string)}
 }
 
 // GetStripeSettings returns the latest persisted Stripe configuration.
 func (s *PaymentSettingsService) GetStripeSettings(ctx context.Context) (*landing_page_business_suite_v1.StripeSettings, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT publishable_key, secret_key, webhook_secret, dashboard_url,
+		SELECT dashboard_url,
 			anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at
 		FROM payment_settings
 		WHERE id = 1
 	`)
 
 	record := &landing_page_business_suite_v1.StripeSettings{}
-	var publishable, secret, webhook, dashboard, anomalyURL, anomalyLimits sql.NullString
+	var dashboard, anomalyURL, anomalyLimits sql.NullString
 	var anomalyEnabled sql.NullBool
 	var updatedAt time.Time
-	if err := row.Scan(&publishable, &secret, &webhook, &dashboard, &anomalyURL, &anomalyEnabled, &anomalyLimits, &updatedAt); err != nil {
+	if err := row.Scan(&dashboard, &anomalyURL, &anomalyEnabled, &anomalyLimits, &updatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
 	}
 
-	if publishable.Valid {
-		record.PublishableKey = publishable.String
-	}
-	if secret.Valid {
-		record.SecretKey = secret.String
-	}
-	if webhook.Valid {
-		record.WebhookSecret = webhook.String
+	for field, target := range map[string]*string{"stripe-publishable-key": &record.PublishableKey, "stripe-secret-key": &record.SecretKey, "stripe-webhook-secret": &record.WebhookSecret} {
+		if s.readCredential != nil {
+			value, readErr := s.readCredential(ctx, field)
+			if readErr != nil && !errors.Is(readErr, credentialauthority.ErrUnconfigured) {
+				return nil, fmt.Errorf("read Stripe credential %s: %w", field, readErr)
+			}
+			if readErr == nil {
+				*target = value
+			}
+		} else {
+			*target = s.testCredentials[field]
+		}
 	}
 	if dashboard.Valid {
 		record.DashboardUrl = proto.String(dashboard.String)
@@ -141,37 +153,56 @@ func (s *PaymentSettingsService) SaveStripeSettings(ctx context.Context, input S
 		nextAnomalyEnabled = *input.AnomalyWebhookEnabled
 	}
 	nextAnomalyLimits := updateStringField(current.AnomalyRateLimits, anomalyLimits)
+	for _, credential := range []struct {
+		field   string
+		value   string
+		changed bool
+	}{
+		{"stripe-publishable-key", nextPublishable, pub != nil},
+		{"stripe-secret-key", nextSecret, sec != nil},
+		{"stripe-webhook-secret", nextWebhook, webhook != nil},
+	} {
+		if !credential.changed {
+			continue
+		}
+		if s.writeCredential != nil {
+			if err := s.writeCredential(ctx, credential.field, credential.value); err != nil {
+				return nil, fmt.Errorf("store Stripe credential %s in credential authority: %w", credential.field, err)
+			}
+		} else {
+			s.testCredentials[credential.field] = credential.value
+		}
+	}
 
 	row := s.db.QueryRowContext(ctx, `
 		INSERT INTO payment_settings (
-			id, publishable_key, secret_key, webhook_secret, dashboard_url,
+			id, dashboard_url,
 			anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at
 		)
-		VALUES (1, $1, $2, $3, $4, $5, $6, $7::jsonb, NOW())
+		VALUES (1, $1, $2, $3, $4::jsonb, NOW())
 		ON CONFLICT (id) DO UPDATE SET
-			publishable_key = EXCLUDED.publishable_key,
-			secret_key = EXCLUDED.secret_key,
-			webhook_secret = EXCLUDED.webhook_secret,
 			dashboard_url = EXCLUDED.dashboard_url,
 			anomaly_webhook_url = EXCLUDED.anomaly_webhook_url,
 			anomaly_webhook_enabled = EXCLUDED.anomaly_webhook_enabled,
 			anomaly_rate_limits = EXCLUDED.anomaly_rate_limits,
 			updated_at = NOW()
-		RETURNING publishable_key, secret_key, webhook_secret, dashboard_url,
+		RETURNING dashboard_url,
 			anomaly_webhook_url, anomaly_webhook_enabled, anomaly_rate_limits, updated_at
-	`, nextPublishable, nextSecret, nextWebhook, nextDashboard,
-		nextAnomalyURL, nextAnomalyEnabled, jsonOrEmptyObject(nextAnomalyLimits))
+	`, nextDashboard, nextAnomalyURL, nextAnomalyEnabled, jsonOrEmptyObject(nextAnomalyLimits))
 
 	record := &landing_page_business_suite_v1.StripeSettings{}
 	var anomalyURLOut, anomalyLimitsOut sql.NullString
 	var anomalyEnabledOut sql.NullBool
 	var updatedAt time.Time
 	if err := row.Scan(
-		&record.PublishableKey, &record.SecretKey, &record.WebhookSecret, &record.DashboardUrl,
+		&record.DashboardUrl,
 		&anomalyURLOut, &anomalyEnabledOut, &anomalyLimitsOut, &updatedAt,
 	); err != nil {
 		return nil, fmt.Errorf("save stripe settings: %w", err)
 	}
+	record.PublishableKey = nextPublishable
+	record.SecretKey = nextSecret
+	record.WebhookSecret = nextWebhook
 
 	if anomalyURLOut.Valid {
 		record.AnomalyWebhookUrl = anomalyURLOut.String

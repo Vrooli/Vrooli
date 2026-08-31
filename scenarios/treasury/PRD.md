@@ -21,28 +21,28 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | The mandate contract | The scenario shall admit every spend through exactly one typed grant naming authorizer, cap, counterparty scope and expiry, with each rail an adapter satisfying it and no privileged path
-- [x] OT-P0-002 | Policy evaluated server-side | When an agent submits a charge, the scenario shall evaluate it against its mandate inside the API, and the agent that read untrusted content shall never hold the decision
-- [x] OT-P0-003 | Budgets carry caps, scope and gating | A budget shall carry total, periodic and per-transaction caps plus counterparty allow and deny lists, and shall declare whether spends beneath it require human approval
-- [x] OT-P0-004 | The approval gate is structurally out of agent reach | The agent-facing service shall expose no method that mutates policy, budgets or gating, so a caller holding a valid agent token cannot disable the gate that governs it
-- [x] OT-P0-005 | Unverifiable callers cannot spend | If agent identity cannot be verified at authorization time, then the scenario shall refuse the spend rather than record it at a degraded evidence grade
-- [x] OT-P0-006 | Approval is owned in-scenario and relayed when available | The scenario shall own an approval queue and its operator surface, and shall relay requests through notification-hub only as an optional enhancement that approval never depends on
-- [x] OT-P0-007 | The manual rail is first-class | The scenario shall accept an operator-settled payment as an ordinary rail adapter carrying the same mandate, evidence and emission path as any automated rail
-- [x] OT-P0-008 | Every settlement emits a money event | When a charge settles, the scenario shall emit one idempotent money event to money-ledger through its existing inbound contract, carrying provenance and basis
-- [x] OT-P0-009 | Evidence is retained for every attempt | The scenario shall retain mandate, approval, request, rail response and receipt as one replayable record per spend attempt, including declines and expiries
-- [x] OT-P0-010 | Operator funds only | The scenario shall refuse to custody value belonging to any party other than the operator, enforced at the contract boundary rather than by documented convention
-- [x] OT-P0-011 | Idempotent settlement | When a charge is retried under an unchanged idempotency key, the scenario shall return the first commit's outcome rather than moving money a second time
-- [x] OT-P0-012 | A mandate expires without action | While a mandate is past its expiry, the scenario shall reject every charge presented against it, and expiry shall require no operator intervention to take effect
+- [ ] OT-P0-001 | The mandate contract | The scenario shall admit every spend through exactly one typed grant naming authorizer, cap, counterparty scope and expiry, with each rail an adapter satisfying it and no privileged path
+- [ ] OT-P0-002 | Policy evaluated server-side | When an agent submits a charge, the scenario shall evaluate it against its mandate inside the API, and the agent that read untrusted content shall never hold the decision
+- [ ] OT-P0-003 | Budgets carry caps, scope and gating | A budget shall carry total, periodic and per-transaction caps plus counterparty allow and deny lists, and shall declare whether spends beneath it require human approval
+- [ ] OT-P0-004 | The approval gate is structurally out of agent reach | The agent-facing service shall expose no method that mutates policy, budgets or gating, so a caller holding a valid agent token cannot disable the gate that governs it
+- [ ] OT-P0-005 | Unverifiable callers cannot spend | If agent identity cannot be verified at authorization time, then the scenario shall refuse the spend rather than record it at a degraded evidence grade
+- [ ] OT-P0-006 | Approval is owned in-scenario and relayed when available | The scenario shall own an approval queue and its operator surface, and shall relay requests through notification-hub only as an optional enhancement that approval never depends on
+- [ ] OT-P0-007 | The manual rail is first-class | The scenario shall accept an operator-settled payment as an ordinary rail adapter carrying the same mandate, evidence and emission path as any automated rail
+- [ ] OT-P0-008 | Every settlement emits a money event | When a charge settles, the scenario shall emit one idempotent money event to money-ledger through its existing inbound contract, carrying provenance and basis
+- [ ] OT-P0-009 | Evidence is retained for every attempt | The scenario shall retain mandate, approval, request, rail response and receipt as one replayable record per spend attempt, including declines and expiries
+- [ ] OT-P0-010 | Operator funds only | The scenario shall refuse to custody value belonging to any party other than the operator, enforced at the contract boundary rather than by documented convention
+- [ ] OT-P0-011 | Idempotent settlement | When a charge is retried under an unchanged idempotency key, the scenario shall return the first commit's outcome rather than moving money a second time
+- [ ] OT-P0-012 | A mandate expires without action | While a mandate is past its expiry, the scenario shall reject every charge presented against it, and expiry shall require no operator intervention to take effect
 
 ### 🟠 P1 – Should have post-launch
 
 - [ ] OT-P1-001 | x402 outbound settlement | Where a counterparty endpoint declares an x402 price, the scenario should pay it from an operator-held balance under a mandate carrying a per-call cap
 - [ ] OT-P1-002 | x402 inbound metering | The scenario should let any Vrooli endpoint declare a price and collect payment through a self-hosted facilitator, recording each receipt as inflow
 - [ ] OT-P1-003 | Scoped card rail | The scenario should issue single-use or counterparty-locked cards scoped to a mandate's amount, counterparty and expiry, behind a rail contract that names no vendor
-- [x] OT-P1-004 | Personal and business books | A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains
-- [x] OT-P1-005 | Standing mandates and obligations | The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action
-- [x] OT-P1-006 | Kill switch | When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement
-- [x] OT-P1-007 | Spend position without a ledger round-trip | The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger
+- [ ] OT-P1-004 | Personal and business books | A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains
+- [ ] OT-P1-005 | Standing mandates and obligations | The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action
+- [ ] OT-P1-006 | Kill switch | When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement
+- [ ] OT-P1-007 | Spend position without a ledger round-trip | The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger
 
 ### 🟢 P2 – Future / expansion
 
