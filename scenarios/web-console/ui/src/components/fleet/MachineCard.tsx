@@ -1,92 +1,147 @@
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AlertTriangle, CheckCircle2, MoreHorizontal } from "lucide-react";
+import type { StatusTone } from "@vrooli/react-component-library/StatusBadge/1";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { Button } from "../ui/button";
 import type { JoinRequest, Machine } from "../../api/machines";
-import type { InstallOutcome } from "../../api/capabilities";
 import { strings } from "../../consts/strings";
 import { humanAge } from "../machines/age";
-import { GrantLine } from "../machines/grant";
-import { machineDrawState, reachabilityDetail, statusPill } from "../machines/MachineList";
+import { grantSentence } from "../machines/grant";
+import { machineDrawState, machineIssues, reachabilityDetail, statusBadge } from "../machines/MachineList";
 import { machineTestID } from "../machines/testids";
 import { DeviceSilhouette } from "../terminal/device/DeviceSilhouette";
 import FleetCard from "./FleetCard";
 import MachineSilhouette from "./MachineSilhouette";
 
-export function MachineCard({ machine, onManage, onConfigure, onStartSession, onInstallCapability, onReview }: { machine: Machine; onManage?: (machine: Machine) => void; onConfigure?: (machine: Machine) => void; onStartSession?: (machine: Machine) => void; onInstallCapability?: (capabilityID: string, target: Machine["target"]) => Promise<InstallOutcome>; onReview?: () => void }) {
+/**
+ * A machine, as it appears on the shelf.
+ *
+ * What this card used to do was answer every question about a machine at once:
+ * the reachability sentence twice, the full drift list one line at a time, one
+ * full-width install button per missing capability, and then three equal-weight
+ * actions. The card grew with how broken the machine was, and the third action
+ * did not fit in 268px, so `Configure` was cut off before the shelf had
+ * scrolled anywhere.
+ *
+ * It now answers two: can I use it, and does it need me. Everything else is one
+ * tap away in the machine's own detail sheet, which is also where `Manage` and
+ * `Configure` went — they were never two features, only two tabs.
+ *
+ * The action row is one primary whose verb follows reachability, one secondary
+ * that opens the sheet, and an overflow. Nothing here is a pill: these controls
+ * sit in a row inside a card whose corners are `--radius-control`, and a
+ * stadium beside them reads as belonging to a different app.
+ */
+
+export function MachineCard({
+  machine,
+  onOpen,
+  onStartSession,
+  onOverflow,
+}: {
+  machine: Machine;
+  /** Opens the detail sheet, optionally on a named tab. */
+  onOpen?: (machine: Machine, tab?: "overview" | "permissions" | "configuration" | "activity") => void;
+  onStartSession?: (machine: Machine) => void;
+  onOverflow?: (machine: Machine) => void;
+}) {
   const { t } = useTranslation();
-  const [installing, setInstalling] = useState<string[]>([]);
-  const [installOutcomes, setInstallOutcomes] = useState<Record<string, InstallOutcome>>({});
+  const translate = t as (key: string, options?: Record<string, unknown>) => string;
   const isLocal = machine.target.kind === "local";
-  const pill = statusPill(machine, t as (key: string, options?: Record<string, unknown>) => string);
+  const badge = statusBadge(machine, translate);
   const title = isLocal ? t(strings.machines.thisComputer) : machine.target.label;
   const platform = [machine.target.os, machine.target.arch].filter(Boolean).join(" · ");
-  const missingCapabilities = (machine.target.readiness ?? []).filter((fact) => fact.key.startsWith("capability:") && fact.state === "missing");
+  const issues = machineIssues(machine);
+
   return (
     <div data-testid={`machines-row-${machineTestID(machine.target.id)}`} className="shrink-0">
       <FleetCard
-      testId={`fleet-card-machine-${machine.target.id}`}
-      title={title}
-      meta={[platform, reachabilityDetail(machine, t as (key: string, options?: Record<string, unknown>) => string), isLocal ? t(strings.fleet.alsoDevice) : ""].filter(Boolean).join(" · ")}
-      state={pill.label}
-      stateTone={isLocal ? "accent" : machine.target.available ? "accent" : "warning"}
-      silhouette={isLocal
-        // The local machine is the computer this console is running on — it is
-        // a screen the operator is looking at, not a headless box, so it is
-        // drawn by the device artwork. That is also what visually ties the
-        // devices and machines sections of the drawer together.
-        ? <DeviceSilhouette archetype="laptop" keyboardShare={0} kbOpen={false} screenLit />
-        : <MachineSilhouette state={machineDrawState(machine)} />}
-      actions={(machine.manageable && onManage) || onStartSession ? <>
-        {onStartSession && <Button size="sm" data-testid={`machines-start-session-${machineTestID(machine.target.id)}`} className="min-h-11" onClick={() => { onStartSession(machine); }} disabled={!machine.target.available}>{t(strings.fleet.startSession)}</Button>}
-        {machine.manageable && onManage && <Button size="sm" data-testid={`machines-manage-${machineTestID(machine.target.id)}`} className="min-h-11" onClick={() => { onManage(machine); }}>{machine.target.available ? t(strings.machines.manage) : t(strings.machines.reconnect)}</Button>}
-        {machine.manageable && onConfigure && <Button size="sm" variant="outline" data-testid={`machines-configure-${machineTestID(machine.target.id)}`} className="min-h-11" onClick={() => { onConfigure(machine); }} disabled={!machine.target.available}>Configure</Button>}
-      </> : undefined}
-    >
-        <GrantLine grant={machine.grant} />
-        {(machine.drift ?? []).length > 0 && (
-          <div data-testid={`machines-drift-${machineTestID(machine.target.id)}`} className="mt-2 text-xs leading-5 text-amber-200/90">
-            <span className="font-medium">Configuration drift</span>
-            {(machine.drift ?? []).map((item) => <div key={`${item.kind}:${item.name}`}>{item.name}: {item.reason}</div>)}
-          </div>
-        )}
-        {!machine.target.available && machine.target.recovery_action && <span className="mt-1 block text-xs leading-5 text-amber-200/80">{machine.target.recovery_action}</span>}
-        {onInstallCapability && missingCapabilities.length > 0 && (
-          <div className="mt-2 flex flex-col gap-2">
-            {missingCapabilities.map((fact) => {
-              const capabilityID = fact.key.slice("capability:".length);
-              const outcome = installOutcomes[capabilityID];
-              return (
-                <div key={fact.key} className="flex flex-wrap items-center gap-2">
-                  <Button size="sm" variant="outline" disabled={installing.includes(capabilityID)} onClick={() => {
-                    setInstalling((current) => [...current, capabilityID]);
-                    // The install reports the machine's verdict, not the
-                    // installer's exit code, and this card renders all three
-                    // answers rather than assuming the good one.
-                    void Promise.resolve(onInstallCapability(capabilityID, machine.target))
-                      .catch((error: unknown): InstallOutcome => {
-                        console.error("capability install failed", fact.key, error);
-                        return { status: "failed" };
-                      })
-                      .then((result) => { setInstallOutcomes((current) => ({ ...current, [capabilityID]: result })); })
-                      .finally(() => { setInstalling((current) => current.filter((id) => id !== capabilityID)); });
-                  }}>
-                    {installing.includes(capabilityID) ? "Installing…" : `Install ${fact.label || capabilityID}`}
-                  </Button>
-                  {outcome && (
-                    <span
-                      data-testid={`machines-install-outcome-${machineTestID(machine.target.id)}-${capabilityID}`}
-                      title={outcome.message}
-                      className={outcome.status === "installed" ? "text-xs text-emerald-300" : outcome.status === "failed" ? "text-xs text-red-300" : "text-xs text-amber-200"}
-                    >
-                      {outcome.status === "installed" ? "Installed" : outcome.status === "failed" ? "Install failed" : "Not confirmed"}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {onReview && <Button size="sm" className="mt-2 min-h-11" onClick={onReview}>{t(strings.machines.review)}</Button>}
+        testId={`fleet-card-machine-${machine.target.id}`}
+        title={title}
+        meta={[platform, reachabilityDetail(machine, translate)].filter(Boolean).join(" · ")}
+        status={badge.label}
+        statusTone={badge.tone as StatusTone}
+        silhouette={
+          isLocal ? (
+            // The local machine is the computer this console is running on — a
+            // screen someone is looking at, not a headless box.
+            <DeviceSilhouette archetype="laptop" keyboardShare={0} kbOpen={false} screenLit />
+          ) : (
+            <MachineSilhouette state={machineDrawState(machine)} />
+          )
+        }
+        state={
+          issues.count > 0 ? (
+            <button
+              type="button"
+              data-testid={`machines-issues-${machineTestID(machine.target.id)}`}
+              onClick={() => { onOpen?.(machine, "configuration"); }}
+              className="flex w-full items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-2 text-start transition hover:border-amber-400/60"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden />
+                <span className="truncate text-xs text-amber-200">
+                  {t("machines.needsAttention", { count: issues.count })}
+                </span>
+              </span>
+              <span aria-hidden className="shrink-0 text-xs text-wc-text-faint">›</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-wc-default px-2.5 py-2">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400/70" aria-hidden />
+              <span className="truncate text-xs text-wc-text-faint">{t(strings.machines.nothingToFix)}</span>
+            </div>
+          )
+        }
+        actions={
+          <>
+            {machine.target.available && onStartSession ? (
+              <Button
+                size="sm"
+                className="flex-1"
+                data-testid={`machines-start-session-${machineTestID(machine.target.id)}`}
+                onClick={() => { onStartSession(machine); }}
+              >
+                {t(strings.fleet.startSession)}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                data-testid={`machines-reconnect-${machineTestID(machine.target.id)}`}
+                disabled={!machine.manageable}
+                onClick={() => { onOpen?.(machine, "configuration"); }}
+              >
+                {t(strings.machines.reconnect)}
+              </Button>
+            )}
+            {onOpen && (
+              <Button
+                size="sm"
+                variant="outline"
+                data-testid={`machines-details-${machineTestID(machine.target.id)}`}
+                onClick={() => { onOpen(machine); }}
+              >
+                {t(strings.machines.details)}
+              </Button>
+            )}
+            {onOverflow && (
+              <IconButton
+                size="sm"
+                shape="rounded"
+                surface="soft"
+                aria-label={t(strings.machines.moreActions, { name: title })}
+                data-testid={`machines-overflow-${machineTestID(machine.target.id)}`}
+                onClick={() => { onOverflow(machine); }}
+              >
+                <MoreHorizontal aria-hidden />
+              </IconButton>
+            )}
+          </>
+        }
+      >
+        {grantSentence(machine.grant, translate)}
       </FleetCard>
     </div>
   );
@@ -101,12 +156,26 @@ export function JoinRequestCard({ request, onReview }: { request: JoinRequest; o
         testId={`fleet-card-join-request-${machineTestID(request.id)}`}
         title={t(strings.machines.reviewTitle, { name: request.name })}
         meta={[platform, t(strings.machines.askedToJoin, { age: humanAge(request.requestedAgeSeconds) })].filter(Boolean).join(" · ")}
-        state={t(strings.machines.review)}
-        stateTone="accent"
+        status={t(strings.machines.review)}
+        statusTone="info"
         silhouette={<MachineSilhouette state="unenrolled" />}
-        actions={<Button size="sm" className="min-h-11" data-testid={`machines-review-${machineTestID(request.id)}`} onClick={onReview}>{t(strings.machines.review)}</Button>}
+        state={
+          <div className="flex items-center gap-2 rounded-lg border border-wc-accent/30 bg-wc-accent/10 px-2.5 py-2">
+            <span className="truncate text-xs text-wc-accent">{t(strings.machines.reviewDerived)}</span>
+          </div>
+        }
+        actions={
+          <Button
+            size="sm"
+            className="flex-1"
+            data-testid={`machines-review-${machineTestID(request.id)}`}
+            onClick={onReview}
+          >
+            {t(strings.machines.review)}
+          </Button>
+        }
       >
-        {t(strings.machines.reviewDerived)}
+        {t(strings.machines.askedToJoin, { age: humanAge(request.requestedAgeSeconds) })}
       </FleetCard>
     </div>
   );

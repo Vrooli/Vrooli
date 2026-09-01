@@ -53,6 +53,26 @@ export function EffectChips({
   );
 }
 
+/**
+ * The permission sentence, as one string.
+ *
+ * A shelf card gives this exactly one line, so the two facts the two-line
+ * `GrantLine` puts on separate rows are joined here instead of stacked. The
+ * card truncates; the detail sheet renders the full `GrantLine`.
+ */
+export function grantSentence(
+  grant: Grant,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  const breadth =
+    grant.effects.length > 0
+      ? grant.coversAllApps
+        ? t(strings.machines.everyApp)
+        : t(strings.machines.appCount, { count: grant.appCount })
+      : "";
+  return [grant.summary, breadth].filter(Boolean).join(" · ");
+}
+
 /** The one-line reading: what it may do, and how far that reaches. */
 export function GrantLine({ grant }: { grant: Grant }) {
   const breadth = useBreadthLabel();

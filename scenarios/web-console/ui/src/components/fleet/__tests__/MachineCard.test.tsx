@@ -66,26 +66,49 @@ describe("MachineCard", () => {
     expect(container.querySelector("[data-testid=machine-silhouette]")).toHaveAttribute("data-state", "unenrolled");
   });
 
-  it("renders unreachable remote state and its recovery action", () => {
-    render(<MachineCard machine={machine({ available: false, label: "Offline host" })} onManage={() => {}} />);
+  it("swaps the primary verb for an unreachable machine rather than offering a dead session", () => {
+    render(<MachineCard machine={machine({ available: false, label: "Offline host" })} onOpen={() => {}} onStartSession={() => {}} />);
     expect(screen.getByText("machines.statusNotResponding")).toBeInTheDocument();
-    expect(screen.getByText("machines.reconnect")).toBeInTheDocument();
+    expect(screen.getByTestId("machines-reconnect-machine-1")).toBeInTheDocument();
+    expect(screen.queryByTestId("machines-start-session-machine-1")).not.toBeInTheDocument();
   });
 
-  it("renders typed configuration drift from the machine projection", () => {
-    render(<MachineCard machine={{ ...machine(), drift: [{ kind: "capability", name: "ai-cli:codex", reason: "required capability is not reported by the node" }] }} />);
-    expect(screen.getByTestId("machines-drift-machine-1")).toHaveTextContent("Configuration drift");
-    expect(screen.getByText("ai-cli:codex: required capability is not reported by the node")).toBeInTheDocument();
+  it("counts drift and missing capabilities into one row instead of listing them on the card", () => {
+    const onOpen = vi.fn();
+    const item = {
+      ...machine(),
+      drift: [
+        { kind: "capability", name: "ai-cli:codex", reason: "required capability is not reported by the node" },
+        { kind: "profile", name: "managed-connection", reason: "profile has not been applied" },
+      ],
+    };
+    render(<MachineCard machine={item} onOpen={onOpen} />);
+
+    const issues = screen.getByTestId("machines-issues-machine-1");
+    // The count is what the card carries; the list belongs to the tab that owns it.
+    expect(issues).toHaveTextContent("machines.needsAttention");
+    expect(screen.queryByText("profile has not been applied")).not.toBeInTheDocument();
+
+    fireEvent.click(issues);
+    expect(onOpen).toHaveBeenCalledWith(item, "configuration");
   });
 
-  it("starts a session on the selected machine while keeping management available", () => {
+  it("says so when a machine has nothing wrong, so every card on the shelf is the same height", () => {
+    render(<MachineCard machine={machine()} onOpen={() => {}} />);
+    expect(screen.getByText("machines.nothingToFix")).toBeInTheDocument();
+    expect(screen.queryByTestId("machines-issues-machine-1")).not.toBeInTheDocument();
+  });
+
+  it("starts a session on the selected machine and opens the detail sheet separately", () => {
     const onStartSession = vi.fn();
+    const onOpen = vi.fn();
     const item = machine();
-    render(<MachineCard machine={item} onStartSession={onStartSession} onManage={() => {}} />);
+    render(<MachineCard machine={item} onStartSession={onStartSession} onOpen={onOpen} />);
 
     fireEvent.click(screen.getByTestId("machines-start-session-machine-1"));
-
     expect(onStartSession).toHaveBeenCalledWith(item);
-    expect(screen.getByTestId("machines-manage-machine-1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("machines-details-machine-1"));
+    expect(onOpen).toHaveBeenCalledWith(item);
   });
 });

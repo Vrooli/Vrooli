@@ -405,12 +405,19 @@ const literalSelectors: LiteralSelectorTree = {
   },
   fleet: {
     drawer: 'machines-drawer',
-    railDevices: 'fleet-rail-devices',
+    // The machines shelf leads: starting a session on a named machine is the
+    // errand that brings anyone to this drawer.
     railMachines: 'fleet-rail-machines',
+    // "Screens", not "Devices". This shelf lists browsers attached to this
+    // console; the device-control scenario owns the other meaning of the word.
+    railScreens: 'fleet-rail-screens',
     card: 'fleet-card',
     deviceCard: '[data-testid^="fleet-card-device-"]',
     machineCard: '[data-testid^="fleet-card-machine-"]',
     machineStartSession: '[data-testid^="machines-start-session-"]',
+    machineDetails: '[data-testid^="machines-details-"]',
+    machineIssues: '[data-testid^="machines-issues-"]',
+    machineDetail: '[data-testid^="machine-detail-"]',
     deviceSilhouette: '[data-testid^="fleet-card-device-"] [data-testid="device-silhouette"]',
     machineSilhouette: '[data-testid^="fleet-card-machine-"] [data-testid="machine-silhouette"]',
     deviceFrame: '[data-testid^="device-frame-"]',

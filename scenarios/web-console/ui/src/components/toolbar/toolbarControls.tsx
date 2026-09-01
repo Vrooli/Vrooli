@@ -169,7 +169,8 @@ function ArrowButton({
       size="sm"
       density="compact"
       {...(inert ? {} : handlers)}
-      className={cn(CONTROL_BASE, "rounded border font-medium transition")}
+      shape="square"
+      className={cn(CONTROL_BASE, "border font-medium transition")}
       style={{ ...boxStyle(m.unit, m), paddingInline: 0 }}
     >
       <Icon aria-hidden className="h-4 w-4" />
@@ -210,7 +211,8 @@ function IconControl({
       density="compact"
       onPointerDown={inert ? undefined : (e) => { e.preventDefault(); }}
       onClick={inert ? undefined : onClick}
-      className={cn(CONTROL_BASE, "rounded border font-medium transition")}
+      shape="square"
+      className={cn(CONTROL_BASE, "border font-medium transition")}
       style={{ ...boxStyle(width, m), paddingInline: 0, ...(active ? activeToolbarControlStyle : undefined) }}
     >
       <Icon aria-hidden className="h-4 w-4" />
@@ -246,7 +248,8 @@ function KeyCap({
       density="compact"
       onPointerDown={inert ? undefined : (e) => { e.preventDefault(); }}
       onClick={inert ? undefined : onClick}
-      className={cn(CONTROL_BASE, "rounded border font-medium transition")}
+      shape="square"
+      className={cn(CONTROL_BASE, "border font-medium transition")}
       style={{
         ...boxStyle(width, m),
         fontSize: `${String(m.fontPx)}px`,

@@ -21,6 +21,16 @@
     "2.2.0",
     "2.2.1"
   ],
-  "latest": "2.2.4",
-  "libraryId": "react-component-library:Button"
+  "latest": "2.2.6",
+  "libraryId": "react-component-library:Button",
+  "displayName": "Button",
+  "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

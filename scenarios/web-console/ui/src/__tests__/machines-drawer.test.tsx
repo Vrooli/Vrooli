@@ -125,9 +125,10 @@ describe("machines surface", () => {
     render(<MachinesDrawer open onClose={vi.fn()} />);
     const row = await screen.findByTestId("machines-row-bridge-node-node-a");
     expect(within(row).getByText("minimouse")).toBeTruthy();
-    expect(within(row).getByText(/Read only; changes are not permitted/)).toBeTruthy();
-    // A wildcard reaches apps that do not exist yet, so it is never a count.
-    expect(within(row).getByText("every app")).toBeTruthy();
+    // The card gives permission one line, so the posture and its breadth are
+    // one sentence rather than two stacked rows. A wildcard reaches apps that
+    // do not exist yet, so the breadth is never a count.
+    expect(within(row).getByText(/Read only; changes are not permitted · every app/)).toBeTruthy();
   });
 
   it("states how long ago a machine answered rather than implying it", async () => {
@@ -148,9 +149,17 @@ describe("machines surface", () => {
     const row = await screen.findByTestId("machines-row-bridge-node-stale");
     expect(within(row).getByText(/7 days ago/)).toBeTruthy();
     expect(within(row).getByText("Not responding")).toBeTruthy();
-    // Every unreachable row offers something the operator can do here.
-    expect(within(row).getByText(/Reconnect the Bridge agent/)).toBeTruthy();
-    expect(within(row).getByTestId("machines-manage-bridge-node-stale")).toBeTruthy();
+    // Every unreachable card offers something the operator can do here: the
+    // primary verb changes rather than offering a session that cannot open.
+    expect(within(row).getByTestId("machines-reconnect-bridge-node-stale")).toBeTruthy();
+    expect(within(row).queryByTestId("machines-start-session-bridge-node-stale")).toBeNull();
+    // The sentence explaining the recovery is variable length, so it lives in
+    // the detail sheet rather than making cards on one shelf different heights.
+    expect(within(row).queryByText(/Reconnect the Bridge agent/)).toBeNull();
+    fireEvent.click(within(row).getByTestId("machines-details-bridge-node-stale"));
+    expect(await screen.findByTestId("machine-detail-recovery-bridge-node-stale")).toHaveTextContent(
+      "Reconnect the Bridge agent",
+    );
   });
 
   it("explains an unenrolled installation instead of showing an empty list", async () => {
@@ -214,7 +223,8 @@ describe("machines surface", () => {
     fireEvent.click(await screen.findByTestId("machines-review-req-1"));
     fireEvent.click(screen.getByTestId("machines-words-match"));
 
-    expect(screen.getByTestId("machines-preset-read-only")).toHaveProperty("ariaChecked", "true");
+    // The card surface is decoration; the radio underneath is the selection.
+    expect(screen.getByTestId("machines-preset-read-only")).toBeChecked();
     expect(screen.getByTestId("machines-withheld-write")).toBeTruthy();
     expect(screen.getByTestId("machines-withheld-destructive")).toBeTruthy();
   });
@@ -252,7 +262,9 @@ describe("machines surface", () => {
   it("changes an existing machine's grant through the same preset vocabulary", async () => {
     setMachineGrant.mockResolvedValue(null);
     render(<MachinesDrawer open onClose={vi.fn()} />);
-    fireEvent.click(await screen.findByTestId("machines-manage-bridge-node-node-a"));
+    // Permission is a tab of the machine, not a peer button on its card.
+    fireEvent.click(await screen.findByTestId("machines-details-bridge-node-node-a"));
+    fireEvent.click(await screen.findByTestId("machine-detail-tab-permissions"));
     fireEvent.click(screen.getByTestId("machines-preset-operate"));
     fireEvent.click(screen.getByTestId("machines-grant-confirm"));
 
@@ -271,7 +283,13 @@ describe("machines surface", () => {
     await waitFor(() => {
       expect(screen.getByTestId("machines-join-code").textContent).toContain("7K4M");
     });
-    expect(screen.getByText(/9:41/)).toBeTruthy();
+    // Two things this must not be: a race against a live one-second countdown,
+    // and a match on translated copy — a sibling suite can leave the locale
+    // switched, and this file's own beforeEach is not enough to stop that.
+    // The state is what matters: a code was issued, and it has not expired.
+    const expiry = screen.getByTestId("machines-code-expiry");
+    expect(expiry).toHaveAttribute("data-expired", "false");
+    expect(expiry.textContent).toMatch(/\d+:[0-5]\d/);
   });
 
   it("states where linked machines are registered", async () => {

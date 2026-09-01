@@ -92,10 +92,26 @@ describe("small interactive UI surfaces", () => {
     renderWithProviders(
       <>
         <Button variant="outline" size="lg">Delete</Button>
+        <Button variant="outline" size="lg" shape="square">Fix</Button>
         <IntegrationsSection open />
       </>,
     );
-    expect(screen.getByRole("button", { name: /delete/i })).toHaveClass("h-12");
+    // The size is the library's to express, and it does so through tokens on
+    // the control rather than a Tailwind height class. Asserting the marking
+    // keeps this test about the rung that was asked for, not about how the
+    // rung is painted.
+    const deleteButton = screen.getByRole("button", { name: /delete/i });
+    expect(deleteButton).toHaveAttribute("data-control-size", "lg");
+    expect(deleteButton).toHaveAttribute("data-control-variant", "secondary");
+    // Pill by default: this adapter overrides the library default because the
+    // doctrine is "pill for controls that act, square for controls that
+    // repeat", and acting is the common case. See components/ui/button.tsx.
+    expect(deleteButton).toHaveAttribute("data-control-shape", "pill");
+    // ...and an S1/S2/S3 site opting out still reaches the library.
+    expect(screen.getByRole("button", { name: /fix/i })).toHaveAttribute(
+      "data-control-shape",
+      "square",
+    );
     expect(screen.getByTestId("integrations-panel-mock")).toHaveTextContent("true");
   });
 

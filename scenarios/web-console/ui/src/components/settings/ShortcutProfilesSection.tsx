@@ -221,6 +221,7 @@ function ShortcutEditor({
           data-testid={`profile-delete-${profile.id}`}
           variant="ghost"
           size="icon"
+          shape="square"
           className="mt-4 h-8 w-8 shrink-0"
           aria-label={t(section.deleteProfile)}
           onClick={() => { setConfirmingDelete(true); }}
@@ -298,6 +299,7 @@ function ShortcutEditor({
               <Button
                 variant="ghost"
                 size="icon"
+                shape="square"
                 className="h-7 w-7 shrink-0"
                 aria-label={t(section.removeCommand)}
                 data-testid={`entry-remove-${entry.uid}`}

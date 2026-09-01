@@ -524,13 +524,13 @@
       "testId": "machines-drawer",
       "selector": "[data-testid=\"machines-drawer\"]"
     },
-    "fleet.railDevices": {
-      "testId": "fleet-rail-devices",
-      "selector": "[data-testid=\"fleet-rail-devices\"]"
-    },
     "fleet.railMachines": {
       "testId": "fleet-rail-machines",
       "selector": "[data-testid=\"fleet-rail-machines\"]"
+    },
+    "fleet.railScreens": {
+      "testId": "fleet-rail-screens",
+      "selector": "[data-testid=\"fleet-rail-screens\"]"
     },
     "fleet.card": {
       "testId": "fleet-card",
@@ -547,6 +547,18 @@
     "fleet.machineStartSession": {
       "testId": "[data-testid^=\"machines-start-session-\"]",
       "selector": "[data-testid=\"[data-testid^=\"machines-start-session-\"]\"]"
+    },
+    "fleet.machineDetails": {
+      "testId": "[data-testid^=\"machines-details-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"machines-details-\"]\"]"
+    },
+    "fleet.machineIssues": {
+      "testId": "[data-testid^=\"machines-issues-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"machines-issues-\"]\"]"
+    },
+    "fleet.machineDetail": {
+      "testId": "[data-testid^=\"machine-detail-\"]",
+      "selector": "[data-testid=\"[data-testid^=\"machine-detail-\"]\"]"
     },
     "fleet.deviceSilhouette": {
       "testId": "[data-testid^=\"fleet-card-device-\"] [data-testid=\"device-silhouette\"]",

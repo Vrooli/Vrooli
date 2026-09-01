@@ -7,6 +7,7 @@ import type { Fleet, JoinRequest, Machine } from "../../api/machines";
 import { humanAge } from "./age";
 import { GrantLine } from "./grant";
 import type { MachineState } from "../../lib/machineGeometry";
+import type { StatusTone } from "@vrooli/react-component-library/StatusBadge/1";
 
 /**
  * Screen 01 — the machines panel.
@@ -39,6 +40,42 @@ export function reachabilityDetail(machine: Machine, t: Translate): string {
   return machine.target.available
     ? t(strings.machines.respondedAgo, { age })
     : t(strings.machines.lastResponded, { age });
+}
+
+/**
+ * Reachability as a library `StatusBadge` tone.
+ *
+ * Supersedes `statusPill`, which returned a Tailwind class string and an icon.
+ * The tone vocabulary now comes from the component that draws it, so the card
+ * and the detail sheet cannot drift into two different greens.
+ */
+export function statusBadge(machine: Machine, t: Translate): { label: string; tone: StatusTone } {
+  if (machine.target.kind === "local") return { label: t(strings.machines.statusLocal), tone: "info" };
+  if (machine.target.available) return { label: t(strings.machines.statusReachable), tone: "success" };
+  if (machine.heartbeatAgeSeconds <= 0) return { label: t(strings.machines.statusNeverResponded), tone: "neutral" };
+  return { label: t(strings.machines.statusNotResponding), tone: "warning" };
+}
+
+/**
+ * Everything about a machine that is asking for the operator's attention,
+ * counted once.
+ *
+ * The card used to render each of these as its own row — one line per drift
+ * item, one full-width button per missing capability — so a machine with two
+ * drift entries and four missing tools produced a card six rows taller than
+ * its neighbour on the same shelf. The count belongs on the card; the list
+ * belongs in the Configuration tab.
+ */
+export function machineIssues(machine: Machine): {
+  count: number;
+  drift: NonNullable<Machine["drift"]>;
+  missingCapabilities: NonNullable<Machine["target"]["readiness"]>;
+} {
+  const drift = machine.drift ?? [];
+  const missingCapabilities = (machine.target.readiness ?? []).filter(
+    (fact) => fact.key.startsWith("capability:") && fact.state === "missing",
+  );
+  return { count: drift.length + missingCapabilities.length, drift, missingCapabilities };
 }
 
 export function statusPill(machine: Machine, t: Translate) {
@@ -111,7 +148,8 @@ function MachineRow({ machine, onManage }: { machine: Machine; onManage: (machin
         <Button
           variant="outline"
           size="sm"
-          data-testid={`machines-manage-${machineTestID(machine.target.id)}`}
+          shape="square"
+                data-testid={`machines-manage-${machineTestID(machine.target.id)}`}
           onClick={() => { onManage(machine); }}
         >
           {machine.target.available ? t(strings.machines.manage) : t(strings.machines.reconnect)}
@@ -144,7 +182,7 @@ function JoinRequestBanner({ request, onReview }: { request: JoinRequest; onRevi
             .join(" · ")}
         </span>
       </span>
-      <Button size="sm" data-testid={`machines-review-${machineTestID(request.id)}`} onClick={() => { onReview(request); }}>
+      <Button size="sm" shape="square" data-testid={`machines-review-${machineTestID(request.id)}`} onClick={() => { onReview(request); }}>
         {t(strings.machines.review)}
       </Button>
     </li>

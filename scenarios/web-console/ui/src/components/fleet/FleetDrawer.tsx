@@ -10,19 +10,28 @@ import type { IssuedCode, JoinRequest, Machine } from "../../api/machines";
 import MachineCard, { JoinRequestCard } from "./MachineCard";
 import AddMachine from "../machines/AddMachine";
 import ReviewRequest from "../machines/ReviewRequest";
-import GrantPicker from "../machines/GrantPicker";
+import PermissionsTab from "../machines/PermissionsTab";
 import { useDevices, useDeviceMutations } from "../../hooks/useDevices";
 import DeviceCard from "./DeviceCard";
 import FleetRail from "./FleetRail";
-import { ConfigurationPanel } from "./ConfigurationPanel";
+import MachineDetail, { type MachineTab } from "./MachineDetail";
 
 /**
  * The machines surface.
  *
- * Four screens, one object. A machine is linked once for the whole
- * installation — not once per app that wants to reach it — so this lives in
- * the app the person already has open rather than behind a detour through the
- * control plane's own interface.
+ * A machine is linked once for the whole installation — not once per app that
+ * wants to reach it — so this lives in the app the person already has open
+ * rather than behind a detour through the control plane's own interface.
+ *
+ * The drawer reads on two axes, and each carries a different meaning: down
+ * through categories, across within one. Machines come first because
+ * "start a session on that box" is the errand that brings anyone here, and
+ * ordering shelves by errand frequency also means the drawer opens on the shelf
+ * that has a primary action in it.
+ *
+ * `grant-existing` and `configuration` used to be two peer views reached by two
+ * peer buttons on the same card. They are now two tabs of one `machine` view;
+ * see `MachineDetail` for why that split cost the card its third action slot.
  */
 
 type View =
@@ -30,8 +39,7 @@ type View =
   | { kind: "add" }
   | { kind: "review"; request: JoinRequest }
   | { kind: "grant-new"; request: JoinRequest }
-  | { kind: "grant-existing"; machine: Machine }
-  | { kind: "configuration"; machine: Machine };
+  | { kind: "machine"; machine: Machine; tab: MachineTab };
 
 interface FleetDrawerProps {
   open: boolean;
@@ -68,7 +76,7 @@ export default function FleetDrawer({ open, onClose, onStartSession, onInstallCa
     const refreshed = await fleetQuery.refetch();
     const machine = refreshed.data?.machines.find((item) => item.target.node_id === nodeID || item.target.id === nodeID);
     if (machine) {
-      setView({ kind: "configuration", machine });
+      setView({ kind: "machine", machine, tab: "configuration" });
       return;
     }
     setFailure("Onboarding finished, but the paired machine is not yet visible. Refresh the machines list to continue configuration.");
@@ -142,52 +150,66 @@ export default function FleetDrawer({ open, onClose, onStartSession, onInstallCa
         {view.kind === "list" && (
           <div className="min-h-0 flex-1 overflow-y-auto py-5">
             <p className="px-5 pb-5 text-sm text-wc-text-muted">{t(strings.fleet.subtitle)}</p>
-            <FleetRail testId="fleet-rail-devices" eyebrow={t(strings.fleet.devices)} description={t(strings.fleet.devicesDescription)} count={devicesQuery.data?.length ?? 0}>
-              {(devicesQuery.data ?? []).map((device) => (
-                <DeviceCard
-                  key={`${device.deviceId}-${device.firstSeenAt}`}
-                  device={device}
-                  onGiveControl={(item) => {
-                    const session = item.sessions.find((attachment) => !attachment.holdsLease);
-                    if (session) giveControl.mutate({ deviceId: item.deviceId, sessionId: session.sessionId });
-                  }}
-                  onDropOld={(item) => { disconnect.mutate({ deviceId: item.deviceId }); }}
-                  onRename={(item) => {
-                    if (!item.isSelf) return;
-                    const label = window.prompt(t(strings.fleet.rename), item.deviceLabel);
-                    if (label?.trim()) rename.mutate(label);
-                  }}
-                />
-              ))}
+            <FleetRail
+              testId="fleet-rail-machines"
+              eyebrow={t(strings.fleet.machines)}
+              description={t(strings.machines.countSummary, { linked: remoteMachines.length, reachable: reachableMachines })}
+              count={(fleet?.machines.length ?? 0) + (fleet?.joinRequests.length ?? 0)}
+              actions={
+                <>
+                  <Button size="sm" data-testid="machines-add" onClick={() => { setView({ kind: "add" }); }}><Plus className="me-1.5 h-4 w-4" aria-hidden />{t(strings.machines.addMachine)}</Button>
+                  <Button variant="outline" size="sm" data-testid="machines-refresh" onClick={() => { void fleetQuery.refetch(); }} disabled={fleetQuery.isFetching}><RefreshCw className={fleetQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden /><span className="sr-only">{t(strings.machines.refresh)}</span></Button>
+                </>
+              }
+            >
+              {/* The count summary reads as the shelf's description, so it is
+                  addressable where it is rendered rather than duplicated. */}
+              <span className="sr-only" data-testid="machines-count-summary">
+                {t(strings.machines.countSummary, { linked: remoteMachines.length, reachable: reachableMachines })}
+              </span>
+              {fleetQuery.isLoading ? (
+                <div data-testid="machines-loading" className="w-[268px] shrink-0 rounded-xl border border-wc-default bg-wc-surface-input/50 p-4 text-sm text-wc-text-muted">{t(strings.machines.loading)}</div>
+              ) : (
+                <>
+                  {(fleet?.joinRequests ?? []).map((request) => (
+                    <JoinRequestCard key={request.id} request={request} onReview={() => { setView({ kind: "review", request }); }} />
+                  ))}
+                  {(fleet?.machines ?? []).map((machine) => (
+                    <MachineCard
+                      key={machine.target.id}
+                      machine={machine}
+                      onStartSession={onStartSession}
+                      onOpen={(item, tab) => { setView({ kind: "machine", machine: item, tab: tab ?? "overview" }); }}
+                    />
+                  ))}
+                  {remoteMachines.length === 0 && (
+                    <div data-testid="machines-empty" className="w-[268px] shrink-0 rounded-xl border border-dashed border-wc-default bg-wc-surface-base/40 p-5 text-center">
+                      <p className="text-sm font-medium text-wc-text-primary">{fleet?.status === "unenrolled" ? t(strings.machines.unenrolledTitle) : t(strings.machines.emptyTitle)}</p>
+                      <p className="mt-1 text-xs leading-5 text-wc-text-faint">{fleet?.message || t(strings.machines.emptyBody)}</p>
+                      {fleet?.recoveryAction && <p className="mt-2 text-xs text-amber-200/80">{fleet.recoveryAction}</p>}
+                    </div>
+                  )}
+                </>
+              )}
             </FleetRail>
             <div className="mt-8">
-              <FleetRail testId="fleet-rail-machines" eyebrow={t(strings.fleet.machines)} description={t(strings.fleet.machinesDescription)} count={(fleet?.machines.length ?? 0) + (fleet?.joinRequests.length ?? 0)}>
-                <div className="w-[268px] shrink-0 space-y-3 rounded-xl border border-wc-default bg-wc-surface-base/40 p-4">
-                  <div data-testid="machines-count-summary" className="text-xs text-wc-text-muted">{t(strings.machines.countSummary, { linked: remoteMachines.length, reachable: reachableMachines })}</div>
-                  <div className="flex gap-2">
-                    <Button size="sm" data-testid="machines-add" onClick={() => { setView({ kind: "add" }); }}><Plus className="me-1.5 h-4 w-4" aria-hidden />{t(strings.machines.addMachine)}</Button>
-                    <Button variant="outline" size="sm" data-testid="machines-refresh" onClick={() => { void fleetQuery.refetch(); }} disabled={fleetQuery.isFetching}><RefreshCw className={fleetQuery.isFetching ? "h-4 w-4 animate-spin" : "h-4 w-4"} aria-hidden /><span className="sr-only">{t(strings.machines.refresh)}</span></Button>
-                  </div>
-                </div>
-                {fleetQuery.isLoading ? (
-                  <div data-testid="machines-loading" className="w-[268px] shrink-0 rounded-xl border border-wc-default bg-wc-surface-input/50 p-4 text-sm text-wc-text-muted">{t(strings.machines.loading)}</div>
-                ) : (
-                  <>
-                    {(fleet?.joinRequests ?? []).map((request) => (
-                      <JoinRequestCard key={request.id} request={request} onReview={() => { setView({ kind: "review", request }); }} />
-                    ))}
-                    {(fleet?.machines ?? []).map((machine) => (
-                      <MachineCard key={machine.target.id} machine={machine} onStartSession={onStartSession} onInstallCapability={onInstallCapability} onManage={(item) => { setView({ kind: "grant-existing", machine: item }); }} onConfigure={(item) => { setView({ kind: "configuration", machine: item }); }} />
-                    ))}
-                    {remoteMachines.length === 0 && (
-                      <div data-testid="machines-empty" className="w-[268px] shrink-0 rounded-xl border border-dashed border-wc-default bg-wc-surface-base/40 p-5 text-center">
-                        <p className="text-sm font-medium text-wc-text-primary">{fleet?.status === "unenrolled" ? t(strings.machines.unenrolledTitle) : t(strings.machines.emptyTitle)}</p>
-                        <p className="mt-1 text-xs leading-5 text-wc-text-faint">{fleet?.message || t(strings.machines.emptyBody)}</p>
-                        {fleet?.recoveryAction && <p className="mt-2 text-xs text-amber-200/80">{fleet.recoveryAction}</p>}
-                      </div>
-                    )}
-                  </>
-                )}
+              <FleetRail testId="fleet-rail-screens" eyebrow={t(strings.fleet.screens)} description={t(strings.fleet.screensDescription)} count={devicesQuery.data?.length ?? 0}>
+                {(devicesQuery.data ?? []).map((device) => (
+                  <DeviceCard
+                    key={`${device.deviceId}-${device.firstSeenAt}`}
+                    device={device}
+                    onGiveControl={(item) => {
+                      const session = item.sessions.find((attachment) => !attachment.holdsLease);
+                      if (session) giveControl.mutate({ deviceId: item.deviceId, sessionId: session.sessionId });
+                    }}
+                    onDropOld={(item) => { disconnect.mutate({ deviceId: item.deviceId }); }}
+                    onRename={(item) => {
+                      if (!item.isSelf) return;
+                      const label = window.prompt(t(strings.fleet.rename), item.deviceLabel);
+                      if (label?.trim()) rename.mutate(label);
+                    }}
+                  />
+                ))}
               </FleetRail>
             </div>
           </div>
@@ -217,29 +239,30 @@ export default function FleetDrawer({ open, onClose, onStartSession, onInstallCa
         )}
 
         {view.kind === "grant-new" && (
-          <GrantPicker
-            name={view.request.name}
-            presets={presets}
-            mode="link"
-            busy={decide.isPending}
-            onBack={() => { setView({ kind: "review", request: view.request }); }}
-            onConfirm={(preset) => { handleLink(view.request, preset); }}
-          />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-3xl px-5 py-5">
+              <PermissionsTab
+                name={view.request.name}
+                presets={presets}
+                mode="link"
+                busy={decide.isPending}
+                onCancel={() => { setView({ kind: "review", request: view.request }); }}
+                onConfirm={(preset) => { handleLink(view.request, preset); }}
+              />
+            </div>
+          </div>
         )}
 
-        {view.kind === "grant-existing" && (
-          <GrantPicker
-            name={view.machine.target.label}
+        {view.kind === "machine" && (
+          <MachineDetail
+            machine={view.machine}
             presets={presets}
-            initialPreset={view.machine.grant.preset}
-            mode="manage"
-            busy={setGrant.isPending}
+            initialTab={view.tab}
+            savingGrant={setGrant.isPending}
+            onSaveGrant={handleSaveGrant}
             onBack={goList}
-            onConfirm={(preset) => { handleSaveGrant(view.machine, preset); }}
           />
         )}
-
-        {view.kind === "configuration" && <ConfigurationPanel machine={view.machine} onBack={goList} />}
 
         {failure && (
           <div

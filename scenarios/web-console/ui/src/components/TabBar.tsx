@@ -502,6 +502,7 @@ function TabBar({
         data-testid="tab-bar-new"
         variant="ghost"
         size="icon"
+        shape="square"
         className="h-7 w-7 shrink-0 mx-1 self-center"
         disabled={isCreating}
         title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}

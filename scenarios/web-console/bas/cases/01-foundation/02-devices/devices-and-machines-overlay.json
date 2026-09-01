@@ -3,36 +3,226 @@
   "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
   "name": "devices-and-machines-overlay",
   "folder_path": "/bas/cases/01-foundation/02-devices",
-  "description": "Render the Devices & machines overlay with both horizontal population rails",
-  "metadata": { "name": "devices-and-machines-overlay", "description": "Render the Devices & machines overlay with both horizontal population rails", "execution_mode": "mutating", "reset": "full", "labels": { "reset": "full", "requires_confirmation": "true", "routed_isolation": "true", "seed": "seed", "spec_entry_id": "workspace", "requirements_json": "[\"REQ-P1-013c\"]" } },
-  "tags": ["reset:full", "requirements_json:[\"REQ-P1-013c\"]"],
+  "description": "Render the Machines & screens overlay with both horizontal population rails, machines first",
+  "metadata": {
+    "name": "devices-and-machines-overlay",
+    "description": "Render the Machines & screens overlay with both horizontal population rails, machines first",
+    "execution_mode": "mutating",
+    "reset": "full",
+    "labels": {
+      "reset": "full",
+      "requires_confirmation": "true",
+      "routed_isolation": "true",
+      "seed": "seed",
+      "spec_entry_id": "workspace",
+      "requirements_json": "[\"REQ-P1-013c\"]"
+    }
+  },
+  "tags": [
+    "reset:full",
+    "requirements_json:[\"REQ-P1-013c\"]"
+  ],
   "version": 1,
   "flow_definition": {
-    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "settings": {
+      "viewport_width": 1440,
+      "viewport_height": 900
+    },
     "nodes": [
-      { "id": "open-workspace", "action": { "type": "ACTION_TYPE_SUBFLOW", "subflow": { "workflow_path": "actions/open-workspace.json" } } },
-      { "id": "open-fleet", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "[data-testid='toolbar-machines'], [data-testid='workspace-machines']" } } },
-      { "id": "assert-drawer", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/fleet.drawer", "timeout_ms": 10000 } } },
-      { "id": "assert-device-rail", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/fleet.railDevices", "timeout_ms": 10000, "failure_message": "Expected the Devices rail" } } },
-      { "id": "assert-machine-rail", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/fleet.railMachines", "timeout_ms": 10000, "failure_message": "Expected the Machines rail" } } },
-      { "id": "assert-overlay-copy", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const text = document.body.textContent || ''; const ok = text.includes('Devices & machines') && text.includes('Where you are working from, and what you can work on.'); document.body.setAttribute('data-fleet-overlay-copy', ok ? 'true' : 'false'); })()" } } },
-      { "id": "verify-overlay-copy", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-fleet-overlay-copy='true']", "timeout_ms": 5000, "failure_message": "Expected the fleet overlay title and explanatory subtitle" } } },
-      { "id": "assert-device-artwork", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/fleet.deviceSilhouette", "timeout_ms": 10000, "failure_message": "Expected a connected device card with device artwork" } } },
-      { "id": "assert-machine-artwork", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/fleet.machineSilhouette", "timeout_ms": 10000, "failure_message": "Expected a machine card with machine artwork" } } },
-      { "id": "assert-population-artwork", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const devices = [...document.querySelectorAll('[data-testid^=\"fleet-card-device-\"]')]; const machines = [...document.querySelectorAll('[data-testid^=\"fleet-card-machine-\"]')]; const clean = devices.length > 0 && machines.length > 0 && devices.every((card) => !card.querySelector('[data-testid=\"machine-silhouette\"]')) && machines.every((card) => !card.querySelector('[data-testid=\"device-silhouette\"]')); document.body.setAttribute('data-fleet-population-artwork', clean ? 'true' : 'false'); })()" } } },
-      { "id": "verify-population-artwork", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "body[data-fleet-population-artwork='true']", "timeout_ms": 5000, "failure_message": "Device and machine cards must keep their artwork populations distinct" } } }
+      {
+        "id": "open-workspace",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/open-workspace.json"
+          }
+        }
+      },
+      {
+        "id": "open-fleet",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "[data-testid='toolbar-machines'], [data-testid='workspace-machines']"
+          }
+        }
+      },
+      {
+        "id": "assert-drawer",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/fleet.drawer",
+            "timeout_ms": 10000
+          }
+        }
+      },
+      {
+        "id": "assert-screens-rail",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/fleet.railScreens",
+            "timeout_ms": 10000,
+            "failure_message": "Expected the Screens rail"
+          }
+        }
+      },
+      {
+        "id": "assert-machine-rail",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/fleet.railMachines",
+            "timeout_ms": 10000,
+            "failure_message": "Expected the Machines rail"
+          }
+        }
+      },
+      {
+        "id": "assert-shelf-order",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const machines = document.querySelector('[data-testid=\"fleet-rail-machines\"]'); const screens = document.querySelector('[data-testid=\"fleet-rail-screens\"]'); const ok = !!machines && !!screens && (machines.compareDocumentPosition(screens) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0; document.body.setAttribute('data-fleet-shelf-order', ok ? 'true' : 'false'); })()"
+          }
+        }
+      },
+      {
+        "id": "verify-shelf-order",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-fleet-shelf-order='true']",
+            "timeout_ms": 5000,
+            "failure_message": "Expected the machines shelf to lead the screens shelf"
+          }
+        }
+      },
+      {
+        "id": "assert-overlay-copy",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const text = document.body.textContent || ''; const ok = text.includes('Machines & screens') && text.includes('What you can work on, and where you are working from.'); document.body.setAttribute('data-fleet-overlay-copy', ok ? 'true' : 'false'); })()"
+          }
+        }
+      },
+      {
+        "id": "verify-overlay-copy",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-fleet-overlay-copy='true']",
+            "timeout_ms": 5000,
+            "failure_message": "Expected the fleet overlay title and explanatory subtitle"
+          }
+        }
+      },
+      {
+        "id": "assert-device-artwork",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/fleet.deviceSilhouette",
+            "timeout_ms": 10000,
+            "failure_message": "Expected a connected screen card with device artwork"
+          }
+        }
+      },
+      {
+        "id": "assert-machine-artwork",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "@selector/fleet.machineSilhouette",
+            "timeout_ms": 10000,
+            "failure_message": "Expected a machine card with machine artwork"
+          }
+        }
+      },
+      {
+        "id": "assert-population-artwork",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(() => { const devices = [...document.querySelectorAll('[data-testid^=\"fleet-card-device-\"]')]; const machines = [...document.querySelectorAll('[data-testid^=\"fleet-card-machine-\"]')]; const clean = devices.length > 0 && machines.length > 0 && devices.every((card) => !card.querySelector('[data-testid=\"machine-silhouette\"]')) && machines.every((card) => !card.querySelector('[data-testid=\"device-silhouette\"]')); document.body.setAttribute('data-fleet-population-artwork', clean ? 'true' : 'false'); })()"
+          }
+        }
+      },
+      {
+        "id": "verify-population-artwork",
+        "action": {
+          "type": "ACTION_TYPE_ASSERT",
+          "assert": {
+            "selector": "body[data-fleet-population-artwork='true']",
+            "timeout_ms": 5000,
+            "failure_message": "Device and machine cards must keep their artwork populations distinct"
+          }
+        }
+      }
     ],
     "edges": [
-      { "id": "e1", "source": "open-workspace", "target": "open-fleet", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e2", "source": "open-fleet", "target": "assert-drawer", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e3", "source": "assert-drawer", "target": "assert-device-rail", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e4", "source": "assert-device-rail", "target": "assert-machine-rail", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e5", "source": "assert-machine-rail", "target": "assert-overlay-copy", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e6", "source": "assert-overlay-copy", "target": "verify-overlay-copy", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e7", "source": "verify-overlay-copy", "target": "assert-device-artwork", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e8", "source": "assert-device-artwork", "target": "assert-machine-artwork", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e9", "source": "assert-machine-artwork", "target": "assert-population-artwork", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
-      { "id": "e10", "source": "assert-population-artwork", "target": "verify-population-artwork", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+      {
+        "id": "e1",
+        "source": "open-workspace",
+        "target": "open-fleet",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e2",
+        "source": "open-fleet",
+        "target": "assert-drawer",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e3",
+        "source": "assert-drawer",
+        "target": "assert-device-rail",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e4",
+        "source": "assert-device-rail",
+        "target": "assert-machine-rail",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e5",
+        "source": "assert-machine-rail",
+        "target": "assert-overlay-copy",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e6",
+        "source": "assert-overlay-copy",
+        "target": "verify-overlay-copy",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e7",
+        "source": "verify-overlay-copy",
+        "target": "assert-device-artwork",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e8",
+        "source": "assert-device-artwork",
+        "target": "assert-machine-artwork",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e9",
+        "source": "assert-machine-artwork",
+        "target": "assert-population-artwork",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e10",
+        "source": "assert-population-artwork",
+        "target": "verify-population-artwork",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      }
     ]
   }
 }

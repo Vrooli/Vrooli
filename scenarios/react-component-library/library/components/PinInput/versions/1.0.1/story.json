@@ -1,7 +1,0 @@
-{
-  "schemaVersion": 5,
-  "kind": "component",
-  "args": { "fields": [{ "path": "length", "kind": "number", "label": "Length" }, { "path": "label", "kind": "text", "label": "Label" }] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "grouped-code", "name": "Grouped code", "args": {}, "expect": [{ "kind": "visible", "selector": "body" }] }]
-}

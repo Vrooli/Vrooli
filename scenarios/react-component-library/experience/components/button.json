@@ -9,20 +9,26 @@
     "storyRef": "../../library/components/Button/versions/2.2.4/story.json"
   },
   "states": [
-    { "id": "primary", "example": "primary", "description": "Primary action." },
     {
-      "id": "disabled",
-      "example": "disabled-long-label",
+      "id": "primary",
+      "example": "primary",
+      "description": "Primary action."
+    },
+    {
+      "id": "disabled-long-label",
       "description": "Disabled action with a retained label."
     },
     {
-      "id": "icon-start",
-      "example": "start-icon",
+      "id": "start-icon",
       "description": "Icon-leading action with deliberate icon-to-label spacing."
     }
   ],
   "elements": [
-    { "id": "action", "role": "button", "description": "The native button." },
+    {
+      "id": "action",
+      "role": "button",
+      "description": "The native button."
+    },
     {
       "id": "icon",
       "role": "x-icon",
@@ -40,25 +46,41 @@
       "type": "element-present",
       "statement": "The primary story exposes a named button action.",
       "tier": "machine",
-      "elements": ["action"],
-      "states": ["primary"]
+      "elements": [
+        "action"
+      ],
+      "states": [
+        "primary"
+      ]
     },
     {
       "id": "start-icon-spacing",
       "type": "spacing",
       "statement": "A leading icon and its action label maintain a visible inline separation.",
       "tier": "machine",
-      "elements": ["icon", "label"],
-      "states": ["icon-start"],
-      "params": { "axis": "inline", "minSeparation": 4 }
+      "elements": [
+        "icon",
+        "label"
+      ],
+      "states": [
+        "start-icon"
+      ],
+      "params": {
+        "axis": "inline",
+        "minSeparation": 4
+      }
     },
     {
       "id": "primary-state-contrast",
       "type": "state-contrast",
       "statement": "The primary action keeps its foreground legible against its rendered surface.",
       "tier": "machine",
-      "elements": ["action"],
-      "states": ["primary"],
+      "elements": [
+        "action"
+      ],
+      "states": [
+        "primary"
+      ],
       "params": {
         "background": "action",
         "state": "rest",
@@ -70,15 +92,25 @@
       "type": "manual-review",
       "statement": "The disabled action retains its visible label and cannot be activated.",
       "tier": "manual",
-      "elements": ["action"],
-      "states": ["disabled"]
+      "elements": [
+        "action"
+      ],
+      "states": [
+        "disabled-long-label"
+      ]
     }
   ],
   "bindings": {
     "elements": {
-      "action": { "testid": "button-action" },
-      "icon": { "testid": "button-icon" },
-      "label": { "testid": "button-label" }
+      "action": {
+        "testid": "button-action"
+      },
+      "icon": {
+        "testid": "button-icon"
+      },
+      "label": {
+        "testid": "button-label"
+      }
     }
   }
 }

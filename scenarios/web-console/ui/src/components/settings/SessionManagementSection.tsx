@@ -420,6 +420,7 @@ export default function SessionManagementSection({
                         data-testid={`sessions-pane-up-${pane.sessionId}`}
                         variant="ghost"
                         size="icon"
+                        shape="square"
                         className="h-8 w-8"
                         disabled={index === 0}
                         onClick={() => {
@@ -438,6 +439,7 @@ export default function SessionManagementSection({
                         data-testid={`sessions-pane-down-${pane.sessionId}`}
                         variant="ghost"
                         size="icon"
+                        shape="square"
                         className="h-8 w-8"
                         disabled={index === panes.length - 1}
                         onClick={() => {
@@ -456,6 +458,7 @@ export default function SessionManagementSection({
                         data-testid={`sessions-pane-focus-${pane.sessionId}`}
                         variant="ghost"
                         size="icon"
+                        shape="square"
                         className="h-8 w-8"
                         onClick={() => {
                           setActivePane(pane.sessionId);
@@ -470,6 +473,7 @@ export default function SessionManagementSection({
                         data-testid={`sessions-pane-remove-${pane.sessionId}`}
                         variant="ghost"
                         size="icon"
+                        shape="square"
                         className="h-8 w-8"
                         onClick={() => onDeleteSession(pane.sessionId)}
                         title={t(strings.settings.sessionsSection.terminateSession)}

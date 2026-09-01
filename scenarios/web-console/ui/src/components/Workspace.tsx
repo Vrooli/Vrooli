@@ -1998,6 +1998,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 data-testid="tabbar-machines"
                 variant="ghost"
                 size="icon"
+                shape="square"
                 className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
                 onClick={() => { setMachinesOpen(true); }}
                 aria-label={t(strings.fleet.openAriaLabel)}
@@ -2009,6 +2010,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
                 data-testid="tabbar-settings"
                 variant="ghost"
                 size="icon"
+                shape="square"
                 className="h-11 w-11 shrink-0 mx-1 self-center md:h-7 md:w-7"
                 onClick={() => { workspace.setSettingsModalOpen(true); }}
                 title={t(strings.workspace.settingsTitle)}
@@ -2029,6 +2031,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               data-testid="workspace-sidebar-toggle"
               variant="ghost"
               size="icon"
+              shape="square"
               className="relative h-8 w-8"
               onClick={() => { setMobileSidebarOpen(true); }}
               title={t(strings.sessionSidebar.open)}
@@ -2067,6 +2070,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             <Button
               variant="ghost"
               size="icon"
+              shape="square"
               className="h-8 w-8"
               disabled={isCreating}
               onClick={() => {
@@ -2084,6 +2088,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               data-testid="workspace-machines"
               variant="ghost"
               size="icon"
+              shape="square"
               className="h-8 w-8"
               onClick={() => { setMachinesOpen(true); }}
                 aria-label={t(strings.fleet.openAriaLabel)}
@@ -2094,6 +2099,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
             <Button
               variant="ghost"
               size="icon"
+              shape="square"
               className="h-8 w-8"
               onClick={() => { workspace.setSettingsModalOpen(true); }}
               title={t(strings.workspace.settingsTitle)}

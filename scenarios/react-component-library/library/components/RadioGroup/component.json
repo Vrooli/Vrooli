@@ -8,13 +8,25 @@
     "1.0.3",
     "1.0.5"
   ],
+  "description": "The single-selection collection with roving focus, optional card-style options carrying descriptions, disabled choices, responsive layout, and animated selection.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "RadioGroup",
   "draft": "",
   "evictedVersions": [
     "1.0.4",
     "1.0.2",
     "1.0.3",
-    "1.0.5"
+    "1.0.5",
+    "1.1.0",
+    "1.0.6"
   ],
-  "latest": "1.0.6",
-  "libraryId": "react-component-library:RadioGroup"
+  "latest": "1.2.0",
+  "libraryId": "react-component-library:RadioGroup",
+  "tags": []
 }

@@ -2,6 +2,7 @@ import { Button } from "../ui/button";
 import { DeviceSilhouette } from "../terminal/device/DeviceSilhouette";
 import type { DeviceArchetype } from "../../lib/deviceArchetype";
 import FleetCard from "./FleetCard";
+import type { StatusTone } from "@vrooli/react-component-library/StatusBadge/1";
 import { useTranslation } from "react-i18next";
 import { strings } from "../../consts/strings";
 
@@ -37,28 +38,28 @@ export function DeviceCard({ device, onGiveControl, onRename, onDropOld, onForge
 }) {
   const { t } = useTranslation();
   const state = cardState(device);
-  const stateCopy: Record<DeviceCardState, { label: string; tone: "accent" | "muted" | "warning" | "faint" }> = {
-    "in-control": { label: t(strings.fleet.inControl), tone: "accent" },
-    following: { label: t(strings.fleet.following), tone: "muted" },
-    idle: { label: t(strings.fleet.idle), tone: "muted" },
+  const stateCopy: Record<DeviceCardState, { label: string; tone: StatusTone }> = {
+    "in-control": { label: t(strings.fleet.inControl), tone: "info" },
+    following: { label: t(strings.fleet.following), tone: "neutral" },
+    idle: { label: t(strings.fleet.idle), tone: "neutral" },
     reconnecting: { label: t(strings.fleet.reconnecting), tone: "warning" },
-    "not-connected": { label: t(strings.fleet.notConnected), tone: "faint" },
+    "not-connected": { label: t(strings.fleet.notConnected), tone: "neutral" },
   };
   const copy = stateCopy[state];
   const driving = device.sessions.find((session) => session.holdsLease)?.sessionId;
   return (
     <FleetCard
       testId={`fleet-card-device-${device.deviceId}`}
-      title={device.deviceLabel || t(strings.fleet.unnamedDevice)}
+      title={device.deviceLabel || t(strings.fleet.unnamedScreen)}
       meta={device.isSelf ? t(strings.fleet.you) : undefined}
-      state={copy.label}
-      stateTone={copy.tone}
+      status={copy.label}
+      statusTone={copy.tone}
       silhouette={<DeviceSilhouette archetype={archetype(device.deviceClass)} keyboardShare={0} kbOpen={false} screenLit={state === "in-control"} />}
       actions={(
         <>
           {state === "following" && onGiveControl && <Button size="sm" className="min-h-11" onClick={() => { onGiveControl(device); }}>{t(strings.fleet.giveControl)}</Button>}
           {state === "reconnecting" && onDropOld && <Button size="sm" variant="outline" className="min-h-11" onClick={() => { onDropOld(device); }}>{t(strings.fleet.dropOld)}</Button>}
-          {state === "not-connected" && onForget && <Button size="sm" variant="outline" className="min-h-11" onClick={() => { onForget(device); }}>{t(strings.fleet.forgetDevice)}</Button>}
+          {state === "not-connected" && onForget && <Button size="sm" variant="outline" className="min-h-11" onClick={() => { onForget(device); }}>{t(strings.fleet.forgetScreen)}</Button>}
           {onRename && <Button size="sm" variant="ghost" className="min-h-11" onClick={() => { onRename(device); }}>{t(strings.fleet.rename)}</Button>}
         </>
       )}

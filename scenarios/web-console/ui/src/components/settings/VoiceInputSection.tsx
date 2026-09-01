@@ -1003,6 +1003,7 @@ export default function VoiceInputSection() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            shape="square"
                             className="h-6 w-6"
                             title={t(strings.settings.voiceInputSection.playSample)}
                             onClick={() => isPlaying ? undefined : playWwSample(i)}
@@ -1014,6 +1015,7 @@ export default function VoiceInputSection() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          shape="square"
                           className="h-6 w-6"
                           title={t(strings.settings.voiceInputSection.reRecord)}
                           onClick={() => { removeWwSample(i); void startWwRecording(i); }}
@@ -1024,6 +1026,7 @@ export default function VoiceInputSection() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          shape="square"
                           className="h-6 w-6"
                           title={t(strings.settings.voiceInputSection.remove)}
                           onClick={() => removeWwSample(i)}
@@ -1035,6 +1038,7 @@ export default function VoiceInputSection() {
                       <Button
                         variant="outline"
                         size="sm"
+                        shape="square"
                         className="h-6 px-2 text-[10px]"
                         onClick={stopWwRecording}
                       >
@@ -1045,6 +1049,7 @@ export default function VoiceInputSection() {
                       <Button
                         variant="outline"
                         size="sm"
+                        shape="square"
                         className="h-6 px-2 text-[10px]"
                         onClick={() => void startWwRecording(i)}
                         disabled={wwRecordingIdx !== null}
@@ -1261,6 +1266,7 @@ export default function VoiceInputSection() {
                   data-testid="speaker-refresh"
                   variant="ghost"
                   size="icon"
+                  shape="square"
                   className="h-8 w-8"
                   onClick={() => void loadSpeakerStatus()}
                   title={t(strings.settings.voiceInputSection.refreshSpeakerTitle)}
@@ -1459,6 +1465,7 @@ export default function VoiceInputSection() {
                           <Button
                             variant="ghost"
                             size="icon"
+                            shape="square"
                             className="h-6 w-6"
                             title={t(strings.settings.voiceInputSection.addToActiveTitle)}
                             onClick={() => {
@@ -1472,6 +1479,7 @@ export default function VoiceInputSection() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          shape="square"
                           className="h-6 w-6"
                           title={t(strings.settings.voiceInputSection.reEnrollTitle, { name: profile.display_name })}
                           onClick={() => {
@@ -1486,6 +1494,7 @@ export default function VoiceInputSection() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          shape="square"
                           className="h-6 w-6"
                           title={t(strings.settings.voiceInputSection.deleteProfileTitle, { name: profile.display_name })}
                           onClick={() => void deleteProfile(profile.id)}
@@ -1536,6 +1545,7 @@ export default function VoiceInputSection() {
                 data-testid="voice-shortcut-change"
                 variant="ghost"
                 size="icon"
+                shape="square"
                 className="h-8 w-8"
                 onClick={() => setRecordingShortcut(true)}
                 title={t(strings.settings.voiceInputSection.changeShortcut)}
@@ -1558,6 +1568,7 @@ export default function VoiceInputSection() {
             data-testid="voice-caps-refresh"
             variant="ghost"
             size="icon"
+            shape="square"
             className="h-8 w-8"
             onClick={() => void loadVoiceCaps()}
             title={t(strings.settings.voiceInputSection.refreshTitle)}

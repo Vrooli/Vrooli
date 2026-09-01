@@ -448,6 +448,26 @@ describe("MobileToolbar — modifiers and optional actions", () => {
     window.localStorage.clear();
   });
 
+  it("keeps every toolbar key square, because a keypad is a grid", () => {
+    // Shape doctrine (see components/ui/button.tsx and the library Button's
+    // `shape` prop): pill is for controls that act, square is for controls
+    // that repeat. The toolbar is case S1 — identical caps tiled in a strip,
+    // sized by the grid rather than by their own label — so a pill here would
+    // both round off the grid and spend width the keys need.
+    //
+    // This is easy to regress silently: `ControlBase` applies `borderRadius`
+    // as an inline style, so a Tailwind `rounded` class in the call site's
+    // className is inert against it and would not hold the line.
+    setToolbarPrefs({ preset: "dense", density: "compact", arrows: "inline", enabled: { ai: true } });
+    renderToolbar({ onInput: vi.fn(() => ({ status: "sent" as const, offset: 1 })) });
+
+    const keys = document.querySelectorAll('[data-testid^="toolbar-key-"], [data-testid^="toolbar-mod-"]');
+    expect(keys.length).toBeGreaterThan(0);
+    for (const key of keys) {
+      expect(key).toHaveAttribute("data-control-shape", "square");
+    }
+  });
+
   it("applies a modifier to a toolbar key and clears it after sending", () => {
     setToolbarPrefs({ preset: "dense", density: "compact", arrows: "inline", enabled: { ai: true } });
     useWorkspaceStore.setState({ aiSuggestActive: false });

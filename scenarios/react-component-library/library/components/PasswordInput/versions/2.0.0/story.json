@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "PasswordInput",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Reveal lives inside the field",
+      "role": "anatomy",
+      "mode": "live",
+      "description": "The border, radius and focus ring belong to the group, so the reveal control sits inside the same outline as the text rather than beside it. This is the whole difference between 2.0 and the 1.x stub.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "interactions": [{ "kind": "settle" }],
+      "expect": [
+        { "kind": "visible", "selector": "[data-rcl-input-group]" },
+        { "kind": "count", "selector": "[data-rcl-input-group] [data-rcl-input]", "value": "1" },
+        { "kind": "count", "selector": "[data-rcl-input-group] [data-rcl-input-group-action]", "value": "1" },
+        { "kind": "attribute", "selector": "[data-testid='story-password-input']", "attribute": "type", "value": "password" },
+        { "kind": "role", "role": "button", "name": "Show password" }
+      ]
+    },
+    {
+      "id": "reveal-toggle",
+      "name": "Revealing swaps the type and the control's own state",
+      "role": "boundary",
+      "mode": "live",
+      "description": "A reveal that only changed the icon would leave the value masked. The input's type is what actually unmasks it, and aria-pressed is what tells a screen reader the secret is now on screen.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Default" } },
+      "interactions": [
+        { "kind": "click", "target": { "selector": "[data-testid='story-password-reveal']" } },
+        { "kind": "settle" }
+      ],
+      "expect": [
+        { "kind": "attribute", "selector": "[data-testid='story-password-input']", "attribute": "type", "value": "text" },
+        { "kind": "attribute", "selector": "[data-testid='story-password-reveal']", "attribute": "aria-pressed", "value": "true" },
+        { "kind": "role", "role": "button", "name": "Hide password" }
+      ]
+    },
+    {
+      "id": "write-only",
+      "name": "A sealed value offers no way to read it",
+      "role": "boundary",
+      "mode": "live",
+      "description": "revealable=false renders no reveal control at all. A disabled one would be wrong: the field is still writable, and only reading is withheld.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "WriteOnly" } },
+      "interactions": [{ "kind": "settle" }],
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='story-sealed-input']" },
+        { "kind": "count", "selector": "[data-rcl-input-group-action]", "value": "0" },
+        { "kind": "attribute", "selector": "[data-testid='story-sealed-input']", "attribute": "type", "value": "password" }
+      ]
+    },
+    {
+      "id": "invalid",
+      "name": "An error recolours the shared border",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Tone is derived from error rather than asked for twice, so a caller cannot state an error and a valid-looking field at the same time.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Invalid" } },
+      "interactions": [{ "kind": "settle" }],
+      "expect": [
+        { "kind": "attribute", "selector": "[data-testid='story-invalid-group']", "attribute": "data-tone", "value": "invalid" },
+        { "kind": "attribute", "selector": "[data-testid='story-invalid-input']", "attribute": "aria-invalid", "value": "true" },
+        { "kind": "text", "value": "This machine rejected the password." }
+      ]
+    },
+    {
+      "id": "bare",
+      "name": "No label means no FormField",
+      "role": "boundary",
+      "mode": "live",
+      "description": "Omitting label yields the bare control, which is what a caller passes as FormField's own control. Wrapping unconditionally would nest two label rows.",
+      "args": {},
+      "composition": { "specimen": { "module": "./story.tsx", "export": "Bare" } },
+      "interactions": [{ "kind": "settle" }],
+      "expect": [
+        { "kind": "visible", "selector": "[data-testid='story-bare-input']" },
+        { "kind": "count", "selector": "[data-rcl-form-field]", "value": "0" }
+      ]
+    }
+  ]
+}

@@ -25,12 +25,24 @@ import FleetDrawer from "../FleetDrawer";
 describe("FleetDrawer", () => {
   beforeEach(async () => { await setLocale("en"); });
 
-  it("renders device and machine populations on separate labelled rails", () => {
+  it("renders machine and screen populations on separate labelled rails", () => {
     render(<FleetDrawer open onClose={vi.fn()} />);
-    expect(screen.getByTestId("fleet-rail-devices")).toBeInTheDocument();
     expect(screen.getByTestId("fleet-rail-machines")).toBeInTheDocument();
-    expect(screen.getByText("Devices")).toBeInTheDocument();
+    expect(screen.getByTestId("fleet-rail-screens")).toBeInTheDocument();
     expect(screen.getByText("Machines")).toBeInTheDocument();
+    // "Screens", not "Devices": this shelf lists browsers attached to this
+    // console, and the device-control scenario has a different claim on the
+    // word for the physical things it drives.
+    expect(screen.getByText("Screens")).toBeInTheDocument();
+  });
+
+  it("leads with the machines shelf, because starting a session is the errand", () => {
+    render(<FleetDrawer open onClose={vi.fn()} />);
+    const machines = screen.getByTestId("fleet-rail-machines");
+    const screens = screen.getByTestId("fleet-rail-screens");
+    // Ordering shelves by errand frequency is what puts a primary action on
+    // the shelf the drawer opens on.
+    expect(machines.compareDocumentPosition(screens) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("places pending join requests before linked machines in the machines rail", () => {

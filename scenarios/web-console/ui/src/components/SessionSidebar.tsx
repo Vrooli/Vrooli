@@ -355,6 +355,7 @@ export default function SessionSidebar({
           data-testid="workspace-sidebar-new"
           variant="ghost"
           size="icon"
+          shape="square"
           className="h-8 w-8 shrink-0"
           disabled={isCreating}
           title={plusButtonBehavior === "launcher" ? t(strings.floatingToolbar.launcherFirstTitle) : t(strings.floatingToolbar.terminalFirstTitle)}
@@ -369,6 +370,7 @@ export default function SessionSidebar({
           data-testid="workspace-sidebar-settings"
           variant="ghost"
           size="icon"
+          shape="square"
           className="h-11 w-11 shrink-0 md:h-8 md:w-8"
           onClick={onOpenSettings}
           title={t(strings.workspace.settingsTitle)}
@@ -380,6 +382,7 @@ export default function SessionSidebar({
             data-testid="workspace-sidebar-close"
             variant="ghost"
             size="icon"
+            shape="square"
             className="h-8 w-8"
             onClick={onCloseMobile}
             title={t(strings.sessionSidebar.close)}
