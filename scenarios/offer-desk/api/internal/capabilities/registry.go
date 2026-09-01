@@ -2,15 +2,7 @@
 // the generated scenario's machine-readable capability surface.
 package capabilities
 
-import (
-	"context"
-	"encoding/json"
-	"os/exec"
-	"strings"
-	"time"
-
-	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
-)
+import capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
 
 type (
 	Def      = capabilityregistry.Def
@@ -25,41 +17,11 @@ const (
 	ActionKindScenarioStart = capabilityregistry.ActionKindScenarioStart
 )
 
-var Known = []Def{
-	{
-		ID: "audio-tools", Name: "Audio Tools",
-		Description:    "Optional shared voice input and audio output for this scenario.",
-		DependencyKind: capabilityregistry.DependencyScenario, DependencySlug: "audio-tools",
-		ActionKind: ActionKindScenarioStart, ActionLabel: "Start Audio Tools",
-		OperatorCommand: "vrooli scenario start audio-tools --json",
-		Features:        []string{"voice-input", "voice-output"},
-		Platform:        capabilityregistry.PlatformVerdict{Support: capabilityregistry.PlatformDegraded, Reason: "optional audio capability depends on the selected provider and host media path"},
-	},
-}
-
-type ScenarioChecker struct{}
-
-func (ScenarioChecker) Check(context.Context) (capabilityregistry.Status, string) {
-	output, err := exec.Command("vrooli", "scenario", "status", "audio-tools", "--json").Output()
-	if err != nil {
-		return capabilityregistry.StatusUnavailable, "audio-tools is unavailable; start it with the operator action"
-	}
-	var payload struct {
-		Scenario struct {
-			Status string `json:"status"`
-		} `json:"scenario"`
-	}
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return capabilityregistry.StatusUnavailable, "audio-tools status was not valid JSON"
-	}
-	if strings.EqualFold(payload.Scenario.Status, "running") || strings.EqualFold(payload.Scenario.Status, "healthy") {
-		return capabilityregistry.StatusAvailable, "audio-tools is healthy"
-	}
-	return capabilityregistry.StatusUnavailable, "audio-tools is not running; start it with the operator action"
-}
+// Known is intentionally empty. Offer Desk owns its graph and does not probe
+// optional scenario processes through shell commands; dependency lifecycle is
+// the control plane's responsibility.
+var Known = []Def{}
 
 func NewRegistry() *Registry {
-	return capabilityregistry.New(Known, map[string]capabilityregistry.Checker{
-		"audio-tools": ScenarioChecker{},
-	}, 5*time.Second)
+	return capabilityregistry.New(Known, nil, 0)
 }

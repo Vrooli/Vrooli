@@ -10,7 +10,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe("release ladder states", () => {
   it("renders the ordered ladder and operator rank mutation", async () => {
-    api.fetchReleaseLadder.mockResolvedValue({ entries: [{ deliverable: { id: "d1", name: "Console", releaseRank: 1 }, unlockedRamps: [{ name: "desktop" }], unlockedStreams: [{ name: "voice_minutes" }], audiences: [{ name: "developer" }], cumulativeRamps: [{ name: "desktop" }] }] });
+    api.fetchReleaseLadder.mockResolvedValue({ entries: [{ deliverable: { id: "d1", name: "Console", releaseRank: 1 }, unlockedRamps: [{ name: "desktop" }], unlockedStreams: [{ name: "voice_minutes" }], audiences: [{ name: "developer" }], cumulativeRamps: [{ name: "desktop" }], goalImpacts: [{ goalName: "console-readiness", deliverableName: "Console", projectedPriority: 0 }] }] });
     api.setReleaseRank.mockResolvedValue({});
     renderWithProviders(<ReleaseLadderPage />);
     expect(await screen.findByRole("row", { name: /Console/ })).toBeVisible();
@@ -19,6 +19,15 @@ describe("release ladder states", () => {
     fireEvent.change(screen.getByLabelText("Release rank"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "Save rank" }));
     await waitFor(() => expect(api.setReleaseRank).toHaveBeenCalledWith({ nodeId: "d1", releaseRank: 2 }));
+  });
+
+  it("shows goals whose projected priority follows the release graph", async () => {
+    api.fetchReleaseLadder.mockResolvedValue({ entries: [{ deliverable: { id: "d1", name: "Console", releaseRank: 1 }, goalImpacts: [{ goalName: "console-readiness", goalTitle: "Console readiness", deliverableName: "Console", projectedPriority: 0 }] }] });
+    renderWithProviders(<ReleaseLadderPage />);
+    await screen.findByRole("row", { name: /Console/ });
+    fireEvent.click(screen.getByRole("button", { name: "What moves" }));
+    expect(await screen.findByText("console-readiness")).toBeVisible();
+    expect(screen.getByText(/projected priority 0/)).toBeVisible();
   });
 
   it("distinguishes an empty ladder from a request error", async () => {

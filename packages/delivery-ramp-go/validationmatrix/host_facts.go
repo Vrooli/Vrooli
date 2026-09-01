@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/vrooli/nodeclient"
+	"github.com/vrooli/api-core/nodereach"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
@@ -79,7 +79,7 @@ type HostProber interface {
 // unaware of Bridge's generated Connect transports while retaining the legacy
 // dispatchHostProber below for in-process test doubles.
 type nodeHostProber struct {
-	client *nodeclient.Client
+	client *nodereach.Client
 	ttl    time.Duration
 	now    func() time.Time
 
@@ -87,7 +87,7 @@ type nodeHostProber struct {
 	cache map[string]cachedHostFacts
 }
 
-func newNodeHostProber(client *nodeclient.Client) *nodeHostProber {
+func newNodeHostProber(client *nodereach.Client) *nodeHostProber {
 	return &nodeHostProber{client: client, ttl: HostFactsTTL, now: time.Now, cache: map[string]cachedHostFacts{}}
 }
 
@@ -98,7 +98,7 @@ func (p *nodeHostProber) ProbeHost(ctx context.Context, nodeID string) (HostFact
 	if cached, ok := p.cached(nodeID); ok {
 		return cached.facts, cached.err
 	}
-	response, err := p.client.Call(ctx, nodeclient.CallRequest{NodeID: nodeID, Command: hostProbeVerb, Args: hostProbeArgs, Timeout: 120 * time.Second})
+	response, err := p.client.Call(ctx, nodereach.CallRequest{NodeID: nodeID, Command: hostProbeVerb, Args: hostProbeArgs, Timeout: 120 * time.Second})
 	if err == nil && response.Outcome != 1 {
 		err = fmt.Errorf("host probe failed: %s", response.Reason)
 	}

@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/vrooli/nodeclient"
+	"github.com/vrooli/api-core/nodereach"
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
@@ -45,7 +45,7 @@ type Runs interface {
 type Client struct {
 	// node is the production transport. The legacy seams below remain only for
 	// focused tests that exercise the matrix without a live Bridge.
-	node       *nodeclient.Client
+	node       *nodereach.Client
 	registry   Registry
 	dispatcher Dispatcher
 	runs       Runs
@@ -72,7 +72,7 @@ func WithHostProber(prober HostProber) ClientOption {
 }
 
 func NewClient(baseURL, token string, httpClient *http.Client, options ...ClientOption) *Client {
-	client := &Client{node: nodeclient.New(nodeclient.Config{HTTPClient: httpClient, BridgeURL: baseURL, Token: token})}
+	client := &Client{node: nodereach.New(nodereach.Config{HTTPClient: httpClient, BridgeURL: baseURL, Token: token})}
 	for _, option := range options {
 		option(client)
 	}
@@ -223,7 +223,7 @@ func (c *Client) executeNode(ctx context.Context, request CellRequest) CellResul
 	if command == "" {
 		command = DefaultCommand
 	}
-	dispatched, err := c.node.Dispatch(ctx, nodeclient.DispatchRequest{NodeID: nodeID, Scenario: request.Cell.GetScenarioName(), Verb: command, Args: request.Args, Timeout: 120 * time.Second})
+	dispatched, err := c.node.Dispatch(ctx, nodereach.DispatchRequest{NodeID: nodeID, Scenario: request.Cell.GetScenarioName(), Verb: command, Args: request.Args, Timeout: 120 * time.Second})
 	if err != nil {
 		return CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_UNAVAILABLE, Reason: fmt.Sprintf("bridge dispatch unavailable: %v", err), Retryable: true}
 	}

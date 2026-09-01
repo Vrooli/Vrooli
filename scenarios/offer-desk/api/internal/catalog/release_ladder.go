@@ -21,19 +21,23 @@ func (s *Store) SetReleaseRank(ctx context.Context, nodeID string, rank int32, a
 		return nil, 0, errors.New("release rank requires an actor")
 	}
 	var n offerspb.Node
-	var kind, status int32
+	var kind, status, class, finish int32
 	var created string
-	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank FROM nodes WHERE id=?`, nodeID).
-		Scan(&n.Id, &kind, &n.Name, &status, &n.TriggerId, &created, &n.ActualAccountId, &n.ReleaseRank); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank,deliverable_class,finish_bar FROM nodes WHERE id=?`, nodeID).
+		Scan(&n.Id, &kind, &n.Name, &status, &n.TriggerId, &created, &n.ActualAccountId, &n.ReleaseRank, &class, &finish); err != nil {
 		return nil, 0, fmt.Errorf("node %q not found: %w", nodeID, err)
 	}
 	n.Kind, n.Status = offerspb.NodeKind(kind), offerspb.Status(status)
+	n.DeliverableClass, n.FinishBar = offerspb.DeliverableClass(class), offerspb.FinishBar(finish)
 	if n.Kind != offerspb.NodeKind_DELIVERABLE {
 		return nil, 0, errors.New("release rank applies only to deliverable nodes")
 	}
+	if n.DeliverableClass == offerspb.DeliverableClass_ENABLING && rank > 0 {
+		return nil, 0, fmt.Errorf("rule enabling_deliverables_are_unranked refused rank %d for %q; reclassify it as MARKETED to put it on the schedule", rank, n.Name)
+	}
 	if rank > 0 {
 		var other string
-		if err := s.db.QueryRowContext(ctx, `SELECT id FROM nodes WHERE kind=? AND release_rank=? AND id<>? AND status<>? LIMIT 1`, int32(offerspb.NodeKind_DELIVERABLE), rank, nodeID, int32(offerspb.Status_RETIRED)).Scan(&other); err == nil {
+		if err := s.db.QueryRowContext(ctx, `SELECT id FROM nodes WHERE kind=? AND deliverable_class=? AND release_rank=? AND id<>? AND status<>? LIMIT 1`, int32(offerspb.NodeKind_DELIVERABLE), int32(offerspb.DeliverableClass_MARKETED), rank, nodeID, int32(offerspb.Status_RETIRED)).Scan(&other); err == nil {
 			return nil, 0, fmt.Errorf("release rank %d is already assigned to deliverable %s", rank, other)
 		}
 	}
@@ -64,6 +68,20 @@ func (s *Store) ReleaseLadder(ctx context.Context, includeRetired bool) (*offers
 	for _, n := range nodes {
 		byID[n.Id] = n
 	}
+	edges, err := s.ListEdges(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	urgency, err := s.derivedUrgencies(nodes, edges)
+	if err != nil {
+		return nil, err
+	}
+	from := make(map[string][]*offerspb.Edge)
+	to := make(map[string][]*offerspb.Edge)
+	for _, edge := range edges {
+		from[edge.FromId] = append(from[edge.FromId], edge)
+		to[edge.ToId] = append(to[edge.ToId], edge)
+	}
 	response := &offerspb.ReleaseLadderResponse{}
 	for _, n := range nodes {
 		switch n.Kind {
@@ -74,17 +92,16 @@ func (s *Store) ReleaseLadder(ctx context.Context, includeRetired bool) (*offers
 		case offerspb.NodeKind_AUDIENCE:
 			response.Audiences = append(response.Audiences, n)
 		}
+		if n.Kind == offerspb.NodeKind_DELIVERABLE && n.DeliverableClass == offerspb.DeliverableClass_ENABLING {
+			response.Enabling = append(response.Enabling, &offerspb.PrerequisiteNode{Node: n, DerivedUrgency: urgency[n.Id]})
+		}
 	}
 	for _, n := range nodes {
 		if n.Kind != offerspb.NodeKind_DELIVERABLE || n.ReleaseRank <= 0 || (!includeRetired && n.Status == offerspb.Status_RETIRED) {
 			continue
 		}
 		entry := &offerspb.ReleaseLadderEntry{Deliverable: n}
-		edges, err := s.ListEdges(ctx, n.Id)
-		if err != nil {
-			return nil, err
-		}
-		for _, e := range edges {
+		for _, e := range from[n.Id] {
 			if e.FromId != n.Id {
 				continue
 			}
@@ -106,15 +123,18 @@ func (s *Store) ReleaseLadder(ctx context.Context, includeRetired bool) (*offers
 				}
 			}
 		}
+		for _, e := range to[n.Id] {
+			if e.Kind == "enables" {
+				if source := byID[e.FromId]; source != nil && source.Kind == offerspb.NodeKind_DELIVERABLE && source.DeliverableClass == offerspb.DeliverableClass_ENABLING {
+					entry.Enablers = append(entry.Enablers, &offerspb.PrerequisiteNode{Node: source, DerivedUrgency: urgency[source.Id], Depth: 1, Path: []string{n.Name, source.Name}})
+				}
+			}
+		}
 		for _, prior := range nodes {
 			if prior.Kind != offerspb.NodeKind_DELIVERABLE || prior.ReleaseRank <= 0 || prior.ReleaseRank > n.ReleaseRank {
 				continue
 			}
-			priorEdges, err := s.ListEdges(ctx, prior.Id)
-			if err != nil {
-				return nil, err
-			}
-			for _, e := range priorEdges {
+			for _, e := range from[prior.Id] {
 				if e.FromId == prior.Id && e.Kind == "unlocks" {
 					if target := byID[e.ToId]; target != nil && target.Kind == offerspb.NodeKind_RAMP {
 						entry.CumulativeRamps = appendUniqueNode(entry.CumulativeRamps, target)
@@ -130,7 +150,66 @@ func (s *Store) ReleaseLadder(ctx context.Context, includeRetired bool) (*offers
 	return response, nil
 }
 
+// DerivedUrgencies resolves enabling urgency from the current graph without
+// persisting a second copy of release priority on any node.
+func (s *Store) DerivedUrgencies(ctx context.Context) (map[string]int32, error) {
+	nodes, err := s.ListNodes(ctx, offerspb.NodeKind_NODE_KIND_UNSPECIFIED, offerspb.Status_STATUS_UNSPECIFIED)
+	if err != nil {
+		return nil, err
+	}
+	edges, err := s.ListEdges(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	return s.derivedUrgencies(nodes, edges)
+}
+
+func (s *Store) derivedUrgencies(nodes []*offerspb.Node, edges []*offerspb.Edge) (map[string]int32, error) {
+	byID := make(map[string]*offerspb.Node, len(nodes))
+	outgoing := make(map[string][]string)
+	for _, n := range nodes {
+		byID[n.Id] = n
+	}
+	for _, edge := range edges {
+		if edge.Kind == "enables" {
+			outgoing[edge.FromId] = append(outgoing[edge.FromId], edge.ToId)
+		}
+	}
+	urgency := make(map[string]int32, len(nodes))
+	var visit func(string, map[string]bool) int32
+	visit = func(id string, path map[string]bool) int32 {
+		if value, ok := urgency[id]; ok {
+			return value
+		}
+		if path[id] {
+			return 0
+		}
+		path[id] = true
+		defer delete(path, id)
+		best := int32(0)
+		if n := byID[id]; n != nil && n.Kind == offerspb.NodeKind_DELIVERABLE && n.DeliverableClass == offerspb.DeliverableClass_MARKETED && n.ReleaseRank > 0 {
+			best = n.ReleaseRank
+		}
+		for _, downstream := range outgoing[id] {
+			candidate := visit(downstream, path)
+			if candidate > 0 && (best == 0 || candidate < best) {
+				best = candidate
+			}
+		}
+		urgency[id] = best
+		return best
+	}
+	for _, n := range nodes {
+		visit(n.Id, map[string]bool{})
+	}
+	return urgency, nil
+}
+
 func (s *Store) Prerequisites(ctx context.Context, streamID string) (*offerspb.PrerequisiteWalkResponse, error) {
+	return s.PrerequisitesWithOptions(ctx, streamID, 0, false)
+}
+
+func (s *Store) PrerequisitesWithOptions(ctx context.Context, streamID string, maxDepth int32, includeShipped bool) (*offerspb.PrerequisiteWalkResponse, error) {
 	if strings.TrimSpace(streamID) == "" {
 		return nil, errors.New("stream node id is required")
 	}
@@ -141,29 +220,126 @@ func (s *Store) Prerequisites(ctx context.Context, streamID string) (*offerspb.P
 	if offerspb.NodeKind(kind) != offerspb.NodeKind_STREAM {
 		return nil, errors.New("prerequisite walk requires a stream node")
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT n.id,n.kind,n.name,n.status,n.trigger_id,n.created_at,n.actual_account_id,n.release_rank FROM nodes n JOIN edges e ON e.from_id=n.id AND e.to_id=? AND e.kind='unlocks' WHERE n.kind=? ORDER BY n.release_rank,n.id`, streamID, int32(offerspb.NodeKind_DELIVERABLE))
+	if maxDepth <= 0 {
+		maxDepth = 100
+	}
+	return s.prerequisiteWalk(ctx, streamID, maxDepth, includeShipped)
+}
+
+func (s *Store) prerequisiteWalk(ctx context.Context, streamID string, maxDepth int32, includeShipped bool) (*offerspb.PrerequisiteWalkResponse, error) {
+	nodes, err := s.ListNodes(ctx, offerspb.NodeKind_NODE_KIND_UNSPECIFIED, offerspb.Status_STATUS_UNSPECIFIED)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	resp := &offerspb.PrerequisiteWalkResponse{}
-	for rows.Next() {
-		var n offerspb.Node
-		var k, st int32
-		var ts string
-		if err := rows.Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId, &n.ReleaseRank); err != nil {
-			return nil, err
+	byID := make(map[string]*offerspb.Node, len(nodes))
+	for _, n := range nodes {
+		byID[n.Id] = n
+	}
+	if byID[streamID] == nil {
+		return nil, fmt.Errorf("stream node %q not found", streamID)
+	}
+	edges, err := s.ListEdges(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	incoming := map[string][]*offerspb.Edge{}
+	outgoingEnables := map[string][]string{}
+	for _, e := range edges {
+		if e.Kind == "unlocks" || e.Kind == "enables" {
+			incoming[e.ToId] = append(incoming[e.ToId], e)
 		}
-		n.Kind, n.Status = offerspb.NodeKind(k), offerspb.Status(st)
-		if t, e := time.Parse(time.RFC3339Nano, ts); e == nil {
-			n.CreatedAt = timestamppb.New(t)
-		}
-		resp.Deliverables = append(resp.Deliverables, &n)
-		if n.Status != offerspb.Status_SHIPPED {
-			resp.Unshipped = append(resp.Unshipped, &n)
+		if e.Kind == "enables" {
+			outgoingEnables[e.FromId] = append(outgoingEnables[e.FromId], e.ToId)
 		}
 	}
-	return resp, rows.Err()
+	urgency := make(map[string]int32, len(nodes))
+	var urgencyFor func(string, map[string]bool) int32
+	urgencyFor = func(id string, trail map[string]bool) int32 {
+		if value, ok := urgency[id]; ok {
+			return value
+		}
+		if trail[id] {
+			return 0
+		}
+		trail[id] = true
+		defer delete(trail, id)
+		best := int32(0)
+		if n := byID[id]; n != nil && n.Kind == offerspb.NodeKind_DELIVERABLE && n.DeliverableClass == offerspb.DeliverableClass_MARKETED && n.ReleaseRank > 0 {
+			best = n.ReleaseRank
+		}
+		for _, downstream := range outgoingEnables[id] {
+			candidate := urgencyFor(downstream, trail)
+			if candidate > 0 && (best == 0 || candidate < best) {
+				best = candidate
+			}
+		}
+		urgency[id] = best
+		return best
+	}
+	resp := &offerspb.PrerequisiteWalkResponse{}
+	type item struct {
+		node  *offerspb.Node
+		depth int32
+		path  []string
+	}
+	queue := make([]item, 0)
+	for _, e := range incoming[streamID] {
+		if n := byID[e.FromId]; n != nil {
+			queue = append(queue, item{n, 1, []string{byID[streamID].Name, n.Name}})
+		}
+	}
+	seen := map[string]bool{}
+	var walk func(item, map[string]bool) error
+	walk = func(cur item, trail map[string]bool) error {
+		if cur.depth > maxDepth {
+			return nil
+		}
+		if trail[cur.node.Id] {
+			resp.CyclePath = append([]string{}, cur.path...)
+			return nil
+		}
+		if seen[cur.node.Id] {
+			return nil
+		}
+		seen[cur.node.Id] = true
+		trail[cur.node.Id] = true
+		defer delete(trail, cur.node.Id)
+		if cur.node.Kind == offerspb.NodeKind_DELIVERABLE {
+			pn := &offerspb.PrerequisiteNode{Node: cur.node, Depth: cur.depth, DerivedUrgency: urgencyFor(cur.node.Id, map[string]bool{}), Path: append([]string{}, cur.path...)}
+			resp.Tree = append(resp.Tree, pn)
+			resp.Deliverables = append(resp.Deliverables, cur.node)
+			if includeShipped || cur.node.Status != offerspb.Status_SHIPPED {
+				resp.Unshipped = append(resp.Unshipped, cur.node)
+			}
+		}
+		for _, edge := range incoming[cur.node.Id] {
+			n := byID[edge.FromId]
+			if n == nil {
+				continue
+			}
+			nextPath := append(append([]string{}, cur.path...), n.Name)
+			if trail[n.Id] {
+				resp.CyclePath = nextPath
+				continue
+			}
+			if err := walk(item{n, cur.depth + 1, nextPath}, trail); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	for _, entry := range queue {
+		if err := walk(entry, map[string]bool{streamID: true}); err != nil {
+			return nil, err
+		}
+	}
+	sort.SliceStable(resp.Tree, func(i, j int) bool {
+		if resp.Tree[i].Depth != resp.Tree[j].Depth {
+			return resp.Tree[i].Depth < resp.Tree[j].Depth
+		}
+		return resp.Tree[i].Node.Name < resp.Tree[j].Node.Name
+	})
+	return resp, nil
 }
 
 func appendUniqueNode(nodes []*offerspb.Node, n *offerspb.Node) []*offerspb.Node {

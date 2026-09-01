@@ -49,6 +49,32 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 | 2026-08-17 | Node **kind and status are CLI inputs**, and an unknown kind is refused. | `catalog-create` hardcoded `NodeKind_OFFER`, so deliverables, channels, variants, and revenue lines could not be created outside the importer — which is why the two scenarios that *are* the monetization instrument were absent from their own catalog. | `--kind` and `--status` are declared flags; `parseKind` returns an error on an unrecognised value rather than defaulting, because a silent default files a record under the wrong half of the graph. | The kind vocabulary changes, which is a proto change and should update both ends together. |
 | 2026-08-17 | The scenario's **own standalone-product revisit trigger is a record here**, not prose. | `business/MONETIZATION.md` states the three-part trigger and says outright that filing it as a record is "the first real dogfooding test" — the scenario that enforces revisit triggers should not hold its own as a markdown bullet. | `offer-desk-standalone` is a `candidate` offer carrying an `ALL` trigger over three declared facts (`money_ledger_paying_users >= 1`, `actuals_join_quarters_against_real_data >= 1`, `external_operators_describing_forgotten_condition_pain >= 3`). It currently evaluates `UNKNOWN` on all three, which blocks rather than fires. Declaring it also required multi-clause trigger support in the CLI, which the store already had. | The trigger fires, at which point the deferral in `MONETIZATION.md` is revisited on evidence rather than on schedule. |
 
+| 2026-09-01 | D1 — `DeliverableClass` separates the schedule from enablers. | Rank-zero conventions mixed infrastructure with marketed work. | `MARKETED` owns rank; `ENABLING` is rank-refused and derives urgency. | An enabler needs urgency independent of a marketed downstream node. |
+| 2026-09-01 | D2 — `finish_bar` is orthogonal to class. | Schedule membership does not define what “done” means. | Customer-facing, operator-facing, and internal bars are stored independently. | A single bar no longer describes all delivery contexts. |
+| 2026-09-01 | D3 — `enables` is a new acyclic edge kind. | `unlocks` is a commercial statement and `requires` is offer membership. | Enabling closure is modeled separately and cycles are refused. | A new relationship needs different direction or cycle semantics. |
+| 2026-09-01 | D4 — stream names equal declared meter keys. | Planning could invent a meter vocabulary disconnected from enforcement. | `meters` reports registry equality and declaration gaps. | A stream needs a commercial unit that is not a runtime meter. |
+| 2026-09-01 | D5 — the shared TypeScript runtime is `@vrooli/flow-runtime`. | Test-named or React-specific packages would attract unrelated helpers. | Generated flow code imports the pure and Node subpaths. | The runtime gains a non-flow consumer or a browser/Node boundary changes. |
+| 2026-09-01 | D6 — repair the emitter before retiring copies. | Deleting copies first would leave generated imports broken. | The generator emits package imports; scoped copies and stale imports are removed. | A generated consumer requires scenario-local behavior. |
+| 2026-09-01 | D7 — requirement markers on duplicated tests are judged by ownership. | A blanket ban would reject legitimate shared-behavior evidence. | Owned behavior must be tagged at its owning test; shared behavior may remain tagged. | The marker checker gains ownership metadata. |
+| 2026-09-01 | D8 — canon authority is re-declared through the instrument. | Handoff prose deleted the fields the importer would need to reconstruct. | Operator actor/reason and catalog audit establish the new authoritative state. | A governed archival source becomes available and is explicitly approved. |
+| 2026-09-01 | D9 — the canon roster lives beside canon files. | An embedded Go roster made data additions require code changes. | `docs/monetization/import-manifest.json` is read as source metadata. | Canon files move to another authority boundary. |
+| 2026-09-01 | D10 — projections read their declared source. | Hardcoded cells made source edits ineffective. | `GetProjection` reads `docs/spaces/offers.json` and reports degradation. | The projection becomes a database-owned view. |
+| 2026-09-01 | D11 — rank maps to priority by position. | Clamping ranks above ten collapsed distinct schedule positions. | Live readers scale rank 1..N onto priority 0..10. | Priority gains a non-linear operator policy. |
+| 2026-09-01 | D12 — unresolved deliverable names are warning-visible. | Debug-only logging hid wiring defects. | Reachable lookup failures warn; unreachable Offer Desk still preserves the value as unverified. | The goal contract gains a durable unresolved-reference state. |
+
+### Tier vocabulary translation
+
+| Runtime `PlanTier` | Commerce `plan_tier` | Offer Desk instrument | Monetization prose |
+|---|---|---|---|
+| `free` | `free` | — | — |
+| `solo` | `solo` | `tier-1` | Tier 1 |
+| `pro` | `pro` | `tier-2` | Tier 2 |
+| `studio` | `studio` | `tier-3` | Tier 3 |
+| `business` | `business` | `tier-4` | Tier 4 |
+
+The planning layer defers to the runtime `PlanTier` and commerce
+`plan_tier`; instrument and prose labels are display translations only.
+
 ## Superseded Decisions
 
 | Date | Superseded Decision | Replacement | Details |

@@ -5,6 +5,8 @@
       "limit_key": "ai_credits",
       "class": "A",
       "declared_by": [
+        "agent-manager",
+        "ai-gateway",
         "audio-tools",
         "browser-automation-studio",
         "landing-page-business-suite"
@@ -28,7 +30,8 @@
       "limit_key": "workflow_executions",
       "class": "B",
       "declared_by": [
-        "browser-automation-studio"
+        "browser-automation-studio",
+        "vrooli-bridge"
       ],
       "bundle_keys": [
         "business_suite"

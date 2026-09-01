@@ -105,6 +105,19 @@ a migration handoff with a planned retirement path back into
 |---|---|---|---|
 | _None recorded._ | | | |
 
+### 2026-09-01 — intentionally open monetization vocabulary gaps
+
+The release-ladder graph now reconciles the meters currently declared by the
+fleet, but no `cloud_compute` meter exists for the planned cloud-compute
+offering. The runtime `entitlement_tier` enum remains an orphaned fifth tier
+vocabulary in the service schema. Both are outside this plan's ownership and
+must not be silently invented or retired here.
+
+**Owner:** monetization strategy / service-schema owner.
+
+**Refs:** `packages/monetization-go/meter-inventory.json`,
+`.vrooli/schemas/service.schema.json`, and `DECISIONS.md` D4.
+
 ## Cross-references
 
 - [`PROGRESS.md`](PROGRESS.md) — lifecycle log (forward-looking)

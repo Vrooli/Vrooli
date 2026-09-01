@@ -2,10 +2,12 @@ package offers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -22,6 +24,8 @@ import (
 	ledgerconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger/ledger_v1connect"
 	offerspb "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
+	swarmapipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
+	swarmconnect "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api/apiconnect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -34,6 +38,7 @@ type Service struct {
 	bookID   string
 	bookName string
 	books    ledgerconnect.BooksServiceClient
+	goals    swarmconnect.GoalServiceClient
 	interval time.Duration
 }
 
@@ -55,6 +60,9 @@ func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock)
 		s.journal = ledgerconnect.NewJournalServiceClient(hc, base)
 		s.position = ledgerconnect.NewPositionServiceClient(hc, base)
 		s.books = ledgerconnect.NewBooksServiceClient(hc, base)
+	}
+	if swarmBase, err := discovery.ResolveScenarioURLDefault(context.Background(), "swarm-manager"); err == nil && swarmBase != "" {
+		s.goals = swarmconnect.NewGoalServiceClient(&http.Client{Timeout: 700 * time.Millisecond}, swarmBase)
 	}
 	return s
 }
@@ -190,11 +198,27 @@ func rankReason(status offerspb.Status, actualsAvailable bool, actualMinor int64
 }
 
 func (s *Service) CreateNode(ctx context.Context, r *connect.Request[offerspb.CreateNodeRequest]) (*connect.Response[offerspb.CreateNodeResponse], error) {
-	n, e := s.store.CreateNode(ctx, r.Msg.Kind, r.Msg.Name, r.Msg.Status, r.Msg.TriggerId, r.Msg.ActualAccountId)
+	n, e := s.store.CreateNodeWithDetailsAudited(ctx, r.Msg.Kind, r.Msg.Name, r.Msg.Status, r.Msg.TriggerId, r.Msg.ActualAccountId, r.Msg.DeliverableClass, r.Msg.FinishBar, r.Msg.Actor, r.Msg.Reason)
 	if e != nil {
 		return nil, invalid(e)
 	}
 	return connect.NewResponse(&offerspb.CreateNodeResponse{Node: n}), nil
+}
+
+func (s *Service) SetDeliverableClass(ctx context.Context, r *connect.Request[offerspb.SetDeliverableClassRequest]) (*connect.Response[offerspb.SetDeliverableClassResponse], error) {
+	var prior *offerspb.Node
+	if n, err := s.store.GetNode(ctx, r.Msg.NodeId); err == nil {
+		prior = n
+	}
+	n, err := s.store.SetDeliverableClass(ctx, r.Msg.NodeId, r.Msg.DeliverableClass, r.Msg.FinishBar, r.Msg.Actor)
+	if err != nil {
+		return nil, invalid(err)
+	}
+	resp := &offerspb.SetDeliverableClassResponse{Node: n}
+	if prior != nil {
+		resp.PriorClass, resp.PriorFinishBar = prior.DeliverableClass, prior.FinishBar
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (s *Service) ListNodes(ctx context.Context, r *connect.Request[offerspb.ListNodesRequest]) (*connect.Response[offerspb.ListNodesResponse], error) {
@@ -234,11 +258,66 @@ func (s *Service) GetReleaseLadder(ctx context.Context, r *connect.Request[offer
 	if err != nil {
 		return nil, internal(err)
 	}
+	s.attachGoalImpacts(ctx, ladder)
 	return connect.NewResponse(ladder), nil
 }
 
+func (s *Service) attachGoalImpacts(ctx context.Context, ladder *offerspb.ReleaseLadderResponse) {
+	if s.goals == nil {
+		ladder.Availability = append(ladder.Availability, &offerspb.Availability{Source: "swarm-manager.goals", Reason: "goal source unavailable: scenario could not be resolved"})
+		return
+	}
+	response, err := s.goals.ListGoals(ctx, connect.NewRequest(&swarmapipb.ListGoalsRequest{}))
+	if err != nil {
+		ladder.Availability = append(ladder.Availability, &offerspb.Availability{Source: "swarm-manager.goals", Reason: err.Error()})
+		return
+	}
+	urgency, err := s.store.DerivedUrgencies(ctx)
+	if err != nil {
+		ladder.Availability = append(ladder.Availability, &offerspb.Availability{Source: "offer-desk.derived-urgency", Reason: err.Error()})
+		return
+	}
+	byName := make(map[string]*offerspb.Node)
+	for _, entry := range ladder.Entries {
+		if entry.Deliverable != nil {
+			byName[entry.Deliverable.Name] = entry.Deliverable
+		}
+	}
+	for _, item := range ladder.Enabling {
+		if item.Node != nil {
+			byName[item.Node.Name] = item.Node
+		}
+	}
+	for _, item := range response.Msg.Goals {
+		if item == nil || item.Goal == nil || strings.TrimSpace(item.Goal.ServesDeliverable) == "" {
+			continue
+		}
+		node := byName[item.Goal.ServesDeliverable]
+		if node == nil {
+			continue
+		}
+		projected := node.ReleaseRank
+		if node.DeliverableClass == offerspb.DeliverableClass_ENABLING {
+			projected = urgency[node.Id]
+		}
+		for _, entry := range ladder.Entries {
+			if entry.Deliverable != nil && entry.Deliverable.Id == node.Id {
+				entry.GoalImpacts = append(entry.GoalImpacts, &offerspb.GoalImpact{GoalName: item.Goal.Name, GoalTitle: item.Goal.Title, DeliverableName: node.Name, ProjectedPriority: projected})
+			}
+		}
+	}
+}
+
+func (s *Service) GetEnablingDeliverables(ctx context.Context, r *connect.Request[offerspb.ReleaseLadderRequest]) (*connect.Response[offerspb.ReleaseLadderResponse], error) {
+	ladder, err := s.store.ReleaseLadder(ctx, r.Msg.IncludeRetired)
+	if err != nil {
+		return nil, internal(err)
+	}
+	return connect.NewResponse(&offerspb.ReleaseLadderResponse{Enabling: ladder.Enabling}), nil
+}
+
 func (s *Service) GetPrerequisites(ctx context.Context, r *connect.Request[offerspb.PrerequisiteWalkRequest]) (*connect.Response[offerspb.PrerequisiteWalkResponse], error) {
-	result, err := s.store.Prerequisites(ctx, r.Msg.StreamNodeId)
+	result, err := s.store.PrerequisitesWithOptions(ctx, r.Msg.StreamNodeId, r.Msg.MaxDepth, r.Msg.IncludeShipped)
 	if err != nil {
 		return nil, invalid(err)
 	}
@@ -490,19 +569,51 @@ func (s *Service) GetProjection(ctx context.Context, r *connect.Request[offerspb
 	if r != nil && strings.TrimSpace(r.Msg.Projection) != "" {
 		projection = strings.TrimSpace(r.Msg.Projection)
 	}
-	return connect.NewResponse(&offerspb.SpaceResponse{
+	response := &offerspb.SpaceResponse{
 		SchemaVersion:         "space/v1",
 		Projection:            projection,
 		Owner:                 "monetization",
 		DenominatorConfidence: "sketch",
 		ConfidenceRationale:   "The obligation cells are an operator-authored first cut and have not yet been reconciled against an external roster.",
 		Source:                "scenarios/offer-desk/docs/spaces/offers.json",
-		Cells: []*offerspb.SpaceCell{
-			{Id: "catalog-state", Group: "catalog", Question: "What offers and delivery tiers are currently declared?", Owner: "monetization", Status: "active", Notes: "Read from the typed catalog graph."},
-			{Id: "promotion-state", Group: "gates", Question: "Which candidate offers have satisfied machine-evaluable triggers?", Owner: "monetization", Status: "active", Notes: "Read from persisted evaluations and lifecycle state."},
-			{Id: "financial-posture", Group: "board", Question: "What is the financial posture beside the offer state?", Owner: "monetization", Status: "active", Notes: "Read from Money Ledger when available; unavailable sources remain explicit."},
-		},
-	}), nil
+	}
+	path := findSpaceProjection()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		response.Availability = []*offerspb.Availability{{Source: path, Reason: err.Error()}}
+		return connect.NewResponse(response), nil
+	}
+	var source offerspb.SpaceResponse
+	if err := json.Unmarshal(data, &source); err != nil {
+		response.Availability = []*offerspb.Availability{{Source: path, Reason: err.Error()}}
+		return connect.NewResponse(response), nil
+	}
+	response.SchemaVersion, response.Projection, response.Owner = source.SchemaVersion, source.Projection, source.Owner
+	response.DenominatorConfidence, response.ConfidenceRationale, response.Cells = source.DenominatorConfidence, source.ConfidenceRationale, source.Cells
+	response.Source = path
+	return connect.NewResponse(response), nil
+}
+
+func findSpaceProjection() string {
+	for dir := mustWorkingDirectory(); ; dir = filepath.Dir(dir) {
+		candidate := filepath.Join(dir, "scenarios", "offer-desk", "docs", "spaces", "offers.json")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return filepath.Join("scenarios", "offer-desk", "docs", "spaces", "offers.json")
+		}
+		dir = parent
+	}
+}
+
+func mustWorkingDirectory() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "."
+	}
+	return dir
 }
 func Schema() string { return (&catalog.Store{}).Schema() }
 func ep(id, path, summary string) module.EndpointDescriptor {
@@ -510,7 +621,7 @@ func ep(id, path, summary string) module.EndpointDescriptor {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"), ep("catalog_map_account", "/vrooli.offer_desk.v1.offers.CatalogService/MapAccount", "Map a node to the ledger account holding its actuals"), ep("catalog_merge", "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes", "Dry-run or apply an audited duplicate-node merge"), ep("catalog_verify", "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog", "Verify source counts and graph identity reconciliation"), ep("catalog_set_release_rank", "/vrooli.offer_desk.v1.offers.CatalogService/SetReleaseRank", "Set an operator-owned deliverable release rank"),
-	ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("gates_proposals", "/vrooli.offer_desk.v1.offers.GatesService/ListProposals", "List promotion proposals and decline history"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
-	ep("board_release_ladder", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", "Read the typed release ladder"), ep("board_prerequisites", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetPrerequisites", "Walk stream prerequisites and unshipped deliverables"), ep("space_projection", "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection", "Read monetization obligation cells"),
+	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"), ep("catalog_map_account", "/vrooli.offer_desk.v1.offers.CatalogService/MapAccount", "Map a node to the ledger account holding its actuals"), ep("catalog_merge", "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes", "Dry-run or apply an audited duplicate-node merge"), ep("catalog_verify", "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog", "Verify source counts and graph identity reconciliation"), ep("catalog_set_release_rank", "/vrooli.offer_desk.v1.offers.CatalogService/SetReleaseRank", "Set an operator-owned deliverable release rank"), ep("catalog_set_class", "/vrooli.offer_desk.v1.offers.CatalogService/SetDeliverableClass", "Classify a deliverable and set its finish bar"),
+	ep("catalog_meters", "/vrooli.offer_desk.v1.offers.CatalogService/GetMeterInventory", "Read meter vocabulary and graph conformance"), ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("gates_proposals", "/vrooli.offer_desk.v1.offers.GatesService/ListProposals", "List promotion proposals and decline history"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
+	ep("board_release_ladder", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", "Read the typed release ladder"), ep("board_enabling", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetEnablingDeliverables", "Read enabling deliverables and derived urgency"), ep("board_prerequisites", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetPrerequisites", "Walk stream prerequisites and unshipped deliverables"), ep("space_projection", "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection", "Read monetization obligation cells"),
 }

@@ -22,6 +22,12 @@
       "status": "active"
     },
     {
+      "id": "release-ladder",
+      "path": "pages/release-ladder.json",
+      "title": "Release ladder",
+      "status": "active"
+    },
+    {
       "id": "triggers",
       "path": "pages/triggers.json",
       "title": "Triggers",

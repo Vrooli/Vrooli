@@ -1,5 +1,105 @@
 {
   "selectors": {
+    "library.hooks.use-network-status.root": {
+      "testId": "hooks.use-network-status",
+      "selector": "[data-testid=\"hooks.use-network-status\"]"
+    },
+    "library.hooks.use-locale.root": {
+      "testId": "hooks.use-locale",
+      "selector": "[data-testid=\"hooks.use-locale\"]"
+    },
+    "library.hooks.use-element-rect.root": {
+      "testId": "hooks.use-element-rect",
+      "selector": "[data-testid=\"hooks.use-element-rect\"]"
+    },
+    "library.hooks.use-announce.root": {
+      "testId": "hooks.use-announce",
+      "selector": "[data-testid=\"hooks.use-announce\"]"
+    },
+    "library.forms.textarea.root": {
+      "testId": "forms.textarea",
+      "selector": "[data-testid=\"forms.textarea\"]"
+    },
+    "library.forms.textarea.probe": {
+      "testId": "forms.textarea.probe",
+      "selector": "[data-testid=\"forms.textarea.probe\"]"
+    },
+    "library.forms.textarea.t": {
+      "testId": "forms.textarea.t",
+      "selector": "[data-testid=\"forms.textarea.t\"]"
+    },
+    "library.statusbadge.root": {
+      "testId": "statusbadge",
+      "selector": "[data-testid=\"statusbadge\"]"
+    },
+    "library.navigation.sidebar.root": {
+      "testId": "navigation.sidebar",
+      "selector": "[data-testid=\"navigation.sidebar\"]"
+    },
+    "library.navigation.sidebar.backdrop": {
+      "testId": "navigation.sidebar.backdrop",
+      "selector": "[data-testid=\"navigation.sidebar.backdrop\"]"
+    },
+    "library.navigation.sidebar.close": {
+      "testId": "navigation.sidebar.close",
+      "selector": "[data-testid=\"navigation.sidebar.close\"]"
+    },
+    "library.navigation.sidebar.resizeHandle": {
+      "testId": "navigation.sidebar.resize-handle",
+      "selector": "[data-testid=\"navigation.sidebar.resize-handle\"]"
+    },
+    "library.forms.select.root": {
+      "testId": "forms.select",
+      "selector": "[data-testid=\"forms.select\"]"
+    },
+    "library.forms.form-section.root": {
+      "testId": "forms.form-section",
+      "selector": "[data-testid=\"forms.form-section\"]"
+    },
+    "library.feedback.empty-state.root": {
+      "testId": "feedback.empty-state",
+      "selector": "[data-testid=\"feedback.empty-state\"]"
+    },
+    "library.forms.dirty-state-guard.root": {
+      "testId": "forms.dirty-state-guard",
+      "selector": "[data-testid=\"forms.dirty-state-guard\"]"
+    },
+    "library.data-display.data-table.root": {
+      "testId": "data-display.data-table",
+      "selector": "[data-testid=\"data-display.data-table\"]"
+    },
+    "library.motion.collapsible-region.root": {
+      "testId": "motion.collapsible-region",
+      "selector": "[data-testid=\"motion.collapsible-region\"]"
+    },
+    "library.visualization.chart.root": {
+      "testId": "visualization.chart",
+      "selector": "[data-testid=\"visualization.chart\"]"
+    },
+    "library.visualization.cartesian-charts.root": {
+      "testId": "visualization.cartesian-charts",
+      "selector": "[data-testid=\"visualization.cartesian-charts\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.navigation.bottom-navigation.root": {
+      "testId": "navigation.bottom-navigation",
+      "selector": "[data-testid=\"navigation.bottom-navigation\"]"
+    },
+    "library.feedback.async-boundary.root": {
+      "testId": "feedback.async-boundary",
+      "selector": "[data-testid=\"feedback.async-boundary\"]"
+    },
     "app.title": {
       "testId": "app-title",
       "selector": "[data-testid=\"app-title\"]"
@@ -147,6 +247,30 @@
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.releaseLadder": {
+      "testId": "page-release-ladder",
+      "selector": "[data-testid=\"page-release-ladder\"]"
+    },
+    "pages.releaseLadderSchedule": {
+      "testId": "release-ladder-schedule",
+      "selector": "[data-testid=\"release-ladder-schedule\"]"
+    },
+    "pages.releaseLadderStream": {
+      "testId": "release-ladder-stream",
+      "selector": "[data-testid=\"release-ladder-stream\"]"
+    },
+    "pages.releaseLadderPrerequisites": {
+      "testId": "release-ladder-prerequisites",
+      "selector": "[data-testid=\"release-ladder-prerequisites\"]"
+    },
+    "pages.releaseLadderGoals": {
+      "testId": "release-ladder-goals",
+      "selector": "[data-testid=\"release-ladder-goals\"]"
+    },
+    "pages.releaseLadderSourceDegraded": {
+      "testId": "release-ladder-source-degraded",
+      "selector": "[data-testid=\"release-ladder-source-degraded\"]"
     },
     "pages.offerGraph": {
       "testId": "offer-graph",

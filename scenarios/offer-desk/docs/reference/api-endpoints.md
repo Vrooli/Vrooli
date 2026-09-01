@@ -24,6 +24,9 @@ All RPCs use `POST /vrooli.offer_desk.v1.offers.CatalogService/<Method>`.
 | `ListEdges` | List graph relationships. |
 | `ImportCatalog` | Dry-run or apply a declared catalog source; malformed status and reference drift block apply. |
 | `MergeNodes` | Dry-run or apply an explicit same-kind duplicate merge; moves references, reports collapsed edges, audits both ids, and deletes only on apply. |
+| `SetReleaseRank` | Set a unique operator-owned rank for a marketed deliverable; enabling deliverables are refused. |
+| `SetDeliverableClass` | Classify a deliverable as marketed or enabling and set its orthogonal finish bar. |
+| `GetMeterInventory` | Read the generated meter vocabulary and report undeclared streams or deliverable-meter gaps. |
 
 `BoardService.GetBoard` derives `rank_reason` from status and actuals availability:
 
@@ -87,3 +90,11 @@ actuals.
 
 Every call writes a `catalog_audit` row. Corrections are new entries, never
 edits, consistent with `OT-P0-007`.
+
+## Release ladder
+
+`ReleaseLadderService/GetReleaseLadder` returns marketed deliverables in rank
+order and exposes enabling deliverables separately. `GetPrerequisites` walks
+incoming `unlocks` and `enables` edges transitively, with depth, path, finish
+bar, live status, and derived urgency. `include_shipped` controls the
+unshipped list; the tree remains complete for the requested depth.

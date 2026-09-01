@@ -98,10 +98,26 @@ func (h *handlers) create(c cliapp.OperationContext) (*offerspb.CreateNodeRespon
 		status = parseStatus(raw)
 	}
 	r, e := h.c.CreateNode(context.Background(), connect.NewRequest(&offerspb.CreateNodeRequest{
-		Name: c.Flag("name"), Kind: kind, Status: status, ActualAccountId: c.Flag("actual-account-id"),
+		Name: c.Flag("name"), Kind: kind, Status: status, ActualAccountId: c.Flag("actual-account-id"), DeliverableClass: parseDeliverableClass(c.Flag("class")), FinishBar: parseFinishBar(c.Flag("finish-bar")), Actor: c.Flag("actor"), Reason: c.Flag("reason"),
 	}))
 	if e != nil {
 		return nil, e
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) setClass(c cliapp.OperationContext) (*offerspb.SetDeliverableClassResponse, error) {
+	r, err := h.c.SetDeliverableClass(context.Background(), connect.NewRequest(&offerspb.SetDeliverableClassRequest{NodeId: c.Flag("node-id"), DeliverableClass: parseDeliverableClass(c.Flag("class")), FinishBar: parseFinishBar(c.Flag("finish-bar")), Actor: "operator"}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func (h *handlers) meters(_ cliapp.OperationContext) (*offerspb.MeterInventoryResponse, error) {
+	r, err := h.c.GetMeterInventory(context.Background(), connect.NewRequest(&offerspb.MeterInventoryRequest{}))
+	if err != nil {
+		return nil, err
 	}
 	return r.Msg, nil
 }
@@ -245,6 +261,14 @@ func (h *handlers) ladder(c cliapp.OperationContext) (*offerspb.ReleaseLadderRes
 	return r.Msg, nil
 }
 
+func (h *handlers) enabling(c cliapp.OperationContext) (*offerspb.ReleaseLadderResponse, error) {
+	r, err := h.l.GetEnablingDeliverables(context.Background(), connect.NewRequest(&offerspb.ReleaseLadderRequest{IncludeRetired: strings.EqualFold(c.Flag("include-retired"), "true")}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
 func (h *handlers) rank(c cliapp.OperationContext) (*offerspb.SetReleaseRankResponse, error) {
 	rank := int32(parseInt(c.Flag("release-rank")))
 	r, err := h.c.SetReleaseRank(context.Background(), connect.NewRequest(&offerspb.SetReleaseRankRequest{NodeId: c.Flag("node-id"), ReleaseRank: rank, Actor: "operator"}))
@@ -255,11 +279,29 @@ func (h *handlers) rank(c cliapp.OperationContext) (*offerspb.SetReleaseRankResp
 }
 
 func (h *handlers) prerequisites(c cliapp.OperationContext) (*offerspb.PrerequisiteWalkResponse, error) {
-	r, err := h.l.GetPrerequisites(context.Background(), connect.NewRequest(&offerspb.PrerequisiteWalkRequest{StreamNodeId: c.Flag("stream-node-id")}))
+	r, err := h.l.GetPrerequisites(context.Background(), connect.NewRequest(&offerspb.PrerequisiteWalkRequest{StreamNodeId: c.Flag("stream-node-id"), MaxDepth: int32(parseInt(c.Flag("max-depth"))), IncludeShipped: strings.EqualFold(c.Flag("include-shipped"), "true")}))
 	if err != nil {
 		return nil, err
 	}
 	return r.Msg, nil
+}
+
+func setClassReport(_ cliapp.OperationContext, m *offerspb.SetDeliverableClassResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Classified %s as %s (%s).", m.Node.Name, m.Node.DeliverableClass.String(), m.Node.FinishBar.String())}}
+}
+
+func metersReport(_ cliapp.OperationContext, m *offerspb.MeterInventoryResponse) cliapp.ListReport {
+	results := mapStrings(len(m.Meters), func(i int) string {
+		meter := m.Meters[i]
+		return fmt.Sprintf("%s — class=%s declared_by=%s", meter.LimitKey, meter.Class, strings.Join(meter.DeclaredBy, ","))
+	})
+	for _, stream := range m.UndeclaredStreams {
+		results = append(results, "DRIFT undeclared stream: "+stream)
+	}
+	for _, gap := range m.DeliverableMeterGaps {
+		results = append(results, "DRIFT deliverable meter gap: "+gap)
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Meter inventory: %d meter(s), %d undeclared stream(s), %d deliverable gap(s).", len(m.Meters), len(m.UndeclaredStreams), len(m.DeliverableMeterGaps))}, ResultsHeading: "Meter vocabulary", Results: results}
 }
 
 func listReport(_ cliapp.OperationContext, m *offerspb.ListNodesResponse) cliapp.ListReport {
@@ -322,12 +364,23 @@ func ladderReport(_ cliapp.OperationContext, m *offerspb.ReleaseLadderResponse) 
 	})}
 }
 
+func enablingReport(_ cliapp.OperationContext, m *offerspb.ReleaseLadderResponse) cliapp.ListReport {
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d enabling deliverable(s).", len(m.Enabling))}, ResultsHeading: "Enabling deliverables", Results: mapStrings(len(m.Enabling), func(i int) string {
+		n := m.Enabling[i]
+		return fmt.Sprintf("%s — urgency=%d depth=%d finish=%s status=%s", n.Node.Name, n.DerivedUrgency, n.Depth, n.Node.FinishBar.String(), n.Node.Status.String())
+	})}
+}
+
 func rankReport(_ cliapp.OperationContext, m *offerspb.SetReleaseRankResponse) cliapp.MutationReport {
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Set %s release rank to %d (was %d).", m.Node.Name, m.Node.ReleaseRank, m.PriorReleaseRank)}}
 }
 
 func prerequisitesReport(_ cliapp.OperationContext, m *offerspb.PrerequisiteWalkResponse) cliapp.ListReport {
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d prerequisite deliverable(s); %d unshipped.", len(m.Deliverables), len(m.Unshipped))}, ResultsHeading: "Prerequisites", Results: mapStrings(len(m.Deliverables), func(i int) string {
+		if i < len(m.Tree) {
+			n := m.Tree[i]
+			return fmt.Sprintf("%*s%s — class=%s finish=%s status=%s urgency=%d depth=%d path=%s", int(n.Depth)*2, "", n.Node.Name, n.Node.DeliverableClass.String(), n.Node.FinishBar.String(), n.Node.Status.String(), n.DerivedUrgency, n.Depth, strings.Join(n.Path, " -> "))
+		}
 		return fmt.Sprintf("%s — %s", m.Deliverables[i].Name, m.Deliverables[i].Status.String())
 	})}
 }
@@ -405,6 +458,29 @@ func parseStatus(v string) offerspb.Status {
 		return offerspb.Status_PROPOSED
 	default:
 		return offerspb.Status_IDEA
+	}
+}
+
+func parseDeliverableClass(v string) offerspb.DeliverableClass {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "enabling":
+		return offerspb.DeliverableClass_ENABLING
+	case "marketed", "":
+		return offerspb.DeliverableClass_MARKETED
+	default:
+		return offerspb.DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED
+	}
+}
+func parseFinishBar(v string) offerspb.FinishBar {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "customer-facing", "customer_facing":
+		return offerspb.FinishBar_CUSTOMER_FACING
+	case "operator-facing", "operator_facing":
+		return offerspb.FinishBar_OPERATOR_FACING
+	case "internal":
+		return offerspb.FinishBar_INTERNAL
+	default:
+		return offerspb.FinishBar_FINISH_BAR_UNSPECIFIED
 	}
 }
 

@@ -17,7 +17,7 @@ func TestBuildMeterInventoryAggregatesScenarioDeclarations(t *testing.T) {
 	if len(inventory.Meters) != 3 {
 		t.Fatalf("meter count = %d, want 3", len(inventory.Meters))
 	}
-	if inventory.Meters[0].LimitKey != "ai_credits" || len(inventory.Meters[0].DeclaredBy) != 3 || !inventory.Meters[0].Byok {
+	if inventory.Meters[0].LimitKey != "ai_credits" || len(inventory.Meters[0].DeclaredBy) != 5 || !inventory.Meters[0].Byok {
 		t.Fatalf("ai_credits summary = %+v", inventory.Meters[0])
 	}
 	if inventory.Meters[1].LimitKey != "voice_minutes" || len(inventory.Meters[1].DeclaredBy) != 1 {

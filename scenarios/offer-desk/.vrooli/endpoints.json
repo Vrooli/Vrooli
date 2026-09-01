@@ -119,6 +119,14 @@
       "category": "offers"
     },
     {
+      "id": "catalog_map_account",
+      "path": "/vrooli.offer_desk.v1.offers.CatalogService/MapAccount",
+      "method": "POST",
+      "summary": "Map a node to the ledger account holding its actuals",
+      "description": "",
+      "category": "offers"
+    },
+    {
       "id": "catalog_merge",
       "path": "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes",
       "method": "POST",
@@ -131,6 +139,30 @@
       "path": "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog",
       "method": "POST",
       "summary": "Verify source counts and graph identity reconciliation",
+      "description": "",
+      "category": "offers"
+    },
+    {
+      "id": "catalog_set_release_rank",
+      "path": "/vrooli.offer_desk.v1.offers.CatalogService/SetReleaseRank",
+      "method": "POST",
+      "summary": "Set an operator-owned deliverable release rank",
+      "description": "",
+      "category": "offers"
+    },
+    {
+      "id": "catalog_set_class",
+      "path": "/vrooli.offer_desk.v1.offers.CatalogService/SetDeliverableClass",
+      "method": "POST",
+      "summary": "Classify a deliverable and set its finish bar",
+      "description": "",
+      "category": "offers"
+    },
+    {
+      "id": "catalog_meters",
+      "path": "/vrooli.offer_desk.v1.offers.CatalogService/GetMeterInventory",
+      "method": "POST",
+      "summary": "Read meter vocabulary and graph conformance",
       "description": "",
       "category": "offers"
     },
@@ -179,6 +211,22 @@
       "path": "/vrooli.offer_desk.v1.offers.BoardService/GetBoard",
       "method": "POST",
       "summary": "Read the ranked offer board",
+      "description": "",
+      "category": "offers"
+    },
+    {
+      "id": "board_release_ladder",
+      "path": "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder",
+      "method": "POST",
+      "summary": "Read the typed release ladder",
+      "description": "",
+      "category": "offers"
+    },
+    {
+      "id": "board_prerequisites",
+      "path": "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetPrerequisites",
+      "method": "POST",
+      "summary": "Walk stream prerequisites and unshipped deliverables",
       "description": "",
       "category": "offers"
     },

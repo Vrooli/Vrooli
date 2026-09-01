@@ -35,12 +35,24 @@ func NewStore(db *database.RoutedDB, now func() time.Time) *Store {
 	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM pragma_table_info('nodes') WHERE name='release_rank'`).Scan(&present); err == nil && present == 0 {
 		_, _ = db.ExecContext(context.Background(), `ALTER TABLE nodes ADD COLUMN release_rank INTEGER NOT NULL DEFAULT 0`)
 	}
+	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM pragma_table_info('nodes') WHERE name='deliverable_class'`).Scan(&present); err == nil && present == 0 {
+		_, _ = db.ExecContext(context.Background(), `ALTER TABLE nodes ADD COLUMN deliverable_class INTEGER NOT NULL DEFAULT 0`)
+	}
+	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM pragma_table_info('nodes') WHERE name='finish_bar'`).Scan(&present); err == nil && present == 0 {
+		_, _ = db.ExecContext(context.Background(), `ALTER TABLE nodes ADD COLUMN finish_bar INTEGER NOT NULL DEFAULT 0`)
+	}
+	_, _ = db.ExecContext(context.Background(), `UPDATE nodes SET deliverable_class=1 WHERE kind=? AND release_rank>0 AND deliverable_class=0`, int32(offerspb.NodeKind_DELIVERABLE))
+	_, _ = db.ExecContext(context.Background(), `CREATE UNIQUE INDEX IF NOT EXISTS marketed_release_rank ON nodes(deliverable_class, release_rank) WHERE kind=5 AND deliverable_class=1 AND release_rank>0 AND status<>6`)
 	return s
 }
 func (s *Store) DB() *database.RoutedDB { return s.db }
 func (s *Store) Schema() string         { b, _ := schemaSQL.ReadFile("schema.sql"); return string(b) }
 
 func (s *Store) CreateNode(ctx context.Context, kind offerspb.NodeKind, name string, status offerspb.Status, trigger, actualAccountID string) (*offerspb.Node, error) {
+	return s.CreateNodeWithDetails(ctx, kind, name, status, trigger, actualAccountID, offerspb.DeliverableClass_MARKETED, offerspb.FinishBar_FINISH_BAR_UNSPECIFIED)
+}
+
+func (s *Store) CreateNodeWithDetails(ctx context.Context, kind offerspb.NodeKind, name string, status offerspb.Status, trigger, actualAccountID string, class offerspb.DeliverableClass, finish offerspb.FinishBar) (*offerspb.Node, error) {
 	if kind == offerspb.NodeKind_NODE_KIND_UNSPECIFIED || strings.TrimSpace(name) == "" {
 		return nil, errors.New("node kind and name are required")
 	}
@@ -58,18 +70,39 @@ func (s *Store) CreateNode(ctx context.Context, kind offerspb.NodeKind, name str
 		return nil, errors.New("rule candidate_requires_trigger: candidate nodes require a machine-evaluable trigger")
 	}
 	n := &offerspb.Node{Id: uuid.NewString(), Kind: kind, Name: name, Status: status, TriggerId: trigger, ActualAccountId: actualAccountID, CreatedAt: timestamppb.New(s.now())}
+	if kind != offerspb.NodeKind_DELIVERABLE {
+		class, finish = offerspb.DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED, offerspb.FinishBar_FINISH_BAR_UNSPECIFIED
+	} else if class == offerspb.DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED {
+		class = offerspb.DeliverableClass_MARKETED
+	}
+	n.DeliverableClass, n.FinishBar = class, finish
 	if status == offerspb.Status_CANDIDATE {
 		var triggerNode string
 		if err := s.db.QueryRowContext(ctx, `SELECT node_id FROM triggers WHERE id=?`, trigger).Scan(&triggerNode); err != nil || triggerNode != n.Id {
 			return nil, errors.New("rule candidate_requires_trigger refused creation: candidate nodes require an attached machine-evaluable trigger")
 		}
 	}
-	_, err := s.db.ExecContext(ctx, `INSERT INTO nodes(id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank) VALUES(?,?,?,?,?,?,?,?)`, n.Id, int32(kind), n.Name, int32(status), trigger, n.CreatedAt.AsTime().UTC().Format(time.RFC3339Nano), actualAccountID, 0)
+	_, err := s.db.ExecContext(ctx, `INSERT INTO nodes(id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank,deliverable_class,finish_bar) VALUES(?,?,?,?,?,?,?,?,?,?)`, n.Id, int32(kind), n.Name, int32(status), trigger, n.CreatedAt.AsTime().UTC().Format(time.RFC3339Nano), actualAccountID, 0, int32(class), int32(finish))
 	return n, err
 }
 
+func (s *Store) CreateNodeWithDetailsAudited(ctx context.Context, kind offerspb.NodeKind, name string, status offerspb.Status, trigger, actualAccountID string, class offerspb.DeliverableClass, finish offerspb.FinishBar, actor, reason string) (*offerspb.Node, error) {
+	n, err := s.CreateNodeWithDetails(ctx, kind, name, status, trigger, actualAccountID, class, finish)
+	if err != nil || strings.TrimSpace(actor) == "" {
+		return n, err
+	}
+	if strings.TrimSpace(reason) == "" {
+		reason = "operator re-declaration"
+	}
+	_, auditErr := s.db.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), n.Id, actor, int32(offerspb.Status_STATUS_UNSPECIFIED), int32(n.Status), reason, s.now().UTC().Format(time.RFC3339Nano))
+	if auditErr != nil {
+		return nil, auditErr
+	}
+	return n, nil
+}
+
 func (s *Store) ListNodes(ctx context.Context, kind offerspb.NodeKind, status offerspb.Status) ([]*offerspb.Node, error) {
-	q := `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank FROM nodes WHERE 1=1`
+	q := `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank,deliverable_class,finish_bar FROM nodes WHERE 1=1`
 	args := []any{}
 	if kind != offerspb.NodeKind_NODE_KIND_UNSPECIFIED {
 		q += ` AND kind=?`
@@ -88,18 +121,32 @@ func (s *Store) ListNodes(ctx context.Context, kind offerspb.NodeKind, status of
 	var out []*offerspb.Node
 	for rows.Next() {
 		var n offerspb.Node
-		var k, st int32
+		var k, st, class, finish int32
 		var ts string
-		if err := rows.Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId, &n.ReleaseRank); err != nil {
+		if err := rows.Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId, &n.ReleaseRank, &class, &finish); err != nil {
 			return nil, err
 		}
 		n.Kind = offerspb.NodeKind(k)
 		n.Status = offerspb.Status(st)
+		n.DeliverableClass, n.FinishBar = offerspb.DeliverableClass(class), offerspb.FinishBar(finish)
 		t, _ := time.Parse(time.RFC3339Nano, ts)
 		n.CreatedAt = timestamppb.New(t)
 		out = append(out, &n)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) GetNode(ctx context.Context, id string) (*offerspb.Node, error) {
+	nodes, err := s.ListNodes(ctx, offerspb.NodeKind_NODE_KIND_UNSPECIFIED, offerspb.Status_STATUS_UNSPECIFIED)
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range nodes {
+		if n.Id == id {
+			return n, nil
+		}
+	}
+	return nil, fmt.Errorf("node %q not found", id)
 }
 
 func allowed(from, to offerspb.Status) bool {
@@ -150,11 +197,13 @@ func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, a
 	var n offerspb.Node
 	var k, st int32
 	var ts string
-	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank FROM nodes WHERE id=?`, id).Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId, &n.ReleaseRank); err != nil {
+	var class, finish int32
+	if err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank,deliverable_class,finish_bar FROM nodes WHERE id=?`, id).Scan(&n.Id, &k, &n.Name, &st, &n.TriggerId, &ts, &n.ActualAccountId, &n.ReleaseRank, &class, &finish); err != nil {
 		return nil, fmt.Errorf("node %q not found: %w", id, err)
 	}
 	n.Kind = offerspb.NodeKind(k)
 	n.Status = offerspb.Status(st)
+	n.DeliverableClass, n.FinishBar = offerspb.DeliverableClass(class), offerspb.FinishBar(finish)
 	if !allowed(n.Status, to) {
 		return nil, fmt.Errorf("rule legal_lifecycle_transition refused %s -> %s; legal transitions from %s: %s", n.Status.String(), to.String(), n.Status.String(), legal(n.Status))
 	}
@@ -186,6 +235,40 @@ func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, a
 	n.Status = to
 	t, _ := time.Parse(time.RFC3339Nano, ts)
 	n.CreatedAt = timestamppb.New(t)
+	return &n, err
+}
+
+// SetDeliverableClass changes the scheduling classification and finish bar of
+// a deliverable. The audit row preserves who made the decision.
+func (s *Store) SetDeliverableClass(ctx context.Context, nodeID string, class offerspb.DeliverableClass, finish offerspb.FinishBar, actor string) (*offerspb.Node, error) {
+	if strings.TrimSpace(actor) == "" {
+		return nil, errors.New("deliverable classification requires an actor")
+	}
+	if class != offerspb.DeliverableClass_MARKETED && class != offerspb.DeliverableClass_ENABLING {
+		return nil, errors.New("rule deliverable_class_enum refused unspecified class")
+	}
+	var n offerspb.Node
+	var kind, status, priorClass, priorFinish int32
+	var created string
+	err := s.db.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank,deliverable_class,finish_bar FROM nodes WHERE id=?`, nodeID).Scan(&n.Id, &kind, &n.Name, &status, &n.TriggerId, &created, &n.ActualAccountId, &n.ReleaseRank, &priorClass, &priorFinish)
+	if err != nil {
+		return nil, fmt.Errorf("node %q not found: %w", nodeID, err)
+	}
+	if offerspb.NodeKind(kind) != offerspb.NodeKind_DELIVERABLE {
+		return nil, errors.New("deliverable classification applies only to deliverable nodes")
+	}
+	if class == offerspb.DeliverableClass_ENABLING && n.ReleaseRank > 0 {
+		return nil, errors.New("rule enabling_deliverables_are_unranked refused: clear the release rank before reclassifying to ENABLING")
+	}
+	if _, err = s.db.ExecContext(ctx, `UPDATE nodes SET deliverable_class=?,finish_bar=? WHERE id=?`, int32(class), int32(finish), nodeID); err != nil {
+		return nil, err
+	}
+	n.Kind, n.Status = offerspb.NodeKind(kind), offerspb.Status(status)
+	n.DeliverableClass, n.FinishBar = class, finish
+	if t, e := time.Parse(time.RFC3339Nano, created); e == nil {
+		n.CreatedAt = timestamppb.New(t)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), nodeID, actor, status, status, fmt.Sprintf("deliverable class changed from %d to %d; finish bar %d (prior class %d, finish bar %d)", class, class, finish, priorClass, priorFinish), s.now().UTC().Format(time.RFC3339Nano))
 	return &n, err
 }
 
@@ -234,9 +317,15 @@ func (s *Store) CreateEdge(ctx context.Context, e *offerspb.Edge) (*offerspb.Edg
 		(e.Kind == "belongs_to" && from == int32(offerspb.NodeKind_DELIVERABLE) && to == int32(offerspb.NodeKind_OFFER)) ||
 		(e.Kind == "requires" && from == int32(offerspb.NodeKind_OFFER) && to == int32(offerspb.NodeKind_OFFER)) ||
 		(e.Kind == "unlocks" && from == int32(offerspb.NodeKind_DELIVERABLE) && (to == int32(offerspb.NodeKind_RAMP) || to == int32(offerspb.NodeKind_STREAM))) ||
+		(e.Kind == "enables" && from == int32(offerspb.NodeKind_DELIVERABLE) && (to == int32(offerspb.NodeKind_DELIVERABLE) || to == int32(offerspb.NodeKind_RAMP) || to == int32(offerspb.NodeKind_STREAM))) ||
 		(e.Kind == "serves" && ((from == int32(offerspb.NodeKind_DELIVERABLE) && to == int32(offerspb.NodeKind_AUDIENCE)) || (from == int32(offerspb.NodeKind_AUDIENCE) && to == int32(offerspb.NodeKind_AUDIENCE))))
 	if !valid {
 		return nil, fmt.Errorf("rule typed_edge_matrix refused %s -> %s for edge kind %q", offerspb.NodeKind(from).String(), offerspb.NodeKind(to).String(), e.Kind)
+	}
+	if e.Kind == "enables" {
+		if path := s.enablesCycle(ctx, e.FromId, e.ToId); len(path) > 0 {
+			return nil, fmt.Errorf("rule enables_is_acyclic refused cycle: %s", strings.Join(path, " -> "))
+		}
 	}
 	if e.Id == "" {
 		e.Id = uuid.NewString()
@@ -270,6 +359,46 @@ func (s *Store) CreateEdge(ctx context.Context, e *offerspb.Edge) (*offerspb.Edg
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO edges(id,from_id,to_id,kind,intended_price_minor,currency,intended_price_declared) VALUES(?,?,?,?,?,?,?)`, e.Id, e.FromId, e.ToId, e.Kind, e.IntendedPriceMinor, e.Currency, declaredInt)
 	return e, err
+}
+
+func (s *Store) enablesCycle(ctx context.Context, fromID, toID string) []string {
+	rows, err := s.db.QueryContext(ctx, `SELECT from_id,to_id FROM edges WHERE kind='enables'`)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	next := map[string][]string{}
+	for rows.Next() {
+		var a, b string
+		if rows.Scan(&a, &b) == nil {
+			next[a] = append(next[a], b)
+		}
+	}
+	path := []string{fromID}
+	visiting := map[string]bool{fromID: true}
+	var walk func(string) bool
+	walk = func(node string) bool {
+		for _, child := range next[node] {
+			if child == fromID {
+				path = append(path, child)
+				return true
+			}
+			if visiting[child] {
+				continue
+			}
+			visiting[child] = true
+			path = append(path, child)
+			if walk(child) {
+				return true
+			}
+			path = path[:len(path)-1]
+		}
+		return false
+	}
+	if walk(toID) {
+		return path
+	}
+	return nil
 }
 
 // MergeNodes is the only catalog operation that removes a node. The caller
@@ -691,7 +820,14 @@ func (s *Store) ListProposals(ctx context.Context, nodeID string, status offersp
 }
 
 func (s *Store) RecordEvaluation(ctx context.Context, result string, nodes int, reason string, evaluatedAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO evaluation_runs(id,result,nodes_scored,reason,evaluated_at) VALUES(?,?,?,?,?)`, uuid.NewString(), result, nodes, reason, evaluatedAt.UTC().Format(time.RFC3339Nano))
+	when := evaluatedAt.UTC().Format(time.RFC3339Nano)
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO evaluation_runs(id,result,nodes_scored,reason,evaluated_at) VALUES(?,?,?,?,?)`, uuid.NewString(), result, nodes, reason, when); err != nil {
+		return err
+	}
+	// The latest row is the complete read surface for evaluation health. Keep
+	// it even when a clock jump makes it older than the retention boundary.
+	cutoff := evaluatedAt.UTC().Add(-30 * 24 * time.Hour).Format(time.RFC3339Nano)
+	_, err := s.db.ExecContext(ctx, `DELETE FROM evaluation_runs WHERE evaluated_at < ? AND evaluated_at <> (SELECT MAX(evaluated_at) FROM evaluation_runs)`, cutoff)
 	return err
 }
 

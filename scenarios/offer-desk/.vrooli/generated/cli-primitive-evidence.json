@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "offer-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "c9435e8cb7e10f1034c91f6bf2910d4fb27fa25157bf54085a9a3a24c30e0093",
+  "manifest_hash": "5d41d899ddffefbd1ed79a8412862f23de059eaa4875dbccd7fdcbd8a52995fb",
   "commands": [
     {
       "path": "offers board-show",
@@ -71,6 +71,14 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "offers catalog-set-class",
+      "group": "offers",
+      "command": "catalog-set-class",
+      "binding": "CatalogService.SetDeliverableClass",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
       "path": "offers catalog-set-release-rank",
       "group": "offers",
       "command": "catalog-set-release-rank",
@@ -91,6 +99,14 @@
       "group": "offers",
       "command": "catalog-verify",
       "binding": "CatalogService.VerifyCatalog",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "offers enabling-list",
+      "group": "offers",
+      "command": "enabling-list",
+      "binding": "ReleaseLadderService.GetEnablingDeliverables",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
@@ -133,6 +149,14 @@
       "binding": "GatesService.DeclareTrigger",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers meters",
+      "group": "offers",
+      "command": "meters",
+      "binding": "CatalogService.GetMeterInventory",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     },
     {
       "path": "offers release-ladder",

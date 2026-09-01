@@ -23,9 +23,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/testutil/modeltest/matrix_test.go",
+          "ref": "api/internal/catalog/store_test.go",
           "status": "implemented",
-          "notes": "Table-driven test asserts every node kind accepts only the closed status set and rejects an unknown value."
+          "notes": "The catalog test exercises the real typed deliverable class and edge matrix, while the lifecycle tests exercise the closed status vocabulary on stored nodes."
         },
         {
           "type": "test",
@@ -70,9 +70,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/testutil/modeltest/matrix_test.go",
+          "ref": "api/internal/catalog/store_test.go",
           "status": "implemented",
-          "notes": "Exhaustive matrix over (from,to): every illegal pair returns a typed refusal; every legal pair succeeds."
+          "notes": "The catalog test exercises an illegal lifecycle transition against a real stored node and asserts the named refusal rule."
         },
         {
           "type": "test",

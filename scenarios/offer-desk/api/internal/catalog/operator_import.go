@@ -163,30 +163,15 @@ func hasAuthorityHandoff(body string) bool {
 	return strings.Contains(lower, "offer desk is authoritative") || strings.Contains(lower, "money ledger is authoritative")
 }
 
-var pricingEdgeKeys = []string{
-	"business/tier-1",
-	"business/tier-2",
-	"business/tier-3",
-	"business/tier-4",
-	"lifestyle/tier-1",
-	"lifestyle/tier-2",
-	"lifestyle/tier-3",
-	"lifestyle/tier-4",
-}
-
-func supportedPricingEdge(key string) bool {
-	for _, supported := range pricingEdgeKeys {
-		if supported == key {
-			return true
-		}
-	}
-	return false
-}
-
-func loadImportManifest() (importManifest, error) {
-	data, err := importManifestFS.ReadFile("import-manifest.json")
+func loadImportManifest(sourceRoot string) (importManifest, error) {
+	data, err := os.ReadFile(filepath.Join(sourceRoot, "import-manifest.json"))
 	if err != nil {
-		return importManifest{}, err
+		// Fixture imports retain the embedded compatibility roster; operator
+		// supplied canon imports must carry their own adjacent roster.
+		data, err = importManifestFS.ReadFile("import-manifest.json")
+		if err != nil {
+			return importManifest{}, err
+		}
 	}
 	var manifest importManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
@@ -251,20 +236,24 @@ func statusFromWord(word string) (offerspb.Status, bool) {
 	}
 }
 
-func nodeKindForManifest(kind string) offerspb.NodeKind {
+func nodeKindForManifest(kind string) (offerspb.NodeKind, error) {
 	switch kind {
+	case "none":
+		return offerspb.NodeKind_NODE_KIND_UNSPECIFIED, nil
 	case "channel":
-		return offerspb.NodeKind_CHANNEL
+		return offerspb.NodeKind_CHANNEL, nil
 	case "revenue-line":
-		return offerspb.NodeKind_REVENUE_LINE
+		return offerspb.NodeKind_REVENUE_LINE, nil
 	case "deliverable":
-		return offerspb.NodeKind_DELIVERABLE
+		return offerspb.NodeKind_DELIVERABLE, nil
 	case "variant":
-		return offerspb.NodeKind_VARIANT
-	case "membership":
-		return offerspb.NodeKind_DELIVERABLE
+		return offerspb.NodeKind_VARIANT, nil
+	case "offer":
+		return offerspb.NodeKind_OFFER, nil
+	case "benchmark", "pricing":
+		return offerspb.NodeKind_NODE_KIND_UNSPECIFIED, nil
 	default:
-		return offerspb.NodeKind_OFFER
+		return offerspb.NodeKind_NODE_KIND_UNSPECIFIED, fmt.Errorf("unrecognized import manifest kind %q", kind)
 	}
 }
 
@@ -482,7 +471,7 @@ func (s *Store) ImportCatalog(ctx context.Context, sourcePath string, mode offer
 	if err != nil {
 		return nil, err
 	}
-	manifest, err := loadImportManifest()
+	manifest, err := loadImportManifest(root)
 	if err != nil {
 		return nil, err
 	}
@@ -499,6 +488,9 @@ func (s *Store) ImportCatalog(ctx context.Context, sourcePath string, mode offer
 			rel, relErr := filepath.Rel(root, path)
 			if relErr != nil {
 				return relErr
+			}
+			if filepath.ToSlash(rel) == "import-manifest.json" {
+				return nil
 			}
 			actual[filepath.ToSlash(rel)] = struct{}{}
 		}
@@ -520,12 +512,8 @@ func (s *Store) ImportCatalog(ctx context.Context, sourcePath string, mode offer
 
 	nodes := make([]importedNode, 0)
 	byName := make(map[string]importedNode)
-	type membership struct {
-		scenario string
-		skus     []string
-	}
-	memberships := make([]membership, 0)
 	pricing := make(map[string]pricingCell)
+	pricingOffers := make(map[string]struct{})
 	benchmarkFacts := make([]*offerspb.Fact, 0)
 	benchmarkFileIndex := -1
 	pricingFileIndex := -1
@@ -539,7 +527,14 @@ func (s *Store) ImportCatalog(ctx context.Context, sourcePath string, mode offer
 		if readErr != nil {
 			return nil, fmt.Errorf("read %s: %w", path, readErr)
 		}
-		file := CatalogImportFile{Path: path, Cardinality: entry.Cardinality, NodeKind: nodeKindForManifest(entry.Kind)}
+		nodeKind, kindErr := nodeKindForManifest(entry.Kind)
+		if kindErr != nil {
+			return nil, kindErr
+		}
+		file := CatalogImportFile{Path: path, Cardinality: entry.Cardinality, NodeKind: nodeKind}
+		if entry.Kind == "offer" && strings.HasPrefix(path, "catalogs/skus/base/") {
+			pricingOffers[strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))] = struct{}{}
+		}
 		fileIndex := len(report.Files)
 		for _, finding := range operatorReferenceFindings(root, path, string(body)) {
 			file.Findings++
@@ -595,26 +590,6 @@ func (s *Store) ImportCatalog(ctx context.Context, sourcePath string, mode offer
 					report.StatusMap = append(report.StatusMap, CatalogImportStatus{Path: path + "#" + name, Status: status, Recognized: true})
 				}
 				file.Read, file.Written = len(matches), len(matches)
-			} else if entry.Kind == "membership" {
-				var mapping struct {
-					Mappings []struct {
-						ScenarioID string `json:"scenarioId"`
-						SKUs       []struct {
-							SKUID string `json:"skuId"`
-						} `json:"skus"`
-					} `json:"mappings"`
-				}
-				if err := json.Unmarshal(body, &mapping); err != nil {
-					return nil, fmt.Errorf("parse %s: %w", path, err)
-				}
-				file.Read = len(mapping.Mappings)
-				for _, item := range mapping.Mappings {
-					itemSKUs := make([]string, 0, len(item.SKUs))
-					for _, sku := range item.SKUs {
-						itemSKUs = append(itemSKUs, sku.SKUID)
-					}
-					memberships = append(memberships, membership{scenario: item.ScenarioID, skus: itemSKUs})
-				}
 			} else if entry.Kind == "pricing" {
 				pricingFileIndex = len(report.Files)
 				rows, findings := parsePricingRows(string(body))
@@ -630,16 +605,14 @@ func (s *Store) ImportCatalog(ctx context.Context, sourcePath string, mode offer
 				}
 				for _, row := range rows {
 					key := row.offer + "/" + row.variant
-					if !supportedPricingEdge(key) {
-						if row.declared {
-							file.Findings++
-							report.Findings = append(report.Findings, CatalogImportFinding{Path: path, Reason: "pricing row names an offer or variant without a declared sells_at edge: " + key, Blocking: true})
-						}
-						continue
-					}
 					pricing[key] = row
 				}
-				file.Read = len(pricing)
+				file.Read = 0
+				for _, row := range pricing {
+					if _, ok := pricingOffers[row.offer]; ok {
+						file.Read++
+					}
+				}
 			} else if entry.Kind == "benchmark" {
 				benchmarkFileIndex = fileIndex
 				facts, findings := parseBenchmarkRows(string(body))
@@ -660,32 +633,6 @@ func (s *Store) ImportCatalog(ctx context.Context, sourcePath string, mode offer
 	// The relationship declarations are part of the import, not inferred by a
 	// later read. The edge payload remains typed and auditable in the catalog.
 	edges := make([]importedEdge, 0)
-	for _, item := range memberships {
-		deliverable := importedNode{id: uuid.NewString(), kind: offerspb.NodeKind_DELIVERABLE, name: item.scenario, status: offerspb.Status_ACTIVE}
-		nodes = append(nodes, deliverable)
-		byName[deliverable.name] = deliverable
-		for _, sku := range item.skus {
-			fileIndex := -1
-			for i := range report.Files {
-				if report.Files[i].Path == "catalogs/scenario-sku-map.json" {
-					fileIndex = i
-					break
-				}
-			}
-			if offer, ok := byName[sku]; ok {
-				edges = append(edges, importedEdge{from: deliverable.id, to: offer.id, kind: "belongs_to", fileIndex: fileIndex})
-				if fileIndex >= 0 {
-					report.Files[fileIndex].Written++
-				}
-				report.StatusMap = append(report.StatusMap, CatalogImportStatus{Path: "catalogs/scenario-sku-map.json#" + item.scenario + "/" + sku, Status: offerspb.Status_ACTIVE, Recognized: true})
-			} else {
-				if fileIndex >= 0 {
-					report.Files[fileIndex].Findings++
-				}
-				report.Findings = append(report.Findings, CatalogImportFinding{Path: "catalogs/scenario-sku-map.json", Reason: "membership names an unresolved SKU " + sku, Blocking: false})
-			}
-		}
-	}
 	if business, ok := byName["business"]; ok {
 		for _, addon := range []string{"elder-care", "family-with-kids", "property-services"} {
 			if n, exists := byName[addon]; exists {
@@ -694,11 +641,14 @@ func (s *Store) ImportCatalog(ctx context.Context, sourcePath string, mode offer
 		}
 	}
 	if pricingFileIndex >= 0 && !pricingStateRetired {
-		for _, key := range pricingEdgeKeys {
-			row, ok := pricing[key]
-			if !ok {
-				report.Files[pricingFileIndex].Findings++
-				report.Findings = append(report.Findings, CatalogImportFinding{Path: "strategy/PRICING.md", Reason: "pricing matrix is missing the supported edge row: " + key, Blocking: true})
+		keys := make([]string, 0, len(pricing))
+		for key := range pricing {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			row := pricing[key]
+			if _, ok := pricingOffers[row.offer]; !ok {
 				continue
 			}
 			offer, offerOK := byName[row.offer]
@@ -713,18 +663,6 @@ func (s *Store) ImportCatalog(ctx context.Context, sourcePath string, mode offer
 			edges = append(edges, importedEdge{from: offer.id, to: variant.id, kind: "sells_at", currency: row.currency, price: row.priceMinor, priceDeclared: row.declared, fileIndex: pricingFileIndex})
 			if pricingFileIndex >= 0 {
 				report.Files[pricingFileIndex].Written++
-			}
-		}
-	} else if pricingFileIndex < 0 {
-		// Keep fixture-only imports that predate the pricing manifest useful, but
-		// never invent a currency or a price for those legacy edges.
-		for _, offerName := range []string{"business", "lifestyle"} {
-			if offer, ok := byName[offerName]; ok {
-				for _, variantName := range []string{"tier-1", "tier-2", "tier-3", "tier-4"} {
-					if variant, exists := byName[variantName]; exists {
-						edges = append(edges, importedEdge{from: offer.id, to: variant.id, kind: "sells_at", fileIndex: -1})
-					}
-				}
 			}
 		}
 	}
