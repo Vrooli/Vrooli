@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P0 operational targets in PRD.md.",
-    "last_validated_at": "2026-08-05T20:01:53-04:00",
+    "last_validated_at": "2026-08-30T17:59:51-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "CHANMGR-P0-001",
       "title": "Identity registry",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "identities",
       "criticality": "P0",
@@ -23,13 +23,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An identity with a valid platform, purpose tag, and environment ref persists and round-trips through the repository."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An identity naming an unknown platform id is rejected with a typed error rather than stored with a dangling reference."
         },
         {
@@ -44,7 +44,7 @@
     {
       "id": "CHANMGR-P0-002",
       "title": "Credential isolation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "identities",
       "criticality": "P0",
@@ -58,13 +58,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A create or update carrying a token, password, or cookie value is rejected with a typed error naming the offending field."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "No identity response message includes a credential field; the authority reference is returned only where the redaction contract permits it."
         },
         {
@@ -78,7 +78,7 @@
     {
       "id": "CHANMGR-P0-003",
       "title": "Declarative platform descriptors",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "platforms",
       "criticality": "P0",
@@ -91,13 +91,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A descriptor missing a required field fails validation at load with a message naming the field and the file."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A new descriptor added to the data directory is loaded and queryable without any code change in the test."
         },
         {
@@ -112,7 +112,7 @@
     {
       "id": "CHANMGR-P0-004",
       "title": "Declarative warming programs",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "warming",
       "criticality": "P0",
@@ -125,19 +125,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The shipped conservative TikTok program validates against the schema and loads every phase, gate, and constraint."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A program declaring a phase step whose action kind is unknown to its platform descriptor fails validation."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A program lacking a provenance block fails validation; provenance is required, not optional metadata."
         }
       ]
@@ -145,7 +145,7 @@
     {
       "id": "CHANMGR-P0-005",
       "title": "Precondition gate",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "warming",
       "criticality": "P0",
@@ -159,13 +159,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Starting a program with any required precondition unsatisfied is rejected and lists every unmet precondition."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Marking the final outstanding precondition satisfied allows the program to start and schedules day one."
         }
       ]
@@ -173,7 +173,7 @@
     {
       "id": "CHANMGR-P0-006",
       "title": "Unified action queue",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "queue",
       "criticality": "P0",
@@ -186,13 +186,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Actions produced by a warming program and by a content release land in the same queue and share one cadence accounting."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "No service can persist an executed action without a corresponding queue entry; a direct-execute path is absent by construction."
         }
       ]
@@ -200,7 +200,7 @@
     {
       "id": "CHANMGR-P0-007",
       "title": "Cadence enforcement",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "queue",
       "criticality": "P0",
@@ -214,19 +214,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An action that would exceed the daily ceiling is rejected with a typed error naming the ceiling and current count."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Warming actions and post actions on the same day accumulate against one ceiling, not two."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A program declaring counts above the platform ceiling is clamped or rejected at plan generation, never at execution."
         }
       ]
@@ -234,7 +234,7 @@
     {
       "id": "CHANMGR-P0-008",
       "title": "Session scheduling",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "queue",
       "criticality": "P0",
@@ -248,19 +248,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A generated day contains between the declared minimum and maximum number of sessions, each within the declared duration."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Consecutive sessions are separated by at least the declared minimum gap."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Every scheduled action falls inside the program's declared active window in the identity's timezone."
         }
       ]
@@ -268,7 +268,7 @@
     {
       "id": "CHANMGR-P0-009",
       "title": "Recorded randomization",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-009",
       "category": "warming",
       "criticality": "P0",
@@ -281,19 +281,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Two generations with the same seed produce identical plans; different seeds produce different plans within the declared ranges."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Every generated action stores the resolved count and time, not just a reference to the range it came from."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Scheduled times vary across days rather than repeating a fixed hour."
         }
       ]
@@ -301,7 +301,7 @@
     {
       "id": "CHANMGR-P0-010",
       "title": "Phase action guards",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-010",
       "category": "warming",
       "criticality": "P0",
@@ -315,19 +315,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Queueing a post during a phase that forbids posts is rejected with a typed error naming the phase and the forbidden action."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A content release targeting an identity in a posting-forbidden phase is refused, not deferred silently."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The same action succeeds once the identity advances to a phase that permits it."
         }
       ]
@@ -335,7 +335,7 @@
     {
       "id": "CHANMGR-P0-011",
       "title": "Gate evaluation with terminal quarantine",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-011",
       "category": "warming",
       "criticality": "P0",
@@ -349,25 +349,25 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A measurement above the pass threshold advances the identity; one below the fail threshold moves it to quarantine."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An inconclusive measurement repeats the declared phase at most the declared number of times, then resolves rather than looping."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Quarantine cancels every pending queue entry for that identity and records the measurement that caused it."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A gate whose wait interval has not elapsed does not evaluate and does not advance the identity."
         }
       ]
@@ -375,7 +375,7 @@
     {
       "id": "CHANMGR-P0-012",
       "title": "Graduation by earned criteria",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-012",
       "category": "warming",
       "criticality": "P0",
@@ -389,19 +389,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An identity with all phases complete but an open flag does not graduate."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An identity whose program duration has elapsed but whose gate never passed does not graduate."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A graduated identity continues to receive maintenance engagement actions on the queue."
         }
       ]
@@ -409,7 +409,7 @@
     {
       "id": "CHANMGR-P0-013",
       "title": "Eligibility query",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-013",
       "category": "queue",
       "criticality": "P0",
@@ -423,19 +423,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A graduated identity holding the lane grant returns eligible; one without the grant returns not-eligible with a reason."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A repository or descriptor failure during evaluation returns unknown, never eligible."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A quarantined or flagged-and-paused identity returns not-eligible regardless of prior graduation."
         },
         {
@@ -450,7 +450,7 @@
     {
       "id": "CHANMGR-P0-014",
       "title": "Idempotent release",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-014",
       "category": "queue",
       "criticality": "P0",
@@ -465,13 +465,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Two releases carrying the same idempotency key produce one queue entry and one publish record."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A release for an identity that is not eligible for the draft's lane is refused with a typed error."
         },
         {
@@ -486,7 +486,7 @@
     {
       "id": "CHANMGR-P0-015",
       "title": "Manual executor",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-015",
       "category": "execution",
       "criticality": "P0",
@@ -500,13 +500,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An action completed manually produces a record with the same fields an automated executor would write."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Completing an action outside its declared window is recorded with the actual time and flagged rather than silently accepted."
         },
         {
@@ -521,7 +521,7 @@
     {
       "id": "CHANMGR-P0-016",
       "title": "Signal capture and baseline",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-016",
       "category": "signals",
       "criticality": "P0",
@@ -534,13 +534,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Recorded observations produce a rolling baseline over the configured window and update as new values arrive."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A baseline with fewer than the configured minimum observations is reported as not-established rather than computed from thin data."
         },
         {
@@ -555,7 +555,7 @@
     {
       "id": "CHANMGR-P0-017",
       "title": "Flag on distribution decay",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-017",
       "category": "signals",
       "criticality": "P0",
@@ -569,25 +569,25 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A sustained drop past the configured margin raises exactly one flag carrying the observations that triggered it."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Raising a flag pauses the identity's queue and schedules no compensating action of any kind."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A single low observation inside normal variance does not raise a flag."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "No flag message asserts a platform penalty; every flag states the measurement and the baseline it was compared against."
         }
       ]
@@ -595,7 +595,7 @@
     {
       "id": "CHANMGR-P0-018",
       "title": "Program provenance surfaced",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-018",
       "category": "warming",
       "criticality": "P0",
@@ -609,13 +609,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Program read responses include the full provenance block; it cannot be omitted by a projection."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Every program shipped in the data directory declares a confidence value and a revisit trigger."
         },
         {

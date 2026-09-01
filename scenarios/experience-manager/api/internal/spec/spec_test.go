@@ -50,25 +50,47 @@ func TestParseScenarioFixturesContractGreen(t *testing.T) { // [REQ:EXPERIEN-P0-
 				t.Fatalf("expected contract-green fixture, got findings: %+v", report.Findings)
 			}
 			if scenario == "react-component-library" {
-				if !hasCode(report.Findings, CodeVacuousContract) {
-					t.Fatalf("portable library contracts should be parsed and reject vacuous contracts: %+v", report.Findings)
-				}
-				foundLibraryPath := false
-				for _, finding := range report.Findings {
-					for _, location := range finding.Locations {
-						if strings.HasPrefix(location, "library/") {
-							foundLibraryPath = true
-						}
-					}
-				}
-				if !foundLibraryPath {
-					t.Fatalf("portable findings did not retain a library path: %+v", report.Findings)
+				if hasCode(report.Findings, CodeVacuousContract) {
+					t.Fatalf("portable library contracts should use the canonical experience authority: %+v", report.Findings)
 				}
 			}
 			if report.Spec == nil || report.Spec.Index.Scenario != scenario {
 				t.Fatalf("parsed spec identity mismatch: %+v", report.Spec)
 			}
 		})
+	}
+}
+
+func TestPortableExperienceReferenceDelegatesToCanonicalSpec(t *testing.T) {
+	scenarioDir := t.TempDir()
+	contractPath := filepath.Join(scenarioDir, "library", "components", "Button", "versions", "1.0.0", "experience-contract.json")
+	canonicalPath := filepath.Join(scenarioDir, "experience", "components", "button.json")
+	if err := os.MkdirAll(filepath.Dir(contractPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(canonicalPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(contractPath, []byte(`{"kind":"experience-reference","ref":"../../../../../experience/components/button.json"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(canonicalPath, []byte(`{"kind":"experience-component"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	report := &Report{}
+	checkPortableContract(report, scenarioDir, contractPath, nil)
+	if len(report.Findings) != 0 {
+		t.Fatalf("valid experience reference produced findings: %+v", report.Findings)
+	}
+
+	if err := os.Remove(canonicalPath); err != nil {
+		t.Fatal(err)
+	}
+	report = &Report{}
+	checkPortableContract(report, scenarioDir, contractPath, nil)
+	if !hasCode(report.Findings, CodeRefUnresolved) {
+		t.Fatalf("missing canonical target did not produce ref finding: %+v", report.Findings)
 	}
 }
 
@@ -187,8 +209,8 @@ func TestParseScenarioParsesComponentDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseScenario: %v", err)
 	}
-	if !hasCode(report.Findings, CodeVacuousContract) {
-		t.Fatalf("expected portable contract findings from the component library, got: %+v", report.Findings)
+	if hasCode(report.Findings, CodeVacuousContract) {
+		t.Fatalf("expected canonical component documents without vacuous contract findings, got: %+v", report.Findings)
 	}
 	button, ok := report.Spec.Components["button"]
 	if !ok {
@@ -199,6 +221,18 @@ func TestParseScenarioParsesComponentDocuments(t *testing.T) {
 	}
 	if got := report.ComponentDepths["button"]; got != 3 {
 		t.Fatalf("button component depth = L%d, want L3", got)
+	}
+}
+
+func TestPortableLibraryContractsIgnoreRetiredBackups(t *testing.T) {
+	root := t.TempDir()
+	retired := filepath.Join(root, "library", ".retired", "archive", "experience-contract.json")
+	mustWrite(t, retired, `{"claims":[]}`)
+
+	var report Report
+	checkPortableLibraryContracts(&report, root)
+	if hasCode(report.Findings, CodeVacuousContract) {
+		t.Fatalf("retired portable contracts must not enter active findings: %+v", report.Findings)
 	}
 }
 
@@ -296,6 +330,29 @@ func TestPortableContractAdversarialFixtures(t *testing.T) {
 			}
 			if tc.name == "real-machine" && len(report.Findings) != 0 {
 				t.Fatalf("real machine fixture produced findings: %+v", report.Findings)
+			}
+		})
+	}
+}
+
+func TestSizeParityAcceptsControlFloorAndRejectsInvalidArity(t *testing.T) {
+	tests := []struct {
+		name     string
+		elements []string
+		wantFind bool
+	}{
+		{name: "control floor", elements: []string{"control"}},
+		{name: "explicit pair", elements: []string{"control", "peer"}},
+		{name: "missing elements", wantFind: true},
+		{name: "too many elements", elements: []string{"control", "peer", "third"}, wantFind: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			claim := Claim{ID: "size-check", Type: "size-parity", Statement: "The control geometry stays within the documented size contract.", Tier: "machine", Elements: tc.elements}
+			report := &Report{}
+			checkClaimShape(report, "experience/components/button.json", claim)
+			if got := hasCode(report.Findings, CodeSchemaInvalid); got != tc.wantFind {
+				t.Fatalf("schema-invalid = %v, want %v; findings = %+v", got, tc.wantFind, report.Findings)
 			}
 		})
 	}

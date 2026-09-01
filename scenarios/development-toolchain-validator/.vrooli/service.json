@@ -139,13 +139,15 @@
         "type": "scenario",
         "enabled": true,
         "required": true,
-        "description": "Source of truth for skill catalog (id/version/content hash) mirrored by skill_catalog."
+        "description": "Source of truth for skill catalog (id/version/content hash) mirrored by skill_catalog.",
+        "startup_policy": "must_start"
       },
       "workspace-sandbox": {
         "type": "scenario",
         "enabled": true,
         "required": false,
-        "description": "Reads sandbox diff content when content-rule manifest evaluation needs raw file content; degrades to path-only verdict when unavailable."
+        "description": "Reads sandbox diff content when content-rule manifest evaluation needs raw file content; degrades to path-only verdict when unavailable.",
+        "startup_policy": "try_start"
       }
     }
   },

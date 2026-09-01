@@ -97,15 +97,18 @@
     "resources": {
       "doc-parse": {
         "required": true,
-        "description": "Local content, table, geometry, and PDF classification handler for intake and derivation."
+        "description": "Local content, table, geometry, and PDF classification handler for intake and derivation.",
+        "startup_policy": "must_start"
       },
       "doc-ocr": {
         "required": false,
-        "description": "Portable tier-2 OCR handler for scanned PDFs and raster images."
+        "description": "Portable tier-2 OCR handler for scanned PDFs and raster images.",
+        "startup_policy": "try_start"
       },
       "unstructured-io": {
         "required": false,
-        "description": "Measured Docker fallback for breadth, typed elements, and OCR when available."
+        "description": "Measured Docker fallback for breadth, typed elements, and OCR when available.",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {
@@ -113,19 +116,22 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "Gateway-only inference seam for later enrichment and permitted remote tiers.",
-        "degraded_behavior": "Intake and local parsing remain available; enrichment and permitted remote tiers are unavailable until ai-gateway starts."
+        "degraded_behavior": "Intake and local parsing remain available; enrichment and permitted remote tiers are unavailable until ai-gateway starts.",
+        "supervision_precedence": "required"
       },
       "storage-manager": {
         "required": true,
         "startup_policy": "try_start",
         "description": "Governed storage and routed file-store contract for raw bytes.",
-        "degraded_behavior": "The scenario keeps its local routed storage seam; external storage-manager-backed operations are unavailable until storage-manager starts."
+        "degraded_behavior": "The scenario keeps its local routed storage seam; external storage-manager-backed operations are unavailable until storage-manager starts.",
+        "supervision_precedence": "required"
       },
       "search-hub": {
         "required": true,
         "startup_policy": "try_start",
         "description": "Retrieval registration and query seam used by later domains.",
-        "degraded_behavior": "Intake and local parsing remain available; retrieval registration and federated search are unavailable until search-hub starts."
+        "degraded_behavior": "Intake and local parsing remain available; retrieval registration and federated search are unavailable until search-hub starts.",
+        "supervision_precedence": "required"
       }
     }
   },

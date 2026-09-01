@@ -102,7 +102,8 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "Every raster treatment and every model inference runs here. Backdrop Studio ships no raster or provider code. ai-gateway is reached transitively through this dependency, never directly.",
-        "degraded_behavior": "The catalog, style authoring and released-backdrop surfaces stay available, but nothing renders: every treatment and every inference runs in image-tools and no local substitute is permitted. Compose still resolves and returns a plan, so the operator sees exactly what would run once the dependency returns."
+        "degraded_behavior": "The catalog, style authoring and released-backdrop surfaces stay available, but nothing renders: every treatment and every inference runs in image-tools and no local substitute is permitted. Compose still resolves and returns a plan, so the operator sees exactly what would run once the dependency returns.",
+        "supervision_precedence": "required"
       },
       "brand-manager": {
         "enabled": true,
@@ -110,7 +111,8 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "Resolves $brand.* palette slots at render time. An unresolved slot is refused by name and never defaulted.",
-        "degraded_behavior": "Browsing and released backdrops stay available, but no render proceeds: a $brand.* slot that cannot be resolved is refused by name and never defaulted, because a substituted colour would silently break the palette lock the treatment layer exists to provide."
+        "degraded_behavior": "Browsing and released backdrops stay available, but no render proceeds: a $brand.* slot that cannot be resolved is refused by name and never defaulted, because a substituted colour would silently break the palette lock the treatment layer exists to provide.",
+        "supervision_precedence": "required"
       },
       "asset-studio": {
         "enabled": true,

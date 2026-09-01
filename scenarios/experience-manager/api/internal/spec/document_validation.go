@@ -391,8 +391,8 @@ func checkStructuredClaimShape(report *Report, loc string, claim Claim) {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("state-contrast claim %q must declare params.minContrastRatio >= 1", claim.ID), loc, "Set the minimum WCAG contrast ratio.")
 		}
 	case "size-parity":
-		if len(claim.Elements) != 2 {
-			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("size-parity claim %q must name exactly two elements", claim.ID), loc, "Name the control and the sibling whose heights must match.")
+		if len(claim.Elements) == 0 || len(claim.Elements) > 2 {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("size-parity claim %q must name one control or exactly two elements", claim.ID), loc, "Name control for a documented size rung, or name the two elements whose heights must match.")
 		}
 		if value, ok := numericParam(claim.Params, "tolerance"); ok && value < 0 {
 			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("size-parity claim %q tolerance must be non-negative", claim.ID), loc, "Use a non-negative CSS-pixel tolerance.")

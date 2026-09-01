@@ -1,71 +1,64 @@
 {
-  "description": "Develop comprehensive command-line interface",
-  "module_id": "MOD-P1-020",
-  "prd_ref": "OT-P1-009",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-08-31T12:35:49-04:00"
+  },
   "requirements": [
     {
+      "id": "REQ-P1-009",
+      "title": "Command Line Interface Implementation",
+      "status": "planned",
+      "prd_ref": "OT-P1-009",
       "category": "cli",
       "description": "Develop a CLI tool supporting all core operations including profile management, task execution, run monitoring, and artifact retrieval. Include proper error handling and help documentation.",
-      "id": "REQ-P1-009",
-      "prd_ref": "OT-P1-009",
-      "status": "planned",
-      "title": "Command Line Interface Implementation",
       "validation": [
         {
-          "notes": "Test command parsing",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test command parsing"
         },
         {
-          "notes": "Test output formatting",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Test output formatting"
         },
         {
-          "notes": "Verify end-to-end CLI workflows",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "not_implemented",
+          "notes": "Verify end-to-end CLI workflows"
         },
         {
-          "notes": "Command response time under 500ms",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Command response time under 500ms"
         },
         {
-          "notes": "All core operations accessible via CLI",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "All core operations accessible via CLI"
         }
       ]
     },
     {
+      "id": "REQ-P1-009a",
+      "title": "Unsupported remote runner targets fail closed",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-009",
       "category": "cli",
       "description": "The global --node selector must never be silently ignored: when Agent Manager has no governed remote runner route, it must fail explicitly instead of returning local runner results.",
-      "id": "REQ-P1-009a",
-      "prd_ref": "OT-P1-009",
-      "status": "implemented",
-      "title": "Unsupported remote runner targets fail closed",
       "validation": [
         {
-          "notes": "Rejects a non-empty --node target before runner commands can be treated as local execution.",
-          "phase": "unit",
+          "type": "test",
           "ref": "cli/app_test.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Rejects a non-empty --node target before runner commands can be treated as local execution."
         }
       ]
     }
-  ],
-  "title": "CLI Interface"
+  ]
 }

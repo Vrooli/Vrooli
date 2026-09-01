@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P1 operational targets in PRD.md.",
-    "last_validated_at": "2026-08-05T20:01:53-04:00",
+    "last_validated_at": "2026-08-30T17:59:51-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -25,21 +25,21 @@
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestBrowserDispatchUsesAssignedProfileAndPreservesManualFallback",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A dispatched action binds the identity's own session profile; two identities never share one profile."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestBrowserDispatchUsesAssignedProfileAndPreservesManualFallback",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A browser-executed action produces a record with the same fields as the manual executor produces."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestBrowserDispatchUsesAssignedProfileAndPreservesManualFallback",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Dispatch failure degrades the action to manual with the failure recorded, rather than marking it complete."
         },
         {
@@ -52,7 +52,7 @@
     {
       "id": "CHANMGR-P1-002",
       "title": "Portfolio separation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "queue",
       "criticality": "P1",
@@ -66,14 +66,14 @@
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestPortfolioPolicySeparatesCrossIdentityPublishes",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Scheduling a post inside the separation window of another identity's post is shifted or refused per policy."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestPortfolioPolicySeparatesCrossIdentityPublishes",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The per-hour identity ceiling is enforced across the whole portfolio, not per platform."
         }
       ]
@@ -81,7 +81,7 @@
     {
       "id": "CHANMGR-P1-003",
       "title": "Asset uniqueness",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "queue",
       "criticality": "P1",
@@ -96,14 +96,14 @@
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestReleaseRejectsReusedAssetAndMissingPersonaDisclosure",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A post whose asset ref was already published by another identity is refused with a typed error naming the prior identity."
         },
         {
           "type": "test",
           "ref": "api/handlers/channelmanager/module_test.go::TestSubmitReleaseFailsClosedWhenAssetVerificationCannotBeProven",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An asset-studio lookup failure resolves to refuse rather than allow, matching the fail-closed posture used for eligibility."
         }
       ]
@@ -111,7 +111,7 @@
     {
       "id": "CHANMGR-P1-004",
       "title": "Disclosure enforcement",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-004",
       "category": "platforms",
       "criticality": "P1",
@@ -126,14 +126,14 @@
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestReleaseRejectsReusedAssetAndMissingPersonaDisclosure",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A post from a persona-actor identity without the platform's required disclosure marker is refused."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/preview_test.go::TestPreviewReleaseBlocksInvisibleDisclosureAndInvalidMedia",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A brand identity on the same platform is not subject to the persona disclosure requirement."
         }
       ]
@@ -141,7 +141,7 @@
     {
       "id": "CHANMGR-P1-005",
       "title": "Retry classification",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "category": "execution",
       "criticality": "P1",
@@ -155,14 +155,14 @@
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestExecutionFailureUsesPlatformRetryPolicy",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A transient failure retries with increasing backoff up to the configured limit; a terminal failure does not retry."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestExecutionFailureUsesPlatformRetryPolicy",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Retries consume cadence budget so that a retry storm cannot breach the platform ceiling."
         }
       ]
@@ -170,7 +170,7 @@
     {
       "id": "CHANMGR-P1-006",
       "title": "Observation capture",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-006",
       "category": "warming",
       "criticality": "P1",
@@ -185,21 +185,21 @@
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestGateWaitsThenQuarantinesAfterBoundedInconclusiveResults",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Completing or quarantining a program run appends one observation carrying its measurements."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestGateWaitsThenQuarantinesAfterBoundedInconclusiveResults",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Observations are append-only; no code path rewrites or deletes a recorded observation."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestGraduationRequiresEveryCriterion",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A program with observations reports how many runs support it alongside its provenance confidence."
         }
       ]
@@ -207,7 +207,7 @@
     {
       "id": "CHANMGR-P1-007",
       "title": "Publish metrics handoff",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-007",
       "category": "signals",
       "criticality": "P1",
@@ -222,7 +222,7 @@
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestMetricSampleRequiresCompletedReceiptAndAcknowledgesOnce",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Metrics for a published post are attributable to the originating draft through the release identifier."
         },
         {
@@ -237,7 +237,7 @@
     {
       "id": "CHANMGR-P1-008",
       "title": "First-comment atomicity",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-008",
       "category": "queue",
       "criticality": "P1",
@@ -251,21 +251,21 @@
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestReleaseReceiptCompletesExactlyOnceWithPartialFirstComment",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A post declaring a first comment schedules both parts as one unit; the comment is never scheduled independently of its post."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestReleaseReceiptCompletesExactlyOnceWithPartialFirstComment",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A post that succeeds while its first comment fails is recorded as partially complete, not succeeded, and surfaces for operator attention."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestReleaseReceiptCompletesExactlyOnceWithPartialFirstComment",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The pair consumes cadence budget as two actions, since the platform counts two."
         }
       ]
@@ -273,7 +273,7 @@
     {
       "id": "CHANMGR-P1-009",
       "title": "Per-platform post preview",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-009",
       "category": "platforms",
       "criticality": "P1",
@@ -288,14 +288,14 @@
           "type": "test",
           "ref": "api/internal/channelmanager/preview_test.go::TestPreviewReleaseBlocksInvisibleDisclosureAndInvalidMedia",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Preview reports the caption truncation point derived from the platform descriptor rather than a hard-coded limit."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/preview_test.go::TestPreviewReleaseBlocksInvisibleDisclosureAndInvalidMedia",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A required disclosure marker that would fall outside the visible region is reported as a preview failure, not a warning."
         },
         {
@@ -310,7 +310,7 @@
     {
       "id": "CHANMGR-P1-010",
       "title": "Environment liveness",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-010",
       "category": "identities",
       "criticality": "P1",
@@ -325,21 +325,21 @@
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestEnvironmentLivenessPausesUnknownOrMismatchedIdentity",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An observed region differing from the attested region raises a flag and pauses the identity's queue."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestEnvironmentLivenessPausesUnknownOrMismatchedIdentity",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A liveness check that cannot complete is recorded as unknown and does not clear a prior divergence."
         },
         {
           "type": "test",
           "ref": "api/internal/channelmanager/service_test.go::TestEnvironmentLivenessPausesUnknownOrMismatchedIdentity",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The check never reads or transmits a credential; it inspects egress properties only."
         }
       ]

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"deployment-manager/shared"
+	"github.com/vrooli/api-core/nodereach"
+	gatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate"
 )
 
 // httpBridge speaks bridge's GateService over the Connect unary JSON protocol: a
@@ -154,10 +156,44 @@ func fromWire(in []osResultWire) []OSResult {
 // NewHTTPHandler builds the HTTP handler for the cross-OS gate route. When
 // baseURL is empty (bridge not configured) it returns a handler that responds
 // 503, so the route is purely additive and inert until an operator wires the
-// bridge endpoint via VROOLI_BRIDGE_URL.
+// bridge endpoint via the shared node client.
 func NewHTTPHandler(baseURL, token string) *Handler {
 	if strings.TrimSpace(baseURL) == "" {
 		return &Handler{}
 	}
-	return &Handler{gate: New(NewHTTPBridge(baseURL, token, &http.Client{Timeout: 65 * time.Minute}))}
+	return &Handler{gate: New(newNodeBridge(nodereach.New(nodereach.Config{BridgeURL: baseURL, Token: token})))}
+}
+
+type nodeBridge struct{ client *nodereach.Client }
+
+func newNodeBridge(client *nodereach.Client) Bridge { return &nodeBridge{client: client} }
+
+func (b *nodeBridge) RunGate(ctx context.Context, in Request) (string, []OSResult, error) {
+	response, err := b.client.RunGate(ctx, &gatev1.RunGateRequest{Scenario: in.Scenario, TargetRevision: in.Revision, TargetOses: in.TargetOSes, TimeoutSeconds: in.TimeoutSeconds}, 65*time.Minute)
+	if err != nil {
+		return "", nil, err
+	}
+	results := make([]OSResult, 0, len(response.GetResults()))
+	for _, result := range response.GetResults() {
+		if result == nil {
+			continue
+		}
+		results = append(results, OSResult{OS: result.GetOs(), NodeID: result.GetNodeId(), RunID: result.GetRunId(), Disposition: result.GetDisposition().String(), ExitCode: result.GetExitCode(), Detail: result.GetDetail()})
+	}
+	return response.GetGateId(), results, nil
+}
+
+func (b *nodeBridge) WaitGate(ctx context.Context, gateID string, timeoutSeconds int64) (string, bool, []OSResult, error) {
+	response, err := b.client.WaitGate(ctx, &gatev1.WaitGateRequest{Id: gateID, TimeoutSeconds: timeoutSeconds}, 65*time.Minute)
+	if err != nil {
+		return "", false, nil, err
+	}
+	results := make([]OSResult, 0, len(response.GetResults()))
+	for _, result := range response.GetResults() {
+		if result == nil {
+			continue
+		}
+		results = append(results, OSResult{OS: result.GetOs(), NodeID: result.GetNodeId(), RunID: result.GetRunId(), Disposition: result.GetDisposition().String(), ExitCode: result.GetExitCode(), Detail: result.GetDetail()})
+	}
+	return response.GetGate().GetVerdict().String(), response.GetTimedOut(), results, nil
 }

@@ -229,6 +229,10 @@ func newFileRoots() (*filerouting.RoutedRoots, error) {
 
 // Start launches the HTTP server with graceful shutdown.
 func (s *Server) Start() error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s.startReleaseFactPublisher(ctx)
+
 	LogStructured("starting server", map[string]interface{}{
 		"service": "deployment-manager-api",
 		"port":    s.Config.Port,
@@ -253,10 +257,10 @@ func (s *Server) Start() error {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	if err := httpServer.Shutdown(ctx); err != nil {
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("server shutdown failed: %w", err)
 	}
 

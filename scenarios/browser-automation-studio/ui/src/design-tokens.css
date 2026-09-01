@@ -1,3 +1,14 @@
 /* rcl:tokens:begin */
-
+  --border-hairline: 1px;
+  --color-border: #cbd5e1;
+  --color-foreground: #0f172a;
+  --color-muted-foreground: #64748b;
+  --color-primary: #2563eb;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --radius-control: 0.375rem;
+  --space-2xs: 8px;
+  --space-4xs: 4px;
+  --text-caption-line: 16px;
+  --text-caption-size: 11px;
 /* rcl:tokens:end */

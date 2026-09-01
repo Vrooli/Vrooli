@@ -55,6 +55,29 @@
               "summary_template": "{count} evidence verdicts"
             }
           }
+        },
+        {
+          "name": "publish-report-fact",
+          "description": "Publish deployment-report freshness to Offer Desk [--report-path PATH --stale-after-days N]",
+          "flags": [
+            {"name": "report-path", "bind_waiver": "Local producer input: the command reads the deployment-manager report before constructing the AddFact request."},
+            {"name": "stale-after-days", "default": "30", "bind_waiver": "Local producer input: the command uses this value to classify report freshness before constructing the AddFact request."}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GatesService",
+            "method": "AddFact"
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },

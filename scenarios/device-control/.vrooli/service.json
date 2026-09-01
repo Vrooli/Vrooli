@@ -59,41 +59,48 @@
       "vrooli-bridge": {
         "purpose": "Device reach plane: node and attached-device registry, per-node scopes, allowlisted dispatch, durable runs, and audit.",
         "required": true,
-        "degraded_behavior": "Every device reports unreachable with 'bridge unavailable' as the reason. No device is assumed present and no verb is dispatched."
+        "degraded_behavior": "Every device reports unreachable with 'bridge unavailable' as the reason. No device is assumed present and no verb is dispatched.",
+        "startup_policy": "must_start"
       },
       "ai-gateway": {
         "purpose": "Provider-neutral inference for ai.* flow steps and the vision rung of the target resolution ladder.",
         "required": false,
-        "degraded_behavior": "ai.* steps report unavailable naming the missing gateway capability. Flows without ai.* steps run unaffected; this scenario never falls back to a direct provider call."
+        "degraded_behavior": "ai.* steps report unavailable naming the missing gateway capability. Flows without ai.* steps run unaffected; this scenario never falls back to a direct provider call.",
+        "startup_policy": "try_start"
       },
       "agent-manager": {
         "purpose": "Runtime for goal-directed device runs spawned by agent mode.",
         "required": false,
-        "degraded_behavior": "Agent mode reports unavailable. Flow authoring and execution are unaffected."
+        "degraded_behavior": "Agent mode reports unavailable. Flow authoring and execution are unaffected.",
+        "startup_policy": "try_start"
       },
       "prompt-manager": {
         "purpose": "Hosts the operator skill that teaches an agent this scenario's CLI contract.",
         "required": false,
-        "degraded_behavior": "Agent mode refuses to start rather than improvising without the skill."
+        "degraded_behavior": "Agent mode refuses to start rather than improvising without the skill.",
+        "startup_policy": "try_start"
       },
       "browser-automation-studio": {
         "purpose": "Executes named web-content flows against an attached application WebView for bas.* delegation steps.",
         "required": false,
-        "degraded_behavior": "bas.* steps report unavailable; every other step kind still runs."
+        "degraded_behavior": "bas.* steps report unavailable; every other step kind still runs.",
+        "startup_policy": "try_start"
       },
       "audio-tools": {
         "purpose": "Optional shared voice input and audio output for device-control voice capabilities.",
         "required": false,
         "version": "0.0.1",
         "versionRange": ">=0.0.1",
-        "degraded_behavior": "Voice input and output report unavailable; device discovery, leases, flows, and non-audio verbs remain unaffected."
+        "degraded_behavior": "Voice input and output report unavailable; device discovery, leases, flows, and non-audio verbs remain unaffected.",
+        "startup_policy": "try_start"
       },
       "scenario-authenticator": {
         "purpose": "Authenticates the bridge-backed local control connection.",
         "required": true,
         "version": "0.0.1",
         "versionRange": ">=0.0.1",
-        "degraded_behavior": "Bridge-backed devices report unavailable with an authentication dependency reason; no device verb is dispatched."
+        "degraded_behavior": "Bridge-backed devices report unavailable with an authentication dependency reason; no device verb is dispatched.",
+        "startup_policy": "must_start"
       }
     },
     "resources": {}

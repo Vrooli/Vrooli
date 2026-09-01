@@ -117,31 +117,36 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store tool configurations and processing results"
+        "purpose": "Store tool configurations and processing results",
+        "startup_policy": "must_start"
       },
       "minio": {
         "type": "minio",
         "enabled": false,
         "required": false,
-        "purpose": "Object storage for files and artifacts"
+        "purpose": "Object storage for files and artifacts",
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": false,
         "required": false,
-        "purpose": "Vector database for semantic search and AI features"
+        "purpose": "Vector database for semantic search and AI features",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": false,
         "required": false,
-        "purpose": "Local AI inference for intelligent features"
+        "purpose": "Local AI inference for intelligent features",
+        "startup_policy": "try_start"
       },
       "claude-code": {
         "type": "claude-code",
         "enabled": false,
         "required": false,
-        "purpose": "AI-powered development assistance and code generation"
+        "purpose": "AI-powered development assistance and code generation",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {}

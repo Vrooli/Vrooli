@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -113,16 +114,27 @@ var claimEvaluators = map[string]claimEvaluatorFunc{
 	"affordance-present":              evaluateAffordancePresentClaim,
 	"announced":                       evaluateAnnouncedClaim,
 	"error-association":               evaluateErrorAssociationClaim,
+	"font-size":                       evaluateFontSizeClaim,
 	"focus-contained":                 evaluateFocusContainedClaim,
+	"focus-containment":               evaluateFocusContainedClaim,
+	"focus-order":                     evaluateFocusOrderClaim,
 	"focus-restored":                  evaluateFocusRestoredClaim,
 	"heading-hierarchy":               evaluateHeadingHierarchyClaim,
 	"layered-dismissal":               evaluateLayeredDismissalClaim,
+	"motion-duration":                 evaluateMotionDurationClaim,
+	"no-layout-animation":             evaluateNoLayoutAnimationClaim,
+	"responsive-transformation":       evaluateResponsiveTransformationClaim,
 	"spacing":                         evaluateSpacingClaim,
 	"state-contrast":                  evaluateStateContrastClaim,
 	"size-parity":                     evaluateSizeParityClaim,
 	"visible-without-scroll":          evaluateVisibleWithoutScrollClaim,
+	"transition-class-conformance":    evaluateTransitionClassConformanceClaim,
 	"reading-order":                   evaluateReadingOrderClaim,
 	"differential":                    evaluateDifferentialWithoutContexts,
+	"dark-parity":                     evaluateDifferentialWithoutContexts,
+	"token-resolution":                evaluateTokenResolutionClaim,
+	"portal-boundary":                 evaluatePortalBoundaryClaim,
+	"chrome-color-agreement":          evaluateChromeColorAgreementClaim,
 }
 
 func claimEvaluator(claimType string) claimEvaluatorFunc {
@@ -251,6 +263,30 @@ func evaluateStateContrastClaim(page spec.PageDocument, claim spec.Claim, target
 }
 
 func evaluateSizeParityClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) == 1 && claim.Elements[0] == "control" {
+		for _, node := range nodes {
+			if node == nil || node.Bounds == nil || node.DOM.Attributes["data-rcl-control"] != "true" {
+				continue
+			}
+			expected := map[string]float64{"xs": 32, "sm": 36, "md": 40, "default": 40, "lg": 44, "xl": 48, "icon": 40}[node.DOM.Attributes["data-control-size"]]
+			if expected == 0 {
+				return claimEvaluation{Unverifiable: "floor-control-geometry requires a known data-control-size rung"}
+			}
+			tolerance := 1.0
+			if value, exists := numericParam(claim.Params, "tolerance"); exists {
+				tolerance = value
+			}
+			delta := math.Max(math.Abs(node.Bounds.Height-expected), math.Abs(node.Bounds.Width-expected))
+			observed := math.Min(node.Bounds.Height, node.Bounds.Width)
+			m := measurement("size-parity", "px", "lte", &delta, &tolerance, measuredNodeSubject("control", node))
+			if delta > tolerance+0.01 {
+				return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Measurement: m, Failure: fmt.Sprintf("control rung %q measures %.1fx%.1fpx; expected %.0fpx", node.DOM.Attributes["data-control-size"], node.Bounds.Width, node.Bounds.Height, expected)}
+			}
+			_ = observed
+			return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(node), Measurement: m}
+		}
+		return claimEvaluation{Pass: true}
+	}
 	if len(claim.Elements) != 2 {
 		return claimEvaluation{Unverifiable: "size-parity requires exactly two declared elements"}
 	}
@@ -333,6 +369,114 @@ func evaluateFocusContainedClaim(page spec.PageDocument, claim spec.Claim, _ Cap
 	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(scope)}
 }
 
+func evaluateTokenResolutionClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 1 {
+		return claimEvaluation{Unverifiable: "token-resolution requires exactly one declared specimen element"}
+	}
+	properties := paramStringSlice(claim.Params, "properties")
+	if len(properties) == 0 {
+		return claimEvaluation{Unverifiable: "token-resolution requires params.properties naming the custom properties to measure"}
+	}
+	node := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	if node == nil {
+		return claimEvaluation{Pass: false, Failure: "token-resolution specimen was not captured"}
+	}
+	subjects := make([]MeasuredSubject, 0, len(properties))
+	for _, property := range properties {
+		property = strings.TrimSpace(property)
+		if !strings.HasPrefix(property, "--") {
+			return claimEvaluation{Unverifiable: "token-resolution properties must be CSS custom property names beginning with --"}
+		}
+		value := strings.TrimSpace(computedStyleValue(node, property))
+		subjects = append(subjects, MeasuredSubject{ElementID: claim.Elements[0], TestID: node.DOM.TestID, Value: value})
+		if value == "" || strings.Contains(value, "var(") {
+			return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Measurement: measurement("token-resolution", "", "non-empty", nil, nil, subjects), Failure: fmt.Sprintf("custom property %s did not resolve to a concrete value", property)}
+		}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(node), Measurement: measurement("token-resolution", "", "non-empty", nil, nil, subjects)}
+}
+
+func evaluatePortalBoundaryClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) != 2 {
+		return claimEvaluation{Unverifiable: "portal-boundary requires application-root and floating-surface elements"}
+	}
+	app := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0]))
+	surface := findBoundNode(nodes, page.Bindings.Elements[claim.Elements[1]], elementRole(page, claim.Elements[1]))
+	if app == nil || surface == nil {
+		return claimEvaluation{Pass: false, Failure: "portal-boundary requires both bound elements in the accessibility snapshot"}
+	}
+	if axContainsNode(app, surface) {
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(surface), Failure: "floating surface remains inside the declared application root"}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(surface)}
+}
+
+func axContainsNode(root, target *AXNode) bool {
+	if root == nil || target == nil {
+		return false
+	}
+	if root == target || (root.DOM.TestID != "" && root.DOM.TestID == target.DOM.TestID) {
+		return true
+	}
+	for index := range root.Children {
+		if axContainsNode(&root.Children[index], target) {
+			return true
+		}
+	}
+	return false
+}
+
+func evaluateFocusOrderClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	candidates := claimNodes(page, claim, nodes)
+	if len(candidates) == 1 {
+		candidates = flattenAXNode(candidates[0])
+	}
+	focusable := make([]*AXNode, 0, len(candidates))
+	for _, node := range candidates {
+		if node != nil && node.Bounds != nil && node.KeyboardReachable() {
+			focusable = append(focusable, node)
+		}
+	}
+	if len(focusable) < 2 {
+		return claimEvaluation{Unverifiable: "focus-order requires at least two captured keyboard-reachable elements with bounds"}
+	}
+	rtl := target.Direction == "rtl" || strings.HasPrefix(strings.ToLower(target.Locale), "ar")
+	for index := 1; index < len(focusable); index++ {
+		previous, current := focusable[index-1], focusable[index]
+		sameRow := math.Abs(previous.Bounds.Y-current.Bounds.Y) < math.Min(previous.Bounds.Height, current.Bounds.Height)/2
+		if sameRow {
+			ordered := current.Bounds.X >= previous.Bounds.X
+			if rtl {
+				ordered = current.Bounds.X <= previous.Bounds.X
+			}
+			if !ordered {
+				return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(current), Failure: "sequential focus order does not match the captured horizontal reading direction"}
+			}
+			continue
+		}
+		if current.Bounds.Y+0.01 < previous.Bounds.Y {
+			return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(current), Failure: "sequential focus order moves upward before completing the visual reading order"}
+		}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(focusable[0])}
+}
+
+func flattenAXNode(root *AXNode) []*AXNode {
+	var out []*AXNode
+	var walk func(*AXNode)
+	walk = func(node *AXNode) {
+		if node == nil {
+			return
+		}
+		out = append(out, node)
+		for index := range node.Children {
+			walk(&node.Children[index])
+		}
+	}
+	walk(root)
+	return out
+}
+
 func evaluateFocusRestoredClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
 	if len(claim.Elements) != 1 {
 		return claimEvaluation{Unverifiable: "focus-restored requires the restoring control"}
@@ -389,6 +533,151 @@ func evaluateLayeredDismissalClaim(page spec.PageDocument, claim spec.Claim, _ C
 		return claimEvaluation{Unverifiable: "layered-dismissal requires a captured dialog layer"}
 	}
 	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(findBoundNode(nodes, page.Bindings.Elements[claim.Elements[0]], elementRole(page, claim.Elements[0])))}
+}
+
+var layoutAnimationProperties = map[string]bool{
+	"all": true, "block-size": true, "bottom": true, "height": true,
+	"inline-size": true, "left": true, "margin": true, "margin-block": true,
+	"margin-inline": true, "padding": true, "padding-block": true,
+	"padding-inline": true, "right": true, "top": true, "width": true,
+}
+
+func evaluateTransitionClassConformanceClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	checked, offending := inspectTransitionProperties(page, claim, nodes)
+	if checked == 0 {
+		return claimEvaluation{Unverifiable: "transition-class-conformance requires captured transition-property evidence"}
+	}
+	if len(offending) > 0 {
+		return claimEvaluation{Pass: false, Failure: "transition animates layout-affecting properties: " + strings.Join(offending, ", ")}
+	}
+	return claimEvaluation{Pass: true}
+}
+
+func evaluateNoLayoutAnimationClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	checked, offending := inspectTransitionProperties(page, claim, nodes)
+	if checked == 0 {
+		return claimEvaluation{Unverifiable: "no-layout-animation requires captured transition-property evidence"}
+	}
+	if len(offending) > 0 {
+		return claimEvaluation{Pass: false, Failure: "layout-affecting animation properties are present: " + strings.Join(offending, ", ")}
+	}
+	return claimEvaluation{Pass: true}
+}
+
+func inspectTransitionProperties(page spec.PageDocument, claim spec.Claim, nodes []*AXNode) (int, []string) {
+	checked := 0
+	seen := map[string]bool{}
+	for _, node := range claimNodes(page, claim, nodes) {
+		value := strings.TrimSpace(computedStyleValue(node, "transition-property"))
+		if value == "" {
+			continue
+		}
+		checked++
+		for _, property := range strings.Split(value, ",") {
+			property = strings.TrimSpace(property)
+			if layoutAnimationProperties[property] && !seen[property] {
+				seen[property] = true
+			}
+		}
+	}
+	offending := make([]string, 0, len(seen))
+	for property := range seen {
+		offending = append(offending, property)
+	}
+	sort.Strings(offending)
+	return checked, offending
+}
+
+func evaluateMotionDurationClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	maximum := 500.0
+	if value, ok := numericParam(claim.Params, "maxMs", "maximumMs"); ok {
+		maximum = value
+	}
+	if target.MotionPreference == "reduce" {
+		maximum = 1
+	}
+	checked := 0
+	observed := 0.0
+	for _, node := range claimNodes(page, claim, nodes) {
+		for _, property := range []string{"transition-duration", "animation-duration"} {
+			value := strings.TrimSpace(computedStyleValue(node, property))
+			if value == "" {
+				continue
+			}
+			checked++
+			for _, item := range strings.Split(value, ",") {
+				if duration := cssDurationMilliseconds(item); duration > observed {
+					observed = duration
+				}
+			}
+		}
+	}
+	if checked == 0 {
+		return claimEvaluation{Unverifiable: "motion-duration requires captured transition or animation duration evidence"}
+	}
+	m := measurement("motion-duration", "ms", "lte", &observed, &maximum, nil)
+	if observed > maximum+0.01 {
+		return claimEvaluation{Pass: false, Measurement: m, Failure: measurementFailure(m)}
+	}
+	return claimEvaluation{Pass: true, Measurement: m}
+}
+
+func cssDurationMilliseconds(value string) float64 {
+	value = strings.TrimSpace(value)
+	if strings.HasSuffix(value, "ms") {
+		parsed, _ := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(value, "ms")), 64)
+		return parsed
+	}
+	if strings.HasSuffix(value, "s") {
+		parsed, _ := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(value, "s")), 64)
+		return parsed * 1000
+	}
+	return 0
+}
+
+func evaluateResponsiveTransformationClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
+	expectedKey := "desktopPresentation"
+	if target.ViewportID == "mobile" || target.ViewportWidth > 0 && target.ViewportWidth < 640 {
+		expectedKey = "mobilePresentation"
+	}
+	expected := paramString(claim.Params, expectedKey)
+	for _, node := range claimNodes(page, claim, nodes) {
+		presentation := firstNonEmptyString(
+			node.DOM.Attributes["data-presentation"],
+			node.DOM.Attributes["data-rcl-presentation"],
+			node.DOM.Attributes["data-responsive-presentation"],
+		)
+		if presentation == "" {
+			continue
+		}
+		if expected != "" && presentation != expected {
+			return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Failure: fmt.Sprintf("viewport %q rendered presentation %q, expected %q", target.ViewportID, presentation, expected)}
+		}
+		return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(node)}
+	}
+	return claimEvaluation{Unverifiable: "responsive-transformation requires a captured presentation data attribute"}
+}
+
+func claimNodes(page spec.PageDocument, claim spec.Claim, nodes []*AXNode) []*AXNode {
+	if len(claim.Elements) == 0 {
+		return nodes
+	}
+	out := make([]*AXNode, 0, len(claim.Elements))
+	for _, elementID := range claim.Elements {
+		if node := findBoundNode(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID)); node != nil {
+			out = append(out, node)
+		}
+	}
+	return out
+}
+
+func firstNonEmptyString(values ...string) string {
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func hasState(node *AXNode, wanted string) bool {
@@ -542,7 +831,36 @@ func contrastRatio(foreground, background string) (float64, error) {
 	return (fgL + 0.05) / (bgL + 0.05), nil
 }
 
-type rgbColor struct{ r, g, b float64 }
+type rgbColor struct{ r, g, b, a float64 }
+
+func evaluateChromeColorAgreementClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) == 0 {
+		return claimEvaluation{Unverifiable: "chrome-color-agreement requires a declared status-bar element"}
+	}
+	referenceID := claimParamString(claim.Params, "reference")
+	if referenceID == "" {
+		return claimEvaluation{Unverifiable: "chrome-color-agreement requires params.reference"}
+	}
+	statusID := claim.Elements[0]
+	statusNode := findBoundNode(nodes, page.Bindings.Elements[statusID], elementRole(page, statusID))
+	referenceNode := findBoundNode(nodes, page.Bindings.Elements[referenceID], elementRole(page, referenceID))
+	if statusNode == nil || referenceNode == nil {
+		return claimEvaluation{Unverifiable: "chrome-color-agreement requires both bound elements"}
+	}
+	statusRaw := computedStyleValue(statusNode, "background-color")
+	referenceRaw := computedStyleValue(referenceNode, "background-color")
+	status, statusErr := parseColor(statusRaw)
+	reference, referenceErr := parseColor(referenceRaw)
+	if statusErr != nil || referenceErr != nil || status.a == 0 || reference.a == 0 {
+		return claimEvaluation{Unverifiable: "chrome-color-agreement requires opaque, parseable background colors"}
+	}
+	subjects := []MeasuredSubject{{ElementID: statusID, TestID: statusNode.DOM.TestID, Bounds: statusNode.Bounds, Value: statusRaw}, {ElementID: referenceID, TestID: referenceNode.DOM.TestID, Bounds: referenceNode.Bounds, Value: referenceRaw}}
+	measurement := &ClaimMeasurement{Metric: "chrome-color-agreement", Subjects: subjects}
+	if status != reference {
+		return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(statusNode), Measurement: measurement, Failure: fmt.Sprintf("chrome colors differ: %s=%s, %s=%s", statusID, statusRaw, referenceID, referenceRaw)}
+	}
+	return claimEvaluation{Pass: true, AXNodeJSON: encodeAXNode(statusNode), Measurement: measurement}
+}
 
 func parseColor(raw string) (rgbColor, error) {
 	value := strings.ToLower(strings.TrimSpace(raw))
@@ -562,7 +880,7 @@ func parseColor(raw string) (rgbColor, error) {
 			}
 			channels[i] = parsed
 		}
-		return rgbColor{float64(channels[0]) / 255, float64(channels[1]) / 255, float64(channels[2]) / 255}, nil
+		return rgbColor{float64(channels[0]) / 255, float64(channels[1]) / 255, float64(channels[2]) / 255, 1}, nil
 	}
 	if strings.HasPrefix(value, "rgb(") || strings.HasPrefix(value, "rgba(") {
 		start, end := strings.IndexByte(value, '('), strings.LastIndexByte(value, ')')
@@ -584,7 +902,18 @@ func parseColor(raw string) (rgbColor, error) {
 			}
 			channels[i] = parsed / 255
 		}
-		return rgbColor{channels[0], channels[1], channels[2]}, nil
+		alpha := 1.0
+		if len(matches) >= 4 {
+			parsed, err := strconv.ParseFloat(strings.TrimSuffix(matches[3], "%"), 64)
+			if err != nil {
+				return rgbColor{}, fmt.Errorf("unsupported color %q", raw)
+			}
+			if strings.HasSuffix(matches[3], "%") {
+				parsed /= 100
+			}
+			alpha = parsed
+		}
+		return rgbColor{channels[0], channels[1], channels[2], alpha}, nil
 	}
 	return rgbColor{}, fmt.Errorf("unsupported color %q", raw)
 }
@@ -751,6 +1080,34 @@ func evaluateAccessibleNameClaim(page spec.PageDocument, claim spec.Claim, _ Cap
 	return claimEvaluation{Pass: true}
 }
 
+// evaluateFontSizeClaim proves a minimum readable size from captured computed
+// style evidence. The default is intentionally conservative for scaffolded
+// input assets; authors can make the requirement explicit with minPx.
+func evaluateFontSizeClaim(page spec.PageDocument, claim spec.Claim, _ CaptureTarget, nodes []*AXNode) claimEvaluation {
+	if len(claim.Elements) == 0 {
+		return claimEvaluation{Unverifiable: "font-size requires at least one declared element"}
+	}
+	minimum := 16.0
+	if value, ok := numericParam(claim.Params, "minPx", "minimumPx", "minimum"); ok {
+		minimum = value
+	}
+	for _, elementID := range claim.Elements {
+		node := findBoundNode(nodes, page.Bindings.Elements[elementID], elementRole(page, elementID))
+		if node == nil {
+			return claimEvaluation{Pass: false, Failure: "declared element " + elementID + " was not found in the accessibility snapshot"}
+		}
+		observed, ok := cssPixels(computedStyleValue(node, "font-size"))
+		if !ok {
+			return claimEvaluation{Unverifiable: "font-size requires computed font-size evidence"}
+		}
+		measurement := measurement("font-size", "px", "gte", &observed, &minimum, measuredNodeSubject(elementID, node))
+		if observed < minimum {
+			return claimEvaluation{Pass: false, AXNodeJSON: encodeAXNode(node), Measurement: measurement, Failure: measurementFailure(measurement)}
+		}
+	}
+	return claimEvaluation{Pass: true}
+}
+
 func evaluateVisibleWithoutScrollClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarget, nodes []*AXNode) claimEvaluation {
 	if len(claim.Elements) == 0 {
 		return claimEvaluation{}
@@ -895,7 +1252,22 @@ func componentWithBaselineClaims(component spec.ComponentDocument) spec.Componen
 		}
 		component.Claims = append(component.Claims, floor)
 	}
+	if len(component.Elements) > 0 && !componentHasClaimType(component, "content-not-clipped") && !floorOptedOut(component, "content-not-clipped") {
+		component.Claims = append(component.Claims, spec.Claim{ID: "floor-content-not-clipped", Type: "content-not-clipped", Statement: "The primary component surface does not clip its content.", Tier: "machine", Elements: []string{component.Elements[0].ID}})
+	}
+	if !componentHasClaimType(component, "size-parity") && !floorOptedOut(component, "size-parity") {
+		component.Claims = append(component.Claims, spec.Claim{ID: "floor-control-geometry", Type: "size-parity", Statement: "Every rendered RCL control matches its documented size rung.", Tier: "machine", Elements: []string{"control"}, Params: map[string]any{"tolerance": 1}})
+	}
 	return component
+}
+
+func floorOptedOut(component spec.ComponentDocument, floor string) bool {
+	for _, optOut := range component.FloorOptOuts {
+		if optOut.Floor == floor {
+			return true
+		}
+	}
+	return false
 }
 
 type floorSetDocument struct {

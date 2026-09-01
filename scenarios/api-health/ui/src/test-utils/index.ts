@@ -71,39 +71,6 @@ export type {
   ValidateScenarioResponse,
   ValidationReport,
 } from "./factories";
-export {
-  assertTransitionMatrix,
-  validateTransitionMatrix,
-} from "./modeltest/matrix";
-export type {
-  MatrixRow,
-  WorkflowTransition,
-} from "./modeltest/matrix";
-export {
-  replayTraces,
-  validateTraces,
-} from "./modeltest/traces";
-export type {
-  Trace,
-  TraceStep,
-} from "./modeltest/traces";
-export {
-  assertFormalArtifactFresh,
-  assertFormalTransitionsReplay,
-  assertFormalTracesReplay,
-  transitionFromReplayAdapter,
-  validateFormalArtifactFresh,
-  validateFormalTransitionsReplay,
-  validateFormalTracesReplay,
-} from "./modeltest/formal";
-export type {
-  FormalArtifact,
-  FormalArtifactTraceCoverage,
-  FormalReplayAdapter,
-  FormalArtifactTrace,
-  FormalArtifactTraceStep,
-  FormalArtifactTransition,
-} from "./modeltest/formal";
 
 // Mock builders for external SDKs. Each test file still calls
 // `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the

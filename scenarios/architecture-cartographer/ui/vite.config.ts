@@ -1,6 +1,16 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
+const libraryRoot = resolve(rootDir, "../../../scenarios/react-component-library/library");
+const libraryDependencyAliases = ["clsx", "tailwind-merge", "lucide-react"].map((name) => ({
+  find: name,
+  replacement: resolve(rootDir, "node_modules", name),
+}));
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -29,18 +39,25 @@ export default defineConfig(({ mode }): UserConfig => {
 
   return {
     base: './',  // Required for tunnel/proxy contexts
-    plugins: [react(), stringsCodegen()],
+    plugins: [react(), stringsCodegen(), sourceLibraryResolver({ libraryRoot })],
     resolve: isProfile
       ? {
-          alias: {
-            "react-dom/client": "react-dom/profiling",
-            // Internal references inside react-dom/client.js do
-            // `require('react-dom')`, which would resolve back to the
-            // stripped-prod bundle. Force them through the profiling entry too.
-            "react-dom$": "react-dom/profiling",
-          },
+          alias: [
+            ...libraryDependencyAliases,
+            {
+              find: "react-dom/client",
+              replacement: "react-dom/profiling",
+            },
+            {
+              // Internal references inside react-dom/client.js do
+              // `require('react-dom')`, which would resolve back to the
+              // stripped-prod bundle. Force them through the profiling entry too.
+              find: "react-dom$",
+              replacement: "react-dom/profiling",
+            },
+          ],
         }
-      : undefined,
+      : { alias: libraryDependencyAliases },
     esbuild: isProfile
       ? {
           keepNames: true,

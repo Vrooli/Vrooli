@@ -333,6 +333,27 @@ func TestValidateScenario_LocalCommandsAreNotProtoBindings(t *testing.T) {
 	}
 }
 
+func TestValidateScenario_LocalOnlyManifestDoesNotRequireProtoSchema(t *testing.T) {
+	manifest := `{
+      "name": "fixture",
+      "groups": [{"name":"local","commands":[
+        {"name":"status","binding":{"kind":"local"},"governance":{"effect":"read","run_eligible":true}}
+      ]}]
+    }`
+	svc := newServiceWith(
+		stubLoader{raw: []byte(manifest), path: "cli/manifest.json"},
+		stubSchema{},
+		stubProto{err: errors.New("proto schema should not be loaded")},
+	)
+	r, err := svc.ValidateScenario(context.Background(), "local-only")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if findingHasCode(r.Findings, CodeProtoBuildFailed) {
+		t.Fatalf("local-only manifest must not require a proto schema: %+v", r.Findings)
+	}
+}
+
 // stubArchEvidence is a fake ArchitectureEvidenceProvider returning canned
 // cli-core primitive evidence, so service tests can prove verified-vs-unverified
 // classification through the real ValidateScenario flow.

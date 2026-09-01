@@ -4,6 +4,7 @@ import { Link, useRouteError } from "react-router-dom";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
+import { Button } from "@vrooli/react-component-library/Button/2";
 
 /**
  * RouteErrorFallback — the standard router `errorElement`. Renders when a
@@ -34,14 +35,14 @@ export function RouteErrorFallback() {
         {t(strings.shared.routeError.message)}
       </p>
       <div className="flex gap-2">
-        <button
+        <Button
           type="button"
           data-testid={selectors.shared.routeErrorFallback.retryButton}
           className="inline-flex h-11 items-center justify-center rounded-control bg-app-primary px-5 text-sm font-medium text-app-primary-foreground transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
           onClick={() => window.location.reload()}
         >
           {t(strings.shared.routeError.retry)}
-        </button>
+        </Button>
         <Link
           to="/"
           data-testid={selectors.shared.routeErrorFallback.homeButton}

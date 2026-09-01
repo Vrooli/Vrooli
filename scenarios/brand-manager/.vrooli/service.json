@@ -115,7 +115,8 @@
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "description": "Primary AI provider for brand text + image generation (AIProviderChain); generation degrades gracefully when absent"
+        "description": "Primary AI provider for brand text + image generation (AIProviderChain); generation degrades gracefully when absent",
+        "startup_policy": "try_start"
       },
       "openrouter": {
         "type": "openrouter",
@@ -124,7 +125,8 @@
         "description": "Fallback AI provider in the AIProviderChain when Ollama is unavailable or lacks a model. Text model resolves through an OpenRouter policy role.",
         "model_roles": [
           "chat.default"
-        ]
+        ],
+        "startup_policy": "try_start"
       }
     }
   },

@@ -3,6 +3,7 @@ package reconcile
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -180,6 +181,7 @@ func TestActivePagePersistsPerClaimEvidence(t *testing.T) { // [REQ:EXPERIEN-P0-
 		Now:             func() time.Time { return now },
 		CaptureProfiles: testProfiles(),
 	}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected active page to reconcile green, got %+v", findings)
 	}
@@ -219,8 +221,8 @@ func TestActivePagePersistsViewportMatrixEvidence(t *testing.T) { // [REQ:EXPERI
 	if err != nil {
 		t.Fatalf("ListEvidence: %v", err)
 	}
-	if len(rows) != 2 {
-		t.Fatalf("evidence rows = %d, want 2: %+v", len(rows), rows)
+	if len(rows) != 3 {
+		t.Fatalf("evidence rows = %d, want 3: %+v", len(rows), rows)
 	}
 	got := map[string]bool{}
 	for _, row := range rows {
@@ -229,8 +231,8 @@ func TestActivePagePersistsViewportMatrixEvidence(t *testing.T) { // [REQ:EXPERI
 			t.Fatalf("unexpected matrix row: %+v", row)
 		}
 	}
-	if !got["desktop"] || !got["mobile"] {
-		t.Fatalf("viewport rows = %+v, want desktop and mobile", got)
+	if !got["desktop"] || !got["mobile"] || !got["mobile-landscape"] {
+		t.Fatalf("viewport rows = %+v, want desktop, portrait mobile, and landscape mobile", got)
 	}
 }
 
@@ -251,7 +253,7 @@ func TestActivePagePersistsPerTargetCaptureTimings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListCaptureTimings: %v", err)
 	}
-	if len(timings) != 2 || timings[0].TotalMilliseconds != 210 || timings[0].Strategy != "declared-surface" || timings[0].Outcome != "ready" {
+	if len(timings) != 3 || timings[0].TotalMilliseconds != 210 || timings[0].Strategy != "declared-surface" || timings[0].Outcome != "ready" {
 		t.Fatalf("unexpected capture timing history: %+v", timings)
 	}
 }
@@ -290,6 +292,7 @@ func TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence(t *testing.T) { 
 		Now:             func() time.Time { return now },
 		CaptureProfiles: testProfiles(),
 	}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected active component to reconcile green, got %+v", findings)
 	}
@@ -350,6 +353,7 @@ func TestActiveComponentFailuresAreBlocking(t *testing.T) {
 		Capturer:        fakeCapturer{snapshot: componentButtonSnapshot(24, 900, 140, 48)},
 		CaptureProfiles: testProfiles(),
 	}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 1 || findings[0].Code != spec.CodeClaimFailed {
 		t.Fatalf("expected one failed component claim, got %+v", findings)
 	}
@@ -376,18 +380,19 @@ func TestViewportScopedClaimCapturesMatchingProfileOnly(t *testing.T) { // [REQ:
 		Repository: repo,
 		Now:        func() time.Time { return time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC) },
 	}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected viewport-scoped claim to reconcile green, got %+v", findings)
 	}
-	if len(targets) != 1 || targets[0].ViewportID != "mobile" {
-		t.Fatalf("capture targets = %+v, want one mobile target", targets)
+	if len(targets) != 2 || targets[0].ViewportID != "mobile" || targets[1].ViewportID != "mobile-landscape" {
+		t.Fatalf("capture targets = %+v, want portrait and landscape mobile targets", targets)
 	}
 	rows, err := repo.ListEvidence(context.Background(), EvidenceFilter{Scenario: "demo", PageID: "home", ClaimID: "primary-present"})
 	if err != nil {
 		t.Fatalf("ListEvidence: %v", err)
 	}
-	if len(rows) != 1 || rows[0].ViewportID != "mobile" {
-		t.Fatalf("evidence rows = %+v, want one mobile row", rows)
+	if len(rows) != 2 {
+		t.Fatalf("evidence rows = %+v, want portrait and landscape mobile rows", rows)
 	}
 }
 
@@ -402,6 +407,7 @@ func TestViewportScopedClaimUsesProfileAlias(t *testing.T) { // [REQ:EXPERIEN-P0
 	findings := Check{
 		Capturer: fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
 	}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected aliased viewport-scoped claim to reconcile green, got %+v", findings)
 	}
@@ -469,6 +475,7 @@ func TestVisibleWithoutScrollChecksBoundGeometry(t *testing.T) {
 
 	snapshot.Root.Children[1].Bounds = &Bounds{X: 24, Y: 80, Width: 120, Height: 48}
 	findings = Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected visible-without-scroll pass, got %+v", findings)
 	}
@@ -565,6 +572,23 @@ func TestStructuredComponentClaimsEvaluateGeometryAndAppearance(t *testing.T) {
 	}
 }
 
+func TestControlFloorSizeParityUsesDeclaredSizeRung(t *testing.T) {
+	claim := spec.Claim{ID: "floor-control-geometry", Type: "size-parity", Tier: "machine", Elements: []string{"control"}, Params: map[string]any{"tolerance": 1}}
+	node := &AXNode{
+		Role:   "button",
+		DOM:    DOMNode{Attributes: map[string]string{"data-rcl-control": "true", "data-control-size": "xs"}},
+		Bounds: &Bounds{Width: 32, Height: 32},
+	}
+	if result := claimEvaluator("size-parity")(spec.PageDocument{}, claim, CaptureTarget{}, []*AXNode{node}); !result.Pass {
+		t.Fatalf("declared xs control should match its 32px rung: %+v", result)
+	}
+
+	node.Bounds.Width = 30
+	if result := claimEvaluator("size-parity")(spec.PageDocument{}, claim, CaptureTarget{}, []*AXNode{node}); result.Pass || !strings.Contains(result.Failure, "expected 32px") {
+		t.Fatalf("undersized xs control should fail its 32px rung: %+v", result)
+	}
+}
+
 func TestDifferentialClaimRequiresExpectedChange(t *testing.T) {
 	page := spec.PageDocument{
 		Page:     spec.PageIdentity{ID: "card", Routes: []string{"/"}},
@@ -623,6 +647,70 @@ func TestPreviewWorkspaceScrollNodesDoNotBecomePageOverflowFindings(t *testing.T
 	}
 	if isPreviewWorkspaceScrollNode(&AXNode{DOM: DOMNode{TestID: "unrelated-control"}}) {
 		t.Fatal("unrelated controls must remain subject to page overflow floors")
+	}
+}
+
+func TestOverlayMotionClaimsUseCapturedComputedStyles(t *testing.T) {
+	page := spec.PageDocument{
+		Bindings: spec.Bindings{Elements: map[string]spec.Binding{"surface": {TestID: "overlay"}}},
+		Elements: []spec.Element{{ID: "surface", Role: "dialog"}},
+	}
+	node := &AXNode{Role: "dialog", DOM: DOMNode{TestID: "overlay"}, ComputedStyle: map[string]string{
+		"transition-property": "opacity, transform",
+		"transition-duration": "0s, 1ms",
+		"animation-duration":  "0s",
+	}}
+	for _, claimType := range []string{"transition-class-conformance", "no-layout-animation", "motion-duration"} {
+		claim := spec.Claim{ID: claimType, Type: claimType, Tier: "machine", Elements: []string{"surface"}}
+		result := claimEvaluator(claimType)(page, claim, CaptureTarget{MotionPreference: "reduce"}, []*AXNode{node})
+		if !result.Pass {
+			t.Fatalf("%s should pass for transform/opacity and reduced duration: %+v", claimType, result)
+		}
+	}
+	node.ComputedStyle["transition-property"] = "opacity, width"
+	for _, claimType := range []string{"transition-class-conformance", "no-layout-animation"} {
+		result := claimEvaluator(claimType)(page, spec.Claim{Type: claimType, Elements: []string{"surface"}}, CaptureTarget{}, []*AXNode{node})
+		if result.Pass || !strings.Contains(result.Failure, "width") {
+			t.Fatalf("%s must reject a width transition: %+v", claimType, result)
+		}
+	}
+	node.ComputedStyle["transition-property"] = "opacity"
+	node.ComputedStyle["transition-duration"] = "120ms"
+	result := evaluateMotionDurationClaim(page, spec.Claim{Elements: []string{"surface"}}, CaptureTarget{MotionPreference: "reduce"}, []*AXNode{node})
+	if result.Pass || result.Measurement == nil {
+		t.Fatalf("reduced-motion must reject a 120ms transition: %+v", result)
+	}
+}
+
+func TestResponsiveTransformationRequiresTheViewportPresentation(t *testing.T) {
+	page := spec.PageDocument{
+		Bindings: spec.Bindings{Elements: map[string]spec.Binding{"surface": {TestID: "overlay"}}},
+		Elements: []spec.Element{{ID: "surface", Role: "dialog"}},
+	}
+	claim := spec.Claim{Elements: []string{"surface"}, Params: map[string]any{
+		"mobilePresentation": "bottom-sheet", "desktopPresentation": "dialog",
+	}}
+	node := &AXNode{Role: "dialog", DOM: DOMNode{TestID: "overlay", Attributes: map[string]string{"data-presentation": "bottom-sheet"}}}
+	result := evaluateResponsiveTransformationClaim(page, claim, CaptureTarget{ViewportID: "mobile", ViewportWidth: 390}, []*AXNode{node})
+	if !result.Pass {
+		t.Fatalf("mobile presentation should pass: %+v", result)
+	}
+	node.DOM.Attributes["data-presentation"] = "dialog"
+	result = evaluateResponsiveTransformationClaim(page, claim, CaptureTarget{ViewportID: "mobile", ViewportWidth: 390}, []*AXNode{node})
+	if result.Pass || !strings.Contains(result.Failure, "bottom-sheet") {
+		t.Fatalf("wrong mobile presentation must fail: %+v", result)
+	}
+}
+
+func TestZeroAreaAccessibilityNodesDoNotBecomePageOverflowFindings(t *testing.T) {
+	node := &AXNode{
+		Role:   "textbox",
+		Name:   "Terminal input",
+		Bounds: &Bounds{X: -159975, Y: 37, Width: 0, Height: 0},
+	}
+	target := CaptureTarget{ViewportWidth: 1280, ViewportHeight: 720}
+	if got := firstHorizontalOverflowNode([]*AXNode{node}, target); got != nil {
+		t.Fatalf("zero-area accessibility node should not be treated as document overflow: %+v", got)
 	}
 }
 
@@ -750,6 +838,7 @@ func TestAffordancePresentChecksExpectedControls(t *testing.T) {
 		}},
 	}
 	findings := Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected affordance-present claim to pass, got %+v", findings)
 	}
@@ -768,6 +857,7 @@ func TestAffordancePresentChecksExpectedControls(t *testing.T) {
 		}},
 	}
 	findings = Check{Capturer: fakeCapturer{snapshot: localizedSnapshot}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected localized semantic affordances to pass, got %+v", findings)
 	}
@@ -789,6 +879,7 @@ func TestAccessibleNameClaimReconcilesDeclaredIntent(t *testing.T) {
 	snapshot := passingSnapshot()
 	snapshot.Root.Children[1].Name = "Create report"
 	findings := (Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}).Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
 		t.Fatalf("expected accessible name claim to pass, got %+v", findings)
 	}
@@ -796,6 +887,52 @@ func TestAccessibleNameClaimReconcilesDeclaredIntent(t *testing.T) {
 	findings = (Check{Capturer: fakeCapturer{snapshot: snapshot}, CaptureProfiles: testProfiles()}).Run(context.Background(), report)
 	if !hasCode(findings, spec.CodeClaimFailed) {
 		t.Fatalf("expected accessible name claim failure, got %+v", findings)
+	}
+}
+
+func TestGenericCapabilityProbeEvaluatorsDiscriminate(t *testing.T) {
+	page := spec.PageDocument{
+		Page:     spec.PageIdentity{ID: "probe", Routes: []string{"/"}},
+		Elements: []spec.Element{{ID: "app", Role: "region"}, {ID: "surface", Role: "dialog"}, {ID: "specimen", Role: "button"}},
+		Bindings: spec.Bindings{Elements: map[string]spec.Binding{
+			"app": {TestID: "app"}, "surface": {TestID: "surface"}, "specimen": {TestID: "specimen"},
+		}},
+	}
+	tokenClaim := spec.Claim{Type: "token-resolution", Elements: []string{"specimen"}, Params: map[string]any{"properties": []any{"--surface"}}}
+	specimen := &AXNode{Role: "button", DOM: DOMNode{TestID: "specimen"}, ComputedStyle: map[string]string{"--surface": "rgb(1, 2, 3)"}}
+	if result := claimEvaluator("token-resolution")(page, tokenClaim, CaptureTarget{}, []*AXNode{specimen}); !result.Pass {
+		t.Fatalf("resolved token should pass: %+v", result)
+	}
+	specimen.ComputedStyle["--surface"] = ""
+	if result := claimEvaluator("token-resolution")(page, tokenClaim, CaptureTarget{}, []*AXNode{specimen}); result.Pass || !strings.Contains(result.Failure, "did not resolve") {
+		t.Fatalf("empty token should fail: %+v", result)
+	}
+
+	portalClaim := spec.Claim{Type: "portal-boundary", Elements: []string{"app", "surface"}}
+	root := Snapshot{Root: AXNode{Children: []AXNode{{Role: "region", DOM: DOMNode{TestID: "app"}}, {Role: "dialog", DOM: DOMNode{TestID: "surface"}}}}}
+	if result := claimEvaluator("portal-boundary")(page, portalClaim, CaptureTarget{}, root.Flatten()); !result.Pass {
+		t.Fatalf("sibling portal surface should pass: %+v", result)
+	}
+	root = Snapshot{Root: AXNode{Children: []AXNode{{Role: "region", DOM: DOMNode{TestID: "app"}, Children: []AXNode{{Role: "dialog", DOM: DOMNode{TestID: "surface"}}}}}}}
+	if result := claimEvaluator("portal-boundary")(page, portalClaim, CaptureTarget{}, root.Flatten()); result.Pass {
+		t.Fatalf("nested portal surface should fail: %+v", result)
+	}
+
+	darkClaim := spec.Claim{Type: "dark-parity", Subject: "specimen", Metric: "background-color", Require: "contexts-differ", Contexts: []spec.DifferentialContext{{ID: "light"}, {ID: "dark"}}}
+	snapshots := map[string]Snapshot{
+		"light": {Root: AXNode{Children: []AXNode{{Role: "button", DOM: DOMNode{TestID: "specimen"}, ComputedStyle: map[string]string{"background-color": "white"}}}}},
+		"dark":  {Root: AXNode{Children: []AXNode{{Role: "button", DOM: DOMNode{TestID: "specimen"}, ComputedStyle: map[string]string{"background-color": "black"}}}}},
+	}
+	if evidence, ok := evaluateClaim(page, darkClaim, CaptureTarget{}, snapshots["dark"].Flatten(), snapshots); !ok || evidence.Verdict != "passed" {
+		t.Fatalf("distinct dark context should pass: %+v", evidence)
+	}
+	snapshots["dark"] = snapshots["light"]
+	if evidence, ok := evaluateClaim(page, darkClaim, CaptureTarget{}, snapshots["dark"].Flatten(), snapshots); ok || evidence.Verdict != "failed" {
+		t.Fatalf("identical dark context should fail: %+v", evidence)
+	}
+
+	if claimEvaluator("focus-containment") == nil {
+		t.Fatal("focus-containment must be backed by the focus scope evaluator")
 	}
 }
 
@@ -1037,6 +1174,7 @@ func TestNonDefaultStateWithoutSetupReportsLimitation(t *testing.T) {
 func TestActivePageWithNoJoinedBindingsBlocks(t *testing.T) {
 	report := activeReport("missing", spec.Binding{TestID: "not-rendered"})
 	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 1 || findings[0].Code != spec.CodeBindingsUnjoined || findings[0].Severity != spec.SeverityError {
 		t.Fatalf("expected zero-binding blocking finding, got %+v", findings)
 	}
@@ -1060,10 +1198,11 @@ func TestElementAbsentClaimDoesNotRequireAJoinedBinding(t *testing.T) {
 func TestActiveComponentWithNoJoinedBindingsBlocks(t *testing.T) {
 	report := activeComponentReport("action", spec.Binding{TestID: "not-rendered"})
 	findings := Check{Capturer: fakeCapturer{snapshot: passingSnapshot()}, CaptureProfiles: testProfiles()}.Run(context.Background(), report)
+	findings = withoutFloorWarnings(findings)
 	if len(findings) != 1 || findings[0].Code != spec.CodeBindingsUnjoined || findings[0].Severity != spec.SeverityError {
 		t.Fatalf("expected component zero-binding blocking finding, got %+v", findings)
 	}
-	if !strings.Contains(findings[0].Message, `component "button"`) || !strings.Contains(findings[0].Message, "zero of 1 declared bindings") {
+	if !strings.Contains(findings[0].Message, `component "button"`) || !strings.Contains(findings[0].Message, "zero of 2 declared bindings") {
 		t.Fatalf("component zero-binding message = %q", findings[0].Message)
 	}
 }
@@ -1270,8 +1409,26 @@ func componentButtonSnapshot(x, y, width, height float64) Snapshot {
 			States: []string{"focusable"},
 			Bounds: &Bounds{X: x, Y: y, Width: width, Height: height},
 			DOM:    DOMNode{Tag: "button"},
+			ComputedStyle: map[string]string{
+				"clientWidth":  fmt.Sprintf("%g", width),
+				"scrollWidth":  fmt.Sprintf("%g", width),
+				"clientHeight": fmt.Sprintf("%g", height),
+				"scrollHeight": fmt.Sprintf("%g", height),
+				"overflow":     "visible",
+			},
 		}}},
 	}
+}
+
+func withoutFloorWarnings(findings []spec.Finding) []spec.Finding {
+	filtered := make([]spec.Finding, 0, len(findings))
+	for _, finding := range findings {
+		if finding.Code == spec.CodeClaimUnproven && strings.HasPrefix(finding.Message, "floor ") {
+			continue
+		}
+		filtered = append(filtered, finding)
+	}
+	return filtered
 }
 
 func hasCode(findings []spec.Finding, code string) bool {
@@ -1309,5 +1466,72 @@ func repoRoot(t *testing.T) string {
 			t.Fatal("repo root not found")
 		}
 		dir = parent
+	}
+}
+
+func TestChromeColorAgreementEvaluatorComparesComputedBackgrounds(t *testing.T) {
+	page := spec.PageDocument{
+		Elements: []spec.Element{{ID: "status", Role: "region"}, {ID: "header", Role: "banner"}},
+		Bindings: spec.Bindings{Elements: map[string]spec.Binding{
+			"status": {TestID: "status-fill"}, "header": {TestID: "mobile-header"},
+		}},
+	}
+	claim := spec.Claim{Type: "chrome-color-agreement", Elements: []string{"status"}, Params: map[string]any{"reference": "header"}}
+	nodes := []*AXNode{
+		{Role: "region", DOM: DOMNode{TestID: "status-fill"}, ComputedStyle: map[string]string{"background-color": "rgb(15, 23, 42)"}},
+		{Role: "banner", DOM: DOMNode{TestID: "mobile-header"}, ComputedStyle: map[string]string{"background-color": "#0f172a"}},
+	}
+	if result := evaluateChromeColorAgreementClaim(page, claim, CaptureTarget{}, nodes); !result.Pass {
+		t.Fatalf("equal chrome colors = %+v, want pass", result)
+	}
+	nodes[1].ComputedStyle["background-color"] = "rgb(2, 6, 23)"
+	if result := evaluateChromeColorAgreementClaim(page, claim, CaptureTarget{}, nodes); result.Pass || result.Measurement == nil {
+		t.Fatalf("different chrome colors = %+v, want measured failure", result)
+	}
+
+	tests := []struct {
+		name       string
+		mutate     func(spec.PageDocument, spec.Claim, []*AXNode) (spec.PageDocument, spec.Claim, []*AXNode)
+		wantReason string
+	}{
+		{name: "missing binding", mutate: func(p spec.PageDocument, c spec.Claim, n []*AXNode) (spec.PageDocument, spec.Claim, []*AXNode) {
+			delete(p.Bindings.Elements, "status")
+			return p, c, n
+		}, wantReason: "both bound elements"},
+		{name: "empty style", mutate: func(p spec.PageDocument, c spec.Claim, n []*AXNode) (spec.PageDocument, spec.Claim, []*AXNode) {
+			n[0].ComputedStyle["background-color"] = ""
+			return p, c, n
+		}, wantReason: "opaque, parseable"},
+		{name: "transparent style", mutate: func(p spec.PageDocument, c spec.Claim, n []*AXNode) (spec.PageDocument, spec.Claim, []*AXNode) {
+			n[0].ComputedStyle["background-color"] = "rgba(15, 23, 42, 0)"
+			return p, c, n
+		}, wantReason: "opaque, parseable"},
+		{name: "rgba equals rgb", mutate: func(p spec.PageDocument, c spec.Claim, n []*AXNode) (spec.PageDocument, spec.Claim, []*AXNode) {
+			n[1].ComputedStyle["background-color"] = "rgba(15, 23, 42, 1)"
+			return p, c, n
+		}, wantReason: ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			p := page
+			p.Bindings.Elements = map[string]spec.Binding{
+				"status": {TestID: "status-fill"}, "header": {TestID: "mobile-header"},
+			}
+			n := []*AXNode{
+				{Role: "region", DOM: DOMNode{TestID: "status-fill"}, ComputedStyle: map[string]string{"background-color": "rgb(15, 23, 42)"}},
+				{Role: "banner", DOM: DOMNode{TestID: "mobile-header"}, ComputedStyle: map[string]string{"background-color": "#0f172a"}},
+			}
+			mutatedPage, mutatedClaim, mutatedNodes := test.mutate(p, claim, n)
+			result := evaluateChromeColorAgreementClaim(mutatedPage, mutatedClaim, CaptureTarget{}, mutatedNodes)
+			if test.wantReason == "" {
+				if !result.Pass {
+					t.Fatalf("result = %+v, want pass", result)
+				}
+				return
+			}
+			if result.Unverifiable == "" || !strings.Contains(result.Unverifiable, test.wantReason) {
+				t.Fatalf("result = %+v, want unverifiable reason containing %q", result, test.wantReason)
+			}
+		})
 	}
 }

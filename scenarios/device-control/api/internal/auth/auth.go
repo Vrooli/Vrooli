@@ -112,7 +112,7 @@ func (r authorityResolver) Resolve(_ context.Context, identity, field string) (s
 	if err != nil {
 		return "", err
 	}
-	return r.authority.Resolve(parsed, field)
+	return r.authority.Require(parsed, field)
 }
 
 func (r authorityResolver) Delete(_ context.Context, identity, field string) error {

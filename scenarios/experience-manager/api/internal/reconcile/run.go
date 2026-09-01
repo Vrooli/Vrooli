@@ -196,7 +196,7 @@ func captureTargetsForProfile(scenario string, page spec.PageDocument, profile C
 			ViewportAliases: append([]string(nil), profile.Aliases...),
 			ViewportWidth:   profile.Width,
 			ViewportHeight:  profile.Height,
-			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, Direction: profile.Direction, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
+			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, Direction: profile.Direction, Orientation: profile.Orientation, Pointer: profile.Pointer, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
 			SettleMs: settleMsForState(state),
 		}
 		if !pageHasMachineClaimForTarget(page, target) {
@@ -228,7 +228,7 @@ func captureTargetsForComponentProfile(scenario string, component spec.Component
 			ViewportAliases: append([]string(nil), profile.Aliases...),
 			ViewportWidth:   profile.Width,
 			ViewportHeight:  profile.Height,
-			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, Direction: profile.Direction, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
+			ColorScheme:     profile.ColorScheme, Locale: profile.Locale, Direction: profile.Direction, Orientation: profile.Orientation, Pointer: profile.Pointer, MotionPreference: profile.MotionPreference, InteractionState: profile.InteractionState,
 			SettleMs: defaultSettleMs,
 		}
 		if !pageHasMachineClaimForTarget(page, target) {

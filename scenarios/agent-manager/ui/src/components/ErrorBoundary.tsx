@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "./ui/button";
+import { Button as LibraryButton } from "@vrooli/react-component-library/Button/2";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -67,13 +68,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               <RefreshCw className="h-3 w-3" />
               Retry
             </Button>
-            <Button
+            <LibraryButton
               variant="ghost"
               size="sm"
               onClick={() => window.location.reload()}
             >
               Reload Page
-            </Button>
+            </LibraryButton>
           </div>
         </div>
       );

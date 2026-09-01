@@ -36,8 +36,8 @@ func TestElementAbsentHasEvaluator(t *testing.T) {
 // under-report; if WiredAxes grows without the field, it would over-report.
 func TestWiredAxesReflectsCaptureTarget(t *testing.T) {
 	axes := WiredAxes()
-	if len(axes) != 5 {
-		t.Fatalf("expected viewport plus four capture axes, got %+v", axes)
+	if len(axes) != 7 {
+		t.Fatalf("expected viewport plus six capture axes, got %+v", axes)
 	}
 	var viewport AxisSupport
 	for _, axis := range axes {
@@ -59,7 +59,7 @@ func TestWiredAxesReflectsCaptureTarget(t *testing.T) {
 			t.Errorf("capture profile %q missing from wired viewport values", profile.ID)
 		}
 	}
-	for _, wanted := range []string{"color-scheme", "interaction-state", "locale", "motion-preference", "viewport"} {
+	for _, wanted := range []string{"color-scheme", "interaction-state", "locale", "motion-preference", "orientation", "pointer", "viewport"} {
 		found := false
 		for _, axis := range axes {
 			if axis.Axis == wanted {
@@ -112,6 +112,8 @@ func profileForAxisValue(profiles []CaptureProfile, axis, value string) (Capture
 			"viewport":          profile.ID,
 			"color-scheme":      profile.ColorScheme,
 			"locale":            profile.Locale,
+			"orientation":       profile.Orientation,
+			"pointer":           profile.Pointer,
 			"motion-preference": profile.MotionPreference,
 			"interaction-state": profile.InteractionState,
 		}[axis]
@@ -127,7 +129,7 @@ func profileForAxisValue(profiles []CaptureProfile, axis, value string) (Capture
 // driver tests exercise the native pseudo-state application; this package test
 // guards the reconciler's matrix/evidence join.
 func captureRequestFingerprint(profile CaptureProfile) string {
-	return profile.ID + "|" + profile.ColorScheme + "|" + profile.Locale + "|" + profile.MotionPreference + "|" + profile.InteractionState
+	return profile.ID + "|" + profile.ColorScheme + "|" + profile.Locale + "|" + profile.Orientation + "|" + profile.Pointer + "|" + profile.MotionPreference + "|" + profile.InteractionState
 }
 
 func TestCaptureProfilesFromAxesIncludesDesktopDarkWithinBudget(t *testing.T) {
@@ -159,13 +161,17 @@ func TestCaptureProfilesFromAxesCoversEveryTransmittedAxisValue(t *testing.T) {
 		seen["viewport"] = addSeen(seen["viewport"], profile.ID)
 		seen["color-scheme"] = addSeen(seen["color-scheme"], profile.ColorScheme)
 		seen["locale"] = addSeen(seen["locale"], profile.Locale)
+		seen["orientation"] = addSeen(seen["orientation"], profile.Orientation)
+		seen["pointer"] = addSeen(seen["pointer"], profile.Pointer)
 		seen["motion-preference"] = addSeen(seen["motion-preference"], profile.MotionPreference)
 		seen["interaction-state"] = addSeen(seen["interaction-state"], profile.InteractionState)
 	}
 	for axis, values := range map[string][]string{
-		"viewport":          {"mobile", "tablet", "desktop", "wide"},
+		"viewport":          {"mobile", "mobile-landscape", "tablet", "desktop", "wide"},
 		"color-scheme":      {"light", "dark"},
 		"locale":            {"en", "ar", "ja", "de"},
+		"orientation":       {"portrait", "landscape"},
+		"pointer":           {"coarse-no-hover", "fine-hover"},
 		"motion-preference": {"no-preference", "reduce"},
 		"interaction-state": {"rest", "hover", "focus-visible", "pressed", "disabled"},
 	} {

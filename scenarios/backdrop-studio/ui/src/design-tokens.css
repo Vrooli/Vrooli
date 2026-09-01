@@ -94,8 +94,8 @@
   color-scheme: light;
 /* rcl:tokens:begin */
   --badge-border: var(--color-border);
-  --border-focus: 2px;
   --color-border-strong: #64748b;
+  --color-field: var(--color-surface);
   --color-surface-sunken: #0b1220;
   --container-content: 72rem;
   --container-wide: 96rem;
@@ -104,19 +104,22 @@
   --control-height-sm: initial;
   --control-padding: var(--space-sm);
   --control-radius: var(--radius-control);
+  --control-size-icon: 40px;
+  --control-size-lg: 44px;
+  --control-size-md: 40px;
+  --control-size-sm: 36px;
+  --control-size-xl: 48px;
+  --control-size-xs: 32px;
+  --dur-enter: var(--dur-quick);
   --dur-fast: var(--dur-instant);
   --dur-normal: var(--dur-moderate);
   --dur-slow: var(--dur-deliberate);
   --elev-: initial;
   --elev-floating: 0 4px 12px rgba(9, 18, 22, 0.12);
   --elev-subtle: 0 1px 2px rgba(9, 18, 22, 0.04);
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--focus-ring-color) 35%, transparent);
-  --focus-ring-offset: 2px;
   --icon-size-lg: 24px;
   --icon-size-md: 20px;
   --icon-size-sm: 16px;
-  --layer-popover: 200;
-  --layer-raised: 150;
   --layout-content: 34rem;
   --layout-content-compact: 28rem;
   --layout-content-wide: 42rem;
@@ -125,6 +128,7 @@
   --radius-lg: 0.75rem;
   --radius-md: 0.5rem;
   --radius-none: 0;
+  --radius-overlay: 1rem;
   --radius-sm: 0.25rem;
   --radius-xl: 1.25rem;
   --space-: initial;

@@ -75,13 +75,15 @@
         }
       }
     },
-    "cleanup_providers": [{
-      "id": "browser-automation-studio-recordings",
-      "name": "Browser Automation Studio terminal recordings",
-      "safety_tier": "safe_with_owner",
-      "default_mode": "disabled",
-      "default_approval": "owner"
-    }],
+    "cleanup_providers": [
+      {
+        "id": "browser-automation-studio-recordings",
+        "name": "Browser Automation Studio terminal recordings",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
     "rationale": "Storage surfaces include durable project and seed state plus separately budgeted regenerable execution evidence."
   },
   "credentials": {
@@ -181,6 +183,7 @@
       "range": "24400-24499"
     }
   },
+  "generation": { "template": { "id": "react-vite" } },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -218,7 +221,8 @@
         "type": "minio",
         "enabled": true,
         "required": true,
-        "description": "Screenshot and artifact storage with S3-compatible API"
+        "description": "Screenshot and artifact storage with S3-compatible API",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
@@ -227,7 +231,8 @@
         "description": "AI workflow generation and debugging assistance",
         "model_roles": [
           "chat.small"
-        ]
+        ],
+        "startup_policy": "try_start"
       },
       "openrouter": {
         "type": "openrouter",
@@ -236,7 +241,8 @@
         "description": "Auto-detected via analyzer (resource_cli)",
         "model_roles": [
           "chat.default"
-        ]
+        ],
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {
@@ -245,7 +251,8 @@
         "version": "0.0.1",
         "versionRange": ">=0.0.1",
         "description": "Import-level dependency detected via go_import",
-        "degraded_behavior": "Readiness-profile resolution is unavailable while experience-manager is stopped; capture and execution APIs continue with their bounded default readiness behavior."
+        "degraded_behavior": "Readiness-profile resolution is unavailable while experience-manager is stopped; capture and execution APIs continue with their bounded default readiness behavior.",
+        "startup_policy": "must_start"
       },
       "landing-page-business-suite": {
         "required": true,
@@ -255,7 +262,8 @@
         "runtime_only": true,
         "runtime_only_rationale": "BAS reaches LPBS through its configured entitlement HTTP boundary and the control-plane-discovered local port; no Go package import is expected or desirable across scenario modules.",
         "degraded_behavior": "LPBS-backed Class-A entitlement and shared-session operations report unavailable while the authority is stopped; local Class-B work remains usable under a still-valid cached lease.",
-        "bundle_policy": "discover"
+        "bundle_policy": "discover",
+        "startup_policy": "must_start"
       },
       "ai-gateway": {
         "required": false,

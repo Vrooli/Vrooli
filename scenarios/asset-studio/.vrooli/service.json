@@ -117,14 +117,16 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "Every image and video generation call. Model policy, routing, and capacity stay in the gateway; this scenario speaks no vendor protocol and holds no vendor credential (DECISIONS D-008).",
-        "degraded_behavior": "Render jobs queue and report the gateway unavailable rather than failing. Nothing already produced is affected and no direct-to-vendor fallback is attempted."
+        "degraded_behavior": "Render jobs queue and report the gateway unavailable rather than failing. Nothing already produced is affected and no direct-to-vendor fallback is attempted.",
+        "supervision_precedence": "required"
       },
       "image-tools": {
         "enabled": true,
         "required": true,
         "startup_policy": "try_start",
         "description": "Deterministic operations for derived variants, reusable look recipes, and image analysis for conformance scoring. Image processing is not reimplemented here.",
-        "degraded_behavior": "Derived variants are not produced and their absence is reported; the parent asset is still releasable. Automated conformance scoring degrades to operator-only judgement, which is the P0 behaviour regardless."
+        "degraded_behavior": "Derived variants are not produced and their absence is reported; the parent asset is still releasable. Automated conformance scoring degrades to operator-only judgement, which is the P0 behaviour regardless.",
+        "supervision_precedence": "required"
       },
       "browser-automation-studio": {
         "enabled": false,

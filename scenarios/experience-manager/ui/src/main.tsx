@@ -1,3 +1,5 @@
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { i18n } from "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -40,6 +42,8 @@ async function bootstrap() {
   ]);
 
   ReactDOM.createRoot(appRoot).render(
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
@@ -50,16 +54,18 @@ async function bootstrap() {
         <ErrorBoundary>
           {/* Top-level Profiler boundary. Inert in regular prod (react-dom strips
               the profiling hook); emits user_timing entries via onProfilerRender
-              when the perf-build channel is active. See lib/profiler.ts. Add
-              inner <Profiler> boundaries around heavy subtrees as needed; do
-              not remove this one. */}
+              when the perf-build channel is active. Add inner <Profiler>
+              boundaries around heavy subtrees as needed; do not remove this one. */}
           <React.Profiler id="App" onRender={onProfilerRender}>
             <App />
           </React.Profiler>
         </ErrorBoundary>
       </QueryClientProvider>
-    </React.StrictMode>
-  );
+    </React.StrictMode>,
+  
+    </LibraryStringsProvider>
+    // vrooli:library-strings-provider end
+);
 }
 
 void bootstrap();

@@ -130,19 +130,22 @@
         "type": "redis",
         "enabled": false,
         "required": false,
-        "purpose": "Optional caching layer for fitness scores and dependency tree calculations"
+        "purpose": "Optional caching layer for fitness scores and dependency tree calculations",
+        "startup_policy": "try_start"
       },
       "postgres": {
         "type": "postgres",
         "enabled": false,
         "required": false,
-        "purpose": "Optional deployment inventory and migration evidence database"
+        "purpose": "Optional deployment inventory and migration evidence database",
+        "startup_policy": "try_start"
       },
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
         "required": false,
-        "purpose": "AI-powered migration strategy suggestions and dependency swap recommendations (agent integration)"
+        "purpose": "AI-powered migration strategy suggestions and dependency swap recommendations (agent integration)",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {
@@ -153,7 +156,8 @@
         "runtime_only": true,
         "runtime_only_rationale": "Deployment-manager reaches scenario-dependency-analyzer through service discovery and its HTTP/Connect boundary; no source-level package import is expected.",
         "purpose": "Dependency tree data source for fitness scoring and deployment analysis",
-        "degraded_behavior": "Deployment Manager remains available for profile and evidence review; dependency analysis and fitness scoring return an explicit analyzer-unavailable result until the provider is ready."
+        "degraded_behavior": "Deployment Manager remains available for profile and evidence review; dependency analysis and fitness scoring return an explicit analyzer-unavailable result until the provider is ready.",
+        "startup_policy": "must_start"
       },
       "secrets-manager": {
         "required": true,
@@ -163,22 +167,23 @@
         "versionRange": ">=1.0.0",
         "runtime_only": true,
         "runtime_only_rationale": "Deployment-manager reaches secrets-manager through service discovery and its external service boundary; no source-level package import is expected.",
-      "purpose": "Secret classification, template generation, and tier-specific secret strategies"
-    },
-    "scenario-to-cloud": {
-      "required": false,
-      "startup_policy": "try_start",
-      "runtime_only": true,
-      "runtime_only_rationale": "Cloud deployment health is queried through the discovered scenario HTTP boundary.",
-      "degraded_behavior": "Cloud release health checks report unavailable while scenario-to-cloud is stopped."
-    },
-    "scenario-to-desktop": {
-      "required": false,
-      "startup_policy": "try_start",
-      "runtime_only": true,
-      "runtime_only_rationale": "Desktop packaging is queried through the discovered scenario HTTP boundary.",
-      "degraded_behavior": "Desktop packaging operations report unavailable while scenario-to-desktop is stopped."
-    },
+        "purpose": "Secret classification, template generation, and tier-specific secret strategies",
+        "supervision_precedence": "required"
+      },
+      "scenario-to-cloud": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Cloud deployment health is queried through the discovered scenario HTTP boundary.",
+        "degraded_behavior": "Cloud release health checks report unavailable while scenario-to-cloud is stopped."
+      },
+      "scenario-to-desktop": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Desktop packaging is queried through the discovered scenario HTTP boundary.",
+        "degraded_behavior": "Desktop packaging operations report unavailable while scenario-to-desktop is stopped."
+      },
       "swarm-manager": {
         "required": false,
         "startup_policy": "try_start",

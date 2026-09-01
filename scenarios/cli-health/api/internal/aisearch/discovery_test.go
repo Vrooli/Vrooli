@@ -92,6 +92,24 @@ func TestFilesystemDiscoverySource_ManifestParse(t *testing.T) {
 	}
 }
 
+func TestFilesystemDiscoverySource_ResourceCLIs(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "demo")
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	resource := `{"name":"demo","cli":{"enabled":true,"command":"resource-demo","invoke":{"command":"resource-demo"}}}`
+	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), []byte(resource), 0o644); err != nil {
+		t.Fatalf("write resource: %v", err)
+	}
+
+	src := NewFilesystemDiscoverySource(root)
+	got := src.ListExternalCLIs()
+	if len(got) != 1 || got[0].Name != "resource-demo" || got[0].Binary != "resource-demo" {
+		t.Fatalf("resource CLIs = %#v, want resource-demo", got)
+	}
+}
+
 func TestParseManifestRecordsUsesFlatCommandPaths(t *testing.T) {
 	manifest := []byte(`{
         "name": "demo",

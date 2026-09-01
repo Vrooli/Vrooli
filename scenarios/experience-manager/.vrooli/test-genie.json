@@ -214,6 +214,19 @@
         "fix_class": "manual",
         "reason": "Schema repair needs source-level contract edits."
       },
+      "experience.oracle_case_uncovered": {
+        "capability_id": "spec_contract",
+        "local_level_impact": "L2",
+        "global_impact": "capability_gap",
+        "dimension": "ui",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "recommended_skill_ids": [
+          "experience-spec-authoring"
+        ],
+        "fix_class": "manual",
+        "reason": "Restore a machine-checkable experience claim for every regression-oracle case."
+      },
       "experience.index_parity": {
         "capability_id": "spec_contract",
         "local_level_impact": "L1",

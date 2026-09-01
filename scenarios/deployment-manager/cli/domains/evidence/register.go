@@ -2,23 +2,36 @@ package evidence
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	evidencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence"
 	evidenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/evidence/evidencev1connect"
+	offersv1 "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
+	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const GroupName = "evidence"
 
 type handlers struct {
-	client evidenceconnect.EvidenceServiceClient
+	client      evidenceconnect.EvidenceServiceClient
+	offerClient offersconnect.GatesServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{client: evidenceconnect.NewEvidenceServiceClient(httpClient, baseURL)}
+	offerBaseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("OFFER_DESK_API_BASE_URL")), "/")
+	return &handlers{
+		client:      evidenceconnect.NewEvidenceServiceClient(httpClient, baseURL),
+		offerClient: offersconnect.NewGatesServiceClient(httpClient, offerBaseURL),
+	}
 }
 
 func (h *handlers) listCall(ctx cliapp.OperationContext) (*evidencev1.ListTargetVerdictsResponse, error) {
@@ -58,5 +71,82 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
 		"EvidenceService.ListTargetVerdicts": cliapp.ProtoList(h.listCall, h.listReport),
+		"GatesService.AddFact":               cliapp.ProtoMutation(h.publishReportFact, h.publishReportFactReport),
 	})
+}
+
+type deploymentReport struct {
+	GeneratedAt string `json:"generated_at"`
+}
+
+func defaultReportPath() string {
+	if configured := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_REPORT_PATH")); configured != "" {
+		return configured
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(".vrooli", "data", "vrooli", "deployment-manager", "deployment", "deployment-report.json")
+	}
+	return filepath.Join(home, ".vrooli", "data", "vrooli", "deployment-manager", "deployment", "deployment-report.json")
+}
+
+func readReportFact(path string, now time.Time, staleAfter time.Duration) (*offersv1.Fact, error) {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read deployment report: %w", err)
+	}
+	var report deploymentReport
+	if err := json.Unmarshal(contents, &report); err != nil {
+		return nil, fmt.Errorf("decode deployment report: %w", err)
+	}
+	generated, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(report.GeneratedAt))
+	if err != nil {
+		return nil, fmt.Errorf("parse deployment report generated_at: %w", err)
+	}
+	generated = generated.UTC()
+	now = now.UTC()
+	value := 1.0
+	if generated.After(now) || now.Sub(generated) > staleAfter {
+		value = 0
+	}
+	return &offersv1.Fact{
+		Name:           "deployment_report_fresh",
+		Value:          value,
+		ObservedAt:     timestamppb.New(generated),
+		StaleAfterDays: int32(staleAfter / (24 * time.Hour)),
+		Dimension:      "producer:deployment-manager",
+	}, nil
+}
+
+func (h *handlers) publishReportFact(ctx cliapp.OperationContext) (*offersv1.AddFactResponse, error) {
+	if h.offerClient == nil || strings.TrimSpace(os.Getenv("OFFER_DESK_API_BASE_URL")) == "" {
+		return nil, fmt.Errorf("offer-desk is unavailable; deployment report fact was not published")
+	}
+	staleDays := 30
+	if raw := strings.TrimSpace(ctx.Flag("stale-after-days")); raw != "" {
+		if _, err := fmt.Sscanf(raw, "%d", &staleDays); err != nil {
+			return nil, fmt.Errorf("parse --stale-after-days: %w", err)
+		}
+		if staleDays <= 0 {
+			return nil, fmt.Errorf("parse --stale-after-days: value must be positive")
+		}
+	}
+	reportPath := strings.TrimSpace(ctx.Flag("report-path"))
+	if reportPath == "" {
+		reportPath = defaultReportPath()
+	}
+	fact, err := readReportFact(reportPath, time.Now().UTC(), time.Duration(staleDays)*24*time.Hour)
+	if err != nil {
+		return nil, err
+	}
+	response, err := h.offerClient.AddFact(context.Background(), connect.NewRequest(&offersv1.AddFactRequest{Fact: fact}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("publish deployment report fact", err, nil)
+	}
+	return response.Msg, nil
+}
+
+func (h *handlers) publishReportFactReport(_ cliapp.OperationContext, response *offersv1.AddFactResponse) cliapp.MutationReport {
+	fact := response.GetFact()
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Producer fact published: %s value=%g observed_at=%s", fact.GetName(), fact.GetValue(), fact.GetObservedAt().AsTime().Format(time.RFC3339))}}
 }

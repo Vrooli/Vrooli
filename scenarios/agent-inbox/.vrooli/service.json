@@ -72,6 +72,7 @@
       "description": "React UI"
     }
   },
+  "generation": { "template": { "id": "react-vite" } },
   "lifecycle": {
     "version": "2.0.0",
     "health": {

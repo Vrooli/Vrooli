@@ -87,6 +87,7 @@ func DefaultSpec() *maturity.Spec {
 			spec.CodeFloorSafeArea:       requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Safe-area remediation requires mobile shell/layout changes."),
 			spec.CodeFloorSingleLine:     requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Single-line chrome remediation requires navigation content or responsive layout changes."),
 			spec.CodeFloorTapTargetSize:  requiredManualWithSkills("structure_reconciliation", "L2", spec.SeverityError, []string{"experience-spec-authoring", "ux"}, "Tap-target remediation requires component sizing or hit-area changes."),
+			spec.CodeOracleCaseUncovered: requiredManual("spec_contract", "L2", spec.SeverityError, "Restore a machine-checkable experience claim for every regression-oracle case."),
 			spec.CodeImportanceMismatch:  advisoryManual("perception_advisory", "L1", "Perception calibration is deferred to the P2 tier."),
 			spec.CodeGlanceJudgeMismatch: advisoryManual("perception_advisory", "L1", "Judge-based perception is deferred and non-gating."),
 		},

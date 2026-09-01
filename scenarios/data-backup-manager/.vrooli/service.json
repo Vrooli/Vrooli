@@ -22,7 +22,7 @@
     "parent": "vrooli",
     "name": "data-backup-manager",
     "displayName": "Data Backup Manager",
-    "description": "Dependable, engine-backed backup and verified restore for Vrooli runtime state. Scenarios self-register the state they own (databases, filesystem trees, vector and cache stores); the manager snapshots it on a schedule to one or more encrypted kopia destinations and proves it can restore \u2014 making runtime state safe to keep out of git.",
+    "description": "Dependable, engine-backed backup and verified restore for Vrooli runtime state. Scenarios self-register the state they own (databases, filesystem trees, vector and cache stores); the manager snapshots it on a schedule to one or more encrypted kopia destinations and proves it can restore — making runtime state safe to keep out of git.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
@@ -119,25 +119,29 @@
         "description": "Wrapped backup engine: one kopia repository per destination. All snapshot/restore/verify/stats/retention go through resource-kopia. Encryption is always on; kopia owns repository passphrases and backend credentials through the credential authority.",
         "enabled": true,
         "required": true,
-        "type": "kopia"
+        "type": "kopia",
+        "startup_policy": "must_start"
       },
       "postgres": {
         "description": "Conditional source kind: pg_dump of a Postgres target via the postgres resource CLI. Enable when a Postgres target is registered.",
         "enabled": false,
         "required": false,
-        "type": "postgres"
+        "type": "postgres",
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "description": "Conditional source kind: collection snapshot of a Qdrant target via the qdrant resource CLI. Enable when a Qdrant target is registered.",
         "enabled": false,
         "required": false,
-        "type": "qdrant"
+        "type": "qdrant",
+        "startup_policy": "try_start"
       },
       "minio": {
         "description": "Conditional: backs object-storage source mirrors and S3-backed destinations. Enable when an S3/MinIO source or destination is used.",
         "enabled": false,
         "required": false,
-        "type": "minio"
+        "type": "minio",
+        "startup_policy": "try_start"
       }
     }
   },

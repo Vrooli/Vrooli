@@ -111,10 +111,19 @@ func (p *NodeProcess) Start() error {
 		p.log.Warn("API_PORT not set, using default for history callbacks")
 	}
 	historyCallbackURL := fmt.Sprintf("http://127.0.0.1:%s/internal/history-callback", apiPort)
-	p.cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{
+	childEnv := envkit.Env{
 		fmt.Sprintf("PLAYWRIGHT_DRIVER_PORT=%d", p.port),
 		fmt.Sprintf("HISTORY_CALLBACK_URL=%s", historyCallbackURL),
-	})
+	}
+	// Lifecycle names these ports with PLAYWRIGHT_DRIVER_*; the Node driver
+	// consumes its own FRAME_STREAM_DIRECT_PORT and METRICS_PORT names.
+	if framesPort := os.Getenv("PLAYWRIGHT_DRIVER_FRAMES_PORT"); framesPort != "" {
+		childEnv = append(childEnv, fmt.Sprintf("FRAME_STREAM_DIRECT_PORT=%s", framesPort))
+	}
+	if metricsPort := os.Getenv("PLAYWRIGHT_DRIVER_METRICS_PORT"); metricsPort != "" {
+		childEnv = append(childEnv, fmt.Sprintf("METRICS_PORT=%s", metricsPort))
+	}
+	p.cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, childEnv)
 	p.cmd.Env = append(p.cmd.Env, p.env...)
 
 	// Capture stdout/stderr for logging

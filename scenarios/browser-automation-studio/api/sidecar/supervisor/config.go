@@ -6,6 +6,8 @@
 package supervisor
 
 import (
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -86,6 +88,15 @@ func LoadConfig(settings map[string]any) Config {
 	}
 	if value, ok := settings["sidecar_node_path"].(string); ok {
 		cfg.NodePath = value
+	}
+	// The control plane allocates the sidecar port and exposes it to every
+	// component as PLAYWRIGHT_DRIVER_PORT. It must override the development
+	// default, otherwise the API probes the allocated port while the child
+	// listens on 39400.
+	if raw := strings.TrimSpace(os.Getenv("PLAYWRIGHT_DRIVER_PORT")); raw != "" {
+		if port, err := strconv.Atoi(raw); err == nil && port > 0 && port <= 65535 {
+			cfg.DriverPort = port
+		}
 	}
 	cfg.MaxRestarts = integer(settings, "sidecar_max_restarts", cfg.MaxRestarts)
 	cfg.RestartWindow = duration(settings, "sidecar_restart_window_ms", cfg.RestartWindow)

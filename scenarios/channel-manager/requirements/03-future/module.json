@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P2 operational targets in PRD.md.",
-    "last_validated_at": "2026-08-05T20:01:53-04:00",
+    "last_validated_at": "2026-08-30T17:59:51-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "CHANMGR-P2-001",
       "title": "Platform API executors",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "category": "execution",
       "criticality": "P2",
@@ -23,13 +23,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An API-executed action produces a record identical in shape to the manual and browser executors."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An action kind with no API coverage on a platform falls back to the configured executor rather than failing."
         }
       ]
@@ -37,7 +37,7 @@
     {
       "id": "CHANMGR-P2-002",
       "title": "Cannibalization detection",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-002",
       "category": "signals",
       "criticality": "P2",
@@ -50,7 +50,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Overlap above the configured threshold produces an advisory record naming both identities and the evidence."
         }
       ]
@@ -58,7 +58,7 @@
     {
       "id": "CHANMGR-P2-003",
       "title": "Window optimization",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-003",
       "category": "queue",
       "criticality": "P2",
@@ -71,13 +71,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A window proposal is produced as a record and does not mutate the active program until accepted."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A proposal derived from fewer than the configured minimum observations is withheld rather than emitted."
         }
       ]
@@ -85,7 +85,7 @@
     {
       "id": "CHANMGR-P2-004",
       "title": "Multi-operator handoff",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-004",
       "category": "execution",
       "criticality": "P2",
@@ -98,7 +98,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An assigned action appears only in the assignee's due list and cannot be completed twice."
         }
       ]
@@ -106,7 +106,7 @@
     {
       "id": "CHANMGR-P2-005",
       "title": "Deliberate re-release",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-005",
       "category": "queue",
       "criticality": "P2",
@@ -120,19 +120,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A deliberate re-release creates a second release record with its own post id, while a retry of the original release still returns the original result. The idempotency key must distinguish 'retry of release X' from 'new release of draft Y' — CHANMGR-P0-014 asserts the retry half and this asserts the other."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A re-release is refused when the identity's asset-uniqueness constraint would be violated by republishing the same media."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Re-release requires an explicit approval reference from content-desk; a release cannot be repeated on this scenario's own initiative."
         }
       ]

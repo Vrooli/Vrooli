@@ -30,6 +30,8 @@ type CaptureProfile struct {
 	ColorScheme      string
 	Locale           string
 	Direction        string
+	Orientation      string
+	Pointer          string
 	MotionPreference string
 	InteractionState string
 }
@@ -38,8 +40,9 @@ type CaptureProfile struct {
 // without a scenario path. Normal runs load the bounded baseline matrix from
 // capabilities/axes.json via captureProfiles.
 var DefaultCaptureProfiles = []CaptureProfile{
-	{ID: "desktop", MatrixID: "desktop-light-en-rest", Aliases: []string{"wide"}, Width: 1280, Height: 720, ColorScheme: "light", Locale: "en", MotionPreference: "no-preference", InteractionState: "rest"},
-	{ID: "mobile", MatrixID: "mobile-dark-en-reduce", Width: 390, Height: 844, ColorScheme: "dark", Locale: "en", MotionPreference: "reduce", InteractionState: "rest"},
+	{ID: "desktop", MatrixID: "desktop-light-en-rest", Aliases: []string{"wide"}, Width: 1280, Height: 720, ColorScheme: "light", Locale: "en", Orientation: "landscape", Pointer: "fine-hover", MotionPreference: "no-preference", InteractionState: "rest"},
+	{ID: "mobile", MatrixID: "mobile-dark-en-reduce", Width: 390, Height: 844, ColorScheme: "dark", Locale: "en", Orientation: "portrait", Pointer: "coarse-no-hover", MotionPreference: "reduce", InteractionState: "rest"},
+	{ID: "mobile-landscape", MatrixID: "mobile-landscape-dark-en-reduce", Aliases: []string{"mobile"}, Width: 844, Height: 390, ColorScheme: "dark", Locale: "en", Orientation: "landscape", Pointer: "coarse-no-hover", MotionPreference: "reduce", InteractionState: "rest"},
 }
 
 // ErrCaptureUnavailable means the capture mechanism could not provide an AX
@@ -98,7 +101,7 @@ func (c Check) captureAll(ctx context.Context, capturer Capturer, targets []Capt
 }
 
 func captureTargetKey(target CaptureTarget) string {
-	return strings.Join([]string{target.DocumentKind, target.PageID, target.ComponentID, target.Route, target.ExampleName, target.StateID, target.ViewportID, target.ColorScheme, target.Locale, target.MotionPreference, target.InteractionState}, "\x00")
+	return strings.Join([]string{target.DocumentKind, target.PageID, target.ComponentID, target.Route, target.ExampleName, target.StateID, target.ViewportID, target.ColorScheme, target.Locale, target.Orientation, target.Pointer, target.MotionPreference, target.InteractionState}, "\x00")
 }
 
 func (c Check) captureMatrix(ctx context.Context, capturer Capturer, targets []CaptureTarget) map[string]captureResult {
@@ -161,6 +164,8 @@ type CaptureTarget struct {
 	ColorScheme       string
 	Locale            string
 	Direction         string
+	Orientation       string
+	Pointer           string
 	MotionPreference  string
 	InteractionState  string
 	SettleMs          int
@@ -307,7 +312,7 @@ func evaluateClaim(page spec.PageDocument, claim spec.Claim, target CaptureTarge
 		Message:        "claim proven by accessibility snapshot",
 	}
 	var result claimEvaluation
-	if claim.Type == "differential" && len(contextSnapshots) > 0 {
+	if (claim.Type == "differential" || claim.Type == "dark-parity") && len(contextSnapshots) > 0 {
 		result = evaluateDifferentialClaim(page, claim, contextSnapshots[0])
 	} else {
 		evaluator := claimEvaluator(claim.Type)

@@ -101,13 +101,15 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store algorithms, implementations, test cases, and validation results"
+        "purpose": "Store algorithms, implementations, test cases, and validation results",
+        "startup_policy": "must_start"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Cache frequently accessed algorithms and validation results for performance"
+        "purpose": "Cache frequently accessed algorithms and validation results for performance",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
@@ -116,7 +118,8 @@
         "purpose": "Generate algorithm explanations and suggest solutions for problems",
         "model_roles": [
           "chat.small"
-        ]
+        ],
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {}
@@ -202,6 +205,11 @@
           ]
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

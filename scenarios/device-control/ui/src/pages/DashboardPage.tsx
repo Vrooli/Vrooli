@@ -16,7 +16,7 @@ import {
   type Session,
   type Strategy,
 } from "../api/deviceControl";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";

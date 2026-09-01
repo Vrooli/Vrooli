@@ -1,5 +1,16 @@
 import { defineConfig, loadEnv, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
+const libraryRoot = resolve(rootDir, "../../../scenarios/react-component-library/library");
+const libraryDependencyAliases = ["clsx", "tailwind-merge", "lucide-react"].map((name) => ({
+  find: name,
+  replacement: resolve(rootDir, "node_modules", name),
+}));
 
 export default defineConfig(({ mode }): UserConfig => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -9,15 +20,16 @@ export default defineConfig(({ mode }): UserConfig => {
     // INTEROP-CRITICAL: Keep relative base so proxied deployments resolve assets
     // under nested /apps/<scenario>/proxy paths.
     base: "./",
-    plugins: [react()],
+    plugins: [react(), sourceLibraryResolver({ libraryRoot })],
     resolve: isProfile
       ? {
-          alias: {
-            "react-dom/client": "react-dom/profiling",
-            "react-dom$": "react-dom/profiling",
-          },
+          alias: [
+            ...libraryDependencyAliases,
+            { find: "react-dom/client", replacement: "react-dom/profiling" },
+            { find: "react-dom$", replacement: "react-dom/profiling" },
+          ],
         }
-      : undefined,
+      : { alias: libraryDependencyAliases },
     esbuild: isProfile
       ? {
           keepNames: true,

@@ -13,7 +13,16 @@
     "contract": "scenario-validation/v1",
     "includeExecution": true
   },
-  "targets": {"kinds": ["scenario", "control-plane"], "selection": "enumerate"},
+  "targets": {
+    "kinds": ["scenario"],
+    "selection": "enumerate",
+    "notApplicableKinds": [
+      {
+        "kind": "control-plane",
+        "reason": "CLI Health validates the repository-root CLI contract, while control-plane targets are bounded internal or cmd subtrees without their own CLI manifest."
+      }
+    ]
+  },
   "applicability": {
     "default": "applies"
   },

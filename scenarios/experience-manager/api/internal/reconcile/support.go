@@ -41,6 +41,8 @@ func WiredAxesFromProfiles(profiles []CaptureProfile) []AxisSupport {
 		addAxisValue(values, "viewport", profile.ID)
 		addAxisValue(values, "color-scheme", profile.ColorScheme)
 		addAxisValue(values, "locale", profile.Locale)
+		addAxisValue(values, "orientation", profile.Orientation)
+		addAxisValue(values, "pointer", profile.Pointer)
 		addAxisValue(values, "motion-preference", profile.MotionPreference)
 		addAxisValue(values, "interaction-state", profile.InteractionState)
 	}
@@ -62,14 +64,14 @@ func WiredAxesFromProfiles(profiles []CaptureProfile) []AxisSupport {
 
 // AvailableEvidence returns the evidence kinds a capture actually yields.
 //
-// ax-tree, layout-box, computed-style, and screenshot all come from the BAS
+// ax-tree, layout-box, computed-style, screenshot, and timing all come from the BAS
 // capture response
 // snapshot. The latter is a declared property map, so evaluators can distinguish
-// absent CSS evidence from a failed arithmetic check. runtime-log and timing
-// remain outside the experience evidence join until their durable contracts are
-// defined.
+// absent CSS evidence from a failed arithmetic check. Timing is persisted from
+// the same response and transition durations are retained in computed style;
+// runtime-log remains outside the experience evidence join.
 func AvailableEvidence() []string {
-	return []string{"ax-tree", "computed-style", "layout-box", "screenshot"}
+	return []string{"ax-tree", "computed-style", "layout-box", "screenshot", "timing"}
 }
 
 func addAxisValue(values map[string]map[string]struct{}, axis, value string) {

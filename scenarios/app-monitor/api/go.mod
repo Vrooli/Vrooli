@@ -6,7 +6,7 @@ require (
 	connectrpc.com/connect v1.19.2
 	github.com/docker/docker v25.0.0+incompatible
 	github.com/gin-gonic/gin v1.9.1
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/lib/pq v1.10.9
 	github.com/redis/go-redis/v9 v9.20.1
 	github.com/vrooli/api-core v0.0.0
@@ -15,7 +15,10 @@ require (
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 )
 
-require github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+)
 
 require (
 	github.com/Microsoft/go-winio v0.4.21 // indirect
@@ -73,7 +76,6 @@ require (
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 require (
-	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0
 	go.uber.org/atomic v1.11.0 // indirect

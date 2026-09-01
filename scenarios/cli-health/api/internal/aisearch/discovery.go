@@ -2,6 +2,7 @@ package aisearch
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -103,11 +104,66 @@ func NewFilesystemDiscoverySource(repoRoot string) *FilesystemDiscoverySource {
 // ListExternalCLIs returns a copy of the configured ExternalCLIs slice.
 // Returned slice is safe to mutate.
 func (d *FilesystemDiscoverySource) ListExternalCLIs() []ExternalCLI {
-	if len(d.ExternalCLIs) == 0 {
-		return nil
-	}
 	out := make([]ExternalCLI, len(d.ExternalCLIs))
 	copy(out, d.ExternalCLIs)
+	for _, resource := range d.resourceCLIs() {
+		duplicate := false
+		for _, configured := range out {
+			if configured.Name == resource.Name {
+				duplicate = true
+				break
+			}
+		}
+		if !duplicate {
+			out = append(out, resource)
+		}
+	}
+	return out
+}
+
+// resourceCLIs discovers resource-owned CLI roots from their declarations.
+// Resources are not scenarios, but their installed CLIs are first-class
+// Vrooli command surfaces and must participate in command-reference checks.
+func (d *FilesystemDiscoverySource) resourceCLIs() []ExternalCLI {
+	if strings.TrimSpace(d.RepoRoot) == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(filepath.Join(d.RepoRoot, "resources"))
+	if err != nil {
+		return nil
+	}
+	var out []ExternalCLI
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		path := filepath.Join(d.RepoRoot, "resources", entry.Name(), "resource.json")
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var descriptor struct {
+			CLI struct {
+				Enabled bool   `json:"enabled"`
+				Command string `json:"command"`
+				Invoke  struct {
+					Command string `json:"command"`
+				} `json:"invoke"`
+			} `json:"cli"`
+		}
+		if json.Unmarshal(data, &descriptor) != nil || !descriptor.CLI.Enabled {
+			continue
+		}
+		command := strings.TrimSpace(descriptor.CLI.Command)
+		if command == "" {
+			command = strings.TrimSpace(descriptor.CLI.Invoke.Command)
+		}
+		if command == "" {
+			continue
+		}
+		out = append(out, ExternalCLI{Name: command, Binary: command})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }
 

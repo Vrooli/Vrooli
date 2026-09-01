@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
-import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.0";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 import { selectors } from "../consts/selectors";
 import { assignAutomation, completeAction, configurePortfolio, createIdentity, dispatchBrowserAction, enqueueAction, overview, previewRelease, recordObservation, retireIdentity, startProgram, updateIdentity, type Action, type Overview, type ReleasePreview } from "../api/channelManager";
 

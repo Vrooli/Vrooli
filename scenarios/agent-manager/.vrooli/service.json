@@ -84,6 +84,7 @@
       "range": "20000-24999"
     }
   },
+  "generation": { "template": { "id": "react-vite" } },
   "lifecycle": {
     "version": "2.0.0",
     "health": {

@@ -56,23 +56,27 @@
     "resources": {
       "postgres": {
         "enabled": true,
-        "database": "api_library"
+        "database": "api_library",
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "enabled": true,
-        "collection": "api_embeddings"
+        "collection": "api_embeddings",
+        "startup_policy": "try_start"
       },
       "redis": {
         "enabled": false,
         "purpose": "Optional response cache, currently disabled. The Go code carries a client but the resource is not enabled, so no runtime path depends on Redis being present.",
-        "required": false
+        "required": false,
+        "startup_policy": "try_start"
       },
       "ollama": {
         "enabled": false,
         "model_roles": [
           "embedding.default"
         ],
-        "purpose": "Generate embeddings for semantic search"
+        "purpose": "Generate embeddings for semantic search",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -188,6 +192,11 @@
           ]
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

@@ -2,12 +2,15 @@
 package spec
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/santhosh-tekuri/jsonschema/v5"
 )
 
 const (
@@ -37,6 +40,7 @@ const (
 	CodeFloorSafeArea       = "experience.floor_safe_area_tap_targets"
 	CodeFloorSingleLine     = "experience.floor_single_line_chrome"
 	CodeFloorTapTargetSize  = "experience.floor_tap_target_size"
+	CodeOracleCaseUncovered = "experience.oracle_case_uncovered"
 	SeverityError           = "SEVERITY_ERROR"
 	SeverityWarning         = "SEVERITY_WARNING"
 	SeverityInfo            = "SEVERITY_INFO"
@@ -86,6 +90,7 @@ var AllFindingCodes = []string{
 	CodeFloorSafeArea,
 	CodeFloorSingleLine,
 	CodeFloorTapTargetSize,
+	CodeOracleCaseUncovered,
 }
 
 // IsFindingCode reports whether code is in the frozen experience finding
@@ -127,6 +132,28 @@ type ScenarioSpec struct {
 	Pages         map[string]PageDocument
 	Journeys      map[string]JourneyDocument
 	Components    map[string]ComponentDocument
+	Oracles       map[string]OracleDocument
+}
+
+// OracleDocument is a governed regression-oracle fixture.
+type OracleDocument struct {
+	SchemaVersion     string       `json:"schema_version"`
+	Scenario          string       `json:"scenario"`
+	FixtureID         string       `json:"fixture_id"`
+	Status            string       `json:"status"`
+	Profile           any          `json:"profile"`
+	RequiredArtifacts []string     `json:"required_artifacts"`
+	Cases             []OracleCase `json:"cases"`
+}
+
+type OracleCase struct {
+	ID                   string   `json:"id"`
+	Name                 string   `json:"name"`
+	Owner                string   `json:"owner"`
+	Claim                string   `json:"claim"`
+	Evidence             []string `json:"evidence"`
+	ExpectedBeforeRepair string   `json:"expected_before_repair,omitempty"`
+	Remediation          string   `json:"remediation,omitempty"`
 }
 
 type IndexDocument struct {
@@ -397,6 +424,7 @@ func ParseScenario(scenarioDir string) (Report, error) {
 		Pages:         map[string]PageDocument{},
 		Journeys:      map[string]JourneyDocument{},
 		Components:    map[string]ComponentDocument{},
+		Oracles:       map[string]OracleDocument{},
 	}
 	report.Spec = spec
 
@@ -406,6 +434,7 @@ func ParseScenario(scenarioDir string) (Report, error) {
 	}
 	prdRefs := loadPRDRefs(scenarioDir)
 	parseListedDocuments(&report, spec)
+	parseOracles(&report, spec)
 	checkIndexParity(&report, spec)
 	checkIndexShape(&report, spec.Index)
 	checkPages(&report, spec, prdRefs)
@@ -420,6 +449,53 @@ func ParseScenario(scenarioDir string) (Report, error) {
 	}
 	sortFindings(report.Findings)
 	return report, nil
+}
+
+func parseOracles(report *Report, target *ScenarioSpec) {
+	dir := filepath.Join(target.ExperienceDir, "fixtures")
+	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
+	if err != nil {
+		return
+	}
+	for _, path := range paths {
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("read oracle fixture: %v", readErr), rel(report.TargetPath, path), "Repair or remove the unreadable oracle fixture.")
+			continue
+		}
+		if err := validateOracleDocument(report.TargetPath, data); err != nil {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("oracle fixture does not match schema: %v", err), rel(report.TargetPath, path), "Repair the oracle fixture to match .vrooli/schemas/experience-regression-oracle.schema.json.")
+			continue
+		}
+		var oracle OracleDocument
+		if err := json.Unmarshal(data, &oracle); err != nil {
+			report.add(CodeSchemaInvalid, SeverityError, fmt.Sprintf("invalid oracle fixture JSON: %v", err), rel(report.TargetPath, path), "Repair the oracle fixture JSON.")
+			continue
+		}
+		target.Oracles[rel(report.TargetPath, path)] = oracle
+	}
+}
+
+func validateOracleDocument(scenarioDir string, data []byte) error {
+	repoRoot := filepath.Dir(filepath.Dir(filepath.Clean(scenarioDir)))
+	schemaPath := filepath.Join(repoRoot, ".vrooli", "schemas", "experience-regression-oracle.schema.json")
+	schemaData, err := os.ReadFile(schemaPath)
+	if err != nil {
+		return fmt.Errorf("read schema: %w", err)
+	}
+	compiler := jsonschema.NewCompiler()
+	if err := compiler.AddResource("experience-regression-oracle.schema.json", bytes.NewReader(schemaData)); err != nil {
+		return fmt.Errorf("compile schema resource: %w", err)
+	}
+	schema, err := compiler.Compile("experience-regression-oracle.schema.json")
+	if err != nil {
+		return fmt.Errorf("compile schema: %w", err)
+	}
+	var document any
+	if err := json.Unmarshal(data, &document); err != nil {
+		return err
+	}
+	return schema.Validate(document)
 }
 
 // ComputeComponentDepth returns the L0-L3 experience depth for one component.

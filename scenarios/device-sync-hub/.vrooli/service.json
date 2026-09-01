@@ -117,7 +117,8 @@
         "required": true,
         "startup_policy": "try_start",
         "degraded_behavior": "If scenario-authenticator is unavailable, device-sync-hub fails closed in production: no pairing, no token validation, no access to items. Its own test lifecycle is not gated on the sibling's health.",
-        "description": "Owner identity, JWT (access + refresh), token validation, session list, and immediate revocation. Consumed over HTTP; device-sync-hub owns the device/pairing/trust/presence/per-item-ACL layer on top of it and does not extend the authenticator."
+        "description": "Owner identity, JWT (access + refresh), token validation, session list, and immediate revocation. Consumed over HTTP; device-sync-hub owns the device/pairing/trust/presence/per-item-ACL layer on top of it and does not extend the authenticator.",
+        "supervision_precedence": "required"
       }
     },
     "resources": {

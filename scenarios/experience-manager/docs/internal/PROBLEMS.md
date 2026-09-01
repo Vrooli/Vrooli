@@ -168,3 +168,10 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W3 / R0 (overlay capability evidence execution)
+- Evidence: W0 remains aligned with goals `decision-question-visuals` and `decision-visual-grounding-propagation`; the plan's machine-evidence work directly serves PRD target `OT-P0-003`. `business-health validate scenario experience-manager` and `vrooli scenario requirements validate experience-manager` both pass. Baseline run `20260827-043742-0a0e89b1` is terminal and records the pre-existing red implementation baseline.
+- Blocker: None. Phase 12 must add real producing checks and negative controls without suppressing inherited findings.
+- Measured: 2026-08-27.

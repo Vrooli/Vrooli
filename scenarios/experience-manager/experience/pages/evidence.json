@@ -21,7 +21,7 @@
     { "id": "stale", "description": "Evidence predates the current spec revision; verdicts shown but visibly outdated." },
     { "id": "request-error" }
   ],
-  "regions": [{"id":"capture-evidence","purpose":"Render the selected capture evidence loading, ready, empty, partial, or failed surface.","component":{"library":{"component":"experience-surface","version":"1.0.0"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
+  "regions": [{"id":"capture-evidence","purpose":"Render the selected capture evidence loading, ready, empty, partial, or failed surface.","component":{"library":{"component":"experience-surface","version":"1.0.3"}},"lifecycle":{"kind":"async","states":["loading","ready","empty","partial","error"]}}],
   "elements": [
     { "id": "capture-image", "role": "image", "name": "Page capture", "description": "The BAS screenshot for the selected page/state." },
     { "id": "tree-panel", "role": "region", "name": "Accessibility tree", "description": "The captured a11y tree, focusable per node." },

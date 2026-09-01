@@ -11,7 +11,6 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/stretchr/testify v1.11.1
 	github.com/vrooli/api-core v0.0.0
-	github.com/vrooli/nodeclient v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -28,7 +27,6 @@ require (
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
-replace github.com/vrooli/nodeclient => ../../../packages/nodeclient
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect

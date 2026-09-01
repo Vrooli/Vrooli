@@ -129,19 +129,22 @@
         "model_roles": [
           "chat.default",
           "embedding.default"
-        ]
+        ],
+        "startup_policy": "must_start"
       },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "execution history and workflow metadata"
+        "purpose": "execution history and workflow metadata",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies"
+        "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {}
@@ -196,6 +199,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

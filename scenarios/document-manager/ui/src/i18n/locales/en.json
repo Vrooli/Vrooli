@@ -1,118 +1,188 @@
 {
+  "$rowKey": "id",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "$text": "Blocked",
+  "Changes saved successfully": {
+    "": "We couldn’t save your changes."
+  },
+  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
+    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
+  },
+  "Request in progress": "Ready to save",
+  "Saved": "Try again",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Document Manager are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Document Manager"
   },
-  "layout": {
-    "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Mobile navigation",
-    "mainLabel": "Main content",
-    "nav": {
-      "dashboard": "Dashboard",
-      "corpus": "Corpus",
-      "reader": "Reader",
-      "receipt": "Receipt",
-      "settings": "Settings"
-    }
+  "aria-label": "Release notes",
+  "ascending": "descending",
+  "asset": "navigation.page",
+  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
+  "capability": "navigation",
+  "caption": "No rows table",
+  "children": "Try again",
+  "clsx": "^2.1.1",
+  "component": "button",
+  "default": "persistent",
+  "defaultValue": "locked",
+  "desc": "asc",
+  "description": "The responsive navigation shell.",
+  "detail": "The generic harness supplies context; Button remains the subject.",
+  "dialog": "complementary",
+  "emptyMessage": "No scenarios match",
+  "equals": "Current",
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
   },
-  "theme": {
-    "switcherLabel": "Theme",
-    "choice": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    }
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
   },
-  "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
-    },
-    "settings": {
-      "title": "Settings",
-      "themeHeading": "Appearance",
-      "localeHeading": "Language"
-    },
-    "corpus": {
-      "title": "Corpus",
-      "description": "Collections and source documents currently held by this service.",
-      "collections": "Collections",
-      "collectionDescription": "Privacy boundaries and federation policy.",
-      "documents": "Documents",
-      "documentDescription": "Content-addressed source inventory.",
-      "empty": "No collections yet.",
-      "noDocuments": "No documents yet.",
-      "unnamed": "Unnamed source",
-      "federated": "Federated · opt-in",
-      "localOnly": "Local only",
-      "privacy": "Privacy {{value}}"
-    },
-    "reader": {
-      "title": "Reader",
-      "description": "Search derived units and move between citations without a pointer.",
-      "searchLabel": "Search units",
-      "placeholder": "Search the corpus",
-      "partial": "Partial index · semantic leg unavailable",
-      "sourceRegion": "Source region",
-      "derivedUnits": "Derived units",
-      "derivedUnitsLabel": "Derived units",
-      "noMatches": "No matching units.",
-      "sourceHint": "Select a cited unit to highlight its source region.",
-      "confidence": "Confidence {{value}}",
-      "local": "Local",
-      "sourceFor": "Source region for {{anchor}}"
-    },
-    "receipt": {
-      "title": "Receipt",
-      "description": "A per-document processing timeline with explicit locality and privacy.",
-      "timeline": "Processing timeline",
-      "empty": "No processing receipts yet.",
-      "unnamed": "Unnamed source",
-      "privacy": "privacy class {{value}}",
-      "local": "Local",
-      "parsed": "Tier 1 · parsed"
-    }
-  },
+  "example": "overlay-open",
+  "export": "ResponsiveClosed",
+  "field": "name",
+  "fixture": "fixtures.resource-collection",
+  "format": "renderable-text",
+  "header": "Scenario",
   "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
     "refresh": "Refresh",
     "refreshCount": "Refreshed {{count}} times",
     "refreshCount_one": "Refreshed once",
     "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
   },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
+  "iconName": "arrowEnd",
+  "id": "responsive-closed",
+  "kind": "text",
+  "label": "Width",
+  "layout": {
+    "bottomNavLabel": "Mobile navigation",
+    "mainLabel": "Main content",
+    "nav": {
+      "corpus": "Corpus",
+      "dashboard": "Dashboard",
+      "reader": "Reader",
+      "receipt": "Receipt",
+      "settings": "Settings"
+    },
+    "sidebarLabel": "Primary navigation"
   },
-  "errors": {
-    "canceled": "Operation canceled.",
-    "unknown": "An unknown error occurred.",
-    "invalid_argument": "Invalid input: {{message}}",
-    "deadline_exceeded": "Operation timed out.",
-    "not_found": "Resource not found.",
-    "already_exists": "Already exists.",
-    "permission_denied": "Permission denied.",
-    "resource_exhausted": "Resource limit reached.",
-    "failed_precondition": "Cannot perform this action: {{message}}",
-    "aborted": "Operation aborted.",
-    "out_of_range": "Out of range.",
-    "unimplemented": "Not yet implemented.",
-    "internal": "Something went wrong. Please try again.",
-    "unavailable": "Service temporarily unavailable.",
-    "data_loss": "Data loss detected.",
-    "unauthenticated": "Please sign in to continue."
-  },
+  "libraryId": "react-component-library:Pressable",
   "locale": {
     "switcherLabel": "Language"
   },
-  "errorBoundary": {
-    "title": "Something went wrong",
-    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
-    "retry": "Try again"
-  }
+  "lucide-react": "^0.424.0",
+  "mode": "live",
+  "module": "./story.tsx",
+  "name": "Responsive navigation closed",
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "corpus": {
+      "collectionDescription": "Privacy boundaries and federation policy.",
+      "collections": "Collections",
+      "description": "Collections and source documents currently held by this service.",
+      "documentDescription": "Content-addressed source inventory.",
+      "documents": "Documents",
+      "empty": "No collections yet.",
+      "federated": "Federated · opt-in",
+      "localOnly": "Local only",
+      "noDocuments": "No documents yet.",
+      "privacy": "Privacy {{value}}",
+      "title": "Corpus",
+      "unnamed": "Unnamed source"
+    },
+    "dashboard": {
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat",
+      "title": "Dashboard"
+    },
+    "reader": {
+      "confidence": "Confidence {{value}}",
+      "derivedUnits": "Derived units",
+      "derivedUnitsLabel": "Derived units",
+      "description": "Search derived units and move between citations without a pointer.",
+      "local": "Local",
+      "noMatches": "No matching units.",
+      "partial": "Partial index · semantic leg unavailable",
+      "placeholder": "Search the corpus",
+      "searchLabel": "Search units",
+      "sourceFor": "Source region for {{anchor}}",
+      "sourceHint": "Select a cited unit to highlight its source region.",
+      "sourceRegion": "Source region",
+      "title": "Reader"
+    },
+    "receipt": {
+      "description": "A per-document processing timeline with explicit locality and privacy.",
+      "empty": "No processing receipts yet.",
+      "local": "Local",
+      "parsed": "Tier 1 · parsed",
+      "privacy": "privacy class {{value}}",
+      "timeline": "Processing timeline",
+      "title": "Receipt",
+      "unnamed": "Unnamed source"
+    },
+    "settings": {
+      "localeHeading": "Language",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    }
+  },
+  "path": "width",
+  "placeholder": "Choose status",
+  "provenance": "react-component-library/Button@1.2.0",
+  "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.",
+  "react": "^18",
+  "react-component-library:useEscapeKey": "^1.0.0",
+  "ref": "../../../../../experience/components/button.json",
+  "region": "navigation",
+  "resolvedAt": "2026-08-31T05:19:38Z",
+  "role": "alert",
+  "schema": "scenario-experience-spec/v1",
+  "schemaVersion": "1.1.0",
+  "selector": "[data-testid=",
+  "size": "lg",
+  "statement": "The shell remains bounded by the document viewport in both presentations.",
+  "status": "Behind",
+  "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json",
+  "tailwind-merge": "^2.3.0",
+  "testid": "sidebar-shell",
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  },
+  "tier": "machine",
+  "title": "SidebarShell",
+  "tone": "danger",
+  "true": "false",
+  "type": "no-document-horizontal-overflow",
+  "value": "Overview",
+  "variant": "primary",
+  "version": "1.0.0"
 }

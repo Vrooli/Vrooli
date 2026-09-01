@@ -112,7 +112,8 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store stories, reading history, and preferences"
+        "purpose": "Store stories, reading history, and preferences",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
@@ -125,14 +126,16 @@
         "configuration": {
           "temperature": 0.8,
           "max_tokens": 2000
-        }
+        },
+        "startup_policy": "must_start"
       },
       "redis": {
         "type": "redis",
         "enabled": false,
         "required": false,
         "purpose": "Cache frequently read stories for performance",
-        "fallback": "Direct PostgreSQL queries"
+        "fallback": "Direct PostgreSQL queries",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -217,6 +220,11 @@
           ]
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

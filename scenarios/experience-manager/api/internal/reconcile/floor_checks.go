@@ -45,7 +45,7 @@ func firstHorizontalOverflowNode(nodes []*AXNode, target CaptureTarget) *AXNode 
 	}
 	limit := float64(target.ViewportWidth) + 2
 	for _, node := range nodes {
-		if node == nil || node.Bounds == nil || isTextOnlyNode(node) || isPreviewWorkspaceScrollNode(node) || !verticallyIntersectsViewport(node.Bounds, target) {
+		if node == nil || node.Bounds == nil || node.Bounds.Width <= 0 || node.Bounds.Height <= 0 || isTextOnlyNode(node) || isPreviewWorkspaceScrollNode(node) || !verticallyIntersectsViewport(node.Bounds, target) {
 			continue
 		}
 		if node.Bounds.X < -2 || node.Bounds.X+node.Bounds.Width > limit {

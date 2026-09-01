@@ -120,7 +120,8 @@
           "chat.default",
           "extract.structured",
           "locate.visual"
-        ]
+        ],
+        "startup_policy": "try_start"
       },
       "openrouter": {
         "type": "openrouter",
@@ -131,7 +132,8 @@
           "chat.default",
           "extract.structured",
           "locate.visual"
-        ]
+        ],
+        "startup_policy": "try_start"
       }
     }
   },

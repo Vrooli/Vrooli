@@ -30,6 +30,7 @@
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
     "@vrooli/proto-types": "file:../../../packages/proto/gen/typescript",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "axe-core": "^4.12.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",

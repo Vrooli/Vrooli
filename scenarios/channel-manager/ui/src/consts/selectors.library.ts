@@ -1,27 +1,49 @@
 
 // vrooli:library-selectors start
 export const librarySelectors = {
-  "forms.textarea": {
+      "forms.textarea": {
     "root": "forms.textarea",
+    "probe": "forms.textarea.probe",
+    "t": "forms.textarea.t",
   },
-  "statusbadge": {
+
+
+      "statusbadge": {
     "root": "statusbadge",
   },
-  "navigation.sidebar": {
+
+
+      "navigation.sidebar": {
     "root": "navigation.sidebar",
-    "id2": "sidebar-shell",
-    "id3": "sidebar-shell-backdrop",
-    "id4": "sidebar-shell-close",
-    "id5": "sidebar-shell-resize-handle",
+    "backdrop": "navigation.sidebar.backdrop",
+    "close": "navigation.sidebar.close",
+    "resizeHandle": "navigation.sidebar.resize-handle",
   },
-  "forms.select": {
+
+
+        "forms.select": {
     "root": "forms.select",
   },
-  "controls.button": {
+
+
+
+        "controls.button": {
     "root": "controls.button",
+    "icon": "controls.button.icon",
+    "label": "controls.button.label",
   },
-  "navigation.bottom-navigation": {
+
+
+
+                "navigation.bottom-navigation": {
     "root": "navigation.bottom-navigation",
   },
+
+
+
+
+
+
+
 } as const;
 // vrooli:library-selectors end

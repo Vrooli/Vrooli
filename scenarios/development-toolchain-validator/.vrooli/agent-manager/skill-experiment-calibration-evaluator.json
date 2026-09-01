@@ -9,5 +9,6 @@
   "timeout": "300s",
   "skipPermissionPrompt": false,
   "sandboxConfig": {"mode": "SANDBOX_MODE_PROTECTED"},
-  "createdBy": "development-toolchain-validator"
+  "createdBy": "development-toolchain-validator",
+  "effort": "medium"
 }

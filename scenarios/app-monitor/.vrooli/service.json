@@ -114,25 +114,29 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store app metadata, monitoring data, status logs, and metrics"
+        "purpose": "Store app metadata, monitoring data, status logs, and metrics",
+        "startup_policy": "must_start"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Optional real-time event fan-out. The websocket handler guards every Redis call behind an explicit nil check and serves a working no-Redis branch, so the scenario runs without a Redis server."
+        "purpose": "Optional real-time event fan-out. The websocket handler guards every Redis call behind an explicit nil check and serves a working no-Redis branch, so the scenario runs without a Redis server.",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
+        "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations",
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {
@@ -140,13 +144,15 @@
         "required": true,
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
-        "description": "Creates and reads scenario fix backlog items"
+        "description": "Creates and reads scenario fix backlog items",
+        "startup_policy": "must_start"
       },
       "scenario-auditor": {
         "required": true,
         "version": "1.0.0",
         "versionRange": ">=1.0.0",
-        "description": "Auto-detected dependency via scenario_port_cli"
+        "description": "Auto-detected dependency via scenario_port_cli",
+        "startup_policy": "must_start"
       }
     }
   },
@@ -234,6 +240,11 @@
           ]
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

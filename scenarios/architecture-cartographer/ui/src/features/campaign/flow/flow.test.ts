@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { assertTransitionMatrix, type MatrixRow } from "../../../test-utils/modeltest/matrix";
-import { replayTraces, type Trace } from "../../../test-utils/modeltest/traces";
+import { assertTransitionMatrix, type MatrixRow } from "@vrooli/flow-runtime";
+import { replayTraces, type Trace } from "@vrooli/flow-runtime";
 
 import {
   INITIAL_CAMPAIGN_STATE,

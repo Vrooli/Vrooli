@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"experience-manager/internal/spec"
+	corestorage "github.com/vrooli/api-core/storage"
 )
 
 const (
@@ -310,8 +311,14 @@ func writeClaims(buf *bytes.Buffer, page spec.PageDocument) {
 }
 
 func writeArtifact(scenarioDir, scenario, pageID, mode, htmlDoc string) (string, error) {
-	dir := filepath.Join(scenarioDir, "coverage", "wireframes", scenario)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
+	if err != nil {
+		return "", fmt.Errorf("create wireframe storage resolver: %w", err)
+	}
+	dir, err := resolver.EnsureArtifactDir(corestorage.Options{ScenarioID: "experience-manager"}, corestorage.ArtifactRef{
+		Owner: "experience-manager", Domain: "wireframes", Class: corestorage.ClassCache, Segments: []string{scenario},
+	}, 0o755)
+	if err != nil {
 		return "", fmt.Errorf("create wireframe artifact directory: %w", err)
 	}
 	path := filepath.Join(dir, pageID+"."+mode+".html")

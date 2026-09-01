@@ -154,20 +154,28 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	entrypoint.Gauge("findings", float64(len(mainFindings)))
 	entrypoint.End()
 
-	loadProto := collector.Stage("load-proto")
-	surface, protoErr := s.protos.Load(ctx, scenario)
-	if protoErr != nil {
+	surface := ProtoSurface{}
+	// A local-only manifest is a complete CLI contract even when its scenario
+	// has no own proto package. Loading a nonexistent proto subtree here made
+	// valid local command surfaces fail with proto.build_failed; only manifests
+	// that actually declare connect-rpc bindings need descriptor validation.
+	if hasProtoBindings(m) {
+		loadProto := collector.Stage("load-proto")
+		var protoErr error
+		surface, protoErr = s.protos.Load(ctx, scenario)
+		if protoErr != nil {
+			loadProto.End()
+			findings = append(findings, Finding{
+				Severity:   SeverityError,
+				Code:       CodeProtoBuildFailed,
+				Location:   protoSchemaRel(scenario),
+				Message:    protoErr.Error(),
+				Suggestion: "run `buf build --path " + protoSchemaRel(scenario) + "` from packages/proto to reproduce",
+			})
+			return finalize(scenario, findings), nil
+		}
 		loadProto.End()
-		findings = append(findings, Finding{
-			Severity:   SeverityError,
-			Code:       CodeProtoBuildFailed,
-			Location:   protoSchemaRel(scenario),
-			Message:    protoErr.Error(),
-			Suggestion: "run `buf build --path " + protoSchemaRel(scenario) + "` from packages/proto to reproduce",
-		})
-		return finalize(scenario, findings), nil
 	}
-	loadProto.End()
 
 	cross := collector.Stage("cross-check")
 	findings = append(findings, crossCheck(m, surface, path)...)
@@ -205,6 +213,20 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	}
 
 	return finalize(scenario, findings), nil
+}
+
+func hasProtoBindings(m *cliapp.Manifest) bool {
+	if m == nil {
+		return false
+	}
+	for _, group := range m.Groups {
+		for _, command := range group.Commands {
+			if command.Binding.Kind == "connect-rpc" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // architectureEvidence resolves the cli-core primitive evidence for a scenario

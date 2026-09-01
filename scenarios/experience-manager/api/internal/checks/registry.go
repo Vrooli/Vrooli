@@ -23,6 +23,7 @@ func Registry(deps ...RegistryDeps) []Check {
 	return []Check{
 		BASReferenceCheck{},
 		StateCoverageCheck{},
+		OracleCoverageCheck{},
 		attestation.Check{Repository: d.AttestationRepository, Now: d.AttestationCurrentTime},
 		reconcile.Check{Repository: d.EvidenceRepository},
 	}

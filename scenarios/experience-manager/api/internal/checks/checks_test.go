@@ -16,10 +16,38 @@ func TestRegistryContainsPhaseEightChecks(t *testing.T) {
 	for _, check := range got {
 		names[check.Name()] = true
 	}
-	for _, name := range []string{"bas.reference_integrity", "state.coverage", "attestation.manual_freshness", "reconcile.structure"} {
+	for _, name := range []string{"bas.reference_integrity", "state.coverage", "oracle.claim_coverage", "attestation.manual_freshness", "reconcile.structure"} {
 		if !names[name] {
 			t.Fatalf("registry = %#v, missing %s", got, name)
 		}
+	}
+}
+
+func TestOracleCoverageCheckRequiresClaimsAndMachineEvidence(t *testing.T) {
+	tests := []struct {
+		name     string
+		claims   []spec.Claim
+		findings int
+	}{
+		{name: "uncovered", findings: 2},
+		{name: "covered but not machine", claims: []spec.Claim{{ID: "gct-mobile-002-chrome-color-agreement", Tier: "manual"}, {ID: "gct-mobile-003-grouped", Tier: "manual"}}, findings: 1},
+		{name: "machine covered", claims: []spec.Claim{{ID: "gct-mobile-002-chrome-color-agreement", Tier: "machine"}, {ID: "gct-mobile-003-grouped", Tier: "manual"}}, findings: 0},
+		{name: "non artifact claim needs no machine tier", claims: []spec.Claim{{ID: "gct-mobile-003-grouped", Tier: "manual"}}, findings: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			report := spec.Report{Spec: &spec.ScenarioSpec{
+				Oracles: map[string]spec.OracleDocument{"fixtures/oracle.json": {Cases: []spec.OracleCase{
+					{ID: "gct-mobile-002", Evidence: []string{"screenshot_png"}},
+					{ID: "gct-mobile-003", Evidence: []string{"dom_snapshot"}},
+				}}},
+				Pages: map[string]spec.PageDocument{"workspace": {Claims: tt.claims}},
+			}}
+			got := (OracleCoverageCheck{}).Run(context.Background(), report)
+			if len(got) != tt.findings {
+				t.Fatalf("findings = %d, want %d: %+v", len(got), tt.findings, got)
+			}
+		})
 	}
 }
 

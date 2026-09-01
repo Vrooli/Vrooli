@@ -62,6 +62,14 @@ func CaptureProfilesFromAxes(path string, budget int) ([]CaptureProfile, error) 
 		if direction == "" {
 			direction = "ltr"
 		}
+		orientation := "landscape"
+		pointer := "fine-hover"
+		if height > width {
+			orientation = "portrait"
+		}
+		if viewport == "mobile" {
+			pointer = "coarse-no-hover"
+		}
 		return CaptureProfile{
 			ID:               viewport,
 			MatrixID:         viewport + "-" + color + "-" + locale + "-" + motion + "-" + interaction,
@@ -70,6 +78,8 @@ func CaptureProfilesFromAxes(path string, budget int) ([]CaptureProfile, error) 
 			ColorScheme:      color,
 			Locale:           locale,
 			Direction:        direction,
+			Orientation:      orientation,
+			Pointer:          pointer,
 			MotionPreference: motion,
 			InteractionState: interaction,
 		}
@@ -83,6 +93,15 @@ func CaptureProfilesFromAxes(path string, budget int) ([]CaptureProfile, error) 
 	rows := []CaptureProfile{}
 	for _, viewport := range values["viewport"] {
 		rows = append(rows, profile(viewport, values["color-scheme"][0], values["locale"][0], values["motion-preference"][0], values["interaction-state"][0]))
+	}
+	if mobile := axisValue(values["viewport"], "mobile"); mobile != "" {
+		landscape := profile(mobile, values["color-scheme"][0], values["locale"][0], values["motion-preference"][0], values["interaction-state"][0])
+		landscape.Width, landscape.Height = landscape.Height, landscape.Width
+		landscape.ID = "mobile-landscape"
+		landscape.Aliases = []string{"mobile"}
+		landscape.MatrixID = "mobile-landscape-" + values["color-scheme"][0] + "-" + values["locale"][0] + "-" + values["motion-preference"][0] + "-" + values["interaction-state"][0]
+		landscape.Orientation = "landscape"
+		rows = append(rows, landscape)
 	}
 	baselineViewport := axisValue(values["viewport"], "desktop")
 	if baselineViewport == "" {

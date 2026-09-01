@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"device-control/internal/control/flow/generated"
-	"device-control/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/packages/proto/modeltest"
 )
 
 func TestDeviceLeaseFormalReplay(t *testing.T) { // [REQ:DVC-P0-005]

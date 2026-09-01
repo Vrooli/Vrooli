@@ -130,4 +130,3 @@ replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
 
-replace github.com/vrooli/nodeclient => ../../../packages/nodeclient

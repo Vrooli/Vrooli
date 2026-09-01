@@ -1,5 +1,15 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
+const libraryRoot = resolve(rootDir, "../../../scenarios/react-component-library/library");
+const libraryDependencyAliases = ["clsx", "tailwind-merge", "lucide-react"].map((name) => ({
+  find: name,
+  replacement: resolve(rootDir, "node_modules", name),
+}));
 
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
@@ -17,9 +27,10 @@ export default defineConfig(({ mode }): UserConfig => {
     // ║  DO NOT change to '/' or remove this setting.                ║
     // ╚══════════════════════════════════════════════════════════════╝
     base: './',
-    plugins: [react()],
+    plugins: [react(), sourceLibraryResolver({ libraryRoot })],
     resolve: {
       alias: [
+        ...libraryDependencyAliases,
         { find: "@", replacement: "/src" },
         ...(isProfile
           ? [
