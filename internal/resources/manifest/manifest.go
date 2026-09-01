@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/credentialspec"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -88,6 +89,10 @@ type ResourceManifest struct {
 	Acceleration   *AccelerationSpec       `json:"acceleration,omitempty"`
 	Deployment     ResourceDeployment      `json:"deployment,omitempty"`
 	ManagedService *ResourceManagedService `json:"managed_service,omitempty"`
+	// Acquisition is the source and verification contract for externally
+	// installed host CLIs. It is separate from managed-service acquisition so
+	// a user-owned executable does not need to pretend to be a daemon.
+	Acquisition *binaryfetch.Acquisition `json:"acquisition,omitempty"`
 	// ProviderPolicy declares verified reuse policy for non-service resources
 	// such as host tools. It has no lifecycle authority and is intentionally
 	// separate from managed_service.provider_policy.
@@ -157,8 +162,9 @@ type ResourceRuntimeEnvCommand struct {
 // managed-service resource. It is launched detached (its own session) so it
 // survives the short-lived control CLI, tracked by a pidfile under the
 // runtime-home processes dir, and signaled on stop. Start/stop is idempotent and
-// best-effort: a companion that fails to start is a logged warning, not a fatal
-// error (the resource's health check surfaces a dead edge).
+// best-effort: a companion that fails to start is a logged warning. Required
+// companions make the resource unhealthy when down; optional companions are
+// reported without changing the resource health verdict.
 type ResourceCompanion struct {
 	// Name is a stable identifier (the pidfile/logfile basename).
 	Name string `json:"name"`
@@ -169,6 +175,9 @@ type ResourceCompanion struct {
 	// Port is the host port the companion owns (informational; surfaced in the
 	// process record so operators can see what binds it).
 	Port int `json:"port,omitempty"`
+	// Required makes companion liveness part of resource readiness. The zero
+	// value is optional for backwards compatibility.
+	Required bool `json:"required,omitempty"`
 }
 
 // ResourceStorage is the lifecycle-facing projection of the shared storage
@@ -511,6 +520,11 @@ func validateDriverConfiguration(manifest ResourceManifest) error {
 		}
 	case manifestManagedService:
 		return validateManagedService(manifest.ManagedService)
+	}
+	if manifest.Acquisition != nil {
+		if err := manifest.Acquisition.Validate(); err != nil {
+			return fmt.Errorf("acquisition: %w", err)
+		}
 	}
 	return nil
 }

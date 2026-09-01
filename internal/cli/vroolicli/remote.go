@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/nodereach"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
-	"github.com/vrooli/nodeclient"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 )
 
@@ -22,7 +22,7 @@ const (
 // selects a registry record and renders the relay result; Bridge remains the
 // authority for pairing, presence, scopes, and command admission.
 func (app *App) remoteScenarioCall(_ *CommandContext, nodeName, scenario, command string, args []string, jsonOutput bool) ([]byte, error) {
-	client := nodeclient.New(nodeclient.Config{
+	client := nodereach.New(nodereach.Config{
 		Token:         firstNonEmptyEnv("VROOLI_BRIDGE_API_TOKEN", "VROOLI_API_TOKEN"),
 		TokenProvider: resolveLocalOwnerToken,
 	})
@@ -47,7 +47,7 @@ func (app *App) remoteScenarioCall(_ *CommandContext, nodeName, scenario, comman
 			callTimeout = time.Duration(seconds)*time.Second + remoteCallGrace
 		}
 	}
-	response, err := client.Call(context.Background(), nodeclient.CallRequest{
+	response, err := client.Call(context.Background(), nodereach.CallRequest{
 		NodeID: nodeID, Scenario: scenario, Command: command, Args: remoteArgs,
 		Timeout: callTimeout,
 	})
@@ -64,7 +64,7 @@ func (app *App) remoteScenarioCall(_ *CommandContext, nodeName, scenario, comman
 	return response.Data, nil
 }
 
-// resolveLocalOwnerToken preserves the root CLI's pre-nodeclient behavior:
+// resolveLocalOwnerToken preserves the root CLI's pre-nodereach behavior:
 // an enrolled operator mints a short-lived local Bridge session, while an
 // unenrolled machine still receives Bridge's normal unauthenticated response.
 func resolveLocalOwnerToken(context.Context) (string, error) {

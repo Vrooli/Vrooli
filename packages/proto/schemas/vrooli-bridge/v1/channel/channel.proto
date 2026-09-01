@@ -228,6 +228,37 @@ message CredentialReceipt {
   string reason = 7;
 }
 
+// ScenarioRequest is a bounded unary RPC request proxied from the control
+// plane to a scenario API on the node. The request bytes are the serialized
+// Connect/protobuf payload; the node never receives browser or owner
+// credentials.
+message ScenarioRequest {
+  string correlation_id = 1;
+  string scenario = 2;
+  string service = 3;
+  string method = 4;
+  bytes request = 5;
+  int64 timeout_seconds = 6;
+  uint64 max_response_bytes = 7;
+  // HTTP verb used by the node-local scenario endpoint. Empty preserves the
+  // historical POST behavior for Connect-style calls.
+  string http_method = 8;
+  string http_path = 9;
+
+  reserved 10 to 15;
+}
+
+// ScenarioResponse is the bounded unary response to ScenarioRequest.
+message ScenarioResponse {
+  string correlation_id = 1;
+  bytes response = 2;
+  string error = 3;
+  bool timed_out = 4;
+  bool truncated = 5;
+
+  reserved 6 to 15;
+}
+
 // ArtifactOutput describes one bounded file a typed job is allowed to produce.
 // The output_flag is a fixed flag name selected by the control-plane manifest;
 // it is not caller-supplied shell text.
@@ -338,6 +369,7 @@ message ServerFrame {
     CredentialPush credential_push = 11;
     CredentialPurge credential_purge = 12;
     CredentialGrant credential_grant = 13;
+    ScenarioRequest scenario_request = 14;
   }
 }
 
@@ -377,5 +409,6 @@ message NodeFrame {
     shared.SessionFrame session = 5;
     shared.RelayResponse relay_response = 6;
     CredentialReceipt credential_receipt = 7;
+    ScenarioResponse scenario_response = 8;
   }
 }

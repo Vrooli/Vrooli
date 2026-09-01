@@ -7,6 +7,7 @@
 package onboard_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -960,21 +961,10 @@ type StartOnboardingRequest struct {
 	// The password rides the SSH channel to `sudo -S` on stdin only — never argv,
 	// a persisted field, or a log line. See the API onboard.SudoState taxonomy.
 	ProvisionSudo bool `protobuf:"varint,14,opt,name=provision_sudo,json=provisionSudo,proto3" json:"provision_sudo,omitempty"`
-	// Host environment profile (bootstrap `--setup-environment` → `vrooli setup
-	// --environment`). One of development | production | minimal, or empty for the
-	// node default (development).
-	SetupEnvironment string `protobuf:"bytes,15,opt,name=setup_environment,json=setupEnvironment,proto3" json:"setup_environment,omitempty"`
-	// Resource selection (bootstrap `--setup-resources` → `vrooli setup
-	// --resources`). enabled | none | a comma-separated resource list, or empty
-	// for the node default.
-	SetupResources string `protobuf:"bytes,16,opt,name=setup_resources,json=setupResources,proto3" json:"setup_resources,omitempty"`
-	// Scenario selection (bootstrap `--setup-scenarios` → `vrooli setup
-	// --scenarios`). none | all | a comma-separated scenario list, or empty for
-	// the node default.
-	SetupScenarios string `protobuf:"bytes,17,opt,name=setup_scenarios,json=setupScenarios,proto3" json:"setup_scenarios,omitempty"`
-	// Apply optional (non-required) host safeguards too (bootstrap
-	// `--include-optional` → `vrooli setup --include-optional`). Default false.
-	IncludeOptional bool `protobuf:"varint,18,opt,name=include_optional,json=includeOptional,proto3" json:"include_optional,omitempty"`
+	// Named setup preset. The control plane expands this into the versioned
+	// setup selection before bootstrap; the environment word never crosses this
+	// wire contract.
+	SetupPreset string `protobuf:"bytes,15,opt,name=setup_preset,json=setupPreset,proto3" json:"setup_preset,omitempty"`
 	// How the node acquires its source. UNSPECIFIED/PINNED_REVISION (the default)
 	// has the node clone/fetch target_revision, which must be pushed (the cprev
 	// preflight hard-fails an unpushed commit). WORKING_TREE ships the control
@@ -983,6 +973,8 @@ type StartOnboardingRequest struct {
 	// honest dirty provenance (base HEAD + content digest). Fleet rolls stay
 	// PINNED_REVISION-only.
 	SourceMode SourceMode `protobuf:"varint,19,opt,name=source_mode,json=sourceMode,proto3,enum=vrooli.vrooli_bridge.v1.onboard.SourceMode" json:"source_mode,omitempty"`
+	// Versioned capability-shaped desired configuration document.
+	Selection *v1.Selection `protobuf:"bytes,25,opt,name=selection,proto3" json:"selection,omitempty"`
 	// How the candidate reaches control_plane_url. lan is the trusted-LAN
 	// default; tunnel is selected only by the owner for segmented/off-LAN nodes;
 	// manual retains managed-DNS/VPN deployments. Every mode is remotely probed.
@@ -1136,32 +1128,11 @@ func (x *StartOnboardingRequest) GetProvisionSudo() bool {
 	return false
 }
 
-func (x *StartOnboardingRequest) GetSetupEnvironment() string {
+func (x *StartOnboardingRequest) GetSetupPreset() string {
 	if x != nil {
-		return x.SetupEnvironment
+		return x.SetupPreset
 	}
 	return ""
-}
-
-func (x *StartOnboardingRequest) GetSetupResources() string {
-	if x != nil {
-		return x.SetupResources
-	}
-	return ""
-}
-
-func (x *StartOnboardingRequest) GetSetupScenarios() string {
-	if x != nil {
-		return x.SetupScenarios
-	}
-	return ""
-}
-
-func (x *StartOnboardingRequest) GetIncludeOptional() bool {
-	if x != nil {
-		return x.IncludeOptional
-	}
-	return false
 }
 
 func (x *StartOnboardingRequest) GetSourceMode() SourceMode {
@@ -1169,6 +1140,13 @@ func (x *StartOnboardingRequest) GetSourceMode() SourceMode {
 		return x.SourceMode
 	}
 	return SourceMode_SOURCE_MODE_UNSPECIFIED
+}
+
+func (x *StartOnboardingRequest) GetSelection() *v1.Selection {
+	if x != nil {
+		return x.Selection
+	}
+	return nil
 }
 
 func (x *StartOnboardingRequest) GetReachabilityMode() string {
@@ -1951,7 +1929,7 @@ var File_vrooli_bridge_v1_onboard_onboard_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\n" +
-	"&vrooli-bridge/v1/onboard/onboard.proto\x12\x1fvrooli.vrooli_bridge.v1.onboard\x1a\x1fgoogle/protobuf/timestamp.proto\"\x83\b\n" +
+	"&vrooli-bridge/v1/onboard/onboard.proto\x12\x1fvrooli.vrooli_bridge.v1.onboard\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x18setup/v1/selection.proto\"\x83\b\n" +
 	"\fOnboardingOp\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x12\n" +
@@ -2013,7 +1991,7 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\x16client_key_fingerprint\x18\x06 \x01(\tR\x14clientKeyFingerprint\x120\n" +
 	"\x14host_key_fingerprint\x18\a \x01(\tR\x12hostKeyFingerprint\x12+\n" +
 	"\x11password_required\x18\b \x01(\bR\x10passwordRequired\x12\x18\n" +
-	"\amessage\x18\t \x01(\tR\amessage\"\xd3\a\n" +
+	"\amessage\x18\t \x01(\tR\amessage\"\x98\a\n" +
 	"\x16StartOnboardingRequest\x12\x12\n" +
 	"\x04host\x18\x01 \x01(\tR\x04host\x12\x12\n" +
 	"\x04port\x18\x02 \x01(\x05R\x04port\x12\x12\n" +
@@ -2030,19 +2008,17 @@ const file_vrooli_bridge_v1_onboard_onboard_proto_rawDesc = "" +
 	"\n" +
 	"skip_setup\x18\f \x01(\bR\tskipSetup\x12!\n" +
 	"\fskip_prereqs\x18\r \x01(\bR\vskipPrereqs\x12%\n" +
-	"\x0eprovision_sudo\x18\x0e \x01(\bR\rprovisionSudo\x12+\n" +
-	"\x11setup_environment\x18\x0f \x01(\tR\x10setupEnvironment\x12'\n" +
-	"\x0fsetup_resources\x18\x10 \x01(\tR\x0esetupResources\x12'\n" +
-	"\x0fsetup_scenarios\x18\x11 \x01(\tR\x0esetupScenarios\x12)\n" +
-	"\x10include_optional\x18\x12 \x01(\bR\x0fincludeOptional\x12L\n" +
+	"\x0eprovision_sudo\x18\x0e \x01(\bR\rprovisionSudo\x12!\n" +
+	"\fsetup_preset\x18\x0f \x01(\tR\vsetupPreset\x12L\n" +
 	"\vsource_mode\x18\x13 \x01(\x0e2+.vrooli.vrooli_bridge.v1.onboard.SourceModeR\n" +
-	"sourceMode\x12+\n" +
+	"sourceMode\x128\n" +
+	"\tselection\x18\x19 \x01(\v2\x1a.vrooli.setup.v1.SelectionR\tselection\x12+\n" +
 	"\x11reachability_mode\x18\x14 \x01(\tR\x10reachabilityMode\x12\x1d\n" +
 	"\n" +
 	"machine_id\x18\x15 \x01(\tR\tmachineId\x12B\n" +
 	"\x1eretry_of_enrollment_attempt_id\x18\x16 \x01(\tR\x1aretryOfEnrollmentAttemptId\x12)\n" +
 	"\x10setup_passphrase\x18\x17 \x01(\tR\x0fsetupPassphrase\x124\n" +
-	"\x16provision_service_user\x18\x18 \x01(\tR\x14provisionServiceUser\"\xa5\x02\n" +
+	"\x16provision_service_user\x18\x18 \x01(\tR\x14provisionServiceUserJ\x04\b\x10\x10\x11J\x04\b\x11\x10\x12J\x04\b\x12\x10\x13\"\xa5\x02\n" +
 	"\x18ProtectOnboardingRequest\x12(\n" +
 	"\x10onboarding_op_id\x18\x01 \x01(\tR\x0eonboardingOpId\x12\x1d\n" +
 	"\n" +
@@ -2168,6 +2144,7 @@ var file_vrooli_bridge_v1_onboard_onboard_proto_goTypes = []any{
 	(*RemoveFailedOnboardingRequest)(nil),  // 21: vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingRequest
 	(*RemoveFailedOnboardingResponse)(nil), // 22: vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingResponse
 	(*timestamppb.Timestamp)(nil),          // 23: google.protobuf.Timestamp
+	(*v1.Selection)(nil),                   // 24: vrooli.setup.v1.Selection
 }
 var file_vrooli_bridge_v1_onboard_onboard_proto_depIdxs = []int32{
 	0,  // 0: vrooli.vrooli_bridge.v1.onboard.OnboardingOp.state:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingState
@@ -2180,33 +2157,34 @@ var file_vrooli_bridge_v1_onboard_onboard_proto_depIdxs = []int32{
 	23, // 7: vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent.emitted_at:type_name -> google.protobuf.Timestamp
 	3,  // 8: vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse.decision:type_name -> vrooli.vrooli_bridge.v1.onboard.ConnectDecision
 	1,  // 9: vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest.source_mode:type_name -> vrooli.vrooli_bridge.v1.onboard.SourceMode
-	4,  // 10: vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	4,  // 11: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	6,  // 12: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.events:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent
-	4,  // 13: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse.ops:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	4,  // 14: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	4,  // 15: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
-	7,  // 16: vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest
-	9,  // 17: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
-	10, // 18: vrooli.vrooli_bridge.v1.onboard.OnboardService.ProtectOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingRequest
-	13, // 19: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
-	15, // 20: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:input_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
-	17, // 21: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
-	19, // 22: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
-	21, // 23: vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingRequest
-	8,  // 24: vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse
-	12, // 25: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
-	11, // 26: vrooli.vrooli_bridge.v1.onboard.OnboardService.ProtectOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse
-	14, // 27: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
-	16, // 28: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:output_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
-	18, // 29: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
-	20, // 30: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
-	22, // 31: vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingResponse
-	24, // [24:32] is the sub-list for method output_type
-	16, // [16:24] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	24, // 10: vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest.selection:type_name -> vrooli.setup.v1.Selection
+	4,  // 11: vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	4,  // 12: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	6,  // 13: vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse.events:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingStepEvent
+	4,  // 14: vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse.ops:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	4,  // 15: vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	4,  // 16: vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse.op:type_name -> vrooli.vrooli_bridge.v1.onboard.OnboardingOp
+	7,  // 17: vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest
+	9,  // 18: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest
+	10, // 19: vrooli.vrooli_bridge.v1.onboard.OnboardService.ProtectOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingRequest
+	13, // 20: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest
+	15, // 21: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:input_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsRequest
+	17, // 22: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest
+	19, // 23: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest
+	21, // 24: vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding:input_type -> vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingRequest
+	8,  // 25: vrooli.vrooli_bridge.v1.onboard.OnboardService.PreflightOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse
+	12, // 26: vrooli.vrooli_bridge.v1.onboard.OnboardService.StartOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse
+	11, // 27: vrooli.vrooli_bridge.v1.onboard.OnboardService.ProtectOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.ProtectOnboardingResponse
+	14, // 28: vrooli.vrooli_bridge.v1.onboard.OnboardService.GetOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse
+	16, // 29: vrooli.vrooli_bridge.v1.onboard.OnboardService.ListOnboardings:output_type -> vrooli.vrooli_bridge.v1.onboard.ListOnboardingsResponse
+	18, // 30: vrooli.vrooli_bridge.v1.onboard.OnboardService.WaitOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse
+	20, // 31: vrooli.vrooli_bridge.v1.onboard.OnboardService.CancelOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse
+	22, // 32: vrooli.vrooli_bridge.v1.onboard.OnboardService.RemoveFailedOnboarding:output_type -> vrooli.vrooli_bridge.v1.onboard.RemoveFailedOnboardingResponse
+	25, // [25:33] is the sub-list for method output_type
+	17, // [17:25] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_onboard_onboard_proto_init() }

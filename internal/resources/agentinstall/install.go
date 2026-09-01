@@ -16,12 +16,17 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
+
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/config"
 )
+
+const scopedPackageParts = 2
 
 // Spec describes one user-owned upstream CLI installation.
 type Spec struct {
@@ -33,6 +38,39 @@ type Spec struct {
 	URLTemplate  string
 	URLTemplates map[string]string
 	ArchiveEntry string
+	// Acquisition is the manifest-owned artifact contract. When set, it takes
+	// precedence over the legacy URL/NPM fields and is checksum-verified.
+	Acquisition  *binaryfetch.Acquisition
+	ResourceName string
+}
+
+func acquisitionFromSourceManifest(name string) (*binaryfetch.Acquisition, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, nil
+	}
+	// RESOURCE_ROOT is injected by the resource controller for the exact
+	// manifest being operated on. Prefer it over embedded/checkout roots so a
+	// source-checkout install cannot accidentally resolve an older installed
+	// resource manifest from a different working tree.
+	roots := []string{os.Getenv("RESOURCE_ROOT"), os.Getenv("VROOLI_CLI_SOURCE_ROOT"), os.Getenv("VROOLI_RESOURCE_ROOT"), os.Getenv("VROOLI_ROOT"), "."}
+	for _, root := range roots {
+		if strings.TrimSpace(root) == "" {
+			continue
+		}
+		for _, path := range []string{filepath.Join(root, "resource.json"), filepath.Join(filepath.Dir(root), "resource.json"), filepath.Join(root, name, "resource.json")} {
+			manifest, err := manifestpkg.Load(path)
+			if err != nil {
+				continue
+			}
+			if manifest.Name != name {
+				continue
+			}
+			if manifest.Acquisition != nil {
+				return manifest.Acquisition, nil
+			}
+		}
+	}
+	return nil, nil
 }
 
 // UnsupportedPlatformError is returned before any download or execution when
@@ -158,6 +196,26 @@ func Install(ctx context.Context, spec Spec) error {
 			return nil
 		}
 	}
+	if spec.Acquisition != nil {
+		target, err := spec.Acquisition.Resolve(binaryfetch.Facts{"os": runtime.GOOS, "arch": runtime.GOARCH})
+		if err != nil {
+			return err
+		}
+		if target.Unsupported != "" {
+			return &UnsupportedPlatformError{OS: runtime.GOOS, Arch: runtime.GOARCH}
+		}
+		if target.Package != "" {
+			packageURL := npmTarballURL(target.Package, target.Version)
+			if err := binaryfetch.VerifyURL(ctx, packageURL, target.SHA256); err != nil {
+				return fmt.Errorf("verify npm package %s: %w", target.Package, err)
+			}
+			cmd := shell.NewCommandContext(ctx, "npm", "install", "--prefix", filepath.Dir(spec.BinDir), "--no-fund", "--no-audit", target.Package+"@"+target.Version)
+			cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+			return cmd.Run()
+		}
+		_, err = binaryfetch.Fetch(ctx, binaryfetch.Target{Name: spec.Binary, URL: target.URL, SHA256: target.SHA256, Archive: target.Archive, BinPath: target.BinPath, Mode: target.Mode}, spec.BinDir, nil)
+		return err
+	}
 	if spec.NPM != "" {
 		prefix := filepath.Dir(spec.BinDir)
 		packageRef := spec.NPM
@@ -180,6 +238,17 @@ func Install(ctx context.Context, spec Spec) error {
 		}
 	}
 	return download(ctx, url, target, spec.ArchiveEntry)
+}
+
+func npmTarballURL(packageName, version string) string {
+	name := strings.TrimSpace(packageName)
+	if strings.HasPrefix(name, "@") {
+		parts := strings.SplitN(name, "/", scopedPackageParts)
+		if len(parts) == scopedPackageParts {
+			return "https://registry.npmjs.org/" + name + "/-" + "/" + parts[1] + "-" + version + ".tgz"
+		}
+	}
+	return "https://registry.npmjs.org/" + name + "/-/" + name + "-" + version + ".tgz"
 }
 
 // ResolveURL selects and expands a platform-specific artifact route without

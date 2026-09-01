@@ -103,3 +103,37 @@ func TestProbeCredentialStoreStates(t *testing.T) {
 		})
 	}
 }
+
+func TestProbeMacOSKeychainStates(t *testing.T) {
+	tests := []struct {
+		name   string
+		output []byte
+		err    error
+		state  string
+	}{
+		{name: "missing probe item proves keychain reachable", output: []byte("SecError: The specified item could not be found in the keychain."), err: errors.New("security exited 44"), state: "ready"},
+		{name: "interaction denied is locked", output: []byte("User interaction is not allowed."), err: errors.New("security exited 36"), state: "locked"},
+		{name: "unexpected failure is unavailable", output: []byte("securityd unavailable"), err: errors.New("security exited 1"), state: "unavailable"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := probeCredentialStore(context.Background(), Collector{GOOS: "darwin", Commands: &shelltest.Fake{
+				LookPathFunc: func(file string) (string, error) {
+					if file == "security" {
+						return "/usr/bin/security", nil
+					}
+					return "", errors.New("not found")
+				},
+				RunFunc: func(_ context.Context, name string, args ...string) ([]byte, error) {
+					if name != "security" || strings.Join(args, " ") != "find-generic-password -s com.vrooli.vrooli.credential-probe -a status" {
+						return nil, errors.New("unexpected keychain probe")
+					}
+					return tt.output, tt.err
+				},
+			}}, "")
+			if got.State != tt.state {
+				t.Fatalf("state = %q, want %q; capability = %+v", got.State, tt.state, got)
+			}
+		})
+	}
+}

@@ -74,6 +74,22 @@ func bootstrapAwareRequirements(resolution hostreq.Resolution) hostreq.Resolutio
 	return resolution
 }
 
+// bootstrapOnlyRequirements retains only the host tools needed to replace a
+// temporary cross-platform CLI with the host-native one. The bootstrap-only
+// phase must not fail on unrelated setup requirements such as manual tools or
+// resource-specific safeguards; those belong to the final setup invocation.
+func bootstrapOnlyRequirements(resolution hostreq.Resolution) hostreq.Resolution {
+	allowed := map[string]struct{}{"git": {}, "go": {}}
+	tools := make([]hostreq.ResolvedRequirement, 0, len(allowed))
+	for _, requirement := range resolution.Tools {
+		if _, ok := allowed[strings.ToLower(strings.TrimSpace(requirement.Name))]; ok {
+			requirement.Required = true
+			tools = append(tools, requirement)
+		}
+	}
+	return hostreq.Resolution{Tools: tools}
+}
+
 func addOnboardingApplyPrivilegeRequirement(resolution hostreq.Resolution, executable string) hostreq.Resolution {
 	tools := make([]string, 0)
 	for _, requirement := range resolution.Tools {

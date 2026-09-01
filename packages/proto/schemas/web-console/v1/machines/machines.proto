@@ -3,7 +3,9 @@ syntax = "proto3";
 package vrooli.web_console.v1.machines;
 
 import "google/protobuf/timestamp.proto";
+import "vrooli-bridge/v1/onboard/onboard.proto";
 import "web-console/v1/shared/target.proto";
+import "vrooli-bridge/v1/credentialgrant/credentialgrant.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/machines;machines_v1";
 
@@ -36,7 +38,39 @@ service MachineService {
 
   // Forget removes a machine from the fleet.
   rpc Forget(ForgetRequest) returns (ForgetResponse);
+  rpc PreflightOnboarding(vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingRequest) returns (vrooli.vrooli_bridge.v1.onboard.PreflightOnboardingResponse);
+  rpc StartOnboarding(vrooli.vrooli_bridge.v1.onboard.StartOnboardingRequest) returns (vrooli.vrooli_bridge.v1.onboard.StartOnboardingResponse);
+  rpc GetOnboarding(vrooli.vrooli_bridge.v1.onboard.GetOnboardingRequest) returns (vrooli.vrooli_bridge.v1.onboard.GetOnboardingResponse);
+  rpc WaitOnboarding(vrooli.vrooli_bridge.v1.onboard.WaitOnboardingRequest) returns (vrooli.vrooli_bridge.v1.onboard.WaitOnboardingResponse);
+  rpc CancelOnboarding(vrooli.vrooli_bridge.v1.onboard.CancelOnboardingRequest) returns (vrooli.vrooli_bridge.v1.onboard.CancelOnboardingResponse);
+  // GetConfiguration reads the target's onboarding question set and readiness
+  // through the same governed scenario reach used by the onboarding UI.
+  rpc GetConfiguration(GetConfigurationRequest) returns (GetConfigurationResponse);
+  rpc ResolveConfiguration(ResolveConfigurationRequest) returns (ResolveConfigurationResponse);
+  rpc ListCredentialGrants(ListCredentialGrantsRequest) returns (vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse);
+  rpc CreateCredentialGrant(vrooli.vrooli_bridge.v1.credentialgrant.CreateGrantRequest) returns (vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant);
+  rpc RevokeCredentialGrant(vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest) returns (vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant);
+  rpc ReapplyConfiguration(ReapplyConfigurationRequest) returns (ReapplyConfigurationResponse);
+  rpc GetConfigurationApplyStatus(GetConfigurationApplyStatusRequest) returns (ReapplyConfigurationResponse);
+  rpc AnswerSecret(vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest) returns (vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant);
 }
+
+message GetConfigurationRequest { string machine_id = 1; }
+message GetConfigurationResponse {
+  bytes questions_json = 1;
+  bytes readiness_json = 2;
+  string target_id = 3;
+  // The Bridge machine projection is returned as JSON so this surface can
+  // render desired/applied policy, drift, audit, and outcome evidence without
+  // inventing a second machine model.
+  bytes machine_detail_json = 4;
+}
+message ResolveConfigurationRequest { string machine_id = 1; bytes answers_json = 2; }
+message ResolveConfigurationResponse { bytes result_json = 1; string target_id = 2; }
+message ListCredentialGrantsRequest { string machine_id = 1; }
+message ReapplyConfigurationRequest { string machine_id = 1; }
+message ReapplyConfigurationResponse { bytes result_json = 1; string target_id = 2; }
+message GetConfigurationApplyStatusRequest { string machine_id = 1; string run_id = 2; }
 
 // FleetState explains an empty or unusable machines list without making the
 // client infer the reason from an empty collection.

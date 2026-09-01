@@ -137,6 +137,23 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		return status, nil
 	}
 	if err := artifact.VerifyFile(artifactPath); err != nil {
+		// A digest mismatch is not the same event as a missing or unreadable
+		// artifact, and reporting both as "unavailable" is what let a staged,
+		// running, GPU-resident resource read as not installed with no cure
+		// named. Classify it: the bytes are staged, so the operator needs to
+		// know whether the claim moved or the bytes did, and the command that
+		// repairs either.
+		var mismatch *resourcedeployment.ArtifactChecksumMismatchError
+		if errors.As(err, &mismatch) {
+			cause := classifyArtifactMismatch(artifactPath, manifest.Name, mismatch.Want, mismatch.Layout)
+			if cause != nil {
+				status.Installed = true
+				status.StatusCode = StatusCodeNeedsReacquire
+				status.Message = "staged artifact no longer matches its manifest (" + string(cause.Cause) + "); re-acquire with `" + cause.Remediation() + "`"
+				status.ProbeError = cause.Error()
+				return status, nil
+			}
+		}
 		status.StatusCode = StatusCodeUnavailable
 		status.Message = "verified managed-service artifact is unavailable"
 		status.ProbeError = err.Error()
@@ -217,6 +234,11 @@ func (d managedServiceDriver) withCompanionStatus(status Status, manifest Resour
 	}
 	status.Raw = statusRawWithCompanions(status.Raw, companions)
 	if down := downCompanions(companions); len(down) > 0 {
+		// Optional companions remain visible in the message but do not change
+		// the primary resource health verdict.
+		status.Message = companionDownMessage(manifest.Name, down)
+	}
+	if down := requiredDownCompanions(companions); len(down) > 0 {
 		healthy := false
 		status.Healthy = &healthy
 		status.Health = managedServiceUnhealthy
@@ -455,14 +477,20 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		// can create/heartbeat the resource claim while the managed service is
 		// coming up. Waiting first deadlocks resources whose status is unhealthy
 		// while their required companion is down.
-		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr)
+		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr, managedServiceParentPID(supervisor))
 		if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
 			return err
 		}
 		if err := verifyManagedServiceRunning(supervisor); err != nil {
 			return err
 		}
-		return verifyStartedPlacement(ctx, controller, manifest, os.Stderr)
+		if err := verifyStartedPlacement(ctx, controller, manifest, os.Stderr); err != nil {
+			return err
+		}
+		if err := recordQualificationObservation(controller.Root, manifest.Name); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "warning: record portability qualification for %q: %s\n", manifest.Name, err)
+		}
+		return nil
 	case brokerTransportRestart:
 		if err := gateAcceleratorReadiness(ctx, manifest, os.Stderr); err != nil {
 			return err
@@ -480,14 +508,20 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := d.bootstrapPrivate(ctx, manifest, supervisor); err != nil {
 			return err
 		}
-		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr)
+		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr, managedServiceParentPID(supervisor))
 		if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
 			return err
 		}
 		if err := verifyManagedServiceRunning(supervisor); err != nil {
 			return err
 		}
-		return verifyStartedPlacement(ctx, controller, manifest, os.Stderr)
+		if err := verifyStartedPlacement(ctx, controller, manifest, os.Stderr); err != nil {
+			return err
+		}
+		if err := recordQualificationObservation(controller.Root, manifest.Name); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "warning: record portability qualification for %q: %s\n", manifest.Name, err)
+		}
+		return nil
 	case brokerTransportStop, "uninstall":
 		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
@@ -517,6 +551,17 @@ func (d managedServiceDriver) bootstrapPrivate(ctx context.Context, manifest Res
 		return err
 	}
 	return bootstrap(ctx, state, endpoint)
+}
+
+func managedServiceParentPID(supervisor *ManagedServiceSupervisor) int {
+	if supervisor == nil {
+		return 0
+	}
+	state, running, err := supervisor.Status()
+	if err != nil || !running {
+		return 0
+	}
+	return state.PID
 }
 
 func (d managedServiceDriver) startPrivate(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor) error {

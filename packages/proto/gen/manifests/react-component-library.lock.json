@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "react-component-library",
-  "input_digest": "sha256:13ea908c187b2e306759216c6780e0915556b3f1ce2ca96661947dc500f04210",
+  "input_digest": "sha256:4335c3d77d81ae5b23ecc87f57f381a224ce463c2b16afecc7ece292769de38b",
   "input_files": [
     "schemas/common/v1/maturity.proto",
     "schemas/common/v1/validation_target.proto",
@@ -32,7 +32,7 @@
   "outputs": {
     "gen/go/react-component-library/v1/adoptions/adoptions.pb.go": "sha256:ca6b4b4fe9baa7ddeb4906d7ab4d2119a1289f73ded0bf5589b94451b2555b13",
     "gen/go/react-component-library/v1/adoptions/adoptions_v1connect/adoptions.connect.go": "sha256:8b3b4e8fc1b935d6d782abaa7aed16296985c2a11330f3e705c064c0a193a2a1",
-    "gen/go/react-component-library/v1/catalog/catalog.pb.go": "sha256:2af91cb935faf833d98b457f0ab8e7ff7d5a9d1685cb395c85a5f056d603414a",
+    "gen/go/react-component-library/v1/catalog/catalog.pb.go": "sha256:08671a54ef19523e079830bef1b1187e70e6a8ac05c3d4f8d9f2e398510500a9",
     "gen/go/react-component-library/v1/catalog/catalog_v1connect/catalog.connect.go": "sha256:4f0f7d31999b8de0c8e7226cd704158b719dc1f04e5b7b6ea508724bccb3f9e5",
     "gen/go/react-component-library/v1/components/components.pb.go": "sha256:77dbbe8cc87e5bb20ba38ea6daaa9928e21fff2e1d086ebceed9ec8a6c1eca38",
     "gen/go/react-component-library/v1/components/components_v1connect/components.connect.go": "sha256:cf35c650df4f6c7520dfeea7eee7e6946e7a2e3388b15ff09a477f6d3b0381b5",
@@ -56,8 +56,8 @@
     "gen/python/react_component_library/v1/adoptions/adoptions_pb2.py": "sha256:1d0ef9492ea0f6282da7fdd8099c7c4694cb39bbf9d973a0c1c39ad1d1583b0b",
     "gen/python/react_component_library/v1/adoptions/adoptions_pb2.pyi": "sha256:745576bd36559caaf6daee5a6475bc3a1206424f5d653afc40ca9f29fbf3d6d9",
     "gen/python/react_component_library/v1/adoptions/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/react_component_library/v1/catalog/catalog_pb2.py": "sha256:8fef238eae1f75f40fafdd99754c77fc6773cc46e9087a51f969d20f98737b0c",
-    "gen/python/react_component_library/v1/catalog/catalog_pb2.pyi": "sha256:6a5c4895a423d5e24f906168bbfe1f8e88ad4099016b0406550488f292752639",
+    "gen/python/react_component_library/v1/catalog/catalog_pb2.py": "sha256:6de5437a3744d3090a25d062d35828abe14729cda28dd920369206e28269cef4",
+    "gen/python/react_component_library/v1/catalog/catalog_pb2.pyi": "sha256:31ef85c3d688c613fbfcfd01515c70f1d37de6179246c64e5220771565a1082b",
     "gen/python/react_component_library/v1/catalog/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/react_component_library/v1/components/components_pb2.py": "sha256:f0763221f8dfaa9ae4038ea5ea2013b34d20efacc6c66a8ddba0503cd5a8f63a",
     "gen/python/react_component_library/v1/components/components_pb2.pyi": "sha256:8b5424e0b6c705c7e065c72219ed52bde9135873d448acf6d116baf5c3637f1b",
@@ -90,7 +90,7 @@
     "gen/python/react_component_library/v1/workflows/workflows_pb2.py": "sha256:37867de1ffd5191cfea23a076be74fd4ca9ef935db183968b52b1fdc45aeb750",
     "gen/python/react_component_library/v1/workflows/workflows_pb2.pyi": "sha256:fa8a56c3924c684041bf4261c99e1edb108e3f22b708e20fae48e15c8ed65d99",
     "gen/typescript/react-component-library/v1/adoptions/adoptions_pb.ts": "sha256:404d5ef2cc6bd042124125926560edbcb860c1c0b7cae22a6d464a6c104cadd2",
-    "gen/typescript/react-component-library/v1/catalog/catalog_pb.ts": "sha256:6213baa07302df0db89de688ef73592333bbc27c92c67b2f1b85bed12d000767",
+    "gen/typescript/react-component-library/v1/catalog/catalog_pb.ts": "sha256:e54e410b2f28ace2db46efd2b8eec37d104c26de92c4f0b9b2046d2299af7d28",
     "gen/typescript/react-component-library/v1/components/components_pb.ts": "sha256:d6db2a31a08597536d4fda191cd49be24a3653b3ef0c3d619a3882ce784c9046",
     "gen/typescript/react-component-library/v1/componenttests/component_tests_pb.ts": "sha256:067f93696994549f6f947534b80d78904148fe745d3734511fe3146cc6dabebf",
     "gen/typescript/react-component-library/v1/deps/deps_pb.ts": "sha256:58e11ff9d3f54443a95e000c316b5f9e14a36e21546af001dbb94b19dacb4e3f",

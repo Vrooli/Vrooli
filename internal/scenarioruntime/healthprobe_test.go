@@ -71,8 +71,31 @@ func TestHealthProbeRecognizesStandardHealthResponse(t *testing.T) {
 	if !strings.Contains(snapshot.ResponseJSON, `"status":"degraded"`) {
 		t.Fatalf("snapshot.ResponseJSON = %q, want standard health JSON", snapshot.ResponseJSON)
 	}
-	if snapshot.Error != "" {
-		t.Fatalf("snapshot.Error = %q, want empty", snapshot.Error)
+	if !strings.Contains(snapshot.Error, `health check "api" reported degraded without a reason`) {
+		t.Fatalf("snapshot.Error = %q, want a non-empty degraded reason", snapshot.Error)
+	}
+}
+
+func TestHealthProbePreservesDegradedStatusWithProviderDetail(t *testing.T) {
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"degraded","service":"alpha-api","timestamp":"2026-05-08T12:00:00Z","readiness":true,"dependencies":{"providers":{"error":"speaker-verification"}}}`))
+	}))
+	defer server.Close()
+
+	snapshot := HealthProbe{Clock: clk}.Probe(context.Background(), HealthProbeInput{
+		InstanceID: "inst-alpha",
+		Scenario:   "alpha",
+		HealthConfig: &scenario.HealthConfig{Checks: []scenario.HealthCheck{{
+			Name: "api", Type: "http", Target: server.URL, Critical: true,
+		}}},
+	})
+
+	if snapshot.Status != HealthStatusDegraded {
+		t.Fatalf("snapshot.Status = %q, want %q", snapshot.Status, HealthStatusDegraded)
+	}
+	if snapshot.Error != "providers: speaker-verification" {
+		t.Fatalf("snapshot.Error = %q, want provider detail", snapshot.Error)
 	}
 }
 

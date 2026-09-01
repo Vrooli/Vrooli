@@ -102,6 +102,15 @@ type PlatformDeclaration struct {
 	EvidenceRaw string
 }
 
+// PlatformPairDeclaration describes a cross-machine capability cell. Console
+// and Node are kept separate because a remote capability can be proven even
+// when the two participating hosts run different operating systems.
+type PlatformPairDeclaration struct {
+	Console HostOS
+	Node    HostOS
+	PlatformDeclaration
+}
+
 // Evidence identifies the concrete run and host behind a claim above the
 // build-verified rung. It is deliberately structured so a status token cannot
 // masquerade as proof through a free-form sentence.

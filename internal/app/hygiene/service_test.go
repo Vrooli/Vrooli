@@ -100,3 +100,44 @@ func writeFile(t *testing.T, path, content string) {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }
+
+func TestIsArtifactResiduePathClassifiesGeneratedCaptures(t *testing.T) {
+	residue := []string{
+		"docs/architecture/evidence/baseline-p4.json",
+		"docs/architecture/internal-debt-atlas.html",
+		"docs/reference/cross-platform-effort/evidence/machines/04b-scope-audit.png",
+		"docs/reports/supervision-authority-baseline.md",
+		"scenarios/react-component-library/docs/evidence/final-gate-report.json",
+		"scenarios/backdrop-studio/docs/evidence/catalog/sheet-tonal.png",
+		"evidence/phase1-lifecycle-race.txt",
+		"coverage/browser-soak-1787056948739551951.json",
+		".artifacts/rcl-screenshots/shot.png",
+	}
+	for _, rel := range residue {
+		if !isArtifactResiduePath(rel) {
+			t.Errorf("isArtifactResiduePath(%q) = false, want true", rel)
+		}
+	}
+}
+
+func TestIsArtifactResiduePathSparesRealSource(t *testing.T) {
+	// "evidence", "captures", "reports" and "phases" are all real package names
+	// in this repository. Only a docs tree makes them capture directories, so a
+	// name-only sweep would delete working code.
+	source := []string{
+		"scenarios/deployment-manager/api/internal/evidence/service.go",
+		"packages/proto/gen/go/git-control-tower/v1/evidence/evidence.pb.go",
+		"packages/proto/schemas/treasury/v1/evidence/evidence.proto",
+		"scenarios/swarm-manager/cli/domains/captures/handlers.go",
+		"scenarios/test-genie/api/internal/orchestrator/phases/docs.go",
+		"scenarios/ui-health/ui/src/features/captures/index.ts",
+		"docs/concepts/ARCHITECTURE.md",
+		"docs/reference/machine-readable-references.md",
+		"README.md",
+	}
+	for _, rel := range source {
+		if isArtifactResiduePath(rel) {
+			t.Errorf("isArtifactResiduePath(%q) = true, want false", rel)
+		}
+	}
+}

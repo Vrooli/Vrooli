@@ -14,8 +14,10 @@ enum Status { STATUS_UNSPECIFIED = 0; IDEA = 1; CANDIDATE = 2; TRIGGER_MET = 3; 
 enum Verdict { VERDICT_UNSPECIFIED = 0; SATISFIED = 1; UNSATISFIED = 2; UNKNOWN = 3; }
 enum SourceMode { SOURCE_MODE_UNSPECIFIED = 0; SOURCE_MODE_FIXTURE = 1; SOURCE_MODE_OPERATOR_SUPPLIED = 2; }
 enum EvaluationResult { EVALUATION_RESULT_UNSPECIFIED = 0; EVALUATION_SUCCEEDED = 1; EVALUATION_FAILED = 2; EVALUATION_NOT_RUN = 3; }
+enum DeliverableClass { DELIVERABLE_CLASS_UNSPECIFIED = 0; MARKETED = 1; ENABLING = 2; }
+enum FinishBar { FINISH_BAR_UNSPECIFIED = 0; CUSTOMER_FACING = 1; OPERATOR_FACING = 2; INTERNAL = 3; }
 
-message Node { string id = 1; NodeKind kind = 2; string name = 3; Status status = 4; string trigger_id = 5; google.protobuf.Timestamp created_at = 6; string actual_account_id = 7; int32 release_rank = 8; }
+message Node { string id = 1; NodeKind kind = 2; string name = 3; Status status = 4; string trigger_id = 5; google.protobuf.Timestamp created_at = 6; string actual_account_id = 7; int32 release_rank = 8; DeliverableClass deliverable_class = 9; FinishBar finish_bar = 10; }
 message Edge { string id = 1; string from_id = 2; string to_id = 3; string kind = 4; int64 intended_price_minor = 5; string currency = 6; bool intended_price_declared = 7; }
 enum TriggerComposition { TRIGGER_COMPOSITION_UNSPECIFIED = 0; ALL = 1; ANY = 2; }
 message TriggerClause { string fact_name = 1; string operator = 2; double threshold = 3; }
@@ -29,7 +31,7 @@ message BoardEntry { string node_id = 1; string title = 2; string rank_reason = 
 message EvaluationCondition { google.protobuf.Timestamp last_run_at = 1; EvaluationResult last_result = 2; int32 nodes_scored = 3; int64 age_seconds = 4; bool degraded = 5; string reason = 6; }
 message BoardResponse { repeated BoardEntry entries = 1; vrooli.money_ledger.v1.ledger.PositionResponse position = 2; repeated Availability availability = 3; EvaluationCondition evaluation = 4; repeated vrooli.money_ledger.v1.ledger.GoalVerdict goals = 5; string default_alive_gap = 6; string posture_source = 7; int64 posture_age_seconds = 8; }
 
-message CreateNodeRequest { NodeKind kind = 1; string name = 2; Status status = 3; string trigger_id = 4; string actual_account_id = 5; }
+message CreateNodeRequest { NodeKind kind = 1; string name = 2; Status status = 3; string trigger_id = 4; string actual_account_id = 5; DeliverableClass deliverable_class = 6; FinishBar finish_bar = 7; string actor = 8; string reason = 9; }
 message CreateNodeResponse { Node node = 1; }
 message ListNodesRequest { NodeKind kind = 1; Status status = 2; }
 message ListNodesResponse { repeated Node nodes = 1; }
@@ -103,20 +105,29 @@ message VerifyCatalogResponse {
   string not_comparable_reason = 8;
 }
 message SpaceCell { string id = 1; string group = 2; string question = 3; string owner = 4; string status = 5; string notes = 6; }
-message SpaceResponse { string schema_version = 1; string projection = 2; string owner = 3; string denominator_confidence = 4; string confidence_rationale = 5; string source = 6; repeated SpaceCell cells = 7; }
+message SpaceResponse { string schema_version = 1; string projection = 2; string owner = 3; string denominator_confidence = 4; string confidence_rationale = 5; string source = 6; repeated SpaceCell cells = 7; repeated Availability availability = 8; }
 message ReleaseLadderRequest { bool include_retired = 1; }
+message GoalImpact { string goal_name = 1; string goal_title = 2; string deliverable_name = 3; int32 projected_priority = 4; }
 message ReleaseLadderEntry {
   Node deliverable = 1;
   repeated Node unlocked_ramps = 2;
   repeated Node unlocked_streams = 3;
   repeated Node audiences = 4;
   repeated Node cumulative_ramps = 5;
+  repeated PrerequisiteNode enablers = 6;
+  repeated GoalImpact goal_impacts = 7;
 }
-message ReleaseLadderResponse { repeated ReleaseLadderEntry entries = 1; repeated Node ramps = 2; repeated Node streams = 3; repeated Node audiences = 4; }
+message ReleaseLadderResponse { repeated ReleaseLadderEntry entries = 1; repeated Node ramps = 2; repeated Node streams = 3; repeated Node audiences = 4; repeated PrerequisiteNode enabling = 5; repeated Availability availability = 6; }
 message SetReleaseRankRequest { string node_id = 1; int32 release_rank = 2; string actor = 3; }
 message SetReleaseRankResponse { Node node = 1; int32 prior_release_rank = 2; }
-message PrerequisiteWalkRequest { string stream_node_id = 1; }
-message PrerequisiteWalkResponse { repeated Node deliverables = 1; repeated Node unshipped = 2; }
+message SetDeliverableClassRequest { string node_id = 1; DeliverableClass deliverable_class = 2; FinishBar finish_bar = 3; string actor = 4; }
+message SetDeliverableClassResponse { Node node = 1; DeliverableClass prior_class = 2; FinishBar prior_finish_bar = 3; }
+message MeterInventoryRequest {}
+message MeterInventoryEntry { string limit_key = 1; string class = 2; repeated string declared_by = 3; repeated string bundle_keys = 4; bool byok = 5; }
+message MeterInventoryResponse { repeated MeterInventoryEntry meters = 1; repeated string undeclared_streams = 2; repeated string deliverable_meter_gaps = 3; string source = 4; }
+message PrerequisiteWalkRequest { string stream_node_id = 1; int32 max_depth = 2; bool include_shipped = 3; }
+message PrerequisiteNode { Node node = 1; int32 depth = 2; int32 derived_urgency = 3; repeated string path = 4; }
+message PrerequisiteWalkResponse { repeated Node deliverables = 1; repeated Node unshipped = 2; repeated PrerequisiteNode tree = 3; repeated string cycle_path = 4; }
 
 service CatalogService {
   rpc CreateNode(CreateNodeRequest) returns (CreateNodeResponse);
@@ -129,6 +140,8 @@ service CatalogService {
   rpc MergeNodes(MergeNodesRequest) returns (MergeNodesResponse);
   rpc VerifyCatalog(VerifyCatalogRequest) returns (VerifyCatalogResponse);
   rpc SetReleaseRank(SetReleaseRankRequest) returns (SetReleaseRankResponse);
+  rpc SetDeliverableClass(SetDeliverableClassRequest) returns (SetDeliverableClassResponse);
+  rpc GetMeterInventory(MeterInventoryRequest) returns (MeterInventoryResponse);
 }
 service GatesService {
   rpc DeclareTrigger(DeclareTriggerRequest) returns (DeclareTriggerResponse);
@@ -140,6 +153,7 @@ service GatesService {
 service BoardService { rpc GetBoard(ProjectionRequest) returns (BoardResponse); }
 service ReleaseLadderService {
   rpc GetReleaseLadder(ReleaseLadderRequest) returns (ReleaseLadderResponse);
+  rpc GetEnablingDeliverables(ReleaseLadderRequest) returns (ReleaseLadderResponse);
   rpc GetPrerequisites(PrerequisiteWalkRequest) returns (PrerequisiteWalkResponse);
 }
 service SpaceService { rpc GetProjection(ProjectionRequest) returns (SpaceResponse); }

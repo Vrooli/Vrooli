@@ -427,16 +427,18 @@ class ListNextWorkResponse(_message.Message):
     def __init__(self, rows: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., lane: _Optional[str] = ..., promote: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ..., build: _Optional[_Iterable[_Union[CoverageRow, _Mapping]]] = ...) -> None: ...
 
 class RunGateRequest(_message.Message):
-    __slots__ = ("gate", "all", "calibration_only", "asset_id")
+    __slots__ = ("gate", "all", "calibration_only", "asset_id", "include_advisory")
     GATE_FIELD_NUMBER: _ClassVar[int]
     ALL_FIELD_NUMBER: _ClassVar[int]
     CALIBRATION_ONLY_FIELD_NUMBER: _ClassVar[int]
     ASSET_ID_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_ADVISORY_FIELD_NUMBER: _ClassVar[int]
     gate: str
     all: bool
     calibration_only: bool
     asset_id: str
-    def __init__(self, gate: _Optional[str] = ..., all: _Optional[bool] = ..., calibration_only: _Optional[bool] = ..., asset_id: _Optional[str] = ...) -> None: ...
+    include_advisory: bool
+    def __init__(self, gate: _Optional[str] = ..., all: _Optional[bool] = ..., calibration_only: _Optional[bool] = ..., asset_id: _Optional[str] = ..., include_advisory: _Optional[bool] = ...) -> None: ...
 
 class GateFinding(_message.Message):
     __slots__ = ("code", "message", "asset_id", "severity", "file", "line", "remediation", "docs_ref", "rule_source", "rule_declared_in")

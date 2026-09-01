@@ -1041,12 +1041,21 @@ func (x *Grid) GetSkipBudget() *PlatformSkipBudget {
 }
 
 type ResourceArchitectureStatus struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Architecture  string                 `protobuf:"bytes,1,opt,name=architecture,proto3" json:"architecture,omitempty"`
-	Support       string                 `protobuf:"bytes,2,opt,name=support,proto3" json:"support,omitempty"`
-	Reason        string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	Architecture          string                 `protobuf:"bytes,1,opt,name=architecture,proto3" json:"architecture,omitempty"`
+	Support               string                 `protobuf:"bytes,2,opt,name=support,proto3" json:"support,omitempty"`
+	Reason                string                 `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	Qualification         string                 `protobuf:"bytes,4,opt,name=qualification,proto3" json:"qualification,omitempty"`
+	QualificationReason   string                 `protobuf:"bytes,5,opt,name=qualification_reason,json=qualificationReason,proto3" json:"qualification_reason,omitempty"`
+	AgeDays               int32                  `protobuf:"varint,6,opt,name=age_days,json=ageDays,proto3" json:"age_days,omitempty"`
+	Aged                  bool                   `protobuf:"varint,7,opt,name=aged,proto3" json:"aged,omitempty"`
+	AcquisitionResolvable bool                   `protobuf:"varint,8,opt,name=acquisition_resolvable,json=acquisitionResolvable,proto3" json:"acquisition_resolvable,omitempty"`
+	AcquisitionReason     string                 `protobuf:"bytes,9,opt,name=acquisition_reason,json=acquisitionReason,proto3" json:"acquisition_reason,omitempty"`
+	EvidenceNode          string                 `protobuf:"bytes,10,opt,name=evidence_node,json=evidenceNode,proto3" json:"evidence_node,omitempty"`
+	EvidenceRunId         string                 `protobuf:"bytes,11,opt,name=evidence_run_id,json=evidenceRunId,proto3" json:"evidence_run_id,omitempty"`
+	EvidenceObservedAt    *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=evidence_observed_at,json=evidenceObservedAt,proto3" json:"evidence_observed_at,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ResourceArchitectureStatus) Reset() {
@@ -1098,6 +1107,69 @@ func (x *ResourceArchitectureStatus) GetReason() string {
 		return x.Reason
 	}
 	return ""
+}
+
+func (x *ResourceArchitectureStatus) GetQualification() string {
+	if x != nil {
+		return x.Qualification
+	}
+	return ""
+}
+
+func (x *ResourceArchitectureStatus) GetQualificationReason() string {
+	if x != nil {
+		return x.QualificationReason
+	}
+	return ""
+}
+
+func (x *ResourceArchitectureStatus) GetAgeDays() int32 {
+	if x != nil {
+		return x.AgeDays
+	}
+	return 0
+}
+
+func (x *ResourceArchitectureStatus) GetAged() bool {
+	if x != nil {
+		return x.Aged
+	}
+	return false
+}
+
+func (x *ResourceArchitectureStatus) GetAcquisitionResolvable() bool {
+	if x != nil {
+		return x.AcquisitionResolvable
+	}
+	return false
+}
+
+func (x *ResourceArchitectureStatus) GetAcquisitionReason() string {
+	if x != nil {
+		return x.AcquisitionReason
+	}
+	return ""
+}
+
+func (x *ResourceArchitectureStatus) GetEvidenceNode() string {
+	if x != nil {
+		return x.EvidenceNode
+	}
+	return ""
+}
+
+func (x *ResourceArchitectureStatus) GetEvidenceRunId() string {
+	if x != nil {
+		return x.EvidenceRunId
+	}
+	return ""
+}
+
+func (x *ResourceArchitectureStatus) GetEvidenceObservedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EvidenceObservedAt
+	}
+	return nil
 }
 
 type ResourcePlatformClaim struct {
@@ -2575,11 +2647,21 @@ const file_infrastructure_manager_v1_portability_portability_proto_rawDesc = "" 
 	"\x0fnative_evidence\x18\x06 \x03(\v2<.vrooli.infrastructure_manager.v1.portability.NativeEvidenceR\x0enativeEvidence\x12e\n" +
 	"\tresources\x18\a \x03(\v2G.vrooli.infrastructure_manager.v1.portability.ResourceArchitectureClaimR\tresources\x12a\n" +
 	"\vskip_budget\x18\b \x01(\v2@.vrooli.infrastructure_manager.v1.portability.PlatformSkipBudgetR\n" +
-	"skipBudget\"r\n" +
+	"skipBudget\"\xfb\x03\n" +
 	"\x1aResourceArchitectureStatus\x12\"\n" +
 	"\farchitecture\x18\x01 \x01(\tR\farchitecture\x12\x18\n" +
 	"\asupport\x18\x02 \x01(\tR\asupport\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"\xa4\x02\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12$\n" +
+	"\rqualification\x18\x04 \x01(\tR\rqualification\x121\n" +
+	"\x14qualification_reason\x18\x05 \x01(\tR\x13qualificationReason\x12\x19\n" +
+	"\bage_days\x18\x06 \x01(\x05R\aageDays\x12\x12\n" +
+	"\x04aged\x18\a \x01(\bR\x04aged\x125\n" +
+	"\x16acquisition_resolvable\x18\b \x01(\bR\x15acquisitionResolvable\x12-\n" +
+	"\x12acquisition_reason\x18\t \x01(\tR\x11acquisitionReason\x12#\n" +
+	"\revidence_node\x18\n" +
+	" \x01(\tR\fevidenceNode\x12&\n" +
+	"\x0fevidence_run_id\x18\v \x01(\tR\revidenceRunId\x12L\n" +
+	"\x14evidence_observed_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x12evidenceObservedAt\"\xa4\x02\n" +
 	"\x15ResourcePlatformClaim\x12M\n" +
 	"\ahost_os\x18\x01 \x01(\x0e24.vrooli.infrastructure_manager.v1.portability.HostOSR\x06hostOs\x12\x18\n" +
 	"\asupport\x18\x02 \x01(\tR\asupport\x12n\n" +
@@ -2822,47 +2904,48 @@ var file_infrastructure_manager_v1_portability_portability_proto_depIdxs = []int
 	17, // 16: vrooli.infrastructure_manager.v1.portability.Grid.native_evidence:type_name -> vrooli.infrastructure_manager.v1.portability.NativeEvidence
 	15, // 17: vrooli.infrastructure_manager.v1.portability.Grid.resources:type_name -> vrooli.infrastructure_manager.v1.portability.ResourceArchitectureClaim
 	16, // 18: vrooli.infrastructure_manager.v1.portability.Grid.skip_budget:type_name -> vrooli.infrastructure_manager.v1.portability.PlatformSkipBudget
-	0,  // 19: vrooli.infrastructure_manager.v1.portability.ResourcePlatformClaim.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
-	13, // 20: vrooli.infrastructure_manager.v1.portability.ResourcePlatformClaim.architectures:type_name -> vrooli.infrastructure_manager.v1.portability.ResourceArchitectureStatus
-	14, // 21: vrooli.infrastructure_manager.v1.portability.ResourceArchitectureClaim.platforms:type_name -> vrooli.infrastructure_manager.v1.portability.ResourcePlatformClaim
-	34, // 22: vrooli.infrastructure_manager.v1.portability.PlatformSkipBudget.budgets:type_name -> vrooli.infrastructure_manager.v1.portability.PlatformSkipBudget.BudgetsEntry
-	0,  // 23: vrooli.infrastructure_manager.v1.portability.NativeEvidence.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
-	35, // 24: vrooli.infrastructure_manager.v1.portability.NativeEvidence.generated_at:type_name -> google.protobuf.Timestamp
-	35, // 25: vrooli.infrastructure_manager.v1.portability.ObservedSafeguard.observed_at:type_name -> google.protobuf.Timestamp
-	12, // 26: vrooli.infrastructure_manager.v1.portability.GetGridResponse.grid:type_name -> vrooli.infrastructure_manager.v1.portability.Grid
-	11, // 27: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse.capability:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
-	35, // 28: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse.computed_at:type_name -> google.protobuf.Timestamp
-	3,  // 29: vrooli.infrastructure_manager.v1.portability.ListSituationsRequest.situation:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilitySituation
-	11, // 30: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse.capabilities:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
-	35, // 31: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse.computed_at:type_name -> google.protobuf.Timestamp
-	4,  // 32: vrooli.infrastructure_manager.v1.portability.DependencyResult.verdict:type_name -> vrooli.infrastructure_manager.v1.portability.Verdict
-	25, // 33: vrooli.infrastructure_manager.v1.portability.DependencyResult.reasons:type_name -> vrooli.infrastructure_manager.v1.portability.DependencyReason
-	0,  // 34: vrooli.infrastructure_manager.v1.portability.ScenarioBlock.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
-	26, // 35: vrooli.infrastructure_manager.v1.portability.ScenarioBlock.dependencies:type_name -> vrooli.infrastructure_manager.v1.portability.DependencyResult
-	0,  // 36: vrooli.infrastructure_manager.v1.portability.ScenarioPeerless.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
-	0,  // 37: vrooli.infrastructure_manager.v1.portability.TierUpgrade.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
-	5,  // 38: vrooli.infrastructure_manager.v1.portability.TierUpgrade.current_tier:type_name -> vrooli.infrastructure_manager.v1.portability.DeliveryTier
-	5,  // 39: vrooli.infrastructure_manager.v1.portability.TierUpgrade.next_tier:type_name -> vrooli.infrastructure_manager.v1.portability.DeliveryTier
-	27, // 40: vrooli.infrastructure_manager.v1.portability.FleetReadout.blocked_by_os:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioBlock
-	27, // 41: vrooli.infrastructure_manager.v1.portability.FleetReadout.docker_blocked:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioBlock
-	28, // 42: vrooli.infrastructure_manager.v1.portability.FleetReadout.peerless:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioPeerless
-	29, // 43: vrooli.infrastructure_manager.v1.portability.FleetReadout.tier_upgrades:type_name -> vrooli.infrastructure_manager.v1.portability.TierUpgrade
-	30, // 44: vrooli.infrastructure_manager.v1.portability.FleetReadout.desktop_bundling:type_name -> vrooli.infrastructure_manager.v1.portability.DesktopBundlingVerdict
-	35, // 45: vrooli.infrastructure_manager.v1.portability.FleetReadout.computed_at:type_name -> google.protobuf.Timestamp
-	31, // 46: vrooli.infrastructure_manager.v1.portability.GetFleetResponse.fleet:type_name -> vrooli.infrastructure_manager.v1.portability.FleetReadout
-	19, // 47: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetGrid:input_type -> vrooli.infrastructure_manager.v1.portability.GetGridRequest
-	21, // 48: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetCapability:input_type -> vrooli.infrastructure_manager.v1.portability.GetCapabilityRequest
-	23, // 49: vrooli.infrastructure_manager.v1.portability.PortabilityService.ListSituations:input_type -> vrooli.infrastructure_manager.v1.portability.ListSituationsRequest
-	32, // 50: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetFleet:input_type -> vrooli.infrastructure_manager.v1.portability.GetFleetRequest
-	20, // 51: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetGrid:output_type -> vrooli.infrastructure_manager.v1.portability.GetGridResponse
-	22, // 52: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetCapability:output_type -> vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse
-	24, // 53: vrooli.infrastructure_manager.v1.portability.PortabilityService.ListSituations:output_type -> vrooli.infrastructure_manager.v1.portability.ListSituationsResponse
-	33, // 54: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetFleet:output_type -> vrooli.infrastructure_manager.v1.portability.GetFleetResponse
-	51, // [51:55] is the sub-list for method output_type
-	47, // [47:51] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	35, // 19: vrooli.infrastructure_manager.v1.portability.ResourceArchitectureStatus.evidence_observed_at:type_name -> google.protobuf.Timestamp
+	0,  // 20: vrooli.infrastructure_manager.v1.portability.ResourcePlatformClaim.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
+	13, // 21: vrooli.infrastructure_manager.v1.portability.ResourcePlatformClaim.architectures:type_name -> vrooli.infrastructure_manager.v1.portability.ResourceArchitectureStatus
+	14, // 22: vrooli.infrastructure_manager.v1.portability.ResourceArchitectureClaim.platforms:type_name -> vrooli.infrastructure_manager.v1.portability.ResourcePlatformClaim
+	34, // 23: vrooli.infrastructure_manager.v1.portability.PlatformSkipBudget.budgets:type_name -> vrooli.infrastructure_manager.v1.portability.PlatformSkipBudget.BudgetsEntry
+	0,  // 24: vrooli.infrastructure_manager.v1.portability.NativeEvidence.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
+	35, // 25: vrooli.infrastructure_manager.v1.portability.NativeEvidence.generated_at:type_name -> google.protobuf.Timestamp
+	35, // 26: vrooli.infrastructure_manager.v1.portability.ObservedSafeguard.observed_at:type_name -> google.protobuf.Timestamp
+	12, // 27: vrooli.infrastructure_manager.v1.portability.GetGridResponse.grid:type_name -> vrooli.infrastructure_manager.v1.portability.Grid
+	11, // 28: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse.capability:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
+	35, // 29: vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse.computed_at:type_name -> google.protobuf.Timestamp
+	3,  // 30: vrooli.infrastructure_manager.v1.portability.ListSituationsRequest.situation:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilitySituation
+	11, // 31: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse.capabilities:type_name -> vrooli.infrastructure_manager.v1.portability.CapabilityEntry
+	35, // 32: vrooli.infrastructure_manager.v1.portability.ListSituationsResponse.computed_at:type_name -> google.protobuf.Timestamp
+	4,  // 33: vrooli.infrastructure_manager.v1.portability.DependencyResult.verdict:type_name -> vrooli.infrastructure_manager.v1.portability.Verdict
+	25, // 34: vrooli.infrastructure_manager.v1.portability.DependencyResult.reasons:type_name -> vrooli.infrastructure_manager.v1.portability.DependencyReason
+	0,  // 35: vrooli.infrastructure_manager.v1.portability.ScenarioBlock.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
+	26, // 36: vrooli.infrastructure_manager.v1.portability.ScenarioBlock.dependencies:type_name -> vrooli.infrastructure_manager.v1.portability.DependencyResult
+	0,  // 37: vrooli.infrastructure_manager.v1.portability.ScenarioPeerless.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
+	0,  // 38: vrooli.infrastructure_manager.v1.portability.TierUpgrade.host_os:type_name -> vrooli.infrastructure_manager.v1.portability.HostOS
+	5,  // 39: vrooli.infrastructure_manager.v1.portability.TierUpgrade.current_tier:type_name -> vrooli.infrastructure_manager.v1.portability.DeliveryTier
+	5,  // 40: vrooli.infrastructure_manager.v1.portability.TierUpgrade.next_tier:type_name -> vrooli.infrastructure_manager.v1.portability.DeliveryTier
+	27, // 41: vrooli.infrastructure_manager.v1.portability.FleetReadout.blocked_by_os:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioBlock
+	27, // 42: vrooli.infrastructure_manager.v1.portability.FleetReadout.docker_blocked:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioBlock
+	28, // 43: vrooli.infrastructure_manager.v1.portability.FleetReadout.peerless:type_name -> vrooli.infrastructure_manager.v1.portability.ScenarioPeerless
+	29, // 44: vrooli.infrastructure_manager.v1.portability.FleetReadout.tier_upgrades:type_name -> vrooli.infrastructure_manager.v1.portability.TierUpgrade
+	30, // 45: vrooli.infrastructure_manager.v1.portability.FleetReadout.desktop_bundling:type_name -> vrooli.infrastructure_manager.v1.portability.DesktopBundlingVerdict
+	35, // 46: vrooli.infrastructure_manager.v1.portability.FleetReadout.computed_at:type_name -> google.protobuf.Timestamp
+	31, // 47: vrooli.infrastructure_manager.v1.portability.GetFleetResponse.fleet:type_name -> vrooli.infrastructure_manager.v1.portability.FleetReadout
+	19, // 48: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetGrid:input_type -> vrooli.infrastructure_manager.v1.portability.GetGridRequest
+	21, // 49: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetCapability:input_type -> vrooli.infrastructure_manager.v1.portability.GetCapabilityRequest
+	23, // 50: vrooli.infrastructure_manager.v1.portability.PortabilityService.ListSituations:input_type -> vrooli.infrastructure_manager.v1.portability.ListSituationsRequest
+	32, // 51: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetFleet:input_type -> vrooli.infrastructure_manager.v1.portability.GetFleetRequest
+	20, // 52: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetGrid:output_type -> vrooli.infrastructure_manager.v1.portability.GetGridResponse
+	22, // 53: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetCapability:output_type -> vrooli.infrastructure_manager.v1.portability.GetCapabilityResponse
+	24, // 54: vrooli.infrastructure_manager.v1.portability.PortabilityService.ListSituations:output_type -> vrooli.infrastructure_manager.v1.portability.ListSituationsResponse
+	33, // 55: vrooli.infrastructure_manager.v1.portability.PortabilityService.GetFleet:output_type -> vrooli.infrastructure_manager.v1.portability.GetFleetResponse
+	52, // [52:56] is the sub-list for method output_type
+	48, // [48:52] is the sub-list for method input_type
+	48, // [48:48] is the sub-list for extension type_name
+	48, // [48:48] is the sub-list for extension extendee
+	0,  // [0:48] is the sub-list for field type_name
 }
 
 func init() { file_infrastructure_manager_v1_portability_portability_proto_init() }

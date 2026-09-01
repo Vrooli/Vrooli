@@ -92,7 +92,7 @@
       "layout": "dir",
       "entry_path": "runtime/bin/python",
       "sha256_by_platform": {
-        "linux-amd64": "48085aa8687bb3b829846adf14b3a860e250f253da6937832d102dce0766b19b",
+        "linux-amd64": "eae2678d8b9dde16c7de12f9c1e067cea798c4b90eba7270f0259b463c658a3c",
         "linux-arm64": "d41d99925bafe05b4fd30e55b5db45d03f316e073f7f7dbc90cd167e464f9634",
         "macos-amd64": "003f1c38353b93a2ed2ede3dd3a0211dadcfb847eafd562d8edc92a42c16caa1",
         "macos-arm64": "7b7e49b82fdba3a5a554455256b644b9ee0814bf80493b9ac48dff6027e5d7d9",
@@ -108,7 +108,7 @@
         {
           "when": {"os": "linux", "arch": "amd64"},
           "layout": "dir",
-          "artifact_sha256": "48085aa8687bb3b829846adf14b3a860e250f253da6937832d102dce0766b19b",
+          "artifact_sha256": "eae2678d8b9dde16c7de12f9c1e067cea798c4b90eba7270f0259b463c658a3c",
           "compose": [
             {"role": "runtime", "kind": "url", "dest": "runtime", "bin_path": "python", "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz", "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0", "archive": "tar.gz"},
             {"role": "python-wheels", "kind": "python-wheels", "dest": "wheels", "lockfile": "requirements.lock"},

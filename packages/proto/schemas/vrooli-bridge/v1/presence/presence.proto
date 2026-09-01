@@ -47,6 +47,10 @@ service PresenceService {
   // was accepted or refused after node-side consent and decryption. The
   // request carries metadata only; credential values never cross this RPC.
   rpc ReportCredentialReceipt(ReportCredentialReceiptRequest) returns (ReportCredentialReceiptResponse);
+
+  // ReportScenarioResponse returns the bounded response from a node-local
+  // scenario API for a control-plane proxied request.
+  rpc ReportScenarioResponse(ReportScenarioResponseRequest) returns (ReportScenarioResponseResponse);
 }
 
 message ReportHeartbeatRequest {
@@ -99,5 +103,13 @@ message CredentialReceipt {
 }
 
 message ReportCredentialReceiptResponse {
+  bool accepted = 1;
+}
+
+message ReportScenarioResponseRequest {
+  vrooli.vrooli_bridge.v1.channel.ScenarioResponse response = 1;
+}
+
+message ReportScenarioResponseResponse {
   bool accepted = 1;
 }

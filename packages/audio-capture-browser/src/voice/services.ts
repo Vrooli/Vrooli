@@ -23,6 +23,8 @@ export interface VoiceCoreServices {
   ) => { analyser: AnalyserNode; filteredStream: MediaStream; nodes: AudioNode[] };
   playRecordingStartCue: () => void;
   playRecordingStopCue: () => void;
+  /** Distinct cue for a turn that ended on a fault; see playRecordingFaultCue. */
+  playRecordingFaultCue: () => void;
   WhisperProvider: new () => TranscriptionProvider;
   bytesToFeatures: (audio: Uint8Array, engine: WakeWordEngine) => Promise<AudioFeatures>;
   createWakeWordEngine: () => WakeWordEngine;

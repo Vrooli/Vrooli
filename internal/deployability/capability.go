@@ -19,6 +19,7 @@ type CapabilityImplementation struct {
 	Capability string
 	Role       string
 	Platforms  map[HostOS]PlatformDeclaration
+	Pairs      []PlatformPairDeclaration
 }
 
 type CapabilityDeclarer struct {
@@ -63,6 +64,8 @@ func (s CapabilityResolutionStatus) HasImplementation() bool {
 type CapabilityResolution struct {
 	Capability string                     `json:"capability"`
 	OS         HostOS                     `json:"host_os"`
+	ConsoleOS  HostOS                     `json:"console_os,omitempty"`
+	NodeOS     HostOS                     `json:"node_os,omitempty"`
 	Status     CapabilityResolutionStatus `json:"status"`
 	// Qualification is the honesty rung of the winning declaration: how much
 	// real-world proof it carries, independent of whether it resolved.
@@ -78,6 +81,69 @@ type CapabilityResolution struct {
 	AbsentControls  []string             `json:"absent_controls,omitempty"`
 	AbsentProviders []string             `json:"absent_providers,omitempty"`
 	Declarers       []CapabilityDeclarer `json:"declarers,omitempty"`
+}
+
+// ResolvePairCapability projects a cross-machine declaration onto the same
+// status and qualification model used by host-OS capability resolution.
+func ResolvePairCapability(implementations []CapabilityImplementation, capability string, console, node HostOS) CapabilityResolution {
+	result := CapabilityResolution{Capability: strings.TrimSpace(capability), ConsoleOS: console, NodeOS: node, Qualification: QualificationUndeclared}
+	if result.Capability == "" {
+		result.Status = CapabilityPeerless
+		result.Reason = "capability is empty"
+		return result
+	}
+	if !validOS(console) || !validOS(node) {
+		result.Status = CapabilityPeerless
+		result.Reason = "console and node OS must be in the resolver vocabulary"
+		return result
+	}
+	var candidates []capabilityCandidate
+	for _, implementation := range implementations {
+		if strings.TrimSpace(implementation.Capability) != result.Capability {
+			continue
+		}
+		for _, pair := range implementation.Pairs {
+			if pair.Console != console || pair.Node != node {
+				continue
+			}
+			status, err := ParsePlatformStatus(pair.Status)
+			if err != nil {
+				result.Status = CapabilityStatusInvalid
+				result.Reason = err.Error()
+				return result
+			}
+			if implementation.Role != capabilityControl && status != StatusUnsupported && status != StatusNotApplicable && status != StatusNotImplemented {
+				candidates = append(candidates, capabilityCandidate{implementation: implementation, qualification: status.Qualification()})
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		result.Status = CapabilityPeerless
+		result.Reason = "no declaration exists for this console/node pair"
+		return result
+	}
+	best := candidates[0]
+	for _, candidate := range candidates[1:] {
+		if candidate.qualification.Rank() > best.qualification.Rank() {
+			best = candidate
+		}
+	}
+	result.Status = statusForQualification(best.qualification)
+	result.Qualification = best.qualification
+	result.Implementer = best.implementation.Name
+	result.Reason = best.qualification.Reason()
+	return result
+}
+
+func statusForQualification(q Qualification) CapabilityResolutionStatus {
+	switch q {
+	case QualificationDegraded:
+		return CapabilityDegraded
+	case QualificationQualified, QualificationBuildVerified, QualificationUnqualified:
+		return CapabilityImplemented
+	default:
+		return CapabilityPeerless
+	}
 }
 
 type capabilityCandidate struct {

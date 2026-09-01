@@ -331,6 +331,65 @@ func TestFetchDirRejectsTraversal(t *testing.T) {
 	}
 }
 
+func TestExtractTarPreservesHardlinksAndRejectsUnknownEntries(t *testing.T) {
+	var archive bytes.Buffer
+	tw := tar.NewWriter(&archive)
+	entries := []struct {
+		name, link string
+		typ        byte
+		body       string
+	}{
+		{"bin", "", tar.TypeDir, ""},
+		{"bin/tool", "", tar.TypeReg, "portable"},
+		{"bin/tool-copy", "bin/tool", tar.TypeLink, ""},
+		{"bin/tool-link", "bin/tool", tar.TypeSymlink, ""},
+	}
+	for _, entry := range entries {
+		hdr := &tar.Header{Name: entry.name, Linkname: entry.link, Typeflag: entry.typ, Mode: 0o755, Size: int64(len(entry.body))}
+		if err := tw.WriteHeader(hdr); err != nil {
+			t.Fatal(err)
+		}
+		if entry.body != "" {
+			if _, err := tw.Write([]byte(entry.body)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dest := t.TempDir()
+	if err := extractAllTarReader(tar.NewReader(bytes.NewReader(archive.Bytes())), dest); err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	original, err := os.Stat(filepath.Join(dest, "bin/tool"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	copyInfo, err := os.Stat(filepath.Join(dest, "bin/tool-copy"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(original, copyInfo) {
+		t.Fatal("hardlink was extracted as an independent file")
+	}
+	if target, err := os.Readlink(filepath.Join(dest, "bin/tool-link")); err != nil || target != "bin/tool" {
+		t.Fatalf("symlink = %q, %v", target, err)
+	}
+
+	var unknown bytes.Buffer
+	unknownWriter := tar.NewWriter(&unknown)
+	if err := unknownWriter.WriteHeader(&tar.Header{Name: "device", Typeflag: tar.TypeChar, Mode: 0o600}); err != nil {
+		t.Fatal(err)
+	}
+	if err := unknownWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := extractAllTarReader(tar.NewReader(bytes.NewReader(unknown.Bytes())), t.TempDir()); err == nil || !strings.Contains(err.Error(), "unsupported tar entry type") {
+		t.Fatalf("unknown entry error = %v", err)
+	}
+}
+
 func TestFetchDirChecksumMismatch(t *testing.T) {
 	archive := zipTree(t, map[string][]byte{"sd-cli": bigBinary()})
 	srv := serve(t, archive)

@@ -2,11 +2,63 @@ package cliutil
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 )
+
+func TestLookupPeerRecordAcceptsEnvironmentPortSpelling(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	peers := filepath.Join(home, ".vrooli", "peers")
+	if err := os.MkdirAll(peers, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	payload := map[string]any{
+		"schema_version": 1,
+		"scenario":       "fixture-scenario",
+		"owner_pid":      os.Getpid(),
+		"ports":          map[string]int{"api": 18888},
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(peers, "fixture-scenario.json"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	out := lookupPeerRecord("fixture-scenario", "API_PORT")
+	if !out.Resolved() || out.Port != "18888" {
+		t.Fatalf("outcome = %#v, want resolved api claim", out)
+	}
+}
+
+func TestLookupRuntimeRegistryAcceptsEnvironmentPortSpelling(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	dbPath := filepath.Join(home, ".vrooli", "state", "runtime.db")
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sql := `CREATE TABLE runtime_instances (instance_id TEXT, scenario TEXT, variant TEXT, status TEXT, generation INTEGER);
+CREATE TABLE runtime_port_claims (instance_id TEXT, port INTEGER, port_name TEXT, status TEXT);
+INSERT INTO runtime_instances VALUES ('instance-1', 'fixture-scenario', 'live', 'running', 1);
+INSERT INTO runtime_port_claims VALUES ('instance-1', 18889, 'api', 'bound');`
+	if err := exec.Command("sqlite3", dbPath, sql).Run(); err != nil {
+		t.Skipf("sqlite3 unavailable: %v", err)
+	}
+
+	out := lookupRuntimeRegistry(context.Background(), "fixture-scenario", "API_PORT")
+	if !out.Resolved() || out.Port != "18889" {
+		t.Fatalf("outcome = %#v, want resolved api claim", out)
+	}
+}
 
 func fakeLookup(counter *int) func(context.Context, string, string) ScenarioPortOutcome {
 	return func(context.Context, string, string) ScenarioPortOutcome {
@@ -27,6 +79,50 @@ func TestLookupScenarioPortCachesWithinPolicy(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("calls=%d, want 1", calls)
+	}
+}
+
+func TestLookupScenarioPortCountersIdentifyAnsweringRung(t *testing.T) {
+	oldPeer, oldRegistry, oldRunner := peerRecordLookupFn, runtimeRegistryLookupFn, portLookupRunner
+	defer func() {
+		peerRecordLookupFn, runtimeRegistryLookupFn, portLookupRunner = oldPeer, oldRegistry, oldRunner
+		resetPortDetectorCache()
+	}()
+	peerRecordLookupFn = func(_, _ string) ScenarioPortOutcome {
+		return ScenarioPortOutcome{Port: "15001"}
+	}
+	runtimeRegistryLookupFn = func(_ context.Context, target, _ string) ScenarioPortOutcome {
+		if target == "registry" {
+			return ScenarioPortOutcome{Port: "15002"}
+		}
+		return ScenarioPortOutcome{Err: os.ErrNotExist}
+	}
+	portLookupRunner = func(_ context.Context, target, _ string) ScenarioPortOutcome {
+		if target == "cli" {
+			return ScenarioPortOutcome{Port: "15003"}
+		}
+		return ScenarioPortOutcome{Err: os.ErrNotExist}
+	}
+	// The peer fixture answers the first evaluation. Make the later cases miss
+	// it explicitly so each rung is observed once.
+	peerRecordLookupFn = func(_, _ string) ScenarioPortOutcome { return ScenarioPortOutcome{Err: os.ErrNotExist} }
+	for _, target := range []string{"registry", "cli"} {
+		if out := LookupScenarioPort(context.Background(), target, "API_PORT", PortCachePolicy{}); !out.Resolved() {
+			t.Fatalf("%s lookup did not resolve: %#v", target, out)
+		}
+	}
+	peerRecordLookupFn = func(target, _ string) ScenarioPortOutcome {
+		if target == "peer" {
+			return ScenarioPortOutcome{Port: "15001"}
+		}
+		return ScenarioPortOutcome{Err: os.ErrNotExist}
+	}
+	if out := LookupScenarioPort(context.Background(), "peer", "API_PORT", PortCachePolicy{}); !out.Resolved() {
+		t.Fatalf("peer lookup did not resolve: %#v", out)
+	}
+	stats := PortLookupStats()
+	if stats.Evaluations != 3 || stats.PeerHits != 1 || stats.RegistryHits != 1 || stats.CLIHits != 1 {
+		t.Fatalf("rung counters = %+v, want one evaluation and hit at each rung", stats)
 	}
 }
 

@@ -10,6 +10,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manage
 
 service GoalService {
   rpc ListGoals(ListGoalsRequest) returns (ListGoalsResponse);
+  rpc ListUnwiredGoals(ListGoalsRequest) returns (ListGoalsResponse);
   rpc GetGoal(GetGoalRequest) returns (GoalResponse);
   rpc CreateGoal(CreateGoalRequest) returns (GoalResponse);
   rpc UpdateGoal(UpdateGoalRequest) returns (GoalResponse);

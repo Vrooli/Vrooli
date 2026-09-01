@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "scenario": "switchboard",
+  "input_digest": "sha256:8c3929e5ea31b0bc4d4f08795bef9242711d46a6d935ecfb79f15dc4489d53e7",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/switchboard/v1/notes/attachments.proto",
+    "schemas/switchboard/v1/notes/notes.proto",
+    "schemas/switchboard/v1/shared/errors.proto",
+    "schemas/switchboard/v1/shared/health.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:0006e0ffb2ba47a8abd22f21bcd0646e9aaa7a47f8bc8cd028bc17c74a5b346d",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/switchboard/v1/notes/attachments.pb.go": "sha256:f43dffc637df9fad4eab933a756d5856597f76f47c370b5119294c2b00f08668",
+    "gen/go/switchboard/v1/notes/notes.pb.go": "sha256:6b90b8d9729918caaee6a21a563fb8291d70a3e0477230a27296b3ba189b2bc2",
+    "gen/go/switchboard/v1/notes/notes_v1connect/notes.connect.go": "sha256:8c69b80d9d7d31b84bc408d1df18c80eae060c047fc66dbd9111c86cc92a247b",
+    "gen/go/switchboard/v1/shared/errors.pb.go": "sha256:2717ea238ec442f3038f1acc65313121df166c2805e382cee424913479026676",
+    "gen/go/switchboard/v1/shared/health.pb.go": "sha256:00288c440deb67df1a350e6727a6cb48440c376cee55176951739e1c6876a7b6",
+    "gen/python/switchboard/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/switchboard/v1/notes/attachments_pb2.py": "sha256:e6adc7d3ea88f521fd7fc4f8bdb351211fa61e9463af93899b1c80837388b528",
+    "gen/python/switchboard/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/switchboard/v1/notes/notes_pb2.py": "sha256:b4dd8176ea60fa7f0a561ba62b3134e10d42c1e86a3d2c0d47febf4d0e1e553d",
+    "gen/python/switchboard/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/switchboard/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/switchboard/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/switchboard/v1/shared/errors_pb2.py": "sha256:3a1f9ddbb26faa1e0bfc82a8ac71791dc10a81768aff72cfaa3f7e61c4d5f78b",
+    "gen/python/switchboard/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/switchboard/v1/shared/health_pb2.py": "sha256:00f5d5e55faf33385fd7d070b213a4cba6cd10f1768071d59be8a02b040fcdf1",
+    "gen/python/switchboard/v1/shared/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/switchboard/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/switchboard/v1/notes/attachments_pb.ts": "sha256:196d49f9eaeab437eae57bc894b58f5f96d8c4cfdff42ec03924102b47a9b191",
+    "gen/typescript/switchboard/v1/notes/notes_pb.ts": "sha256:bd5f7ad5a33af3c96363789cd668c2a879c2d987434827485857b36692496be1",
+    "gen/typescript/switchboard/v1/shared/errors_pb.ts": "sha256:a8d30b19e1512e525b35f9ba332a2f6234d75ab0a740faec86288be0fe18b684",
+    "gen/typescript/switchboard/v1/shared/health_pb.ts": "sha256:4422a5965457b6f0a1c3ee293e5159798bae0c25499d1ddc4ec75c3b293c154e"
+  }
+}

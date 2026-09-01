@@ -10,6 +10,7 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 type StartRequest struct {
@@ -144,13 +145,23 @@ type ListPortOutput struct {
 }
 
 type ListItemOutput struct {
-	Name        string           `json:"name"`
-	Description string           `json:"description,omitempty"`
-	Version     string           `json:"version,omitempty"`
-	Status      string           `json:"status"`
-	Tags        []string         `json:"tags"`
-	Path        string           `json:"path"`
-	Ports       []ListPortOutput `json:"ports"`
+	Name               string           `json:"name"`
+	Description        string           `json:"description,omitempty"`
+	Version            string           `json:"version,omitempty"`
+	Status             string           `json:"status"`
+	Tags               []string         `json:"tags"`
+	Path               string           `json:"path"`
+	Ports              []ListPortOutput `json:"ports"`
+	StartFailureReason string           `json:"start_failure_reason,omitempty"`
+	StartFailedAt      *time.Time       `json:"start_failed_at,omitempty"`
+}
+
+func scenarioStatus(detail orchestrator.Detail) (string, string, *time.Time) {
+	status := detail.Details.Status
+	if detail.StartOperation != nil && detail.StartOperation.Status == scenarioruntime.StartOperationStatusFailed {
+		return "start-failed", detail.StartOperation.Error, detail.StartOperation.FinishedAt
+	}
+	return status, "", nil
 }
 
 type StatusItemOutput struct {
@@ -170,7 +181,9 @@ type StatusItemOutput struct {
 	// progress with ETA + recommended_next_check_seconds, or the last
 	// terminal outcome); nil when never started or the registry is
 	// unavailable. Populated on single-scenario status only.
-	StartOperation *lifecycle.StartOperationView `json:"start_operation,omitempty"`
+	StartOperation     *lifecycle.StartOperationView `json:"start_operation,omitempty"`
+	StartFailureReason string                        `json:"start_failure_reason,omitempty"`
+	StartFailedAt      *time.Time                    `json:"start_failed_at,omitempty"`
 }
 
 type InfoOutput struct {
@@ -308,20 +321,36 @@ func BuildStatusDetail(detail orchestrator.Detail) StatusItemOutput {
 	if detail.Details.Health != "" {
 		health = detail.Details.Health
 	}
+	status, startFailureReason, startFailedAt := scenarioStatus(detail)
+	healthError := detail.Details.HealthError
+	if status == "start-failed" {
+		// A failed start is materially different from a scenario that is simply
+		// stopped/off. The operation record is the durable source of the failure
+		// reason; the runtime record remains failed for lifecycle ownership and
+		// cleanup semantics.
+		status = "start-failed"
+		if healthError == "" {
+			healthError = detail.StartOperation.Error
+		}
+	}
 	return StatusItemOutput{
 		Name:           detail.Scenario.Slug,
 		DisplayName:    detail.Scenario.Manifest.Service.DisplayName,
 		Description:    detail.Scenario.Manifest.Service.Description,
 		Tags:           CopyStrings(detail.Scenario.Manifest.Service.Tags),
-		Status:         detail.Details.Status,
+		Status:         status,
 		Processes:      detail.Details.Processes,
 		Runtime:        detail.Details.Runtime,
 		StartedAt:      detail.Details.StartedAt,
 		Ports:          CopyIntMap(detail.Details.Ports),
 		PortBindings:   RuntimePortOutputs(detail.Details.PortBindings),
 		Health:         health,
-		HealthError:    detail.Details.HealthError,
+		HealthError:    healthError,
 		StartOperation: detail.StartOperation,
+		// The single-status surface uses health_error for the same reason; the
+		// explicit list fields below keep the list projection machine-readable.
+		StartFailureReason: startFailureReason,
+		StartFailedAt:      startFailedAt,
 	}
 }
 

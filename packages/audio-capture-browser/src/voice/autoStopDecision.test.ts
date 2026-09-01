@@ -305,3 +305,78 @@ describe("decideAutoStopRing", () => {
     })).toEqual({ visible: false, progress: 0 });
   });
 });
+
+describe("auto-stop ring authority (regression)", () => {
+  // The ring is fed from the reconciled snapshot, not the client timer. Under a
+  // server-VAD strategy the client's own silence clock is not the one that will
+  // stop the turn, so a ring driven by it stayed hidden for the entire
+  // countdown — the turn ended with no visual warning at all.
+  const idleClientActivity = {
+    phase: "silence" as const,
+    audioLevel: 0,
+    rms: 0,
+    speechThreshold: 0.02,
+    silenceThreshold: 0.01,
+    silenceElapsedMs: 0,
+    silenceTimeoutMs: 0,
+    autoStopProgress: 0,
+    autoStopVisible: false,
+  };
+
+  it("shows the countdown from the server clock when the server owns VAD", () => {
+    const ring = decideAutoStopRing({
+      isRecording: true,
+      serverVad: {
+        receivedAt: 1_000,
+        silenceElapsedMs: 600,
+        silenceTimeoutMs: 1_200,
+        silenceTimedOut: false,
+        voiced: false,
+      },
+      voiceActivity: idleClientActivity,
+      nowPerf: 1_000,
+      staleTickMs: 250,
+      visualGraceMs: 300,
+    });
+    expect(ring.visible).toBe(true);
+    expect(ring.progress).toBeCloseTo(0.5, 5);
+  });
+
+  it("holds the ring full once the server latches its timeout", () => {
+    const ring = decideAutoStopRing({
+      isRecording: true,
+      serverVad: {
+        receivedAt: 1_000,
+        silenceElapsedMs: 1_200,
+        silenceTimeoutMs: 1_200,
+        silenceTimedOut: true,
+        voiced: false,
+      },
+      voiceActivity: idleClientActivity,
+      // Deliberately far past the stale window: a crossed threshold is terminal
+      // and must not be un-crossed by the tick going stale.
+      nowPerf: 99_000,
+      staleTickMs: 250,
+      visualGraceMs: 300,
+    });
+    expect(ring).toEqual({ visible: true, progress: 1 });
+  });
+
+  it("stays hidden when not recording", () => {
+    const ring = decideAutoStopRing({
+      isRecording: false,
+      serverVad: {
+        receivedAt: 1_000,
+        silenceElapsedMs: 1_100,
+        silenceTimeoutMs: 1_200,
+        silenceTimedOut: false,
+        voiced: false,
+      },
+      voiceActivity: idleClientActivity,
+      nowPerf: 1_000,
+      staleTickMs: 250,
+      visualGraceMs: 300,
+    });
+    expect(ring).toEqual({ visible: false, progress: 0 });
+  });
+});

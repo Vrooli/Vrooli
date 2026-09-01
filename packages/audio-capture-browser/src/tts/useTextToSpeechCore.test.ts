@@ -14,6 +14,7 @@ const h = vi.hoisted(() => {
     speakSequence: ReturnType<typeof vi.fn>;
     speakFromBlob: ReturnType<typeof vi.fn>;
     speakFromBlobs: ReturnType<typeof vi.fn>;
+    prewarm: ReturnType<typeof vi.fn>;
     stop: ReturnType<typeof vi.fn>;
     pause: ReturnType<typeof vi.fn>;
     resume: ReturnType<typeof vi.fn>;
@@ -35,6 +36,7 @@ const h = vi.hoisted(() => {
       speakSequence: vi.fn(() => Promise.resolve()),
       speakFromBlob: vi.fn(() => Promise.resolve()),
       speakFromBlobs: vi.fn(() => Promise.resolve()),
+      prewarm: vi.fn(() => Promise.resolve()),
       stop: vi.fn(),
       pause: vi.fn(),
       resume: vi.fn(),
@@ -260,6 +262,32 @@ describe("useTextToSpeechCore — speak", () => {
 });
 
 describe("useTextToSpeechCore — speakParagraphs", () => {
+  it("waits for backend readiness instead of dropping an early request", async () => {
+    let release!: (available: boolean) => void;
+    const availability = new Promise<boolean>((resolve) => { release = resolve; });
+    const { result } = renderTTS({ serverTTSAvailable: () => availability });
+
+    act(() => result.current.speak("queued before probe"));
+    expect(h.kokoroInstances).toHaveLength(0);
+
+    await act(async () => { release(true); });
+    await waitFor(() => expect(lastKokoro().speak).toHaveBeenCalled());
+  });
+
+  it("prewarms Kokoro without starting playback", async () => {
+    const { result } = renderTTS();
+    await waitFor(() => expect(result.current.backend).toBe("kokoro"));
+
+    await act(async () => {
+      await result.current.prewarmParagraphs(["first", "second"], { eventId: "evt-prewarm" });
+    });
+    expect(lastKokoro().prewarm).toHaveBeenCalledWith(
+      ["first", "second"],
+      expect.objectContaining({ eventId: "evt-prewarm", voice: "af_heart", rate: 1 }),
+    );
+    expect(lastKokoro().speak).not.toHaveBeenCalled();
+  });
+
   it("plays cached audio when an eventId is provided and the backend is Kokoro", async () => {
     runtime.fetchCachedTTS
       .mockResolvedValueOnce(new Blob(["cached-a"]))

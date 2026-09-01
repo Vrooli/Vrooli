@@ -56,7 +56,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	app.SetCommandsWithSubgroups(
-		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{Binary: "grok", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".grok"), Version: upstreamPinnedVersion, URLTemplate: "https://x.ai/cli/grok-${version}-${os}-${arch}"})}}),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Installation", Commands: []cliapp.Command{agentinstall.DirectInstallCommand(agentinstall.Spec{ResourceName: appName, Binary: "grok", BinDir: filepath.Join(os.Getenv("HOME"), ".local", "bin"), DataDir: filepath.Join(os.Getenv("HOME"), ".grok")})}}),
 		[]cliapp.SubcommandGroup{
 			agentharness.ModelDiscoveryCommands(agentharness.ModelDiscoveryConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName)}),
 			agentharness.CodingPolicyCommands(agentharness.CodingPolicyConfig{Runner: appName, CatalogPath: agentharness.ResourceCatalogPath(appName), Posture: agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Grok native permission rules remain active; verify the installed Grok version with a PreToolUse runner canary before treating the portable hook as enforced."}}}),

@@ -1,4 +1,4 @@
-package nodeclient
+package nodereach
 
 import (
 	"context"
@@ -57,6 +57,44 @@ func TestMissingNodeIsTyped(t *testing.T) {
 	var typed *Error
 	if !errors.As(err, &typed) || typed.Node == "" && typed.Verb == "" {
 		t.Fatalf("typed details missing: %#v", typed)
+	}
+}
+
+func TestCallScenarioUsesBoundedTargetProcedure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/targets/node-1/scenarios/system-monitor/MetricsService/GetCurrentMetrics" {
+			t.Fatalf("path = %q", r.URL.Path)
+		}
+		if r.Header.Get("Content-Type") != "application/proto" {
+			t.Fatalf("content type = %q", r.Header.Get("Content-Type"))
+		}
+		_, _ = w.Write([]byte("response"))
+	}))
+	defer server.Close()
+	client := New(Config{BridgeURL: server.URL, Token: "owner"})
+	body, err := client.CallScenario(context.Background(), ScenarioRequest{NodeID: "node-1", Scenario: "system-monitor", Service: "MetricsService", Method: "GetCurrentMetrics", Body: []byte("request"), Timeout: time.Second, MaxResponse: 64})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "response" {
+		t.Fatalf("body = %q", body)
+	}
+}
+
+func TestCallScenarioCarriesNonPostHTTPMethod(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("proxy method = %q, want POST", r.Method)
+		}
+		if r.Header.Get("X-Vrooli-HTTP-Method") != http.MethodGet {
+			t.Fatalf("forwarded method = %q, want GET", r.Header.Get("X-Vrooli-HTTP-Method"))
+		}
+		_, _ = w.Write([]byte("response"))
+	}))
+	defer server.Close()
+	client := New(Config{BridgeURL: server.URL, Token: "owner"})
+	if _, err := client.CallScenario(context.Background(), ScenarioRequest{NodeID: "node-1", Scenario: "vrooli-onboarding", Service: "api", Method: "v2/readiness", HTTPMethod: http.MethodGet, Timeout: time.Second}); err != nil {
+		t.Fatal(err)
 	}
 }
 

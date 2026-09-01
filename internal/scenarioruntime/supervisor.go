@@ -9,6 +9,57 @@ import (
 	"time"
 )
 
+var ErrSupervisorAlreadyRunning = errors.New("runtime supervisor already running")
+
+// ClaimSupervisorSession atomically establishes the one running supervisor
+// for the database.
+func (s *SQLiteStore) ClaimSupervisorSession(ctx context.Context, session SupervisorSession, ttl time.Duration) (SupervisorSession, error) {
+	if strings.TrimSpace(session.SupervisorID) == "" {
+		session.SupervisorID = newID("sup")
+	}
+	if strings.TrimSpace(session.HostBootID) == "" || strings.TrimSpace(session.HostSessionID) == "" {
+		return SupervisorSession{}, fmt.Errorf("claim supervisor session: host identity is required")
+	}
+	now := s.now()
+	if session.Status == "" {
+		session.Status = SupervisorStatusRunning
+	}
+	if session.StartedAt.IsZero() {
+		session.StartedAt = now
+	}
+	session.LastHeartbeatAt = now
+	session.HeartbeatDeadlineAt = now.Add(NormalizeHeartbeatTTL(ttl))
+	var claimed SupervisorSession
+	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		var existingID string
+		err := tx.QueryRowContext(ctx, `SELECT supervisor_id FROM runtime_supervisor_sessions WHERE status = ? LIMIT 1`, SupervisorStatusRunning).Scan(&existingID)
+		if err == nil {
+			return fmt.Errorf("%w: supervisor_id=%s", ErrSupervisorAlreadyRunning, existingID)
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("inspect running supervisor session: %w", err)
+		}
+		_, err = tx.ExecContext(ctx, `
+INSERT INTO runtime_supervisor_sessions (
+  supervisor_id, host_boot_id, host_session_id, pid, status, started_at,
+  last_heartbeat_at, heartbeat_deadline_at, stopped_at, stop_reason, version, metadata_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			session.SupervisorID, session.HostBootID, session.HostSessionID, optionalIntValue(session.PID),
+			session.Status, formatTime(session.StartedAt), formatTime(session.LastHeartbeatAt),
+			formatTime(session.HeartbeatDeadlineAt), formatOptionalTime(session.StoppedAt), session.StopReason,
+			session.Version, session.MetadataJSON)
+		if err != nil {
+			return fmt.Errorf("insert claimed supervisor session: %w", err)
+		}
+		claimed = session
+		return nil
+	})
+	if err != nil {
+		return SupervisorSession{}, err
+	}
+	return claimed, nil
+}
+
 func (s *SQLiteStore) CreateSupervisorSession(ctx context.Context, session SupervisorSession, ttl time.Duration) (SupervisorSession, error) {
 	if strings.TrimSpace(session.SupervisorID) == "" {
 		session.SupervisorID = newID("sup")

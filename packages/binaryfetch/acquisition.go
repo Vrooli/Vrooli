@@ -31,6 +31,15 @@ var BuildTimeFacts = map[string]struct{}{
 	"arch": {},
 }
 
+// KnownFactNames is the vocabulary accepted by acquisition predicates. Host
+// facts are intentionally explicit: a misspelled key must fail validation,
+// rather than silently selecting the portable fallback forever.
+var KnownFactNames = map[string]struct{}{
+	"os": {}, "arch": {},
+	"accel.backends": {}, "accel.backend": {}, "accel.cuda_compute": {},
+	"accel.vram_bytes": {}, "accel.vendor": {}, "gpu.cuda_compute": {},
+}
+
 // Acquisition declares how an executable or executable tree arrives on disk.
 // It is deliberately independent from the artifact launch gate: target SHA256
 // authenticates downloaded bytes, while the artifact declaration authenticates
@@ -287,6 +296,9 @@ func validateTargetPredicate(predicate map[string]string) error {
 		if strings.TrimSpace(name) == "" || strings.TrimSpace(requirement) == "" {
 			return errors.New("target predicates must have non-empty names and values")
 		}
+		if _, ok := KnownFactNames[strings.ToLower(strings.TrimSpace(name))]; !ok {
+			return fmt.Errorf("fact name %q is not in the acquisition vocabulary", name)
+		}
 	}
 	return nil
 }
@@ -429,6 +441,37 @@ func normalizeFact(name, value string) string {
 
 func compareFact(actual, requirement string) (bool, error) {
 	requirement = strings.TrimSpace(requirement)
+	negated := strings.HasPrefix(requirement, "!")
+	if negated {
+		requirement = strings.TrimSpace(strings.TrimPrefix(requirement, "!"))
+		if requirement == "" {
+			return false, errors.New("negation has no value")
+		}
+	}
+	var matched bool
+	var err error
+	if strings.HasPrefix(requirement, "has:") {
+		values := strings.Split(strings.TrimPrefix(requirement, "has:"), ",")
+		actualValues := make(map[string]struct{})
+		for _, value := range strings.Split(actual, ",") {
+			actualValues[strings.TrimSpace(value)] = struct{}{}
+		}
+		matched = true
+		for _, value := range values {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				return false, errors.New("has: contains an empty value")
+			}
+			if _, ok := actualValues[value]; !ok {
+				matched = false
+				break
+			}
+		}
+		if negated {
+			return !matched, nil
+		}
+		return matched, nil
+	}
 	for _, operator := range []string{">=", "<=", ">", "<"} {
 		if strings.HasPrefix(requirement, operator) {
 			want := strings.TrimSpace(strings.TrimPrefix(requirement, operator))
@@ -442,17 +485,25 @@ func compareFact(actual, requirement string) (bool, error) {
 			}
 			switch operator {
 			case ">=":
-				return gotNumber >= wantNumber, nil
+				matched = gotNumber >= wantNumber
 			case "<=":
-				return gotNumber <= wantNumber, nil
+				matched = gotNumber <= wantNumber
 			case ">":
-				return gotNumber > wantNumber, nil
+				matched = gotNumber > wantNumber
 			case "<":
-				return gotNumber < wantNumber, nil
+				matched = gotNumber < wantNumber
 			}
+			if negated {
+				return !matched, err
+			}
+			return matched, err
 		}
 	}
-	return actual == requirement, nil
+	matched = actual == requirement
+	if negated {
+		return !matched, nil
+	}
+	return matched, nil
 }
 
 func cloneFacts(in map[string]string) map[string]string {

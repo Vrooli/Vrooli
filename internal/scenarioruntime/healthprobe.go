@@ -72,6 +72,11 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 		if result.err == nil {
 			if result.status == apihealth.StatusDegraded {
 				nonCriticalFailure = true
+				if result.degradedDetail != "" {
+					failures = append(failures, result.degradedDetail)
+				} else {
+					failures = append(failures, fmt.Sprintf("health check %q reported degraded without a reason", check.Name))
+				}
 			}
 			if result.status == apihealth.StatusUnhealthy {
 				if check.Critical {
@@ -108,15 +113,19 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 	snapshot.SchemaValid = schemaValid
 	snapshot.ResponseJSON = responseJSON
 	snapshot.Error = boundString(strings.Join(failures, "; "), healthprobeParameterA)
+	if snapshot.Status == HealthStatusDegraded && snapshot.Error == "" {
+		snapshot.Error = "health probe reported degraded without a reason"
+	}
 	return snapshot
 }
 
 type checkProbeResult struct {
-	status       string
-	readiness    *bool
-	schemaValid  *bool
-	responseJSON string
-	err          error
+	status         string
+	readiness      *bool
+	schemaValid    *bool
+	responseJSON   string
+	err            error
+	degradedDetail string
 }
 
 func (p HealthProbe) performCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int) checkProbeResult {
@@ -181,12 +190,55 @@ func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, 
 			err:          fmt.Errorf("invalid health response schema"),
 		}
 	}
+	var degradation error
+	if decoded.Status == apihealth.StatusDegraded {
+		if detail := degradedHealthDetail(body); detail != "" {
+			degradation = fmt.Errorf("%s", detail)
+		}
+	}
 	return checkProbeResult{
 		status:       decoded.Status,
 		readiness:    &decoded.Readiness,
 		schemaValid:  &valid,
 		responseJSON: responseJSON,
+		degradedDetail: func() string {
+			if degradation == nil {
+				return ""
+			}
+			return degradation.Error()
+		}(),
 	}
+}
+
+// degradedHealthDetail preserves the actionable error already supplied by a
+// scenario health response. The control plane must not reduce a degraded
+// verdict to an empty health_error merely because the response is otherwise
+// schema-valid.
+func degradedHealthDetail(body []byte) string {
+	var payload struct {
+		Dependencies map[string]struct {
+			Error any `json:"error"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return ""
+	}
+	for name, dependency := range payload.Dependencies {
+		if dependency.Error == nil {
+			continue
+		}
+		var detail string
+		switch value := dependency.Error.(type) {
+		case string:
+			detail = strings.TrimSpace(value)
+		default:
+			detail = strings.TrimSpace(fmt.Sprint(value))
+		}
+		if detail != "" {
+			return name + ": " + detail
+		}
+	}
+	return ""
 }
 
 func (p HealthProbe) now() time.Time {

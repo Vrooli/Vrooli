@@ -50,6 +50,57 @@ func TestValidateManifestDeclarationsRejectsUnevidencedQualifiedClaim(t *testing
 	}
 }
 
+func TestValidatePlatformPairEvidenceRequiresExistingArtifact(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "evidence.txt"), []byte("run"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	base := PlatformPairDeclaration{
+		Console: HostOSLinux,
+		Node:    HostOSMacOS,
+		PlatformDeclaration: PlatformDeclaration{
+			Status: string(StatusSupported), EvidenceRaw: "evidence.txt",
+		},
+	}
+	if err := ValidatePlatformPairEvidence(root, "service.json", "terminal-remote-bridge", base); err != nil {
+		t.Fatalf("existing pair evidence rejected: %v", err)
+	}
+	base.EvidenceRaw = "missing.txt"
+	if err := ValidatePlatformPairEvidence(root, "service.json", "terminal-remote-bridge", base); err == nil {
+		t.Fatal("missing pair evidence accepted")
+	}
+}
+
+func TestResolvePairCapabilityUsesBestDeclaredQualification(t *testing.T) {
+	implementations := []CapabilityImplementation{
+		{Name: "bridge", Capability: "terminal-remote-bridge", Role: "primary", Pairs: []PlatformPairDeclaration{{
+			Console: HostOSLinux, Node: HostOSMacOS,
+			PlatformDeclaration: PlatformDeclaration{Status: string(StatusBuildVerified), Mechanism: "websocket"},
+		}}},
+	}
+	result := ResolvePairCapability(implementations, "terminal-remote-bridge", HostOSLinux, HostOSMacOS)
+	if result.Status != CapabilityImplemented || result.Qualification != QualificationBuildVerified {
+		t.Fatalf("pair resolution = %#v, want implemented/build_verified", result)
+	}
+}
+
+func TestValidateManifestDeclarationsChecksPairs(t *testing.T) {
+	declaration := ManifestDeclaration{
+		Name:       "bridge",
+		Capability: "terminal-remote-bridge",
+		Role:       "primary",
+		Pairs:      []PlatformPairDeclaration{{Console: HostOSLinux, Node: HostOSMacOS, PlatformDeclaration: PlatformDeclaration{Status: string(StatusBuildVerified)}}},
+	}
+	if err := ValidateManifestDeclarations([]ManifestDeclaration{declaration}, []string{"terminal-remote-bridge"}); err == nil {
+		t.Fatal("pair without a mechanism accepted")
+	}
+	declaration.Pairs[0].Mechanism = "websocket"
+	declaration.Pairs[0].Status = "unknown-status"
+	if err := ValidateManifestDeclarations([]ManifestDeclaration{declaration}, []string{"terminal-remote-bridge"}); err == nil {
+		t.Fatal("pair with unknown status accepted")
+	}
+}
+
 func TestValidateManifestDeclarationsAcceptsCompleteEvidenceForQualifiedClaim(t *testing.T) {
 	err := ValidateManifestDeclarations([]ManifestDeclaration{{
 		Path: "internal/tools/git/tool.json", Name: "git", Capability: "source-control", Role: "primary",

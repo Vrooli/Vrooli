@@ -34,6 +34,40 @@ func TestAcquisitionResolveAbsentFactDoesNotMatch(t *testing.T) {
 	}
 }
 
+func TestCompareFactSupportsMembershipNegationAndNumericValues(t *testing.T) {
+	tests := []struct {
+		name, actual, requirement string
+		want                      bool
+	}{
+		{"membership", "cuda,vulkan,cpu", "has:vulkan", true},
+		{"multiple-members", "cuda,vulkan,cpu", "has:cuda,cpu", true},
+		{"missing-membership", "cuda,cpu", "has:vulkan", false},
+		{"negated-membership", "cuda,cpu", "!has:vulkan", true},
+		{"negated-equality", "cpu", "!cuda", true},
+		{"numeric", "9.0", ">=8.9", true},
+		{"negated-numeric", "8.0", "!>=8.9", true},
+		{"equality", "linux", "linux", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := compareFact(tt.actual, tt.requirement)
+			if err != nil || got != tt.want {
+				t.Fatalf("compareFact(%q, %q) = %v, %v; want %v", tt.actual, tt.requirement, got, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestAcquisitionValidateRejectsUnknownFactName(t *testing.T) {
+	acquisition := Acquisition{Kind: "url", Targets: []AcquisitionTarget{{
+		When: map[string]string{"accel.vulakn": "yes"}, URL: "https://example.test/tool",
+		SHA256: strings.Repeat("a", 64),
+	}}}
+	if err := acquisition.Validate(); err == nil || !strings.Contains(err.Error(), "fact name") {
+		t.Fatalf("unknown fact accepted: %v", err)
+	}
+}
+
 func TestAcquisitionResolveReportsUnsupportedTarget(t *testing.T) {
 	_, err := (Acquisition{Targets: []AcquisitionTarget{{When: map[string]string{"os": "windows"}, Unsupported: "no upstream build"}}}).Resolve(Facts{"os": "windows"})
 	var unsupported *UnsupportedError

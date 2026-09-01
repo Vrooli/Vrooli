@@ -21,6 +21,22 @@ func WriteUpstreamCheck(w io.Writer, format cliout.Format, agg upstreamcheck.Agg
 				fmt.Fprintf(w, "  note: %s\n", rep.Note)
 			}
 		}
+		if len(agg.Artifacts) > 0 {
+			fmt.Fprintln(w, "\nresource acquisition liveness:")
+			for _, finding := range agg.Artifacts {
+				state := "reachable"
+				if !finding.Reachable {
+					state = "unreachable"
+				}
+				if finding.Stale {
+					state += ", stale-after-two-failures"
+				}
+				fmt.Fprintf(w, "%-14s target=%-3d %-30s %s (%s)\n", finding.Resource, finding.Target, state, finding.Reference, finding.CheckedAt)
+				if finding.Note != "" {
+					fmt.Fprintf(w, "  note: %s\n", finding.Note)
+				}
+			}
+		}
 		if len(agg.Behind) > 0 {
 			fmt.Fprintf(w, "\nbehind: %v — run `vrooli resource install <name>` (or the resource's `update`) to catch up\n", agg.Behind)
 		}

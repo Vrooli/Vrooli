@@ -211,28 +211,10 @@ func TestLoadResourceClaimSpec(t *testing.T) {
 	}
 }
 
-func TestRealWhisperCapacitySpecIsRightSized(t *testing.T) {
-	spec, ok, err := LoadResourceClaimSpec(findAdmissionRepoRoot(t), "whisper")
-	if err != nil || !ok {
-		t.Fatalf("LoadResourceClaimSpec(whisper) = ok %v err %v", ok, err)
-	}
-	if spec.PreferredBytes != 5*gib {
-		t.Fatalf("whisper preferred_bytes = %d, want 5GiB", spec.PreferredBytes)
-	}
-	if spec.FloorBytes != 2*gib {
-		t.Fatalf("whisper floor_bytes = %d, want 2GiB", spec.FloorBytes)
-	}
-	if spec.Priority != "interactive" || !spec.YieldWhenIdle {
-		t.Fatalf("whisper priority/yield = %q/%v, want interactive/true", spec.Priority, spec.YieldWhenIdle)
-	}
-	if spec.IdleGraceSeconds != 900 {
-		t.Fatalf("whisper idle_grace_seconds = %d, want 900", spec.IdleGraceSeconds)
-	}
-	if spec.Profile == nil || len(spec.Profile.Steps) != 3 {
-		t.Fatalf("whisper profile = %+v, want 3-step degradation ladder", spec.Profile)
-	}
-	if got := spec.Profile.Steps[0]; got.Label != "large-v3" || got.AmountBytes != 5*gib {
-		t.Fatalf("whisper top step = %+v, want large-v3/5GiB", got)
+func TestRealWhisperHasNoUnsupportedCapacitySpec(t *testing.T) {
+	_, ok, err := LoadResourceClaimSpec(findAdmissionRepoRoot(t), "whisper")
+	if err != nil || ok {
+		t.Fatalf("LoadResourceClaimSpec(whisper) = ok %v err %v, want no claim for CPU-only Whisper", ok, err)
 	}
 }
 

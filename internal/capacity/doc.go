@@ -312,12 +312,8 @@
 //
 // # 8.9 Adopter degrade-verb semantics
 //
-//   - whisper `capacity-degrade --to <label>` (resource CLI verb): label ∈
-//     profile steps; persists the choice as an operator-pin and recreates the
-//     container with the smaller ASR_MODEL; idempotent (already-at-target =
-//     no-op); REFUSES while activity_state=="active" (the whisper edge marks it —
-//     see the activity-source contract) as adopter-side defense in depth; the
-//     `--upshift` path recreates larger when idle + headroom returns.
+//   - CPU-only Whisper has no capacity claim or local degrade verb. Resource-
+//     specific capacity actuation remains owned by the control-plane broker.
 //   - ollama `capacity degrade --to <model>`: unloads resident models until the
 //     requested model-policy rung; idempotent; reported via
 //     the planner package.

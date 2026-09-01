@@ -76,6 +76,15 @@
     }
   },
   "driver": "external-cli",
+  "acquisition": {
+    "kind": "npm",
+    "targets": [
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "@xai-official/grok", "version": "0.2.72", "sha256": "3bac888845583db07fb2817a3a2a9b7b406bb5a22dc16bac49613076bbbd6309"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "@xai-official/grok", "version": "0.2.72", "sha256": "3bac888845583db07fb2817a3a2a9b7b406bb5a22dc16bac49613076bbbd6309"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@xai-official/grok", "version": "0.2.72", "sha256": "3bac888845583db07fb2817a3a2a9b7b406bb5a22dc16bac49613076bbbd6309"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@xai-official/grok", "version": "0.2.72", "sha256": "3bac888845583db07fb2817a3a2a9b7b406bb5a22dc16bac49613076bbbd6309"}
+    ]
+  },
   "deployment": {
     "profiles": {
       "desktop": {
@@ -85,9 +94,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "grok"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
@@ -104,9 +110,6 @@
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "grok"
-          ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."
           ],
@@ -121,9 +124,6 @@
           "architectures": [
             "amd64",
             "arm64"
-          ],
-          "requires": [
-            "grok"
           ],
           "limitations": [
             "The upstream executable, licensing, authentication, and version policy are host-managed."

@@ -210,6 +210,7 @@ message RunGateRequest {
   bool all = 2;
 	bool calibration_only = 3;
 	string asset_id = 4;
+	bool include_advisory = 5;
 }
 message GateFinding {
   string code = 1;

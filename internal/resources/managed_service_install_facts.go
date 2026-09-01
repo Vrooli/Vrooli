@@ -1,6 +1,8 @@
 package resources
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -41,6 +43,16 @@ type InstallFacts struct {
 	// it against the digest the resolver selects today is what makes fact drift
 	// computable.
 	ArtifactSHA256 string `json:"artifact_sha256"`
+	// ObservedSHA256 is the digest the staged bytes actually produced at the
+	// moment they were staged and verified.
+	//
+	// Recording only the DECLARED digest leaves the record structurally unable
+	// to tell "the manifest was edited after this was staged" from "the bytes on
+	// disk changed underneath us" — both present as a mismatch against a claim
+	// the record simply repeats. The observed digest is the independent
+	// witness that separates them. Empty for artifacts staged before this field
+	// existed; absence of evidence is not evidence of drift.
+	ObservedSHA256 string `json:"observed_sha256,omitempty"`
 	Layout         string `json:"layout,omitempty"`
 	Version        string `json:"version,omitempty"`
 }
@@ -147,6 +159,10 @@ func writeInstallFacts(artifactPath, resource string, facts binaryfetch.Facts, t
 	if record.Layout == "" {
 		record.Layout = strings.TrimSpace(artifact.Layout)
 	}
+	// Best-effort: a digest we cannot compute must not block recording the rest.
+	if observed, err := observeArtifactDigest(artifactPath, record.Layout); err == nil {
+		record.ObservedSHA256 = observed
+	}
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
 		return err
@@ -238,4 +254,120 @@ func (c *Controller) DiscardStagedArtifact(name string, progress io.Writer) erro
 		return fmt.Errorf("discard %s install facts: %w", name, err)
 	}
 	return nil
+}
+
+// observeArtifactDigest computes the digest of what is actually staged at path,
+// using the same algorithm the launch-time verifier will use.
+func observeArtifactDigest(artifactPath, layout string) (string, error) {
+	if strings.EqualFold(strings.TrimSpace(layout), "dir") {
+		return binaryfetch.TreeDigest(artifactPath)
+	}
+	file, err := os.Open(artifactPath) //nolint:gosec // path is a control-plane-resolved artifact location
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	sum := sha256.New()
+	if _, err := io.Copy(sum, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(sum.Sum(nil)), nil
+}
+
+// ArtifactMismatchCause names why a staged artifact no longer satisfies its
+// manifest. The three causes need three different actions, and reporting them
+// as one "checksum mismatch" is what made a healthy, GPU-resident kyutai-stt
+// read as an uninstalled resource for days.
+type ArtifactMismatchCause string
+
+const (
+	// MismatchDeclarationMoved: the bytes are exactly what was staged, and the
+	// manifest changed since. Re-acquire; nothing is corrupt.
+	MismatchDeclarationMoved ArtifactMismatchCause = "declaration_moved"
+	// MismatchBytesChanged: the bytes differ from what was staged and verified.
+	// Something wrote into the artifact store after installation.
+	MismatchBytesChanged ArtifactMismatchCause = "bytes_changed"
+	// MismatchUnwitnessed: there is no observed digest to compare against, so
+	// the two causes above cannot be separated. Artifacts staged before the
+	// observed digest was recorded land here.
+	MismatchUnwitnessed ArtifactMismatchCause = "unwitnessed"
+)
+
+// ArtifactMismatchError explains a mismatch in terms of its cause.
+type ArtifactMismatchError struct {
+	Resource string
+	Path     string
+	Cause    ArtifactMismatchCause
+	// Declared is what the manifest asks for today.
+	Declared string
+	// Observed is what was staged, when that was recorded.
+	Observed string
+	// Actual is what the bytes on disk produce right now.
+	Actual string
+}
+
+func (e *ArtifactMismatchError) Error() string {
+	switch e.Cause {
+	case MismatchDeclarationMoved:
+		return fmt.Sprintf(
+			"resource %s is staged exactly as it was installed (%s), but its manifest now declares %s; the bytes are not corrupt, the declaration moved. Re-acquire with `%s`",
+			e.Resource, shortDigest(e.Actual), shortDigest(e.Declared), e.Remediation())
+	case MismatchBytesChanged:
+		return fmt.Sprintf(
+			"resource %s was staged as %s and now hashes to %s; something wrote into the artifact store after installation. Re-acquire with `%s`",
+			e.Resource, shortDigest(e.Observed), shortDigest(e.Actual), e.Remediation())
+	default:
+		return fmt.Sprintf(
+			"resource %s hashes to %s but its manifest declares %s, and no staging witness was recorded, so a moved declaration cannot be told from altered bytes. Re-acquire with `%s`",
+			e.Resource, shortDigest(e.Actual), shortDigest(e.Declared), e.Remediation())
+	}
+}
+
+// Unwrap lets errors.Is(err, ErrFactDrift) succeed: every cause here is
+// repaired by the same re-acquire, and callers that already branch on drift
+// should treat this identically.
+func (e *ArtifactMismatchError) Unwrap() error { return ErrFactDrift }
+
+// Remediation is the exact command that repairs this state.
+func (e *ArtifactMismatchError) Remediation() string {
+	return "vrooli resource install " + e.Resource + " --reacquire"
+}
+
+// classifyArtifactMismatch explains a failed verification by comparing three
+// digests: what the manifest declares, what was witnessed at staging, and what
+// the bytes produce now. It returns nil when the artifact actually verifies.
+func classifyArtifactMismatch(artifactPath, resource, declared, layout string) *ArtifactMismatchError {
+	declared = strings.ToLower(strings.TrimSpace(declared))
+	actual, err := observeArtifactDigest(artifactPath, layout)
+	if err != nil {
+		return &ArtifactMismatchError{
+			Resource: resource, Path: artifactPath, Cause: MismatchUnwitnessed,
+			Declared: declared,
+		}
+	}
+	actual = strings.ToLower(actual)
+	if actual == declared {
+		return nil
+	}
+	record, ok, readErr := readInstallFacts(artifactPath)
+	observed := ""
+	if readErr == nil && ok {
+		observed = strings.ToLower(strings.TrimSpace(record.ObservedSHA256))
+	}
+	var cause ArtifactMismatchCause
+	switch {
+	case observed == "":
+		// No witness: the two causes below cannot be separated, and guessing
+		// between them is exactly the failure this type exists to end.
+		cause = MismatchUnwitnessed
+	case observed == actual:
+		// The bytes are untouched since staging; the claim about them moved.
+		cause = MismatchDeclarationMoved
+	default:
+		cause = MismatchBytesChanged
+	}
+	return &ArtifactMismatchError{
+		Resource: resource, Path: artifactPath, Cause: cause,
+		Declared: declared, Observed: observed, Actual: actual,
+	}
 }

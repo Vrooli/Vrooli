@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/orchestrator"
 	"github.com/vrooli/vrooli/internal/process"
 	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 type fakeScenarioOps struct {
@@ -116,6 +117,24 @@ func TestStatusBuildersPreserveHealthError(t *testing.T) {
 	runtime := BuildRuntimeDataFromDetail(detail)
 	if runtime.HealthError != detail.Details.HealthError {
 		t.Fatalf("runtime HealthError = %q", runtime.HealthError)
+	}
+}
+
+func TestBuildStatusDetailDistinguishesFailedStartFromStopped(t *testing.T) {
+	detail := orchestrator.Detail{
+		Scenario: scenariomodel.Scenario{Slug: "demo"},
+		Details:  scenariomodel.RuntimeDetails{Status: scenarioruntime.StatusFailed},
+		StartOperation: &lifecycle.StartOperationView{
+			Status: scenarioruntime.StartOperationStatusFailed,
+			Error:  "ui build failed: lockfile is stale",
+		},
+	}
+	status := BuildStatusDetail(detail)
+	if status.Status != "start-failed" {
+		t.Fatalf("status = %q, want start-failed", status.Status)
+	}
+	if status.HealthError != detail.StartOperation.Error {
+		t.Fatalf("health error = %q, want %q", status.HealthError, detail.StartOperation.Error)
 	}
 }
 

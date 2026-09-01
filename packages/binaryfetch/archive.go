@@ -352,6 +352,33 @@ func extractAllTarReader(tr *tar.Reader, destDir string) error {
 			if err := createSafeSymlink(destDir, hdr.Name, hdr.Linkname, target); err != nil {
 				return err
 			}
+		case tar.TypeLink:
+			linkTarget, err := safeJoin(destDir, hdr.Linkname)
+			if err != nil {
+				return fmt.Errorf("binaryfetch: hardlink %q target: %w", hdr.Name, err)
+			}
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				return fmt.Errorf("binaryfetch: mkdir hardlink parent of %q: %w", hdr.Name, err)
+			}
+			// OCI layers can contain a regular placeholder followed by its
+			// canonical hardlink name. Replace that entry so extraction remains
+			// faithful to the layer instead of failing on an existing path.
+			if err := os.Remove(target); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("binaryfetch: replace hardlink target %q: %w", hdr.Name, err)
+			}
+			if err := os.Link(linkTarget, target); err != nil {
+				return fmt.Errorf("binaryfetch: create hardlink %q -> %q: %w", hdr.Name, hdr.Linkname, err)
+			}
+		case tar.TypeXGlobalHeader, tar.TypeXHeader, tar.TypeGNULongName, tar.TypeGNULongLink:
+			// Archive metadata, not filesystem content. Go's tar reader consumes
+			// most of these itself but surfaces the pax global header, which
+			// every git-produced tarball carries. Rejecting it as an unsupported
+			// entry type made a legitimate upstream archive un-extractable —
+			// the strictness added to stop silent drops has to distinguish
+			// "carries no file" from "carries a file we cannot place".
+			continue
+		default:
+			return fmt.Errorf("binaryfetch: unsupported tar entry type %d for %q", hdr.Typeflag, hdr.Name)
 		}
 	}
 }
@@ -383,45 +410,7 @@ func extractAllTarGz(archivePath, destDir string) error {
 	}
 	defer gz.Close()
 
-	tr := tar.NewReader(gz)
-	for {
-		hdr, err := tr.Next()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("binaryfetch: read tar: %w", err)
-		}
-		target, err := safeJoin(destDir, hdr.Name)
-		if err != nil {
-			return err
-		}
-		switch hdr.Typeflag {
-		case tar.TypeDir:
-			if err := os.MkdirAll(target, 0o755); err != nil {
-				return fmt.Errorf("binaryfetch: mkdir %q: %w", hdr.Name, err)
-			}
-		case tar.TypeReg:
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return fmt.Errorf("binaryfetch: mkdir parent of %q: %w", hdr.Name, err)
-			}
-			mode := os.FileMode(hdr.Mode).Perm() //nolint:gosec // mode is masked to permission bits
-			if mode == 0 {
-				mode = 0o644
-			}
-			if err := writeReaderMode(tr, target, mode); err != nil {
-				return err
-			}
-		case tar.TypeSymlink:
-			if err := createSafeSymlink(destDir, hdr.Name, hdr.Linkname, target); err != nil {
-				return err
-			}
-		default:
-			// Devices and fifos are never materialized from a fetched backend tree.
-			continue
-		}
-	}
-	return nil
+	return extractAllTarReader(tar.NewReader(gz), destDir)
 }
 
 func extractAllTarBzip2(archivePath, destDir string) error {

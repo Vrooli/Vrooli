@@ -8,6 +8,8 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
+	credentialgrant "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
+	onboard "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 	machines "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/machines"
 	http "net/http"
 	strings "strings"
@@ -44,6 +46,45 @@ const (
 	MachineServiceSetGrantProcedure = "/vrooli.web_console.v1.machines.MachineService/SetGrant"
 	// MachineServiceForgetProcedure is the fully-qualified name of the MachineService's Forget RPC.
 	MachineServiceForgetProcedure = "/vrooli.web_console.v1.machines.MachineService/Forget"
+	// MachineServicePreflightOnboardingProcedure is the fully-qualified name of the MachineService's
+	// PreflightOnboarding RPC.
+	MachineServicePreflightOnboardingProcedure = "/vrooli.web_console.v1.machines.MachineService/PreflightOnboarding"
+	// MachineServiceStartOnboardingProcedure is the fully-qualified name of the MachineService's
+	// StartOnboarding RPC.
+	MachineServiceStartOnboardingProcedure = "/vrooli.web_console.v1.machines.MachineService/StartOnboarding"
+	// MachineServiceGetOnboardingProcedure is the fully-qualified name of the MachineService's
+	// GetOnboarding RPC.
+	MachineServiceGetOnboardingProcedure = "/vrooli.web_console.v1.machines.MachineService/GetOnboarding"
+	// MachineServiceWaitOnboardingProcedure is the fully-qualified name of the MachineService's
+	// WaitOnboarding RPC.
+	MachineServiceWaitOnboardingProcedure = "/vrooli.web_console.v1.machines.MachineService/WaitOnboarding"
+	// MachineServiceCancelOnboardingProcedure is the fully-qualified name of the MachineService's
+	// CancelOnboarding RPC.
+	MachineServiceCancelOnboardingProcedure = "/vrooli.web_console.v1.machines.MachineService/CancelOnboarding"
+	// MachineServiceGetConfigurationProcedure is the fully-qualified name of the MachineService's
+	// GetConfiguration RPC.
+	MachineServiceGetConfigurationProcedure = "/vrooli.web_console.v1.machines.MachineService/GetConfiguration"
+	// MachineServiceResolveConfigurationProcedure is the fully-qualified name of the MachineService's
+	// ResolveConfiguration RPC.
+	MachineServiceResolveConfigurationProcedure = "/vrooli.web_console.v1.machines.MachineService/ResolveConfiguration"
+	// MachineServiceListCredentialGrantsProcedure is the fully-qualified name of the MachineService's
+	// ListCredentialGrants RPC.
+	MachineServiceListCredentialGrantsProcedure = "/vrooli.web_console.v1.machines.MachineService/ListCredentialGrants"
+	// MachineServiceCreateCredentialGrantProcedure is the fully-qualified name of the MachineService's
+	// CreateCredentialGrant RPC.
+	MachineServiceCreateCredentialGrantProcedure = "/vrooli.web_console.v1.machines.MachineService/CreateCredentialGrant"
+	// MachineServiceRevokeCredentialGrantProcedure is the fully-qualified name of the MachineService's
+	// RevokeCredentialGrant RPC.
+	MachineServiceRevokeCredentialGrantProcedure = "/vrooli.web_console.v1.machines.MachineService/RevokeCredentialGrant"
+	// MachineServiceReapplyConfigurationProcedure is the fully-qualified name of the MachineService's
+	// ReapplyConfiguration RPC.
+	MachineServiceReapplyConfigurationProcedure = "/vrooli.web_console.v1.machines.MachineService/ReapplyConfiguration"
+	// MachineServiceGetConfigurationApplyStatusProcedure is the fully-qualified name of the
+	// MachineService's GetConfigurationApplyStatus RPC.
+	MachineServiceGetConfigurationApplyStatusProcedure = "/vrooli.web_console.v1.machines.MachineService/GetConfigurationApplyStatus"
+	// MachineServiceAnswerSecretProcedure is the fully-qualified name of the MachineService's
+	// AnswerSecret RPC.
+	MachineServiceAnswerSecretProcedure = "/vrooli.web_console.v1.machines.MachineService/AnswerSecret"
 )
 
 // MachineServiceClient is a client for the vrooli.web_console.v1.machines.MachineService service.
@@ -61,6 +102,21 @@ type MachineServiceClient interface {
 	SetGrant(context.Context, *connect.Request[machines.SetGrantRequest]) (*connect.Response[machines.SetGrantResponse], error)
 	// Forget removes a machine from the fleet.
 	Forget(context.Context, *connect.Request[machines.ForgetRequest]) (*connect.Response[machines.ForgetResponse], error)
+	PreflightOnboarding(context.Context, *connect.Request[onboard.PreflightOnboardingRequest]) (*connect.Response[onboard.PreflightOnboardingResponse], error)
+	StartOnboarding(context.Context, *connect.Request[onboard.StartOnboardingRequest]) (*connect.Response[onboard.StartOnboardingResponse], error)
+	GetOnboarding(context.Context, *connect.Request[onboard.GetOnboardingRequest]) (*connect.Response[onboard.GetOnboardingResponse], error)
+	WaitOnboarding(context.Context, *connect.Request[onboard.WaitOnboardingRequest]) (*connect.Response[onboard.WaitOnboardingResponse], error)
+	CancelOnboarding(context.Context, *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error)
+	// GetConfiguration reads the target's onboarding question set and readiness
+	// through the same governed scenario reach used by the onboarding UI.
+	GetConfiguration(context.Context, *connect.Request[machines.GetConfigurationRequest]) (*connect.Response[machines.GetConfigurationResponse], error)
+	ResolveConfiguration(context.Context, *connect.Request[machines.ResolveConfigurationRequest]) (*connect.Response[machines.ResolveConfigurationResponse], error)
+	ListCredentialGrants(context.Context, *connect.Request[machines.ListCredentialGrantsRequest]) (*connect.Response[credentialgrant.ListGrantsResponse], error)
+	CreateCredentialGrant(context.Context, *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
+	RevokeCredentialGrant(context.Context, *connect.Request[credentialgrant.RevokeGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
+	ReapplyConfiguration(context.Context, *connect.Request[machines.ReapplyConfigurationRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error)
+	GetConfigurationApplyStatus(context.Context, *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error)
+	AnswerSecret(context.Context, *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 }
 
 // NewMachineServiceClient constructs a client for the vrooli.web_console.v1.machines.MachineService
@@ -104,16 +160,107 @@ func NewMachineServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(machineServiceMethods.ByName("Forget")),
 			connect.WithClientOptions(opts...),
 		),
+		preflightOnboarding: connect.NewClient[onboard.PreflightOnboardingRequest, onboard.PreflightOnboardingResponse](
+			httpClient,
+			baseURL+MachineServicePreflightOnboardingProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("PreflightOnboarding")),
+			connect.WithClientOptions(opts...),
+		),
+		startOnboarding: connect.NewClient[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse](
+			httpClient,
+			baseURL+MachineServiceStartOnboardingProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("StartOnboarding")),
+			connect.WithClientOptions(opts...),
+		),
+		getOnboarding: connect.NewClient[onboard.GetOnboardingRequest, onboard.GetOnboardingResponse](
+			httpClient,
+			baseURL+MachineServiceGetOnboardingProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("GetOnboarding")),
+			connect.WithClientOptions(opts...),
+		),
+		waitOnboarding: connect.NewClient[onboard.WaitOnboardingRequest, onboard.WaitOnboardingResponse](
+			httpClient,
+			baseURL+MachineServiceWaitOnboardingProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("WaitOnboarding")),
+			connect.WithClientOptions(opts...),
+		),
+		cancelOnboarding: connect.NewClient[onboard.CancelOnboardingRequest, onboard.CancelOnboardingResponse](
+			httpClient,
+			baseURL+MachineServiceCancelOnboardingProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("CancelOnboarding")),
+			connect.WithClientOptions(opts...),
+		),
+		getConfiguration: connect.NewClient[machines.GetConfigurationRequest, machines.GetConfigurationResponse](
+			httpClient,
+			baseURL+MachineServiceGetConfigurationProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("GetConfiguration")),
+			connect.WithClientOptions(opts...),
+		),
+		resolveConfiguration: connect.NewClient[machines.ResolveConfigurationRequest, machines.ResolveConfigurationResponse](
+			httpClient,
+			baseURL+MachineServiceResolveConfigurationProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("ResolveConfiguration")),
+			connect.WithClientOptions(opts...),
+		),
+		listCredentialGrants: connect.NewClient[machines.ListCredentialGrantsRequest, credentialgrant.ListGrantsResponse](
+			httpClient,
+			baseURL+MachineServiceListCredentialGrantsProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("ListCredentialGrants")),
+			connect.WithClientOptions(opts...),
+		),
+		createCredentialGrant: connect.NewClient[credentialgrant.CreateGrantRequest, credentialgrant.CredentialGrant](
+			httpClient,
+			baseURL+MachineServiceCreateCredentialGrantProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("CreateCredentialGrant")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeCredentialGrant: connect.NewClient[credentialgrant.RevokeGrantRequest, credentialgrant.CredentialGrant](
+			httpClient,
+			baseURL+MachineServiceRevokeCredentialGrantProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("RevokeCredentialGrant")),
+			connect.WithClientOptions(opts...),
+		),
+		reapplyConfiguration: connect.NewClient[machines.ReapplyConfigurationRequest, machines.ReapplyConfigurationResponse](
+			httpClient,
+			baseURL+MachineServiceReapplyConfigurationProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("ReapplyConfiguration")),
+			connect.WithClientOptions(opts...),
+		),
+		getConfigurationApplyStatus: connect.NewClient[machines.GetConfigurationApplyStatusRequest, machines.ReapplyConfigurationResponse](
+			httpClient,
+			baseURL+MachineServiceGetConfigurationApplyStatusProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("GetConfigurationApplyStatus")),
+			connect.WithClientOptions(opts...),
+		),
+		answerSecret: connect.NewClient[credentialgrant.AnswerSecretRequest, credentialgrant.CredentialGrant](
+			httpClient,
+			baseURL+MachineServiceAnswerSecretProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("AnswerSecret")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // machineServiceClient implements MachineServiceClient.
 type machineServiceClient struct {
-	list      *connect.Client[machines.ListRequest, machines.ListResponse]
-	issueCode *connect.Client[machines.IssueCodeRequest, machines.IssueCodeResponse]
-	decide    *connect.Client[machines.DecideRequest, machines.DecideResponse]
-	setGrant  *connect.Client[machines.SetGrantRequest, machines.SetGrantResponse]
-	forget    *connect.Client[machines.ForgetRequest, machines.ForgetResponse]
+	list                        *connect.Client[machines.ListRequest, machines.ListResponse]
+	issueCode                   *connect.Client[machines.IssueCodeRequest, machines.IssueCodeResponse]
+	decide                      *connect.Client[machines.DecideRequest, machines.DecideResponse]
+	setGrant                    *connect.Client[machines.SetGrantRequest, machines.SetGrantResponse]
+	forget                      *connect.Client[machines.ForgetRequest, machines.ForgetResponse]
+	preflightOnboarding         *connect.Client[onboard.PreflightOnboardingRequest, onboard.PreflightOnboardingResponse]
+	startOnboarding             *connect.Client[onboard.StartOnboardingRequest, onboard.StartOnboardingResponse]
+	getOnboarding               *connect.Client[onboard.GetOnboardingRequest, onboard.GetOnboardingResponse]
+	waitOnboarding              *connect.Client[onboard.WaitOnboardingRequest, onboard.WaitOnboardingResponse]
+	cancelOnboarding            *connect.Client[onboard.CancelOnboardingRequest, onboard.CancelOnboardingResponse]
+	getConfiguration            *connect.Client[machines.GetConfigurationRequest, machines.GetConfigurationResponse]
+	resolveConfiguration        *connect.Client[machines.ResolveConfigurationRequest, machines.ResolveConfigurationResponse]
+	listCredentialGrants        *connect.Client[machines.ListCredentialGrantsRequest, credentialgrant.ListGrantsResponse]
+	createCredentialGrant       *connect.Client[credentialgrant.CreateGrantRequest, credentialgrant.CredentialGrant]
+	revokeCredentialGrant       *connect.Client[credentialgrant.RevokeGrantRequest, credentialgrant.CredentialGrant]
+	reapplyConfiguration        *connect.Client[machines.ReapplyConfigurationRequest, machines.ReapplyConfigurationResponse]
+	getConfigurationApplyStatus *connect.Client[machines.GetConfigurationApplyStatusRequest, machines.ReapplyConfigurationResponse]
+	answerSecret                *connect.Client[credentialgrant.AnswerSecretRequest, credentialgrant.CredentialGrant]
 }
 
 // List calls vrooli.web_console.v1.machines.MachineService.List.
@@ -141,6 +288,72 @@ func (c *machineServiceClient) Forget(ctx context.Context, req *connect.Request[
 	return c.forget.CallUnary(ctx, req)
 }
 
+// PreflightOnboarding calls vrooli.web_console.v1.machines.MachineService.PreflightOnboarding.
+func (c *machineServiceClient) PreflightOnboarding(ctx context.Context, req *connect.Request[onboard.PreflightOnboardingRequest]) (*connect.Response[onboard.PreflightOnboardingResponse], error) {
+	return c.preflightOnboarding.CallUnary(ctx, req)
+}
+
+// StartOnboarding calls vrooli.web_console.v1.machines.MachineService.StartOnboarding.
+func (c *machineServiceClient) StartOnboarding(ctx context.Context, req *connect.Request[onboard.StartOnboardingRequest]) (*connect.Response[onboard.StartOnboardingResponse], error) {
+	return c.startOnboarding.CallUnary(ctx, req)
+}
+
+// GetOnboarding calls vrooli.web_console.v1.machines.MachineService.GetOnboarding.
+func (c *machineServiceClient) GetOnboarding(ctx context.Context, req *connect.Request[onboard.GetOnboardingRequest]) (*connect.Response[onboard.GetOnboardingResponse], error) {
+	return c.getOnboarding.CallUnary(ctx, req)
+}
+
+// WaitOnboarding calls vrooli.web_console.v1.machines.MachineService.WaitOnboarding.
+func (c *machineServiceClient) WaitOnboarding(ctx context.Context, req *connect.Request[onboard.WaitOnboardingRequest]) (*connect.Response[onboard.WaitOnboardingResponse], error) {
+	return c.waitOnboarding.CallUnary(ctx, req)
+}
+
+// CancelOnboarding calls vrooli.web_console.v1.machines.MachineService.CancelOnboarding.
+func (c *machineServiceClient) CancelOnboarding(ctx context.Context, req *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error) {
+	return c.cancelOnboarding.CallUnary(ctx, req)
+}
+
+// GetConfiguration calls vrooli.web_console.v1.machines.MachineService.GetConfiguration.
+func (c *machineServiceClient) GetConfiguration(ctx context.Context, req *connect.Request[machines.GetConfigurationRequest]) (*connect.Response[machines.GetConfigurationResponse], error) {
+	return c.getConfiguration.CallUnary(ctx, req)
+}
+
+// ResolveConfiguration calls vrooli.web_console.v1.machines.MachineService.ResolveConfiguration.
+func (c *machineServiceClient) ResolveConfiguration(ctx context.Context, req *connect.Request[machines.ResolveConfigurationRequest]) (*connect.Response[machines.ResolveConfigurationResponse], error) {
+	return c.resolveConfiguration.CallUnary(ctx, req)
+}
+
+// ListCredentialGrants calls vrooli.web_console.v1.machines.MachineService.ListCredentialGrants.
+func (c *machineServiceClient) ListCredentialGrants(ctx context.Context, req *connect.Request[machines.ListCredentialGrantsRequest]) (*connect.Response[credentialgrant.ListGrantsResponse], error) {
+	return c.listCredentialGrants.CallUnary(ctx, req)
+}
+
+// CreateCredentialGrant calls vrooli.web_console.v1.machines.MachineService.CreateCredentialGrant.
+func (c *machineServiceClient) CreateCredentialGrant(ctx context.Context, req *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
+	return c.createCredentialGrant.CallUnary(ctx, req)
+}
+
+// RevokeCredentialGrant calls vrooli.web_console.v1.machines.MachineService.RevokeCredentialGrant.
+func (c *machineServiceClient) RevokeCredentialGrant(ctx context.Context, req *connect.Request[credentialgrant.RevokeGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
+	return c.revokeCredentialGrant.CallUnary(ctx, req)
+}
+
+// ReapplyConfiguration calls vrooli.web_console.v1.machines.MachineService.ReapplyConfiguration.
+func (c *machineServiceClient) ReapplyConfiguration(ctx context.Context, req *connect.Request[machines.ReapplyConfigurationRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error) {
+	return c.reapplyConfiguration.CallUnary(ctx, req)
+}
+
+// GetConfigurationApplyStatus calls
+// vrooli.web_console.v1.machines.MachineService.GetConfigurationApplyStatus.
+func (c *machineServiceClient) GetConfigurationApplyStatus(ctx context.Context, req *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error) {
+	return c.getConfigurationApplyStatus.CallUnary(ctx, req)
+}
+
+// AnswerSecret calls vrooli.web_console.v1.machines.MachineService.AnswerSecret.
+func (c *machineServiceClient) AnswerSecret(ctx context.Context, req *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
+	return c.answerSecret.CallUnary(ctx, req)
+}
+
 // MachineServiceHandler is an implementation of the vrooli.web_console.v1.machines.MachineService
 // service.
 type MachineServiceHandler interface {
@@ -157,6 +370,21 @@ type MachineServiceHandler interface {
 	SetGrant(context.Context, *connect.Request[machines.SetGrantRequest]) (*connect.Response[machines.SetGrantResponse], error)
 	// Forget removes a machine from the fleet.
 	Forget(context.Context, *connect.Request[machines.ForgetRequest]) (*connect.Response[machines.ForgetResponse], error)
+	PreflightOnboarding(context.Context, *connect.Request[onboard.PreflightOnboardingRequest]) (*connect.Response[onboard.PreflightOnboardingResponse], error)
+	StartOnboarding(context.Context, *connect.Request[onboard.StartOnboardingRequest]) (*connect.Response[onboard.StartOnboardingResponse], error)
+	GetOnboarding(context.Context, *connect.Request[onboard.GetOnboardingRequest]) (*connect.Response[onboard.GetOnboardingResponse], error)
+	WaitOnboarding(context.Context, *connect.Request[onboard.WaitOnboardingRequest]) (*connect.Response[onboard.WaitOnboardingResponse], error)
+	CancelOnboarding(context.Context, *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error)
+	// GetConfiguration reads the target's onboarding question set and readiness
+	// through the same governed scenario reach used by the onboarding UI.
+	GetConfiguration(context.Context, *connect.Request[machines.GetConfigurationRequest]) (*connect.Response[machines.GetConfigurationResponse], error)
+	ResolveConfiguration(context.Context, *connect.Request[machines.ResolveConfigurationRequest]) (*connect.Response[machines.ResolveConfigurationResponse], error)
+	ListCredentialGrants(context.Context, *connect.Request[machines.ListCredentialGrantsRequest]) (*connect.Response[credentialgrant.ListGrantsResponse], error)
+	CreateCredentialGrant(context.Context, *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
+	RevokeCredentialGrant(context.Context, *connect.Request[credentialgrant.RevokeGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
+	ReapplyConfiguration(context.Context, *connect.Request[machines.ReapplyConfigurationRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error)
+	GetConfigurationApplyStatus(context.Context, *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error)
+	AnswerSecret(context.Context, *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 }
 
 // NewMachineServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -196,6 +424,84 @@ func NewMachineServiceHandler(svc MachineServiceHandler, opts ...connect.Handler
 		connect.WithSchema(machineServiceMethods.ByName("Forget")),
 		connect.WithHandlerOptions(opts...),
 	)
+	machineServicePreflightOnboardingHandler := connect.NewUnaryHandler(
+		MachineServicePreflightOnboardingProcedure,
+		svc.PreflightOnboarding,
+		connect.WithSchema(machineServiceMethods.ByName("PreflightOnboarding")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceStartOnboardingHandler := connect.NewUnaryHandler(
+		MachineServiceStartOnboardingProcedure,
+		svc.StartOnboarding,
+		connect.WithSchema(machineServiceMethods.ByName("StartOnboarding")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceGetOnboardingHandler := connect.NewUnaryHandler(
+		MachineServiceGetOnboardingProcedure,
+		svc.GetOnboarding,
+		connect.WithSchema(machineServiceMethods.ByName("GetOnboarding")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceWaitOnboardingHandler := connect.NewUnaryHandler(
+		MachineServiceWaitOnboardingProcedure,
+		svc.WaitOnboarding,
+		connect.WithSchema(machineServiceMethods.ByName("WaitOnboarding")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceCancelOnboardingHandler := connect.NewUnaryHandler(
+		MachineServiceCancelOnboardingProcedure,
+		svc.CancelOnboarding,
+		connect.WithSchema(machineServiceMethods.ByName("CancelOnboarding")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceGetConfigurationHandler := connect.NewUnaryHandler(
+		MachineServiceGetConfigurationProcedure,
+		svc.GetConfiguration,
+		connect.WithSchema(machineServiceMethods.ByName("GetConfiguration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceResolveConfigurationHandler := connect.NewUnaryHandler(
+		MachineServiceResolveConfigurationProcedure,
+		svc.ResolveConfiguration,
+		connect.WithSchema(machineServiceMethods.ByName("ResolveConfiguration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceListCredentialGrantsHandler := connect.NewUnaryHandler(
+		MachineServiceListCredentialGrantsProcedure,
+		svc.ListCredentialGrants,
+		connect.WithSchema(machineServiceMethods.ByName("ListCredentialGrants")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceCreateCredentialGrantHandler := connect.NewUnaryHandler(
+		MachineServiceCreateCredentialGrantProcedure,
+		svc.CreateCredentialGrant,
+		connect.WithSchema(machineServiceMethods.ByName("CreateCredentialGrant")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceRevokeCredentialGrantHandler := connect.NewUnaryHandler(
+		MachineServiceRevokeCredentialGrantProcedure,
+		svc.RevokeCredentialGrant,
+		connect.WithSchema(machineServiceMethods.ByName("RevokeCredentialGrant")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceReapplyConfigurationHandler := connect.NewUnaryHandler(
+		MachineServiceReapplyConfigurationProcedure,
+		svc.ReapplyConfiguration,
+		connect.WithSchema(machineServiceMethods.ByName("ReapplyConfiguration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceGetConfigurationApplyStatusHandler := connect.NewUnaryHandler(
+		MachineServiceGetConfigurationApplyStatusProcedure,
+		svc.GetConfigurationApplyStatus,
+		connect.WithSchema(machineServiceMethods.ByName("GetConfigurationApplyStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceAnswerSecretHandler := connect.NewUnaryHandler(
+		MachineServiceAnswerSecretProcedure,
+		svc.AnswerSecret,
+		connect.WithSchema(machineServiceMethods.ByName("AnswerSecret")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.web_console.v1.machines.MachineService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MachineServiceListProcedure:
@@ -208,6 +514,32 @@ func NewMachineServiceHandler(svc MachineServiceHandler, opts ...connect.Handler
 			machineServiceSetGrantHandler.ServeHTTP(w, r)
 		case MachineServiceForgetProcedure:
 			machineServiceForgetHandler.ServeHTTP(w, r)
+		case MachineServicePreflightOnboardingProcedure:
+			machineServicePreflightOnboardingHandler.ServeHTTP(w, r)
+		case MachineServiceStartOnboardingProcedure:
+			machineServiceStartOnboardingHandler.ServeHTTP(w, r)
+		case MachineServiceGetOnboardingProcedure:
+			machineServiceGetOnboardingHandler.ServeHTTP(w, r)
+		case MachineServiceWaitOnboardingProcedure:
+			machineServiceWaitOnboardingHandler.ServeHTTP(w, r)
+		case MachineServiceCancelOnboardingProcedure:
+			machineServiceCancelOnboardingHandler.ServeHTTP(w, r)
+		case MachineServiceGetConfigurationProcedure:
+			machineServiceGetConfigurationHandler.ServeHTTP(w, r)
+		case MachineServiceResolveConfigurationProcedure:
+			machineServiceResolveConfigurationHandler.ServeHTTP(w, r)
+		case MachineServiceListCredentialGrantsProcedure:
+			machineServiceListCredentialGrantsHandler.ServeHTTP(w, r)
+		case MachineServiceCreateCredentialGrantProcedure:
+			machineServiceCreateCredentialGrantHandler.ServeHTTP(w, r)
+		case MachineServiceRevokeCredentialGrantProcedure:
+			machineServiceRevokeCredentialGrantHandler.ServeHTTP(w, r)
+		case MachineServiceReapplyConfigurationProcedure:
+			machineServiceReapplyConfigurationHandler.ServeHTTP(w, r)
+		case MachineServiceGetConfigurationApplyStatusProcedure:
+			machineServiceGetConfigurationApplyStatusHandler.ServeHTTP(w, r)
+		case MachineServiceAnswerSecretProcedure:
+			machineServiceAnswerSecretHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -235,4 +567,56 @@ func (UnimplementedMachineServiceHandler) SetGrant(context.Context, *connect.Req
 
 func (UnimplementedMachineServiceHandler) Forget(context.Context, *connect.Request[machines.ForgetRequest]) (*connect.Response[machines.ForgetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.Forget is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) PreflightOnboarding(context.Context, *connect.Request[onboard.PreflightOnboardingRequest]) (*connect.Response[onboard.PreflightOnboardingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.PreflightOnboarding is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) StartOnboarding(context.Context, *connect.Request[onboard.StartOnboardingRequest]) (*connect.Response[onboard.StartOnboardingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.StartOnboarding is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) GetOnboarding(context.Context, *connect.Request[onboard.GetOnboardingRequest]) (*connect.Response[onboard.GetOnboardingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.GetOnboarding is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) WaitOnboarding(context.Context, *connect.Request[onboard.WaitOnboardingRequest]) (*connect.Response[onboard.WaitOnboardingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.WaitOnboarding is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) CancelOnboarding(context.Context, *connect.Request[onboard.CancelOnboardingRequest]) (*connect.Response[onboard.CancelOnboardingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.CancelOnboarding is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) GetConfiguration(context.Context, *connect.Request[machines.GetConfigurationRequest]) (*connect.Response[machines.GetConfigurationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.GetConfiguration is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) ResolveConfiguration(context.Context, *connect.Request[machines.ResolveConfigurationRequest]) (*connect.Response[machines.ResolveConfigurationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.ResolveConfiguration is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) ListCredentialGrants(context.Context, *connect.Request[machines.ListCredentialGrantsRequest]) (*connect.Response[credentialgrant.ListGrantsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.ListCredentialGrants is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) CreateCredentialGrant(context.Context, *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.CreateCredentialGrant is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) RevokeCredentialGrant(context.Context, *connect.Request[credentialgrant.RevokeGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.RevokeCredentialGrant is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) ReapplyConfiguration(context.Context, *connect.Request[machines.ReapplyConfigurationRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.ReapplyConfiguration is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) GetConfigurationApplyStatus(context.Context, *connect.Request[machines.GetConfigurationApplyStatusRequest]) (*connect.Response[machines.ReapplyConfigurationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.GetConfigurationApplyStatus is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) AnswerSecret(context.Context, *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.machines.MachineService.AnswerSecret is not implemented"))
 }

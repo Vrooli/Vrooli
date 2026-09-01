@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -397,9 +398,17 @@ func applyOCITar(reader *tar.Reader, destDir string) error {
 			if rel, err := filepath.Rel(destDir, linkTarget); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
 				return fmt.Errorf("binaryfetch: OCI hard link escapes root: %q", header.Linkname)
 			}
+			// OCI layers may emit a regular placeholder before the canonical
+			// hardlink name. Replace it so extraction remains faithful to the
+			// layer instead of failing with EEXIST.
+			if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("binaryfetch: replace OCI hard link target %q: %w", header.Name, err)
+			}
 			if err := os.Link(linkTarget, path); err != nil {
 				return fmt.Errorf("binaryfetch: create OCI hard link %q: %w", header.Name, err)
 			}
+		default:
+			return fmt.Errorf("binaryfetch: unsupported OCI entry type %d for %q", header.Typeflag, header.Name)
 		}
 	}
 }

@@ -174,6 +174,8 @@ type Machine struct {
 	AppliedProfileId      string                 `protobuf:"bytes,12,opt,name=applied_profile_id,json=appliedProfileId,proto3" json:"applied_profile_id,omitempty"`
 	AppliedProfileVersion string                 `protobuf:"bytes,13,opt,name=applied_profile_version,json=appliedProfileVersion,proto3" json:"applied_profile_version,omitempty"`
 	AppliedAt             *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=applied_at,json=appliedAt,proto3" json:"applied_at,omitempty"`
+	DesiredSelectionJson  string                 `protobuf:"bytes,15,opt,name=desired_selection_json,json=desiredSelectionJson,proto3" json:"desired_selection_json,omitempty"`
+	AppliedSelectionJson  string                 `protobuf:"bytes,16,opt,name=applied_selection_json,json=appliedSelectionJson,proto3" json:"applied_selection_json,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -304,6 +306,20 @@ func (x *Machine) GetAppliedAt() *timestamppb.Timestamp {
 		return x.AppliedAt
 	}
 	return nil
+}
+
+func (x *Machine) GetDesiredSelectionJson() string {
+	if x != nil {
+		return x.DesiredSelectionJson
+	}
+	return ""
+}
+
+func (x *Machine) GetAppliedSelectionJson() string {
+	if x != nil {
+		return x.AppliedSelectionJson
+	}
+	return ""
 }
 
 type CreateMachineRequest struct {
@@ -1767,7 +1783,7 @@ type EffectivePolicy struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	ProfileId            string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
 	ProfileVersion       string                 `protobuf:"bytes,2,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
-	SetupEnvironment     string                 `protobuf:"bytes,3,opt,name=setup_environment,json=setupEnvironment,proto3" json:"setup_environment,omitempty"`
+	SetupPreset          string                 `protobuf:"bytes,3,opt,name=setup_preset,json=setupPreset,proto3" json:"setup_preset,omitempty"`
 	SuggestedScopes      []string               `protobuf:"bytes,4,rep,name=suggested_scopes,json=suggestedScopes,proto3" json:"suggested_scopes,omitempty"`
 	RequiredCapabilities []string               `protobuf:"bytes,5,rep,name=required_capabilities,json=requiredCapabilities,proto3" json:"required_capabilities,omitempty"`
 	SnapshotJson         string                 `protobuf:"bytes,6,opt,name=snapshot_json,json=snapshotJson,proto3" json:"snapshot_json,omitempty"`
@@ -1821,9 +1837,9 @@ func (x *EffectivePolicy) GetProfileVersion() string {
 	return ""
 }
 
-func (x *EffectivePolicy) GetSetupEnvironment() string {
+func (x *EffectivePolicy) GetSetupPreset() string {
 	if x != nil {
-		return x.SetupEnvironment
+		return x.SetupPreset
 	}
 	return ""
 }
@@ -2334,7 +2350,7 @@ const file_vrooli_bridge_v1_machines_machines_proto_rawDesc = "" +
 	"\acurrent\x18\x02 \x01(\bR\acurrent\x127\n" +
 	"\tlinked_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\blinkedAt\x12?\n" +
 	"\rsuperseded_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\fsupersededAt\x12%\n" +
-	"\x0ecorrelation_id\x18\x05 \x01(\tR\rcorrelationId\"\xe9\x05\n" +
+	"\x0ecorrelation_id\x18\x05 \x01(\tR\rcorrelationId\"\xd5\x06\n" +
 	"\aMachine\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tlifecycle\x18\x02 \x01(\tR\tlifecycle\x12\x18\n" +
@@ -2355,7 +2371,9 @@ const file_vrooli_bridge_v1_machines_machines_proto_rawDesc = "" +
 	"\x12applied_profile_id\x18\f \x01(\tR\x10appliedProfileId\x126\n" +
 	"\x17applied_profile_version\x18\r \x01(\tR\x15appliedProfileVersion\x129\n" +
 	"\n" +
-	"applied_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tappliedAt\"\xcd\x01\n" +
+	"applied_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tappliedAt\x124\n" +
+	"\x16desired_selection_json\x18\x0f \x01(\tR\x14desiredSelectionJson\x124\n" +
+	"\x16applied_selection_json\x18\x10 \x01(\tR\x14appliedSelectionJson\"\xcd\x01\n" +
 	"\x14CreateMachineRequest\x12O\n" +
 	"\blocators\x18\x01 \x03(\v23.vrooli.vrooli_bridge.v1.machines.ConnectionLocatorR\blocators\x12,\n" +
 	"\x12desired_profile_id\x18\x02 \x01(\tR\x10desiredProfileId\x126\n" +
@@ -2458,12 +2476,12 @@ const file_vrooli_bridge_v1_machines_machines_proto_rawDesc = "" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x16\n" +
 	"\x06detail\x18\x03 \x01(\tR\x06detail\"j\n" +
 	"\x1cUpdateMachineCleanupResponse\x12J\n" +
-	"\acleanup\x18\x01 \x01(\v20.vrooli.vrooli_bridge.v1.machines.MachineCleanupR\acleanup\"\xd8\x02\n" +
+	"\acleanup\x18\x01 \x01(\v20.vrooli.vrooli_bridge.v1.machines.MachineCleanupR\acleanup\"\xce\x02\n" +
 	"\x0fEffectivePolicy\x12\x1d\n" +
 	"\n" +
 	"profile_id\x18\x01 \x01(\tR\tprofileId\x12'\n" +
-	"\x0fprofile_version\x18\x02 \x01(\tR\x0eprofileVersion\x12+\n" +
-	"\x11setup_environment\x18\x03 \x01(\tR\x10setupEnvironment\x12)\n" +
+	"\x0fprofile_version\x18\x02 \x01(\tR\x0eprofileVersion\x12!\n" +
+	"\fsetup_preset\x18\x03 \x01(\tR\vsetupPreset\x12)\n" +
 	"\x10suggested_scopes\x18\x04 \x03(\tR\x0fsuggestedScopes\x123\n" +
 	"\x15required_capabilities\x18\x05 \x03(\tR\x14requiredCapabilities\x12#\n" +
 	"\rsnapshot_json\x18\x06 \x01(\tR\fsnapshotJson\x12\x1c\n" +
@@ -2503,7 +2521,7 @@ const file_vrooli_bridge_v1_machines_machines_proto_rawDesc = "" +
 	"\x0finto_machine_id\x18\x02 \x01(\tR\rintoMachineId\"\x8c\x01\n" +
 	"\x15MergeMachinesResponse\x12C\n" +
 	"\amachine\x18\x01 \x01(\v2).vrooli.vrooli_bridge.v1.machines.MachineR\amachine\x12.\n" +
-	"\x13archived_machine_id\x18\x02 \x01(\tR\x11archivedMachineId2\x98\x0e\n" +
+	"\x13archived_machine_id\x18\x02 \x01(\tR\x11archivedMachineId2\xb6\x11\n" +
 	"\x0eMachineService\x12\x80\x01\n" +
 	"\rCreateMachine\x126.vrooli.vrooli_bridge.v1.machines.CreateMachineRequest\x1a7.vrooli.vrooli_bridge.v1.machines.CreateMachineResponse\x12w\n" +
 	"\n" +
@@ -2515,7 +2533,10 @@ const file_vrooli_bridge_v1_machines_machines_proto_rawDesc = "" +
 	"\x14ReviewMachineHostKey\x12=.vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyRequest\x1a>.vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyResponse\x12\xa1\x01\n" +
 	"\x18RequestMachineSSHCleanup\x12A.vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupRequest\x1aB.vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupResponse\x12\x95\x01\n" +
 	"\x14UpdateMachineCleanup\x12=.vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupRequest\x1a>.vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupResponse\x12\x8f\x01\n" +
-	"\x12ApplyMachinePolicy\x12;.vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest\x1a<.vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse\x12\x8c\x01\n" +
+	"\x12ApplyMachinePolicy\x12;.vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest\x1a<.vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse\x12\x84\x01\n" +
+	"\x17GetMachineConfiguration\x123.vrooli.vrooli_bridge.v1.machines.GetMachineRequest\x1a4.vrooli.vrooli_bridge.v1.machines.GetMachineResponse\x12\x96\x01\n" +
+	"\x19ApplyMachineConfiguration\x12;.vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest\x1a<.vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse\x12|\n" +
+	"\x0fGetMachineDrift\x123.vrooli.vrooli_bridge.v1.machines.GetMachineRequest\x1a4.vrooli.vrooli_bridge.v1.machines.GetMachineResponse\x12\x8c\x01\n" +
 	"\x11RevokeMachineNode\x12:.vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeRequest\x1a;.vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse\x12\x80\x01\n" +
 	"\rRepairMachine\x126.vrooli.vrooli_bridge.v1.machines.RepairMachineRequest\x1a7.vrooli.vrooli_bridge.v1.machines.RepairMachineResponse\x12\x80\x01\n" +
 	"\rMergeMachines\x126.vrooli.vrooli_bridge.v1.machines.MergeMachinesRequest\x1a7.vrooli.vrooli_bridge.v1.machines.MergeMachinesResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines;machines_v1b\x06proto3"
@@ -2624,24 +2645,30 @@ var file_vrooli_bridge_v1_machines_machines_proto_depIdxs = []int32{
 	24, // 46: vrooli.vrooli_bridge.v1.machines.MachineService.RequestMachineSSHCleanup:input_type -> vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupRequest
 	26, // 47: vrooli.vrooli_bridge.v1.machines.MachineService.UpdateMachineCleanup:input_type -> vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupRequest
 	29, // 48: vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachinePolicy:input_type -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest
-	31, // 49: vrooli.vrooli_bridge.v1.machines.MachineService.RevokeMachineNode:input_type -> vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeRequest
-	33, // 50: vrooli.vrooli_bridge.v1.machines.MachineService.RepairMachine:input_type -> vrooli.vrooli_bridge.v1.machines.RepairMachineRequest
-	35, // 51: vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines:input_type -> vrooli.vrooli_bridge.v1.machines.MergeMachinesRequest
-	4,  // 52: vrooli.vrooli_bridge.v1.machines.MachineService.CreateMachine:output_type -> vrooli.vrooli_bridge.v1.machines.CreateMachineResponse
-	11, // 53: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachine:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
-	13, // 54: vrooli.vrooli_bridge.v1.machines.MachineService.ListMachines:output_type -> vrooli.vrooli_bridge.v1.machines.ListMachinesResponse
-	15, // 55: vrooli.vrooli_bridge.v1.machines.MachineService.ArchiveMachine:output_type -> vrooli.vrooli_bridge.v1.machines.ArchiveMachineResponse
-	17, // 56: vrooli.vrooli_bridge.v1.machines.MachineService.RemoveMachine:output_type -> vrooli.vrooli_bridge.v1.machines.RemoveMachineResponse
-	20, // 57: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineTrust:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineTrustResponse
-	22, // 58: vrooli.vrooli_bridge.v1.machines.MachineService.ReviewMachineHostKey:output_type -> vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyResponse
-	25, // 59: vrooli.vrooli_bridge.v1.machines.MachineService.RequestMachineSSHCleanup:output_type -> vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupResponse
-	27, // 60: vrooli.vrooli_bridge.v1.machines.MachineService.UpdateMachineCleanup:output_type -> vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupResponse
-	30, // 61: vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachinePolicy:output_type -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
-	32, // 62: vrooli.vrooli_bridge.v1.machines.MachineService.RevokeMachineNode:output_type -> vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse
-	34, // 63: vrooli.vrooli_bridge.v1.machines.MachineService.RepairMachine:output_type -> vrooli.vrooli_bridge.v1.machines.RepairMachineResponse
-	36, // 64: vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines:output_type -> vrooli.vrooli_bridge.v1.machines.MergeMachinesResponse
-	52, // [52:65] is the sub-list for method output_type
-	39, // [39:52] is the sub-list for method input_type
+	5,  // 49: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineConfiguration:input_type -> vrooli.vrooli_bridge.v1.machines.GetMachineRequest
+	29, // 50: vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachineConfiguration:input_type -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyRequest
+	5,  // 51: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineDrift:input_type -> vrooli.vrooli_bridge.v1.machines.GetMachineRequest
+	31, // 52: vrooli.vrooli_bridge.v1.machines.MachineService.RevokeMachineNode:input_type -> vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeRequest
+	33, // 53: vrooli.vrooli_bridge.v1.machines.MachineService.RepairMachine:input_type -> vrooli.vrooli_bridge.v1.machines.RepairMachineRequest
+	35, // 54: vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines:input_type -> vrooli.vrooli_bridge.v1.machines.MergeMachinesRequest
+	4,  // 55: vrooli.vrooli_bridge.v1.machines.MachineService.CreateMachine:output_type -> vrooli.vrooli_bridge.v1.machines.CreateMachineResponse
+	11, // 56: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachine:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
+	13, // 57: vrooli.vrooli_bridge.v1.machines.MachineService.ListMachines:output_type -> vrooli.vrooli_bridge.v1.machines.ListMachinesResponse
+	15, // 58: vrooli.vrooli_bridge.v1.machines.MachineService.ArchiveMachine:output_type -> vrooli.vrooli_bridge.v1.machines.ArchiveMachineResponse
+	17, // 59: vrooli.vrooli_bridge.v1.machines.MachineService.RemoveMachine:output_type -> vrooli.vrooli_bridge.v1.machines.RemoveMachineResponse
+	20, // 60: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineTrust:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineTrustResponse
+	22, // 61: vrooli.vrooli_bridge.v1.machines.MachineService.ReviewMachineHostKey:output_type -> vrooli.vrooli_bridge.v1.machines.ReviewMachineHostKeyResponse
+	25, // 62: vrooli.vrooli_bridge.v1.machines.MachineService.RequestMachineSSHCleanup:output_type -> vrooli.vrooli_bridge.v1.machines.RequestMachineSSHCleanupResponse
+	27, // 63: vrooli.vrooli_bridge.v1.machines.MachineService.UpdateMachineCleanup:output_type -> vrooli.vrooli_bridge.v1.machines.UpdateMachineCleanupResponse
+	30, // 64: vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachinePolicy:output_type -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
+	11, // 65: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineConfiguration:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
+	30, // 66: vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachineConfiguration:output_type -> vrooli.vrooli_bridge.v1.machines.ApplyMachinePolicyResponse
+	11, // 67: vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineDrift:output_type -> vrooli.vrooli_bridge.v1.machines.GetMachineResponse
+	32, // 68: vrooli.vrooli_bridge.v1.machines.MachineService.RevokeMachineNode:output_type -> vrooli.vrooli_bridge.v1.machines.RevokeMachineNodeResponse
+	34, // 69: vrooli.vrooli_bridge.v1.machines.MachineService.RepairMachine:output_type -> vrooli.vrooli_bridge.v1.machines.RepairMachineResponse
+	36, // 70: vrooli.vrooli_bridge.v1.machines.MachineService.MergeMachines:output_type -> vrooli.vrooli_bridge.v1.machines.MergeMachinesResponse
+	55, // [55:71] is the sub-list for method output_type
+	39, // [39:55] is the sub-list for method input_type
 	39, // [39:39] is the sub-list for extension type_name
 	39, // [39:39] is the sub-list for extension extendee
 	0,  // [0:39] is the sub-list for field type_name

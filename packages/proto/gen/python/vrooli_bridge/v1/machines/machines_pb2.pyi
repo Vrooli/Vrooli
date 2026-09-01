@@ -34,7 +34,7 @@ class NodeLineage(_message.Message):
     def __init__(self, node_id: _Optional[str] = ..., current: _Optional[bool] = ..., linked_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., superseded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., correlation_id: _Optional[str] = ...) -> None: ...
 
 class Machine(_message.Message):
-    __slots__ = ("id", "lifecycle", "version", "desired_profile_id", "desired_profile_version", "locators", "node_lineage", "created_at", "updated_at", "archived_at", "removed_at", "applied_profile_id", "applied_profile_version", "applied_at")
+    __slots__ = ("id", "lifecycle", "version", "desired_profile_id", "desired_profile_version", "locators", "node_lineage", "created_at", "updated_at", "archived_at", "removed_at", "applied_profile_id", "applied_profile_version", "applied_at", "desired_selection_json", "applied_selection_json")
     ID_FIELD_NUMBER: _ClassVar[int]
     LIFECYCLE_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
@@ -49,6 +49,8 @@ class Machine(_message.Message):
     APPLIED_PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     APPLIED_PROFILE_VERSION_FIELD_NUMBER: _ClassVar[int]
     APPLIED_AT_FIELD_NUMBER: _ClassVar[int]
+    DESIRED_SELECTION_JSON_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_SELECTION_JSON_FIELD_NUMBER: _ClassVar[int]
     id: str
     lifecycle: str
     version: int
@@ -63,7 +65,9 @@ class Machine(_message.Message):
     applied_profile_id: str
     applied_profile_version: str
     applied_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., lifecycle: _Optional[str] = ..., version: _Optional[int] = ..., desired_profile_id: _Optional[str] = ..., desired_profile_version: _Optional[str] = ..., locators: _Optional[_Iterable[_Union[ConnectionLocator, _Mapping]]] = ..., node_lineage: _Optional[_Iterable[_Union[NodeLineage, _Mapping]]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., archived_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., removed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., applied_profile_id: _Optional[str] = ..., applied_profile_version: _Optional[str] = ..., applied_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    desired_selection_json: str
+    applied_selection_json: str
+    def __init__(self, id: _Optional[str] = ..., lifecycle: _Optional[str] = ..., version: _Optional[int] = ..., desired_profile_id: _Optional[str] = ..., desired_profile_version: _Optional[str] = ..., locators: _Optional[_Iterable[_Union[ConnectionLocator, _Mapping]]] = ..., node_lineage: _Optional[_Iterable[_Union[NodeLineage, _Mapping]]] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., archived_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., removed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., applied_profile_id: _Optional[str] = ..., applied_profile_version: _Optional[str] = ..., applied_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., desired_selection_json: _Optional[str] = ..., applied_selection_json: _Optional[str] = ...) -> None: ...
 
 class CreateMachineRequest(_message.Message):
     __slots__ = ("locators", "desired_profile_id", "desired_profile_version")
@@ -302,10 +306,10 @@ class UpdateMachineCleanupResponse(_message.Message):
     def __init__(self, cleanup: _Optional[_Union[MachineCleanup, _Mapping]] = ...) -> None: ...
 
 class EffectivePolicy(_message.Message):
-    __slots__ = ("profile_id", "profile_version", "setup_environment", "suggested_scopes", "required_capabilities", "snapshot_json", "scenarios", "optional_resources")
+    __slots__ = ("profile_id", "profile_version", "setup_preset", "suggested_scopes", "required_capabilities", "snapshot_json", "scenarios", "optional_resources")
     PROFILE_ID_FIELD_NUMBER: _ClassVar[int]
     PROFILE_VERSION_FIELD_NUMBER: _ClassVar[int]
-    SETUP_ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
+    SETUP_PRESET_FIELD_NUMBER: _ClassVar[int]
     SUGGESTED_SCOPES_FIELD_NUMBER: _ClassVar[int]
     REQUIRED_CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_JSON_FIELD_NUMBER: _ClassVar[int]
@@ -313,13 +317,13 @@ class EffectivePolicy(_message.Message):
     OPTIONAL_RESOURCES_FIELD_NUMBER: _ClassVar[int]
     profile_id: str
     profile_version: str
-    setup_environment: str
+    setup_preset: str
     suggested_scopes: _containers.RepeatedScalarFieldContainer[str]
     required_capabilities: _containers.RepeatedScalarFieldContainer[str]
     snapshot_json: str
     scenarios: _containers.RepeatedScalarFieldContainer[str]
     optional_resources: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, profile_id: _Optional[str] = ..., profile_version: _Optional[str] = ..., setup_environment: _Optional[str] = ..., suggested_scopes: _Optional[_Iterable[str]] = ..., required_capabilities: _Optional[_Iterable[str]] = ..., snapshot_json: _Optional[str] = ..., scenarios: _Optional[_Iterable[str]] = ..., optional_resources: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, profile_id: _Optional[str] = ..., profile_version: _Optional[str] = ..., setup_preset: _Optional[str] = ..., suggested_scopes: _Optional[_Iterable[str]] = ..., required_capabilities: _Optional[_Iterable[str]] = ..., snapshot_json: _Optional[str] = ..., scenarios: _Optional[_Iterable[str]] = ..., optional_resources: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ApplyMachinePolicyRequest(_message.Message):
     __slots__ = ("machine_id", "version", "profile_id", "profile_version", "overrides", "reason", "confirm_removal")

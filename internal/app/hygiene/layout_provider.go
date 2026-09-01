@@ -57,11 +57,28 @@ func (p layoutProvider) Run(_ context.Context, req Request, report *Report) erro
 	}
 	report.addCheck("repo_layout_internal_package_docs", len(undocumented) == 0, SeverityError, fmt.Sprintf("%d internal packages lack package documentation", len(undocumented)))
 
+	reportArtifactResidue(p.root, report)
+
 	// The general contract roots cover internal/ and packages/. Test Genie is
 	// also governed explicitly: its empty package directories are scenario
 	// residue and must fail hygiene even though scenarios are not part of the
 	// repository-wide package layout roots.
-	roots := []string{layout.InternalDir, layout.PackageDir, filepath.Join("scenarios", "test-genie")}
+	//
+	// The scratch and documentation roots that follow are where abandoned plan
+	// phase directories collect. scenarios/ as a whole is deliberately NOT a
+	// root: it holds dozens of empty Go package scaffolds, and this check is
+	// error severity, so adding it would turn the pre-commit hook red for
+	// everyone over a backlog that needs its own review.
+	roots := []string{
+		layout.InternalDir,
+		layout.PackageDir,
+		filepath.Join("scenarios", "test-genie"),
+		"docs",
+		"scratch",
+		".artifacts",
+		".plan-authoring",
+		".codex-plan-authoring",
+	}
 	empty, err := findEmptyDirectories(p.root, roots)
 	if err != nil {
 		return err
@@ -200,6 +217,46 @@ func emptyDirectoryFinding(rel string, removeErr error) Finding {
 
 func (s Service) layoutProvider() Provider {
 	return layoutProvider{root: s.Root}
+}
+
+// artifactResidueSampleLimit bounds how many paths one finding lists. The
+// message always states the full count, so a truncated sample never reads as
+// full coverage.
+const artifactResidueSampleLimit = 20
+
+func reportArtifactResidue(root string, report *Report) {
+	residue := DetectArtifactResidue(root)
+	report.addCheck(
+		"repo_layout_artifact_residue",
+		len(residue) == 0,
+		SeverityWarning,
+		fmt.Sprintf("%d untracked generated artifacts in source trees", len(residue)),
+	)
+	if len(residue) == 0 {
+		return
+	}
+
+	locations := residue
+	message := fmt.Sprintf("%d untracked generated artifacts sit in source trees", len(residue))
+	if len(locations) > artifactResidueSampleLimit {
+		locations = locations[:artifactResidueSampleLimit]
+		message = fmt.Sprintf("%s (showing the first %d)", message, artifactResidueSampleLimit)
+	}
+
+	report.addFinding(Finding{
+		Severity:  SeverityWarning,
+		Code:      "repo_layout_artifact_residue",
+		Locations: locations,
+		Message:   message,
+		Why: "generated run evidence in a source tree is untracked and unignored, so it is invisible to every other gate " +
+			"and one broad `git add` away from entering history permanently",
+		Fixability: FixabilityGuided,
+		NextActions: []Action{{
+			Code:       "triage_artifact_residue",
+			Message:    "Promote anything that is real documentation into its docs manifest, and move generated captures to the owning storage class.",
+			Fixability: FixabilityGuided,
+		}},
+	})
 }
 
 func findEmptyDirectories(root string, relativeRoots []string) ([]string, error) {

@@ -2,12 +2,15 @@ package resourcehandlers
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/cli-core/upstreamcheck"
 	"github.com/vrooli/vrooli/internal/cli/resourcecli"
+	"github.com/vrooli/vrooli/internal/resources"
 )
 
 // codingAgentUpstreamEntries is the SSOT list of coding-agent resources the
@@ -60,4 +63,21 @@ func runUpstreamCheck(req resourcecli.UpstreamCheckRequest) (upstreamcheck.Aggre
 	ctx, cancel := context.WithTimeout(context.Background(), tuning.ResourceControlTimeout())
 	defer cancel()
 	return upstreamcheck.RunAggregate(ctx, upstreamcheck.DefaultAggregateRunner, entries), true
+}
+
+func runResourceLivenessCheck(controller *resources.Controller, req resourcecli.UpstreamCheckRequest) (upstreamcheck.AggregateReport, error) {
+	statePath := filepath.Join(controller.Home, "state", "resource-upstream-liveness.json")
+	report, err := resources.CheckUpstream(context.Background(), controller.Root, statePath, req.Name, nil, time.Now().UTC())
+	if err != nil {
+		return upstreamcheck.AggregateReport{}, err
+	}
+	out := upstreamcheck.AggregateReport{}
+	for _, finding := range report.Findings {
+		out.Artifacts = append(out.Artifacts, upstreamcheck.ArtifactFinding{
+			Resource: finding.Resource, Target: finding.Target, Kind: finding.Kind, Reference: finding.Reference,
+			Predicate: finding.Predicate, CheckedAt: finding.CheckedAt.Format(time.RFC3339), FirstFailedAt: finding.FirstFailedAt.Format(time.RFC3339),
+			Status: finding.Status, Reachable: finding.Reachable, Stale: finding.Stale, Note: finding.Note,
+		})
+	}
+	return out, nil
 }

@@ -214,7 +214,17 @@ func buildResourceCommandTable[C any](deps HandlerDeps[C]) []commandtree.Spec[ro
 		resourcecli.CommandUpstreamCheck: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			parseResourceUpstreamCheckRequest,
 			func(ctx C, controller *resources.Controller, req resourcecli.UpstreamCheckRequest) (upstreamcheck.AggregateReport, error) {
-				_ = controller
+				if req.All {
+					liveness, err := runResourceLivenessCheck(controller, req)
+					if err != nil {
+						return upstreamcheck.AggregateReport{}, err
+					}
+					coding, ok := runUpstreamCheck(resourcecli.UpstreamCheckRequest{})
+					if ok {
+						liveness.Resources, liveness.Behind, liveness.Unknown = coding.Resources, coding.Behind, coding.Unknown
+					}
+					return liveness, nil
+				}
 				agg, ok := runUpstreamCheck(req)
 				if !ok {
 					return upstreamcheck.AggregateReport{}, rootcli.UsageErrorf(

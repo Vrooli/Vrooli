@@ -3,7 +3,7 @@
 // what an already-linked machine may do. They live beside the reach operations
 // so a product surface that manages machines never has to build a second
 // Bridge client with its own credential handling.
-package nodeclient
+package nodereach
 
 import (
 	"context"

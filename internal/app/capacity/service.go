@@ -429,6 +429,7 @@ func resolveStepAmount(c engine.CapacityClaim, label string) (int64, bool) {
 type ListRequest struct {
 	OwnerID    string
 	ActiveOnly bool
+	AllHistory bool
 }
 
 // ListOutput is the claim listing.
@@ -450,7 +451,7 @@ func (s Service) List(ctx context.Context, req ListRequest) (ListOutput, error) 
 		_, _, _ = engine.MaybeSweep(ctx, store, s.source(), s.attributor(), policy, s.now())
 	}
 	filter := engine.ClaimFilter{OwnerID: req.OwnerID}
-	if req.ActiveOnly {
+	if req.ActiveOnly || !req.AllHistory {
 		filter.Statuses = engine.ActiveClaimStatuses()
 	}
 	claims, err := store.ListClaims(ctx, filter)
@@ -500,7 +501,30 @@ func (s Service) Reconcile(ctx context.Context) (ReconcileOutput, error) {
 		return ReconcileOutput{}, err
 	}
 	findings := engine.Reconcile(ctx, snapshot, ledger, s.attributor(), policy)
-	declared, err := engine.DeclaredGPUWithoutClaimFindings(s.sourceRoot(), ledger, s.resourceInstalled)
+	// A declaration without a claim is actionable only when its resource is
+	// actually resident. Installed-but-stopped resources cannot hold VRAM and
+	// must not create a permanent warning; observed-but-unclaimed residents are
+	// already covered by the adoption/reconcile path above.
+	observedResources := make(map[string]bool)
+	attr := s.attributor()
+	for _, proc := range snapshot.GPUProcesses {
+		if int64(proc.UsedBytes) < policy.TrackingThreshold {
+			continue
+		}
+		attribution := attr.Attribute(ctx, proc.PID)
+		for _, owner := range []string{
+			attribution.OwnerID,
+			engine.NormalizeOwnerName(attribution.ContainerName),
+			engine.NormalizeProcessOwner(proc.ProcessName),
+		} {
+			if owner = strings.TrimSpace(owner); owner != "" && owner != engine.OwnerUnknown {
+				observedResources[owner] = true
+			}
+		}
+	}
+	declared, err := engine.DeclaredGPUWithoutClaimFindings(s.sourceRoot(), ledger, func(resource string) bool {
+		return s.resourceInstalled(resource) && observedResources[resource]
+	})
 	if err != nil {
 		return ReconcileOutput{}, err
 	}

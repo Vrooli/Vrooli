@@ -1,6 +1,7 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from setup.v1 import selection_pb2 as _selection_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -187,7 +188,7 @@ class PreflightOnboardingResponse(_message.Message):
     def __init__(self, decision: _Optional[_Union[ConnectDecision, str]] = ..., machine_id: _Optional[str] = ..., host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., client_key_fingerprint: _Optional[str] = ..., host_key_fingerprint: _Optional[str] = ..., password_required: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
 
 class StartOnboardingRequest(_message.Message):
-    __slots__ = ("host", "port", "user", "ssh_password", "node_name", "target_revision", "repo_url", "checkout_dir", "control_plane_url", "capabilities", "verify_timeout_seconds", "skip_setup", "skip_prereqs", "provision_sudo", "setup_environment", "setup_resources", "setup_scenarios", "include_optional", "source_mode", "reachability_mode", "machine_id", "retry_of_enrollment_attempt_id", "setup_passphrase", "provision_service_user")
+    __slots__ = ("host", "port", "user", "ssh_password", "node_name", "target_revision", "repo_url", "checkout_dir", "control_plane_url", "capabilities", "verify_timeout_seconds", "skip_setup", "skip_prereqs", "provision_sudo", "setup_preset", "source_mode", "selection", "reachability_mode", "machine_id", "retry_of_enrollment_attempt_id", "setup_passphrase", "provision_service_user")
     HOST_FIELD_NUMBER: _ClassVar[int]
     PORT_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
@@ -202,11 +203,9 @@ class StartOnboardingRequest(_message.Message):
     SKIP_SETUP_FIELD_NUMBER: _ClassVar[int]
     SKIP_PREREQS_FIELD_NUMBER: _ClassVar[int]
     PROVISION_SUDO_FIELD_NUMBER: _ClassVar[int]
-    SETUP_ENVIRONMENT_FIELD_NUMBER: _ClassVar[int]
-    SETUP_RESOURCES_FIELD_NUMBER: _ClassVar[int]
-    SETUP_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
-    INCLUDE_OPTIONAL_FIELD_NUMBER: _ClassVar[int]
+    SETUP_PRESET_FIELD_NUMBER: _ClassVar[int]
     SOURCE_MODE_FIELD_NUMBER: _ClassVar[int]
+    SELECTION_FIELD_NUMBER: _ClassVar[int]
     REACHABILITY_MODE_FIELD_NUMBER: _ClassVar[int]
     MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
     RETRY_OF_ENROLLMENT_ATTEMPT_ID_FIELD_NUMBER: _ClassVar[int]
@@ -226,17 +225,15 @@ class StartOnboardingRequest(_message.Message):
     skip_setup: bool
     skip_prereqs: bool
     provision_sudo: bool
-    setup_environment: str
-    setup_resources: str
-    setup_scenarios: str
-    include_optional: bool
+    setup_preset: str
     source_mode: SourceMode
+    selection: _selection_pb2.Selection
     reachability_mode: str
     machine_id: str
     retry_of_enrollment_attempt_id: str
     setup_passphrase: str
     provision_service_user: str
-    def __init__(self, host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., ssh_password: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., checkout_dir: _Optional[str] = ..., control_plane_url: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., verify_timeout_seconds: _Optional[int] = ..., skip_setup: _Optional[bool] = ..., skip_prereqs: _Optional[bool] = ..., provision_sudo: _Optional[bool] = ..., setup_environment: _Optional[str] = ..., setup_resources: _Optional[str] = ..., setup_scenarios: _Optional[str] = ..., include_optional: _Optional[bool] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., reachability_mode: _Optional[str] = ..., machine_id: _Optional[str] = ..., retry_of_enrollment_attempt_id: _Optional[str] = ..., setup_passphrase: _Optional[str] = ..., provision_service_user: _Optional[str] = ...) -> None: ...
+    def __init__(self, host: _Optional[str] = ..., port: _Optional[int] = ..., user: _Optional[str] = ..., ssh_password: _Optional[str] = ..., node_name: _Optional[str] = ..., target_revision: _Optional[str] = ..., repo_url: _Optional[str] = ..., checkout_dir: _Optional[str] = ..., control_plane_url: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ..., verify_timeout_seconds: _Optional[int] = ..., skip_setup: _Optional[bool] = ..., skip_prereqs: _Optional[bool] = ..., provision_sudo: _Optional[bool] = ..., setup_preset: _Optional[str] = ..., source_mode: _Optional[_Union[SourceMode, str]] = ..., selection: _Optional[_Union[_selection_pb2.Selection, _Mapping]] = ..., reachability_mode: _Optional[str] = ..., machine_id: _Optional[str] = ..., retry_of_enrollment_attempt_id: _Optional[str] = ..., setup_passphrase: _Optional[str] = ..., provision_service_user: _Optional[str] = ...) -> None: ...
 
 class ProtectOnboardingRequest(_message.Message):
     __slots__ = ("onboarding_op_id", "machine_id", "node_id", "target", "scope", "cleanup_operation_id", "sealed_passphrase", "declined")

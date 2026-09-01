@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package vrooli.setup.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1;setup_v1";
+
+// The versioned metadata-only question contract shared by setup producers and
+// the onboarding collector. Answers and secret values never travel in this
+// message.
+enum OperatorInputKind {
+  OPERATOR_INPUT_KIND_UNSPECIFIED = 0;
+  OPERATOR_INPUT_KIND_SECRET = 1;
+  OPERATOR_INPUT_KIND_CHOICE = 2;
+  OPERATOR_INPUT_KIND_CONFIRM = 3;
+  OPERATOR_INPUT_KIND_PATH = 4;
+  OPERATOR_INPUT_KIND_ENUM = 5;
+  OPERATOR_INPUT_KIND_BOOLEAN = 6;
+  OPERATOR_INPUT_KIND_DURATION = 7;
+  OPERATOR_INPUT_KIND_CONFIRMATION = 8;
+}
+
+message Candidate {
+  string id = 1;
+  string kind = 2;
+  string label = 3;
+  string location = 4;
+  string stable_identity = 5;
+  string device_identity = 6;
+  bool writable = 7;
+  string status = 8;
+  string risk = 9;
+  string remediation = 10;
+  map<string, string> metadata = 11;
+}
+
+message OperatorInputRequest {
+  string id = 1;
+  OperatorInputKind kind = 2;
+  string contract_version = 3;
+  string owner = 4;
+  string capability_id = 5;
+  string action_id = 6;
+  string input_id = 7;
+  string title = 8;
+  string description = 9;
+  string default_value = 10;
+  repeated string options = 11;
+  repeated Candidate candidates = 12;
+  string remediation = 13;
+  repeated string unblocks = 14;
+  string validation = 15;
+  bool required = 16;
+  string target = 17;
+}

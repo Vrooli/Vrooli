@@ -63,8 +63,18 @@ type resourceBuildTarget struct {
 }
 
 type stagedManagedServiceArtifact struct {
-	Version string
-	File    string
+	Version  string
+	File     string
+	Deferred []deferredResourceTargetRecord
+}
+
+type deferredResourceTargetRecord struct {
+	Resource     string            `json:"resource"`
+	OS           string            `json:"os"`
+	Architecture string            `json:"architecture"`
+	TargetIndex  int               `json:"target_index"`
+	When         map[string]string `json:"when"`
+	AbsentFacts  []string          `json:"absent_facts"`
 }
 
 type releaseArtifactMetadata struct {
@@ -194,6 +204,7 @@ func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
 		return fmt.Errorf("create resource artifact output: %w", err)
 	}
 	index := make([]string, 0)
+	deferredTargets := make([]deferredResourceTargetRecord, 0)
 	docParseStaged := false
 	for _, target := range targets {
 		resourceDir := filepath.Join(root, "resources", target.Resource)
@@ -214,6 +225,7 @@ func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
 			return fmt.Errorf("stage managed-service %s for %s: %w", target.Resource, target.Platform, err)
 		}
 		index = append(index, strings.Join([]string{target.Resource, staged.Version, artifactOS(target.Platform.OS), target.Platform.Arch, staged.File}, "\t"))
+		deferredTargets = append(deferredTargets, staged.Deferred...)
 		if err := updateReleaseArtifactMetadata(outDir, staged.File, releaseArtifactMetadata{Role: target.Manifest.ManagedService.ArtifactRole, Provenance: target.Manifest.ManagedService.ProvenanceClass}); err != nil {
 			return err
 		}
@@ -230,6 +242,11 @@ func stageResourceArtifacts(ctx context.Context, root, outDir string) error {
 	if docParseStaged {
 		index = append(index, "doc-parse\tdeclared\tall\tall\tdoc-parse.wasm")
 		sort.Strings(index)
+	}
+	if data, err := json.MarshalIndent(deferredTargets, "", "  "); err != nil {
+		return err
+	} else if err := os.WriteFile(filepath.Join(outDir, "deferred-resource-targets-v1.json"), append(data, '\n'), mndResourceArtifactsNumberOctal644); err != nil {
+		return err
 	}
 	return os.WriteFile(filepath.Join(outDir, "resource-artifacts-v1.txt"), []byte(strings.Join(index, "\n")+"\n"), mndResourceArtifactsNumberOctal644)
 }
@@ -437,6 +454,7 @@ func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactM
 		return stagedManagedServiceArtifact{}, fmt.Errorf("managed-service %s must declare acquisition", manifest.Name)
 	}
 	facts := binaryfetch.Facts{"os": platform.OS, "arch": platform.Arch}
+	deferred := deferredResourceTargets(manifest, platform)
 	target, err := manifest.ManagedService.Acquisition.Resolve(facts)
 	if err != nil {
 		return stagedManagedServiceArtifact{}, err
@@ -502,7 +520,46 @@ func stageManagedServiceArtifact(ctx context.Context, manifest resourceArtifactM
 	if err := artifact.VerifyFile(path); err != nil {
 		return stagedManagedServiceArtifact{}, fmt.Errorf("verify staged %s: %w", manifest.Name, err)
 	}
-	return stagedManagedServiceArtifact{Version: artifact.Version, File: name}, nil
+	return stagedManagedServiceArtifact{Version: artifact.Version, File: name, Deferred: deferred}, nil
+}
+
+func deferredResourceTargets(manifest resourceArtifactManifest, platform resourcedeployment.Platform) []deferredResourceTargetRecord {
+	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
+		return nil
+	}
+	factsOS := artifactOS(platform.OS)
+	result := make([]deferredResourceTargetRecord, 0)
+	for index, target := range manifest.ManagedService.Acquisition.Targets {
+		if binaryfetch.UsesOnlyBuildTimeFacts(target) {
+			continue
+		}
+		if value := strings.TrimSpace(target.When["os"]); value != "" && value != factsOS {
+			continue
+		}
+		if value := strings.TrimSpace(target.When["arch"]); value != "" && value != platform.Arch {
+			continue
+		}
+		absent := make([]string, 0)
+		for name := range target.When {
+			if name != "os" && name != "arch" {
+				absent = append(absent, name)
+			}
+		}
+		sort.Strings(absent)
+		result = append(result, deferredResourceTargetRecord{Resource: manifest.Name, OS: platform.OS, Architecture: platform.Arch, TargetIndex: index, When: cloneAcquisitionFacts(target.When), AbsentFacts: absent})
+	}
+	return result
+}
+
+func cloneAcquisitionFacts(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
 }
 
 type ComposeStepError struct {

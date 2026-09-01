@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -79,8 +80,13 @@ func (app *App) runSupervisor(ctx *CommandContext, args []string) error {
 		_, _ = io.WriteString(ctx.Stdout, HelpText)
 		return nil
 	}
-	if len(args) > 0 {
-		return rootcli.UsageErrorf("runtime supervisor run", "runtime supervisor run does not accept positional arguments")
+	takeover := false
+	for _, arg := range args {
+		if arg == "--takeover" {
+			takeover = true
+			continue
+		}
+		return rootcli.UsageErrorf("runtime supervisor run", "unknown option: %s", arg)
 	}
 	home, err := ctx.HomeDir()
 	if err != nil {
@@ -89,6 +95,8 @@ func (app *App) runSupervisor(ctx *CommandContext, args []string) error {
 	cfg := runtimesupervisor.EnvConfig()
 	cfg.HomeDir = home
 	cfg.Version = app.Version
+	cfg.BuildIdentity = buildinfo.Fingerprint
+	cfg.Takeover = takeover
 	return runtimesupervisor.Run(context.Background(), cfg)
 }
 
@@ -112,6 +120,8 @@ func (app *App) statusSupervisor(ctx *CommandContext, args []string) error {
 	}
 	cfg := runtimesupervisor.EnvConfig()
 	cfg.HomeDir = home
+	cfg.Version = app.Version
+	cfg.BuildIdentity = buildinfo.Fingerprint
 	svc := runtimesupervisor.New(cfg)
 	defer svc.Close()
 	report, err := svc.Status(context.Background())

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -53,6 +54,65 @@ func TestModeFromEnvDefaultsToAuto(t *testing.T) {
 	t.Setenv(ModeEnv, ModeOff)
 	if got := ModeFromEnv(); got != ModeOff {
 		t.Fatalf("ModeFromEnv(off) = %q, want %q", got, ModeOff)
+	}
+}
+
+func TestServiceEnsureStartedRefusesLivePeerWithActionablePID(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	peerPID := 43210
+	if _, err := store.CreateSupervisorSession(ctx, scenarioruntime.SupervisorSession{SupervisorID: "peer", HostBootID: "boot", HostSessionID: "session", PID: &peerPID}, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	svc := New(Config{DBPath: dbPath, SupervisorID: "new", HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}}, PIDRunning: func(pid int) bool { return pid == peerPID }})
+	defer svc.Close()
+	err = svc.ensureStarted(ctx)
+	if !errors.Is(err, scenarioruntime.ErrSupervisorAlreadyRunning) || !strings.Contains(err.Error(), "43210") || !strings.Contains(err.Error(), "kill -TERM 43210") {
+		t.Fatalf("ensureStarted error = %v", err)
+	}
+}
+
+func TestServiceEnsureStartedTakeoverStopsPeerAndClaimsDatabase(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	peerPID := 43211
+	if _, err := store.CreateSupervisorSession(ctx, scenarioruntime.SupervisorSession{SupervisorID: "peer", HostBootID: "boot", HostSessionID: "session", PID: &peerPID}, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	stopped := 0
+	svc := New(Config{DBPath: dbPath, SupervisorID: "new", Takeover: true, HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}}, PIDRunning: func(pid int) bool { return pid == peerPID }, StopPIDFunc: func(pid int) error { stopped = pid; return nil }})
+	defer svc.Close()
+	if err := svc.ensureStarted(ctx); err != nil {
+		t.Fatalf("ensureStarted takeover: %v", err)
+	}
+	if stopped != peerPID || svc.session.SupervisorID != "new" {
+		t.Fatalf("stopped=%d session=%+v", stopped, svc.session)
+	}
+	running, err := svc.store.ListSupervisorSessions(ctx, scenarioruntime.SupervisorSessionFilter{Statuses: []string{scenarioruntime.SupervisorStatusRunning}})
+	if err != nil || len(running) != 1 || running[0].SupervisorID != "new" {
+		t.Fatalf("running sessions = %+v, err=%v", running, err)
+	}
+}
+
+func TestServiceBuildIdentityFallsBackFromUnknownFingerprint(t *testing.T) {
+	svc := New(Config{BuildIdentity: "unknown", Version: "dev-version"})
+	defer svc.Close()
+	if got := svc.buildIdentity(); got != "dev-version" {
+		t.Fatalf("build identity = %q, want dev-version", got)
 	}
 }
 

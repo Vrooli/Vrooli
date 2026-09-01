@@ -124,7 +124,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Summary: "List capacity claims",
 			Group:   groupObserve,
 			Args: commandtree.ArgSchema{
-				Options: []commandtree.OptionArg{{Name: "--owner", ValueName: "id", Description: "Filter to one owner id"}, {Name: "--active", Description: "Only active (reserved/granted/degraded) claims"}, commandtree.JSONOption()},
+				Options: []commandtree.OptionArg{{Name: "--owner", ValueName: "id", Description: "Filter to one owner id"}, {Name: "--active", Description: "Only active (reserved/granted/degraded) claims"}, {Name: "--all", Description: "Include terminal history (default shows live claims)"}, commandtree.JSONOption()},
 			},
 			Handler: CommandList,
 		},
@@ -281,6 +281,7 @@ func ParseListRequest(args []string) (capacityapp.ListRequest, error) {
 	return capacityapp.ListRequest{
 		OwnerID:    parsed.FlagValue("--owner"),
 		ActiveOnly: parsed.HasFlag("--active"),
+		AllHistory: parsed.HasFlag("--all"),
 	}, nil
 }
 

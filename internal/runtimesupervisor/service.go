@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/shell"
@@ -83,6 +84,7 @@ type (
 	// Its production adapter will invoke lifecycle start/restart rather than a
 	// binary or shell process directly.
 	RecoveryLaunchFunc func(ctx context.Context, request RecoveryLaunchRequest) error
+	StopPIDFunc        func(pid int) error
 )
 
 type PressureState struct {
@@ -106,6 +108,8 @@ type Config struct {
 	DBPath               string
 	SupervisorID         string
 	Version              string
+	BuildIdentity        string
+	Takeover             bool
 	RenewInterval        time.Duration
 	LeaseTTL             time.Duration
 	HealthInterval       time.Duration
@@ -119,6 +123,7 @@ type Config struct {
 	HealthProber         HealthProberFunc
 	PressureProvider     PressureProvider
 	RecoveryLaunch       RecoveryLaunchFunc
+	StopPIDFunc          func(pid int) error
 	RecoveryQuietPeriod  time.Duration
 	RecoveryCooldown     time.Duration
 	RecoveryConcurrency  int
@@ -190,6 +195,7 @@ type StatusReport struct {
 	EffectiveRecoveryQuietPeriod  time.Duration                    `json:"effective_recovery_quiet_period"`
 	EffectiveRecoveryCooldown     time.Duration                    `json:"effective_recovery_cooldown"`
 	EffectiveRecoveryConcurrency  int                              `json:"effective_recovery_concurrency"`
+	BuildIdentity                 string                           `json:"build_identity"`
 	RecoveryPolicies              []scenarioruntime.RecoveryPolicy `json:"recovery_policies"`
 	PressureEpochs                []scenarioruntime.PressureEpoch  `json:"pressure_epochs"`
 	LastTick                      TickReport                       `json:"last_tick"`
@@ -593,6 +599,7 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 	if session.SupervisorID == "" {
 		return StatusReport{
 			Status:                        scenarioruntime.SupervisorStatusStopped,
+			BuildIdentity:                 s.buildIdentity(),
 			EffectiveRenewInterval:        normalizeRenewInterval(s.cfg.RenewInterval),
 			EffectiveLeaseTTL:             normalizeLeaseTTL(s.cfg.LeaseTTL),
 			EffectiveHealthInterval:       normalizeHealthInterval(s.cfg.HealthInterval),
@@ -636,10 +643,29 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 		EffectiveRecoveryQuietPeriod:  s.recoveryQuietPeriod(),
 		EffectiveRecoveryCooldown:     s.recoveryCooldown(),
 		EffectiveRecoveryConcurrency:  s.recoveryConcurrency(),
+		BuildIdentity:                 s.buildIdentity(),
 		RecoveryPolicies:              policies,
 		PressureEpochs:                epochs,
 		LastTick:                      s.lastReport,
 	}, nil
+}
+
+func supervisorBuildIdentity(version string) string {
+	// Version is the identity supplied by the build/runtime launcher. Keep a
+	// stable non-empty value even for development binaries that do not embed a
+	// source fingerprint yet.
+	if strings.TrimSpace(version) != "" {
+		return strings.TrimSpace(version)
+	}
+	return "unknown"
+}
+
+func (s *Service) buildIdentity() string {
+	identity := strings.TrimSpace(s.cfg.BuildIdentity)
+	if identity != "" && identity != scenarioruntime.HealthStatusUnknown {
+		return identity
+	}
+	return supervisorBuildIdentity(s.cfg.Version)
 }
 
 func (s *Service) classifySupervisorSession(session scenarioruntime.SupervisorSession) (string, string) {
@@ -670,8 +696,27 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	if s.session.SupervisorID != "" {
 		return nil
 	}
+	s.reapDeadSupervisorSessions(ctx)
+	sessions, err := s.store.ListSupervisorSessions(ctx, scenarioruntime.SupervisorSessionFilter{Statuses: []string{scenarioruntime.SupervisorStatusRunning}})
+	if err != nil {
+		return fmt.Errorf("inspect running supervisor sessions: %w", err)
+	}
+	for _, peer := range sessions {
+		if peer.PID == nil || *peer.PID <= 0 || !s.pidRunning(*peer.PID) {
+			continue
+		}
+		if !s.cfg.Takeover {
+			return fmt.Errorf("%w: PID %d is live; stop it with `kill -TERM %d` or rerun with `vrooli runtime supervisor run --takeover`", scenarioruntime.ErrSupervisorAlreadyRunning, *peer.PID, *peer.PID)
+		}
+		if err := s.stopPID(*peer.PID); err != nil {
+			return fmt.Errorf("take over runtime supervisor PID %d: %w", *peer.PID, err)
+		}
+		if _, err := s.store.StopSupervisorSession(ctx, peer.SupervisorID, scenarioruntime.SupervisorStatusStopping, "operator takeover"); err != nil {
+			return fmt.Errorf("mark predecessor supervisor %s stopping: %w", peer.SupervisorID, err)
+		}
+	}
 	pid := os.Getpid()
-	session, err := s.store.CreateSupervisorSession(ctx, scenarioruntime.SupervisorSession{
+	session, err := s.store.ClaimSupervisorSession(ctx, scenarioruntime.SupervisorSession{
 		SupervisorID:  s.cfg.SupervisorID,
 		HostBootID:    s.host.BootID,
 		HostSessionID: s.host.SessionID,
@@ -683,6 +728,17 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 	}
 	s.session = session
 	return nil
+}
+
+func (s *Service) stopPID(pid int) error {
+	if s.cfg.StopPIDFunc != nil {
+		return s.cfg.StopPIDFunc(pid)
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return err
+	}
+	return proc.Signal(syscall.SIGTERM)
 }
 
 // reapDeadSupervisorSessions retires predecessor sessions this supervisor can

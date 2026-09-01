@@ -26,6 +26,7 @@ const (
 	deploymentOSWindows            = "windows"
 	deploymentVerificationHostTool = "host-tool"
 	deploymentLayoutDir            = "dir"
+	deploymentLayoutFile           = "file"
 	digestHexMultiplier            = 2
 	platformParts                  = 2
 )
@@ -434,7 +435,7 @@ func (a ServiceArtifact) Validate() error {
 		return fmt.Errorf("host-tool artifacts cannot declare bundle_artifact")
 	}
 	layout := strings.ToLower(strings.TrimSpace(a.Layout))
-	if layout != "" && layout != "file" && layout != deploymentLayoutDir {
+	if layout != "" && layout != deploymentLayoutFile && layout != deploymentLayoutDir {
 		return fmt.Errorf("artifact layout %q is invalid", a.Layout)
 	}
 	if entry := strings.TrimSpace(a.EntryPath); entry != "" {
@@ -524,6 +525,28 @@ func (a ServiceArtifact) ForPlatform(osName, arch string) (ServiceArtifact, erro
 	return a, nil
 }
 
+// ArtifactChecksumMismatchError reports a staged artifact whose bytes do not
+// match the digest its manifest declares.
+//
+// It carries both digests and the path because "the bytes are corrupt" and "the
+// declaration moved" surface as the same comparison, and an operator handed only
+// the words "checksum mismatch" can act on neither. Recomputing the tree digest
+// by hand to learn which one it was is not a diagnostic path anybody should have
+// to walk. Cf. binaryfetch.VerifyArtifact, which has always named both sides.
+type ArtifactChecksumMismatchError struct {
+	Path   string
+	Layout string
+	// Want is the digest the manifest declares.
+	Want string
+	// Got is the digest the staged bytes actually produce.
+	Got string
+}
+
+func (e *ArtifactChecksumMismatchError) Error() string {
+	return fmt.Sprintf("managed-service artifact checksum mismatch for %s (layout=%s): got %s, want %s",
+		e.Path, e.Layout, e.Got, e.Want)
+}
+
 // VerifyFile checks a staged executable or executable tree before it receives lifecycle
 // authority. Signature verification belongs to the release/staging boundary;
 // this second checksum check protects the local hand-off to the supervisor.
@@ -547,7 +570,10 @@ func (a ServiceArtifact) VerifyFile(path string) error {
 			return fmt.Errorf("hash managed-service artifact tree: %w", err)
 		}
 		if !strings.EqualFold(got, strings.TrimSpace(a.SHA256)) {
-			return fmt.Errorf("managed-service artifact checksum mismatch")
+			return &ArtifactChecksumMismatchError{
+				Path: path, Layout: deploymentLayoutDir,
+				Want: strings.ToLower(strings.TrimSpace(a.SHA256)), Got: strings.ToLower(got),
+			}
 		}
 		return nil
 	}
@@ -560,8 +586,11 @@ func (a ServiceArtifact) VerifyFile(path string) error {
 	if _, err := io.Copy(hash, file); err != nil {
 		return fmt.Errorf("hash managed-service artifact: %w", err)
 	}
-	if hex.EncodeToString(hash.Sum(nil)) != strings.ToLower(strings.TrimSpace(a.SHA256)) {
-		return fmt.Errorf("managed-service artifact checksum mismatch")
+	if got := hex.EncodeToString(hash.Sum(nil)); got != strings.ToLower(strings.TrimSpace(a.SHA256)) {
+		return &ArtifactChecksumMismatchError{
+			Path: path, Layout: deploymentLayoutFile,
+			Want: strings.ToLower(strings.TrimSpace(a.SHA256)), Got: got,
+		}
 	}
 	return nil
 }

@@ -1,8 +1,11 @@
 package deployability
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -23,6 +26,41 @@ type ManifestDeclaration struct {
 	// Platforms is keyed by the raw OS token the manifest authored, so a
 	// rejection can quote what was written rather than a normalized guess.
 	Platforms map[string]PlatformDeclaration
+	Pairs     []PlatformPairDeclaration
+}
+
+// ValidatePlatformPairEvidence enforces the stronger evidence rule for a
+// cross-machine claim: a supported pair must point at an artifact that exists
+// in the repository. Free-form prose is useful for build-verified cells but
+// cannot qualify a real hardware pairing.
+func ValidatePlatformPairEvidence(repoRoot, location, name string, pair PlatformPairDeclaration) error {
+	status, err := ParsePlatformStatus(pair.Status)
+	if err != nil {
+		return fmt.Errorf("%s: capability manifest %q declares pair %s/%s %w", location, name, pair.Console, pair.Node, err)
+	}
+	if status != StatusSupported {
+		return nil
+	}
+	evidence := strings.TrimSpace(pair.EvidenceRaw)
+	if evidence != "" && evidence != manifestvalidationNull && evidence != `""` {
+		var authoredPath string
+		if json.Unmarshal([]byte(evidence), &authoredPath) == nil {
+			evidence = strings.TrimSpace(authoredPath)
+		}
+	}
+	if pair.Evidence != nil && strings.TrimSpace(pair.Evidence.ArtifactURI) != "" {
+		evidence = strings.TrimSpace(pair.Evidence.ArtifactURI)
+	}
+	if evidence == "" || evidence == manifestvalidationNull || evidence == `""` {
+		return fmt.Errorf("%s: capability manifest %q declares pair %s/%s as supported without evidence", location, name, pair.Console, pair.Node)
+	}
+	if filepath.IsAbs(evidence) {
+		return fmt.Errorf("%s: capability manifest %q declares pair evidence with absolute path %q", location, name, evidence)
+	}
+	if _, err := os.Stat(filepath.Join(repoRoot, evidence)); err != nil {
+		return fmt.Errorf("%s: capability manifest %q declares supported pair %s/%s with missing evidence %q: %w", location, name, pair.Console, pair.Node, evidence, err)
+	}
+	return nil
 }
 
 // ValidateManifestDeclarations rejects any manifest that names a capability
@@ -66,6 +104,15 @@ func ValidateManifestDeclarations(declarations []ManifestDeclaration, vocabulary
 			}
 			if err := validatePlatformDeclaration(location, item.Name, osName, status, declaration); err != nil {
 				return err
+			}
+		}
+		for _, pair := range item.Pairs {
+			status, err := ParsePlatformStatus(pair.Status)
+			if err != nil {
+				return fmt.Errorf("%s: capability manifest %q declares pair %s/%s %w", location, item.Name, pair.Console, pair.Node, err)
+			}
+			if status != StatusUnsupported && status != StatusNotApplicable && strings.TrimSpace(pair.Mechanism) == "" {
+				return fmt.Errorf("%s: capability manifest %q declares pair %s/%s at status %s without mechanism", location, item.Name, pair.Console, pair.Node, status)
 			}
 		}
 	}

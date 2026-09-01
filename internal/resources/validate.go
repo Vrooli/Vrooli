@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
+
 	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -125,6 +127,7 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 		if data, readErr := os.ReadFile(item.ManifestPath); readErr == nil {
 			var fields map[string]json.RawMessage
 			if json.Unmarshal(data, &fields) == nil {
+				entry.Issues = append(entry.Issues, storageSurfaceIssues(fields)...)
 				if _, present := fields["template"]; present {
 					entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: "unknown_manifest_field: template is not a resource archetype field"})
 				}
@@ -136,6 +139,8 @@ func (c *Controller) ValidateResources(name string) (ResourceValidationReport, e
 				Message:  "resource_absent_from_contract: resource is not declared in .vrooli/service.json",
 			})
 		}
+		entry.Issues = append(entry.Issues, composedAcquisitionIssues(resourceDir, manifest)...)
+		entry.Issues = append(entry.Issues, artifactDigestAgreementIssues(manifest)...)
 		for _, issue := range resourceenv.ValidateResourceManifest(c.Root, manifest) {
 			entry.Issues = append(entry.Issues, ValidationIssue{Severity: "error", Message: issue})
 		}
@@ -238,4 +243,189 @@ func (c *Controller) ValidateScenarioEnvironment(name string) (ScenarioEnvValida
 		report.Issues = append(report.Issues, ValidationIssue{Severity: "error", Message: issue})
 	}
 	return report, nil
+}
+
+// storageSurfaceIssues enforces the one requirement the shared storageSurface
+// definition states and this validator never read: a declared storage block
+// carries an entries map. resource.json and a scenario's .vrooli/service.json
+// both $ref common.schema.json#/definitions/storageSurface, so a resource that
+// invents its own shape is describing its disk footprint in a vocabulary no
+// consumer can read — which is how a resource ends up installing outside its
+// declared root with every gate green.
+func storageSurfaceIssues(fields map[string]json.RawMessage) []ValidationIssue {
+	raw, present := fields["storage"]
+	if !present {
+		return nil
+	}
+	var surface struct {
+		Entries map[string]json.RawMessage `json:"entries"`
+	}
+	if err := json.Unmarshal(raw, &surface); err != nil {
+		return []ValidationIssue{{Severity: "error", Message: "invalid_storage_surface: storage must be an object matching common.schema.json#/definitions/storageSurface"}}
+	}
+	if surface.Entries == nil {
+		return []ValidationIssue{{Severity: "error", Message: "invalid_storage_surface: storage.entries is required by common.schema.json#/definitions/storageSurface"}}
+	}
+	return nil
+}
+
+// composedAcquisitionIssues enforces that a composed artifact can actually be
+// rebuilt into the same bytes it declares.
+//
+// A `composed` acquisition pins the OUTPUT tree with artifact_sha256, but the
+// output is only as reproducible as its inputs. kyutai-stt shipped a
+// python-wheels step whose "lockfile" held eight direct requirements with no
+// hashes, while the installer runs `--no-deps` — so the staged tree was neither
+// the declared closure nor reproducible, its artifact_sha256 became unreachable
+// the moment the resolver moved, and the resource failed verification with no
+// path back. It read as "installed: no" while its server was healthy on the
+// GPU, and every dictation session silently fell back to a CPU batch engine.
+//
+// The two rules below are what separated kokoro (which survived the same
+// window) from kyutai-stt:
+//
+//   - a hash-pinned lockfile, so `--require-hashes` makes the install exact;
+//   - an explicit index, so a CUDA build cannot silently become a CPU build
+//     that satisfies the same version constraint.
+func composedAcquisitionIssues(resourceDir string, manifest ResourceManifest) []ValidationIssue {
+	issues := []ValidationIssue{}
+	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
+		return issues
+	}
+	if !strings.EqualFold(strings.TrimSpace(manifest.ManagedService.Acquisition.Kind), "composed") {
+		return issues
+	}
+	seen := map[string]struct{}{}
+	for _, target := range manifest.ManagedService.Acquisition.Targets {
+		for _, step := range target.Compose {
+			if !strings.EqualFold(strings.TrimSpace(step.Kind), "python-wheels") {
+				continue
+			}
+			lock := strings.TrimSpace(step.Lockfile)
+			if lock == "" {
+				continue
+			}
+			if _, done := seen[lock]; done {
+				continue
+			}
+			seen[lock] = struct{}{}
+			data, err := os.ReadFile(filepath.Join(resourceDir, filepath.FromSlash(lock)))
+			if err != nil {
+				issues = append(issues, ValidationIssue{
+					Severity: "error",
+					Message:  "unreadable_wheel_lockfile: " + lock + " is declared by a composed acquisition but cannot be read",
+				})
+				continue
+			}
+			if !strings.Contains(string(data), "--hash=sha256:") {
+				issues = append(issues, ValidationIssue{
+					Severity: "error",
+					Message: "unpinned_wheel_lockfile: " + lock + " has no --hash entries, so the composed tree cannot be" +
+						" reproduced and its artifact_sha256 cannot stay true; regenerate with `uv pip compile --generate-hashes`",
+				})
+			}
+			// The index only carries risk where an accelerated build exists to
+			// lose. For a resource that declares no acceleration there is no CPU
+			// variant to silently fall back to, and warning anyway would make
+			// the signal noise.
+			if strings.TrimSpace(step.IndexURL) == "" && declaresAcceleration(manifest) {
+				issues = append(issues, ValidationIssue{
+					Severity: "warning",
+					Message: "implicit_wheel_index: " + lock + " is installed from the default index while this resource" +
+						" declares accelerated backends, so an accelerated wheel may silently resolve to a CPU one;" +
+						" declare index_url explicitly",
+				})
+			}
+		}
+	}
+	return issues
+}
+
+// declaresAcceleration reports whether a manifest claims any backend other than
+// plain CPU.
+func declaresAcceleration(manifest ResourceManifest) bool {
+	declaration := manifest.EffectiveAcceleration()
+	if declaration == nil {
+		return false
+	}
+	for _, backend := range declaration.Backends {
+		if !strings.EqualFold(strings.TrimSpace(backend), "cpu") && strings.TrimSpace(backend) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+// artifactDigestAgreementIssues catches a stale copy of a digest that is
+// declared in two places.
+//
+// A managed-service manifest states the artifact digest twice: once per
+// platform in managed_service.artifact.sha256_by_platform, and once per
+// acquisition target in artifact_sha256. Launch verification reads the TARGET
+// digest, so an edit that updates only the platform map changes nothing and an
+// edit that updates only the target leaves a stale claim behind. Neither is
+// reported anywhere.
+//
+// The two are not required to be equal: a platform may carry several
+// fact-predicated targets (kokoro declares a CUDA and a CPU tree for
+// linux-amd64) and the platform map holds only one digest. The rule that holds
+// in every case is weaker and still catches the staleness: the platform digest
+// must match SOME target that can resolve on that platform.
+func artifactDigestAgreementIssues(manifest ResourceManifest) []ValidationIssue {
+	issues := []ValidationIssue{}
+	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
+		return issues
+	}
+	byPlatform := manifest.ManagedService.Artifact.SHA256ByPlatform
+	if len(byPlatform) == 0 {
+		return issues
+	}
+	platforms := make([]string, 0, len(byPlatform))
+	for platform := range byPlatform {
+		platforms = append(platforms, platform)
+	}
+	slices.Sort(platforms)
+	for _, platform := range platforms {
+		declared := strings.ToLower(strings.TrimSpace(byPlatform[platform]))
+		if declared == "" {
+			continue
+		}
+		candidates := []string{}
+		for _, target := range manifest.ManagedService.Acquisition.Targets {
+			digest := strings.ToLower(strings.TrimSpace(target.ArtifactSHA256))
+			if digest == "" || !targetCoversPlatform(target, platform) {
+				continue
+			}
+			candidates = append(candidates, digest)
+		}
+		if len(candidates) == 0 {
+			continue
+		}
+		if !slices.Contains(candidates, declared) {
+			issues = append(issues, ValidationIssue{
+				Severity: "error",
+				Message: "artifact_digest_disagreement: sha256_by_platform[" + platform + "] declares " + shortDigest(declared) +
+					" but no acquisition target for that platform declares it; launch verification reads the target digest," +
+					" so this copy is stale and silently does nothing",
+			})
+		}
+	}
+	return issues
+}
+
+// targetCoversPlatform reports whether a target's os/arch predicates can select
+// on the given "<os>-<arch>" platform. Non-platform predicates (accelerator
+// facts) are host-dependent and deliberately ignored here.
+func targetCoversPlatform(target binaryfetch.AcquisitionTarget, platform string) bool {
+	os, arch, found := strings.Cut(platform, "-")
+	if !found {
+		return false
+	}
+	if declared, ok := target.When["os"]; ok && !strings.EqualFold(strings.TrimSpace(declared), os) {
+		return false
+	}
+	if declared, ok := target.When["arch"]; ok && !strings.EqualFold(strings.TrimSpace(declared), arch) {
+		return false
+	}
+	return true
 }

@@ -251,3 +251,34 @@ func TestValidateResourcesAllowsStorageContextVariablesInDerivedExports(t *testi
 		t.Fatalf("expected storage context variables to validate, got %#v", report)
 	}
 }
+
+func TestStorageSurfaceIssuesRequiresEntries(t *testing.T) {
+	cases := []struct {
+		name    string
+		storage string
+		wantErr bool
+	}{
+		{name: "absent", storage: "", wantErr: false},
+		{name: "conforming", storage: `{"entries":{"data":{"rung":"owned","kind":"dir","regenerable":false}}}`, wantErr: false},
+		{name: "empty entries map is a deliberate no-surface claim", storage: `{"entries":{}}`, wantErr: false},
+		// The shape android-sdk carried: a hand-rolled object that the shared
+		// storageSurface definition does not describe, so no consumer can read it.
+		{name: "ad-hoc shape", storage: `{"root":"~/x","byte_budget":20000000000,"retention":"replaceable"}`, wantErr: true},
+		{name: "not an object", storage: `"somewhere"`, wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fields := map[string]json.RawMessage{}
+			if tc.storage != "" {
+				fields["storage"] = json.RawMessage(tc.storage)
+			}
+			issues := storageSurfaceIssues(fields)
+			if tc.wantErr && len(issues) == 0 {
+				t.Fatalf("storageSurfaceIssues(%s) = no issues, want an error", tc.storage)
+			}
+			if !tc.wantErr && len(issues) != 0 {
+				t.Fatalf("storageSurfaceIssues(%s) = %#v, want no issues", tc.storage, issues)
+			}
+		})
+	}
+}

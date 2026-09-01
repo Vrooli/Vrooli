@@ -1,4 +1,5 @@
-// Package discovery provides runtime helpers for resolving scenario ports.
+// Package discovery provides target-aware runtime helpers for resolving scenario addresses.
+// DOC: docs/concepts/REACH-AND-CONFIGURATION.md
 package discovery
 
 import (
@@ -12,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -38,6 +40,11 @@ type ResolverConfig struct {
 	// Example: "http://127.0.0.1:12345"
 	StaticBaseURL string
 
+	// RemoteBaseURL is the Bridge base URL used for target-aware resolutions.
+	// Production normally discovers Bridge by scenario name; tests and embedded
+	// callers may provide an explicit endpoint.
+	RemoteBaseURL string
+
 	// CacheTTL bounds how long a successful runtime address is reused. A short
 	// cache removes one CLI process per provider leaf while preserving dynamic
 	// port correctness; a failed lookup invalidates the entry immediately.
@@ -55,17 +62,18 @@ type ResolverConfig struct {
 	Now func() time.Time
 }
 
-// Resolver resolves scenario ports by shelling out to the Vrooli CLI. Successful
-// addresses are cached briefly and failed lookups invalidate the entry, so a
-// restarted scenario is never pinned to a stale address for longer than the
-// configured TTL.
-// If configured with a static base URL, it bypasses CLI discovery entirely.
+// Resolver resolves scenario addresses through the local discovery ladder.
+// The ladder tries a lifecycle peer record, the runtime registry, and then the
+// control-plane CLI fallback. Successful addresses are cached briefly and
+// failed lookups expire quickly, so restarts are not pinned to stale addresses.
+// A static base URL bypasses discovery entirely.
 type Resolver struct {
 	vrooliPath    string
 	runner        CommandRunner
 	host          string
 	scheme        string
 	staticBaseURL string // When set, bypasses CLI discovery
+	remoteBaseURL string
 	cacheTTL      time.Duration
 	negativeTTL   time.Duration
 	sharedLookup  bool
@@ -191,6 +199,7 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		host:          host,
 		scheme:        scheme,
 		staticBaseURL: strings.TrimRight(cfg.StaticBaseURL, "/"),
+		remoteBaseURL: strings.TrimRight(cfg.RemoteBaseURL, "/"),
 		cacheTTL:      cacheTTL,
 		negativeTTL:   negativeTTL,
 		// Only an unconfigured resolver may use the shared seam; an injected
@@ -217,8 +226,8 @@ func NewStaticResolver(baseURL string) *Resolver {
 	})
 }
 
-// ResolveScenarioPort resolves a scenario's port by calling:
-// `vrooli scenario port <slug> <portKey>`.
+// ResolveScenarioPort resolves a scenario's port through the local discovery
+// ladder: lifecycle peer record, runtime registry, then the control-plane CLI.
 //
 // Successful lookups are cached for ResolverConfig.CacheTTL and failures for the
 // shorter ResolverConfig.NegativeCacheTTL, so neither a running nor a stopped
@@ -249,12 +258,10 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 	return r.resolvePortCached(ctx, scenarioSlug, portKey, cacheKey)
 }
 
-// resolvePortCached collapses concurrent lookups for one key onto a single CLI
-// invocation and reuses both successful and failed results for their respective
-// TTLs. Holding the per-key lock across the lookup is deliberate: a burst of N
-// callers for the same scenario must cost one fork, not N. Before this, every
-// caller forked `vrooli scenario port` because the only cache lived on a
-// Resolver that the package-level wrappers rebuilt per call.
+// resolvePortCached collapses concurrent lookups for one key onto a single
+// ladder evaluation and reuses successful and failed results for their TTLs.
+// Holding the per-key lock across the lookup is deliberate: a burst of N
+// callers for one scenario must cost one ladder evaluation, not N.
 func (r *Resolver) resolvePortCached(ctx context.Context, scenarioSlug, portKey, cacheKey string) (int, error) {
 	if r.cacheTTL < 0 {
 		port, derr := r.lookupPortWithFallback(ctx, scenarioSlug, portKey)
@@ -307,10 +314,10 @@ func (r *Resolver) resolvePortCached(ctx context.Context, scenarioSlug, portKey,
 // live instance. Never silent.
 func (r *Resolver) lookupPortWithFallback(ctx context.Context, scenarioSlug, portKey string) (int, *Error) {
 	target := cliutil.ResolveShadowTarget(scenarioSlug)
-	port, derr := r.lookupPort(ctx, scenarioSlug, target, portKey)
+	port, derr := r.lookupPortViaLadder(ctx, scenarioSlug, target, portKey)
 	if derr != nil && cliutil.IsNonLiveTarget(target) && derr.Kind == ErrScenarioNotRunning {
 		cliutil.WarnShadowFallback(scenarioSlug)
-		port, derr = r.lookupPort(ctx, scenarioSlug, scenarioSlug, portKey)
+		port, derr = r.lookupPortViaLadder(ctx, scenarioSlug, scenarioSlug, portKey)
 	}
 	return port, derr
 }
@@ -347,9 +354,9 @@ func (r *Resolver) CacheStats() (hits, misses int64) {
 	return r.cacheHits, r.cacheMisses
 }
 
-// lookupPort shells `vrooli scenario port <target> <portKey>` and classifies the
-// result. reportSlug is the user-facing scenario name recorded on any Error
-// (which may differ from target when routing to a variant record).
+// lookupPortViaLadder evaluates the local authorities and the control-plane
+// fallback, then classifies the result. reportSlug is the user-facing scenario
+// name recorded on any Error (which may differ from target for a variant).
 // runLookup obtains one raw port reading. In production it routes through
 // cliutil's process-wide cache, which is the single owner of
 // `vrooli scenario port` — so a lookup performed for a CLI helper and one
@@ -384,7 +391,7 @@ func nonNegative(d time.Duration) time.Duration {
 	return d
 }
 
-func (r *Resolver) lookupPort(ctx context.Context, reportSlug, target, portKey string) (int, *Error) {
+func (r *Resolver) lookupPortViaLadder(ctx context.Context, reportSlug, target, portKey string) (int, *Error) {
 	portText, text, err := r.runLookup(ctx, target, portKey)
 	if err != nil {
 		// A deadline may come from the caller's context or from the bound the
@@ -445,15 +452,63 @@ func (r *Resolver) lookupPort(ctx context.Context, reportSlug, target, portKey s
 	return port, nil
 }
 
-// ResolveScenarioURL resolves a scenario's port and returns a URL
-// using the resolver's scheme and host.
+// Target identifies the machine on which a scenario should be reached.
+// An empty NodeID means the local machine.
+type Target struct {
+	NodeID string
+}
+
+type resolveOptions struct {
+	target Target
+}
+
+// WithTarget selects the machine for a scenario URL resolution. Existing
+// callers that omit the option retain local discovery behavior.
+func WithTarget(target Target) ResolveOption {
+	return func(options *resolveOptions) { options.target = target }
+}
+
+// ResolveOption customizes a target-aware scenario URL resolution.
+type ResolveOption func(*resolveOptions)
+
+// ResolveScenarioURL resolves a scenario's port and returns a URL using the
+// resolver's scheme and host. WithTarget selects a registered Bridge node;
+// local resolution remains the peer/registry/CLI ladder.
 //
 // If the resolver was created with a static base URL, that URL is returned
 // directly without invoking the CLI.
 func (r *Resolver) ResolveScenarioURL(ctx context.Context, scenarioSlug, portKey string) (string, error) {
+	return r.resolveScenarioURL(ctx, scenarioSlug, portKey, Target{})
+}
+
+// ResolveScenarioURLWithOptions is the option-shaped companion for callers
+// that need target selection without changing the long-standing resolver
+// interface implemented by Bridge and other consumers.
+func (r *Resolver) ResolveScenarioURLWithOptions(ctx context.Context, scenarioSlug, portKey string, options ...ResolveOption) (string, error) {
+	resolved := resolveOptions{}
+	for _, option := range options {
+		if option != nil {
+			option(&resolved)
+		}
+	}
+	return r.resolveScenarioURL(ctx, scenarioSlug, portKey, resolved.target)
+}
+
+// ResolveScenarioURLForTarget resolves a scenario URL for an explicit target
+// while preserving ResolveScenarioURL's established interface.
+func (r *Resolver) ResolveScenarioURLForTarget(ctx context.Context, scenarioSlug, portKey string, target Target) (string, error) {
+	return r.resolveScenarioURL(ctx, scenarioSlug, portKey, target)
+}
+
+func (r *Resolver) resolveScenarioURL(ctx context.Context, scenarioSlug, portKey string, target Target) (string, error) {
+	resolved := resolveOptions{}
+	resolved.target = target
 	// Static mode: return the configured URL directly
-	if r.staticBaseURL != "" {
+	if r.staticBaseURL != "" && resolved.target.NodeID == "" {
 		return r.staticBaseURL, nil
+	}
+	if resolved.target.NodeID != "" {
+		return r.resolveRemoteScenarioURL(ctx, scenarioSlug, resolved.target.NodeID)
 	}
 
 	port, err := r.ResolveScenarioPort(ctx, scenarioSlug, portKey)
@@ -461,6 +516,21 @@ func (r *Resolver) ResolveScenarioURL(ctx context.Context, scenarioSlug, portKey
 		return "", err
 	}
 	return fmt.Sprintf("%s://%s:%d", r.scheme, r.host, port), nil
+}
+
+func (r *Resolver) resolveRemoteScenarioURL(ctx context.Context, scenarioSlug, nodeID string) (string, error) {
+	bridgeURL := r.remoteBaseURL
+	if bridgeURL == "" {
+		var err error
+		bridgeURL, err = nodereach.New(nodereach.Config{}).ResolveURL(ctx)
+		if err != nil {
+			return "", err
+		}
+	}
+	if strings.TrimSpace(scenarioSlug) == "" || strings.TrimSpace(nodeID) == "" {
+		return "", &Error{Kind: ErrInvalidInput, Scenario: scenarioSlug, Err: errors.New("scenario and node target are required")}
+	}
+	return strings.TrimRight(bridgeURL, "/") + "/api/v1/targets/" + url.PathEscape(nodeID) + "/scenarios/" + url.PathEscape(scenarioSlug), nil
 }
 
 // ResolveScenarioPortDefault resolves the standard API port for a scenario.
@@ -471,6 +541,18 @@ func (r *Resolver) ResolveScenarioPortDefault(ctx context.Context, scenarioSlug 
 // ResolveScenarioURLDefault resolves the standard API URL for a scenario.
 func (r *Resolver) ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error) {
 	return r.ResolveScenarioURL(ctx, scenarioSlug, defaultPortKey)
+}
+
+// ResolveScenarioURLDefaultForTarget resolves the standard API URL for an
+// explicit target while preserving the existing default method interface.
+func (r *Resolver) ResolveScenarioURLDefaultForTarget(ctx context.Context, scenarioSlug string, target Target) (string, error) {
+	return r.ResolveScenarioURLForTarget(ctx, scenarioSlug, defaultPortKey, target)
+}
+
+// ResolveScenarioURLDefaultWithOptions resolves the standard API URL with
+// optional target selection.
+func (r *Resolver) ResolveScenarioURLDefaultWithOptions(ctx context.Context, scenarioSlug string, options ...ResolveOption) (string, error) {
+	return r.ResolveScenarioURLWithOptions(ctx, scenarioSlug, defaultPortKey, options...)
 }
 
 // sharedResolver backs the package-level convenience wrappers. It must be a
@@ -512,6 +594,12 @@ func ResolveScenarioPortDefault(ctx context.Context, scenarioSlug string) (int, 
 // ResolveScenarioURLDefault is a convenience wrapper using the standard API port.
 func ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error) {
 	return DefaultResolver().ResolveScenarioURLDefault(ctx, scenarioSlug)
+}
+
+// ResolveScenarioURLDefaultForTarget is the convenience wrapper for an
+// explicit target.
+func ResolveScenarioURLDefaultForTarget(ctx context.Context, scenarioSlug string, target Target) (string, error) {
+	return DefaultResolver().ResolveScenarioURLDefaultForTarget(ctx, scenarioSlug, target)
 }
 
 func defaultRunner(ctx context.Context, name string, args ...string) ([]byte, error) {

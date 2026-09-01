@@ -128,11 +128,11 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandInfo), Summary: "Show resource metadata", Args: nameArgSchema("name"), Handler: CommandInfo},
 		{
 			Name:    string(CommandUpstreamCheck),
-			Summary: "Compare installed coding-agent CLIs against upstream latest (read-only)",
+			Summary: "Check resource acquisition references and coding-agent versions (read-only)",
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "name"}},
 				Options: []commandtree.OptionArg{
-					{Name: "--all", Description: "Check every coding-agent resource (default when no name is given)"},
+					{Name: "--all", Description: "Check every resource acquisition reference and coding-agent CLI"},
 					commandtree.JSONOption(),
 				},
 			},

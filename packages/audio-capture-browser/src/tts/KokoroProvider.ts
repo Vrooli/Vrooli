@@ -271,6 +271,19 @@ export class KokoroProvider implements TTSProvider {
     }
   }
 
+  async prewarm(texts: string[], opts?: TTSSpeakOptions): Promise<void> {
+    if (texts.length === 0) return;
+    const controller = new AbortController();
+    await Promise.all(texts.map(async (text, index) => {
+      try {
+        await this.synthesizeWithMetrics(text, opts?.voice, opts?.rate, controller.signal, this.cacheControl(opts, index));
+      } catch {
+        // Prefetch is opportunistic. Playback performs its own retry and
+        // fallback path when a paragraph is actually requested.
+      }
+    }));
+  }
+
   /**
    * Play one paragraph of a sequence with graceful degradation. Attempts, in
    * order: (1) the already-pipelined synth + play; (2) one fresh re-synth +

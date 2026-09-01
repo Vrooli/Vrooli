@@ -1,7 +1,9 @@
 import datetime
 
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from vrooli_bridge.v1.onboard import onboard_pb2 as _onboard_pb2
 from web_console.v1.shared import target_pb2 as _target_pb2
+from vrooli_bridge.v1.credentialgrant import credentialgrant_pb2 as _credentialgrant_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -23,6 +25,68 @@ FLEET_STATE_READY: FleetState
 FLEET_STATE_EMPTY: FleetState
 FLEET_STATE_UNENROLLED: FleetState
 FLEET_STATE_UNREACHABLE: FleetState
+
+class GetConfigurationRequest(_message.Message):
+    __slots__ = ("machine_id",)
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    machine_id: str
+    def __init__(self, machine_id: _Optional[str] = ...) -> None: ...
+
+class GetConfigurationResponse(_message.Message):
+    __slots__ = ("questions_json", "readiness_json", "target_id", "machine_detail_json")
+    QUESTIONS_JSON_FIELD_NUMBER: _ClassVar[int]
+    READINESS_JSON_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    MACHINE_DETAIL_JSON_FIELD_NUMBER: _ClassVar[int]
+    questions_json: bytes
+    readiness_json: bytes
+    target_id: str
+    machine_detail_json: bytes
+    def __init__(self, questions_json: _Optional[bytes] = ..., readiness_json: _Optional[bytes] = ..., target_id: _Optional[str] = ..., machine_detail_json: _Optional[bytes] = ...) -> None: ...
+
+class ResolveConfigurationRequest(_message.Message):
+    __slots__ = ("machine_id", "answers_json")
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    ANSWERS_JSON_FIELD_NUMBER: _ClassVar[int]
+    machine_id: str
+    answers_json: bytes
+    def __init__(self, machine_id: _Optional[str] = ..., answers_json: _Optional[bytes] = ...) -> None: ...
+
+class ResolveConfigurationResponse(_message.Message):
+    __slots__ = ("result_json", "target_id")
+    RESULT_JSON_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    result_json: bytes
+    target_id: str
+    def __init__(self, result_json: _Optional[bytes] = ..., target_id: _Optional[str] = ...) -> None: ...
+
+class ListCredentialGrantsRequest(_message.Message):
+    __slots__ = ("machine_id",)
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    machine_id: str
+    def __init__(self, machine_id: _Optional[str] = ...) -> None: ...
+
+class ReapplyConfigurationRequest(_message.Message):
+    __slots__ = ("machine_id",)
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    machine_id: str
+    def __init__(self, machine_id: _Optional[str] = ...) -> None: ...
+
+class ReapplyConfigurationResponse(_message.Message):
+    __slots__ = ("result_json", "target_id")
+    RESULT_JSON_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    result_json: bytes
+    target_id: str
+    def __init__(self, result_json: _Optional[bytes] = ..., target_id: _Optional[str] = ...) -> None: ...
+
+class GetConfigurationApplyStatusRequest(_message.Message):
+    __slots__ = ("machine_id", "run_id")
+    MACHINE_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    machine_id: str
+    run_id: str
+    def __init__(self, machine_id: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
 
 class Grant(_message.Message):
     __slots__ = ("summary", "effects", "app_count", "covers_all_apps", "scopes", "preset")

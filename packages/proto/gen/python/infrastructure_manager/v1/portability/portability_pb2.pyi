@@ -227,14 +227,32 @@ class Grid(_message.Message):
     def __init__(self, capabilities: _Optional[_Iterable[_Union[CapabilityEntry, _Mapping]]] = ..., manifest_root: _Optional[str] = ..., manifests_read: _Optional[int] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., observed_safeguards: _Optional[_Iterable[_Union[ObservedSafeguard, _Mapping]]] = ..., native_evidence: _Optional[_Iterable[_Union[NativeEvidence, _Mapping]]] = ..., resources: _Optional[_Iterable[_Union[ResourceArchitectureClaim, _Mapping]]] = ..., skip_budget: _Optional[_Union[PlatformSkipBudget, _Mapping]] = ...) -> None: ...
 
 class ResourceArchitectureStatus(_message.Message):
-    __slots__ = ("architecture", "support", "reason")
+    __slots__ = ("architecture", "support", "reason", "qualification", "qualification_reason", "age_days", "aged", "acquisition_resolvable", "acquisition_reason", "evidence_node", "evidence_run_id", "evidence_observed_at")
     ARCHITECTURE_FIELD_NUMBER: _ClassVar[int]
     SUPPORT_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
+    QUALIFICATION_FIELD_NUMBER: _ClassVar[int]
+    QUALIFICATION_REASON_FIELD_NUMBER: _ClassVar[int]
+    AGE_DAYS_FIELD_NUMBER: _ClassVar[int]
+    AGED_FIELD_NUMBER: _ClassVar[int]
+    ACQUISITION_RESOLVABLE_FIELD_NUMBER: _ClassVar[int]
+    ACQUISITION_REASON_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_NODE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
     architecture: str
     support: str
     reason: str
-    def __init__(self, architecture: _Optional[str] = ..., support: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+    qualification: str
+    qualification_reason: str
+    age_days: int
+    aged: bool
+    acquisition_resolvable: bool
+    acquisition_reason: str
+    evidence_node: str
+    evidence_run_id: str
+    evidence_observed_at: _timestamp_pb2.Timestamp
+    def __init__(self, architecture: _Optional[str] = ..., support: _Optional[str] = ..., reason: _Optional[str] = ..., qualification: _Optional[str] = ..., qualification_reason: _Optional[str] = ..., age_days: _Optional[int] = ..., aged: _Optional[bool] = ..., acquisition_resolvable: _Optional[bool] = ..., acquisition_reason: _Optional[str] = ..., evidence_node: _Optional[str] = ..., evidence_run_id: _Optional[str] = ..., evidence_observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ResourcePlatformClaim(_message.Message):
     __slots__ = ("host_os", "support", "architectures", "mismatch", "reason")

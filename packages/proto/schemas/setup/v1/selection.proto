@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package vrooli.setup.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1;setup_v1";
+
+// Capability-shaped desired configuration. It intentionally does not expose
+// operator-state persistence details, allowing Bridge to hold a desired copy
+// while Onboarding remains the authority for local application.
+message Selection {
+  string schema_version = 1;
+  string target = 2;
+  repeated string scenarios = 3;
+  repeated string optional_resources = 4;
+  repeated string core_seed = 5;
+  repeated string trusted_base = 6;
+  repeated string host_tools = 7;
+  repeated string host_safeguards = 8;
+  repeated string credential_addresses = 9;
+  string trust_posture = 10;
+  string update_control = 11;
+  string session_mode = 12;
+  map<string, string> operating_mode = 13;
+  bool apply = 14;
+}

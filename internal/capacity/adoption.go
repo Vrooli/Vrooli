@@ -56,7 +56,7 @@ func AdoptObservedResidents(ctx context.Context, store ClaimRepository, snapshot
 		if _, matched := matchClaim(activeVRAM, a, proc); matched {
 			continue
 		}
-		name, spec, ok := resolveDeclaredOwner(a, loadSpec)
+		name, spec, ok := resolveDeclaredOwner(a, proc, loadSpec)
 		if !ok {
 			continue // undeclared observed consumer — reconcile warns, adoption skips
 		}
@@ -90,10 +90,18 @@ func AdoptObservedResidents(ctx context.Context, store ClaimRepository, snapshot
 	return created, nil
 }
 
-// resolveDeclaredOwner finds the first attribution candidate (owner id / container
-// name) that names a resource declaring a capacity block.
-func resolveDeclaredOwner(a Attribution, loadSpec SpecLoader) (string, ResourceClaimSpec, bool) {
-	for _, cand := range []string{a.OwnerID, NormalizeOwnerName(a.ContainerName), strings.TrimPrefix(a.ContainerName, "/")} {
+// resolveDeclaredOwner finds the first attribution candidate (owner id,
+// container name, or normalized executable path) that names a resource
+// declaring a capacity block. Native model servers often appear in the GPU
+// snapshot as artifact paths rather than container names, so the process-owner
+// normalizer is part of this ownership seam.
+func resolveDeclaredOwner(a Attribution, proc hostinventory.GPUProcess, loadSpec SpecLoader) (string, ResourceClaimSpec, bool) {
+	for _, cand := range []string{
+		a.OwnerID,
+		NormalizeOwnerName(a.ContainerName),
+		strings.TrimPrefix(a.ContainerName, "/"),
+		NormalizeProcessOwner(proc.ProcessName),
+	} {
 		cand = strings.TrimSpace(cand)
 		if cand == "" || cand == OwnerUnknown {
 			continue

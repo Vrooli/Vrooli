@@ -274,11 +274,12 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 	commands := append([]packagegov.CommandSpec{}, dependency.Generation...)
 	commands = append(commands, dependency.Build...)
 	if len(commands) == 0 {
-		return &SharedPackageProvisioningError{
-			PackageName: dependency.Name,
-			Command:     "<declared lifecycle>",
-			Reason:      "has no generate or build lifecycle",
-		}
+		// A file dependency may be source-only. Its consumer's package manager
+		// links the source tree directly, so there is no artifact to provision.
+		// Empty lifecycle manifests are the explicit governed representation of
+		// that case; do not manufacture a build or reject an otherwise valid
+		// dependency.
+		return nil
 	}
 	var release func()
 	if strings.TrimSpace(options.Home) != "" {

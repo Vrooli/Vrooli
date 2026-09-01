@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file vrooli-bridge/v1/credentialgrant/credentialgrant.proto.
  */
 export const file_vrooli_bridge_v1_credentialgrant_credentialgrant: GenFile = /*@__PURE__*/
-  fileDesc("CjZ2cm9vbGktYnJpZGdlL3YxL2NyZWRlbnRpYWxncmFudC9jcmVkZW50aWFsZ3JhbnQucHJvdG8SJ3Zyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudCKBAgoPQ3JlZGVudGlhbEdyYW50EgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSEgoKbG9naWNhbF9pZBgDIAEoCRINCgVmaWVsZBgEIAEoCRINCgVjbGFzcxgFIAEoCRIRCglyZXRlbnRpb24YBiABKAkSEgoKZ2VuZXJhdGlvbhgHIAEoAxIYChBhY2tlZF9nZW5lcmF0aW9uGAggASgDEi4KCmdyYW50ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldm9rZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIn4KEkNyZWF0ZUdyYW50UmVxdWVzdBIPCgdub2RlX2lkGAEgASgJEhIKCmxvZ2ljYWxfaWQYAiABKAkSDQoFZmllbGQYAyABKAkSDQoFY2xhc3MYBCABKAkSEQoJcmV0ZW50aW9uGAUgASgJEhIKCmdlbmVyYXRpb24YBiABKAMiJAoRTGlzdEdyYW50c1JlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSJeChJMaXN0R3JhbnRzUmVzcG9uc2USSAoGZ3JhbnRzGAEgAygLMjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkNyZWRlbnRpYWxHcmFudCIgChJSZXZva2VHcmFudFJlcXVlc3QSCgoCaWQYASABKAkiKAoVU3luY05vZGVHcmFudHNSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkiOQoUUm90YXRlQWRkcmVzc1JlcXVlc3QSEgoKbG9naWNhbF9pZBgBIAEoCRINCgVmaWVsZBgCIAEoCSKTAQoQUm90YXRpb25SZXNwb25zZRISCgpsb2dpY2FsX2lkGAEgASgJEg0KBWZpZWxkGAIgASgJEhIKCmdlbmVyYXRpb24YAyABKAMSSAoGZ3JhbnRzGAQgAygLMjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkNyZWRlbnRpYWxHcmFudDLKBQoWQ3JlZGVudGlhbEdyYW50U2VydmljZRKEAQoLQ3JlYXRlR3JhbnQSOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuQ3JlYXRlR3JhbnRSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkNyZWRlbnRpYWxHcmFudBKFAQoKTGlzdEdyYW50cxI6LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudC5MaXN0R3JhbnRzUmVxdWVzdBo7LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudC5MaXN0R3JhbnRzUmVzcG9uc2UShAEKC1Jldm9rZUdyYW50EjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LlJldm9rZUdyYW50UmVxdWVzdBo4LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudC5DcmVkZW50aWFsR3JhbnQSiQEKDVJvdGF0ZUFkZHJlc3MSPS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuUm90YXRlQWRkcmVzc1JlcXVlc3QaOS52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuUm90YXRpb25SZXNwb25zZRKNAQoOU3luY05vZGVHcmFudHMSPi52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuU3luY05vZGVHcmFudHNSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50Lkxpc3RHcmFudHNSZXNwb25zZUJkWmJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Zyb29saS1icmlkZ2UvdjEvY3JlZGVudGlhbGdyYW50O2NyZWRlbnRpYWxncmFudF92MWIGcHJvdG8z", [file_google_protobuf_timestamp]);
+  fileDesc("CjZ2cm9vbGktYnJpZGdlL3YxL2NyZWRlbnRpYWxncmFudC9jcmVkZW50aWFsZ3JhbnQucHJvdG8SJ3Zyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudCLjAgoPQ3JlZGVudGlhbEdyYW50EgoKAmlkGAEgASgJEg8KB25vZGVfaWQYAiABKAkSEgoKbG9naWNhbF9pZBgDIAEoCRINCgVmaWVsZBgEIAEoCRINCgVjbGFzcxgFIAEoCRIRCglyZXRlbnRpb24YBiABKAkSEgoKZ2VuZXJhdGlvbhgHIAEoAxIYChBhY2tlZF9nZW5lcmF0aW9uGAggASgDEi4KCmdyYW50ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJldm9rZWRfYXQYCiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnJlY2VpcHRfYXQYCyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhgKEHJlY2VpcHRfYWNjZXB0ZWQYDCABKAgSFgoOcmVjZWlwdF9yZWFzb24YDSABKAkifgoSQ3JlYXRlR3JhbnRSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSEgoKbG9naWNhbF9pZBgCIAEoCRINCgVmaWVsZBgDIAEoCRINCgVjbGFzcxgEIAEoCRIRCglyZXRlbnRpb24YBSABKAkSEgoKZ2VuZXJhdGlvbhgGIAEoAyJ6ChNBbnN3ZXJTZWNyZXRSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkSEgoKbG9naWNhbF9pZBgCIAEoCRINCgVmaWVsZBgDIAEoCRINCgVjbGFzcxgEIAEoCRIRCglyZXRlbnRpb24YBSABKAkSDQoFdmFsdWUYBiABKAkiJAoRTGlzdEdyYW50c1JlcXVlc3QSDwoHbm9kZV9pZBgBIAEoCSJeChJMaXN0R3JhbnRzUmVzcG9uc2USSAoGZ3JhbnRzGAEgAygLMjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkNyZWRlbnRpYWxHcmFudCIgChJSZXZva2VHcmFudFJlcXVlc3QSCgoCaWQYASABKAkiKAoVU3luY05vZGVHcmFudHNSZXF1ZXN0Eg8KB25vZGVfaWQYASABKAkiOQoUUm90YXRlQWRkcmVzc1JlcXVlc3QSEgoKbG9naWNhbF9pZBgBIAEoCRINCgVmaWVsZBgCIAEoCSKTAQoQUm90YXRpb25SZXNwb25zZRISCgpsb2dpY2FsX2lkGAEgASgJEg0KBWZpZWxkGAIgASgJEhIKCmdlbmVyYXRpb24YAyABKAMSSAoGZ3JhbnRzGAQgAygLMjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkNyZWRlbnRpYWxHcmFudDLTBgoWQ3JlZGVudGlhbEdyYW50U2VydmljZRKEAQoLQ3JlYXRlR3JhbnQSOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuQ3JlYXRlR3JhbnRSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkNyZWRlbnRpYWxHcmFudBKGAQoMQW5zd2VyU2VjcmV0EjwudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkFuc3dlclNlY3JldFJlcXVlc3QaOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuQ3JlZGVudGlhbEdyYW50EoUBCgpMaXN0R3JhbnRzEjoudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50Lkxpc3RHcmFudHNSZXF1ZXN0GjsudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50Lkxpc3RHcmFudHNSZXNwb25zZRKEAQoLUmV2b2tlR3JhbnQSOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuUmV2b2tlR3JhbnRSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkNyZWRlbnRpYWxHcmFudBKJAQoNUm90YXRlQWRkcmVzcxI9LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudC5Sb3RhdGVBZGRyZXNzUmVxdWVzdBo5LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudC5Sb3RhdGlvblJlc3BvbnNlEo0BCg5TeW5jTm9kZUdyYW50cxI+LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudC5TeW5jTm9kZUdyYW50c1JlcXVlc3QaOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuTGlzdEdyYW50c1Jlc3BvbnNlQmRaYmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdnJvb2xpLWJyaWRnZS92MS9jcmVkZW50aWFsZ3JhbnQ7Y3JlZGVudGlhbGdyYW50X3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrant
@@ -67,6 +67,21 @@ export type CredentialGrant = Message<"vrooli.vrooli_bridge.v1.credentialgrant.C
    * @generated from field: google.protobuf.Timestamp revoked_at = 10;
    */
   revokedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp receipt_at = 11;
+   */
+  receiptAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: bool receipt_accepted = 12;
+   */
+  receiptAccepted: boolean;
+
+  /**
+   * @generated from field: string receipt_reason = 13;
+   */
+  receiptReason: string;
 };
 
 /**
@@ -119,6 +134,48 @@ export const CreateGrantRequestSchema: GenMessage<CreateGrantRequest> = /*@__PUR
   messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 1);
 
 /**
+ * @generated from message vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest
+ */
+export type AnswerSecretRequest = Message<"vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest"> & {
+  /**
+   * @generated from field: string node_id = 1;
+   */
+  nodeId: string;
+
+  /**
+   * @generated from field: string logical_id = 2;
+   */
+  logicalId: string;
+
+  /**
+   * @generated from field: string field = 3;
+   */
+  field: string;
+
+  /**
+   * @generated from field: string class = 4;
+   */
+  class: string;
+
+  /**
+   * @generated from field: string retention = 5;
+   */
+  retention: string;
+
+  /**
+   * @generated from field: string value = 6;
+   */
+  value: string;
+};
+
+/**
+ * Describes the message vrooli.vrooli_bridge.v1.credentialgrant.AnswerSecretRequest.
+ * Use `create(AnswerSecretRequestSchema)` to create a new message.
+ */
+export const AnswerSecretRequestSchema: GenMessage<AnswerSecretRequest> = /*@__PURE__*/
+  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 2);
+
+/**
  * @generated from message vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsRequest
  */
 export type ListGrantsRequest = Message<"vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsRequest"> & {
@@ -133,7 +190,7 @@ export type ListGrantsRequest = Message<"vrooli.vrooli_bridge.v1.credentialgrant
  * Use `create(ListGrantsRequestSchema)` to create a new message.
  */
 export const ListGrantsRequestSchema: GenMessage<ListGrantsRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 2);
+  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 3);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.credentialgrant.ListGrantsResponse
@@ -150,7 +207,7 @@ export type ListGrantsResponse = Message<"vrooli.vrooli_bridge.v1.credentialgran
  * Use `create(ListGrantsResponseSchema)` to create a new message.
  */
 export const ListGrantsResponseSchema: GenMessage<ListGrantsResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 3);
+  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 4);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.credentialgrant.RevokeGrantRequest
@@ -167,7 +224,7 @@ export type RevokeGrantRequest = Message<"vrooli.vrooli_bridge.v1.credentialgran
  * Use `create(RevokeGrantRequestSchema)` to create a new message.
  */
 export const RevokeGrantRequestSchema: GenMessage<RevokeGrantRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 4);
+  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 5);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.credentialgrant.SyncNodeGrantsRequest
@@ -184,7 +241,7 @@ export type SyncNodeGrantsRequest = Message<"vrooli.vrooli_bridge.v1.credentialg
  * Use `create(SyncNodeGrantsRequestSchema)` to create a new message.
  */
 export const SyncNodeGrantsRequestSchema: GenMessage<SyncNodeGrantsRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 5);
+  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 6);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.credentialgrant.RotateAddressRequest
@@ -206,7 +263,7 @@ export type RotateAddressRequest = Message<"vrooli.vrooli_bridge.v1.credentialgr
  * Use `create(RotateAddressRequestSchema)` to create a new message.
  */
 export const RotateAddressRequestSchema: GenMessage<RotateAddressRequest> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 6);
+  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 7);
 
 /**
  * @generated from message vrooli.vrooli_bridge.v1.credentialgrant.RotationResponse
@@ -238,7 +295,7 @@ export type RotationResponse = Message<"vrooli.vrooli_bridge.v1.credentialgrant.
  * Use `create(RotationResponseSchema)` to create a new message.
  */
 export const RotationResponseSchema: GenMessage<RotationResponse> = /*@__PURE__*/
-  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 7);
+  messageDesc(file_vrooli_bridge_v1_credentialgrant_credentialgrant, 8);
 
 /**
  * CredentialGrantService is the owner-facing metadata surface for grant
@@ -253,6 +310,18 @@ export const CredentialGrantService: GenService<{
   createGrant: {
     methodKind: "unary";
     input: typeof CreateGrantRequestSchema;
+    output: typeof CredentialGrantSchema;
+  },
+  /**
+   * Provisions one operator answer into the local credential authority and
+   * immediately delivers it through the sealed node channel. The value is
+   * never returned or persisted by the grant service.
+   *
+   * @generated from rpc vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.AnswerSecret
+   */
+  answerSecret: {
+    methodKind: "unary";
+    input: typeof AnswerSecretRequestSchema;
     output: typeof CredentialGrantSchema;
   },
   /**

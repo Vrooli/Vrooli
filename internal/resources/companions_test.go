@@ -113,6 +113,54 @@ func TestCompanionCrashLoopCapWritesFailureMarker(t *testing.T) {
 	}
 }
 
+func TestCompanionCrashEvidenceSurvivesStatusReapingPidfile(t *testing.T) {
+	dir := t.TempDir()
+	defer withCompanionDir(t, func(string) (string, error) { return dir, nil })()
+
+	c := ResourceCompanion{Name: "edge", Command: "sleep", Args: []string{"30"}}
+	if err := startCompanion("whisper", c, 1); err != nil {
+		t.Fatalf("initial companion start: %v", err)
+	}
+	pid, ok := readCompanionPID(filepath.Join(dir, "edge.pid"))
+	if !ok {
+		t.Fatal("initial companion did not write a pidfile")
+	}
+	if err := terminateCompanion(pid); err != nil {
+		t.Fatalf("terminate companion: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && process.IsPIDRunning(pid) {
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	statuses, err := companionStatuses("whisper", []ResourceCompanion{{Name: "edge"}})
+	if err != nil {
+		t.Fatalf("status after crash: %v", err)
+	}
+	if len(statuses) != 1 || statuses[0].Alive {
+		t.Fatalf("status after crash = %#v", statuses)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "edge.pid")); !os.IsNotExist(err) {
+		t.Fatalf("status should reap dead pidfile, stat error = %v", err)
+	}
+
+	if err := startCompanion("whisper", c, 1); err != nil {
+		t.Fatalf("recovery after status reaping: %v", err)
+	}
+	recoveredPID, ok := readCompanionPID(filepath.Join(dir, "edge.pid"))
+	if !ok || !process.IsPIDRunning(recoveredPID) {
+		t.Fatalf("recovered companion should be running; ok=%v pid=%d", ok, recoveredPID)
+	}
+	defer func() { _ = terminateCompanion(recoveredPID) }()
+	attempts, err := os.ReadFile(filepath.Join(dir, "edge.attempts"))
+	if err != nil {
+		t.Fatalf("read crash attempts: %v", err)
+	}
+	if got := strings.Count(strings.TrimSpace(string(attempts)), "\n") + 1; got != 1 {
+		t.Fatalf("crash attempts = %d, want one durable attempt", got)
+	}
+}
+
 // TestStopCompanionNoPidfile is a clean no-op when nothing is tracked.
 func TestStopCompanionNoPidfile(t *testing.T) {
 	dir := t.TempDir()

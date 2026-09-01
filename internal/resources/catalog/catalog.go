@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/vrooli/vrooli/internal/discovery"
 	"github.com/vrooli/vrooli/internal/operatorstate"
@@ -23,19 +24,28 @@ type ConfigEntry struct {
 }
 
 type Resource struct {
-	Name           string      `json:"name"`
-	Path           string      `json:"path"`
-	Exists         bool        `json:"exists"`
-	Registered     bool        `json:"registered"`
-	Enabled        bool        `json:"enabled"`
-	Required       bool        `json:"required"`
-	DeclaresCLI    bool        `json:"declares_cli"`
-	CLIInstalled   bool        `json:"cli_installed"`
-	CLIStateReason string      `json:"cli_state_reason,omitempty"`
-	Config         ConfigEntry `json:"config"`
-	ControlMode    string      `json:"control_mode,omitempty"`
-	Driver         string      `json:"driver,omitempty"`
-	ManifestPath   string      `json:"manifest_path,omitempty"`
+	Name                        string               `json:"name"`
+	Path                        string               `json:"path"`
+	Exists                      bool                 `json:"exists"`
+	Registered                  bool                 `json:"registered"`
+	Enabled                     bool                 `json:"enabled"`
+	Required                    bool                 `json:"required"`
+	DeclaresCLI                 bool                 `json:"declares_cli"`
+	CLIInstalled                bool                 `json:"cli_installed"`
+	CLIStateReason              string               `json:"cli_state_reason,omitempty"`
+	Config                      ConfigEntry          `json:"config"`
+	ControlMode                 string               `json:"control_mode,omitempty"`
+	Driver                      string               `json:"driver,omitempty"`
+	ManifestPath                string               `json:"manifest_path,omitempty"`
+	DisabledDependencyConsumers []DependencyConsumer `json:"disabled_dependency_consumers,omitempty"`
+}
+
+// DependencyConsumer identifies a scenario declaration that names a
+// resource the operator has explicitly disabled. It is exposed so status
+// callers can explain why a dependency was not started.
+type DependencyConsumer struct {
+	Scenario      string `json:"scenario"`
+	StartupPolicy string `json:"startup_policy"`
 }
 
 type DiscoverOptions struct {
@@ -138,6 +148,7 @@ func (s *Service) DiscoverReport(opts DiscoverOptions) (discovery.Report[Resourc
 			item.ManifestPath = manifestPath
 			item.ControlMode = "manifest-native"
 		}
+		item.DisabledDependencyConsumers = s.disabledDependencyConsumers(name)
 		report.Items = append(report.Items, item)
 	}
 
@@ -188,16 +199,61 @@ func (s *Service) DiscoverOne(name string, opts DiscoverOptions) (*Resource, err
 		item.ManifestPath = manifestPath
 		item.ControlMode = "manifest-native"
 	}
+	item.DisabledDependencyConsumers = s.disabledDependencyConsumers(name)
 	return item, nil
+}
+
+func (s *Service) disabledDependencyConsumers(resourceName string) []DependencyConsumer {
+	disabled := false
+	rootManifest, err := scenario.LoadServiceManifest(filepath.Join(s.Root, filepath.FromSlash(ResourceConfigPath)))
+	if err == nil {
+		if dependency, ok := rootManifest.Dependencies.Resources[resourceName]; ok && !dependency.Enabled {
+			disabled = true
+		}
+	}
+	state, err := operatorstate.New(operatorstate.Config{RepoRoot: s.Root}).Effective(context.Background())
+	if err == nil {
+		if choice, ok := state.Resources[resourceName]; ok && choice.Enabled != nil && !*choice.Enabled {
+			disabled = true
+		}
+	}
+	if !disabled {
+		return nil
+	}
+
+	consumers := make([]DependencyConsumer, 0)
+	for _, base := range []string{"scenarios", "apps"} {
+		entries, readErr := os.ReadDir(filepath.Join(s.Root, base))
+		if readErr != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			manifest, loadErr := scenario.LoadServiceManifest(filepath.Join(s.Root, base, entry.Name(), ".vrooli", "service.json"))
+			if loadErr != nil {
+				continue
+			}
+			dependency, ok := manifest.Dependencies.Resources[resourceName]
+			if ok && dependency.NormalizedStartupPolicy() != scenario.DependencyStartupPolicyIgnore {
+				consumers = append(consumers, DependencyConsumer{Scenario: entry.Name(), StartupPolicy: dependency.NormalizedStartupPolicy()})
+			}
+		}
+	}
+	slices.SortFunc(consumers, func(a, b DependencyConsumer) int {
+		if a.Scenario != b.Scenario {
+			return strings.Compare(a.Scenario, b.Scenario)
+		}
+		return strings.Compare(a.StartupPolicy, b.StartupPolicy)
+	})
+	return consumers
 }
 
 func (s *Service) ReadConfigEntries() (map[string]ConfigEntry, error) {
 	configPath := filepath.Join(s.Root, filepath.FromSlash(ResourceConfigPath))
 	manifest, err := scenario.LoadServiceManifest(configPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[string]ConfigEntry{}, nil
-		}
+	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
@@ -208,6 +264,15 @@ func (s *Service) ReadConfigEntries() (map[string]ConfigEntry, error) {
 			Required:    dependency.Required,
 			Description: dependency.Description,
 		}
+	}
+	// A scenario declaration supplies the default enablement when the project
+	// has no entry for that resource. An explicit project entry remains the
+	// authority, including enabled=false.
+	for name, dependency := range s.scenarioResourceDependencies() {
+		if _, declaredByProject := entries[name]; declaredByProject || !dependencyActiveAtStartup(dependency) {
+			continue
+		}
+		entries[name] = ConfigEntry{Enabled: true, Required: dependency.Required, Description: dependency.Description}
 	}
 
 	// The project manifest supplies defaults. Per-install operator choices are
@@ -226,6 +291,35 @@ func (s *Service) ReadConfigEntries() (map[string]ConfigEntry, error) {
 		entries[name] = entry
 	}
 	return entries, nil
+}
+
+func dependencyActiveAtStartup(dependency scenario.Dependency) bool {
+	return dependency.Enabled || (dependency.StartupPolicy != "" && dependency.NormalizedStartupPolicy() != scenario.DependencyStartupPolicyIgnore)
+}
+
+func (s *Service) scenarioResourceDependencies() map[string]scenario.Dependency {
+	dependencies := make(map[string]scenario.Dependency)
+	for _, base := range []string{"scenarios", "apps"} {
+		entries, err := os.ReadDir(filepath.Join(s.Root, base))
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			manifest, err := scenario.LoadServiceManifest(filepath.Join(s.Root, base, entry.Name(), ".vrooli", "service.json"))
+			if err != nil {
+				continue
+			}
+			for name, dependency := range manifest.Dependencies.Resources {
+				if dependencyActiveAtStartup(dependency) {
+					dependencies[name] = dependency
+				}
+			}
+		}
+	}
+	return dependencies
 }
 
 func (s *Service) FilesystemNames() ([]string, error) {

@@ -175,7 +175,14 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     needsUnlock: false,
   });
 
-  const providerRef = useRef<TTSProvider | null>(null);
+	const providerRef = useRef<TTSProvider | null>(null);
+	const backendReadyRef = useRef<Promise<void> | null>(null);
+	const resolveBackendReadyRef = useRef<(() => void) | null>(null);
+	if (!backendReadyRef.current) {
+		backendReadyRef.current = new Promise<void>((resolve) => {
+			resolveBackendReadyRef.current = resolve;
+		});
+	}
   const activeProviderRef = useRef<TTSProvider | null>(null);
   const backendRef = useRef<TTSBackend>("none");
   const speakChainRef = useRef<AbortController | null>(null);
@@ -307,12 +314,17 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     text: string,
     paragraphs?: string[],
     cacheOpts?: { eventId?: string; version?: "active" | "original" },
-  ): Promise<TTSBackend> => {
-    const provider = providerRef.current;
-    const segments = paragraphs ?? [text];
-    if (!provider || segments.length === 0) {
-      throw new Error("No TTS backend is available");
-    }
+	  ): Promise<TTSBackend> => {
+	    let provider = providerRef.current;
+	    const segments = paragraphs ?? [text];
+	    if (segments.length === 0) {
+	      throw new Error("No TTS backend is available");
+	    }
+	    if (!provider) {
+	      await backendReadyRef.current;
+	      provider = providerRef.current;
+	    }
+	    if (!provider) throw new Error("No TTS backend is available");
 
     // eventId/version are threaded only into the Kokoro synth path so each
     // paragraph populates the server byte cache under its chunk index; the
@@ -378,9 +390,28 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     settings.pitch,
     settings.rate,
     settings.voice,
-  ]);
+	]);
 
-  useEffect(() => {
+	const prewarmParagraphs = useCallback(async (
+		paragraphs: string[],
+		prewarmOpts?: { eventId?: string; version?: "active" | "original" },
+	): Promise<void> => {
+		if (paragraphs.length === 0) return;
+		let provider = providerRef.current;
+		if (!provider) {
+			await backendReadyRef.current;
+			provider = providerRef.current;
+		}
+		if (backendRef.current !== "kokoro" || !provider?.prewarm) return;
+		await provider.prewarm(paragraphs, {
+			voice: settings.kokoroVoice,
+			rate: settings.kokoroSpeed,
+			eventId: prewarmOpts?.eventId,
+			version: prewarmOpts?.version,
+		});
+	}, [settings.kokoroSpeed, settings.kokoroVoice]);
+
+	useEffect(() => {
     let cancelled = false;
 
     // Adopt a live provider held in the playback registry for this owner key
@@ -558,8 +589,11 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
       }
     }
 
-    resolveBackendRef.current = () => checkBackend();
-    checkBackend();
+	    resolveBackendRef.current = () => checkBackend();
+	    void checkBackend().finally(() => {
+	      resolveBackendReadyRef.current?.();
+	      resolveBackendReadyRef.current = null;
+	    });
     return () => {
       cancelled = true;
       resolveBackendRef.current = null;
@@ -613,8 +647,6 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
     (text: string) => {
       speakChainRef.current?.abort();
       providerRef.current?.stop();
-
-      if (!providerRef.current) return;
 
       // Single-owner audio: a new playback tears down any orphaned tail still
       // playing under a different owner (e.g. a session we just switched away
@@ -679,7 +711,7 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
       const controller = new AbortController();
       speakChainRef.current = controller;
 
-      if (!providerRef.current || paragraphs.length === 0) return;
+	      if (paragraphs.length === 0) return;
 
       // Single-owner audio (see speak()): drop any orphaned tail from another
       // owner before this session starts speaking.
@@ -908,8 +940,9 @@ export function useTextToSpeechCore(opts: UseTextToSpeechCoreOptions, settings: 
 
   return {
     ...state,
-    speak,
-    speakParagraphs,
+		speak,
+		speakParagraphs,
+		prewarmParagraphs,
     stop,
     pause,
     resume,

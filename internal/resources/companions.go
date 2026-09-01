@@ -27,9 +27,13 @@ import (
 // companion (e.g. whisper's edge owns the canonical port, so a down edge fails
 // the health probe). When no companions are declared this is a no-op, keeping the
 // driver byte-identical for every non-adopting managed-service resource.
-func startCompanions(resourceName string, companions []ResourceCompanion, recoveryAttempts int, stderr io.Writer) {
+func startCompanions(resourceName string, companions []ResourceCompanion, recoveryAttempts int, stderr io.Writer, parentPIDs ...int) {
+	parentPID := 0
+	if len(parentPIDs) > 0 {
+		parentPID = parentPIDs[0]
+	}
 	for _, c := range companions {
-		if err := startCompanion(resourceName, c, recoveryAttempts); err != nil {
+		if err := startCompanion(resourceName, c, recoveryAttempts, parentPID); err != nil {
 			fmt.Fprintf(stderr, "warning: companion %q for %s did not start: %v\n", c.Name, resourceName, err)
 		}
 	}
@@ -50,12 +54,13 @@ func stopCompanions(resourceName string, companions []ResourceCompanion, stderr 
 var resolveCompanionDir = companionDir
 
 type CompanionStatus struct {
-	Name    string `json:"name"`
-	Port    int    `json:"port,omitempty"`
-	PID     int    `json:"pid,omitempty"`
-	Alive   bool   `json:"alive"`
-	Failed  bool   `json:"failed,omitempty"`
-	Failure string `json:"failure,omitempty"`
+	Name     string `json:"name"`
+	Port     int    `json:"port,omitempty"`
+	Required bool   `json:"required"`
+	PID      int    `json:"pid,omitempty"`
+	Alive    bool   `json:"alive"`
+	Failed   bool   `json:"failed,omitempty"`
+	Failure  string `json:"failure,omitempty"`
 }
 
 // ResourceProcessRecord is the durable ownership projection written for a
@@ -143,7 +148,7 @@ func companionDir(resourceName string) (string, error) {
 	return dir, nil
 }
 
-func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts int) error {
+func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts int, parentPIDs ...int) error {
 	if strings.TrimSpace(c.Name) == "" || strings.TrimSpace(c.Command) == "" {
 		return fmt.Errorf("companion declaration is missing name/command")
 	}
@@ -152,9 +157,12 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 		return err
 	}
 	pidPath := filepath.Join(dir, c.Name+".pid")
+	statePath := filepath.Join(dir, c.Name+".state")
+	previousPID, previousOK := readCompanionPID(statePath)
+	pidfilePID, pidfileOK := readCompanionPID(pidPath)
 	// Idempotent: a live companion is left running so a restart does not gap the
 	// data path (the reverse proxy is stateless and dials the recreated container).
-	if pid, ok := readCompanionPID(pidPath); ok {
+	if pid, ok := pidfilePID, pidfileOK; ok {
 		if process.IsPIDRunning(pid) {
 			clearCompanionCrashState(dir, c.Name)
 			return nil
@@ -162,6 +170,15 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 		// A dead pidfile is stale state, not evidence that the companion is
 		// still owned. Reap it before attempting recovery.
 		_ = os.Remove(pidPath)
+		if !previousOK || previousPID != pid {
+			if err := recordCompanionCrashAttempt(dir, c.Name, recoveryAttempts); err != nil {
+				return err
+			}
+		}
+	} else if previousOK && !process.IsPIDRunning(previousPID) {
+		// Status intentionally reaps dead pidfiles. The state file preserves
+		// the fact that the prior launch existed, so a later start still counts
+		// the crash.
 		if err := recordCompanionCrashAttempt(dir, c.Name, recoveryAttempts); err != nil {
 			return err
 		}
@@ -179,6 +196,9 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	defer logf.Close()
 
 	cmd := shell.NewCommand(bin, c.Args...)
+	if len(parentPIDs) > 0 && parentPIDs[0] > 1 {
+		cmd = shell.NewCommand(bin, append(append([]string{}, c.Args...), "--parent-pid", strconv.Itoa(parentPIDs[0]))...)
+	}
 	cmd.Stdout = logf
 	cmd.Stderr = logf
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{Detached: true}); err != nil {
@@ -191,7 +211,10 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	// Detach: the companion outlives this short-lived control process.
 	_ = cmd.Process.Release()
 	clearCompanionFailure(dir, c.Name)
-	return os.WriteFile(pidPath, []byte(strconv.Itoa(pid)), tuning.PermFile)
+	if err := os.WriteFile(pidPath, []byte(strconv.Itoa(pid)), tuning.PermFile); err != nil {
+		return err
+	}
+	return os.WriteFile(statePath, []byte(strconv.Itoa(pid)), tuning.PermFile)
 }
 
 func terminateCompanion(pid int) error {
@@ -215,6 +238,7 @@ func stopCompanion(resourceName string, c ResourceCompanion) error {
 		}
 	}
 	clearCompanionCrashState(dir, c.Name)
+	_ = os.Remove(filepath.Join(dir, c.Name+".state"))
 	return os.Remove(pidPath)
 }
 
@@ -232,12 +256,13 @@ func companionStatuses(resourceName string, companions []ResourceCompanion) ([]C
 		pid, _ := readCompanionPID(filepath.Join(dir, c.Name+".pid"))
 		failed, failure := readCompanionFailure(dir, c.Name)
 		statuses = append(statuses, CompanionStatus{
-			Name:    c.Name,
-			Port:    c.Port,
-			PID:     pid,
-			Alive:   pid > 0 && process.IsPIDRunning(pid),
-			Failed:  failed,
-			Failure: failure,
+			Name:     c.Name,
+			Port:     c.Port,
+			Required: c.Required,
+			PID:      pid,
+			Alive:    pid > 0 && process.IsPIDRunning(pid),
+			Failed:   failed,
+			Failure:  failure,
 		})
 		if pid > 0 && !process.IsPIDRunning(pid) {
 			_ = os.Remove(filepath.Join(dir, c.Name+".pid"))
@@ -250,6 +275,16 @@ func downCompanions(statuses []CompanionStatus) []CompanionStatus {
 	down := make([]CompanionStatus, 0)
 	for _, status := range statuses {
 		if !status.Alive {
+			down = append(down, status)
+		}
+	}
+	return down
+}
+
+func requiredDownCompanions(statuses []CompanionStatus) []CompanionStatus {
+	down := make([]CompanionStatus, 0)
+	for _, status := range statuses {
+		if status.Required && !status.Alive {
 			down = append(down, status)
 		}
 	}

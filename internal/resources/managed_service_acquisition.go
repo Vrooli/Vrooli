@@ -598,6 +598,11 @@ func managedServiceArtifactForTarget(manifest ResourceManifest, target binaryfet
 	// file is the launch artifact, so EntryPath is meaningful only for a tree.
 	if layout == managedServiceAcquisitionDir && target.BinPath != "" {
 		artifact.EntryPath = strings.TrimPrefix(filepath.ToSlash(target.BinPath), "/")
+	} else if layout == managedServiceAcquisitionFile {
+		// File-layout targets (including OCI executable extraction) launch the
+		// staged file itself; carrying the manifest's directory entry_path into
+		// this target makes the artifact contract self-contradictory.
+		artifact.EntryPath = ""
 	}
 	return artifact, nil
 }

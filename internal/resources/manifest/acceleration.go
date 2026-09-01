@@ -274,8 +274,8 @@ func (a AccelerationSpec) Validate() error {
 }
 
 // validateClaim verifies the broker's claim ladder. A CPU-only declaration may
-// retain a VRAM claim as recorded intent for a future accelerator artifact; the
-// claim still has to be fully degradable before the broker can accept it.
+// declare a VRAM claim only when a device backend is declared; a CPU-only
+// resource cannot reserve video memory.
 func (a AccelerationSpec) validateClaim() error {
 	if a.Claim == nil {
 		return nil
@@ -286,6 +286,9 @@ func (a AccelerationSpec) validateClaim() error {
 	}
 	if kind != capacity.ResourceKindVRAM {
 		return nil
+	}
+	if !a.DeclaresAcceleration() {
+		return fmt.Errorf("acceleration.claim.resource_kind %q requires a declared non-CPU accelerator backend", kind)
 	}
 	if a.Claim.Profile == nil || len(a.Claim.Profile.Steps) == 0 {
 		return fmt.Errorf("acceleration.claim.profile with at least one step is required for a %q claim, otherwise the broker can never step the resource down", capacity.ResourceKindVRAM)

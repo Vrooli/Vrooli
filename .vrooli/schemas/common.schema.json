@@ -11,6 +11,8 @@
       "properties": {
         "status": { "$ref": "#/definitions/platformStatusToken" },
         "mechanism": { "type": "string" },
+        "since": { "type": "string", "format": "date" },
+        "review_by": { "type": "string", "format": "date" },
         "evidence": {
           "oneOf": [
             { "type": "null" },
@@ -18,11 +20,42 @@
             { "type": "string", "minLength": 1 }
           ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "not_applicable" } } },
+          "then": {
+            "required": ["evidence", "review_by"],
+            "not": { "required": ["mechanism"] }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "const": "not_implemented" } } },
+          "then": {
+            "required": ["evidence", "mechanism", "since"],
+            "not": {
+              "anyOf": [
+                { "properties": { "mechanism": { "const": "handler" } } },
+                { "properties": { "evidence": { "type": "string", "pattern": "(?i)(no implementation|not applicable on this host os|no .* implementation)" } } }
+              ]
+            }
+          }
+        },
+        {
+          "not": {
+            "properties": {
+              "evidence": {
+                "type": "string",
+                "pattern": "(?i)(no implementation for the .* host mechanism|not applicable on this host os)"
+              }
+            }
+          }
+        }
+      ]
     },
     "platformStatusToken": {
       "type": "string",
-      "enum": ["supported", "build-verified", "experimental", "unqualified", "partial", "unsupported", "not_implemented", "not_applicable"]
+      "enum": ["supported","build-verified","experimental","unqualified","partial","unsupported","not_implemented","not_applicable"]
     },
     "invariant": {
       "type": "object",
@@ -357,7 +390,8 @@
             "data",
             "cache",
             "logs",
-            "state"
+            "state",
+            "test_runs"
           ]
         },
         "subpath": {
@@ -492,6 +526,19 @@
         }
       ]
     },
+    "ownerCleanupProvider": {
+      "type": "object",
+      "description": "Owner-delegated cleanup provider. Storage Manager discovers this declaration and delegates Estimate, Preview, and Apply to the declaring scenario; it never opens owner-private storage.",
+      "additionalProperties": false,
+      "required": ["id", "name", "safety_tier", "default_mode", "default_approval"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "safety_tier": { "type": "string", "enum": ["safe", "safe_with_owner", "conditional", "dangerous"] },
+        "default_mode": { "type": "string", "enum": ["enabled", "disabled"] },
+        "default_approval": { "type": "string", "enum": ["none", "owner", "operator"] }
+      }
+    },
     "storageSurface": {
       "type": "object",
       "additionalProperties": false,
@@ -504,6 +551,12 @@
           "additionalProperties": {
             "$ref": "#/definitions/storageEntry"
           }
+        },
+        "cleanup_providers": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/ownerCleanupProvider" },
+          "uniqueItems": true,
+          "description": "Cleanup surfaces implemented by this owner and callable through Storage Manager's owner-delegation protocol."
         },
         "rationale": {
           "type": "string",
@@ -555,7 +608,8 @@
                 "data",
                 "cache",
                 "logs",
-                "state"
+                "state",
+                "test_runs"
               ],
               "default": "data",
               "description": "Storage class root the target path is relative to (api-core/storage Class). Defaults to data."

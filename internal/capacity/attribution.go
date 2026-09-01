@@ -29,13 +29,24 @@ type Attribution struct {
 // resource has a valid claim. Keep this alias in the control-plane attribution
 // seam rather than teaching each resource consumer to recognize executables.
 func NormalizeProcessOwner(processName string) string {
-	base := strings.ToLower(filepath.Base(strings.TrimSpace(processName)))
+	trimmed := strings.TrimSpace(processName)
+	base := strings.ToLower(filepath.Base(trimmed))
 	switch base {
 	case ownerOllama, "llama-server":
 		return ownerOllama
 	default:
 		if strings.HasPrefix(base, ownerReranker+"_") || base == ownerReranker {
 			return ownerReranker
+		}
+		// Native managed-service workers commonly run as `python` from an
+		// artifact path. The resource name is the path component immediately
+		// below the runtime-home `artifacts` directory; callers still verify it
+		// against a declared claim before using it as an owner.
+		parts := strings.Split(filepath.ToSlash(trimmed), "/")
+		for i := 0; i+1 < len(parts); i++ {
+			if strings.EqualFold(parts[i], "artifacts") && strings.TrimSpace(parts[i+1]) != "" {
+				return strings.ToLower(parts[i+1])
+			}
 		}
 		return ""
 	}

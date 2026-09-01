@@ -327,7 +327,7 @@ export class PcmVoiceStreamProvider {
     this.sample += BigInt(samples.length);
 		this.retainPcm(samples);
 		for (let i = 0; i < samples.length; i += 1) {
-			if (Math.abs(samples[i]) > 256) {
+			if (Math.abs(samples[i] ?? 0) > 256) {
 				this.diagnostic.signalObserved();
 				break;
 			}

@@ -89,7 +89,7 @@
       "layout": "dir",
       "entry_path": "runtime/bin/python",
       "sha256_by_platform": {
-        "linux-amd64": "3046e77fb85334664053102c08b84ffc7f2678eea10c8088acf3ef369f73268f"
+        "linux-amd64": "afc3f4503a91068d9df17e21481120cd1183225ad936223edfa0735898ff4984"
       },
       "bundle_artifact": "kyutai-stt_${os}_${arch}"
     },
@@ -106,7 +106,7 @@
             "arch": "amd64"
           },
           "layout": "dir",
-          "artifact_sha256": "3046e77fb85334664053102c08b84ffc7f2678eea10c8088acf3ef369f73268f",
+          "artifact_sha256": "afc3f4503a91068d9df17e21481120cd1183225ad936223edfa0735898ff4984",
           "compose": [
             {
               "role": "runtime",
@@ -121,7 +121,11 @@
               "role": "python-wheels",
               "kind": "python-wheels",
               "dest": "wheels",
-              "lockfile": "requirements.lock"
+              "lockfile": "requirements.lock",
+              "index_url": "https://download.pytorch.org/whl/cu124",
+              "extra_index_url": [
+                "https://pypi.org/simple"
+              ]
             },
             {
               "role": "application",

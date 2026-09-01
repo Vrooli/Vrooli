@@ -7,7 +7,7 @@
 package presence_v1
 
 import (
-	_ "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
+	channel "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -558,6 +558,94 @@ func (x *ReportCredentialReceiptResponse) GetAccepted() bool {
 	return false
 }
 
+type ReportScenarioResponseRequest struct {
+	state         protoimpl.MessageState    `protogen:"open.v1"`
+	Response      *channel.ScenarioResponse `protobuf:"bytes,1,opt,name=response,proto3" json:"response,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportScenarioResponseRequest) Reset() {
+	*x = ReportScenarioResponseRequest{}
+	mi := &file_vrooli_bridge_v1_presence_presence_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportScenarioResponseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportScenarioResponseRequest) ProtoMessage() {}
+
+func (x *ReportScenarioResponseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_presence_presence_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportScenarioResponseRequest.ProtoReflect.Descriptor instead.
+func (*ReportScenarioResponseRequest) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_presence_presence_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ReportScenarioResponseRequest) GetResponse() *channel.ScenarioResponse {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+type ReportScenarioResponseResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Accepted      bool                   `protobuf:"varint,1,opt,name=accepted,proto3" json:"accepted,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportScenarioResponseResponse) Reset() {
+	*x = ReportScenarioResponseResponse{}
+	mi := &file_vrooli_bridge_v1_presence_presence_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportScenarioResponseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportScenarioResponseResponse) ProtoMessage() {}
+
+func (x *ReportScenarioResponseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_vrooli_bridge_v1_presence_presence_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportScenarioResponseResponse.ProtoReflect.Descriptor instead.
+func (*ReportScenarioResponseResponse) Descriptor() ([]byte, []int) {
+	return file_vrooli_bridge_v1_presence_presence_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ReportScenarioResponseResponse) GetAccepted() bool {
+	if x != nil {
+		return x.Accepted
+	}
+	return false
+}
+
 var File_vrooli_bridge_v1_presence_presence_proto protoreflect.FileDescriptor
 
 const file_vrooli_bridge_v1_presence_presence_proto_rawDesc = "" +
@@ -593,13 +681,18 @@ const file_vrooli_bridge_v1_presence_presence_proto_rawDesc = "" +
 	"\baccepted\x18\x06 \x01(\bR\baccepted\x12\x16\n" +
 	"\x06reason\x18\a \x01(\tR\x06reason\"=\n" +
 	"\x1fReportCredentialReceiptResponse\x12\x1a\n" +
-	"\baccepted\x18\x01 \x01(\bR\baccepted2\xf1\x05\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted\"n\n" +
+	"\x1dReportScenarioResponseRequest\x12M\n" +
+	"\bresponse\x18\x01 \x01(\v21.vrooli.vrooli_bridge.v1.channel.ScenarioResponseR\bresponse\"<\n" +
+	"\x1eReportScenarioResponseResponse\x12\x1a\n" +
+	"\baccepted\x18\x01 \x01(\bR\baccepted2\x8f\a\n" +
 	"\x0fPresenceService\x12\x86\x01\n" +
 	"\x0fReportHeartbeat\x128.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest\x1a9.vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse\x12\x8c\x01\n" +
 	"\x11ReportDeliveryAck\x12:.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest\x1a;.vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse\x12\x8f\x01\n" +
 	"\x12ReportSessionFrame\x12;.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest\x1a<.vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse\x12\x92\x01\n" +
 	"\x13ReportRelayResponse\x12<.vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest\x1a=.vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponse\x12\x9e\x01\n" +
-	"\x17ReportCredentialReceipt\x12@.vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest\x1aA.vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3"
+	"\x17ReportCredentialReceipt\x12@.vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest\x1aA.vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptResponse\x12\x9b\x01\n" +
+	"\x16ReportScenarioResponse\x12?.vrooli.vrooli_bridge.v1.presence.ReportScenarioResponseRequest\x1a@.vrooli.vrooli_bridge.v1.presence.ReportScenarioResponseResponseBVZTgithub.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence;presence_v1b\x06proto3"
 
 var (
 	file_vrooli_bridge_v1_presence_presence_proto_rawDescOnce sync.Once
@@ -613,7 +706,7 @@ func file_vrooli_bridge_v1_presence_presence_proto_rawDescGZIP() []byte {
 	return file_vrooli_bridge_v1_presence_presence_proto_rawDescData
 }
 
-var file_vrooli_bridge_v1_presence_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_vrooli_bridge_v1_presence_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_vrooli_bridge_v1_presence_presence_proto_goTypes = []any{
 	(*ReportHeartbeatRequest)(nil),          // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
 	(*ReportHeartbeatResponse)(nil),         // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
@@ -626,34 +719,40 @@ var file_vrooli_bridge_v1_presence_presence_proto_goTypes = []any{
 	(*ReportCredentialReceiptRequest)(nil),  // 8: vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest
 	(*CredentialReceipt)(nil),               // 9: vrooli.vrooli_bridge.v1.presence.CredentialReceipt
 	(*ReportCredentialReceiptResponse)(nil), // 10: vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptResponse
-	(*shared.Heartbeat)(nil),                // 11: vrooli.vrooli_bridge.v1.shared.Heartbeat
-	(shared.CompatibilityStatus)(0),         // 12: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
-	(*shared.DeliveryAck)(nil),              // 13: vrooli.vrooli_bridge.v1.shared.DeliveryAck
-	(*shared.SessionFrame)(nil),             // 14: vrooli.vrooli_bridge.v1.shared.SessionFrame
-	(*shared.RelayResponse)(nil),            // 15: vrooli.vrooli_bridge.v1.shared.RelayResponse
+	(*ReportScenarioResponseRequest)(nil),   // 11: vrooli.vrooli_bridge.v1.presence.ReportScenarioResponseRequest
+	(*ReportScenarioResponseResponse)(nil),  // 12: vrooli.vrooli_bridge.v1.presence.ReportScenarioResponseResponse
+	(*shared.Heartbeat)(nil),                // 13: vrooli.vrooli_bridge.v1.shared.Heartbeat
+	(shared.CompatibilityStatus)(0),         // 14: vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
+	(*shared.DeliveryAck)(nil),              // 15: vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	(*shared.SessionFrame)(nil),             // 16: vrooli.vrooli_bridge.v1.shared.SessionFrame
+	(*shared.RelayResponse)(nil),            // 17: vrooli.vrooli_bridge.v1.shared.RelayResponse
+	(*channel.ScenarioResponse)(nil),        // 18: vrooli.vrooli_bridge.v1.channel.ScenarioResponse
 }
 var file_vrooli_bridge_v1_presence_presence_proto_depIdxs = []int32{
-	11, // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
-	12, // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse.compatibility:type_name -> vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
-	13, // 2: vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest.ack:type_name -> vrooli.vrooli_bridge.v1.shared.DeliveryAck
-	14, // 3: vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest.frame:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
-	15, // 4: vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest.response:type_name -> vrooli.vrooli_bridge.v1.shared.RelayResponse
+	13, // 0: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest.heartbeat:type_name -> vrooli.vrooli_bridge.v1.shared.Heartbeat
+	14, // 1: vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse.compatibility:type_name -> vrooli.vrooli_bridge.v1.shared.CompatibilityStatus
+	15, // 2: vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest.ack:type_name -> vrooli.vrooli_bridge.v1.shared.DeliveryAck
+	16, // 3: vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest.frame:type_name -> vrooli.vrooli_bridge.v1.shared.SessionFrame
+	17, // 4: vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest.response:type_name -> vrooli.vrooli_bridge.v1.shared.RelayResponse
 	9,  // 5: vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest.receipt:type_name -> vrooli.vrooli_bridge.v1.presence.CredentialReceipt
-	0,  // 6: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:input_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
-	2,  // 7: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck:input_type -> vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest
-	4,  // 8: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame:input_type -> vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest
-	6,  // 9: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportRelayResponse:input_type -> vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest
-	8,  // 10: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportCredentialReceipt:input_type -> vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest
-	1,  // 11: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:output_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
-	3,  // 12: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck:output_type -> vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse
-	5,  // 13: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame:output_type -> vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse
-	7,  // 14: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportRelayResponse:output_type -> vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponse
-	10, // 15: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportCredentialReceipt:output_type -> vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptResponse
-	11, // [11:16] is the sub-list for method output_type
-	6,  // [6:11] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	18, // 6: vrooli.vrooli_bridge.v1.presence.ReportScenarioResponseRequest.response:type_name -> vrooli.vrooli_bridge.v1.channel.ScenarioResponse
+	0,  // 7: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:input_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatRequest
+	2,  // 8: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck:input_type -> vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckRequest
+	4,  // 9: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame:input_type -> vrooli.vrooli_bridge.v1.presence.ReportSessionFrameRequest
+	6,  // 10: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportRelayResponse:input_type -> vrooli.vrooli_bridge.v1.presence.ReportRelayResponseRequest
+	8,  // 11: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportCredentialReceipt:input_type -> vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptRequest
+	11, // 12: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportScenarioResponse:input_type -> vrooli.vrooli_bridge.v1.presence.ReportScenarioResponseRequest
+	1,  // 13: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportHeartbeat:output_type -> vrooli.vrooli_bridge.v1.presence.ReportHeartbeatResponse
+	3,  // 14: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportDeliveryAck:output_type -> vrooli.vrooli_bridge.v1.presence.ReportDeliveryAckResponse
+	5,  // 15: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportSessionFrame:output_type -> vrooli.vrooli_bridge.v1.presence.ReportSessionFrameResponse
+	7,  // 16: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportRelayResponse:output_type -> vrooli.vrooli_bridge.v1.presence.ReportRelayResponseResponse
+	10, // 17: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportCredentialReceipt:output_type -> vrooli.vrooli_bridge.v1.presence.ReportCredentialReceiptResponse
+	12, // 18: vrooli.vrooli_bridge.v1.presence.PresenceService.ReportScenarioResponse:output_type -> vrooli.vrooli_bridge.v1.presence.ReportScenarioResponseResponse
+	13, // [13:19] is the sub-list for method output_type
+	7,  // [7:13] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_vrooli_bridge_v1_presence_presence_proto_init() }
@@ -667,7 +766,7 @@ func file_vrooli_bridge_v1_presence_presence_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_vrooli_bridge_v1_presence_presence_proto_rawDesc), len(file_vrooli_bridge_v1_presence_presence_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

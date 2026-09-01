@@ -258,6 +258,14 @@ func (s resolverState) addResources(home, selector string) error {
 		if target, found := manifest.Deployment.Target("desktop", s.platform, ""); found {
 			for _, name := range target.Requires {
 				name = strings.TrimSpace(name)
+				// An externally acquired CLI is the thing the resource install
+				// action is responsible for putting on the host. Promoting that
+				// same binary to a required host tool makes `resource install`
+				// self-block before the acquisition route can run. Other explicit
+				// host requirements remain governed by the normal resolver.
+				if manifest.Driver == "external-cli" && manifest.Acquisition != nil && name == strings.TrimSpace(manifest.Binary) {
+					continue
+				}
 				reason := fmt.Sprintf("resource %s desktop target requires %s", item.Name, name)
 				if _, ok := s.catalog.tools[name]; ok {
 					s.add(Declaration{Name: name, Required: true, Reason: reason}, KindTool, provenance)
@@ -366,6 +374,13 @@ func (s resolverState) add(declaration Declaration, kind Kind, provenance Proven
 		recordedConfig := s.operatorState.config(kind, key)
 		config, configError, configUnconfigured = resolveSafeguardConfig(key, manifest, recordedConfig, declaration.Required)
 		configNonDefault = configDiffersFromDefaults(manifest, recordedConfig)
+	} else if kind == KindTool {
+		// Tool platform gates are part of the tool manifest, just like
+		// safeguard gates. Keep mismatches visible so runtime can report a
+		// typed not_applicable result instead of silently dropping the tool.
+		if manifest, ok := s.catalog.tools[key]; ok {
+			platforms = mergeUnique(platforms, manifest.Platforms)
+		}
 	}
 	resolved, exists := target[key]
 	if !exists {

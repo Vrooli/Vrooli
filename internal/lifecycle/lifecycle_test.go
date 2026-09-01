@@ -668,6 +668,84 @@ func TestEnsureResourceDependenciesBlocksRequiredUnavailableResource(t *testing.
 	}
 }
 
+func TestEnsureResourceDependenciesHonorsOperatorDisabledResource(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"sherpa-onnx": {Enabled: true, Required: true, StartupPolicy: scenario.DependencyStartupPolicyMustStart},
+			},
+		}),
+	))
+
+	startCalled := false
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
+			return resourcecontrol.Status{
+				Resource:   resources.Resource{Name: name, Exists: true, Enabled: false},
+				StatusCode: "unsupported_platform",
+			}, nil
+		}
+		deps.runResource = func(string, []string, io.Writer, io.Writer) error {
+			startCalled = true
+			return nil
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	_, err = runner.ensureResourceDependencies(item, StartOptions{})
+	if err == nil || !strings.Contains(err.Error(), "disabled by operator state") || !strings.Contains(err.Error(), "startup_policy=must_start") {
+		t.Fatalf("ensureResourceDependencies error = %v", err)
+	}
+	if startCalled {
+		t.Fatal("disabled resource dependency was started")
+	}
+}
+
+func TestEnsureResourceDependenciesTryStartSkipsOperatorDisabledResource(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+		"alpha",
+		testscenario.WithDependencies(scenario.Dependencies{
+			Resources: map[string]scenario.Dependency{
+				"sherpa-onnx": {Enabled: true, StartupPolicy: scenario.DependencyStartupPolicyTryStart},
+			},
+		}),
+	))
+
+	startCalled := false
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
+			return resourcecontrol.Status{Resource: resources.Resource{Name: name, Exists: true, Enabled: false}}, nil
+		}
+		deps.runResource = func(string, []string, io.Writer, io.Writer) error {
+			startCalled = true
+			return nil
+		}
+	})
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
+	}
+
+	failed, err := runner.ensureResourceDependencies(item, StartOptions{})
+	if err != nil {
+		t.Fatalf("ensureResourceDependencies: %v", err)
+	}
+	if len(failed) != 1 || failed[0] != "sherpa-onnx" {
+		t.Fatalf("failed resources = %#v, want [sherpa-onnx]", failed)
+	}
+	if startCalled {
+		t.Fatal("disabled resource dependency was started")
+	}
+}
+
 func TestEnsureResourceDependenciesTryStartMarksUnavailableResourceAsFailed(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

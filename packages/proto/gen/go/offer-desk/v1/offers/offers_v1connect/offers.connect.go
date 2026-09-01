@@ -71,6 +71,12 @@ const (
 	// CatalogServiceSetReleaseRankProcedure is the fully-qualified name of the CatalogService's
 	// SetReleaseRank RPC.
 	CatalogServiceSetReleaseRankProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/SetReleaseRank"
+	// CatalogServiceSetDeliverableClassProcedure is the fully-qualified name of the CatalogService's
+	// SetDeliverableClass RPC.
+	CatalogServiceSetDeliverableClassProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/SetDeliverableClass"
+	// CatalogServiceGetMeterInventoryProcedure is the fully-qualified name of the CatalogService's
+	// GetMeterInventory RPC.
+	CatalogServiceGetMeterInventoryProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/GetMeterInventory"
 	// GatesServiceDeclareTriggerProcedure is the fully-qualified name of the GatesService's
 	// DeclareTrigger RPC.
 	GatesServiceDeclareTriggerProcedure = "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger"
@@ -88,6 +94,9 @@ const (
 	// ReleaseLadderServiceGetReleaseLadderProcedure is the fully-qualified name of the
 	// ReleaseLadderService's GetReleaseLadder RPC.
 	ReleaseLadderServiceGetReleaseLadderProcedure = "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder"
+	// ReleaseLadderServiceGetEnablingDeliverablesProcedure is the fully-qualified name of the
+	// ReleaseLadderService's GetEnablingDeliverables RPC.
+	ReleaseLadderServiceGetEnablingDeliverablesProcedure = "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetEnablingDeliverables"
 	// ReleaseLadderServiceGetPrerequisitesProcedure is the fully-qualified name of the
 	// ReleaseLadderService's GetPrerequisites RPC.
 	ReleaseLadderServiceGetPrerequisitesProcedure = "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetPrerequisites"
@@ -108,6 +117,8 @@ type CatalogServiceClient interface {
 	MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error)
 	VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error)
 	SetReleaseRank(context.Context, *connect.Request[offers.SetReleaseRankRequest]) (*connect.Response[offers.SetReleaseRankResponse], error)
+	SetDeliverableClass(context.Context, *connect.Request[offers.SetDeliverableClassRequest]) (*connect.Response[offers.SetDeliverableClassResponse], error)
+	GetMeterInventory(context.Context, *connect.Request[offers.MeterInventoryRequest]) (*connect.Response[offers.MeterInventoryResponse], error)
 }
 
 // NewCatalogServiceClient constructs a client for the vrooli.offer_desk.v1.offers.CatalogService
@@ -181,21 +192,35 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("SetReleaseRank")),
 			connect.WithClientOptions(opts...),
 		),
+		setDeliverableClass: connect.NewClient[offers.SetDeliverableClassRequest, offers.SetDeliverableClassResponse](
+			httpClient,
+			baseURL+CatalogServiceSetDeliverableClassProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("SetDeliverableClass")),
+			connect.WithClientOptions(opts...),
+		),
+		getMeterInventory: connect.NewClient[offers.MeterInventoryRequest, offers.MeterInventoryResponse](
+			httpClient,
+			baseURL+CatalogServiceGetMeterInventoryProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("GetMeterInventory")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // catalogServiceClient implements CatalogServiceClient.
 type catalogServiceClient struct {
-	createNode     *connect.Client[offers.CreateNodeRequest, offers.CreateNodeResponse]
-	listNodes      *connect.Client[offers.ListNodesRequest, offers.ListNodesResponse]
-	transition     *connect.Client[offers.TransitionRequest, offers.TransitionResponse]
-	createEdge     *connect.Client[offers.CreateEdgeRequest, offers.CreateEdgeResponse]
-	listEdges      *connect.Client[offers.ListEdgesRequest, offers.ListEdgesResponse]
-	importCatalog  *connect.Client[offers.ImportCatalogRequest, offers.ImportCatalogResponse]
-	mapAccount     *connect.Client[offers.MapAccountRequest, offers.MapAccountResponse]
-	mergeNodes     *connect.Client[offers.MergeNodesRequest, offers.MergeNodesResponse]
-	verifyCatalog  *connect.Client[offers.VerifyCatalogRequest, offers.VerifyCatalogResponse]
-	setReleaseRank *connect.Client[offers.SetReleaseRankRequest, offers.SetReleaseRankResponse]
+	createNode          *connect.Client[offers.CreateNodeRequest, offers.CreateNodeResponse]
+	listNodes           *connect.Client[offers.ListNodesRequest, offers.ListNodesResponse]
+	transition          *connect.Client[offers.TransitionRequest, offers.TransitionResponse]
+	createEdge          *connect.Client[offers.CreateEdgeRequest, offers.CreateEdgeResponse]
+	listEdges           *connect.Client[offers.ListEdgesRequest, offers.ListEdgesResponse]
+	importCatalog       *connect.Client[offers.ImportCatalogRequest, offers.ImportCatalogResponse]
+	mapAccount          *connect.Client[offers.MapAccountRequest, offers.MapAccountResponse]
+	mergeNodes          *connect.Client[offers.MergeNodesRequest, offers.MergeNodesResponse]
+	verifyCatalog       *connect.Client[offers.VerifyCatalogRequest, offers.VerifyCatalogResponse]
+	setReleaseRank      *connect.Client[offers.SetReleaseRankRequest, offers.SetReleaseRankResponse]
+	setDeliverableClass *connect.Client[offers.SetDeliverableClassRequest, offers.SetDeliverableClassResponse]
+	getMeterInventory   *connect.Client[offers.MeterInventoryRequest, offers.MeterInventoryResponse]
 }
 
 // CreateNode calls vrooli.offer_desk.v1.offers.CatalogService.CreateNode.
@@ -248,6 +273,16 @@ func (c *catalogServiceClient) SetReleaseRank(ctx context.Context, req *connect.
 	return c.setReleaseRank.CallUnary(ctx, req)
 }
 
+// SetDeliverableClass calls vrooli.offer_desk.v1.offers.CatalogService.SetDeliverableClass.
+func (c *catalogServiceClient) SetDeliverableClass(ctx context.Context, req *connect.Request[offers.SetDeliverableClassRequest]) (*connect.Response[offers.SetDeliverableClassResponse], error) {
+	return c.setDeliverableClass.CallUnary(ctx, req)
+}
+
+// GetMeterInventory calls vrooli.offer_desk.v1.offers.CatalogService.GetMeterInventory.
+func (c *catalogServiceClient) GetMeterInventory(ctx context.Context, req *connect.Request[offers.MeterInventoryRequest]) (*connect.Response[offers.MeterInventoryResponse], error) {
+	return c.getMeterInventory.CallUnary(ctx, req)
+}
+
 // CatalogServiceHandler is an implementation of the vrooli.offer_desk.v1.offers.CatalogService
 // service.
 type CatalogServiceHandler interface {
@@ -261,6 +296,8 @@ type CatalogServiceHandler interface {
 	MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error)
 	VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error)
 	SetReleaseRank(context.Context, *connect.Request[offers.SetReleaseRankRequest]) (*connect.Response[offers.SetReleaseRankResponse], error)
+	SetDeliverableClass(context.Context, *connect.Request[offers.SetDeliverableClassRequest]) (*connect.Response[offers.SetDeliverableClassResponse], error)
+	GetMeterInventory(context.Context, *connect.Request[offers.MeterInventoryRequest]) (*connect.Response[offers.MeterInventoryResponse], error)
 }
 
 // NewCatalogServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -330,6 +367,18 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("SetReleaseRank")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceSetDeliverableClassHandler := connect.NewUnaryHandler(
+		CatalogServiceSetDeliverableClassProcedure,
+		svc.SetDeliverableClass,
+		connect.WithSchema(catalogServiceMethods.ByName("SetDeliverableClass")),
+		connect.WithHandlerOptions(opts...),
+	)
+	catalogServiceGetMeterInventoryHandler := connect.NewUnaryHandler(
+		CatalogServiceGetMeterInventoryProcedure,
+		svc.GetMeterInventory,
+		connect.WithSchema(catalogServiceMethods.ByName("GetMeterInventory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.offer_desk.v1.offers.CatalogService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CatalogServiceCreateNodeProcedure:
@@ -352,6 +401,10 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceVerifyCatalogHandler.ServeHTTP(w, r)
 		case CatalogServiceSetReleaseRankProcedure:
 			catalogServiceSetReleaseRankHandler.ServeHTTP(w, r)
+		case CatalogServiceSetDeliverableClassProcedure:
+			catalogServiceSetDeliverableClassHandler.ServeHTTP(w, r)
+		case CatalogServiceGetMeterInventoryProcedure:
+			catalogServiceGetMeterInventoryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -399,6 +452,14 @@ func (UnimplementedCatalogServiceHandler) VerifyCatalog(context.Context, *connec
 
 func (UnimplementedCatalogServiceHandler) SetReleaseRank(context.Context, *connect.Request[offers.SetReleaseRankRequest]) (*connect.Response[offers.SetReleaseRankResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.SetReleaseRank is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) SetDeliverableClass(context.Context, *connect.Request[offers.SetDeliverableClassRequest]) (*connect.Response[offers.SetDeliverableClassResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.SetDeliverableClass is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) GetMeterInventory(context.Context, *connect.Request[offers.MeterInventoryRequest]) (*connect.Response[offers.MeterInventoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.GetMeterInventory is not implemented"))
 }
 
 // GatesServiceClient is a client for the vrooli.offer_desk.v1.offers.GatesService service.
@@ -649,6 +710,7 @@ func (UnimplementedBoardServiceHandler) GetBoard(context.Context, *connect.Reque
 // service.
 type ReleaseLadderServiceClient interface {
 	GetReleaseLadder(context.Context, *connect.Request[offers.ReleaseLadderRequest]) (*connect.Response[offers.ReleaseLadderResponse], error)
+	GetEnablingDeliverables(context.Context, *connect.Request[offers.ReleaseLadderRequest]) (*connect.Response[offers.ReleaseLadderResponse], error)
 	GetPrerequisites(context.Context, *connect.Request[offers.PrerequisiteWalkRequest]) (*connect.Response[offers.PrerequisiteWalkResponse], error)
 }
 
@@ -670,6 +732,12 @@ func NewReleaseLadderServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(releaseLadderServiceMethods.ByName("GetReleaseLadder")),
 			connect.WithClientOptions(opts...),
 		),
+		getEnablingDeliverables: connect.NewClient[offers.ReleaseLadderRequest, offers.ReleaseLadderResponse](
+			httpClient,
+			baseURL+ReleaseLadderServiceGetEnablingDeliverablesProcedure,
+			connect.WithSchema(releaseLadderServiceMethods.ByName("GetEnablingDeliverables")),
+			connect.WithClientOptions(opts...),
+		),
 		getPrerequisites: connect.NewClient[offers.PrerequisiteWalkRequest, offers.PrerequisiteWalkResponse](
 			httpClient,
 			baseURL+ReleaseLadderServiceGetPrerequisitesProcedure,
@@ -681,13 +749,20 @@ func NewReleaseLadderServiceClient(httpClient connect.HTTPClient, baseURL string
 
 // releaseLadderServiceClient implements ReleaseLadderServiceClient.
 type releaseLadderServiceClient struct {
-	getReleaseLadder *connect.Client[offers.ReleaseLadderRequest, offers.ReleaseLadderResponse]
-	getPrerequisites *connect.Client[offers.PrerequisiteWalkRequest, offers.PrerequisiteWalkResponse]
+	getReleaseLadder        *connect.Client[offers.ReleaseLadderRequest, offers.ReleaseLadderResponse]
+	getEnablingDeliverables *connect.Client[offers.ReleaseLadderRequest, offers.ReleaseLadderResponse]
+	getPrerequisites        *connect.Client[offers.PrerequisiteWalkRequest, offers.PrerequisiteWalkResponse]
 }
 
 // GetReleaseLadder calls vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder.
 func (c *releaseLadderServiceClient) GetReleaseLadder(ctx context.Context, req *connect.Request[offers.ReleaseLadderRequest]) (*connect.Response[offers.ReleaseLadderResponse], error) {
 	return c.getReleaseLadder.CallUnary(ctx, req)
+}
+
+// GetEnablingDeliverables calls
+// vrooli.offer_desk.v1.offers.ReleaseLadderService.GetEnablingDeliverables.
+func (c *releaseLadderServiceClient) GetEnablingDeliverables(ctx context.Context, req *connect.Request[offers.ReleaseLadderRequest]) (*connect.Response[offers.ReleaseLadderResponse], error) {
+	return c.getEnablingDeliverables.CallUnary(ctx, req)
 }
 
 // GetPrerequisites calls vrooli.offer_desk.v1.offers.ReleaseLadderService.GetPrerequisites.
@@ -699,6 +774,7 @@ func (c *releaseLadderServiceClient) GetPrerequisites(ctx context.Context, req *
 // vrooli.offer_desk.v1.offers.ReleaseLadderService service.
 type ReleaseLadderServiceHandler interface {
 	GetReleaseLadder(context.Context, *connect.Request[offers.ReleaseLadderRequest]) (*connect.Response[offers.ReleaseLadderResponse], error)
+	GetEnablingDeliverables(context.Context, *connect.Request[offers.ReleaseLadderRequest]) (*connect.Response[offers.ReleaseLadderResponse], error)
 	GetPrerequisites(context.Context, *connect.Request[offers.PrerequisiteWalkRequest]) (*connect.Response[offers.PrerequisiteWalkResponse], error)
 }
 
@@ -715,6 +791,12 @@ func NewReleaseLadderServiceHandler(svc ReleaseLadderServiceHandler, opts ...con
 		connect.WithSchema(releaseLadderServiceMethods.ByName("GetReleaseLadder")),
 		connect.WithHandlerOptions(opts...),
 	)
+	releaseLadderServiceGetEnablingDeliverablesHandler := connect.NewUnaryHandler(
+		ReleaseLadderServiceGetEnablingDeliverablesProcedure,
+		svc.GetEnablingDeliverables,
+		connect.WithSchema(releaseLadderServiceMethods.ByName("GetEnablingDeliverables")),
+		connect.WithHandlerOptions(opts...),
+	)
 	releaseLadderServiceGetPrerequisitesHandler := connect.NewUnaryHandler(
 		ReleaseLadderServiceGetPrerequisitesProcedure,
 		svc.GetPrerequisites,
@@ -725,6 +807,8 @@ func NewReleaseLadderServiceHandler(svc ReleaseLadderServiceHandler, opts ...con
 		switch r.URL.Path {
 		case ReleaseLadderServiceGetReleaseLadderProcedure:
 			releaseLadderServiceGetReleaseLadderHandler.ServeHTTP(w, r)
+		case ReleaseLadderServiceGetEnablingDeliverablesProcedure:
+			releaseLadderServiceGetEnablingDeliverablesHandler.ServeHTTP(w, r)
 		case ReleaseLadderServiceGetPrerequisitesProcedure:
 			releaseLadderServiceGetPrerequisitesHandler.ServeHTTP(w, r)
 		default:
@@ -738,6 +822,10 @@ type UnimplementedReleaseLadderServiceHandler struct{}
 
 func (UnimplementedReleaseLadderServiceHandler) GetReleaseLadder(context.Context, *connect.Request[offers.ReleaseLadderRequest]) (*connect.Response[offers.ReleaseLadderResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder is not implemented"))
+}
+
+func (UnimplementedReleaseLadderServiceHandler) GetEnablingDeliverables(context.Context, *connect.Request[offers.ReleaseLadderRequest]) (*connect.Response[offers.ReleaseLadderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.ReleaseLadderService.GetEnablingDeliverables is not implemented"))
 }
 
 func (UnimplementedReleaseLadderServiceHandler) GetPrerequisites(context.Context, *connect.Request[offers.PrerequisiteWalkRequest]) (*connect.Response[offers.PrerequisiteWalkResponse], error) {

@@ -84,3 +84,15 @@ class ReportCredentialReceiptResponse(_message.Message):
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     accepted: bool
     def __init__(self, accepted: _Optional[bool] = ...) -> None: ...
+
+class ReportScenarioResponseRequest(_message.Message):
+    __slots__ = ("response",)
+    RESPONSE_FIELD_NUMBER: _ClassVar[int]
+    response: _channel_pb2.ScenarioResponse
+    def __init__(self, response: _Optional[_Union[_channel_pb2.ScenarioResponse, _Mapping]] = ...) -> None: ...
+
+class ReportScenarioResponseResponse(_message.Message):
+    __slots__ = ("accepted",)
+    ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    accepted: bool
+    def __init__(self, accepted: _Optional[bool] = ...) -> None: ...

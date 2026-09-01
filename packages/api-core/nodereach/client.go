@@ -1,8 +1,8 @@
-// Package nodeclient is the one provider-facing reach for trusted Vrooli
+// Package nodereach is the one provider-facing reach for trusted Vrooli
 // nodes. It owns Bridge location, authentication headers, bounded timeouts,
 // typed relay arguments, and admission errors; consumers choose a node and
 // render the result for their product surface.
-package nodeclient
+package nodereach
 
 import (
 	"context"
@@ -17,14 +17,16 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/websocket"
-	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/scopecatalog"
+	"github.com/vrooli/cli-core/cliutil"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	dispatchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch/dispatch_v1connect"
 	gatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate"
 	gateconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate/gate_v1connect"
 	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
 	machinesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines/machines_v1connect"
+	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
+	onboardconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard/onboard_v1connect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 	registryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry/registry_v1connect"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
@@ -35,7 +37,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ErrorKind classifies node-client failures for product surfaces and logs.
+// ErrorKind classifies node-reach failures for product surfaces and logs.
 type ErrorKind string
 
 const (
@@ -72,7 +74,7 @@ func interactiveTransportScope() string {
 }
 
 func (e *Error) Error() string {
-	parts := []string{fmt.Sprintf("node client %s", e.Kind)}
+	parts := []string{fmt.Sprintf("node reach %s", e.Kind)}
 	if e.Node != "" {
 		parts = append(parts, fmt.Sprintf("node=%q", e.Node))
 	}
@@ -90,7 +92,7 @@ func (e *Error) Error() string {
 
 func (e *Error) Unwrap() error { return e.Err }
 
-// IsKind reports whether err is a node-client error of kind.
+// IsKind reports whether err is a node-reach error of kind.
 func IsKind(err error, kind ErrorKind) bool {
 	var target *Error
 	return errors.As(err, &target) && target.Kind == kind
@@ -135,7 +137,11 @@ func New(cfg Config) *Client {
 	resolver := cfg.ResolveBridgeURL
 	if resolver == nil {
 		resolver = func(ctx context.Context) (string, error) {
-			return discovery.ResolveScenarioURLDefault(ctx, "vrooli-bridge")
+			port := cliutil.DetectPortFromVrooli("vrooli-bridge", "API_PORT")()
+			if port == "" {
+				return "", fmt.Errorf("vrooli-bridge API port is not available")
+			}
+			return "http://localhost:" + port, nil
 		}
 	}
 	return &Client{
@@ -165,6 +171,26 @@ func (c *Client) endpoint(ctx context.Context) (string, error) {
 // policy remain owned by this package.
 func (c *Client) ResolveURL(ctx context.Context) (string, error) {
 	return c.endpoint(ctx)
+}
+
+// ScenarioURL returns the target-aware base URL for a scenario. The returned
+// URL is suitable for a generated Connect client; authentication must still
+// be supplied through ConnectTransport.
+func (c *Client) ScenarioURL(ctx context.Context, nodeID, scenario string) (string, error) {
+	if strings.TrimSpace(nodeID) == "" || strings.TrimSpace(scenario) == "" {
+		return "", &Error{Kind: ErrInvalidRequest, Node: nodeID, Verb: scenario, Err: errors.New("node and scenario are required")}
+	}
+	baseURL, err := c.endpoint(ctx)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimRight(baseURL, "/") + "/api/v1/targets/" + url.PathEscape(nodeID) + "/scenarios/" + url.PathEscape(scenario), nil
+}
+
+// ConnectTransport exposes the authenticated transport used by generated
+// Connect clients for a target-aware ScenarioURL.
+func (c *Client) ConnectTransport(ctx context.Context, baseURL string) connect.HTTPClient {
+	return c.transport(ctx, strings.TrimRight(strings.TrimSpace(baseURL), "/"))
 }
 
 func (c *Client) requestContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
@@ -259,6 +285,176 @@ type CallResponse struct {
 	Reason        string
 	ExitCode      int32
 	TotalBytes    uint64
+}
+
+// ScenarioRequest is the common target-aware scenario read seam. The body
+// and response remain protobuf bytes so each scenario keeps ownership of its
+// generated request/response types while Bridge owns target selection,
+// admission, authentication, and bounded transport.
+type ScenarioRequest struct {
+	NodeID      string
+	Scenario    string
+	Service     string
+	Method      string
+	HTTPMethod  string
+	HTTPPath    string
+	Body        []byte
+	Timeout     time.Duration
+	MaxResponse int64
+}
+
+// CallScenario invokes one catalog-admitted scenario procedure through the
+// target proxy. An empty NodeID means the local scenario URL is not implied;
+// callers must use the local service directly, keeping local and remote
+// authorities explicit.
+func (c *Client) CallScenario(ctx context.Context, req ScenarioRequest) ([]byte, error) {
+	if strings.TrimSpace(req.NodeID) == "" || strings.TrimSpace(req.Scenario) == "" || strings.TrimSpace(req.Service) == "" || strings.TrimSpace(req.Method) == "" {
+		return nil, &Error{Kind: ErrInvalidRequest, Node: req.NodeID, Verb: req.Scenario, Err: errors.New("node, scenario, service, and method are required")}
+	}
+	if req.Timeout <= 0 {
+		req.Timeout = 8 * time.Second
+	}
+	if req.MaxResponse <= 0 || req.MaxResponse > 8<<20 {
+		req.MaxResponse = 8 << 20
+	}
+	callCtx, cancel := c.requestContext(ctx, req.Timeout)
+	defer cancel()
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		return nil, err
+	}
+	procedure := strings.Trim(strings.TrimSpace(req.Service), "/") + "/" + strings.Trim(strings.TrimSpace(req.Method), "/")
+	if strings.TrimSpace(req.HTTPPath) != "" {
+		procedure = strings.Trim(strings.TrimSpace(req.HTTPPath), "/")
+	}
+	path := strings.TrimRight(baseURL, "/") + "/api/v1/targets/" + url.PathEscape(req.NodeID) + "/scenarios/" + url.PathEscape(req.Scenario) + "/" + procedure
+	httpReq, err := http.NewRequestWithContext(callCtx, http.MethodPost, path, strings.NewReader(string(req.Body)))
+	if err != nil {
+		return nil, &Error{Kind: ErrInvalidRequest, Node: req.NodeID, Verb: req.Scenario, Err: err}
+	}
+	httpReq.Header.Set("Content-Type", "application/proto")
+	httpReq.Header.Set("Accept", "application/proto")
+	if method := strings.ToUpper(strings.TrimSpace(req.HTTPMethod)); method != "" && method != http.MethodPost {
+		httpReq.Header.Set("X-Vrooli-HTTP-Method", method)
+	}
+	token, err := c.resolveToken(callCtx)
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Scenario, Err: err}
+	}
+	if token != "" {
+		httpReq.Header.Set("Authorization", authHeader(token))
+	}
+	response, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Scenario, Err: err}
+	}
+	defer response.Body.Close()
+	body, readErr := io.ReadAll(io.LimitReader(response.Body, req.MaxResponse+1))
+	if readErr != nil {
+		return nil, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Scenario, Err: readErr}
+	}
+	if int64(len(body)) > req.MaxResponse {
+		return nil, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Scenario, Err: errors.New("scenario response exceeded configured bound")}
+	}
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return nil, &Error{Kind: ErrTransport, Node: req.NodeID, Verb: req.Scenario, Err: fmt.Errorf("scenario proxy returned %s: %s", response.Status, strings.TrimSpace(string(body)))}
+	}
+	return body, nil
+}
+
+func (c *Client) onboardClient(ctx context.Context) (onboardconnect.OnboardServiceClient, context.Context, context.CancelFunc, error) {
+	callCtx, cancel := c.requestContext(ctx, 30*time.Second)
+	baseURL, err := c.endpoint(callCtx)
+	if err != nil {
+		cancel()
+		return nil, nil, nil, err
+	}
+	return onboardconnect.NewOnboardServiceClient(c.transport(callCtx, baseURL), baseURL), callCtx, cancel, nil
+}
+
+// PreflightOnboarding resolves an SSH target without touching it.
+func (c *Client) PreflightOnboarding(ctx context.Context, req *onboardv1.PreflightOnboardingRequest) (*onboardv1.PreflightOnboardingResponse, error) {
+	client, callCtx, cancel, err := c.onboardClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	resp, err := client.PreflightOnboarding(callCtx, connect.NewRequest(req))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding preflight", Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding preflight", Err: errors.New("Bridge returned no preflight result")}
+	}
+	return resp.Msg, nil
+}
+
+// StartOnboarding starts a durable SSH onboarding operation. The request is
+// passed through once; the caller must not retain the password after return.
+func (c *Client) StartOnboarding(ctx context.Context, req *onboardv1.StartOnboardingRequest) (*onboardv1.StartOnboardingResponse, error) {
+	client, callCtx, cancel, err := c.onboardClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	resp, err := client.StartOnboarding(callCtx, connect.NewRequest(req))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding start", Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding start", Err: errors.New("Bridge returned no onboarding result")}
+	}
+	return resp.Msg, nil
+}
+
+// GetOnboarding reattaches to a durable operation after a client disconnect.
+func (c *Client) GetOnboarding(ctx context.Context, req *onboardv1.GetOnboardingRequest) (*onboardv1.GetOnboardingResponse, error) {
+	client, callCtx, cancel, err := c.onboardClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	resp, err := client.GetOnboarding(callCtx, connect.NewRequest(req))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding get", Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding get", Err: errors.New("Bridge returned no onboarding state")}
+	}
+	return resp.Msg, nil
+}
+
+// WaitOnboarding blocks once on the server-owned onboarding operation.
+func (c *Client) WaitOnboarding(ctx context.Context, req *onboardv1.WaitOnboardingRequest) (*onboardv1.WaitOnboardingResponse, error) {
+	client, callCtx, cancel, err := c.onboardClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	resp, err := client.WaitOnboarding(callCtx, connect.NewRequest(req))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding wait", Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding wait", Err: errors.New("Bridge returned no onboarding wait result")}
+	}
+	return resp.Msg, nil
+}
+
+func (c *Client) CancelOnboarding(ctx context.Context, req *onboardv1.CancelOnboardingRequest) (*onboardv1.CancelOnboardingResponse, error) {
+	client, callCtx, cancel, err := c.onboardClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer cancel()
+	resp, err := client.CancelOnboarding(callCtx, connect.NewRequest(req))
+	if err != nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding cancel", Err: err}
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, &Error{Kind: ErrTransport, Verb: "onboarding cancel", Err: errors.New("Bridge returned no onboarding cancellation result")}
+	}
+	return resp.Msg, nil
 }
 
 // Call relays one admitted command to a node.

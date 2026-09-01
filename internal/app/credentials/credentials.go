@@ -17,7 +17,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"connectrpc.com/connect"
-	"github.com/vrooli/nodeclient"
+	"github.com/vrooli/api-core/nodereach"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cliout"
@@ -277,7 +277,7 @@ func readCredentialValue(input io.Reader, prompt io.Writer) (string, error) {
 }
 
 func rotateBridgeCredentialAddress(ctx context.Context, logicalID, field string) (int64, error) {
-	bridgeClient := nodeclient.New(nodeclient.Config{Token: os.Getenv("VROOLI_BRIDGE_API_TOKEN")})
+	bridgeClient := nodereach.New(nodereach.Config{Token: os.Getenv("VROOLI_BRIDGE_API_TOKEN")})
 	baseURL, err := bridgeClient.ResolveURL(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("resolve vrooli-bridge endpoint: %w", err)

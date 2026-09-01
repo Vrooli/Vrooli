@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	fleetContractUnsupported = "unsupported"
-	fleetContractWindows     = string(hostreqspec.PlatformWindows)
+	fleetContractUnsupported       = "unsupported"
+	fleetContractWindows           = string(hostreqspec.PlatformWindows)
+	fleetContractExternalCLIDriver = "external-cli"
 )
 
 const fleetContractDir = "dir"
@@ -78,6 +79,9 @@ func CheckFleetContract(root string) error {
 		if err := checkManifestCommands(name, manifest.Install.Command, manifest.Install.Platforms); err != nil {
 			return err
 		}
+		if err := checkExternalCLIAcquisition(name, manifest); err != nil {
+			return err
+		}
 		if err := checkManagedArtifact(name, manifest); err != nil {
 			return err
 		}
@@ -96,6 +100,29 @@ func CheckFleetContract(root string) error {
 	}
 	if err := checkResourceImages(resourceRoot); err != nil {
 		return err
+	}
+	return nil
+}
+
+func checkExternalCLIAcquisition(name string, manifest manifestpkg.ResourceManifest) error {
+	if manifest.Driver != fleetContractExternalCLIDriver {
+		return nil
+	}
+	hasDirect := false
+	for _, command := range manifest.Install.Platforms {
+		for _, part := range command {
+			if part == "install-direct" {
+				hasDirect = true
+			}
+		}
+	}
+	// Legacy host tools (k6, kopia, and android-sdk) have their own mature
+	// installers and are outside this coding-agent migration boundary. New
+	// external-cli resources, and the five capability-probe agents, must use
+	// the manifest contract.
+	legacy := map[string]bool{"k6": true, "kopia": true, "android-sdk": true}
+	if hasDirect && manifest.Acquisition == nil && !legacy[manifest.Name] {
+		return fmt.Errorf("external-cli resource %s uses install-direct without an acquisition contract", name)
 	}
 	return nil
 }

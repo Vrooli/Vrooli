@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.vrooli_bridge.v1.onboard;
 
 import "google/protobuf/timestamp.proto";
+import "setup/v1/selection.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard;onboard_v1";
 
@@ -401,24 +402,22 @@ message StartOnboardingRequest {
   // shell-injectable value can reach the remote script. Empty falls through to
   // the node's `vrooli setup` defaults.
 
-  // Host environment profile (bootstrap `--setup-environment` → `vrooli setup
-  // --environment`). One of development | production | minimal, or empty for the
-  // node default (development).
-  string setup_environment = 15;
+  // Named setup preset. The control plane expands this into the versioned
+  // setup selection before bootstrap; the environment word never crosses this
+  // wire contract.
+  string setup_preset = 15;
 
   // Resource selection (bootstrap `--setup-resources` → `vrooli setup
   // --resources`). enabled | none | a comma-separated resource list, or empty
   // for the node default.
-  string setup_resources = 16;
+  reserved 16, 17, 18;
 
   // Scenario selection (bootstrap `--setup-scenarios` → `vrooli setup
   // --scenarios`). none | all | a comma-separated scenario list, or empty for
   // the node default.
-  string setup_scenarios = 17;
 
   // Apply optional (non-required) host safeguards too (bootstrap
   // `--include-optional` → `vrooli setup --include-optional`). Default false.
-  bool include_optional = 18;
 
   // How the node acquires its source. UNSPECIFIED/PINNED_REVISION (the default)
   // has the node clone/fetch target_revision, which must be pushed (the cprev
@@ -428,6 +427,9 @@ message StartOnboardingRequest {
   // honest dirty provenance (base HEAD + content digest). Fleet rolls stay
   // PINNED_REVISION-only.
   SourceMode source_mode = 19;
+
+  // Versioned capability-shaped desired configuration document.
+  vrooli.setup.v1.Selection selection = 25;
 
   // How the candidate reaches control_plane_url. lan is the trusted-LAN
   // default; tunnel is selected only by the owner for segmented/off-LAN nodes;

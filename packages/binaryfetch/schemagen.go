@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 // AcquisitionSchemaPath is the committed generated fragment consumed by tool
@@ -31,7 +32,11 @@ func AcquisitionSchema() map[string]any {
 				"items": map[string]any{
 					"type": "object", "additionalProperties": false,
 					"properties": map[string]any{
-						"when":            map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
+						"when": map[string]any{
+							"type":                 "object",
+							"additionalProperties": map[string]any{"type": "string"},
+							"propertyNames":        map[string]any{"enum": knownFactNames()},
+						},
 						"kind":            map[string]any{"type": "string", "enum": []string{"url", "oci-image", "none", "composed", "npm"}},
 						"url":             map[string]any{"type": "string", "format": "uri"},
 						"image":           map[string]any{"type": "string"},
@@ -84,6 +89,15 @@ func AcquisitionSchema() map[string]any {
 			},
 		},
 	}
+}
+
+func knownFactNames() []string {
+	names := make([]string, 0, len(KnownFactNames))
+	for name := range KnownFactNames {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // RenderAcquisitionSchema is deterministic so drift is detected by a byte

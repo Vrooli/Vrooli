@@ -622,6 +622,13 @@ func (r *Runner) buildDeclaredComponents(ctx context.Context, item scenario.Scen
 		if forceSetup && len(spec.Install) > 0 {
 			install = true
 		}
+		if _, err := os.Stat(filepath.Join(component.Build.Dir, "package.json")); err == nil {
+			if drift, driftErr := checkNodeLockfileDrift(component.Build.Dir); driftErr != nil {
+				return executed, fmt.Errorf("component %s dependency drift check: %w", name, driftErr)
+			} else if len(drift) > 0 {
+				return executed, fmt.Errorf("component %s dependency drift: package.json and pnpm-lock.yaml diverge for %s; run scenario-dependency-analyzer deps resync --scenario %s --surface %s", name, strings.Join(drift, ", "), item.Slug, name)
+			}
+		}
 		commandIndex := 0
 		if install {
 			replacer := strings.NewReplacer("{dir}", component.Build.Dir, "{scenario}", item.Slug, "{component}", name)

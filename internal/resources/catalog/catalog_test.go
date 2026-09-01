@@ -6,6 +6,7 @@ import (
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
+	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
@@ -77,6 +78,51 @@ func TestOperatorStateOverridesProjectResourceEnabledDefault(t *testing.T) {
 	}
 	if item.Config.Enabled {
 		t.Fatalf("config remained enabled despite operator-state override: %#v", item.Config)
+	}
+}
+
+func TestDiscoverReportsScenarioConsumerForOperatorDisabledResource(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	testscenario.WriteProjectResourceConfig(t, fixture.Root, "sherpa-onnx", false)
+	testkitgo.WriteFile(t, filepath.Join(fixture.Root, ".vrooli", "operator-state.json"), `{"version":"1.0.0","resources":{"sherpa-onnx":{"enabled":false}}}`)
+	testresource.WriteExternalCLIResourceFixture(t, fixture.Root, "sherpa-onnx", shelltest.BashShebang()+"exit 0\n")
+	testscenario.WriteScenarioService(t, fixture.Root, "audio-tools", testscenario.ScenarioServiceManifest(
+		"audio-tools",
+		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
+			"sherpa-onnx": {Enabled: true, StartupPolicy: scenario.DependencyStartupPolicyTryStart},
+		}}),
+	))
+
+	item, err := New(fixture.Root).DiscoverOne("sherpa-onnx", DiscoverOptions{})
+	if err != nil {
+		t.Fatalf("DiscoverOne: %v", err)
+	}
+	if item == nil || item.Enabled {
+		t.Fatalf("item = %#v, want disabled", item)
+	}
+	if len(item.DisabledDependencyConsumers) != 1 || item.DisabledDependencyConsumers[0].Scenario != "audio-tools" || item.DisabledDependencyConsumers[0].StartupPolicy != scenario.DependencyStartupPolicyTryStart {
+		t.Fatalf("disabled consumers = %#v", item.DisabledDependencyConsumers)
+	}
+}
+
+func TestScenarioDependencyEnablesResourceWithoutProjectEntry(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	testresource.WriteExternalCLIResourceFixture(t, fixture.Root, "whisper", shelltest.BashShebang()+"exit 0\n")
+	testscenario.WriteScenarioService(t, fixture.Root, "audio-tools", testscenario.ScenarioServiceManifest(
+		"audio-tools",
+		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
+			"whisper": {StartupPolicy: scenario.DependencyStartupPolicyTryStart},
+		}}),
+	))
+
+	item, err := New(fixture.Root).DiscoverOne("whisper", DiscoverOptions{})
+	if err != nil {
+		t.Fatalf("DiscoverOne: %v", err)
+	}
+	if item == nil || !item.Enabled {
+		t.Fatalf("item = %#v, want enabled by scenario declaration", item)
 	}
 }
 

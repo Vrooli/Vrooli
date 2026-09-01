@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
+
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/maintenance"
@@ -39,6 +41,7 @@ func (a *App) collectProcessHealthSnapshot() maintenance.HealthSnapshot {
 }
 
 func (a *App) getEnhancedProcessMetrics() map[string]interface{} {
+	portLookup := cliutil.PortLookupStats()
 	snapshot, err := a.processSnapshot()
 	if err != nil {
 		return map[string]interface{}{
@@ -48,6 +51,7 @@ func (a *App) getEnhancedProcessMetrics() map[string]interface{} {
 			"total_processes":   0,
 			"zombie_processes":  0,
 			"orphan_processes":  0,
+			"port_lookup":       portLookupMetrics(portLookup),
 		}
 	}
 	return map[string]interface{}{
@@ -57,6 +61,16 @@ func (a *App) getEnhancedProcessMetrics() map[string]interface{} {
 		"total_processes":   snapshot.TotalProcesses,
 		"zombie_processes":  snapshot.ZombieProcesses,
 		"orphan_processes":  snapshot.OrphanProcesses,
+		"port_lookup":       portLookupMetrics(portLookup),
+	}
+}
+
+func portLookupMetrics(stats cliutil.PortLookupCounters) map[string]int64 {
+	return map[string]int64{
+		"evaluations":   stats.Evaluations,
+		"peer_hits":     stats.PeerHits,
+		"registry_hits": stats.RegistryHits,
+		"cli_hits":      stats.CLIHits,
 	}
 }
 

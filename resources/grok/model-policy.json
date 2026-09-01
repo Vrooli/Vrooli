@@ -1,7 +1,8 @@
 {
   "schema_version": "v1",
   "runner": "grok",
-  "provenance": {"source": "grok models (grok 0.2.72): authenticated inventory reports grok-build as the only available model", "observed_at": "2026-08-04"},
+  "provenance": {"source": "grok models (grok 0.2.72): authenticated inventory reports grok-build as the only available model; refreshed 2026-08-30", "observed_at": "2026-08-30"},
+  "billing": {"mode": "unknown", "source": "operator-not-declared"},
   "model_aliases": {
     "grok-build": {"canonical_model": "grok-build", "provider": "xai"}
   },
@@ -9,6 +10,8 @@
     "code.default": {"model": "grok-build", "canonical_model": "grok-build", "description": "Default Grok Build implementation work.", "capabilities": ["code", "tools"]},
     "code.fast": {"model": "grok-build", "canonical_model": "grok-build", "description": "Grok Build low-latency coding work.", "capabilities": ["code", "tools"]},
     "code.smart": {"model": "grok-build", "canonical_model": "grok-build", "description": "Grok Build complex reasoning work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.judgment": {"model": "grok-build", "canonical_model": "grok-build", "description": "Fallback for high-level judgment and strategic reasoning work.", "capabilities": ["code", "tools", "reasoning"]},
+    "code.inspection": {"model": "grok-build", "canonical_model": "grok-build", "description": "Code inspection, reproduction, execution, and evidence gathering.", "capabilities": ["code", "tools"]},
     "code.cheap": {"model": "grok-build", "canonical_model": "grok-build", "description": "Grok Build cost-conscious tasks when selected.", "capabilities": ["code", "tools"]}
   }
 }

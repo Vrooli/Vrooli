@@ -215,6 +215,21 @@ func TestSafeguardManifestOwnsPlatformGate(t *testing.T) {
 	}
 }
 
+func TestToolManifestOwnsPlatformGate(t *testing.T) {
+	state := resolverState{
+		platform: "macos",
+		catalog: requirementCatalog{tools: map[string]hostreqkit.ToolManifest{
+			"linux_tool": {Name: "linux_tool", Platforms: []string{"linux"}},
+		}},
+		tools: make(map[string]*ResolvedRequirement),
+	}
+	state.add(Declaration{Name: "linux_tool", Required: true}, KindTool, Provenance{Kind: "test"})
+	item := state.tools["linux_tool"]
+	if item == nil || !containsPlatform(item.Platforms, "linux") {
+		t.Fatalf("tool platforms = %+v, want linux gate", item)
+	}
+}
+
 func TestResolvePreservesPlatformMismatchForNotApplicableReporting(t *testing.T) {
 	root := t.TempDir()
 	testscenario.WriteProjectService(t, root, scenario.ServiceManifest{

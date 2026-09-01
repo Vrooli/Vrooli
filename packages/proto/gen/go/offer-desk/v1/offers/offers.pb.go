@@ -309,6 +309,107 @@ func (EvaluationResult) EnumDescriptor() ([]byte, []int) {
 	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{4}
 }
 
+type DeliverableClass int32
+
+const (
+	DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED DeliverableClass = 0
+	DeliverableClass_MARKETED                      DeliverableClass = 1
+	DeliverableClass_ENABLING                      DeliverableClass = 2
+)
+
+// Enum value maps for DeliverableClass.
+var (
+	DeliverableClass_name = map[int32]string{
+		0: "DELIVERABLE_CLASS_UNSPECIFIED",
+		1: "MARKETED",
+		2: "ENABLING",
+	}
+	DeliverableClass_value = map[string]int32{
+		"DELIVERABLE_CLASS_UNSPECIFIED": 0,
+		"MARKETED":                      1,
+		"ENABLING":                      2,
+	}
+)
+
+func (x DeliverableClass) Enum() *DeliverableClass {
+	p := new(DeliverableClass)
+	*p = x
+	return p
+}
+
+func (x DeliverableClass) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (DeliverableClass) Descriptor() protoreflect.EnumDescriptor {
+	return file_offer_desk_v1_offers_offers_proto_enumTypes[5].Descriptor()
+}
+
+func (DeliverableClass) Type() protoreflect.EnumType {
+	return &file_offer_desk_v1_offers_offers_proto_enumTypes[5]
+}
+
+func (x DeliverableClass) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use DeliverableClass.Descriptor instead.
+func (DeliverableClass) EnumDescriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{5}
+}
+
+type FinishBar int32
+
+const (
+	FinishBar_FINISH_BAR_UNSPECIFIED FinishBar = 0
+	FinishBar_CUSTOMER_FACING        FinishBar = 1
+	FinishBar_OPERATOR_FACING        FinishBar = 2
+	FinishBar_INTERNAL               FinishBar = 3
+)
+
+// Enum value maps for FinishBar.
+var (
+	FinishBar_name = map[int32]string{
+		0: "FINISH_BAR_UNSPECIFIED",
+		1: "CUSTOMER_FACING",
+		2: "OPERATOR_FACING",
+		3: "INTERNAL",
+	}
+	FinishBar_value = map[string]int32{
+		"FINISH_BAR_UNSPECIFIED": 0,
+		"CUSTOMER_FACING":        1,
+		"OPERATOR_FACING":        2,
+		"INTERNAL":               3,
+	}
+)
+
+func (x FinishBar) Enum() *FinishBar {
+	p := new(FinishBar)
+	*p = x
+	return p
+}
+
+func (x FinishBar) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FinishBar) Descriptor() protoreflect.EnumDescriptor {
+	return file_offer_desk_v1_offers_offers_proto_enumTypes[6].Descriptor()
+}
+
+func (FinishBar) Type() protoreflect.EnumType {
+	return &file_offer_desk_v1_offers_offers_proto_enumTypes[6]
+}
+
+func (x FinishBar) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FinishBar.Descriptor instead.
+func (FinishBar) EnumDescriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{6}
+}
+
 type TriggerComposition int32
 
 const (
@@ -342,11 +443,11 @@ func (x TriggerComposition) String() string {
 }
 
 func (TriggerComposition) Descriptor() protoreflect.EnumDescriptor {
-	return file_offer_desk_v1_offers_offers_proto_enumTypes[5].Descriptor()
+	return file_offer_desk_v1_offers_offers_proto_enumTypes[7].Descriptor()
 }
 
 func (TriggerComposition) Type() protoreflect.EnumType {
-	return &file_offer_desk_v1_offers_offers_proto_enumTypes[5]
+	return &file_offer_desk_v1_offers_offers_proto_enumTypes[7]
 }
 
 func (x TriggerComposition) Number() protoreflect.EnumNumber {
@@ -355,21 +456,23 @@ func (x TriggerComposition) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TriggerComposition.Descriptor instead.
 func (TriggerComposition) EnumDescriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{5}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{7}
 }
 
 type Node struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Kind            NodeKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=vrooli.offer_desk.v1.offers.NodeKind" json:"kind,omitempty"`
-	Name            string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Status          Status                 `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.offer_desk.v1.offers.Status" json:"status,omitempty"`
-	TriggerId       string                 `protobuf:"bytes,5,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	CreatedAt       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	ActualAccountId string                 `protobuf:"bytes,7,opt,name=actual_account_id,json=actualAccountId,proto3" json:"actual_account_id,omitempty"`
-	ReleaseRank     int32                  `protobuf:"varint,8,opt,name=release_rank,json=releaseRank,proto3" json:"release_rank,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Id               string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Kind             NodeKind               `protobuf:"varint,2,opt,name=kind,proto3,enum=vrooli.offer_desk.v1.offers.NodeKind" json:"kind,omitempty"`
+	Name             string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Status           Status                 `protobuf:"varint,4,opt,name=status,proto3,enum=vrooli.offer_desk.v1.offers.Status" json:"status,omitempty"`
+	TriggerId        string                 `protobuf:"bytes,5,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
+	CreatedAt        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	ActualAccountId  string                 `protobuf:"bytes,7,opt,name=actual_account_id,json=actualAccountId,proto3" json:"actual_account_id,omitempty"`
+	ReleaseRank      int32                  `protobuf:"varint,8,opt,name=release_rank,json=releaseRank,proto3" json:"release_rank,omitempty"`
+	DeliverableClass DeliverableClass       `protobuf:"varint,9,opt,name=deliverable_class,json=deliverableClass,proto3,enum=vrooli.offer_desk.v1.offers.DeliverableClass" json:"deliverable_class,omitempty"`
+	FinishBar        FinishBar              `protobuf:"varint,10,opt,name=finish_bar,json=finishBar,proto3,enum=vrooli.offer_desk.v1.offers.FinishBar" json:"finish_bar,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Node) Reset() {
@@ -456,6 +559,20 @@ func (x *Node) GetReleaseRank() int32 {
 		return x.ReleaseRank
 	}
 	return 0
+}
+
+func (x *Node) GetDeliverableClass() DeliverableClass {
+	if x != nil {
+		return x.DeliverableClass
+	}
+	return DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED
+}
+
+func (x *Node) GetFinishBar() FinishBar {
+	if x != nil {
+		return x.FinishBar
+	}
+	return FinishBar_FINISH_BAR_UNSPECIFIED
 }
 
 type Edge struct {
@@ -1383,14 +1500,18 @@ func (x *BoardResponse) GetPostureAgeSeconds() int64 {
 }
 
 type CreateNodeRequest struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Kind            NodeKind               `protobuf:"varint,1,opt,name=kind,proto3,enum=vrooli.offer_desk.v1.offers.NodeKind" json:"kind,omitempty"`
-	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Status          Status                 `protobuf:"varint,3,opt,name=status,proto3,enum=vrooli.offer_desk.v1.offers.Status" json:"status,omitempty"`
-	TriggerId       string                 `protobuf:"bytes,4,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
-	ActualAccountId string                 `protobuf:"bytes,5,opt,name=actual_account_id,json=actualAccountId,proto3" json:"actual_account_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Kind             NodeKind               `protobuf:"varint,1,opt,name=kind,proto3,enum=vrooli.offer_desk.v1.offers.NodeKind" json:"kind,omitempty"`
+	Name             string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Status           Status                 `protobuf:"varint,3,opt,name=status,proto3,enum=vrooli.offer_desk.v1.offers.Status" json:"status,omitempty"`
+	TriggerId        string                 `protobuf:"bytes,4,opt,name=trigger_id,json=triggerId,proto3" json:"trigger_id,omitempty"`
+	ActualAccountId  string                 `protobuf:"bytes,5,opt,name=actual_account_id,json=actualAccountId,proto3" json:"actual_account_id,omitempty"`
+	DeliverableClass DeliverableClass       `protobuf:"varint,6,opt,name=deliverable_class,json=deliverableClass,proto3,enum=vrooli.offer_desk.v1.offers.DeliverableClass" json:"deliverable_class,omitempty"`
+	FinishBar        FinishBar              `protobuf:"varint,7,opt,name=finish_bar,json=finishBar,proto3,enum=vrooli.offer_desk.v1.offers.FinishBar" json:"finish_bar,omitempty"`
+	Actor            string                 `protobuf:"bytes,8,opt,name=actor,proto3" json:"actor,omitempty"`
+	Reason           string                 `protobuf:"bytes,9,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreateNodeRequest) Reset() {
@@ -1454,6 +1575,34 @@ func (x *CreateNodeRequest) GetTriggerId() string {
 func (x *CreateNodeRequest) GetActualAccountId() string {
 	if x != nil {
 		return x.ActualAccountId
+	}
+	return ""
+}
+
+func (x *CreateNodeRequest) GetDeliverableClass() DeliverableClass {
+	if x != nil {
+		return x.DeliverableClass
+	}
+	return DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED
+}
+
+func (x *CreateNodeRequest) GetFinishBar() FinishBar {
+	if x != nil {
+		return x.FinishBar
+	}
+	return FinishBar_FINISH_BAR_UNSPECIFIED
+}
+
+func (x *CreateNodeRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *CreateNodeRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
 	}
 	return ""
 }
@@ -3439,6 +3588,7 @@ type SpaceResponse struct {
 	ConfidenceRationale   string                 `protobuf:"bytes,5,opt,name=confidence_rationale,json=confidenceRationale,proto3" json:"confidence_rationale,omitempty"`
 	Source                string                 `protobuf:"bytes,6,opt,name=source,proto3" json:"source,omitempty"`
 	Cells                 []*SpaceCell           `protobuf:"bytes,7,rep,name=cells,proto3" json:"cells,omitempty"`
+	Availability          []*Availability        `protobuf:"bytes,8,rep,name=availability,proto3" json:"availability,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -3522,6 +3672,13 @@ func (x *SpaceResponse) GetCells() []*SpaceCell {
 	return nil
 }
 
+func (x *SpaceResponse) GetAvailability() []*Availability {
+	if x != nil {
+		return x.Availability
+	}
+	return nil
+}
+
 type ReleaseLadderRequest struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	IncludeRetired bool                   `protobuf:"varint,1,opt,name=include_retired,json=includeRetired,proto3" json:"include_retired,omitempty"`
@@ -3566,6 +3723,74 @@ func (x *ReleaseLadderRequest) GetIncludeRetired() bool {
 	return false
 }
 
+type GoalImpact struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	GoalName          string                 `protobuf:"bytes,1,opt,name=goal_name,json=goalName,proto3" json:"goal_name,omitempty"`
+	GoalTitle         string                 `protobuf:"bytes,2,opt,name=goal_title,json=goalTitle,proto3" json:"goal_title,omitempty"`
+	DeliverableName   string                 `protobuf:"bytes,3,opt,name=deliverable_name,json=deliverableName,proto3" json:"deliverable_name,omitempty"`
+	ProjectedPriority int32                  `protobuf:"varint,4,opt,name=projected_priority,json=projectedPriority,proto3" json:"projected_priority,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GoalImpact) Reset() {
+	*x = GoalImpact{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GoalImpact) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GoalImpact) ProtoMessage() {}
+
+func (x *GoalImpact) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GoalImpact.ProtoReflect.Descriptor instead.
+func (*GoalImpact) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *GoalImpact) GetGoalName() string {
+	if x != nil {
+		return x.GoalName
+	}
+	return ""
+}
+
+func (x *GoalImpact) GetGoalTitle() string {
+	if x != nil {
+		return x.GoalTitle
+	}
+	return ""
+}
+
+func (x *GoalImpact) GetDeliverableName() string {
+	if x != nil {
+		return x.DeliverableName
+	}
+	return ""
+}
+
+func (x *GoalImpact) GetProjectedPriority() int32 {
+	if x != nil {
+		return x.ProjectedPriority
+	}
+	return 0
+}
+
 type ReleaseLadderEntry struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Deliverable     *Node                  `protobuf:"bytes,1,opt,name=deliverable,proto3" json:"deliverable,omitempty"`
@@ -3573,13 +3798,15 @@ type ReleaseLadderEntry struct {
 	UnlockedStreams []*Node                `protobuf:"bytes,3,rep,name=unlocked_streams,json=unlockedStreams,proto3" json:"unlocked_streams,omitempty"`
 	Audiences       []*Node                `protobuf:"bytes,4,rep,name=audiences,proto3" json:"audiences,omitempty"`
 	CumulativeRamps []*Node                `protobuf:"bytes,5,rep,name=cumulative_ramps,json=cumulativeRamps,proto3" json:"cumulative_ramps,omitempty"`
+	Enablers        []*PrerequisiteNode    `protobuf:"bytes,6,rep,name=enablers,proto3" json:"enablers,omitempty"`
+	GoalImpacts     []*GoalImpact          `protobuf:"bytes,7,rep,name=goal_impacts,json=goalImpacts,proto3" json:"goal_impacts,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ReleaseLadderEntry) Reset() {
 	*x = ReleaseLadderEntry{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[50]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3591,7 +3818,7 @@ func (x *ReleaseLadderEntry) String() string {
 func (*ReleaseLadderEntry) ProtoMessage() {}
 
 func (x *ReleaseLadderEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[50]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3604,7 +3831,7 @@ func (x *ReleaseLadderEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseLadderEntry.ProtoReflect.Descriptor instead.
 func (*ReleaseLadderEntry) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{50}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ReleaseLadderEntry) GetDeliverable() *Node {
@@ -3642,19 +3869,35 @@ func (x *ReleaseLadderEntry) GetCumulativeRamps() []*Node {
 	return nil
 }
 
+func (x *ReleaseLadderEntry) GetEnablers() []*PrerequisiteNode {
+	if x != nil {
+		return x.Enablers
+	}
+	return nil
+}
+
+func (x *ReleaseLadderEntry) GetGoalImpacts() []*GoalImpact {
+	if x != nil {
+		return x.GoalImpacts
+	}
+	return nil
+}
+
 type ReleaseLadderResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entries       []*ReleaseLadderEntry  `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
 	Ramps         []*Node                `protobuf:"bytes,2,rep,name=ramps,proto3" json:"ramps,omitempty"`
 	Streams       []*Node                `protobuf:"bytes,3,rep,name=streams,proto3" json:"streams,omitempty"`
 	Audiences     []*Node                `protobuf:"bytes,4,rep,name=audiences,proto3" json:"audiences,omitempty"`
+	Enabling      []*PrerequisiteNode    `protobuf:"bytes,5,rep,name=enabling,proto3" json:"enabling,omitempty"`
+	Availability  []*Availability        `protobuf:"bytes,6,rep,name=availability,proto3" json:"availability,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReleaseLadderResponse) Reset() {
 	*x = ReleaseLadderResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[51]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3666,7 +3909,7 @@ func (x *ReleaseLadderResponse) String() string {
 func (*ReleaseLadderResponse) ProtoMessage() {}
 
 func (x *ReleaseLadderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[51]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3679,7 +3922,7 @@ func (x *ReleaseLadderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseLadderResponse.ProtoReflect.Descriptor instead.
 func (*ReleaseLadderResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{51}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ReleaseLadderResponse) GetEntries() []*ReleaseLadderEntry {
@@ -3710,6 +3953,20 @@ func (x *ReleaseLadderResponse) GetAudiences() []*Node {
 	return nil
 }
 
+func (x *ReleaseLadderResponse) GetEnabling() []*PrerequisiteNode {
+	if x != nil {
+		return x.Enabling
+	}
+	return nil
+}
+
+func (x *ReleaseLadderResponse) GetAvailability() []*Availability {
+	if x != nil {
+		return x.Availability
+	}
+	return nil
+}
+
 type SetReleaseRankRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
@@ -3721,7 +3978,7 @@ type SetReleaseRankRequest struct {
 
 func (x *SetReleaseRankRequest) Reset() {
 	*x = SetReleaseRankRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[52]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3733,7 +3990,7 @@ func (x *SetReleaseRankRequest) String() string {
 func (*SetReleaseRankRequest) ProtoMessage() {}
 
 func (x *SetReleaseRankRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[52]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3746,7 +4003,7 @@ func (x *SetReleaseRankRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetReleaseRankRequest.ProtoReflect.Descriptor instead.
 func (*SetReleaseRankRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{52}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *SetReleaseRankRequest) GetNodeId() string {
@@ -3780,7 +4037,7 @@ type SetReleaseRankResponse struct {
 
 func (x *SetReleaseRankResponse) Reset() {
 	*x = SetReleaseRankResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[53]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3792,7 +4049,7 @@ func (x *SetReleaseRankResponse) String() string {
 func (*SetReleaseRankResponse) ProtoMessage() {}
 
 func (x *SetReleaseRankResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[53]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3805,7 +4062,7 @@ func (x *SetReleaseRankResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetReleaseRankResponse.ProtoReflect.Descriptor instead.
 func (*SetReleaseRankResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{53}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *SetReleaseRankResponse) GetNode() *Node {
@@ -3822,16 +4079,326 @@ func (x *SetReleaseRankResponse) GetPriorReleaseRank() int32 {
 	return 0
 }
 
-type PrerequisiteWalkRequest struct {
+type SetDeliverableClassRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	NodeId           string                 `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	DeliverableClass DeliverableClass       `protobuf:"varint,2,opt,name=deliverable_class,json=deliverableClass,proto3,enum=vrooli.offer_desk.v1.offers.DeliverableClass" json:"deliverable_class,omitempty"`
+	FinishBar        FinishBar              `protobuf:"varint,3,opt,name=finish_bar,json=finishBar,proto3,enum=vrooli.offer_desk.v1.offers.FinishBar" json:"finish_bar,omitempty"`
+	Actor            string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SetDeliverableClassRequest) Reset() {
+	*x = SetDeliverableClassRequest{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDeliverableClassRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDeliverableClassRequest) ProtoMessage() {}
+
+func (x *SetDeliverableClassRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDeliverableClassRequest.ProtoReflect.Descriptor instead.
+func (*SetDeliverableClassRequest) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *SetDeliverableClassRequest) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *SetDeliverableClassRequest) GetDeliverableClass() DeliverableClass {
+	if x != nil {
+		return x.DeliverableClass
+	}
+	return DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED
+}
+
+func (x *SetDeliverableClassRequest) GetFinishBar() FinishBar {
+	if x != nil {
+		return x.FinishBar
+	}
+	return FinishBar_FINISH_BAR_UNSPECIFIED
+}
+
+func (x *SetDeliverableClassRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+type SetDeliverableClassResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Node           *Node                  `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	PriorClass     DeliverableClass       `protobuf:"varint,2,opt,name=prior_class,json=priorClass,proto3,enum=vrooli.offer_desk.v1.offers.DeliverableClass" json:"prior_class,omitempty"`
+	PriorFinishBar FinishBar              `protobuf:"varint,3,opt,name=prior_finish_bar,json=priorFinishBar,proto3,enum=vrooli.offer_desk.v1.offers.FinishBar" json:"prior_finish_bar,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SetDeliverableClassResponse) Reset() {
+	*x = SetDeliverableClassResponse{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetDeliverableClassResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetDeliverableClassResponse) ProtoMessage() {}
+
+func (x *SetDeliverableClassResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetDeliverableClassResponse.ProtoReflect.Descriptor instead.
+func (*SetDeliverableClassResponse) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *SetDeliverableClassResponse) GetNode() *Node {
+	if x != nil {
+		return x.Node
+	}
+	return nil
+}
+
+func (x *SetDeliverableClassResponse) GetPriorClass() DeliverableClass {
+	if x != nil {
+		return x.PriorClass
+	}
+	return DeliverableClass_DELIVERABLE_CLASS_UNSPECIFIED
+}
+
+func (x *SetDeliverableClassResponse) GetPriorFinishBar() FinishBar {
+	if x != nil {
+		return x.PriorFinishBar
+	}
+	return FinishBar_FINISH_BAR_UNSPECIFIED
+}
+
+type MeterInventoryRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	StreamNodeId  string                 `protobuf:"bytes,1,opt,name=stream_node_id,json=streamNodeId,proto3" json:"stream_node_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
+func (x *MeterInventoryRequest) Reset() {
+	*x = MeterInventoryRequest{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MeterInventoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MeterInventoryRequest) ProtoMessage() {}
+
+func (x *MeterInventoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MeterInventoryRequest.ProtoReflect.Descriptor instead.
+func (*MeterInventoryRequest) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{57}
+}
+
+type MeterInventoryEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	LimitKey      string                 `protobuf:"bytes,1,opt,name=limit_key,json=limitKey,proto3" json:"limit_key,omitempty"`
+	Class         string                 `protobuf:"bytes,2,opt,name=class,proto3" json:"class,omitempty"`
+	DeclaredBy    []string               `protobuf:"bytes,3,rep,name=declared_by,json=declaredBy,proto3" json:"declared_by,omitempty"`
+	BundleKeys    []string               `protobuf:"bytes,4,rep,name=bundle_keys,json=bundleKeys,proto3" json:"bundle_keys,omitempty"`
+	Byok          bool                   `protobuf:"varint,5,opt,name=byok,proto3" json:"byok,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MeterInventoryEntry) Reset() {
+	*x = MeterInventoryEntry{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MeterInventoryEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MeterInventoryEntry) ProtoMessage() {}
+
+func (x *MeterInventoryEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MeterInventoryEntry.ProtoReflect.Descriptor instead.
+func (*MeterInventoryEntry) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *MeterInventoryEntry) GetLimitKey() string {
+	if x != nil {
+		return x.LimitKey
+	}
+	return ""
+}
+
+func (x *MeterInventoryEntry) GetClass() string {
+	if x != nil {
+		return x.Class
+	}
+	return ""
+}
+
+func (x *MeterInventoryEntry) GetDeclaredBy() []string {
+	if x != nil {
+		return x.DeclaredBy
+	}
+	return nil
+}
+
+func (x *MeterInventoryEntry) GetBundleKeys() []string {
+	if x != nil {
+		return x.BundleKeys
+	}
+	return nil
+}
+
+func (x *MeterInventoryEntry) GetByok() bool {
+	if x != nil {
+		return x.Byok
+	}
+	return false
+}
+
+type MeterInventoryResponse struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Meters               []*MeterInventoryEntry `protobuf:"bytes,1,rep,name=meters,proto3" json:"meters,omitempty"`
+	UndeclaredStreams    []string               `protobuf:"bytes,2,rep,name=undeclared_streams,json=undeclaredStreams,proto3" json:"undeclared_streams,omitempty"`
+	DeliverableMeterGaps []string               `protobuf:"bytes,3,rep,name=deliverable_meter_gaps,json=deliverableMeterGaps,proto3" json:"deliverable_meter_gaps,omitempty"`
+	Source               string                 `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *MeterInventoryResponse) Reset() {
+	*x = MeterInventoryResponse{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MeterInventoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MeterInventoryResponse) ProtoMessage() {}
+
+func (x *MeterInventoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MeterInventoryResponse.ProtoReflect.Descriptor instead.
+func (*MeterInventoryResponse) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *MeterInventoryResponse) GetMeters() []*MeterInventoryEntry {
+	if x != nil {
+		return x.Meters
+	}
+	return nil
+}
+
+func (x *MeterInventoryResponse) GetUndeclaredStreams() []string {
+	if x != nil {
+		return x.UndeclaredStreams
+	}
+	return nil
+}
+
+func (x *MeterInventoryResponse) GetDeliverableMeterGaps() []string {
+	if x != nil {
+		return x.DeliverableMeterGaps
+	}
+	return nil
+}
+
+func (x *MeterInventoryResponse) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+type PrerequisiteWalkRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	StreamNodeId   string                 `protobuf:"bytes,1,opt,name=stream_node_id,json=streamNodeId,proto3" json:"stream_node_id,omitempty"`
+	MaxDepth       int32                  `protobuf:"varint,2,opt,name=max_depth,json=maxDepth,proto3" json:"max_depth,omitempty"`
+	IncludeShipped bool                   `protobuf:"varint,3,opt,name=include_shipped,json=includeShipped,proto3" json:"include_shipped,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
 func (x *PrerequisiteWalkRequest) Reset() {
 	*x = PrerequisiteWalkRequest{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[54]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3843,7 +4410,7 @@ func (x *PrerequisiteWalkRequest) String() string {
 func (*PrerequisiteWalkRequest) ProtoMessage() {}
 
 func (x *PrerequisiteWalkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[54]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3856,7 +4423,7 @@ func (x *PrerequisiteWalkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrerequisiteWalkRequest.ProtoReflect.Descriptor instead.
 func (*PrerequisiteWalkRequest) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{54}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *PrerequisiteWalkRequest) GetStreamNodeId() string {
@@ -3866,17 +4433,101 @@ func (x *PrerequisiteWalkRequest) GetStreamNodeId() string {
 	return ""
 }
 
+func (x *PrerequisiteWalkRequest) GetMaxDepth() int32 {
+	if x != nil {
+		return x.MaxDepth
+	}
+	return 0
+}
+
+func (x *PrerequisiteWalkRequest) GetIncludeShipped() bool {
+	if x != nil {
+		return x.IncludeShipped
+	}
+	return false
+}
+
+type PrerequisiteNode struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Node           *Node                  `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	Depth          int32                  `protobuf:"varint,2,opt,name=depth,proto3" json:"depth,omitempty"`
+	DerivedUrgency int32                  `protobuf:"varint,3,opt,name=derived_urgency,json=derivedUrgency,proto3" json:"derived_urgency,omitempty"`
+	Path           []string               `protobuf:"bytes,4,rep,name=path,proto3" json:"path,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *PrerequisiteNode) Reset() {
+	*x = PrerequisiteNode{}
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PrerequisiteNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PrerequisiteNode) ProtoMessage() {}
+
+func (x *PrerequisiteNode) ProtoReflect() protoreflect.Message {
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PrerequisiteNode.ProtoReflect.Descriptor instead.
+func (*PrerequisiteNode) Descriptor() ([]byte, []int) {
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *PrerequisiteNode) GetNode() *Node {
+	if x != nil {
+		return x.Node
+	}
+	return nil
+}
+
+func (x *PrerequisiteNode) GetDepth() int32 {
+	if x != nil {
+		return x.Depth
+	}
+	return 0
+}
+
+func (x *PrerequisiteNode) GetDerivedUrgency() int32 {
+	if x != nil {
+		return x.DerivedUrgency
+	}
+	return 0
+}
+
+func (x *PrerequisiteNode) GetPath() []string {
+	if x != nil {
+		return x.Path
+	}
+	return nil
+}
+
 type PrerequisiteWalkResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Deliverables  []*Node                `protobuf:"bytes,1,rep,name=deliverables,proto3" json:"deliverables,omitempty"`
 	Unshipped     []*Node                `protobuf:"bytes,2,rep,name=unshipped,proto3" json:"unshipped,omitempty"`
+	Tree          []*PrerequisiteNode    `protobuf:"bytes,3,rep,name=tree,proto3" json:"tree,omitempty"`
+	CyclePath     []string               `protobuf:"bytes,4,rep,name=cycle_path,json=cyclePath,proto3" json:"cycle_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PrerequisiteWalkResponse) Reset() {
 	*x = PrerequisiteWalkResponse{}
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[55]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3888,7 +4539,7 @@ func (x *PrerequisiteWalkResponse) String() string {
 func (*PrerequisiteWalkResponse) ProtoMessage() {}
 
 func (x *PrerequisiteWalkResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[55]
+	mi := &file_offer_desk_v1_offers_offers_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3901,7 +4552,7 @@ func (x *PrerequisiteWalkResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PrerequisiteWalkResponse.ProtoReflect.Descriptor instead.
 func (*PrerequisiteWalkResponse) Descriptor() ([]byte, []int) {
-	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{55}
+	return file_offer_desk_v1_offers_offers_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *PrerequisiteWalkResponse) GetDeliverables() []*Node {
@@ -3918,11 +4569,25 @@ func (x *PrerequisiteWalkResponse) GetUnshipped() []*Node {
 	return nil
 }
 
+func (x *PrerequisiteWalkResponse) GetTree() []*PrerequisiteNode {
+	if x != nil {
+		return x.Tree
+	}
+	return nil
+}
+
+func (x *PrerequisiteWalkResponse) GetCyclePath() []string {
+	if x != nil {
+		return x.CyclePath
+	}
+	return nil
+}
+
 var File_offer_desk_v1_offers_offers_proto protoreflect.FileDescriptor
 
 const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\n" +
-	"!offer-desk/v1/offers/offers.proto\x12\x1bvrooli.offer_desk.v1.offers\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a#money-ledger/v1/ledger/ledger.proto\"\xcb\x02\n" +
+	"!offer-desk/v1/offers/offers.proto\x12\x1bvrooli.offer_desk.v1.offers\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\x1a#money-ledger/v1/ledger/ledger.proto\"\xee\x03\n" +
 	"\x04Node\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\x04kind\x18\x02 \x01(\x0e2%.vrooli.offer_desk.v1.offers.NodeKindR\x04kind\x12\x12\n" +
@@ -3933,7 +4598,11 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12*\n" +
 	"\x11actual_account_id\x18\a \x01(\tR\x0factualAccountId\x12!\n" +
-	"\frelease_rank\x18\b \x01(\x05R\vreleaseRank\"\xde\x01\n" +
+	"\frelease_rank\x18\b \x01(\x05R\vreleaseRank\x12Z\n" +
+	"\x11deliverable_class\x18\t \x01(\x0e2-.vrooli.offer_desk.v1.offers.DeliverableClassR\x10deliverableClass\x12E\n" +
+	"\n" +
+	"finish_bar\x18\n" +
+	" \x01(\x0e2&.vrooli.offer_desk.v1.offers.FinishBarR\tfinishBar\"\xde\x01\n" +
 	"\x04Edge\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\afrom_id\x18\x02 \x01(\tR\x06fromId\x12\x13\n" +
@@ -4023,14 +4692,19 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\x05goals\x18\x05 \x03(\v2*.vrooli.money_ledger.v1.ledger.GoalVerdictR\x05goals\x12*\n" +
 	"\x11default_alive_gap\x18\x06 \x01(\tR\x0fdefaultAliveGap\x12%\n" +
 	"\x0eposture_source\x18\a \x01(\tR\rpostureSource\x12.\n" +
-	"\x13posture_age_seconds\x18\b \x01(\x03R\x11postureAgeSeconds\"\xea\x01\n" +
+	"\x13posture_age_seconds\x18\b \x01(\x03R\x11postureAgeSeconds\"\xbb\x03\n" +
 	"\x11CreateNodeRequest\x129\n" +
 	"\x04kind\x18\x01 \x01(\x0e2%.vrooli.offer_desk.v1.offers.NodeKindR\x04kind\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12;\n" +
 	"\x06status\x18\x03 \x01(\x0e2#.vrooli.offer_desk.v1.offers.StatusR\x06status\x12\x1d\n" +
 	"\n" +
 	"trigger_id\x18\x04 \x01(\tR\ttriggerId\x12*\n" +
-	"\x11actual_account_id\x18\x05 \x01(\tR\x0factualAccountId\"K\n" +
+	"\x11actual_account_id\x18\x05 \x01(\tR\x0factualAccountId\x12Z\n" +
+	"\x11deliverable_class\x18\x06 \x01(\x0e2-.vrooli.offer_desk.v1.offers.DeliverableClassR\x10deliverableClass\x12E\n" +
+	"\n" +
+	"finish_bar\x18\a \x01(\x0e2&.vrooli.offer_desk.v1.offers.FinishBarR\tfinishBar\x12\x14\n" +
+	"\x05actor\x18\b \x01(\tR\x05actor\x12\x16\n" +
+	"\x06reason\x18\t \x01(\tR\x06reason\"K\n" +
 	"\x12CreateNodeResponse\x125\n" +
 	"\x04node\x18\x01 \x01(\v2!.vrooli.offer_desk.v1.offers.NodeR\x04node\"\x8a\x01\n" +
 	"\x10ListNodesRequest\x129\n" +
@@ -4167,7 +4841,7 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\bquestion\x18\x03 \x01(\tR\bquestion\x12\x14\n" +
 	"\x05owner\x18\x04 \x01(\tR\x05owner\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12\x14\n" +
-	"\x05notes\x18\x06 \x01(\tR\x05notes\"\xac\x02\n" +
+	"\x05notes\x18\x06 \x01(\tR\x05notes\"\xfb\x02\n" +
 	"\rSpaceResponse\x12%\n" +
 	"\x0eschema_version\x18\x01 \x01(\tR\rschemaVersion\x12\x1e\n" +
 	"\n" +
@@ -4177,32 +4851,79 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\x16denominator_confidence\x18\x04 \x01(\tR\x15denominatorConfidence\x121\n" +
 	"\x14confidence_rationale\x18\x05 \x01(\tR\x13confidenceRationale\x12\x16\n" +
 	"\x06source\x18\x06 \x01(\tR\x06source\x12<\n" +
-	"\x05cells\x18\a \x03(\v2&.vrooli.offer_desk.v1.offers.SpaceCellR\x05cells\"?\n" +
+	"\x05cells\x18\a \x03(\v2&.vrooli.offer_desk.v1.offers.SpaceCellR\x05cells\x12M\n" +
+	"\favailability\x18\b \x03(\v2).vrooli.offer_desk.v1.offers.AvailabilityR\favailability\"?\n" +
 	"\x14ReleaseLadderRequest\x12'\n" +
-	"\x0finclude_retired\x18\x01 \x01(\bR\x0eincludeRetired\"\x80\x03\n" +
+	"\x0finclude_retired\x18\x01 \x01(\bR\x0eincludeRetired\"\xa2\x01\n" +
+	"\n" +
+	"GoalImpact\x12\x1b\n" +
+	"\tgoal_name\x18\x01 \x01(\tR\bgoalName\x12\x1d\n" +
+	"\n" +
+	"goal_title\x18\x02 \x01(\tR\tgoalTitle\x12)\n" +
+	"\x10deliverable_name\x18\x03 \x01(\tR\x0fdeliverableName\x12-\n" +
+	"\x12projected_priority\x18\x04 \x01(\x05R\x11projectedPriority\"\x97\x04\n" +
 	"\x12ReleaseLadderEntry\x12C\n" +
 	"\vdeliverable\x18\x01 \x01(\v2!.vrooli.offer_desk.v1.offers.NodeR\vdeliverable\x12H\n" +
 	"\x0eunlocked_ramps\x18\x02 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\runlockedRamps\x12L\n" +
 	"\x10unlocked_streams\x18\x03 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\x0funlockedStreams\x12?\n" +
 	"\taudiences\x18\x04 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\taudiences\x12L\n" +
-	"\x10cumulative_ramps\x18\x05 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\x0fcumulativeRamps\"\x99\x02\n" +
+	"\x10cumulative_ramps\x18\x05 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\x0fcumulativeRamps\x12I\n" +
+	"\benablers\x18\x06 \x03(\v2-.vrooli.offer_desk.v1.offers.PrerequisiteNodeR\benablers\x12J\n" +
+	"\fgoal_impacts\x18\a \x03(\v2'.vrooli.offer_desk.v1.offers.GoalImpactR\vgoalImpacts\"\xb3\x03\n" +
 	"\x15ReleaseLadderResponse\x12I\n" +
 	"\aentries\x18\x01 \x03(\v2/.vrooli.offer_desk.v1.offers.ReleaseLadderEntryR\aentries\x127\n" +
 	"\x05ramps\x18\x02 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\x05ramps\x12;\n" +
 	"\astreams\x18\x03 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\astreams\x12?\n" +
-	"\taudiences\x18\x04 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\taudiences\"i\n" +
+	"\taudiences\x18\x04 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\taudiences\x12I\n" +
+	"\benabling\x18\x05 \x03(\v2-.vrooli.offer_desk.v1.offers.PrerequisiteNodeR\benabling\x12M\n" +
+	"\favailability\x18\x06 \x03(\v2).vrooli.offer_desk.v1.offers.AvailabilityR\favailability\"i\n" +
 	"\x15SetReleaseRankRequest\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12!\n" +
 	"\frelease_rank\x18\x02 \x01(\x05R\vreleaseRank\x12\x14\n" +
 	"\x05actor\x18\x03 \x01(\tR\x05actor\"}\n" +
 	"\x16SetReleaseRankResponse\x125\n" +
 	"\x04node\x18\x01 \x01(\v2!.vrooli.offer_desk.v1.offers.NodeR\x04node\x12,\n" +
-	"\x12prior_release_rank\x18\x02 \x01(\x05R\x10priorReleaseRank\"?\n" +
+	"\x12prior_release_rank\x18\x02 \x01(\x05R\x10priorReleaseRank\"\xee\x01\n" +
+	"\x1aSetDeliverableClassRequest\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x12Z\n" +
+	"\x11deliverable_class\x18\x02 \x01(\x0e2-.vrooli.offer_desk.v1.offers.DeliverableClassR\x10deliverableClass\x12E\n" +
+	"\n" +
+	"finish_bar\x18\x03 \x01(\x0e2&.vrooli.offer_desk.v1.offers.FinishBarR\tfinishBar\x12\x14\n" +
+	"\x05actor\x18\x04 \x01(\tR\x05actor\"\xf6\x01\n" +
+	"\x1bSetDeliverableClassResponse\x125\n" +
+	"\x04node\x18\x01 \x01(\v2!.vrooli.offer_desk.v1.offers.NodeR\x04node\x12N\n" +
+	"\vprior_class\x18\x02 \x01(\x0e2-.vrooli.offer_desk.v1.offers.DeliverableClassR\n" +
+	"priorClass\x12P\n" +
+	"\x10prior_finish_bar\x18\x03 \x01(\x0e2&.vrooli.offer_desk.v1.offers.FinishBarR\x0epriorFinishBar\"\x17\n" +
+	"\x15MeterInventoryRequest\"\x9e\x01\n" +
+	"\x13MeterInventoryEntry\x12\x1b\n" +
+	"\tlimit_key\x18\x01 \x01(\tR\blimitKey\x12\x14\n" +
+	"\x05class\x18\x02 \x01(\tR\x05class\x12\x1f\n" +
+	"\vdeclared_by\x18\x03 \x03(\tR\n" +
+	"declaredBy\x12\x1f\n" +
+	"\vbundle_keys\x18\x04 \x03(\tR\n" +
+	"bundleKeys\x12\x12\n" +
+	"\x04byok\x18\x05 \x01(\bR\x04byok\"\xdf\x01\n" +
+	"\x16MeterInventoryResponse\x12H\n" +
+	"\x06meters\x18\x01 \x03(\v20.vrooli.offer_desk.v1.offers.MeterInventoryEntryR\x06meters\x12-\n" +
+	"\x12undeclared_streams\x18\x02 \x03(\tR\x11undeclaredStreams\x124\n" +
+	"\x16deliverable_meter_gaps\x18\x03 \x03(\tR\x14deliverableMeterGaps\x12\x16\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\"\x85\x01\n" +
 	"\x17PrerequisiteWalkRequest\x12$\n" +
-	"\x0estream_node_id\x18\x01 \x01(\tR\fstreamNodeId\"\xa2\x01\n" +
+	"\x0estream_node_id\x18\x01 \x01(\tR\fstreamNodeId\x12\x1b\n" +
+	"\tmax_depth\x18\x02 \x01(\x05R\bmaxDepth\x12'\n" +
+	"\x0finclude_shipped\x18\x03 \x01(\bR\x0eincludeShipped\"\x9c\x01\n" +
+	"\x10PrerequisiteNode\x125\n" +
+	"\x04node\x18\x01 \x01(\v2!.vrooli.offer_desk.v1.offers.NodeR\x04node\x12\x14\n" +
+	"\x05depth\x18\x02 \x01(\x05R\x05depth\x12'\n" +
+	"\x0fderived_urgency\x18\x03 \x01(\x05R\x0ederivedUrgency\x12\x12\n" +
+	"\x04path\x18\x04 \x03(\tR\x04path\"\x84\x02\n" +
 	"\x18PrerequisiteWalkResponse\x12E\n" +
 	"\fdeliverables\x18\x01 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\fdeliverables\x12?\n" +
-	"\tunshipped\x18\x02 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\tunshipped*\x91\x01\n" +
+	"\tunshipped\x18\x02 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\tunshipped\x12A\n" +
+	"\x04tree\x18\x03 \x03(\v2-.vrooli.offer_desk.v1.offers.PrerequisiteNodeR\x04tree\x12\x1d\n" +
+	"\n" +
+	"cycle_path\x18\x04 \x03(\tR\tcyclePath*\x91\x01\n" +
 	"\bNodeKind\x12\x19\n" +
 	"\x15NODE_KIND_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05OFFER\x10\x01\x12\v\n" +
@@ -4238,11 +4959,20 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\x1dEVALUATION_RESULT_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14EVALUATION_SUCCEEDED\x10\x01\x12\x15\n" +
 	"\x11EVALUATION_FAILED\x10\x02\x12\x16\n" +
-	"\x12EVALUATION_NOT_RUN\x10\x03*K\n" +
+	"\x12EVALUATION_NOT_RUN\x10\x03*Q\n" +
+	"\x10DeliverableClass\x12!\n" +
+	"\x1dDELIVERABLE_CLASS_UNSPECIFIED\x10\x00\x12\f\n" +
+	"\bMARKETED\x10\x01\x12\f\n" +
+	"\bENABLING\x10\x02*_\n" +
+	"\tFinishBar\x12\x1a\n" +
+	"\x16FINISH_BAR_UNSPECIFIED\x10\x00\x12\x13\n" +
+	"\x0fCUSTOMER_FACING\x10\x01\x12\x13\n" +
+	"\x0fOPERATOR_FACING\x10\x02\x12\f\n" +
+	"\bINTERNAL\x10\x03*K\n" +
 	"\x12TriggerComposition\x12#\n" +
 	"\x1fTRIGGER_COMPOSITION_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03ALL\x10\x01\x12\a\n" +
-	"\x03ANY\x10\x022\xfe\b\n" +
+	"\x03ANY\x10\x022\x87\v\n" +
 	"\x0eCatalogService\x12m\n" +
 	"\n" +
 	"CreateNode\x12..vrooli.offer_desk.v1.offers.CreateNodeRequest\x1a/.vrooli.offer_desk.v1.offers.CreateNodeResponse\x12j\n" +
@@ -4258,7 +4988,9 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\n" +
 	"MergeNodes\x12..vrooli.offer_desk.v1.offers.MergeNodesRequest\x1a/.vrooli.offer_desk.v1.offers.MergeNodesResponse\x12v\n" +
 	"\rVerifyCatalog\x121.vrooli.offer_desk.v1.offers.VerifyCatalogRequest\x1a2.vrooli.offer_desk.v1.offers.VerifyCatalogResponse\x12y\n" +
-	"\x0eSetReleaseRank\x122.vrooli.offer_desk.v1.offers.SetReleaseRankRequest\x1a3.vrooli.offer_desk.v1.offers.SetReleaseRankResponse2\xb6\x04\n" +
+	"\x0eSetReleaseRank\x122.vrooli.offer_desk.v1.offers.SetReleaseRankRequest\x1a3.vrooli.offer_desk.v1.offers.SetReleaseRankResponse\x12\x88\x01\n" +
+	"\x13SetDeliverableClass\x127.vrooli.offer_desk.v1.offers.SetDeliverableClassRequest\x1a8.vrooli.offer_desk.v1.offers.SetDeliverableClassResponse\x12|\n" +
+	"\x11GetMeterInventory\x122.vrooli.offer_desk.v1.offers.MeterInventoryRequest\x1a3.vrooli.offer_desk.v1.offers.MeterInventoryResponse2\xb6\x04\n" +
 	"\fGatesService\x12y\n" +
 	"\x0eDeclareTrigger\x122.vrooli.offer_desk.v1.offers.DeclareTriggerRequest\x1a3.vrooli.offer_desk.v1.offers.DeclareTriggerResponse\x12d\n" +
 	"\aAddFact\x12+.vrooli.offer_desk.v1.offers.AddFactRequest\x1a,.vrooli.offer_desk.v1.offers.AddFactResponse\x12g\n" +
@@ -4266,9 +4998,10 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\aPromote\x12+.vrooli.offer_desk.v1.offers.PromoteRequest\x1a,.vrooli.offer_desk.v1.offers.PromoteResponse\x12v\n" +
 	"\rListProposals\x121.vrooli.offer_desk.v1.offers.ListProposalsRequest\x1a2.vrooli.offer_desk.v1.offers.ListProposalsResponse2v\n" +
 	"\fBoardService\x12f\n" +
-	"\bGetBoard\x12..vrooli.offer_desk.v1.offers.ProjectionRequest\x1a*.vrooli.offer_desk.v1.offers.BoardResponse2\x92\x02\n" +
+	"\bGetBoard\x12..vrooli.offer_desk.v1.offers.ProjectionRequest\x1a*.vrooli.offer_desk.v1.offers.BoardResponse2\x95\x03\n" +
 	"\x14ReleaseLadderService\x12y\n" +
-	"\x10GetReleaseLadder\x121.vrooli.offer_desk.v1.offers.ReleaseLadderRequest\x1a2.vrooli.offer_desk.v1.offers.ReleaseLadderResponse\x12\x7f\n" +
+	"\x10GetReleaseLadder\x121.vrooli.offer_desk.v1.offers.ReleaseLadderRequest\x1a2.vrooli.offer_desk.v1.offers.ReleaseLadderResponse\x12\x80\x01\n" +
+	"\x17GetEnablingDeliverables\x121.vrooli.offer_desk.v1.offers.ReleaseLadderRequest\x1a2.vrooli.offer_desk.v1.offers.ReleaseLadderResponse\x12\x7f\n" +
 	"\x10GetPrerequisites\x124.vrooli.offer_desk.v1.offers.PrerequisiteWalkRequest\x1a5.vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse2{\n" +
 	"\fSpaceService\x12k\n" +
 	"\rGetProjection\x12..vrooli.offer_desk.v1.offers.ProjectionRequest\x1a*.vrooli.offer_desk.v1.offers.SpaceResponseBOZMgithub.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers;offers_v1b\x06proto3"
@@ -4285,183 +5018,215 @@ func file_offer_desk_v1_offers_offers_proto_rawDescGZIP() []byte {
 	return file_offer_desk_v1_offers_offers_proto_rawDescData
 }
 
-var file_offer_desk_v1_offers_offers_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_offer_desk_v1_offers_offers_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
+var file_offer_desk_v1_offers_offers_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
+var file_offer_desk_v1_offers_offers_proto_msgTypes = make([]protoimpl.MessageInfo, 63)
 var file_offer_desk_v1_offers_offers_proto_goTypes = []any{
-	(NodeKind)(0),                    // 0: vrooli.offer_desk.v1.offers.NodeKind
-	(Status)(0),                      // 1: vrooli.offer_desk.v1.offers.Status
-	(Verdict)(0),                     // 2: vrooli.offer_desk.v1.offers.Verdict
-	(SourceMode)(0),                  // 3: vrooli.offer_desk.v1.offers.SourceMode
-	(EvaluationResult)(0),            // 4: vrooli.offer_desk.v1.offers.EvaluationResult
-	(TriggerComposition)(0),          // 5: vrooli.offer_desk.v1.offers.TriggerComposition
-	(*Node)(nil),                     // 6: vrooli.offer_desk.v1.offers.Node
-	(*Edge)(nil),                     // 7: vrooli.offer_desk.v1.offers.Edge
-	(*TriggerClause)(nil),            // 8: vrooli.offer_desk.v1.offers.TriggerClause
-	(*Fact)(nil),                     // 9: vrooli.offer_desk.v1.offers.Fact
-	(*Trigger)(nil),                  // 10: vrooli.offer_desk.v1.offers.Trigger
-	(*Evaluation)(nil),               // 11: vrooli.offer_desk.v1.offers.Evaluation
-	(*ProposalDecline)(nil),          // 12: vrooli.offer_desk.v1.offers.ProposalDecline
-	(*Proposal)(nil),                 // 13: vrooli.offer_desk.v1.offers.Proposal
-	(*Availability)(nil),             // 14: vrooli.offer_desk.v1.offers.Availability
-	(*BoardEntry)(nil),               // 15: vrooli.offer_desk.v1.offers.BoardEntry
-	(*EvaluationCondition)(nil),      // 16: vrooli.offer_desk.v1.offers.EvaluationCondition
-	(*BoardResponse)(nil),            // 17: vrooli.offer_desk.v1.offers.BoardResponse
-	(*CreateNodeRequest)(nil),        // 18: vrooli.offer_desk.v1.offers.CreateNodeRequest
-	(*CreateNodeResponse)(nil),       // 19: vrooli.offer_desk.v1.offers.CreateNodeResponse
-	(*ListNodesRequest)(nil),         // 20: vrooli.offer_desk.v1.offers.ListNodesRequest
-	(*ListNodesResponse)(nil),        // 21: vrooli.offer_desk.v1.offers.ListNodesResponse
-	(*TransitionRequest)(nil),        // 22: vrooli.offer_desk.v1.offers.TransitionRequest
-	(*MapAccountRequest)(nil),        // 23: vrooli.offer_desk.v1.offers.MapAccountRequest
-	(*MapAccountResponse)(nil),       // 24: vrooli.offer_desk.v1.offers.MapAccountResponse
-	(*TransitionResponse)(nil),       // 25: vrooli.offer_desk.v1.offers.TransitionResponse
-	(*CreateEdgeRequest)(nil),        // 26: vrooli.offer_desk.v1.offers.CreateEdgeRequest
-	(*CreateEdgeResponse)(nil),       // 27: vrooli.offer_desk.v1.offers.CreateEdgeResponse
-	(*DeclareTriggerRequest)(nil),    // 28: vrooli.offer_desk.v1.offers.DeclareTriggerRequest
-	(*DeclareTriggerResponse)(nil),   // 29: vrooli.offer_desk.v1.offers.DeclareTriggerResponse
-	(*AddFactRequest)(nil),           // 30: vrooli.offer_desk.v1.offers.AddFactRequest
-	(*AddFactResponse)(nil),          // 31: vrooli.offer_desk.v1.offers.AddFactResponse
-	(*EvaluateRequest)(nil),          // 32: vrooli.offer_desk.v1.offers.EvaluateRequest
-	(*EvaluateResponse)(nil),         // 33: vrooli.offer_desk.v1.offers.EvaluateResponse
-	(*PromoteRequest)(nil),           // 34: vrooli.offer_desk.v1.offers.PromoteRequest
-	(*PromoteResponse)(nil),          // 35: vrooli.offer_desk.v1.offers.PromoteResponse
-	(*ListProposalsRequest)(nil),     // 36: vrooli.offer_desk.v1.offers.ListProposalsRequest
-	(*ListProposalsResponse)(nil),    // 37: vrooli.offer_desk.v1.offers.ListProposalsResponse
-	(*ListAuditRequest)(nil),         // 38: vrooli.offer_desk.v1.offers.ListAuditRequest
-	(*ListAuditResponse)(nil),        // 39: vrooli.offer_desk.v1.offers.ListAuditResponse
-	(*ListEdgesRequest)(nil),         // 40: vrooli.offer_desk.v1.offers.ListEdgesRequest
-	(*ListEdgesResponse)(nil),        // 41: vrooli.offer_desk.v1.offers.ListEdgesResponse
-	(*ProjectionRequest)(nil),        // 42: vrooli.offer_desk.v1.offers.ProjectionRequest
-	(*ImportCatalogRequest)(nil),     // 43: vrooli.offer_desk.v1.offers.ImportCatalogRequest
-	(*ImportFileReport)(nil),         // 44: vrooli.offer_desk.v1.offers.ImportFileReport
-	(*StatusMapEntry)(nil),           // 45: vrooli.offer_desk.v1.offers.StatusMapEntry
-	(*ImportFinding)(nil),            // 46: vrooli.offer_desk.v1.offers.ImportFinding
-	(*ImportCatalogResponse)(nil),    // 47: vrooli.offer_desk.v1.offers.ImportCatalogResponse
-	(*MergeNodesRequest)(nil),        // 48: vrooli.offer_desk.v1.offers.MergeNodesRequest
-	(*MergeNodesResponse)(nil),       // 49: vrooli.offer_desk.v1.offers.MergeNodesResponse
-	(*VerifyCatalogRequest)(nil),     // 50: vrooli.offer_desk.v1.offers.VerifyCatalogRequest
-	(*VerifyFileReport)(nil),         // 51: vrooli.offer_desk.v1.offers.VerifyFileReport
-	(*VerifyCatalogResponse)(nil),    // 52: vrooli.offer_desk.v1.offers.VerifyCatalogResponse
-	(*SpaceCell)(nil),                // 53: vrooli.offer_desk.v1.offers.SpaceCell
-	(*SpaceResponse)(nil),            // 54: vrooli.offer_desk.v1.offers.SpaceResponse
-	(*ReleaseLadderRequest)(nil),     // 55: vrooli.offer_desk.v1.offers.ReleaseLadderRequest
-	(*ReleaseLadderEntry)(nil),       // 56: vrooli.offer_desk.v1.offers.ReleaseLadderEntry
-	(*ReleaseLadderResponse)(nil),    // 57: vrooli.offer_desk.v1.offers.ReleaseLadderResponse
-	(*SetReleaseRankRequest)(nil),    // 58: vrooli.offer_desk.v1.offers.SetReleaseRankRequest
-	(*SetReleaseRankResponse)(nil),   // 59: vrooli.offer_desk.v1.offers.SetReleaseRankResponse
-	(*PrerequisiteWalkRequest)(nil),  // 60: vrooli.offer_desk.v1.offers.PrerequisiteWalkRequest
-	(*PrerequisiteWalkResponse)(nil), // 61: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse
-	(*timestamppb.Timestamp)(nil),    // 62: google.protobuf.Timestamp
-	(*ledger.PositionResponse)(nil),  // 63: vrooli.money_ledger.v1.ledger.PositionResponse
-	(*ledger.GoalVerdict)(nil),       // 64: vrooli.money_ledger.v1.ledger.GoalVerdict
+	(NodeKind)(0),                       // 0: vrooli.offer_desk.v1.offers.NodeKind
+	(Status)(0),                         // 1: vrooli.offer_desk.v1.offers.Status
+	(Verdict)(0),                        // 2: vrooli.offer_desk.v1.offers.Verdict
+	(SourceMode)(0),                     // 3: vrooli.offer_desk.v1.offers.SourceMode
+	(EvaluationResult)(0),               // 4: vrooli.offer_desk.v1.offers.EvaluationResult
+	(DeliverableClass)(0),               // 5: vrooli.offer_desk.v1.offers.DeliverableClass
+	(FinishBar)(0),                      // 6: vrooli.offer_desk.v1.offers.FinishBar
+	(TriggerComposition)(0),             // 7: vrooli.offer_desk.v1.offers.TriggerComposition
+	(*Node)(nil),                        // 8: vrooli.offer_desk.v1.offers.Node
+	(*Edge)(nil),                        // 9: vrooli.offer_desk.v1.offers.Edge
+	(*TriggerClause)(nil),               // 10: vrooli.offer_desk.v1.offers.TriggerClause
+	(*Fact)(nil),                        // 11: vrooli.offer_desk.v1.offers.Fact
+	(*Trigger)(nil),                     // 12: vrooli.offer_desk.v1.offers.Trigger
+	(*Evaluation)(nil),                  // 13: vrooli.offer_desk.v1.offers.Evaluation
+	(*ProposalDecline)(nil),             // 14: vrooli.offer_desk.v1.offers.ProposalDecline
+	(*Proposal)(nil),                    // 15: vrooli.offer_desk.v1.offers.Proposal
+	(*Availability)(nil),                // 16: vrooli.offer_desk.v1.offers.Availability
+	(*BoardEntry)(nil),                  // 17: vrooli.offer_desk.v1.offers.BoardEntry
+	(*EvaluationCondition)(nil),         // 18: vrooli.offer_desk.v1.offers.EvaluationCondition
+	(*BoardResponse)(nil),               // 19: vrooli.offer_desk.v1.offers.BoardResponse
+	(*CreateNodeRequest)(nil),           // 20: vrooli.offer_desk.v1.offers.CreateNodeRequest
+	(*CreateNodeResponse)(nil),          // 21: vrooli.offer_desk.v1.offers.CreateNodeResponse
+	(*ListNodesRequest)(nil),            // 22: vrooli.offer_desk.v1.offers.ListNodesRequest
+	(*ListNodesResponse)(nil),           // 23: vrooli.offer_desk.v1.offers.ListNodesResponse
+	(*TransitionRequest)(nil),           // 24: vrooli.offer_desk.v1.offers.TransitionRequest
+	(*MapAccountRequest)(nil),           // 25: vrooli.offer_desk.v1.offers.MapAccountRequest
+	(*MapAccountResponse)(nil),          // 26: vrooli.offer_desk.v1.offers.MapAccountResponse
+	(*TransitionResponse)(nil),          // 27: vrooli.offer_desk.v1.offers.TransitionResponse
+	(*CreateEdgeRequest)(nil),           // 28: vrooli.offer_desk.v1.offers.CreateEdgeRequest
+	(*CreateEdgeResponse)(nil),          // 29: vrooli.offer_desk.v1.offers.CreateEdgeResponse
+	(*DeclareTriggerRequest)(nil),       // 30: vrooli.offer_desk.v1.offers.DeclareTriggerRequest
+	(*DeclareTriggerResponse)(nil),      // 31: vrooli.offer_desk.v1.offers.DeclareTriggerResponse
+	(*AddFactRequest)(nil),              // 32: vrooli.offer_desk.v1.offers.AddFactRequest
+	(*AddFactResponse)(nil),             // 33: vrooli.offer_desk.v1.offers.AddFactResponse
+	(*EvaluateRequest)(nil),             // 34: vrooli.offer_desk.v1.offers.EvaluateRequest
+	(*EvaluateResponse)(nil),            // 35: vrooli.offer_desk.v1.offers.EvaluateResponse
+	(*PromoteRequest)(nil),              // 36: vrooli.offer_desk.v1.offers.PromoteRequest
+	(*PromoteResponse)(nil),             // 37: vrooli.offer_desk.v1.offers.PromoteResponse
+	(*ListProposalsRequest)(nil),        // 38: vrooli.offer_desk.v1.offers.ListProposalsRequest
+	(*ListProposalsResponse)(nil),       // 39: vrooli.offer_desk.v1.offers.ListProposalsResponse
+	(*ListAuditRequest)(nil),            // 40: vrooli.offer_desk.v1.offers.ListAuditRequest
+	(*ListAuditResponse)(nil),           // 41: vrooli.offer_desk.v1.offers.ListAuditResponse
+	(*ListEdgesRequest)(nil),            // 42: vrooli.offer_desk.v1.offers.ListEdgesRequest
+	(*ListEdgesResponse)(nil),           // 43: vrooli.offer_desk.v1.offers.ListEdgesResponse
+	(*ProjectionRequest)(nil),           // 44: vrooli.offer_desk.v1.offers.ProjectionRequest
+	(*ImportCatalogRequest)(nil),        // 45: vrooli.offer_desk.v1.offers.ImportCatalogRequest
+	(*ImportFileReport)(nil),            // 46: vrooli.offer_desk.v1.offers.ImportFileReport
+	(*StatusMapEntry)(nil),              // 47: vrooli.offer_desk.v1.offers.StatusMapEntry
+	(*ImportFinding)(nil),               // 48: vrooli.offer_desk.v1.offers.ImportFinding
+	(*ImportCatalogResponse)(nil),       // 49: vrooli.offer_desk.v1.offers.ImportCatalogResponse
+	(*MergeNodesRequest)(nil),           // 50: vrooli.offer_desk.v1.offers.MergeNodesRequest
+	(*MergeNodesResponse)(nil),          // 51: vrooli.offer_desk.v1.offers.MergeNodesResponse
+	(*VerifyCatalogRequest)(nil),        // 52: vrooli.offer_desk.v1.offers.VerifyCatalogRequest
+	(*VerifyFileReport)(nil),            // 53: vrooli.offer_desk.v1.offers.VerifyFileReport
+	(*VerifyCatalogResponse)(nil),       // 54: vrooli.offer_desk.v1.offers.VerifyCatalogResponse
+	(*SpaceCell)(nil),                   // 55: vrooli.offer_desk.v1.offers.SpaceCell
+	(*SpaceResponse)(nil),               // 56: vrooli.offer_desk.v1.offers.SpaceResponse
+	(*ReleaseLadderRequest)(nil),        // 57: vrooli.offer_desk.v1.offers.ReleaseLadderRequest
+	(*GoalImpact)(nil),                  // 58: vrooli.offer_desk.v1.offers.GoalImpact
+	(*ReleaseLadderEntry)(nil),          // 59: vrooli.offer_desk.v1.offers.ReleaseLadderEntry
+	(*ReleaseLadderResponse)(nil),       // 60: vrooli.offer_desk.v1.offers.ReleaseLadderResponse
+	(*SetReleaseRankRequest)(nil),       // 61: vrooli.offer_desk.v1.offers.SetReleaseRankRequest
+	(*SetReleaseRankResponse)(nil),      // 62: vrooli.offer_desk.v1.offers.SetReleaseRankResponse
+	(*SetDeliverableClassRequest)(nil),  // 63: vrooli.offer_desk.v1.offers.SetDeliverableClassRequest
+	(*SetDeliverableClassResponse)(nil), // 64: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse
+	(*MeterInventoryRequest)(nil),       // 65: vrooli.offer_desk.v1.offers.MeterInventoryRequest
+	(*MeterInventoryEntry)(nil),         // 66: vrooli.offer_desk.v1.offers.MeterInventoryEntry
+	(*MeterInventoryResponse)(nil),      // 67: vrooli.offer_desk.v1.offers.MeterInventoryResponse
+	(*PrerequisiteWalkRequest)(nil),     // 68: vrooli.offer_desk.v1.offers.PrerequisiteWalkRequest
+	(*PrerequisiteNode)(nil),            // 69: vrooli.offer_desk.v1.offers.PrerequisiteNode
+	(*PrerequisiteWalkResponse)(nil),    // 70: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse
+	(*timestamppb.Timestamp)(nil),       // 71: google.protobuf.Timestamp
+	(*ledger.PositionResponse)(nil),     // 72: vrooli.money_ledger.v1.ledger.PositionResponse
+	(*ledger.GoalVerdict)(nil),          // 73: vrooli.money_ledger.v1.ledger.GoalVerdict
 }
 var file_offer_desk_v1_offers_offers_proto_depIdxs = []int32{
-	0,  // 0: vrooli.offer_desk.v1.offers.Node.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
-	1,  // 1: vrooli.offer_desk.v1.offers.Node.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	62, // 2: vrooli.offer_desk.v1.offers.Node.created_at:type_name -> google.protobuf.Timestamp
-	62, // 3: vrooli.offer_desk.v1.offers.Fact.observed_at:type_name -> google.protobuf.Timestamp
-	8,  // 4: vrooli.offer_desk.v1.offers.Trigger.clauses:type_name -> vrooli.offer_desk.v1.offers.TriggerClause
-	5,  // 5: vrooli.offer_desk.v1.offers.Trigger.composition:type_name -> vrooli.offer_desk.v1.offers.TriggerComposition
-	2,  // 6: vrooli.offer_desk.v1.offers.Evaluation.verdict:type_name -> vrooli.offer_desk.v1.offers.Verdict
-	62, // 7: vrooli.offer_desk.v1.offers.Evaluation.evaluated_at:type_name -> google.protobuf.Timestamp
-	62, // 8: vrooli.offer_desk.v1.offers.ProposalDecline.created_at:type_name -> google.protobuf.Timestamp
-	1,  // 9: vrooli.offer_desk.v1.offers.Proposal.requested_status:type_name -> vrooli.offer_desk.v1.offers.Status
-	62, // 10: vrooli.offer_desk.v1.offers.Proposal.created_at:type_name -> google.protobuf.Timestamp
-	12, // 11: vrooli.offer_desk.v1.offers.Proposal.decline_history:type_name -> vrooli.offer_desk.v1.offers.ProposalDecline
-	62, // 12: vrooli.offer_desk.v1.offers.Availability.last_success_at:type_name -> google.protobuf.Timestamp
-	1,  // 13: vrooli.offer_desk.v1.offers.BoardEntry.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	14, // 14: vrooli.offer_desk.v1.offers.BoardEntry.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
-	62, // 15: vrooli.offer_desk.v1.offers.EvaluationCondition.last_run_at:type_name -> google.protobuf.Timestamp
-	4,  // 16: vrooli.offer_desk.v1.offers.EvaluationCondition.last_result:type_name -> vrooli.offer_desk.v1.offers.EvaluationResult
-	15, // 17: vrooli.offer_desk.v1.offers.BoardResponse.entries:type_name -> vrooli.offer_desk.v1.offers.BoardEntry
-	63, // 18: vrooli.offer_desk.v1.offers.BoardResponse.position:type_name -> vrooli.money_ledger.v1.ledger.PositionResponse
-	14, // 19: vrooli.offer_desk.v1.offers.BoardResponse.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
-	16, // 20: vrooli.offer_desk.v1.offers.BoardResponse.evaluation:type_name -> vrooli.offer_desk.v1.offers.EvaluationCondition
-	64, // 21: vrooli.offer_desk.v1.offers.BoardResponse.goals:type_name -> vrooli.money_ledger.v1.ledger.GoalVerdict
-	0,  // 22: vrooli.offer_desk.v1.offers.CreateNodeRequest.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
-	1,  // 23: vrooli.offer_desk.v1.offers.CreateNodeRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	6,  // 24: vrooli.offer_desk.v1.offers.CreateNodeResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
-	0,  // 25: vrooli.offer_desk.v1.offers.ListNodesRequest.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
-	1,  // 26: vrooli.offer_desk.v1.offers.ListNodesRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	6,  // 27: vrooli.offer_desk.v1.offers.ListNodesResponse.nodes:type_name -> vrooli.offer_desk.v1.offers.Node
-	1,  // 28: vrooli.offer_desk.v1.offers.TransitionRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	6,  // 29: vrooli.offer_desk.v1.offers.MapAccountResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 30: vrooli.offer_desk.v1.offers.TransitionResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
-	7,  // 31: vrooli.offer_desk.v1.offers.CreateEdgeRequest.edge:type_name -> vrooli.offer_desk.v1.offers.Edge
-	7,  // 32: vrooli.offer_desk.v1.offers.CreateEdgeResponse.edge:type_name -> vrooli.offer_desk.v1.offers.Edge
-	10, // 33: vrooli.offer_desk.v1.offers.DeclareTriggerRequest.trigger:type_name -> vrooli.offer_desk.v1.offers.Trigger
-	10, // 34: vrooli.offer_desk.v1.offers.DeclareTriggerResponse.trigger:type_name -> vrooli.offer_desk.v1.offers.Trigger
-	9,  // 35: vrooli.offer_desk.v1.offers.AddFactRequest.fact:type_name -> vrooli.offer_desk.v1.offers.Fact
-	9,  // 36: vrooli.offer_desk.v1.offers.AddFactResponse.fact:type_name -> vrooli.offer_desk.v1.offers.Fact
-	11, // 37: vrooli.offer_desk.v1.offers.EvaluateResponse.evaluations:type_name -> vrooli.offer_desk.v1.offers.Evaluation
-	13, // 38: vrooli.offer_desk.v1.offers.PromoteResponse.proposal:type_name -> vrooli.offer_desk.v1.offers.Proposal
-	1,  // 39: vrooli.offer_desk.v1.offers.ListProposalsRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	13, // 40: vrooli.offer_desk.v1.offers.ListProposalsResponse.proposals:type_name -> vrooli.offer_desk.v1.offers.Proposal
-	7,  // 41: vrooli.offer_desk.v1.offers.ListEdgesResponse.edges:type_name -> vrooli.offer_desk.v1.offers.Edge
-	3,  // 42: vrooli.offer_desk.v1.offers.ImportCatalogRequest.source_mode:type_name -> vrooli.offer_desk.v1.offers.SourceMode
-	0,  // 43: vrooli.offer_desk.v1.offers.ImportFileReport.node_kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
-	1,  // 44: vrooli.offer_desk.v1.offers.StatusMapEntry.status:type_name -> vrooli.offer_desk.v1.offers.Status
-	44, // 45: vrooli.offer_desk.v1.offers.ImportCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.ImportFileReport
-	45, // 46: vrooli.offer_desk.v1.offers.ImportCatalogResponse.status_map:type_name -> vrooli.offer_desk.v1.offers.StatusMapEntry
-	46, // 47: vrooli.offer_desk.v1.offers.ImportCatalogResponse.findings:type_name -> vrooli.offer_desk.v1.offers.ImportFinding
-	6,  // 48: vrooli.offer_desk.v1.offers.MergeNodesResponse.surviving:type_name -> vrooli.offer_desk.v1.offers.Node
-	3,  // 49: vrooli.offer_desk.v1.offers.VerifyCatalogRequest.source_mode:type_name -> vrooli.offer_desk.v1.offers.SourceMode
-	51, // 50: vrooli.offer_desk.v1.offers.VerifyCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.VerifyFileReport
-	53, // 51: vrooli.offer_desk.v1.offers.SpaceResponse.cells:type_name -> vrooli.offer_desk.v1.offers.SpaceCell
-	6,  // 52: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.deliverable:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 53: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.unlocked_ramps:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 54: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.unlocked_streams:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 55: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.audiences:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 56: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.cumulative_ramps:type_name -> vrooli.offer_desk.v1.offers.Node
-	56, // 57: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.entries:type_name -> vrooli.offer_desk.v1.offers.ReleaseLadderEntry
-	6,  // 58: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.ramps:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 59: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.streams:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 60: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.audiences:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 61: vrooli.offer_desk.v1.offers.SetReleaseRankResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 62: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.deliverables:type_name -> vrooli.offer_desk.v1.offers.Node
-	6,  // 63: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.unshipped:type_name -> vrooli.offer_desk.v1.offers.Node
-	18, // 64: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:input_type -> vrooli.offer_desk.v1.offers.CreateNodeRequest
-	20, // 65: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:input_type -> vrooli.offer_desk.v1.offers.ListNodesRequest
-	22, // 66: vrooli.offer_desk.v1.offers.CatalogService.Transition:input_type -> vrooli.offer_desk.v1.offers.TransitionRequest
-	26, // 67: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:input_type -> vrooli.offer_desk.v1.offers.CreateEdgeRequest
-	40, // 68: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:input_type -> vrooli.offer_desk.v1.offers.ListEdgesRequest
-	43, // 69: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:input_type -> vrooli.offer_desk.v1.offers.ImportCatalogRequest
-	23, // 70: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:input_type -> vrooli.offer_desk.v1.offers.MapAccountRequest
-	48, // 71: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:input_type -> vrooli.offer_desk.v1.offers.MergeNodesRequest
-	50, // 72: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:input_type -> vrooli.offer_desk.v1.offers.VerifyCatalogRequest
-	58, // 73: vrooli.offer_desk.v1.offers.CatalogService.SetReleaseRank:input_type -> vrooli.offer_desk.v1.offers.SetReleaseRankRequest
-	28, // 74: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:input_type -> vrooli.offer_desk.v1.offers.DeclareTriggerRequest
-	30, // 75: vrooli.offer_desk.v1.offers.GatesService.AddFact:input_type -> vrooli.offer_desk.v1.offers.AddFactRequest
-	32, // 76: vrooli.offer_desk.v1.offers.GatesService.Evaluate:input_type -> vrooli.offer_desk.v1.offers.EvaluateRequest
-	34, // 77: vrooli.offer_desk.v1.offers.GatesService.Promote:input_type -> vrooli.offer_desk.v1.offers.PromoteRequest
-	36, // 78: vrooli.offer_desk.v1.offers.GatesService.ListProposals:input_type -> vrooli.offer_desk.v1.offers.ListProposalsRequest
-	42, // 79: vrooli.offer_desk.v1.offers.BoardService.GetBoard:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
-	55, // 80: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder:input_type -> vrooli.offer_desk.v1.offers.ReleaseLadderRequest
-	60, // 81: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetPrerequisites:input_type -> vrooli.offer_desk.v1.offers.PrerequisiteWalkRequest
-	42, // 82: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
-	19, // 83: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:output_type -> vrooli.offer_desk.v1.offers.CreateNodeResponse
-	21, // 84: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:output_type -> vrooli.offer_desk.v1.offers.ListNodesResponse
-	25, // 85: vrooli.offer_desk.v1.offers.CatalogService.Transition:output_type -> vrooli.offer_desk.v1.offers.TransitionResponse
-	27, // 86: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:output_type -> vrooli.offer_desk.v1.offers.CreateEdgeResponse
-	41, // 87: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:output_type -> vrooli.offer_desk.v1.offers.ListEdgesResponse
-	47, // 88: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:output_type -> vrooli.offer_desk.v1.offers.ImportCatalogResponse
-	24, // 89: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:output_type -> vrooli.offer_desk.v1.offers.MapAccountResponse
-	49, // 90: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:output_type -> vrooli.offer_desk.v1.offers.MergeNodesResponse
-	52, // 91: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:output_type -> vrooli.offer_desk.v1.offers.VerifyCatalogResponse
-	59, // 92: vrooli.offer_desk.v1.offers.CatalogService.SetReleaseRank:output_type -> vrooli.offer_desk.v1.offers.SetReleaseRankResponse
-	29, // 93: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:output_type -> vrooli.offer_desk.v1.offers.DeclareTriggerResponse
-	31, // 94: vrooli.offer_desk.v1.offers.GatesService.AddFact:output_type -> vrooli.offer_desk.v1.offers.AddFactResponse
-	33, // 95: vrooli.offer_desk.v1.offers.GatesService.Evaluate:output_type -> vrooli.offer_desk.v1.offers.EvaluateResponse
-	35, // 96: vrooli.offer_desk.v1.offers.GatesService.Promote:output_type -> vrooli.offer_desk.v1.offers.PromoteResponse
-	37, // 97: vrooli.offer_desk.v1.offers.GatesService.ListProposals:output_type -> vrooli.offer_desk.v1.offers.ListProposalsResponse
-	17, // 98: vrooli.offer_desk.v1.offers.BoardService.GetBoard:output_type -> vrooli.offer_desk.v1.offers.BoardResponse
-	57, // 99: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder:output_type -> vrooli.offer_desk.v1.offers.ReleaseLadderResponse
-	61, // 100: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetPrerequisites:output_type -> vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse
-	54, // 101: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:output_type -> vrooli.offer_desk.v1.offers.SpaceResponse
-	83, // [83:102] is the sub-list for method output_type
-	64, // [64:83] is the sub-list for method input_type
-	64, // [64:64] is the sub-list for extension type_name
-	64, // [64:64] is the sub-list for extension extendee
-	0,  // [0:64] is the sub-list for field type_name
+	0,   // 0: vrooli.offer_desk.v1.offers.Node.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
+	1,   // 1: vrooli.offer_desk.v1.offers.Node.status:type_name -> vrooli.offer_desk.v1.offers.Status
+	71,  // 2: vrooli.offer_desk.v1.offers.Node.created_at:type_name -> google.protobuf.Timestamp
+	5,   // 3: vrooli.offer_desk.v1.offers.Node.deliverable_class:type_name -> vrooli.offer_desk.v1.offers.DeliverableClass
+	6,   // 4: vrooli.offer_desk.v1.offers.Node.finish_bar:type_name -> vrooli.offer_desk.v1.offers.FinishBar
+	71,  // 5: vrooli.offer_desk.v1.offers.Fact.observed_at:type_name -> google.protobuf.Timestamp
+	10,  // 6: vrooli.offer_desk.v1.offers.Trigger.clauses:type_name -> vrooli.offer_desk.v1.offers.TriggerClause
+	7,   // 7: vrooli.offer_desk.v1.offers.Trigger.composition:type_name -> vrooli.offer_desk.v1.offers.TriggerComposition
+	2,   // 8: vrooli.offer_desk.v1.offers.Evaluation.verdict:type_name -> vrooli.offer_desk.v1.offers.Verdict
+	71,  // 9: vrooli.offer_desk.v1.offers.Evaluation.evaluated_at:type_name -> google.protobuf.Timestamp
+	71,  // 10: vrooli.offer_desk.v1.offers.ProposalDecline.created_at:type_name -> google.protobuf.Timestamp
+	1,   // 11: vrooli.offer_desk.v1.offers.Proposal.requested_status:type_name -> vrooli.offer_desk.v1.offers.Status
+	71,  // 12: vrooli.offer_desk.v1.offers.Proposal.created_at:type_name -> google.protobuf.Timestamp
+	14,  // 13: vrooli.offer_desk.v1.offers.Proposal.decline_history:type_name -> vrooli.offer_desk.v1.offers.ProposalDecline
+	71,  // 14: vrooli.offer_desk.v1.offers.Availability.last_success_at:type_name -> google.protobuf.Timestamp
+	1,   // 15: vrooli.offer_desk.v1.offers.BoardEntry.status:type_name -> vrooli.offer_desk.v1.offers.Status
+	16,  // 16: vrooli.offer_desk.v1.offers.BoardEntry.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
+	71,  // 17: vrooli.offer_desk.v1.offers.EvaluationCondition.last_run_at:type_name -> google.protobuf.Timestamp
+	4,   // 18: vrooli.offer_desk.v1.offers.EvaluationCondition.last_result:type_name -> vrooli.offer_desk.v1.offers.EvaluationResult
+	17,  // 19: vrooli.offer_desk.v1.offers.BoardResponse.entries:type_name -> vrooli.offer_desk.v1.offers.BoardEntry
+	72,  // 20: vrooli.offer_desk.v1.offers.BoardResponse.position:type_name -> vrooli.money_ledger.v1.ledger.PositionResponse
+	16,  // 21: vrooli.offer_desk.v1.offers.BoardResponse.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
+	18,  // 22: vrooli.offer_desk.v1.offers.BoardResponse.evaluation:type_name -> vrooli.offer_desk.v1.offers.EvaluationCondition
+	73,  // 23: vrooli.offer_desk.v1.offers.BoardResponse.goals:type_name -> vrooli.money_ledger.v1.ledger.GoalVerdict
+	0,   // 24: vrooli.offer_desk.v1.offers.CreateNodeRequest.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
+	1,   // 25: vrooli.offer_desk.v1.offers.CreateNodeRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
+	5,   // 26: vrooli.offer_desk.v1.offers.CreateNodeRequest.deliverable_class:type_name -> vrooli.offer_desk.v1.offers.DeliverableClass
+	6,   // 27: vrooli.offer_desk.v1.offers.CreateNodeRequest.finish_bar:type_name -> vrooli.offer_desk.v1.offers.FinishBar
+	8,   // 28: vrooli.offer_desk.v1.offers.CreateNodeResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	0,   // 29: vrooli.offer_desk.v1.offers.ListNodesRequest.kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
+	1,   // 30: vrooli.offer_desk.v1.offers.ListNodesRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
+	8,   // 31: vrooli.offer_desk.v1.offers.ListNodesResponse.nodes:type_name -> vrooli.offer_desk.v1.offers.Node
+	1,   // 32: vrooli.offer_desk.v1.offers.TransitionRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
+	8,   // 33: vrooli.offer_desk.v1.offers.MapAccountResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 34: vrooli.offer_desk.v1.offers.TransitionResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	9,   // 35: vrooli.offer_desk.v1.offers.CreateEdgeRequest.edge:type_name -> vrooli.offer_desk.v1.offers.Edge
+	9,   // 36: vrooli.offer_desk.v1.offers.CreateEdgeResponse.edge:type_name -> vrooli.offer_desk.v1.offers.Edge
+	12,  // 37: vrooli.offer_desk.v1.offers.DeclareTriggerRequest.trigger:type_name -> vrooli.offer_desk.v1.offers.Trigger
+	12,  // 38: vrooli.offer_desk.v1.offers.DeclareTriggerResponse.trigger:type_name -> vrooli.offer_desk.v1.offers.Trigger
+	11,  // 39: vrooli.offer_desk.v1.offers.AddFactRequest.fact:type_name -> vrooli.offer_desk.v1.offers.Fact
+	11,  // 40: vrooli.offer_desk.v1.offers.AddFactResponse.fact:type_name -> vrooli.offer_desk.v1.offers.Fact
+	13,  // 41: vrooli.offer_desk.v1.offers.EvaluateResponse.evaluations:type_name -> vrooli.offer_desk.v1.offers.Evaluation
+	15,  // 42: vrooli.offer_desk.v1.offers.PromoteResponse.proposal:type_name -> vrooli.offer_desk.v1.offers.Proposal
+	1,   // 43: vrooli.offer_desk.v1.offers.ListProposalsRequest.status:type_name -> vrooli.offer_desk.v1.offers.Status
+	15,  // 44: vrooli.offer_desk.v1.offers.ListProposalsResponse.proposals:type_name -> vrooli.offer_desk.v1.offers.Proposal
+	9,   // 45: vrooli.offer_desk.v1.offers.ListEdgesResponse.edges:type_name -> vrooli.offer_desk.v1.offers.Edge
+	3,   // 46: vrooli.offer_desk.v1.offers.ImportCatalogRequest.source_mode:type_name -> vrooli.offer_desk.v1.offers.SourceMode
+	0,   // 47: vrooli.offer_desk.v1.offers.ImportFileReport.node_kind:type_name -> vrooli.offer_desk.v1.offers.NodeKind
+	1,   // 48: vrooli.offer_desk.v1.offers.StatusMapEntry.status:type_name -> vrooli.offer_desk.v1.offers.Status
+	46,  // 49: vrooli.offer_desk.v1.offers.ImportCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.ImportFileReport
+	47,  // 50: vrooli.offer_desk.v1.offers.ImportCatalogResponse.status_map:type_name -> vrooli.offer_desk.v1.offers.StatusMapEntry
+	48,  // 51: vrooli.offer_desk.v1.offers.ImportCatalogResponse.findings:type_name -> vrooli.offer_desk.v1.offers.ImportFinding
+	8,   // 52: vrooli.offer_desk.v1.offers.MergeNodesResponse.surviving:type_name -> vrooli.offer_desk.v1.offers.Node
+	3,   // 53: vrooli.offer_desk.v1.offers.VerifyCatalogRequest.source_mode:type_name -> vrooli.offer_desk.v1.offers.SourceMode
+	53,  // 54: vrooli.offer_desk.v1.offers.VerifyCatalogResponse.files:type_name -> vrooli.offer_desk.v1.offers.VerifyFileReport
+	55,  // 55: vrooli.offer_desk.v1.offers.SpaceResponse.cells:type_name -> vrooli.offer_desk.v1.offers.SpaceCell
+	16,  // 56: vrooli.offer_desk.v1.offers.SpaceResponse.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
+	8,   // 57: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.deliverable:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 58: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.unlocked_ramps:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 59: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.unlocked_streams:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 60: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.audiences:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 61: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.cumulative_ramps:type_name -> vrooli.offer_desk.v1.offers.Node
+	69,  // 62: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.enablers:type_name -> vrooli.offer_desk.v1.offers.PrerequisiteNode
+	58,  // 63: vrooli.offer_desk.v1.offers.ReleaseLadderEntry.goal_impacts:type_name -> vrooli.offer_desk.v1.offers.GoalImpact
+	59,  // 64: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.entries:type_name -> vrooli.offer_desk.v1.offers.ReleaseLadderEntry
+	8,   // 65: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.ramps:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 66: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.streams:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 67: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.audiences:type_name -> vrooli.offer_desk.v1.offers.Node
+	69,  // 68: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.enabling:type_name -> vrooli.offer_desk.v1.offers.PrerequisiteNode
+	16,  // 69: vrooli.offer_desk.v1.offers.ReleaseLadderResponse.availability:type_name -> vrooli.offer_desk.v1.offers.Availability
+	8,   // 70: vrooli.offer_desk.v1.offers.SetReleaseRankResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	5,   // 71: vrooli.offer_desk.v1.offers.SetDeliverableClassRequest.deliverable_class:type_name -> vrooli.offer_desk.v1.offers.DeliverableClass
+	6,   // 72: vrooli.offer_desk.v1.offers.SetDeliverableClassRequest.finish_bar:type_name -> vrooli.offer_desk.v1.offers.FinishBar
+	8,   // 73: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	5,   // 74: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse.prior_class:type_name -> vrooli.offer_desk.v1.offers.DeliverableClass
+	6,   // 75: vrooli.offer_desk.v1.offers.SetDeliverableClassResponse.prior_finish_bar:type_name -> vrooli.offer_desk.v1.offers.FinishBar
+	66,  // 76: vrooli.offer_desk.v1.offers.MeterInventoryResponse.meters:type_name -> vrooli.offer_desk.v1.offers.MeterInventoryEntry
+	8,   // 77: vrooli.offer_desk.v1.offers.PrerequisiteNode.node:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 78: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.deliverables:type_name -> vrooli.offer_desk.v1.offers.Node
+	8,   // 79: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.unshipped:type_name -> vrooli.offer_desk.v1.offers.Node
+	69,  // 80: vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse.tree:type_name -> vrooli.offer_desk.v1.offers.PrerequisiteNode
+	20,  // 81: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:input_type -> vrooli.offer_desk.v1.offers.CreateNodeRequest
+	22,  // 82: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:input_type -> vrooli.offer_desk.v1.offers.ListNodesRequest
+	24,  // 83: vrooli.offer_desk.v1.offers.CatalogService.Transition:input_type -> vrooli.offer_desk.v1.offers.TransitionRequest
+	28,  // 84: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:input_type -> vrooli.offer_desk.v1.offers.CreateEdgeRequest
+	42,  // 85: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:input_type -> vrooli.offer_desk.v1.offers.ListEdgesRequest
+	45,  // 86: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:input_type -> vrooli.offer_desk.v1.offers.ImportCatalogRequest
+	25,  // 87: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:input_type -> vrooli.offer_desk.v1.offers.MapAccountRequest
+	50,  // 88: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:input_type -> vrooli.offer_desk.v1.offers.MergeNodesRequest
+	52,  // 89: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:input_type -> vrooli.offer_desk.v1.offers.VerifyCatalogRequest
+	61,  // 90: vrooli.offer_desk.v1.offers.CatalogService.SetReleaseRank:input_type -> vrooli.offer_desk.v1.offers.SetReleaseRankRequest
+	63,  // 91: vrooli.offer_desk.v1.offers.CatalogService.SetDeliverableClass:input_type -> vrooli.offer_desk.v1.offers.SetDeliverableClassRequest
+	65,  // 92: vrooli.offer_desk.v1.offers.CatalogService.GetMeterInventory:input_type -> vrooli.offer_desk.v1.offers.MeterInventoryRequest
+	30,  // 93: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:input_type -> vrooli.offer_desk.v1.offers.DeclareTriggerRequest
+	32,  // 94: vrooli.offer_desk.v1.offers.GatesService.AddFact:input_type -> vrooli.offer_desk.v1.offers.AddFactRequest
+	34,  // 95: vrooli.offer_desk.v1.offers.GatesService.Evaluate:input_type -> vrooli.offer_desk.v1.offers.EvaluateRequest
+	36,  // 96: vrooli.offer_desk.v1.offers.GatesService.Promote:input_type -> vrooli.offer_desk.v1.offers.PromoteRequest
+	38,  // 97: vrooli.offer_desk.v1.offers.GatesService.ListProposals:input_type -> vrooli.offer_desk.v1.offers.ListProposalsRequest
+	44,  // 98: vrooli.offer_desk.v1.offers.BoardService.GetBoard:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
+	57,  // 99: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder:input_type -> vrooli.offer_desk.v1.offers.ReleaseLadderRequest
+	57,  // 100: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetEnablingDeliverables:input_type -> vrooli.offer_desk.v1.offers.ReleaseLadderRequest
+	68,  // 101: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetPrerequisites:input_type -> vrooli.offer_desk.v1.offers.PrerequisiteWalkRequest
+	44,  // 102: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:input_type -> vrooli.offer_desk.v1.offers.ProjectionRequest
+	21,  // 103: vrooli.offer_desk.v1.offers.CatalogService.CreateNode:output_type -> vrooli.offer_desk.v1.offers.CreateNodeResponse
+	23,  // 104: vrooli.offer_desk.v1.offers.CatalogService.ListNodes:output_type -> vrooli.offer_desk.v1.offers.ListNodesResponse
+	27,  // 105: vrooli.offer_desk.v1.offers.CatalogService.Transition:output_type -> vrooli.offer_desk.v1.offers.TransitionResponse
+	29,  // 106: vrooli.offer_desk.v1.offers.CatalogService.CreateEdge:output_type -> vrooli.offer_desk.v1.offers.CreateEdgeResponse
+	43,  // 107: vrooli.offer_desk.v1.offers.CatalogService.ListEdges:output_type -> vrooli.offer_desk.v1.offers.ListEdgesResponse
+	49,  // 108: vrooli.offer_desk.v1.offers.CatalogService.ImportCatalog:output_type -> vrooli.offer_desk.v1.offers.ImportCatalogResponse
+	26,  // 109: vrooli.offer_desk.v1.offers.CatalogService.MapAccount:output_type -> vrooli.offer_desk.v1.offers.MapAccountResponse
+	51,  // 110: vrooli.offer_desk.v1.offers.CatalogService.MergeNodes:output_type -> vrooli.offer_desk.v1.offers.MergeNodesResponse
+	54,  // 111: vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog:output_type -> vrooli.offer_desk.v1.offers.VerifyCatalogResponse
+	62,  // 112: vrooli.offer_desk.v1.offers.CatalogService.SetReleaseRank:output_type -> vrooli.offer_desk.v1.offers.SetReleaseRankResponse
+	64,  // 113: vrooli.offer_desk.v1.offers.CatalogService.SetDeliverableClass:output_type -> vrooli.offer_desk.v1.offers.SetDeliverableClassResponse
+	67,  // 114: vrooli.offer_desk.v1.offers.CatalogService.GetMeterInventory:output_type -> vrooli.offer_desk.v1.offers.MeterInventoryResponse
+	31,  // 115: vrooli.offer_desk.v1.offers.GatesService.DeclareTrigger:output_type -> vrooli.offer_desk.v1.offers.DeclareTriggerResponse
+	33,  // 116: vrooli.offer_desk.v1.offers.GatesService.AddFact:output_type -> vrooli.offer_desk.v1.offers.AddFactResponse
+	35,  // 117: vrooli.offer_desk.v1.offers.GatesService.Evaluate:output_type -> vrooli.offer_desk.v1.offers.EvaluateResponse
+	37,  // 118: vrooli.offer_desk.v1.offers.GatesService.Promote:output_type -> vrooli.offer_desk.v1.offers.PromoteResponse
+	39,  // 119: vrooli.offer_desk.v1.offers.GatesService.ListProposals:output_type -> vrooli.offer_desk.v1.offers.ListProposalsResponse
+	19,  // 120: vrooli.offer_desk.v1.offers.BoardService.GetBoard:output_type -> vrooli.offer_desk.v1.offers.BoardResponse
+	60,  // 121: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetReleaseLadder:output_type -> vrooli.offer_desk.v1.offers.ReleaseLadderResponse
+	60,  // 122: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetEnablingDeliverables:output_type -> vrooli.offer_desk.v1.offers.ReleaseLadderResponse
+	70,  // 123: vrooli.offer_desk.v1.offers.ReleaseLadderService.GetPrerequisites:output_type -> vrooli.offer_desk.v1.offers.PrerequisiteWalkResponse
+	56,  // 124: vrooli.offer_desk.v1.offers.SpaceService.GetProjection:output_type -> vrooli.offer_desk.v1.offers.SpaceResponse
+	103, // [103:125] is the sub-list for method output_type
+	81,  // [81:103] is the sub-list for method input_type
+	81,  // [81:81] is the sub-list for extension type_name
+	81,  // [81:81] is the sub-list for extension extendee
+	0,   // [0:81] is the sub-list for field type_name
 }
 
 func init() { file_offer_desk_v1_offers_offers_proto_init() }
@@ -4474,8 +5239,8 @@ func file_offer_desk_v1_offers_offers_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_offer_desk_v1_offers_offers_proto_rawDesc), len(file_offer_desk_v1_offers_offers_proto_rawDesc)),
-			NumEnums:      6,
-			NumMessages:   56,
+			NumEnums:      8,
+			NumMessages:   63,
 			NumExtensions: 0,
 			NumServices:   5,
 		},

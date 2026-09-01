@@ -229,7 +229,13 @@ func (d nativeCLIDriver) Run(ctx context.Context, controller *Controller, item R
 			return err
 		}
 
-		return verifyStartedPlacement(ctx, controller, manifest, stderr)
+		if err := verifyStartedPlacement(ctx, controller, manifest, stderr); err != nil {
+			return err
+		}
+		if err := recordQualificationObservation(controller.Root, manifest.Name); err != nil {
+			_, _ = fmt.Fprintf(stderr, "warning: record portability qualification for %q: %s\n", manifest.Name, err)
+		}
+		return nil
 	}
 	return externalCLIDriver{}.Run(ctx, controller, item, manifest, action, args, stdout, stderr)
 }
@@ -473,7 +479,9 @@ func runInstallCommand(ctx context.Context, controller *Controller, manifest Res
 	}
 	if manifest.CLI != nil && manifest.CLI.Enabled {
 		if sourceBuild := manifest.CLI.SourceBuild; sourceBuild != nil {
-			return runSourceBuild(ctx, controller, manifest, sourceBuild)
+			if err := runSourceBuild(ctx, controller, manifest, sourceBuild); err != nil {
+				return err
+			}
 		}
 	}
 	command := manifest.Install.Command

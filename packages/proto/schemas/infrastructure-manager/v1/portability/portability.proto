@@ -178,6 +178,15 @@ message ResourceArchitectureStatus {
   string architecture = 1;
   string support = 2;
   string reason = 3;
+  string qualification = 4;
+  string qualification_reason = 5;
+  int32 age_days = 6;
+  bool aged = 7;
+  bool acquisition_resolvable = 8;
+  string acquisition_reason = 9;
+  string evidence_node = 10;
+  string evidence_run_id = 11;
+  google.protobuf.Timestamp evidence_observed_at = 12;
 }
 
 message ResourcePlatformClaim {

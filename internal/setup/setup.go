@@ -331,11 +331,16 @@ func (f setupFlow) resolveRequirements() (resolvedSetup, error) {
 	}
 	f.progress.CompletePhase()
 	requirements = bootstrapAwareRequirements(requirements)
+	if f.opts.BootstrapOnly {
+		requirements = bootstrapOnlyRequirements(requirements)
+	}
 	executable, err := f.service.deps.osExecutable()
 	if err != nil {
 		return resolvedSetup{}, fmt.Errorf("resolve executable for onboarding apply grant: %w", err)
 	}
-	requirements = addOnboardingApplyPrivilegeRequirement(requirements, executable)
+	if !f.opts.BootstrapOnly {
+		requirements = addOnboardingApplyPrivilegeRequirement(requirements, executable)
+	}
 	return resolvedSetup{requirements: requirements, executable: executable, ensure: vrooliruntime.EnsureOptions{Environment: f.opts.Environment, SudoMode: f.opts.SudoMode, DryRun: f.opts.DryRun, AutoInstall: true, IncludeOptional: f.opts.IncludeOptional, MaintenanceWindow: f.opts.MaintenanceWindow, Stdout: f.stdout, Stderr: f.stderr, OnOperation: f.progress.Operation}}, nil
 }
 
@@ -367,6 +372,10 @@ func (f setupFlow) applyRequirements(resolved resolvedSetup) (vrooliruntime.Repo
 
 func (f setupFlow) completeSetup(resolved resolvedSetup) (setupCompletion, error) {
 	var completion setupCompletion
+	if f.opts.BootstrapOnly {
+		_, _ = fmt.Fprintln(f.stdout, "[INFO]    Bootstrap-only setup applied host requirements; native CLI finalization is still required")
+		return completion, nil
+	}
 	f.progress.StartPhase(PhaseGeneratedPackages)
 	f.progress.Operation("Generating repository packages")
 	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Generating repository packages needed by the control plane...")
@@ -374,10 +383,6 @@ func (f setupFlow) completeSetup(resolved resolvedSetup) (setupCompletion, error
 		return completion, fmt.Errorf("provision generated packages: %w", err)
 	}
 	f.progress.CompletePhase()
-	if f.opts.BootstrapOnly {
-		_, _ = fmt.Fprintln(f.stdout, "[INFO]    Bootstrap-only setup applied host requirements; native CLI finalization is still required")
-		return completion, nil
-	}
 	if err := f.configureCredentialsAndBroker(resolved.executable); err != nil {
 		return completion, err
 	}

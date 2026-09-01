@@ -72,6 +72,18 @@ func TestComposedAcquisitionIsDeterministicAndNamesUnavailableStep(t *testing.T)
 	}
 }
 
+func TestDeferredResourceTargetsRecordsRuntimeFacts(t *testing.T) {
+	manifest := resourceArtifactManifest{Name: "whisper"}
+	manifest.ManagedService = &resourcedeployment.ManagedService{Acquisition: &binaryfetch.Acquisition{Kind: "oci-image", Targets: []binaryfetch.AcquisitionTarget{
+		{When: map[string]string{"os": "linux", "arch": "amd64", "accel.backends": "has:vulkan"}, Kind: "oci-image", Image: "ghcr.io/example/whisper@sha256:" + strings.Repeat("a", 64)},
+		{When: map[string]string{"os": "linux", "arch": "amd64"}, Kind: "oci-image", Image: "ghcr.io/example/whisper@sha256:" + strings.Repeat("b", 64)},
+	}}}
+	got := deferredResourceTargets(manifest, resourcedeployment.Platform{OS: "linux", Arch: "amd64"})
+	if len(got) != 1 || got[0].TargetIndex != 0 || len(got[0].AbsentFacts) != 1 || got[0].AbsentFacts[0] != "accel.backends" {
+		t.Fatalf("deferred = %#v", got)
+	}
+}
+
 func TestWriteReleaseChecksumManifestIsDeterministicAndUnsigned(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "controller_linux_amd64"), []byte("controller"), 0o755); err != nil {

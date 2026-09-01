@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
-import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual } from "./voice/activity";
+import { buildVoiceActivitySnapshot, IDLE_VOICE_ACTIVITY, voiceActivitySnapshotsEqual, VAD_AUTO_STOP_VISUAL_GRACE_MS } from "./voice/activity";
 import { createVadRefs, createVadRefsFromCache, extractCacheableFloor, loadNoiseFloorCache, saveNoiseFloorCache, vadTick, VAD_FLOOR_CACHE_MAX_AGE_MS, VAD_MIN_SILENCE_THRESHOLD } from "./voice/vad";
 import { advanceMeterEnvelope, LEVEL_ANALYSER_FFT_SIZE, LEVEL_TICK_MS, meterLevelFromEnvelope } from "./voice/audioUtils";
 import { getSharedAudioContext, ensureRunningSharedAudioContext, suspendSharedAudioContext, armIdleSuspend, keepAudioContextAwake } from "./voice/sharedAudioContext";
@@ -9,12 +9,12 @@ import { VoiceCaptureController } from "./voice/voiceCaptureController";
 import { decideMicLifecycle, isStandaloneDisplayMode, selectStaleLeases } from "./voice/micLifecyclePolicy";
 import type { LifecycleReleaseScope, MicReleaseReason, MicLeaseSnapshot } from "./voice/micOwnership";
 import { setServerVadState, resetServerVadState, useServerVadStateStore, SERVER_VAD_STALE_MS } from "./voice/useServerVadStateStore";
-import { decideAutoStop } from "./voice/autoStopDecision";
+import { decideAutoStop, decideAutoStopRing } from "./voice/autoStopDecision";
 import { decidePassiveArm } from "./voice/passiveArmDecision";
 import { decidePersistentMode, PERSISTENT_STREAMING_UNAVAILABLE_MESSAGE } from "./voice/persistentModeDecision";
 import { TranscriptBuffer } from "./transcriptBuffer";
 import { WHISPER_FAILED_SENTINEL } from "./voice/types";
-import type { TranscriptionProvider, VoiceBackend, VoiceInputState, VoiceMode, VoiceSegment, VoiceRejection, CommandSuggestion, StartRecordingOpts } from "./voice/types";
+import type { TranscriptionProvider, VoiceBackend, VoiceInputState, VoiceMode, VoiceSegment, VoiceActivitySnapshot, VoiceRejection, CommandSuggestion, StartRecordingOpts } from "./voice/types";
 import type { AudioFeatures, WakeWordEngine, WakeWordTemplate } from "./voice/wakeword";
 import type { VoiceCoreServices } from "./voice/services";
 
@@ -693,7 +693,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // `audioLevel` on the snapshot is the display value; `rms` stays raw so
         // consumers that want the underlying signal (and the thresholds it is
         // judged against) still have it.
-        const voiceActivity = buildVoiceActivitySnapshot({
+        const clientActivity = buildVoiceActivitySnapshot({
           vadActive: vadActiveRef.current,
           vad: vadRef.current,
           rms,
@@ -702,6 +702,29 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           silenceTimeoutMs: vadSilenceTimeoutRef.current,
           voiceMode: persistentModeRef.current ? "persistent" : "one-shot",
         });
+        // Reconcile the countdown with the SAME authority that will actually
+        // stop the turn. The snapshot's own autoStopProgress is the client RMS
+        // timer, which is not the operative clock whenever the server is
+        // running VAD — so under a server-VAD strategy the ring stayed hidden
+        // for the entire countdown and the turn ended with no warning at all.
+        // decideAutoStopRing applies decideAutoStop's precedence; publishing its
+        // verdict here means every surface that renders the snapshot gets the
+        // right ring without knowing which side owns the decision.
+        const ringNowPerf = typeof performance !== "undefined" && typeof performance.now === "function"
+          ? performance.now()
+          : Date.now();
+        const ring = decideAutoStopRing({
+          isRecording: vadActiveRef.current && !persistentModeRef.current,
+          serverVad: useServerVadStateStore.getState(),
+          voiceActivity: clientActivity,
+          nowPerf: ringNowPerf,
+          staleTickMs: SERVER_VAD_STALE_MS,
+          visualGraceMs: VAD_AUTO_STOP_VISUAL_GRACE_MS,
+        });
+        const voiceActivity: VoiceActivitySnapshot = ring.visible === clientActivity.autoStopVisible
+          && ring.progress === clientActivity.autoStopProgress
+          ? clientActivity
+          : { ...clientActivity, autoStopVisible: ring.visible, autoStopProgress: ring.progress };
         setState((s) => {
           if (Math.abs(s.audioLevel - meterLevel) < 0.01 && voiceActivitySnapshotsEqual(s.voiceActivity, voiceActivity)) {
             return s;
@@ -1267,10 +1290,16 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
         // looking like a spontaneous stop.
         console.warn("[voice] S%d provider.onError → ending turn: %s",
           sessionCountRef.current, error);
-        // Clear cue session without playing stop cue — errors are not normal
-        // recording stops. Playing a pleasant "done" chime after an error
-        // would be misleading.
-        cueSessionActiveRef.current = false;
+        // Errors are not normal recording stops, so the "done" chime would
+        // misreport the outcome — but silence misreports it worse. The mic has
+        // stopped and the countdown ring is gone; a speaker who is not watching
+        // the screen has no way to learn the turn ended and keeps talking into a
+        // dead capture. Play the distinct fault cue instead: it sounds wrong on
+        // purpose, which is the accurate signal.
+        if (cueSessionActiveRef.current) {
+          cueSessionActiveRef.current = false;
+          services.playRecordingFaultCue();
+        }
         if (noAudioTimerRef.current) { clearTimeout(noAudioTimerRef.current); noAudioTimerRef.current = null; }
         vadActiveRef.current = false;
         vadRef.current.state = "idle";

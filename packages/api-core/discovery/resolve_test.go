@@ -179,6 +179,39 @@ func TestResolveScenarioURLDefaults(t *testing.T) {
 	}
 }
 
+func TestResolveScenarioURLForNodeUsesOneTargetAwareShape(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{RemoteBaseURL: "http://bridge:18000"})
+	got, err := resolver.ResolveScenarioURLForTarget(context.Background(), "system-monitor", "API_PORT", Target{NodeID: "node-123"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "http://bridge:18000/api/v1/targets/node-123/scenarios/system-monitor"
+	if got != want {
+		t.Fatalf("URL = %q, want %q", got, want)
+	}
+}
+
+func TestResolveScenarioURLWithOptionsKeepsLocalDefault(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{
+		RemoteBaseURL: "http://bridge:18000",
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) { return []byte("18181"), nil },
+	})
+	local, err := resolver.ResolveScenarioURLWithOptions(context.Background(), "system-monitor", "API_PORT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if local != "http://localhost:18181" {
+		t.Fatalf("local URL = %q, want local ladder result", local)
+	}
+	remote, err := resolver.ResolveScenarioURLWithOptions(context.Background(), "system-monitor", "API_PORT", WithTarget(Target{NodeID: "node-123"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if remote != "http://bridge:18000/api/v1/targets/node-123/scenarios/system-monitor" {
+		t.Fatalf("remote URL = %q, want target proxy", remote)
+	}
+}
+
 func TestResolveScenarioURLOverrides(t *testing.T) {
 	t.Parallel()
 

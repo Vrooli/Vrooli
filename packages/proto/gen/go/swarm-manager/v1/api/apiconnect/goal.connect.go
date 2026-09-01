@@ -35,6 +35,9 @@ const (
 const (
 	// GoalServiceListGoalsProcedure is the fully-qualified name of the GoalService's ListGoals RPC.
 	GoalServiceListGoalsProcedure = "/vrooli.swarm_manager.v1.api.GoalService/ListGoals"
+	// GoalServiceListUnwiredGoalsProcedure is the fully-qualified name of the GoalService's
+	// ListUnwiredGoals RPC.
+	GoalServiceListUnwiredGoalsProcedure = "/vrooli.swarm_manager.v1.api.GoalService/ListUnwiredGoals"
 	// GoalServiceGetGoalProcedure is the fully-qualified name of the GoalService's GetGoal RPC.
 	GoalServiceGetGoalProcedure = "/vrooli.swarm_manager.v1.api.GoalService/GetGoal"
 	// GoalServiceCreateGoalProcedure is the fully-qualified name of the GoalService's CreateGoal RPC.
@@ -84,6 +87,7 @@ const (
 // GoalServiceClient is a client for the vrooli.swarm_manager.v1.api.GoalService service.
 type GoalServiceClient interface {
 	ListGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error)
+	ListUnwiredGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error)
 	GetGoal(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalResponse], error)
 	CreateGoal(context.Context, *connect.Request[api.CreateGoalRequest]) (*connect.Response[api.GoalResponse], error)
 	UpdateGoal(context.Context, *connect.Request[api.UpdateGoalRequest]) (*connect.Response[api.GoalResponse], error)
@@ -125,6 +129,12 @@ func NewGoalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			httpClient,
 			baseURL+GoalServiceListGoalsProcedure,
 			connect.WithSchema(goalServiceMethods.ByName("ListGoals")),
+			connect.WithClientOptions(opts...),
+		),
+		listUnwiredGoals: connect.NewClient[api.ListGoalsRequest, api.ListGoalsResponse](
+			httpClient,
+			baseURL+GoalServiceListUnwiredGoalsProcedure,
+			connect.WithSchema(goalServiceMethods.ByName("ListUnwiredGoals")),
 			connect.WithClientOptions(opts...),
 		),
 		getGoal: connect.NewClient[api.GetGoalRequest, api.GoalResponse](
@@ -235,6 +245,7 @@ func NewGoalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 // goalServiceClient implements GoalServiceClient.
 type goalServiceClient struct {
 	listGoals                *connect.Client[api.ListGoalsRequest, api.ListGoalsResponse]
+	listUnwiredGoals         *connect.Client[api.ListGoalsRequest, api.ListGoalsResponse]
 	getGoal                  *connect.Client[api.GetGoalRequest, api.GoalResponse]
 	createGoal               *connect.Client[api.CreateGoalRequest, api.GoalResponse]
 	updateGoal               *connect.Client[api.UpdateGoalRequest, api.GoalResponse]
@@ -257,6 +268,11 @@ type goalServiceClient struct {
 // ListGoals calls vrooli.swarm_manager.v1.api.GoalService.ListGoals.
 func (c *goalServiceClient) ListGoals(ctx context.Context, req *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error) {
 	return c.listGoals.CallUnary(ctx, req)
+}
+
+// ListUnwiredGoals calls vrooli.swarm_manager.v1.api.GoalService.ListUnwiredGoals.
+func (c *goalServiceClient) ListUnwiredGoals(ctx context.Context, req *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error) {
+	return c.listUnwiredGoals.CallUnary(ctx, req)
 }
 
 // GetGoal calls vrooli.swarm_manager.v1.api.GoalService.GetGoal.
@@ -347,6 +363,7 @@ func (c *goalServiceClient) ApplyGoalWorkflow(ctx context.Context, req *connect.
 // GoalServiceHandler is an implementation of the vrooli.swarm_manager.v1.api.GoalService service.
 type GoalServiceHandler interface {
 	ListGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error)
+	ListUnwiredGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error)
 	GetGoal(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalResponse], error)
 	CreateGoal(context.Context, *connect.Request[api.CreateGoalRequest]) (*connect.Response[api.GoalResponse], error)
 	UpdateGoal(context.Context, *connect.Request[api.UpdateGoalRequest]) (*connect.Response[api.GoalResponse], error)
@@ -384,6 +401,12 @@ func NewGoalServiceHandler(svc GoalServiceHandler, opts ...connect.HandlerOption
 		GoalServiceListGoalsProcedure,
 		svc.ListGoals,
 		connect.WithSchema(goalServiceMethods.ByName("ListGoals")),
+		connect.WithHandlerOptions(opts...),
+	)
+	goalServiceListUnwiredGoalsHandler := connect.NewUnaryHandler(
+		GoalServiceListUnwiredGoalsProcedure,
+		svc.ListUnwiredGoals,
+		connect.WithSchema(goalServiceMethods.ByName("ListUnwiredGoals")),
 		connect.WithHandlerOptions(opts...),
 	)
 	goalServiceGetGoalHandler := connect.NewUnaryHandler(
@@ -492,6 +515,8 @@ func NewGoalServiceHandler(svc GoalServiceHandler, opts ...connect.HandlerOption
 		switch r.URL.Path {
 		case GoalServiceListGoalsProcedure:
 			goalServiceListGoalsHandler.ServeHTTP(w, r)
+		case GoalServiceListUnwiredGoalsProcedure:
+			goalServiceListUnwiredGoalsHandler.ServeHTTP(w, r)
 		case GoalServiceGetGoalProcedure:
 			goalServiceGetGoalHandler.ServeHTTP(w, r)
 		case GoalServiceCreateGoalProcedure:
@@ -537,6 +562,10 @@ type UnimplementedGoalServiceHandler struct{}
 
 func (UnimplementedGoalServiceHandler) ListGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.ListGoals is not implemented"))
+}
+
+func (UnimplementedGoalServiceHandler) ListUnwiredGoals(context.Context, *connect.Request[api.ListGoalsRequest]) (*connect.Response[api.ListGoalsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.swarm_manager.v1.api.GoalService.ListUnwiredGoals is not implemented"))
 }
 
 func (UnimplementedGoalServiceHandler) GetGoal(context.Context, *connect.Request[api.GetGoalRequest]) (*connect.Response[api.GoalResponse], error) {

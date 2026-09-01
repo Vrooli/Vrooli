@@ -89,7 +89,7 @@
       "path": "server/reranker",
       "version": "1.7.4",
       "sha256_by_platform": {
-        "linux-amd64": "68b30d1c0efa51d6ec0916bde786d9a4824f3cd0055148ae0dfe4c51993b43ee"
+        "linux-amd64": "0e18dd5070cf9a3dbb6833e6f546afe8030cf9e731c73236d84d301f9093bc4a"
       },
       "bundle_artifact": "reranker_${os}_${arch}"
     },

@@ -19,6 +19,9 @@ service MachineService {
   rpc RequestMachineSSHCleanup(RequestMachineSSHCleanupRequest) returns (RequestMachineSSHCleanupResponse);
   rpc UpdateMachineCleanup(UpdateMachineCleanupRequest) returns (UpdateMachineCleanupResponse);
   rpc ApplyMachinePolicy(ApplyMachinePolicyRequest) returns (ApplyMachinePolicyResponse);
+  rpc GetMachineConfiguration(GetMachineRequest) returns (GetMachineResponse);
+  rpc ApplyMachineConfiguration(ApplyMachinePolicyRequest) returns (ApplyMachinePolicyResponse);
+  rpc GetMachineDrift(GetMachineRequest) returns (GetMachineResponse);
   rpc RevokeMachineNode(RevokeMachineNodeRequest) returns (RevokeMachineNodeResponse);
   rpc RepairMachine(RepairMachineRequest) returns (RepairMachineResponse);
   rpc MergeMachines(MergeMachinesRequest) returns (MergeMachinesResponse);
@@ -53,6 +56,8 @@ message Machine {
   string applied_profile_id = 12;
   string applied_profile_version = 13;
   google.protobuf.Timestamp applied_at = 14;
+  string desired_selection_json = 15;
+  string applied_selection_json = 16;
 }
 
 message CreateMachineRequest {
@@ -194,7 +199,7 @@ message UpdateMachineCleanupResponse {
 message EffectivePolicy {
   string profile_id = 1;
   string profile_version = 2;
-  string setup_environment = 3;
+  string setup_preset = 3;
   repeated string suggested_scopes = 4;
   repeated string required_capabilities = 5;
   string snapshot_json = 6;

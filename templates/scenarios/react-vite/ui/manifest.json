@@ -28,6 +28,12 @@
       "pathPattern": "{dir}/{ComponentName}.tsx",
       "barrel": null
     },
+    "ui-component": {
+      "dir": "ui/src/components",
+      "description": "Compatibility alias for shared UI components in the catalog vocabulary.",
+      "pathPattern": "{dir}/{ComponentName}.tsx",
+      "barrel": null
+    },
     "layout-shell": {
       "dir": "ui/src/layout",
       "description": "App shell (AppShell, root container components). Shares the layout dir with layout-nav by design.",
@@ -109,6 +115,7 @@
     "provider": { "dir": "ui/src/providers", "pathPattern": "{dir}/{ComponentName}.tsx", "barrel": null },
     "adapter": { "dir": "ui/src/adapters", "pathPattern": "{dir}/{camelName}.ts", "barrel": null },
     "pattern": { "dir": "ui/src/patterns", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true, "barrel": null },
+    "ui-pattern": { "dir": "ui/src/patterns", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true, "barrel": null },
     "page-template": { "dir": "ui/src/templates", "pathPattern": "{dir}/{ComponentName}.tsx", "multiFile": true, "barrel": null },
     "fixture": { "dir": "ui/src/fixtures", "pathPattern": "{dir}/{camelName}.ts", "barrel": null },
     "visual-recipe": { "dir": "ui/src/visual", "pathPattern": "{dir}/{kebab-name}.ts", "barrel": null },

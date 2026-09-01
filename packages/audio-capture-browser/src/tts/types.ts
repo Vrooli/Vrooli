@@ -89,6 +89,8 @@ export interface TTSProvider {
    * When absent, the caller falls back to sequential `speak()` calls.
    */
   speakSequence?(texts: string[], opts?: TTSSpeakOptions): Promise<void>;
+  /** Synthesize and cache paragraphs without starting playback. */
+  prewarm?(texts: string[], opts?: TTSSpeakOptions): Promise<void>;
 }
 
 export interface TTSSpeakOptions {

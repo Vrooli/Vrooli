@@ -149,6 +149,14 @@ func (s Service) List(req ListRequest) (ListResponse, error) {
 	}
 	for _, item := range inventory.Items {
 		status := "available"
+		startFailureReason := ""
+		var startFailedAt *time.Time
+		projectedStatus, reason, failedAt := scenarioStatus(item)
+		if projectedStatus == "start-failed" {
+			status = projectedStatus
+			startFailureReason = reason
+			startFailedAt = failedAt
+		}
 		if item.Details.Status == scenarioruntime.StatusRunning {
 			status = item.Details.Status
 			resp.RunningCount++
@@ -160,13 +168,15 @@ func (s Service) List(req ListRequest) (ListResponse, error) {
 		}
 
 		resp.Items = append(resp.Items, ListItemOutput{
-			Name:        item.Scenario.Slug,
-			Description: item.Scenario.Manifest.Service.Description,
-			Version:     item.Scenario.Manifest.Service.Version,
-			Status:      status,
-			Tags:        CopyStrings(item.Scenario.Manifest.Service.Tags),
-			Path:        item.Scenario.Path + string(os.PathSeparator),
-			Ports:       listPorts,
+			Name:               item.Scenario.Slug,
+			Description:        item.Scenario.Manifest.Service.Description,
+			Version:            item.Scenario.Manifest.Service.Version,
+			Status:             status,
+			Tags:               CopyStrings(item.Scenario.Manifest.Service.Tags),
+			Path:               item.Scenario.Path + string(os.PathSeparator),
+			Ports:              listPorts,
+			StartFailureReason: startFailureReason,
+			StartFailedAt:      startFailedAt,
 		})
 	}
 	return resp, nil

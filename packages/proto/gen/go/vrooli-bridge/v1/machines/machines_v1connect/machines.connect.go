@@ -63,6 +63,15 @@ const (
 	// MachineServiceApplyMachinePolicyProcedure is the fully-qualified name of the MachineService's
 	// ApplyMachinePolicy RPC.
 	MachineServiceApplyMachinePolicyProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/ApplyMachinePolicy"
+	// MachineServiceGetMachineConfigurationProcedure is the fully-qualified name of the
+	// MachineService's GetMachineConfiguration RPC.
+	MachineServiceGetMachineConfigurationProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachineConfiguration"
+	// MachineServiceApplyMachineConfigurationProcedure is the fully-qualified name of the
+	// MachineService's ApplyMachineConfiguration RPC.
+	MachineServiceApplyMachineConfigurationProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/ApplyMachineConfiguration"
+	// MachineServiceGetMachineDriftProcedure is the fully-qualified name of the MachineService's
+	// GetMachineDrift RPC.
+	MachineServiceGetMachineDriftProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachineDrift"
 	// MachineServiceRevokeMachineNodeProcedure is the fully-qualified name of the MachineService's
 	// RevokeMachineNode RPC.
 	MachineServiceRevokeMachineNodeProcedure = "/vrooli.vrooli_bridge.v1.machines.MachineService/RevokeMachineNode"
@@ -86,6 +95,9 @@ type MachineServiceClient interface {
 	RequestMachineSSHCleanup(context.Context, *connect.Request[machines.RequestMachineSSHCleanupRequest]) (*connect.Response[machines.RequestMachineSSHCleanupResponse], error)
 	UpdateMachineCleanup(context.Context, *connect.Request[machines.UpdateMachineCleanupRequest]) (*connect.Response[machines.UpdateMachineCleanupResponse], error)
 	ApplyMachinePolicy(context.Context, *connect.Request[machines.ApplyMachinePolicyRequest]) (*connect.Response[machines.ApplyMachinePolicyResponse], error)
+	GetMachineConfiguration(context.Context, *connect.Request[machines.GetMachineRequest]) (*connect.Response[machines.GetMachineResponse], error)
+	ApplyMachineConfiguration(context.Context, *connect.Request[machines.ApplyMachinePolicyRequest]) (*connect.Response[machines.ApplyMachinePolicyResponse], error)
+	GetMachineDrift(context.Context, *connect.Request[machines.GetMachineRequest]) (*connect.Response[machines.GetMachineResponse], error)
 	RevokeMachineNode(context.Context, *connect.Request[machines.RevokeMachineNodeRequest]) (*connect.Response[machines.RevokeMachineNodeResponse], error)
 	RepairMachine(context.Context, *connect.Request[machines.RepairMachineRequest]) (*connect.Response[machines.RepairMachineResponse], error)
 	MergeMachines(context.Context, *connect.Request[machines.MergeMachinesRequest]) (*connect.Response[machines.MergeMachinesResponse], error)
@@ -163,6 +175,24 @@ func NewMachineServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(machineServiceMethods.ByName("ApplyMachinePolicy")),
 			connect.WithClientOptions(opts...),
 		),
+		getMachineConfiguration: connect.NewClient[machines.GetMachineRequest, machines.GetMachineResponse](
+			httpClient,
+			baseURL+MachineServiceGetMachineConfigurationProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("GetMachineConfiguration")),
+			connect.WithClientOptions(opts...),
+		),
+		applyMachineConfiguration: connect.NewClient[machines.ApplyMachinePolicyRequest, machines.ApplyMachinePolicyResponse](
+			httpClient,
+			baseURL+MachineServiceApplyMachineConfigurationProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("ApplyMachineConfiguration")),
+			connect.WithClientOptions(opts...),
+		),
+		getMachineDrift: connect.NewClient[machines.GetMachineRequest, machines.GetMachineResponse](
+			httpClient,
+			baseURL+MachineServiceGetMachineDriftProcedure,
+			connect.WithSchema(machineServiceMethods.ByName("GetMachineDrift")),
+			connect.WithClientOptions(opts...),
+		),
 		revokeMachineNode: connect.NewClient[machines.RevokeMachineNodeRequest, machines.RevokeMachineNodeResponse](
 			httpClient,
 			baseURL+MachineServiceRevokeMachineNodeProcedure,
@@ -186,19 +216,22 @@ func NewMachineServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // machineServiceClient implements MachineServiceClient.
 type machineServiceClient struct {
-	createMachine            *connect.Client[machines.CreateMachineRequest, machines.CreateMachineResponse]
-	getMachine               *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
-	listMachines             *connect.Client[machines.ListMachinesRequest, machines.ListMachinesResponse]
-	archiveMachine           *connect.Client[machines.ArchiveMachineRequest, machines.ArchiveMachineResponse]
-	removeMachine            *connect.Client[machines.RemoveMachineRequest, machines.RemoveMachineResponse]
-	getMachineTrust          *connect.Client[machines.GetMachineTrustRequest, machines.GetMachineTrustResponse]
-	reviewMachineHostKey     *connect.Client[machines.ReviewMachineHostKeyRequest, machines.ReviewMachineHostKeyResponse]
-	requestMachineSSHCleanup *connect.Client[machines.RequestMachineSSHCleanupRequest, machines.RequestMachineSSHCleanupResponse]
-	updateMachineCleanup     *connect.Client[machines.UpdateMachineCleanupRequest, machines.UpdateMachineCleanupResponse]
-	applyMachinePolicy       *connect.Client[machines.ApplyMachinePolicyRequest, machines.ApplyMachinePolicyResponse]
-	revokeMachineNode        *connect.Client[machines.RevokeMachineNodeRequest, machines.RevokeMachineNodeResponse]
-	repairMachine            *connect.Client[machines.RepairMachineRequest, machines.RepairMachineResponse]
-	mergeMachines            *connect.Client[machines.MergeMachinesRequest, machines.MergeMachinesResponse]
+	createMachine             *connect.Client[machines.CreateMachineRequest, machines.CreateMachineResponse]
+	getMachine                *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
+	listMachines              *connect.Client[machines.ListMachinesRequest, machines.ListMachinesResponse]
+	archiveMachine            *connect.Client[machines.ArchiveMachineRequest, machines.ArchiveMachineResponse]
+	removeMachine             *connect.Client[machines.RemoveMachineRequest, machines.RemoveMachineResponse]
+	getMachineTrust           *connect.Client[machines.GetMachineTrustRequest, machines.GetMachineTrustResponse]
+	reviewMachineHostKey      *connect.Client[machines.ReviewMachineHostKeyRequest, machines.ReviewMachineHostKeyResponse]
+	requestMachineSSHCleanup  *connect.Client[machines.RequestMachineSSHCleanupRequest, machines.RequestMachineSSHCleanupResponse]
+	updateMachineCleanup      *connect.Client[machines.UpdateMachineCleanupRequest, machines.UpdateMachineCleanupResponse]
+	applyMachinePolicy        *connect.Client[machines.ApplyMachinePolicyRequest, machines.ApplyMachinePolicyResponse]
+	getMachineConfiguration   *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
+	applyMachineConfiguration *connect.Client[machines.ApplyMachinePolicyRequest, machines.ApplyMachinePolicyResponse]
+	getMachineDrift           *connect.Client[machines.GetMachineRequest, machines.GetMachineResponse]
+	revokeMachineNode         *connect.Client[machines.RevokeMachineNodeRequest, machines.RevokeMachineNodeResponse]
+	repairMachine             *connect.Client[machines.RepairMachineRequest, machines.RepairMachineResponse]
+	mergeMachines             *connect.Client[machines.MergeMachinesRequest, machines.MergeMachinesResponse]
 }
 
 // CreateMachine calls vrooli.vrooli_bridge.v1.machines.MachineService.CreateMachine.
@@ -252,6 +285,23 @@ func (c *machineServiceClient) ApplyMachinePolicy(ctx context.Context, req *conn
 	return c.applyMachinePolicy.CallUnary(ctx, req)
 }
 
+// GetMachineConfiguration calls
+// vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineConfiguration.
+func (c *machineServiceClient) GetMachineConfiguration(ctx context.Context, req *connect.Request[machines.GetMachineRequest]) (*connect.Response[machines.GetMachineResponse], error) {
+	return c.getMachineConfiguration.CallUnary(ctx, req)
+}
+
+// ApplyMachineConfiguration calls
+// vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachineConfiguration.
+func (c *machineServiceClient) ApplyMachineConfiguration(ctx context.Context, req *connect.Request[machines.ApplyMachinePolicyRequest]) (*connect.Response[machines.ApplyMachinePolicyResponse], error) {
+	return c.applyMachineConfiguration.CallUnary(ctx, req)
+}
+
+// GetMachineDrift calls vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineDrift.
+func (c *machineServiceClient) GetMachineDrift(ctx context.Context, req *connect.Request[machines.GetMachineRequest]) (*connect.Response[machines.GetMachineResponse], error) {
+	return c.getMachineDrift.CallUnary(ctx, req)
+}
+
 // RevokeMachineNode calls vrooli.vrooli_bridge.v1.machines.MachineService.RevokeMachineNode.
 func (c *machineServiceClient) RevokeMachineNode(ctx context.Context, req *connect.Request[machines.RevokeMachineNodeRequest]) (*connect.Response[machines.RevokeMachineNodeResponse], error) {
 	return c.revokeMachineNode.CallUnary(ctx, req)
@@ -280,6 +330,9 @@ type MachineServiceHandler interface {
 	RequestMachineSSHCleanup(context.Context, *connect.Request[machines.RequestMachineSSHCleanupRequest]) (*connect.Response[machines.RequestMachineSSHCleanupResponse], error)
 	UpdateMachineCleanup(context.Context, *connect.Request[machines.UpdateMachineCleanupRequest]) (*connect.Response[machines.UpdateMachineCleanupResponse], error)
 	ApplyMachinePolicy(context.Context, *connect.Request[machines.ApplyMachinePolicyRequest]) (*connect.Response[machines.ApplyMachinePolicyResponse], error)
+	GetMachineConfiguration(context.Context, *connect.Request[machines.GetMachineRequest]) (*connect.Response[machines.GetMachineResponse], error)
+	ApplyMachineConfiguration(context.Context, *connect.Request[machines.ApplyMachinePolicyRequest]) (*connect.Response[machines.ApplyMachinePolicyResponse], error)
+	GetMachineDrift(context.Context, *connect.Request[machines.GetMachineRequest]) (*connect.Response[machines.GetMachineResponse], error)
 	RevokeMachineNode(context.Context, *connect.Request[machines.RevokeMachineNodeRequest]) (*connect.Response[machines.RevokeMachineNodeResponse], error)
 	RepairMachine(context.Context, *connect.Request[machines.RepairMachineRequest]) (*connect.Response[machines.RepairMachineResponse], error)
 	MergeMachines(context.Context, *connect.Request[machines.MergeMachinesRequest]) (*connect.Response[machines.MergeMachinesResponse], error)
@@ -352,6 +405,24 @@ func NewMachineServiceHandler(svc MachineServiceHandler, opts ...connect.Handler
 		connect.WithSchema(machineServiceMethods.ByName("ApplyMachinePolicy")),
 		connect.WithHandlerOptions(opts...),
 	)
+	machineServiceGetMachineConfigurationHandler := connect.NewUnaryHandler(
+		MachineServiceGetMachineConfigurationProcedure,
+		svc.GetMachineConfiguration,
+		connect.WithSchema(machineServiceMethods.ByName("GetMachineConfiguration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceApplyMachineConfigurationHandler := connect.NewUnaryHandler(
+		MachineServiceApplyMachineConfigurationProcedure,
+		svc.ApplyMachineConfiguration,
+		connect.WithSchema(machineServiceMethods.ByName("ApplyMachineConfiguration")),
+		connect.WithHandlerOptions(opts...),
+	)
+	machineServiceGetMachineDriftHandler := connect.NewUnaryHandler(
+		MachineServiceGetMachineDriftProcedure,
+		svc.GetMachineDrift,
+		connect.WithSchema(machineServiceMethods.ByName("GetMachineDrift")),
+		connect.WithHandlerOptions(opts...),
+	)
 	machineServiceRevokeMachineNodeHandler := connect.NewUnaryHandler(
 		MachineServiceRevokeMachineNodeProcedure,
 		svc.RevokeMachineNode,
@@ -392,6 +463,12 @@ func NewMachineServiceHandler(svc MachineServiceHandler, opts ...connect.Handler
 			machineServiceUpdateMachineCleanupHandler.ServeHTTP(w, r)
 		case MachineServiceApplyMachinePolicyProcedure:
 			machineServiceApplyMachinePolicyHandler.ServeHTTP(w, r)
+		case MachineServiceGetMachineConfigurationProcedure:
+			machineServiceGetMachineConfigurationHandler.ServeHTTP(w, r)
+		case MachineServiceApplyMachineConfigurationProcedure:
+			machineServiceApplyMachineConfigurationHandler.ServeHTTP(w, r)
+		case MachineServiceGetMachineDriftProcedure:
+			machineServiceGetMachineDriftHandler.ServeHTTP(w, r)
 		case MachineServiceRevokeMachineNodeProcedure:
 			machineServiceRevokeMachineNodeHandler.ServeHTTP(w, r)
 		case MachineServiceRepairMachineProcedure:
@@ -445,6 +522,18 @@ func (UnimplementedMachineServiceHandler) UpdateMachineCleanup(context.Context, 
 
 func (UnimplementedMachineServiceHandler) ApplyMachinePolicy(context.Context, *connect.Request[machines.ApplyMachinePolicyRequest]) (*connect.Response[machines.ApplyMachinePolicyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachinePolicy is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) GetMachineConfiguration(context.Context, *connect.Request[machines.GetMachineRequest]) (*connect.Response[machines.GetMachineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineConfiguration is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) ApplyMachineConfiguration(context.Context, *connect.Request[machines.ApplyMachinePolicyRequest]) (*connect.Response[machines.ApplyMachinePolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.machines.MachineService.ApplyMachineConfiguration is not implemented"))
+}
+
+func (UnimplementedMachineServiceHandler) GetMachineDrift(context.Context, *connect.Request[machines.GetMachineRequest]) (*connect.Response[machines.GetMachineResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.machines.MachineService.GetMachineDrift is not implemented"))
 }
 
 func (UnimplementedMachineServiceHandler) RevokeMachineNode(context.Context, *connect.Request[machines.RevokeMachineNodeRequest]) (*connect.Response[machines.RevokeMachineNodeResponse], error) {

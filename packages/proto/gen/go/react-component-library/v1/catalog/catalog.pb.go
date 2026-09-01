@@ -2215,6 +2215,7 @@ type RunGateRequest struct {
 	All             bool                   `protobuf:"varint,2,opt,name=all,proto3" json:"all,omitempty"`
 	CalibrationOnly bool                   `protobuf:"varint,3,opt,name=calibration_only,json=calibrationOnly,proto3" json:"calibration_only,omitempty"`
 	AssetId         string                 `protobuf:"bytes,4,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	IncludeAdvisory bool                   `protobuf:"varint,5,opt,name=include_advisory,json=includeAdvisory,proto3" json:"include_advisory,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2275,6 +2276,13 @@ func (x *RunGateRequest) GetAssetId() string {
 		return x.AssetId
 	}
 	return ""
+}
+
+func (x *RunGateRequest) GetIncludeAdvisory() bool {
+	if x != nil {
+		return x.IncludeAdvisory
+	}
+	return false
 }
 
 type GateFinding struct {
@@ -4085,12 +4093,13 @@ const file_react_component_library_v1_catalog_catalog_proto_rawDesc = "" +
 	"\bmaturity\x18\x02 \x01(\v2:.vrooli.react_component_library.v1.catalog.MaturitySummaryR\bmaturity\x12\x12\n" +
 	"\x04lane\x18\x03 \x01(\tR\x04lane\x12P\n" +
 	"\apromote\x18\x04 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\apromote\x12L\n" +
-	"\x05build\x18\x05 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\x05build\"|\n" +
+	"\x05build\x18\x05 \x03(\v26.vrooli.react_component_library.v1.catalog.CoverageRowR\x05build\"\xa7\x01\n" +
 	"\x0eRunGateRequest\x12\x12\n" +
 	"\x04gate\x18\x01 \x01(\tR\x04gate\x12\x10\n" +
 	"\x03all\x18\x02 \x01(\bR\x03all\x12)\n" +
 	"\x10calibration_only\x18\x03 \x01(\bR\x0fcalibrationOnly\x12\x19\n" +
-	"\basset_id\x18\x04 \x01(\tR\aassetId\"\xa2\x02\n" +
+	"\basset_id\x18\x04 \x01(\tR\aassetId\x12)\n" +
+	"\x10include_advisory\x18\x05 \x01(\bR\x0fincludeAdvisory\"\xa2\x02\n" +
 	"\vGateFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x19\n" +

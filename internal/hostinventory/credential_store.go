@@ -16,19 +16,23 @@ var (
 	credentialStoreCollectionTimeout  = tuning.CredentialStoreProbeTimeout()
 )
 
-// CredentialStoreStatus probes the current user's Secret Service without
-// running the full host inventory. It is the read-only status seam used by the
-// credentials keyring command.
+// CredentialStoreStatus probes the current user's native credential backend
+// without running the full host inventory. It is the read-only status seam
+// used by the credentials keyring command.
 func CredentialStoreStatus(ctx context.Context) CredentialStoreCapability {
 	c := SystemCollector().withDefaults()
 	return probeCredentialStore(ctx, c, ActiveSessionUser(ctx, c.Commands))
 }
 
-// probeCredentialStore performs a real Secret Service property read. Peer.Ping
-// is intentionally not used: a wedged service can answer it successfully.
+// probeCredentialStore performs a real native-backend read. Peer.Ping is
+// intentionally not used: a wedged service can answer it successfully.
 func probeCredentialStore(ctx context.Context, c Collector, user string) CredentialStoreCapability {
-	if hostreqspec.PlatformFromGOOS(c.GOOS) != hostreqspec.PlatformLinux {
-		return CredentialStoreCapability{State: "unsupported", Reason: "Secret Service probing is Linux-only"}
+	platform := hostreqspec.PlatformFromGOOS(c.GOOS)
+	if platform == hostreqspec.PlatformMacOS {
+		return probeMacOSKeychain(ctx, c)
+	}
+	if platform != hostreqspec.PlatformLinux {
+		return CredentialStoreCapability{State: "unsupported", Reason: "native credential probing is not implemented for this platform"}
 	}
 	if !c.commandAvailable("gdbus") {
 		return CredentialStoreCapability{State: "unsupported", Reason: "gdbus is unavailable"}
@@ -93,6 +97,33 @@ func probeCredentialStore(ctx context.Context, c Collector, user string) Credent
 		return CredentialStoreCapability{Supported: true, Observed: true, State: "ready", ProbeSucceeded: true}
 	}
 	return CredentialStoreCapability{Supported: true, Observed: true, State: "empty", ProbeSucceeded: true, Reason: "Secret Service returned no login collection"}
+}
+
+// probeMacOSKeychain asks securityd to look up a deliberately nonexistent
+// metadata-only item. A not-found result proves that the login Keychain was
+// reachable without reading a secret or creating state. An authorization or
+// interaction error is a locked/unavailable Keychain, not a missing item.
+func probeMacOSKeychain(ctx context.Context, c Collector) CredentialStoreCapability {
+	if !c.commandAvailable("security") {
+		return CredentialStoreCapability{State: "unsupported", Reason: "security is unavailable"}
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, credentialStoreOwnerTimeout)
+	defer cancel()
+	output, err := c.Commands.Run(probeCtx, "security", "find-generic-password", "-s", "com.vrooli.vrooli.credential-probe", "-a", "status")
+	if err == nil {
+		return CredentialStoreCapability{Supported: true, Observed: true, State: "ready", ProbeSucceeded: true}
+	}
+	if errors.Is(probeCtx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
+		return CredentialStoreCapability{Supported: true, Observed: true, State: "unresponsive", Reason: "macOS Keychain did not answer before the deadline"}
+	}
+	message := strings.ToLower(string(output))
+	if strings.Contains(message, "could not be found") || strings.Contains(message, "item not found") || strings.Contains(message, "errsecitemnotfound") {
+		return CredentialStoreCapability{Supported: true, Observed: true, State: "ready", ProbeSucceeded: true}
+	}
+	if strings.Contains(message, "interaction") || strings.Contains(message, "locked") || strings.Contains(message, "auth") {
+		return CredentialStoreCapability{Supported: true, Observed: true, State: "locked", Reason: "macOS login Keychain requires user interaction or is locked"}
+	}
+	return CredentialStoreCapability{Supported: true, Observed: true, State: "unavailable", Reason: "macOS login Keychain probe failed"}
 }
 
 type credentialStoreProbeResult struct {

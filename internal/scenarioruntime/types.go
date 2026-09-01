@@ -380,6 +380,7 @@ type LifecycleRepository interface {
 
 type SupervisorRepository interface {
 	CreateSupervisorSession(ctx context.Context, session SupervisorSession, ttl time.Duration) (SupervisorSession, error)
+	ClaimSupervisorSession(ctx context.Context, session SupervisorSession, ttl time.Duration) (SupervisorSession, error)
 	HeartbeatSupervisorSession(ctx context.Context, supervisorID string, ttl time.Duration) (SupervisorSession, error)
 	StopSupervisorSession(ctx context.Context, supervisorID string, status string, reason string) (SupervisorSession, error)
 	ListSupervisorSessions(ctx context.Context, filter SupervisorSessionFilter) ([]SupervisorSession, error)

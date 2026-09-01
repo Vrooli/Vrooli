@@ -36,6 +36,13 @@ func resourceCatalogMessage(item resources.Resource) *cliv1.Resource {
 		ControlMode:  item.ControlMode,
 		Driver:       item.Driver,
 		ManifestPath: item.ManifestPath,
+		DisabledDependencyConsumers: func() []*cliv1.DisabledDependencyConsumer {
+			out := make([]*cliv1.DisabledDependencyConsumer, len(item.DisabledDependencyConsumers))
+			for i, consumer := range item.DisabledDependencyConsumers {
+				out[i] = &cliv1.DisabledDependencyConsumer{Scenario: consumer.Scenario, StartupPolicy: consumer.StartupPolicy}
+			}
+			return out
+		}(),
 	}
 }
 

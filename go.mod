@@ -14,7 +14,6 @@ require (
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/cliresolve v0.0.0
 	github.com/vrooli/envkit-go v0.0.0
-	github.com/vrooli/nodeclient v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -43,7 +42,6 @@ replace github.com/vrooli/api-core => ./packages/api-core
 
 replace github.com/vrooli/cliresolve => ./packages/cliresolve
 
-replace github.com/vrooli/nodeclient => ./packages/nodeclient
 
 replace github.com/vrooli/binaryfetch => ./packages/binaryfetch
 

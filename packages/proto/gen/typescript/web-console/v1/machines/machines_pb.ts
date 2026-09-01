@@ -6,15 +6,194 @@ import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobu
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { CancelOnboardingRequestSchema, CancelOnboardingResponseSchema, GetOnboardingRequestSchema, GetOnboardingResponseSchema, PreflightOnboardingRequestSchema, PreflightOnboardingResponseSchema, StartOnboardingRequestSchema, StartOnboardingResponseSchema, WaitOnboardingRequestSchema, WaitOnboardingResponseSchema } from "../../../vrooli-bridge/v1/onboard/onboard_pb";
+import { file_vrooli_bridge_v1_onboard_onboard } from "../../../vrooli-bridge/v1/onboard/onboard_pb";
 import type { Target } from "../shared/target_pb";
 import { file_web_console_v1_shared_target } from "../shared/target_pb";
+import type { AnswerSecretRequestSchema, CreateGrantRequestSchema, CredentialGrantSchema, ListGrantsResponseSchema, RevokeGrantRequestSchema } from "../../../vrooli-bridge/v1/credentialgrant/credentialgrant_pb";
+import { file_vrooli_bridge_v1_credentialgrant_credentialgrant } from "../../../vrooli-bridge/v1/credentialgrant/credentialgrant_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file web-console/v1/machines/machines.proto.
  */
 export const file_web_console_v1_machines_machines: GenFile = /*@__PURE__*/
-  fileDesc("CiZ3ZWItY29uc29sZS92MS9tYWNoaW5lcy9tYWNoaW5lcy5wcm90bxIednJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzInUKBUdyYW50Eg8KB3N1bW1hcnkYASABKAkSDwoHZWZmZWN0cxgCIAMoCRIRCglhcHBfY291bnQYAyABKAUSFwoPY292ZXJzX2FsbF9hcHBzGAQgASgIEg4KBnNjb3BlcxgFIAMoCRIOCgZwcmVzZXQYBiABKAkiOgoMTWFjaGluZURyaWZ0EgwKBGtpbmQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZyZWFzb24YAyABKAki5QEKB01hY2hpbmUSNAoGdGFyZ2V0GAEgASgLMiQudnJvb2xpLndlYl9jb25zb2xlLnYxLnNoYXJlZC5UYXJnZXQSNAoFZ3JhbnQYAiABKAsyJS52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuR3JhbnQSHQoVaGVhcnRiZWF0X2FnZV9zZWNvbmRzGAMgASgDEhIKCm1hbmFnZWFibGUYBCABKAgSOwoFZHJpZnQYBSADKAsyLC52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuTWFjaGluZURyaWZ0ItkBCgtKb2luUmVxdWVzdBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgoKAm9zGAMgASgJEgwKBGFyY2gYBCABKAkSEAoIZW5kcG9pbnQYBSABKAkSGgoSY29uZmlybWF0aW9uX3dvcmRzGAYgAygJEhcKD2tleV9maW5nZXJwcmludBgHIAEoCRIwCgxyZXF1ZXN0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEh0KFXJlcXVlc3RlZF9hZ2Vfc2Vjb25kcxgJIAEoAyKcAQoQUGVybWlzc2lvblByZXNldBIMCgRuYW1lGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg4KBnNjb3BlcxgEIAMoCRIRCgl3aXRoaG9sZHMYBSADKAkSDwoHc3VtbWFyeRgGIAEoCRIPCgdlZmZlY3RzGAcgAygJEhEKCWFwcF9jb3VudBgIIAEoBSJYCgxDb250cm9sUGxhbmUSEQoJcmVhY2hhYmxlGAEgASgIEhAKCGVuZHBvaW50GAIgASgJEg4KBmRldGFpbBgDIAEoCRITCgtjb25zb2xlX3VybBgEIAEoCSINCgtMaXN0UmVxdWVzdCL6AgoMTGlzdFJlc3BvbnNlEjkKBXN0YXRlGAEgASgOMioudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkZsZWV0U3RhdGUSOQoIbWFjaGluZXMYAiADKAsyJy52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuTWFjaGluZRJCCg1qb2luX3JlcXVlc3RzGAMgAygLMisudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkpvaW5SZXF1ZXN0EkEKB3ByZXNldHMYBCADKAsyMC52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuUGVybWlzc2lvblByZXNldBIPCgdtZXNzYWdlGAUgASgJEhcKD3JlY292ZXJ5X2FjdGlvbhgGIAEoCRJDCg1jb250cm9sX3BsYW5lGAcgASgLMiwudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkNvbnRyb2xQbGFuZSIhChBJc3N1ZUNvZGVSZXF1ZXN0Eg0KBWxhYmVsGAEgASgJIm0KEUlzc3VlQ29kZVJlc3BvbnNlEgwKBGNvZGUYASABKAkSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoSZXhwaXJlc19pbl9zZWNvbmRzGAMgASgDInAKDURlY2lkZVJlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRIPCgdhcHByb3ZlGAIgASgIEhoKEmNvbmZpcm1hdGlvbl93b3JkcxgDIAMoCRIOCgZwcmVzZXQYBCABKAkSDgoGc2NvcGVzGAUgAygJIlsKDkRlY2lkZVJlc3BvbnNlEjgKB21hY2hpbmUYASABKAsyJy52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuTWFjaGluZRIPCgdtZXNzYWdlGAIgASgJIkUKD1NldEdyYW50UmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJEg4KBnByZXNldBgCIAEoCRIOCgZzY29wZXMYAyADKAkiTAoQU2V0R3JhbnRSZXNwb25zZRI4CgdtYWNoaW5lGAEgASgLMicudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLk1hY2hpbmUiIwoNRm9yZ2V0UmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJIi4KDkZvcmdldFJlc3BvbnNlEhwKFGZvcmdvdHRlbl9tYWNoaW5lX2lkGAEgASgJKpABCgpGbGVldFN0YXRlEhsKF0ZMRUVUX1NUQVRFX1VOU1BFQ0lGSUVEEAASFQoRRkxFRVRfU1RBVEVfUkVBRFkQARIVChFGTEVFVF9TVEFURV9FTVBUWRACEhoKFkZMRUVUX1NUQVRFX1VORU5ST0xMRUQQAxIbChdGTEVFVF9TVEFURV9VTlJFQUNIQUJMRRAEMqYECg5NYWNoaW5lU2VydmljZRJhCgRMaXN0EisudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkxpc3RSZXF1ZXN0GiwudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkxpc3RSZXNwb25zZRJwCglJc3N1ZUNvZGUSMC52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuSXNzdWVDb2RlUmVxdWVzdBoxLnZyb29saS53ZWJfY29uc29sZS52MS5tYWNoaW5lcy5Jc3N1ZUNvZGVSZXNwb25zZRJnCgZEZWNpZGUSLS52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuRGVjaWRlUmVxdWVzdBouLnZyb29saS53ZWJfY29uc29sZS52MS5tYWNoaW5lcy5EZWNpZGVSZXNwb25zZRJtCghTZXRHcmFudBIvLnZyb29saS53ZWJfY29uc29sZS52MS5tYWNoaW5lcy5TZXRHcmFudFJlcXVlc3QaMC52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuU2V0R3JhbnRSZXNwb25zZRJnCgZGb3JnZXQSLS52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuRm9yZ2V0UmVxdWVzdBouLnZyb29saS53ZWJfY29uc29sZS52MS5tYWNoaW5lcy5Gb3JnZXRSZXNwb25zZUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL21hY2hpbmVzO21hY2hpbmVzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_web_console_v1_shared_target]);
+  fileDesc("CiZ3ZWItY29uc29sZS92MS9tYWNoaW5lcy9tYWNoaW5lcy5wcm90bxIednJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzIi0KF0dldENvbmZpZ3VyYXRpb25SZXF1ZXN0EhIKCm1hY2hpbmVfaWQYASABKAkiegoYR2V0Q29uZmlndXJhdGlvblJlc3BvbnNlEhYKDnF1ZXN0aW9uc19qc29uGAEgASgMEhYKDnJlYWRpbmVzc19qc29uGAIgASgMEhEKCXRhcmdldF9pZBgDIAEoCRIbChNtYWNoaW5lX2RldGFpbF9qc29uGAQgASgMIkcKG1Jlc29sdmVDb25maWd1cmF0aW9uUmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJEhQKDGFuc3dlcnNfanNvbhgCIAEoDCJGChxSZXNvbHZlQ29uZmlndXJhdGlvblJlc3BvbnNlEhMKC3Jlc3VsdF9qc29uGAEgASgMEhEKCXRhcmdldF9pZBgCIAEoCSIxChtMaXN0Q3JlZGVudGlhbEdyYW50c1JlcXVlc3QSEgoKbWFjaGluZV9pZBgBIAEoCSIxChtSZWFwcGx5Q29uZmlndXJhdGlvblJlcXVlc3QSEgoKbWFjaGluZV9pZBgBIAEoCSJGChxSZWFwcGx5Q29uZmlndXJhdGlvblJlc3BvbnNlEhMKC3Jlc3VsdF9qc29uGAEgASgMEhEKCXRhcmdldF9pZBgCIAEoCSJICiJHZXRDb25maWd1cmF0aW9uQXBwbHlTdGF0dXNSZXF1ZXN0EhIKCm1hY2hpbmVfaWQYASABKAkSDgoGcnVuX2lkGAIgASgJInUKBUdyYW50Eg8KB3N1bW1hcnkYASABKAkSDwoHZWZmZWN0cxgCIAMoCRIRCglhcHBfY291bnQYAyABKAUSFwoPY292ZXJzX2FsbF9hcHBzGAQgASgIEg4KBnNjb3BlcxgFIAMoCRIOCgZwcmVzZXQYBiABKAkiOgoMTWFjaGluZURyaWZ0EgwKBGtpbmQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZyZWFzb24YAyABKAki5QEKB01hY2hpbmUSNAoGdGFyZ2V0GAEgASgLMiQudnJvb2xpLndlYl9jb25zb2xlLnYxLnNoYXJlZC5UYXJnZXQSNAoFZ3JhbnQYAiABKAsyJS52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuR3JhbnQSHQoVaGVhcnRiZWF0X2FnZV9zZWNvbmRzGAMgASgDEhIKCm1hbmFnZWFibGUYBCABKAgSOwoFZHJpZnQYBSADKAsyLC52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuTWFjaGluZURyaWZ0ItkBCgtKb2luUmVxdWVzdBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgoKAm9zGAMgASgJEgwKBGFyY2gYBCABKAkSEAoIZW5kcG9pbnQYBSABKAkSGgoSY29uZmlybWF0aW9uX3dvcmRzGAYgAygJEhcKD2tleV9maW5nZXJwcmludBgHIAEoCRIwCgxyZXF1ZXN0ZWRfYXQYCCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEh0KFXJlcXVlc3RlZF9hZ2Vfc2Vjb25kcxgJIAEoAyKcAQoQUGVybWlzc2lvblByZXNldBIMCgRuYW1lGAEgASgJEg0KBXRpdGxlGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEg4KBnNjb3BlcxgEIAMoCRIRCgl3aXRoaG9sZHMYBSADKAkSDwoHc3VtbWFyeRgGIAEoCRIPCgdlZmZlY3RzGAcgAygJEhEKCWFwcF9jb3VudBgIIAEoBSJYCgxDb250cm9sUGxhbmUSEQoJcmVhY2hhYmxlGAEgASgIEhAKCGVuZHBvaW50GAIgASgJEg4KBmRldGFpbBgDIAEoCRITCgtjb25zb2xlX3VybBgEIAEoCSINCgtMaXN0UmVxdWVzdCL6AgoMTGlzdFJlc3BvbnNlEjkKBXN0YXRlGAEgASgOMioudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkZsZWV0U3RhdGUSOQoIbWFjaGluZXMYAiADKAsyJy52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuTWFjaGluZRJCCg1qb2luX3JlcXVlc3RzGAMgAygLMisudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkpvaW5SZXF1ZXN0EkEKB3ByZXNldHMYBCADKAsyMC52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuUGVybWlzc2lvblByZXNldBIPCgdtZXNzYWdlGAUgASgJEhcKD3JlY292ZXJ5X2FjdGlvbhgGIAEoCRJDCg1jb250cm9sX3BsYW5lGAcgASgLMiwudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkNvbnRyb2xQbGFuZSIhChBJc3N1ZUNvZGVSZXF1ZXN0Eg0KBWxhYmVsGAEgASgJIm0KEUlzc3VlQ29kZVJlc3BvbnNlEgwKBGNvZGUYASABKAkSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASGgoSZXhwaXJlc19pbl9zZWNvbmRzGAMgASgDInAKDURlY2lkZVJlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRIPCgdhcHByb3ZlGAIgASgIEhoKEmNvbmZpcm1hdGlvbl93b3JkcxgDIAMoCRIOCgZwcmVzZXQYBCABKAkSDgoGc2NvcGVzGAUgAygJIlsKDkRlY2lkZVJlc3BvbnNlEjgKB21hY2hpbmUYASABKAsyJy52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuTWFjaGluZRIPCgdtZXNzYWdlGAIgASgJIkUKD1NldEdyYW50UmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJEg4KBnByZXNldBgCIAEoCRIOCgZzY29wZXMYAyADKAkiTAoQU2V0R3JhbnRSZXNwb25zZRI4CgdtYWNoaW5lGAEgASgLMicudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLk1hY2hpbmUiIwoNRm9yZ2V0UmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJIi4KDkZvcmdldFJlc3BvbnNlEhwKFGZvcmdvdHRlbl9tYWNoaW5lX2lkGAEgASgJKpABCgpGbGVldFN0YXRlEhsKF0ZMRUVUX1NUQVRFX1VOU1BFQ0lGSUVEEAASFQoRRkxFRVRfU1RBVEVfUkVBRFkQARIVChFGTEVFVF9TVEFURV9FTVBUWRACEhoKFkZMRUVUX1NUQVRFX1VORU5ST0xMRUQQAxIbChdGTEVFVF9TVEFURV9VTlJFQUNIQUJMRRAEMt4SCg5NYWNoaW5lU2VydmljZRJhCgRMaXN0EisudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkxpc3RSZXF1ZXN0GiwudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkxpc3RSZXNwb25zZRJwCglJc3N1ZUNvZGUSMC52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuSXNzdWVDb2RlUmVxdWVzdBoxLnZyb29saS53ZWJfY29uc29sZS52MS5tYWNoaW5lcy5Jc3N1ZUNvZGVSZXNwb25zZRJnCgZEZWNpZGUSLS52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuRGVjaWRlUmVxdWVzdBouLnZyb29saS53ZWJfY29uc29sZS52MS5tYWNoaW5lcy5EZWNpZGVSZXNwb25zZRJtCghTZXRHcmFudBIvLnZyb29saS53ZWJfY29uc29sZS52MS5tYWNoaW5lcy5TZXRHcmFudFJlcXVlc3QaMC52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuU2V0R3JhbnRSZXNwb25zZRJnCgZGb3JnZXQSLS52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuRm9yZ2V0UmVxdWVzdBouLnZyb29saS53ZWJfY29uc29sZS52MS5tYWNoaW5lcy5Gb3JnZXRSZXNwb25zZRKQAQoTUHJlZmxpZ2h0T25ib2FyZGluZxI7LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuUHJlZmxpZ2h0T25ib2FyZGluZ1JlcXVlc3QaPC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5vbmJvYXJkLlByZWZsaWdodE9uYm9hcmRpbmdSZXNwb25zZRKEAQoPU3RhcnRPbmJvYXJkaW5nEjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5TdGFydE9uYm9hcmRpbmdSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5TdGFydE9uYm9hcmRpbmdSZXNwb25zZRJ+Cg1HZXRPbmJvYXJkaW5nEjUudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5HZXRPbmJvYXJkaW5nUmVxdWVzdBo2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuR2V0T25ib2FyZGluZ1Jlc3BvbnNlEoEBCg5XYWl0T25ib2FyZGluZxI2LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuV2FpdE9uYm9hcmRpbmdSZXF1ZXN0GjcudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5XYWl0T25ib2FyZGluZ1Jlc3BvbnNlEocBChBDYW5jZWxPbmJvYXJkaW5nEjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEub25ib2FyZC5DYW5jZWxPbmJvYXJkaW5nUmVxdWVzdBo5LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLm9uYm9hcmQuQ2FuY2VsT25ib2FyZGluZ1Jlc3BvbnNlEoUBChBHZXRDb25maWd1cmF0aW9uEjcudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkdldENvbmZpZ3VyYXRpb25SZXF1ZXN0GjgudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkdldENvbmZpZ3VyYXRpb25SZXNwb25zZRKRAQoUUmVzb2x2ZUNvbmZpZ3VyYXRpb24SOy52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuUmVzb2x2ZUNvbmZpZ3VyYXRpb25SZXF1ZXN0GjwudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLlJlc29sdmVDb25maWd1cmF0aW9uUmVzcG9uc2USkAEKFExpc3RDcmVkZW50aWFsR3JhbnRzEjsudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLkxpc3RDcmVkZW50aWFsR3JhbnRzUmVxdWVzdBo7LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudC5MaXN0R3JhbnRzUmVzcG9uc2USjgEKFUNyZWF0ZUNyZWRlbnRpYWxHcmFudBI7LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudC5DcmVhdGVHcmFudFJlcXVlc3QaOC52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuQ3JlZGVudGlhbEdyYW50Eo4BChVSZXZva2VDcmVkZW50aWFsR3JhbnQSOy52cm9vbGkudnJvb2xpX2JyaWRnZS52MS5jcmVkZW50aWFsZ3JhbnQuUmV2b2tlR3JhbnRSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkNyZWRlbnRpYWxHcmFudBKRAQoUUmVhcHBseUNvbmZpZ3VyYXRpb24SOy52cm9vbGkud2ViX2NvbnNvbGUudjEubWFjaGluZXMuUmVhcHBseUNvbmZpZ3VyYXRpb25SZXF1ZXN0GjwudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLlJlYXBwbHlDb25maWd1cmF0aW9uUmVzcG9uc2USnwEKG0dldENvbmZpZ3VyYXRpb25BcHBseVN0YXR1cxJCLnZyb29saS53ZWJfY29uc29sZS52MS5tYWNoaW5lcy5HZXRDb25maWd1cmF0aW9uQXBwbHlTdGF0dXNSZXF1ZXN0GjwudnJvb2xpLndlYl9jb25zb2xlLnYxLm1hY2hpbmVzLlJlYXBwbHlDb25maWd1cmF0aW9uUmVzcG9uc2UShgEKDEFuc3dlclNlY3JldBI8LnZyb29saS52cm9vbGlfYnJpZGdlLnYxLmNyZWRlbnRpYWxncmFudC5BbnN3ZXJTZWNyZXRSZXF1ZXN0GjgudnJvb2xpLnZyb29saV9icmlkZ2UudjEuY3JlZGVudGlhbGdyYW50LkNyZWRlbnRpYWxHcmFudEJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3dlYi1jb25zb2xlL3YxL21hY2hpbmVzO21hY2hpbmVzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_vrooli_bridge_v1_onboard_onboard, file_web_console_v1_shared_target, file_vrooli_bridge_v1_credentialgrant_credentialgrant]);
+
+/**
+ * @generated from message vrooli.web_console.v1.machines.GetConfigurationRequest
+ */
+export type GetConfigurationRequest = Message<"vrooli.web_console.v1.machines.GetConfigurationRequest"> & {
+  /**
+   * @generated from field: string machine_id = 1;
+   */
+  machineId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.machines.GetConfigurationRequest.
+ * Use `create(GetConfigurationRequestSchema)` to create a new message.
+ */
+export const GetConfigurationRequestSchema: GenMessage<GetConfigurationRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_machines_machines, 0);
+
+/**
+ * @generated from message vrooli.web_console.v1.machines.GetConfigurationResponse
+ */
+export type GetConfigurationResponse = Message<"vrooli.web_console.v1.machines.GetConfigurationResponse"> & {
+  /**
+   * @generated from field: bytes questions_json = 1;
+   */
+  questionsJson: Uint8Array;
+
+  /**
+   * @generated from field: bytes readiness_json = 2;
+   */
+  readinessJson: Uint8Array;
+
+  /**
+   * @generated from field: string target_id = 3;
+   */
+  targetId: string;
+
+  /**
+   * The Bridge machine projection is returned as JSON so this surface can
+   * render desired/applied policy, drift, audit, and outcome evidence without
+   * inventing a second machine model.
+   *
+   * @generated from field: bytes machine_detail_json = 4;
+   */
+  machineDetailJson: Uint8Array;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.machines.GetConfigurationResponse.
+ * Use `create(GetConfigurationResponseSchema)` to create a new message.
+ */
+export const GetConfigurationResponseSchema: GenMessage<GetConfigurationResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_machines_machines, 1);
+
+/**
+ * @generated from message vrooli.web_console.v1.machines.ResolveConfigurationRequest
+ */
+export type ResolveConfigurationRequest = Message<"vrooli.web_console.v1.machines.ResolveConfigurationRequest"> & {
+  /**
+   * @generated from field: string machine_id = 1;
+   */
+  machineId: string;
+
+  /**
+   * @generated from field: bytes answers_json = 2;
+   */
+  answersJson: Uint8Array;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.machines.ResolveConfigurationRequest.
+ * Use `create(ResolveConfigurationRequestSchema)` to create a new message.
+ */
+export const ResolveConfigurationRequestSchema: GenMessage<ResolveConfigurationRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_machines_machines, 2);
+
+/**
+ * @generated from message vrooli.web_console.v1.machines.ResolveConfigurationResponse
+ */
+export type ResolveConfigurationResponse = Message<"vrooli.web_console.v1.machines.ResolveConfigurationResponse"> & {
+  /**
+   * @generated from field: bytes result_json = 1;
+   */
+  resultJson: Uint8Array;
+
+  /**
+   * @generated from field: string target_id = 2;
+   */
+  targetId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.machines.ResolveConfigurationResponse.
+ * Use `create(ResolveConfigurationResponseSchema)` to create a new message.
+ */
+export const ResolveConfigurationResponseSchema: GenMessage<ResolveConfigurationResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_machines_machines, 3);
+
+/**
+ * @generated from message vrooli.web_console.v1.machines.ListCredentialGrantsRequest
+ */
+export type ListCredentialGrantsRequest = Message<"vrooli.web_console.v1.machines.ListCredentialGrantsRequest"> & {
+  /**
+   * @generated from field: string machine_id = 1;
+   */
+  machineId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.machines.ListCredentialGrantsRequest.
+ * Use `create(ListCredentialGrantsRequestSchema)` to create a new message.
+ */
+export const ListCredentialGrantsRequestSchema: GenMessage<ListCredentialGrantsRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_machines_machines, 4);
+
+/**
+ * @generated from message vrooli.web_console.v1.machines.ReapplyConfigurationRequest
+ */
+export type ReapplyConfigurationRequest = Message<"vrooli.web_console.v1.machines.ReapplyConfigurationRequest"> & {
+  /**
+   * @generated from field: string machine_id = 1;
+   */
+  machineId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.machines.ReapplyConfigurationRequest.
+ * Use `create(ReapplyConfigurationRequestSchema)` to create a new message.
+ */
+export const ReapplyConfigurationRequestSchema: GenMessage<ReapplyConfigurationRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_machines_machines, 5);
+
+/**
+ * @generated from message vrooli.web_console.v1.machines.ReapplyConfigurationResponse
+ */
+export type ReapplyConfigurationResponse = Message<"vrooli.web_console.v1.machines.ReapplyConfigurationResponse"> & {
+  /**
+   * @generated from field: bytes result_json = 1;
+   */
+  resultJson: Uint8Array;
+
+  /**
+   * @generated from field: string target_id = 2;
+   */
+  targetId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.machines.ReapplyConfigurationResponse.
+ * Use `create(ReapplyConfigurationResponseSchema)` to create a new message.
+ */
+export const ReapplyConfigurationResponseSchema: GenMessage<ReapplyConfigurationResponse> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_machines_machines, 6);
+
+/**
+ * @generated from message vrooli.web_console.v1.machines.GetConfigurationApplyStatusRequest
+ */
+export type GetConfigurationApplyStatusRequest = Message<"vrooli.web_console.v1.machines.GetConfigurationApplyStatusRequest"> & {
+  /**
+   * @generated from field: string machine_id = 1;
+   */
+  machineId: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message vrooli.web_console.v1.machines.GetConfigurationApplyStatusRequest.
+ * Use `create(GetConfigurationApplyStatusRequestSchema)` to create a new message.
+ */
+export const GetConfigurationApplyStatusRequestSchema: GenMessage<GetConfigurationApplyStatusRequest> = /*@__PURE__*/
+  messageDesc(file_web_console_v1_machines_machines, 7);
 
 /**
  * Grant is what a machine may do, said three ways: as a sentence a person
@@ -84,7 +263,7 @@ export type Grant = Message<"vrooli.web_console.v1.machines.Grant"> & {
  * Use `create(GrantSchema)` to create a new message.
  */
 export const GrantSchema: GenMessage<Grant> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 0);
+  messageDesc(file_web_console_v1_machines_machines, 8);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.MachineDrift
@@ -111,7 +290,7 @@ export type MachineDrift = Message<"vrooli.web_console.v1.machines.MachineDrift"
  * Use `create(MachineDriftSchema)` to create a new message.
  */
 export const MachineDriftSchema: GenMessage<MachineDrift> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 1);
+  messageDesc(file_web_console_v1_machines_machines, 9);
 
 /**
  * Machine is one linked computer as an operator sees it: who it is, whether it
@@ -162,7 +341,7 @@ export type Machine = Message<"vrooli.web_console.v1.machines.Machine"> & {
  * Use `create(MachineSchema)` to create a new message.
  */
 export const MachineSchema: GenMessage<Machine> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 2);
+  messageDesc(file_web_console_v1_machines_machines, 10);
 
 /**
  * JoinRequest is a machine asking to be linked. Every descriptive field is
@@ -229,7 +408,7 @@ export type JoinRequest = Message<"vrooli.web_console.v1.machines.JoinRequest"> 
  * Use `create(JoinRequestSchema)` to create a new message.
  */
 export const JoinRequestSchema: GenMessage<JoinRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 3);
+  messageDesc(file_web_console_v1_machines_machines, 11);
 
 /**
  * PermissionPreset is a control-plane-defined enrollment posture. The scopes
@@ -296,7 +475,7 @@ export type PermissionPreset = Message<"vrooli.web_console.v1.machines.Permissio
  * Use `create(PermissionPresetSchema)` to create a new message.
  */
 export const PermissionPresetSchema: GenMessage<PermissionPreset> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 4);
+  messageDesc(file_web_console_v1_machines_machines, 12);
 
 /**
  * ControlPlane reports the fleet control plane's own reachability so the
@@ -341,7 +520,7 @@ export type ControlPlane = Message<"vrooli.web_console.v1.machines.ControlPlane"
  * Use `create(ControlPlaneSchema)` to create a new message.
  */
 export const ControlPlaneSchema: GenMessage<ControlPlane> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 5);
+  messageDesc(file_web_console_v1_machines_machines, 13);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.ListRequest
@@ -354,7 +533,7 @@ export type ListRequest = Message<"vrooli.web_console.v1.machines.ListRequest"> 
  * Use `create(ListRequestSchema)` to create a new message.
  */
 export const ListRequestSchema: GenMessage<ListRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 6);
+  messageDesc(file_web_console_v1_machines_machines, 14);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.ListResponse
@@ -401,7 +580,7 @@ export type ListResponse = Message<"vrooli.web_console.v1.machines.ListResponse"
  * Use `create(ListResponseSchema)` to create a new message.
  */
 export const ListResponseSchema: GenMessage<ListResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 7);
+  messageDesc(file_web_console_v1_machines_machines, 15);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.IssueCodeRequest
@@ -420,7 +599,7 @@ export type IssueCodeRequest = Message<"vrooli.web_console.v1.machines.IssueCode
  * Use `create(IssueCodeRequestSchema)` to create a new message.
  */
 export const IssueCodeRequestSchema: GenMessage<IssueCodeRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 8);
+  messageDesc(file_web_console_v1_machines_machines, 16);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.IssueCodeResponse
@@ -449,7 +628,7 @@ export type IssueCodeResponse = Message<"vrooli.web_console.v1.machines.IssueCod
  * Use `create(IssueCodeResponseSchema)` to create a new message.
  */
 export const IssueCodeResponseSchema: GenMessage<IssueCodeResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 9);
+  messageDesc(file_web_console_v1_machines_machines, 17);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.DecideRequest
@@ -495,7 +674,7 @@ export type DecideRequest = Message<"vrooli.web_console.v1.machines.DecideReques
  * Use `create(DecideRequestSchema)` to create a new message.
  */
 export const DecideRequestSchema: GenMessage<DecideRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 10);
+  messageDesc(file_web_console_v1_machines_machines, 18);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.DecideResponse
@@ -519,7 +698,7 @@ export type DecideResponse = Message<"vrooli.web_console.v1.machines.DecideRespo
  * Use `create(DecideResponseSchema)` to create a new message.
  */
 export const DecideResponseSchema: GenMessage<DecideResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 11);
+  messageDesc(file_web_console_v1_machines_machines, 19);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.SetGrantRequest
@@ -546,7 +725,7 @@ export type SetGrantRequest = Message<"vrooli.web_console.v1.machines.SetGrantRe
  * Use `create(SetGrantRequestSchema)` to create a new message.
  */
 export const SetGrantRequestSchema: GenMessage<SetGrantRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 12);
+  messageDesc(file_web_console_v1_machines_machines, 20);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.SetGrantResponse
@@ -563,7 +742,7 @@ export type SetGrantResponse = Message<"vrooli.web_console.v1.machines.SetGrantR
  * Use `create(SetGrantResponseSchema)` to create a new message.
  */
 export const SetGrantResponseSchema: GenMessage<SetGrantResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 13);
+  messageDesc(file_web_console_v1_machines_machines, 21);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.ForgetRequest
@@ -580,7 +759,7 @@ export type ForgetRequest = Message<"vrooli.web_console.v1.machines.ForgetReques
  * Use `create(ForgetRequestSchema)` to create a new message.
  */
 export const ForgetRequestSchema: GenMessage<ForgetRequest> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 14);
+  messageDesc(file_web_console_v1_machines_machines, 22);
 
 /**
  * @generated from message vrooli.web_console.v1.machines.ForgetResponse
@@ -597,7 +776,7 @@ export type ForgetResponse = Message<"vrooli.web_console.v1.machines.ForgetRespo
  * Use `create(ForgetResponseSchema)` to create a new message.
  */
 export const ForgetResponseSchema: GenMessage<ForgetResponse> = /*@__PURE__*/
-  messageDesc(file_web_console_v1_machines_machines, 15);
+  messageDesc(file_web_console_v1_machines_machines, 23);
 
 /**
  * FleetState explains an empty or unusable machines list without making the
@@ -712,6 +891,113 @@ export const MachineService: GenService<{
     methodKind: "unary";
     input: typeof ForgetRequestSchema;
     output: typeof ForgetResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.PreflightOnboarding
+   */
+  preflightOnboarding: {
+    methodKind: "unary";
+    input: typeof PreflightOnboardingRequestSchema;
+    output: typeof PreflightOnboardingResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.StartOnboarding
+   */
+  startOnboarding: {
+    methodKind: "unary";
+    input: typeof StartOnboardingRequestSchema;
+    output: typeof StartOnboardingResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.GetOnboarding
+   */
+  getOnboarding: {
+    methodKind: "unary";
+    input: typeof GetOnboardingRequestSchema;
+    output: typeof GetOnboardingResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.WaitOnboarding
+   */
+  waitOnboarding: {
+    methodKind: "unary";
+    input: typeof WaitOnboardingRequestSchema;
+    output: typeof WaitOnboardingResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.CancelOnboarding
+   */
+  cancelOnboarding: {
+    methodKind: "unary";
+    input: typeof CancelOnboardingRequestSchema;
+    output: typeof CancelOnboardingResponseSchema;
+  },
+  /**
+   * GetConfiguration reads the target's onboarding question set and readiness
+   * through the same governed scenario reach used by the onboarding UI.
+   *
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.GetConfiguration
+   */
+  getConfiguration: {
+    methodKind: "unary";
+    input: typeof GetConfigurationRequestSchema;
+    output: typeof GetConfigurationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.ResolveConfiguration
+   */
+  resolveConfiguration: {
+    methodKind: "unary";
+    input: typeof ResolveConfigurationRequestSchema;
+    output: typeof ResolveConfigurationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.ListCredentialGrants
+   */
+  listCredentialGrants: {
+    methodKind: "unary";
+    input: typeof ListCredentialGrantsRequestSchema;
+    output: typeof ListGrantsResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.CreateCredentialGrant
+   */
+  createCredentialGrant: {
+    methodKind: "unary";
+    input: typeof CreateGrantRequestSchema;
+    output: typeof CredentialGrantSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.RevokeCredentialGrant
+   */
+  revokeCredentialGrant: {
+    methodKind: "unary";
+    input: typeof RevokeGrantRequestSchema;
+    output: typeof CredentialGrantSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.ReapplyConfiguration
+   */
+  reapplyConfiguration: {
+    methodKind: "unary";
+    input: typeof ReapplyConfigurationRequestSchema;
+    output: typeof ReapplyConfigurationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.GetConfigurationApplyStatus
+   */
+  getConfigurationApplyStatus: {
+    methodKind: "unary";
+    input: typeof GetConfigurationApplyStatusRequestSchema;
+    output: typeof ReapplyConfigurationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.web_console.v1.machines.MachineService.AnswerSecret
+   */
+  answerSecret: {
+    methodKind: "unary";
+    input: typeof AnswerSecretRequestSchema;
+    output: typeof CredentialGrantSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_web_console_v1_machines_machines, 0);

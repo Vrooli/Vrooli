@@ -319,6 +319,13 @@ func TestProvisionSharedPackageReportsMissingDeclaredOutput(t *testing.T) {
 	}
 }
 
+func TestProvisionSourceOnlySharedPackageIsNoop(t *testing.T) {
+	dependency := sharedPackageDependency{Name: "@vrooli/source-only", Root: t.TempDir()}
+	if err := provisionSharedPackage(dependency, os.Stdout, os.Stdout); err != nil {
+		t.Fatalf("source-only package should not require a generated artifact: %v", err)
+	}
+}
+
 func TestProvisionSharedPackageSerializesCommandsAcrossConsumers(t *testing.T) {
 	home := t.TempDir()
 	root := t.TempDir()

@@ -210,22 +210,48 @@ func collectScenarioPlatformCapabilitySites(repoRoot string) ([]platformStatusSi
 		}
 		var service struct {
 			Service struct {
-				Name                 string                                    `json:"name"`
-				PlatformCapabilities map[string]map[string]platformStatusEntry `json:"platform_capabilities"`
+				Name                 string                     `json:"name"`
+				PlatformCapabilities map[string]json.RawMessage `json:"platform_capabilities"`
 			} `json:"service"`
 		}
 		if err := json.Unmarshal(payload, &service); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", path, err)
 		}
 		rel := filepath.Join("scenarios", entry.Name(), ".vrooli", "service.json")
-		for capability, declarations := range service.Service.PlatformCapabilities {
-			for hostOS, declaration := range declarations {
+		for capability, raw := range service.Service.PlatformCapabilities {
+			var declarations map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &declarations); err != nil {
+				return nil, fmt.Errorf("parse platform capability %s in %s: %w", capability, rel, err)
+			}
+			for hostOS, declarationRaw := range declarations {
+				if hostOS == "pairs" {
+					continue
+				}
+				var declaration platformStatusEntry
+				if err := json.Unmarshal(declarationRaw, &declaration); err != nil {
+					return nil, fmt.Errorf("parse platform capability %s/%s in %s: %w", capability, hostOS, rel, err)
+				}
 				if strings.TrimSpace(declaration.Status) == "" {
 					continue
 				}
 				sites = append(sites, platformStatusSite{
 					path: rel, capability: capability, hostOS: hostOS, status: declaration.Status,
 				})
+			}
+			var pairBlock struct {
+				Pairs []struct {
+					Console string `json:"console"`
+					Node    string `json:"node"`
+					Status  string `json:"status"`
+				} `json:"pairs"`
+			}
+			if err := json.Unmarshal(raw, &pairBlock); err != nil {
+				return nil, fmt.Errorf("parse platform capability pairs %s in %s: %w", capability, rel, err)
+			}
+			for _, pair := range pairBlock.Pairs {
+				if strings.TrimSpace(pair.Status) != "" {
+					sites = append(sites, platformStatusSite{path: rel, capability: capability, hostOS: pair.Console + "->" + pair.Node, status: pair.Status})
+				}
 			}
 		}
 	}

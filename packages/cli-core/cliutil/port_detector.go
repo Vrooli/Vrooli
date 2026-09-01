@@ -25,22 +25,52 @@ var (
 	runtimeRegistryLookupFn = lookupRuntimeRegistry
 )
 
-// Port lookups shell out to the vrooli CLI, which is expensive: a cold Go
-// binary start plus a host-wide listener snapshot. Long-lived servers resolve
-// the same scenario port on every request, so an uncached detector turns
-// steady request traffic into a fork storm.
+// DOC: docs/reference/port-resolution.md
+// Port lookup uses the lifecycle peer record and runtime registry before
+// falling back to the vrooli CLI. The shared cache prevents repeated work for
+// long-lived callers while retaining a short retry window for startup.
 //
-// This cache is the single process-wide owner of `vrooli scenario port`.
-// api-core's discovery.Resolver routes through it too, so a lookup performed
-// for one of them is reused by the other rather than each paying its own fork.
-// Before that, two independent implementations of this one operation existed
-// and only one of them was cached.
+// This cache is the process-wide owner of the fallback command. api-core's
+// discovery.Resolver uses the same ladder and cache, so local authorities are
+// tried before either caller pays for a CLI process.
 var (
 	portCacheMu sync.Mutex
 	portCache   = map[string]*portCacheEntry{}
 
-	portCacheNow = time.Now
+	portCacheNow    = time.Now
+	portLookupStats PortLookupCounters
 )
+
+const portLookupStatsFileEnv = "VROOLI_PORT_LOOKUP_STATS_FILE"
+
+// PortLookupCounters counts uncached evaluations by the rung that answered
+// them. The lifecycle uses this as an inexpensive proof that normal callers
+// are served by peer records rather than spawning the CLI fallback.
+type PortLookupCounters struct {
+	Evaluations  int64
+	PeerHits     int64
+	RegistryHits int64
+	CLIHits      int64
+}
+
+// PortLookupStats returns a snapshot of the process-wide uncached ladder
+// evaluations. Cache hits are intentionally excluded from the denominator.
+func PortLookupStats() PortLookupCounters {
+	portCacheMu.Lock()
+	local := portLookupStats
+	portCacheMu.Unlock()
+
+	// Lookup callers run in several lifecycle and agent processes. When the
+	// shared counter path is configured, read the append-only rung log so the
+	// diagnostic surface observes the whole start cycle rather than only the
+	// process serving that surface.
+	if path := portLookupStatsPath(); path != "" {
+		if aggregate, ok := readPortLookupStats(path); ok {
+			return aggregate
+		}
+	}
+	return local
+}
 
 // portLookupTimeout bounds a lookup whose caller supplied no deadline.
 const portLookupTimeout = 5 * time.Second
@@ -99,6 +129,10 @@ func resetPortDetectorCache() {
 	portCacheMu.Lock()
 	defer portCacheMu.Unlock()
 	portCache = map[string]*portCacheEntry{}
+	portLookupStats = PortLookupCounters{}
+	if path := portLookupStatsPath(); path != "" {
+		_ = os.Truncate(path, 0)
+	}
 }
 
 // SetPortCacheNowForTest overrides the cache clock so tests can advance time
@@ -123,10 +157,11 @@ func portCacheEntryFor(key string) *portCacheEntry {
 	return entry
 }
 
-// LookupScenarioPort runs `vrooli scenario port <target> <portVar>` at most once
-// per policy window and at most once across concurrent callers for the same
-// key. Holding the per-key lock across the command is deliberate: a burst of N
-// callers for one scenario must cost one process, not N.
+// LookupScenarioPort resolves <target>'s <portVar> through three rungs: the
+// lifecycle peer record, the runtime registry, and finally `vrooli scenario
+// port`. Each rung is attempted only when the preceding rung misses. Results
+// are cached per policy window and concurrent callers for one key share one
+// evaluation.
 func LookupScenarioPort(ctx context.Context, target, portVar string, policy PortCachePolicy) ScenarioPortOutcome {
 	entry := portCacheEntryFor(target + "\x00" + portVar)
 	entry.mu.Lock()
@@ -143,11 +178,31 @@ func LookupScenarioPort(ctx context.Context, target, portVar string, policy Port
 	}
 
 	outcome := peerRecordLookupFn(target, portVar)
+	portCacheMu.Lock()
+	portLookupStats.Evaluations++
+	appendPortLookupEvent("evaluation")
+	if outcome.Resolved() {
+		portLookupStats.PeerHits++
+		appendPortLookupEvent("peer")
+	}
+	portCacheMu.Unlock()
 	if !outcome.Resolved() {
 		outcome = runtimeRegistryLookupFn(ctx, target, portVar)
+		portCacheMu.Lock()
+		if outcome.Resolved() {
+			portLookupStats.RegistryHits++
+			appendPortLookupEvent("registry")
+		}
+		portCacheMu.Unlock()
 	}
 	if !outcome.Resolved() {
 		outcome = portLookupRunner(ctx, target, portVar)
+		portCacheMu.Lock()
+		if outcome.Resolved() {
+			portLookupStats.CLIHits++
+			appendPortLookupEvent("cli")
+		}
+		portCacheMu.Unlock()
 	}
 
 	// A cancelled or expired context describes the caller's deadline, not the
@@ -159,6 +214,58 @@ func LookupScenarioPort(ctx context.Context, target, portVar string, policy Port
 
 	entry.outcome, entry.resolved = outcome, portCacheNow()
 	return outcome
+}
+
+func portLookupStatsPath() string {
+	if path := strings.TrimSpace(os.Getenv(portLookupStatsFileEnv)); path != "" {
+		return path
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	root, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(root, "state", "port-lookup-stats.log")
+}
+
+func appendPortLookupEvent(event string) {
+	path := portLookupStatsPath()
+	if path == "" {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return
+	}
+	_, _ = file.WriteString(event + "\n")
+	_ = file.Close()
+}
+
+func readPortLookupStats(path string) (PortLookupCounters, bool) {
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		return PortLookupCounters{}, false
+	}
+	var stats PortLookupCounters
+	for _, event := range strings.Split(string(payload), "\n") {
+		switch strings.TrimSpace(event) {
+		case "evaluation":
+			stats.Evaluations++
+		case "peer":
+			stats.PeerHits++
+		case "registry":
+			stats.RegistryHits++
+		case "cli":
+			stats.CLIHits++
+		}
+	}
+	return stats, true
 }
 
 // lookupRuntimeRegistry is the second local authority after peer records.
@@ -183,7 +290,7 @@ func lookupRuntimeRegistry(ctx context.Context, target, portVar string) Scenario
 		scenario, variant = base, requested
 	}
 	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
-	query := fmt.Sprintf("SELECT rpc.port FROM runtime_instances ri JOIN runtime_port_claims rpc ON rpc.instance_id = ri.instance_id WHERE ri.scenario = %s AND ri.variant = %s AND ri.status = 'running' AND rpc.port_name = %s AND rpc.status = 'bound' ORDER BY ri.generation DESC LIMIT 1;", quote(scenario), quote(variant), quote(portVar))
+	query := fmt.Sprintf("SELECT rpc.port FROM runtime_instances ri JOIN runtime_port_claims rpc ON rpc.instance_id = ri.instance_id WHERE ri.scenario = %s AND ri.variant = %s AND ri.status = 'running' AND rpc.port_name = %s AND rpc.status = 'bound' ORDER BY ri.generation DESC LIMIT 1;", quote(scenario), quote(variant), quote(normalizePortClaimKey(portVar)))
 	sqlite, err := sqliteLookPathFn("sqlite3")
 	if err != nil || strings.TrimSpace(sqlite) == "" {
 		return ScenarioPortOutcome{Err: err}
@@ -229,11 +336,24 @@ func lookupPeerRecord(target, portVar string) ScenarioPortOutcome {
 	if record.SchemaVersion != 1 || record.Scenario != target || !isPIDRunning(record.OwnerPID) {
 		return ScenarioPortOutcome{Err: os.ErrNotExist}
 	}
-	port, ok := record.Ports[portVar]
+	port, ok := record.Ports[normalizePortClaimKey(portVar)]
 	if !ok || port <= 0 {
 		return ScenarioPortOutcome{Err: os.ErrNotExist}
 	}
 	return ScenarioPortOutcome{Port: strconv.Itoa(port)}
+}
+
+// normalizePortClaimKey maps the public environment spelling to the claim
+// vocabulary used by peer records and runtime_port_claims. The CLI fallback
+// still receives the caller's original spelling because it accepts env-var
+// names, while local authorities store the shorter claim name.
+func normalizePortClaimKey(portVar string) string {
+	key := strings.ToLower(strings.TrimSpace(portVar))
+	key = strings.TrimSuffix(key, "_port")
+	if key == "api" || key == "ui" {
+		return key
+	}
+	return strings.TrimSpace(portVar)
 }
 
 // portLookupRunner is the indirection SetPortLookupRunner replaces. Production
@@ -261,8 +381,8 @@ func SetPortLookupRunner(fn func(ctx context.Context, target, portVar string) Sc
 	}
 }
 
-// runScenarioPortCommand is the sole place this repository shells out for a
-// scenario port.
+// runScenarioPortCommand is the sole place this repository shells out after
+// peer-record and runtime-registry discovery miss.
 func runScenarioPortCommand(ctx context.Context, target, portVar string) ScenarioPortOutcome {
 	ctx, cancel := boundedLookupContext(ctx)
 	defer cancel()

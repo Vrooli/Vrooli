@@ -369,7 +369,14 @@ func TestDiscoverOwnersAndNewForOwnerLoadNativeManifest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(discovery.Configs) != 1 || discovery.Configs[0].Kind != OwnerResource {
+	var foundDemo bool
+	for _, config := range discovery.Configs {
+		if config.Kind == OwnerResource && config.ID == "demo" {
+			foundDemo = true
+			break
+		}
+	}
+	if !foundDemo {
 		t.Fatalf("discovery = %+v", discovery)
 	}
 	m, err := NewForOwner(OwnerConfig{Kind: OwnerResource, ID: "demo", ScenarioConfig: ScenarioConfig{ManifestPath: manifest, RootOverride: filepath.Join(root, "state")}})

@@ -604,6 +604,19 @@ func (r *Runner) ensureResourceDependencies(item scenario.Scenario, opts StartOp
 			}
 			return nil, fmt.Errorf("status resource dependency %s: %w", resourceName, err)
 		}
+		// The effective catalog state includes operator-state overrides. An
+		// explicitly disabled resource must never be resurrected by a scenario
+		// dependency declaration. Treat try_start as an intentional degraded
+		// path, while required dependencies fail with actionable context.
+		if !status.Resource.Enabled && status.Resource.Exists {
+			reason := fmt.Sprintf("resource %s is disabled by operator state (scenario=%s startup_policy=%s)", resourceName, item.Slug, decision.policy)
+			if decision.continueOnFailure {
+				r.logWarn("Skipping disabled resource dependency", logx.AttrScenario, item.Slug, logx.AttrDependency, resourceName, "reason", reason)
+				failed = append(failed, resourceName)
+				continue
+			}
+			return nil, errors.New(reason)
+		}
 		if resourceDependencyReady(status) {
 			r.publish(ProgressEvent{Kind: EventResourceReused, Scenario: item.Slug, Dependency: resourceName})
 			r.logDebug("Resource dependency already running and healthy", logx.AttrScenario, item.Slug, logx.AttrDependency, resourceName)

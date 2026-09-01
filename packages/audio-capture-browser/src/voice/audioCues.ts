@@ -129,3 +129,20 @@ export function playRecordingStartCue(options?: AudioCueOptions): void {
 export function playRecordingStopCue(options?: AudioCueOptions): void {
   void playChime(659, 523, 0.18, options);
 }
+
+/**
+ * Falling minor-second: "recording ended unexpectedly."
+ * Notes: A#4 (466 Hz) → A4 (440 Hz) — a deliberately unresolved interval that
+ * reads as an interruption rather than a completion.
+ *
+ * The normal stop chime was withheld on this path on the grounds that a
+ * pleasant "done" tone after a failure would mislead. That was right about the
+ * tone and wrong about the silence: the mic stops, the countdown ring is gone,
+ * and a speaker who is not watching the screen keeps talking into a dead
+ * capture with no signal of any kind. A cue that sounds wrong is the correct
+ * output for a turn that ended wrong — the requirement is that the speaker
+ * knows, not that they are reassured.
+ */
+export function playRecordingFaultCue(options?: AudioCueOptions): void {
+  void playChime(466, 440, 0.16, options);
+}

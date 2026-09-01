@@ -345,6 +345,25 @@ func TestBuildIncludesProjectManifestWithoutScenarioCollision(t *testing.T) {
 	}
 }
 
+func TestBuildIncludesVrooliOnboardingNamespace(t *testing.T) {
+	catalog, err := Build(repoRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, scope := range catalog.Scopes {
+		if scope.Scenario == "vrooli-onboarding" {
+			found = true
+			if scope.Effect == "" || scope.Command == "" {
+				t.Fatalf("onboarding scope is incomplete: %#v", scope)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("scope catalog did not derive the vrooli-onboarding namespace")
+	}
+}
+
 func TestBuildOrderingIsDeterministic(t *testing.T) {
 	first, err := Build(repoRoot(t))
 	if err != nil {

@@ -36,6 +36,9 @@ const (
 	// CredentialGrantServiceCreateGrantProcedure is the fully-qualified name of the
 	// CredentialGrantService's CreateGrant RPC.
 	CredentialGrantServiceCreateGrantProcedure = "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/CreateGrant"
+	// CredentialGrantServiceAnswerSecretProcedure is the fully-qualified name of the
+	// CredentialGrantService's AnswerSecret RPC.
+	CredentialGrantServiceAnswerSecretProcedure = "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/AnswerSecret"
 	// CredentialGrantServiceListGrantsProcedure is the fully-qualified name of the
 	// CredentialGrantService's ListGrants RPC.
 	CredentialGrantServiceListGrantsProcedure = "/vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService/ListGrants"
@@ -54,6 +57,10 @@ const (
 // vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService service.
 type CredentialGrantServiceClient interface {
 	CreateGrant(context.Context, *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
+	// Provisions one operator answer into the local credential authority and
+	// immediately delivers it through the sealed node channel. The value is
+	// never returned or persisted by the grant service.
+	AnswerSecret(context.Context, *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 	ListGrants(context.Context, *connect.Request[credentialgrant.ListGrantsRequest]) (*connect.Response[credentialgrant.ListGrantsResponse], error)
 	RevokeGrant(context.Context, *connect.Request[credentialgrant.RevokeGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 	RotateAddress(context.Context, *connect.Request[credentialgrant.RotateAddressRequest]) (*connect.Response[credentialgrant.RotationResponse], error)
@@ -79,6 +86,12 @@ func NewCredentialGrantServiceClient(httpClient connect.HTTPClient, baseURL stri
 			httpClient,
 			baseURL+CredentialGrantServiceCreateGrantProcedure,
 			connect.WithSchema(credentialGrantServiceMethods.ByName("CreateGrant")),
+			connect.WithClientOptions(opts...),
+		),
+		answerSecret: connect.NewClient[credentialgrant.AnswerSecretRequest, credentialgrant.CredentialGrant](
+			httpClient,
+			baseURL+CredentialGrantServiceAnswerSecretProcedure,
+			connect.WithSchema(credentialGrantServiceMethods.ByName("AnswerSecret")),
 			connect.WithClientOptions(opts...),
 		),
 		listGrants: connect.NewClient[credentialgrant.ListGrantsRequest, credentialgrant.ListGrantsResponse](
@@ -111,6 +124,7 @@ func NewCredentialGrantServiceClient(httpClient connect.HTTPClient, baseURL stri
 // credentialGrantServiceClient implements CredentialGrantServiceClient.
 type credentialGrantServiceClient struct {
 	createGrant    *connect.Client[credentialgrant.CreateGrantRequest, credentialgrant.CredentialGrant]
+	answerSecret   *connect.Client[credentialgrant.AnswerSecretRequest, credentialgrant.CredentialGrant]
 	listGrants     *connect.Client[credentialgrant.ListGrantsRequest, credentialgrant.ListGrantsResponse]
 	revokeGrant    *connect.Client[credentialgrant.RevokeGrantRequest, credentialgrant.CredentialGrant]
 	rotateAddress  *connect.Client[credentialgrant.RotateAddressRequest, credentialgrant.RotationResponse]
@@ -120,6 +134,11 @@ type credentialGrantServiceClient struct {
 // CreateGrant calls vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.CreateGrant.
 func (c *credentialGrantServiceClient) CreateGrant(ctx context.Context, req *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
 	return c.createGrant.CallUnary(ctx, req)
+}
+
+// AnswerSecret calls vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.AnswerSecret.
+func (c *credentialGrantServiceClient) AnswerSecret(ctx context.Context, req *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
+	return c.answerSecret.CallUnary(ctx, req)
 }
 
 // ListGrants calls vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.ListGrants.
@@ -147,6 +166,10 @@ func (c *credentialGrantServiceClient) SyncNodeGrants(ctx context.Context, req *
 // vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService service.
 type CredentialGrantServiceHandler interface {
 	CreateGrant(context.Context, *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
+	// Provisions one operator answer into the local credential authority and
+	// immediately delivers it through the sealed node channel. The value is
+	// never returned or persisted by the grant service.
+	AnswerSecret(context.Context, *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 	ListGrants(context.Context, *connect.Request[credentialgrant.ListGrantsRequest]) (*connect.Response[credentialgrant.ListGrantsResponse], error)
 	RevokeGrant(context.Context, *connect.Request[credentialgrant.RevokeGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error)
 	RotateAddress(context.Context, *connect.Request[credentialgrant.RotateAddressRequest]) (*connect.Response[credentialgrant.RotationResponse], error)
@@ -167,6 +190,12 @@ func NewCredentialGrantServiceHandler(svc CredentialGrantServiceHandler, opts ..
 		CredentialGrantServiceCreateGrantProcedure,
 		svc.CreateGrant,
 		connect.WithSchema(credentialGrantServiceMethods.ByName("CreateGrant")),
+		connect.WithHandlerOptions(opts...),
+	)
+	credentialGrantServiceAnswerSecretHandler := connect.NewUnaryHandler(
+		CredentialGrantServiceAnswerSecretProcedure,
+		svc.AnswerSecret,
+		connect.WithSchema(credentialGrantServiceMethods.ByName("AnswerSecret")),
 		connect.WithHandlerOptions(opts...),
 	)
 	credentialGrantServiceListGrantsHandler := connect.NewUnaryHandler(
@@ -197,6 +226,8 @@ func NewCredentialGrantServiceHandler(svc CredentialGrantServiceHandler, opts ..
 		switch r.URL.Path {
 		case CredentialGrantServiceCreateGrantProcedure:
 			credentialGrantServiceCreateGrantHandler.ServeHTTP(w, r)
+		case CredentialGrantServiceAnswerSecretProcedure:
+			credentialGrantServiceAnswerSecretHandler.ServeHTTP(w, r)
 		case CredentialGrantServiceListGrantsProcedure:
 			credentialGrantServiceListGrantsHandler.ServeHTTP(w, r)
 		case CredentialGrantServiceRevokeGrantProcedure:
@@ -216,6 +247,10 @@ type UnimplementedCredentialGrantServiceHandler struct{}
 
 func (UnimplementedCredentialGrantServiceHandler) CreateGrant(context.Context, *connect.Request[credentialgrant.CreateGrantRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.CreateGrant is not implemented"))
+}
+
+func (UnimplementedCredentialGrantServiceHandler) AnswerSecret(context.Context, *connect.Request[credentialgrant.AnswerSecretRequest]) (*connect.Response[credentialgrant.CredentialGrant], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.vrooli_bridge.v1.credentialgrant.CredentialGrantService.AnswerSecret is not implemented"))
 }
 
 func (UnimplementedCredentialGrantServiceHandler) ListGrants(context.Context, *connect.Request[credentialgrant.ListGrantsRequest]) (*connect.Response[credentialgrant.ListGrantsResponse], error) {

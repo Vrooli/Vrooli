@@ -109,7 +109,7 @@
       "layout": "dir",
       "entry_path": "whisper-bin-ubuntu-x64/whisper-server",
       "sha256_by_platform": {
-        "linux-amd64": "b4e642e9672dc58d3cfcd28acdd0997c8f57bdb61b459308a1a6b88510b65a30",
+        "linux-amd64": "d6cc0fd540ecd2b29c3eb2307cd9cdddbc4fff87e1e95626b03d4a99843dd8e7",
         "linux-arm64": "8a970c63a3b630fdb642cec7364517f42fc07aa0cd50c30e5f4aa519caae3811",
         "windows-amd64": "b2bbecf44cb279d42c7b14435ed2bb421e22fb0090b18771fbeb857729e70eb1"
       },
@@ -122,6 +122,22 @@
         "kind": "none"
       },
       "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64",
+            "accel.backends": "has:vulkan"
+          },
+          "kind": "oci-image",
+          "image": "ghcr.io/ggml-org/whisper.cpp@sha256:4ebde8b234bbca79f304ffd482cbb252c55f8eb0bce18c5d502adcc78047419e",
+          "artifact_sha256": "d6cc0fd540ecd2b29c3eb2307cd9cdddbc4fff87e1e95626b03d4a99843dd8e7",
+          "layout": "dir",
+          "bin_path": "/app/build/bin/whisper-server",
+          "mode": "0755",
+          "runtime_env": {
+            "LD_LIBRARY_PATH": "${RESOURCE_ARTIFACT_DIR}/app/build/bin:${RESOURCE_ARTIFACT_DIR}/usr/lib/x86_64-linux-gnu"
+          }
+        },
         {
           "when": {
             "os": "linux",
@@ -236,7 +252,7 @@
           ],
           "requires": [],
           "limitations": [
-            "Native whisper.cpp server and medium model are checksum-pinned; CPU is declared because v1.9.2 publishes no Linux CUDA server and this host has no CUDA build toolchain. CUDA remains wanted until a signed Linux CUDA artifact is available."
+            "Native whisper.cpp server and medium model are checksum-pinned; Linux hosts with a reported Vulkan backend resolve the digest-pinned OCI tree, while other hosts use the CPU release archive."
           ],
           "evidence": [
             "manifest-validation",
@@ -279,10 +295,12 @@
   },
   "acceleration": {
     "backends": [
+      "vulkan",
       "cpu"
     ],
     "require": "preferred",
-    "cpu": {}
+    "cpu": {},
+    "vulkan": {}
   },
   "companions": [
     {

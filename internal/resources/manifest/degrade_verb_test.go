@@ -116,6 +116,11 @@ func TestEveryHeavyResourceDeclaresTheContractVerb(t *testing.T) {
 			if declared.Acceleration != nil && declared.Acceleration.Claim != nil {
 				claim = declared.Acceleration.Claim
 			}
+			if claim == nil {
+				// CPU-only resources do not expose capacity-degrade. Requiring a
+				// profile here would reintroduce the manifest contradiction.
+				return
+			}
 
 			// Then it declares a claim with a steppable ladder
 			if claim == nil || claim.Profile == nil {

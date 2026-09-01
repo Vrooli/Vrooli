@@ -389,6 +389,28 @@ func TestBootstrapAwareRequirementsRequiresGitAndGoButNotDocker(t *testing.T) {
 	}
 }
 
+func TestBootstrapOnlyRequirementsExcludeFinalSetupToolsAndSafeguards(t *testing.T) {
+	resolution := bootstrapOnlyRequirements(hostreq.Resolution{
+		Tools: []hostreq.ResolvedRequirement{
+			{Name: "k6", Required: true},
+			{Name: "go", Required: false},
+			{Name: "git", Required: false},
+		},
+		Safeguards: []hostreq.ResolvedRequirement{{Name: "onboarding_apply_privileges", Required: true}},
+	})
+	if len(resolution.Safeguards) != 0 {
+		t.Fatalf("safeguards = %v, want none", resolution.Safeguards)
+	}
+	if len(resolution.Tools) != 2 || resolution.Tools[0].Name != "go" || resolution.Tools[1].Name != "git" {
+		t.Fatalf("tools = %v, want only go and git", resolution.Tools)
+	}
+	for _, requirement := range resolution.Tools {
+		if !requirement.Required {
+			t.Errorf("%s is not required in bootstrap-only mode", requirement.Name)
+		}
+	}
+}
+
 func TestBootstrapAwareRequirementsOrdersRasdaemonBeforeMcelog(t *testing.T) {
 	resolution := bootstrapAwareRequirements(hostreq.Resolution{Tools: []hostreq.ResolvedRequirement{
 		{Name: "mcelog", Kind: hostreq.KindTool, Required: true},
