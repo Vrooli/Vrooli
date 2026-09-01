@@ -1,0 +1,22 @@
+{
+  "libraryId": "react-component-library:PinInput",
+  "displayName": "PIN Input",
+  "description": "Grouped numeric code input with paste support",
+  "kind": "control",
+  "tags": [
+    "forms",
+    "secret",
+    "setup"
+  ],
+  "entry": "PinInput.tsx",
+  "latest": "1.0.1",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": ""
+}

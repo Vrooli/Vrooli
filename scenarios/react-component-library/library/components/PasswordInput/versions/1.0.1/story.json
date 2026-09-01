@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": { "fields": [{ "path": "label", "kind": "text", "label": "Label" }, { "path": "autoComplete", "kind": "text", "label": "Autocomplete" }] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "reveal-safe", "name": "Reveal safe", "args": {}, "expect": [{ "kind": "visible", "selector": "body" }] }]
+}

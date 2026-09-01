@@ -1,0 +1,22 @@
+{
+  "libraryId": "react-component-library:PasswordInput",
+  "displayName": "Password Input",
+  "description": "Secret input with reveal and paste-safe handling",
+  "kind": "control",
+  "tags": [
+    "forms",
+    "secret",
+    "setup"
+  ],
+  "entry": "PasswordInput.tsx",
+  "latest": "1.0.1",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "draft": ""
+}
