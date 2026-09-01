@@ -7,6 +7,7 @@ import (
 
 func (s *Server) registerDebugRoutes() {
 	s.router.HandleFunc("/api/v1/debug/r3f-stats", s.handleR3FStats).Methods("GET", "POST")
+	s.router.HandleFunc("/api/v1/debug/render-stats", s.handleR3FStats).Methods("GET", "POST")
 }
 
 func (s *Server) handleR3FStats(w http.ResponseWriter, r *http.Request) {

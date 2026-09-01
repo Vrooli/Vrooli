@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
+import { renderWithProviders as render } from "../test-utils/renderWithProviders";
 import { DashboardLayout } from "./DashboardLayout";
 
 describe("DashboardLayout", () => {

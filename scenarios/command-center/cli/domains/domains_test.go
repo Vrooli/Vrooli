@@ -2,16 +2,11 @@ package domains
 
 import "testing"
 
-func TestCommandGroupsReturnsNilForScaffold(t *testing.T) {
-	// The scaffold registers no flat command groups; sibling execute items add
-	// domain packages later. Guarding the contract keeps the registry honest.
-	if got := CommandGroups(nil); got != nil {
-		t.Fatalf("CommandGroups(nil) = %v, want nil", got)
-	}
+func TestCommandGroupsRegisterFlatReadVerbs(t *testing.T) {
+	got := CommandGroups(nil)
+	if len(got) != 1 || len(got[0].Commands) != 6 { t.Fatalf("unexpected flat command registration: %#v", got) }
 }
 
-func TestSubcommandGroupsReturnsNilForScaffold(t *testing.T) {
-	if got := SubcommandGroups(nil); got != nil {
-		t.Fatalf("SubcommandGroups(nil) = %v, want nil", got)
-	}
+func TestSubcommandGroupsRemainEmpty(t *testing.T) {
+	if got := SubcommandGroups(nil); got != nil { t.Fatalf("unexpected hierarchical groups: %#v", got) }
 }

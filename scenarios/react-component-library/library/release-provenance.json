@@ -92,6 +92,18 @@
       "publishedAt": "2026-08-31T05:07:24Z"
     },
     {
+      "libraryId": "react-component-library:AmbientCanvas",
+      "version": "0.1.1",
+      "draftVersion": "0.1.1-draft.1",
+      "publishedAt": "2026-09-01T18:54:02Z"
+    },
+    {
+      "libraryId": "react-component-library:AmbientDisplayShell",
+      "version": "0.1.1",
+      "draftVersion": "0.1.1-draft.1",
+      "publishedAt": "2026-09-01T18:54:02Z"
+    },
+    {
       "libraryId": "react-component-library:AppNavigation",
       "version": "1.1.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -1112,6 +1124,12 @@
       "publishedAt": "2026-08-31T05:05:24Z"
     },
     {
+      "libraryId": "react-component-library:Chart",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-09-01T19:13:42Z"
+    },
+    {
       "libraryId": "react-component-library:Checkbox",
       "version": "1.0.5",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -1626,6 +1644,12 @@
       "version": "1.0.6",
       "draftVersion": "1.0.6-draft.1",
       "publishedAt": "2026-08-31T05:05:29Z"
+    },
+    {
+      "libraryId": "react-component-library:CycleController",
+      "version": "0.1.1",
+      "draftVersion": "0.1.1-draft.1",
+      "publishedAt": "2026-09-01T18:54:02Z"
     },
     {
       "libraryId": "react-component-library:DashboardPage",
@@ -2348,6 +2372,12 @@
       "publishedAt": "2026-09-01T14:32:17Z"
     },
     {
+      "libraryId": "react-component-library:FreshnessArc",
+      "version": "0.1.1",
+      "draftVersion": "0.1.1-draft.1",
+      "publishedAt": "2026-09-01T18:54:03Z"
+    },
+    {
       "libraryId": "react-component-library:FullPageDrawer",
       "version": "1.0.3",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2610,6 +2640,12 @@
       "version": "1.0.4",
       "draftVersion": "1.0.4-draft.1",
       "publishedAt": "2026-08-31T05:18:50Z"
+    },
+    {
+      "libraryId": "react-component-library:HeroReadout",
+      "version": "0.1.1",
+      "draftVersion": "0.1.1-draft.1",
+      "publishedAt": "2026-09-01T18:54:01Z"
     },
     {
       "libraryId": "react-component-library:Icon",
@@ -3096,6 +3132,12 @@
       "version": "1.0.5",
       "draftVersion": "1.0.5-draft.1",
       "publishedAt": "2026-08-31T05:19:47Z"
+    },
+    {
+      "libraryId": "react-component-library:MotionPrimitive",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-09-01T19:13:43Z"
     },
     {
       "libraryId": "react-component-library:NavLink",
@@ -3602,6 +3644,12 @@
       "publishedAt": "2026-08-31T05:07:10Z"
     },
     {
+      "libraryId": "react-component-library:ProvenanceInk",
+      "version": "0.1.1",
+      "draftVersion": "0.1.1-draft.1",
+      "publishedAt": "2026-09-01T18:54:01Z"
+    },
+    {
       "libraryId": "react-component-library:QuarantineBadge",
       "version": "1.0.3",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3990,6 +4038,18 @@
       "version": "1.1.5",
       "draftVersion": "1.1.5-draft.1",
       "publishedAt": "2026-08-31T05:06:02Z"
+    },
+    {
+      "libraryId": "react-component-library:RollingNumber",
+      "version": "0.1.1",
+      "draftVersion": "0.1.1-draft.1",
+      "publishedAt": "2026-09-01T18:54:03Z"
+    },
+    {
+      "libraryId": "react-component-library:SampleSeries",
+      "version": "0.1.1",
+      "draftVersion": "0.1.1-draft.1",
+      "publishedAt": "2026-09-01T18:54:03Z"
     },
     {
       "libraryId": "react-component-library:ScoreGauge",
@@ -4532,6 +4592,12 @@
       "publishedAt": "2026-08-31T05:06:06Z"
     },
     {
+      "libraryId": "react-component-library:Stat",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-09-01T19:13:41Z"
+    },
+    {
       "libraryId": "react-component-library:StatCard",
       "version": "1.0.7",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -4938,6 +5004,12 @@
       "version": "1.0.1",
       "draftVersion": "1.0.1-draft.1",
       "publishedAt": "2026-08-29T06:43:49Z"
+    },
+    {
+      "libraryId": "react-component-library:Tokens",
+      "version": "1.0.2",
+      "draftVersion": "1.0.2-draft.1",
+      "publishedAt": "2026-09-01T19:13:43Z"
     },
     {
       "libraryId": "react-component-library:Toolbar",

@@ -15,7 +15,7 @@ function TrivialCube() {
   useEffect(() => {
     // CSS variables are on the <html> element via <ThemeProvider>.
     const accent = getComputedStyle(document.documentElement)
-      .getPropertyValue("--cc-accent")
+      .getPropertyValue("--color-primary")
       .trim();
     if (accent.length > 0) {
       setColor(accent);

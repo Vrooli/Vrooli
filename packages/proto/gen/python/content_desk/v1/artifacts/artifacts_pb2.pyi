@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class Draft(_message.Message):
-    __slots__ = ("id", "campaign_id", "status", "post_type_id", "body", "channel", "format", "lane", "sku")
+    __slots__ = ("id", "campaign_id", "status", "post_type_id", "body", "channel", "format", "lane", "sku", "scenario_name")
     ID_FIELD_NUMBER: _ClassVar[int]
     CAMPAIGN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
@@ -17,6 +17,7 @@ class Draft(_message.Message):
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     LANE_FIELD_NUMBER: _ClassVar[int]
     SKU_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     id: str
     campaign_id: str
     status: str
@@ -26,7 +27,8 @@ class Draft(_message.Message):
     format: str
     lane: str
     sku: str
-    def __init__(self, id: _Optional[str] = ..., campaign_id: _Optional[str] = ..., status: _Optional[str] = ..., post_type_id: _Optional[str] = ..., body: _Optional[str] = ..., channel: _Optional[str] = ..., format: _Optional[str] = ..., lane: _Optional[str] = ..., sku: _Optional[str] = ...) -> None: ...
+    scenario_name: str
+    def __init__(self, id: _Optional[str] = ..., campaign_id: _Optional[str] = ..., status: _Optional[str] = ..., post_type_id: _Optional[str] = ..., body: _Optional[str] = ..., channel: _Optional[str] = ..., format: _Optional[str] = ..., lane: _Optional[str] = ..., sku: _Optional[str] = ..., scenario_name: _Optional[str] = ...) -> None: ...
 
 class ListDraftsRequest(_message.Message):
     __slots__ = ()
@@ -39,7 +41,7 @@ class ListDraftsResponse(_message.Message):
     def __init__(self, drafts: _Optional[_Iterable[_Union[Draft, _Mapping]]] = ...) -> None: ...
 
 class CreateDraftRequest(_message.Message):
-    __slots__ = ("campaign_id", "post_type_id", "body", "channel", "format", "lane", "sku")
+    __slots__ = ("campaign_id", "post_type_id", "body", "channel", "format", "lane", "sku", "scenario_name")
     CAMPAIGN_ID_FIELD_NUMBER: _ClassVar[int]
     POST_TYPE_ID_FIELD_NUMBER: _ClassVar[int]
     BODY_FIELD_NUMBER: _ClassVar[int]
@@ -47,6 +49,7 @@ class CreateDraftRequest(_message.Message):
     FORMAT_FIELD_NUMBER: _ClassVar[int]
     LANE_FIELD_NUMBER: _ClassVar[int]
     SKU_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     campaign_id: str
     post_type_id: str
     body: str
@@ -54,7 +57,8 @@ class CreateDraftRequest(_message.Message):
     format: str
     lane: str
     sku: str
-    def __init__(self, campaign_id: _Optional[str] = ..., post_type_id: _Optional[str] = ..., body: _Optional[str] = ..., channel: _Optional[str] = ..., format: _Optional[str] = ..., lane: _Optional[str] = ..., sku: _Optional[str] = ...) -> None: ...
+    scenario_name: str
+    def __init__(self, campaign_id: _Optional[str] = ..., post_type_id: _Optional[str] = ..., body: _Optional[str] = ..., channel: _Optional[str] = ..., format: _Optional[str] = ..., lane: _Optional[str] = ..., sku: _Optional[str] = ..., scenario_name: _Optional[str] = ...) -> None: ...
 
 class CreateDraftResponse(_message.Message):
     __slots__ = ("draft",)

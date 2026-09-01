@@ -1,24 +1,22 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import MissionControl from "./pages/MissionControl";
-import Hive from "./pages/Hive";
-import Forge from "./pages/Forge";
-import Ledger from "./pages/Ledger";
-import Broadcast from "./pages/Broadcast";
-import Panorama from "./pages/Panorama";
+import { getProxyInfo } from "@vrooli/api-base";
+import RoomPage from "./pages/RoomPage";
+import FocusPage from "./pages/FocusPage";
+import OpenLoopPage from "./pages/OpenLoopPage";
+import { BoardController } from "./components/BoardController";
 
 export default function App() {
+  const proxyInfo = getProxyInfo();
+  const basename = (proxyInfo?.primary?.path ?? proxyInfo?.basePath ?? "").replace(/\/+$/, "");
   return (
-    <BrowserRouter>
-      <Routes>
+    <BrowserRouter basename={basename}>
+      <BoardController><Routes>
         <Route path="/" element={<Navigate to="/mission-control" replace />} />
-        <Route path="/mission-control" element={<MissionControl />} />
-        <Route path="/hive" element={<Hive />} />
-        <Route path="/forge" element={<Forge />} />
-        <Route path="/ledger" element={<Ledger />} />
-        <Route path="/broadcast" element={<Broadcast />} />
-        <Route path="/panorama" element={<Panorama />} />
+        <Route path="/focus" element={<FocusPage />} />
+        <Route path="/open-loop" element={<OpenLoopPage />} />
+        <Route path="/:roomId" element={<RoomPage />} />
         <Route path="*" element={<Navigate to="/mission-control" replace />} />
-      </Routes>
+      </Routes></BoardController>
     </BrowserRouter>
   );
 }

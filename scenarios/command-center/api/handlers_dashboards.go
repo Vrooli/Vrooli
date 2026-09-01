@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -38,14 +39,142 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sources := s.primeSources(r.Context(), entries)
+	readings, sources := s.readings(r.Context(), entries)
 
 	writeJSON(w, http.StatusOK, dashboardResponse{
 		Dashboard:   id,
 		GeneratedAt: time.Now().UTC(),
-		Metrics:     entries,
+		Metrics:     readings,
 		Sources:     sources,
 	})
+}
+
+// readings joins authored coverage with an upstream observation. Coverage is
+// never changed by a fetch result; only trust and the value are live fields.
+func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricEntry, map[string]sourceMetadata) {
+	out := make([]MetricEntry, len(entries))
+	copy(out, entries)
+	sources := map[string]sourceMetadata{}
+	teamDeclarations := loadTeamDeclarations()
+	for i := range out {
+		m := &out[i]
+		m.Value = nil
+		m.ObservedAt = nil
+		m.Trust = TrustUnavailable
+		if m.Empirical == "" {
+			m.Empirical = EmpiricalNone
+		}
+		if m.Source.Binding == "" {
+			m.Source.Binding = string(m.UpstreamSource)
+		}
+		if m.Source.TTLSeconds == 0 {
+			m.Source.TTLSeconds = m.TTLSeconds
+		}
+		if m.Source.TTLSeconds == 0 {
+			m.Source.TTLSeconds = 60
+		}
+		m.TTLSeconds = m.Source.TTLSeconds
+		if m.Source.InstrumentStatus == "" {
+			m.Source.InstrumentStatus = teamDeclarations[m.Source.Team]["status"]
+			if m.Source.InstrumentStatus == "" {
+				m.Source.InstrumentStatus = "partial"
+			}
+		}
+		if m.Source.InstrumentArchetype == "" {
+			m.Source.InstrumentArchetype = teamDeclarations[m.Source.Team]["archetype"]
+			if m.Source.InstrumentArchetype == "" {
+				m.Source.InstrumentArchetype = "production-ledger"
+			}
+		}
+		if effectiveCoverage(*m) != CoverageNow && effectiveCoverage(*m) != CoverageInReach {
+			continue
+		}
+		m.Coverage = effectiveCoverage(*m)
+		src := m.UpstreamSource
+		if src == "" {
+			src = sourceFromBinding(m.Source.Binding)
+		}
+		path := m.Source.Read
+		if path == "" {
+			path = defaultPathFor(src)
+		}
+		env, err := s.primeSinglePath(ctx, src, path, m.Source.TTLSeconds)
+		name := string(src)
+		if name == "" {
+			name = "none"
+		}
+		if env.Data != nil {
+			sources[name] = sourceMetadata{FromCache: env.FromCache, StalenessTS: env.StalenessTS}
+		}
+		if err != nil {
+			if env.Data != nil {
+				m.Trust = TrustCached
+			} else {
+				m.Trust = TrustUnavailable
+			}
+			continue
+		}
+		var payload any
+		if json.Unmarshal(env.Data, &payload) == nil {
+			if value, ok := findNumber(payload, m.Source.Select, m.ID); ok {
+				m.Value = value
+				observed := env.CachedAt
+				m.ObservedAt = &observed
+				if time.Since(observed) <= time.Duration(m.TTLSeconds)*time.Second {
+					m.Trust = TrustValid
+				} else {
+					m.Trust = TrustCached
+				}
+			}
+		}
+		if m.Value == nil {
+			m.Trust = TrustUnavailable
+		}
+	}
+	s.joinPredictions(out)
+	return out, sources
+}
+
+func sourceFromBinding(binding string) UpstreamSource {
+	if strings.Contains(binding, "swarm") {
+		return SourceSwarm
+	}
+	if strings.Contains(binding, "vrooli") {
+		return SourceVrooli
+	}
+	if strings.Contains(binding, "lpbs") || strings.Contains(binding, "landing") {
+		return SourceLPBS
+	}
+	return SourceNone
+}
+func findNumber(payload any, selector, id string) (float64, bool) {
+	keys := []string{selector, id}
+	aliases := map[string][]string{"active_scenarios": {"active", "running", "count"}, "total_scenarios": {"total", "count"}, "swarm_throughput": {"completed_24h", "completed"}, "swarm_throughput_24h": {"completed_24h", "completed"}}
+	keys = append(keys, aliases[id]...)
+	var walk func(any) (float64, bool)
+	walk = func(v any) (float64, bool) {
+		switch x := v.(type) {
+		case map[string]any:
+			for _, k := range keys {
+				if n, ok := x[k].(float64); ok {
+					return n, true
+				}
+			}
+			for _, child := range x {
+				if n, ok := walk(child); ok {
+					return n, true
+				}
+			}
+		case []any:
+			for _, child := range x {
+				if n, ok := walk(child); ok {
+					return n, true
+				}
+			}
+		}
+		return 0, false
+	}
+	return walk(payload)
 }
 
 // primeSources fetches the upstream payloads required by the given entries
@@ -55,7 +184,7 @@ func (s *Server) primeSources(ctx context.Context, entries []MetricEntry) map[st
 	seen := make(map[UpstreamSource]struct{})
 	out := map[string]sourceMetadata{}
 	for _, e := range entries {
-		if e.DataSource != StatusLive && e.DataSource != StatusPartial {
+		if effectiveCoverage(e) != CoverageNow && effectiveCoverage(e) != CoverageInReach {
 			continue
 		}
 		if _, ok := seen[e.UpstreamSource]; ok {
@@ -77,11 +206,13 @@ func (s *Server) primeSources(ctx context.Context, entries []MetricEntry) map[st
 }
 
 func (s *Server) primeSingle(ctx context.Context, src UpstreamSource) (Envelope, error) {
+	return s.primeSinglePath(ctx, src, defaultPathFor(src), int(TTLFor(src)/time.Second))
+}
+func (s *Server) primeSinglePath(ctx context.Context, src UpstreamSource, path string, ttlSeconds int) (Envelope, error) {
 	client := s.clientFor(src)
 	if client == nil {
 		return Envelope{}, upstream.ErrNotAvailable
 	}
-	path := defaultPathFor(src)
 	key := string(src) + ":" + path
 
 	// Serve fresh cache when available.
@@ -104,7 +235,11 @@ func (s *Server) primeSingle(ctx context.Context, src UpstreamSource) (Envelope,
 		FromCache: false,
 		Source:    string(src),
 	}
-	s.cache.Put(key, env, TTLFor(src))
+	ttl := TTLFor(src)
+	if ttlSeconds > 0 {
+		ttl = time.Duration(ttlSeconds) * time.Second
+	}
+	s.cache.Put(key, env, ttl)
 	return env, nil
 }
 

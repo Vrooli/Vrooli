@@ -72,14 +72,11 @@ packageJSON.exports = {
     import: "./dist/exports/index.js",
   },
 };
-// Node's public package contract carries the stable bare and major aliases.
-// Exact releases remain available in the generated resolution side map and
-// package artifact for the workbench and reproducible historical builds, but
-// do not inflate the manifest every consumer parses.
-const publicSubpaths = [...availableSubpaths].filter((subpath) => {
-  const segments = subpath.slice(2).split("/");
-  return segments.length <= 2 && (segments.length === 1 || /^\d+$/.test(segments[1] ?? ""));
-});
+// Publish every materialized exact release as well as the stable bare and
+// major aliases. Immutable historical assets can retain exact cross-asset
+// imports, and consumers must be able to resolve those imports through the
+// package exports contract instead of depending on filesystem layout.
+const publicSubpaths = [...availableSubpaths];
 for (const subpath of publicSubpaths.sort()) {
   const alias = subpath.slice(2);
   packageJSON.exports[subpath] = {

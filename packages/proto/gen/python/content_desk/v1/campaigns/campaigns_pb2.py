@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)content-desk/v1/campaigns/campaigns.proto\x12 vrooli.content_desk.v1.campaigns\"F\n\x08\x43\x61mpaign\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n\x06status\x18\x03 \x01(\tR\x06status\"\x16\n\x14ListCampaignsRequest\"a\n\x15ListCampaignsResponse\x12H\n\tcampaigns\x18\x01 \x03(\x0b\x32*.vrooli.content_desk.v1.campaigns.CampaignR\tcampaigns\"\\\n\x0c\x43\x61mpaignSlot\x12\x18\n\x07\x63hannel\x18\x01 \x01(\tR\x07\x63hannel\x12\x16\n\x06\x66ormat\x18\x02 \x01(\tR\x06\x66ormat\x12\x1a\n\x08\x63\x61pacity\x18\x03 \x01(\x05R\x08\x63\x61pacity\"\x96\x01\n\x15\x43reateCampaignRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12#\n\revidence_refs\x18\x02 \x03(\tR\x0c\x65videnceRefs\x12\x44\n\x05slots\x18\x03 \x03(\x0b\x32..vrooli.content_desk.v1.campaigns.CampaignSlotR\x05slots\"`\n\x16\x43reateCampaignResponse\x12\x46\n\x08\x63\x61mpaign\x18\x01 \x01(\x0b\x32*.vrooli.content_desk.v1.campaigns.CampaignR\x08\x63\x61mpaign\")\n\x17\x41\x63tivateCampaignRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"b\n\x18\x41\x63tivateCampaignResponse\x12\x46\n\x08\x63\x61mpaign\x18\x01 \x01(\x0b\x32*.vrooli.content_desk.v1.campaigns.CampaignR\x08\x63\x61mpaign2\xa7\x03\n\x10\x43\x61mpaignsService\x12\x80\x01\n\rListCampaigns\x12\x36.vrooli.content_desk.v1.campaigns.ListCampaignsRequest\x1a\x37.vrooli.content_desk.v1.campaigns.ListCampaignsResponse\x12\x83\x01\n\x0e\x43reateCampaign\x12\x37.vrooli.content_desk.v1.campaigns.CreateCampaignRequest\x1a\x38.vrooli.content_desk.v1.campaigns.CreateCampaignResponse\x12\x89\x01\n\x10\x41\x63tivateCampaign\x12\x39.vrooli.content_desk.v1.campaigns.ActivateCampaignRequest\x1a:.vrooli.content_desk.v1.campaigns.ActivateCampaignResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns;campaigns_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)content-desk/v1/campaigns/campaigns.proto\x12 vrooli.content_desk.v1.campaigns\"m\n\x08\x43\x61mpaign\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n\x06status\x18\x03 \x01(\tR\x06status\x12%\n\x0escenario_names\x18\x04 \x03(\tR\rscenarioNames\"\x16\n\x14ListCampaignsRequest\"a\n\x15ListCampaignsResponse\x12H\n\tcampaigns\x18\x01 \x03(\x0b\x32*.vrooli.content_desk.v1.campaigns.CampaignR\tcampaigns\"\\\n\x0c\x43\x61mpaignSlot\x12\x18\n\x07\x63hannel\x18\x01 \x01(\tR\x07\x63hannel\x12\x16\n\x06\x66ormat\x18\x02 \x01(\tR\x06\x66ormat\x12\x1a\n\x08\x63\x61pacity\x18\x03 \x01(\x05R\x08\x63\x61pacity\"\xbd\x01\n\x15\x43reateCampaignRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12#\n\revidence_refs\x18\x02 \x03(\tR\x0c\x65videnceRefs\x12\x44\n\x05slots\x18\x03 \x03(\x0b\x32..vrooli.content_desk.v1.campaigns.CampaignSlotR\x05slots\x12%\n\x0escenario_names\x18\x04 \x03(\tR\rscenarioNames\"`\n\x16\x43reateCampaignResponse\x12\x46\n\x08\x63\x61mpaign\x18\x01 \x01(\x0b\x32*.vrooli.content_desk.v1.campaigns.CampaignR\x08\x63\x61mpaign\")\n\x17\x41\x63tivateCampaignRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"b\n\x18\x41\x63tivateCampaignResponse\x12\x46\n\x08\x63\x61mpaign\x18\x01 \x01(\x0b\x32*.vrooli.content_desk.v1.campaigns.CampaignR\x08\x63\x61mpaign\"=\n\x16GetLaunchAssetsRequest\x12#\n\rscenario_name\x18\x01 \x01(\tR\x0cscenarioName\"\xe2\x01\n\x0fLaunchAssetSlot\x12\x1f\n\x0b\x63\x61mpaign_id\x18\x01 \x01(\tR\ncampaignId\x12#\n\rcampaign_name\x18\x02 \x01(\tR\x0c\x63\x61mpaignName\x12\x18\n\x07\x63hannel\x18\x03 \x01(\tR\x07\x63hannel\x12\x16\n\x06\x66ormat\x18\x04 \x01(\tR\x06\x66ormat\x12\x1a\n\x08\x63\x61pacity\x18\x05 \x01(\x05R\x08\x63\x61pacity\x12\x1a\n\x08reserved\x18\x06 \x01(\x05R\x08reserved\x12\x1f\n\x0b\x64raft_count\x18\x07 \x01(\x05R\ndraftCount\"\x87\x01\n\x17GetLaunchAssetsResponse\x12#\n\rscenario_name\x18\x01 \x01(\tR\x0cscenarioName\x12G\n\x05slots\x18\x02 \x03(\x0b\x32\x31.vrooli.content_desk.v1.campaigns.LaunchAssetSlotR\x05slots2\xb0\x04\n\x10\x43\x61mpaignsService\x12\x80\x01\n\rListCampaigns\x12\x36.vrooli.content_desk.v1.campaigns.ListCampaignsRequest\x1a\x37.vrooli.content_desk.v1.campaigns.ListCampaignsResponse\x12\x83\x01\n\x0e\x43reateCampaign\x12\x37.vrooli.content_desk.v1.campaigns.CreateCampaignRequest\x1a\x38.vrooli.content_desk.v1.campaigns.CreateCampaignResponse\x12\x89\x01\n\x10\x41\x63tivateCampaign\x12\x39.vrooli.content_desk.v1.campaigns.ActivateCampaignRequest\x1a:.vrooli.content_desk.v1.campaigns.ActivateCampaignResponse\x12\x86\x01\n\x0fGetLaunchAssets\x12\x38.vrooli.content_desk.v1.campaigns.GetLaunchAssetsRequest\x1a\x39.vrooli.content_desk.v1.campaigns.GetLaunchAssetsResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns;campaigns_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,21 +33,27 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZUgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns;campaigns_v1'
   _globals['_CAMPAIGN']._serialized_start=79
-  _globals['_CAMPAIGN']._serialized_end=149
-  _globals['_LISTCAMPAIGNSREQUEST']._serialized_start=151
-  _globals['_LISTCAMPAIGNSREQUEST']._serialized_end=173
-  _globals['_LISTCAMPAIGNSRESPONSE']._serialized_start=175
-  _globals['_LISTCAMPAIGNSRESPONSE']._serialized_end=272
-  _globals['_CAMPAIGNSLOT']._serialized_start=274
-  _globals['_CAMPAIGNSLOT']._serialized_end=366
-  _globals['_CREATECAMPAIGNREQUEST']._serialized_start=369
-  _globals['_CREATECAMPAIGNREQUEST']._serialized_end=519
-  _globals['_CREATECAMPAIGNRESPONSE']._serialized_start=521
-  _globals['_CREATECAMPAIGNRESPONSE']._serialized_end=617
-  _globals['_ACTIVATECAMPAIGNREQUEST']._serialized_start=619
-  _globals['_ACTIVATECAMPAIGNREQUEST']._serialized_end=660
-  _globals['_ACTIVATECAMPAIGNRESPONSE']._serialized_start=662
-  _globals['_ACTIVATECAMPAIGNRESPONSE']._serialized_end=760
-  _globals['_CAMPAIGNSSERVICE']._serialized_start=763
-  _globals['_CAMPAIGNSSERVICE']._serialized_end=1186
+  _globals['_CAMPAIGN']._serialized_end=188
+  _globals['_LISTCAMPAIGNSREQUEST']._serialized_start=190
+  _globals['_LISTCAMPAIGNSREQUEST']._serialized_end=212
+  _globals['_LISTCAMPAIGNSRESPONSE']._serialized_start=214
+  _globals['_LISTCAMPAIGNSRESPONSE']._serialized_end=311
+  _globals['_CAMPAIGNSLOT']._serialized_start=313
+  _globals['_CAMPAIGNSLOT']._serialized_end=405
+  _globals['_CREATECAMPAIGNREQUEST']._serialized_start=408
+  _globals['_CREATECAMPAIGNREQUEST']._serialized_end=597
+  _globals['_CREATECAMPAIGNRESPONSE']._serialized_start=599
+  _globals['_CREATECAMPAIGNRESPONSE']._serialized_end=695
+  _globals['_ACTIVATECAMPAIGNREQUEST']._serialized_start=697
+  _globals['_ACTIVATECAMPAIGNREQUEST']._serialized_end=738
+  _globals['_ACTIVATECAMPAIGNRESPONSE']._serialized_start=740
+  _globals['_ACTIVATECAMPAIGNRESPONSE']._serialized_end=838
+  _globals['_GETLAUNCHASSETSREQUEST']._serialized_start=840
+  _globals['_GETLAUNCHASSETSREQUEST']._serialized_end=901
+  _globals['_LAUNCHASSETSLOT']._serialized_start=904
+  _globals['_LAUNCHASSETSLOT']._serialized_end=1130
+  _globals['_GETLAUNCHASSETSRESPONSE']._serialized_start=1133
+  _globals['_GETLAUNCHASSETSRESPONSE']._serialized_end=1268
+  _globals['_CAMPAIGNSSERVICE']._serialized_start=1271
+  _globals['_CAMPAIGNSSERVICE']._serialized_end=1831
 # @@protoc_insertion_point(module_scope)

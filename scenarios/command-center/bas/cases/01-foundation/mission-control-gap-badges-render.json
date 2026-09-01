@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "mission-control-gap-badges-render",
-    "description": "End-to-end vertical slice: navigates to /mission-control, waits for at least one [data-testid='gap-badge'] to render (e.g. revenue_mrr, revenue_today), and confirms the R3F scene canvas is present.",
+    "description": "End-to-end vertical slice: navigates to /mission-control, waits for gap badges, and confirms the scene canvas contains pixels.",
     "labels": {
       "reset": "none",
       "requirements_json": "[\"CC-FOUNDATION-GAP-BADGES-RENDER\"]"
@@ -77,14 +77,12 @@
       "id": "assert-scene-canvas",
       "action": {
         "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "canvas",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Mission Control R3F scene canvas should be present in the DOM"
+        "evaluate": {
+          "expression": "(() => { const canvas = document.querySelector('[data-testid=scene-canvas] canvas'); const ctx = canvas && canvas.getContext('2d'); if (!ctx || !canvas) return false; return Array.from(ctx.getImageData(0, 0, canvas.width, canvas.height).data).some((value, index) => index % 4 !== 3 && value > 0); })()",
+          "expected_value": true
         },
         "metadata": {
-          "label": "Assert R3F scene canvas present"
+          "label": "Assert Mission Control has non-blank scene pixels"
         }
       }
     },

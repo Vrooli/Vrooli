@@ -42,6 +42,9 @@ const (
 	// CampaignsServiceActivateCampaignProcedure is the fully-qualified name of the CampaignsService's
 	// ActivateCampaign RPC.
 	CampaignsServiceActivateCampaignProcedure = "/vrooli.content_desk.v1.campaigns.CampaignsService/ActivateCampaign"
+	// CampaignsServiceGetLaunchAssetsProcedure is the fully-qualified name of the CampaignsService's
+	// GetLaunchAssets RPC.
+	CampaignsServiceGetLaunchAssetsProcedure = "/vrooli.content_desk.v1.campaigns.CampaignsService/GetLaunchAssets"
 )
 
 // CampaignsServiceClient is a client for the vrooli.content_desk.v1.campaigns.CampaignsService
@@ -50,6 +53,7 @@ type CampaignsServiceClient interface {
 	ListCampaigns(context.Context, *connect.Request[campaigns.ListCampaignsRequest]) (*connect.Response[campaigns.ListCampaignsResponse], error)
 	CreateCampaign(context.Context, *connect.Request[campaigns.CreateCampaignRequest]) (*connect.Response[campaigns.CreateCampaignResponse], error)
 	ActivateCampaign(context.Context, *connect.Request[campaigns.ActivateCampaignRequest]) (*connect.Response[campaigns.ActivateCampaignResponse], error)
+	GetLaunchAssets(context.Context, *connect.Request[campaigns.GetLaunchAssetsRequest]) (*connect.Response[campaigns.GetLaunchAssetsResponse], error)
 }
 
 // NewCampaignsServiceClient constructs a client for the
@@ -82,6 +86,12 @@ func NewCampaignsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(campaignsServiceMethods.ByName("ActivateCampaign")),
 			connect.WithClientOptions(opts...),
 		),
+		getLaunchAssets: connect.NewClient[campaigns.GetLaunchAssetsRequest, campaigns.GetLaunchAssetsResponse](
+			httpClient,
+			baseURL+CampaignsServiceGetLaunchAssetsProcedure,
+			connect.WithSchema(campaignsServiceMethods.ByName("GetLaunchAssets")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -90,6 +100,7 @@ type campaignsServiceClient struct {
 	listCampaigns    *connect.Client[campaigns.ListCampaignsRequest, campaigns.ListCampaignsResponse]
 	createCampaign   *connect.Client[campaigns.CreateCampaignRequest, campaigns.CreateCampaignResponse]
 	activateCampaign *connect.Client[campaigns.ActivateCampaignRequest, campaigns.ActivateCampaignResponse]
+	getLaunchAssets  *connect.Client[campaigns.GetLaunchAssetsRequest, campaigns.GetLaunchAssetsResponse]
 }
 
 // ListCampaigns calls vrooli.content_desk.v1.campaigns.CampaignsService.ListCampaigns.
@@ -107,12 +118,18 @@ func (c *campaignsServiceClient) ActivateCampaign(ctx context.Context, req *conn
 	return c.activateCampaign.CallUnary(ctx, req)
 }
 
+// GetLaunchAssets calls vrooli.content_desk.v1.campaigns.CampaignsService.GetLaunchAssets.
+func (c *campaignsServiceClient) GetLaunchAssets(ctx context.Context, req *connect.Request[campaigns.GetLaunchAssetsRequest]) (*connect.Response[campaigns.GetLaunchAssetsResponse], error) {
+	return c.getLaunchAssets.CallUnary(ctx, req)
+}
+
 // CampaignsServiceHandler is an implementation of the
 // vrooli.content_desk.v1.campaigns.CampaignsService service.
 type CampaignsServiceHandler interface {
 	ListCampaigns(context.Context, *connect.Request[campaigns.ListCampaignsRequest]) (*connect.Response[campaigns.ListCampaignsResponse], error)
 	CreateCampaign(context.Context, *connect.Request[campaigns.CreateCampaignRequest]) (*connect.Response[campaigns.CreateCampaignResponse], error)
 	ActivateCampaign(context.Context, *connect.Request[campaigns.ActivateCampaignRequest]) (*connect.Response[campaigns.ActivateCampaignResponse], error)
+	GetLaunchAssets(context.Context, *connect.Request[campaigns.GetLaunchAssetsRequest]) (*connect.Response[campaigns.GetLaunchAssetsResponse], error)
 }
 
 // NewCampaignsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -140,6 +157,12 @@ func NewCampaignsServiceHandler(svc CampaignsServiceHandler, opts ...connect.Han
 		connect.WithSchema(campaignsServiceMethods.ByName("ActivateCampaign")),
 		connect.WithHandlerOptions(opts...),
 	)
+	campaignsServiceGetLaunchAssetsHandler := connect.NewUnaryHandler(
+		CampaignsServiceGetLaunchAssetsProcedure,
+		svc.GetLaunchAssets,
+		connect.WithSchema(campaignsServiceMethods.ByName("GetLaunchAssets")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.content_desk.v1.campaigns.CampaignsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CampaignsServiceListCampaignsProcedure:
@@ -148,6 +171,8 @@ func NewCampaignsServiceHandler(svc CampaignsServiceHandler, opts ...connect.Han
 			campaignsServiceCreateCampaignHandler.ServeHTTP(w, r)
 		case CampaignsServiceActivateCampaignProcedure:
 			campaignsServiceActivateCampaignHandler.ServeHTTP(w, r)
+		case CampaignsServiceGetLaunchAssetsProcedure:
+			campaignsServiceGetLaunchAssetsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -167,4 +192,8 @@ func (UnimplementedCampaignsServiceHandler) CreateCampaign(context.Context, *con
 
 func (UnimplementedCampaignsServiceHandler) ActivateCampaign(context.Context, *connect.Request[campaigns.ActivateCampaignRequest]) (*connect.Response[campaigns.ActivateCampaignResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.campaigns.CampaignsService.ActivateCampaign is not implemented"))
+}
+
+func (UnimplementedCampaignsServiceHandler) GetLaunchAssets(context.Context, *connect.Request[campaigns.GetLaunchAssetsRequest]) (*connect.Response[campaigns.GetLaunchAssetsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.content_desk.v1.campaigns.CampaignsService.GetLaunchAssets is not implemented"))
 }

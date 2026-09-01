@@ -26,6 +26,7 @@ type Campaign struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ScenarioNames []string               `protobuf:"bytes,4,rep,name=scenario_names,json=scenarioNames,proto3" json:"scenario_names,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -79,6 +80,13 @@ func (x *Campaign) GetStatus() string {
 		return x.Status
 	}
 	return ""
+}
+
+func (x *Campaign) GetScenarioNames() []string {
+	if x != nil {
+		return x.ScenarioNames
+	}
+	return nil
 }
 
 type ListCampaignsRequest struct {
@@ -226,6 +234,7 @@ type CreateCampaignRequest struct {
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	EvidenceRefs  []string               `protobuf:"bytes,2,rep,name=evidence_refs,json=evidenceRefs,proto3" json:"evidence_refs,omitempty"`
 	Slots         []*CampaignSlot        `protobuf:"bytes,3,rep,name=slots,proto3" json:"slots,omitempty"`
+	ScenarioNames []string               `protobuf:"bytes,4,rep,name=scenario_names,json=scenarioNames,proto3" json:"scenario_names,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -277,6 +286,13 @@ func (x *CreateCampaignRequest) GetEvidenceRefs() []string {
 func (x *CreateCampaignRequest) GetSlots() []*CampaignSlot {
 	if x != nil {
 		return x.Slots
+	}
+	return nil
+}
+
+func (x *CreateCampaignRequest) GetScenarioNames() []string {
+	if x != nil {
+		return x.ScenarioNames
 	}
 	return nil
 }
@@ -413,36 +429,242 @@ func (x *ActivateCampaignResponse) GetCampaign() *Campaign {
 	return nil
 }
 
+type GetLaunchAssetsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLaunchAssetsRequest) Reset() {
+	*x = GetLaunchAssetsRequest{}
+	mi := &file_content_desk_v1_campaigns_campaigns_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLaunchAssetsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLaunchAssetsRequest) ProtoMessage() {}
+
+func (x *GetLaunchAssetsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_campaigns_campaigns_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLaunchAssetsRequest.ProtoReflect.Descriptor instead.
+func (*GetLaunchAssetsRequest) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_campaigns_campaigns_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetLaunchAssetsRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+type LaunchAssetSlot struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	CampaignId    string                 `protobuf:"bytes,1,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	CampaignName  string                 `protobuf:"bytes,2,opt,name=campaign_name,json=campaignName,proto3" json:"campaign_name,omitempty"`
+	Channel       string                 `protobuf:"bytes,3,opt,name=channel,proto3" json:"channel,omitempty"`
+	Format        string                 `protobuf:"bytes,4,opt,name=format,proto3" json:"format,omitempty"`
+	Capacity      int32                  `protobuf:"varint,5,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Reserved      int32                  `protobuf:"varint,6,opt,name=reserved,proto3" json:"reserved,omitempty"`
+	DraftCount    int32                  `protobuf:"varint,7,opt,name=draft_count,json=draftCount,proto3" json:"draft_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LaunchAssetSlot) Reset() {
+	*x = LaunchAssetSlot{}
+	mi := &file_content_desk_v1_campaigns_campaigns_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LaunchAssetSlot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LaunchAssetSlot) ProtoMessage() {}
+
+func (x *LaunchAssetSlot) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_campaigns_campaigns_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LaunchAssetSlot.ProtoReflect.Descriptor instead.
+func (*LaunchAssetSlot) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_campaigns_campaigns_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *LaunchAssetSlot) GetCampaignId() string {
+	if x != nil {
+		return x.CampaignId
+	}
+	return ""
+}
+
+func (x *LaunchAssetSlot) GetCampaignName() string {
+	if x != nil {
+		return x.CampaignName
+	}
+	return ""
+}
+
+func (x *LaunchAssetSlot) GetChannel() string {
+	if x != nil {
+		return x.Channel
+	}
+	return ""
+}
+
+func (x *LaunchAssetSlot) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *LaunchAssetSlot) GetCapacity() int32 {
+	if x != nil {
+		return x.Capacity
+	}
+	return 0
+}
+
+func (x *LaunchAssetSlot) GetReserved() int32 {
+	if x != nil {
+		return x.Reserved
+	}
+	return 0
+}
+
+func (x *LaunchAssetSlot) GetDraftCount() int32 {
+	if x != nil {
+		return x.DraftCount
+	}
+	return 0
+}
+
+type GetLaunchAssetsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ScenarioName  string                 `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
+	Slots         []*LaunchAssetSlot     `protobuf:"bytes,2,rep,name=slots,proto3" json:"slots,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLaunchAssetsResponse) Reset() {
+	*x = GetLaunchAssetsResponse{}
+	mi := &file_content_desk_v1_campaigns_campaigns_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLaunchAssetsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLaunchAssetsResponse) ProtoMessage() {}
+
+func (x *GetLaunchAssetsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_content_desk_v1_campaigns_campaigns_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLaunchAssetsResponse.ProtoReflect.Descriptor instead.
+func (*GetLaunchAssetsResponse) Descriptor() ([]byte, []int) {
+	return file_content_desk_v1_campaigns_campaigns_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *GetLaunchAssetsResponse) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
+func (x *GetLaunchAssetsResponse) GetSlots() []*LaunchAssetSlot {
+	if x != nil {
+		return x.Slots
+	}
+	return nil
+}
+
 var File_content_desk_v1_campaigns_campaigns_proto protoreflect.FileDescriptor
 
 const file_content_desk_v1_campaigns_campaigns_proto_rawDesc = "" +
 	"\n" +
-	")content-desk/v1/campaigns/campaigns.proto\x12 vrooli.content_desk.v1.campaigns\"F\n" +
+	")content-desk/v1/campaigns/campaigns.proto\x12 vrooli.content_desk.v1.campaigns\"m\n" +
 	"\bCampaign\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
-	"\x06status\x18\x03 \x01(\tR\x06status\"\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12%\n" +
+	"\x0escenario_names\x18\x04 \x03(\tR\rscenarioNames\"\x16\n" +
 	"\x14ListCampaignsRequest\"a\n" +
 	"\x15ListCampaignsResponse\x12H\n" +
 	"\tcampaigns\x18\x01 \x03(\v2*.vrooli.content_desk.v1.campaigns.CampaignR\tcampaigns\"\\\n" +
 	"\fCampaignSlot\x12\x18\n" +
 	"\achannel\x18\x01 \x01(\tR\achannel\x12\x16\n" +
 	"\x06format\x18\x02 \x01(\tR\x06format\x12\x1a\n" +
-	"\bcapacity\x18\x03 \x01(\x05R\bcapacity\"\x96\x01\n" +
+	"\bcapacity\x18\x03 \x01(\x05R\bcapacity\"\xbd\x01\n" +
 	"\x15CreateCampaignRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\revidence_refs\x18\x02 \x03(\tR\fevidenceRefs\x12D\n" +
-	"\x05slots\x18\x03 \x03(\v2..vrooli.content_desk.v1.campaigns.CampaignSlotR\x05slots\"`\n" +
+	"\x05slots\x18\x03 \x03(\v2..vrooli.content_desk.v1.campaigns.CampaignSlotR\x05slots\x12%\n" +
+	"\x0escenario_names\x18\x04 \x03(\tR\rscenarioNames\"`\n" +
 	"\x16CreateCampaignResponse\x12F\n" +
 	"\bcampaign\x18\x01 \x01(\v2*.vrooli.content_desk.v1.campaigns.CampaignR\bcampaign\")\n" +
 	"\x17ActivateCampaignRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"b\n" +
 	"\x18ActivateCampaignResponse\x12F\n" +
-	"\bcampaign\x18\x01 \x01(\v2*.vrooli.content_desk.v1.campaigns.CampaignR\bcampaign2\xa7\x03\n" +
+	"\bcampaign\x18\x01 \x01(\v2*.vrooli.content_desk.v1.campaigns.CampaignR\bcampaign\"=\n" +
+	"\x16GetLaunchAssetsRequest\x12#\n" +
+	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\"\xe2\x01\n" +
+	"\x0fLaunchAssetSlot\x12\x1f\n" +
+	"\vcampaign_id\x18\x01 \x01(\tR\n" +
+	"campaignId\x12#\n" +
+	"\rcampaign_name\x18\x02 \x01(\tR\fcampaignName\x12\x18\n" +
+	"\achannel\x18\x03 \x01(\tR\achannel\x12\x16\n" +
+	"\x06format\x18\x04 \x01(\tR\x06format\x12\x1a\n" +
+	"\bcapacity\x18\x05 \x01(\x05R\bcapacity\x12\x1a\n" +
+	"\breserved\x18\x06 \x01(\x05R\breserved\x12\x1f\n" +
+	"\vdraft_count\x18\a \x01(\x05R\n" +
+	"draftCount\"\x87\x01\n" +
+	"\x17GetLaunchAssetsResponse\x12#\n" +
+	"\rscenario_name\x18\x01 \x01(\tR\fscenarioName\x12G\n" +
+	"\x05slots\x18\x02 \x03(\v21.vrooli.content_desk.v1.campaigns.LaunchAssetSlotR\x05slots2\xb0\x04\n" +
 	"\x10CampaignsService\x12\x80\x01\n" +
 	"\rListCampaigns\x126.vrooli.content_desk.v1.campaigns.ListCampaignsRequest\x1a7.vrooli.content_desk.v1.campaigns.ListCampaignsResponse\x12\x83\x01\n" +
 	"\x0eCreateCampaign\x127.vrooli.content_desk.v1.campaigns.CreateCampaignRequest\x1a8.vrooli.content_desk.v1.campaigns.CreateCampaignResponse\x12\x89\x01\n" +
-	"\x10ActivateCampaign\x129.vrooli.content_desk.v1.campaigns.ActivateCampaignRequest\x1a:.vrooli.content_desk.v1.campaigns.ActivateCampaignResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns;campaigns_v1b\x06proto3"
+	"\x10ActivateCampaign\x129.vrooli.content_desk.v1.campaigns.ActivateCampaignRequest\x1a:.vrooli.content_desk.v1.campaigns.ActivateCampaignResponse\x12\x86\x01\n" +
+	"\x0fGetLaunchAssets\x128.vrooli.content_desk.v1.campaigns.GetLaunchAssetsRequest\x1a9.vrooli.content_desk.v1.campaigns.GetLaunchAssetsResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/content-desk/v1/campaigns;campaigns_v1b\x06proto3"
 
 var (
 	file_content_desk_v1_campaigns_campaigns_proto_rawDescOnce sync.Once
@@ -456,7 +678,7 @@ func file_content_desk_v1_campaigns_campaigns_proto_rawDescGZIP() []byte {
 	return file_content_desk_v1_campaigns_campaigns_proto_rawDescData
 }
 
-var file_content_desk_v1_campaigns_campaigns_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_content_desk_v1_campaigns_campaigns_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_content_desk_v1_campaigns_campaigns_proto_goTypes = []any{
 	(*Campaign)(nil),                 // 0: vrooli.content_desk.v1.campaigns.Campaign
 	(*ListCampaignsRequest)(nil),     // 1: vrooli.content_desk.v1.campaigns.ListCampaignsRequest
@@ -466,23 +688,29 @@ var file_content_desk_v1_campaigns_campaigns_proto_goTypes = []any{
 	(*CreateCampaignResponse)(nil),   // 5: vrooli.content_desk.v1.campaigns.CreateCampaignResponse
 	(*ActivateCampaignRequest)(nil),  // 6: vrooli.content_desk.v1.campaigns.ActivateCampaignRequest
 	(*ActivateCampaignResponse)(nil), // 7: vrooli.content_desk.v1.campaigns.ActivateCampaignResponse
+	(*GetLaunchAssetsRequest)(nil),   // 8: vrooli.content_desk.v1.campaigns.GetLaunchAssetsRequest
+	(*LaunchAssetSlot)(nil),          // 9: vrooli.content_desk.v1.campaigns.LaunchAssetSlot
+	(*GetLaunchAssetsResponse)(nil),  // 10: vrooli.content_desk.v1.campaigns.GetLaunchAssetsResponse
 }
 var file_content_desk_v1_campaigns_campaigns_proto_depIdxs = []int32{
-	0, // 0: vrooli.content_desk.v1.campaigns.ListCampaignsResponse.campaigns:type_name -> vrooli.content_desk.v1.campaigns.Campaign
-	3, // 1: vrooli.content_desk.v1.campaigns.CreateCampaignRequest.slots:type_name -> vrooli.content_desk.v1.campaigns.CampaignSlot
-	0, // 2: vrooli.content_desk.v1.campaigns.CreateCampaignResponse.campaign:type_name -> vrooli.content_desk.v1.campaigns.Campaign
-	0, // 3: vrooli.content_desk.v1.campaigns.ActivateCampaignResponse.campaign:type_name -> vrooli.content_desk.v1.campaigns.Campaign
-	1, // 4: vrooli.content_desk.v1.campaigns.CampaignsService.ListCampaigns:input_type -> vrooli.content_desk.v1.campaigns.ListCampaignsRequest
-	4, // 5: vrooli.content_desk.v1.campaigns.CampaignsService.CreateCampaign:input_type -> vrooli.content_desk.v1.campaigns.CreateCampaignRequest
-	6, // 6: vrooli.content_desk.v1.campaigns.CampaignsService.ActivateCampaign:input_type -> vrooli.content_desk.v1.campaigns.ActivateCampaignRequest
-	2, // 7: vrooli.content_desk.v1.campaigns.CampaignsService.ListCampaigns:output_type -> vrooli.content_desk.v1.campaigns.ListCampaignsResponse
-	5, // 8: vrooli.content_desk.v1.campaigns.CampaignsService.CreateCampaign:output_type -> vrooli.content_desk.v1.campaigns.CreateCampaignResponse
-	7, // 9: vrooli.content_desk.v1.campaigns.CampaignsService.ActivateCampaign:output_type -> vrooli.content_desk.v1.campaigns.ActivateCampaignResponse
-	7, // [7:10] is the sub-list for method output_type
-	4, // [4:7] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: vrooli.content_desk.v1.campaigns.ListCampaignsResponse.campaigns:type_name -> vrooli.content_desk.v1.campaigns.Campaign
+	3,  // 1: vrooli.content_desk.v1.campaigns.CreateCampaignRequest.slots:type_name -> vrooli.content_desk.v1.campaigns.CampaignSlot
+	0,  // 2: vrooli.content_desk.v1.campaigns.CreateCampaignResponse.campaign:type_name -> vrooli.content_desk.v1.campaigns.Campaign
+	0,  // 3: vrooli.content_desk.v1.campaigns.ActivateCampaignResponse.campaign:type_name -> vrooli.content_desk.v1.campaigns.Campaign
+	9,  // 4: vrooli.content_desk.v1.campaigns.GetLaunchAssetsResponse.slots:type_name -> vrooli.content_desk.v1.campaigns.LaunchAssetSlot
+	1,  // 5: vrooli.content_desk.v1.campaigns.CampaignsService.ListCampaigns:input_type -> vrooli.content_desk.v1.campaigns.ListCampaignsRequest
+	4,  // 6: vrooli.content_desk.v1.campaigns.CampaignsService.CreateCampaign:input_type -> vrooli.content_desk.v1.campaigns.CreateCampaignRequest
+	6,  // 7: vrooli.content_desk.v1.campaigns.CampaignsService.ActivateCampaign:input_type -> vrooli.content_desk.v1.campaigns.ActivateCampaignRequest
+	8,  // 8: vrooli.content_desk.v1.campaigns.CampaignsService.GetLaunchAssets:input_type -> vrooli.content_desk.v1.campaigns.GetLaunchAssetsRequest
+	2,  // 9: vrooli.content_desk.v1.campaigns.CampaignsService.ListCampaigns:output_type -> vrooli.content_desk.v1.campaigns.ListCampaignsResponse
+	5,  // 10: vrooli.content_desk.v1.campaigns.CampaignsService.CreateCampaign:output_type -> vrooli.content_desk.v1.campaigns.CreateCampaignResponse
+	7,  // 11: vrooli.content_desk.v1.campaigns.CampaignsService.ActivateCampaign:output_type -> vrooli.content_desk.v1.campaigns.ActivateCampaignResponse
+	10, // 12: vrooli.content_desk.v1.campaigns.CampaignsService.GetLaunchAssets:output_type -> vrooli.content_desk.v1.campaigns.GetLaunchAssetsResponse
+	9,  // [9:13] is the sub-list for method output_type
+	5,  // [5:9] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_content_desk_v1_campaigns_campaigns_proto_init() }
@@ -496,7 +724,7 @@ func file_content_desk_v1_campaigns_campaigns_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_content_desk_v1_campaigns_campaigns_proto_rawDesc), len(file_content_desk_v1_campaigns_campaigns_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

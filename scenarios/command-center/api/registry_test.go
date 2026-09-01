@@ -85,3 +85,21 @@ func TestGapsByDashboard_FiltersLive(t *testing.T) {
 		t.Error("dashboard with all live entries should not appear")
 	}
 }
+
+func TestOutcomeRegistryCarriesIndependentReadingAxesAndSamples(t *testing.T) {
+	reg, err := LoadRegistry("../config/outcome-registry.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reg.SchemaVersion != "2.0.0" || len(reg.Metrics) != 38 {
+		t.Fatalf("schema=%s metrics=%d", reg.SchemaVersion, len(reg.Metrics))
+	}
+	for _, m := range reg.Metrics {
+		if !validCoverage(m.Coverage) || !validEmpirical(m.Empirical) {
+			t.Fatalf("invalid axes for %s", m.ID)
+		}
+		if m.Coverage != CoverageNow && (m.Sample == nil || m.Sample.Basis == "") {
+			t.Fatalf("%s has no authored sample basis", m.ID)
+		}
+	}
+}

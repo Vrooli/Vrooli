@@ -30,6 +30,7 @@ message Draft {
   string format = 7;
   string lane = 8;
   string sku = 9;
+  string scenario_name = 10;
 }
 
 message ListDraftsRequest {}
@@ -46,6 +47,7 @@ message CreateDraftRequest {
   string format = 5;
   string lane = 6;
   string sku = 7;
+  string scenario_name = 8;
 }
 
 message CreateDraftResponse {

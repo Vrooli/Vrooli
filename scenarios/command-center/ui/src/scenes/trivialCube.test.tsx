@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { render } from "@testing-library/react";
+import { renderWithProviders as render } from "../test-utils/renderWithProviders";
 
 const frameCallbacks: Array<(state: unknown, delta: number) => void> = [];
 
@@ -26,7 +26,7 @@ describe("TrivialCube scene module", () => {
 
   it("renders a mesh with a mesh-standard material using the accent color", async () => {
     vi.spyOn(window, "getComputedStyle").mockReturnValue({
-      getPropertyValue: (key: string) => (key === "--cc-accent" ? "#00ff00" : ""),
+      getPropertyValue: (key: string) => (key === "--color-primary" ? "#00ff00" : ""),
     } as unknown as CSSStyleDeclaration);
 
     const { default: TrivialCube } = await import("./trivialCube");

@@ -1,5 +1,5 @@
-import { PlaceholderPage } from "../components/PlaceholderPage";
+import RoomPage from "./RoomPage";
 
 export default function Panorama() {
-  return <PlaceholderPage themeKey="cosmos" dashboardId="panorama" title="Panorama" />;
+  return <RoomPage roomIdOverride="panorama" />;
 }

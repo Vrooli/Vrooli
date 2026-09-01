@@ -17,6 +17,16 @@
     "1.0.4",
     "1.0.5"
   ],
-  "latest": "1.0.6",
-  "libraryId": "react-component-library:Stat"
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:Stat",
+  "displayName": "Stat",
+  "description": "The focused metric with value, label, comparison, trend, confidence, loading treatment, locale-aware formatting, and accessible context for what the number means.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -15,7 +15,7 @@ const scenarioName = "command-center"
 
 func main() {
 	if preflight.Run(preflight.Config{
-		ScenarioName: scenarioName,
+		ScenarioName: "command-center",
 	}) {
 		return
 	}
@@ -25,7 +25,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to load gap registry at %s: %v", registryPath, err)
 	}
-	slog.Info("loaded gap registry", "path", registryPath, "dashboards", len(reg.Dashboards))
+	slog.Info("loaded outcome registry", "path", registryPath, "rooms", len(reg.Rooms))
 
 	srv := NewServer(reg)
 
@@ -39,12 +39,12 @@ func main() {
 	}
 }
 
-// resolveRegistryPath returns the path to the gap registry JSON file.
+// resolveRegistryPath returns the path to the versioned outcome registry.
 // Honors REGISTRY_PATH for tests; otherwise resolves ../config/gap-registry.json
 // relative to the API binary's working directory.
 func resolveRegistryPath() string {
 	if p := os.Getenv("COMMAND_CENTER_REGISTRY_PATH"); p != "" {
 		return p
 	}
-	return filepath.Join("..", "config", "gap-registry.json")
+	return filepath.Join("..", "config", "outcome-registry.json")
 }

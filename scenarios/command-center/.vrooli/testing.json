@@ -47,7 +47,7 @@
             "kind": "ui",
             "path": "ui",
             "language": "typescript",
-            "framework": "vite"
+            "framework": "vitest"
           }
         }
       ],

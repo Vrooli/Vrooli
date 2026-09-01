@@ -32,6 +32,7 @@ type Draft struct {
 	Format        string                 `protobuf:"bytes,7,opt,name=format,proto3" json:"format,omitempty"`
 	Lane          string                 `protobuf:"bytes,8,opt,name=lane,proto3" json:"lane,omitempty"`
 	Sku           string                 `protobuf:"bytes,9,opt,name=sku,proto3" json:"sku,omitempty"`
+	ScenarioName  string                 `protobuf:"bytes,10,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -129,6 +130,13 @@ func (x *Draft) GetSku() string {
 	return ""
 }
 
+func (x *Draft) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
+	}
+	return ""
+}
+
 type ListDraftsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -218,6 +226,7 @@ type CreateDraftRequest struct {
 	Format        string                 `protobuf:"bytes,5,opt,name=format,proto3" json:"format,omitempty"`
 	Lane          string                 `protobuf:"bytes,6,opt,name=lane,proto3" json:"lane,omitempty"`
 	Sku           string                 `protobuf:"bytes,7,opt,name=sku,proto3" json:"sku,omitempty"`
+	ScenarioName  string                 `protobuf:"bytes,8,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -297,6 +306,13 @@ func (x *CreateDraftRequest) GetLane() string {
 func (x *CreateDraftRequest) GetSku() string {
 	if x != nil {
 		return x.Sku
+	}
+	return ""
+}
+
+func (x *CreateDraftRequest) GetScenarioName() string {
+	if x != nil {
+		return x.ScenarioName
 	}
 	return ""
 }
@@ -1564,7 +1580,7 @@ var File_content_desk_v1_artifacts_artifacts_proto protoreflect.FileDescriptor
 
 const file_content_desk_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"\n" +
-	")content-desk/v1/artifacts/artifacts.proto\x12 vrooli.content_desk.v1.artifacts\"\xde\x01\n" +
+	")content-desk/v1/artifacts/artifacts.proto\x12 vrooli.content_desk.v1.artifacts\"\x83\x02\n" +
 	"\x05Draft\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vcampaign_id\x18\x02 \x01(\tR\n" +
@@ -1576,10 +1592,12 @@ const file_content_desk_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"\achannel\x18\x06 \x01(\tR\achannel\x12\x16\n" +
 	"\x06format\x18\a \x01(\tR\x06format\x12\x12\n" +
 	"\x04lane\x18\b \x01(\tR\x04lane\x12\x10\n" +
-	"\x03sku\x18\t \x01(\tR\x03sku\"\x13\n" +
+	"\x03sku\x18\t \x01(\tR\x03sku\x12#\n" +
+	"\rscenario_name\x18\n" +
+	" \x01(\tR\fscenarioName\"\x13\n" +
 	"\x11ListDraftsRequest\"U\n" +
 	"\x12ListDraftsResponse\x12?\n" +
-	"\x06drafts\x18\x01 \x03(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x06drafts\"\xc3\x01\n" +
+	"\x06drafts\x18\x01 \x03(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x06drafts\"\xe8\x01\n" +
 	"\x12CreateDraftRequest\x12\x1f\n" +
 	"\vcampaign_id\x18\x01 \x01(\tR\n" +
 	"campaignId\x12 \n" +
@@ -1589,7 +1607,8 @@ const file_content_desk_v1_artifacts_artifacts_proto_rawDesc = "" +
 	"\achannel\x18\x04 \x01(\tR\achannel\x12\x16\n" +
 	"\x06format\x18\x05 \x01(\tR\x06format\x12\x12\n" +
 	"\x04lane\x18\x06 \x01(\tR\x04lane\x12\x10\n" +
-	"\x03sku\x18\a \x01(\tR\x03sku\"T\n" +
+	"\x03sku\x18\a \x01(\tR\x03sku\x12#\n" +
+	"\rscenario_name\x18\b \x01(\tR\fscenarioName\"T\n" +
 	"\x13CreateDraftResponse\x12=\n" +
 	"\x05draft\x18\x01 \x01(\v2'.vrooli.content_desk.v1.artifacts.DraftR\x05draft\"<\n" +
 	"\x16UpdateDraftBodyRequest\x12\x0e\n" +

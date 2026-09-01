@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file content-desk/v1/campaigns/campaigns.proto.
  */
 export const file_content_desk_v1_campaigns_campaigns: GenFile = /*@__PURE__*/
-  fileDesc("Ciljb250ZW50LWRlc2svdjEvY2FtcGFpZ25zL2NhbXBhaWducy5wcm90bxIgdnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMiNAoIQ2FtcGFpZ24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkiFgoUTGlzdENhbXBhaWduc1JlcXVlc3QiVgoVTGlzdENhbXBhaWduc1Jlc3BvbnNlEj0KCWNhbXBhaWducxgBIAMoCzIqLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2FtcGFpZ25zLkNhbXBhaWduIkEKDENhbXBhaWduU2xvdBIPCgdjaGFubmVsGAEgASgJEg4KBmZvcm1hdBgCIAEoCRIQCghjYXBhY2l0eRgDIAEoBSJ7ChVDcmVhdGVDYW1wYWlnblJlcXVlc3QSDAoEbmFtZRgBIAEoCRIVCg1ldmlkZW5jZV9yZWZzGAIgAygJEj0KBXNsb3RzGAMgAygLMi4udnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuQ2FtcGFpZ25TbG90IlYKFkNyZWF0ZUNhbXBhaWduUmVzcG9uc2USPAoIY2FtcGFpZ24YASABKAsyKi52cm9vbGkuY29udGVudF9kZXNrLnYxLmNhbXBhaWducy5DYW1wYWlnbiIlChdBY3RpdmF0ZUNhbXBhaWduUmVxdWVzdBIKCgJpZBgBIAEoCSJYChhBY3RpdmF0ZUNhbXBhaWduUmVzcG9uc2USPAoIY2FtcGFpZ24YASABKAsyKi52cm9vbGkuY29udGVudF9kZXNrLnYxLmNhbXBhaWducy5DYW1wYWlnbjKnAwoQQ2FtcGFpZ25zU2VydmljZRKAAQoNTGlzdENhbXBhaWducxI2LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2FtcGFpZ25zLkxpc3RDYW1wYWlnbnNSZXF1ZXN0GjcudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuTGlzdENhbXBhaWduc1Jlc3BvbnNlEoMBCg5DcmVhdGVDYW1wYWlnbhI3LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2FtcGFpZ25zLkNyZWF0ZUNhbXBhaWduUmVxdWVzdBo4LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2FtcGFpZ25zLkNyZWF0ZUNhbXBhaWduUmVzcG9uc2USiQEKEEFjdGl2YXRlQ2FtcGFpZ24SOS52cm9vbGkuY29udGVudF9kZXNrLnYxLmNhbXBhaWducy5BY3RpdmF0ZUNhbXBhaWduUmVxdWVzdBo6LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2FtcGFpZ25zLkFjdGl2YXRlQ2FtcGFpZ25SZXNwb25zZUJXWlVnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NvbnRlbnQtZGVzay92MS9jYW1wYWlnbnM7Y2FtcGFpZ25zX3YxYgZwcm90bzM");
+  fileDesc("Ciljb250ZW50LWRlc2svdjEvY2FtcGFpZ25zL2NhbXBhaWducy5wcm90bxIgdnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMiTAoIQ2FtcGFpZ24SCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIOCgZzdGF0dXMYAyABKAkSFgoOc2NlbmFyaW9fbmFtZXMYBCADKAkiFgoUTGlzdENhbXBhaWduc1JlcXVlc3QiVgoVTGlzdENhbXBhaWduc1Jlc3BvbnNlEj0KCWNhbXBhaWducxgBIAMoCzIqLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2FtcGFpZ25zLkNhbXBhaWduIkEKDENhbXBhaWduU2xvdBIPCgdjaGFubmVsGAEgASgJEg4KBmZvcm1hdBgCIAEoCRIQCghjYXBhY2l0eRgDIAEoBSKTAQoVQ3JlYXRlQ2FtcGFpZ25SZXF1ZXN0EgwKBG5hbWUYASABKAkSFQoNZXZpZGVuY2VfcmVmcxgCIAMoCRI9CgVzbG90cxgDIAMoCzIuLnZyb29saS5jb250ZW50X2Rlc2sudjEuY2FtcGFpZ25zLkNhbXBhaWduU2xvdBIWCg5zY2VuYXJpb19uYW1lcxgEIAMoCSJWChZDcmVhdGVDYW1wYWlnblJlc3BvbnNlEjwKCGNhbXBhaWduGAEgASgLMioudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuQ2FtcGFpZ24iJQoXQWN0aXZhdGVDYW1wYWlnblJlcXVlc3QSCgoCaWQYASABKAkiWAoYQWN0aXZhdGVDYW1wYWlnblJlc3BvbnNlEjwKCGNhbXBhaWduGAEgASgLMioudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuQ2FtcGFpZ24iLwoWR2V0TGF1bmNoQXNzZXRzUmVxdWVzdBIVCg1zY2VuYXJpb19uYW1lGAEgASgJIpcBCg9MYXVuY2hBc3NldFNsb3QSEwoLY2FtcGFpZ25faWQYASABKAkSFQoNY2FtcGFpZ25fbmFtZRgCIAEoCRIPCgdjaGFubmVsGAMgASgJEg4KBmZvcm1hdBgEIAEoCRIQCghjYXBhY2l0eRgFIAEoBRIQCghyZXNlcnZlZBgGIAEoBRITCgtkcmFmdF9jb3VudBgHIAEoBSJyChdHZXRMYXVuY2hBc3NldHNSZXNwb25zZRIVCg1zY2VuYXJpb19uYW1lGAEgASgJEkAKBXNsb3RzGAIgAygLMjEudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuTGF1bmNoQXNzZXRTbG90MrAEChBDYW1wYWlnbnNTZXJ2aWNlEoABCg1MaXN0Q2FtcGFpZ25zEjYudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuTGlzdENhbXBhaWduc1JlcXVlc3QaNy52cm9vbGkuY29udGVudF9kZXNrLnYxLmNhbXBhaWducy5MaXN0Q2FtcGFpZ25zUmVzcG9uc2USgwEKDkNyZWF0ZUNhbXBhaWduEjcudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuQ3JlYXRlQ2FtcGFpZ25SZXF1ZXN0GjgudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuQ3JlYXRlQ2FtcGFpZ25SZXNwb25zZRKJAQoQQWN0aXZhdGVDYW1wYWlnbhI5LnZyb29saS5jb250ZW50X2Rlc2sudjEuY2FtcGFpZ25zLkFjdGl2YXRlQ2FtcGFpZ25SZXF1ZXN0GjoudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuQWN0aXZhdGVDYW1wYWlnblJlc3BvbnNlEoYBCg9HZXRMYXVuY2hBc3NldHMSOC52cm9vbGkuY29udGVudF9kZXNrLnYxLmNhbXBhaWducy5HZXRMYXVuY2hBc3NldHNSZXF1ZXN0GjkudnJvb2xpLmNvbnRlbnRfZGVzay52MS5jYW1wYWlnbnMuR2V0TGF1bmNoQXNzZXRzUmVzcG9uc2VCV1pVZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jb250ZW50LWRlc2svdjEvY2FtcGFpZ25zO2NhbXBhaWduc192MWIGcHJvdG8z");
 
 /**
  * @generated from message vrooli.content_desk.v1.campaigns.Campaign
@@ -30,6 +30,11 @@ export type Campaign = Message<"vrooli.content_desk.v1.campaigns.Campaign"> & {
    * @generated from field: string status = 3;
    */
   status: string;
+
+  /**
+   * @generated from field: repeated string scenario_names = 4;
+   */
+  scenarioNames: string[];
 };
 
 /**
@@ -114,6 +119,11 @@ export type CreateCampaignRequest = Message<"vrooli.content_desk.v1.campaigns.Cr
    * @generated from field: repeated vrooli.content_desk.v1.campaigns.CampaignSlot slots = 3;
    */
   slots: CampaignSlot[];
+
+  /**
+   * @generated from field: repeated string scenario_names = 4;
+   */
+  scenarioNames: string[];
 };
 
 /**
@@ -175,6 +185,92 @@ export const ActivateCampaignResponseSchema: GenMessage<ActivateCampaignResponse
   messageDesc(file_content_desk_v1_campaigns_campaigns, 7);
 
 /**
+ * @generated from message vrooli.content_desk.v1.campaigns.GetLaunchAssetsRequest
+ */
+export type GetLaunchAssetsRequest = Message<"vrooli.content_desk.v1.campaigns.GetLaunchAssetsRequest"> & {
+  /**
+   * @generated from field: string scenario_name = 1;
+   */
+  scenarioName: string;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.campaigns.GetLaunchAssetsRequest.
+ * Use `create(GetLaunchAssetsRequestSchema)` to create a new message.
+ */
+export const GetLaunchAssetsRequestSchema: GenMessage<GetLaunchAssetsRequest> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_campaigns_campaigns, 8);
+
+/**
+ * @generated from message vrooli.content_desk.v1.campaigns.LaunchAssetSlot
+ */
+export type LaunchAssetSlot = Message<"vrooli.content_desk.v1.campaigns.LaunchAssetSlot"> & {
+  /**
+   * @generated from field: string campaign_id = 1;
+   */
+  campaignId: string;
+
+  /**
+   * @generated from field: string campaign_name = 2;
+   */
+  campaignName: string;
+
+  /**
+   * @generated from field: string channel = 3;
+   */
+  channel: string;
+
+  /**
+   * @generated from field: string format = 4;
+   */
+  format: string;
+
+  /**
+   * @generated from field: int32 capacity = 5;
+   */
+  capacity: number;
+
+  /**
+   * @generated from field: int32 reserved = 6;
+   */
+  reserved: number;
+
+  /**
+   * @generated from field: int32 draft_count = 7;
+   */
+  draftCount: number;
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.campaigns.LaunchAssetSlot.
+ * Use `create(LaunchAssetSlotSchema)` to create a new message.
+ */
+export const LaunchAssetSlotSchema: GenMessage<LaunchAssetSlot> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_campaigns_campaigns, 9);
+
+/**
+ * @generated from message vrooli.content_desk.v1.campaigns.GetLaunchAssetsResponse
+ */
+export type GetLaunchAssetsResponse = Message<"vrooli.content_desk.v1.campaigns.GetLaunchAssetsResponse"> & {
+  /**
+   * @generated from field: string scenario_name = 1;
+   */
+  scenarioName: string;
+
+  /**
+   * @generated from field: repeated vrooli.content_desk.v1.campaigns.LaunchAssetSlot slots = 2;
+   */
+  slots: LaunchAssetSlot[];
+};
+
+/**
+ * Describes the message vrooli.content_desk.v1.campaigns.GetLaunchAssetsResponse.
+ * Use `create(GetLaunchAssetsResponseSchema)` to create a new message.
+ */
+export const GetLaunchAssetsResponseSchema: GenMessage<GetLaunchAssetsResponse> = /*@__PURE__*/
+  messageDesc(file_content_desk_v1_campaigns_campaigns, 10);
+
+/**
  * CampaignsService owns campaign work context and the enforced artifact budget.
  *
  * @generated from service vrooli.content_desk.v1.campaigns.CampaignsService
@@ -203,6 +299,14 @@ export const CampaignsService: GenService<{
     methodKind: "unary";
     input: typeof ActivateCampaignRequestSchema;
     output: typeof ActivateCampaignResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.content_desk.v1.campaigns.CampaignsService.GetLaunchAssets
+   */
+  getLaunchAssets: {
+    methodKind: "unary";
+    input: typeof GetLaunchAssetsRequestSchema;
+    output: typeof GetLaunchAssetsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_content_desk_v1_campaigns_campaigns, 0);

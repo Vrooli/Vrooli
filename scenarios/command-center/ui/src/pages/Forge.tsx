@@ -1,5 +1,5 @@
-import { PlaceholderPage } from "../components/PlaceholderPage";
+import RoomPage from "./RoomPage";
 
 export default function Forge() {
-  return <PlaceholderPage themeKey="foundry" dashboardId="forge" title="The Forge" />;
+  return <RoomPage roomIdOverride="forge" />;
 }

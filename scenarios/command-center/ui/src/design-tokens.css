@@ -1,3 +1,22 @@
 /* rcl:tokens:begin */
 
+:root {
+  --color-background: #05070e;
+  --color-foreground: #e8ecf3;
+  --color-primary: #00d4ff;
+  --color-muted: #94a3b8;
+  --color-muted-foreground: #94a3b8;
+  --color-surface: rgba(255, 255, 255, 0.05);
+  --color-border: rgba(255, 255, 255, 0.14);
+  --color-glow: rgba(0, 212, 255, 0.35);
+  --color-danger: #ff8c9d;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-4: 1rem;
+  --text-body: 1rem;
+  --text-display: 1.75rem;
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+}
+
 /* rcl:tokens:end */

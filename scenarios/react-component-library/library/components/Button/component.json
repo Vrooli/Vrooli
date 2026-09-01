@@ -11,6 +11,15 @@
     "2.0.0",
     "2.2.1"
   ],
+  "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Button",
   "draft": "",
   "evictedVersions": [
     "2.2.2",
@@ -19,18 +28,10 @@
     "1.3.0",
     "2.0.0",
     "2.2.0",
-    "2.2.1"
+    "2.2.1",
+    "2.2.5"
   ],
   "latest": "2.2.6",
   "libraryId": "react-component-library:Button",
-  "displayName": "Button",
-  "description": "The primary action control: a labelled, token-bound button that acknowledges activation immediately, expresses intent through semantic variants, and keeps stable dimensions while it moves through pending, success, and failure.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

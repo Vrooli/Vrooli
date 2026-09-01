@@ -13,5 +13,6 @@ func (s *Server) setupRoutes() {
 
 	s.registerDashboardRoutes()
 	s.registerGapRoutes()
+	s.registerBoardRoutes()
 	s.registerDebugRoutes()
 }

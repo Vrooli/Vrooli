@@ -96,7 +96,7 @@ function MissionControlScene() {
 
   useEffect(() => {
     const value = getComputedStyle(document.documentElement)
-      .getPropertyValue("--cc-accent")
+      .getPropertyValue("--color-primary")
       .trim();
     if (value.length > 0) {
       setAccent(value);

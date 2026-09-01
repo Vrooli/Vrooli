@@ -1,5 +1,5 @@
-import { PlaceholderPage } from "../components/PlaceholderPage";
+import RoomPage from "./RoomPage";
 
 export default function Hive() {
-  return <PlaceholderPage themeKey="bioluminescent" dashboardId="hive" title="The Hive" />;
+  return <RoomPage roomIdOverride="hive" />;
 }

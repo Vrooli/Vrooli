@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { renderWithProviders as render, screen } from "../test-utils/renderWithProviders";
 import type { ReactNode } from "react";
 
 vi.mock("@react-three/fiber", () => ({

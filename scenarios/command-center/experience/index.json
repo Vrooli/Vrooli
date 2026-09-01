@@ -7,7 +7,7 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "command-center",
-  "description": "Experience contract for Command Center, the Director Swarm instrument. The board is the team's runtime surface and runs unattended in a room, so these specs were authored ahead of implementation to fix the honesty obligations before pixels harden around them. Every surface inherits four rules: no figure appears without the qualifier that makes it honest, no unreadable source is ever allowed to look healthy, no surface offers a control the scenario has no right to perform, and a room never renders blank. Every claim is tiered `aspirational` because no surface exists yet to attest against: `manual` would assert a human review that cannot have happened. Each claim carries `x-intended-tier` and, where machine-checkable, `x-check-plan`, so promotion to `machine` is mechanical once the check is written. `room-never-blank` is promoted first — it is the defect the current build shipped.",
+  "description": "Experience contract for Command Center, the Director Swarm instrument. The board is the team's runtime surface and runs unattended in a room, so these specs were authored ahead of implementation to fix the honesty obligations before pixels harden around them. Every surface inherits four rules: no figure appears without the qualifier that makes it honest, no unreadable source is ever allowed to look healthy, no surface offers a control the scenario has no right to perform, and a room never renders blank. Claims remain aspirational until their named machine check exists; the pixel-based BAS suite separately proves that room scenes are nonblank, while experience-manager does not yet promote the render-nonblank claim type.",
   "pages": [
     {
       "id": "room",

@@ -21,6 +21,16 @@
     "1.0.8",
     "1.0.1"
   ],
-  "latest": "1.0.9",
-  "libraryId": "react-component-library:Chart"
+  "latest": "1.0.10",
+  "libraryId": "react-component-library:Chart",
+  "displayName": "Chart",
+  "description": "The responsive chart framework standardizing axes, legends, tooltips, value formatting, selection, theme integration, keyboard summaries, and every generic data state around a pluggable rendering engine.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

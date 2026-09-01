@@ -1,5 +1,5 @@
-import { PlaceholderPage } from "../components/PlaceholderPage";
+import RoomPage from "./RoomPage";
 
 export default function Broadcast() {
-  return <PlaceholderPage themeKey="signal-tower" dashboardId="broadcast" title="Broadcast" />;
+  return <RoomPage roomIdOverride="broadcast" />;
 }

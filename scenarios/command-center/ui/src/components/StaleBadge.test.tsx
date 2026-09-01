@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { renderWithProviders as render, screen } from "../test-utils/renderWithProviders";
 import { StaleBadge } from "./StaleBadge";
 
 describe("StaleBadge", () => {

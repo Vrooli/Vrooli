@@ -1,0 +1,958 @@
+{
+  "$schema": "./outcome-registry.schema.json",
+  "schemaVersion": "2.0.0",
+  "rooms": [
+    {
+      "id": "mission-control",
+      "title": "Mission Control",
+      "category": "mission-control",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "orbital-field",
+      "theme": "ground-control",
+      "metricIds": [
+        "active_scenarios",
+        "scenario_health",
+        "swarm_throughput",
+        "swarm_active_agents",
+        "system_uptime",
+        "revenue_mrr",
+        "revenue_today"
+      ]
+    },
+    {
+      "id": "hive",
+      "title": "The Hive",
+      "category": "hive",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "hive-lattice",
+      "theme": "bioluminescent",
+      "metricIds": [
+        "total_scenarios",
+        "scenario_completeness",
+        "scenario_health_detail",
+        "scenario_ports",
+        "scenario_usage_frequency"
+      ]
+    },
+    {
+      "id": "forge",
+      "title": "The Forge",
+      "category": "forge",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "flow-current",
+      "theme": "foundry",
+      "metricIds": [
+        "throughput_stats",
+        "timing_stats",
+        "scope_stats",
+        "blocking_stats",
+        "agent_stats",
+        "dashboard_stats",
+        "review_stats"
+      ]
+    },
+    {
+      "id": "ledger",
+      "title": "Ledger",
+      "category": "ledger",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "ledger-river",
+      "theme": "vault",
+      "metricIds": [
+        "subscriber_counts",
+        "revenue_rollup",
+        "churn",
+        "credit_balances",
+        "credit_consumption",
+        "usage_records"
+      ]
+    },
+    {
+      "id": "broadcast",
+      "title": "Broadcast",
+      "category": "broadcast",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "signal-constellation",
+      "theme": "signal-tower",
+      "metricIds": [
+        "visitors",
+        "conversions",
+        "cta_clicks",
+        "scroll_depth",
+        "variant_ab",
+        "social_reach",
+        "seo_rankings",
+        "campaign_metrics"
+      ]
+    },
+    {
+      "id": "panorama",
+      "title": "Panorama",
+      "category": "panorama",
+      "objectiveRefs": [],
+      "select": {
+        "anyOf": []
+      },
+      "composition": "panorama-constellation",
+      "theme": "cosmos",
+      "metricIds": [
+        "composite_system_health",
+        "composite_throughput",
+        "composite_revenue",
+        "composite_reach",
+        "composite_portfolio"
+      ]
+    }
+  ],
+  "metrics": [
+    {
+      "id": "active_scenarios",
+      "label": "Active scenarios",
+      "description": "Count of scenarios currently running with green health checks.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "active_scenarios",
+        "ttlSeconds": 60
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_health",
+      "label": "Scenario health summary",
+      "description": "Rollup of scenario health states across the local Vrooli instance.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "scenario_health",
+        "ttlSeconds": 60
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "swarm_throughput",
+      "label": "Swarm throughput (last 24h)",
+      "description": "Completed backlog items produced by the swarm in the trailing day.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "swarm_throughput",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "swarm_active_agents",
+      "label": "Active agents",
+      "description": "Number of agents with at least one run executed in the last hour.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "swarm_active_agents",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "system_uptime",
+      "label": "System uptime",
+      "description": "Wall-clock uptime for the local Vrooli host.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "system_uptime",
+        "ttlSeconds": 60
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "revenue_mrr",
+      "label": "Monthly recurring revenue",
+      "description": "Rolling MRR computed from Stripe subscriptions.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "revenue_mrr",
+        "ttlSeconds": 300
+      },
+      "coverage": "MISSING",
+      "owner": "director-swarm",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint must be implemented by the lpbs-command-center-dashboard-endpoints execute item.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 17,
+        "series": [
+          9,
+          11,
+          13,
+          14,
+          15,
+          17
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "revenue_today",
+      "label": "Revenue today",
+      "description": "Sum of successful checkout_sessions in the current day.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "revenue_today",
+        "ttlSeconds": 300
+      },
+      "coverage": "MISSING",
+      "owner": "director-swarm",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with a daily-rollup query.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 34,
+        "series": [
+          18,
+          22,
+          26,
+          28,
+          30,
+          34
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "total_scenarios",
+      "label": "Total scenarios",
+      "description": "Count of scenarios registered with the Vrooli scenario registry.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "total_scenarios",
+        "ttlSeconds": 60
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_completeness",
+      "label": "Completeness score distribution",
+      "description": "Distribution of 0-100 completeness scores bucketed by classification.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "scenario_completeness",
+        "ttlSeconds": 60
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_health_detail",
+      "label": "Per-scenario health",
+      "description": "Per-scenario health badges (green/yellow/red) derived from lifecycle checks.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "scenario_health_detail",
+        "ttlSeconds": 60
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_ports",
+      "label": "Allocated ports",
+      "description": "Current port allocations per scenario, reported by the lifecycle manager.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "scenario_ports",
+        "ttlSeconds": 60
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scenario_usage_frequency",
+      "label": "Usage frequency (last 7 days)",
+      "description": "How often each scenario is opened or invoked.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "meta-optimization",
+        "binding": "none",
+        "read": "",
+        "select": "scenario_usage_frequency",
+        "ttlSeconds": 30
+      },
+      "coverage": "MISSING",
+      "owner": "meta-optimization",
+      "whatIsNeeded": "Usage tracking is not yet collected anywhere. Needs either client instrumentation posting to an analytics endpoint or lifecycle-manager invocation counters.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 51,
+        "series": [
+          27,
+          33,
+          39,
+          42,
+          45,
+          51
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "throughput_stats",
+      "label": "Backlog throughput",
+      "description": "Items completed per hour, day, week; Swarm Manager stats engine.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "throughput_stats",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "timing_stats",
+      "label": "Timing statistics",
+      "description": "Median, p90, p99 run durations across phases (research, workshop, execute).",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "timing_stats",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scope_stats",
+      "label": "Scope footprint",
+      "description": "Scope-path breadth across concurrent runs; contention hotspots.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "scope_stats",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "blocking_stats",
+      "label": "Blocking items",
+      "description": "Items currently blocked on review, dependency, or scope lock.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "blocking_stats",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "agent_stats",
+      "label": "Per-agent utilisation",
+      "description": "Runs per agent profile and success-rate rollup.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "agent_stats",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "dashboard_stats",
+      "label": "Dashboard & initiative rollups",
+      "description": "Initiative-level rollup derived from /api/v1/overview.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "dashboard_stats",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "review_stats",
+      "label": "Review queue",
+      "description": "Awaiting-approval runs and mean time to human review.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "review_stats",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "subscriber_counts",
+      "label": "Subscribers by tier",
+      "description": "Count of active subscriptions bucketed by plan_tier (free/solo/pro/studio/business).",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "subscriber_counts",
+        "ttlSeconds": 300
+      },
+      "coverage": "MISSING",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/subscriptions endpoint with plan_tier grouping.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 68,
+        "series": [
+          36,
+          44,
+          52,
+          56,
+          60,
+          68
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "revenue_rollup",
+      "label": "Revenue rollup",
+      "description": "Daily/weekly/monthly revenue from successful checkout_sessions.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "revenue_rollup",
+        "ttlSeconds": 300
+      },
+      "coverage": "MISSING",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with configurable window.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 85,
+        "series": [
+          45,
+          55,
+          65,
+          70,
+          75,
+          85
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "churn",
+      "label": "Churn (last 30 days)",
+      "description": "Count of subscriptions with canceled_at inside the 30-day window.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "churn",
+        "ttlSeconds": 300
+      },
+      "coverage": "MISSING",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/churn endpoint filtering canceled_at.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 102,
+        "series": [
+          54,
+          66,
+          78,
+          84,
+          90,
+          102
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "credit_balances",
+      "label": "Credit balances",
+      "description": "Distribution of credit_wallets balances across users.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "credit_balances",
+        "ttlSeconds": 300
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "Histogram aggregation endpoint; raw credit_wallets rows available but not aggregated yet.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 119,
+        "series": [
+          63,
+          77,
+          91,
+          98,
+          105,
+          119
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "credit_consumption",
+      "label": "Credit consumption rate",
+      "description": "Credits burned per day derived from credit_transactions.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "credit_consumption",
+        "ttlSeconds": 300
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "Pre-aggregated daily-burn endpoint; underlying table is available.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 136,
+        "series": [
+          72,
+          88,
+          104,
+          112,
+          120,
+          136
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "usage_records",
+      "label": "Per-limit-key usage",
+      "description": "usage_records summarised per limit_key per billing period.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "monetization",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "usage_records",
+        "ttlSeconds": 300
+      },
+      "coverage": "IN-REACH",
+      "owner": "monetization",
+      "whatIsNeeded": "Aggregation endpoint; raw usage_records exist but need grouping.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 153,
+        "series": [
+          81,
+          99,
+          117,
+          126,
+          135,
+          153
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "visitors",
+      "label": "Visitors (7/30/90d)",
+      "description": "Unique visitors from LPBS metrics_events.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "visitors",
+        "ttlSeconds": 300
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "conversions",
+      "label": "Landing-page conversions",
+      "description": "Conversion count derived from metrics_events.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "conversions",
+        "ttlSeconds": 300
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "cta_clicks",
+      "label": "CTA click-through",
+      "description": "CTA clicks summarised from metrics_events variant traffic.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "cta_clicks",
+        "ttlSeconds": 300
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "scroll_depth",
+      "label": "Scroll depth",
+      "description": "Scroll-depth percentiles from metrics_events.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "scroll_depth",
+        "ttlSeconds": 300
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "variant_ab",
+      "label": "A/B variant lift",
+      "description": "Per-variant comparison rolled up from metrics_events.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "variant_ab",
+        "ttlSeconds": 300
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "social_reach",
+      "label": "Social reach",
+      "description": "Cross-platform follower and engagement counts.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "none",
+        "read": "",
+        "select": "social_reach",
+        "ttlSeconds": 30
+      },
+      "coverage": "MISSING",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "Social-platform API integrations (Twitter/X, LinkedIn, YouTube) are not wired in yet.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 170,
+        "series": [
+          90,
+          110,
+          130,
+          140,
+          150,
+          170
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "seo_rankings",
+      "label": "SEO rankings",
+      "description": "Keyword position tracking.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "none",
+        "read": "",
+        "select": "seo_rankings",
+        "ttlSeconds": 30
+      },
+      "coverage": "MISSING",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "SEO-data integration (e.g. Ahrefs, GSC export) not yet built.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 187,
+        "series": [
+          99,
+          121,
+          143,
+          154,
+          165,
+          187
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "campaign_metrics",
+      "label": "Campaign performance",
+      "description": "Paid and email-campaign metrics (spend, CTR, cost per conversion).",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "marketing-crew",
+        "binding": "none",
+        "read": "",
+        "select": "campaign_metrics",
+        "ttlSeconds": 30
+      },
+      "coverage": "MISSING",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "Campaign-platform ingestion (Ads, Mailchimp, etc.) is not yet in place.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 204,
+        "series": [
+          108,
+          132,
+          156,
+          168,
+          180,
+          204
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "composite_system_health",
+      "label": "Composite system health",
+      "description": "System-wide health summary composed from Mission Control + The Hive.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "composite_system_health",
+        "ttlSeconds": 60
+      },
+      "coverage": "IN-REACH",
+      "owner": "director-swarm",
+      "whatIsNeeded": "Panorama depends on downstream dashboards — partial until all inputs are live (notably revenue on Mission Control).",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 221,
+        "series": [
+          117,
+          143,
+          169,
+          182,
+          195,
+          221
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "composite_throughput",
+      "label": "Composite throughput",
+      "description": "Cross-dashboard throughput view sourced from The Forge.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:swarm-manager",
+        "read": "/api/v1/stats",
+        "select": "composite_throughput",
+        "ttlSeconds": 30
+      },
+      "coverage": "NOW"
+    },
+    {
+      "id": "composite_revenue",
+      "label": "Composite revenue",
+      "description": "Top-line revenue indicator rolled up from Ledger.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "composite_revenue",
+        "ttlSeconds": 300
+      },
+      "coverage": "MISSING",
+      "owner": "director-swarm",
+      "whatIsNeeded": "Depends on LPBS admin-dashboard endpoints (revenue, subscriptions, churn).",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 238,
+        "series": [
+          126,
+          154,
+          182,
+          196,
+          210,
+          238
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "composite_reach",
+      "label": "Composite reach",
+      "description": "Cross-channel audience view composed from Broadcast.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:landing-page-business-suite",
+        "read": "/api/v1/admin/dashboard/summary",
+        "select": "composite_reach",
+        "ttlSeconds": 300
+      },
+      "coverage": "IN-REACH",
+      "owner": "director-swarm",
+      "whatIsNeeded": "Broadcast partial coverage (social/SEO/campaign gaps) keeps this partial.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 255,
+        "series": [
+          135,
+          165,
+          195,
+          210,
+          225,
+          255
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
+    },
+    {
+      "id": "composite_portfolio",
+      "label": "Composite portfolio",
+      "description": "Scenario portfolio view rolled up from The Hive.",
+      "unit": "count",
+      "format": "integer",
+      "tags": [],
+      "source": {
+        "team": "director-swarm",
+        "binding": "scenario:vrooli-core",
+        "read": "/scenarios",
+        "select": "composite_portfolio",
+        "ttlSeconds": 60
+      },
+      "coverage": "NOW"
+    }
+  ],
+  "tombstones": []
+}

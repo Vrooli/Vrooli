@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "forge-scene-canvas-renders",
-    "description": "Navigates to /forge and asserts the SceneCanvas wrapper plus R3F <canvas> element mount (CC-UI-003 lazy-with-Suspense scene).",
+    "description": "Navigates to /forge and asserts the composed canvas contains non-blank pixels (CC-UI-003).",
     "labels": {
       "reset": "none",
       "requirements_json": "[\"CC-UI-003\"]"
@@ -63,15 +63,11 @@
       "id": "assert-r3f-canvas",
       "action": {
         "type": "ACTION_TYPE_ASSERT",
-        "assert": {
-          "selector": "[data-testid='scene-canvas'] canvas",
-          "mode": "ASSERTION_MODE_EXISTS",
-          "timeout_ms": 5000,
-          "failure_message": "Expected R3F <canvas> inside scene-canvas wrapper on /forge"
+        "evaluate": {
+          "expression": "(() => { const canvas = document.querySelector('[data-testid=scene-canvas] canvas'); const ctx = canvas && canvas.getContext('2d'); if (!ctx || !canvas) return false; return Array.from(ctx.getImageData(0, 0, canvas.width, canvas.height).data).some((value, index) => index % 4 !== 3 && value > 0); })()",
+          "expected_value": true
         },
-        "metadata": {
-          "label": "Assert R3F canvas mounted"
-        }
+        "metadata": { "label": "Assert composed scene has non-blank pixels" }
       }
     },
     {

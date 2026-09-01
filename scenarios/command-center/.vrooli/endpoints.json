@@ -32,7 +32,7 @@
       "summary": "Derived board shape",
       "description": "The room list, the outcome denominator with its confidence and rationale, and per-source availability. Derived at read time from the objective set and every team's instrument declaration; never authored in code. The UI generates its routes from this response. Requirement CC-P0-007.",
       "category": "board",
-      "status": "planned",
+      "status": "implemented",
       "response": {
         "type": "BoardShape",
         "properties": {
@@ -57,7 +57,7 @@
       "summary": "Composed readings for one outcome category",
       "description": "Each reading carries all three independent axes — coverage, trust and empirical — its source team's declared instrument state, and where applicable its authored sample, setpoint target and prediction. The samples query parameter accepts hide, mark or full and defaults to mark. Requirements CC-P0-001, CC-P0-002, CC-P0-014.",
       "category": "board",
-      "status": "planned",
+      "status": "implemented",
       "response": {
         "type": "RoomReadings",
         "properties": {
@@ -80,7 +80,7 @@
       "summary": "The one ranked surface",
       "description": "A single ordered answer to which sensor is worth building next, merging coverage gaps, untrusted readings, unavailable sources and unregistered outcomes. Each entry names its owning team and states why it ranks where it does; source integrity outranks coverage breadth. Entry kinds: untrusted-reading, source-unavailable, no-instrument, no-pipeline, unregistered-outcome. Requirement CC-P0-010.",
       "category": "instrument",
-      "status": "planned",
+      "status": "implemented",
       "response": {
         "type": "FocusSurface",
         "properties": {
@@ -102,7 +102,7 @@
       "summary": "Open-loop self-report",
       "description": "Every MISSING cell and every UNREGISTERED outcome, each dated with firstObservedMissing and gapOpenDays, including this scenario's own blind spots. An instrument that reports everyone else's holes and not its own is flattering, not honest. Requirement CC-P0-011.",
       "category": "instrument",
-      "status": "planned",
+      "status": "implemented",
       "response": {
         "type": "OpenLoopReport",
         "properties": {
@@ -125,7 +125,7 @@
       "summary": "Describe this instrument's sensor space",
       "description": "The full projection of the outcome space this instrument covers, its source bindings and their declared instrument state, from the shared api/handlers/capabilities module — the same surface infrastructure-manager and offer-desk expose. This is how the team reads the instrument programmatically rather than by looking at a television, and it is half of how the declared two-addresses deviation closes. Requirement CC-P0-012.",
       "category": "capabilities",
-      "status": "planned",
+      "status": "implemented",
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Machine-readable capability projection, shared handler module across instrument scenarios.",

@@ -32,6 +32,14 @@ export default tseslint.config(
       },
     },
     rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            { group: ["**/test-utils", "@/test-utils/*", "**/features/*/mocks"] },
+          ],
+        },
+      ],
       // ════════════════════════════════════════════════════════════════════════
       // SAFETY-CRITICAL RULES - DO NOT REMOVE, DISABLE, OR WEAKEN
       //
