@@ -131,6 +131,16 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 	} else if changed {
 		updatedFiles = append(updatedFiles, "ui/src/main.tsx")
 	}
+	// A governed link must leave its consumer's token contract satisfied.
+	if s.tokenInventory != nil {
+		tokenSync, err := s.SyncScenarioTokens(ctx, TokenSyncInput{Scenario: in.Scenario})
+		if err != nil {
+			return LinkResult{}, fmt.Errorf("sync adopter design tokens: %w", err)
+		}
+		if tokenSync.Changed || len(tokenSync.Added) > 0 || len(tokenSync.Collisions) > 0 {
+			updatedFiles = append(updatedFiles, "ui/src/design-tokens.css")
+		}
+	}
 
 	var adoption Adoption
 	rows, err := s.repo.List(ctx, ListQuery{ComponentID: component.ID, Scenario: in.Scenario, Limit: 50})

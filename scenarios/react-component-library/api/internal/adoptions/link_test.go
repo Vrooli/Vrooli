@@ -14,6 +14,45 @@ import (
 	"react-component-library/internal/components"
 )
 
+func TestLinkSynchronisesMissingConsumerTokensBeforeRecordingAdoption(t *testing.T) {
+	repo := adoptmocks.NewFakeRepository()
+	lib := &fakeLibrary{
+		byID: map[string]components.Component{
+			"cmp-button": {
+				ID: "cmp-button", LibraryID: "react-component-library:Button", Slug: "Button",
+				LatestVersion: "1.2.0", Version: "1.2.0", AssetKind: components.AssetKindComponent,
+			},
+		},
+		body: map[string]string{"cmp-button": "export function Button() { return null }"},
+		versions: map[string]components.ComponentVersion{
+			"cmp-button@1.2.0": {
+				ComponentID: "cmp-button", LibraryID: "react-component-library:Button", Version: "1.2.0",
+				Status: components.VersionStatusReleased, SourcePath: "Button.tsx",
+				RequiredTokens: []string{"--space-sm"},
+			},
+		},
+	}
+	baseFiles := &fakeFiles{bytes: map[string][]byte{
+		"target::ui/package.json":                    []byte(`{"name":"target-ui","dependencies":{}}`),
+		"target::ui/src/i18n/locales/en.json":        []byte(`{}`),
+		"target::ui/src/consts/selectors.library.ts": []byte(`export const librarySelectors = {} as const;`),
+		"target::ui/src/consts/selectors.ts":         []byte(`const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);`),
+		"target::ui/src/main.tsx":                    []byte("import ReactDOM from \"react-dom/client\";\nReactDOM.createRoot(document.body).render(<div />);\n"),
+		"target::ui/src/design-tokens.css":           []byte(":root { /* rcl:tokens:begin */ /* rcl:tokens:end */ }"),
+	}}
+	files := &importedRampFiles{fakeFiles: baseFiles, imports: []components.LibraryPackageSpecifier{{Name: "Button", RequestedVersion: "1.2.0"}}}
+	svc := adoptions.NewService(repo, lib, files, scheduletest.New(time.Unix(0, 0)))
+	adoptions.SetTokenNamespaceReader(svc, rampTokenInventory{files: baseFiles})
+
+	result, err := svc.Link(context.Background(), adoptions.LinkInput{ComponentID: "cmp-button", Scenario: "target", Version: "1.2.0"})
+	require.NoError(t, err)
+	require.Contains(t, result.UpdatedFiles, "ui/src/design-tokens.css")
+	require.Contains(t, string(baseFiles.bytes["target::ui/src/design-tokens.css"]), "--space-sm")
+	rows, listErr := repo.List(context.Background(), adoptions.ListQuery{Scenario: "target", Limit: 10})
+	require.NoError(t, listErr)
+	require.Len(t, rows, 1)
+}
+
 func TestLinkAddsGovernedPackageDependencyWithoutCopyingSource(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &fakeLibrary{

@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/librarywalk"
 )
 
 // ValidateConformance reports design-system drift separately from defect
@@ -22,7 +24,7 @@ func ValidateConformance(scope Scope) (Result, error) {
 		return Result{}, statErr
 	}
 	var paths []string
-	err := filepath.WalkDir(uiRoot, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.Walk(uiRoot, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

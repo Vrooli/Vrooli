@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints matrix matrix-diff determinism determinism-check corpus-report ledger-audit restore-authored-mirror purge-unreadable
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints matrix matrix-diff determinism determinism-check corpus-report ledger-audit restore-authored-mirror purge-unreadable plan-harness-capture plan-harness-compare
 
 .DEFAULT_GOAL := help
 
@@ -150,6 +150,12 @@ restore-authored-mirror: ## Preview or restore authored release files from the d
 
 purge-unreadable: ## Purge one explicitly named evicted version with no mirror
 	@cd api && GOWORK=off go run ./cmd/purge-unreadable --root ../../.. $(ARGS)
+
+plan-harness-capture: ## Capture the plan's gate, corpus, preflight, and build measures
+	@cd api && GOWORK=off go run ./cmd/plan-harness capture --root ../../.. $(ARGS)
+
+plan-harness-compare: ## Compare two plan-harness captures
+	@cd api && GOWORK=off go run ./cmd/plan-harness compare $(ARGS)
 
 determinism: ## Generate test-genie determinism capabilities from the gate registry
 	@cd api && GOWORK=off go run ./cmd/gen-determinism --output ../.vrooli/test-genie.json

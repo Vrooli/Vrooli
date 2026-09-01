@@ -56,7 +56,7 @@ describe("MobileToolbar viewMode", () => {
     expect(screen.queryByTestId("expand-toggle")).toBeNull();
     expect(screen.getByTestId("toolbar-upload-image")).toBeInTheDocument();
     // Mic button is present
-    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-control-size", "md");
+    expect(screen.getByTestId("voice-mic-btn")).toHaveAttribute("data-size", "md");
   });
 
   it("spreads messages-mode action buttons evenly across the row", () => {
@@ -76,7 +76,9 @@ describe("MobileToolbar viewMode", () => {
     expect(Math.max(...widths) - Math.min(...widths)).toBeLessThanOrEqual(1);
     // The slot owns the computed footprint; the library button fills it.
     expect(mic).toHaveClass("w-full", "h-full");
-    expect(mic).toHaveAttribute("data-control-size", "md");
+    expect(mic).toHaveAttribute("data-rcl-surface", "soft");
+    expect(mic).toHaveAttribute("data-rcl-shape", "rounded");
+    expect(mic).toHaveAttribute("data-size", "md");
   });
 
   it("shows full toolbar in terminal mode (default)", () => {

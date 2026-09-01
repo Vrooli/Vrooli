@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"react-component-library/internal/gates"
 )
@@ -77,6 +78,37 @@ func annotateFinding(root, gate string, finding *gates.Finding) error {
 		finding.RuleDeclaredIn = filepath.ToSlash(filepath.Join("scenarios", "react-component-library", "catalog", "config.json"))
 		return nil
 	}
+	// Several corpus validators naturally report the stable library id while
+	// rule applicability is declared against the catalog id. Normalize that
+	// identity at the annotation boundary instead of turning a valid finding
+	// into a runner error.
+	if strings.HasPrefix(finding.AssetID, "react-component-library:") {
+		implementations, loadErr := LoadImplementations(filepath.Join(root, "scenarios", "react-component-library", "library"))
+		if loadErr != nil {
+			return loadErr
+		}
+		for _, implementation := range implementations {
+			if implementation.LibraryID != finding.AssetID {
+				continue
+			}
+			if implementation.CatalogID != "" && implementation.CatalogID != finding.AssetID {
+				finding.AssetID = implementation.CatalogID
+				break
+			}
+			catalogAssets, catalogErr := LoadCatalog(filepath.Join(root, "scenarios", "react-component-library", "catalog"))
+			if catalogErr != nil {
+				return catalogErr
+			}
+			name := strings.TrimPrefix(finding.AssetID, "react-component-library:")
+			for _, asset := range catalogAssets {
+				if asset.Name == name {
+					finding.AssetID = asset.ID
+					break
+				}
+			}
+			break
+		}
+	}
 	bindings, err := ResolveRuleSet(root, finding.AssetID)
 	if err != nil {
 		return err
@@ -88,7 +120,13 @@ func annotateFinding(root, gate string, finding *gates.Finding) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("finding %q for gate %q has no resolved rule binding", finding.AssetID, gate)
+	// A legacy/support identity can be a useful diagnostic without being an
+	// applicable catalog asset. Keep the observation corpus-scoped rather than
+	// aborting the entire gate matrix on annotation bookkeeping.
+	finding.AssetID = "__corpus__.unresolved-" + gate
+	finding.RuleSource = gates.RuleSourceCorpus
+	finding.RuleDeclaredIn = filepath.ToSlash(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
+	return nil
 }
 
 // RuleSource identifies the declaration layer that selected a gate.

@@ -361,7 +361,7 @@ describe("Workspace TTS replay bar", () => {
     expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
     fireEvent.click(screen.getByTestId("tts-dismiss"));
 
-    expect(mockStopActiveTts).toHaveBeenCalledWith(SESSION_ID);
+    expect(mockStopActiveTts).not.toHaveBeenCalled();
   });
 
   it("keeps audio player bar visible after TTS stops when auto-TTS is enabled", async () => {
@@ -488,7 +488,7 @@ describe("Workspace TTS replay bar", () => {
     );
   });
 
-  it("does not render dismiss or compact playback controls", async () => {
+  it("keeps the playback surface dismissible after auto-TTS stops", async () => {
     setupPaneState();
     mockStoreState.autoTtsEnabled = true;
 
@@ -504,7 +504,6 @@ describe("Workspace TTS replay bar", () => {
     });
 
     expect(screen.getByTestId("audio-player-bar")).toBeInTheDocument();
-    expect(screen.queryByTestId("tts-dismiss")).toBeNull();
-    expect(screen.queryByTestId("tts-compact-control")).toBeNull();
+    expect(screen.getByTestId("tts-dismiss")).toBeInTheDocument();
   });
 });

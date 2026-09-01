@@ -2,12 +2,11 @@ package adoptions
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"react-component-library/internal/catalogconfig"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/components"
 )
@@ -72,7 +71,7 @@ func (r *CatalogMaturityReader) Maturity(ctx context.Context, component componen
 	if err != nil {
 		return MaturityVerdict{}, err
 	}
-	floor, err := declaredMaturityFloor(filepath.Join(r.root, "scenarios", "react-component-library", "catalog", "config.json"))
+	floor, err := catalogconfig.DeclaredMaturityFloor(filepath.Join(r.root, "scenarios", "react-component-library", "catalog", "config.json"))
 	if err != nil {
 		return MaturityVerdict{}, err
 	}
@@ -94,21 +93,4 @@ func (r *CatalogMaturityReader) Maturity(ctx context.Context, component componen
 		}
 	}
 	return MaturityVerdict{}, fmt.Errorf("catalog maturity is unavailable for %s", assetID)
-}
-
-func declaredMaturityFloor(path string) (string, error) {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("read catalog maturity floor: %w", err)
-	}
-	var config struct {
-		Floor string `json:"x-adoptionMaturityFloor"`
-	}
-	if err := json.Unmarshal(raw, &config); err != nil {
-		return "", fmt.Errorf("parse catalog maturity floor: %w", err)
-	}
-	if config.Floor == "" {
-		return string(catalogcoverage.RungVerified), nil
-	}
-	return config.Floor, nil
 }

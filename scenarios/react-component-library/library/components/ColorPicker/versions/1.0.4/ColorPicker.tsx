@@ -8,8 +8,8 @@
 import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import { Check, Pipette, Plus, X, type LucideIcon } from "lucide-react";
 import { useState } from "react";
-import { isHexColor, isLightColor, parseColorValue, serializeColorValue } from "../../../../support/ColorPicker/1.0.4/colorUtils";
-import { useDeferredColorCommit } from "../../../../support/ColorPicker/1.0.4/useDeferredColorCommit";
+import { isHexColor, isLightColor, parseColorValue, serializeColorValue } from "../../../../support/ColorPicker/versions/1.0.4/colorUtils";
+import { useDeferredColorCommit } from "../../../../support/ColorPicker/versions/1.0.4/useDeferredColorCommit";
 
 export type ColorPickerLabels = {
   heading?: string;

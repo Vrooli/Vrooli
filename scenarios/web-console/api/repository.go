@@ -12,5 +12,5 @@ type ShortcutStore interface {
 	Get(ctx context.Context, id string) (*ShortcutProfile, bool)
 	Upsert(ctx context.Context, id, scope, name string, shortcuts []ShortcutEntry) *ShortcutProfile
 	Delete(ctx context.Context, id string) bool
-	Effective(ctx context.Context) []ShortcutEntry
+	Effective(ctx context.Context) EffectiveShortcuts
 }

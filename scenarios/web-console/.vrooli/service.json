@@ -209,9 +209,9 @@
           {
             "console": "linux",
             "node": "macos",
-            "status": "supported",
+            "status": "build-verified",
             "mechanism": "vrooli-bridge-websocket-session-stream",
-            "evidence": "live TestLiveRemoteSessionThroughWebConsole proof on minimouse Darwin amd64; Darwin transcript, resize, and stty assertions"
+            "evidence": "docs/reference/cross-platform-effort/evidence/remote-session-plan-live-attempt-2026-08-29.md"
           }
         ]
       },

@@ -56,7 +56,7 @@ export default function ToolbarSurface({
             style={{ gap: m.gap, height: m.unit }}
           >
             {row.slots.map((slot) => (
-              <div key={slot.id} className={cn("flex", slot.fill && "min-w-0")}>
+              <div key={slot.id} className={cn("flex", slot.fill && "min-w-0 flex-1")}>
                 {renderToolbarControl(slot, ctx, m)}
               </div>
             ))}

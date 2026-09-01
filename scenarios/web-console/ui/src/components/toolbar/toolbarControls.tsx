@@ -284,7 +284,7 @@ export function renderToolbarControl(
   switch (slot.id) {
     case "more":
       return ctx.moreTrigger?.({
-        className: cn(CONTROL_BASE, "rounded border border-wc-default bg-wc-surface-input text-wc-text-secondary transition active:bg-wc-accent-active"),
+        className: cn(CONTROL_BASE, "rounded-md border border-wc-default bg-wc-surface-input text-wc-text-secondary transition active:bg-wc-accent-active"),
         style: boxStyle(slot.width, m),
         label,
       }) ?? (
@@ -385,13 +385,18 @@ export function renderToolbarControl(
     case "mic":
       if (!ctx.voice) return null;
       return (
-        <div data-testid={tid("toolbar-mic-slot")} className="flex items-stretch" style={{ width: slot.width, height: m.unit }}>
+        <div
+          data-testid={tid("toolbar-mic-slot")}
+          className={cn("flex min-w-0 items-stretch", slot.fill && "flex-1")}
+          style={{ width: slot.width, height: m.unit }}
+        >
           <VoiceMicButton
             {...ctx.voice}
             testId={tid("voice-mic-btn")}
             size={voiceControlSize(m)}
             className="h-full w-full"
             buttonClassName="flex h-full w-full items-center justify-center"
+            style={{ inlineSize: "100%", blockSize: "100%" }}
           />
         </div>
       );

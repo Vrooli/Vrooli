@@ -90,6 +90,13 @@
         ],
         "mode": "file-determined"
       },
+      "declaration-coverage": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
       "dependency-rank": {
         "inputs": [
           "catalog/assets/**",
@@ -101,6 +108,13 @@
         "inputs": [
           "catalog/assets/**",
           "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "dist-resolution": {
+        "inputs": [
+          "package.json",
+          "dist/**"
         ],
         "mode": "file-determined"
       },
@@ -128,6 +142,13 @@
       "fallback-parity": {
         "inputs": [
           "catalog/config.json",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "field-ownership": {
+        "inputs": [
+          "catalog/assets/**",
           "library/**"
         ],
         "mode": "file-determined"
@@ -315,6 +336,13 @@
         ],
         "mode": "file-determined"
       },
+      "style-ownership": {
+        "inputs": [
+          "catalog/assets/**",
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
       "surface-discipline": {
         "inputs": [
           "catalog/config.json",
@@ -373,6 +401,13 @@
       },
       "version-mirror-integrity": {
         "inputs": [
+          "library/**"
+        ],
+        "mode": "file-determined"
+      },
+      "version-shape": {
+        "inputs": [
+          "catalog/version-shape.json",
           "library/**"
         ],
         "mode": "file-determined"

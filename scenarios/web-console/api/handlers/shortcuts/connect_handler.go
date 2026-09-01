@@ -37,7 +37,10 @@ var ErrInvalidArgument = errors.New("invalid argument")
 func (h *connectHandler) GetEffective(ctx context.Context, _ *connect.Request[shortcutsv1.GetEffectiveRequest]) (*connect.Response[shortcutsv1.GetEffectiveResponse], error) {
 	out := h.deps.Service.Effective(ctx)
 	return connect.NewResponse(&shortcutsv1.GetEffectiveResponse{
-		Shortcuts: shortcutsToProto(out),
+		Shortcuts:   shortcutsToProto(out.Shortcuts),
+		ProfileId:   out.ProfileID,
+		Scope:       out.Scope,
+		ProfileName: out.Name,
 	}), nil
 }
 
@@ -80,6 +83,7 @@ func shortcutsToProto(in []Shortcut) []*shortcutsv1.Shortcut {
 			Label:       s.Label,
 			Command:     s.Command,
 			Description: s.Description,
+			AgentId:     s.AgentID,
 		})
 	}
 	return out
@@ -92,6 +96,7 @@ func shortcutsFromProto(in []*shortcutsv1.Shortcut) []Shortcut {
 			Label:       s.GetLabel(),
 			Command:     s.GetCommand(),
 			Description: s.GetDescription(),
+			AgentID:     s.GetAgentId(),
 		})
 	}
 	return out

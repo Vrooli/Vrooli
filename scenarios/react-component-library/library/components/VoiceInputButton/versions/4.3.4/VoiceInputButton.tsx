@@ -8,7 +8,7 @@
 import { useCallback, useRef, type ButtonHTMLAttributes, type PointerEvent } from "react";
 import { IconButton, type IconButtonShape, type IconButtonSurface } from "@vrooli/react-component-library/IconButton/3";
 import type { ControlDensity, ControlSize } from "@vrooli/react-component-library/ControlBase/1";
-import { VoiceInputButtonGlyph as Glyph, type VoiceInputGlyphKind } from "../../../../support/VoiceInputButtonGlyph/4.3.4";
+import { VoiceInputButtonGlyph as Glyph, type VoiceInputGlyphKind } from "../../../../support/VoiceInputButtonGlyph/versions/4.3.4/VoiceInputButtonGlyph";
 import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 export const voiceInputButtonStyles = `
 [data-rcl-voice-input] { --rcl-voice-accent: var(--color-foreground); --rcl-voice-surface: var(--color-surface); --rcl-voice-border: var(--color-border); position: relative; background: var(--rcl-voice-surface); border-color: var(--rcl-voice-border); color: var(--rcl-voice-accent); }

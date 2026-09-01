@@ -21,10 +21,15 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/scopecatalog"
-	"github.com/vrooli/nodeclient"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	credentialgrantv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant"
+	credentialgrantconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/credentialgrant/credentialgrant_v1connect"
+	bridgemachinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/machines"
+	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 	machinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/machines"
@@ -85,7 +90,7 @@ func (h *machineRPC) IssueCode(ctx context.Context, req *connect.Request[machine
 	if err != nil {
 		return nil, err
 	}
-	issued, issueErr := client.IssueCode(ctx, nodeclient.CodeRequest{Name: req.Msg.GetLabel()}, bridgeCallTimeout)
+	issued, issueErr := client.IssueCode(ctx, nodereach.CodeRequest{Name: req.Msg.GetLabel()}, bridgeCallTimeout)
 	if issueErr != nil {
 		return nil, controlPlaneError("issue a join code", issueErr)
 	}
@@ -121,7 +126,7 @@ func (h *machineRPC) Decide(ctx context.Context, req *connect.Request[machinesv1
 		}
 		scopes = resolved
 	}
-	nodeID, decideErr := client.Decide(ctx, nodeclient.DecideRequest{
+	nodeID, decideErr := client.Decide(ctx, nodereach.DecideRequest{
 		RequestID:         requestID,
 		Approve:           req.Msg.GetApprove(),
 		Scopes:            scopes,
@@ -177,6 +182,226 @@ func (h *machineRPC) Forget(ctx context.Context, req *connect.Request[machinesv1
 		return nil, controlPlaneError("forget this machine", forgetErr)
 	}
 	return connect.NewResponse(&machinesv1.ForgetResponse{ForgottenMachineId: req.Msg.GetMachineId()}), nil
+}
+
+func (h *machineRPC) PreflightOnboarding(ctx context.Context, req *connect.Request[onboardv1.PreflightOnboardingRequest]) (*connect.Response[onboardv1.PreflightOnboardingResponse], error) {
+	client, _, err := h.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.PreflightOnboarding(ctx, req.Msg)
+	if err != nil {
+		return nil, controlPlaneError("preflight onboarding", err)
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (h *machineRPC) StartOnboarding(ctx context.Context, req *connect.Request[onboardv1.StartOnboardingRequest]) (*connect.Response[onboardv1.StartOnboardingResponse], error) {
+	client, _, err := h.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.StartOnboarding(ctx, req.Msg)
+	if err != nil {
+		return nil, controlPlaneError("start onboarding", err)
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (h *machineRPC) GetConfiguration(ctx context.Context, req *connect.Request[machinesv1.GetConfigurationRequest]) (*connect.Response[machinesv1.GetConfigurationResponse], error) {
+	client, _, err := h.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	nodeID, err := nodeIDForMachine(req.Msg.GetMachineId())
+	if err != nil {
+		return nil, err
+	}
+	questions, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/operator-inputs", HTTPMethod: "GET", HTTPPath: "api/v2/operator-inputs", Timeout: bridgeCallTimeout, MaxResponse: 8 << 20})
+	if err != nil {
+		return nil, controlPlaneError("read target configuration questions", err)
+	}
+	readiness, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/readiness", HTTPMethod: "GET", HTTPPath: "api/v2/readiness", Timeout: bridgeCallTimeout, MaxResponse: 8 << 20})
+	if err != nil {
+		return nil, controlPlaneError("read target readiness", err)
+	}
+	response := &machinesv1.GetConfigurationResponse{QuestionsJson: questions, ReadinessJson: readiness, TargetId: nodeID}
+	if detail := h.machineDetailForNode(ctx, client, nodeID); detail != nil {
+		if encoded, marshalErr := protojson.Marshal(detail); marshalErr == nil {
+			response.MachineDetailJson = encoded
+		}
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (h *machineRPC) machineDetailForNode(ctx context.Context, client *nodereach.Client, nodeID string) *bridgemachinesv1.GetMachineResponse {
+	machines, err := client.ListMachines(ctx, bridgeCallTimeout)
+	if err != nil {
+		return nil
+	}
+	for _, machine := range machines {
+		if machine == nil || machine.GetId() == "" {
+			continue
+		}
+		for _, lineage := range machine.GetNodeLineage() {
+			if lineage.GetCurrent() && lineage.GetNodeId() == nodeID {
+				detail, detailErr := client.GetMachine(ctx, machine.GetId(), bridgeCallTimeout)
+				if detailErr == nil {
+					return detail
+				}
+				return nil
+			}
+		}
+	}
+	return nil
+}
+
+func (h *machineRPC) ResolveConfiguration(ctx context.Context, req *connect.Request[machinesv1.ResolveConfigurationRequest]) (*connect.Response[machinesv1.ResolveConfigurationResponse], error) {
+	client, _, err := h.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	nodeID, err := nodeIDForMachine(req.Msg.GetMachineId())
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/operator-inputs/resolve", HTTPMethod: "POST", HTTPPath: "api/v2/operator-inputs/resolve", Body: req.Msg.GetAnswersJson(), Timeout: bridgeCallTimeout, MaxResponse: 8 << 20})
+	if err != nil {
+		return nil, controlPlaneError("submit target configuration answers", err)
+	}
+	return connect.NewResponse(&machinesv1.ResolveConfigurationResponse{ResultJson: result, TargetId: nodeID}), nil
+}
+
+func (h *machineRPC) credentialGrantClient(ctx context.Context) (credentialgrantconnect.CredentialGrantServiceClient, error) {
+	_, base := bridgeNodeClient(ctx)
+	if !base.Available || strings.TrimSpace(base.BaseURL) == "" {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("Bridge credentials are not configured"))
+	}
+	return credentialgrantconnect.NewCredentialGrantServiceClient(authenticatedHTTPClient(base.OwnerToken, base.ReauthToken), base.BaseURL), nil
+}
+
+func (h *machineRPC) ListCredentialGrants(ctx context.Context, req *connect.Request[machinesv1.ListCredentialGrantsRequest]) (*connect.Response[credentialgrantv1.ListGrantsResponse], error) {
+	client, err := h.credentialGrantClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	nodeID, err := nodeIDForMachine(req.Msg.GetMachineId())
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.ListGrants(ctx, connect.NewRequest(&credentialgrantv1.ListGrantsRequest{NodeId: nodeID}))
+	if err != nil {
+		return nil, controlPlaneError("read credential grants", err)
+	}
+	return result, nil
+}
+
+func (h *machineRPC) CreateCredentialGrant(ctx context.Context, req *connect.Request[credentialgrantv1.CreateGrantRequest]) (*connect.Response[credentialgrantv1.CredentialGrant], error) {
+	client, err := h.credentialGrantClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.CreateGrant(ctx, req)
+	if err != nil {
+		return nil, controlPlaneError("create credential grant", err)
+	}
+	return result, nil
+}
+
+func (h *machineRPC) RevokeCredentialGrant(ctx context.Context, req *connect.Request[credentialgrantv1.RevokeGrantRequest]) (*connect.Response[credentialgrantv1.CredentialGrant], error) {
+	client, err := h.credentialGrantClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.RevokeGrant(ctx, req)
+	if err != nil {
+		return nil, controlPlaneError("revoke credential grant", err)
+	}
+	return result, nil
+}
+
+func (h *machineRPC) AnswerSecret(ctx context.Context, req *connect.Request[credentialgrantv1.AnswerSecretRequest]) (*connect.Response[credentialgrantv1.CredentialGrant], error) {
+	client, err := h.credentialGrantClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.AnswerSecret(ctx, req)
+	if err != nil {
+		return nil, controlPlaneError("deliver secret answer", err)
+	}
+	return result, nil
+}
+
+func (h *machineRPC) ReapplyConfiguration(ctx context.Context, req *connect.Request[machinesv1.ReapplyConfigurationRequest]) (*connect.Response[machinesv1.ReapplyConfigurationResponse], error) {
+	client, _, err := h.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	nodeID, err := nodeIDForMachine(req.Msg.GetMachineId())
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/apply", HTTPMethod: "POST", HTTPPath: "api/v2/apply", Body: []byte("{}"), Timeout: 30 * time.Second, MaxResponse: 8 << 20})
+	if err != nil {
+		return nil, controlPlaneError("re-apply target configuration", err)
+	}
+	return connect.NewResponse(&machinesv1.ReapplyConfigurationResponse{ResultJson: result, TargetId: nodeID}), nil
+}
+
+func (h *machineRPC) GetConfigurationApplyStatus(ctx context.Context, req *connect.Request[machinesv1.GetConfigurationApplyStatusRequest]) (*connect.Response[machinesv1.ReapplyConfigurationResponse], error) {
+	client, _, err := h.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	nodeID, err := nodeIDForMachine(req.Msg.GetMachineId())
+	if err != nil {
+		return nil, err
+	}
+	runID := strings.TrimSpace(req.Msg.GetRunId())
+	if runID == "" || strings.ContainsAny(runID, "/\\") {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a valid apply run id is required"))
+	}
+	result, err := client.CallScenario(ctx, nodereach.ScenarioRequest{NodeID: nodeID, Scenario: "vrooli-onboarding", Service: "api", Method: "v2/apply status", HTTPMethod: "GET", HTTPPath: "api/v2/apply/" + runID, Timeout: bridgeCallTimeout, MaxResponse: 8 << 20})
+	if err != nil {
+		return nil, controlPlaneError("read configuration apply status", err)
+	}
+	return connect.NewResponse(&machinesv1.ReapplyConfigurationResponse{ResultJson: result, TargetId: nodeID}), nil
+}
+
+func (h *machineRPC) GetOnboarding(ctx context.Context, req *connect.Request[onboardv1.GetOnboardingRequest]) (*connect.Response[onboardv1.GetOnboardingResponse], error) {
+	client, _, err := h.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.GetOnboarding(ctx, req.Msg)
+	if err != nil {
+		return nil, controlPlaneError("get onboarding", err)
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (h *machineRPC) WaitOnboarding(ctx context.Context, req *connect.Request[onboardv1.WaitOnboardingRequest]) (*connect.Response[onboardv1.WaitOnboardingResponse], error) {
+	client, _, err := h.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.WaitOnboarding(ctx, req.Msg)
+	if err != nil {
+		return nil, controlPlaneError("wait for onboarding", err)
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (h *machineRPC) CancelOnboarding(ctx context.Context, req *connect.Request[onboardv1.CancelOnboardingRequest]) (*connect.Response[onboardv1.CancelOnboardingResponse], error) {
+	client, _, err := h.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := client.CancelOnboarding(ctx, req.Msg)
+	if err != nil {
+		return nil, controlPlaneError("cancel onboarding", err)
+	}
+	return connect.NewResponse(result), nil
 }
 
 // readFleet assembles the whole surface in one pass. An unreachable or
@@ -247,7 +472,7 @@ func (h *machineRPC) readFleet(ctx context.Context) fleet {
 	return view
 }
 
-func (h *machineRPC) machineDriftByNode(ctx context.Context, client *nodeclient.Client) map[string][]*machinesv1.MachineDrift {
+func (h *machineRPC) machineDriftByNode(ctx context.Context, client *nodereach.Client) map[string][]*machinesv1.MachineDrift {
 	result := make(map[string][]*machinesv1.MachineDrift)
 	machines, err := client.ListMachines(ctx, bridgeCallTimeout)
 	if err != nil {
@@ -337,7 +562,7 @@ func (h *machineRPC) machineByNodeID(ctx context.Context, nodeID string) *machin
 // scopesForPreset asks the control plane what a preset grants. Resolving it
 // here rather than in the browser is what keeps a single authorization
 // vocabulary: the console names a posture, the control plane owns its meaning.
-func (h *machineRPC) scopesForPreset(ctx context.Context, client *nodeclient.Client, preset string) ([]string, error) {
+func (h *machineRPC) scopesForPreset(ctx context.Context, client *nodereach.Client, preset string) ([]string, error) {
 	enrollment, err := client.ListEnrollment(ctx, false, bridgeCallTimeout)
 	if err != nil {
 		return nil, controlPlaneError("read the permission presets", err)
@@ -350,7 +575,7 @@ func (h *machineRPC) scopesForPreset(ctx context.Context, client *nodeclient.Cli
 	return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("the control plane does not offer a %q permission preset", preset))
 }
 
-func (h *machineRPC) presetsOnly(ctx context.Context, client *nodeclient.Client) []*machinesv1.PermissionPreset {
+func (h *machineRPC) presetsOnly(ctx context.Context, client *nodereach.Client) []*machinesv1.PermissionPreset {
 	enrollment, err := client.ListEnrollment(ctx, false, bridgeCallTimeout)
 	if err != nil {
 		return nil
@@ -358,7 +583,7 @@ func (h *machineRPC) presetsOnly(ctx context.Context, client *nodeclient.Client)
 	return presetsToProto(enrollment.Presets)
 }
 
-func (h *machineRPC) client(ctx context.Context) (*nodeclient.Client, targetConnection, error) {
+func (h *machineRPC) client(ctx context.Context) (*nodereach.Client, targetConnection, error) {
 	client, base := bridgeNodeClient(ctx)
 	if client == nil {
 		return nil, base, connect.NewError(connect.CodeFailedPrecondition, errors.New("this computer is not enrolled with a fleet control plane"))
@@ -510,7 +735,7 @@ func (h *machineRPC) controlPlaneConsoleURL(ctx context.Context) string {
 // safety outcome the operator must see as such; everything else is reported as
 // the control plane being unable to complete the action.
 func controlPlaneError(action string, err error) error {
-	if nodeclient.IsKind(err, nodeclient.ErrInvalidRequest) {
+	if nodereach.IsKind(err, nodereach.ErrInvalidRequest) {
 		// The words are the one field the joining machine could not choose for
 		// itself, so a mismatch is the single refusal an operator must be able
 		// to act on. It gets a sentence rather than the wire message.
@@ -520,7 +745,7 @@ func controlPlaneError(action string, err error) error {
 		}
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	if nodeclient.IsKind(err, nodeclient.ErrNodeNotFound) {
+	if nodereach.IsKind(err, nodereach.ErrNodeNotFound) {
 		return connect.NewError(connect.CodeNotFound, err)
 	}
 	return connect.NewError(connect.CodeUnavailable, fmt.Errorf("could not %s: %w", action, err))

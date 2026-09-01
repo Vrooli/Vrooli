@@ -34,23 +34,24 @@ type Definition struct {
 }
 
 var registry = []Definition{
-	registeredDefinition("graph-reconciled", false, ValidateGraphReconciled, "catalog/assets/**", "library/**"),
+	registeredDefinition("graph-reconciled", true, ValidateGraphReconciled, "catalog/assets/**", "library/**"),
 	registeredDefinition("dependency-rank", true, ValidateDependencyRank, "catalog/assets/**", "library/**"),
 	registeredDefinition("self-hosting", true, ValidateSelfHosting, "catalog/assets/**", "library/**"),
 	registeredDefinition("bas-genericity", true, ValidateBASGenericity, "catalog/assets/**", "library/**"),
 	registeredDefinition("token-vocabulary", true, ValidateTokenVocabulary, "catalog/config.json", "library/**"),
 	registeredDefinition("fallback-parity", false, ValidateFallbackParity, "catalog/config.json", "library/**"),
-	registeredDefinition("kit-compatibility", false, ValidateKitCompatibility, "catalog/config.json", "library/**"),
-	registeredDefinition("affinity-compatible", false, ValidateAffinityNotBroaderThanCompatibility, "catalog/config.json", "library/**"),
+	registeredDefinition("kit-compatibility", true, ValidateKitCompatibility, "catalog/config.json", "library/**"),
+	registeredDefinition("affinity-compatible", true, ValidateAffinityNotBroaderThanCompatibility, "catalog/config.json", "library/**"),
 	registeredDefinition("token-ramp-complete", true, ValidateTokenRampComplete, "catalog/assets/**", "library/**"),
 	registeredDefinition("scenario-token-requirements", true, ValidateScenarioTokenRequirements, "catalog/config.json", "library/**", "ui/src/**"),
-	registeredDefinition("released-version-immutable", false, ValidateReleasedVersionImmutable, "library/released-version-hashes.json", "library/**"),
-	registeredDefinition("version-mirror-integrity", false, ValidateVersionMirrorIntegrity, "library/**"),
-	registeredDefinition("specifier-shape", false, ValidateSpecifierShape, "library/**", "catalog/config.json"),
-	registeredDefinition("version-shape", false, ValidateVersionShape, "catalog/version-shape.json", "library/**"),
+	registeredDefinition("released-version-immutable", true, ValidateReleasedVersionImmutable, "library/released-version-hashes.json", "library/**"),
+	registeredDefinition("version-mirror-integrity", true, ValidateVersionMirrorIntegrity, "library/**"),
+	registeredDefinition("specifier-shape", true, ValidateSpecifierShape, "library/**", "catalog/config.json"),
+	registeredDefinition("version-shape", true, ValidateVersionShape, "catalog/version-shape.json", "library/**"),
 	registeredDefinition("field-ownership", true, ValidateFieldOwnership, "catalog/assets/**", "library/**"),
 	registeredDefinition("release-provenance", true, ValidateReleaseProvenance, "library/release-provenance.json", "library/**"),
 	registeredDefinition("version-liveness", true, ValidateVersionLiveness, "library/**"),
+	registeredDefinition("dist-resolution", true, ValidateDistResolution, "package.json", "dist/**"),
 	registeredDefinition("types", false, func(scope Scope) (Result, error) {
 		return ValidateTypes(scope)
 	}, "package.json", "pnpm-lock.yaml", "library/**"),
@@ -63,16 +64,16 @@ var registry = []Definition{
 	registeredDefinition("rtl", false, ValidateRTL, "catalog/config.json", "library/**"),
 	registeredDefinition("reduced-motion", false, ValidateReducedMotion, "catalog/config.json", "library/**"),
 	registeredDefinition("performance", true, ValidatePerformance, "catalog/assets/**", "library/**"),
-	registeredDefinition("console-clean", false, ValidateConsoleClean, "catalog/config.json", "library/**"),
+	registeredDefinition("console-clean", true, ValidateConsoleClean, "catalog/config.json", "library/**"),
 	registeredDefinition("surface-discipline", false, ValidateSurfaceDiscipline, "catalog/config.json", "library/**"),
 	registeredDefinition("composition", false, ValidateComposition, "catalog/assets/**", "library/**"),
-	registeredDefinition("composition-contract", false, ValidateCompositionContract, "catalog/assets/**", "library/**"),
+	registeredDefinition("composition-contract", true, ValidateCompositionContract, "catalog/assets/**", "library/**"),
 	registeredDefinition("documentation", false, ValidateDocumentation, "catalog/assets/**", "library/**"),
-	registeredDefinition("examples", false, ValidateExamples, "catalog/assets/**", "library/**"),
-	registeredDefinition("fixture-adversarial", false, ValidateFixtures, "catalog/assets/**", "library/**"),
+	registeredDefinition("examples", true, ValidateExamples, "catalog/assets/**", "library/**"),
+	registeredDefinition("fixture-adversarial", true, ValidateFixtures, "catalog/assets/**", "library/**"),
 	registeredDefinition("tokens", true, ValidateTokens, "catalog/config.json", "library/**"),
 	registeredDefinition("conformance", true, ValidateConformance, "catalog/assets/**", "library/**"),
-	registeredDefinition("lifecycle", false, ValidateLifecycle, "catalog/config.json", "library/**"),
+	registeredDefinition("lifecycle", true, ValidateLifecycle, "catalog/config.json", "library/**"),
 	registeredDefinition("i18n", false, ValidateI18n, "catalog/config.json", "library/**"),
 	registeredDefinition("selector-coverage", false, ValidateSelectorCoverage, "catalog/config.json", "library/**"),
 	registeredDefinition("restyle-contract", true, ValidateRestyleContract, "catalog/assets/**", "library/**"),
@@ -129,6 +130,17 @@ func Run(id string, scope Scope) (Result, bool, error) {
 	if !ok || definition.Run == nil {
 		return Result{}, false, nil
 	}
-	result, err := definition.Run(scope)
+	result, err := RunDefinition(definition, scope)
 	return result, true, err
+}
+
+// RunDefinition is the single dispatch seam for scope semantics. Corpus gates
+// receive an explicit full-corpus scope; asset gates receive the caller's
+// selection. This prevents a registry declaration from becoming descriptive
+// metadata that the execution path silently ignores.
+func RunDefinition(definition Definition, scope Scope) (Result, error) {
+	if definition.CorpusScoped {
+		scope.Assets = nil
+	}
+	return definition.Run(scope)
 }

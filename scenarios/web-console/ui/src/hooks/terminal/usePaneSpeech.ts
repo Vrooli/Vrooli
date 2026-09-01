@@ -90,7 +90,7 @@ export function usePaneSpeech(options: {
     backendPreference: ttsBackendPreference,
   }), [ttsVoice, ttsRate, ttsPitch, kokoroVoice, kokoroSpeed, ttsBackendPreference]);
   const {
-    speakParagraphs, stop, pause, resume, seek, setPlaybackRate, setVolume, setMuted,
+    speakParagraphs, prewarmParagraphs, stop, pause, resume, seek, setPlaybackRate, setVolume, setMuted,
     getPlaybackState, backendReason, supported, isSpeaking, needsUnlock, unlockAudio,
   } = useTextToSpeech(resolvedSettings, { source: "terminal_auto", sessionId });
 
@@ -147,11 +147,18 @@ export function usePaneSpeech(options: {
     if (!latest) return;
     const ageMs = Date.now() - new Date(latest.createdAt).getTime();
     if (Number.isFinite(ageMs) && ageMs > AUTO_TTS_MAX_AGE_MS) return;
+    // Prime the local provider as soon as the assistant event arrives. The
+    // cache key matches the later playback request, so pressing play can read
+    // bytes immediately instead of waiting for synthesis.
+    void prewarmParagraphs(
+      ensureSpeechChunks(latest.speechParagraphs.length > 0 ? latest.speechParagraphs : [latest.text]),
+      { eventId: latest.id, version: "active" },
+    ).catch(() => {});
     onConversationEventReceived(sessionId, latest, (stage, message, backend) => {
       sendConversationAck(latest.id, latest.source, stage, message, backend);
     },
     );
-  }, [activePane, conversationEvents, conversationHydrated, onConversationEventReceived, sendConversationAck, sessionId, supported]);
+  }, [activePane, conversationEvents, conversationHydrated, onConversationEventReceived, prewarmParagraphs, sendConversationAck, sessionId, supported]);
 
   const speak = useCallback((text: string, paragraphs?: string[], speechOptions?: PaneSpeechOptions) => {
     if (speechOptions?.initiatedBy !== "auto") setMuted(false);

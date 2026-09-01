@@ -36,6 +36,40 @@ export interface CapabilitiesResponse {
   default_backend?: string;
 }
 
+/**
+ * The outcome of an install, as the machine reports it.
+ *
+ * "installed" is the only value that may be rendered as a finished install:
+ * it means the target itself now reports the capability. "unconfirmed" is
+ * deliberately not a failure — the installer completed and the machine has
+ * not said either way, which is a different thing to tell an operator and
+ * has a different next step (look again, not install again).
+ *
+ * These mirror the server constants in internal/capabilities/actions.go.
+ */
+export type InstallStatus = "installed" | "unconfirmed" | "failed" | "not_applicable";
+
+export interface InstallOutcome {
+  status: InstallStatus;
+  message?: string;
+}
+
+/** Narrows a server status string to the closed set, defaulting to failed. */
+export function installStatusOf(status: string, success: boolean): InstallStatus {
+  switch (status) {
+    case "installed":
+    case "unconfirmed":
+    case "failed":
+    case "not_applicable":
+      return status;
+    default:
+      // An older server, or a status this build does not know. Trusting an
+      // unrecognized value would resurrect exactly the bug this type exists
+      // to prevent, so only an explicit success is treated as installed.
+      return success ? "installed" : "failed";
+  }
+}
+
 export interface CapabilityActionResponse {
   success: boolean;
   status: string;

@@ -807,7 +807,7 @@
           "description": "Show one session",
           "positionals": [
             {
-              "name": "session-id",
+              "name": "sessionId",
               "required": true,
               "description": "Session ID",
               "bind": {
@@ -1300,12 +1300,9 @@
           "description": "Print the decoded screen of a session",
           "positionals": [
             {
-              "name": "session-id",
+              "name": "sessionId",
               "required": true,
-              "description": "Session ID",
-              "bind": {
-                "field": "session_id"
-              }
+              "description": "Session ID"
             }
           ],
           "flags": [
@@ -1375,12 +1372,9 @@
           "description": "Block until a session is idle",
           "positionals": [
             {
-              "name": "session-id",
+              "name": "sessionId",
               "required": true,
-              "description": "Session ID",
-              "bind": {
-                "field": "session_id"
-              }
+              "description": "Session ID"
             }
           ],
           "flags": [
@@ -1686,6 +1680,71 @@
     }
   ],
   "omitted": [
+    {
+      "service": "MachineService",
+      "method": "PreflightOnboarding",
+      "reason": "The Web Console owns the resumable onboarding wizard; no standalone CLI command is exposed for its preflight state machine."
+    },
+    {
+      "service": "MachineService",
+      "method": "StartOnboarding",
+      "reason": "Onboarding collects an SSH password and streams step events through the authenticated Web Console wizard; it is not a CLI secret-entry surface."
+    },
+    {
+      "service": "MachineService",
+      "method": "GetOnboarding",
+      "reason": "The Web Console owns the resumable onboarding operation view; no standalone CLI command is exposed."
+    },
+    {
+      "service": "MachineService",
+      "method": "WaitOnboarding",
+      "reason": "The Web Console owns onboarding progress rendering and deadlines; no standalone CLI command is exposed."
+    },
+    {
+      "service": "MachineService",
+      "method": "CancelOnboarding",
+      "reason": "Cancellation is an authenticated Web Console wizard action; no standalone CLI command is exposed."
+    },
+    {
+      "service": "MachineService",
+      "method": "GetConfiguration",
+      "reason": "Desired, applied, drift, and question-set rendering is a Web Console machine-detail surface; no standalone CLI command is exposed."
+    },
+    {
+      "service": "MachineService",
+      "method": "ResolveConfiguration",
+      "reason": "Configuration answers are submitted by the schema-rendered Web Console form; no standalone CLI command is exposed."
+    },
+    {
+      "service": "MachineService",
+      "method": "ListCredentialGrants",
+      "reason": "Credential holdings are displayed in the authenticated Web Console machine detail; values are never exposed through this CLI."
+    },
+    {
+      "service": "MachineService",
+      "method": "CreateCredentialGrant",
+      "reason": "Credential grant creation is a Web Console action whose secret value must not be accepted by this CLI surface."
+    },
+    {
+      "service": "MachineService",
+      "method": "RevokeCredentialGrant",
+      "reason": "Credential revocation is a Web Console machine-detail action; no standalone CLI command is exposed."
+    },
+    {
+      "service": "MachineService",
+      "method": "ReapplyConfiguration",
+      "reason": "Re-apply is a Web Console machine-detail action that streams convergence progress; no standalone CLI command is exposed."
+    },
+    {
+      "service": "MachineService",
+      "method": "GetConfigurationApplyStatus",
+      "reason": "Apply progress is rendered by the Web Console machine-detail surface; no standalone CLI command is exposed."
+    },
+    {
+      "service": "MachineService",
+      "method": "AnswerSecret",
+      "reason": "Secret answers are accepted only through the authenticated Web Console onboarding flow; no CLI command may expose or persist the secret value."
+    },
     {
       "service": "DeviceService",
       "method": "List",

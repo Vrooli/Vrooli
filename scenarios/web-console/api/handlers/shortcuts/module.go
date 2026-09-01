@@ -26,17 +26,33 @@ import (
 // implementation lives in package main (adapts the existing
 // ShortcutStore to satisfy this interface).
 type Service interface {
-	Effective(ctx context.Context) []Shortcut
+	Effective(ctx context.Context) Effective
 	List(ctx context.Context) []Profile
 	Upsert(ctx context.Context, req UpsertRequest) (Profile, error)
 	Delete(ctx context.Context, id string)
 }
 
 // Shortcut is the transport-neutral shortcut shape.
+//
+// AgentID names the coding agent this entry launches, or is "" for a plain
+// operator command. It is resolved by the service, never by a consumer reading
+// the command text.
 type Shortcut struct {
 	Label       string
 	Command     string
 	Description string
+	AgentID     string
+}
+
+// Effective is the resolved shortcut list plus the identity of the profile it
+// was resolved from, so a client that edits the effective list knows which
+// profile to write back to. ProfileID is "" when built-in defaults are being
+// served and no profile exists yet.
+type Effective struct {
+	ProfileID string
+	Scope     string
+	Name      string
+	Shortcuts []Shortcut
 }
 
 // Profile is the transport-neutral profile shape.

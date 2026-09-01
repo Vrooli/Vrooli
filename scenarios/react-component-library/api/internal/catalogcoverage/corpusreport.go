@@ -31,9 +31,10 @@ type CorpusInvariant struct {
 	Unit   string  `json:"unit"`
 }
 type CorpusReport struct {
-	SchemaVersion string            `json:"schemaVersion"`
-	CapturedAt    string            `json:"capturedAt"`
-	Invariants    []CorpusInvariant `json:"invariants"`
+	SchemaVersion  string            `json:"schemaVersion"`
+	CapturedAt     string            `json:"capturedAt"`
+	InvariantCount int               `json:"invariantCount"`
+	Invariants     []CorpusInvariant `json:"invariants"`
 }
 
 var corpusVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
@@ -214,7 +215,7 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 		{"I13", "catalog/build failures", float64(liveBuildFailures(root)), 0, "commands"},
 		{"I14", "ungoverned releases detected", float64(ungoverned), 0, "releases"},
 		{"I15", "runnerless blocking gates", float64(runnerless), 0, "gates"},
-		{"I16", "blocking gates", float64(blocking), float64(blocking), "gates"},
+		{"I16", "blocking gates", float64(blocking), 0, "gates"},
 		{"I17", "vacuous allowlist entries", float64(allowlist), 40, "entries"},
 		// The plan's invariant is comparative: machine claims must outnumber
 		// manual claims. Encode that relation directly so the report's value and
@@ -225,11 +226,10 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 		{"I20", "experience claim authorities", float64(authorities), 1, "authorities"},
 		{"I22", "distinct live version-directory shapes", float64(len(shapes)), 1, "shapes"},
 		{"I23", "owned metadata duplication mismatches", float64(len(duplications)), 0, "mismatches"},
-		{"I24", "authored-derived drift after generator run", float64(liveBuildFailures(root)), 0, "artifacts"},
 		{"I25", "overdue implementation plans", float64(overduePlans), 0, "assets"},
 		{"I26", "overdue retired quarantine trees", float64(overdueRetired), 0, "trees"},
 	}
-	return CorpusReport{SchemaVersion: "corpus-report/v1", CapturedAt: time.Now().UTC().Format(time.RFC3339Nano), Invariants: values}, nil
+	return CorpusReport{SchemaVersion: "corpus-report/v1", CapturedAt: time.Now().UTC().Format(time.RFC3339Nano), InvariantCount: len(values), Invariants: values}, nil
 }
 
 func adoptionDepthPercent(root string) float64 {

@@ -81,6 +81,7 @@ export function buildPlaybackContext(
     version,
     queueLabel: buildQueueLabel(state, event),
     hasQueuedNext: state.queueEntries.length > 0 && state.queueIndex < state.queueEntries.length - 1,
+    hasQueuedPrevious: state.queueEntries.length > 0 && state.queueIndex > 0,
     intent,
   };
 }

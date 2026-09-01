@@ -12,8 +12,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/targetmodel"
-	"github.com/vrooli/nodeclient"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -268,7 +268,7 @@ func TestPresetTitleReadsAsWords(t *testing.T) {
 // a mismatch must reach the operator as a sentence they can act on rather than
 // as the transport's wire message.
 func TestControlPlaneErrorExplainsAConfirmationMismatch(t *testing.T) {
-	wire := &nodeclient.Error{Kind: nodeclient.ErrInvalidRequest, Err: errors.New("invalid_argument: confirmation_words: do not match the request")}
+	wire := &nodereach.Error{Kind: nodereach.ErrInvalidRequest, Err: errors.New("invalid_argument: confirmation_words: do not match the request")}
 	err := controlPlaneError("answer this join request", wire)
 	var connectErr *connect.Error
 	if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeInvalidArgument {
@@ -283,7 +283,7 @@ func TestControlPlaneErrorExplainsAConfirmationMismatch(t *testing.T) {
 
 	// Every other refusal keeps its original wording; only the safety case is
 	// rewritten.
-	other := controlPlaneError("issue a join code", &nodeclient.Error{Kind: nodeclient.ErrInvalidRequest, Err: errors.New("a node id is required")})
+	other := controlPlaneError("issue a join code", &nodereach.Error{Kind: nodereach.ErrInvalidRequest, Err: errors.New("a node id is required")})
 	if !errors.As(other, &connectErr) || !strings.Contains(connectErr.Message(), "node id is required") {
 		t.Errorf("an unrelated refusal was rewritten: %v", other)
 	}

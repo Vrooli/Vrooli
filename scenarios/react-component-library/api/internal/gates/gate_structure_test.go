@@ -21,12 +21,9 @@ func TestGateImplementationsStaySmallAndFactsUseOneBatchEntryPoint(t *testing.T)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(string(data), "func Validate") {
-			continue
-		}
 		lines := strings.Count(string(data), "\n") + 1
 		if lines > 400 {
-			t.Fatalf("gate implementation %s has %d lines; split shared helpers from the gate", entry.Name(), lines)
+			t.Fatalf("gate package file %s has %d lines; split it by subject", entry.Name(), lines)
 		}
 	}
 
@@ -40,6 +37,25 @@ func TestGateImplementationsStaySmallAndFactsUseOneBatchEntryPoint(t *testing.T)
 	}
 	if strings.Contains(source, `"--facts",`) {
 		t.Fatal("facts reader retains a per-file analyzer entry point")
+	}
+}
+
+func TestGatesDoNotOpenTheirOwnWalker(t *testing.T) {
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(entry.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(data), "filepath.WalkDir") {
+			t.Fatalf("gate file %s opens its own walker; use internal/librarywalk", entry.Name())
+		}
 	}
 }
 
@@ -68,14 +84,41 @@ func TestEveryExecutableGateHasAnOwnedImplementationFile(t *testing.T) {
 			continue
 		}
 		found := false
-		for _, name := range []string{definition.ID + ".go", strings.ReplaceAll(definition.ID, "-", "_") + ".go"} {
-			if _, err := os.Stat(name); err == nil {
-				found = true
-				break
-			}
+		name := strings.ReplaceAll(definition.ID, "-", "_") + ".go"
+		if _, err := os.Stat(name); err == nil {
+			found = true
 		}
 		if !found {
 			t.Fatalf("executable gate %q has no owned implementation file", definition.ID)
+		}
+	}
+}
+
+func TestEveryGateHonoursItsScope(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, definition := range Definitions() {
+		if definition.Run == nil {
+			continue
+		}
+		full, fullErr := RunDefinition(definition, Scope{Root: root})
+		if fullErr != nil {
+			continue
+		}
+		scoped, scopedErr := RunDefinition(definition, Scope{Root: root, Assets: []string{"controls.button"}})
+		if scopedErr != nil {
+			continue
+		}
+		if definition.CorpusScoped {
+			if scoped.Inspected != full.Inspected {
+				t.Errorf("corpus-scoped gate %q changed inspected count from %d to %d", definition.ID, full.Inspected, scoped.Inspected)
+			}
+			continue
+		}
+		if scoped.Inspected == full.Inspected && full.Inspected > 0 {
+			t.Errorf("asset-scoped gate %q ignored Scope.Assets: inspected %d in both runs", definition.ID, full.Inspected)
 		}
 	}
 }

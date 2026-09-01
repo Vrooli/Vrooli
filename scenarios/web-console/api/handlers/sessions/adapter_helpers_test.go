@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/nodeclient"
+	"github.com/vrooli/api-core/nodereach"
 	"web-console/internal/backend"
 	"web-console/internal/policy"
 	intsessions "web-console/internal/sessions"
@@ -21,7 +21,7 @@ func TestAdapterPureMappingsAndErrorClassification(t *testing.T) {
 			t.Fatalf("mapCreateError(%v) returned nil", in)
 		}
 	}
-	missingScope := mapCreateError(&nodeclient.Error{Kind: nodeclient.ErrMissingScope, Scope: "vrooli-bridge:write", Err: errors.New("missing")})
+	missingScope := mapCreateError(&nodereach.Error{Kind: nodereach.ErrMissingScope, Scope: "vrooli-bridge:write", Err: errors.New("missing")})
 	if !strings.Contains(missingScope.Error(), "vrooli-bridge:write") || !strings.Contains(missingScope.Error(), "manage the machine permissions") {
 		t.Fatalf("missing-scope mapping = %q", missingScope)
 	}

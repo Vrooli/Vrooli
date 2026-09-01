@@ -1,6 +1,6 @@
-import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TTSPlaybackCapabilities } from "../audio-integration";
 import type { ConversationEvent } from "../api/conversation";
@@ -38,6 +38,7 @@ export interface AudioPlayerBarProps {
   currentMessageId?: string | null;
   messageSelectorEvents?: ConversationEvent[];
   hasQueuedNext?: boolean;
+  hasQueuedPrevious?: boolean;
   onPause: () => void;
   onResume: () => void;
   onSeek: (seconds: number) => void;
@@ -52,6 +53,12 @@ export interface AudioPlayerBarProps {
   onChangeLevel?: (level: SummarizationLevel) => void;
   /** Optional close control for manually-started playback surfaces. */
   onDismiss?: () => void;
+  /** Whether the full playback controls are visible. */
+  isExpanded?: boolean;
+  /** Expand the compact now-playing line. */
+  onExpand?: () => void;
+  onPreviousMessage?: () => void;
+  onNextMessage?: () => void;
   /** Honest explanation when auto playback selected the browser fallback. */
   backendReason?: string;
 }
@@ -93,6 +100,7 @@ export default function AudioPlayerBar({
   currentMessageId = null,
   messageSelectorEvents,
   hasQueuedNext = false,
+  hasQueuedPrevious = false,
   onPause,
   onResume,
   onSeek,
@@ -104,14 +112,28 @@ export default function AudioPlayerBar({
   onToggleSummarized,
   onChangeLevel,
   onDismiss,
+  isExpanded = true,
+  onExpand,
+  onPreviousMessage,
+  onNextMessage,
   backendReason,
 }: AudioPlayerBarProps) {
   const { t } = useTranslation();
   const [showPopover, setShowPopover] = useState(false);
   const [showMessageSelector, setShowMessageSelector] = useState(false);
+  const [showRemainingTime, setShowRemainingTime] = useState(() => {
+    try {
+      return window.localStorage.getItem("vrooli.tts.showRemainingTime") === "true";
+    } catch {
+      return false;
+    }
+  });
   const isMobile = useMediaQuery("(max-width: 767px)");
   const audioButtonRef = useRef<HTMLButtonElement>(null);
   const currentMessageButtonRef = useRef<HTMLButtonElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const wasExpandedRef = useRef(isExpanded);
 
   const handlePlayPause = useCallback(() => {
     if (isPaused) onResume();
@@ -131,9 +153,47 @@ export default function AudioPlayerBar({
   // its shape but non-transport controls go visibly disabled to prevent the
   // layout from shifting between playing and idle.
   const isIdle = duration === null;
+  const displayedTime = showRemainingTime && duration !== null
+    ? Math.max(0, duration - currentTime)
+    : currentTime;
   const browserFallbackActive = backendReason?.includes("browser speech synthesis is active")
     || backendReason?.includes("Browser handled playback")
     || false;
+
+  useEffect(() => {
+    if (isExpanded && !wasExpandedRef.current) {
+      previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      requestAnimationFrame(() => {
+        const first = barRef.current?.querySelector<HTMLElement>("button:not([disabled]), input:not([disabled])");
+        first?.focus();
+      });
+    } else if (!isExpanded && wasExpandedRef.current) {
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
+    }
+    wasExpandedRef.current = isExpanded;
+  }, [isExpanded]);
+
+  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && isExpanded) {
+      event.preventDefault();
+      onDismiss?.();
+      return;
+    }
+    if (event.key !== "Tab" || !isExpanded || !barRef.current) return;
+    const focusable = Array.from(barRef.current.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])"));
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }, [isExpanded, onDismiss]);
 
   // Desktop settings popover anchors above the audio button, end-aligned,
   // via the shared anchored-floating math (measure-then-position).
@@ -147,8 +207,16 @@ export default function AudioPlayerBar({
 
   return (
     <div
+      ref={barRef}
       data-testid="audio-player-bar"
       data-audio-state="player"
+      data-expanded={isExpanded ? "true" : "false"}
+      role="region"
+      aria-label="Audio playback"
+      onKeyDown={handleKeyDown}
+      onClick={(event) => {
+        if (!isExpanded && !(event.target as HTMLElement).closest('[data-testid="tts-time"], [data-testid="tts-dismiss"]')) onExpand?.();
+      }}
       data-loading={isLoading ? "true" : "false"}
       className="flex items-center gap-1.5 border-t border-wc-default bg-wc-surface-raised py-1.5 ps-[max(0.5rem,var(--wc-safe-left,0px))] pe-[max(0.5rem,var(--wc-safe-right,0px))] text-wc-text-primary animate-in slide-in-from-bottom-2 duration-200"
     >
@@ -157,7 +225,7 @@ export default function AudioPlayerBar({
           {backendReason}
         </div>
       )}
-      <PlaybackModeControl
+      {isExpanded && <PlaybackModeControl
         testIdPrefix="tts"
         isSummarized={isSummarized}
         hasOriginalVersion={hasOriginalVersion}
@@ -167,7 +235,27 @@ export default function AudioPlayerBar({
         disabled={isIdle}
         onToggleSummarized={onToggleSummarized}
         onChangeLevel={onChangeLevel}
-      />
+      />}
+
+      {!isPaused && (
+        <span data-testid="tts-equalizer" aria-label="Playing" className="flex h-4 items-end gap-px px-0.5" aria-hidden="true">
+          {["h-1.5", "h-3", "h-2", "h-4"].map((height, index) => (
+            <span key={index} className={cn("w-0.5 animate-pulse rounded-sm bg-wc-accent motion-reduce:animate-none", height)} />
+          ))}
+        </span>
+      )}
+
+      {isExpanded && onPreviousMessage && (
+        <IconButton
+          data-testid="tts-previous-message"
+          onClick={onPreviousMessage}
+          disabled={!hasQueuedPrevious}
+          size="sm"
+          aria-label="Previous message"
+        >
+          <ChevronLeft />
+        </IconButton>
+      )}
 
       <IconButton
         data-testid="tts-play-pause"
@@ -228,7 +316,7 @@ export default function AudioPlayerBar({
       {/* Scrub — always rendered in the same slot so the bar shape is stable
           across playing/idle states. Disabled with min=max=0 when no audio
           is loaded (replay mode, first-tick fallback, non-seekable backends). */}
-      <input
+      {isExpanded && <input
         data-testid="tts-scrub"
         type="range"
         min={0}
@@ -243,18 +331,35 @@ export default function AudioPlayerBar({
           enabled: scrubEnabled,
           extra: "mx-1 flex-1",
         })}
-      />
+      />}
 
-      <span
+      <button
         data-testid="tts-time"
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (!isExpanded) onExpand?.();
+          setShowRemainingTime((previous) => {
+            const next = !previous;
+            try {
+              window.localStorage.setItem("vrooli.tts.showRemainingTime", String(next));
+            } catch {
+              // Storage is optional (private browsing and embedded surfaces).
+            }
+            return next;
+          });
+        }}
+        aria-label={showRemainingTime ? "Show elapsed time" : "Show remaining time"}
+        title={showRemainingTime ? "Show elapsed time" : "Show remaining time"}
         className="shrink-0 whitespace-nowrap text-center text-[11px] tabular-nums text-wc-text-muted"
       >
-        {formatTime(currentTime)} / {formatTime(duration)}
-      </span>
+        {showRemainingTime ? `-${formatTime(displayedTime)}` : formatTime(displayedTime)} / {formatTime(duration)}
+        {hasQueuedNext && currentMessageLabel && <span data-testid="tts-queue-position"> · {currentMessageLabel}</span>}
+      </button>
 
       {/* Audio button — context-sensitive: when muted, single-tap unmutes; when
           unmuted, opens the popover with volume/speed/mute controls. */}
-      {capabilities.canAdjustVolume && (
+      {isExpanded && capabilities.canAdjustVolume && (
         <button
           ref={audioButtonRef}
           data-testid="tts-audio-button"
@@ -267,6 +372,30 @@ export default function AudioPlayerBar({
         >
           {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
         </button>
+      )}
+
+      {isExpanded && onNextMessage && (
+        <IconButton
+          data-testid="tts-next-message"
+          onClick={onNextMessage}
+          disabled={!hasQueuedNext}
+          size="sm"
+          aria-label="Next message"
+        >
+          <ChevronRight />
+        </IconButton>
+      )}
+
+      {!isExpanded && onExpand && (
+        <IconButton
+          data-testid="tts-expand"
+          onClick={(event) => { event.stopPropagation(); onExpand(); }}
+          size="sm"
+          className="shrink-0"
+          aria-label={t(strings.audioPlayerBar.audioSettings)}
+        >
+          <Volume2 />
+        </IconButton>
       )}
 
       {onDismiss && (

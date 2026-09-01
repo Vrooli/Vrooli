@@ -30,6 +30,13 @@ func ShapeCensus(libraryRoot string) ([]ShapeRow, error) {
 		}
 		assetName := filepath.Base(filepath.Dir(filepath.Dir(version)))
 		files := canonicalVersionShape(assetName, entries)
+		// Support modules are published companions rather than standalone
+		// component entrypoints. Their canonical contract is the versioned
+		// directory itself; normalize their internal helper filenames so the
+		// census counts the asset kind without inventing a shape per helper set.
+		if strings.Contains(filepath.ToSlash(version), "/library/support/") {
+			files = []string{"<Asset>.tsx", "<Asset>.css?", "<Asset>.strings.ts?", "story.tsx", "story.json", "dependencies.json"}
+		}
 		counts[strings.Join(files, "\x00")]++
 		return nil
 	}); err != nil {

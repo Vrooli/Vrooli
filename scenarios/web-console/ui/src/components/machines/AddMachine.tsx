@@ -5,8 +5,12 @@ import { Button } from "../ui/button";
 import { strings } from "../../consts/strings";
 import { machineTestID } from "./testids";
 import type { IssuedCode, JoinRequest } from "../../api/machines";
+import { getOnboarding, preflightOnboarding, startOnboarding } from "../../api/machines";
+import { OnboardingState, type OnboardingStepEvent } from "@vrooli/proto-types/vrooli-bridge/v1/onboard/onboard_pb";
 import { humanAge, humanCountdown } from "./age";
 import { IconButton } from "@vrooli/react-component-library/IconButton";
+import PasswordInput from "@vrooli/react-component-library/PasswordInput/1";
+import FormWizard from "@vrooli/react-component-library/FormWizard/1";
 
 /**
  * Screen 02 — adding a machine.
@@ -18,6 +22,12 @@ import { IconButton } from "@vrooli/react-component-library/IconButton";
  */
 
 type Door = "network" | "code" | "server";
+
+const setupPresets = [
+  { id: "minimal", title: "Minimal connected node", summary: "Bridge agent only; no resources or scenarios are installed." },
+  { id: "production", title: "Managed production node", summary: "Service posture with guarded updates and the production setup profile." },
+  { id: "development", title: "Development node", summary: "Interactive development posture with the development toolchain." },
+] as const;
 
 interface AddMachineProps {
   requests: JoinRequest[];
@@ -33,6 +43,7 @@ interface AddMachineProps {
    * absent one.
    */
   controlPlaneConsoleUrl: string;
+  onOnboardingFinished?: (nodeID: string) => void;
 }
 
 const doorIcon: Record<Door, JSX.Element> = {
@@ -143,9 +154,42 @@ function ListeningList({ requests, onReview }: { requests: JoinRequest[]; onRevi
   );
 }
 
-export default function AddMachine({ requests, code, issuing, onIssueCode, onReview, onBack, controlPlaneConsoleUrl }: AddMachineProps) {
+async function watchOnboarding(opID: string, onUpdate: (events: OnboardingStepEvent[], state: string) => void) {
+  const deadline = Date.now() + 5 * 60 * 1000;
+  let lastSignature = "";
+  while (Date.now() < deadline) {
+    const status = await getOnboarding(opID);
+    const events = status.events ?? [];
+    const rawState = status.op?.state;
+    const state = typeof rawState === "number" ? OnboardingState[rawState] ?? String(rawState) : String(rawState ?? "");
+    const signature = `${state}:${events.length}:${events.at(-1)?.stepId ?? ""}:${events.at(-1)?.status ?? ""}`;
+    if (signature !== lastSignature) {
+      lastSignature = signature;
+      onUpdate(events, state || "started");
+    }
+    if (["SUCCEEDED", "FAILED", "CANCELLED", "ONBOARDING_STATE_SUCCEEDED", "ONBOARDING_STATE_FAILED", "ONBOARDING_STATE_CANCELLED"].includes(state)) {
+      const failure = status.op?.failureReason ? `: ${status.op.failureReason}` : "";
+      const detail = events.at(-1)?.detail ? ` — ${events.at(-1)?.detail}` : "";
+      onUpdate(events, `${state}${failure}${detail}`);
+      return status.op?.nodeId ?? "";
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+  throw new Error("Onboarding is still running after the five-minute display deadline. Reopen this machine to resume from its durable step history.");
+}
+
+export default function AddMachine({ requests, code, issuing, onIssueCode, onReview, onBack, onOnboardingFinished }: AddMachineProps) {
   const { t } = useTranslation();
   const [door, setDoor] = useState<Door>("network");
+  const [host, setHost] = useState("");
+  const [port, setPort] = useState("22");
+  const [user, setUser] = useState("");
+  const [password, setPassword] = useState("");
+  const [machineID, setMachineID] = useState("");
+  const [setupPreset, setSetupPreset] = useState("minimal");
+  const [onboardingMessage, setOnboardingMessage] = useState("");
+  const [onboardingBusy, setOnboardingBusy] = useState(false);
+  const [onboardingEvents, setOnboardingEvents] = useState<OnboardingStepEvent[]>([]);
 
   const doors: { id: Door; label: string }[] = [
     { id: "network", label: t(strings.machines.doorNetwork) },
@@ -215,35 +259,23 @@ export default function AddMachine({ requests, code, issuing, onIssueCode, onRev
         )}
 
         {door === "server" && (
+          <FormWizard draftKey="machines-onboard-connection" steps={[{ id: "connection", title: "Connection details", content: (
           <div className="space-y-4">
             <p className="text-sm leading-6 text-wc-text-muted">{t(strings.machines.serverBody)}</p>
-            {/* Honest handoff: a resumable, step-evented SSH onboarding already
-                exists in the control plane. Reimplementing it here would be a
-                second copy of the hardest flow in the fleet, so this door names
-                the tool that owns it rather than pretending to replace it. */}
             <div className="rounded-xl border border-wc-default bg-wc-surface-base/40 p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-wc-text-faint">
-                {t(strings.machines.serverCommand)}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1 text-xs">Address<input data-testid="machines-onboard-host" value={host} onChange={(event) => { setHost(event.target.value); }} className="rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2 text-sm" placeholder="server.example" /></label>
+                <label className="grid gap-1 text-xs">Port<input data-testid="machines-onboard-port" type="number" min="1" max="65535" value={port} onChange={(event) => { setPort(event.target.value); }} className="rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2 text-sm" /></label>
+                <label className="grid gap-1 text-xs">Login<input data-testid="machines-onboard-user" value={user} onChange={(event) => { setUser(event.target.value); }} className="rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2 text-sm" placeholder="root" /></label>
+                <PasswordInput name="machines-onboard-password" label="Password" autoComplete="current-password" value={password} onChange={setPassword} className="text-xs sm:col-span-2" />
+                <label className="grid gap-1 text-xs sm:col-span-2">Setup preset<select data-testid="machines-onboard-preset" value={setupPreset} onChange={(event) => { setSetupPreset(event.target.value); }} className="rounded-lg border border-wc-default bg-wc-surface-input px-3 py-2 text-sm">{setupPresets.map((preset) => <option key={preset.id} value={preset.id}>{preset.title}</option>)}</select><span className="text-xs text-wc-text-faint">{setupPresets.find((preset) => preset.id === setupPreset)?.summary}</span></label>
               </div>
-              <code
-                data-testid="machines-server-command"
-                className="mt-2 block select-all overflow-x-auto rounded-lg border border-wc-default bg-wc-surface-base px-3 py-2 font-mono text-xs text-wc-text-secondary"
-              >
-                vrooli-bridge onboard start --host &lt;address&gt; --user &lt;login&gt;
-              </code>
+              <Button className="mt-4" data-testid="machines-onboard-start" disabled={onboardingBusy || !host.trim() || !user.trim()} onClick={() => { setOnboardingBusy(true); setOnboardingEvents([]); setOnboardingMessage("Checking SSH target…"); const sshPort = Number(port); void preflightOnboarding({ host, port: sshPort, user, machineId: machineID }).then((result) => { if (result.passwordRequired && !password) throw new Error("This target requires the SSH password."); if (!result.machineId) throw new Error("The control plane did not return a machine identity for this target."); setMachineID(result.machineId); return startOnboarding({ machineId: result.machineId, host, port: sshPort, user, sshPassword: password, setupPreset }); }).then(async (result) => { setOnboardingMessage(`Onboarding started: ${result.opId}. Waiting for named steps…`); const nodeID = await watchOnboarding(result.opId, (events, state) => { setOnboardingEvents(events); const latest = events.at(-1); setOnboardingMessage(state.startsWith("ONBOARDING_STATE_") ? `Onboarding ${result.opId}: ${state}` : latest ? `Onboarding ${result.opId}: ${latest.stepId} · ${latest.status}` : `Onboarding ${result.opId}: ${state}`); }); if (nodeID) onOnboardingFinished?.(nodeID); }).catch((error: unknown) => { setOnboardingMessage(error instanceof Error ? error.message : "Onboarding could not start."); }).finally(() => { setOnboardingBusy(false); }); }}>{onboardingBusy ? "Onboarding…" : "Start onboarding"}</Button>
+              {onboardingMessage && <p className="mt-3 text-xs text-wc-text-muted" role="status">{onboardingMessage}</p>}
+              {onboardingEvents.length > 0 && <ol className="mt-3 space-y-1" data-testid="machines-onboard-progress" aria-label="Onboarding progress">{onboardingEvents.map((event, index) => <li key={`${event.stepId}-${index}`} className="flex items-center justify-between gap-3 rounded border border-wc-default px-2 py-1 text-xs"><span>{event.stepId}</span><span className="text-wc-text-muted">{event.status}</span></li>)}</ol>}
             </div>
-            {controlPlaneConsoleUrl && (
-              <a
-                href={controlPlaneConsoleUrl}
-                target="_blank"
-                rel="noreferrer"
-                data-testid="machines-open-bridge"
-                className="inline-flex min-h-11 items-center rounded-full border border-wc-default px-4 text-sm font-medium text-wc-text-secondary transition hover:border-wc-accent hover:text-wc-text-primary"
-              >
-                {t(strings.machines.serverOpenBridge)}
-              </a>
-            )}
           </div>
+          ) }]} />
         )}
         </div>
       </div>

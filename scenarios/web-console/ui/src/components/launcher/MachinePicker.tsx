@@ -72,16 +72,28 @@ const ledClass: Record<ReturnType<typeof toneFor>, string> = {
  * detail that used to need its own grid, which is what lets the full-width
  * target cards go.
  */
-function metaFor(target: TerminalTarget, neverSeen: string, agentsReady: (ready: number, total: number) => string): string {
+function metaFor(
+  target: TerminalTarget,
+  neverSeen: string,
+  agentsReady: (ready: number, total: number) => string,
+  capabilityMissing: (name: string) => string,
+): string {
   const platform = [target.os, target.arch].filter(Boolean).join("/");
   const capabilityFacts = target.readiness?.filter((fact) => fact.key.startsWith("capability:")) ?? [];
   const capabilitySummary = capabilityFacts.length
     ? agentsReady(capabilityFacts.filter((fact) => fact.state === "ready").length, capabilityFacts.length)
     : undefined;
   const transportFailure = target.readiness?.find((fact) => !fact.passed && !fact.key.startsWith("capability:"));
+  // The first capability that is NOT ready. It used to be appended as a bare
+  // label, so a row reading "1/5 agents ready · Claude Code" named the one
+  // agent that is missing in the position a reader takes for the one that is
+  // present. A problem has to be phrased as a problem.
   const capabilityFailure = capabilityFacts.find((fact) => fact.state !== "ready");
   if (target.kind === "local" && !capabilityFacts.length) return "Web Console host";
-  if (transportFailure || capabilityFailure) return [platform, capabilitySummary, transportFailure?.label, capabilityFailure?.label].filter(Boolean).join(" · ");
+  if (transportFailure || capabilityFailure) {
+    const missing = capabilityFailure ? capabilityMissing(capabilityFailure.label || capabilityFailure.key.slice("capability:".length)) : undefined;
+    return [platform, capabilitySummary, transportFailure?.label, missing].filter(Boolean).join(" · ");
+  }
   if (!target.available) {
     return [platform, capabilitySummary, target.recovery_action ?? target.failure_rung ?? neverSeen].filter(Boolean).join(" · ");
   }
@@ -145,6 +157,7 @@ export default function MachinePicker({
 
   const neverSeen = t(strings.terminalLauncher.neverSeen);
   const agentsReady = (ready: number, total: number) => t(strings.terminalLauncher.agentsReady, { ready, total });
+  const capabilityMissing = (name: string) => t(strings.launcher.capabilityMissing, { name });
 
   const handleListKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (ordered.length === 0) return;
@@ -192,8 +205,15 @@ export default function MachinePicker({
         className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-wc-default bg-wc-surface-input px-3 text-start text-sm text-wc-text-primary transition hover:border-wc-accent disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span className={cn("h-2 w-2 shrink-0 rounded-full", ledClass[toneFor(selected)])} aria-hidden />
-        <span className="min-w-0 flex-1 truncate">{selected.label}</span>
-        <span className="shrink-0 truncate text-xs text-wc-text-faint">{metaFor(selected, neverSeen, agentsReady)}</span>
+        {/* Two rows, not one. The name and the readiness summary were sharing a
+            single line with the summary marked shrink-0, so a machine called
+            anything at all was truncated to its first letter while "darwin/amd64
+            · 1/5 agents ready" took the rest. The name is the thing being
+            chosen; it gets its own line. */}
+        <span className="flex min-w-0 flex-1 flex-col py-1.5 leading-tight">
+          <span className="truncate">{selected.label}</span>
+          <span className="truncate text-xs text-wc-text-faint">{metaFor(selected, neverSeen, agentsReady, capabilityMissing)}</span>
+        </span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 text-wc-text-faint transition", open && "rotate-180")} aria-hidden />
       </button>
 
@@ -262,7 +282,7 @@ export default function MachinePicker({
                     : <Server className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-wc-text-primary">{target.label}</span>
-                    <span className="block truncate text-[11px] text-wc-text-faint">{metaFor(target, neverSeen, agentsReady)}</span>
+                    <span className="block truncate text-[11px] text-wc-text-faint">{metaFor(target, neverSeen, agentsReady, capabilityMissing)}</span>
                   </span>
                   {isSelected
                     ? <Check className="h-4 w-4 shrink-0 text-wc-accent" aria-hidden />

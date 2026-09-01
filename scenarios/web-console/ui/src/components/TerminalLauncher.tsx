@@ -1,6 +1,6 @@
 // DOC: docs/reference/configuration.md#launcher-shortcuts
 // DOC: docs/internal/SEAMS.md#1-entry-presentation
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -8,11 +8,8 @@ import {
   Loader2,
   Monitor,
   Play,
-  Settings2,
-  Terminal,
   TriangleAlert,
   XCircle,
-  Zap,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@vrooli/react-component-library/Input";
@@ -22,17 +19,16 @@ import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { strings } from "../consts/strings";
 import { DEFAULT_SHORTCUTS, type ShortcutEntry } from "../consts/shortcuts";
 import { shortcutsClient } from "../api/shortcuts";
+import type { InstallOutcome } from "../api/capabilities";
 import { BACKEND_OPTIONS } from "../consts/backend-options";
 import { POLICY_OPTIONS, policyKey, parsePolicySelection } from "../consts/policy-options";
-import { slugify } from "../lib/slugify";
 import type { BackendID, BackendOption, ExpirationPolicy, PolicyMode } from "../api/sessions";
 import type { TargetCatalog, TerminalTarget, TerminalTargetState } from "../api/targets";
 import type { TabGroupMeta } from "../stores/useWorkspaceStore";
 import MachinePicker from "./launcher/MachinePicker";
 import GroupDestinationTrigger from "./launcher/GroupPicker";
 import GroupModePanel, { type GroupCreationRequest } from "./launcher/GroupModePanel";
-import { cardSupportsAttribution, commandForCard, foldAttributedShortcuts } from "./launcher/agentGrid";
-import { cn } from "../lib/classnames";
+import AgentGridSection from "./launcher/AgentGridSection";
 
 export type { TerminalTarget } from "../api/targets";
 
@@ -43,13 +39,6 @@ type LauncherMode = "one-session" | "group";
 // [REQ:P0-006b] Configurable Shortcut Entries
 // [REQ:P1-002b] Shortcut Profile Management UI
 // [REQ:P1-013a] Remote target catalog and readiness
-
-const optionCardClass =
-  "flex min-h-[60px] w-full items-center gap-3 rounded-xl border border-wc-default bg-wc-surface-input px-4 py-3 text-start transition hover:border-wc-accent hover:bg-wc-surface-input/80 disabled:cursor-not-allowed disabled:opacity-50";
-
-/** Denser than optionCardClass: these sit two-up at every width. */
-const agentCardClass =
-  "flex min-h-[56px] w-full items-center gap-2.5 rounded-xl border border-wc-default bg-wc-surface-input px-3 py-2.5 text-start transition hover:border-wc-accent hover:bg-wc-surface-input/80 disabled:cursor-not-allowed disabled:opacity-50";
 
 export interface LaunchOptions {
   command?: string;
@@ -103,11 +92,29 @@ interface TerminalLauncherProps {
   /** Opens the machines surface, which owns linking and permissions. */
   onOpenMachines?: () => void;
   /** Starts the governed install action for a missing capability. */
-  onInstallCapability?: (capabilityID: string, target: TerminalTarget) => void;
+  /**
+   * Starts the governed install action for a missing capability. Returning the
+   * promise lets the card show progress for the whole run rather than flashing
+   * a state the operator cannot read.
+   */
+  onInstallCapability?: (capabilityID: string, target: TerminalTarget) => Promise<InstallOutcome>;
   /** Opens the shortcut editor, which owns the agent list this grid renders. */
   onEditShortcuts?: () => void;
   /** Opens the template editor, which owns the saved group recipes. */
   onEditTemplates?: () => void;
+}
+
+/**
+ * Wire shortcuts to the UI shape. Proto string fields are never undefined, so
+ * blank optionals are normalized here rather than at every read site.
+ */
+function decodeShortcuts(wire: readonly { label: string; command: string; description: string; agentId: string }[]): ShortcutEntry[] {
+  return wire.map((entry) => ({
+    label: entry.label,
+    command: entry.command,
+    description: entry.description || undefined,
+    agentId: entry.agentId || undefined,
+  }));
 }
 
 const localFallback: TerminalTarget = {
@@ -130,28 +137,6 @@ function lastSeenCopy(target: TerminalTarget, neverSeenLabel: string): string | 
     return target.last_seen_at;
   }
 }
-
-function capabilityIDForCommand(command: string): string | undefined {
-  const value = command.trim().toLowerCase();
-  if (/\bclaude(?:-code)?\b/.test(value)) return "claude";
-  if (/\bcodex\b/.test(value)) return "codex";
-  if (/\bopencode\b/.test(value)) return "opencode";
-  if (/\bgrok\b/.test(value)) return "grok";
-  if (/\b(?:agy|antigravity)\b/.test(value)) return "agy";
-  return undefined;
-}
-
-// The target catalog is authoritative for which cards exist. These commands
-// are the stable launch verbs for the catalogued capabilities; shortcut
-// profiles still supply optional attributed variants and operator-authored
-// custom commands.
-const capabilityCommands: Record<string, string> = {
-  claude: "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions",
-  codex: "codex --yolo",
-  opencode: "opencode",
-  grok: "grok",
-  agy: "agy",
-};
 
 export default function TerminalLauncher({
   open,
@@ -182,6 +167,10 @@ export default function TerminalLauncher({
   const [customCommand, setCustomCommand] = useState("");
   const [workingDir, setWorkingDir] = useState("");
   const [apiShortcuts, setApiShortcuts] = useState<ShortcutEntry[] | null>(null);
+  // Which profile the effective list resolved from. The server names it, so
+  // the dialog can write an edited order back without re-deriving scope
+  // priority for itself.
+  const [effectiveProfile, setEffectiveProfile] = useState<{ id: string; scope: string; name: string }>({ id: "", scope: "", name: "" });
   const [selectedBackend, setSelectedBackend] = useState<BackendID>(defaultBackend);
   const [selectedPolicyKey, setSelectedPolicyKey] = useState<string>(
     defaultPolicy ? policyKey(defaultPolicy.mode, defaultPolicy.duration) : "never",
@@ -192,7 +181,6 @@ export default function TerminalLauncher({
   // Seeding rather than mirroring is deliberate: once the operator changes it
   // here, a re-render from the caller must not silently move it back.
   const [destinationGroupId, setDestinationGroupId] = useState<string | null>(pendingGroupId);
-  const [attributed, setAttributed] = useState(false);
   const [mode, setMode] = useState<LauncherMode>("one-session");
   const [appearanceOpen, setAppearanceOpen] = useState(false);
 
@@ -218,17 +206,24 @@ export default function TerminalLauncher({
     let cancelled = false;
     shortcutsClient.getEffective({})
       .then((resp) => {
-        if (!cancelled) setApiShortcuts(resp.shortcuts.map((s) => ({
-          label: s.label,
-          command: s.command,
-          description: s.description || undefined,
-        })));
+        if (cancelled) return;
+        setApiShortcuts(decodeShortcuts(resp.shortcuts));
+        // Remember which profile the list came from so a reorder can be
+        // written back to it. An empty id means the server is serving
+        // built-in defaults and no profile exists yet.
+        setEffectiveProfile({
+          id: resp.profileId,
+          scope: resp.scope,
+          // The server sends the profile's own name. Substituting one here
+          // would rename the operator's profile on their first reorder.
+          name: resp.profileName || t(strings.settings.shortcutsSection.defaultProfileName),
+        });
       })
       .catch(() => {
         if (!cancelled) setApiShortcuts(null);
       });
     return () => { cancelled = true; };
-  }, [open, shortcutsProp]);
+  }, [open, shortcutsProp, t]);
 
   const shortcuts = shortcutsProp ?? apiShortcuts ?? DEFAULT_SHORTCUTS;
   const catalogTargets = targetCatalog?.targets ?? availableTargets;
@@ -248,7 +243,6 @@ export default function TerminalLauncher({
     unavailable: t(strings.terminalLauncher.unavailable),
   };
   const statusLabelFor = (state: TerminalTargetState | undefined) => statusLabels[state ?? "unavailable"];
-  const launchOnCopy = (label: string) => t(strings.terminalLauncher.launchOn).replace("{{label}}", label);
 
   useEffect(() => {
     if (!targets.some((target) => target.id === selectedTarget)) setSelectedTarget(targets[0]?.id ?? "local");
@@ -277,30 +271,39 @@ export default function TerminalLauncher({
     });
   }, [changeDestination, onCreateGroup]);
 
-  // Capability facts decide which agent cards exist. Shortcut profiles only
-  // contribute attribution variants and operator-authored custom commands.
-  const agentCards = useMemo(() => {
-    const cards = foldAttributedShortcuts(shortcuts);
-    const capabilityFacts = (selected.readiness ?? []).filter((fact) => fact.key.startsWith("capability:"));
-    if (capabilityFacts.length === 0) return cards;
-    const capabilityIDs = new Set(capabilityFacts.map((fact) => fact.key.slice("capability:".length)));
-    const capabilityCards = capabilityFacts.map((fact) => {
-      const id = fact.key.slice("capability:".length);
-      const shortcut = cards.find((card) => capabilityIDForCommand(card.command ?? "") === id);
-      return {
-        label: fact.label || shortcut?.label || id,
-        command: capabilityCommands[id] ?? shortcut?.command ?? id,
-        description: shortcut?.description ?? (fact.version ? `${fact.detail || "Installed"} (${fact.version})` : fact.detail),
-        attributedCommand: shortcut?.attributedCommand,
-        attributedDescription: shortcut?.attributedDescription,
-      };
-    });
-    const customCards = cards.filter((card) => {
-      const id = capabilityIDForCommand(card.command ?? card.attributedCommand ?? "");
-      return !id || !capabilityIDs.has(id) || card.label.toLowerCase().includes("sign-in");
-    });
-    return [...capabilityCards, ...customCards];
-  }, [selected.readiness, shortcuts]);
+  // Persist a reordered agent list back to the profile the effective list
+  // came from. GetEffective names that profile, so the client never has to
+  // re-derive scope priority — a rule the server already owns.
+  const persistOrder = useCallback(async (next: ShortcutEntry[]) => {
+    setApiShortcuts(next);
+    try {
+      await shortcutsClient.upsertProfile({
+        id: effectiveProfile.id || "default",
+        scope: effectiveProfile.scope || "service",
+        name: effectiveProfile.name,
+        shortcuts: next.map((entry) => ({
+          label: entry.label,
+          command: entry.command,
+          description: entry.description ?? "",
+          agentId: entry.agentId ?? "",
+        })),
+      });
+    } catch {
+      // A failed write must not leave the grid showing an order the server
+      // does not have. Re-read rather than guess what survived.
+      shortcutsClient.getEffective({})
+        .then((resp) => { setApiShortcuts(decodeShortcuts(resp.shortcuts)); })
+        .catch(() => { setApiShortcuts(null); });
+    }
+  }, [effectiveProfile]);
+
+  // The grid only renders an install affordance when this prop is passed at
+  // all (see the onInstall={...} guard below), so the missing-handler branch
+  // reports "unknown" rather than inventing a success it did not observe.
+  const installAgent = useCallback(async (agentID: string): Promise<InstallOutcome> => {
+    if (!onInstallCapability) return { status: "unconfirmed" };
+    return onInstallCapability(agentID, selected);
+  }, [onInstallCapability, selected]);
 
   const buildLaunchOptions = useCallback((command?: string): LaunchOptions => {
     const parsed = parsePolicySelection(selectedPolicyKey);
@@ -444,127 +447,15 @@ export default function TerminalLauncher({
           )}
 
           {mode === "one-session" && (
-          <section aria-labelledby="launcher-actions-heading" className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h3 id="launcher-actions-heading" className="text-sm font-semibold text-wc-text-primary">{t(strings.launcher.agents)}</h3>
-              {/* One toggle replaces four duplicate rows. The choice was
-                  always "which agent" plus "attributed or not"; the eight-row
-                  list just spelled the second half four times. */}
-              {agentCards.some(cardSupportsAttribution) && (
-                <label className="flex min-h-11 items-center gap-2 text-xs text-wc-text-secondary" title={t(strings.launcher.attributedHint)}>
-                  <input
-                    type="checkbox"
-                    data-testid="launcher-attributed-toggle"
-                    checked={attributed}
-                    onChange={(event) => { setAttributed(event.target.checked); }}
-                    className="h-4 w-4 accent-[rgb(var(--wc-accent))]"
-                  />
-                  {t(strings.launcher.attributed)}
-                </label>
-              )}
-            </div>
-
-            {/* Two columns at every width. A single column of full-width rows is a
-                list you read one entry at a time; the grid is one you scan. */}
-            <div data-testid="launcher-agent-grid" className="grid grid-cols-2 gap-2">
-              {agentCards.map((card) => {
-                const command = commandForCard(card, attributed);
-                if (!command) return null;
-                const capabilityID = capabilityIDForCommand(command);
-                const capabilityFact = capabilityID ? selected.readiness?.find((fact) => fact.key === `capability:${capabilityID}`) : undefined;
-                const capabilityBlocked = capabilityFact && capabilityFact.state !== "ready" && !capabilityFact.passed;
-                const canRecoverCapability = Boolean(capabilityBlocked && (onInstallCapability || onOpenMachines));
-                return (
-                  <button
-                    key={card.label}
-                    type="button"
-                    data-testid={`launcher-agent-${slugify(card.label)}`}
-                    data-capability-id={capabilityID ?? undefined}
-                    data-capability-state={capabilityFact?.state ?? undefined}
-                    data-capability-version={capabilityFact?.version ?? undefined}
-                    onClick={() => {
-                      if (capabilityBlocked && capabilityID) {
-                        if (onInstallCapability) onInstallCapability(capabilityID, selected);
-                        else onOpenMachines?.();
-                        return;
-                      }
-                      onLaunch(buildLaunchOptions(command));
-                    }}
-                    disabled={isCreating || !selected.available || noBackendAvailable || (Boolean(capabilityBlocked) && !canRecoverCapability)}
-                    className={agentCardClass}
-                    title={command}
-                  >
-                    <Zap className="h-4 w-4 shrink-0 text-yellow-400" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-wc-text-primary">{card.label}</span>
-                      <span className="block truncate text-[11px] text-wc-text-muted">
-                        {capabilityBlocked ? `${capabilityFact?.state ?? "unknown"} — ${capabilityFact?.detail ?? "refresh the target inventory"}` : ((attributed ? card.attributedDescription : card.description) ?? command)}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                data-testid="launcher-empty-shell"
-                onClick={() => { onLaunch(buildLaunchOptions()); }}
-                disabled={isCreating || !selected.available || noBackendAvailable}
-                className={agentCardClass}
-              >
-                <Terminal className="h-4 w-4 shrink-0 text-wc-accent" aria-hidden />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-wc-text-primary">{t(strings.terminalLauncher.emptyShell)}</span>
-                  <span className="block truncate text-[11px] text-wc-text-muted">{t(strings.terminalLauncher.emptyShellDescription)}</span>
-                </span>
-              </button>
-
-              {/* The grid renders a fixed set; the shortcut list is where it
-                  comes from. A dashed card says so in place, instead of
-                  leaving the operator to guess which settings tab owns it. */}
-              {onEditShortcuts && (
-                <button
-                  type="button"
-                  data-testid="launcher-edit-shortcuts"
-                  onClick={onEditShortcuts}
-                  className={cn(agentCardClass, "border-dashed")}
-                >
-                  <Settings2 className="h-4 w-4 shrink-0 text-wc-text-faint" aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-wc-text-secondary">{t(strings.launcher.editShortcuts)}</span>
-                    <span className="block truncate text-[11px] text-wc-text-muted">{t(strings.launcher.shortcutCount, { count: shortcuts.length })}</span>
-                  </span>
-                </button>
-              )}
-            </div>
-
-            {/* Anything the operator added to their shortcut list that is not
-                one of the agents above still gets a row, so this fold can
-                never hide their own entries. */}
-            {shortcuts.filter((shortcut) => !agentCards.some((card) => card.command === shortcut.command || card.attributedCommand === shortcut.command)).length > 0 && (
-              <div className="space-y-2">
-                <div className="px-1 text-xs font-semibold uppercase tracking-wider text-wc-text-faint">{t(strings.terminalLauncher.shortcuts)}</div>
-                {shortcuts
-                  .filter((shortcut) => !agentCards.some((card) => card.command === shortcut.command || card.attributedCommand === shortcut.command))
-                  .map((shortcut) => (
-                    <button
-                      key={shortcut.command}
-                      type="button"
-                      data-testid={`launcher-shortcut-${slugify(shortcut.label)}`}
-                      onClick={() => { onLaunch(buildLaunchOptions(shortcut.command)); }}
-                      disabled={isCreating || !selected.available || noBackendAvailable}
-                      className={optionCardClass}
-                    >
-                      <Zap className="h-5 w-5 shrink-0 text-yellow-400" aria-hidden />
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-wc-text-primary">{shortcut.label}</div>
-                        <div className="truncate text-sm text-wc-text-muted">{shortcut.description || shortcut.command}</div>
-                      </div>
-                    </button>
-                  ))}
-              </div>
-            )}
-          </section>
+            <AgentGridSection
+              shortcuts={shortcuts}
+              target={selected}
+              disabled={isCreating || !selected.available || noBackendAvailable}
+              onLaunch={(command) => { onLaunch(buildLaunchOptions(command)); }}
+              onInstall={onInstallCapability ? installAgent : undefined}
+              onEditShortcuts={onEditShortcuts}
+              onReorder={shortcutsProp ? undefined : persistOrder}
+            />
           )}
 
           {mode === "one-session" && (

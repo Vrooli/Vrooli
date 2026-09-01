@@ -10,7 +10,7 @@ import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 import type { MouseEvent, ReactNode } from "react";
-import { useCodeCopy } from "../../../../support/inline-code/0.3.5/useCodeCopy";
+import { useCodeCopy } from "../../../../support/inline-code/versions/0.3.5/useCodeCopy";
 export const inlineCodeStyles = `
 [data-rcl-inline] { display: inline-flex; position: relative; align-items: center; gap: var(--space-3xs); color: var(--color-foreground); }
 [data-rcl-inline].rcl-inline__token { border-radius: var(--radius-control); background: var(--color-surface-muted); padding: var(--space-3xs) var(--space-2xs); color: var(--color-foreground); font-family: var(--font-mono, "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace); }

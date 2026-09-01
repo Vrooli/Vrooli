@@ -29,7 +29,7 @@
     {
       "id": "workspace-shell",
       "purpose": "Stable hydrated shell marker used by capture and workflow consumers before inspecting workspace controls.",
-      "component": { "library": { "component": "experience-surface", "version": "1.0.2" } },
+      "component": { "library": { "component": "experience-surface", "version": "1.0.3" } },
       "lifecycle": { "kind": "static", "states": ["static"] }
     }
   ],

@@ -32,6 +32,8 @@ export default {
           "accent-fg": "rgb(var(--wc-accent-fg) / <alpha-value>)",
           "error-text": "rgb(var(--wc-error-text) / <alpha-value>)",
           "error-detail": "rgb(var(--wc-error-detail) / <alpha-value>)",
+          success: "rgb(var(--wc-success) / <alpha-value>)",
+          warning: "rgb(var(--wc-warning) / <alpha-value>)",
         },
         // Border/overlay tokens use pre-composed alpha, reference directly
       },

@@ -1,4 +1,4 @@
-import { useViewportEnvironment } from "../../../../support/useViewportEnvironment/1.0.3/useViewportEnvironment.ingest";
+import { useViewportEnvironment } from "../../../../support/useViewportEnvironment/versions/1.0.3/useViewportEnvironment.ingest";
 
 export function Default() {
   const viewport = useViewportEnvironment();

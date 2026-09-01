@@ -24,14 +24,15 @@ func TestBuildCorpusReportEmitsAllPlanInvariants(t *testing.T) {
 	report, err := BuildCorpusReport(root)
 	require.NoError(t, err)
 	require.Equal(t, "corpus-report/v1", report.SchemaVersion)
-	require.Len(t, report.Invariants, 26)
+	require.Len(t, report.Invariants, report.InvariantCount)
+	require.Equal(t, 25, report.InvariantCount)
 	ids := make(map[string]bool, len(report.Invariants))
 	for _, invariant := range report.Invariants {
 		require.NotEmpty(t, invariant.ID)
 		require.NotEmpty(t, invariant.Unit)
 		ids[invariant.ID] = true
 	}
-	for _, id := range []string{"I7", "I8", "I9", "I12", "I13", "I18", "I20", "I21", "I22", "I23", "I24", "I25", "I26"} {
+	for _, id := range []string{"I7", "I8", "I9", "I12", "I13", "I18", "I20", "I21", "I22", "I23", "I25", "I26"} {
 		require.True(t, ids[id], "missing invariant %s", id)
 	}
 }

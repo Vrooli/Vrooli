@@ -301,7 +301,7 @@ func (v AdoptionVerdict) Blocking() bool {
 	if v.Maturity.Floor != "" && maturityRank(v.Maturity.Achieved) < maturityRank(v.Maturity.Floor) {
 		return true
 	}
-	if v.I18n == "fail" || v.Selectors == "fail" {
+	if v.I18n == "fail" || v.I18n == "not-measured" || v.Selectors == "fail" || v.Selectors == "not-measured" {
 		return true
 	}
 	return v.Dependency == "block" || v.StyleFit == string(components.DesignAffinityDiscouraged)

@@ -6,8 +6,6 @@
  * @tags ["forms","adapter","setup"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import * as React from "react";
-
 export type OperatorInputKind =
   | "secret"
   | "choice"

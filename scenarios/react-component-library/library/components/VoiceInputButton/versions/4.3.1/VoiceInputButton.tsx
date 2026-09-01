@@ -11,7 +11,7 @@ import type {
   ControlDensity,
   ControlSize,
 } from "@vrooli/react-component-library/ControlBase/1.1.0";
-import { VoiceInputButtonGlyph as Glyph, type VoiceInputGlyphKind } from "../../../../support/VoiceInputButtonGlyph/4.3.1";
+import { VoiceInputButtonGlyph as Glyph, type VoiceInputGlyphKind } from "../../../../support/VoiceInputButtonGlyph/versions/4.3.1/VoiceInputButtonGlyph";
 import { useLibraryStyleSheet } from "@vrooli/react-component-library/StyleSheet/1.0.0";
 export const voiceInputButtonStyles = `
 [data-rcl-voice-input] { --rcl-voice-accent: var(--color-foreground); --rcl-voice-surface: var(--color-surface); --rcl-voice-border: var(--color-border); position: relative; background: var(--rcl-voice-surface); border-color: var(--rcl-voice-border); color: var(--rcl-voice-accent); }

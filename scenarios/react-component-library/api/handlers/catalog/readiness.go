@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/storage"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
+	"react-component-library/internal/catalogconfig"
 	"react-component-library/internal/catalogcoverage"
 	"react-component-library/internal/gates"
 )
@@ -57,7 +58,10 @@ func (h *handler) GetReadiness(ctx context.Context, req *connect.Request[catalog
 	if err := json.Unmarshal(configData, &config); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("parse catalog readiness config: %w", err))
 	}
-	floor := strings.TrimSpace(config.AdoptionMaturityFloor)
+	floor, err := catalogconfig.DeclaredMaturityFloor(configPath)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
 	if req != nil && req.Msg != nil && strings.TrimSpace(req.Msg.GetFloor()) != "" {
 		floor = strings.TrimSpace(req.Msg.GetFloor())
 	}

@@ -117,6 +117,17 @@
           }
         },
         {
+          "name": "obligations",
+          "description": "Verify the seven durable files and contract dimensions for a scenario adoption",
+          "positionals": [{ "name": "scenario", "required": true, "description": "Target scenario name" }],
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["filesystem:read"]
+          }
+        },
+        {
           "name": "tokens-sync",
           "description": "Add missing library token requirements to the scenario managed ramp",
           "positionals": [
@@ -2071,10 +2082,10 @@
             {
               "name": "gate",
               "required": false,
-              "description": "Gate: types, api, tokens, conformance, token-vocabulary, token-ramp-complete, fallback-parity, kit-compatibility, affinity-compatible, scenario-token-requirements, released-version-immutable, version-mirror-integrity, specifier-shape, lifecycle, fixture-adversarial, or examples"
+              "description": "Executable gate id. Registry: graph-reconciled, dependency-rank, self-hosting, bas-genericity, token-vocabulary, fallback-parity, kit-compatibility, affinity-compatible, token-ramp-complete, scenario-token-requirements, released-version-immutable, version-mirror-integrity, specifier-shape, version-shape, field-ownership, release-provenance, version-liveness, dist-resolution, types, api, rtl, reduced-motion, performance, console-clean, surface-discipline, composition, composition-contract, documentation, examples, fixture-adversarial, tokens, conformance, lifecycle, i18n, selector-coverage, restyle-contract, manifest-identity, manifest-metadata, declaration-coverage, overlay-surface-composition, shared-style-ownership, style-injection, style-ownership, foreign-token-classes, utility-class, consumer-pin, deprecated-import, provenance-stamp, story-grammar, story-distinctness, evidence-freshness"
             }
           ],
-          "flags": [{"name": "all", "bool": true, "description": "Run every declared catalog gate"}, {"name": "asset-id", "description": "Run the gate for one catalog asset only"}, {"name": "calibration-only", "bool": true, "description": "Run gate-owned planted-error fixtures without inspecting the corpus"}],
+          "flags": [{"name": "all", "bool": true, "description": "Run every declared catalog gate"}, {"name": "asset-id", "description": "Run the gate for one catalog asset only"}, {"name": "calibration-only", "bool": true, "description": "Run gate-owned planted-error fixtures without inspecting the corpus"}, {"name": "include-advisory", "bool": true, "description": "Include advisory gates such as documentation in --all"}],
           "binding": {
             "kind": "connect-rpc",
             "service": "CatalogService",
@@ -2302,6 +2313,16 @@
       "service": "ScenarioValidationService",
       "method": "ApplyFix",
       "reason": "Component test contracts have no automatic fixes; this shared provider method is intentionally unimplemented."
+    },
+    {
+      "service": "InventoryService",
+      "method": "ScanScenario",
+      "reason": "Internal/UI-only inventory scan used by adoption suggestions; the CLI exposes governed adoption commands rather than raw inventory scans."
+    },
+    {
+      "service": "InventoryService",
+      "method": "Scan",
+      "reason": "Internal/UI-only inventory scan used by adoption suggestions; the CLI exposes governed adoption commands rather than raw inventory scans."
     }
   ]
 }

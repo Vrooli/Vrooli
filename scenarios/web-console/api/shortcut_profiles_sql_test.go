@@ -146,7 +146,7 @@ func TestSQLShortcutStore_Effective(t *testing.T) {
 
 	// Default is "service" scope
 	effective := store.Effective(context.Background())
-	if len(effective) == 0 {
+	if len(effective.Shortcuts) == 0 {
 		t.Fatal("expected effective shortcuts from seed data")
 	}
 
@@ -155,8 +155,11 @@ func TestSQLShortcutStore_Effective(t *testing.T) {
 		{Label: "WorkspaceCmd", Command: "ws"},
 	})
 	effective = store.Effective(context.Background())
-	if effective[0].Label != "WorkspaceCmd" {
-		t.Errorf("workspace should override service, got %q", effective[0].Label)
+	if effective.Shortcuts[0].Label != "WorkspaceCmd" {
+		t.Errorf("workspace should override service, got %q", effective.Shortcuts[0].Label)
+	}
+	if effective.ProfileID != "ws-1" || effective.Scope != "workspace" {
+		t.Errorf("effective profile = %q/%q, want ws-1/workspace", effective.ProfileID, effective.Scope)
 	}
 
 	// Add parent scope — should override workspace
@@ -164,8 +167,11 @@ func TestSQLShortcutStore_Effective(t *testing.T) {
 		{Label: "ParentCmd", Command: "parent"},
 	})
 	effective = store.Effective(context.Background())
-	if effective[0].Label != "ParentCmd" {
-		t.Errorf("parent should override workspace, got %q", effective[0].Label)
+	if effective.Shortcuts[0].Label != "ParentCmd" {
+		t.Errorf("parent should override workspace, got %q", effective.Shortcuts[0].Label)
+	}
+	if effective.ProfileID != "par-1" || effective.Scope != "parent" {
+		t.Errorf("effective profile = %q/%q, want par-1/parent", effective.ProfileID, effective.Scope)
 	}
 }
 

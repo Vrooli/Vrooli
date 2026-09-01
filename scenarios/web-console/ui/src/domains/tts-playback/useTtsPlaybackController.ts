@@ -393,6 +393,22 @@ export function useTtsPlaybackController({
     beginQueue(sessionId, queueIds, 0);
   }, [beginQueue, conversationSessions]);
 
+  const nextTrack = useCallback((sessionId: string | null) => {
+    if (!sessionId) return;
+    const current = smStateRef.current;
+    if (current.status === "idle" || current.status === "error" || current.sessionId !== sessionId) return;
+    const next = buildPlayNextEvent(current, generateLoadId());
+    if (next?.type === "play") beginQueue(sessionId, current.queue, next.queueIndex);
+  }, [beginQueue]);
+
+  const previousTrack = useCallback((sessionId: string | null) => {
+    if (!sessionId) return;
+    const current = smStateRef.current;
+    if (current.status === "idle" || current.status === "error" || current.sessionId !== sessionId) return;
+    const previousIndex = current.queueIndex - 1;
+    if (previousIndex >= 0) beginQueue(sessionId, current.queue, previousIndex);
+  }, [beginQueue]);
+
   // Observe audio-layer state. The audio layer surfaces three transitions we
   // care about, and we synthesize SM events for each:
   //   isSpeaking: true→false  → trackEnded for the current playing target
@@ -702,6 +718,8 @@ export function useTtsPlaybackController({
     pausePlayback,
     resumePlayback,
     stopPlayback: stopPlaybackWithIntent,
+    nextTrack,
+    previousTrack,
     buildBarContext: buildBarContextSelector,
     focusCurrentEvent,
   };

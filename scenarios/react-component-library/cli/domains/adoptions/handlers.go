@@ -2,7 +2,10 @@ package adoptions
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +17,61 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 )
+
+func (h *handlers) obligations(ctx cliapp.RunContext) error {
+	scenario := strings.TrimSpace(ctx.Positional("scenario"))
+	root, err := findRepoRoot()
+	if err != nil {
+		return err
+	}
+	base := filepath.Join(root, "scenarios", scenario)
+	checks := map[string]bool{}
+	for _, path := range []string{"ui/src/design-tokens.css", "ui/src/i18n/locales/en.json", "ui/src/consts/selectors.library.ts", "ui/src/consts/selectors.ts", "ui/src/main.tsx", "ui/package.json"} {
+		_, statErr := os.Stat(filepath.Join(base, path))
+		checks[path] = statErr == nil
+	}
+	checks["adoption-record"] = false
+	checks["component-import"] = false
+	adoptions, listErr := h.client.ListAdoptions(context.Background(), connect.NewRequest(&adoptionsv1.ListAdoptionsRequest{Scenario: scenario}))
+	if listErr != nil {
+		return cliapp.WrapAPIError("list adoption obligations", listErr, nil)
+	}
+	for _, adoption := range adoptions.Msg.GetAdoptions() {
+		checks["adoption-record"] = true
+		if adoption.GetAdoptedPath() == "" {
+			continue
+		}
+		adopted := filepath.Join(base, filepath.FromSlash(adoption.GetAdoptedPath()))
+		if _, statErr := os.Stat(adopted); statErr == nil {
+			checks["component-import"] = true
+		}
+	}
+	if data, readErr := os.ReadFile(filepath.Join(base, "ui/package.json")); readErr == nil {
+		checks["package"] = strings.Contains(string(data), "@vrooli/react-component-library")
+	}
+	result := map[string]any{"scenario": scenario, "token": checks["ui/src/design-tokens.css"], "locale_bridge": checks["ui/src/i18n/locales/en.json"] && checks["ui/src/main.tsx"], "selector": checks["ui/src/consts/selectors.library.ts"] && checks["ui/src/consts/selectors.ts"], "adoption_record": checks["adoption-record"], "package": checks["ui/package.json"], "component_import": checks["component-import"]}
+	if ctx.JSON() {
+		return json.NewEncoder(os.Stdout).Encode(result)
+	}
+	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Obligation report for %s", scenario)}, ResultsHeading: "Adoption obligations", Results: []string{fmt.Sprintf("tokens=%t locale-bridge=%t selector=%t adoption-record=%t", result["token"], result["locale_bridge"], result["selector"], result["adoption_record"])}})
+}
+
+func findRepoRoot() (string, error) {
+	start, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for current := filepath.Clean(start); ; current = filepath.Dir(current) {
+		if _, err := os.Stat(filepath.Join(current, "scenarios", "react-component-library", "api")); err == nil {
+			return current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+	}
+	return "", fmt.Errorf("cannot locate repository root")
+}
 
 // handlers bundles the closure over *cliapp.ScenarioApp + the
 // generated Connect-Go client. Mirrors cli/domains/components/.

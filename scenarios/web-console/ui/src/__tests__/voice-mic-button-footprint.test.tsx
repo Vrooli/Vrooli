@@ -109,6 +109,66 @@ describe("VoiceMicButton footprint", () => {
     expect(button).toHaveAttribute("aria-label", expect.stringContaining("vrooli scenario restart audio-tools --json"));
     expect(button.parentElement).toHaveAttribute("title", expect.stringContaining("whisper-stt"));
   });
+
+  it("allows the toolbar host to stretch the library control in both axes", () => {
+    render(
+      <VoiceMicButton
+        supported
+        isPreparing={false}
+        isRecording
+        isTranscribing={false}
+        error={null}
+        onStart={vi.fn()}
+        onStop={vi.fn()}
+        style={{ inlineSize: "100%", blockSize: "100%" }}
+        testId="mic"
+      />,
+    );
+
+    expect(screen.getByTestId("mic")).toHaveStyle({
+      inlineSize: "100%",
+      blockSize: "100%",
+      minInlineSize: "0",
+      minBlockSize: "0",
+    });
+  });
+
+  it("paints a full-width rolling waveform only while the microphone is active", () => {
+    const { rerender } = render(
+      <VoiceMicButton
+        supported
+        isPreparing={false}
+        isRecording
+        isTranscribing={false}
+        error={null}
+        audioLevel={0.6}
+        onStart={vi.fn()}
+        onStop={vi.fn()}
+        testId="mic"
+      />,
+    );
+
+    const button = screen.getByTestId("mic");
+    expect(button).toHaveClass("voice-waveform-control");
+    expect(button.closest("[data-voice-waveform-active='true']")).toBeTruthy();
+    expect(button.parentElement?.querySelector("[data-voice-waveform-path]")).toHaveAttribute("d", expect.stringContaining("Q"));
+
+    rerender(
+      <VoiceMicButton
+        supported
+        isPreparing={false}
+        isRecording={false}
+        isTranscribing={false}
+        error={null}
+        audioLevel={0}
+        onStart={vi.fn()}
+        onStop={vi.fn()}
+        testId="mic"
+      />,
+    );
+    expect(screen.getByTestId("mic").closest("[data-voice-waveform-active='false']")).toBeTruthy();
+    expect(screen.getByTestId("mic").parentElement?.querySelector("[data-voice-waveform-path]")).toHaveAttribute("d", "M 0 94 Q 50 94 100 94");
+  });
 });
 
 /**

@@ -250,7 +250,7 @@ terminal wire protocol is JSON-over-WebSocket while Bridge sessions are binary
 protobuf-over-WebSocket. The browser receives only target readiness facts and
 a short-lived web-console session ID; Bridge owner and re-authentication tokens
 remain server-side. An enrolled local operator session is preferred, and the
-shared `nodeclient` owns per-request Bridge discovery, authentication, and
+shared `api-core/nodereach` owns per-request Bridge discovery, authentication, and
 stream setup. The adapter translates stdin sequence numbers, stdout, resize,
 acknowledgements, launch commands, and close events. A target is unavailable
 when its shared readiness facts or server-side operator authorization fail.

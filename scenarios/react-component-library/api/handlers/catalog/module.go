@@ -176,9 +176,6 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("load catalog gate definitions: %w", definitionErr))
 	}
 	if req.Msg.GetAll() {
-		if strings.TrimSpace(req.Msg.GetAssetId()) != "" {
-			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("asset_id cannot be combined with all=true"))
-		}
 		aggregate := &catalogv1.RunGateResponse{Gate: "all"}
 		type gateResult struct {
 			index int
@@ -195,7 +192,14 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 				defer workers.Done()
 				for index := range jobs {
 					definition := definitions[index]
-					result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, AssetId: req.Msg.GetAssetId(), CalibrationOnly: req.Msg.GetCalibrationOnly()}))
+					if definition.ID == "documentation" && !req.Msg.GetIncludeAdvisory() {
+						continue
+					}
+					assetID := req.Msg.GetAssetId()
+					if registered, ok := gates.Lookup(definition.ID); ok && registered.CorpusScoped {
+						assetID = ""
+					}
+					result, runErr := h.RunGate(ctx, connect.NewRequest(&catalogv1.RunGateRequest{Gate: definition.ID, AssetId: assetID, CalibrationOnly: req.Msg.GetCalibrationOnly()}))
 					results <- gateResult{index: index, resp: result, err: runErr}
 				}
 			}()
@@ -213,6 +217,9 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 			ordered[result.index] = result
 		}
 		for _, result := range ordered {
+			if result.resp == nil {
+				continue
+			}
 			if result.err != nil {
 				return nil, result.err
 			}
@@ -255,7 +262,12 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	// immutable-version fixture creates an overlay database; using the live
 	// routed database here would make the planted drift invisible and falsely
 	// quarantine an otherwise measurable gate.
-	calibration, calibrationErr := gates.Calibrate(h.repoRoot, gate, gates.GateRunnerFor(gate))
+	gateCalibrationRunner := gates.GateRunnerFor(gate)
+	calibration := gates.CalibrationReport{}
+	var calibrationErr error
+	if gateCalibrationRunner != nil {
+		calibration, calibrationErr = gates.Calibrate(h.repoRoot, gate, gateCalibrationRunner)
+	}
 	if calibrationErr != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("calibrate catalog gate %q: %w", gate, calibrationErr))
 	}
@@ -287,7 +299,7 @@ func (h *handler) RunGate(ctx context.Context, req *connect.Request[catalogv1.Ru
 	if runner == nil {
 		result, err = gates.UnmeasuredGate(h.repoRoot)
 	} else {
-		result, err = runner(gates.Scope{Root: h.repoRoot, Assets: scopedAssetIDs(req.Msg.GetAssetId()), DB: runtimeDB})
+		result, _, err = gates.Run(gate, gates.Scope{Root: h.repoRoot, Assets: scopedAssetIDs(req.Msg.GetAssetId()), DB: runtimeDB})
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("run catalog gate %q: %w", gate, err))

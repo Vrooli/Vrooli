@@ -33,7 +33,7 @@ func TestEnsureLaunchCapabilityRejectsMissingAndUnknown(t *testing.T) {
 	target := targetConnection{Target: targetmodel.Target{
 		Label: "Build node",
 		Readiness: []targetmodel.ReadinessCheck{
-			targetmodel.CapabilityReadinessCheck("codex", targetmodel.ReadinessMissing, "codex is not installed", "Install Codex"),
+			targetmodel.CapabilityReadinessCheck("codex", "Codex", targetmodel.ReadinessMissing, "codex is not installed", "Install Codex"),
 		},
 	}}
 	if err := ensureLaunchCapability(target, "codex --yolo"); !errors.Is(err, sessionsH.ErrTargetUnavailable) {
@@ -51,7 +51,7 @@ func TestEnsureLaunchCapabilityAllowsReady(t *testing.T) {
 	target := targetConnection{Target: targetmodel.Target{
 		Label: "Build node",
 		Readiness: []targetmodel.ReadinessCheck{
-			targetmodel.CapabilityReadinessCheck("codex", targetmodel.ReadinessReady, "codex 1", ""),
+			targetmodel.CapabilityReadinessCheck("codex", "Codex", targetmodel.ReadinessReady, "codex 1", ""),
 		},
 	}}
 	if err := ensureLaunchCapability(target, "codex --yolo"); err != nil {

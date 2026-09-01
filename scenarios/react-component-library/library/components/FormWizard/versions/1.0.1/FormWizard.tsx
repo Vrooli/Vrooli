@@ -53,7 +53,7 @@ export default function FormWizard({
             type="button"
             key={item.id}
             aria-current={i === index ? "step" : undefined}
-            onClick={() => i < index && move(i)}
+            onClick={() => { if (i < index) void move(i); }}
           >
             {i + 1}. {item.title}
           </button>
@@ -64,15 +64,15 @@ export default function FormWizard({
           <h2>{step.title}</h2>
           <div>{step.content}</div>
           <footer>
-            <button type="button" onClick={() => move(index - 1)} disabled={index === 0}>
+            <button type="button" onClick={() => { void move(index - 1); }} disabled={index === 0}>
               Back
             </button>
             {index < steps.length - 1 ? (
-              <button type="button" onClick={() => move(index + 1)}>
+              <button type="button" onClick={() => { void move(index + 1); }}>
                 Continue
               </button>
             ) : (
-              <button type="button" onClick={onComplete}>
+              <button type="button" onClick={() => { onComplete?.(); }}>
                 Save
               </button>
             )}

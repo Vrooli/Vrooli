@@ -128,31 +128,112 @@ UI configuration is centralized in [CODE: ui/src/consts/config.ts]. These are co
 
 ## Launcher Shortcuts
 
-The terminal launcher presents configurable shortcut entries alongside the empty shell option. Default shortcuts are defined in [CODE: ui/src/consts/shortcuts.ts] as `DEFAULT_SHORTCUTS`:
+The terminal launcher shows one card per coding agent the selected machine
+reports, plus the empty shell and the editor card. Three different facts meet in
+that grid and they come from different owners:
 
-- **Claude Code**: `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions`
-- **Codex**: `codex --yolo`
-- **Attributed Claude Code**: checks for `vrooli-agent-launcher`, then runs the
-  same direct Claude command when the launcher is absent.
-- **Attributed Codex**: checks for `vrooli-agent-launcher`, then runs the same
-  direct Codex command when the launcher is absent.
-- **Attributed OpenCode** and **Attributed Grok** use the same additive
-  preflight pattern.
+| Fact | Owner | Where |
+|------|-------|-------|
+| Which agents exist, and their state and version | the machine's capability probe | [CODE: packages/capabilityprobe] via the target catalog |
+| Their display names | the same probe, forwarded intact | `capability:<id>` readiness facts |
+| Their order, and the command each one runs | the operator's shortcut profile | `shortcut_profiles`, served by `GetEffective` |
 
-Ambient attribution is no longer a shell function. It is delivered by the
+The rule is one sentence: **membership from the probe, order and command from
+the profile, built-ins only where the profile is silent.** The built-in verbs
+live in `FALLBACK_COMMANDS` ([CODE: ui/src/components/launcher/agentGrid.ts])
+and apply only to an agent the profile has never mentioned — they never
+override a command the operator saved.
+
+`DEFAULT_SHORTCUTS` in [CODE: ui/src/consts/shortcuts.ts] is a **fallback for a
+failed `GetEffective` call, not a source of truth.** The server owns the
+defaults ([CODE: api/shortcut_profiles.go]); keep the two identical, and prefer
+deleting an entry from the client copy over adding one. The two drifted once —
+the client kept an eight-entry list with `(attributed)` duplicates long after
+the server dropped them, and the launcher grew a module whose only job was to
+fold duplicates that only the client still produced.
+
+### Agent identity
+
+Each shortcut entry carries an optional `agent_id` naming one catalogued agent,
+or nothing for a plain operator command. The server resolves it
+([CODE: api/shortcut_agent_identity.go]) and backfills entries stored before the
+field existed; no consumer pattern-matches command text to guess which agent an
+entry launches.
+
+### Reordering
+
+The launcher's **Reorder** control rewrites the effective profile's entry order,
+which is why `GetEffective` returns the profile's id, scope, and name alongside
+the list: a client that edits the effective list has to write it back to the
+profile it actually came from, without re-deriving scope priority for itself.
+Dragging a grip and pressing `Alt` with the arrow keys go through the same move,
+so the two can never disagree.
+
+### Installing an agent
+
+A card for a missing agent offers **Install**, which runs the governed resource
+installer — locally through `LifecycleActionService`, or on a Bridge node
+through the relay ([CODE: api/remote_capability_install.go]).
+
+**An install is reported as done only when the machine itself reports the
+agent.** An installer's exit code says a command ran; it does not say the binary
+landed somewhere the machine looks. The two are routinely different, and the
+outcome is therefore one of three values, defined in
+[CODE: api/internal/capabilities/actions.go]:
+
+| Status | Means | Card shows |
+|--------|-------|------------|
+| `installed` | the target now reports the capability | Installed, transiently |
+| `unconfirmed` | the installer completed and the target has not reported it | Not confirmed · Retry |
+| `failed` | the installer itself did not succeed | Install failed · Retry |
+
+Confirmation is a re-read of the target's own capability report, not of the
+installer's output: the local host answers immediately from its probe, and a
+Bridge node answers through its next heartbeat inventory, so a remote install
+waits across several heartbeats before reporting `unconfirmed`. Expiring that
+window is not a failure — it is the honest answer that nothing is yet known,
+and its remedy is to look again rather than to install again.
+
+Both halves happen inside one HTTP response, so `capabilityInstallBudget`
+(relay + confirmation) is sized under the server's `httpWriteTimeout`; a budget
+larger than the write timeout cuts the response off mid-flight and the operator
+learns nothing. `TestCapabilityInstallFitsInsideTheServerWriteTimeout` pins the
+relationship. The relay's previous 180s ceiling was already over that budget on
+its own.
+
+`Def.OperatorCommand` in the capability registry serves two masters: it is the
+argv that runs *and* the line rendered to an operator to paste. It therefore
+names the CLI, and `operatorCommandArgs` drops exactly one leading token when it
+does. Passing the whole string through as arguments produced
+`vrooli vrooli resource install codex --json`, which is why local coding-agent
+installs never worked.
+
+### Attribution
+
+Ambient attribution is not a shell function. It is delivered by the
 `coding_agent_shims` host safeguard
 ([CODE: internal/safeguards/coding-agent-shims]), which installs one link per
-agent in `~/.vrooli/bin` pointing at `vrooli-agent-launcher`. The launcher
-attributes the run and then replaces its own process image with the real agent,
-so nothing of it survives into the agent's lifetime.
+agent in `~/.vrooli/shims` pointing at `vrooli-agent-launcher`. The launcher
+attributes the run, materializes the session-scoped agent home, and then
+replaces its own process image with the real agent, so nothing of it survives
+into the agent's lifetime.
 
 A shim is a real executable, so attribution reaches every shell, non-interactive
 contexts, and agents started with `execve` — none of which a bash function could
-cover. The shell-function version required an `~/.bashrc` edit that nothing
-installed, upgraded, or removed; if a host still has that block, delete it. The
-shims make it redundant, and leaving it in place only adds a hop.
+cover.
 
-The `TerminalLauncher` component accepts a `shortcuts` prop, enabling parent scenarios to inject custom shortcut lists without modifying the component. This is the extension point for OT-P1-002 (Shortcut Profile Management).
+**A bare agent command depends on that shim resolving first on `PATH`.** For
+Codex and Grok that resolution is what creates the session-scoped home the
+message-capture tailers read, so a command like `codex --yolo` records a
+conversation only if the shim directory really is ahead of the real binary in
+the shell the console spawned. The launch-command editor states this per entry
+and offers the governed rewrite; the classification lives in
+[CODE: ui/src/lib/captureSafety.ts].
+
+The `TerminalLauncher` component accepts a `shortcuts` prop, enabling parent
+scenarios to inject custom shortcut lists without modifying the component. A
+caller that supplies the list owns it, so the dialog offers no reorder control
+in that mode.
 
 ---
 
@@ -292,3 +373,14 @@ WC_CLIENT_CHANNEL_BUFFER=256
 
 ### Default (no changes needed)
 All defaults are designed for the common case: a single operator running a few terminal sessions on a personal server.
+# Machine configuration through Bridge
+
+The Machines surface is the desktop entry point for target-aware onboarding.
+It sends the selected machine's generated `setup/v1.Selection` through Bridge,
+renders the schema-backed question set, and reattaches to durable apply status
+by run id. Secrets use the authenticated sealed credential-grant path; they are
+not placed in ordinary configuration answers or command arguments.
+
+Machine detail shows readiness, desired and applied policy evidence, typed
+drift, outstanding questions, credential receipts, audit events, and terminal
+apply outcomes. Re-apply uses the same durable status surface.

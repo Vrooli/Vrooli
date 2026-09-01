@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/api-core/nodereach"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
-	"github.com/vrooli/nodeclient"
 	"web-console/internal/pty"
 )
 
@@ -20,7 +20,7 @@ var errBridgePTYClosed = errors.New("bridge PTY is closed")
 // typed resize/data operations; this adapter only satisfies the local session
 // manager's PTY interface.
 type bridgePTY struct {
-	session *nodeclient.Session
+	session *nodereach.Session
 	closed  atomic.Bool
 }
 
@@ -31,13 +31,13 @@ func bridgePTYFactory(spec pty.LaunchSpec) (pty.PTY, error) {
 		token = ""
 		tokenProvider = resolveLocalOwnerToken
 	}
-	client := nodeclient.New(nodeclient.Config{
+	client := nodereach.New(nodereach.Config{
 		BridgeURL:     baseRemoteURL(spec.RemoteURL),
 		Token:         token,
 		TokenProvider: tokenProvider,
 		ReauthToken:   spec.RemoteReauthToken,
 	})
-	session, err := client.Open(context.Background(), nodeclient.OpenRequest{
+	session, err := client.Open(context.Background(), nodereach.OpenRequest{
 		NodeID: spec.RemoteNodeID, SessionID: spec.SessionID, Shell: spec.Shell,
 		WorkingDir: spec.WorkingDir, Width: uint32(spec.Cols), Height: uint32(spec.Rows),
 	}, 30*time.Second)

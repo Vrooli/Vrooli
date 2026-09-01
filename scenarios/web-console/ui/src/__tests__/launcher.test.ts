@@ -13,7 +13,7 @@ describe("TerminalLauncher", () => {
     expect(typeof mod.default).toBe("function");
   });
 
-  it("ShortcutEntry interface includes label, command, and description", async () => {
+  it("ShortcutEntry interface includes label, command, and description", () => {
     const entry: import("../consts/shortcuts").ShortcutEntry = {
       label: "Test",
       command: "echo hello",
@@ -57,8 +57,8 @@ describe("TerminalLauncher", () => {
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ backend: "persistent", workingDir: "/tmp" }));
     fireEvent.change(screen.getByTestId("launcher-custom-input"), { target: { value: "echo hi" } });
     fireEvent.keyDown(screen.getByTestId("launcher-custom-input"), { key: "Enter" });
-    fireEvent.click(screen.getByTestId("launcher-agent-list-files"));
-    await waitFor(() => expect(onRefreshTargets).not.toHaveBeenCalled());
+    fireEvent.click(screen.getByTestId("launcher-shortcut-list-files"));
+    await waitFor(() => { expect(onRefreshTargets).not.toHaveBeenCalled(); });
     // Refresh lives inside the machine menu, beside the list it re-probes.
     fireEvent.click(screen.getByTestId("launcher-machine-picker"));
     fireEvent.click(screen.getByTestId("launcher-target-refresh"));
@@ -112,7 +112,7 @@ describe("TerminalLauncher", () => {
     expect(screen.getByTestId("launcher-machine-picker")).toHaveAttribute("aria-label", "launcher.machine: This machine");
     expect(screen.getByTestId("launcher-empty-shell")).toBeDisabled();
     expect(screen.getByTestId("launcher-custom-launch")).toBeDisabled();
-    await waitFor(() => { expect(screen.getByTestId("launcher-agent-status")).toBeInTheDocument(); });
+    await waitFor(() => { expect(screen.getByTestId("launcher-shortcut-status")).toBeInTheDocument(); });
     expect(getEffective).toHaveBeenCalled();
     getEffective.mockRestore();
   });

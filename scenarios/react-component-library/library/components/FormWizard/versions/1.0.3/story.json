@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": { "fields": [{ "path": "steps", "kind": "structured", "label": "Steps" }, { "path": "draftKey", "kind": "text", "label": "Draft key" }] },
+  "environment": { "fixtures": [] },
+  "stories": [{ "id": "resumable-navigation", "name": "Resumable navigation", "args": {}, "expect": [{ "kind": "visible", "selector": "body" }] }]
+}

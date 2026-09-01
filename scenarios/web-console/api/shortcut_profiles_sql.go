@@ -70,6 +70,7 @@ func (s *SQLShortcutStore) Get(ctx context.Context, id string) (*ShortcutProfile
 // Upsert creates or updates a shortcut profile. Replay-safe: if the content
 // is identical to the existing profile, UpdatedAt is preserved.
 func (s *SQLShortcutStore) Upsert(ctx context.Context, id, scope, name string, shortcuts []ShortcutEntry) *ShortcutProfile {
+	shortcuts = normalizeShortcutEntries(shortcuts)
 	shortcutsJSON, err := json.Marshal(shortcuts)
 	if err != nil {
 		log.Printf("SQLShortcutStore.Upsert: marshal shortcuts: %v", err)
@@ -115,10 +116,12 @@ func (s *SQLShortcutStore) Delete(ctx context.Context, id string) bool {
 }
 
 // Effective returns the resolved shortcut list by selecting the
-// highest-priority scope's profile.
-func (s *SQLShortcutStore) Effective(ctx context.Context) []ShortcutEntry {
+// highest-priority scope's profile, together with that profile's identity so
+// a client can write an edited order back to the row it actually came from.
+func (s *SQLShortcutStore) Effective(ctx context.Context) EffectiveShortcuts {
+	fallback := EffectiveShortcuts{Shortcuts: normalizeShortcutEntries(defaultShortcuts)}
 	row := s.db.QueryRowContext(ctx, `
-		SELECT shortcuts FROM shortcut_profiles
+		SELECT id, scope, name, shortcuts FROM shortcut_profiles
 		ORDER BY CASE scope
 			WHEN 'parent' THEN 3
 			WHEN 'workspace' THEN 2
@@ -127,21 +130,21 @@ func (s *SQLShortcutStore) Effective(ctx context.Context) []ShortcutEntry {
 		END DESC
 		LIMIT 1`)
 
-	var shortcutsJSON string
-	if err := row.Scan(&shortcutsJSON); err != nil {
+	var id, scope, name, shortcutsJSON string
+	if err := row.Scan(&id, &scope, &name, &shortcutsJSON); err != nil {
 		if err == sql.ErrNoRows {
-			return defaultShortcuts
+			return fallback
 		}
 		log.Printf("SQLShortcutStore.Effective: scan failed: %v", err)
-		return defaultShortcuts
+		return fallback
 	}
 
 	var shortcuts []ShortcutEntry
 	if err := json.Unmarshal([]byte(shortcutsJSON), &shortcuts); err != nil {
 		log.Printf("SQLShortcutStore.Effective: unmarshal failed: %v", err)
-		return defaultShortcuts
+		return fallback
 	}
-	return shortcuts
+	return EffectiveShortcuts{ProfileID: id, Scope: scope, Name: name, Shortcuts: normalizeShortcutEntries(shortcuts)}
 }
 
 // reconcileDefaultShortcutProfile refreshes a stale persisted "default" service

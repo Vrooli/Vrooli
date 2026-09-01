@@ -6,8 +6,6 @@
  * @tags ["forms","secret","setup"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import * as React from "react";
-
 export interface PinInputProps {
   length?: number;
   value?: string;

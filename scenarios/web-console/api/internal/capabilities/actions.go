@@ -6,11 +6,46 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
 const defaultLifecycleActionTimeout = 180 * time.Second
+
+// Install outcome statuses.
+//
+// These are the contract between an installer and every surface that renders
+// its result, so they are stable strings rather than an unexported enum.
+//
+// The distinction that matters is between "the installer exited 0" and "the
+// machine now has the thing". Only the second is a success an operator can
+// act on, and the two are routinely different: a relayed install can complete
+// cleanly while the binary lands somewhere the machine does not look, and a
+// machine that reports its inventory on a heartbeat has not necessarily
+// reported anything yet by the time the installer returns.
+const (
+	// InstallStatusInstalled means the target itself now reports the
+	// capability as present. It is the ONLY status that may be rendered as a
+	// completed install.
+	InstallStatusInstalled = "installed"
+	// InstallStatusUnconfirmed means the installer completed without error and
+	// the target has not (yet) reported the capability. It is deliberately not
+	// a failure: the honest answer is "we do not know", and the remedy is to
+	// look again rather than to install again.
+	InstallStatusUnconfirmed = "unconfirmed"
+	// InstallStatusFailed means the installer itself did not succeed.
+	InstallStatusFailed = "failed"
+	// InstallStatusNotApplicable means the capability cannot exist on this
+	// target at all, so there is nothing to install and nothing to retry.
+	InstallStatusNotApplicable = "not_applicable"
+
+	// InstallConfirmedState is the state a target reports for a capability it
+	// actually has. It matches capabilityprobe.Ready by value rather than by
+	// import: this package is depended on by the Bridge-facing paths and must
+	// stay free of the probe.
+	InstallConfirmedState = "ready"
+)
 
 type LifecycleActionRequest struct {
 	CapabilityID string
@@ -130,13 +165,13 @@ func (s LifecycleActionService) definition(capabilityID string) (Def, bool) {
 }
 
 func (s LifecycleActionService) runOperatorCommand(ctx context.Context, req LifecycleActionRequest, def Def) (LifecycleActionResult, error) {
-	args := strings.Fields(def.OperatorCommand)
-	if len(args) == 0 {
-		return LifecycleActionResult{}, fmt.Errorf("capability %q has an empty operator action", req.CapabilityID)
-	}
 	cli := strings.TrimSpace(s.CLIPath)
 	if cli == "" {
 		cli = "vrooli"
+	}
+	args := operatorCommandArgs(def.OperatorCommand, cli)
+	if len(args) == 0 {
+		return LifecycleActionResult{}, fmt.Errorf("capability %q has an empty operator action", req.CapabilityID)
 	}
 	runner := s.Runner
 	if runner == nil {
@@ -149,6 +184,45 @@ func (s LifecycleActionService) runOperatorCommand(ctx context.Context, req Life
 		return lifecycleFailure(req, "operator action failed", result, err), nil
 	}
 	return lifecycleSuccess(req, result), nil
+}
+
+// operatorCommandArgs turns a declared operator command into argv for cli.
+//
+// Def.OperatorCommand serves two masters: it is executed here, and it is
+// rendered verbatim in the UI as a line an operator can paste into a shell.
+// The second use means it carries the CLI's own name, and passing the whole
+// string through as arguments produced `vrooli vrooli resource install codex`
+// — which is why installing a coding agent on this machine has never worked.
+// Drop exactly one leading token, and only when it names the CLI being run.
+func operatorCommandArgs(command, cli string) []string {
+	args := strings.Fields(command)
+	if len(args) == 0 {
+		return nil
+	}
+	name := commandBaseName(cli)
+	if name != "" && commandBaseName(args[0]) == name {
+		return args[1:]
+	}
+	return args
+}
+
+// commandBaseName reduces a path or bare name to the executable name, so a
+// CLIPath of /usr/local/bin/vrooli still matches a declared "vrooli" prefix.
+//
+// Both separators are cut on every platform rather than deferring to
+// filepath.Base: a backslash is a legal filename character on Unix, so
+// filepath.Base leaves a Windows-shaped path intact there, and a comparison
+// that only works on the host that produced the path is the kind that fails
+// in the field and passes in CI. The .exe suffix goes for the same reason.
+func commandBaseName(value string) string {
+	value = strings.TrimSpace(value)
+	if index := strings.LastIndexAny(value, `/\`); index >= 0 {
+		value = value[index+1:]
+	}
+	if strings.EqualFold(filepath.Ext(value), ".exe") {
+		value = value[:len(value)-len(".exe")]
+	}
+	return value
 }
 
 func actionTimeout(timeout time.Duration) time.Duration {

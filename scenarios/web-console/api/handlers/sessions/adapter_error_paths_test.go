@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/nodeclient"
+	"github.com/vrooli/api-core/nodereach"
 	"web-console/internal/backend"
 	"web-console/internal/policy"
 	"web-console/internal/sessionstore"
@@ -54,8 +54,8 @@ func TestAdapterErrorAndRemotePaths(t *testing.T) {
 	if _, err := a.Create(ctx, CreateInput{TargetID: "node"}); !errors.Is(err, ErrRemoteUnavailable) {
 		t.Fatalf("remote without service: %v", err)
 	}
-	remoteAdapter := &Adapter{Manager: emptySessionManager{}, Remote: remoteCreateErrorService{err: fmt.Errorf("PTY spawn failed: %w", &nodeclient.Error{
-		Kind:  nodeclient.ErrMissingScope,
+	remoteAdapter := &Adapter{Manager: emptySessionManager{}, Remote: remoteCreateErrorService{err: fmt.Errorf("PTY spawn failed: %w", &nodereach.Error{
+		Kind:  nodereach.ErrMissingScope,
 		Node:  "node-secret-id",
 		Scope: "vrooli-bridge:write",
 		Err:   errors.New("Bridge rejected session handshake"),
@@ -72,7 +72,7 @@ func TestAdapterErrorAndRemotePaths(t *testing.T) {
 	}{
 		{name: "unknown node", err: fmt.Errorf("%w: node-secret-id", ErrTargetNotFound), want: ErrTargetNotFound},
 		{name: "offline node", err: fmt.Errorf("%w: private detail", ErrTargetUnavailable), want: ErrTargetUnavailable},
-		{name: "expired authorization", err: &nodeclient.Error{Kind: nodeclient.ErrMissingReauth, Node: "node-secret-id"}, want: ErrTargetUnavailable},
+		{name: "expired authorization", err: &nodereach.Error{Kind: nodereach.ErrMissingReauth, Node: "node-secret-id"}, want: ErrTargetUnavailable},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			adapter := &Adapter{Manager: emptySessionManager{}, Remote: remoteCreateErrorService{err: test.err}}

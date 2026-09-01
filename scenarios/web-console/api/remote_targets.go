@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/nodereach"
 	sharedsession "github.com/vrooli/api-core/operatorsession"
 	"github.com/vrooli/api-core/targetmodel"
-	"github.com/vrooli/nodeclient"
 	"web-console/internal/config"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
@@ -154,7 +154,7 @@ func targetFromRegistryNode(base targetConnection, node *registryv1.Node) target
 // the credential-bearing base connection every derived target inherits. It is
 // shared by the target catalog and the machines surface so there is exactly one
 // place that decides how this process authenticates to the control plane.
-func bridgeNodeClient(ctx context.Context) (*nodeclient.Client, targetConnection) {
+func bridgeNodeClient(ctx context.Context) (*nodereach.Client, targetConnection) {
 	base := configuredRemoteTarget()
 	if !base.Available {
 		return nil, base
@@ -162,12 +162,12 @@ func bridgeNodeClient(ctx context.Context) (*nodeclient.Client, targetConnection
 	clientToken := base.OwnerToken
 	var tokenProvider func(context.Context) (string, error)
 	if hasExplicitAuthScheme(clientToken, sharedsession.LocalSessionScheme) {
-		// Do not pin a short-lived local session into a client. nodeclient asks
+		// Do not pin a short-lived local session into a client. nodereach asks
 		// the provider for a fresh owner credential for each request.
 		clientToken = ""
 		tokenProvider = resolveLocalOwnerToken
 	}
-	nodeClient := nodeclient.New(nodeclient.Config{
+	nodeClient := nodereach.New(nodereach.Config{
 		BridgeURL: base.BaseURL, Token: clientToken, ReauthToken: base.ReauthToken,
 		TokenProvider: tokenProvider,
 	})

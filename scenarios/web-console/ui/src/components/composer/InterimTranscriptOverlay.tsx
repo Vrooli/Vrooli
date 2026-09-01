@@ -53,21 +53,34 @@ export default function InterimTranscriptOverlay({
 }: InterimTranscriptOverlayProps) {
   const active = interim.length > 0;
   const overlayRef = useRef<HTMLDivElement>(null);
+  const userScrolledAwayRef = useRef(false);
   const [value, setValue] = useState(() => (active ? draft.getValue() : ""));
 
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      userScrolledAwayRef.current = false;
+      return;
+    }
     setValue(draft.getValue());
     return draft.subscribe((change) => setValue(change.value));
   }, [active, draft]);
 
-  // Follow the textarea's scroll so a long draft stays in register. Layout
-  // effect so the first painted frame is already aligned.
+  // Follow the textarea's scroll so a long draft stays in register. While the
+  // operator remains at the bottom, keep the growing hypothesis visible. A
+  // deliberate scroll-away is respected until the operator returns to the
+  // bottom, so dictation never yanks a reader back to the live tail.
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
     const overlay = overlayRef.current;
     if (!active || !textarea || !overlay) return;
-    const sync = () => { overlay.scrollTop = textarea.scrollTop; };
+    const sync = () => {
+      const remaining = textarea.scrollHeight - textarea.scrollTop - textarea.clientHeight;
+      userScrolledAwayRef.current = remaining > 8;
+      overlay.scrollTop = textarea.scrollTop;
+    };
+    if (!userScrolledAwayRef.current) {
+      textarea.scrollTop = textarea.scrollHeight;
+    }
     sync();
     textarea.addEventListener("scroll", sync, { passive: true });
     return () => textarea.removeEventListener("scroll", sync);

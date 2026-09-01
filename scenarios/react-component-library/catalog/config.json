@@ -875,6 +875,14 @@
       "runner": { "react-vite": "react-component-library catalog gates story-distinctness" }
     },
     {
+      "id": "dist-resolution",
+      "rung": "implemented",
+      "appliesTo": ["foundation", "primitive", "component", "pattern", "page-template", "navigation", "runtime-hook", "runtime-service", "adapter"],
+      "blocking": true,
+      "description": "Every published bundle import resolves through the package manifest or exports map.",
+      "runner": { "react-vite": "react-component-library catalog gates dist-resolution" }
+    },
+    {
       "id": "evidence-freshness",
       "rung": "implemented",
       "appliesTo": ["primitive", "component", "pattern", "page-template"],

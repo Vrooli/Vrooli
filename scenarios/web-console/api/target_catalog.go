@@ -101,7 +101,7 @@ func localCapabilityFacts() []targetmodel.ReadinessCheck {
 	observations := capabilityprobe.Probe(context.Background(), capabilityprobe.AITools)
 	result := make([]targetmodel.ReadinessCheck, 0, len(observations))
 	for _, item := range observations {
-		fact := targetmodel.CapabilityReadinessCheck(item.ID, targetmodel.ReadinessState(item.State), item.Detail, capabilityRecovery(item.State))
+		fact := targetmodel.CapabilityReadinessCheck(item.ID, item.Label, targetmodel.ReadinessState(item.State), item.Detail, capabilityRecovery(item.State))
 		fact.Version = item.Version
 		result = append(result, fact)
 	}
@@ -149,7 +149,7 @@ func readinessFactsForNode(node *registryv1.Node) []targetmodel.ReadinessCheck {
 		case 3:
 			state = targetmodel.ReadinessNotApplicable
 		}
-		fact := targetmodel.CapabilityReadinessCheck(item.GetId(), state, item.GetDetail(), capabilityRecoveryString(string(state)))
+		fact := targetmodel.CapabilityReadinessCheck(item.GetId(), item.GetLabel(), state, item.GetDetail(), capabilityRecoveryString(string(state)))
 		fact.Version = item.GetVersion()
 		result = append(result, fact)
 	}

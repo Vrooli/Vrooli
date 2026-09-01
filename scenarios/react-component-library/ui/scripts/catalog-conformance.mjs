@@ -342,13 +342,15 @@ async function run(command, args, cwd = uiDir, environment = {}) {
 
 const mode = process.argv[2] ?? "check";
 const files = catalogFiles();
-// A full pass always compiles the app. A scoped pass compiles it only when a
-// changed asset is one the app imports — otherwise nothing the app depends on
-// moved, so it cannot newly fail.
-const compileApp = scopedAssets.size === 0 || (() => {
+// A full pass compiles the app. A scoped pass validates the selected asset
+// sources only: the consumer application has its own build gate, and pulling
+// it into every one-asset edit turns a focused validation cycle into a second
+// full application compile. Callers that explicitly need the transitive app
+// closure can opt in for a scoped run with RCL_CATALOG_COMPILE_APP=1.
+const compileApp = scopedAssets.size === 0 || (process.env.RCL_CATALOG_COMPILE_APP === "1" && (() => {
   const closure = appDependencyClosure();
   return [...scopedAssets].some((name) => closure.has(name));
-})();
+})());
 if (scopedAssets.size > 0) {
   console.log(
     `[catalog-conformance] incremental: ${files.length} file(s) across ${scopedAssets.size} changed asset(s); ` +

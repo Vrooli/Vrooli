@@ -56,12 +56,15 @@ func TestShortcutStoreInterface(t *testing.T) {
 
 	// Effective returns highest-priority scope's shortcuts
 	effective := store.Effective(context.Background())
-	if len(effective) == 0 {
+	if len(effective.Shortcuts) == 0 {
 		t.Fatal("expected effective shortcuts")
 	}
 	// workspace (priority 2) > service (priority 1)
-	if effective[0].Label != "Echo" {
-		t.Errorf("expected workspace shortcut to take priority, got %q", effective[0].Label)
+	if effective.Shortcuts[0].Label != "Echo" {
+		t.Errorf("expected workspace shortcut to take priority, got %q", effective.Shortcuts[0].Label)
+	}
+	if effective.ProfileID != "test-1" || effective.Scope != "workspace" {
+		t.Errorf("effective profile = %q/%q, want test-1/workspace", effective.ProfileID, effective.Scope)
 	}
 
 	// Delete removes the profile

@@ -420,7 +420,7 @@ func (sm *Manager) createWithRemote(ctx context.Context, shell string, cols, row
 
 	p, err := factory(spec)
 	if err != nil {
-		// Preserve the typed nodeclient error through the session sentinel so
+		// Preserve the typed nodereach error through the session sentinel so
 		// the Connect handler can distinguish a denied grant, an offline node,
 		// and an actual local PTY failure.
 		return nil, fmt.Errorf("%w: %w", ErrPTYSpawnFailed, err)

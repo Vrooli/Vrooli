@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { InstallOutcome } from "../../api/capabilities";
 import { useTranslation } from "react-i18next";
 import { CircleAlert, Plus, Radio, RefreshCw } from "lucide-react";
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
@@ -13,6 +14,7 @@ import GrantPicker from "../machines/GrantPicker";
 import { useDevices, useDeviceMutations } from "../../hooks/useDevices";
 import DeviceCard from "./DeviceCard";
 import FleetRail from "./FleetRail";
+import { ConfigurationPanel } from "./ConfigurationPanel";
 
 /**
  * The machines surface.
@@ -28,13 +30,14 @@ type View =
   | { kind: "add" }
   | { kind: "review"; request: JoinRequest }
   | { kind: "grant-new"; request: JoinRequest }
-  | { kind: "grant-existing"; machine: Machine };
+  | { kind: "grant-existing"; machine: Machine }
+  | { kind: "configuration"; machine: Machine };
 
 interface FleetDrawerProps {
   open: boolean;
   onClose: () => void;
   onStartSession?: (machine: Machine) => void;
-  onInstallCapability?: (capabilityID: string, target: Machine["target"]) => void;
+  onInstallCapability?: (capabilityID: string, target: Machine["target"]) => Promise<InstallOutcome>;
 }
 
 export default function FleetDrawer({ open, onClose, onStartSession, onInstallCapability }: FleetDrawerProps) {
@@ -60,6 +63,16 @@ export default function FleetDrawer({ open, onClose, onStartSession, onInstallCa
   }, [open]);
 
   const goList = useCallback(() => { setView({ kind: "list" }); setFailure(""); }, []);
+
+  const handleOnboardingFinished = useCallback(async (nodeID: string) => {
+    const refreshed = await fleetQuery.refetch();
+    const machine = refreshed.data?.machines.find((item) => item.target.node_id === nodeID || item.target.id === nodeID);
+    if (machine) {
+      setView({ kind: "configuration", machine });
+      return;
+    }
+    setFailure("Onboarding finished, but the paired machine is not yet visible. Refresh the machines list to continue configuration.");
+  }, [fleetQuery]);
 
   const reportFailure = useCallback((error: unknown) => {
     setFailure(error instanceof Error ? error.message : String(error));
@@ -164,7 +177,7 @@ export default function FleetDrawer({ open, onClose, onStartSession, onInstallCa
                       <JoinRequestCard key={request.id} request={request} onReview={() => { setView({ kind: "review", request }); }} />
                     ))}
                     {(fleet?.machines ?? []).map((machine) => (
-                      <MachineCard key={machine.target.id} machine={machine} onStartSession={onStartSession} onInstallCapability={onInstallCapability} onManage={(item) => { setView({ kind: "grant-existing", machine: item }); }} />
+                      <MachineCard key={machine.target.id} machine={machine} onStartSession={onStartSession} onInstallCapability={onInstallCapability} onManage={(item) => { setView({ kind: "grant-existing", machine: item }); }} onConfigure={(item) => { setView({ kind: "configuration", machine: item }); }} />
                     ))}
                     {remoteMachines.length === 0 && (
                       <div data-testid="machines-empty" className="w-[268px] shrink-0 rounded-xl border border-dashed border-wc-default bg-wc-surface-base/40 p-5 text-center">
@@ -189,6 +202,7 @@ export default function FleetDrawer({ open, onClose, onStartSession, onInstallCa
             onReview={(request) => { setView({ kind: "review", request }); }}
             onBack={goList}
             controlPlaneConsoleUrl={fleet?.controlPlane.consoleUrl ?? ""}
+            onOnboardingFinished={handleOnboardingFinished}
           />
         )}
 
@@ -224,6 +238,8 @@ export default function FleetDrawer({ open, onClose, onStartSession, onInstallCa
             onConfirm={(preset) => { handleSaveGrant(view.machine, preset); }}
           />
         )}
+
+        {view.kind === "configuration" && <ConfigurationPanel machine={view.machine} onBack={goList} />}
 
         {failure && (
           <div

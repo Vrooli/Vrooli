@@ -11,8 +11,13 @@ import (
 
 type fakeShortcutsService struct{ err error }
 
-func (fakeShortcutsService) Effective(context.Context) []Shortcut {
-	return []Shortcut{{Label: "List", Command: "ls", Description: "files"}}
+func (fakeShortcutsService) Effective(context.Context) Effective {
+	return Effective{
+		ProfileID: "p1",
+		Scope:     "workspace",
+		Name:      "Global",
+		Shortcuts: []Shortcut{{Label: "List", Command: "ls", Description: "files"}},
+	}
 }
 
 func (fakeShortcutsService) List(context.Context) []Profile {
@@ -25,8 +30,16 @@ func (f fakeShortcutsService) Upsert(context.Context, UpsertRequest) (Profile, e
 func (fakeShortcutsService) Delete(context.Context, string) {}
 func TestConnectHandlerShortcuts(t *testing.T) {
 	h := NewConnectHandler(Deps{Service: fakeShortcutsService{}})
-	if resp, err := h.GetEffective(context.Background(), connect.NewRequest(&shortcutsv1.GetEffectiveRequest{})); err != nil || len(resp.Msg.Shortcuts) != 1 {
+	resp, err := h.GetEffective(context.Background(), connect.NewRequest(&shortcutsv1.GetEffectiveRequest{}))
+	if err != nil || len(resp.Msg.Shortcuts) != 1 {
 		t.Fatal(err)
+	}
+	// The profile identity travels with the list. A client that lets the
+	// operator reorder the effective list writes it back to this id; without
+	// it, that client has to re-derive scope priority for itself.
+	if resp.Msg.GetProfileId() != "p1" || resp.Msg.GetScope() != "workspace" || resp.Msg.GetProfileName() != "Global" {
+		t.Fatalf("GetEffective profile = %q/%q/%q, want p1/workspace/Global",
+			resp.Msg.GetProfileId(), resp.Msg.GetScope(), resp.Msg.GetProfileName())
 	}
 	if resp, err := h.ListProfiles(context.Background(), connect.NewRequest(&shortcutsv1.ListProfilesRequest{})); err != nil || len(resp.Msg.Profiles) != 1 {
 		t.Fatal(err)

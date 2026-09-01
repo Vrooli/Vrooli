@@ -10,8 +10,8 @@ import { StyleSheet } from "@vrooli/react-component-library/StyleSheet/1";
 import { withClassName } from "@vrooli/react-component-library/ClassMerge/1";
 
 import { useState } from "react";
-import { useCodeCopy } from "../../../../support/mermaid-diagram/0.3.3/useCodeCopy";
-import { useMermaidSvg } from "../../../../support/mermaid-diagram/0.3.3/useMermaidSvg";
+import { useCodeCopy } from "../../../../support/mermaid-diagram/versions/0.3.3/useCodeCopy";
+import { useMermaidSvg } from "../../../../support/mermaid-diagram/versions/0.3.3/useMermaidSvg";
 export const mermaidStyles = `
 [data-rcl-mermaid] { min-inline-size: 0; overflow: hidden; margin-block: var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface-muted); color: var(--color-foreground); }
 [data-rcl-mermaid] .rcl-mermaid__header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-xs); border-block-end: var(--border-hairline) solid var(--color-border); padding: var(--space-xs) var(--space-sm); color: var(--color-muted-foreground); font: var(--text-caption); }

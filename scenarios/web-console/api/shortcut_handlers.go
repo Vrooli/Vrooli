@@ -21,8 +21,14 @@ func newShortcutsAdapter(s *Server) *shortcutsAdapter {
 	return &shortcutsAdapter{s: s}
 }
 
-func (a *shortcutsAdapter) Effective(ctx context.Context) []shortcutsH.Shortcut {
-	return entriesToTransport(a.s.shortcuts.Effective(ctx))
+func (a *shortcutsAdapter) Effective(ctx context.Context) shortcutsH.Effective {
+	resolved := a.s.shortcuts.Effective(ctx)
+	return shortcutsH.Effective{
+		ProfileID: resolved.ProfileID,
+		Scope:     resolved.Scope,
+		Name:      resolved.Name,
+		Shortcuts: entriesToTransport(resolved.Shortcuts),
+	}
 }
 
 func (a *shortcutsAdapter) List(ctx context.Context) []shortcutsH.Profile {
@@ -68,6 +74,7 @@ func entriesToTransport(in []ShortcutEntry) []shortcutsH.Shortcut {
 			Label:       e.Label,
 			Command:     e.Command,
 			Description: e.Description,
+			AgentID:     e.AgentID,
 		})
 	}
 	return out
@@ -80,6 +87,7 @@ func entriesFromTransport(in []shortcutsH.Shortcut) []ShortcutEntry {
 			Label:       e.Label,
 			Command:     e.Command,
 			Description: e.Description,
+			AgentID:     e.AgentID,
 		})
 	}
 	return out

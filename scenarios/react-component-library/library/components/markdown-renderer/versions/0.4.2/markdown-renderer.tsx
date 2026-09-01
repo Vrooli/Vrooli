@@ -19,19 +19,19 @@ import {
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { CodeBlock } from "../../../../support/markdown-renderer/0.4.2/CodeBlock";
-import { InlineCode, type InlineTokenResolution } from "../../../../support/markdown-renderer/0.4.2/InlineCode";
-import { MermaidDiagram } from "../../../../support/markdown-renderer/0.4.2/MermaidDiagram";
-import { remarkProsePaths } from "../../../../support/markdown-renderer/0.4.2/languageDetection";
-import { markdownStyles } from "../../../../support/markdown-renderer/0.4.2/markdownStyles";
+import { CodeBlock } from "../../../../support/markdown-renderer/versions/0.4.2/CodeBlock";
+import { InlineCode, type InlineTokenResolution } from "../../../../support/markdown-renderer/versions/0.4.2/InlineCode";
+import { MermaidDiagram } from "../../../../support/markdown-renderer/versions/0.4.2/MermaidDiagram";
+import { remarkProsePaths } from "../../../../support/markdown-renderer/versions/0.4.2/languageDetection";
+import { markdownStyles } from "../../../../support/markdown-renderer/versions/0.4.2/markdownStyles";
 
-export type { InlineTokenResolution } from "../../../../support/markdown-renderer/0.4.2/InlineCode";
-export { CodeBlock } from "../../../../support/markdown-renderer/0.4.2/CodeBlock";
-export { InlineCode } from "../../../../support/markdown-renderer/0.4.2/InlineCode";
-export { MermaidDiagram } from "../../../../support/markdown-renderer/0.4.2/MermaidDiagram";
-export { normalizeCodeLanguage, languageLabel, remarkProsePaths } from "../../../../support/markdown-renderer/0.4.2/languageDetection";
-export { useCodeCopy } from "../../../../support/markdown-renderer/0.4.2/useCodeCopy";
-export { resetMermaidRenderCacheForTests, useMermaidSvg } from "../../../../support/markdown-renderer/0.4.2/useMermaidSvg";
+export type { InlineTokenResolution } from "../../../../support/markdown-renderer/versions/0.4.2/InlineCode";
+export { CodeBlock } from "../../../../support/markdown-renderer/versions/0.4.2/CodeBlock";
+export { InlineCode } from "../../../../support/markdown-renderer/versions/0.4.2/InlineCode";
+export { MermaidDiagram } from "../../../../support/markdown-renderer/versions/0.4.2/MermaidDiagram";
+export { normalizeCodeLanguage, languageLabel, remarkProsePaths } from "../../../../support/markdown-renderer/versions/0.4.2/languageDetection";
+export { useCodeCopy } from "../../../../support/markdown-renderer/versions/0.4.2/useCodeCopy";
+export { resetMermaidRenderCacheForTests, useMermaidSvg } from "../../../../support/markdown-renderer/versions/0.4.2/useMermaidSvg";
 
 export interface MarkdownRendererProps {
   content: string;

@@ -254,3 +254,17 @@ See [TTS API Reference](./tts-api.md) for full request/response schemas.
 |---|---|---|
 | GET | `/api/v1/metrics` | `handleMetrics` |
 | GET | `/api/v1/events` | `handleEvents` |
+### SSH onboarding through the machines surface
+
+The machines `MachineService` exposes `PreflightOnboarding`,
+`StartOnboarding`, `GetOnboarding`, `WaitOnboarding`, and
+`CancelOnboarding`. The server forwards these typed requests through the
+shared node-reach client to Bridge; the browser never receives Bridge
+credentials. `WaitOnboarding` is the block-once operation for reconnectable
+progress, not a polling substitute.
+## Machine configuration
+
+The machines service exposes configuration reads and answer submission through
+Bridge. It returns the target's onboarding question JSON and readiness JSON;
+Web Console renders those payloads with the same React Component Library form
+assets used by `vrooli-onboarding`.

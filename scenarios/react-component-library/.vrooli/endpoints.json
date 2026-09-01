@@ -222,6 +222,55 @@
       ]
     },
     {
+      "id": "adoptions_link",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/LinkAdoption",
+      "method": "POST",
+      "summary": "Link a pinned component version through the governed package",
+      "description": "Adds the file dependency to the adopter and records a linked adoption without copying source files.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "import_subpath": "string",
+          "scenario": "string",
+          "version": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "import_subpath": "string",
+          "package_path": "string"
+        }
+      }
+    },
+    {
+      "id": "adoptions_eject",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/EjectAdoption",
+      "method": "POST",
+      "summary": "Eject a component with an explicit reason",
+      "description": "Copies source into the adopter only when the operator supplies a durable fork reason.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "adopted_path": "string",
+          "component_id": "string",
+          "reason": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoption": "Adoption",
+          "written_path": "string"
+        }
+      }
+    },
+    {
       "id": "adoptions_apply",
       "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ApplyAdoption",
       "method": "POST",
@@ -373,6 +422,35 @@
           "library_current": "int32",
           "local_clean": "int32",
           "local_modified": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository or filesystem failure"
+        }
+      ]
+    },
+    {
+      "id": "adoptions_fork_report",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ForkReportAdoptions",
+      "method": "POST",
+      "summary": "Classify adoption fork dispositions",
+      "description": "Computes the four-way fork report for the complete adoption registry. The report is read-only unless apply is requested.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool",
+          "component_id": "string (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "adoptions": "array<Adoption>",
+          "fork_status": "four-way classification on each adoption"
         }
       },
       "errors": [
@@ -596,6 +674,14 @@
       "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetHealthOverview",
       "method": "POST",
       "summary": "Read server-computed catalog health",
+      "description": "",
+      "category": "catalog"
+    },
+    {
+      "id": "catalog_readiness",
+      "path": "/vrooli.react_component_library.v1.catalog.CatalogService/GetReadiness",
+      "method": "POST",
+      "summary": "Report catalog readiness and triage",
       "description": "",
       "category": "catalog"
     },
@@ -1225,6 +1311,41 @@
       ]
     },
     {
+      "id": "components_library_import_resolve",
+      "path": "/vrooli.react_component_library.v1.components.ComponentsService/ResolveLibraryImport",
+      "method": "POST",
+      "summary": "Resolve a library import",
+      "description": "Resolves a published React Component Library package specifier to its catalog asset, pinned version, export kind, description, and source path. Relative imports return an explicit unresolved diagnostic.",
+      "category": "components",
+      "request": {
+        "type": "object",
+        "properties": {
+          "from_path": "string (optional source path)",
+          "specifier": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "asset_id": "string",
+          "description": "string",
+          "diagnostic": "string",
+          "export_kind": "string",
+          "library_id": "string",
+          "resolved": "bool",
+          "source_path": "string",
+          "version": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Catalog read failure"
+        }
+      ]
+    },
+    {
       "id": "components_stories_list",
       "path": "/vrooli.react_component_library.v1.components.ComponentsService/ListComponentStories",
       "method": "POST",
@@ -1376,6 +1497,14 @@
       "category": "component-tests"
     },
     {
+      "id": "component_tests_sweep",
+      "path": "/vrooli.react_component_library.v1.componenttests.ComponentTestsService/SweepComponentTests",
+      "method": "POST",
+      "summary": "Run the resumable full-corpus component-test sweep",
+      "description": "",
+      "category": "component-tests"
+    },
+    {
       "id": "component_tests_validate_scenario",
       "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
       "method": "POST",
@@ -1490,6 +1619,14 @@
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
+    },
+    {
+      "id": "inventory_scan_subjects",
+      "path": "/vrooli.ui_health.v1.inventory.InventoryService/Scan",
+      "method": "POST",
+      "summary": "Scan a bounded list of UI asset subjects",
+      "description": "Returns one subject-keyed result for every supplied asset subject.",
+      "category": "inventory"
     },
     {
       "id": "inventory_scan_scenario",
@@ -1820,6 +1957,46 @@
       "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/RetireVersion",
       "method": "POST",
       "summary": "Retire an unreferenced version",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_materialize",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/MaterializeVersion",
+      "method": "POST",
+      "summary": "Materialize version bytes from the durable mirror",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_reconcile_presence",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ReconcilePresence",
+      "method": "POST",
+      "summary": "Reconcile materialized and evicted version presence",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_export_archive",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ExportArchive",
+      "method": "POST",
+      "summary": "Export the version ledger archive",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_import_archive",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/ImportArchive",
+      "method": "POST",
+      "summary": "Import the version ledger archive",
+      "description": "",
+      "category": "versions"
+    },
+    {
+      "id": "versions_doctor",
+      "path": "/vrooli.react_component_library.v1.versions.VersionLifecycleService/Doctor",
+      "method": "POST",
+      "summary": "Check evicted version mirror integrity",
       "description": "",
       "category": "versions"
     },

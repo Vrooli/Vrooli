@@ -58,6 +58,18 @@ dropping the old table. Cleared per session on delete.
 ### `shortcut_profiles`
 Saved shortcut bindings with scope hierarchy (`service` < `workspace` < `parent`). The `shortcuts` column is a JSON-encoded array. Effective bindings are computed by [CODE: api/shortcut_profiles.go] from this table; see [GLOSSARY — Shortcut Profile](../concepts/GLOSSARY.md#shortcut-profile).
 
+The array's **order is meaningful**: it is the order the session launcher shows
+agents in, and reordering the launcher grid rewrites this column.
+
+Each entry carries `label`, `command`, an optional `description`, and an
+optional `agent_id`. `agent_id` names one coding agent in the capability
+catalogue (`claude`, `codex`, `opencode`, `grok`, `agy`) or is absent for a
+plain operator command. It is stored rather than re-derived so that no consumer
+has to pattern-match command text to work out which agent an entry launches — a
+guess any operator-authored wrapper defeats. Rows written before the field
+existed are backfilled on read by [CODE: api/shortcut_agent_identity.go], which
+owns the single derivation.
+
 ### `tab_groups`
 Workspace organization for terminal panes. Holds `name`, `color`, `sort_order`, `is_collapsed`. Referenced by `workspace_panes.group_id` with `ON DELETE SET NULL`.
 

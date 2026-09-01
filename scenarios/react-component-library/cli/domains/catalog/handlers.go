@@ -58,7 +58,7 @@ func (h *handlers) build(ctx cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
-	args := []string{"scripts/catalog-build.mjs"}
+	args := []string{"tooling/catalog-build.mjs"}
 	if ctx.BoolFlag("check") {
 		args = append(args, "--check")
 	}
@@ -293,10 +293,10 @@ func (h *handlers) evidence(ctx cliapp.RunContext) error {
 
 func (h *handlers) gate(ctx cliapp.RunContext) error {
 	gate := ctx.Positional("gate")
-	if gate == "" {
-		gate = "story-grammar"
+	if gate == "" && !ctx.BoolFlag("all") {
+		return fmt.Errorf("catalog gates requires a gate name or --all; use --help to see valid gates")
 	}
-	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.BoolFlag("all"), AssetId: ctx.Flag("asset-id"), CalibrationOnly: ctx.BoolFlag("calibration-only")}))
+	resp, err := h.client.RunGate(context.Background(), connect.NewRequest(&catalogv1.RunGateRequest{Gate: gate, All: ctx.BoolFlag("all"), AssetId: ctx.Flag("asset-id"), CalibrationOnly: ctx.BoolFlag("calibration-only"), IncludeAdvisory: ctx.BoolFlag("include-advisory")}))
 	if err != nil {
 		return cliapp.WrapAPIError("run catalog gate", err, nil)
 	}

@@ -344,7 +344,7 @@ func NewServer(db *database.RoutedDB) *Server {
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
 	bridgeOwnerToken, bridgeReauthToken := resolveBridgeOwnerCredentials()
 	// Bridge endpoint selection is a Web Console setting. An empty value is
-	// passed through to nodeclient for local slug discovery.
+	// passed through to nodereach for local slug discovery.
 	bridgeURL := config.Load().BridgeURL
 	if warning := bridgeURLSecurityWarning(bridgeURL); warning != "" {
 		log.Printf("bridge endpoint warning: %s", warning)
@@ -584,6 +584,16 @@ func (s *Server) SetTextToSpeech(p audioports.TextToSpeech) {
 }
 
 type contextKey string
+
+// httpWriteTimeout bounds every response this server writes.
+//
+// It is exported within the package rather than inlined at the listener
+// because at least one handler has to fit inside it: a governed capability
+// install relays a command to another machine and then waits for that machine
+// to confirm the result, and a budget larger than this timeout would simply
+// have the response cut off mid-flight with nothing to show for the wait.
+// See capabilityInstallBudget, which is asserted to be smaller.
+const httpWriteTimeout = 150 * time.Second
 
 const requestIDKey contextKey = "request_id"
 
@@ -1018,7 +1028,7 @@ func main() {
 
 	if err := server.Run(server.Config{
 		Handler:      srv.Handler(),
-		WriteTimeout: 150 * time.Second,
+		WriteTimeout: httpWriteTimeout,
 		Cleanup: func(ctx context.Context) error {
 			srv.sweeper.Stop()
 			if srv.conversationRetention != nil {

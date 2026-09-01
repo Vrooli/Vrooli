@@ -87,4 +87,12 @@ Adoption depth is measured as library-importing ecosystem UI files divided by ec
 ### D10 — Version history is retained
 Immutable releases remain part of the product promise. Cold releases move to the governed retired tier and are reaped only after retention and reachability checks allow it.
 
+### Repairing a released version after a toolchain change
+
+Released version bytes never change. If a tightened compiler, formatter, or
+other tool invalidates a released version, create and publish a new patch
+version through the draft lifecycle. `RCL_ACCEPT_RELEASE_MIGRATION=1` is
+reserved for changing the release shape or generated ledger; it must never be
+used to rewrite the content of an existing released version.
+
 The investigation that established this ownership model is retained at `docs/reports/2026-08-31-the-reconciliation-tax.html`.

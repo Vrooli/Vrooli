@@ -25,10 +25,22 @@ const shortcutsClient = asMockedClient(_shortcutsClient);
 import TerminalLauncher, { type TerminalTarget } from "../components/TerminalLauncher";
 import type { TargetCatalog } from "../api/targets";
 
+// Entries carry agentId because the server resolves it and sends it; an entry
+// without one is, by contract, a plain operator command rather than an agent.
 const testShortcuts: ShortcutEntry[] = [
-  { label: "Claude Code", command: "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions", description: "AI coding assistant" },
-  { label: "Codex", command: "codex --yolo", description: "OpenAI Codex CLI" },
+  { label: "Claude Code", command: "vrooli agent launch --runner claude --arg=--dangerously-skip-permissions", description: "AI coding assistant", agentId: "claude" },
+  { label: "Codex", command: "codex --yolo", description: "OpenAI Codex CLI", agentId: "codex" },
 ];
+
+/** A machine that reports codex as missing — the shape every install test needs. */
+function missingCodexTarget(): TerminalTarget {
+  return {
+    id: "local", kind: "local", label: "This machine", available: true, state: "dispatchable",
+    readiness: [
+      { key: "capability:codex", label: "Codex", passed: false, detail: "codex is not installed", state: "missing" },
+    ],
+  };
+}
 
 describe("TerminalLauncher", () => {
   const onClose = vi.fn();
@@ -131,7 +143,7 @@ describe("TerminalLauncher", () => {
     render(
       <TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />,
     );
-    const input = screen.getByTestId("launcher-custom-input") as HTMLInputElement;
+    const input = screen.getByTestId<HTMLInputElement>("launcher-custom-input");
     fireEvent.change(input, { target: { value: "htop" } });
     fireEvent.click(screen.getByTestId("launcher-custom-launch"));
     expect(input.value).toBe("");
@@ -248,7 +260,7 @@ describe("TerminalLauncher", () => {
     expect(shortcutsClient.getEffective).toHaveBeenCalledWith({});
   });
 
-  it("falls back to DEFAULT_SHORTCUTS when API fetch fails", async () => {
+  it("falls back to DEFAULT_SHORTCUTS when API fetch fails", () => {
     shortcutsClient.getEffective.mockRejectedValueOnce(new Error("network error"));
 
     render(
@@ -283,7 +295,7 @@ describe("TerminalLauncher", () => {
   it("launches the sign-in command from its shortcut row", () => {
     const withSignIn = DEFAULT_SHORTCUTS.filter((entry) => entry.command === "codex login --device-auth");
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={withSignIn} />);
-    fireEvent.click(screen.getByTestId("launcher-agent-codex-sign-in"));
+    fireEvent.click(screen.getByTestId("launcher-shortcut-codex-sign-in"));
     expect(onLaunch).toHaveBeenCalledWith(expect.objectContaining({ command: "codex login --device-auth" }));
   });
 
@@ -489,23 +501,237 @@ describe("TerminalLauncher", () => {
     expect(screen.queryByTestId("launcher-edit-shortcuts")).toBeNull();
   });
 
-  it("renders four agent cards rather than eight rows", () => {
+  it("renders one card per agent, plus the empty shell", () => {
     render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={DEFAULT_SHORTCUTS} />);
     const grid = screen.getByTestId("launcher-agent-grid");
-    // Four agents, the Codex sign-in shortcut, and the empty shell. The four
-    // "(attributed)" duplicates are folded into their parents as one toggle.
-    expect(within(grid).getAllByRole("button")).toHaveLength(6);
+    // Four agents and the empty shell. The Codex sign-in entry names no agent,
+    // so it belongs in the commands list rather than the grid.
+    expect(within(grid).getAllByRole("button")).toHaveLength(5);
     expect(screen.getByTestId("launcher-agent-claude-code")).toBeInTheDocument();
-    expect(screen.queryByTestId("launcher-agent-claude-code-attributed")).not.toBeInTheDocument();
+    expect(screen.getByTestId("launcher-shortcut-codex-sign-in")).toBeInTheDocument();
   });
 
-  it("launches the attributed variant when the toggle is on", () => {
-    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={DEFAULT_SHORTCUTS} />);
-    fireEvent.click(screen.getByTestId("launcher-attributed-toggle"));
-    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
-    expect(onLaunch).toHaveBeenCalledWith(
-      expect.objectContaining({ command: expect.stringContaining("vrooli-agent-launcher") }),
-    );
+  // The eight-entry list, half of it "(attributed)" duplicates, drifted out of
+  // sync with the server's four for long enough to grow a folding module of
+  // its own. The fallback exists to match the server, not to extend it.
+  it("keeps the client fallback identical in shape to the server defaults", () => {
+    expect(DEFAULT_SHORTCUTS.some((entry) => entry.label.includes("(attributed)"))).toBe(false);
+    for (const entry of DEFAULT_SHORTCUTS) {
+      expect(entry.command).not.toContain("command -v");
+    }
+  });
+
+  // A card reports what the machine says about the agent, not a truncated
+  // sentence. The version is the fact an operator wants before launching.
+  it("shows the reported version on a ready agent card", () => {
+    const target: TerminalTarget = {
+      id: "local", kind: "local", label: "This machine", available: true, state: "dispatchable",
+      readiness: [
+        { key: "capability:codex", label: "Codex", passed: true, detail: "", state: "ready", version: "0.149.1" },
+      ],
+    };
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]} />);
+    expect(screen.getByTestId("launcher-agent-codex")).toHaveTextContent("0.149.1");
+  });
+
+  // The machine name shared one line with its readiness summary, and the
+  // summary was marked shrink-0 — so a machine called anything at all was
+  // truncated to a single letter while "darwin/amd64 · 1/5 agents ready" took
+  // the row. The name is what is being chosen; it gets its own line.
+  it("gives the machine name its own line, not a share of one", () => {
+    const target: TerminalTarget = {
+      id: "bridge-node:mac", kind: "bridge-node", node_id: "mac", label: "matt-macbook-pro",
+      os: "darwin", arch: "amd64", available: true, state: "dispatchable",
+      readiness: [
+        { key: "capability:claude", label: "Claude Code", passed: false, detail: "", state: "missing" },
+        { key: "capability:agy", label: "Antigravity", passed: true, detail: "", state: "ready", version: "1.1.22" },
+      ],
+    };
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[]} initialTarget={target} availableTargets={[target]} />);
+    const trigger = screen.getByTestId("launcher-machine-picker");
+    const name = within(trigger).getByText("matt-macbook-pro");
+    const meta = within(trigger).getByText(/darwin\/amd64/);
+    expect(name).not.toBe(meta);
+    // Siblings in a column, so neither can eat the other's width.
+    expect(name.parentElement).toBe(meta.parentElement);
+    expect(name.parentElement?.className).toContain("flex-col");
+  });
+
+  // A capability that is NOT ready was appended as a bare label, so a row
+  // reading "1/5 agents ready · Claude Code" named the missing agent in the
+  // position a reader takes for the present one.
+  it("names a missing agent as missing rather than listing it", () => {
+    const target: TerminalTarget = {
+      id: "bridge-node:mac", kind: "bridge-node", node_id: "mac", label: "matt-macbook-pro",
+      os: "darwin", arch: "amd64", available: true, state: "dispatchable",
+      readiness: [
+        { key: "capability:claude", label: "Claude Code", passed: false, detail: "", state: "missing" },
+        { key: "capability:agy", label: "Antigravity", passed: true, detail: "", state: "ready", version: "1.1.22" },
+      ],
+    };
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[]} initialTarget={target} availableTargets={[target]} />);
+    const trigger = screen.getByTestId("launcher-machine-picker");
+    // The stub translator returns keys, so the assertion is that the missing
+    // agent reaches the row through the "missing" phrasing rather than as a
+    // bare label sitting beside the ready count.
+    expect(trigger).toHaveTextContent("launcher.capabilityMissing");
+    expect(trigger).not.toHaveTextContent(/agents ready · Claude Code/);
+  });
+
+  // The regression that made a blocked card indistinguishable from a launch
+  // button: it changed its subtitle and silently reassigned its own onClick.
+  it("offers an Install control on a missing agent instead of a launch", () => {
+    const onInstallCapability = vi.fn().mockResolvedValue({ status: "installed" });
+    const target: TerminalTarget = {
+      id: "local", kind: "local", label: "This machine", available: true, state: "dispatchable",
+      readiness: [
+        { key: "capability:codex", label: "Codex", passed: false, detail: "codex is not installed", state: "missing" },
+      ],
+    };
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]} onInstallCapability={onInstallCapability} />);
+    expect(screen.getByTestId("launcher-agent-codex")).toBeDisabled();
+    fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
+    expect(onInstallCapability).toHaveBeenCalledWith("codex", expect.objectContaining({ id: "local" }));
+    expect(onLaunch).not.toHaveBeenCalled();
+  });
+
+  // An agent with no build for this machine must not offer an install the
+  // relay has already said it will refuse.
+  it("offers no install for an agent this machine cannot run", () => {
+    const target: TerminalTarget = {
+      id: "local", kind: "local", label: "This machine", available: true, state: "dispatchable",
+      readiness: [
+        { key: "capability:agy", label: "Antigravity", passed: false, detail: "No darwin/arm64 build published", state: "not_applicable" },
+      ],
+    };
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={[]} availableTargets={[target]} onInstallCapability={vi.fn().mockResolvedValue({ status: "installed" })} />);
+    expect(screen.queryByTestId("launcher-agent-install-agy")).not.toBeInTheDocument();
+    expect(screen.getByTestId("launcher-agent-antigravity")).toBeDisabled();
+    expect(screen.getByTestId("launcher-agent-card-agy")).toHaveTextContent("No darwin/arm64 build published");
+  });
+
+  // A failing installer must say so on the card that started it, and must not
+  // surface as an unhandled rejection. The card also stays in the state the
+  // machine reports rather than stranding on a spinner.
+  it("reports a failed install on the card that started it", async () => {
+    const onInstallCapability = vi.fn().mockRejectedValue(new Error("relay refused"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const target = missingCodexTarget();
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]} onInstallCapability={onInstallCapability} />);
+
+    fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
+    await waitFor(() => {
+      expect(screen.getByTestId("launcher-agent-install-failed-codex")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("launcher-agent-card-codex")).toHaveAttribute("data-agent-state", "missing");
+    consoleError.mockRestore();
+  });
+
+  // The exact contradiction an operator photographed: the card announced
+  // "Installed" while still offering "Install", because the confirmation and
+  // the install button were independent conditionals over the same card.
+  it("never shows an install offer and an install outcome at the same time", async () => {
+    const target = missingCodexTarget();
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]}
+      onInstallCapability={vi.fn().mockResolvedValue({ status: "installed" })} />);
+
+    fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
+    await waitFor(() => {
+      expect(screen.getByTestId("launcher-agent-installed-codex")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("launcher-agent-install-codex")).not.toBeInTheDocument();
+  });
+
+  // An install the machine never confirmed is neither a success nor a failure,
+  // and saying "Installed" over a machine that still does not have the agent
+  // is the thing that sent an operator looking for a bug that was in the UI.
+  it("reports an unconfirmed install as unknown rather than as installed", async () => {
+    const target = missingCodexTarget();
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]}
+      onInstallCapability={vi.fn().mockResolvedValue({ status: "unconfirmed", message: "the machine has not reported codex yet" })} />);
+
+    fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
+    const rail = await screen.findByTestId("launcher-agent-install-unconfirmed-codex");
+    expect(rail).toHaveAttribute("title", "the machine has not reported codex yet");
+    expect(screen.queryByTestId("launcher-agent-installed-codex")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("launcher-agent-install-codex")).not.toBeInTheDocument();
+  });
+
+  // The catalog can still offer an install the machine will refuse — no build
+  // published for its platform. Dropping the rail entirely would take the
+  // button away and say nothing about why.
+  it("says so when the machine refuses an install it was offered", async () => {
+    const target = missingCodexTarget();
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]}
+      onInstallCapability={vi.fn().mockResolvedValue({ status: "not_applicable", message: "no darwin/arm64 build published" })} />);
+
+    fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
+    const rail = await screen.findByTestId("launcher-agent-install-unsupported-codex");
+    expect(rail).toHaveAttribute("title", "no darwin/arm64 build published");
+    expect(screen.queryByTestId("launcher-agent-install-codex")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("launcher-agent-installed-codex")).not.toBeInTheDocument();
+  });
+
+  // The unconfirmed rail is a retry, not a dead end: pressing it runs the
+  // installer again rather than leaving the operator with nothing to do.
+  it("retries the install from the unconfirmed rail", async () => {
+    const onInstallCapability = vi.fn().mockResolvedValue({ status: "unconfirmed" });
+    const target = missingCodexTarget();
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} availableTargets={[target]} onInstallCapability={onInstallCapability} />);
+
+    fireEvent.click(screen.getByTestId("launcher-agent-install-codex"));
+    fireEvent.click(await screen.findByTestId("launcher-agent-install-unconfirmed-codex"));
+    await waitFor(() => {
+      expect(onInstallCapability).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // Reorder persists to the profile the effective list came from. Reading that
+  // profile's id off GetEffective is what keeps scope priority a server rule
+  // rather than a second copy in the client.
+  it("writes a reordered agent list back to the profile it came from", async () => {
+    shortcutsClient.getEffective.mockResolvedValueOnce({
+      profileId: "ws-1",
+      scope: "workspace",
+      profileName: "Dev Shortcuts",
+      shortcuts: [
+        { $typeName: "vrooli.web_console.v1.shortcuts.Shortcut", label: "Claude Code", command: "claude", description: "", agentId: "claude" },
+        { $typeName: "vrooli.web_console.v1.shortcuts.Shortcut", label: "Codex", command: "codex --yolo", description: "", agentId: "codex" },
+      ],
+    });
+    shortcutsClient.upsertProfile.mockResolvedValueOnce({});
+    const target: TerminalTarget = {
+      id: "local", kind: "local", label: "This machine", available: true, state: "dispatchable",
+      readiness: [
+        { key: "capability:claude", label: "Claude Code", passed: true, detail: "", state: "ready" },
+        { key: "capability:codex", label: "Codex", passed: true, detail: "", state: "ready" },
+      ],
+    };
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} availableTargets={[target]} />);
+
+    await waitFor(() => { expect(screen.getByTestId("launcher-reorder-toggle")).toBeInTheDocument(); });
+    fireEvent.click(screen.getByTestId("launcher-reorder-toggle"));
+    fireEvent.keyDown(screen.getByTestId("launcher-agent-grip-claude"), { key: "ArrowDown", altKey: true });
+
+    await waitFor(() => {
+      expect(shortcutsClient.upsertProfile).toHaveBeenCalledWith(expect.objectContaining({
+        id: "ws-1",
+        scope: "workspace",
+        // The profile keeps its own name; a reorder must not rename it.
+        name: "Dev Shortcuts",
+        shortcuts: [
+          expect.objectContaining({ agentId: "codex" }),
+          expect.objectContaining({ agentId: "claude" }),
+        ],
+      }));
+    });
+  });
+
+  // Reorder edits the operator's stored profile. A caller that supplies the
+  // list itself owns that list, so the dialog must not offer to rewrite it.
+  it("offers no reorder when the shortcut list comes from a prop", () => {
+    render(<TerminalLauncher open onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />);
+    expect(screen.queryByTestId("launcher-reorder-toggle")).not.toBeInTheDocument();
   });
 
   it("renders no full-width target card", () => {

@@ -31,7 +31,8 @@ import { cn } from "../lib/classnames";
 import { Button } from "./ui/button";
 import type { GateResult, InputIntent } from "./terminal/inputGate";
 import { uploadFile } from "../api/uploads";
-import { fetchCapabilities, runCapabilityAction } from "../api/capabilities";
+import { fetchCapabilities, installStatusOf, runCapabilityAction } from "../api/capabilities";
+import type { InstallOutcome } from "../api/capabilities";
 import { getSessionDefaults } from "../api/settings";
 import { getSession, type BackendOption, type BackendID, type ExpirationPolicy, type RecoverResult, type SessionOriginName } from "../api/sessions";
 import { listTargetCatalog, type TargetCatalog, type TerminalTarget } from "../api/targets";
@@ -103,6 +104,7 @@ const FALLBACK_TTS_PLAYBACK: Omit<TTSPlaybackState, "isMuted"> = {
   capabilities: { canPause: true, canSeek: false, canAdjustSpeed: true, canAdjustVolume: true },
 };
 import { useTtsPlaybackController } from "../domains/tts-playback/useTtsPlaybackController";
+import { setupMediaSession } from "../domains/tts-playback/mediaSession";
 import { isTabLikeDisplayMode } from "../lib/workspaceDisplayMode";
 import { buildWorkspaceNavigationItems, buildOriginBucketedNavigation, buildSessionActivity, countWorkspaceUnreadMessages } from "../lib/workspaceNavigation";
 import { useTabLikeNavigationShortcuts } from "../hooks/useTabLikeNavigationShortcuts";
@@ -170,13 +172,21 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
     void refreshTargetCatalog();
   }, [refreshTargetCatalog]);
   const availableTargets: TerminalTarget[] = targetCatalog.targets;
-  const installCapability = useCallback(async (capabilityID: string, target: TerminalTarget) => {
-    try {
-      await runCapabilityAction(capabilityID, "operator_command", target.id);
-      await refreshTargetCatalog();
-    } catch (error) {
-      console.error("capability installation failed", error);
-    }
+  // Installing a capability reports the machine's verdict, not the installer's.
+  //
+  // This used to swallow every failure and resolve anyway, and then to throw on
+  // success=false — both of which collapse three different answers into two.
+  // The server now distinguishes them: the installer failed, the installer
+  // finished and the machine confirms the agent, or the installer finished and
+  // the machine has not confirmed anything. Only the middle one is a completed
+  // install, and the caller renders all three differently, so the outcome is
+  // returned rather than thrown.
+  const installCapability = useCallback(async (capabilityID: string, target: TerminalTarget): Promise<InstallOutcome> => {
+    const result = await runCapabilityAction(capabilityID, "operator_command", target.id);
+    await refreshTargetCatalog();
+    const outcome: InstallOutcome = { status: installStatusOf(result.status, result.success) };
+    if (result.message) outcome.message = result.message;
+    return outcome;
   }, [refreshTargetCatalog]);
   const {
     panes: sessionPanes,
@@ -1153,6 +1163,8 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   // Track which panes are currently speaking so voice input can stop active TTS
   // before recording. Playback presentation belongs to the audio bar.
   const [ttsSpeakingPanes, setTtsSpeakingPanes] = useState<Set<string>>(new Set());
+  const [ttsBarDismissed, setTtsBarDismissed] = useState(false);
+  const [ttsBarExpanded, setTtsBarExpanded] = useState(false);
   const [ttsBackendReason, setTtsBackendReason] = useState("");
   const ttsBackendPreference = useWorkspaceStore((state) => state.ttsBackendPreference);
   const handleTtsSpeakingChange = useCallback((sessionId: string, speaking: boolean) => {
@@ -1345,6 +1357,35 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
   const handleTtsStop = useCallback(() => {
     ttsPlaybackController.stopPlayback(workspace.activePane);
   }, [ttsPlaybackController, workspace.activePane]);
+
+  // Expose the active reply to lock-screen/headphone controls when the
+  // browser provides Media Session. All calls are feature-detected because
+  // desktop Safari and several embedded webviews omit this API.
+  useEffect(() => {
+    const mediaSession = typeof navigator !== "undefined" ? navigator.mediaSession : undefined;
+    if (!mediaSession || !isTtsSpeaking || !workspace.activePane) return;
+    const sessionId = workspace.activePane;
+    const eventId = ttsPlaybackController.activeEventId;
+    const event = eventId ? conversationSessions[sessionId]?.events.find((candidate) => candidate.id === eventId) : undefined;
+    return setupMediaSession(mediaSession, {
+      title: event?.text?.slice(0, 120) || "Assistant reply",
+      artist: event?.source || "Vrooli",
+      album: "Vrooli conversation",
+      isPaused: ttsPlayback?.isPaused ?? false,
+      duration: ttsPlayback?.duration ?? null,
+      currentTime: ttsPlayback?.currentTime ?? 0,
+      playbackRate: ttsPlayback?.playbackRate ?? 1,
+      handlers: {
+        play: () => ttsPlaybackController.resumePlayback(sessionId),
+        pause: () => ttsPlaybackController.pausePlayback(sessionId),
+        stop: handleTtsStop,
+        seekbackward: () => handleTtsSeek(Math.max(0, (ttsPlayback?.currentTime ?? 0) - 10)),
+        seekforward: () => handleTtsSeek(Math.min(ttsPlayback?.duration ?? Infinity, (ttsPlayback?.currentTime ?? 0) + 10)),
+        previoustrack: () => ttsPlaybackController.previousTrack(sessionId),
+        nexttrack: () => ttsPlaybackController.nextTrack(sessionId),
+      },
+    });
+  }, [conversationSessions, handleTtsSeek, handleTtsStop, isTtsSpeaking, ttsPlayback, ttsPlaybackController, workspace.activePane]);
 
   const handlePaneToggleView = useCallback((sessionId: string, viewMode: PaneViewMode) => {
     setConversationViewMode(sessionId, viewMode === "terminal" ? "messages" : "terminal");
@@ -2216,7 +2257,7 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           const canRequestSummarize = activeEvent.role === "assistant";
           const isPlayingSummarized = context.version === "active" && hasOriginal;
           return (
-            <AudioPlayerBar
+            ttsBarDismissed ? null : <AudioPlayerBar
               isPaused={pb.isPaused}
               currentTime={pb.currentTime}
               duration={pb.duration}
@@ -2235,6 +2276,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               currentMessageId={activeEvent.id}
               messageSelectorEvents={conversationSessions[context.sessionId]?.events ?? []}
               hasQueuedNext={context.hasQueuedNext}
+              hasQueuedPrevious={context.hasQueuedPrevious}
+              isExpanded={ttsBarExpanded}
+              onExpand={() => setTtsBarExpanded(true)}
+              onPreviousMessage={() => ttsPlaybackController.previousTrack(context.sessionId)}
+              onNextMessage={() => ttsPlaybackController.nextTrack(context.sessionId)}
               onPause={() => {
                 ttsPlaybackController.pausePlayback(context.sessionId);
                 handleTtsPause();
@@ -2258,10 +2304,13 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
               onChangeLevel={canRequestSummarize && activeEvent && workspace.activePane ? (level) => {
                 ttsPlaybackController.changeSummarizeLevel(context.sessionId as string, activeEvent.id, level);
               } : undefined}
-              onDismiss={!workspace.autoTtsEnabled ? () => {
-                ttsPlaybackController.stopPlayback(context.sessionId);
-                stopActiveTts(context.sessionId as string);
-              } : undefined}
+              onDismiss={() => {
+                setTtsBarDismissed(true);
+                setTtsBarExpanded(false);
+                requestAnimationFrame(() => {
+                  document.querySelector<HTMLElement>('[data-testid="tts-restore"]')?.focus();
+                });
+              }}
             />
           );
         })()}
@@ -2313,6 +2362,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
           }}
           isTtsSpeaking={isTtsSpeaking}
           onTtsStop={handleTtsStop}
+          ttsDismissed={ttsBarDismissed}
+          onTtsRestore={() => {
+            setTtsBarDismissed(false);
+            setTtsBarExpanded(false);
+          }}
           viewMode={activeViewMode}
           onSwitchToTerminal={handleSwitchToTerminal}
         />

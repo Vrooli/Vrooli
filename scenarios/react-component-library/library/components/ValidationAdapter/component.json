@@ -1,22 +1,7 @@
 {
-  "libraryId": "react-component-library:ValidationAdapter",
-  "displayName": "Validation Adapter",
-  "description": "Maps setup/v1 operator-input metadata to GeneratedForm fields",
-  "kind": "control",
-  "tags": [
-    "forms",
-    "adapter",
-    "setup"
-  ],
-  "entry": "ValidationAdapter.tsx",
-  "latest": "1.0.1",
+  "catalogId": "adapters.validation",
   "deprecatedVersions": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ],
-  "draft": ""
+  "draft": "",
+  "latest": "1.0.2",
+  "libraryId": "react-component-library:ValidationAdapter"
 }

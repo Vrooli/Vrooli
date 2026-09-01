@@ -39,11 +39,14 @@ build; run the first command and inspect the resulting diff.
 ## 4. Validate only the changed asset
 
 ```bash
-react-component-library catalog gates types --asset-id controls.button
+react-component-library catalog gates --all --asset-id controls.button --json
 ```
 
-The response includes the inspected result, finding location, rule source,
-and recovery documentation. A zero-file result is a runner fault, not a pass.
+The aggregate command runs every applicable executable gate against one asset.
+The response includes the inspected result, finding location, rule source, and
+recovery documentation. A zero-file result is a runner fault, not a pass. Use
+a named gate when narrowing an investigation, or `--all` when the asset is
+ready for the complete local cycle.
 
 Failure: a blocking finding remains. Recovery: fix the named authored source,
 rerun the generator, and repeat the asset gate. Do not widen the gate or add an
@@ -62,13 +65,25 @@ shape, story, dependency, or gate failure in the draft and repeat steps 3–5.
 The scenario-owned suite remains the final workflow check:
 `vrooli scenario test react-component-library`.
 
-```bash
-react-component-library catalog gates types --asset-id controls.button
-```
-
-The response includes the inspected result and the rule source and declaring
-file for each finding. Run the scenario-owned suite for the complete workflow:
+Run the scenario-owned suite for the complete workflow:
 `vrooli scenario test react-component-library`.
+
+## Adoption obligations
+
+Before linking, the target scenario must satisfy seven obligations:
+
+1. A UI manifest declares its generation template.
+2. The target owns a managed design-token region.
+3. The target has a token ramp file for the selected asset.
+4. The locale catalogue exists and has the library provider markers.
+5. The selector registry exists and is generated from the library contract.
+6. The adoption record and pinned package dependency are present.
+7. The component import is present at the generated target path.
+
+Inspect them with `react-component-library adoptions obligations <scenario>
+--json`. `adoptions link` installs the record, package, locale, selector, and
+token obligations together; follow it with `adoptions preflight` to confirm
+the maturity floor and gate verdicts.
 
 ## Canonical version shape
 

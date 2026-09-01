@@ -83,8 +83,11 @@ func TestShortcutProfileStore_Effective(t *testing.T) {
 
 	// Default service profile exists with 4 shortcuts
 	eff := store.Effective(context.Background())
-	if len(eff) != 4 {
-		t.Fatalf("expected default service profile shortcuts, got %d", len(eff))
+	if len(eff.Shortcuts) != 4 {
+		t.Fatalf("expected default service profile shortcuts, got %d", len(eff.Shortcuts))
+	}
+	if eff.ProfileID != "default" || eff.Scope != "service" || eff.Name != "Default" {
+		t.Fatalf("effective profile = %q/%q/%q, want default/service/Default", eff.ProfileID, eff.Scope, eff.Name)
 	}
 
 	// Add workspace-scope profile — should win over service
@@ -92,8 +95,13 @@ func TestShortcutProfileStore_Effective(t *testing.T) {
 		{Label: "WS1", Command: "ws1"},
 	})
 	eff = store.Effective(context.Background())
-	if len(eff) != 1 || eff[0].Label != "WS1" {
-		t.Errorf("expected workspace profile to win, got %v", eff)
+	if len(eff.Shortcuts) != 1 || eff.Shortcuts[0].Label != "WS1" {
+		t.Errorf("expected workspace profile to win, got %v", eff.Shortcuts)
+	}
+	// The name travels too: a client writing an edited order back has to send
+	// one, and inventing it would rename the operator's profile.
+	if eff.ProfileID != "ws" || eff.Name != "WS" {
+		t.Errorf("effective profile = %q/%q, want ws/WS", eff.ProfileID, eff.Name)
 	}
 
 	// Add parent-scope profile — should win over workspace
@@ -102,8 +110,11 @@ func TestShortcutProfileStore_Effective(t *testing.T) {
 		{Label: "Parent2", Command: "p2"},
 	})
 	eff = store.Effective(context.Background())
-	if len(eff) != 2 || eff[0].Label != "Parent1" {
-		t.Errorf("expected parent profile to win, got %v", eff)
+	if len(eff.Shortcuts) != 2 || eff.Shortcuts[0].Label != "Parent1" {
+		t.Errorf("expected parent profile to win, got %v", eff.Shortcuts)
+	}
+	if eff.ProfileID != "parent" {
+		t.Errorf("effective profile id = %q, want parent", eff.ProfileID)
 	}
 }
 
@@ -111,8 +122,12 @@ func TestShortcutProfileStore_EffectiveEmpty(t *testing.T) {
 	store := NewShortcutProfileStore()
 	store.Delete(context.Background(), "default")
 	eff := store.Effective(context.Background())
-	if len(eff) != 4 {
-		t.Errorf("expected default shortcuts fallback when no profiles, got %d", len(eff))
+	if len(eff.Shortcuts) != 4 {
+		t.Errorf("expected default shortcuts fallback when no profiles, got %d", len(eff.Shortcuts))
+	}
+	// No profile exists, so a client must create one rather than update.
+	if eff.ProfileID != "" {
+		t.Errorf("fallback profile id = %q, want empty", eff.ProfileID)
 	}
 }
 

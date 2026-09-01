@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-31T04:04:41-04:00"
+    "last_validated_at": "2026-08-31T09:22:08-04:00"
   },
   "requirements": [
     {
@@ -90,7 +90,7 @@
     {
       "id": "REQ-P1-013d",
       "title": "Target capability readiness",
-      "status": "implemented",
+      "status": "in_progress",
       "category": "core",
       "description": "The target catalog emits one four-state capability readiness fact for each declared coding agent, and a missing capability does not change target dispatchability.",
       "validation": [
@@ -98,20 +98,20 @@
           "type": "test",
           "ref": "api/target_catalog_test.go",
           "phase": "unit",
-          "status": "passing"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/machine-picker.test.tsx",
           "phase": "unit",
-          "status": "passing"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-P1-013e",
       "title": "Capability-derived launcher",
-      "status": "implemented",
+      "status": "in_progress",
       "category": "ui",
       "description": "The launcher derives coding-agent cards from the selected target capability facts, keeps unavailable cards visible with recovery text, and keeps an empty shell available.",
       "validation": [
@@ -119,20 +119,20 @@
           "type": "test",
           "ref": "ui/src/components/launcher/agentGrid.test.ts",
           "phase": "unit",
-          "status": "passing"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "ui/src/__tests__/machine-picker.test.tsx",
           "phase": "unit",
-          "status": "passing"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "REQ-P1-013f",
       "title": "Governed target capability installation",
-      "status": "implemented",
+      "status": "in_progress",
       "category": "core",
       "description": "A missing resource-backed capability exposes a target-scoped governed install action on the launcher and machines surfaces, while unsupported platforms return an explicit not_applicable reason.",
       "validation": [
@@ -140,13 +140,13 @@
           "type": "test",
           "ref": "api/remote_capability_install_test.go",
           "phase": "unit",
-          "status": "passing"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "ui/src/components/fleet/__tests__/FleetDrawer.test.tsx",
           "phase": "unit",
-          "status": "passing"
+          "status": "failing"
         }
       ]
     }

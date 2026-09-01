@@ -214,3 +214,68 @@ func TestExecCommandRunnerCapturesSuccessAndFailure(t *testing.T) {
 		t.Fatalf("failure = %+v, err=%v", failure, err)
 	}
 }
+
+// The registry declares OperatorCommand as a line an operator can paste, which
+// means it names the CLI. Executing it verbatim as arguments produced
+// `vrooli vrooli resource install codex --json` for every coding agent, so a
+// local install has never once run the command it reported running.
+func TestLifecycleActionServiceDoesNotRepeatTheCLINameFromTheDeclaredCommand(t *testing.T) {
+	for _, testCase := range []struct {
+		name     string
+		cliPath  string
+		declared string
+	}{
+		{name: "bare cli name", cliPath: "vrooli", declared: "vrooli resource install codex --json"},
+		{name: "absolute cli path", cliPath: "/usr/local/bin/vrooli", declared: "vrooli resource install codex --json"},
+		{name: "windows cli path", cliPath: `C:\tools\vrooli.exe`, declared: "vrooli resource install codex --json"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			runner := &fakeCommandRunner{results: []CommandResult{{Stdout: []byte(`{"success":true}`), ExitCode: 0}}}
+			svc := LifecycleActionService{
+				Defs:    []Def{{ID: "codex", DependencyKind: DependencyResource, DependencySlug: "codex", ActionKind: ActionKindOperatorCommand, OperatorCommand: testCase.declared}},
+				Runner:  runner,
+				CLIPath: testCase.cliPath,
+				Timeout: time.Second,
+			}
+			if _, err := svc.Run(context.Background(), LifecycleActionRequest{CapabilityID: "codex", ActionKind: ActionKindOperatorCommand}); err != nil {
+				t.Fatalf("Run() error = %v", err)
+			}
+			if len(runner.calls) != 1 {
+				t.Fatalf("calls = %#v", runner.calls)
+			}
+			if got := strings.Join(runner.calls[0].args, " "); got != "resource install codex --json" {
+				t.Fatalf("args = %q, want %q", got, "resource install codex --json")
+			}
+		})
+	}
+}
+
+// Every declared coding-agent installer must survive the same treatment: the
+// table is the thing that regressed, so assert against the real registry.
+func TestKnownOperatorCommandsProduceArgvWithoutTheCLIName(t *testing.T) {
+	checked := 0
+	for _, def := range Known {
+		if def.ActionKind != ActionKindOperatorCommand || def.OperatorCommand == "" {
+			continue
+		}
+		checked++
+		args := operatorCommandArgs(def.OperatorCommand, "vrooli")
+		if len(args) == 0 {
+			t.Fatalf("%s: operator command %q produced no arguments", def.ID, def.OperatorCommand)
+		}
+		if args[0] == "vrooli" {
+			t.Fatalf("%s: argv still starts with the CLI name: %v", def.ID, args)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no declared operator commands were checked; the registry shape changed")
+	}
+}
+
+// A declaration that is already argv-shaped must be left alone, so the fix
+// cannot silently eat the first real argument of a future declaration.
+func TestOperatorCommandArgsKeepsACommandThatDoesNotNameTheCLI(t *testing.T) {
+	if got := strings.Join(operatorCommandArgs("resource install codex --json", "vrooli"), " "); got != "resource install codex --json" {
+		t.Fatalf("args = %q", got)
+	}
+}

@@ -27,6 +27,7 @@ export interface PlaybackEventContext {
   version: PlaybackVersion;
   queueLabel: string | null;
   hasQueuedNext: boolean;
+  hasQueuedPrevious?: boolean;
   intent: PlaybackIntent;
 }
 
@@ -73,6 +74,8 @@ export interface SessionPlaybackController {
   pausePlayback: (sessionId: string | null) => void;
   resumePlayback: (sessionId: string | null) => void;
   stopPlayback: (sessionId: string | null) => void;
+  nextTrack: (sessionId: string | null) => void;
+  previousTrack: (sessionId: string | null) => void;
   buildBarContext: (
     activePaneId: string | null,
     autoTtsEnabled: boolean,

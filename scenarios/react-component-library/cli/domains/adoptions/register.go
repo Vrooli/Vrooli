@@ -18,6 +18,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AdoptionsService.ListScenarios":          h.listScenarios,
 		"AdoptionsService.ListEffectiveAdoptions": h.listEffective,
 		"AdoptionsService.PreflightAdoption":      h.preflight,
+		"obligations":                             h.obligations,
 		"AdoptionsService.SyncScenarioTokens":     h.syncTokens,
 		"AdoptionsService.PruneScenarioTokens":    h.pruneTokens,
 		"AdoptionsService.LinkAdoption":           h.link,

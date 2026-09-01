@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/scopecatalog"
-	"github.com/vrooli/nodeclient"
 	"web-console/internal/backend"
 	"web-console/internal/events"
 	intmetrics "web-console/internal/metrics"
@@ -116,7 +116,7 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		created, err := a.Remote.Create(ctx, in)
 		if err != nil {
 			// Remote creation crosses the browser-facing error boundary just like
-			// local creation. Keep Bridge/nodeclient details out of the Connect
+			// local creation. Keep Bridge/nodereach details out of the Connect
 			// response and preserve the actionable scope/recovery classification.
 			return Session{}, mapCreateError(err)
 		}
@@ -931,28 +931,28 @@ func (a *Adapter) UpdatePolicy(ctx context.Context, id string, in Policy) (Polic
 
 func mapCreateError(err error) error {
 	// Remote errors must be redacted before they cross the browser boundary.
-	// nodeclient.Error deliberately retains node/transport diagnostics for logs,
+	// nodereach.Error deliberately retains node/transport diagnostics for logs,
 	// but its Error string is not a safe operator-facing response.
-	var nodeErr *nodeclient.Error
+	var nodeErr *nodereach.Error
 	if errors.As(err, &nodeErr) {
 		switch nodeErr.Kind {
-		case nodeclient.ErrMissingScope:
+		case nodereach.ErrMissingScope:
 			requiredScope := strings.TrimSpace(nodeErr.Scope)
 			if requiredScope == "" {
 				requiredScope, _ = scopecatalog.TransportScope("interactive-session:write")
 			}
 			return fmt.Errorf("%w: remote node lacks required scope %q; manage the machine permissions", ErrTargetUnavailable, requiredScope)
-		case nodeclient.ErrNodeNotFound:
+		case nodereach.ErrNodeNotFound:
 			return fmt.Errorf("%w: remote node was not found; refresh the machine catalog", ErrTargetNotFound)
-		case nodeclient.ErrNodeUnavailable, nodeclient.ErrBridgeUnavailable:
+		case nodereach.ErrNodeUnavailable, nodereach.ErrBridgeUnavailable:
 			return fmt.Errorf("%w: remote node is offline or Bridge is unavailable; reconnect the machine and refresh", ErrTargetUnavailable)
-		case nodeclient.ErrMissingReauth:
+		case nodereach.ErrMissingReauth:
 			return fmt.Errorf("%w: remote machine authorization has expired; manage the machine permissions", ErrTargetUnavailable)
-		case nodeclient.ErrHandshakeRejected:
+		case nodereach.ErrHandshakeRejected:
 			return fmt.Errorf("%w: the remote node rejected the session handshake; refresh the machine and try again", ErrTargetUnavailable)
-		case nodeclient.ErrTransport, nodeclient.ErrStreaming:
+		case nodereach.ErrTransport, nodereach.ErrStreaming:
 			return fmt.Errorf("%w: the remote session transport is unavailable; reconnect the machine and try again", ErrTargetUnavailable)
-		case nodeclient.ErrInvalidRequest:
+		case nodereach.ErrInvalidRequest:
 			return fmt.Errorf("%w: the remote session request was rejected; check the machine configuration", ErrInvalidArgument)
 		}
 	}

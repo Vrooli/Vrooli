@@ -28,6 +28,57 @@ type Adapter struct {
 	ActionRunner    caps.CommandRunner
 	CLIPath         string
 	RemoteInstall   func(context.Context, string, string) (caps.LifecycleActionResult, error)
+	// ConfirmInstall asks the target itself whether a capability is now
+	// present, after an install has run. It is the only evidence this package
+	// accepts that an install worked: an exit code reports that a command ran,
+	// which is a different claim. Nil leaves every install unconfirmed rather
+	// than silently promoting it to a success.
+	ConfirmInstall func(ctx context.Context, targetID, capabilityID string) (state, version string)
+}
+
+// stampInstallOutcome replaces an installer's own verdict with the target's.
+//
+// It runs for operator-command actions only, because those are the ones that
+// claim to add something to a machine. A failed installer keeps its failure
+// and its message; a not-applicable answer is already final and is left alone.
+func (a *Adapter) stampInstallOutcome(ctx context.Context, targetID string, result caps.LifecycleActionResult) caps.LifecycleActionResult {
+	if result.Status == caps.InstallStatusNotApplicable {
+		return result
+	}
+	if !result.Success {
+		result.Status = caps.InstallStatusFailed
+		if result.Message == "" {
+			result.Message = "the installer did not complete"
+		}
+		return result
+	}
+	if a.ConfirmInstall == nil {
+		result.Success = false
+		result.Status = caps.InstallStatusUnconfirmed
+		result.Message = "The installer finished, but this machine cannot report whether the agent is now available."
+		return result
+	}
+	state, version := a.ConfirmInstall(ctx, targetID, result.CapabilityID)
+	if state == caps.InstallConfirmedState {
+		result.Status = caps.InstallStatusInstalled
+		result.Message = "Installed" + versionSuffix(version) + "."
+		return result
+	}
+	// The installer succeeded and the machine still does not report the agent.
+	// That is genuinely unknown rather than a failure — a machine that reports
+	// its inventory on a heartbeat may simply not have reported yet — so say
+	// so, and never render it as a completed install.
+	result.Success = false
+	result.Status = caps.InstallStatusUnconfirmed
+	result.Message = "The installer finished, but this machine has not reported the agent as available yet."
+	return result
+}
+
+func versionSuffix(version string) string {
+	if version == "" {
+		return ""
+	}
+	return " (" + version + ")"
 }
 
 // Describe exposes the registry contract used by the settings surface and
@@ -82,6 +133,8 @@ func (a *Adapter) RunAction(ctx context.Context, req ActionRequest) (ActionResul
 		if err != nil {
 			return ActionResult{}, err
 		}
+		result.CapabilityID = req.CapabilityID
+		result = a.stampInstallOutcome(ctx, req.TargetID, result)
 		return ActionResult{Success: result.Success, Status: result.Status, Message: result.Message, OperationID: result.OperationID, CapabilityID: result.CapabilityID, ActionKind: string(result.ActionKind), Snapshot: a.Resolve(ctx)}, nil
 	}
 	svc := caps.LifecycleActionService{
@@ -98,6 +151,10 @@ func (a *Adapter) RunAction(ctx context.Context, req ActionRequest) (ActionResul
 	}
 	if a.Registry != nil {
 		a.Registry.Invalidate()
+	}
+	if req.ActionKind == string(caps.ActionKindOperatorCommand) {
+		result.CapabilityID = req.CapabilityID
+		result = a.stampInstallOutcome(ctx, req.TargetID, result)
 	}
 	snap := a.Resolve(ctx)
 	return ActionResult{

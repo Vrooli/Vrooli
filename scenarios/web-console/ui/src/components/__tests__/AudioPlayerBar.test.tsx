@@ -125,9 +125,38 @@ describe("AudioPlayerBar", () => {
     expect(screen.getByTestId("tts-time").textContent).toBe("0:42 / 1:23");
   });
 
+  it("shows queue position beside time only when another message is queued", () => {
+    const { rerender } = render(<AudioPlayerBar {...makeProps({ currentMessageLabel: "2/4", hasQueuedNext: true })} />);
+    expect(screen.getByTestId("tts-time")).toHaveTextContent("0:42 / 1:23 · 2/4");
+    expect(screen.getByTestId("tts-queue-position")).toBeInTheDocument();
+    rerender(<AudioPlayerBar {...makeProps({ currentMessageLabel: "2/4", hasQueuedNext: false })} />);
+    expect(screen.queryByTestId("tts-queue-position")).toBeNull();
+  });
+
+  it("renders a reduced-motion-safe playing indicator", () => {
+    const { rerender } = render(<AudioPlayerBar {...makeProps({ isPaused: false })} />);
+    expect(screen.getByTestId("tts-equalizer")).toBeInTheDocument();
+    rerender(<AudioPlayerBar {...makeProps({ isPaused: true })} />);
+    expect(screen.queryByTestId("tts-equalizer")).toBeNull();
+  });
+
   it("time display shows --:-- when duration is null", () => {
     render(<AudioPlayerBar {...makeProps({ currentTime: 0, duration: null })} />);
     expect(screen.getByTestId("tts-time").textContent).toBe("0:00 / --:--");
+  });
+
+  it("toggles remaining time and persists the preference", () => {
+    window.localStorage.removeItem("vrooli.tts.showRemainingTime");
+    const { unmount } = render(<AudioPlayerBar {...makeProps({ currentTime: 42, duration: 83 })} />);
+    const time = screen.getByTestId("tts-time");
+    expect(time).toHaveTextContent("0:42 / 1:23");
+    fireEvent.click(time);
+    expect(time).toHaveTextContent("-0:41 / 1:23");
+    expect(window.localStorage.getItem("vrooli.tts.showRemainingTime")).toBe("true");
+    unmount();
+    render(<AudioPlayerBar {...makeProps({ currentTime: 42, duration: 83 })} />);
+    expect(screen.getByTestId("tts-time")).toHaveTextContent("-0:41 / 1:23");
+    window.localStorage.removeItem("vrooli.tts.showRemainingTime");
   });
 
   it("scrub is always rendered but disabled when canSeek is false", () => {
@@ -442,6 +471,44 @@ describe("AudioPlayerBar", () => {
     expect(button.textContent).toContain("next");
     fireEvent.click(button);
     expect(props.onJumpToCurrentMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders queue navigation only in the expanded state and forwards actions", () => {
+    const onPreviousMessage = vi.fn();
+    const onNextMessage = vi.fn();
+    const onExpand = vi.fn();
+    const { rerender } = render(<AudioPlayerBar {...makeProps({
+      isExpanded: false,
+      onExpand,
+      onPreviousMessage,
+      onNextMessage,
+      hasQueuedPrevious: true,
+      hasQueuedNext: true,
+    })} />);
+    expect(screen.queryByTestId("tts-previous-message")).toBeNull();
+    fireEvent.click(screen.getByTestId("audio-player-bar"));
+    expect(onExpand).toHaveBeenCalledTimes(1);
+    rerender(<AudioPlayerBar {...makeProps({
+      isExpanded: true,
+      onPreviousMessage,
+      onNextMessage,
+      hasQueuedPrevious: true,
+      hasQueuedNext: true,
+    })} />);
+    fireEvent.click(screen.getByTestId("tts-previous-message"));
+    fireEvent.click(screen.getByTestId("tts-next-message"));
+    expect(onPreviousMessage).toHaveBeenCalledTimes(1);
+    expect(onNextMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes an accessible playback region and traps tab focus in expanded mode", () => {
+    render(<AudioPlayerBar {...makeProps({ isExpanded: true, onDismiss: vi.fn() })} />);
+    const bar = screen.getByRole("region", { name: "Audio playback" });
+    const focusable = bar.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])");
+    expect(focusable.length).toBeGreaterThan(1);
+    focusable[focusable.length - 1]?.focus();
+    fireEvent.keyDown(bar, { key: "Tab" });
+    expect(document.activeElement).toBe(focusable[0]);
   });
 
   it("opens the shared message selector from the current message affordance", () => {
