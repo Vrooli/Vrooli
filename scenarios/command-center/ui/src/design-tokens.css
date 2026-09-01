@@ -2,21 +2,46 @@
 
 :root {
   --color-background: #05070e;
+  --color-background-deep: #000000;
   --color-foreground: #e8ecf3;
   --color-primary: #00d4ff;
+  --color-accent: #7ce8ff;
   --color-muted: #94a3b8;
   --color-muted-foreground: #94a3b8;
   --color-surface: rgba(255, 255, 255, 0.05);
   --color-border: rgba(255, 255, 255, 0.14);
   --color-glow: rgba(0, 212, 255, 0.35);
   --color-danger: #ff8c9d;
+  --color-warning: #f5b544;
+  --color-success: #4ade80;
+  --color-gap: #b49cff;
+
   --space-1: 0.25rem;
   --space-2: 0.5rem;
+  --space-3: 0.75rem;
   --space-4: 1rem;
-  --text-body: 1rem;
-  --text-display: 1.75rem;
-  --font-sans: Inter, system-ui, sans-serif;
-  --font-mono: ui-monospace, monospace;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --text-micro: clamp(0.62rem, 0.75vw, 0.8rem);
+  --text-label: clamp(0.72rem, 0.9vw, 0.95rem);
+  --text-body: clamp(0.9rem, 1.1vw, 1.15rem);
+  --text-title: clamp(1.1rem, 1.6vw, 1.6rem);
+  --text-display: clamp(1.9rem, 3.4vw, 3.6rem);
+  --text-hero: clamp(4.5rem, 12vw, 13rem);
+  --text-wall: clamp(5rem, 16vw, 20rem);
+
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", ui-monospace, monospace;
+
+  --radius-panel: 1rem;
+  --radius-pill: 9999px;
+  --viewport-pad: clamp(1rem, 2.6vw, 3.25rem);
+  --remote-target: 64px;
+
+  --motion-room: 900ms;
+  --motion-digit: 380ms;
+  --motion-controls: 240ms;
 }
 
 /* rcl:tokens:end */

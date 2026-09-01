@@ -1,2 +1,12 @@
-[data-theme="ground-control"] { --color-background:#05070e; --color-surface:rgba(12,20,38,.9); --color-foreground:#e8f1ff; --color-muted-foreground:#7d93b8; --color-primary:#00d4ff; --color-glow:rgba(0,212,255,.45); --color-border:rgba(0,212,255,.22); --color-danger:#ff8c9d; --font-sans:"JetBrains Mono","IBM Plex Mono",ui-monospace,monospace; --font-mono:"JetBrains Mono",ui-monospace,monospace; }
-[data-theme="ground-control"] .cc-header h1 { text-shadow:0 0 18px var(--color-glow); }
+[data-theme="ground-control"] {
+  --color-background: #04060d;
+  --color-background-deep: #000104;
+  --color-surface: rgba(10, 18, 36, 0.72);
+  --color-foreground: #eaf3ff;
+  --color-muted-foreground: #8aa2c8;
+  --color-primary: #33d6ff;
+  --color-accent: #9be9ff;
+  --color-glow: rgba(51, 214, 255, 0.5);
+  --color-border: rgba(51, 214, 255, 0.22);
+  --color-gap: #b7a6ff;
+}

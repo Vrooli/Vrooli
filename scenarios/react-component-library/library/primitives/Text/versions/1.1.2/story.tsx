@@ -10,6 +10,7 @@ const samples: Record<TextStyle, string> = {
   caption: "Updated a moment ago · visible to your team",
   code: "const result = await workspace.publish();",
   overline: "TYPE SCALE / 08 STYLES",
+  wall: "A wall of type is still a surface that needs a rhythm.",
 };
 
 const showcaseStyle: CSSProperties = {

@@ -1,1 +1,12 @@
-[data-theme="vault"] { --color-background:#0e0a04; --color-surface:rgba(30,24,12,.94); --color-foreground:#f7ead1; --color-muted-foreground:#c4aa70; --color-primary:#d4af37; --color-glow:rgba(212,175,55,.38); --color-border:rgba(212,175,55,.25); --color-danger:#ff9e72; --font-sans:Inter,system-ui,sans-serif; --font-mono:ui-monospace,monospace; }
+[data-theme="vault"] {
+  --color-background: #0a0d08;
+  --color-background-deep: #030402;
+  --color-surface: rgba(24, 30, 16, 0.72);
+  --color-foreground: #f6ecd2;
+  --color-muted-foreground: #b8a774;
+  --color-primary: #d9b64a;
+  --color-accent: #f3dc8f;
+  --color-glow: rgba(217, 182, 74, 0.45);
+  --color-border: rgba(217, 182, 74, 0.24);
+  --color-gap: #c9b6ff;
+}

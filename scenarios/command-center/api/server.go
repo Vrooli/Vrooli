@@ -27,15 +27,16 @@ type Server struct {
 
 // NewServer wires the router, cache, upstream clients, and registry.
 func NewServer(reg *Registry) *Server {
+	directory := newPortDirectory(resolveVrooliBaseURL())
 	s := &Server{
 		router:   mux.NewRouter(),
 		registry: reg,
 		cache:    NewCache(),
 		stats:    NewStatsBuffer(1024, time.Hour),
 
-		swarm:  upstream.NewSwarm(resolveSwarmBaseURL()),
+		swarm:  upstream.NewSwarmResolved(directory.resolver("swarm-manager", "SWARM_MANAGER_BASE_URL", "SWARM_MANAGER_API_PORT")),
 		vrooli: upstream.NewVrooli(resolveVrooliBaseURL()),
-		lpbs:   upstream.NewLPBS(resolveLPBSBaseURL(), os.Getenv("LPBS_SERVICE_TOKEN")),
+		lpbs:   upstream.NewLPBSResolved(directory.resolver("landing-page-business-suite", "LPBS_BASE_URL", "LPBS_API_PORT"), os.Getenv("LPBS_SERVICE_TOKEN")),
 	}
 	s.setupRoutes()
 	return s
@@ -64,31 +65,9 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func resolveSwarmBaseURL() string {
-	if v := os.Getenv("SWARM_MANAGER_BASE_URL"); v != "" {
-		return v
-	}
-	port := os.Getenv("SWARM_MANAGER_API_PORT")
-	if port == "" {
-		port = "36234"
-	}
-	return "http://localhost:" + port
-}
-
 func resolveVrooliBaseURL() string {
 	if v := os.Getenv("VROOLI_CORE_BASE_URL"); v != "" {
 		return v
 	}
 	return "http://localhost:8092"
-}
-
-func resolveLPBSBaseURL() string {
-	if v := os.Getenv("LPBS_BASE_URL"); v != "" {
-		return v
-	}
-	port := os.Getenv("LPBS_API_PORT")
-	if port == "" {
-		return ""
-	}
-	return "http://localhost:" + port
 }

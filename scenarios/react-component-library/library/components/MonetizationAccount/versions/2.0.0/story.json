@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "AuthSection",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Sign in",
+          "role": "button"
+        }
+      ],
+      "id": "account",
+      "mode": "live",
+      "name": "Signed-out account",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {"specimen": {"export": "MonetizationStates", "module": "./story.tsx"}},
+      "expect": [{"kind": "role", "name": "credits usage", "role": "section"}],
+      "id": "states",
+      "mode": "live",
+      "name": "Paid surface states",
+      "role": "anatomy"
+    }
+  ],
+  "title": "MonetizationAccount"
+}

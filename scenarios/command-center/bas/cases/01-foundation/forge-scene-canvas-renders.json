@@ -1,12 +1,12 @@
 {
   "metadata": {
     "name": "forge-scene-canvas-renders",
-    "description": "Navigates to /forge and asserts the composed canvas contains non-blank pixels (CC-UI-003).",
+    "description": "Navigates to /forge and asserts the scene surface reports a painted first frame: the engine samples its own canvas and stamps data-scene-state='ready' only when pixels were drawn (CC-UI-003). A mounted scene that draws nothing is a failure.",
     "labels": {
       "reset": "none",
       "requirements_json": "[\"CC-UI-003\"]"
     },
-    "version": "1",
+    "version": "2",
     "execution_mode": "observer"
   },
   "settings": {
@@ -15,7 +15,7 @@
   },
   "nodes": [
     {
-      "id": "navigate-forge",
+      "id": "navigate",
       "action": {
         "type": "ACTION_TYPE_NAVIGATE",
         "navigate": {
@@ -31,62 +31,85 @@
       }
     },
     {
-      "id": "wait-scene-canvas",
+      "id": "wait-scene",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid='scene-canvas']",
+          "selector": "[data-testid='scene-canvas'] canvas",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
         "metadata": {
-          "label": "Wait for SceneCanvas wrapper"
+          "label": "Wait for the scene canvas"
         }
       }
     },
     {
-      "id": "assert-scene-wrapper",
+      "id": "wait-painted",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid='scene-canvas'][data-scene-state='ready']",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for the first painted frame"
+        }
+      }
+    },
+    {
+      "id": "assert-painted",
       "action": {
         "type": "ACTION_TYPE_ASSERT",
         "assert": {
-          "selector": "[data-testid='scene-canvas']",
+          "selector": "[data-testid='scene-canvas'][data-scene-state='ready']",
           "mode": "ASSERTION_MODE_EXISTS",
           "timeout_ms": 5000,
-          "failure_message": "Expected [data-testid='scene-canvas'] wrapper to exist on /forge"
+          "failure_message": "Expected the /forge scene to paint a non-blank first frame (data-scene-state='ready')"
         },
         "metadata": {
-          "label": "Assert SceneCanvas wrapper present"
+          "label": "Scene painted a non-blank first frame"
         }
       }
     },
     {
-      "id": "assert-r3f-canvas",
-      "action": {
-        "type": "ACTION_TYPE_ASSERT",
-        "evaluate": {
-          "expression": "(() => { const canvas = document.querySelector('[data-testid=scene-canvas] canvas'); const ctx = canvas && canvas.getContext('2d'); if (!ctx || !canvas) return false; return Array.from(ctx.getImageData(0, 0, canvas.width, canvas.height).data).some((value, index) => index % 4 !== 3 && value > 0); })()",
-          "expected_value": true
-        },
-        "metadata": { "label": "Assert composed scene has non-blank pixels" }
-      }
-    },
-    {
-      "id": "capture-forge-scene",
+      "id": "capture",
       "action": {
         "type": "ACTION_TYPE_SCREENSHOT",
         "screenshot": {
-          "full_page": true
+          "full_page": false
         },
         "metadata": {
-          "label": "Capture /forge scene canvas"
+          "label": "Capture /forge scene"
         }
       }
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-forge", "target": "wait-scene-canvas", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "wait-scene-canvas", "target": "assert-scene-wrapper", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "assert-scene-wrapper", "target": "assert-r3f-canvas", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "assert-r3f-canvas", "target": "capture-forge-scene", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    {
+      "id": "e1",
+      "source": "navigate",
+      "target": "wait-scene",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-scene",
+      "target": "wait-painted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "wait-painted",
+      "target": "assert-painted",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-painted",
+      "target": "capture",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

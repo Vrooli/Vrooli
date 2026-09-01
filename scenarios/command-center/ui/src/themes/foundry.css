@@ -1,1 +1,12 @@
-[data-theme="foundry"] { --color-background:#180a04; --color-surface:rgba(40,20,10,.92); --color-foreground:#fbe8d3; --color-muted-foreground:#c49a73; --color-primary:#ff9a3c; --color-glow:rgba(255,154,60,.45); --color-border:rgba(255,154,60,.28); --color-danger:#ff9a7a; --font-sans:Inter,system-ui,sans-serif; --font-mono:ui-monospace,monospace; }
+[data-theme="foundry"] {
+  --color-background: #140803;
+  --color-background-deep: #060200;
+  --color-surface: rgba(44, 20, 8, 0.72);
+  --color-foreground: #fbeadb;
+  --color-muted-foreground: #c69a72;
+  --color-primary: #ff9b3d;
+  --color-accent: #ffd27a;
+  --color-glow: rgba(255, 155, 61, 0.5);
+  --color-border: rgba(255, 155, 61, 0.24);
+  --color-gap: #d6b3ff;
+}

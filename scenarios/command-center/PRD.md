@@ -19,14 +19,14 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Readings carry values | Every metric carries a typed value, unit, format, observation time and source TTL; upstream readings reach the payload instead of stopping at the cache.
-- [ ] OT-P0-002 | Three axes, never merged | Coverage (`NOW` / `IN-REACH` / `MISSING` / `UNREGISTERED`), condition carried as trust (`VALID` / `CACHED` / `UNAVAILABLE` / `UNTRUSTED`) and empirical (`NONE` / `PENDING` / `HIT` / `MISS` / `UNMEASURABLE`) are independent fields; none is folded into another or into a single status.
-- [ ] OT-P0-003 | Authored sample readings | Sample values are registry-authored data, never generated at runtime and never derived from an upstream response; every sample is stamped so it cannot be mistaken downstream for a measurement.
-- [ ] OT-P0-004 | Setpoint read, never authored | Parse and validate a setpoint this scenario does not own, exposing target and distance-to-target; no API or UI path may write it.
-- [ ] OT-P0-005 | Derived board shape | The room list, metric set and source bindings are derived at read time from the objective set, every team's `instrument` declaration, and each live instrument's own surface — never authored in this scenario's code.
-- [ ] OT-P0-006 | One ranked surface | A single ordered answer to "which sensor is worth building next," merging coverage gaps, untrusted readings, unavailable sources and unregistered outcomes, with each entry naming its owner.
-- [ ] OT-P0-007 | Open-loop self-report | Count and date every `MISSING` cell and every unregistered outcome, including this scenario's own blind spots, so a hole is visible and ageing rather than silent.
-- [ ] OT-P0-008 | One address | A describe endpoint and CLI verbs carrying the same reads as the board, so the team reads one surface programmatically and the declared two-addresses deviation is closed.
+- [x] OT-P0-001 | Readings carry values | Every metric carries a typed value, unit, format, observation time and source TTL; upstream readings reach the payload instead of stopping at the cache.
+- [x] OT-P0-002 | Three axes, never merged | Coverage (`NOW` / `IN-REACH` / `MISSING` / `UNREGISTERED`), condition carried as trust (`VALID` / `CACHED` / `UNAVAILABLE` / `UNTRUSTED`) and empirical (`NONE` / `PENDING` / `HIT` / `MISS` / `UNMEASURABLE`) are independent fields; none is folded into another or into a single status.
+- [x] OT-P0-003 | Authored sample readings | Sample values are registry-authored data, never generated at runtime and never derived from an upstream response; every sample is stamped so it cannot be mistaken downstream for a measurement.
+- [x] OT-P0-004 | Setpoint read, never authored | Parse and validate a setpoint this scenario does not own, exposing target and distance-to-target; no API or UI path may write it.
+- [x] OT-P0-005 | Derived board shape | The room list, metric set and source bindings are derived at read time from the objective set, every team's `instrument` declaration, and each live instrument's own surface — never authored in this scenario's code.
+- [x] OT-P0-006 | One ranked surface | A single ordered answer to "which sensor is worth building next," merging coverage gaps, untrusted readings, unavailable sources and unregistered outcomes, with each entry naming its owner.
+- [x] OT-P0-007 | Open-loop self-report | Count and date every `MISSING` cell and every unregistered outcome, including this scenario's own blind spots, so a hole is visible and ageing rather than silent.
+- [x] OT-P0-008 | One address | A describe endpoint and CLI verbs carrying the same reads as the board, so the team reads one surface programmatically and the declared two-addresses deviation is closed.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -35,12 +35,12 @@
 - [ ] OT-P1-003 | Ambient display shell | Full-bleed, zero idle chrome, cycle rail, hidden control bar that reveals on input, fade-through-black page changes, safe-area aware.
 - [ ] OT-P1-004 | One intent vocabulary | Gamepad, keyboard, touch and pointer resolve to a single intent set built on the shared `GamepadAction` vocabulary before anything reacts.
 - [ ] OT-P1-005 | Audience modes | `samples=hide|mark|full` selects whether illustrative readings are shown, marked, or withheld, with a persistent legend whenever marked readings are on screen.
-- [ ] OT-P1-006 | Capability ladder | A runtime capability probe selects the scene tier so the board is correct on a phone, a laptop, a gamepad-controlled TV and a wall panel without a per-device build.
+- [x] OT-P1-006 | Capability ladder | A runtime capability probe selects the scene tier so the board is correct on a phone, a laptop, a gamepad-controlled TV and a wall panel without a per-device build.
 
 ### 🟢 P2 – Future / expansion
 
-- [ ] OT-P2-001 | Prediction binding | Metrics carrying a live prediction render their target and remaining horizon beside the value.
-- [ ] OT-P2-002 | Reading history | Persist readings with their trust verdicts so trend and staleness-against-window are computable, recomputing verdicts against the current setpoint at query time.
+- [x] OT-P2-001 | Prediction binding | Metrics carrying a live prediction render their target and remaining horizon beside the value.
+- [x] OT-P2-002 | Reading history | Persist readings with their trust verdicts so trend and staleness-against-window are computable, recomputing verdicts against the current setpoint at query time.
 - [ ] OT-P2-003 | Revenue pipeline consumption | Consume the monetization instrument's revenue and subscription surface once it exposes one, retiring the Ledger room's authored samples.
 - [ ] OT-P2-004 | Marketing instrument consumption | Consume a marketing-crew aggregator once that team declares one; until then the Broadcast room reports the team's missing instrument as the finding rather than reporting six unrelated gaps.
 

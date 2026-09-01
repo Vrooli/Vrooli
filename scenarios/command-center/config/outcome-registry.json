@@ -122,8 +122,8 @@
   "metrics": [
     {
       "id": "active_scenarios",
-      "label": "Active scenarios",
-      "description": "Count of scenarios currently running with green health checks.",
+      "label": "Scenarios running",
+      "description": "Scenarios the control plane reports as running.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -138,8 +138,8 @@
     },
     {
       "id": "scenario_health",
-      "label": "Scenario health summary",
-      "description": "Rollup of scenario health states across the local Vrooli instance.",
+      "label": "Healthy scenarios",
+      "description": "Running scenarios whose health probe reports healthy.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -154,8 +154,8 @@
     },
     {
       "id": "swarm_throughput",
-      "label": "Swarm throughput (last 24h)",
-      "description": "Completed backlog items produced by the swarm in the trailing day.",
+      "label": "Items shipped \u00b7 7 days",
+      "description": "Backlog items Swarm Manager completed in the trailing seven days.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -170,8 +170,8 @@
     },
     {
       "id": "swarm_active_agents",
-      "label": "Active agents",
-      "description": "Number of agents with at least one run executed in the last hour.",
+      "label": "Agent executions",
+      "description": "Agent executions recorded by Swarm Manager.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -186,10 +186,10 @@
     },
     {
       "id": "system_uptime",
-      "label": "System uptime",
+      "label": "Host uptime",
       "description": "Wall-clock uptime for the local Vrooli host.",
-      "unit": "count",
-      "format": "integer",
+      "unit": "days",
+      "format": "duration.days",
       "tags": [],
       "source": {
         "team": "director-swarm",
@@ -198,14 +198,29 @@
         "select": "system_uptime",
         "ttlSeconds": 60
       },
-      "coverage": "NOW"
+      "coverage": "IN-REACH",
+      "owner": "director-swarm",
+      "whatIsNeeded": "A host uptime field on the control plane's own /health surface; the host is measurable, the surface is not built.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 14.3,
+        "series": [
+          8.3,
+          9.3,
+          10.3,
+          11.3,
+          12.3,
+          14.3
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
     },
     {
       "id": "revenue_mrr",
       "label": "Monthly recurring revenue",
       "description": "Rolling MRR computed from Stripe subscriptions.",
-      "unit": "count",
-      "format": "integer",
+      "unit": "usd",
+      "format": "currency.compact",
       "tags": [],
       "source": {
         "team": "director-swarm",
@@ -215,18 +230,18 @@
         "ttlSeconds": 300
       },
       "coverage": "MISSING",
-      "owner": "director-swarm",
-      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint must be implemented by the lpbs-command-center-dashboard-endpoints execute item.",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with an MRR rollup from Stripe subscriptions.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 17,
+        "value": 12400,
         "series": [
-          9,
-          11,
-          13,
-          14,
-          15,
-          17
+          8100,
+          8800,
+          9600,
+          10200,
+          11300,
+          12400
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
@@ -234,9 +249,9 @@
     {
       "id": "revenue_today",
       "label": "Revenue today",
-      "description": "Sum of successful checkout_sessions in the current day.",
-      "unit": "count",
-      "format": "integer",
+      "description": "Sum of successful checkout sessions in the current day.",
+      "unit": "usd",
+      "format": "currency",
       "tags": [],
       "source": {
         "team": "director-swarm",
@@ -246,26 +261,26 @@
         "ttlSeconds": 300
       },
       "coverage": "MISSING",
-      "owner": "director-swarm",
+      "owner": "monetization",
       "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with a daily-rollup query.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 34,
+        "value": 410,
         "series": [
-          18,
-          22,
-          26,
-          28,
-          30,
-          34
+          220,
+          310,
+          180,
+          390,
+          275,
+          410
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "total_scenarios",
-      "label": "Total scenarios",
-      "description": "Count of scenarios registered with the Vrooli scenario registry.",
+      "label": "Scenarios in the portfolio",
+      "description": "Every scenario the control plane knows about, running or not.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -280,8 +295,8 @@
     },
     {
       "id": "scenario_completeness",
-      "label": "Completeness score distribution",
-      "description": "Distribution of 0-100 completeness scores bucketed by classification.",
+      "label": "Running and healthy",
+      "description": "Scenarios that are both running and passing their health probe.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -296,8 +311,8 @@
     },
     {
       "id": "scenario_health_detail",
-      "label": "Per-scenario health",
-      "description": "Per-scenario health badges (green/yellow/red) derived from lifecycle checks.",
+      "label": "Degraded scenarios",
+      "description": "Running scenarios whose health probe reports degraded or unhealthy.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -312,8 +327,8 @@
     },
     {
       "id": "scenario_ports",
-      "label": "Allocated ports",
-      "description": "Current port allocations per scenario, reported by the lifecycle manager.",
+      "label": "Scenarios with ports",
+      "description": "Scenarios currently holding at least one assigned port.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -328,8 +343,8 @@
     },
     {
       "id": "scenario_usage_frequency",
-      "label": "Usage frequency (last 7 days)",
-      "description": "How often each scenario is opened or invoked.",
+      "label": "Scenario opens \u00b7 7 days",
+      "description": "How often scenarios are opened or invoked.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -342,25 +357,25 @@
       },
       "coverage": "MISSING",
       "owner": "meta-optimization",
-      "whatIsNeeded": "Usage tracking is not yet collected anywhere. Needs either client instrumentation posting to an analytics endpoint or lifecycle-manager invocation counters.",
+      "whatIsNeeded": "Usage tracking is not collected anywhere. Needs client instrumentation posting to an analytics endpoint, or lifecycle-manager invocation counters.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 51,
+        "value": 1840,
         "series": [
-          27,
-          33,
-          39,
-          42,
-          45,
-          51
+          1200,
+          1320,
+          1510,
+          1490,
+          1700,
+          1840
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "throughput_stats",
-      "label": "Backlog throughput",
-      "description": "Items completed per hour, day, week; Swarm Manager stats engine.",
+      "label": "Items created \u00b7 7 days",
+      "description": "Backlog items created in the trailing seven days.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -375,10 +390,10 @@
     },
     {
       "id": "timing_stats",
-      "label": "Timing statistics",
-      "description": "Median, p90, p99 run durations across phases (research, workshop, execute).",
-      "unit": "count",
-      "format": "integer",
+      "label": "Mean execution",
+      "description": "Average wall-clock minutes per agent execution.",
+      "unit": "minutes",
+      "format": "minutes",
       "tags": [],
       "source": {
         "team": "director-swarm",
@@ -391,8 +406,8 @@
     },
     {
       "id": "scope_stats",
-      "label": "Scope footprint",
-      "description": "Scope-path breadth across concurrent runs; contention hotspots.",
+      "label": "Goals in scope",
+      "description": "Goals Swarm Manager is tracking scope against.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -407,8 +422,8 @@
     },
     {
       "id": "blocking_stats",
-      "label": "Blocking items",
-      "description": "Items currently blocked on review, dependency, or scope lock.",
+      "label": "Blocked now",
+      "description": "Backlog items currently blocked.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -423,10 +438,10 @@
     },
     {
       "id": "agent_stats",
-      "label": "Per-agent utilisation",
-      "description": "Runs per agent profile and success-rate rollup.",
-      "unit": "count",
-      "format": "integer",
+      "label": "Agent success rate",
+      "description": "Share of agent executions that completed successfully.",
+      "unit": "percent",
+      "format": "percent",
       "tags": [],
       "source": {
         "team": "director-swarm",
@@ -439,8 +454,8 @@
     },
     {
       "id": "dashboard_stats",
-      "label": "Dashboard & initiative rollups",
-      "description": "Initiative-level rollup derived from /api/v1/overview.",
+      "label": "Backlog size",
+      "description": "Open backlog items across every lane.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -455,8 +470,8 @@
     },
     {
       "id": "review_stats",
-      "label": "Review queue",
-      "description": "Awaiting-approval runs and mean time to human review.",
+      "label": "Review rounds",
+      "description": "Review rounds completed.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -471,8 +486,8 @@
     },
     {
       "id": "subscriber_counts",
-      "label": "Subscribers by tier",
-      "description": "Count of active subscriptions bucketed by plan_tier (free/solo/pro/studio/business).",
+      "label": "Active subscribers",
+      "description": "Active subscriptions across free, solo, pro, studio and business tiers.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -488,24 +503,24 @@
       "whatIsNeeded": "LPBS /api/v1/admin/dashboard/subscriptions endpoint with plan_tier grouping.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 68,
+        "value": 412,
         "series": [
-          36,
-          44,
-          52,
-          56,
-          60,
-          68
+          300,
+          330,
+          352,
+          371,
+          390,
+          412
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "revenue_rollup",
-      "label": "Revenue rollup",
-      "description": "Daily/weekly/monthly revenue from successful checkout_sessions.",
-      "unit": "count",
-      "format": "integer",
+      "label": "Revenue \u00b7 30 days",
+      "description": "Revenue from successful checkout sessions in the trailing thirty days.",
+      "unit": "usd",
+      "format": "currency.compact",
       "tags": [],
       "source": {
         "team": "monetization",
@@ -516,25 +531,25 @@
       },
       "coverage": "MISSING",
       "owner": "monetization",
-      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with configurable window.",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with a configurable window.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 85,
+        "value": 9800,
         "series": [
-          45,
-          55,
-          65,
-          70,
-          75,
-          85
+          6100,
+          6900,
+          7500,
+          8200,
+          9100,
+          9800
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "churn",
-      "label": "Churn (last 30 days)",
-      "description": "Count of subscriptions with canceled_at inside the 30-day window.",
+      "label": "Churned \u00b7 30 days",
+      "description": "Subscriptions cancelled inside the thirty-day window.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -550,24 +565,24 @@
       "whatIsNeeded": "LPBS /api/v1/admin/dashboard/churn endpoint filtering canceled_at.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 102,
+        "value": 7,
         "series": [
-          54,
-          66,
-          78,
-          84,
-          90,
-          102
+          4,
+          6,
+          5,
+          8,
+          6,
+          7
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "credit_balances",
-      "label": "Credit balances",
-      "description": "Distribution of credit_wallets balances across users.",
+      "label": "Credits outstanding",
+      "description": "Total credit balance held across every wallet.",
       "unit": "count",
-      "format": "integer",
+      "format": "compact",
       "tags": [],
       "source": {
         "team": "monetization",
@@ -578,27 +593,27 @@
       },
       "coverage": "IN-REACH",
       "owner": "monetization",
-      "whatIsNeeded": "Histogram aggregation endpoint; raw credit_wallets rows available but not aggregated yet.",
+      "whatIsNeeded": "An aggregation endpoint over credit_wallets; the rows exist and are not summed anywhere.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 119,
+        "value": 128400,
         "series": [
-          63,
-          77,
-          91,
-          98,
-          105,
-          119
+          92000,
+          99000,
+          108000,
+          114000,
+          121000,
+          128400
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "credit_consumption",
-      "label": "Credit consumption rate",
-      "description": "Credits burned per day derived from credit_transactions.",
+      "label": "Credits burned per day",
+      "description": "Credits consumed per day, derived from credit transactions.",
       "unit": "count",
-      "format": "integer",
+      "format": "compact",
       "tags": [],
       "source": {
         "team": "monetization",
@@ -609,27 +624,27 @@
       },
       "coverage": "IN-REACH",
       "owner": "monetization",
-      "whatIsNeeded": "Pre-aggregated daily-burn endpoint; underlying table is available.",
+      "whatIsNeeded": "A pre-aggregated daily-burn endpoint over credit_transactions; the table exists.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 136,
+        "value": 3120,
         "series": [
-          72,
-          88,
-          104,
-          112,
-          120,
-          136
+          2100,
+          2400,
+          2650,
+          2800,
+          2950,
+          3120
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "usage_records",
-      "label": "Per-limit-key usage",
-      "description": "usage_records summarised per limit_key per billing period.",
+      "label": "Metered requests \u00b7 30 days",
+      "description": "Metered usage records in the trailing thirty days.",
       "unit": "count",
-      "format": "integer",
+      "format": "compact",
       "tags": [],
       "source": {
         "team": "monetization",
@@ -640,27 +655,27 @@
       },
       "coverage": "IN-REACH",
       "owner": "monetization",
-      "whatIsNeeded": "Aggregation endpoint; raw usage_records exist but need grouping.",
+      "whatIsNeeded": "An aggregation endpoint over usage_records; the rows exist.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 153,
+        "value": 48200,
         "series": [
-          81,
-          99,
-          117,
-          126,
-          135,
-          153
+          31000,
+          35000,
+          38500,
+          41000,
+          44800,
+          48200
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "visitors",
-      "label": "Visitors (7/30/90d)",
-      "description": "Unique visitors from LPBS metrics_events.",
+      "label": "Visitors \u00b7 30 days",
+      "description": "Unique visitors recorded in LPBS metrics events.",
       "unit": "count",
-      "format": "integer",
+      "format": "compact",
       "tags": [],
       "source": {
         "team": "marketing-crew",
@@ -669,12 +684,27 @@
         "select": "visitors",
         "ttlSeconds": 300
       },
-      "coverage": "NOW"
+      "coverage": "IN-REACH",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with visitor rollups; metrics_events holds the rows and no endpoint reads them.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 2840,
+        "series": [
+          1900,
+          2100,
+          2350,
+          2500,
+          2620,
+          2840
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
     },
     {
       "id": "conversions",
-      "label": "Landing-page conversions",
-      "description": "Conversion count derived from metrics_events.",
+      "label": "Conversions \u00b7 30 days",
+      "description": "Landing-page conversions derived from metrics events.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -685,12 +715,27 @@
         "select": "conversions",
         "ttlSeconds": 300
       },
-      "coverage": "NOW"
+      "coverage": "IN-REACH",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with a conversion rollup from metrics_events.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 61,
+        "series": [
+          38,
+          42,
+          47,
+          50,
+          55,
+          61
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
     },
     {
       "id": "cta_clicks",
-      "label": "CTA click-through",
-      "description": "CTA clicks summarised from metrics_events variant traffic.",
+      "label": "CTA clicks \u00b7 30 days",
+      "description": "Call-to-action clicks summarised from metrics events.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -701,14 +746,29 @@
         "select": "cta_clicks",
         "ttlSeconds": 300
       },
-      "coverage": "NOW"
+      "coverage": "IN-REACH",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with CTA clicks summarised by variant.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 412,
+        "series": [
+          260,
+          290,
+          330,
+          350,
+          380,
+          412
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
     },
     {
       "id": "scroll_depth",
-      "label": "Scroll depth",
-      "description": "Scroll-depth percentiles from metrics_events.",
-      "unit": "count",
-      "format": "integer",
+      "label": "Median scroll depth",
+      "description": "Median scroll depth across landing-page sessions.",
+      "unit": "percent",
+      "format": "percent",
       "tags": [],
       "source": {
         "team": "marketing-crew",
@@ -717,14 +777,29 @@
         "select": "scroll_depth",
         "ttlSeconds": 300
       },
-      "coverage": "NOW"
+      "coverage": "IN-REACH",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with scroll-depth percentiles.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 0.58,
+        "series": [
+          0.51,
+          0.53,
+          0.55,
+          0.54,
+          0.57,
+          0.58
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
     },
     {
       "id": "variant_ab",
       "label": "A/B variant lift",
-      "description": "Per-variant comparison rolled up from metrics_events.",
-      "unit": "count",
-      "format": "integer",
+      "description": "Conversion lift of the leading variant over control.",
+      "unit": "percent",
+      "format": "percent.signed",
       "tags": [],
       "source": {
         "team": "marketing-crew",
@@ -733,14 +808,29 @@
         "select": "variant_ab",
         "ttlSeconds": 300
       },
-      "coverage": "NOW"
+      "coverage": "IN-REACH",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with a per-variant comparison.",
+      "firstObservedMissing": "2026-09-01",
+      "sample": {
+        "value": 0.07,
+        "series": [
+          0.02,
+          0.03,
+          0.05,
+          0.04,
+          0.06,
+          0.07
+        ],
+        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
+      }
     },
     {
       "id": "social_reach",
       "label": "Social reach",
       "description": "Cross-platform follower and engagement counts.",
       "unit": "count",
-      "format": "integer",
+      "format": "compact",
       "tags": [],
       "source": {
         "team": "marketing-crew",
@@ -751,25 +841,25 @@
       },
       "coverage": "MISSING",
       "owner": "marketing-crew",
-      "whatIsNeeded": "Social-platform API integrations (Twitter/X, LinkedIn, YouTube) are not wired in yet.",
+      "whatIsNeeded": "Social-platform API integrations (X, LinkedIn, YouTube) are not wired in anywhere, and no scenario owns social scheduling.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 170,
+        "value": 5400,
         "series": [
-          90,
-          110,
-          130,
-          140,
-          150,
-          170
+          3200,
+          3600,
+          4100,
+          4500,
+          4900,
+          5400
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "seo_rankings",
-      "label": "SEO rankings",
-      "description": "Keyword position tracking.",
+      "label": "Keywords in the top ten",
+      "description": "Tracked keywords ranking in the top ten results.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -782,25 +872,25 @@
       },
       "coverage": "MISSING",
       "owner": "marketing-crew",
-      "whatIsNeeded": "SEO-data integration (e.g. Ahrefs, GSC export) not yet built.",
+      "whatIsNeeded": "A search-console integration; no scenario collects rankings.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 187,
+        "value": 14,
         "series": [
-          99,
-          121,
-          143,
-          154,
-          165,
-          187
+          6,
+          8,
+          9,
+          11,
+          12,
+          14
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "campaign_metrics",
-      "label": "Campaign performance",
-      "description": "Paid and email-campaign metrics (spend, CTR, cost per conversion).",
+      "label": "Campaign sends \u00b7 30 days",
+      "description": "Outbound campaigns sent in the trailing thirty days.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -813,25 +903,25 @@
       },
       "coverage": "MISSING",
       "owner": "marketing-crew",
-      "whatIsNeeded": "Campaign-platform ingestion (Ads, Mailchimp, etc.) is not yet in place.",
+      "whatIsNeeded": "A campaign ledger; marketing-crew names no aggregator for it.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 204,
+        "value": 6,
         "series": [
-          108,
-          132,
-          156,
-          168,
-          180,
-          204
+          2,
+          3,
+          3,
+          4,
+          5,
+          6
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "composite_system_health",
-      "label": "Composite system health",
-      "description": "System-wide health summary composed from Mission Control + The Hive.",
+      "label": "Healthy scenarios",
+      "description": "Running scenarios passing their health probe, fleet-wide.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -842,27 +932,12 @@
         "select": "composite_system_health",
         "ttlSeconds": 60
       },
-      "coverage": "IN-REACH",
-      "owner": "director-swarm",
-      "whatIsNeeded": "Panorama depends on downstream dashboards — partial until all inputs are live (notably revenue on Mission Control).",
-      "firstObservedMissing": "2026-09-01",
-      "sample": {
-        "value": 221,
-        "series": [
-          117,
-          143,
-          169,
-          182,
-          195,
-          221
-        ],
-        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
-      }
+      "coverage": "NOW"
     },
     {
       "id": "composite_throughput",
-      "label": "Composite throughput",
-      "description": "Cross-dashboard throughput view sourced from The Forge.",
+      "label": "Items completed all time",
+      "description": "Backlog items Swarm Manager has completed since records began.",
       "unit": "count",
       "format": "integer",
       "tags": [],
@@ -877,10 +952,10 @@
     },
     {
       "id": "composite_revenue",
-      "label": "Composite revenue",
-      "description": "Top-line revenue indicator rolled up from Ledger.",
-      "unit": "count",
-      "format": "integer",
+      "label": "Monthly recurring revenue",
+      "description": "Rolling MRR, the Ledger room's headline.",
+      "unit": "usd",
+      "format": "currency.compact",
       "tags": [],
       "source": {
         "team": "director-swarm",
@@ -890,28 +965,28 @@
         "ttlSeconds": 300
       },
       "coverage": "MISSING",
-      "owner": "director-swarm",
-      "whatIsNeeded": "Depends on LPBS admin-dashboard endpoints (revenue, subscriptions, churn).",
+      "owner": "monetization",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with an MRR rollup.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 238,
+        "value": 12400,
         "series": [
-          126,
-          154,
-          182,
-          196,
-          210,
-          238
+          8100,
+          8800,
+          9600,
+          10200,
+          11300,
+          12400
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "composite_reach",
-      "label": "Composite reach",
-      "description": "Cross-channel audience view composed from Broadcast.",
+      "label": "Visitors \u00b7 30 days",
+      "description": "Unique visitors, the Broadcast room's headline.",
       "unit": "count",
-      "format": "integer",
+      "format": "compact",
       "tags": [],
       "source": {
         "team": "director-swarm",
@@ -921,26 +996,26 @@
         "ttlSeconds": 300
       },
       "coverage": "IN-REACH",
-      "owner": "director-swarm",
-      "whatIsNeeded": "Broadcast partial coverage (social/SEO/campaign gaps) keeps this partial.",
+      "owner": "marketing-crew",
+      "whatIsNeeded": "LPBS /api/v1/admin/dashboard/summary with visitor rollups from metrics_events.",
       "firstObservedMissing": "2026-09-01",
       "sample": {
-        "value": 255,
+        "value": 2840,
         "series": [
-          135,
-          165,
-          195,
-          210,
-          225,
-          255
+          1900,
+          2100,
+          2350,
+          2500,
+          2620,
+          2840
         ],
         "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
       }
     },
     {
       "id": "composite_portfolio",
-      "label": "Composite portfolio",
-      "description": "Scenario portfolio view rolled up from The Hive.",
+      "label": "Scenarios running",
+      "description": "Scenarios the control plane reports as running, the Hive room's headline.",
       "unit": "count",
       "format": "integer",
       "tags": [],

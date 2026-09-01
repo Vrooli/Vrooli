@@ -26,18 +26,20 @@ bas/
 | `panorama-loads.json` | CC-UI-001 | `/panorama` loads with `data-theme='cosmos'`. |
 | `root-redirects-to-mission-control.json` | CC-UI-001 | `/` redirects to `/mission-control`. |
 | `unknown-route-redirects.json` | CC-UI-001 | Unknown routes redirect to `/mission-control` via the catch-all `<Navigate>` fallback. |
-| `mission-control-gap-badges-render.json` | CC-MC-003 | `/mission-control` renders `[data-testid='gap-badge']` plus a `<canvas>` element. |
-| `hive-gap-badges-render.json` | CC-UI-002 | `/hive` renders at least one gap badge (e.g. `scenario_usage_frequency`). |
-| `ledger-gap-badges-render.json` | CC-UI-002 | `/ledger` renders at least one gap badge (subscriber_counts et al). |
-| `broadcast-gap-badges-render.json` | CC-UI-002 | `/broadcast` renders at least one gap badge (social_reach, seo_rankings, …). |
-| `panorama-gap-badges-render.json` | CC-UI-002 | `/panorama` renders at least one gap/partial badge (composite_revenue, composite_system_health, composite_reach). |
+| `mission-control-illustrative-figures-render.json` | CC-UI-002 | `/mission-control` renders every illustrative reading as a hollow or dotted figure with a qualifier, and the legend in mark mode. |
+| `hive-illustrative-figures-render.json` | CC-UI-002 | `/hive` renders every illustrative reading (scenario_usage_frequency) as a hollow or dotted figure carrying a qualifier; no red chip anywhere. |
+| `ledger-illustrative-figures-render.json` | CC-UI-002 | `/ledger` renders every illustrative reading (subscriber_counts et al) as a hollow or dotted figure carrying a qualifier; no red chip anywhere. |
+| `broadcast-illustrative-figures-render.json` | CC-UI-002 | `/broadcast` renders every illustrative reading (social_reach, seo_rankings, …) as a hollow or dotted figure carrying a qualifier; no red chip anywhere. |
+| `panorama-illustrative-figures-render.json` | CC-UI-002 | `/panorama` renders every illustrative reading (composite_revenue, composite_reach) as a hollow or dotted figure carrying a qualifier; no red chip anywhere. |
+| `mission-control-portrait-composes.json` | CC-UI-001 | `/mission-control` at 390px wide: hero figure, room identity and readings present, no horizontal overflow. |
+| `ledger-hide-mode-shows-no-illustration.json` | CC-UI-002 | `/ledger?samples=hide` renders no hollow or dotted figure and stamps the mode on screen. |
 | `mission-control-metric-list-renders.json` | CC-UI-002 | `/mission-control` renders `[data-testid='metric-list']` with at least one `[data-metric-id]`. |
 | `forge-metric-list-renders.json` | CC-UI-002 | `/forge` (all-live metrics) still renders the metric list structure. |
-| `hive-scene-canvas-renders.json` | CC-UI-003 | `/hive` mounts `[data-testid='scene-canvas']` + the R3F `<canvas>`. |
-| `forge-scene-canvas-renders.json` | CC-UI-003 | `/forge` mounts the lazy SceneCanvas. |
-| `ledger-scene-canvas-renders.json` | CC-UI-003 | `/ledger` mounts the lazy SceneCanvas. |
-| `broadcast-scene-canvas-renders.json` | CC-UI-003 | `/broadcast` mounts the lazy SceneCanvas. |
-| `panorama-scene-canvas-renders.json` | CC-UI-003 | `/panorama` mounts the lazy SceneCanvas. |
+| `hive-scene-canvas-renders.json` | CC-UI-003 | `/hive` mounts `[data-testid='scene-canvas']` and its 2D canvas has painted non-blank pixels. |
+| `forge-scene-canvas-renders.json` | CC-UI-003 | `/forge` mounts the scene canvas and it has painted non-blank pixels. |
+| `ledger-scene-canvas-renders.json` | CC-UI-003 | `/ledger` mounts the scene canvas and it has painted non-blank pixels. |
+| `broadcast-scene-canvas-renders.json` | CC-UI-003 | `/broadcast` mounts the scene canvas and it has painted non-blank pixels. |
+| `panorama-scene-canvas-renders.json` | CC-UI-003 | `/panorama` mounts the scene canvas and it has painted non-blank pixels. |
 
 ## Flow inventory (`flows/`)
 

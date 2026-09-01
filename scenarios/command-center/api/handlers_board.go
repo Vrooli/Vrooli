@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -49,6 +48,7 @@ func (s *Server) registerBoardRoutes() {
 	s.router.HandleFunc("/api/v1/open-loop", s.handleOpenLoop).Methods("GET")
 	s.router.HandleFunc("/api/v1/capabilities/describe", s.handleDescribe).Methods("GET")
 }
+
 func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 	rooms := append([]Room(nil), s.registry.Rooms...)
 	if len(rooms) == 0 {
@@ -56,10 +56,10 @@ func (s *Server) handleBoard(w http.ResponseWriter, r *http.Request) {
 			rooms = append(rooms, Room{ID: id, Title: id})
 		}
 	}
-	sort.Slice(rooms, func(i, j int) bool { return rooms[i].ID < rooms[j].ID })
 	sources := s.sourceDeclarations()
 	writeJSON(w, http.StatusOK, BoardShape{SchemaVersion: first(s.registry.SchemaVersion, s.registry.Version), GeneratedAt: time.Now().UTC(), Rooms: rooms, Denominator: map[string]any{"outcomeCategories": len(rooms), "confidence": "partial", "rationale": "The denominator is derived from the checked-in outcome registry and is partial until the objective transmitter is readable."}, Sources: sources})
 }
+
 func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	entries := s.registry.Dashboard(id)
@@ -75,6 +75,7 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, RoomReadings{Room: roomByID(s.registry, id), Readings: readings, Sources: sources})
 }
+
 func (s *Server) handleFocus(w http.ResponseWriter, r *http.Request) {
 	entries := []FocusEntry{}
 	seen := map[string]bool{}
@@ -84,7 +85,9 @@ func (s *Server) handleFocus(w http.ResponseWriter, r *http.Request) {
 	for _, room := range s.registry.Rooms {
 		readings, _ := s.readings(r.Context(), s.registry.Dashboard(room.ID))
 		for _, m := range readings {
-			if m.Trust != TrustUnavailable && m.Trust != TrustUntrusted {
+			// Only a NOW cell has a sensor that can fail to answer; an
+			// IN-REACH or MISSING cell is a coverage finding, ranked below.
+			if m.Coverage != CoverageNow || (m.Trust != TrustUnavailable && m.Trust != TrustUntrusted) {
 				continue
 			}
 			owner := m.Source.Team
@@ -126,6 +129,7 @@ func (s *Server) handleFocus(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, FocusSurface{GeneratedAt: time.Now().UTC(), Entries: entries})
 }
+
 func predictionFindings(reg *Registry) []FocusEntry {
 	rows, err := loadPredictions()
 	if err != nil {
@@ -143,6 +147,7 @@ func predictionFindings(reg *Registry) []FocusEntry {
 	}
 	return out
 }
+
 func (s *Server) handleOpenLoop(w http.ResponseWriter, r *http.Request) {
 	missing := []MetricEntry{}
 	unreg := []MetricEntry{}
@@ -162,10 +167,12 @@ func (s *Server) handleOpenLoop(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, OpenLoop{GeneratedAt: time.Now().UTC(), Missing: missing, Unregistered: unreg, Self: self})
 }
+
 func (s *Server) handleDescribe(w http.ResponseWriter, r *http.Request) {
 	b := s.registry
 	writeJSON(w, 200, map[string]any{"name": "command-center", "schemaVersion": first(b.SchemaVersion, b.Version), "rooms": b.Rooms, "metrics": b.Metrics, "sources": s.sourceDeclarations()})
 }
+
 func (s *Server) sourceDeclarations() []map[string]any {
 	seen := map[string]bool{}
 	teams := loadTeamDeclarations()
@@ -187,6 +194,7 @@ func (s *Server) sourceDeclarations() []map[string]any {
 	}
 	return out
 }
+
 func roomByID(r *Registry, id string) Room {
 	for _, v := range r.Rooms {
 		if v.ID == id {
@@ -195,12 +203,14 @@ func roomByID(r *Registry, id string) Room {
 	}
 	return Room{ID: id, Title: id}
 }
+
 func (m MetricEntry) WhatIsNeededString() string {
 	if m.WhatIsNeeded != nil {
 		return *m.WhatIsNeeded
 	}
 	return "A conforming source pipeline is required."
 }
+
 func daysOpen(p *string) *int {
 	if p == nil {
 		return nil
@@ -208,6 +218,7 @@ func daysOpen(p *string) *int {
 	n := daysOpenString(*p)
 	return &n
 }
+
 func daysOpenString(p string) int {
 	t, e := time.Parse("2006-01-02", p)
 	if e != nil {
@@ -219,12 +230,17 @@ func daysOpenString(p string) int {
 	}
 	return d
 }
-func first(a, b string) string {
-	if a != "" {
-		return a
+
+// first returns the first non-empty string in order of preference.
+func first(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
 	}
-	return b
+	return ""
 }
+
 func loadTeamDeclarations() map[string]map[string]string {
 	out := map[string]map[string]string{}
 	root := os.Getenv("VROOLI_ROOT")

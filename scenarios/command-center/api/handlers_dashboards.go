@@ -74,18 +74,9 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 			m.Source.TTLSeconds = 60
 		}
 		m.TTLSeconds = m.Source.TTLSeconds
-		if m.Source.InstrumentStatus == "" {
-			m.Source.InstrumentStatus = teamDeclarations[m.Source.Team]["status"]
-			if m.Source.InstrumentStatus == "" {
-				m.Source.InstrumentStatus = "partial"
-			}
-		}
-		if m.Source.InstrumentArchetype == "" {
-			m.Source.InstrumentArchetype = teamDeclarations[m.Source.Team]["archetype"]
-			if m.Source.InstrumentArchetype == "" {
-				m.Source.InstrumentArchetype = "production-ledger"
-			}
-		}
+		decl := teamDeclarations[m.Source.Team]
+		m.Source.InstrumentStatus = first(m.Source.InstrumentStatus, decl["status"], "partial")
+		m.Source.InstrumentArchetype = first(m.Source.InstrumentArchetype, decl["archetype"], "production-ledger")
 		if effectiveCoverage(*m) != CoverageNow && effectiveCoverage(*m) != CoverageInReach {
 			continue
 		}
@@ -106,33 +97,53 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		if env.Data != nil {
 			sources[name] = sourceMetadata{FromCache: env.FromCache, StalenessTS: env.StalenessTS}
 		}
-		if err != nil {
-			if env.Data != nil {
-				m.Trust = TrustCached
-			} else {
-				m.Trust = TrustUnavailable
+		if env.Data == nil {
+			m.TrustReason = unavailableReason(err)
+			continue
+		}
+		pick, known := selectors[m.Source.Select]
+		if !known {
+			if m.Coverage == CoverageNow {
+				m.TrustReason = "no selector named " + m.Source.Select
 			}
 			continue
 		}
 		var payload any
-		if json.Unmarshal(env.Data, &payload) == nil {
-			if value, ok := findNumber(payload, m.Source.Select, m.ID); ok {
-				m.Value = value
-				observed := env.CachedAt
-				m.ObservedAt = &observed
-				if time.Since(observed) <= time.Duration(m.TTLSeconds)*time.Second {
-					m.Trust = TrustValid
-				} else {
-					m.Trust = TrustCached
-				}
-			}
+		if json.Unmarshal(env.Data, &payload) != nil {
+			m.TrustReason = "source returned a body that is not JSON"
+			continue
 		}
-		if m.Value == nil {
-			m.Trust = TrustUnavailable
+		value, found := pick(payload)
+		if !found {
+			m.TrustReason = "selector " + m.Source.Select + " found no number in the source payload"
+			continue
+		}
+		m.Value = value
+		observed := env.CachedAt
+		m.ObservedAt = &observed
+		switch {
+		case err == nil && time.Since(observed) <= time.Duration(m.TTLSeconds)*time.Second:
+			m.Trust = TrustValid
+		default:
+			// The source stopped answering, or the cached observation aged
+			// past its TTL. Either way the last good reading is served with
+			// its age, and coverage is untouched.
+			m.Trust = TrustCached
+			m.TrustReason = unavailableReason(err)
 		}
 	}
 	s.joinPredictions(out)
 	return out, sources
+}
+
+func unavailableReason(err error) string {
+	if err == nil {
+		return "observation is older than its TTL"
+	}
+	if errors.Is(err, upstream.ErrNotAvailable) {
+		return "source is not reachable or does not expose this surface"
+	}
+	return err.Error()
 }
 
 func sourceFromBinding(binding string) UpstreamSource {
@@ -146,35 +157,6 @@ func sourceFromBinding(binding string) UpstreamSource {
 		return SourceLPBS
 	}
 	return SourceNone
-}
-func findNumber(payload any, selector, id string) (float64, bool) {
-	keys := []string{selector, id}
-	aliases := map[string][]string{"active_scenarios": {"active", "running", "count"}, "total_scenarios": {"total", "count"}, "swarm_throughput": {"completed_24h", "completed"}, "swarm_throughput_24h": {"completed_24h", "completed"}}
-	keys = append(keys, aliases[id]...)
-	var walk func(any) (float64, bool)
-	walk = func(v any) (float64, bool) {
-		switch x := v.(type) {
-		case map[string]any:
-			for _, k := range keys {
-				if n, ok := x[k].(float64); ok {
-					return n, true
-				}
-			}
-			for _, child := range x {
-				if n, ok := walk(child); ok {
-					return n, true
-				}
-			}
-		case []any:
-			for _, child := range x {
-				if n, ok := walk(child); ok {
-					return n, true
-				}
-			}
-		}
-		return 0, false
-	}
-	return walk(payload)
 }
 
 // primeSources fetches the upstream payloads required by the given entries
@@ -208,6 +190,7 @@ func (s *Server) primeSources(ctx context.Context, entries []MetricEntry) map[st
 func (s *Server) primeSingle(ctx context.Context, src UpstreamSource) (Envelope, error) {
 	return s.primeSinglePath(ctx, src, defaultPathFor(src), int(TTLFor(src)/time.Second))
 }
+
 func (s *Server) primeSinglePath(ctx context.Context, src UpstreamSource, path string, ttlSeconds int) (Envelope, error) {
 	client := s.clientFor(src)
 	if client == nil {

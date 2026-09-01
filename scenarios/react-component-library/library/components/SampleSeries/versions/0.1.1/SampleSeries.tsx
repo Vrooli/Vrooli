@@ -6,7 +6,6 @@
  * @tags ["ambient-display","command-center"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import * as React from "react";
 export default function SampleSeries({ values }: { values: number[] }) {
   return (
     <ol aria-label="Sample series">

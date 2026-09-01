@@ -10,6 +10,8 @@ const names: IconName[] = [
   "plus",
   "arrowStart",
   "arrowEnd",
+  "eye",
+  "eyeOff",
 ];
 
 const labels: Record<IconName, string> = {
@@ -22,6 +24,8 @@ const labels: Record<IconName, string> = {
   plus: "Plus",
   arrowStart: "Arrow start",
   arrowEnd: "Arrow end",
+  eye: "Eye",
+  eyeOff: "Eye off",
   send: "Send",
 };
 

@@ -3068,6 +3068,12 @@
       "publishedAt": "2026-08-31T05:18:53Z"
     },
     {
+      "libraryId": "react-component-library:MonetizationAccount",
+      "version": "2.0.0",
+      "draftVersion": "2.0.0-draft.1",
+      "publishedAt": "2026-09-01T21:24:50Z"
+    },
+    {
       "libraryId": "react-component-library:MorphingIcon",
       "version": "2.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",

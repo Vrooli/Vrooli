@@ -27,15 +27,22 @@ type Client interface {
 // baseClient is the shared HTTP plumbing used by every upstream.
 type baseClient struct {
 	name    string
-	baseURL string
+	resolve func() string
 	http    *http.Client
 	authFn  func(req *http.Request)
 }
 
 func newBase(name, baseURL string) *baseClient {
+	return newResolved(name, func() string { return baseURL })
+}
+
+// newResolved builds a client whose base URL is looked up on every fetch, so
+// a source whose port is assigned at runtime by the lifecycle manager can be
+// found after it restarts without restarting this API.
+func newResolved(name string, resolve func() string) *baseClient {
 	return &baseClient{
 		name:    name,
-		baseURL: baseURL,
+		resolve: resolve,
 		http:    &http.Client{Timeout: 5 * time.Second},
 	}
 }
@@ -43,10 +50,11 @@ func newBase(name, baseURL string) *baseClient {
 func (c *baseClient) Name() string { return c.name }
 
 func (c *baseClient) Fetch(ctx context.Context, path string) (json.RawMessage, error) {
-	if c.baseURL == "" {
+	baseURL := c.resolve()
+	if baseURL == "" {
 		return nil, ErrNotAvailable
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -79,6 +87,12 @@ func NewSwarm(baseURL string) Client {
 	return newBase("swarm", baseURL)
 }
 
+// NewSwarmResolved returns a Swarm Manager client whose base URL is resolved
+// at fetch time.
+func NewSwarmResolved(resolve func() string) Client {
+	return newResolved("swarm", resolve)
+}
+
 // NewVrooli returns a client for the Vrooli core's REST API.
 func NewVrooli(baseURL string) Client {
 	return newBase("vrooli", baseURL)
@@ -90,7 +104,12 @@ func NewVrooli(baseURL string) Client {
 // On 404 (endpoints not yet implemented) the client returns ErrNotAvailable
 // so the caller can fall through to gap-mode data from the registry.
 func NewLPBS(baseURL, bearerToken string) Client {
-	c := newBase("lpbs", baseURL)
+	return NewLPBSResolved(func() string { return baseURL }, bearerToken)
+}
+
+// NewLPBSResolved is NewLPBS with a base URL resolved at fetch time.
+func NewLPBSResolved(resolve func() string, bearerToken string) Client {
+	c := newResolved("lpbs", resolve)
 	if bearerToken != "" {
 		c.authFn = func(req *http.Request) {
 			req.Header.Set("Authorization", "Bearer "+bearerToken)

@@ -23,10 +23,17 @@ import { createSelectorRegistry } from "./selectorTypes";
 
 const literalSelectors: LiteralSelectorTree = {
   dashboard: {
-    gapBadge: "gap-badge",
-    staleBadge: "stale-badge",
     metricList: "metric-list",
     sceneCanvas: "scene-canvas",
+    sceneStill: "scene-still",
+    roomHero: "room-hero",
+    roomLegend: "room-legend",
+    roomSources: "room-sources",
+    freshnessHairline: "freshness-hairline",
+    samplesModeStamp: "samples-mode-stamp",
+    cycleRail: "cycle-rail",
+    controlBar: "control-bar-controls",
+    shortcutHelp: "shortcut-help",
     errorBanner: "error-banner",
     loading: "loading",
   },

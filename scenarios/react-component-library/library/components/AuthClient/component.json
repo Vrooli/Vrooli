@@ -1,0 +1,20 @@
+{
+  "libraryId": "react-component-library:AuthClient",
+  "displayName": "AuthClient",
+  "description": "Shared authenticated API client boundary for paid surfaces",
+  "kind": "control",
+  "tags": [
+    "auth",
+    "monetization"
+  ],
+  "entry": "AuthClient.tsx",
+  "latest": "1.0.0",
+  "deprecatedVersions": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
+}

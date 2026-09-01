@@ -1090,6 +1090,14 @@
       "sha256": "b4c772fd561cca51870422f11f28b39ab566999611df76d69caa1eeffbb174ed"
     },
     {
+      "path": "components/MonetizationAccount/versions/2.0.0/MonetizationAccount.tsx",
+      "sha256": "ee2419f8cdef9cad0f8aa48c525a3556f8240f5f8e77a52a38cef828e12597f7"
+    },
+    {
+      "path": "components/MonetizationAccount/versions/2.0.0/story.tsx",
+      "sha256": "a288f2a05fdc9236b81584eae0b4e3d1623ec95a61e704d561f904cd94b48c27"
+    },
+    {
       "path": "components/NavLink/versions/1.0.8/NavLink.strings.ts",
       "sha256": "a41324a264e38458ba8ee57894a24052a3fdfdc638abf26cdd15ba2f9ddefb58"
     },
@@ -1568,18 +1576,6 @@
     {
       "path": "components/SplitView/versions/1.0.3/story.tsx",
       "sha256": "cb3db3596b0e6ebee8516904edcc0dfe15d286236dfb6d20b6d805a20a042933"
-    },
-    {
-      "path": "components/Stat/versions/1.0.6/Stat.strings.ts",
-      "sha256": "24d091a5f68d5857d4ab3106aa0dcc1c64e892bf43e4fc7ecb5f1026a442d582"
-    },
-    {
-      "path": "components/Stat/versions/1.0.6/Stat.tsx",
-      "sha256": "4dd1ecee25fbb519dc7ab4b0a8ef2de1b35f5983a2382b7763a9b68eec3709c4"
-    },
-    {
-      "path": "components/Stat/versions/1.0.6/story.tsx",
-      "sha256": "887b708fdc44560e7bc35d651e1f1523535532de72afccafb00f7b660d26870b"
     },
     {
       "path": "components/Stat/versions/1.0.7/Stat.strings.ts",

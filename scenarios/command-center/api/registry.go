@@ -87,6 +87,7 @@ type MetricEntry struct {
 	Source               SourceBinding    `json:"source"`
 	Coverage             Coverage         `json:"coverage"`
 	Trust                Trust            `json:"trust"`
+	TrustReason          string           `json:"trustReason,omitempty"`
 	Empirical            Empirical        `json:"empirical"`
 	Value                any              `json:"value"`
 	ObservedAt           *time.Time       `json:"observedAt"`
@@ -130,9 +131,11 @@ type Registry struct {
 func validCoverage(v Coverage) bool {
 	return v == CoverageNow || v == CoverageInReach || v == CoverageMissing || v == CoverageUnregistered
 }
+
 func validTrust(v Trust) bool {
 	return v == TrustValid || v == TrustCached || v == TrustUnavailable || v == TrustUntrusted
 }
+
 func validEmpirical(v Empirical) bool {
 	return v == EmpiricalNone || v == EmpiricalPending || v == EmpiricalHit || v == EmpiricalMiss || v == EmpiricalUnmeasurable
 }
@@ -197,6 +200,7 @@ func LoadRegistry(path string) (*Registry, error) {
 	}
 	return &reg, nil
 }
+
 func coverageFromLegacy(v DataSourceStatus) Coverage {
 	switch v {
 	case StatusLive:
@@ -207,6 +211,7 @@ func coverageFromLegacy(v DataSourceStatus) Coverage {
 		return CoverageMissing
 	}
 }
+
 func (r *Registry) Dashboard(id string) []MetricEntry {
 	if r == nil {
 		return nil
@@ -230,6 +235,7 @@ func (r *Registry) Dashboard(id string) []MetricEntry {
 	}
 	return nil
 }
+
 func (r *Registry) GapsByDashboard() map[string][]MetricEntry {
 	out := map[string][]MetricEntry{}
 	if len(r.Rooms) == 0 {
@@ -259,12 +265,14 @@ func (r *Registry) GapsByDashboard() map[string][]MetricEntry {
 	}
 	return out
 }
+
 func effectiveCoverage(m MetricEntry) Coverage {
 	if m.Coverage != "" {
 		return m.Coverage
 	}
 	return coverageFromLegacy(m.DataSource)
 }
+
 func contains(xs []string, x string) bool {
 	for _, v := range xs {
 		if v == x {

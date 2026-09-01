@@ -12,9 +12,17 @@ Known defects and divergences, newest first. This file is the honest record of w
 
 **Observed** 2026-09-01 against a running instance, headless Chrome with software WebGL at 1600×1000.
 
-The room surface now draws composition-specific deterministic geometry in `AmbientCanvas`: lattice, current, river, transmitter arcs, and orbiting panorama nodes. The first-frame probe checks a center pixel and writes a still fallback if the canvas is blank.
+Each room binds a named composition from `ui/src/scenes/` — orbital field, hive lattice, flow current, ledger columns, signal constellation, panorama constellation — drawn by a shared 2D-canvas engine whose fields are the room's own readings (bodies per running scenario, cells per portfolio entry, sparks per created item, ring drop-off per funnel stage, node rings in each room's provenance). `AmbientCanvas` samples the whole first frame, not one pixel, and falls back to a composed still if nothing painted. Quiet zones under the hero and the supporting readings keep bright bodies out of the figure layer, and the figure layer composites above the scene.
 
 The BAS scene cases now evaluate actual canvas pixels rather than only checking for a mounted element.
+
+### Resolved — Every live metric reported UNAVAILABLE
+
+**Observed** 2026-09-01. `GET /api/v1/rooms/mission-control` returned `value: null`, `trust: UNAVAILABLE` for all five `NOW` metrics with both sources healthy. Two causes: the Swarm Manager base URL fell back to a hardcoded port that was never assigned, and the value join (`findNumber`) walked the upstream JSON for keys that do not exist in either payload. Fixed by resolving source ports from the control plane's own scenario listing at fetch time (`api/directory.go`) and by naming an explicit selector per metric (`api/selectors.go`); an unknown selector is now a stated `trustReason`, never a guessed number. A cached value is now served as `CACHED` with its age when a fetch fails, instead of being dropped.
+
+### Resolved — Provenance was rendered as alarm
+
+The `.cc-badge-gap` red chip is gone. Provenance is a material on the figure itself — solid, dimmed, hollow, dotted — resolved in exactly one place (`ui/src/lib/provenance.ts`), and the greyscale companions in the evidence set stay unambiguous.
 
 ### Resolved — The scene tests reject blank canvases
 
@@ -46,6 +54,8 @@ remaining items are either upstream data limitations or a dependency-tooling lim
 | Ledger has no live revenue readings; monetization exposes no revenue or subscription surface yet. | monetization | [SOURCE-MAP.md](../concepts/SOURCE-MAP.md), `CC-P2-003` |
 | Broadcast has no readable source; `marketing-crew` declares no aggregator. | marketing-crew | [SOURCE-MAP.md](../concepts/SOURCE-MAP.md), `CC-P2-004` |
 | Governed local-package installation currently emits a registry install command for the approved `@vrooli/react-component-library` file record and fails with npm 404; the manifest and lock entry are retained from the approved record. | scenario-dependency-analyzer | Phase 9 |
+| The three.js stack (`three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`, `postprocessing`, `@types/three`) is declared and governed but no longer imported: the six compositions run on a single 2D-canvas engine so every tier, including the still tier, draws the same scene. A WebGL Full tier with selective bloom remains the next visual lever; remove or use the packages through the analyzer. | command-center | Phase 9, Decision 11 |
+| The eight library assets (`ProvenanceInk`, `HeroReadout`, `AmbientDisplayShell`, `CycleController`, `AmbientCanvas`, `FreshnessArc`, `RollingNumber`, `SampleSeries`) exist in the React Component Library at 0.1.1 as 20-line stubs. The real implementations live in this scenario's `ui/src/components/` and `ui/src/scenes/`; promoting them through the library's draft ladder is the remaining Phase 6 work. | command-center / react-component-library | Decision 10 |
 | Test Genie’s DOM exporter does not provide the `data-render-ms` artifact, so frame-budget evidence records deterministic tier draw budgets and the runtime measurement seam but not numeric browser timings. | test-genie / BAS | Phase 12 |
 
 ---

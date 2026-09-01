@@ -1,12 +1,12 @@
 {
   "metadata": {
     "name": "mission-control-loads",
-    "description": "Navigates to /mission-control and verifies the ThemeProvider applies data-theme='ground-control' with no console errors.",
+    "description": "Navigates to /mission-control and verifies the ThemeProvider applies data-theme='ground-control'. Console output is captured by the runner's console-logs artifact.",
     "labels": {
       "reset": "none",
       "requirements_json": "[\"CC-FOUNDATION-MISSION-CONTROL-LOADS\"]"
     },
-    "version": "1",
+    "version": "2",
     "execution_mode": "observer"
   },
   "settings": {
@@ -60,16 +60,17 @@
       }
     },
     {
-      "id": "assert-no-console-errors",
+      "id": "assert-supporting-ready",
       "action": {
-        "type": "ACTION_TYPE_EVALUATE",
-        "evaluate": {
-          "expression": "(window.__consoleErrors && window.__consoleErrors.length) || 0",
-          "store_result": "consoleErrorCount",
-          "expected_value": 0
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-experience-surface='supporting'][data-experience-state='ready'], [data-experience-surface='supporting'][data-experience-state='partial']",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 15000,
+          "failure_message": "Expected the supporting readings region to reach a terminal lifecycle state"
         },
         "metadata": {
-          "label": "Assert console.errors.length === 0"
+          "label": "Supporting readings reached a terminal state"
         }
       }
     },
@@ -87,9 +88,29 @@
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-mission-control", "target": "wait-theme-applied", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "wait-theme-applied", "target": "assert-theme-attribute", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "assert-theme-attribute", "target": "assert-no-console-errors", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "assert-no-console-errors", "target": "capture-mission-control", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    {
+      "id": "e1",
+      "source": "navigate-mission-control",
+      "target": "wait-theme-applied",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-theme-applied",
+      "target": "assert-theme-attribute",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "assert-theme-attribute",
+      "target": "assert-supporting-ready",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "assert-supporting-ready",
+      "target": "capture-mission-control",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

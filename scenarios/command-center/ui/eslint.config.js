@@ -96,6 +96,8 @@ export default tseslint.config(
   {
     files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
     rules: {
+      // Tests can, and should, import freely from test-utils; the quarantine above is for production code.
+      "no-restricted-imports": "off",
       "@typescript-eslint/no-non-null-assertion": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",

@@ -6,7 +6,6 @@
  * @tags ["ambient-display","command-center"]
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
-import * as React from "react";
 export default function RollingNumber({ value }: { value: number }) {
   return <span aria-live="polite">{new Intl.NumberFormat().format(value)}</span>;
 }
