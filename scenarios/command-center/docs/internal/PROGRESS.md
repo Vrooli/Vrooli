@@ -1,0 +1,8 @@
+# Command Center — Progress Log
+
+Rolling log of material changes to the Command Center scenario. Append newest entries at the top.
+
+| Date       | Author              | Δ Completeness | Description |
+|------------|---------------------|----------------|-------------|
+| 2026-09-01 | operator + claude    | n/a            | **Documentation-first rewrite.** Command Center reframed as `team:director-swarm`'s instrument per `docs/agent-system/TARGET_MODEL.md`. Regenerated `PRD.md` (8 P0 / 6 P1 / 4 P2 operational targets). Replaced the requirements registry: `01-dashboard-aggregation` / `02-mission-control-slice` / `03-ui-shell` retired, `01-must-ship` / `02-post-launch` / `03-future` added with 31 requirements traced by `prd_ref`. Added `docs/concepts/{INSTRUMENT,COVERAGE,PROVENANCE,OUTCOME-TAXONOMY,SOURCE-MAP,DATA,ARCHITECTURE,UI-ARCHITECTURE}`, `docs/reference/{api-endpoints,cli-commands}`, `docs/internal/{DECISIONS,PROBLEMS}`, `docs/manifest.json`, `docs/START-HERE.md`, and the `experience/` contract. Amended `DESIGN.md` to material-primary provenance. Moved `docs/PROGRESS.md` to `docs/internal/`. **No scenario code changed.** |
+| 2026-04-19 | scenario-improver   | 82 → 89 (+7)   | Added 12 new BAS playbook cases under `bas/cases/01-foundation/` (gap-badge renders for hive/ledger/broadcast/panorama, scene-canvas renders for all 5 placeholder dashboards, metric-list renders for mission-control and forge, root and unknown-route redirect checks). Linked refs into `requirements/03-ui-shell/module.json` (CC-UI-001, CC-UI-002, CC-UI-003). Total playbook tests 7 → 20, test count 10 → 23, test coverage ratio 0.83 → 1.92 (8/8 coverage-ratio points). |

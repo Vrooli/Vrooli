@@ -1,6 +1,6 @@
 ---
 id: vrooli-command-display
-version: 0.2.0
+version: 0.3.0
 name: Vrooli Command Display
 description: Fullscreen war-room, kiosk, TV, and ambient command-center display language.
 colors:
@@ -213,6 +213,25 @@ Status color roles:
 - Purple/violet: gap, missing pipeline, future capability.
 - Blue/cyan: primary system signal, active route, telemetry, technical emphasis.
 
+### Provenance is material-primary (0.3.0)
+
+Amended 2026-09-01. For **data provenance** specifically — whether a displayed figure is measured, cached, illustrative, or absent — the load-bearing signal is **material**, not color. Color reinforces; it never carries the state alone.
+
+| Provenance | Material | Reinforcing tone |
+| --- | --- | --- |
+| Measured and current | Solid fill, full contrast | The surface's own accent |
+| Measured, source not answering | Same digits at reduced contrast, with an age | Amber |
+| Illustrative — substrate exists, pipeline unbuilt | Hollow outline, stroked not filled | Violet where the palette allows |
+| Absent — no substrate anywhere | Dotted outline | Violet where the palette allows |
+
+Three reasons this axis is material rather than color. Hue separation is the first thing to fail at viewing distance, on a projector, and at low panel brightness. Color is already spent carrying surface identity, and a display language with independent themes cannot ask one channel to carry both. And status carried by hue alone fails accessibility, which matters more here than usual because these surfaces are almost entirely status.
+
+**The test: a greyscale render must remain unambiguous.** If provenance states are indistinguishable without color, the surface is wrong regardless of how well it reads in color.
+
+This amendment changes which signal is load-bearing. It does not change the palette: the `gap` token stays violet, and the status color roles above continue to govern *severity* — where red still means broken and never means "not built yet."
+
+Layout does not change with provenance. An illustrative figure occupies exactly the space its measured counterpart will occupy, so a metric going live is a change of weight and never a change of layout.
+
 ## Typography
 
 Use large, legible typography sized for distance. Primary KPI numbers should be readable across a room. Labels should be short and high-contrast. Avoid long paragraphs except in hidden detail panels.
@@ -227,7 +246,7 @@ The display is allowed to be beautiful, but it must not lie. Do not distort quan
 
 Use animation to reveal flow, change, direction, or state. Do not animate values in a way that implies movement where none exists. If source data is stale, show stale data elegantly rather than pretending it is live.
 
-Gaps are a feature, not an embarrassment. Render gaps as future capability signals: quiet shimmer, violet glow, placeholder constellations, dotted paths, or labeled inactive nodes. Never show ugly "N/A" blocks as the final display language.
+Gaps are a feature, not an embarrassment. Render gaps as future capability signals: quiet shimmer, violet glow, placeholder constellations, dotted paths, or labeled inactive nodes. Never show ugly "N/A" blocks as the final display language, and never show an empty slot where a figure belongs — render the figure in the provenance material that says what it is (see Color § Provenance is material-primary).
 
 ## Feedback & State
 

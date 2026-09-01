@@ -9,16 +9,20 @@
     "parent": "vrooli",
     "name": "command-center",
     "displayName": "Command Center",
-    "description": "Read-only aggregator that composes kiosk-style dashboard payloads from Swarm Manager, Vrooli Core, and LPBS upstream sources.",
+    "description": "Director Swarm's instrument: reads the objective set and every team's declared instrument, joins the authored outcome space against what resolves, qualifies each reading on three independent axes, and renders one ranked answer to which sensor is worth building next. Surfaces and ranks; never actuates.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "business-application",
     "tags": [
+      "instrument",
+      "board",
+      "director-swarm",
+      "outcomes",
+      "observability",
+      "ambient-display",
+      "read-only",
       "react-ui",
-      "go-api",
-      "dashboard",
-      "monitoring",
-      "kiosk"
+      "go-api"
     ],
     "maintainers": [
       {

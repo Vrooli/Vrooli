@@ -1,0 +1,284 @@
+{
+  "_metadata": {
+    "description": "Requirements derived from the P0 operational targets: readings that carry values, the three axes, authored samples, the setpoint read, the derived board shape, the ranked surface, the open-loop self-report, and one address.",
+    "last_validated_at": "2026-09-01T13:00:00-04:00",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CC-P0-001",
+      "title": "Readings carry typed values",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Every metric in a dashboard payload carries value, unit, format, observedAt and ttlSeconds. Values fetched from an upstream reach the response rather than stopping at the cache. A value is never fabricated: when no reading exists the field is null and the coverage and trust fields state why.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/registry_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "MetricReading shape and null-value handling [REQ:CC-P0-001]."
+        },
+        {
+          "type": "planned",
+          "ref": "api/handlers_dashboards_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "A successful upstream fetch produces a non-null value on the composed payload [REQ:CC-P0-001]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-002",
+      "title": "Coverage and trust are independent fields",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "Each reading carries coverage from the closed set NOW / IN-REACH / MISSING / UNREGISTERED and trust from the closed set VALID / CACHED / UNAVAILABLE / UNTRUSTED. Neither is derivable from the other, neither is collapsed into a single status field, and no aggregate merges them. Only VALID readings contribute to any aggregate.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/reading_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Closed-vocabulary validation on both axes and rejection of merged status [REQ:CC-P0-002]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-003",
+      "title": "A sample may never originate from an upstream",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "Sample values are read from the checked-in registry only. No code path may construct a sample from an upstream response, from a previous reading, or from a runtime computation. Every emitted sample carries the registry basis string that authored it.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/sample_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "A composed payload with a live upstream never emits a sample-provenance reading for that source [REQ:CC-P0-003]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-004",
+      "title": "A live reading requires a fresh observation",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Trust VALID may not be emitted without an observedAt inside the source's ttlSeconds. A reading whose observation has aged past its TTL is emitted as CACHED with its age, never as VALID and never blanked.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/cache_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "TTL expiry demotes VALID to CACHED and preserves the value [REQ:CC-P0-004]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-005",
+      "title": "Setpoint read and integrity",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "Parse the checked-in setpoint into typed bars and validate it: every NOW metric has a bar or is declared not-gradeable with a reason, and no bar equals the reading it was authored against. An unparseable setpoint fails loudly rather than reporting zero targets as zero problems. No API or CLI path writes the setpoint.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/setpoint_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Parse, integrity findings, and absence of any write path [REQ:CC-P0-005]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-006",
+      "title": "Registry is versioned and migratable",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "The outcome registry carries a schema version and stable metric ids. A metric id is never reused for a different meaning; a retired metric leaves a dated tombstone with a reason so a prediction naming it resolves to unmeasurable rather than dangling. A version bump without a migration path fails validation.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/registry_migration_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Version gate, id stability, and tombstone resolution [REQ:CC-P0-006]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-007",
+      "title": "Board shape is derived, not authored in code",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "The room list, the metric set and every source binding are computed at read time from the objective set, each team's instrument declaration, and each live instrument's own surface. Adding an outcome category or a newly-instrumented team changes no route file and no component. No room identifier is hardcoded in the UI router.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/derivation_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "A registry with a seventh category yields a seventh room with no code change [REQ:CC-P0-007]."
+        },
+        {
+          "type": "planned",
+          "ref": "ui/src/routes/routes.test.tsx",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Routes are generated from the fetched board shape, not from a literal list [REQ:CC-P0-007]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-008",
+      "title": "Team instrument declarations are read live",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "Each team's instrument block — status, archetype, scenario, coversScenarios, gapMarker — is read live and attached to every metric sourced from that team, so a metric missing because its team has no instrument is distinguishable from one missing because a pipeline was never wired.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/fleet_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Source-team maturity is attached and an absent instrument is reported as its own finding class [REQ:CC-P0-008]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-009",
+      "title": "Unreadable source degrades legibly",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "An unreachable source becomes a visible availability entry with a stated reason. Its metrics keep their last trustworthy value marked CACHED, or their authored coverage status where no reading exists. No source outage is ever reported as zero, as a silently dropped row, or as MISSING coverage.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/degradation_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Source outage produces UNAVAILABLE with a reason and never mutates coverage [REQ:CC-P0-009]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-010",
+      "title": "One ranked surface",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "A single ordered surface merges coverage gaps, untrusted readings, unavailable sources and unregistered outcomes into one ranked list, each entry naming its owning team and the reason it ranks where it does. Ranking is stated, not implied, and source integrity outranks coverage breadth.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/handlers_focus_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Merge, order, and per-entry owner attribution [REQ:CC-P0-010]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-011",
+      "title": "Open-loop cells are counted and dated",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "Every MISSING cell carries the date its gap was first observed and the number of days it has stood. An outcome the objective set names that has no registry row at all is reported as UNREGISTERED and counted in the same self-report, including blind spots in this scenario's own instrumentation.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/handlers_openloop_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Gap dating, ageing, and the unregistered count [REQ:CC-P0-011]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-012",
+      "title": "Describe endpoint and CLI reads",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "Mount the shared api/handlers/capabilities module so /api/v1/capabilities/describe returns the full projection of this instrument's sensor space. The CLI gains read verbs carrying the same information as the board — the gap the outcomes charter already records as a standing outcome-gap candidate.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/handlers_capabilities_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Describe surface conforms to the shared module contract [REQ:CC-P0-012]."
+        },
+        {
+          "type": "planned",
+          "ref": "cli/domains/domains_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "CLI exposes board, gaps and focus reads [REQ:CC-P0-012]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-013",
+      "title": "No write path exists",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "The scenario exposes no route, verb or UI control that mutates an upstream, files a work item, or writes the setpoint or registry. Sensor implies no authority; an instrument that decided would be a controller with a bad boundary.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/routes_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Route table contains no non-GET method outside the debug telemetry sink [REQ:CC-P0-013]."
+        }
+      ]
+    },
+    {
+      "id": "CC-P0-014",
+      "title": "Empirical evidence is a third independent axis",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "Every reading carries an empirical verdict (NONE, PENDING, HIT, MISS, UNMEASURABLE) joined live from the prediction ledger. It is never folded into coverage or trust, never changes a figure's ink, and never dims a reading: a metric may be NOW + VALID + MISS. An UNMEASURABLE verdict names the missing sensor and is emitted onto the ranked surface. The field is present on every reading from the first payload even while values are sparse.",
+      "validation": [
+        {
+          "type": "planned",
+          "ref": "api/registry_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "Empirical verdict is a distinct field with a closed vocabulary and no derived composite [REQ:CC-P0-014]."
+        },
+        {
+          "type": "planned",
+          "ref": "api/handlers_dashboards_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "A MISS verdict leaves coverage, trust and the rendered ink unchanged [REQ:CC-P0-014]."
+        },
+        {
+          "type": "planned",
+          "ref": "api/handlers_focus_test.go",
+          "phase": "unit",
+          "status": "not_implemented",
+          "notes": "An UNMEASURABLE verdict appears on the ranked surface naming the missing sensor [REQ:CC-P0-014]."
+        }
+      ]
+    }
+  ]
+}

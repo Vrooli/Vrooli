@@ -1,52 +1,58 @@
 # Command Center
 
-Read-only kiosk-style aggregator that composes dashboard payloads from Swarm Manager, Vrooli Core, and LPBS, and renders six themed displays intended for an always-on TV or Xbox browser.
+`team:director-swarm`'s **instrument** — the one address the team reads to answer *is the work we are doing producing results, and which sensor is worth building next?*
 
-The canonical UI design contract is [DESIGN.md](DESIGN.md). Future UI work should follow `vrooli-command-display`, not the default operational-console app shell.
+It renders that answer as a **board**: full-bleed rooms, one per outcome category, designed to run unattended on a wall panel and to be equally correct on a desktop browser, a phone, and a gamepad-controlled TV.
 
-## Architecture
+> **The documentation here describes a design the code does not yet implement.** The rewrite landed 2026-09-01; the code still implements the 2026-04 read-only kiosk aggregator. Every divergence is listed and dated in [docs/internal/PROBLEMS.md](docs/internal/PROBLEMS.md). Start at [docs/START-HERE.md](docs/START-HERE.md).
 
-- **Go API (`api/`)** — HTTP aggregator with per-source TTL cache, gap registry loader, and four public endpoints:
-  - `GET /api/v1/health`
-  - `GET /api/v1/dashboards/{id}` — composed payload for one dashboard
-  - `GET /api/v1/gaps` — all metrics flagged as `gap` or `partial`, grouped by dashboard
-  - `GET|POST /api/v1/debug/r3f-stats` — R3F performance telemetry ring buffer
-- **React + Vite UI (`ui/`)** — router with six themed dashboard pages (Mission Control, The Hive, The Forge, Ledger, Broadcast, Panorama). Mission Control is a full vertical slice; the other five are themed placeholders that sibling execute items fill in.
-- **Gap registry (`config/gap-registry.json`)** — file-based JSON loaded at API startup. Source of truth for which metrics are `live`, `partial`, or `gap`.
-- **BAS cases (`bas/`)** — page-load and structural assertions driven by test-genie playbooks.
+## What makes it an instrument rather than a dashboard
 
-Sibling execute items building on this scaffold:
-- `execute/command-center-theming-engine` — replaces placeholder scenes + fills out the remaining five themes.
-- `execute/command-center-kiosk-ux` — auto-cycle, D-pad spatial nav, fullscreen-on-load, hidden controls.
-- `execute/lpbs-command-center-dashboard-endpoints` — lands LPBS `/api/v1/admin/dashboard/*` endpoints the scaffold's LPBS client already expects.
+- **It reads a space it does not own.** The objective set is read through `prompt-manager graph objectives` as a transmitter; the setpoint is a checked-in file it parses and never writes. An observer that authors its own reference model is confirming itself.
+- **Two honesty axes, never merged.** Every reading carries *coverage* — is there a sensor at all — and *trust* — is this reading good right now. A source outage changes trust and never changes coverage.
+- **It always shows a figure.** Where a pipeline does not exist, the board renders an authored, reviewed, stamped sample in a material that says so from ten feet away. Never an empty slot, never a generated number.
+- **It counts what it cannot see.** Missing cells and unregistered outcomes are dated and age visibly, including this instrument's own blind spots.
+- **It surfaces and ranks; it never decides.** No write path of any kind. Sensor implies no authority.
 
-## Quick Start
+## Documentation
+
+| Start here | |
+|---|---|
+| [docs/START-HERE.md](docs/START-HERE.md) | Reading order, and the three things most likely to be got wrong |
+| [PRD.md](PRD.md) | Operational targets |
+| [DESIGN.md](DESIGN.md) | The `vrooli-command-display` design contract governing every visual surface |
+
+| Concepts | |
+|---|---|
+| [Instrument model](docs/concepts/INSTRUMENT-MODEL.md) | The six invariants, the production-ledger archetype, the degradation contract |
+| [Coverage model](docs/concepts/COVERAGE-MODEL.md) | The two honesty axes and their closed vocabularies |
+| [Provenance model](docs/concepts/PROVENANCE-MODEL.md) | The four inks, and why sample values are authored rather than generated |
+| [Outcome taxonomy](docs/concepts/OUTCOME-TAXONOMY.md) | Why the rooms are derived data, and the rules that keep them migratable |
+| [Source map](docs/concepts/SOURCE-MAP.md) | The fleet's declared instruments, and what each room inherits |
+| [Data](docs/concepts/DATA.md) · [Architecture](docs/concepts/ARCHITECTURE.md) · [UI architecture](docs/concepts/UI-ARCHITECTURE.md) | Shapes, layers, and the board |
+
+| Reference and memory | |
+|---|---|
+| [API endpoints](docs/reference/api-endpoints.md) · [CLI commands](docs/reference/cli-commands.md) | The read surfaces |
+| [Decisions](docs/internal/DECISIONS.md) · [Problems](docs/internal/PROBLEMS.md) · [Progress](docs/internal/PROGRESS.md) | Why, what is broken, what changed |
+| [experience/](experience/) | What each surface must communicate, authored ahead of implementation |
+
+## Quick start
 
 ```bash
 make setup                              # build API + install UI deps + build UI bundle
-vrooli scenario start command-center    # launch API + UI via lifecycle manager
-make status                             # inspect running ports / PIDs
+vrooli scenario start command-center    # ports assigned by the lifecycle manager
+make status                             # running ports / PIDs
 make logs                               # tail combined logs
 make test                               # Go unit + vitest + BAS cases
-make restart                            # clean stop + start
-make stop                               # shut everything down
+make stop
 ```
 
-The lifecycle manager allocates ports from the ranges declared in `.vrooli/service.json` (API `15000-19999`, UI `35000-39999`) and exposes them via `API_PORT` / `UI_PORT` env vars. The Go server and Vite preview server both read their port from the env var — never a hardcoded value.
+Never run the binaries directly and never hardcode a port — the lifecycle manager allocates from the ranges in `.vrooli/service.json` and exposes them as `API_PORT` and `UI_PORT`.
 
-## Upstream Sources
+## Canon this scenario implements but does not own
 
-| Source | Endpoint | Default TTL |
-| --- | --- | --- |
-| Swarm Manager | `GET /api/v1/stats`, `/api/v1/overview` | 30s |
-| Vrooli Core | `GET http://localhost:8092/scenarios` | 60s |
-| LPBS | `GET /api/v1/admin/dashboard/*` (`Authorization: Bearer ${LPBS_SERVICE_TOKEN}`) | 300s |
-
-On upstream error the handler returns the last successful payload with a `staleness_ts` field. When there is no cached payload available, it falls through to gap-mode data from the registry.
-
-## Further Reading
-
-- `docs/ARCHITECTURE.md` — cache, registry, theming seams, Mission Control reference slice.
-- `DESIGN.md` — fullscreen command-display design language for kiosk, TV, and war-room surfaces.
-- `../swarm-manager/research/command-center-architecture/conclusion.md` — 17 research findings that shaped this scaffold.
-- `../swarm-manager/initiatives/command-center-foundation/orchestration-summary.md` — brainstorming context and upstream data-source inventory.
+- `path:docs/agent-system/TARGET_MODEL.md` — the instrument contract
+- `path:docs/director-swarm/evidence/OUTCOMES_CHARTER.md` — the outcome categories and the gap-closure loop
+- `path:docs/director-swarm/operating/OPERATING_MODEL.md` — the portfolio loop these readings close
+- `path:docs/director-swarm/strategy/OBJECTIVES.md` — what every category traces upward to

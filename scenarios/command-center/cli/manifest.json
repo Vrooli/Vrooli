@@ -1,0 +1,256 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "command-center",
+  "description": "Read surface for the Director Swarm instrument. Every verb is a read; the CLI has no write path (CC-P0-013).",
+  "groups": [
+    {
+      "name": "board",
+      "description": "The derived board and its composed readings.",
+      "flat": true,
+      "commands": [
+        {
+          "name": "board",
+          "description": "Show the derived board shape: rooms, the outcome denominator with its confidence, and per-source availability.",
+          "binding": {
+            "kind": "http",
+            "method": "GET",
+            "path": "/api/v1/board"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "rest_get"
+          },
+          "semantics": {
+            "kind": "read"
+          },
+          "measure": {
+            "domain": "outcomes",
+            "intent": "How many outcome categories the board renders, and against what denominator confidence.",
+            "questions": [
+              "how many outcome categories does the board cover",
+              "what is the board shape"
+            ],
+            "params": {},
+            "result": {
+              "kind": "table",
+              "value_field": "rooms",
+              "unit": "rooms",
+              "summary_template": "{count} outcome categories, denominator confidence {confidence}"
+            }
+          }
+        },
+        {
+          "name": "room",
+          "description": "Show composed readings for one outcome category, each with its coverage, trust and empirical axes and its source's declared instrument state.",
+          "positionals": [
+            {
+              "name": "id",
+              "description": "Room id, as returned by `board`.",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "samples",
+              "description": "Whether illustrative readings are withheld, marked, or returned plain.",
+              "type": "string",
+              "default": "mark"
+            }
+          ],
+          "binding": {
+            "kind": "http",
+            "method": "GET",
+            "path": "/api/v1/rooms/{id}"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "rest_get"
+          },
+          "semantics": {
+            "kind": "read"
+          }
+        }
+      ]
+    },
+    {
+      "name": "instrument",
+      "description": "The ranked surface and the open-loop self-report.",
+      "flat": true,
+      "commands": [
+        {
+          "name": "focus",
+          "description": "Show the one ranked surface: what is worth building next, ordered, each entry naming its owner and why it ranks where it does.",
+          "flags": [
+            {
+              "name": "kind",
+              "description": "Filter to one finding kind: untrusted-reading, source-unavailable, no-instrument, no-pipeline, unregistered-outcome.",
+              "type": "string"
+            },
+            {
+              "name": "owner",
+              "description": "Filter to one team's findings.",
+              "type": "string"
+            }
+          ],
+          "binding": {
+            "kind": "http",
+            "method": "GET",
+            "path": "/api/v1/focus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "rest_get"
+          },
+          "semantics": {
+            "kind": "read"
+          },
+          "measure": {
+            "domain": "outcomes",
+            "intent": "Which sensor is worth building next, and how many findings are open.",
+            "questions": [
+              "which sensor should we build next",
+              "how many outcome findings are open",
+              "what is blocking outcome visibility"
+            ],
+            "params": {},
+            "result": {
+              "kind": "table",
+              "value_field": "entries",
+              "unit": "findings",
+              "summary_template": "{count} open findings, top: {top_owner}"
+            }
+          }
+        },
+        {
+          "name": "open-loop",
+          "description": "Show every MISSING cell and UNREGISTERED outcome, dated and aged, including this instrument's own blind spots.",
+          "flags": [
+            {
+              "name": "older-than",
+              "description": "Only show holes that have stood longer than the given duration, e.g. 90d.",
+              "type": "string"
+            }
+          ],
+          "binding": {
+            "kind": "http",
+            "method": "GET",
+            "path": "/api/v1/open-loop"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "rest_get"
+          },
+          "semantics": {
+            "kind": "read"
+          },
+          "measure": {
+            "domain": "outcomes",
+            "intent": "How much of the outcome space this instrument cannot see, and for how long.",
+            "questions": [
+              "what can the board not measure",
+              "how many outcomes are unregistered",
+              "how old is the oldest outcome gap"
+            ],
+            "params": {},
+            "result": {
+              "kind": "table",
+              "value_field": "missing",
+              "unit": "holes",
+              "summary_template": "{count} open holes, oldest {oldest_days} days"
+            }
+          }
+        },
+        {
+          "name": "describe",
+          "description": "Show the full projection of this instrument's sensor space, its source bindings, and their declared instrument state.",
+          "binding": {
+            "kind": "http",
+            "method": "GET",
+            "path": "/api/v1/capabilities/describe"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "rest_get"
+          },
+          "semantics": {
+            "kind": "read"
+          }
+        },
+        {
+          "name": "gaps",
+          "description": "Compatibility alias for open-loop, filtered to non-NOW coverage and grouped by room, matching the sensor path the outcomes charter names.",
+          "binding": {
+            "kind": "http",
+            "method": "GET",
+            "path": "/api/v1/gaps"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "rest_get"
+          },
+          "semantics": {
+            "kind": "read"
+          }
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "description": "Service health.",
+      "flat": true,
+      "commands": [
+        {
+          "name": "status",
+          "description": "Check API health and per-source dependency status.",
+          "binding": {
+            "kind": "http",
+            "method": "GET",
+            "path": "/api/v1/health"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          },
+          "architecture": {
+            "primitive": "rest_get"
+          },
+          "semantics": {
+            "kind": "read"
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "name": "setpoint-write",
+      "reason": "The instrument never authors the denominators it measures against (invariant 2). The setpoint is a checked-in file with no write path from any surface."
+    },
+    {
+      "name": "file-outcome-gap",
+      "reason": "Sensor implies no authority (invariant 5). This instrument surfaces and ranks; outcome-strategist proposes and the operator approves at the vision walk."
+    },
+    {
+      "name": "registry-write",
+      "reason": "The outcome registry is checked-in versioned data, reviewed in diff. Runtime mutation would let a sample be generated rather than authored (CC-P0-003)."
+    }
+  ]
+}

@@ -1,0 +1,207 @@
+{
+  "version": "2.0.0",
+  "title": "Command Center Documentation",
+  "description": "Documentation contract for Command Center, the Director Swarm instrument.",
+  "defaultDocument": "START-HERE.md",
+  "contract": {
+    "kind": "scenario-docs",
+    "template": "react-vite",
+    "schema": "scenario-docs-manifest/v2",
+    "maturityValues": [
+      "missing",
+      "stub",
+      "draft",
+      "active",
+      "not-applicable",
+      "deferred",
+      "retired"
+    ],
+    "stages": [
+      "generated",
+      "oriented",
+      "implemented",
+      "validated",
+      "deployable",
+      "monetizable"
+    ],
+    "extensionRule": "Every durable scenario document should be registered here. Use docs/concepts/ for product and system concepts, docs/guides/ for task procedures, docs/reference/ for stable lookup material, docs/internal/ for developer and agent memory, docs/operations/ for runtime operations, and docs/business/ for commercial strategy."
+  },
+  "sections": [
+    {
+      "id": "getting-started",
+      "title": "Getting Started",
+      "icon": "rocket",
+      "description": "Scenario identity, reading order, and local startup",
+      "purpose": "Help operators, developers and agents understand what this scenario is, what it must not do, and where to begin.",
+      "extensionPolicy": "Entrypoint-level documents only. Procedures belong in guides; durable concepts belong in concepts.",
+      "documents": [
+        {
+          "path": "START-HERE.md",
+          "docType": "entrypoint",
+          "title": "Start Here",
+          "aliases": ["overview", "index"],
+          "description": "What this scenario is, the reading order for its concept documents, and the three things most likely to be got wrong.",
+          "maturity": "active"
+        },
+        {
+          "path": "../README.md",
+          "docType": "readme",
+          "title": "README",
+          "aliases": ["summary"],
+          "description": "Short public-facing description and quick start.",
+          "maturity": "active"
+        },
+        {
+          "path": "../PRD.md",
+          "docType": "prd",
+          "title": "Product Requirements Document",
+          "aliases": ["targets"],
+          "description": "Operational targets. Static after generation; checkboxes auto-update from requirements sync.",
+          "maturity": "active"
+        },
+        {
+          "path": "../DESIGN.md",
+          "docType": "design",
+          "title": "Vrooli Command Display",
+          "aliases": ["design-language", "design-contract"],
+          "description": "The fullscreen command-display design contract governing every visual surface in this scenario.",
+          "maturity": "active"
+        }
+      ]
+    },
+    {
+      "id": "concepts",
+      "title": "Concepts",
+      "icon": "book",
+      "description": "The instrument contract, the honesty model, and the derivation rules",
+      "purpose": "Define what the scenario measures, how it qualifies what it measures, and how its shape is derived rather than authored.",
+      "extensionPolicy": "Durable models only. A document here should still be true after an implementation rewrite.",
+      "documents": [
+        {
+          "path": "concepts/INSTRUMENT-MODEL.md",
+          "docType": "concept",
+          "title": "Instrument Model",
+          "aliases": ["instrument", "invariants", "archetype"],
+          "description": "What this scenario is as an instrument: the declared deviation it closes, the six invariants, the production-ledger archetype, and the degradation contract.",
+          "maturity": "active"
+        },
+        {
+          "path": "concepts/COVERAGE-MODEL.md",
+          "docType": "concept",
+          "title": "Coverage Model",
+          "aliases": ["coverage", "trust", "honesty-axes"],
+          "description": "The two independent honesty axes, their closed vocabularies, denominator-confidence, and the source-team maturity axis.",
+          "maturity": "active"
+        },
+        {
+          "path": "concepts/PROVENANCE-MODEL.md",
+          "docType": "concept",
+          "title": "Provenance Model",
+          "aliases": ["provenance", "ink", "samples"],
+          "description": "How a reading's honesty is rendered: the four inks, why material rather than colour, and the authored-sample rules.",
+          "maturity": "active"
+        },
+        {
+          "path": "concepts/OUTCOME-TAXONOMY.md",
+          "docType": "concept",
+          "title": "Outcome Taxonomy",
+          "aliases": ["taxonomy", "rooms", "derivation"],
+          "description": "Why the rooms are the team's outcome categories, how the board derives its own shape, and the rules that keep the taxonomy migratable.",
+          "maturity": "active"
+        },
+        {
+          "path": "concepts/SOURCE-MAP.md",
+          "docType": "concept",
+          "title": "Source Map",
+          "aliases": ["sources", "fleet", "maturity"],
+          "description": "The fleet's declared instruments, what each room inherits from its sources, and the rules for reading a source.",
+          "maturity": "active"
+        },
+        {
+          "path": "concepts/DATA.md",
+          "docType": "concept",
+          "title": "Data",
+          "aliases": ["schemas", "registry", "setpoint"],
+          "description": "Storage posture, the outcome registry, a reading on the wire, the board shape, and the setpoint.",
+          "maturity": "active"
+        },
+        {
+          "path": "concepts/ARCHITECTURE.md",
+          "docType": "concept",
+          "title": "Architecture",
+          "aliases": ["design", "layers"],
+          "description": "The derivation, join and compose layers, the API surfaces, the source-client contract, and what is deliberately absent.",
+          "maturity": "active"
+        },
+        {
+          "path": "concepts/UI-ARCHITECTURE.md",
+          "docType": "concept",
+          "title": "UI Architecture",
+          "aliases": ["board", "ui", "motion", "input"],
+          "description": "The board's layer model, quiet zones, capability ladder, orientation, input vocabulary, motion registers, theming, and component library plan.",
+          "maturity": "active"
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Reference",
+      "icon": "list",
+      "description": "Stable lookup material for the read surfaces",
+      "purpose": "Give an agent or operator the exact shape of every surface without reading the implementation.",
+      "extensionPolicy": "Lookup material only. Rationale belongs in concepts.",
+      "documents": [
+        {
+          "path": "reference/api-endpoints.md",
+          "docType": "reference",
+          "title": "API Endpoints",
+          "aliases": ["api", "endpoints"],
+          "description": "Every read surface, its shape, the compatibility aliases, and the error and degradation posture.",
+          "maturity": "draft"
+        },
+        {
+          "path": "reference/cli-commands.md",
+          "docType": "reference",
+          "title": "CLI Commands",
+          "aliases": ["cli", "verbs"],
+          "description": "The read verbs that make this instrument readable programmatically, and the output contract.",
+          "maturity": "draft"
+        }
+      ]
+    },
+    {
+      "id": "internal",
+      "title": "Internal",
+      "icon": "wrench",
+      "description": "Developer and agent memory",
+      "purpose": "Record why the design is what it is, where the code diverges from it, and what changed when.",
+      "extensionPolicy": "Append-only in spirit. A decision is superseded by a new entry, never edited away.",
+      "documents": [
+        {
+          "path": "internal/DECISIONS.md",
+          "docType": "internal",
+          "title": "Decisions",
+          "aliases": ["adr", "rationale"],
+          "description": "Binding decisions, newest first, each with its rationale and rejected alternatives.",
+          "maturity": "active"
+        },
+        {
+          "path": "internal/PROBLEMS.md",
+          "docType": "internal",
+          "title": "Problems",
+          "aliases": ["defects", "divergence", "known-issues"],
+          "description": "Known defects, the dated divergence between the code and the design contract, upstream blockers, and component library defects found while designing.",
+          "maturity": "active"
+        },
+        {
+          "path": "internal/PROGRESS.md",
+          "docType": "internal",
+          "title": "Progress Log",
+          "aliases": ["changelog", "history"],
+          "description": "Rolling log of material changes, newest first.",
+          "maturity": "active"
+        }
+      ]
+    }
+  ]
+}

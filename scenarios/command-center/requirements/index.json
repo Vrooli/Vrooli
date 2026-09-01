@@ -1,24 +1,24 @@
 {
   "_metadata": {
-    "description": "Operational requirements registry for command-center",
+    "description": "Operational requirements registry for command-center, the Director Swarm instrument. Modules are grouped by priority and trace to the operational targets in PRD.md via prd_ref.",
     "schema_version": "1.0.0",
     "auto_sync_enabled": true
   },
   "meta": {
     "scenario": "command-center",
-    "version": "2026.04",
-    "generated": "2026-04-18",
+    "version": "2026.09",
+    "generated": "2026-09-01",
     "owners": [
       {
-        "team": "Vrooli Platform",
+        "team": "director-swarm",
         "contact": "platform@vrooli.dev"
       }
     ]
   },
   "imports": [
-    "01-dashboard-aggregation/module.json",
-    "02-mission-control-slice/module.json",
-    "03-ui-shell/module.json"
+    "01-must-ship/module.json",
+    "02-post-launch/module.json",
+    "03-future/module.json"
   ],
   "requirements": []
 }

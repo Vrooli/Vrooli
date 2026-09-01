@@ -1,0 +1,314 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "open-loop",
+    "title": "Open loop",
+    "routes": [
+      "/open-loop"
+    ],
+    "purpose": "The instrument's self-report: every declared hole in what it can see, counted and dated. Missing cells, outcomes the objective set names that have no row here at all, and this instrument's own blind spots. A hole that is declared and dated stays a finding; a hole that is merely declared becomes furniture.",
+    "prd_refs": [
+      "OT-P0-007",
+      "OT-P0-002"
+    ]
+  },
+  "regions": [
+    {
+      "id": "missing",
+      "purpose": "Every MISSING cell with its owner, the date its gap was first observed, and the days it has stood.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "unregistered",
+      "purpose": "Outcomes the objective set names for which this registry holds no row at all, each with the reason and the date it was noted. The holes nobody has thought of yet.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "self",
+      "purpose": "This instrument's own blind spots, declared and dated by the people who build it.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "static",
+        "states": [
+          "static"
+        ]
+      }
+    },
+    {
+      "id": "denominator",
+      "purpose": "What was searched and how confident that total is, so the counts above are readable as ratios without implying a completeness the board has not earned.",
+      "required": true,
+      "component": {
+        "library": {
+          "component": "experience-surface",
+          "version": "1.0.3"
+        }
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "ready",
+          "partial"
+        ]
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "ready",
+      "description": "All three sets render with their dates and ages, alongside the denominator and its confidence.",
+      "setup": {
+        "route": "/open-loop"
+      }
+    },
+    {
+      "id": "objective-set-unavailable",
+      "description": "The objective set could not be read, so the unregistered set is not computable. That region says so with the reason; it does not render as zero unregistered outcomes.",
+      "setup": {
+        "route": "/open-loop",
+        "query": {
+          "state": "objective-set-unavailable"
+        }
+      }
+    },
+    {
+      "id": "empty",
+      "description": "No missing cells and no unregistered outcomes. The page states the denominator it searched and its confidence rather than implying the board sees everything.",
+      "setup": {
+        "route": "/open-loop",
+        "query": {
+          "state": "empty"
+        }
+      }
+    },
+    {
+      "id": "error",
+      "description": "The registry could not be read. States the failure and its reason; shows no counts.",
+      "setup": {
+        "route": "/open-loop",
+        "query": {
+          "state": "error"
+        }
+      }
+    }
+  ],
+  "elements": [
+    {
+      "id": "missing",
+      "role": "region",
+      "name": "Missing cells",
+      "description": "Declared holes with an owner, dated and aged."
+    },
+    {
+      "id": "unregistered",
+      "role": "region",
+      "name": "Unregistered outcomes",
+      "description": "Named outcomes with no row in this registry."
+    },
+    {
+      "id": "self",
+      "role": "region",
+      "name": "Own blind spots",
+      "description": "What this instrument knows it cannot see."
+    },
+    {
+      "id": "denominator",
+      "role": "region",
+      "name": "Denominator",
+      "description": "What was searched, and the confidence in that total."
+    }
+  ],
+  "priorities": [
+    {
+      "statement": "A hole is a declared state, not missing data.",
+      "notes": "These entries are honest declarations of blindness. They are counted and dated, never hidden, and never presented as a failure of the systems being observed."
+    },
+    {
+      "statement": "Age is the point.",
+      "notes": "Without dates, this page becomes a static list nobody re-reads — which is precisely how the previous registry's red chips stopped meaning anything."
+    },
+    {
+      "statement": "The instrument reports its own blind spots first-class.",
+      "notes": "An instrument that reports everyone else's holes and not its own is not being honest, it is being flattering. This region exists even when it is empty, because an empty self-report is itself a claim someone should challenge."
+    },
+    {
+      "statement": "An unreadable objective set is not zero unregistered outcomes.",
+      "notes": "The most dangerous possible reading of this page is a confident zero produced by a failed upstream read."
+    },
+    {
+      "statement": "No count appears without its denominator-confidence.",
+      "notes": "A count of holes against an unknown total implies a completeness the board has not earned."
+    }
+  ],
+  "claims": [
+    {
+      "id": "every-hole-is-dated",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "Every entry in the missing and unregistered regions displays the date it was first observed and the days it has stood.",
+      "rationale": "Declared-and-dated is a finding; declared-once is furniture.",
+      "states": [
+        "ready"
+      ],
+      "elements": [
+        "missing",
+        "unregistered"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Every missing and unregistered row contains a non-empty date or age node."
+    },
+    {
+      "id": "self-report-is-present",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "The own-blind-spots region renders in every non-error state, including when it is empty.",
+      "rationale": "An instrument that only reports other people's holes is not trustworthy about its own coverage.",
+      "states": [
+        "ready",
+        "empty",
+        "objective-set-unavailable"
+      ],
+      "elements": [
+        "self"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "The self region renders this scenario's own declared blind spots."
+    },
+    {
+      "id": "unreadable-objective-set-is-not-zero",
+      "type": "element-absence",
+      "tier": "aspirational",
+      "statement": "When the objective set cannot be read, the unregistered region states the reason and does not display a count.",
+      "rationale": "A confident zero produced by a failed read is the worst output this page can produce.",
+      "states": [
+        "objective-set-unavailable"
+      ],
+      "elements": [
+        "unregistered",
+        "denominator"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "When the objective set is unreadable the count is not rendered as zero and a stated reason is present."
+    },
+    {
+      "id": "counts-carry-confidence",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "Every count is presented beside the denominator it was computed against and that denominator's confidence.",
+      "rationale": "The honesty is recursive: a board reading 'X of Y against a partial-confidence denominator' structurally cannot imply false completeness.",
+      "states": [
+        "ready",
+        "empty"
+      ],
+      "elements": [
+        "denominator",
+        "missing",
+        "unregistered"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "Every count node has an adjacent denominator-confidence node."
+    },
+    {
+      "id": "empty-is-explained",
+      "type": "element-presence",
+      "tier": "aspirational",
+      "statement": "An empty result states what was searched rather than rendering as a clean page.",
+      "rationale": "A page with nothing on it reads as an instrument with nothing to say, which is a very different claim from an instrument that searched and found no holes.",
+      "states": [
+        "empty"
+      ],
+      "elements": [
+        "missing",
+        "unregistered",
+        "denominator"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "The empty state renders a stated reason rather than a bare zero."
+    },
+    {
+      "id": "no-close-action",
+      "type": "element-absence",
+      "tier": "aspirational",
+      "statement": "No entry offers a control to close, dismiss, snooze or acknowledge a hole.",
+      "rationale": "A dismiss button turns a self-report into a to-do list that can be emptied without anything being built.",
+      "states": [
+        "ready"
+      ],
+      "elements": [
+        "missing",
+        "unregistered",
+        "self"
+      ],
+      "x-intended-tier": "machine",
+      "x-check-plan": "No control closes, files or dismisses a finding."
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "missing": {
+        "testid": "open-loop-missing"
+      },
+      "unregistered": {
+        "testid": "open-loop-unregistered"
+      },
+      "self": {
+        "testid": "open-loop-self"
+      },
+      "denominator": {
+        "testid": "open-loop-denominator"
+      }
+    },
+    "regions": {
+      "missing": {
+        "testid": "open-loop-missing"
+      },
+      "unregistered": {
+        "testid": "open-loop-unregistered"
+      },
+      "self": {
+        "testid": "open-loop-self"
+      },
+      "denominator": {
+        "testid": "open-loop-denominator"
+      }
+    }
+  }
+}
