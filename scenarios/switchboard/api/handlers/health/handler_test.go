@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"testing"
+
 	"switchboard/handlers/health"
 	"switchboard/internal/module"
 	"switchboard/internal/server"

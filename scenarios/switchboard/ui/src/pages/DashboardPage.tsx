@@ -26,6 +26,9 @@ export function DashboardPage() {
         <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />
         <MetricPlaceholder label={t(strings.pages.dashboard.statPlaceholderLabel)} />
       </div>
+      <div data-experience-surface="attention-region" data-experience-state="empty" />
+      <div data-experience-surface="channel-health-region" data-experience-state="partial" />
+      <div data-experience-surface="budget-region" data-experience-state="ready" />
     </section>
   );
 }

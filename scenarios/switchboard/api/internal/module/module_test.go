@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	"switchboard/internal/module"
 
 	"github.com/gorilla/mux"

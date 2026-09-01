@@ -8,9 +8,11 @@ import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
 import { TestAppRouter } from "./routes";
 
 describe("AppRouter", () => {
+  // [REQ:SWBD-P0-017]
   afterEach(() => {
     cleanup();
   });
@@ -20,15 +22,13 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
   });
 
-  // EXAMPLE-DOMAIN:notes START
-  it("renders the notes page at /notes", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/notes"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.notes)).toBeInTheDocument();
-  });
-  // EXAMPLE-DOMAIN:notes END
-
   it("renders the settings page at /settings", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
+  });
+
+  it("renders a configured surface route", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/welcome"]} />, { withoutRouter: true });
+    expect(screen.getByText(strings.console.surface.welcome)).toBeInTheDocument();
   });
 });

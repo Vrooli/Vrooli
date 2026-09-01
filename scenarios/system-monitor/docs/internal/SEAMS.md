@@ -87,3 +87,12 @@
 - Refactored from monolithic main.go to modular internal/ packages.
 - Original plan was Go CLI; actual implementation is Bash CLI with curl.
 - Persistent time-series storage is implemented through SQLite cycle-linked observations with bounded maintenance paths.
+
+## Target-aware scenario reads
+
+Metrics and device-graph reads use the same typed protobuf request/response
+shape for the local service and a remote target. Remote requests go through
+`api-core/nodereach.Client.CallScenario`, which owns Bridge discovery,
+authentication, target binding, catalog admission, timeout, and response
+limits. The handler does not relay a CLI command or parse stdout; `Dispatch`
+and `Open` remain separate because they are job and interactive-session verbs.

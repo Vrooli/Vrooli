@@ -11,5 +11,6 @@
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_OFF"
   },
-  "createdBy": "system-monitor"
+  "createdBy": "system-monitor",
+  "effort": "medium"
 }

@@ -30,7 +30,7 @@ export function Sidebar() {
       <nav
         data-testid={selectors.layout.sidebar}
         aria-label={t(strings.layout.sidebarLabel)}
-        className="flex flex-col gap-1"
+        className="max-h-[calc(100dvh-5.5rem)] overflow-y-auto flex flex-col gap-1"
       >
       <p className="px-2 pb-2 text-xs uppercase text-app-muted-foreground">
         {t(strings.layout.sidebarLabel)}
@@ -43,7 +43,7 @@ export function Sidebar() {
           data-testid={selectors.layout.sidebarLink({ key: item.key })}
           className={({ isActive }) =>
             [
-              "rounded-control px-3 py-2 text-sm font-medium transition-colors",
+              "min-h-11 rounded-control px-3 py-2 text-sm font-medium transition-colors",
               isActive
                 ? "bg-app-primary text-app-primary-foreground"
                 : "text-app-foreground hover:bg-app-surface-muted",

@@ -261,8 +261,9 @@ type ResolvedRelocation struct {
 }
 
 type ResolvedDesignCopy struct {
-	From string `json:"from"`
-	To   string `json:"to"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+	Append bool   `json:"append,omitempty"`
 }
 
 type ResolvedDesign struct {

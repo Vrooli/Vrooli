@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { renderWithProviders } from '../../../test-utils/renderWithProviders';
 import { MachineIdentityStrip } from './MachineIdentityStrip';
 import { MachinePresenceNote } from './MachinePresenceNote';
 import type { Machine } from '../../../types';
@@ -50,7 +51,7 @@ const unreachable: Machine = {
 
 describe('MachineIdentityStrip', () => {
   it('says which machine is in view and that it is not this computer', () => {
-    render(<MachineIdentityStrip {...baseProps} />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} />);
     // The failure this prevents is reading one machine's numbers and acting on
     // another, so the subject and the fact that it is remote are both stated.
     expect(screen.getByRole('status')).toHaveTextContent('Viewing minimouse — darwin/amd64, not this computer');
@@ -59,18 +60,18 @@ describe('MachineIdentityStrip', () => {
 
   it('always offers the way back to this computer', () => {
     const onBackToLocal = vi.fn();
-    render(<MachineIdentityStrip {...baseProps} onBackToLocal={onBackToLocal} />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} onBackToLocal={onBackToLocal} />);
     fireEvent.click(screen.getByTestId('back-to-local'));
     expect(onBackToLocal).toHaveBeenCalledOnce();
   });
 
   it('does not offer a retry while the machine is answering', () => {
-    render(<MachineIdentityStrip {...baseProps} />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} />);
     expect(screen.queryByRole('button', { name: /Retry now/ })).not.toBeInTheDocument();
   });
 
   it('says the readings are the last ones when the subject goes quiet', () => {
-    render(<MachineIdentityStrip {...baseProps} isStale />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} isStale />);
     const strip = screen.getByRole('status');
     expect(strip).toHaveTextContent('minimouse stopped responding');
     expect(strip).toHaveTextContent('showing its last reading');
@@ -79,26 +80,26 @@ describe('MachineIdentityStrip', () => {
 
   it('scales the silence to how long it has lasted', () => {
     const minutesAgo = new Date(Date.now() - 2 * 60 * 1000);
-    render(<MachineIdentityStrip {...baseProps} isStale lastSuccessfulFetch={minutesAgo} />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} isStale lastSuccessfulFetch={minutesAgo} />);
     expect(screen.getByRole('status')).toHaveTextContent('stopped responding 2 minutes ago');
     cleanup();
 
     const hoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
-    render(<MachineIdentityStrip {...baseProps} isStale lastSuccessfulFetch={hoursAgo} />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} isStale lastSuccessfulFetch={hoursAgo} />);
     expect(screen.getByRole('status')).toHaveTextContent('stopped responding 3 hours ago');
     cleanup();
 
-    render(<MachineIdentityStrip {...baseProps} isStale lastSuccessfulFetch={new Date(Date.now() - 1000)} />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} isStale lastSuccessfulFetch={new Date(Date.now() - 1000)} />);
     expect(screen.getByRole('status')).toHaveTextContent('stopped responding 1 seconds ago');
   });
 
   it('omits the elapsed phrase when there has never been a reading', () => {
-    render(<MachineIdentityStrip {...baseProps} isStale lastSuccessfulFetch={null} />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} isStale lastSuccessfulFetch={null} />);
     expect(screen.getByRole('status')).toHaveTextContent('minimouse stopped responding — showing its last reading');
   });
 
   it('separates cannot-be-reached from stopped-answering', () => {
-    render(<MachineIdentityStrip {...baseProps} machine={unreachable} />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} machine={unreachable} />);
     const strip = screen.getByRole('status');
     expect(strip).toHaveTextContent('swarminator is not responding — no readings are available from it');
     // A machine that cannot be dispatched to has no last reading to show, so it
@@ -107,7 +108,7 @@ describe('MachineIdentityStrip', () => {
   });
 
   it('offers no grant chip for a machine it cannot reach', () => {
-    render(<MachineIdentityStrip {...baseProps} machine={unreachable} />);
+    renderWithProviders(<MachineIdentityStrip {...baseProps} machine={unreachable} />);
     // A grant that cannot be exercised is not a fact worth showing beside a
     // machine that is not answering.
     expect(screen.getByRole('status')).not.toHaveTextContent('operate');
@@ -116,12 +117,12 @@ describe('MachineIdentityStrip', () => {
 
 describe('MachinePresenceNote', () => {
   it('stays out of the way while the machine is answering', () => {
-    const { container } = render(<MachinePresenceNote {...noteProps} />);
+    const { container } = renderWithProviders(<MachinePresenceNote {...noteProps} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('tells the reader Vrooli reconnects on its own, and how far along it is', () => {
-    render(<MachinePresenceNote {...noteProps} isStale retryAttempt={8} />);
+    renderWithProviders(<MachinePresenceNote {...noteProps} isStale retryAttempt={8} />);
     const note = screen.getByTestId('machine-presence-note');
     // Without this sentence a person power-cycles a machine that was coming
     // back by itself.
@@ -130,12 +131,12 @@ describe('MachinePresenceNote', () => {
   });
 
   it('quotes the polling period it was given rather than a fixed promise', () => {
-    render(<MachinePresenceNote {...noteProps} isStale retryIntervalSeconds={30} />);
+    renderWithProviders(<MachinePresenceNote {...noteProps} isStale retryIntervalSeconds={30} />);
     expect(screen.getByTestId('machine-presence-note')).toHaveTextContent('retrying every 30 seconds');
   });
 
   it('names the readiness facts behind an unreachable machine', () => {
-    render(<MachinePresenceNote {...noteProps} machine={unreachable} />);
+    renderWithProviders(<MachinePresenceNote {...noteProps} machine={unreachable} />);
     const note = screen.getByTestId('machine-presence-note');
     expect(note).toHaveTextContent('Nothing to read from swarminator');
     expect(note).toHaveTextContent('heartbeat fresh');
@@ -144,7 +145,7 @@ describe('MachinePresenceNote', () => {
   });
 
   it('says there is no reading yet rather than inventing a stamp', () => {
-    render(<MachinePresenceNote {...noteProps} isStale lastSuccessfulFetch={null} lastAttemptAt={null} retryAttempt={0} />);
+    renderWithProviders(<MachinePresenceNote {...noteProps} isStale lastSuccessfulFetch={null} lastAttemptAt={null} retryAttempt={0} />);
     const note = screen.getByTestId('machine-presence-note');
     expect(note).toHaveTextContent('no reading yet');
     expect(note).not.toHaveTextContent('next retry');
@@ -152,22 +153,22 @@ describe('MachinePresenceNote', () => {
   });
 
   it('counts down to the next attempt from the attempt it was told about', () => {
-    render(<MachinePresenceNote {...noteProps} isStale lastAttemptAt={new Date(Date.now() - 5000)} retryIntervalSeconds={15} />);
+    renderWithProviders(<MachinePresenceNote {...noteProps} isStale lastAttemptAt={new Date(Date.now() - 5000)} retryIntervalSeconds={15} />);
     expect(screen.getByTestId('machine-presence-note')).toHaveTextContent('next retry in 10s');
   });
 
   it('renders an unreachable machine with no readiness facts at all', () => {
-    render(<MachinePresenceNote {...noteProps} machine={{ ...unreachable, readiness: undefined }} />);
+    renderWithProviders(<MachinePresenceNote {...noteProps} machine={{ ...unreachable, readiness: undefined }} />);
     expect(screen.getByTestId('machine-presence-note')).toHaveTextContent('Nothing to read from swarminator');
   });
 
   it('says "never seen" for a machine that never reported an age', () => {
-    render(<MachinePresenceNote {...noteProps} machine={{ ...unreachable, heartbeat_age_seconds: undefined }} />);
+    renderWithProviders(<MachinePresenceNote {...noteProps} machine={{ ...unreachable, heartbeat_age_seconds: undefined }} />);
     expect(screen.getByTestId('machine-presence-note')).toHaveTextContent('never seen');
   });
 
   it('prefers unreachable over stale when both could apply', () => {
-    render(<MachinePresenceNote {...noteProps} machine={unreachable} isStale />);
+    renderWithProviders(<MachinePresenceNote {...noteProps} machine={unreachable} isStale />);
     // There is no "last reading" to freeze for a channel that never opened.
     expect(screen.getByTestId('machine-presence-note')).toHaveAttribute('data-tone', 'unreachable');
   });

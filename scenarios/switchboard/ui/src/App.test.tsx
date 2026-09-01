@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "./test-utils";
+import App from "./App";
 import { Providers } from "./app/providers";
 import { TestAppRouter } from "./app/routes";
 import { selectors } from "./consts/selectors";
@@ -28,6 +29,11 @@ describe("App composition", () => {
       </Providers>,
       { withoutRouter: true },
     );
+    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+  });
+
+  it("mounts the production App composition", () => {
+    renderWithProviders(<App />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
   });
 });

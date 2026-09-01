@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-channel-branches lint-ui check setup open orient temporal-models endpoints
 
 .DEFAULT_GOAL := help
 
@@ -93,7 +93,7 @@ fmt-ui: ## Format UI code
 
 lint: lint-go lint-ui ## Lint all code
 
-lint-go: ## Lint Go code
+lint-go: lint-channel-branches ## Lint Go code
 	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
 		if command -v golangci-lint >/dev/null 2>&1; then \
 			cd api && GOWORK=off golangci-lint run ./...; \
@@ -108,6 +108,14 @@ lint-go: ## Lint Go code
 			cd cli && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
 		fi; \
 	fi
+
+lint-channel-branches: ## Reject channel-specific branches above the adapter layer
+	@if ! command -v ast-grep >/dev/null 2>&1; then \
+		echo "ast-grep is required for channel branch linting" >&2; \
+		exit 1; \
+	fi
+	@ast-grep scan --rule .vrooli/lint/no-channel-branch.yml api/internal api/handlers \
+		--globs '*.go' --globs '!api/internal/channels/adapters/**' --report-style short
 
 lint-ui: ## Lint UI code
 	@if [ -f ui/package.json ]; then \

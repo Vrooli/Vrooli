@@ -45,7 +45,15 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { createElement, type ReactElement, type ReactNode } from "react";
+import { renderWithProviders as renderWithBaseProviders, type ProviderRenderOptions, type ProviderRenderResult } from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
+import { ThemeProvider } from "../theme/ThemeProvider";
+
+export function renderWithProviders(ui: ReactElement, options: ProviderRenderOptions = {}): ProviderRenderResult {
+  const extraProviders = options.extraProviders ?? ((children: ReactNode) => createElement(ThemeProvider, null, children));
+  return renderWithBaseProviders(ui, { ...options, i18n, extraProviders });
+}
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
@@ -60,40 +68,6 @@ export { expectNoA11yViolations } from "@vrooli/api-base/testing";
 // folder takes them along.
 export { makeHealthResponse } from "./factories";
 export type { HealthResponse } from "./factories";
-export {
-  assertTransitionMatrix,
-  validateTransitionMatrix,
-} from "@vrooli/flow-runtime";
-export type {
-  MatrixRow,
-  WorkflowTransition,
-} from "@vrooli/flow-runtime";
-export {
-  replayTraces,
-  validateTraces,
-} from "@vrooli/flow-runtime";
-export type {
-  Trace,
-  TraceStep,
-} from "@vrooli/flow-runtime";
-export {
-  assertFormalArtifactFresh,
-  assertFormalTransitionsReplay,
-  assertFormalTracesReplay,
-  transitionFromReplayAdapter,
-  validateFormalArtifactFresh,
-  validateFormalTransitionsReplay,
-  validateFormalTracesReplay,
-} from "@vrooli/flow-runtime";
-export type {
-  FormalArtifact,
-  FormalArtifactTraceCoverage,
-  FormalReplayAdapter,
-  FormalArtifactTrace,
-  FormalArtifactTraceStep,
-  FormalArtifactTransition,
-} from "@vrooli/flow-runtime";
-
 // Mock builders for external SDKs. Each test file still calls
 // `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the
 // builders live in one place so a future API addition is a one-edit

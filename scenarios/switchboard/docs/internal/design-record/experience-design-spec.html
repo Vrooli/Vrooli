@@ -1,0 +1,645 @@
+<title>Switchboard Experience</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F2F4F3; --surface:#FFFFFF; --surface-2:#E8EDEB; --line:#C7D2CF; --line-soft:#DEE5E2;
+  --ink:#101917; --ink-2:#3A4845; --ink-3:#697772;
+  --amber:#A85B14; --amber-line:#C98230; --amber-bg:#FAEEDE;
+  --teal:#176A61; --teal-line:#2E8A7F; --teal-bg:#DCECE9;
+  --clay:#93412D; --clay-bg:#F6E2DC;
+  --im:#0B62C4; --tg:#1C7FA8; --sl:#6B2374; --app:#A85B14;
+  --shadow:0 1px 2px rgba(16,25,23,.06),0 10px 28px -14px rgba(16,25,23,.2);
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#0B1211; --surface:#121A19; --surface-2:#18221F; --line:#2A3835; --line-soft:#1F2C29;
+  --ink:#E7EFEC; --ink-2:#AEBEB9; --ink-3:#7E8F8A;
+  --amber:#E8A459; --amber-line:#B87A3A; --amber-bg:#241A0F;
+  --teal:#5FC3B4; --teal-line:#2F7E74; --teal-bg:#0F2523;
+  --clay:#E1917A; --clay-bg:#26140F;
+  --im:#5AA9FF; --tg:#4FC3E8; --sl:#C88BD0; --app:#E8A459;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px -16px rgba(0,0,0,.7);
+}}
+:root[data-theme="dark"]{
+  --ground:#0B1211; --surface:#121A19; --surface-2:#18221F; --line:#2A3835; --line-soft:#1F2C29;
+  --ink:#E7EFEC; --ink-2:#AEBEB9; --ink-3:#7E8F8A;
+  --amber:#E8A459; --amber-line:#B87A3A; --amber-bg:#241A0F;
+  --teal:#5FC3B4; --teal-line:#2F7E74; --teal-bg:#0F2523;
+  --clay:#E1917A; --clay-bg:#26140F;
+  --im:#5AA9FF; --tg:#4FC3E8; --sl:#C88BD0; --app:#E8A459;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px -16px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,sans-serif;font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1060px;margin:0 auto;padding:0 28px}
+h1,h2,h3,h4{font-family:Archivo,"IBM Plex Sans",sans-serif;font-weight:700;text-wrap:balance;letter-spacing:-.018em;margin:0}
+h1{font-size:clamp(2.3rem,5.6vw,3.6rem);line-height:1.03;letter-spacing:-.034em}
+h2{font-size:clamp(1.45rem,3vw,1.95rem);line-height:1.13}
+h3{font-size:1.1rem;letter-spacing:-.008em}
+h4{font-size:.93rem;font-weight:600}
+p{margin:0}
+a{color:var(--amber);text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:3px}
+.eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.7rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3)}
+.mono{font-family:"IBM Plex Mono",monospace}
+code{font-family:"IBM Plex Mono",monospace;font-size:.86em;background:var(--surface-2);padding:.1em .35em;border-radius:4px;color:var(--ink-2)}
+section{padding:56px 0;border-top:1px solid var(--line-soft)}
+section:first-of-type{border-top:0}
+.head{display:flex;flex-direction:column;gap:10px;margin-bottom:28px}
+.head p{color:var(--ink-2);max-width:66ch}
+.hero{padding:64px 0 48px}
+.hero .lede{font-size:1.14rem;color:var(--ink-2);max-width:60ch;margin-top:20px}
+.kicker{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.lamp{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px var(--amber-bg);flex:none}
+.stat{margin-top:32px;display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.stat div{background:var(--surface);padding:15px 17px;display:flex;flex-direction:column;gap:3px}
+.stat .n{font-family:Archivo,sans-serif;font-weight:700;font-size:1.45rem;letter-spacing:-.02em;line-height:1}
+.stat .l{font-size:.76rem;color:var(--ink-3);line-height:1.4}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:17px 19px;display:flex;flex-direction:column;gap:8px}
+.card p{font-size:.88rem;color:var(--ink-2)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:.86rem}
+th{text-align:left;font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:.67rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:11px 15px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:12px 15px;border-bottom:1px solid var(--line-soft);vertical-align:top;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td strong{color:var(--ink);font-weight:600}
+.tag{display:inline-flex;align-items:center;gap:5px;font-family:"IBM Plex Mono",monospace;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;white-space:nowrap}
+.tag.ok{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line)}
+.tag.new{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line)}
+.tag.bad{background:var(--clay-bg);color:var(--clay);border:1px solid var(--clay)}
+.note{border-left:3px solid var(--amber);background:var(--amber-bg);padding:14px 17px;border-radius:0 var(--r) var(--r) 0;font-size:.89rem;color:var(--ink-2)}
+.note.bad{border-left-color:var(--clay);background:var(--clay-bg)}
+.note strong{color:var(--ink)}
+figure{margin:0;display:flex;flex-direction:column;gap:11px}
+figcaption{font-size:.82rem;color:var(--ink-3);line-height:1.5;max-width:74ch}
+.mockhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:13px}
+.mockhead .eyebrow{color:var(--amber)}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.row .side{flex:1;min-width:262px;display:flex;flex-direction:column;gap:13px}
+
+/* ---------- app window ---------- */
+.win{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.winbar{display:flex;align-items:center;gap:9px;padding:9px 13px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.winbar .dots{display:flex;gap:6px}
+.winbar .dots i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
+.winbar .ttl{font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--ink-3);letter-spacing:.05em}
+
+/* three-pane */
+.pane3{display:grid;grid-template-columns:56px 232px 1fr;min-height:412px}
+.rail{border-right:1px solid var(--line);padding:12px 0;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--surface-2)}
+.rail i{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink-3);font-style:normal}
+.rail i.on{background:var(--amber-bg);color:var(--amber)}
+.tlist{border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.tlist .hd{padding:11px 13px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:baseline}
+.tlist .hd b{font-size:.84rem}
+.tr{padding:9px 13px 9px 15px;border-bottom:1px solid var(--line-soft);border-left:2px solid transparent;display:flex;flex-direction:column;gap:2px;position:relative}
+.tr.sel{background:var(--surface-2)}
+.tr .t1{display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;line-height:1.3}
+.tr .t2{font-size:.74rem;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tr .unread{margin-left:auto;width:7px;height:7px;border-radius:50%;background:var(--amber);flex:none}
+.ch{font-family:"IBM Plex Mono",monospace;font-size:.56rem;letter-spacing:.07em;text-transform:uppercase;padding:1px 5px;border-radius:4px;border:1px solid currentColor;flex:none}
+.ch.im{color:var(--im)} .ch.tg{color:var(--tg)} .ch.sl{color:var(--sl)} .ch.app{color:var(--app)}
+.tr.im{border-left-color:var(--im)} .tr.tg{border-left-color:var(--tg)} .tr.sl{border-left-color:var(--sl)} .tr.app{border-left-color:var(--app)}
+.thr{display:flex;flex-direction:column;min-width:0}
+.thr .hd{padding:11px 16px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:9px}
+.thr .body{flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:11px;overflow:hidden}
+.day{align-self:center;font-family:"IBM Plex Mono",monospace;font-size:.62rem;letter-spacing:.08em;color:var(--ink-3);padding:2px 9px;border:1px solid var(--line-soft);border-radius:9px}
+.msg{display:flex;flex-direction:column;gap:2px;max-width:76%}
+.msg .who{font-family:"IBM Plex Mono",monospace;font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:5px}
+.msg .bd{font-size:.85rem;line-height:1.5;padding:8px 11px;border-radius:11px;background:var(--surface-2);color:var(--ink)}
+.msg.me{align-self:flex-end}
+.msg.me .who{justify-content:flex-end}
+.msg.me .bd{background:var(--teal);color:var(--ground)}
+.msg .bot{display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid var(--amber)}
+.msg .dlv{font-family:"IBM Plex Mono",monospace;font-size:.58rem;color:var(--ink-3);letter-spacing:.05em;padding-left:3px}
+.gate{border:1px solid var(--amber-line);background:var(--amber-bg);border-radius:11px;padding:11px 13px;display:flex;flex-direction:column;gap:8px;max-width:88%}
+.gate .gt{font-family:"IBM Plex Mono",monospace;font-size:.6rem;letter-spacing:.09em;text-transform:uppercase;color:var(--amber);display:flex;justify-content:space-between}
+.gate .gb{font-size:.83rem;line-height:1.45;color:var(--ink)}
+.gate .gx{display:flex;gap:7px}
+.gate .gx b{font-size:.76rem;font-weight:600;padding:5px 11px;border-radius:7px;background:var(--amber);color:var(--ground)}
+.gate .gx s{font-size:.76rem;text-decoration:none;padding:5px 11px;border-radius:7px;border:1px solid var(--line);color:var(--ink-2)}
+.comp{border-top:1px solid var(--line-soft);padding:10px 16px;display:flex;align-items:center;gap:9px}
+.comp .f{flex:1;border:1px solid var(--line);border-radius:9px;padding:6px 11px;font-size:.82rem;color:var(--ink-3)}
+.comp .f.foc{border-color:var(--im);box-shadow:0 0 0 3px color-mix(in srgb,var(--im) 18%,transparent)}
+.comp .b{font-size:.78rem;font-weight:600;padding:6px 12px;border-radius:8px;background:var(--teal);color:var(--ground)}
+.comp.off{opacity:.75}
+.comp .why{font-size:.74rem;color:var(--clay)}
+
+/* phone */
+.phone{width:306px;flex:none;border-radius:38px;padding:10px;background:#1A1C1E;box-shadow:0 26px 54px -28px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06)}
+.scr{background:#000;border-radius:29px;overflow:hidden;color:#fff;font-size:13px;line-height:1.42}
+.sb{display:flex;justify-content:space-between;padding:10px 20px 3px;font-size:11px;font-weight:600}
+.ph{display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 0 11px;border-bottom:.5px solid #2A2A2C}
+.pav{width:42px;height:42px;border-radius:12px;position:relative;overflow:hidden;background:#241A0F}
+.pav .hh{position:absolute;inset:5px 5px auto 5px;height:14px;border-radius:5px;background:#E8A459}
+.pav .bb{position:absolute;inset:auto 5px 5px 5px;height:14px;border-radius:5px;background:#B87A3A}
+.ph .nm{font-size:12.5px}
+.ph .sv{font-size:9.5px;color:#8E8E93;font-family:"IBM Plex Mono",monospace;letter-spacing:.04em}
+.pt{padding:12px 11px 8px;display:flex;flex-direction:column;gap:5px;background:#000}
+.pday{align-self:center;font-size:9.5px;color:#8E8E93;font-family:"IBM Plex Mono",monospace;letter-spacing:.07em;padding:3px 0 5px}
+.pwho{font-size:9px;color:#8E8E93;font-family:"IBM Plex Mono",monospace;letter-spacing:.08em;margin:3px 0 -2px 11px}
+.pwho.r{align-self:flex-end;margin:3px 11px -2px 0}
+.pb{max-width:80%;padding:7px 11px;border-radius:16px;font-size:12.5px;line-height:1.42}
+.pb.them{background:#26252A;align-self:flex-start;border-bottom-left-radius:5px}
+.pb.them+.pb.them{border-bottom-left-radius:16px;border-top-left-radius:5px}
+.pb.me{background:#0B84FE;align-self:flex-end;border-bottom-right-radius:5px}
+.pb.other{background:#3A3A3C;align-self:flex-start;border-bottom-left-radius:5px}
+.pgate{align-self:flex-start;max-width:88%;background:#1C1C1E;border:.5px solid #4A3A22;border-radius:14px;padding:10px 11px;display:flex;flex-direction:column;gap:8px}
+.pgate .a{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.09em;color:#E8A459;display:flex;justify-content:space-between}
+.pgate .b{font-size:12px;line-height:1.45}
+.pgate .c{display:flex;gap:6px}
+.pgate .c span{flex:1;text-align:center;font-size:11px;padding:6px;border-radius:8px;background:#E8A459;color:#111;font-weight:600}
+.pgate .c span.alt{background:#2C2C2E;color:#E8A459;font-weight:400}
+.pbar{display:flex;align-items:center;gap:8px;padding:8px 12px 14px;border-top:.5px solid #1F1F21}
+.pbar .f{flex:1;border:.5px solid #38383A;border-radius:14px;padding:5px 11px;font-size:11.5px;color:#5C5C60}
+.pbar .p{color:#8E8E93;font-size:16px;line-height:1}
+.silent{align-self:center;font-size:9.5px;color:#5C5C60;font-family:"IBM Plex Mono",monospace;letter-spacing:.05em;padding:3px 9px;border:.5px dashed #3A3A3C;border-radius:9px;margin:2px 0}
+
+/* encodings */
+.enc{display:flex;flex-direction:column;gap:10px}
+.ladder{display:flex;align-items:flex-end;gap:3px;height:16px}
+.ladder i{width:5px;border-radius:1px;background:var(--line);display:block}
+.ladder i.f{background:var(--teal)}
+.ladder.s i.f{background:var(--ink-3)}
+.tierrow{display:flex;align-items:center;gap:11px;font-size:.84rem;color:var(--ink-2)}
+.tierrow .tn{font-family:"IBM Plex Mono",monospace;font-size:.72rem;min-width:76px;color:var(--ink)}
+.av{width:34px;height:34px;border-radius:9px;position:relative;overflow:hidden;flex:none}
+.av .hh{position:absolute;inset:4px 4px auto 4px;height:12px;border-radius:4px}
+.av .bb{position:absolute;inset:auto 4px 4px 4px;height:12px;border-radius:4px}
+.av .ac{position:absolute;right:5px;bottom:5px;width:5px;height:5px;border-radius:50%}
+.avrow{display:flex;gap:9px;align-items:center}
+.edge{display:flex;flex-direction:column;gap:5px}
+.edge div{border-left:2px solid;padding:6px 10px;background:var(--surface-2);border-radius:0 6px 6px 0;font-size:.8rem}
+
+/* grants */
+.grant{display:flex;flex-direction:column;gap:9px}
+.gr{display:flex;align-items:center;gap:11px;font-size:.84rem;color:var(--ink-2)}
+.sw{width:30px;height:18px;border-radius:9px;background:var(--line);flex:none;position:relative}
+.sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--surface);display:block}
+.sw.on{background:var(--teal)} .sw.on i{left:14px}
+.gr .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:.68rem;color:var(--ink-3)}
+.owneronly{display:flex;gap:11px;align-items:flex-start;padding:10px 12px;border:1px dashed var(--line);border-radius:8px;background:var(--surface-2);font-size:.8rem;color:var(--ink-3)}
+.owneronly b{color:var(--ink);font-weight:600;display:block;font-size:.84rem;margin-bottom:2px}
+
+/* catalog */
+.cat{display:flex;flex-direction:column;gap:7px}
+.crow{display:flex;align-items:center;gap:11px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--ground)}
+.crow .cn{font-weight:600;font-size:.85rem;min-width:92px}
+.crow .cd{font-size:.77rem;color:var(--ink-3);flex:1}
+.crow .cs{font-family:"IBM Plex Mono",monospace;font-size:.66rem;letter-spacing:.05em;white-space:nowrap}
+.crow.on{border-color:var(--teal-line)} .crow.on .cs{color:var(--teal)}
+.crow.blk{opacity:.66} .crow.blk .cs{color:var(--clay)}
+.fd{display:flex;gap:3px}
+.fd i{width:5px;height:5px;border-radius:50%;background:var(--line);display:block}
+.fd i.f{background:var(--clay)}
+
+/* copy do/dont */
+.copy{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.cbox{border-radius:var(--r);padding:15px 17px;display:flex;flex-direction:column;gap:8px;font-size:.87rem;line-height:1.5}
+.cbox.no{border:1px solid var(--clay);background:var(--clay-bg)}
+.cbox.yes{border:1px solid var(--teal-line);background:var(--teal-bg)}
+.cbox .lab{font-family:"IBM Plex Mono",monospace;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase}
+.cbox.no .lab{color:var(--clay)} .cbox.yes .lab{color:var(--teal)}
+.cbox q{quotes:none;color:var(--ink);display:block}
+
+/* call */
+.call{background:linear-gradient(172deg,#10201E,#050B0A);border-radius:29px;overflow:hidden;color:#fff;min-height:470px;display:flex;flex-direction:column}
+.call .top{padding:24px 20px 0;display:flex;flex-direction:column;align-items:center;gap:8px}
+.call .nm{font-family:Archivo,sans-serif;font-weight:700;font-size:18px}
+.call .st{font-family:"IBM Plex Mono",monospace;font-size:10px;color:#7F9490;letter-spacing:.07em}
+.wave{display:flex;align-items:center;justify-content:center;gap:3px;height:34px;margin:14px 0 2px}
+.wave i{width:3px;border-radius:2px;background:#5FC3B4;display:block}
+.tsc{flex:1;padding:6px 18px;display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.45}
+.tsc .l{color:#7F9490}
+.tsc .l b{color:#E8A459;font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;display:block;margin-bottom:2px}
+.tsc .l.y b{color:#5FC3B4}
+.cbtn{display:flex;justify-content:center;gap:15px;padding:12px 0 24px}
+.cb{width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:18px}
+.cb.end{background:#E5484D} .cb.cam{background:#5FC3B4;color:#06110F}
+
+footer{padding:40px 0 66px;border-top:1px solid var(--line-soft);color:var(--ink-3);font-size:.83rem}
+@media (max-width:900px){.pane3{grid-template-columns:1fr}.rail,.tlist{border-right:0;border-bottom:1px solid var(--line)}.rail{flex-direction:row}}
+@media (max-width:720px){.wrap{padding:0 20px}section{padding:42px 0}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<section class="hero">
+  <div class="kicker"><span class="lamp"></span><span class="eyebrow">scenarios/switchboard · experience contract · 2026-09-01</span></div>
+  <h1>Conventional in the thread.<br>Opinionated in the console.</h1>
+  <p class="lede">Switchboard is used in two postures that must not be blended. <strong>Conversing</strong> happens on a
+    phone, in an app judged against iMessage and Telegram — where any invention reads as a bug. <strong>Governing</strong>
+    happens at a desk, in an instrument panel where invention is welcome if it makes a risk legible. Every decision
+    below follows from keeping those apart.</p>
+  <div class="stat">
+    <div><span class="n">10</span><span class="l">page specs, each at L3 — identity, priorities, states, elements, claims, regions and bindings</span></div>
+    <div><span class="n">12</span><span class="l">component specs, every one grounded on a real catalog story</span></div>
+    <div><span class="n">4</span><span class="l">journeys, including the conversion path and the capability-gate loop</span></div>
+    <div><span class="n" style="color:var(--teal)">0</span><span class="l">validation errors in anything authored here</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">What the design is accountable for</span>
+    <h2>Three things, in this order</h2>
+  </div>
+  <div class="grid g3">
+    <div class="card"><span class="eyebrow" style="color:var(--amber)">First</span>
+      <h4>You can tell what the agent may do, before it does it</h4>
+      <p>Refusals, gates and grants are written for someone judging a risk — never as a permission error. This is the
+        only part of the product that can cause harm, so it gets the most design attention and the most direct language.</p></div>
+    <div class="card"><span class="eyebrow" style="color:var(--amber)">Second</span>
+      <h4>You can tell who wrote a message</h4>
+      <p>Authorship is functional, not decorative. The loop breaker in <code>OT-P1-004</code> depends on it, and a
+        person must be able to see what the loop breaker sees.</p></div>
+    <div class="card"><span class="eyebrow" style="color:var(--amber)">Third</span>
+      <h4>You can tell which channel you are in, without reading it</h4>
+      <p>A cross-channel list where the channel lives only in the detail pane forces a click to answer the first
+        question anybody has.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">Mockup · conversing</span>
+    <h2>The thread, on a phone</h2>
+    <p>Nothing here is invented. Grouped consecutive messages, a day divider, a delivery line, standard bubbles. The
+      two things that are ours are the agent-authored marker and the refusal — and both are made to look like ordinary
+      messages, because they are.</p>
+  </div>
+  <div class="row">
+    <div class="phone"><div class="scr">
+      <div class="sb"><span>9:41</span><span>▮▮▮ ⌁ 84%</span></div>
+      <div class="ph">
+        <div class="pav"><span class="hh"></span><span class="bb"></span></div>
+        <div class="nm">Kitchen Reno</div><div class="sv">3 PEOPLE · WREN · LEDGER</div>
+      </div>
+      <div class="pt">
+        <div class="pday">TUESDAY</div>
+        <div class="pwho">SAM</div>
+        <div class="pb other">tile guy says thursday or the week after</div>
+        <div class="silent">Wren stayed silent — not addressed</div>
+        <div class="pwho r">YOU</div>
+        <div class="pb me">@wren what's our budget left on this?</div>
+        <div class="pwho">▾ WREN</div>
+        <div class="pb them">£2,140 of £9,000 left.</div>
+        <div class="pb them">Thursday works. The week after collides with the deposit date.</div>
+        <div class="pwho">SAM</div>
+        <div class="pb other">@wren pull up the bank statement</div>
+        <div class="pwho">▾ WREN</div>
+        <div class="pgate">
+          <div class="a"><span>WITHHELD IN THIS ROOM</span><span>TIER: KNOWN</span></div>
+          <div class="b">Not in this room — Sam is <span class="mono" style="color:#E8A459">known</span>, and account
+            detail needs <span class="mono" style="color:#E8A459">trusted</span>. Matt, I can send it to you directly.</div>
+          <div class="c"><span>Send to me</span><span class="alt">Raise Sam's tier</span></div>
+        </div>
+      </div>
+      <div class="pbar"><span class="p">＋</span><div class="f">iMessage</div><span class="p">⌁</span></div>
+    </div></div>
+    <div class="side">
+      <div class="card"><span class="eyebrow">The marker</span>
+        <h4>▾ before an agent's name</h4>
+        <p>A small caret, not a colour and not a badge. It survives greyscale, it survives a screenshot, and it costs
+          no horizontal space in a group where three authors are already competing for the gutter.</p></div>
+      <div class="card"><span class="eyebrow">Silence is legible</span>
+        <h4>An agent that says nothing must say why</h4>
+        <p><code>OT-P1-003</code> makes silence correct behaviour in a group. Correct behaviour that looks like a dead
+          bot is still a product failure, so suppressed turns leave a quiet, dismissible trace.</p></div>
+      <div class="card"><span class="eyebrow">The refusal</span>
+        <h4>Withheld, why, and what unblocks it</h4>
+        <p>Three facts, in that order, addressed to a person by name, with the next move offered as a button.
+          <code>OT-P1-002</code> forbids answering partially — so the refusal itself has to carry the information.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">Mockup · governing</span>
+    <h2>The console, at a desk</h2>
+    <p>Rail, list, detail. The detail pane is always the largest thing on screen; the list is navigation. Chrome is
+      pinned and only content scrolls, so the composer never scrolls away.</p>
+  </div>
+  <div class="win">
+    <div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="ttl">switchboard — conversations</span></div>
+    <div class="pane3">
+      <div class="rail"><i class="on">◉</i><i>☰</i><i>◆</i><i>⬡</i><i>⚙</i></div>
+      <div class="tlist">
+        <div class="hd"><b>Threads</b><span class="eyebrow">ALL CHANNELS</span></div>
+        <div class="tr im sel"><div class="t1"><span class="ch im">iMsg</span> Kitchen Reno <span class="unread"></span></div><div class="t2">Not in this room — Sam is known…</div></div>
+        <div class="tr app"><div class="t1"><span class="ch app">App</span> Wren</div><div class="t2">Drafted six phases in Plan Manager</div></div>
+        <div class="tr tg"><div class="t1"><span class="ch tg">TG</span> Ledger</div><div class="t2">Weekly digest sent</div></div>
+        <div class="tr sl"><div class="t1"><span class="ch sl">Slack</span> #ops</div><div class="t2">2 failures, both STT drain</div></div>
+        <div class="tr im"><div class="t1"><span class="ch im">iMsg</span> Mum</div><div class="t2">is Thursday still on?</div></div>
+      </div>
+      <div class="thr">
+        <div class="hd"><span class="av" style="background:var(--amber-bg)"><span class="hh" style="background:#E8A459"></span><span class="bb" style="background:#B87A3A"></span><span class="ac" style="background:#FBEEDF"></span></span>
+          <div><div style="font-weight:600;font-size:.87rem">Kitchen Reno</div><div class="eyebrow">3 people · wren · ledger · ceiling: known</div></div>
+          <span style="margin-left:auto" class="tag new">budget 12/40</span></div>
+        <div class="body">
+          <span class="day">TUESDAY</span>
+          <div class="msg"><span class="who">Sam</span><span class="bd">tile guy says thursday or the week after</span></div>
+          <div class="msg me"><span class="who">You</span><span class="bd">@wren what's our budget left on this?</span><span class="dlv" style="align-self:flex-end">Delivered</span></div>
+          <div class="msg"><span class="who"><span class="bot"></span> Wren</span><span class="bd">£2,140 of £9,000 left. Thursday works; the week after collides with the deposit date.</span></div>
+          <div class="gate">
+            <div class="gt"><span>Capability gate · owner only</span><span>expires in 58m</span></div>
+            <div class="gb">Sam asked for account detail. Withheld — <code>account.read</code> needs <code>trusted</code>,
+              Sam is <code>known</code>. Granting once applies to this turn only.</div>
+            <div class="gx"><b>Grant once</b><s>Send to me instead</s><s>Not now</s></div>
+          </div>
+        </div>
+        <div class="comp"><span style="color:var(--ink-3)">＋</span><div class="f foc">Message the thread…</div><span class="b">Send</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:18px">
+    <div class="note"><strong>The gate is answered in place.</strong> No modal, no navigation, no separate approvals
+      queue to remember. It carries its own expiry because an unanswered prompt that waits forever is indistinguishable
+      from a broken thread — and answering it returns focus to the composer.</div>
+    <div class="note"><strong>The budget appears only under pressure.</strong> A meter that is always on screen becomes
+      furniture and stops being read. It surfaces when it is close to silencing the agent, which is the only moment it
+      is information rather than decoration.</div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">Visual language</span>
+    <h2>Three encodings, each structurally true</h2>
+    <p>The palette is functional. Nothing is coloured to look designed; every encoding carries a fact the system
+      actually depends on.</p>
+  </div>
+  <div class="grid g3">
+    <div class="card enc">
+      <span class="eyebrow">Channel</span><h4>An edge, never a fill</h4>
+      <div class="edge">
+        <div style="border-color:var(--im)">iMessage</div>
+        <div style="border-color:var(--tg)">Telegram</div>
+        <div style="border-color:var(--sl)">Slack</div>
+        <div style="border-color:var(--app)">In-app</div>
+      </div>
+      <p>A 2px leading edge and a focus ring. A list of filled, differently-coloured chips is unreadable at roster
+        density and makes every new channel a colour-conflict problem. The accent comes from the descriptor, so adding a
+        channel adds a colour without touching the console.</p>
+    </div>
+    <div class="card enc">
+      <span class="eyebrow">Agent</span><h4>The descriptor's own triple</h4>
+      <div class="avrow">
+        <span class="av" style="background:#241A0F"><span class="hh" style="background:#E8A459"></span><span class="bb" style="background:#B87A3A"></span><span class="ac" style="background:#FBEEDF"></span></span>
+        <span class="av" style="background:#0F2523"><span class="hh" style="background:#5FC3B4"></span><span class="bb" style="background:#2F7E74"></span><span class="ac" style="background:#DCEBE9"></span></span>
+        <span class="av" style="background:#26140F"><span class="hh" style="background:#E1917A"></span><span class="bb" style="background:#93412D"></span><span class="ac" style="background:#F6E1DB"></span></span>
+        <span class="av" style="background:#1A2036"><span class="hh" style="background:#8AA4E8"></span><span class="bb" style="background:#4A5F9E"></span><span class="ac" style="background:#DDE4F6"></span></span>
+      </div>
+      <p><code>appearance.body</code>, <code>head</code> and <code>accent</code> already exist on every
+        <code>prompt-manager</code> agent descriptor. Rendering from those exact values makes the roster scannable by
+        shape. Hashing a name instead would make the console and the descriptor disagree about who an agent is.</p>
+    </div>
+    <div class="card enc">
+      <span class="eyebrow">Trust</span><h4>A rank, not a category</h4>
+      <div style="display:flex;flex-direction:column;gap:7px;margin:2px 0">
+        <div class="tierrow"><span class="ladder s"><i class="f"></i><i></i><i></i><i></i></span><span class="tn">stranger</span></div>
+        <div class="tierrow"><span class="ladder"><i class="f" style="height:5px"></i><i class="f" style="height:9px"></i><i></i><i></i></span><span class="tn">known</span></div>
+        <div class="tierrow"><span class="ladder"><i class="f" style="height:5px"></i><i class="f" style="height:9px"></i><i class="f" style="height:13px"></i><i></i></span><span class="tn">trusted</span></div>
+        <div class="tierrow"><span class="ladder"><i class="f" style="height:5px"></i><i class="f" style="height:9px"></i><i class="f" style="height:13px"></i><i class="f" style="height:16px"></i></span><span class="tn">owner</span></div>
+      </div>
+      <p>The room ceiling is a <em>minimum across tiers</em>, so tiers have to look comparable or the rule cannot be
+        understood. An ascending ladder does that; four arbitrary colours do not. <code>stranger</code> is styled as the
+        ordinary default, never as an alarm — every unrecognised sender is one by design.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">Mockup · the dangerous screen</span>
+    <h2>Grants get more space than they need</h2>
+    <p>Spacing is how a design says <em>slow down</em> without a warning dialog. The grant section on an agent is
+      deliberately looser than its information density warrants, and it is read before channels, budgets or activity.</p>
+  </div>
+  <div class="row">
+    <div class="win" style="flex:1;min-width:320px">
+      <div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="ttl">switchboard — agents / wren</span></div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:17px">
+        <div style="display:flex;gap:12px;align-items:center">
+          <span class="av" style="width:42px;height:42px;background:#241A0F"><span class="hh" style="background:#E8A459;height:15px"></span><span class="bb" style="background:#B87A3A;height:15px"></span><span class="ac" style="background:#FBEEDF"></span></span>
+          <div><div style="font-family:Archivo;font-weight:700;font-size:1.02rem">Wren</div>
+            <div class="eyebrow">prompt-manager/agents/wren · <a href="#">edit profile ↗</a></div></div>
+        </div>
+        <div>
+          <div class="eyebrow" style="margin-bottom:9px">What this agent may do</div>
+          <div class="grant">
+            <div class="gr"><span class="sw on"><i></i></span> Read test runs and scenario state <span class="sc">scenario:read</span></div>
+            <div class="gr"><span class="sw on"><i></i></span> Draft plans, without finalising them <span class="sc">plan:draft</span></div>
+            <div class="gr"><span class="sw"><i></i></span> Run governed programs <span class="sc">program:run</span></div>
+          </div>
+        </div>
+        <div class="owneronly">
+          <span style="font-size:15px;color:var(--ink-3)">🔒</span>
+          <div><b>Terminal access — owner only</b>
+            Not shown as a control, because a control implies the grant is reachable. No tier below owner can hold it,
+            by construction rather than by configuration.</div>
+        </div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="card"><span class="eyebrow">The rule behind the lock</span>
+        <h4>A disabled toggle is a lie</h4>
+        <p><code>OT-P0-011</code> makes owner-only capabilities unreachable <em>by construction</em>. A greyed-out
+          switch tells the operator the opposite — that the grant exists on a spectrum they could move. So it is not
+          rendered as a control at all.</p></div>
+      <div class="card"><span class="eyebrow">Language</span>
+        <h4>Plain first, scope second</h4>
+        <p>"Draft plans, without finalising them" is judgeable. <code>plan:draft</code> is not, to anyone who has not
+          read the scope catalogue. Both are shown; only one is the label.</p></div>
+      <div class="card"><span class="eyebrow">Ownership</span>
+        <h4>The profile is a pointer</h4>
+        <p>Editing links out to <code>prompt-manager</code> rather than offering a local editor, because a local editor
+          forks the descriptor the moment somebody uses it.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">Mockup · the two remaining surfaces</span>
+    <h2>Channels, and call mode</h2>
+  </div>
+  <div class="row">
+    <div style="flex:1;min-width:330px;display:flex;flex-direction:column;gap:12px">
+      <div class="win">
+        <div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="ttl">switchboard — attach wren</span></div>
+        <div style="padding:17px"><div class="cat">
+          <div class="crow on"><span class="cn">Telegram</span><span class="cd">A bot token. Two minutes, nothing to install.</span><span class="fd"><i class="f"></i><i></i><i></i><i></i></span><span class="cs">READY</span></div>
+          <div class="crow on"><span class="cn">Slack</span><span class="cd">Create an app, install to your workspace.</span><span class="fd"><i class="f"></i><i class="f"></i><i></i><i></i></span><span class="cs">READY</span></div>
+          <div class="crow blk"><span class="cn">iMessage</span><span class="cd">Needs a Mac in your fleet — none registered. <span style="color:var(--amber)">Connect one →</span></span><span class="fd"><i class="f"></i><i class="f"></i><i></i><i></i></span><span class="cs">NEEDS A MAC</span></div>
+          <div class="crow blk"><span class="cn">SMS</span><span class="cd">Carrier registration, about a week. <span style="color:var(--amber)">We can handle it →</span></span><span class="fd"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i></span><span class="cs">GATED</span></div>
+        </div></div>
+      </div>
+      <div class="note"><strong>Availability is computed, never guessed.</strong> Each descriptor's <code>requires</code>
+        is checked against facts <code>vrooli-bridge</code> and <code>tunnel-manager</code> already hold, so an
+        unavailable channel becomes a prompt to satisfy the requirement rather than an attach flow that dies three
+        screens in. Ordering comes from the descriptor's declared friction, so a new channel lands in the right place by
+        arriving.</div>
+    </div>
+    <div class="phone"><div class="call">
+      <div class="top">
+        <span class="av" style="width:66px;height:66px;border-radius:19px;background:#241A0F"><span class="hh" style="background:#E8A459;height:23px;inset:8px 8px auto 8px"></span><span class="bb" style="background:#B87A3A;height:23px;inset:auto 8px 8px 8px"></span></span>
+        <div class="nm">Wren</div>
+        <div class="st">IN-APP CALL · 04:12 · LOCAL WHISPER</div>
+      </div>
+      <div class="wave"><i style="height:22%"></i><i style="height:50%"></i><i style="height:86%"></i><i style="height:40%"></i><i style="height:68%"></i><i style="height:94%"></i><i style="height:31%"></i><i style="height:60%"></i><i style="height:80%"></i><i style="height:27%"></i><i style="height:53%"></i></div>
+      <div class="tsc">
+        <div class="l y"><b>YOU</b>what's blocking the release?</div>
+        <div class="l"><b>WREN</b>Two things. The STT drain failures, and the Mac lane has no owner.</div>
+        <div class="l y"><b>YOU</b>hang on, look at this</div>
+        <div class="l"><b>WREN</b>Reading the photo… that's the dependency you sketched in July.</div>
+      </div>
+      <div class="cbtn"><span class="cb">🎙</span><span class="cb cam">📷</span><span class="cb end">✕</span></div>
+    </div></div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">Copy is design material</span>
+    <h2>This product refuses things constantly</h2>
+    <p>So refusal copy is a first-class surface, not error-handling debris. Every refusal answers three questions in
+      order: what was withheld, why, and what would unblock it.</p>
+  </div>
+  <div class="copy">
+    <div class="cbox no"><span class="lab">Never</span>
+      <q>Error: insufficient permissions (403)</q>
+      <q>Something went wrong. Please try again.</q>
+      <q>This action is not available.</q>
+      <p style="color:var(--ink-2);font-size:.83rem">Names nothing, blames nobody, offers no move. Indistinguishable
+        from a bug, which is how a governed system loses the trust its governance was for.</p></div>
+    <div class="cbox yes"><span class="lab">Always</span>
+      <q>Not in this room — Sam is <b>known</b>, and account detail needs <b>trusted</b>. Matt, I can send it to you directly.</q>
+      <q>Stayed silent — nobody addressed me. Say @wren and I'll answer.</q>
+      <q>Out of turns for this thread until 14:00. Raise the budget in Settings.</q>
+      <p style="color:var(--ink-2);font-size:.83rem">Specific, addressed to a person, and ends on the next move.
+        The same register whether it is a tier, a ceiling or a budget.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">The state contract</span>
+    <h2>Four rules that are expensive to get wrong</h2>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Rule</th><th>What it prevents</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Empty is not an error</strong></td><td>An empty region is perceivably distinct from a failed one and from a loading one. Where empty means nothing needs attention, it says so in a sentence — zeroed charts read as a broken page, a sentence reads as good news.</td></tr>
+        <tr><td><strong>Partial keeps working</strong></td><td>One failed region names what failed and leaves every other region interactive. A page does not become unusable because a sidebar could not load.</td></tr>
+        <tr><td><strong>Stale is labelled, never hidden</strong></td><td>A cached figure carries its age. No number appears without its freshness when the read is stale.</td></tr>
+        <tr><td><strong>A disabled control states why</strong></td><td>A composer disabled because the adapter is offline says that, and says what would re-enable it. A disabled control with no reason is indistinguishable from a bug.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="note" style="margin-top:18px"><strong>These are enforced, not aspirational as a group.</strong> Every page
+    spec declares its states, and <code>experience-manager spec validate</code> checks that declaration against the
+    required UX-state contract in <code>DESIGN.md</code>. Individual <em>claims</em> are tiered
+    <code>aspirational</code> and <code>manual</code> today because the UI does not exist yet — machine tier needs
+    stable selectors. Promoting them as surfaces get built is how this contract tightens.</div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">The component library</span>
+    <h2>What RCL gives us, and what it does not</h2>
+    <p>Measured across 167 catalogued components. Most of this UX is buildable from the library today — with one whole
+      family missing and one live bug.</p>
+  </div>
+
+  <div class="grid g2" style="margin-bottom:22px">
+    <div class="card"><span class="eyebrow" style="color:var(--teal)">Adopt as-is</span>
+      <h4>Five that are genuinely ready</h4>
+      <p><code>ApprovalPrompt</code> (527 lines, 7 stories including <code>permission-denied</code> and
+        <code>retry</code>) already models the capability gate almost exactly — it is a wrapper, not a new component.
+        <code>Avatar</code> (9 stories), <code>VoiceInputButton</code> (7 states), <code>AsyncPanel</code> (5 stories
+        matching the region lifecycle exactly), <code>EmptyState</code> (3).</p></div>
+    <div class="card"><span class="eyebrow" style="color:var(--clay)">The false friend</span>
+      <h4><code>Message</code> is not a chat message</h4>
+      <p>Its catalog id is <code>ai.message</code> and its contract is an AI-console transcript card: a bordered,
+        elevated panel with 32px padding and a 72ch measure, taking <code>certainty</code>, <code>urgency</code>,
+        <code>citations</code> and <code>activity</code>. Right for an agent console. No sidedness, no author grouping,
+        no day divider, no delivery state. And one anatomy-only story with zero declared arg fields.</p></div>
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>#</th><th>Missing component</th><th>Why it is library-shaped, not ours</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><strong>Transcript</strong></td><td>Virtualised message log with <code>role="log"</code>, consecutive-author grouping, day dividers, jump-to-latest. <code>VirtualList</code> exists to build on.</td></tr>
+        <tr><td>2</td><td><strong>MessageBubble</strong></td><td>Author, delivery state, attachment slot, agent-authored marker — and a <em>non-sided</em> variant, because two-sided layout stops working the moment a room has three authors.</td></tr>
+        <tr><td>3</td><td><strong>MessageComposer</strong></td><td>Attach, send, busy, disabled-with-reason, draft preservation across failure, safe-area anchoring. The disabled-with-reason behaviour is what everyone re-implements badly.</td></tr>
+        <tr><td>4</td><td><strong>ThreadListItem</strong></td><td>Leading accent edge, truncation that never truncates identity, unread that is not colour alone.</td></tr>
+        <tr><td>5</td><td><strong>ConversationPage</strong></td><td>A page template beside <code>CollectionPage</code> / <code>DetailPage</code> / <code>DashboardPage</code>. <code>MasterDetail</code> is close but is a component, not a template, and carries one story.</td></tr>
+        <tr><td>6</td><td><strong>CallSurface</strong></td><td>Full-viewport call layout with controls reachable in every state including error. Composing it from <code>Dialog</code> gives the wrong dismissal semantics.</td></tr>
+        <tr><td>7</td><td><strong>ListeningIndicator</strong></td><td>Small, but it is the only ambient animation in the product and its reduced-motion form is an accessibility requirement, not a nicety.</td></tr>
+        <tr><td>8</td><td><strong>RankBadge</strong></td><td>An <em>ordinal</em> badge. <code>StatusBadge</code> is categorical and cannot express that <code>known</code> is below <code>trusted</code>. Reusable far beyond us: severity ladders, maturity rungs, any tier system.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid g2" style="margin-top:22px">
+    <div class="note bad"><strong>A live bug worth fixing this week.</strong> <code>experience-manager spec validate</code>
+      raises a hard <em>error</em> for pinning <code>experience-surface@1.0.0</code> "without a canonical experience
+      contract". The contract exists — at <code>1.0.3</code>. The <code>react-vite</code> template pins
+      <code>1.0.0</code>. That is <strong>24 pins across 5 scenarios</strong> (browser-automation-studio, hello-mobile,
+      infrastructure-manager, landing-page-business-suite, switchboard), so every generated scenario ships an experience
+      spec that fails validation for following the pattern its own README tells it to follow. One-line template fix plus
+      a re-pin.</div>
+    <div class="note"><strong>The systemic one: half the catalogue is anatomy only.</strong> <strong>86 of 167
+      components (51%)</strong> carry one story or fewer, and only <strong>41 of 167 (25%)</strong> have their own
+      experience contract. A one-story component can only ever have one specified state, because component specs anchor
+      each state to a named story. <code>AttachmentPreview</code>, <code>BudgetBar</code>, <code>MasterDetail</code>,
+      <code>DataTable</code>, <code>CollectionPage</code> and <code>Timeline</code> are all in that group, and all six
+      are on this UX's path.</div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <span class="eyebrow">Meanwhile</span>
+    <h2>Nothing is forked</h2>
+    <p>Every local component spec is grounded on a real catalog story today and names the component that should replace
+      it. Building against a spec that declares its own replacement keeps the adoption path visible instead of letting a
+      fork harden.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Local spec</th><th>Grounded on today</th><th>Replace with</th></tr></thead>
+      <tbody>
+        <tr><td><code>transcript</code></td><td><code>Message@1.0.11</code></td><td><span class="tag new">Transcript + MessageBubble</span></td></tr>
+        <tr><td><code>thread-list</code></td><td><code>List@1.0.6</code></td><td><span class="tag new">ThreadListItem</span></td></tr>
+        <tr><td><code>trust-tier-badge</code></td><td><code>StatusBadge@1.2.2</code></td><td><span class="tag new">RankBadge</span></td></tr>
+        <tr><td><code>capability-gate</code></td><td><code>ApprovalPrompt@1.0.12</code></td><td><span class="tag ok">keep — already right</span></td></tr>
+        <tr><td><code>async-region</code></td><td><code>AsyncPanel@1.0.4</code></td><td><span class="tag ok">keep — already right</span></td></tr>
+        <tr><td><code>agent-avatar</code></td><td><code>Avatar@1.3.14</code></td><td><span class="tag ok">keep — already right</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="eyebrow">Written to the repo</div>
+  <p style="margin-top:10px">
+    <code>experience/index.json</code> · 10 page specs · 12 component specs · 4 journeys ·
+    <code>docs/concepts/EXPERIENCE.md</code> · <code>docs/reference/component-library-gaps.md</code>, both registered in
+    <code>docs/manifest.json</code>. <code>experience-manager spec validate switchboard</code> reports zero errors and
+    zero warnings against everything authored here; the only remaining findings belong to the generated
+    <code>notes</code> example page that <code>template-manager detemplate</code> removes. The UI itself is not built —
+    that was not the ask.</p>
+</footer>
+
+</div>

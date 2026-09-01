@@ -49,209 +49,189 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.switchboard.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.switchboard.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.switchboard.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.switchboard.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.switchboard.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.switchboard.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.switchboard.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.switchboard.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "description": "",
+      "category": "capabilities",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "reason": "ops_probe",
+        "note": "Machine-readable capability status endpoint.",
         "proto_payloads": {
           "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.switchboard.v1.notes.UploadAttachmentResponse",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           },
           "error": {
-            "proto_full_name": "vrooli.switchboard.v1.shared.ErrorEnvelope",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "channels_list",
+      "path": "/api/v1/channels",
+      "method": "GET",
+      "summary": "List channel availability",
+      "description": "Lists descriptor-backed channels ordered by setup friction.",
+      "category": "channels",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "channels_socket",
+      "path": "/api/v1/channels/socket",
+      "method": "GET",
+      "summary": "Connect an in-app conversation",
+      "description": "Connects an in-app conversation over the registered WebSocket adapter.",
+      "category": "channels",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Bidirectional JSON WebSocket transport; messages use the normalized channel envelope.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "channels_rpc_list",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/ListChannels",
+      "method": "POST",
+      "summary": "List channels",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_rpc_get",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/GetChannel",
+      "method": "POST",
+      "summary": "Get channel",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_rpc_bindings",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/ListBindings",
+      "method": "POST",
+      "summary": "List bindings",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_rpc_create_binding",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/CreateBinding",
+      "method": "POST",
+      "summary": "Create binding",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "channels_rpc_send_message",
+      "path": "/vrooli.switchboard.v1.channels.ChannelService/SendMessage",
+      "method": "POST",
+      "summary": "Send a message through a registered channel adapter",
+      "description": "",
+      "category": "channels"
+    },
+    {
+      "id": "gates_create",
+      "path": "/api/v1/gates",
+      "method": "POST",
+      "summary": "Raise a capability gate",
+      "description": "Creates an owner-only, expiring capability approval request.",
+      "category": "gates",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "gates_get",
+      "path": "/api/v1/gates/{id}",
+      "method": "GET",
+      "summary": "Read a capability gate",
+      "description": "",
+      "category": "gates",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "gates_answer",
+      "path": "/api/v1/gates/{id}/answer",
+      "method": "POST",
+      "summary": "Answer a capability gate",
+      "description": "Answers a pending gate with owner authorization enforced by the gate store.",
+      "category": "gates",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
           }
         }
       }

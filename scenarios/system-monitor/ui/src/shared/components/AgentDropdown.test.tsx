@@ -22,18 +22,18 @@ const renderDropdown = (agents: InvestigationAgentState[] = [active], stopping =
 describe('AgentDropdown', () => {
   it('shows empty state and closes when agents disappear', async () => {
     const { rerender } = render(<AgentDropdown agents={[active]} stoppingAgentIds={new Set()} agentErrors={{}} onStopAgent={vi.fn()} />);
-    fireEvent.click(screen.getByRole('button', { name: '1 Active' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Investigation agents: 1 active' }));
     expect(screen.getByText('Disk agent')).toBeInTheDocument();
     rerender(<AgentDropdown agents={[]} stoppingAgentIds={new Set()} agentErrors={{}} onStopAgent={vi.fn()} />);
     await waitFor(() => expect(screen.queryByText('No investigation agents are running.')).not.toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: 'Agents' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Investigation agents: none running' }));
     expect(screen.getByText('No investigation agents are running.')).toBeInTheDocument();
   });
 
   it('sorts agents, exposes status metadata, refreshes, stops, and handles errors', async () => {
     const { onRefresh } = renderDropdown([complete, active], new Set(['active-1']), { 'active-1': 'Cannot stop now' });
-    expect(screen.getByRole('button', { name: '2 Active' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '2 Active' }));
+    expect(screen.getByRole('button', { name: 'Investigation agents: 2 active' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Investigation agents: 2 active' }));
     expect(screen.getByText('Disk agent')).toBeInTheDocument();
     expect(screen.getAllByText('Mode: report-only')).toHaveLength(2);
     expect(screen.getByText('Auto-fix: enabled')).toBeInTheDocument();
@@ -47,15 +47,15 @@ describe('AgentDropdown', () => {
     expect(screen.queryByText('Disk agent')).not.toBeInTheDocument();
 
     const second = renderDropdown([active]);
-    fireEvent.click(screen.getByRole('button', { name: '1 Active' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Investigation agents: 1 active' }));
     fireEvent.click(screen.getByRole('button', { name: 'STOP' }));
     await waitFor(() => { expect(second.onStop).toHaveBeenCalledWith('active-1'); });
   });
 
   it('labels a terminal-only set as complete and disables clearing', () => {
     renderDropdown([complete]);
-    expect(screen.getByRole('button', { name: '1 Complete' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '1 Complete' }));
+    expect(screen.getByRole('button', { name: 'Investigation agents: 1 complete' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Investigation agents: 1 complete' }));
     expect(screen.getByRole('button', { name: 'CLEARED' })).toBeDisabled();
   });
 });

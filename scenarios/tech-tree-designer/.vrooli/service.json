@@ -114,7 +114,8 @@
       "scenario-dependency-analyzer": {
         "enabled": true,
         "required": true,
-        "description": "Provides the canonical fleet interface graph with proto and Go import evidence."
+        "description": "Provides the canonical fleet interface graph with proto and Go import evidence.",
+        "startup_policy": "must_start"
       }
     },
     "resources": {}

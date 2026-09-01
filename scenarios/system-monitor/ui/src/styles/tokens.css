@@ -404,8 +404,8 @@ input[type="radio"] {
 }
 
 .app-nav a {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--hdr-h);
+  min-height: var(--hdr-h);
   display: inline-flex;
   align-items: center;
 }
@@ -659,14 +659,41 @@ input[type="radio"] {
   transition: background-color var(--transition-normal), border-color var(--transition-normal);
 }
 
+/* Every control in the chrome is one height, one radius, one border. Before
+   this the right side held five idioms at four heights — a 48px agent button
+   beside 44px icon buttons beside a 44px select with a different radius — and
+   the ragged baseline was most of what made the bar look unfinished.
+   Touch pointers get the 44px tap-target floor; a mouse does not need it, and
+   the 8px per control is exactly what was overflowing the viewport. */
+:root {
+  --hdr-h: 36px;
+}
+
+/* A coarse pointer is the real reason for the 44px floor, so ask for that
+   directly; the width query keeps the floor on the narrow layouts that a
+   touch device reports as fine-pointer. */
+@media (pointer: coarse), (max-width: 899px) {
+  :root {
+    --hdr-h: 44px;
+  }
+}
+
+/* The global `button, select, input { min-height: 44px }` tap-target floor
+   applies to every native control on the page. Inside the chrome the floor is
+   whatever --hdr-h says, which is still 44px on a touch pointer — without this
+   the controls that set only `height` resolved to 36 wide and 44 tall. */
+.app-header-inner button,
+.app-header-inner select {
+  min-height: var(--hdr-h);
+}
+
 .app-header-inner {
   max-width: 1400px;
   margin: 0 auto;
-  padding: var(--spacing-md) var(--spacing-xl);
+  padding: 0.55rem var(--spacing-lg);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .app-header-brand {
@@ -675,6 +702,33 @@ input[type="radio"] {
   gap: var(--spacing-md);
   flex: 0 0 auto;
   min-width: 0;
+}
+
+/* The nav is the only part allowed to give ground, and it scrolls inside
+   itself rather than pushing the controls off the end of the bar. */
+.app-header-inner > .app-nav {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-header-inner > .app-nav::-webkit-scrollbar {
+  display: none;
+}
+
+/* Controls sit against the right edge without `justify-content: space-between`
+   stretching the gaps when the nav is short. */
+.app-header-inner > .flex-row-center:last-child {
+  flex: 0 0 auto;
+  margin-left: auto;
+  gap: var(--spacing-xs);
+}
+
+/* A label that collapses to its icon when the bar gets tight. Every control
+   that uses it carries an aria-label, so the accessible name survives. */
+.hdr-label {
+  white-space: nowrap;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -690,9 +744,10 @@ input[type="radio"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
-  padding: 0.4rem 0.75rem;
-  min-height: 44px;
+  gap: 0.4rem;
+  padding: 0 0.6rem;
+  height: var(--hdr-h);
+  min-height: var(--hdr-h);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -718,38 +773,60 @@ input[type="radio"] {
   box-shadow: var(--focus-ring);
 }
 
+/* Square, and square at the same edge length as every other control. The
+   previous rule asked for both a 36px width and a 44px min-width, so the
+   button silently resolved to 44 and only the author's intent was 36. */
 .header-button.icon-button {
-  width: 36px;
-  min-width: 44px;
-  min-height: 44px;
-  height: 44px;
+  width: var(--hdr-h);
+  min-width: var(--hdr-h);
+  height: var(--hdr-h);
+  min-height: var(--hdr-h);
   padding: 0;
   border-radius: var(--radius-md);
 }
 
+/* A lamp and a switch that describe the same subsystem read as one instrument,
+   not as two chips that happen to be adjacent. The segment carries the frame;
+   its two halves are still two separate targets, divided by a hairline. */
 .status-control-group {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
+  display: inline-flex;
+  align-items: stretch;
   position: relative;
+  height: var(--hdr-h);
+  /* An inset ring rather than a border: a real border eats 2px from the
+     container's content box, which left the lamp half at 42px and two pixels
+     under the 44px tap-target floor on a touch pointer. */
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.status-control-group > .header-button {
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.status-control-group > .header-button:focus-visible {
+  border-radius: var(--radius-md);
 }
 
 .status-dot-button {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
+  width: var(--hdr-h);
+  min-width: var(--hdr-h);
   padding: 0;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  border-radius: var(--radius-md) 0 0 var(--radius-md) !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .status-dot-button:hover {
-  border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
 }
 
 .status-dot {
@@ -855,16 +932,21 @@ input[type="radio"] {
 }
 
 .status-toggle {
-  min-width: 84px;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0 !important;
+  border-left: 1px solid var(--color-border) !important;
 }
 
+.status-toggle:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+}
+
+/* Inside a shared frame the state can no longer be carried by the control's
+   own border, so it moves to the text and the icon. */
 .status-toggle.active {
-  border-color: var(--color-success);
   color: var(--color-success-text);
 }
 
 .status-toggle.inactive {
-  border-color: var(--color-warning);
   color: var(--color-warning-text);
 }
 
@@ -1037,13 +1119,39 @@ input[type="radio"] {
   box-shadow: var(--focus-ring);
 }
 
+.history-window-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* A <select> cannot carry a pseudo-element, so the caret is drawn on the label
+   that wraps it and the native one is suppressed. */
+.history-window-control::after {
+  content: '';
+  position: absolute;
+  right: 0.55rem;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--color-text-muted);
+  border-bottom: 1.5px solid var(--color-text-muted);
+  transform: translateY(-2px) rotate(45deg);
+  pointer-events: none;
+}
+
 .history-window-control select {
-  min-height: 44px;
-  padding: 0 var(--spacing-sm);
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 1.6rem !important;
+  height: var(--hdr-h);
+  min-height: var(--hdr-h);
+  padding: 0 0.4rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
+  font-size: var(--text-xs);
+  font-weight: 500;
 }
 
 .history-window-control select:focus-visible {
@@ -1792,7 +1900,7 @@ input[type="range"]::-moz-range-thumb:hover {
 .system-monitor-title {
   gap: 0.5rem;
   margin: 0;
-  font-size: var(--text-lg);
+  font-size: var(--text-base);
 }
 
 .system-monitor-title-text {
@@ -1817,8 +1925,8 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .header-group + .header-group {
-  margin-left: var(--spacing-sm);
-  padding-left: var(--spacing-sm);
+  margin-left: 0.35rem;
+  padding-left: 0.35rem;
   border-left: 1px solid var(--color-border);
 }
 
@@ -1921,12 +2029,13 @@ input[type="range"]::-moz-range-thumb:hover {
 .agent-dropdown-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.9rem;
+  gap: 0.4rem;
+  height: var(--hdr-h);
+  padding: 0 0.6rem;
   border-radius: var(--radius-md);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   font-weight: 500;
   cursor: pointer;
   transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
@@ -1936,9 +2045,25 @@ input[type="range"]::-moz-range-thumb:hover {
   background: var(--color-surface-hover);
 }
 
-.agent-dropdown-btn.active {
+/* Three tones, and only one of them is loud. Before this, "1 Complete" and
+   "2 Active" both lit the accent, so a finished investigation shouted as
+   loudly as a running one and outweighed the current nav item. */
+.agent-dropdown-active {
   background: var(--color-primary-muted);
-  border-color: var(--color-primary);
+  border-color: color-mix(in srgb, var(--color-primary) 55%, transparent);
+  color: var(--color-text-heading);
+}
+
+.agent-dropdown-active svg:first-of-type {
+  color: var(--color-primary);
+}
+
+.agent-dropdown-success svg:first-of-type {
+  color: var(--color-success);
+}
+
+.agent-dropdown-idle {
+  color: var(--color-text-secondary);
 }
 
 .agent-dropdown-panel {
@@ -2717,6 +2842,7 @@ input[type="range"]::-moz-range-thumb:hover {
     flex: 1 1 100%;
     justify-content: flex-end;
     flex-wrap: wrap;
+    row-gap: var(--spacing-xs);
   }
   .app-header-inner > .app-nav {
     order: 3;
@@ -2738,8 +2864,13 @@ input[type="range"]::-moz-range-thumb:hover {
     padding-top: var(--spacing-md);
   }
 
-  .app-header-inner > .flex-row-center:last-child {
-    justify-content: space-between;
+  /* Once the cluster wraps, the group divider is a hairline hanging between
+     two rows with nothing on either side of it. The groups still read as
+     groups because each wraps as a unit. */
+  .header-group + .header-group {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
   }
 
   .header-group {
@@ -2755,7 +2886,28 @@ input[type="range"]::-moz-range-thumb:hover {
   .metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (max-width: 768px) {
+/* Tier 2 — the bar is narrower than brand + nav + every labelled control.
+   The nav becomes the Menu trigger and the two labelled status controls fall
+   back to their icons. Each keeps its aria-label, so nothing is lost to a
+   screen reader; only the redundant visible word goes. */
+@media (max-width: 1079px) {
+  .app-header-inner > .app-nav {
+    display: none;
+  }
+
+  .hdr-label {
+    display: none;
+  }
+
+  .agent-dropdown-btn,
+  .status-toggle {
+    padding: 0 0.5rem;
+  }
+}
+
+/* Tier 3 — not even brand + controls fit on one line, so the bar becomes two
+   rows rather than pushing the last control past the viewport edge. */
+@media (max-width: 899px) {
   .app-header-inner {
     flex-wrap: wrap;
     gap: var(--spacing-sm);
@@ -2771,25 +2923,28 @@ input[type="range"]::-moz-range-thumb:hover {
     flex: 1 1 100%;
     justify-content: flex-end;
     min-width: 0;
+    margin-left: 0;
   }
+}
 
-  .app-header-inner > .app-nav {
-    display: none;
-  }
-
+/* The Menu trigger and its panel appear wherever the nav is hidden — the two
+   breakpoints have to be the same one, or there is a band of widths with no
+   navigation at all. */
+@media (max-width: 1079px) {
   .app-mobile-nav-trigger {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: var(--spacing-xs);
-    min-height: 44px;
-    padding: 0 var(--spacing-md);
+    height: var(--hdr-h);
+    min-height: var(--hdr-h);
+    padding: 0 0.7rem;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     background: var(--color-surface);
     color: var(--color-text);
     font-family: var(--font-display);
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     font-weight: 700;
     cursor: pointer;
     flex: 0 0 auto;
@@ -2892,25 +3047,27 @@ input[type="range"]::-moz-range-thumb:hover {
 /* ═══════════════════════════════════════════════════════════
    THEME TOGGLE
    ═══════════════════════════════════════════════════════════ */
+/* Was a private copy of the icon-button idiom at its own size. It is the same
+   control as settings and terminal and now says so. */
 .theme-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  min-width: 44px;
-  height: 44px;
+  width: var(--hdr-h);
+  min-width: var(--hdr-h);
+  height: var(--hdr-h);
   padding: 0;
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
+  background: transparent;
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .theme-toggle:hover {
   background: var(--color-surface-hover);
-  border-color: var(--color-border-strong);
+  color: var(--color-text-heading);
 }
 
 .theme-toggle:focus-visible {
@@ -3012,7 +3169,7 @@ input[type="range"]::-moz-range-thumb:hover {
    The accent is spent on the current page only. */
 .app-nav-link {
   position: relative;
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--spacing-xs) 0.55rem;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   font-family: var(--font-display);
@@ -3175,8 +3332,10 @@ input[type="radio"] {
 
 /* The primary navigation rules live below the older responsive layout block
    in this stylesheet. Keep the visibility contract explicit here so the
-   mobile trigger and panel cannot be hidden by source-order changes above. */
-@media (max-width: 768px) {
+   mobile trigger and panel cannot be hidden by source-order changes above.
+   This breakpoint MUST match the one that hides `.app-nav`; when they drifted
+   apart there was a band of widths with no navigation at all. */
+@media (max-width: 1079px) {
   .app-mobile-nav-trigger { display: inline-flex; }
   .app-mobile-nav-panel { display: block; }
   .app-mobile-nav-scrim { display: block; }

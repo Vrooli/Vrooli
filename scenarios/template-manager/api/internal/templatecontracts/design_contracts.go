@@ -20,6 +20,7 @@ type DesignKitManifest struct {
 	ID          string                      `json:"id"`
 	Name        string                      `json:"name"`
 	Version     string                      `json:"version"`
+	Inherits    string                      `json:"inherits,omitempty"`
 	Default     bool                        `json:"default,omitempty"`
 	Description string                      `json:"description,omitempty"`
 	Tags        []string                    `json:"tags,omitempty"`

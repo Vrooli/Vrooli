@@ -3,54 +3,54 @@
   "version": "1.0.0",
   "storage": {
     "entries": {
-    "data": {
+      "data": {
         "rung": "owned",
         "kind": "dir",
         "class": "data",
         "regenerable": false,
         "rationale": "Scenario-owned durable data observed in the canonical data directory.",
-      "budget": {
-        "max_bytes": "5GiB",
-        "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      },
+      "logs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "logs",
+        "regenerable": true,
+        "rationale": "Scenario API logs are routed through the storage resolver under the logs class.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Rotating operational logs are bounded by the scenario logging policy."
+        }
+      },
+      "retention-receipts": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "retention",
+        "regenerable": true,
+        "rationale": "Control-plane retention enforcement receipts are small, regenerable operational state.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "Retention receipts are bounded by size and age."
+        }
+      },
+      "settings": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "subpath": "system-monitor-settings.json",
+        "regenerable": false,
+        "format": "json",
+        "rationale": "Operator settings are persisted in the scenario state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "The settings document is a small bounded JSON configuration."
+        }
       }
-    },
-    "logs": {
-      "rung": "owned",
-      "kind": "dir",
-      "class": "logs",
-      "regenerable": true,
-      "rationale": "Scenario API logs are routed through the storage resolver under the logs class.",
-      "budget": {
-        "max_age": "30d",
-        "rationale": "Rotating operational logs are bounded by the scenario logging policy."
-      }
-    },
-    "retention-receipts": {
-      "rung": "owned",
-      "kind": "dir",
-      "class": "state",
-      "subpath": "retention",
-      "regenerable": true,
-      "rationale": "Control-plane retention enforcement receipts are small, regenerable operational state.",
-      "budget": {
-        "max_bytes": "1MiB",
-        "max_age": "30d",
-        "rationale": "Retention receipts are bounded by size and age."
-      }
-    },
-    "settings": {
-      "rung": "owned",
-      "kind": "file",
-      "class": "state",
-      "subpath": "system-monitor-settings.json",
-      "regenerable": false,
-      "format": "json",
-      "rationale": "Operator settings are persisted in the scenario state namespace.",
-      "budget": {
-        "max_bytes": "1MiB",
-        "rationale": "The settings document is a small bounded JSON configuration."
-      }
-    }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
   },
@@ -340,7 +340,8 @@
         "enabled": true,
         "required": false,
         "description": "Optional autoheal proxy for the forensics page; degrades gracefully when offline",
-        "degraded_behavior": "Metrics, native investigations, and the dashboard remain available. Forensics autoheal checks report unavailable with the connection reason until vrooli-autoheal recovers."
+        "degraded_behavior": "Metrics, native investigations, and the dashboard remain available. Forensics autoheal checks report unavailable with the connection reason until vrooli-autoheal recovers.",
+        "startup_policy": "try_start"
       }
     },
     "resources": {
@@ -404,6 +405,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

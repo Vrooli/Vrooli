@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Activity, Loader2 } from 'lucide-react';
 import { useClickOutside } from '../hooks/useClickOutside';
 import type { SystemHealthStatus } from '../../features/monitoring/hooks/useSystemMonitor';
 
@@ -190,8 +190,10 @@ export const StatusIndicator = ({
         title={isActive ? 'Pause monitoring' : 'Activate monitoring'}
         disabled={isLoading || isToggling}
       >
-        {isToggling && <Loader2 size={14} className="animate-spin" />}
-        <span>{isActive ? 'Active' : 'Inactive'}</span>
+        {isToggling
+          ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+          : <Activity size={14} aria-hidden="true" />}
+        <span className="hdr-label">{isActive ? 'Active' : 'Inactive'}</span>
       </button>
     </div>
   );

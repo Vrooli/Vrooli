@@ -1,16 +1,20 @@
 {
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "_comment": "محرران للاستيفاء في هذا الملف. (1) وقت التوليد: العلامات مثل Switchboard هي عناصر نائبة بأحرف كبيرة وفواصل تحت السطر يستبدلها `template-manager generate` قبل بناء السيناريو، فتظهر في وقت التشغيل كقيم عرض حرفية. (2) وقت التشغيل: العلامات مثل {{count}} هي استيفاء i18next يُستبدل عند التصيير عبر `t(key, { count })`. المفاتيح التي تبدأ بشرطة سفلية (مثل هذا المفتاح) عناصر حارسة — يتجاهلها مولّد الكود واختبار التطابق وتدقيق المفاتيح غير المستخدمة.",
   "app": {
-    "title": "Switchboard",
-    "eyebrow": "قالب السيناريو",
-    "description": "واجهة المستخدم البدائية هذه بسيطة عن قصد. استبدلها بتجربة خاصة بالسيناريو مع الحفاظ على اتفاقيات التصميم (Tailwind + shadcn) وتوصيل API كما هو."
+    "title": "Switchboard"
   },
+  "asset": "navigation.page",
+  "capability": "navigation",
   "layout": {
     "sidebarLabel": "التنقل الرئيسي",
     "bottomNavLabel": "التنقل على الهاتف",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
+      "agents": "الوكلاء",
+      "conversations": "المحادثات",
+      "contacts": "جهات الاتصال",
+      "channels": "القنوات",
       "settings": "الإعدادات"
     }
   },
@@ -28,13 +32,19 @@
       "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
       "statPlaceholderLabel": "إحصائية"
     },
-    "notes": {
-      "title": "الملاحظات"
-    },
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
-      "localeHeading": "اللغة"
+      "localeHeading": "اللغة",
+      "descriptorHeading": "واصفات القنوات",
+      "descriptorStatus": "تم تحميل الواصفات من سجل الإقلاع.",
+      "meteringHeading": "العمل المحسوب",
+      "byokLabel": "مفتاح مزودك الخاص",
+      "byokNote": "لا يتم فرض رسوم على المفتاح الشخصي.",
+      "quietHoursHeading": "ساعات الهدوء",
+      "quietHoursDescription": "تنطبق ساعات الهدوء على كل وكيل.",
+      "blastRadius": "ينطبق على كل وكيل",
+      "save": "حفظ"
     }
   },
   "health": {
@@ -44,7 +54,6 @@
     "refresh": "تحديث",
     "refreshCount": "تم التحديث {{count}} مرات",
     "refreshCount_one": "تم التحديث مرة واحدة",
-    "statusLabel": "الحالة:",
     "serviceLabel": "الخدمة:",
     "timestampLabel": "الطابع الزمني:"
   },
@@ -52,31 +61,6 @@
     "summary": "{{count}} إشعارات",
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
-  },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "table": {
-      "title": "العنوان",
-      "created": "تاريخ الإنشاء",
-      "attachments": "المرفقات",
-      "actions": "الإجراءات",
-      "search": "البحث في الملاحظات"
-    },
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",
@@ -99,9 +83,38 @@
   "locale": {
     "switcherLabel": "اللغة"
   },
+  "console": {
+    "mainContent":"Main content",
+    "agents": {"title":"Agents","description":"Every agent, its reachable handles, and its granted scopes.","draftHeading":"Draft an agent","draftDescription":"Describe the job first. Nothing is written until you confirm the draft.","descriptionLabel":"Description","descriptionPlaceholder":"A household planning assistant","prepareDraft":"Prepare draft","reviewHeading":"Review before writing","defaultGrant":"Default grant: read. Owner-only capabilities are not proposed automatically.","confirmWrite":"Confirm and write","confirmed":"Draft confirmed; Prompt Manager is the profile source."},
+    "channels": {"title":"Channels","description":"Attach an agent to a reachable channel.","attachAgent":"Attach agent","agentId":"Agent ID","address":"Address","threadKey":"Thread key (optional)","addressPlaceholder":"chat or handle","bindingDescription":"The binding maps one channel address to an agent and thread.","attachFormLabel":"Attach an agent","connectRequirement":"Connect requirement","attaching":"Attaching…","setupFriction":"Setup friction {{friction}}","descriptorLoaded":"Channel descriptors are loaded from the boot-time descriptor registry.","confirmAttachment":"Confirm attachment","cancel":"Cancel","attached":"Agent attached to {{channel}}"},
+    "contacts": {"title":"Contacts","description":"Manage sender identity and trust tiers. Unknown senders start as strangers.","empty":"No contacts recorded."},
+    "conversations": {"title":"Conversations","description":"Threads are durable, cross-channel, and governed before a turn starts.","thread":"In-app thread","connected":"Connected","offline":"Offline","empty":"No messages yet. Start a conversation below.","message":"Message","writePlaceholder":"Write to your agent","attachFile":"Attach a file","send":"Send","agent":"Agent","you":"You","attachment":"Attachment: {{name}} ({{mime}}, {{size}} bytes)","disconnectError":"The in-app adapter disconnected. Retry when it is available.","unreadableError":"The adapter returned an unreadable message."},
+    "capabilityGate": {"title":"Capability approval needed","withheld":"Withheld:","unblock":"What would unblock it:","expires":"Expires:","grantOnce":"Grant once","notNow":"Not now","ownerOnly":"Only the agent owner can answer this request."},
+    "surface": {"nothingConfigured":"Nothing is configured yet. This surface will show data when the first record exists.","welcome":"Welcome","welcomeDescription":"Create your first reachable agent.","channel":"Channel","channelDescription":"Channel details and connection status.","agent":"Agent","agentDescription":"Agent grants, reachable channels, and activity.","call":"Call","callDescription":"Live call transcript and controls.","contact":"Contact","contactDescription":"Sender identity and trust tier."}
+  },
+  "default": "Primary navigation",
   "errorBoundary": {
     "title": "حدث خطأ ما",
     "message": "حدث خطأ غير متوقع أثناء عرض الصفحة. حاول مرة أخرى، أو أعد تحميل الصفحة إذا استمرت المشكلة.",
     "retry": "إعادة المحاولة"
-  }
+  },
+  "export": "LongLabels",
+  "fixture": "fixtures.user-directory",
+  "id": "long-labels",
+  "kind": "text",
+  "label": "Compact navigation",
+  "libraryId": "react-component-library:StyleSheet",
+  "mode": "pinned",
+  "module": "./story.tsx",
+  "name": "Long Labels",
+  "path": "items",
+  "react": "^18",
+  "region": "navigation",
+  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "role": "boundary",
+  "selector": "nav",
+  "title": "BottomNav",
+  "true": "false",
+  "value": "Integrations",
+  "version": "1.0.0"
 }

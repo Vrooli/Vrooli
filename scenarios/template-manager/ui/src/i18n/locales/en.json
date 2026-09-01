@@ -163,6 +163,7 @@
     },
     "sidebarLabel": "Sidebar navigation"
   },
+  "libraryId": "react-component-library:StyleSheet",
   "list": {
     "pagination": {
       "label": "Pagination",
@@ -213,6 +214,7 @@
   "react": "^18",
   "react-component-library:useEscapeKey": "^1.0.0",
   "region": "navigation",
+  "resolvedAt": "2026-08-31T05:48:37Z",
   "role": "table",
   "runDetail": {
     "columns": {

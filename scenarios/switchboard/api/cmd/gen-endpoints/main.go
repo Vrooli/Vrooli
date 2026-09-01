@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
 	"switchboard/internal/modules"
 
 	gen "github.com/vrooli/api-core/endpoints/gen"

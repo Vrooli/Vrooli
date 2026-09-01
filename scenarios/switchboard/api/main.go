@@ -5,24 +5,38 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
+
 	"switchboard/internal/capabilities"
+	channelcore "switchboard/internal/channels"
+	"switchboard/internal/channels/adapters"
+	"switchboard/internal/dispatch"
+	"switchboard/internal/egress"
+	"switchboard/internal/gates"
+	"switchboard/internal/ingress"
 	"switchboard/internal/modules"
 	"switchboard/internal/server"
+	"switchboard/internal/threads"
+	"switchboard/internal/trust"
 
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
 	capsH "switchboard/handlers/capabilities"
+	channelsH "switchboard/handlers/channels"
+	conformanceH "switchboard/handlers/conformance"
 	healthH "switchboard/handlers/health"
-	notesH "switchboard/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -68,12 +82,30 @@ func main() {
 		log.Fatalf("file storage configuration failed: %v", err)
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
+	channelRegistry, err := channelcore.Load("../data/channels", adapters.NewAll()...)
+	if err != nil {
+		log.Fatalf("channel descriptor registry: %v", err)
+	}
+	agentManagerURL, _ := discovery.ResolveScenarioURLDefault(context.Background(), "agent-manager")
+	authVerifier := owneridentity.NewClient(owneridentity.Config{Resolver: discovery.NewResolver(discovery.ResolverConfig{})})
+	hostFacts := channelcore.HostFacts{
+		"telegram_bot_token": strings.TrimSpace(os.Getenv("TELEGRAM_BOT_TOKEN")) != "",
+		"slack_app":          strings.TrimSpace(os.Getenv("SLACK_APP_TOKEN")) != "" && strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN")) != "",
+		"mac_node":           strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_MAC_NODE_AVAILABLE")), "true"),
+	}
+	router := &egress.Router{Registry: channelRegistry}
+	threadStore := threads.NewStore(db.Primary())
+	gateStore := gates.NewStore(db.Primary(), schedule.System().Now)
+	processor := &dispatch.Processor{Ingress: ingress.New(), Threads: threadStore, Runner: dispatch.AgentManagerRunner{BaseURL: agentManagerURL, Threads: threadStore, Send: router.Send}, Send: router.Send, Grant: trust.Grant{Scopes: []string{"read"}}}
+	channelDeps := channelsH.ModuleDeps{Registry: channelRegistry, Facts: hostFacts, DB: db.Primary(), Egress: router, Processor: processor, Gates: gateStore, Identity: authVerifier}
+	stopChannels := channelsH.Start(context.Background(), channelDeps, log.Printf)
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "switchboard-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
+		channelsH.Module(channelDeps),
+		conformanceH.Module(channelRegistry),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -81,19 +113,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, schedule.System())
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -104,7 +123,10 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			stopChannels()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

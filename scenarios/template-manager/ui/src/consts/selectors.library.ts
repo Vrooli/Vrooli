@@ -14,9 +14,10 @@ export const librarySelectors = {
   },
 
 
-      "forms.select": {
+        "forms.select": {
     "root": "forms.select",
   },
+
 
 
       "feedback.empty-state": {

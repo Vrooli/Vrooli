@@ -19,9 +19,11 @@ require (
 )
 
 require (
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
+	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 )
@@ -72,4 +74,7 @@ replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
+
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve

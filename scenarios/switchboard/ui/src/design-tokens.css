@@ -344,7 +344,9 @@
   --tracking-tight: -.02em;
   /* @tier Expression */
   --weight-medium: 500;
-}
+/* rcl:tokens:begin */
+
+/* rcl:tokens:end */}
 
 :root {
   /* Compatibility aliases for standalone catalog components. New source

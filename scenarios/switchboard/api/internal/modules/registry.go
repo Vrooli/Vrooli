@@ -17,18 +17,20 @@
 package modules
 
 import (
+	agentstore "switchboard/internal/agents"
 	"switchboard/internal/module"
 
 	capsH "switchboard/handlers/capabilities"
+	channelsH "switchboard/handlers/channels"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	channelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/switchboard/v1/channels"
 	healthH "switchboard/handlers/health"
-	notesH "switchboard/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "switchboard/internal/database"
-
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/switchboard/v1/notes" // EXAMPLE-DOMAIN:notes
+	gatestore "switchboard/internal/gates"
+	threadstore "switchboard/internal/threads"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -39,7 +41,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, channelsH.Endpoints...)
 	return out
 }
 
@@ -65,9 +67,7 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_switchboard_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
-	}
+	return []ProtoFileEntry{{Module: "channels", File: channelsv1.File_switchboard_v1_channels_channels_proto}}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -81,6 +81,8 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(threadstore.Schema),
+		apidb.SchemaProviderFunc(agentstore.Schema),
+		apidb.SchemaProviderFunc(gatestore.Schema),
 	}
 }

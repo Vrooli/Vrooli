@@ -103,6 +103,15 @@ export const AgentDropdown = ({
     ? `${totalCount} Active`
     : `${totalCount} Complete`;
 
+  // The visible label collapses to the icon on a narrow bar, so the button
+  // carries its own name. Built from the state rather than by prefixing the
+  // visible text, which would announce the idle case as "agents: Agents".
+  const agentButtonName = totalCount === 0
+    ? 'Investigation agents: none running'
+    : runningCount > 0
+    ? `Investigation agents: ${totalCount} active`
+    : `Investigation agents: ${totalCount} complete`;
+
   const handleStopClick = async (event: React.MouseEvent<HTMLButtonElement>, agentId: string) => {
     event.stopPropagation();
     try {
@@ -119,10 +128,12 @@ export const AgentDropdown = ({
         onClick={() => { setAgentsOpen(prev => !prev); }}
         aria-expanded={agentsOpen}
         aria-haspopup="true"
-        className={`agent-dropdown-btn ${buttonTone !== 'idle' ? 'active' : ''} agent-dropdown-${buttonTone}`}
+        aria-label={agentButtonName}
+        title={agentButtonName}
+        className={`agent-dropdown-btn agent-dropdown-${buttonTone}`}
       >
-        <Brain size={16} />
-        <span>{agentButtonLabel}</span>
+        <Brain size={15} aria-hidden="true" />
+        <span className="hdr-label">{agentButtonLabel}</span>
         <ChevronDown size={14} className={`agent-dropdown-chevron ${agentsOpen ? 'is-open' : ''}`} />
       </button>
 

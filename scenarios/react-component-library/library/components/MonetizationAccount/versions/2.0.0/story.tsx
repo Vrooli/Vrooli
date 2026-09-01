@@ -24,3 +24,17 @@ export function MonetizationStates() {
     </div>
   );
 }
+
+export function UsageState() {
+  return <UsageMeter used={7} limit={10} />;
+}
+
+const errorState = (errorType: string) => () => <EntitlementErrorCard errorType={errorType} />;
+
+export const UnauthorizedState = errorState("unauthorized");
+export const SubscriptionRequiredState = errorState("subscription_required");
+export const CreditsRequiredState = errorState("credits_required");
+export const AuthorityUnavailableState = errorState("authority_unavailable");
+export const RateLimitedState = errorState("rate_limited");
+export const RankRequiredState = errorState("rank_required");
+export const UnknownErrorState = errorState("unknown");

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
 	"switchboard/internal/modules"
 
 	db "github.com/vrooli/api-core/databasetest"

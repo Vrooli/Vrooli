@@ -955,7 +955,8 @@ tokens:
 	}
 	joined := strings.Join(messages, "\n")
 	for _, want := range []string{
-		`missing official-style top-level "colors" token group`,
+		`top-level "tokens" duplicates the CSS token vocabulary`,
+		`missing top-level "components" guidance group`,
 		`components must include "button-primary-loading" state guidance token`,
 		"missing ## Feedback & State section",
 		`missing required UX state term "validation-error"`,
@@ -977,6 +978,7 @@ func TestResolveAndCopyDesignAssets(t *testing.T) {
   "id": "demo-kit",
   "name": "Demo Kit",
   "version": "0.1.0",
+  "inherits": "_base",
   "default": true,
   "adapters": {
     "react-vite-tailwind": {
@@ -985,22 +987,9 @@ func TestResolveAndCopyDesignAssets(t *testing.T) {
     }
   }
 }`)
+	writeTestFile(t, filepath.Join(repoRoot, "templates", "design", "_base", "tokens.css"), ":root { --shared-token: base; --scenario-name: \"base\"; }\n")
 	writeTestFile(t, filepath.Join(kitDir, "DESIGN.md"), `---
 name: "{{SCENARIO_DISPLAY_NAME}}"
-colors:
-  primary: "#111827"
-  surface: "#ffffff"
-  on-surface: "#111827"
-typography:
-  body-md:
-    fontFamily: Inter
-    fontSize: 16px
-    fontWeight: "400"
-    lineHeight: 1.5
-rounded:
-  md: 8px
-spacing:
-  touch: 44px
 components:
   button-primary-loading:
     backgroundColor: "{colors.primary}"
@@ -1057,7 +1046,7 @@ Generated UI must describe pending, success, failure, and retry transitions.
 	if err != nil {
 		t.Fatalf("resolveDesign() error = %v", err)
 	}
-	if len(design.Copies) != 2 {
+	if len(design.Copies) != 3 {
 		t.Fatalf("design copies = %#v", design.Copies)
 	}
 	if err := preflightDesignCopies(design, false); err != nil {
@@ -1079,6 +1068,26 @@ Generated UI must describe pending, success, failure, and retry transitions.
 	}
 	if !strings.Contains(string(tokens), `"alpha"`) {
 		t.Fatalf("tokens = %q", string(tokens))
+	}
+	if !strings.Contains(string(tokens), "--shared-token: base") {
+		t.Fatalf("tokens omit inherited vocabulary = %q", string(tokens))
+	}
+	if baseIndex, overrideIndex := strings.Index(string(tokens), `--scenario-name: "base"`), strings.Index(string(tokens), `--scenario-name: "alpha"`); baseIndex < 0 || overrideIndex <= baseIndex {
+		t.Fatalf("tokens are not ordered base then override = %q", string(tokens))
+	}
+}
+
+func TestLoadDesignKitsSkipsReservedBaseVocabulary(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "templates", "design", "_base", "tokens.css"), ":root {}\n")
+	writeTestFile(t, filepath.Join(root, "templates", "design", "demo", "metadata.json"), `{"id":"demo","name":"Demo","version":"1"}`)
+
+	kits, err := loadDesignKits(root)
+	if err != nil {
+		t.Fatalf("loadDesignKits() error = %v", err)
+	}
+	if len(kits) != 1 || kits[0].ID != "demo" {
+		t.Fatalf("kits = %#v", kits)
 	}
 }
 

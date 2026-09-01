@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
 	"switchboard/internal/httpc"
 	"switchboard/internal/testutil/mocks"
 

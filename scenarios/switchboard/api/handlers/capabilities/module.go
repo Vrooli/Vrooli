@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"switchboard/internal/capabilities"
 	"switchboard/internal/module"
 

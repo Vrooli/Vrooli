@@ -65,6 +65,22 @@
       "range": "20000-24999"
     }
   },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Thread records and channel state are durable scenario-owned data.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Thread history is bounded by operational retention policy and is not regenerable."
+        }
+      }
+    },
+    "rationale": "Switchboard stores durable conversation state in the scenario-owned data directory."
+  },
   "components": {
     "api": {
       "role": "api",

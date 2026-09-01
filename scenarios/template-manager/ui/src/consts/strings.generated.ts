@@ -175,6 +175,7 @@ export const strings = {
     },
     sidebarLabel: "layout.sidebarLabel",
   },
+  libraryId: "libraryId",
   list: {
     pagination: {
       label: "list.pagination.label",
@@ -225,6 +226,7 @@ export const strings = {
   react: "react",
   "react-component-library:useEscapeKey": "react-component-library:useEscapeKey",
   region: "region",
+  resolvedAt: "resolvedAt",
   role: "role",
   runDetail: {
     columns: {

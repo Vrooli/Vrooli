@@ -1005,6 +1005,9 @@ packages:
       express: ^4.18.2
       ws: ^8.16.0
 
+  '@vrooli/flow-runtime@file:../../../packages/flow-runtime':
+    resolution: {directory: ../../../packages/flow-runtime, type: directory}
+
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
 
@@ -3735,6 +3738,16 @@ snapshots:
       - '@bufbuild/protobuf'
       - '@testing-library/dom'
       - react-native
+
+  '@vrooli/flow-runtime@file:../../../packages/flow-runtime(@types/node@22.20.1)(jsdom@25.0.1)':
+    dependencies:
+      vitest: 2.1.9(@types/node@22.20.1)(jsdom@25.0.1)
+    transitivePeerDependencies:
+      - '@edge-runtime/vm'
+      - '@types/node'
+      - '@vitest/browser'
+      - '@vitest/ui'
+      - happy-dom
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

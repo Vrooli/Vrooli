@@ -1774,9 +1774,10 @@
 .script-enabled-label.is-disabled { color: var(--color-warning-text); font-weight: 600; opacity: 1; }
 .agent-dropdown-chevron { transition: transform 0.2s ease; }
 .agent-dropdown-chevron.is-open { transform: rotate(180deg); }
-.agent-dropdown-idle { color: var(--color-text); border-color: var(--color-text-secondary); }
-.agent-dropdown-active { color: var(--color-primary); border-color: var(--color-primary); }
-.agent-dropdown-success { color: var(--color-success); border-color: var(--color-success); }
+/* The agent tone rules live with the rest of the agent-dropdown block in
+   tokens.css. Two stylesheets defining the same three classes meant the later
+   import silently won, and a finished investigation kept the loud accent
+   border the running state is meant to own. */
 .agent-stop-btn.is-terminal { color: var(--color-text-secondary); background: var(--overlay-light); border: 1px solid var(--color-border); }
 .agent-stop-btn.is-actionable { color: var(--color-error); background: var(--color-error-muted); border: 1px solid var(--color-error); }
 .agent-stop-btn.is-stopping { cursor: wait; opacity: 0.7; }

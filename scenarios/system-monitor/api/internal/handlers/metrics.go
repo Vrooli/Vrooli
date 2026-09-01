@@ -5,7 +5,6 @@ package handlers
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,11 +14,11 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/encoding/protojson"
 
+	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/operatorsession"
-	"github.com/vrooli/nodeclient"
 	metricspb "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
+	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics/metricsconnect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/apierrors"
@@ -34,7 +33,7 @@ type MetricsHandler struct {
 	log        *slog.Logger
 	config     *config.Config
 	monitorSvc MonitorQuerier
-	bridge     *nodeclient.Client
+	bridge     *nodereach.Client
 }
 
 // NewMetricsHandler creates a new metrics handler
@@ -43,7 +42,7 @@ func NewMetricsHandler(cfg *config.Config, monitorSvc MonitorQuerier, log *slog.
 		log:        log,
 		config:     cfg,
 		monitorSvc: monitorSvc,
-		bridge: nodeclient.New(nodeclient.Config{
+		bridge: nodereach.New(nodereach.Config{
 			Token:         firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
 			TokenProvider: resolveLocalOwnerToken,
 		}),
@@ -65,10 +64,6 @@ func resolveLocalOwnerToken(_ context.Context) (string, error) {
 	}
 	return operatorsession.LocalSessionScheme + " " + resolution.Token, nil
 }
-
-// SetNodeClient replaces the Bridge transport for focused handler tests and
-// controlled embeddings. Production uses the shared nodeclient above.
-func (h *MetricsHandler) SetNodeClient(client *nodeclient.Client) { h.bridge = client }
 
 // GetCurrentMetrics handles the typed Connect-RPC metrics snapshot contract.
 func (h *MetricsHandler) GetCurrentMetrics(ctx context.Context, req *connect.Request[metricspb.GetCurrentMetricsRequest]) (*connect.Response[metricspb.GetCurrentMetricsResponse], error) {
@@ -309,33 +304,25 @@ func (h *MetricsHandler) handleRemoteCurrentMetrics(w http.ResponseWriter, r *ht
 		http.Error(w, "Bridge client is unavailable", http.StatusServiceUnavailable)
 		return
 	}
-	args := []string{"--json"}
-	if raw := r.URL.Query().Get("fresh"); raw == "1" || raw == "true" {
-		args = append(args, "--fresh")
-	}
-	response, err := h.bridge.Call(r.Context(), nodeclient.CallRequest{
-		NodeID: nodeID, Scenario: "system-monitor", Command: "system-monitor metrics current", Args: args,
-		Timeout: 8 * time.Second, MaxResponse: 2 << 20,
-	})
+	fresh := r.URL.Query().Get("fresh") == "1" || r.URL.Query().Get("fresh") == "true"
+	callCtx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+	defer cancel()
+	baseURL, err := h.bridge.ScenarioURL(callCtx, nodeID, "system-monitor")
 	if err != nil {
 		h.handleNodeClientError(w, r, err)
 		return
 	}
-	if response.Outcome != 1 {
-		h.handleNodeClientError(w, r, fmt.Errorf("remote metrics failed: %s", firstNonEmpty(response.Reason, "unknown remote failure")))
+	client := metricsconnect.NewMetricsServiceClient(h.bridge.ConnectTransport(callCtx, baseURL), baseURL)
+	resp, err := client.GetCurrentMetrics(callCtx, connect.NewRequest(&metricspb.GetCurrentMetricsRequest{Fresh: fresh}))
+	if err != nil {
+		h.handleNodeClientError(w, r, err)
 		return
 	}
-	var envelope metricspb.GetCurrentMetricsResponse
-	if err := protojson.Unmarshal(response.Data, &envelope); err == nil && envelope.GetMetrics() != nil {
-		httputil.SafeProtoJSONCamel(w, h.log, r, envelope.GetMetrics())
+	if resp == nil || resp.Msg == nil || resp.Msg.GetMetrics() == nil {
+		h.handleNodeClientError(w, r, errors.New("remote metrics response was empty"))
 		return
 	}
-	var metrics metricspb.MetricsResponse
-	if err := protojson.Unmarshal(response.Data, &metrics); err != nil {
-		h.handleNodeClientError(w, r, fmt.Errorf("decode remote metrics: %w", err))
-		return
-	}
-	httputil.SafeProtoJSONCamel(w, h.log, r, &metrics)
+	httputil.SafeProtoJSONCamel(w, h.log, r, resp.Msg.GetMetrics())
 }
 
 func (h *MetricsHandler) handleNodeClientError(w http.ResponseWriter, r *http.Request, err error) {

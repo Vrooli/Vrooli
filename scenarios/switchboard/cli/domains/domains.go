@@ -1,9 +1,8 @@
 package domains
 
 import (
-	"switchboard/cli/domains/notes" // EXAMPLE-DOMAIN:notes
-
 	"github.com/vrooli/cli-core/cliapp"
+	"switchboard/cli/domains/channels"
 )
 
 // CommandGroups aggregates flat command groups from domain packages.
@@ -37,12 +36,10 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+	channelsGroup, err := channels.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, channelsGroup)
 	return groups, nil
 }

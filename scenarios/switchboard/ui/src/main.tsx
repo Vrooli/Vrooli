@@ -1,8 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
+import { i18n } from "./i18n";
 import "./styles.css";
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
@@ -40,6 +42,8 @@ async function bootstrap() {
   ]);
 
   ReactDOM.createRoot(appRoot).render(
+    // vrooli:library-strings-provider start
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
@@ -59,6 +63,8 @@ async function bootstrap() {
         </ErrorBoundary>
       </QueryClientProvider>
     </React.StrictMode>
+    </LibraryStringsProvider>,
+    // vrooli:library-strings-provider end
   );
 }
 

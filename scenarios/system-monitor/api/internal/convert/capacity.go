@@ -34,6 +34,8 @@ func CapacityClaimToProto(c capacityapp.ClaimView) *capacitypb.CapacityClaim {
 		Status:         c.Status,
 		ActivityState:  c.ActivityState,
 		Generation:     c.Generation,
+		CreatedAt:      c.CreatedAt,
+		UpdatedAt:      c.UpdatedAt,
 	}
 	if c.LastActiveAt != nil {
 		out.LastActiveAt = *c.LastActiveAt

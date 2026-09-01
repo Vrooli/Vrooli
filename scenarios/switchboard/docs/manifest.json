@@ -156,7 +156,7 @@
             "product-requirements",
             "operational-targets"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "oriented"
           ],
@@ -339,7 +339,7 @@
             "capability-ownership",
             "domain-map"
           ],
-          "maturity": "draft",
+          "maturity": "active",
           "requiredBy": [
             "oriented",
             "implemented"
@@ -521,7 +521,7 @@
             "retention",
             "migrations"
           ],
-          "maturity": "draft",
+          "maturity": "active",
           "requiredBy": [
             "oriented",
             "implemented",
@@ -569,7 +569,7 @@
             "third-party-services",
             "integration-contracts"
           ],
-          "maturity": "draft",
+          "maturity": "active",
           "requiredBy": [
             "oriented",
             "implemented",
@@ -712,7 +712,7 @@
             "pricing-hypothesis",
             "sku-fit"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "monetizable"
           ],
@@ -759,7 +759,7 @@
             "launch-strategy",
             "market-validation"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "monetizable"
           ],
@@ -813,7 +813,7 @@
             "delivery-tiers",
             "release-readiness"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "deployable"
           ],
@@ -856,7 +856,7 @@
             "operator-procedures",
             "incident-response"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "deployable"
           ],
@@ -900,7 +900,7 @@
             "health-signals",
             "alerts"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "deployable",
             "monetizable"
@@ -1002,7 +1002,7 @@
           "canonicalFor": [
             "api-reference"
           ],
-          "maturity": "draft",
+          "maturity": "active",
           "requiredBy": [
             "generated",
             "implemented"
@@ -1011,8 +1011,9 @@
           "validation": {
             "requiredHeadings": [
               "System",
-              "Notes (CRUD reference)",
+              "Domain endpoints",
               "Adding a new endpoint",
+              "Planned surface (not yet implemented)",
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
@@ -1041,7 +1042,7 @@
           "canonicalFor": [
             "cli-reference"
           ],
-          "maturity": "draft",
+          "maturity": "active",
           "requiredBy": [
             "generated",
             "implemented"
@@ -1051,9 +1052,10 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands \u2014 `notes` (CRUD reference)",
+              "Scenario commands",
               "Output contracts",
               "Adding a new command",
+              "Planned surface (not yet implemented)",
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
@@ -1340,7 +1342,7 @@
             "threat-model",
             "secrets"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "deployable"
           ],
@@ -1383,7 +1385,7 @@
             "budgets",
             "measurements"
           ],
-          "maturity": "stub",
+          "maturity": "active",
           "requiredBy": [
             "validated",
             "deployable"
@@ -1548,6 +1550,43 @@
           "validation": {
             "requiredHeadings": [
               "Progress Log"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ]
+          }
+        },
+        {
+          "path": "internal/design-record/README.md",
+          "docType": "design-record",
+          "title": "Design Record",
+          "aliases": [
+            "design-history",
+            "provenance",
+            "primary-sources"
+          ],
+          "description": "Index and provenance for the preserved design artifacts that produced this scenario, with the three claims inside them that were superseded",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "design-record",
+            "design-provenance"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "oriented"
+          ],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": [
+              "Purpose Of This Document",
+              "Contents",
+              "Provenance",
+              "What They Are Not",
+              "Cross-References"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"

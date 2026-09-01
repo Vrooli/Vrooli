@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
+import { renderWithProviders } from '../../../test-utils/renderWithProviders';
 import { MachinePicker } from './MachinePicker';
 import type { Machine } from '../../../types';
 
@@ -17,7 +18,7 @@ const renderPicker = (overrides: Partial<React.ComponentProps<typeof MachinePick
     onAddMachine: vi.fn(),
     ...overrides
   };
-  render(<MachinePicker {...props} />);
+  renderWithProviders(<MachinePicker {...props} />);
   return props;
 };
 
@@ -91,7 +92,7 @@ describe('MachinePicker', () => {
   });
 
   it('renders nothing when there are no machines at all', () => {
-    const { container } = render(<MachinePicker machines={[]} selectedMachineID="" onSelectMachine={vi.fn()} />);
+    const { container } = renderWithProviders(<MachinePicker machines={[]} selectedMachineID="" onSelectMachine={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
   });
 

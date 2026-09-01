@@ -1,24 +1,4 @@
 {
-  "name": "switchboard-ui",
-  "version": "1.0.0",
-  "description": "React + Vite front-end for Switchboard",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm strings:gen && tsc --noEmit && vite build",
-    "build:profile": "pnpm strings:gen && tsc --noEmit && vite build --mode profile",
-    "preview": "vite preview",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "type-check": "pnpm strings:check && tsc --noEmit",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:template-library": "node --test scripts/template-library-link.test.mjs",
-    "strings:gen": "node scripts/gen-strings.mjs",
-    "strings:check": "node scripts/gen-strings.mjs --check",
-    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs"
-  },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",
     "@connectrpc/connect": "^2.1.1",
@@ -40,6 +20,7 @@
     "react-router-dom": "6.30.4",
     "tailwind-merge": "^2.3.0"
   },
+  "description": "React + Vite front-end for Switchboard",
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "@testing-library/jest-dom": "^6.6.3",
@@ -69,5 +50,24 @@
     "vite": "^5.4.6",
     "vitest": "^2.1.4"
   },
-  "packageManager": "pnpm@9.12.1"
+  "name": "switchboard-ui",
+  "packageManager": "pnpm@9.12.1",
+  "private": true,
+  "scripts": {
+    "build": "pnpm strings:gen \u0026\u0026 tsc --noEmit \u0026\u0026 vite build",
+    "build:profile": "pnpm strings:gen \u0026\u0026 tsc --noEmit \u0026\u0026 vite build --mode profile",
+    "dev": "vrooli lifecycle protect -- vite",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "preview": "vite preview",
+    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
+    "strings:check": "node scripts/gen-strings.mjs --check",
+    "strings:gen": "node scripts/gen-strings.mjs",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:template-library": "node --test scripts/template-library-link.test.mjs",
+    "type-check": "pnpm strings:check \u0026\u0026 tsc --noEmit"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

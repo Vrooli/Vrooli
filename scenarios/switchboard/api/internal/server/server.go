@@ -12,6 +12,7 @@ package server
 import (
 	"log"
 	"net/http"
+
 	"switchboard/internal/middleware"
 	"switchboard/internal/module"
 

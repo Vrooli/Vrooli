@@ -1,0 +1,1823 @@
+<title>Agent Switchboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#F1F4F3;
+  --surface:#FFFFFF;
+  --surface-2:#E7ECEA;
+  --line:#C6D1CE;
+  --line-soft:#DCE4E1;
+  --ink:#111A18;
+  --ink-2:#3B4946;
+  --ink-3:#6A7873;
+  --amber:#A85B14;
+  --amber-line:#C98230;
+  --amber-bg:#FAEDDD;
+  --teal:#186960;
+  --teal-line:#2E8A7F;
+  --teal-bg:#DCEBE8;
+  --clay:#96412D;
+  --clay-bg:#F6E1DB;
+  --shadow:0 1px 2px rgba(17,26,24,.06), 0 8px 24px -12px rgba(17,26,24,.18);
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B1211;
+    --surface:#121A19;
+    --surface-2:#18221F;
+    --line:#2A3936;
+    --line-soft:#1F2C29;
+    --ink:#E7EFEC;
+    --ink-2:#B0BFBB;
+    --ink-3:#7F908B;
+    --amber:#E8A459;
+    --amber-line:#B87A3A;
+    --amber-bg:#241A0F;
+    --teal:#5FC3B4;
+    --teal-line:#2F7E74;
+    --teal-bg:#0F2523;
+    --clay:#E1917A;
+    --clay-bg:#26140F;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B1211;
+  --surface:#121A19;
+  --surface-2:#18221F;
+  --line:#2A3936;
+  --line-soft:#1F2C29;
+  --ink:#E7EFEC;
+  --ink-2:#B0BFBB;
+  --ink-3:#7F908B;
+  --amber:#E8A459;
+  --amber-line:#B87A3A;
+  --amber-bg:#241A0F;
+  --teal:#5FC3B4;
+  --teal-line:#2F7E74;
+  --teal-bg:#0F2523;
+  --clay:#E1917A;
+  --clay-bg:#26140F;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-size:16px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1040px;margin:0 auto;padding:0 28px}
+.narrow{max-width:660px}
+
+h1,h2,h3,h4{font-family:Archivo,"IBM Plex Sans",sans-serif;font-weight:700;text-wrap:balance;letter-spacing:-.018em;margin:0}
+h1{font-size:clamp(2.4rem,6vw,3.9rem);line-height:1.02;letter-spacing:-.034em}
+h2{font-size:clamp(1.5rem,3.2vw,2.05rem);line-height:1.12}
+h3{font-size:1.12rem;line-height:1.3;letter-spacing:-.01em}
+h4{font-size:.94rem;line-height:1.35;font-weight:600}
+p{margin:0}
+a{color:var(--amber);text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:3px;border-radius:3px}
+
+.eyebrow{
+  font-family:"IBM Plex Mono",ui-monospace,monospace;
+  font-size:.7rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+code{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.86em;background:var(--surface-2);padding:.1em .35em;border-radius:4px;color:var(--ink-2)}
+
+/* ---- layout ---- */
+section{padding:58px 0;border-top:1px solid var(--line-soft)}
+section:first-of-type{border-top:0}
+.stack{display:flex;flex-direction:column;gap:20px}
+.stack-sm{display:flex;flex-direction:column;gap:12px}
+.stack-lg{display:flex;flex-direction:column;gap:34px}
+.head{display:flex;flex-direction:column;gap:10px;margin-bottom:30px}
+.head p{color:var(--ink-2);max-width:64ch}
+
+/* ---- hero ---- */
+.hero{padding:66px 0 52px;border-top:0}
+.hero .lede{font-size:1.16rem;color:var(--ink-2);max-width:60ch;margin-top:22px}
+.hero .lede strong{color:var(--ink);font-weight:600}
+.kicker{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.lamp{width:9px;height:9px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px var(--amber-bg);flex:none}
+.lamp.built{background:var(--teal);box-shadow:0 0 0 3px var(--teal-bg)}
+.lamp.risk{background:var(--clay);box-shadow:0 0 0 3px var(--clay-bg)}
+
+.verdict{
+  margin-top:34px;display:grid;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:var(--r);overflow:hidden;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+}
+.verdict div{background:var(--surface);padding:16px 18px;display:flex;flex-direction:column;gap:4px}
+.verdict .n{font-family:Archivo,sans-serif;font-weight:700;font-size:1.5rem;letter-spacing:-.02em;line-height:1}
+.verdict .l{font-size:.78rem;color:var(--ink-3);line-height:1.35}
+
+/* ---- figure ---- */
+figure{margin:0;display:flex;flex-direction:column;gap:12px}
+.fig-frame{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;overflow-x:auto}
+figure svg{display:block;width:100%;min-width:620px;max-width:100%;height:auto;color:var(--ink-3)}
+figcaption{font-size:.83rem;color:var(--ink-3);line-height:1.5;max-width:74ch}
+.svg-label{font-family:"IBM Plex Sans",sans-serif;font-size:12.5px;fill:var(--ink)}
+.svg-label.sm{font-size:11px;fill:var(--ink-3)}
+.svg-mono{font-family:"IBM Plex Mono",monospace;font-size:10.5px;fill:var(--ink-3);letter-spacing:.06em}
+.svg-title{font-family:Archivo,sans-serif;font-weight:700;font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+
+/* ---- cards / tables ---- */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;display:flex;flex-direction:column;gap:9px}
+.card p{font-size:.9rem;color:var(--ink-2)}
+.card .eyebrow{margin-bottom:-2px}
+
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:.87rem}
+th{
+  text-align:left;font-family:"IBM Plex Mono",monospace;font-weight:500;
+  font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);
+  padding:12px 16px;border-bottom:1px solid var(--line);white-space:nowrap;
+}
+td{padding:13px 16px;border-bottom:1px solid var(--line-soft);vertical-align:top;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td strong{color:var(--ink);font-weight:600}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.chan{display:flex;align-items:center;gap:9px;white-space:nowrap}
+
+.tag{
+  display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Mono",monospace;
+  font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;font-weight:500;
+  padding:3px 8px;border-radius:5px;white-space:nowrap;
+}
+.tag.new{background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-line)}
+.tag.built{background:var(--teal-bg);color:var(--teal);border:1px solid var(--teal-line)}
+.tag.risk{background:var(--clay-bg);color:var(--clay);border:1px solid var(--clay)}
+
+.legend{display:flex;flex-wrap:wrap;gap:18px;font-size:.8rem;color:var(--ink-3);align-items:center}
+.legend span{display:flex;align-items:center;gap:8px}
+
+.note{
+  border-left:3px solid var(--amber);background:var(--amber-bg);
+  padding:14px 18px;border-radius:0 var(--r) var(--r) 0;font-size:.9rem;color:var(--ink-2);
+}
+.note.risk{border-left-color:var(--clay);background:var(--clay-bg)}
+.note strong{color:var(--ink)}
+
+/* ---- mockups ---- */
+.mock-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.mock-head .eyebrow{color:var(--amber)}
+
+.phone{
+  width:328px;flex:none;border-radius:40px;padding:11px;
+  background:#1B1D1F;box-shadow:0 30px 60px -30px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06);
+}
+.screen{background:#000;border-radius:30px;overflow:hidden;color:#fff;font-size:13.5px;line-height:1.42}
+.statusbar{display:flex;justify-content:space-between;padding:11px 22px 4px;font-size:11.5px;font-weight:600;color:#fff;font-family:"IBM Plex Sans",sans-serif}
+.imhead{display:flex;flex-direction:column;align-items:center;gap:5px;padding:8px 0 12px;border-bottom:.5px solid #2A2A2C}
+.imavatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-weight:700;font-size:16px;color:#0B1211}
+.imhead .nm{font-size:12.5px;font-weight:500;color:#fff}
+.imhead .sv{font-size:10px;color:#8E8E93;font-family:"IBM Plex Mono",monospace;letter-spacing:.04em}
+.thread{padding:14px 12px 10px;display:flex;flex-direction:column;gap:7px;background:#000}
+.day{text-align:center;font-size:10.5px;color:#8E8E93;padding:2px 0 6px}
+.b{max-width:80%;padding:7px 12px;border-radius:17px;word-wrap:break-word}
+.b.them{background:#26252A;color:#fff;align-self:flex-start;border-bottom-left-radius:5px}
+.b.me{background:#0B84FE;color:#fff;align-self:flex-end;border-bottom-right-radius:5px}
+.b.wide{max-width:88%}
+.rcpt{align-self:flex-end;font-size:10px;color:#8E8E93;margin:-3px 4px 2px}
+.attach{
+  align-self:flex-start;max-width:82%;background:#1C1C1E;border:.5px solid #2E2E30;
+  border-radius:15px;overflow:hidden;
+}
+.attach .thumb{height:74px;background:linear-gradient(120deg,#12332F,#0B84FE 130%);position:relative}
+.attach .thumb .bars{position:absolute;inset:auto 12px 10px 12px;display:flex;align-items:flex-end;gap:4px;height:44px}
+.attach .thumb .bars i{flex:1;background:rgba(255,255,255,.72);border-radius:2px 2px 0 0;display:block}
+.attach .cap{padding:8px 11px;font-size:11px;color:#C7C7CC;line-height:1.4}
+.gate{
+  align-self:flex-start;max-width:88%;background:#1C1C1E;border:.5px solid #3A3A3C;
+  border-radius:15px;padding:11px 12px;display:flex;flex-direction:column;gap:9px;
+}
+.gate .gt{font-size:10px;font-family:"IBM Plex Mono",monospace;letter-spacing:.09em;text-transform:uppercase;color:#E8A459}
+.gate .gb{font-size:12.5px;color:#fff;line-height:1.4}
+.gate .gs{font-size:11px;color:#8E8E93;font-family:"IBM Plex Mono",monospace}
+.gate .btns{display:flex;gap:7px}
+.gate .btns span{flex:1;text-align:center;font-size:11.5px;padding:6px;border-radius:9px;background:#0B84FE;color:#fff;font-weight:500}
+.gate .btns span.alt{background:#2C2C2E;color:#0B84FE}
+.imbar{display:flex;align-items:center;gap:9px;padding:9px 13px 15px;border-top:.5px solid #1F1F21}
+.imbar .fld{flex:1;border:.5px solid #38383A;border-radius:15px;padding:5px 12px;font-size:12px;color:#5C5C60}
+.imbar .plus{color:#8E8E93;font-size:17px;line-height:1}
+
+/* app window mockups */
+.win{
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.winbar{
+  display:flex;align-items:center;gap:9px;padding:10px 14px;background:var(--surface-2);
+  border-bottom:1px solid var(--line);
+}
+.winbar .dots{display:flex;gap:6px}
+.winbar .dots i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
+.winbar .ttl{font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--ink-3);letter-spacing:.05em}
+.winbody{padding:20px}
+
+.builder{display:grid;gap:18px;grid-template-columns:minmax(240px,1fr) minmax(250px,1fr)}
+.field{display:flex;flex-direction:column;gap:7px}
+.field label{font-family:"IBM Plex Mono",monospace;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.input{
+  border:1px solid var(--line);border-radius:8px;padding:11px 13px;background:var(--ground);
+  font-size:.87rem;color:var(--ink-2);line-height:1.5;
+}
+.input.tall{min-height:104px}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;align-self:flex-start;
+  background:var(--amber);color:var(--ground);border:0;border-radius:8px;
+  padding:9px 15px;font-family:"IBM Plex Sans",sans-serif;font-size:.85rem;font-weight:600;
+}
+
+.profile{border:1px dashed var(--amber-line);border-radius:10px;padding:16px;background:var(--amber-bg);display:flex;flex-direction:column;gap:13px}
+.profile .ph{display:flex;gap:12px;align-items:center}
+.avatar{width:42px;height:42px;border-radius:11px;flex:none;position:relative;overflow:hidden}
+.avatar .head{position:absolute;inset:5px 5px auto 5px;height:15px;border-radius:5px}
+.avatar .body{position:absolute;inset:auto 5px 5px 5px;height:15px;border-radius:5px}
+.avatar .acc{position:absolute;right:6px;bottom:6px;width:6px;height:6px;border-radius:50%}
+.profile .nm{font-family:Archivo,sans-serif;font-weight:700;font-size:1.02rem;letter-spacing:-.01em}
+.profile .sub{font-size:.76rem;color:var(--ink-3);font-family:"IBM Plex Mono",monospace}
+.profile p{font-size:.84rem;color:var(--ink-2)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  font-family:"IBM Plex Mono",monospace;font-size:.67rem;letter-spacing:.05em;
+  padding:3px 8px;border-radius:5px;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);
+}
+.grant{display:flex;flex-direction:column;gap:8px}
+.grow{display:flex;align-items:center;gap:11px;font-size:.83rem;color:var(--ink-2)}
+.sw{width:30px;height:18px;border-radius:9px;background:var(--line);flex:none;position:relative}
+.sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--surface);display:block}
+.sw.on{background:var(--teal)}
+.sw.on i{left:14px}
+.grow .sc{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:.68rem;color:var(--ink-3)}
+
+.roster{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+.rcard{border:1px solid var(--line);border-radius:9px;padding:13px;display:flex;flex-direction:column;gap:9px;background:var(--ground)}
+.rcard .rh{display:flex;gap:10px;align-items:center}
+.rcard .rn{font-weight:600;font-size:.9rem;line-height:1.2}
+.rcard .rr{font-size:.72rem;color:var(--ink-3);font-family:"IBM Plex Mono",monospace}
+.rcard .rl{display:flex;align-items:center;gap:7px;font-size:.72rem;color:var(--ink-3);font-family:"IBM Plex Mono",monospace;letter-spacing:.04em}
+
+.matrix{overflow-x:auto}
+.matrix table{min-width:560px}
+.matrix td{font-size:.83rem}
+.yes{color:var(--teal);font-weight:600}
+.no{color:var(--ink-3)}
+.ask{color:var(--amber);font-weight:600}
+
+.steps{display:flex;flex-direction:column;gap:0;counter-reset:s}
+.step{display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--line-soft)}
+.step:last-child{border-bottom:0}
+.step .idx{
+  font-family:"IBM Plex Mono",monospace;font-size:.72rem;color:var(--amber);
+  padding-top:3px;flex:none;width:34px;letter-spacing:.06em;
+}
+.step .sc{display:flex;flex-direction:column;gap:5px}
+.step p{font-size:.89rem;color:var(--ink-2)}
+
+.mockrow{display:flex;gap:30px;align-items:flex-start;flex-wrap:wrap}
+.mockrow .side{flex:1;min-width:270px;display:flex;flex-direction:column;gap:14px}
+
+footer{padding:42px 0 70px;border-top:1px solid var(--line-soft);color:var(--ink-3);font-size:.83rem}
+footer ul{margin:10px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+footer a{color:var(--ink-2)}
+
+/* conversation console */
+.conv{display:grid;grid-template-columns:180px 1fr 190px;gap:0;min-height:330px}
+.conv>div{padding:14px}
+.conv .rail{border-right:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.conv .rail .ci{border-radius:7px;padding:8px 9px;display:flex;flex-direction:column;gap:3px;font-size:.78rem;line-height:1.35}
+.conv .rail .ci.sel{background:var(--surface-2)}
+.conv .rail .ci .cw{font-weight:600;color:var(--ink);display:flex;align-items:center;gap:6px;font-size:.82rem}
+.conv .rail .ci .cp{color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{font-family:"IBM Plex Mono",monospace;font-size:.58rem;letter-spacing:.06em;padding:1px 5px;border-radius:4px;border:1px solid var(--line);color:var(--ink-3);text-transform:uppercase}
+.badge.im{border-color:#0B84FE;color:#0B84FE}
+.badge.tg{border-color:var(--teal-line);color:var(--teal)}
+.badge.app{border-color:var(--amber-line);color:var(--amber)}
+.conv .mid{display:flex;flex-direction:column;gap:8px;border-right:1px solid var(--line)}
+.mb{max-width:82%;padding:7px 11px;border-radius:13px;font-size:.82rem;line-height:1.45}
+.mb.them{background:var(--surface-2);color:var(--ink-2);align-self:flex-start;border-bottom-left-radius:4px}
+.mb.me{background:var(--teal);color:var(--ground);align-self:flex-end;border-bottom-right-radius:4px}
+.conv .side2{display:flex;flex-direction:column;gap:11px}
+.conv .side2 .lbl{font-family:"IBM Plex Mono",monospace;font-size:.62rem;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+.meter{height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--amber);border-radius:3px}
+
+/* call mode */
+.callscreen{background:linear-gradient(170deg,#10201E,#050B0A);border-radius:30px;overflow:hidden;color:#fff;min-height:520px;display:flex;flex-direction:column}
+.callscreen .ctop{padding:26px 22px 0;display:flex;flex-direction:column;align-items:center;gap:9px}
+.calla{width:74px;height:74px;border-radius:22px;background:linear-gradient(150deg,#E8A459,#B87A3A);display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-weight:700;font-size:27px;color:#0B1211}
+.callscreen .cn{font-family:Archivo,sans-serif;font-weight:700;font-size:19px}
+.callscreen .ct{font-family:"IBM Plex Mono",monospace;font-size:11px;color:#7F9490;letter-spacing:.07em}
+.wave{display:flex;align-items:center;justify-content:center;gap:3px;height:40px;margin:16px 0 4px}
+.wave i{width:3px;border-radius:2px;background:#5FC3B4;display:block}
+.tscript{flex:1;padding:6px 20px;display:flex;flex-direction:column;gap:9px;font-size:12.5px;line-height:1.45}
+.tscript .tl{color:#7F9490}
+.tscript .tl b{color:#E8A459;font-weight:600;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;display:block;margin-bottom:2px}
+.tscript .tl.you b{color:#5FC3B4}
+.shot{border:1px solid #24322F;border-radius:11px;padding:8px 10px;display:flex;gap:9px;align-items:center;background:rgba(255,255,255,.03)}
+.shot .sq{width:34px;height:34px;border-radius:7px;background:linear-gradient(140deg,#2E5E56,#0B84FE);flex:none}
+.shot .st{font-size:11.5px;color:#C7D4D1;line-height:1.35}
+.callbtns{display:flex;justify-content:center;gap:16px;padding:14px 0 26px}
+.cb{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:19px;color:#fff}
+.cb.end{background:#E5484D}
+.cb.cam{background:#5FC3B4;color:#06110F}
+
+/* group thread */
+.sender{font-size:10px;color:#8E8E93;margin:4px 0 -3px 12px;font-family:"IBM Plex Mono",monospace;letter-spacing:.05em}
+.sender.r{align-self:flex-end;margin:4px 12px -3px 0}
+.b.other{background:#3A3A3C;color:#fff;align-self:flex-start;border-bottom-left-radius:5px}
+.b.bot2{background:#1F3D38;color:#D6EFEA;align-self:flex-start;border-bottom-left-radius:5px}
+.silent{align-self:center;font-size:10px;color:#5C5C60;font-family:"IBM Plex Mono",monospace;letter-spacing:.05em;padding:3px 9px;border:.5px dashed #3A3A3C;border-radius:9px;margin:3px 0}
+
+/* code block */
+pre{
+  margin:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px 18px;overflow-x:auto;font-family:"IBM Plex Mono",monospace;font-size:.78rem;
+  line-height:1.65;color:var(--ink-2);
+}
+pre .k{color:var(--amber)}
+pre .s{color:var(--teal)}
+pre .c{color:var(--ink-3);font-style:italic}
+
+/* mermaid plate — deliberate single-theme island so the native renderer sits on a predictable ground */
+.mplate{
+  background:#F6F8F7;border:1px solid #D3DCD9;border-radius:var(--r);
+  padding:20px 18px;overflow-x:auto;
+}
+.mplate pre.mermaid{background:none;border:0;padding:0;margin:0;color:#111A18;font-size:.8rem;min-width:520px}
+.mplate svg{min-width:0;max-width:100%;height:auto}
+.dgrid{display:grid;gap:26px}
+
+/* name proposal */
+.namecard{
+  border:1px solid var(--amber-line);border-radius:var(--r);background:var(--amber-bg);
+  padding:24px 26px;display:flex;flex-direction:column;gap:14px;
+}
+.namecard .big{font-family:"IBM Plex Mono",monospace;font-size:clamp(1.9rem,5vw,2.8rem);font-weight:600;letter-spacing:-.02em;color:var(--amber);line-height:1}
+.namecard p{font-size:.92rem;color:var(--ink-2)}
+.alt{display:flex;flex-direction:column;gap:9px}
+.altrow{display:flex;gap:12px;align-items:baseline;font-size:.85rem;color:var(--ink-2)}
+.altrow .an{font-family:"IBM Plex Mono",monospace;color:var(--ink);min-width:112px;font-weight:500}
+
+/* channel catalog */
+.cat{display:flex;flex-direction:column;gap:8px}
+.crow{display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid var(--line);border-radius:8px;background:var(--ground)}
+.crow .cnm{font-weight:600;font-size:.87rem;min-width:98px}
+.crow .cds{font-size:.78rem;color:var(--ink-3);flex:1}
+.crow .cst{font-family:"IBM Plex Mono",monospace;font-size:.68rem;letter-spacing:.05em;white-space:nowrap}
+.crow.on{border-color:var(--teal-line)}
+.crow.on .cst{color:var(--teal)}
+.crow.blocked{opacity:.62}
+.crow.blocked .cst{color:var(--clay)}
+.crow.later .cst{color:var(--ink-3)}
+.fdots{display:flex;gap:3px}
+.fdots i{width:5px;height:5px;border-radius:50%;background:var(--line);display:block}
+.fdots i.f{background:var(--clay)}
+
+@media (max-width:860px){.conv{grid-template-columns:1fr}.conv .rail,.conv .mid{border-right:0;border-bottom:1px solid var(--line)}}
+@media (max-width:720px){
+  .builder{grid-template-columns:1fr}
+  .wrap{padding:0 20px}
+  section{padding:44px 0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="kicker">
+    <span class="lamp"></span>
+    <span class="eyebrow">Scenario reframe · <span class="mono">goal:phone-agent</span> · 2026-09-01</span>
+  </div>
+  <h1>Right name.<br>Wrong scope.</h1>
+  <p class="lede">
+    I said last round that "a transport is not a product." That was wrong on Vrooli's own terms — <code>ECOSYSTEM.md</code>
+    names <em>voice</em> as one of six interfaces and lists "future phone calls" inside it, and CLAUDE.md says every
+    scenario is meant to be monetisable. A scenario named for the interface it opens is exactly what
+    <code>audio-tools</code> already is. <strong>Keep the phone framing.</strong> The correction is narrower and
+    survives: the roadmap scopes it to <span class="mono">voice, hands-free</span>, and voice-only is both the smallest
+    version of the idea and the hardest place to start.
+  </p>
+  <p class="lede" style="margin-top:14px">
+    Widen it to a <strong>presence plane</strong> — text, images, files and voice, across iMessage, SMS, Telegram and
+    FaceTime, plus its own chat and call UX in the app — and it stops being a channel and starts being the front door
+    to all 120 scenarios. It also lands on the one objective in the live set that nothing serves.
+  </p>
+
+  <div class="verdict">
+    <div><span class="n" style="color:var(--teal)">Outbound</span><span class="l"><code>notification-hub</code> already ships an <code>imessage</code> channel, macOS + Linux desktop, Web Push, and cross-node relay through <code>vrooli-bridge</code>.</span></div>
+    <div><span class="n" style="color:var(--amber)">Inbound</span><span class="l">Nothing anywhere in the ecosystem turns an arriving message into an agent turn. This is the entire gap.</span></div>
+    <div><span class="n">25</span><span class="l">Agent descriptors already in <code>prompt-manager</code>, each with a name, description, tags and an <code>appearance</code> colour triple.</span></div>
+    <div><span class="n" style="color:var(--clay)">T2</span><span class="l"><em>Personal agency</em> — the only <strong>unserved terminal objective</strong> in <code>prompt-manager graph objectives</code>. "Evidence: none — cannot be scored."</span></div>
+  </div>
+</section>
+
+<!-- ============ NAME ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">The name</span>
+    <h2>Call it <span class="mono" style="color:var(--amber)">switchboard</span></h2>
+  </div>
+
+  <div class="grid g2">
+    <div class="namecard">
+      <div class="big">switchboard</div>
+      <p><strong>Zero collisions</strong> — the string appears nowhere in <code>.vrooli/</code>, <code>cli/</code>,
+        any PRD, or <code>docs/concepts/</code>. Single-word scenario names have precedent: <code>persona</code>,
+        <code>portal</code>, <code>treasury</code>, <code>calendar</code>, <code>notes</code>.</p>
+      <p>It names the <em>mechanism</em>, which is what the scenario actually is: many lines arriving, one place that
+        decides who they reach. It keeps the telephony framing you asked to preserve, and a customer can repeat it
+        after hearing it once — which matters for something whose first screen a stranger sees.</p>
+      <p class="mono" style="font-size:.8rem;color:var(--ink-3)">switchboard agents create · switchboard channels attach --agent wren --channel telegram · switchboard contacts tier set</p>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <span class="eyebrow">Ruled out, with reasons</span>
+        <div class="alt">
+          <div class="altrow"><span class="an">reach</span><span>37 hits, and <em>"the reach plane"</em> is settled vocabulary for <code>vrooli-bridge</code> in four separate docs. Taking it would put two owners on one phrase.</span></div>
+          <div class="altrow"><span class="an">channel-*</span><span><code>channel-manager</code> exists and means social platform identities and posting cadence. Nothing in this family is safe.</span></div>
+          <div class="altrow"><span class="an">*-inbox</span><span><code>agent-inbox</code> and <code>signal-inbox</code> both exist, and both are surfaces <em>you</em> open. This one opens itself.</span></div>
+          <div class="altrow"><span class="an">presence</span><span>Accurate to the concept but reads as an online/offline indicator, not a product.</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Runners-up</span>
+        <div class="alt">
+          <div class="altrow"><span class="an">front-desk</span><span>Also clean, and fits the existing <code>offer-desk</code> / <code>content-desk</code> family. Names the role rather than the mechanism. The better pick if you want it to read as infrastructure instead of as a product.</span></div>
+          <div class="altrow"><span class="an">agent-switchboard</span><span>Matches the <code>agent-manager</code> / <code>agent-inbox</code> prefix, but stutters at the CLI — <code>agent-switchboard agents create</code>. Take it only if the bare noun feels too loose in a list of 120.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REFRAME ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">The reframe</span>
+    <h2>One pipe versus a switchboard</h2>
+    <p>A voice-only phone scenario is a single channel bolted to a single agent. A presence plane is many channels —
+      including the app's own — resolving into one routing decision: <em>which agent is this person talking to, and
+      what may it do for them?</em> Everything downstream of that decision already exists, which is why widening the
+      scope costs less than the narrow version would.</p>
+  </div>
+
+  <figure>
+    <div class="fig-frame">
+      <svg viewBox="0 0 920 250" role="img" aria-label="Left: the planned phone scenario, one voice channel wired to one agent. Right: the proposed presence plane, five channels resolving through one routing and trust layer into the whole Vrooli ecosystem.">
+        <defs>
+          <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/>
+          </marker>
+        </defs>
+
+        <text class="svg-mono" x="20" y="22">PLANNED</text>
+        <rect x="20" y="36" width="400" height="196" rx="10" fill="none" stroke="var(--line)" stroke-dasharray="0"/>
+        <rect x="52" y="112" width="112" height="44" rx="8" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="108" y="139" text-anchor="middle">Voice call</text>
+        <line x1="168" y1="134" x2="256" y2="134" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+        <rect x="260" y="112" width="128" height="44" rx="8" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="324" y="139" text-anchor="middle">One agent</text>
+        <text class="svg-label sm" x="220" y="196" text-anchor="middle">one channel · one identity · audio only</text>
+
+        <text class="svg-mono" x="500" y="22" fill="var(--amber)">PROPOSED</text>
+        <rect x="500" y="36" width="400" height="196" rx="10" fill="none" stroke="var(--amber-line)"/>
+        <rect x="516" y="52" width="96" height="26" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label sm" x="564" y="69" text-anchor="middle" fill="var(--ink)">iMessage</text>
+        <rect x="516" y="86" width="96" height="26" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label sm" x="564" y="103" text-anchor="middle" fill="var(--ink)">SMS</text>
+        <rect x="516" y="120" width="96" height="26" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label sm" x="564" y="137" text-anchor="middle" fill="var(--ink)">Telegram</text>
+        <rect x="516" y="154" width="96" height="26" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label sm" x="564" y="171" text-anchor="middle" fill="var(--ink)">FaceTime</text>
+        <rect x="516" y="188" width="96" height="26" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label sm" x="564" y="205" text-anchor="middle" fill="var(--ink)">Web / e-mail</text>
+
+        <path d="M616 65 L664 122" stroke="var(--amber)" stroke-width="1.3" fill="none"/>
+        <path d="M616 99 L664 128" stroke="var(--amber)" stroke-width="1.3" fill="none"/>
+        <path d="M616 133 L664 133" stroke="var(--amber)" stroke-width="1.3" fill="none"/>
+        <path d="M616 167 L664 138" stroke="var(--amber)" stroke-width="1.3" fill="none"/>
+        <path d="M616 201 L664 144" stroke="var(--amber)" stroke-width="1.3" fill="none"/>
+
+        <rect x="668" y="104" width="86" height="58" rx="8" fill="var(--amber-bg)" stroke="var(--amber-line)"/>
+        <text class="svg-label" x="711" y="128" text-anchor="middle" fill="var(--ink)">Route</text>
+        <text class="svg-label" x="711" y="146" text-anchor="middle" fill="var(--ink)">+ guard</text>
+        <line x1="756" y1="133" x2="812" y2="133" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#ar-a)"/>
+        <rect x="816" y="104" width="66" height="58" rx="8" fill="var(--teal-bg)" stroke="var(--teal-line)"/>
+        <text class="svg-label" x="849" y="128" text-anchor="middle" fill="var(--ink)">Every</text>
+        <text class="svg-label" x="849" y="146" text-anchor="middle" fill="var(--ink)">scenario</text>
+      </svg>
+    </div>
+    <figcaption>The difference is not "more channels". It is that a routing-and-trust decision now sits between the outside world
+      and the ecosystem — which is what makes it safe to give the handle to someone who is not you.</figcaption>
+  </figure>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Architecture</span>
+    <h2>You already built the return path</h2>
+    <p>This is the finding that should change the plan. <code>notification-hub</code> is described in its own PRD as
+      "the owner's notification spine… reaching a human reliably", and its macOS sender already drives
+      <code>Messages</code> over <code>osascript</code> for an <code>imessage</code> channel — relayed to a Mac in the fleet by
+      <code>vrooli-bridge</code> when this host is Linux. Egress is solved. Build ingress, and reuse the rest.</p>
+  </div>
+
+  <figure>
+    <div class="fig-frame">
+      <svg viewBox="0 0 1000 690" role="img" aria-label="Architecture: five outside channels feed inbound messages into a new scenario containing ingress adapters, conversation session, address to agent routing and a trust guard. That scenario reads agent profiles from prompt-manager, starts attenuated runs in agent-manager which drives program-runtime, audio-tools and persona, and replies through notification-hub, which already delivers to the same channels via vrooli-bridge to a Mac node.">
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/>
+          </marker>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--teal)"/>
+          </marker>
+          <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <!-- BAND A : channels -->
+        <text class="svg-mono" x="60" y="26">OUTSIDE — WHERE THE HUMAN ALREADY IS</text>
+        <rect x="60"  y="40" width="142" height="54" rx="8" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="131" y="63" text-anchor="middle">iMessage</text>
+        <text class="svg-label sm" x="131" y="80" text-anchor="middle">your own Mac</text>
+        <rect x="238" y="40" width="142" height="54" rx="8" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="309" y="63" text-anchor="middle">SMS · Voice</text>
+        <text class="svg-label sm" x="309" y="80" text-anchor="middle">Twilio number</text>
+        <rect x="416" y="40" width="142" height="54" rx="8" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="487" y="63" text-anchor="middle">Telegram</text>
+        <text class="svg-label sm" x="487" y="80" text-anchor="middle">Bot API, free</text>
+        <rect x="594" y="40" width="142" height="54" rx="8" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="665" y="63" text-anchor="middle">FaceTime audio</text>
+        <text class="svg-label sm" x="665" y="80" text-anchor="middle">experimental</text>
+        <rect x="772" y="40" width="142" height="54" rx="8" fill="var(--surface-2)" stroke="var(--line)" stroke-dasharray="3 3"/>
+        <text class="svg-label" x="843" y="63" text-anchor="middle" fill="var(--ink-3)">WhatsApp…</text>
+        <text class="svg-label sm" x="843" y="80" text-anchor="middle">same contract</text>
+
+        <!-- inbound arrows -->
+        <line x1="131" y1="94" x2="131" y2="186" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#a2)"/>
+        <line x1="309" y1="94" x2="309" y2="186" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#a2)"/>
+        <line x1="487" y1="94" x2="487" y2="186" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#a2)"/>
+        <line x1="665" y1="94" x2="665" y2="186" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#a2)"/>
+        <line x1="843" y1="94" x2="843" y2="186" stroke="var(--amber)" stroke-width="1.4" stroke-dasharray="4 4" marker-end="url(#a2)"/>
+        <text class="svg-mono" x="360" y="146" fill="var(--amber)">INBOUND · TEXT · IMAGE · VOICE NOTE · FILE</text>
+
+        <!-- BAND B : new scenario -->
+        <rect x="60" y="190" width="854" height="176" rx="12" fill="var(--amber-bg)" stroke="var(--amber-line)" stroke-dasharray="6 4" stroke-width="1.6"/>
+        <text class="svg-title" x="76" y="216" fill="var(--amber)">NEW SCENARIO — THE ONLY THING THAT DOES NOT EXIST YET</text>
+        <rect x="76" y="240" width="194" height="94" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+        <text class="svg-label" x="173" y="273" text-anchor="middle">Ingress adapters</text>
+        <text class="svg-label sm" x="173" y="292" text-anchor="middle">webhook · poll · chat.db</text>
+        <text class="svg-label sm" x="173" y="308" text-anchor="middle">one bidirectional contract</text>
+        <rect x="290" y="240" width="194" height="94" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+        <text class="svg-label" x="387" y="273" text-anchor="middle">Conversation</text>
+        <text class="svg-label sm" x="387" y="292" text-anchor="middle">threads, media, receipts</text>
+        <text class="svg-label sm" x="387" y="308" text-anchor="middle">survives a restart</text>
+        <rect x="504" y="240" width="194" height="94" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+        <text class="svg-label" x="601" y="273" text-anchor="middle">Address → agent</text>
+        <text class="svg-label sm" x="601" y="292" text-anchor="middle">handle, number, thread</text>
+        <text class="svg-label sm" x="601" y="308" text-anchor="middle">bound to one profile</text>
+        <rect x="718" y="240" width="180" height="94" rx="8" fill="var(--surface)" stroke="var(--clay)"/>
+        <text class="svg-label" x="808" y="273" text-anchor="middle">Trust guard</text>
+        <text class="svg-label sm" x="808" y="292" text-anchor="middle">contact tier decides</text>
+        <text class="svg-label sm" x="808" y="308" text-anchor="middle">the scope handed down</text>
+        <path d="M272 287 L288 287" stroke="currentColor" stroke-width="1.4" marker-end="url(#a4)"/>
+        <path d="M486 287 L502 287" stroke="currentColor" stroke-width="1.4" marker-end="url(#a4)"/>
+        <path d="M700 287 L716 287" stroke="currentColor" stroke-width="1.4" marker-end="url(#a4)"/>
+
+        <!-- links down -->
+        <line x1="191" y1="452" x2="191" y2="370" stroke="var(--teal)" stroke-width="1.6" marker-end="url(#a3)"/>
+        <text class="svg-mono" x="204" y="400" fill="var(--teal)">AGENT PROFILE · SKILLS</text>
+        <text class="svg-mono" x="204" y="416" fill="var(--teal)">· CAPABILITY GRANTS</text>
+        <line x1="487" y1="366" x2="487" y2="448" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#a2)"/>
+        <text class="svg-mono" x="500" y="400" fill="var(--amber)">ATTENUATED RUN</text>
+        <text class="svg-mono" x="500" y="416" fill="var(--amber)">· DAG WORKFLOW</text>
+        <line x1="783" y1="366" x2="783" y2="448" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#a2)"/>
+        <text class="svg-mono" x="796" y="400" fill="var(--amber)">REPLY</text>
+
+        <!-- BAND C : existing -->
+        <text class="svg-mono" x="60" y="440">ALREADY BUILT IN THE REPO</text>
+        <rect x="60"  y="452" width="262" height="66" rx="9" fill="var(--teal-bg)" stroke="var(--teal-line)"/>
+        <text class="svg-label" x="191" y="477" text-anchor="middle">prompt-manager</text>
+        <text class="svg-label sm" x="191" y="496" text-anchor="middle">agents · skills · actions · teams</text>
+        <rect x="356" y="452" width="262" height="66" rx="9" fill="var(--teal-bg)" stroke="var(--teal-line)"/>
+        <text class="svg-label" x="487" y="477" text-anchor="middle">agent-manager</text>
+        <text class="svg-label sm" x="487" y="496" text-anchor="middle">runs · approvals · Attenuate()</text>
+        <rect x="652" y="452" width="262" height="66" rx="9" fill="var(--teal-bg)" stroke="var(--teal-line)"/>
+        <text class="svg-label" x="783" y="477" text-anchor="middle">notification-hub</text>
+        <text class="svg-label sm" x="783" y="496" text-anchor="middle">already sends iMessage today</text>
+
+        <rect x="60"  y="548" width="194" height="60" rx="8" fill="var(--surface)" stroke="var(--teal-line)"/>
+        <text class="svg-label" x="157" y="572" text-anchor="middle">program-runtime</text>
+        <text class="svg-label sm" x="157" y="590" text-anchor="middle">governed scripts</text>
+        <rect x="276" y="548" width="194" height="60" rx="8" fill="var(--surface)" stroke="var(--teal-line)"/>
+        <text class="svg-label" x="373" y="572" text-anchor="middle">audio-tools</text>
+        <text class="svg-label sm" x="373" y="590" text-anchor="middle">whisper · kyutai · kokoro</text>
+        <rect x="492" y="548" width="194" height="60" rx="8" fill="var(--surface)" stroke="var(--teal-line)"/>
+        <text class="svg-label" x="589" y="572" text-anchor="middle">persona</text>
+        <text class="svg-label sm" x="589" y="590" text-anchor="middle">who the agent is · OTP</text>
+        <rect x="708" y="548" width="206" height="60" rx="8" fill="var(--surface)" stroke="var(--teal-line)"/>
+        <text class="svg-label" x="811" y="572" text-anchor="middle">vrooli-bridge → Mac node</text>
+        <text class="svg-label sm" x="811" y="590" text-anchor="middle">allowlisted CLI verbs only</text>
+
+        <line x1="440" y1="518" x2="373" y2="544" stroke="var(--teal)" stroke-width="1.3" marker-end="url(#a3)"/>
+        <line x1="487" y1="518" x2="487" y2="544" stroke="var(--teal)" stroke-width="1.3" marker-end="url(#a3)"/>
+        <line x1="534" y1="518" x2="589" y2="544" stroke="var(--teal)" stroke-width="1.3" marker-end="url(#a3)"/>
+        <line x1="783" y1="518" x2="811" y2="544" stroke="var(--teal)" stroke-width="1.3" marker-end="url(#a3)"/>
+        <text class="svg-mono" x="600" y="537">STEPS</text>
+
+        <!-- return rail -->
+        <path d="M914 485 L962 485 L962 67 L920 67" fill="none" stroke="var(--teal)" stroke-width="1.8" marker-end="url(#a3)"/>
+        <text class="svg-mono" x="952" y="300" fill="var(--teal)" transform="rotate(-90 952 300)" text-anchor="middle">OUTBOUND — ALREADY WORKS</text>
+
+        <!-- legend -->
+        <rect x="60" y="640" width="14" height="14" rx="3" fill="var(--amber-bg)" stroke="var(--amber-line)" stroke-dasharray="4 3"/>
+        <text class="svg-label sm" x="82" y="652" fill="var(--ink)">to build</text>
+        <rect x="160" y="640" width="14" height="14" rx="3" fill="var(--teal-bg)" stroke="var(--teal-line)"/>
+        <text class="svg-label sm" x="182" y="652" fill="var(--ink)">exists today</text>
+        <rect x="288" y="640" width="14" height="14" rx="3" fill="var(--surface)" stroke="var(--clay)"/>
+        <text class="svg-label sm" x="310" y="652" fill="var(--ink)">the security-critical seam</text>
+      </svg>
+    </div>
+    <figcaption>The new scenario owns four things and nothing else: adapters, sessions, address-to-agent binding, and the trust guard.
+      Every box below the dashed line is code that already runs. That is why this is weeks of work, not a quarter.</figcaption>
+  </figure>
+</section>
+
+<!-- ============ ECOSYSTEM FIT ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">The lens I skipped last round</span>
+    <h2>Ecosystem fit, all six clusters</h2>
+    <p>You were right to send me back to this. Run properly, it does not just place the scenario — it strengthens the
+      case, because two of the six clusters return unusually good answers.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Cluster</th><th>Answer</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>1 · Interfaces</strong></td>
+          <td>Conversational (in + out), Voice (in + out), Direct UI, Programmatic — and <strong>Embodied / embedded, inbound</strong>.
+            That last cell is an <em>em-dash</em> in <code>ECOSYSTEM.md</code>'s own table, with "future connector scenarios"
+            named as its enabler. This is that connector scenario. It is the first thing in the ecosystem to fill a
+            documented hole in the interface map rather than to deepen a column that already has entries.</td>
+        </tr>
+        <tr>
+          <td><strong>1b · "Done" obligations</strong></td>
+          <td>Direct UI → polished, with loading, error and empty states. Conversational → widgets and tools declared
+            <em>and discoverable</em> through <code>cli-health</code> / <code>ui-health</code>. Voice → wired into the
+            consuming scenarios, not merely available. Programmatic → a clean Connect + CLI surface others call.
+            Embodied → <em>"a connector seam; do not hand-roll the outbound integration inside the scenario"</em> — which
+            is the doctrine settling the <code>notification-hub</code> adapter question below.</td>
+        </tr>
+        <tr>
+          <td><strong>2 · Role &amp; multiplier</strong></td>
+          <td><strong>Interface enabler</strong> (high multiplier) wearing a product face. It does not add one capability;
+            it makes every existing scenario reachable from a phone. Cheap multiplier raise already available: agent
+            authoring should emit a <code>prompt-manager</code> descriptor through a typed action, so the LLM step is
+            drafting-only and the write path stays deterministic.</td>
+        </tr>
+        <tr>
+          <td><strong>3 · Compound value seam</strong></td>
+          <td>One bidirectional <strong>channel adapter contract</strong> — a JSON descriptor plus a conformance-tested
+            adapter — and the address→agent binding. Any future scenario gets a messaging front door by dropping in two
+            files. That seam is worth more than any single channel it carries, and it is the same shape
+            <code>channel-manager</code> already proved with its platform descriptors.</td>
+        </tr>
+        <tr>
+          <td><strong>4 · Objective served</strong></td>
+          <td><strong>T2 — Personal agency</strong>, owned by <code>director-swarm</code>. Live state:
+            <span class="mono">unserved (pending-capability) · evidence: none — cannot be scored</span>, and the sensor
+            raises <code>objective_unmeasurable</code> against it. It is the only unserved terminal objective in the set.
+            An agent you can text from anywhere, that acts for you inside your own bounds, is close to a literal reading
+            of the name — and it would give T2 its first evidence source.</td>
+        </tr>
+        <tr>
+          <td><strong>5 · Retirement claim</strong></td>
+          <td>Three, all opened rather than asserted: the <code>goal:phone-agent</code> row in
+            <code>ROADMAP.md:116</code>; the Embodied-inbound em-dash in <code>ECOSYSTEM.md</code>'s interface table;
+            and <code>MacOSDesktopSender</code>'s <code>imessage</code> branch in
+            <code>notification-hub/api/internal/hub/transports.go:143</code>, once the shared adapter subsumes it.
+            Trigger for the third: the adapter contract ships and notification-hub routes conversational channels through it.</td>
+        </tr>
+        <tr>
+          <td><strong>6 · Monetisation</strong></td>
+          <td>Routed, not decided — see the next-but-one section. Class A metered on inference and speech seconds;
+            gated on provisioning convenience; free on everything a self-hoster runs with their own keys and their own Mac.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ CHANNEL LADDER ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Channel economics</span>
+    <h2>Not all channels cost the same</h2>
+    <p>Ordered by what you get per unit of pain. The honest answer is that Telegram is the correct first channel and it
+      is not close — it proves the entire loop in days, for free, with images and voice notes native. iMessage is the
+      channel that <em>sells</em>, and it is second because it needs a Mac that stays on.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead>
+        <tr><th>Channel</th><th>How it connects</th><th>Cost</th><th>Carries</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="chan"><span class="lamp"></span> <strong>Telegram</strong></span></td>
+          <td>Official Bot API. Webhook or long-poll from Linux. No account, no review, no number.</td>
+          <td class="num">$0</td>
+          <td>Text, images, files, voice notes, inline buttons</td>
+          <td><span class="tag new">ship first</span></td>
+        </tr>
+        <tr>
+          <td><span class="chan"><span class="lamp built"></span> <strong>iMessage</strong> <span class="mono" style="font-size:.7rem;color:var(--ink-3)">own Mac</span></span></td>
+          <td>Send already works via <code>osascript</code>. Receive means reading <code>chat.db</code> with Full Disk Access, or running BlueBubbles. Reach the Mac through <code>vrooli-bridge</code>.</td>
+          <td class="num">$0</td>
+          <td>Text, images, attachments, tapbacks</td>
+          <td><span class="tag new">the differentiator</span></td>
+        </tr>
+        <tr>
+          <td><span class="chan"><span class="lamp"></span> <strong>SMS</strong></span></td>
+          <td>The <code>twilio</code> resource already exists with typed Go credentials. Inbound is a webhook, so it needs <code>tunnel-manager</code>.</td>
+          <td class="num">$4 brand + $15 vetting<br>+ $2/campaign/mo</td>
+          <td>Text, MMS images</td>
+          <td><span class="tag risk">10DLC wall</span></td>
+        </tr>
+        <tr>
+          <td><span class="chan"><span class="lamp"></span> <strong>Voice call</strong></span></td>
+          <td>Twilio media stream ↔ <code>audio-tools</code> STT ↔ <code>kokoro</code> TTS, or a bundled vendor.</td>
+          <td class="num">$0.11–0.33/min all-in<br><span style="color:var(--ink-3)">not the $0.05 advertised</span></td>
+          <td>Speech, DTMF</td>
+          <td><span class="tag">phase two</span></td>
+        </tr>
+        <tr>
+          <td><span class="chan"><span class="lamp"></span> <strong>FaceTime audio</strong></span></td>
+          <td><a href="https://github.com/kingbootoshi/facetime-bridge">facetime-bridge</a> (MIT) already does this: a Swift <code>facetime-bridge-ax</code> driving Accessibility APIs, a TS gRPC daemon on a Unix socket, BlackHole 16ch in / 2ch out. <code>probe · call · answer · hangup</code>, all strict JSON.</td>
+          <td class="num">$0</td>
+          <td>Speech, free and fully private</td>
+          <td><span class="tag new">viable — wrap it</span></td>
+        </tr>
+        <tr>
+          <td><span class="chan"><span class="lamp risk"></span> <strong>Hosted iMessage API</strong></span></td>
+          <td>Sendblue, LoopMessage, Blooio. For users with no Mac.</td>
+          <td class="num">per-message</td>
+          <td>Text, images</td>
+          <td><span class="tag risk">breaks the pitch</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid g2" style="margin-top:22px">
+    <div class="note">
+      <strong>The 10DLC detail that will surprise you.</strong> Registering a sole-proprietor brand requires verifying with a
+      real US or Canadian <em>mobile carrier</em> number — a VoIP number, including a Twilio one, is rejected outright.
+      That is precisely the wall <code>persona</code> was designed for: an OTP-retrieval contract and a typed handoff
+      for the step no machine may take.
+    </div>
+    <div class="note risk">
+      <strong>Do not let a hosted relay become the default.</strong> The loudest thing in the posts you sent is
+      <em>"I am NOT gonna let my DATA run through ANOTHER MANS SERVER."</em> The moment iMessage routes through Sendblue,
+      Vrooli's only durable advantage over Shuffle and Instinct is gone. Ship it as a labelled fallback, never the
+      happy path.
+    </div>
+  </div>
+</section>
+
+<!-- ============ MOCKUP 1 : THE THREAD ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Mockup · what the customer sees</span>
+    <h2>The whole product is a thread</h2>
+    <p>Text in, image in, image out, and — the part no competitor has — a capability gate that stops the agent at the
+      edge of what this thread was granted. That gate is the feature, not the friction.</p>
+  </div>
+
+  <div class="mockrow">
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>▮▮▮ ⌁ 84%</span></div>
+        <div class="imhead">
+          <div class="imavatar" style="background:linear-gradient(150deg,#E8A459,#B87A3A)">W</div>
+          <div class="nm">Wren</div>
+          <div class="sv">iMessage · your Mac mini</div>
+        </div>
+        <div class="thread">
+          <div class="day">Today 7:02</div>
+          <div class="b me">did the overnight test-genie run finish?</div>
+          <div class="b them">Yes. <span style="color:#8E8E93">audio-tools</span>, 41 min, 2 failures — both in the STT drain suite. Same assertion as Thursday.</div>
+          <div class="attach">
+            <div class="thumb"><div class="bars">
+              <i style="height:38%"></i><i style="height:62%"></i><i style="height:47%"></i><i style="height:88%"></i><i style="height:71%"></i><i style="height:34%"></i><i style="height:56%"></i><i style="height:92%"></i>
+            </div></div>
+            <div class="cap">Pass rate, last 8 runs · tap to open in Test Genie</div>
+          </div>
+          <div class="b me">📷 whiteboard.heic</div>
+          <div class="b me">turn this into a plan</div>
+          <div class="rcpt">Read 7:04</div>
+          <div class="b them wide">Read it. Six phases, and phase 3 collides with the storage retention work you paused. Drafted in Plan Manager.</div>
+          <div class="gate">
+            <div class="gt">⚠ capability gate</div>
+            <div class="gb">Finalising the plan needs <span class="mono" style="color:#fff">plan.write</span>, which this thread does not hold.</div>
+            <div class="gs">tier: trusted · grant expires in 1h</div>
+            <div class="btns"><span>Grant once</span><span class="alt">Show plan</span></div>
+          </div>
+        </div>
+        <div class="imbar"><span class="plus">＋</span><div class="fld">iMessage</div><span class="plus">⌁</span></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <span class="eyebrow">Why this beats a chatbot</span>
+        <h3>The message is a front door, not the house</h3>
+        <p>Sendblue gives you an LLM with a few tools behind a blue bubble. This thread reaches 120-odd scenarios, a
+          governed script runtime, a DAG workflow engine, a test server, and a fleet of your own machines. Same
+          interface, incomparable depth — and that depth is already built.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Multimodal is not a bonus</span>
+        <h3>Audio was always the hardest one</h3>
+        <p>The planned scenario started at voice, which needs STT, TTS, turn-taking, barge-in and telephony before it
+          says a word. Text and images need a webhook. Starting at voice inverted the difficulty curve — and
+          <code>audio-tools</code> is there when you want it, with <code>whisper</code>, <code>kyutai-stt</code> and
+          <code>kokoro</code> already packaged as resources.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ IN-APP UX ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Mockup · the app itself</span>
+    <h2>The in-app chat is the funnel</h2>
+    <p>You framed the built-in chat and call mode as "would be weird to <em>not</em> have it." I think it is stronger
+      than that, and I had it backwards last round. Nobody can try an iMessage agent on impulse — that needs a Mac, an
+      Apple ID, and for SMS a week of carrier registration. An in-app thread works in ten seconds. So the chat UX is not
+      a redundant reading surface; it is <strong>the only zero-setup path into the product</strong>, and therefore the
+      place where signing in and subscribing actually happens.</p>
+  </div>
+
+  <figure style="margin-bottom:34px">
+    <div class="fig-frame">
+      <svg viewBox="0 0 960 190" role="img" aria-label="Funnel: try in the app with zero setup and no account, then sign in to save the agent, then subscribe for pooled tokens, then attach the agent to iMessage or a phone number. Setup friction rises sharply at the last step, which is why it must come last.">
+        <defs><marker id="f1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--amber)"/></marker></defs>
+        <rect x="20"  y="46" width="196" height="66" rx="9" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="118" y="72" text-anchor="middle">Try it in the app</text>
+        <text class="svg-label sm" x="118" y="91" text-anchor="middle">no account, no Mac, 10s</text>
+        <line x1="220" y1="79" x2="252" y2="79" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#f1)"/>
+        <rect x="256" y="46" width="196" height="66" rx="9" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="354" y="72" text-anchor="middle">Sign in to keep it</text>
+        <text class="svg-label sm" x="354" y="91" text-anchor="middle">the agent becomes yours</text>
+        <line x1="456" y1="79" x2="488" y2="79" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#f1)"/>
+        <rect x="492" y="46" width="196" height="66" rx="9" fill="var(--amber-bg)" stroke="var(--amber-line)" stroke-width="1.6"/>
+        <text class="svg-label" x="590" y="72" text-anchor="middle">Subscribe for tokens</text>
+        <text class="svg-label sm" x="590" y="91" text-anchor="middle">pooled inference + speech</text>
+        <line x1="692" y1="79" x2="724" y2="79" stroke="var(--amber)" stroke-width="1.6" marker-end="url(#f1)"/>
+        <rect x="728" y="46" width="212" height="66" rx="9" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="834" y="72" text-anchor="middle">Attach a real handle</text>
+        <text class="svg-label sm" x="834" y="91" text-anchor="middle">iMessage · number · Telegram</text>
+
+        <path d="M118 148 L354 145 L590 138 L834 122" fill="none" stroke="var(--clay)" stroke-width="1.6" stroke-dasharray="4 3"/>
+        <circle cx="118" cy="148" r="3" fill="var(--clay)"/><circle cx="354" cy="145" r="3" fill="var(--clay)"/>
+        <circle cx="590" cy="138" r="3" fill="var(--clay)"/><circle cx="834" cy="122" r="3" fill="var(--clay)"/>
+        <text class="svg-mono" x="20" y="176" fill="var(--clay)">SETUP FRICTION — LOW UNTIL THE LAST STEP, WHICH IS WHY THE LAST STEP IS LAST</text>
+        <text class="svg-mono" x="20" y="36">THE ONLY ORDER THAT CONVERTS</text>
+      </svg>
+    </div>
+    <figcaption>Every competitor's first screen is "connect your number." Putting the paywall <em>after</em> value and
+      the setup <em>after</em> the paywall is the whole reason to build the in-app surfaces at all.</figcaption>
+  </figure>
+
+  <div class="mock-head"><span class="eyebrow">Surface one</span><h3>Unified conversations — every channel, one place</h3></div>
+  <div class="win" style="margin-bottom:32px">
+    <div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="ttl">agent-switchboard — conversations</span></div>
+    <div class="conv">
+      <div class="rail">
+        <div class="ci sel"><span class="cw">Wren <span class="badge im">iMessage</span></span><span class="cp">2 failures, both STT drain</span></div>
+        <div class="ci"><span class="cw">Wren <span class="badge app">in-app</span></span><span class="cp">draft the retention plan</span></div>
+        <div class="ci"><span class="cw">Ledger <span class="badge tg">telegram</span></span><span class="cp">weekly digest sent</span></div>
+        <div class="ci"><span class="cw">House <span class="badge im">group</span></span><span class="cp">Mum: is Thursday still on?</span></div>
+      </div>
+      <div class="mid">
+        <div class="mb them">Overnight run finished. 41 min, 2 failures — both the STT drain suite, same assertion as Thursday.</div>
+        <div class="mb me">is it the same root cause?</div>
+        <div class="mb them">Almost certainly. Both assert on a drain that completes before the commit lands. I can open a bug or draft the fix — the fix needs <span class="mono">program:run</span>, which this thread does not hold.</div>
+        <div class="mb me">open the bug</div>
+      </div>
+      <div class="side2">
+        <div><div class="lbl">Agent</div><div style="font-weight:600;font-size:.86rem;margin-top:4px">Wren</div><div style="font-size:.74rem;color:var(--ink-3)">ops watch · tier: owner</div></div>
+        <div><div class="lbl">Reachable at</div><div class="chips" style="margin-top:5px"><span class="chip">iMessage</span><span class="chip">in-app</span></div></div>
+        <div>
+          <div class="lbl">Tokens this month</div>
+          <div class="meter" style="margin-top:6px"><i style="width:62%"></i></div>
+          <div style="font-size:.72rem;color:var(--ink-3);margin-top:5px;font-family:'IBM Plex Mono',monospace">6.2k / 10k · Starter</div>
+          <button class="btn" style="margin-top:9px;padding:6px 12px;font-size:.76rem" type="button">Upgrade</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-head"><span class="eyebrow">Surface two</span><h3>Call mode — the original roadmap goal, kept</h3></div>
+  <div class="mockrow">
+    <div class="phone">
+      <div class="callscreen">
+        <div class="ctop">
+          <div class="calla">W</div>
+          <div class="cn">Wren</div>
+          <div class="ct">IN-APP CALL · 04:12 · LOCAL WHISPER</div>
+        </div>
+        <div class="wave">
+          <i style="height:24%"></i><i style="height:52%"></i><i style="height:88%"></i><i style="height:41%"></i><i style="height:70%"></i><i style="height:96%"></i><i style="height:33%"></i><i style="height:61%"></i><i style="height:82%"></i><i style="height:29%"></i><i style="height:55%"></i><i style="height:38%"></i>
+        </div>
+        <div class="tscript">
+          <div class="tl you"><b>YOU</b>what's blocking the release?</div>
+          <div class="tl"><b>WREN</b>Two things. The STT drain failures, and deployment-manager has no owner on the Mac lane.</div>
+          <div class="tl you"><b>YOU</b>hang on, look at this</div>
+          <div class="shot">
+            <span class="sq"></span>
+            <span class="st">Photo sent to Wren · reading whiteboard…</span>
+          </div>
+          <div class="tl"><b>WREN</b>That's the same dependency you sketched in July. Want it as a plan?</div>
+        </div>
+        <div class="callbtns">
+          <span class="cb">🎙</span><span class="cb cam">📷</span><span class="cb end">✕</span>
+        </div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <span class="eyebrow">Why the camera matters</span>
+        <h3>It is what makes it an app, not a tab</h3>
+        <p>Point the phone at a whiteboard, a serial number, a shelf, an error on another screen — the agent reads it
+          mid-conversation. A web console cannot do that. This is the one capability that justifies the mobile shell and
+          the <code>scenario-to-ios</code> / <code>scenario-to-android</code> work, and it is the difference between a
+          subscription and a bookmark.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Nothing new underneath</span>
+        <h3>Call mode is already three-quarters built</h3>
+        <p><code>audio-tools</code> owns capture, WebSocket streaming and local STT with <code>whisper</code> and
+          <code>kyutai-stt</code>; <code>kokoro</code> is a packaged TTS resource. Call mode is a UX over transports
+          that exist. Note the honest caveat from your own memory: dictation has been silently running CPU whisper
+          because <code>engine_id</code> never reaches the engine — fix that before calling this a voice product.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MOCKUP 2 : THE BUILDER ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Mockup · the thing people pay for</span>
+    <h2>Describe an agent. Get an agent.</h2>
+    <p>You named this as the monetisable moment and I agree — but it is smaller than it sounds, because
+      <code>prompt-manager</code> already stores agents as first-class file-backed entities with a display name,
+      description, tags, status and an <code>appearance</code> colour triple. The AI is writing a descriptor that has a
+      schema. This is an authoring assist, not a new subsystem.</p>
+  </div>
+
+  <div class="win">
+    <div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="ttl">agent-switchboard — new agent</span></div>
+    <div class="winbody">
+      <div class="builder">
+        <div class="stack-sm">
+          <div class="field">
+            <label>Describe it in your own words</label>
+            <div class="input tall">Someone who watches the overnight test runs and texts me only when something broke twice in a row. Should be dry, never chatty, and should never touch the terminal without asking. My family can text it about the house calendar but nothing else.</div>
+          </div>
+          <button class="btn" type="button">Draft the agent →</button>
+          <div class="field">
+            <label>Reachable at</label>
+            <div class="chips">
+              <span class="chip">iMessage · mac-mini</span>
+              <span class="chip">Telegram · @wren_ops</span>
+              <span class="chip" style="opacity:.5">+ SMS…</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile">
+          <div class="ph">
+            <div class="avatar" style="background:#2A1E12">
+              <span class="head" style="background:#E8A459"></span>
+              <span class="body" style="background:#B87A3A"></span>
+              <span class="acc" style="background:#FBEEDF"></span>
+            </div>
+            <div>
+              <div class="nm">Wren</div>
+              <div class="sub">prompt-manager/agents/wren</div>
+            </div>
+          </div>
+          <p>Watches scheduled test runs and reports only repeat failures. Terse by policy. Escalates rather than guesses.</p>
+          <div class="chips">
+            <span class="chip">ops</span><span class="chip">terse</span><span class="chip">escalating</span><span class="chip">status:active</span>
+          </div>
+          <div class="grant">
+            <div class="grow"><span class="sw on"><i></i></span> Read test-genie runs <span class="sc">scenario:read</span></div>
+            <div class="grow"><span class="sw on"><i></i></span> Draft plans <span class="sc">plan:draft</span></div>
+            <div class="grow"><span class="sw"><i></i></span> Governed programs <span class="sc">program:run</span></div>
+            <div class="grow"><span class="sw"><i></i></span> Terminal <span class="sc">ask every time</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-top:20px">
+    <div class="card">
+      <span class="eyebrow">Already there</span>
+      <h4>The descriptor</h4>
+      <p><code>agent.json</code> carries <code>id</code>, <code>displayName</code>, <code>description</code>,
+        <code>status</code>, <code>tags</code>, <code>appearance</code> and an ordered <code>AGENT.md</code>. The avatar
+        above is rendered straight from the <code>body</code>/<code>head</code>/<code>accent</code> hexes it already has.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Already there</span>
+      <h4>The enforcement</h4>
+      <p><code>agent-manager</code> owns workload identity — a subject, a scope list, and <code>Attenuate()</code>
+        enforcing one-way narrowing into child runs. The toggles do not need a new mechanism; they need to name scopes
+        this already understands.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Missing</span>
+      <h4>The grant block</h4>
+      <p>Nothing in the descriptor says <em>what this agent may do</em>. That is the one real addition to
+        <code>prompt-manager</code>: a capability grant that <em>references</em> agent-manager scopes and
+        program-runtime manifest bindings rather than redefining them.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MOCKUP 3 : ROSTER + TRUST ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Mockup · the console</span>
+    <h2>A roster, and who may talk to it</h2>
+    <p>One agent per purpose, each with its own handles and its own ceiling. The second table is the part that lets you
+      hand a number to someone who is not you — and the part every hosted competitor handles by simply not offering it.</p>
+  </div>
+
+  <div class="win">
+    <div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="ttl">agent-switchboard — roster</span></div>
+    <div class="winbody stack">
+      <div class="roster">
+        <div class="rcard">
+          <div class="rh">
+            <div class="avatar" style="background:#241A0F;width:34px;height:34px;border-radius:9px">
+              <span class="head" style="background:#E8A459;height:12px"></span><span class="body" style="background:#B87A3A;height:12px"></span><span class="acc" style="background:#FBEEDF"></span>
+            </div>
+            <div><div class="rn">Wren</div><div class="rr">ops watch</div></div>
+          </div>
+          <div class="chips"><span class="chip">iMessage</span><span class="chip">Telegram</span></div>
+          <div class="rl"><span class="lamp built"></span> live · 14 turns today</div>
+        </div>
+        <div class="rcard">
+          <div class="rh">
+            <div class="avatar" style="background:#0F2523;width:34px;height:34px;border-radius:9px">
+              <span class="head" style="background:#5FC3B4;height:12px"></span><span class="body" style="background:#2F7E74;height:12px"></span><span class="acc" style="background:#DCEBE8"></span>
+            </div>
+            <div><div class="rn">Ledger</div><div class="rr">money-ledger</div></div>
+          </div>
+          <div class="chips"><span class="chip">SMS</span></div>
+          <div class="rl"><span class="lamp built"></span> live · weekly digest</div>
+        </div>
+        <div class="rcard">
+          <div class="rh">
+            <div class="avatar" style="background:#26140F;width:34px;height:34px;border-radius:9px">
+              <span class="head" style="background:#E1917A;height:12px"></span><span class="body" style="background:#96412D;height:12px"></span><span class="acc" style="background:#F6E1DB"></span>
+            </div>
+            <div><div class="rn">House</div><div class="rr">family calendar</div></div>
+          </div>
+          <div class="chips"><span class="chip">iMessage group</span></div>
+          <div class="rl"><span class="lamp"></span> 4 contacts · read-only</div>
+        </div>
+        <div class="rcard">
+          <div class="rh">
+            <div class="avatar" style="background:var(--surface-2);width:34px;height:34px;border-radius:9px;border:1px dashed var(--line)"></div>
+            <div><div class="rn" style="color:var(--ink-3)">New agent</div><div class="rr">describe it →</div></div>
+          </div>
+          <div class="chips"><span class="chip" style="opacity:.4">unassigned</span></div>
+          <div class="rl">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="matrix tbl-wrap" style="border-radius:9px">
+        <table>
+          <thead>
+            <tr><th>Contact tier</th><th>Who</th><th>Chat</th><th>Read scenarios</th><th>Governed programs</th><th>Terminal</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>Owner</strong></td><td>your verified handles</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td><td class="ask">ask once per hour</td></tr>
+            <tr><td><strong>Trusted</strong></td><td>named contacts you added</td><td class="yes">yes</td><td class="yes">yes</td><td class="ask">ask</td><td class="no">never</td></tr>
+            <tr><td><strong>Known</strong></td><td>replied at least once</td><td class="yes">yes</td><td class="ask">allowlist</td><td class="no">never</td><td class="no">never</td></tr>
+            <tr><td><strong>Stranger</strong></td><td>anyone else who texts the number</td><td class="yes">yes</td><td class="no">never</td><td class="no">never</td><td class="no">never</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="note risk" style="margin-top:20px">
+    <strong>This is the highest-risk surface you have ever shipped, and it deserves saying plainly.</strong>
+    An inbound message is untrusted text from an unauthenticated sender arriving at a system that can run a terminal.
+    Every prompt-injection scenario you have ever theorised becomes reachable by anyone who learns the number.
+    <em>Correction from last round:</em> I pointed at <code>prompt-injection-arena</code> as if it covered this. It does
+    not, on two counts. It is stale — a flat pre-<code>api-core</code> <code>api/*.go</code> layout, a 12.9 MB binary
+    committed in October 2025, a <code>PROBLEMS.md</code> that has declared itself "Production-Ready" since then. And it
+    is the wrong <em>shape</em>: it is an offline tournament that scores Ollama models against an injection library and
+    ranks them on a leaderboard. A runtime trust guard is not a benchmark. If this scenario is going to lean on it, the
+    arena needs its own redesign with fresh operational targets and technical requirements — budget it as new work, not
+    as a dependency you already have. The trust tier itself is the load-bearing wall, and granting terminal scope to a
+    non-owner tier should be impossible rather than discouraged.
+  </div>
+</section>
+
+<!-- ============ GROUP CHATS ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Your question · group chats</span>
+    <h2>Yes — and it is where the trust model earns its keep</h2>
+    <p>Groups are worth supporting for a reason beyond convenience: they are the only organic distribution this product
+      has. Someone adds your agent to a family thread or a work channel and four other people watch it work. That is how
+      Slack bots spread, and no ad buy replicates it. But a group breaks four assumptions the one-to-one design quietly
+      makes, and three of them are expensive.</p>
+  </div>
+
+  <div class="mockrow">
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span>▮▮▮ ⌁ 84%</span></div>
+        <div class="imhead">
+          <div class="imavatar" style="background:linear-gradient(150deg,#5FC3B4,#2F7E74);font-size:13px">5</div>
+          <div class="nm">Kitchen Reno</div>
+          <div class="sv">3 people · Wren · Ledger</div>
+        </div>
+        <div class="thread">
+          <div class="day">Today</div>
+          <div class="sender">SAM</div>
+          <div class="b other">tile guy says thursday or the week after</div>
+          <div class="silent">Wren stayed silent — not addressed</div>
+          <div class="sender r">YOU</div>
+          <div class="b me">@wren what's our budget left on this?</div>
+          <div class="sender">WREN</div>
+          <div class="b them">£2,140 of £9,000 left. Thursday works; the week after collides with the deposit date.</div>
+          <div class="sender">SAM</div>
+          <div class="b other">@wren can you pull up the bank statement?</div>
+          <div class="sender">WREN</div>
+          <div class="b them">Not in this room — Sam is <span class="mono" style="color:#E8A459">known</span>, and account detail needs <span class="mono" style="color:#E8A459">trusted</span>. Matt, I can send it to you directly.</div>
+          <div class="sender">LEDGER</div>
+          <div class="b bot2">Deposit clears 14 Mar. Not replying to Wren — agent turn budget.</div>
+        </div>
+        <div class="imbar"><span class="plus">＋</span><div class="fld">iMessage</div><span class="plus">⌁</span></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <span class="eyebrow">Hazard 1 · the expensive one</span>
+        <h3>Trust is per (room × sender), not per contact</h3>
+        <p>The tier table earlier is per-contact, which silently breaks the moment someone adds a fifth person to a
+          group your agent is already in. The rule that holds: <strong>the room's ceiling is the lowest tier present</strong>,
+          and a sender never gets more inside a group than they hold outside it. Adding a stranger must
+          <em>lower</em> the room, never raise the stranger.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Hazard 2</span>
+        <h3>A group reply is a broadcast</h3>
+        <p>Anything the agent says in the room is said to everyone in it. So an answer that one member's tier unlocks
+          must not be rendered there at all — it goes to a direct thread or it is refused out loud, as above. Getting
+          this wrong is the incident that ends the product, and it cannot be handled by prompting.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Hazard 3</span>
+        <h3>Two bots in a room will loop</h3>
+        <p>Agents replying to agents is unbounded by default, and every turn is <strong>Class A metered</strong> — a
+          runaway loop spends real money while everyone sleeps. Two mechanisms, both cheap: mark agent-authored
+          messages so no adapter auto-triggers on one, and give every thread a turn budget per hour that fails closed.</p>
+      </div>
+      <div class="card">
+        <span class="eyebrow">Hazard 4</span>
+        <h3>Whose wallet is this?</h3>
+        <p>In a group, a non-owner's message spends the owner's credits. That is both a billing surprise and an abuse
+          vector — anyone in the room can drain a wallet by talking. Needs a per-thread spend cap alongside the turn
+          budget, and it should be visible to the owner, not buried.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:22px">
+    <strong>The cheap part.</strong> Speaking discipline is one flag and it prevents most of the annoyance: default to
+    <span class="mono">speak_when = mentioned</span> in any room with more than one human. One-to-one threads default to
+    always. Slack proved the pattern years ago and everyone already expects it — an agent that answers every message in
+    a group gets muted within a day, and a muted agent voids every promise downstream of it.
+  </div>
+</section>
+
+<!-- ============ EXTENSIBILITY ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Your question · adding new options</span>
+    <h2>Slack is a channel. GitHub mostly is not.</h2>
+    <p>Before the extensibility mechanism, the split that decides which mechanism a thing goes through — because
+      conflating these is what produces an "integration" that is half tool and half channel and owns neither well.</p>
+  </div>
+
+  <div class="note" style="margin-bottom:22px">
+    <strong>One question sorts everything.</strong> <em>Does a human type a message here and expect a reply?</em>
+    Yes → it is a <strong>channel</strong>, and it gets an adapter. No → it is a <strong>tool</strong>, and it is
+    already how Vrooli works: a scenario, a CLI verb, a <code>prompt-manager</code> action in the agent's capability
+    grant. GitHub answers <em>yes</em> for exactly one surface — issue and PR comments where someone @mentions the bot —
+    and <em>no</em> for everything else it does.
+  </div>
+
+  <div class="grid g2" style="margin-bottom:34px">
+    <div class="card">
+      <span class="eyebrow">Channels · get an adapter</span>
+      <h4>Slack, Discord, Teams, Signal, WhatsApp, Matrix, SMS, iMessage, Telegram, in-app, GitHub <em>comments</em></h4>
+      <p>Places people talk. They differ in transport mechanics and in almost nothing else. Slack in particular maps
+        onto the same contract as Telegram almost field for field — threads, mentions, files, reactions — which is why
+        it is a cheap second or third adapter rather than a project.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Tools · get a capability grant</span>
+      <h4>GitHub API, Jira, Linear, Notion, Calendar, the terminal, every Vrooli scenario</h4>
+      <p>Things an agent <em>uses</em>. The GitHub capability belongs in <code>git-control-tower</code>, which already
+        owns it — not duplicated inside a messaging scenario. These appear in the agent builder's grant toggles, never
+        in the funnel's channel list. Two lists, two screens, no overlap.</p>
+    </div>
+  </div>
+
+  <div class="head" style="margin-top:8px">
+    <h2>The mechanism: descriptor, adapter, frozen core</h2>
+    <p><em>Correction to what I said last round.</em> I called <code>notification-hub</code>'s hardcoded switches an
+      anti-pattern. That was unfair. Its <code>DECISIONS.md</code> carries a dated entry —
+      <strong>2026-08-17: "Ship one real channel end to end before building any abstraction"</strong> — so the switches
+      are the deliberate, correct state of a scenario that shipped one channel first. Better still, the decision from
+      the following day already states the target: <em>"Adding a channel touches this scenario's adapter registry and
+      nothing else."</em> The registry it names does not exist in code yet. So this is not a new idea to sell — it is
+      the abstraction that scenario deliberately deferred, and this scenario is the trigger that cashes it.</p>
+  </div>
+
+  <figure style="margin-bottom:28px">
+    <div class="fig-frame">
+      <svg viewBox="0 0 940 300" role="img" aria-label="Left: today's notification-hub, where a channel name flows into hardcoded switch statements in three files, so adding a channel edits all of them. Right: the proposed model, where a JSON descriptor and one adapter file feed a single normalized envelope, and the core, UI, funnel and tests are never edited.">
+        <defs><marker id="x1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--clay)"/></marker>
+        <marker id="x2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--teal)"/></marker></defs>
+
+        <text class="svg-mono" x="20" y="20" fill="var(--clay)">TODAY — ABSTRACTION DELIBERATELY DEFERRED</text>
+        <rect x="20" y="32" width="420" height="248" rx="10" fill="none" stroke="var(--line)"/>
+        <rect x="46" y="60" width="130" height="38" rx="7" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="111" y="84" text-anchor="middle">"imessage"</text>
+        <line x1="180" y1="79" x2="228" y2="79" stroke="var(--clay)" stroke-width="1.5" marker-end="url(#x1)"/>
+        <line x1="180" y1="79" x2="228" y2="147" stroke="var(--clay)" stroke-width="1.5" marker-end="url(#x1)"/>
+        <line x1="180" y1="79" x2="228" y2="215" stroke="var(--clay)" stroke-width="1.5" marker-end="url(#x1)"/>
+        <rect x="232" y="60" width="186" height="38" rx="7" fill="var(--clay-bg)" stroke="var(--clay)"/>
+        <text class="svg-label sm" x="325" y="77" text-anchor="middle" fill="var(--ink)">transports.go:119</text>
+        <text class="svg-label sm" x="325" y="91" text-anchor="middle">if channel != … &amp;&amp; …</text>
+        <rect x="232" y="128" width="186" height="38" rx="7" fill="var(--clay-bg)" stroke="var(--clay)"/>
+        <text class="svg-label sm" x="325" y="145" text-anchor="middle" fill="var(--ink)">transports.go:134</text>
+        <text class="svg-label sm" x="325" y="159" text-anchor="middle">switch channel { case …</text>
+        <rect x="232" y="196" width="186" height="38" rx="7" fill="var(--clay-bg)" stroke="var(--clay)"/>
+        <text class="svg-label sm" x="325" y="213" text-anchor="middle" fill="var(--ink)">service.go:531, :796</text>
+        <text class="svg-label sm" x="325" y="227" text-anchor="middle">case "macos_notification", …</text>
+        <text class="svg-mono" x="46" y="262" fill="var(--clay)">ONE NEW CHANNEL = FOUR EDITS, IN THREE PLACES</text>
+        <text class="svg-mono" x="46" y="278" fill="var(--ink-3)">CORRECT FOR ONE CHANNEL — THE COST STARTS AT THE SECOND</text>
+
+        <text class="svg-mono" x="500" y="20" fill="var(--teal)">PROPOSED</text>
+        <rect x="500" y="32" width="420" height="248" rx="10" fill="none" stroke="var(--teal-line)"/>
+        <rect x="522" y="56" width="150" height="42" rx="7" fill="var(--amber-bg)" stroke="var(--amber-line)" stroke-dasharray="4 3"/>
+        <text class="svg-label sm" x="597" y="74" text-anchor="middle" fill="var(--ink)">slack.json</text>
+        <text class="svg-label sm" x="597" y="89" text-anchor="middle">descriptor — data</text>
+        <rect x="522" y="112" width="150" height="42" rx="7" fill="var(--amber-bg)" stroke="var(--amber-line)" stroke-dasharray="4 3"/>
+        <text class="svg-label sm" x="597" y="130" text-anchor="middle" fill="var(--ink)">slack.go</text>
+        <text class="svg-label sm" x="597" y="145" text-anchor="middle">adapter — ~300 lines</text>
+        <line x1="676" y1="77" x2="716" y2="112" stroke="var(--teal)" stroke-width="1.5" marker-end="url(#x2)"/>
+        <line x1="676" y1="133" x2="716" y2="133" stroke="var(--teal)" stroke-width="1.5" marker-end="url(#x2)"/>
+        <rect x="720" y="104" width="176" height="58" rx="8" fill="var(--teal-bg)" stroke="var(--teal-line)" stroke-width="1.6"/>
+        <text class="svg-label" x="808" y="127" text-anchor="middle">One envelope</text>
+        <text class="svg-label sm" x="808" y="146" text-anchor="middle">core never sees a Slack type</text>
+        <rect x="720" y="180" width="176" height="58" rx="8" fill="var(--surface-2)" stroke="var(--line)"/>
+        <text class="svg-label" x="808" y="203" text-anchor="middle">Core · UI · funnel</text>
+        <text class="svg-label sm" x="808" y="222" text-anchor="middle">unchanged, forever</text>
+        <line x1="808" y1="162" x2="808" y2="176" stroke="var(--teal)" stroke-width="1.5" marker-end="url(#x2)"/>
+        <text class="svg-mono" x="522" y="262" fill="var(--teal)">ONE NEW CHANNEL = TWO NEW FILES, ZERO EDITS</text>
+      </svg>
+    </div>
+    <figcaption>The left panel is real code at those line numbers today, and was the right call for one channel. The
+      right panel is the pattern <code>channel-manager</code> already implements — its loader comment reads
+      <em>"The same loader accepts any additional descriptor placed in either directory."</em> — and the target
+      <code>notification-hub</code>'s own decision log already names.</figcaption>
+  </figure>
+
+  <div class="grid g2" style="margin-bottom:26px">
+    <div class="stack-sm">
+      <h3>What the descriptor carries</h3>
+      <p style="font-size:.9rem;color:var(--ink-2)">Everything the core, the UI, the funnel and the group logic need to
+        reason about a channel they have never heard of — including its own setup friction, so the funnel can rank it.</p>
+      <pre><span class="c">// data/channels/slack.json — no code anywhere reads "slack"</span>
+{
+  <span class="k">"kind"</span>: <span class="s">"channel"</span>, <span class="k">"id"</span>: <span class="s">"slack"</span>, <span class="k">"schemaVersion"</span>: 1,
+  <span class="k">"transport"</span>: { <span class="k">"ingress"</span>: <span class="s">"socket"</span>, <span class="k">"egress"</span>: <span class="s">"web-api"</span>,
+                 <span class="k">"auth"</span>: <span class="s">"oauth-app"</span> },
+  <span class="k">"supports"</span>:  { <span class="k">"text"</span>: true,  <span class="k">"images"</span>: true, <span class="k">"files"</span>: true,
+                 <span class="k">"voice_note"</span>: false, <span class="k">"threads"</span>: true,
+                 <span class="k">"reactions"</span>: true, <span class="k">"typing"</span>: true, <span class="k">"group"</span>: true },
+  <span class="k">"limits"</span>:    { <span class="k">"text_bytes"</span>: 40000, <span class="k">"file_mb"</span>: 1000,
+                 <span class="k">"rate_per_min"</span>: 60 },
+  <span class="k">"group"</span>:     { <span class="k">"speak_when"</span>: <span class="s">"mentioned"</span>,
+                 <span class="k">"turn_budget_per_hour"</span>: 40 },
+  <span class="k">"requires"</span>:  [<span class="s">"public_origin"</span>],
+  <span class="k">"setup"</span>:     { <span class="k">"friction"</span>: 2,
+                 <span class="k">"steps"</span>: [<span class="s">"create app"</span>, <span class="s">"add bot scopes"</span>,
+                           <span class="s">"install to workspace"</span>] },
+  <span class="k">"cost"</span>:      { <span class="k">"model"</span>: <span class="s">"free"</span> }
+}</pre>
+    </div>
+
+    <div class="stack-sm">
+      <h3>What actually changes per channel</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Changes?</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Descriptor</strong><br><span style="font-size:.8rem;color:var(--ink-3)">capabilities, limits, group rules, setup friction, cost</span></td><td><span class="tag new">new file</span></td><td class="num">data only</td></tr>
+            <tr><td><strong>Adapter</strong><br><span style="font-size:.8rem;color:var(--ink-3)">connect · receive · send · normalise</span></td><td><span class="tag new">new file</span></td><td class="num">~200–400 lines</td></tr>
+            <tr><td><strong>Envelope, router, trust guard</strong></td><td><span class="tag built">no</span></td><td class="num">zero</td></tr>
+            <tr><td><strong>UI, roster, funnel</strong></td><td><span class="tag built">no</span></td><td class="num">zero</td></tr>
+            <tr><td><strong>Test suite</strong></td><td><span class="tag built">no</span></td><td class="num">zero — reuse the phase</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note" style="margin-top:4px">
+        <strong>Do not promise zero code.</strong> A descriptor cannot implement a protocol — Slack socket mode,
+        Telegram long-poll and a <code>chat.db</code> read share nothing. What the descriptor buys is that the
+        <em>blast radius</em> is two new files. That is the honest version of the claim, and it is still the whole win.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <span class="eyebrow">The rule that prevents the rot</span>
+      <h3>Never branch on a channel name</h3>
+      <p>Every <code>if channel == "imessage"</code> is a future edit site. Ask the descriptor instead —
+        <code>supports.images</code>, <code>group.speak_when</code>, <code>limits.file_mb</code>. This single discipline
+        is the difference between the two panels above, and it is worth a lint rule the day the second adapter lands,
+        not the day the sixth does.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">The thing that makes new adapters safe</span>
+      <h3>A <code>channel-conformance</code> test-genie phase</h3>
+      <p>One shared suite every adapter must pass: round-trip text, round-trip an image, reject oversized media by the
+        declared limit, thread a reply, back off on rate limit, handle an inbound from an unknown sender, refuse to
+        auto-reply to an agent-authored message. Writing an adapter becomes "implement the interface, run the existing
+        phase." <code>test-genie</code> already has this exact shape in <code>provider-conformance</code> and
+        <code>profile-conformance</code>.</p>
+    </div>
+  </div>
+
+  <div class="head" style="margin-top:44px">
+    <h2>So how many options can the funnel carry?</h2>
+    <p>The funnel's <em>shape</em> is fixed at four steps and should never grow — that is what makes it a funnel. Only
+      the last step is a list, and a list is unbounded. The constraint is not architectural, it is attention: past about
+      five visible choices an attach screen becomes a decision-paralysis screen.</p>
+  </div>
+
+  <div class="win">
+    <div class="winbar"><span class="dots"><i></i><i></i><i></i></span><span class="ttl">agent-switchboard — attach Wren to a handle</span></div>
+    <div class="winbody">
+      <div class="cat">
+        <div class="crow on"><span class="cnm">Telegram</span><span class="cds">A bot token. Two minutes, nothing to install.</span><span class="fdots"><i class="f"></i><i></i><i></i><i></i></span><span class="cst">READY</span></div>
+        <div class="crow on"><span class="cnm">Slack</span><span class="cds">Create an app, install to your workspace.</span><span class="fdots"><i class="f"></i><i class="f"></i><i></i><i></i></span><span class="cst">READY</span></div>
+        <div class="crow blocked"><span class="cnm">iMessage</span><span class="cds">Needs a Mac in your fleet — you have none registered. <span style="color:var(--amber)">Connect one →</span></span><span class="fdots"><i class="f"></i><i class="f"></i><i></i><i></i></span><span class="cst">NEEDS A MAC</span></div>
+        <div class="crow blocked"><span class="cnm">SMS · Voice</span><span class="cds">Carrier registration, about a week. <span style="color:var(--amber)">We can handle it →</span></span><span class="fdots"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i></span><span class="cst">GATED · 10DLC</span></div>
+        <div class="crow later"><span class="cnm">4 more</span><span class="cds">Discord, Signal, GitHub comments, FaceTime audio</span><span class="fdots"><i></i><i></i><i></i><i></i></span><span class="cst">SHOW ALL</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-top:20px">
+    <div class="card">
+      <span class="eyebrow">Rank</span>
+      <h4>Sort by declared friction</h4>
+      <p>The <code>setup.friction</code> field means the easiest path is always on top without anyone maintaining an
+        order. New channel lands in the right place by arriving.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Filter</span>
+      <h4>Compute availability, never list dead ends</h4>
+      <p><code>requires</code> is checked against facts <code>vrooli-bridge</code> and <code>tunnel-manager</code>
+        already hold. A host with no Mac shows iMessage as a <em>connect a Mac</em> prompt, not as an option that fails
+        after three screens.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Truncate</span>
+      <h4>Three live, one gated, one "show all"</h4>
+      <p>Unbounded catalogue, bounded screen. The gated row is deliberately visible — it is the paid one, and a blocked
+        option the operator can buy their way past is the clearest upgrade prompt in the product.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OWNERSHIP ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Your question, answered</span>
+    <h2>Should this be prompt-manager enhancements?</h2>
+    <p>Mostly yes. Of the six things you listed — profiles, AI-authored descriptions, tool scoping, program-runtime
+      restriction, terminal access, DAG workflows — exactly one is genuinely new, and it is not in
+      <code>prompt-manager</code>. Here is the split I would defend.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Concern</th><th>Owner</th><th>Change needed</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Agent profile, description, avatar, tags</strong></td><td><code>prompt-manager</code></td><td><span class="tag built">exists</span> 25 descriptors already carry all of it</td></tr>
+        <tr><td><strong>AI drafts the agent from a sentence</strong></td><td><code>prompt-manager</code></td><td><span class="tag new">add</span> an authoring assist over an existing schema</td></tr>
+        <tr><td><strong>Which tools / scenarios this agent may use</strong></td><td><code>prompt-manager</code> declares, <code>agent-manager</code> enforces</td><td><span class="tag new">add</span> a grant block that <em>names</em> existing scopes — never a second policy engine</td></tr>
+        <tr><td><strong>Only these governed scripts</strong></td><td><code>program-runtime</code></td><td><span class="tag built">exists</span> manifest bindings already define the callable set</td></tr>
+        <tr><td><strong>Terminal access</strong></td><td><code>agent-manager</code></td><td><span class="tag built">exists</span> runs, approvals, interactive control, <code>Attenuate()</code></td></tr>
+        <tr><td><strong>DAG workflows</strong></td><td><code>agent-manager</code></td><td><span class="tag built">exists</span> orchestration, delegation, approval sync</td></tr>
+        <tr><td><strong>Public identity behind a number</strong></td><td><code>persona</code></td><td><span class="tag built">exists</span> declared identity, OTP retrieval, operator handoff</td></tr>
+        <tr><td><strong>Reaching a Mac from this Linux host</strong></td><td><code>vrooli-bridge</code></td><td><span class="tag built">exists</span> dial-out node agent, allowlisted verbs</td></tr>
+        <tr><td><strong>Sending a message out</strong></td><td><code>notification-hub</code></td><td><span class="tag built">exists</span> including an <code>imessage</code> channel</td></tr>
+        <tr><td><strong>Receiving one, and holding a conversation</strong></td><td><span style="color:var(--amber);font-weight:600">nobody</span></td><td><span class="tag new">the scenario</span> ingress, session, routing, trust guard</td></tr>
+        <tr><td><strong>In-app chat, call mode, camera capture</strong></td><td><span style="color:var(--amber);font-weight:600">the scenario</span>, over <code>audio-tools</code> + <code>scenario-to-ios</code></td><td><span class="tag new">add</span> the conversion surface — and a <code>Direct UI</code> "done" obligation, not an optional extra</td></tr>
+        <tr><td><strong>Runtime injection defence</strong></td><td><code>prompt-injection-arena</code> — in name only</td><td><span class="tag risk">redesign</span> stale, and shaped as an offline tournament rather than a guard. New operational targets and technical requirements required.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid g2" style="margin-top:22px">
+    <div class="note">
+      <strong>The one design decision I cannot make for you.</strong> <code>notification-hub</code>'s senders are
+      one-shot: title, body, address. A conversational adapter is stateful and bidirectional — threads, media, receipts,
+      typing. A bidirectional adapter is a strict superset of a one-shot sender, so my recommendation is that the
+      <em>adapters move</em> to the new scenario and <code>notification-hub</code> keeps its routing brain, calling
+      through for the conversational channels while keeping Web Push, e-mail and desktop for itself. The alternative —
+      two adapter stacks for the same channel — is the outcome to avoid, and it is the default if nobody decides.
+    </div>
+    <div class="note">
+      <strong>Naming, before it costs you.</strong> <code>channel-manager</code> is taken and means something else
+      entirely — platform identities and posting cadence for social accounts. Do not call this one channel-anything.
+      <code>agent-inbox</code>, <code>signal-inbox</code> and <code>ai-chatbot-manager</code> also sit close enough that
+      the ecosystem-fit review will ask; the honest distinction is that all three are surfaces <em>you</em> open, and
+      this one is a surface that <em>opens itself</em> when someone outside sends something.
+    </div>
+  </div>
+</section>
+
+<!-- ============ MONETIZATION ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Monetisation · routed, not decided</span>
+    <h2>What is free, what meters, what gates</h2>
+    <p><code>PAID_FEATURES.md</code> gives the decision a shape, and it has one hard rule that this scenario must not
+      break: <em>never gate a capability a self-hoster could run with their own keys.</em> The subscription buys
+      convenience and integrated access, not access to the code — so BYOK has to stay a valid path everywhere below.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Capability</th><th>Mode</th><th>Class</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Creating and managing agents</strong></td><td><span class="tag built">free</span></td><td>—</td><td>It is descriptor authoring against files on the user's disk. Gating it would be gating the code.</td></tr>
+        <tr><td><strong>Telegram, and your own Mac's iMessage</strong></td><td><span class="tag built">free</span></td><td>—</td><td>A bot token and a Mac the user already owns. Vrooli pays nothing and provides nothing they could not do alone.</td></tr>
+        <tr><td><strong>Agent inference, when Vrooli routes it</strong></td><td><span class="tag new">metered</span></td><td><strong>A</strong> — cost-bearing</td><td>Real tokens on Vrooli's key. Reserve → execute → finalise through LPBS, server-side, unbypassable. BYOK falls through with no credit charge.</td></tr>
+        <tr><td><strong>Speech seconds in call mode</strong></td><td><span class="tag new">metered</span></td><td><strong>A</strong> if hosted<br><strong>free</strong> if local</td><td>Local <code>whisper</code>/<code>kyutai</code>/<code>kokoro</code> cost Vrooli nothing and must never meter. A hosted STT/TTS fallback does.</td></tr>
+        <tr><td><strong>Provisioned phone number + 10DLC handled for you</strong></td><td><span class="tag risk">gated</span></td><td>—</td><td>The clean gate. It is pure convenience over a wall the user could climb themselves — a real Twilio account, a real carrier verification, a week of waiting.</td></tr>
+        <tr><td><strong>Hosted iMessage relay for the Mac-less</strong></td><td><span class="tag risk">gated + metered</span></td><td><strong>A</strong></td><td>Vrooli pays a vendor per message. Label the privacy trade-off on the purchase screen, not in a footnote.</td></tr>
+        <tr><td><strong>Agent count, channel count</strong></td><td><span class="tag">gated</span></td><td><strong>B</strong> — local-capacity</td><td>Bypassable by design and that is accepted. A nudge shaping plan choice, never a lock. Record overage as a pricing signal; never retro-bill.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid g2" style="margin-top:22px">
+    <div class="card">
+      <span class="eyebrow">Retention</span>
+      <h3>A handle is a habit</h3>
+      <p>Cherry reports ~93% of premium users still on their iMessage agent a year later, on a product whose free tier
+        they call a mistake. Assistants churn because opening one is a decision; a thread already in your list is not.
+        The renewable object here is <em>presence</em>, and presence is the rare thing that gets stickier by doing nothing.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Positioning</span>
+      <h3>The only private one</h3>
+      <p>Every hosted iMessage API routes your conversations through a third party. Vrooli runs on your hardware,
+        reaches your own Mac over your own fleet link, and keeps the thread on your disk. "Your agent, your machine,
+        your messages" is a sentence Sendblue, Loop and Shuffle structurally cannot say — and it is exactly the
+        objection in the posts you sent.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Market</span>
+      <h3>Nobody knows this exists</h3>
+      <p>The claim that iMessage agents have not touched 99% of the addressable market is unverifiable but
+        directionally obvious. Fourteen months in, the category is still explained rather than recognised. Being late to
+        a category nobody has heard of is not being late.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Depth</span>
+      <h3>The moat is behind the bubble</h3>
+      <p>Competitors sell a chat interface with tools. You would be selling a chat interface onto a self-improving
+        ecosystem — every scenario you ever ship becomes something the agent can already do, with no integration
+        written. That compounding is the actual product; the message is where it becomes visible.</p>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:22px">
+    <strong>Two things I deliberately did not decide.</strong> Bundle membership (business vs lifestyle, headliner vs
+    depth) and pricing are operator-curated canon under <code>docs/monetization/</code>, and the
+    <code>ecosystem-fit</code> skill is explicit that it routes there rather than deciding. The live scenario→SKU map is
+    <code>offer-desk offers catalog-list</code> / <code>catalog-edges</code>. My read is that this is a
+    <em>headliner</em> wherever it lands, because it is the first scenario a new user would encounter before they know
+    what Vrooli is — but that is a portfolio call for <code>morning-vision-walk</code>, not one I should make here.
+  </div>
+</section>
+
+<!-- ============ IMPLEMENTATION ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Key architectural decisions</span>
+    <h2>Eight calls worth making before any code</h2>
+    <p>Each of these is cheap now and expensive later. Two of them are already settled by decisions other scenarios
+      recorded; the rest are this scenario's to make.</p>
+  </div>
+
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Decision</th><th>Because</th></tr></thead>
+      <tbody>
+        <tr><td class="num"><strong>D1</strong></td><td>A reply <strong>egresses through the adapter that ingressed it</strong> — never through <code>notification-hub</code>.</td><td>Thread identity, reply-to ids and typing state live in the adapter's session. Notifications are one-shot and stateless; conversations are not. <code>notification-hub</code> becomes a second caller into the same registry, not a layer above it.</td></tr>
+        <tr><td class="num"><strong>D2</strong></td><td>The <strong>descriptor file is the source of truth</strong>; the database table is a cache rebuilt at boot.</td><td>Copied verbatim from <code>channel-manager</code>, which already states it and already implements the loader. Two SSOTs for one fact is the bug this avoids.</td></tr>
+        <tr><td class="num"><strong>D3</strong></td><td><strong>The in-app chat is an adapter</strong>, not a special case in the core.</td><td>The single cheapest guarantee that external channels stay first-class. If the core cannot tell in-app from Telegram, no feature can quietly become in-app-only.</td></tr>
+        <tr><td class="num"><strong>D4</strong></td><td>Effective scope = <strong>min(sender tier, room ceiling, agent grant)</strong>, resolved before the run starts, and empty means refuse.</td><td>Fail-closed by construction rather than by prompt. Computing it after the run starts means the model has already seen data it should not have.</td></tr>
+        <tr><td class="num"><strong>D5</strong></td><td><strong>Idempotency at ingress</strong>, keyed on <code>channel + remote_message_id</code>.</td><td>Every one of these transports redelivers. A webhook retry that spends metered inference twice is a billing bug that only shows up under load.</td></tr>
+        <tr><td class="num"><strong>D6</strong></td><td>The agent descriptor <strong>stays in <code>prompt-manager</code></strong>; this scenario stores only the binding and the thread.</td><td>An agent must be usable outside a message thread. Duplicating the descriptor here creates a fork the moment someone edits one copy.</td></tr>
+        <tr><td class="num"><strong>D7</strong></td><td><strong>Never branch on a channel id</strong> anywhere above the adapter. Ask the descriptor.</td><td>The one rule that keeps the blast radius at two files. Worth a lint rule when the second adapter lands.</td></tr>
+        <tr><td class="num"><strong>D8</strong></td><td>Agent turns meter; <strong>notifications never do</strong>.</td><td><code>notification-hub</code> already recorded "Never meter notifications" on 2026-08-17. Keeping that line intact means a delivery failure can never be a billing event.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="head" style="margin-top:52px">
+    <span class="eyebrow">How the parts actually work</span>
+    <h2>Six diagrams an implementer can build from</h2>
+  </div>
+
+  <div class="dgrid">
+
+    <figure>
+      <div class="mplate">
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    actor H as Human
+    participant AD as Channel adapter
+    participant EN as Ingress + dedupe
+    participant TH as Thread session
+    participant TG as Trust guard
+    participant AM as agent-manager
+    H->>AD: text, image, file
+    AD->>EN: normalise to one envelope
+    Note over EN: key = channel + remote_message_id<br/>a redelivery dies here, never downstream
+    EN->>TH: append, resolve agent binding
+    TH->>TG: sender identity + room roster
+    TG-->>TH: scope set, or refusal reason
+    alt scope empty
+        TH->>AD: refusal, stated out loud
+        AD-->>H: reply in the same thread
+    else scope granted
+        TH->>AM: StartRun, attenuated scope, thread context
+        AM-->>TH: output + media
+        TH->>AD: reply payload
+        AD-->>H: reply in the same thread
+    end
+</pre>
+      </div>
+      <figcaption><strong>1 · Inbound turn.</strong> The spine. Note that the reply returns through the same adapter
+        (D1) and that deduplication happens before anything can spend money (D5).</figcaption>
+    </figure>
+
+    <figure>
+      <div class="mplate">
+<pre class="mermaid">
+flowchart TD
+    A["Inbound envelope"] --> B{"Sender known?"}
+    B -->|no| S0["tier = stranger"]
+    B -->|yes| S1["tier = stored tier for this contact"]
+    S0 --> C{"More than one human in the room?"}
+    S1 --> C
+    C -->|no| D["room ceiling = sender tier"]
+    C -->|yes| E["room ceiling = lowest tier in roster"]
+    D --> F["effective = min of sender, room ceiling, agent grant"]
+    E --> F
+    F --> G{"Effective scope empty?"}
+    G -->|yes| R["Refuse out loud. Log. No run starts."]
+    G -->|no| H{"Contains an owner-only scope?"}
+    H -->|yes| P["Strip it. Offer a one-time grant to the owner only."]
+    H -->|no| I["Attenuate to a child scope"]
+    P --> I
+    I --> J["StartRun"]
+</pre>
+      </div>
+      <figcaption><strong>2 · Trust resolution.</strong> The security-critical seam. The <em>lowest</em> tier in the
+        room caps everyone, so adding a stranger lowers the room rather than raising the stranger.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="mplate">
+<pre class="mermaid">
+flowchart TD
+    M["Message lands in a thread"] --> A{"Authored by an agent?"}
+    A -->|yes| X1["Record it. Never auto-reply to an agent."]
+    A -->|no| B{"Group thread?"}
+    B -->|no| E["Proceed"]
+    B -->|yes| C{"Addressed? mention, reply-to, or wake word"}
+    C -->|no| X2["Stay silent. Still record to the thread."]
+    C -->|yes| D{"Turn budget left this hour?"}
+    D -->|no| X3["Stay silent. Tell the owner once, not every time."]
+    D -->|yes| F{"Thread spend cap left?"}
+    F -->|no| X4["Refuse out loud. Owner can raise the cap."]
+    F -->|yes| E
+    E --> G["Trust resolution"]
+</pre>
+      </div>
+      <figcaption><strong>3 · Group turn arbitration.</strong> The two left branches are the loop breaker: an
+        agent-authored message never triggers a reply, and the hourly budget fails closed. Together they are what stops
+        two bots in a room spending real money overnight.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="mplate">
+<pre class="mermaid">
+flowchart LR
+    subgraph D["data/channels/*.json"]
+      D1["telegram.json"]
+      D2["slack.json"]
+      D3["imessage.json"]
+    end
+    D --> V{"Valid against channel.schema.json?"}
+    V -->|no| F["Fail boot loudly. Name the file and the field."]
+    V -->|yes| REG["Channel registry, in memory"]
+    REG --> AV{"requires satisfied on this host?"}
+    AV -->|no| UN["unavailable + reason<br/>funnel shows a connect prompt, not a dead option"]
+    AV -->|yes| BIND{"Adapter registered for this id?"}
+    BIND -->|no| UN2["listed but unimplemented"]
+    BIND -->|yes| LIVE["live — accepts agent bindings"]
+</pre>
+      </div>
+      <figcaption><strong>4 · Boot-time channel registration.</strong> This is the whole extensibility claim, drawn.
+        <code>requires</code> is checked against facts <code>vrooli-bridge</code> and <code>tunnel-manager</code>
+        already hold, which is how the funnel filters instead of listing dead ends.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="mplate">
+<pre class="mermaid">
+erDiagram
+    AGENT ||--o{ CHANNEL_BINDING : "reachable at"
+    AGENT ||--o| PERSONA : "acts as"
+    CHANNEL_DESCRIPTOR ||--o{ CHANNEL_BINDING : "typed by"
+    CHANNEL_BINDING ||--o{ THREAD : carries
+    THREAD ||--o{ MESSAGE : contains
+    THREAD ||--o{ PARTICIPANT : roster
+    CONTACT ||--o{ PARTICIPANT : "appears as"
+    CONTACT ||--|| TRUST_ASSIGNMENT : holds
+    THREAD ||--o{ RUN_LINK : spawned
+    AGENT {
+        string id PK "pointer into prompt-manager, not a copy"
+    }
+    CHANNEL_BINDING {
+        string channel_id FK
+        string address
+        string state "live, paused, unavailable"
+    }
+    THREAD {
+        string id PK
+        bool is_group
+        int turn_budget_remaining
+        int spend_cap_remaining
+    }
+    MESSAGE {
+        string remote_id "unique with channel_id"
+        string author_kind "human or agent"
+    }
+    TRUST_ASSIGNMENT {
+        string tier "owner, trusted, known, stranger"
+    }
+</pre>
+      </div>
+      <figcaption><strong>5 · Data model.</strong> <code>AGENT</code> holds a pointer, never a copy (D6).
+        <code>MESSAGE.remote_id</code> unique with the channel is the idempotency key (D5).
+        <code>author_kind</code> is what makes the loop breaker possible at all.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="mplate">
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Queued: inbound accepted
+    Queued --> Refused: scope empty
+    Queued --> Running: scope granted
+    Running --> AwaitingApproval: run needs a scope it lacks
+    AwaitingApproval --> Running: owner grants once
+    AwaitingApproval --> Refused: denied or expired
+    Running --> Replying: output ready
+    Replying --> Idle: delivered
+    Replying --> Retrying: transient adapter error
+    Retrying --> Replying: backoff elapsed
+    Retrying --> Dead: terminal, surfaced to owner
+    Refused --> Idle
+</pre>
+      </div>
+      <figcaption><strong>6 · Turn lifecycle.</strong> <code>AwaitingApproval</code> is the capability gate from the
+        thread mockup, and it must expire — an approval prompt that waits forever is a thread that looks broken.</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ============ NEXT ============ -->
+<section>
+  <div class="head">
+    <span class="eyebrow">Smallest thing that proves it</span>
+    <h2>One week, one channel, one agent</h2>
+    <p>Do not start with iMessage, and definitely do not start with voice. Prove the loop where it is free and
+      unblocked, then swap the adapter.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step"><span class="idx">DAY 1–2</span><div class="sc"><h4>Two adapters at once — Telegram and in-app</h4><p>One bot token and a long-poll loop; one WebSocket. Same contract, one hard-coded agent, an inbound message becomes an <code>agent-manager</code> run. Building the second adapter on day one is the cheap insurance that the contract is channel-neutral before anything depends on it — and the in-app one is nearly free.</p></div></div>
+    <div class="step"><span class="idx">DAY 3</span><div class="sc"><h4>Images both ways</h4><p>Inbound photo → the run's context. Outbound chart → back into the thread. This is the claim that "multimodal" means something, and it is where the adapter contract earns its shape.</p></div></div>
+    <div class="step"><span class="idx">DAY 4</span><div class="sc"><h4>Bind an address to a profile</h4><p>Read a real <code>prompt-manager</code> agent descriptor instead of the hard-coded one. Two agents, two bots, one process. Now the roster mockup is real.</p></div></div>
+    <div class="step"><span class="idx">DAY 5</span><div class="sc"><h4>The trust guard, fail-closed</h4><p>An unknown sender gets chat and nothing else — enforced by handing a narrower scope to <code>Attenuate()</code>, not by a prompt instruction. Prove it with a hostile message from a second account.</p></div></div>
+    <div class="step"><span class="idx">DAY 6+</span><div class="sc"><h4>Swap in iMessage</h4><p>The Mac already receives your <code>notification-hub</code> sends. Add a <code>chat.db</code> reader behind the same adapter contract and the differentiator arrives without touching anything above it.</p></div></div>
+    <div class="step"><span class="idx">SEPARATE</span><div class="sc"><h4>The two things that are not this plan</h4><p>A trust guard worth trusting needs <code>prompt-injection-arena</code> redesigned from its operational targets up — scope it as its own plan, not a checkbox here. And <code>audio-tools</code> owes a fix before call mode ships: dictation never sends <code>engine_id</code>, so every session has been running CPU whisper while every signal read green.</p></div></div>
+  </div>
+
+  <div class="note" style="margin-top:24px">
+    <strong>Retracted from last round.</strong> I said "do not build a chat client." That was wrong, and for a reason
+    worth naming: I was reasoning about the chat UX as a redundant <em>reading</em> surface, when its actual job is
+    <em>conversion</em>. A stranger cannot try an iMessage agent — that needs a Mac, an Apple ID, and for SMS a week of
+    carrier registration. They can try an in-app thread in ten seconds. The chat UX is the only zero-setup path to the
+    product, which makes it the funnel, not a duplicate. <code>ECOSYSTEM.md</code> agrees by obligation: touching Direct
+    UI means "polished, production-ready, renders loading, error and empty states."
+  </div>
+</section>
+
+<footer>
+  <div class="eyebrow">Grounding</div>
+  <p style="margin-top:10px">Repo facts verified on branch <code>agi</code>, 2026-09-01: <code>notification-hub</code> transports and
+    integrations docs, <code>prompt-manager</code> agent store, <code>agent-manager</code> orchestration package,
+    <code>persona</code> and <code>vrooli-bridge</code> PRDs, <code>resources/twilio</code>, and
+    <code>docs/director-swarm/strategy/ROADMAP.md</code> (<code>goal:phone-agent</code>), <code>docs/concepts/ECOSYSTEM.md</code>,
+    <code>docs/concepts/PAID_FEATURES.md</code>, the <code>ecosystem-fit</code> skill, and live objective state from
+    <code>prompt-manager graph objectives</code>. <code>facetime-bridge</code> facts are read from the repository itself,
+    not the screenshot.</p>
+  <ul>
+    <li><a href="https://github.com/kingbootoshi/facetime-bridge">kingbootoshi/facetime-bridge</a> — MIT; Swift Accessibility layer, TS gRPC daemon, BlackHole routing, <code>probe/call/answer/hangup</code></li>
+    <li><a href="https://blooio.com/blog/best-imessage-api-2026">The Best iMessage API in 2026: Every Provider Compared</a></li>
+    <li><a href="https://www.sendblue.com/compare/sendblue-vs-loopmessage">Sendblue vs LoopMessage: iMessage API Comparison</a></li>
+    <li><a href="https://www.clawmessenger.com/blog/imessage-api-for-ai-agents">iMessage API: send and receive messages from any AI agent</a></li>
+    <li><a href="https://www.twilio.com/docs/messaging/compliance/a2p-10dlc/direct-sole-proprietor-registration-overview">Twilio — Direct Sole Proprietor A2P 10DLC Registration</a></li>
+    <li><a href="https://support.twilio.com/hc/en-us/articles/9550596959643-A2P-10DLC-Sole-Proprietor-Brands-FAQ">Twilio — A2P 10DLC Sole Proprietor Brands FAQ</a></li>
+    <li><a href="https://klariqo.com/blog/voice-ai-cost-per-minute/">AI Voice Agent Pricing: why "$0.05/min" really costs $0.25</a></li>
+    <li><a href="https://softcery.com/lab/choosing-the-right-voice-agent-platform-in-2026">12 Voice Agent Platforms Compared (2026)</a></li>
+    <li><a href="https://github.com/existentialaudio/blackhole">BlackHole macOS loopback driver</a> · <a href="https://github.com/ExistentialAudio/BlackHole/issues/702">known FaceTime conflicts</a></li>
+    <li><a href="https://github.com/omonimus1/facetimectl">facetimectl — FaceTime CLI for agents</a></li>
+  </ul>
+</footer>
+
+</div>

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-26T17:32:15-04:00"
+    "last_validated_at": "2026-08-27T01:52:36-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-002",
       "title": "Configurable Anomaly Detection",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "description": "System must implement threshold-based anomaly detection with user-configurable warning and critical thresholds for all metric types",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test threshold configuration"
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Test anomaly detection logic"
         },
         {

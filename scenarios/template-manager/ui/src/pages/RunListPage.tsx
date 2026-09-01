@@ -5,7 +5,7 @@ import { useSearchParams } from "react-router-dom";
 import { fetchValidationRunList } from "../api/templateDomain";
 import { DetailError, DetailLoading } from "../components/detail/DetailStates";
 import { EntityList, EntityRowBody } from "../components/list/EntityList";
-import { Select, type SelectOption } from "@vrooli/react-component-library/Select/1.1.0";
+import { Select, type SelectOption } from "@vrooli/react-component-library/Select/1";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";

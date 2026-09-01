@@ -1,107 +1,189 @@
 {
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Switchboard are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Switchboard",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Switchboard"
   },
-  "layout": {
-    "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Mobile navigation",
-    "nav": {
-      "dashboard": "Dashboard",
-      "notes": "Notes",
-      "settings": "Settings"
-    }
-  },
-  "theme": {
-    "switcherLabel": "Theme",
-    "choice": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    }
-  },
-  "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+  "asset": "navigation.page",
+  "capability": "navigation",
+  "console": {
+    "agents": {
+      "confirmWrite": "Confirm and write",
+      "confirmed": "Draft confirmed; Prompt Manager is the profile source.",
+      "defaultGrant": "Default grant: read. Owner-only capabilities are not proposed automatically.",
+      "description": "Every agent, its reachable handles, and its granted scopes.",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "A household planning assistant",
+      "draftDescription": "Describe the job first. Nothing is written until you confirm the draft.",
+      "draftHeading": "Draft an agent",
+      "prepareDraft": "Prepare draft",
+      "reviewHeading": "Review before writing",
+      "title": "Agents"
     },
-    "notes": {
-      "title": "Notes"
+    "capabilityGate": {
+      "expires": "Expires:",
+      "grantOnce": "Grant once",
+      "notNow": "Not now",
+      "ownerOnly": "Only the agent owner can answer this request.",
+      "title": "Capability approval needed",
+      "unblock": "What would unblock it:",
+      "withheld": "Withheld:"
     },
-    "settings": {
-      "title": "Settings",
-      "themeHeading": "Appearance",
-      "localeHeading": "Language"
+    "channels": {
+      "address": "Address",
+      "addressPlaceholder": "chat or handle",
+      "agentId": "Agent ID",
+      "attachAgent": "Attach agent",
+      "attachFormLabel": "Attach an agent",
+      "attached": "Agent attached to {{channel}}",
+      "attaching": "Attaching…",
+      "bindingDescription": "The binding maps one channel address to an agent and thread.",
+      "cancel": "Cancel",
+      "confirmAttachment": "Confirm attachment",
+      "connectRequirement": "Connect requirement",
+      "description": "Attach an agent to a reachable channel.",
+      "descriptorLoaded": "Channel descriptors are loaded from the boot-time descriptor registry.",
+      "setupFriction": "Setup friction {{friction}}",
+      "threadKey": "Thread key (optional)",
+      "title": "Channels"
+    },
+    "contacts": {
+      "description": "Manage sender identity and trust tiers. Unknown senders start as strangers.",
+      "empty": "No contacts recorded.",
+      "title": "Contacts"
+    },
+    "conversations": {
+      "agent": "Agent",
+      "attachFile": "Attach a file",
+      "attachment": "Attachment: {{name}} ({{mime}}, {{size}} bytes)",
+      "connected": "Connected",
+      "description": "Threads are durable, cross-channel, and governed before a turn starts.",
+      "disconnectError": "The in-app adapter disconnected. Retry when it is available.",
+      "empty": "No messages yet. Start a conversation below.",
+      "message": "Message",
+      "offline": "Offline",
+      "send": "Send",
+      "thread": "In-app thread",
+      "title": "Conversations",
+      "unreadableError": "The adapter returned an unreadable message.",
+      "writePlaceholder": "Write to your agent",
+      "you": "You"
+    },
+    "mainContent": "Main content",
+    "surface": {
+      "agent": "Agent",
+      "agentDescription": "Agent grants, reachable channels, and activity.",
+      "call": "Call",
+      "callDescription": "Live call transcript and controls.",
+      "channel": "Channel",
+      "channelDescription": "Channel details and connection status.",
+      "contact": "Contact",
+      "contactDescription": "Sender identity and trust tier.",
+      "nothingConfigured": "Nothing is configured yet. This surface will show data when the first record exists.",
+      "welcome": "Welcome",
+      "welcomeDescription": "Create your first reachable agent."
     }
   },
+  "default": "Primary navigation",
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "export": "LongLabels",
+  "fixture": "fixtures.user-directory",
   "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
     "refresh": "Refresh",
     "refreshCount": "Refreshed {{count}} times",
     "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
     "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
   },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
+  "id": "long-labels",
+  "kind": "text",
+  "label": "Compact navigation",
+  "layout": {
+    "bottomNavLabel": "Mobile navigation",
+    "nav": {
+      "agents": "Agents",
+      "channels": "Channels",
+      "contacts": "Contacts",
+      "conversations": "Conversations",
+      "dashboard": "Dashboard",
+      "settings": "Settings"
     },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
+    "sidebarLabel": "Primary navigation"
   },
-  "errors": {
-    "canceled": "Operation canceled.",
-    "unknown": "An unknown error occurred.",
-    "invalid_argument": "Invalid input: {{message}}",
-    "deadline_exceeded": "Operation timed out.",
-    "not_found": "Resource not found.",
-    "already_exists": "Already exists.",
-    "permission_denied": "Permission denied.",
-    "resource_exhausted": "Resource limit reached.",
-    "failed_precondition": "Cannot perform this action: {{message}}",
-    "aborted": "Operation aborted.",
-    "out_of_range": "Out of range.",
-    "unimplemented": "Not yet implemented.",
-    "internal": "Something went wrong. Please try again.",
-    "unavailable": "Service temporarily unavailable.",
-    "data_loss": "Data loss detected.",
-    "unauthenticated": "Please sign in to continue."
-  },
+  "libraryId": "react-component-library:StyleSheet",
   "locale": {
     "switcherLabel": "Language"
   },
-  "errorBoundary": {
-    "title": "Something went wrong",
-    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
-    "retry": "Try again"
-  }
+  "mode": "pinned",
+  "module": "./story.tsx",
+  "name": "Long Labels",
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
+  },
+  "pages": {
+    "dashboard": {
+      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
+      "statPlaceholderLabel": "Stat",
+      "title": "Dashboard"
+    },
+    "settings": {
+      "blastRadius": "Applies to every agent",
+      "byokLabel": "Your own provider key",
+      "byokNote": "A personal key is never charged.",
+      "descriptorHeading": "Channel descriptors",
+      "descriptorStatus": "Descriptors loaded from the boot-time registry.",
+      "localeHeading": "Language",
+      "meteringHeading": "Metered work",
+      "quietHoursDescription": "Quiet hours apply to every agent.",
+      "quietHoursHeading": "Quiet hours",
+      "save": "Save",
+      "themeHeading": "Appearance",
+      "title": "Settings"
+    }
+  },
+  "path": "items",
+  "react": "^18",
+  "region": "navigation",
+  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "role": "boundary",
+  "selector": "nav",
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  },
+  "title": "BottomNav",
+  "true": "false",
+  "value": "Integrations",
+  "version": "1.0.0"
 }

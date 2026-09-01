@@ -63,7 +63,7 @@ func loadDesignKits(root string) ([]templatecontracts.DesignKitInfo, error) {
 	}
 	kits := make([]templatecontracts.DesignKitInfo, 0, len(entries))
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), "_") {
 			continue
 		}
 		info, err := loadDesignKit(root, entry.Name())
@@ -120,6 +120,13 @@ func validateDesignKit(info templatecontracts.DesignKitInfo) []templatecontracts
 	var issues []templatecontracts.DesignValidationIssue
 	if info.Manifest.ID != info.ID {
 		issues = append(issues, templatecontracts.DesignValidationIssue{Kit: info.ID, Path: "metadata.json", Message: fmt.Sprintf("metadata id %q must match folder name", info.Manifest.ID)})
+	}
+	if inherited := strings.TrimSpace(info.Manifest.Inherits); inherited != "" {
+		if inherited != "_base" {
+			issues = append(issues, templatecontracts.DesignValidationIssue{Kit: info.ID, Path: "metadata.json", Message: `inherits must name the reserved "_base" token vocabulary`})
+		} else if stat, err := os.Stat(filepath.Join(filepath.Dir(info.Path), inherited, "tokens.css")); err != nil || stat.IsDir() {
+			issues = append(issues, templatecontracts.DesignValidationIssue{Kit: info.ID, Path: "metadata.json", Message: `inherited _base/tokens.css is missing or not a file`})
+		}
 	}
 	for _, required := range []string{"metadata.json", "DESIGN.md"} {
 		if stat, err := os.Stat(filepath.Join(info.Path, required)); err != nil || stat.IsDir() {
@@ -180,9 +187,14 @@ func validateDesignDocument(info templatecontracts.DesignKitInfo) []templatecont
 	}
 	topLevel := designFrontMatterTopLevelKeys(frontMatter)
 	var issues []templatecontracts.DesignValidationIssue
-	for _, key := range []string{"name", "colors", "typography", "rounded", "spacing", "components"} {
+	for _, key := range []string{"name", "components"} {
 		if !topLevel[key] {
-			issues = append(issues, templatecontracts.DesignValidationIssue{Kit: info.ID, Path: "DESIGN.md", Message: fmt.Sprintf("missing official-style top-level %q token group", key)})
+			issues = append(issues, templatecontracts.DesignValidationIssue{Kit: info.ID, Path: "DESIGN.md", Message: fmt.Sprintf("missing top-level %q guidance group", key)})
+		}
+	}
+	for _, key := range []string{"colors", "typography", "rounded", "spacing", "tokens"} {
+		if topLevel[key] {
+			issues = append(issues, templatecontracts.DesignValidationIssue{Kit: info.ID, Path: "DESIGN.md", Message: fmt.Sprintf("top-level %q duplicates the CSS token vocabulary", key)})
 		}
 	}
 	for _, key := range []string{
@@ -312,6 +324,12 @@ func resolveDesign(root string, info templatecontracts.TemplateInfo, requested, 
 			{From: filepath.Join(kit.Path, "DESIGN.md"), To: filepath.Join(destination, "DESIGN.md")},
 		},
 	}
+	if inherited := strings.TrimSpace(kit.Manifest.Inherits); inherited != "" {
+		resolved.Copies = append(resolved.Copies, templatecontracts.ResolvedDesignCopy{
+			From: filepath.Join(filepath.Dir(kit.Path), inherited, "tokens.css"),
+			To:   filepath.Join(destination, "ui", "src", "design-tokens.css"),
+		})
+	}
 	for index, rule := range adapterManifest.Copy {
 		from, ok := cleanRelativePath(renderTemplateString(rule.From, values))
 		if !ok {
@@ -321,10 +339,14 @@ func resolveDesign(root string, info templatecontracts.TemplateInfo, requested, 
 		if !ok {
 			return templatecontracts.ResolvedDesign{}, fmt.Errorf("design adapter %s copy[%d].to must be scenario-relative", adapterID, index)
 		}
-		resolved.Copies = append(resolved.Copies, templatecontracts.ResolvedDesignCopy{
+		copy := templatecontracts.ResolvedDesignCopy{
 			From: filepath.Join(adapterDir, from),
 			To:   filepath.Join(destination, to),
-		})
+		}
+		if inherited := strings.TrimSpace(kit.Manifest.Inherits); inherited != "" && filepath.ToSlash(to) == "ui/src/design-tokens.css" {
+			copy.Append = true
+		}
+		resolved.Copies = append(resolved.Copies, copy)
 	}
 	return resolved, nil
 }
@@ -368,7 +390,7 @@ func preflightDesignTemplateCollisions(templateDir, destination string, resolved
 
 func copyDesignAssets(resolved templatecontracts.ResolvedDesign, values map[string]string) error {
 	for _, copy := range resolved.Copies {
-		if err := copyDesignFile(copy.From, copy.To, values); err != nil {
+		if err := copyDesignFile(copy.From, copy.To, values, copy.Append); err != nil {
 			return fmt.Errorf("copy design asset %s -> %s: %w", copy.From, copy.To, err)
 		}
 	}
@@ -406,7 +428,7 @@ func cleanRelativePath(path string) (string, bool) {
 	return clean, true
 }
 
-func copyDesignFile(src, dest string, values map[string]string) error {
+func copyDesignFile(src, dest string, values map[string]string, appendFile bool) error {
 	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
@@ -421,7 +443,21 @@ func copyDesignFile(src, dest string, values map[string]string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(dest, data, info.Mode())
+	if !appendFile {
+		return os.WriteFile(dest, data, info.Mode())
+	}
+	handle, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_APPEND, info.Mode())
+	if err != nil {
+		return err
+	}
+	defer handle.Close()
+	if existing, statErr := handle.Stat(); statErr == nil && existing.Size() > 0 && len(data) > 0 {
+		if _, err := handle.WriteString("\n"); err != nil {
+			return err
+		}
+	}
+	_, err = handle.Write(data)
+	return err
 }
 
 func fileExists(path string) bool {

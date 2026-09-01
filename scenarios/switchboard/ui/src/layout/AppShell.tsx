@@ -1,6 +1,8 @@
 import { Outlet } from "react-router-dom";
 
 import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
+import { useTranslation } from "../i18n";
 import { BottomNav } from "./BottomNav";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
@@ -14,6 +16,7 @@ import { TopBar } from "./TopBar";
  * `app/routes.tsx`.
  */
 export function AppShell() {
+  const { t } = useTranslation();
   return (
     <div
       data-testid={selectors.layout.shell}
@@ -24,7 +27,7 @@ export function AppShell() {
         <Sidebar />
         <main
           data-testid={selectors.layout.main}
-          aria-label="Main content"
+          aria-label={t(strings.console.mainContent)}
           className="min-w-0 flex-1 overflow-auto px-4 py-4 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:p-6"
         >
           <Outlet />

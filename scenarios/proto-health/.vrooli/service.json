@@ -114,12 +114,14 @@
       "code-facts": {
         "enabled": true,
         "required": true,
-        "description": "Provides proto adoption and endpoint proof evidence used by proto validation."
+        "description": "Provides proto adoption and endpoint proof evidence used by proto validation.",
+        "startup_policy": "must_start"
       },
       "git-control-tower": {
         "enabled": true,
         "required": false,
-        "description": "Provides named baseline metadata for contract impact default scope resolution."
+        "description": "Provides named baseline metadata for contract impact default scope resolution.",
+        "startup_policy": "try_start"
       }
     },
     "resources": {}
