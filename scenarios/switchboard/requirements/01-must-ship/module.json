@@ -1,0 +1,265 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "The system shall load every channel definition from validated descriptor files at boot, shall treat the descriptor file as the source of truth and the database as a cache, and shall fail startup naming the file and field when a descriptor is invalid.",
+      "id": "SWBD-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Channel descriptor registry",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall answer every capability, limit, and policy question about a channel by reading its descriptor, and shall contain no branch on a channel identifier above the adapter layer.",
+      "id": "SWBD-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Channel capability questions answered by descriptor",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall define one bidirectional adapter contract covering connect, receive, send, and normalise, and shall bind an adapter to a descriptor by identifier.",
+      "id": "SWBD-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Channel adapter contract",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall convert every inbound and outbound message to a single envelope shape, and no component above the adapter shall receive a channel-native type.",
+      "id": "SWBD-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Normalised message envelope",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall discard a redelivered inbound message at ingress using the channel identifier and the remote message identifier, before any run is started or any metered call is made.",
+      "id": "SWBD-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Ingress idempotency",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall persist every conversation as a thread carrying its roster, its messages, and its media references, and shall resume a thread across a restart without losing position.",
+      "id": "SWBD-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Durable thread sessions",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall resolve an inbound address, handle, or thread to exactly one agent binding, and shall reject an ambiguous binding rather than choosing one.",
+      "id": "SWBD-P0-007",
+      "prd_ref": "OT-P0-007",
+      "status": "planned",
+      "title": "Address to agent binding",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall read agent profiles from prompt-manager by reference and shall never store a copy of a descriptor it does not own.",
+      "id": "SWBD-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "Agent profiles held by reference",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall assign every known contact a trust tier of owner, trusted, known, or stranger, and shall treat an unrecognised sender as a stranger.",
+      "id": "SWBD-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Contact trust tiers",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall compute the effective scope for a turn as the narrowest of the sender tier, the thread ceiling, and the agent capability grant, shall resolve it before the agent reads the message, and shall refuse the turn when the result is empty.",
+      "id": "SWBD-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Fail-closed scope resolution",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall make it impossible to grant an owner-only scope to any tier below owner, by construction rather than by configuration.",
+      "id": "SWBD-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "Owner-only scope is unreachable from a non-owner tier",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall start every agent turn as an agent-manager run carrying the resolved scope through one-way attenuation, and shall never widen a scope inside a turn.",
+      "id": "SWBD-P0-012",
+      "prd_ref": "OT-P0-012",
+      "status": "planned",
+      "title": "Attenuated run dispatch",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-012] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall return a reply through the adapter that received the message, on the same thread, and shall not route a conversational reply through a one-shot notification path.",
+      "id": "SWBD-P0-013",
+      "prd_ref": "OT-P0-013",
+      "status": "planned",
+      "title": "Reply egress through the ingressing adapter",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-013] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall expose its own in-app conversation surface as an ordinary channel adapter, indistinguishable to the core from any external channel.",
+      "id": "SWBD-P0-014",
+      "prd_ref": "OT-P0-014",
+      "status": "planned",
+      "title": "In-app conversation adapter",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-014] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall send and receive text, images, and files on Telegram through the Bot API, requiring no account provisioning and no public origin.",
+      "id": "SWBD-P0-015",
+      "prd_ref": "OT-P0-015",
+      "status": "planned",
+      "title": "Telegram adapter",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-015] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall provide one shared conformance suite that every adapter passes, covering text round-trip, media round-trip, declared-limit rejection, threaded reply, rate-limit backoff, unknown-sender ingress, and refusal to auto-reply to an agent-authored message.",
+      "id": "SWBD-P0-016",
+      "prd_ref": "OT-P0-016",
+      "status": "planned",
+      "title": "Channel conformance suite",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-016] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The system shall provide a console for the agent roster, conversations, contacts and their tiers, and the channel catalogue, rendering loading, error, and empty states throughout.",
+      "id": "SWBD-P0-017",
+      "prd_ref": "OT-P0-017",
+      "status": "planned",
+      "title": "Operator console",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P0-017] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

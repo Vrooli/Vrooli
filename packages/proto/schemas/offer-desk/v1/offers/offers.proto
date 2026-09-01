@@ -71,6 +71,7 @@ message MergeNodesRequest {
   string duplicate_id = 2 [(buf.validate.field).string.min_len = 1];
   string actor = 3;
   bool dry_run = 4;
+  string reason = 5;
 }
 message MergeNodesResponse {
   Node surviving = 1;
@@ -80,7 +81,15 @@ message MergeNodesResponse {
   int32 moved_proposals = 5;
   int32 moved_findings = 6;
   repeated string collapsed_edge_ids = 7;
+  Node retired = 9;
 }
+message RenameNodeRequest {
+  string node_id = 1 [(buf.validate.field).string.min_len = 1];
+  string name = 2 [(buf.validate.field).string.min_len = 1];
+  string actor = 3;
+  string reason = 4;
+}
+message RenameNodeResponse { Node node = 1; string prior_name = 2; }
 message VerifyCatalogRequest { string source_path = 1; SourceMode source_mode = 2; }
 message VerifyFileReport { string path = 1; int32 expected = 2; int32 live = 3; }
 message VerifyCatalogResponse {
@@ -103,6 +112,7 @@ message VerifyCatalogResponse {
   // not_comparable_reason states why the count comparison was skipped. Empty
   // when comparable is true.
   string not_comparable_reason = 8;
+  repeated string scenario_gaps = 9;
 }
 message SpaceCell { string id = 1; string group = 2; string question = 3; string owner = 4; string status = 5; string notes = 6; }
 message SpaceResponse { string schema_version = 1; string projection = 2; string owner = 3; string denominator_confidence = 4; string confidence_rationale = 5; string source = 6; repeated SpaceCell cells = 7; repeated Availability availability = 8; }
@@ -117,10 +127,10 @@ message ReleaseLadderEntry {
   repeated PrerequisiteNode enablers = 6;
   repeated GoalImpact goal_impacts = 7;
 }
-message ReleaseLadderResponse { repeated ReleaseLadderEntry entries = 1; repeated Node ramps = 2; repeated Node streams = 3; repeated Node audiences = 4; repeated PrerequisiteNode enabling = 5; repeated Availability availability = 6; }
-message SetReleaseRankRequest { string node_id = 1; int32 release_rank = 2; string actor = 3; }
+message ReleaseLadderResponse { repeated ReleaseLadderEntry entries = 1; repeated Node ramps = 2; repeated Node streams = 3; repeated Node audiences = 4; repeated PrerequisiteNode enabling = 5; repeated Availability availability = 6; repeated Node unscheduled = 7; }
+message SetReleaseRankRequest { string node_id = 1; int32 release_rank = 2; string actor = 3; string reason = 4; }
 message SetReleaseRankResponse { Node node = 1; int32 prior_release_rank = 2; }
-message SetDeliverableClassRequest { string node_id = 1; DeliverableClass deliverable_class = 2; FinishBar finish_bar = 3; string actor = 4; }
+message SetDeliverableClassRequest { string node_id = 1; DeliverableClass deliverable_class = 2; FinishBar finish_bar = 3; string actor = 4; string reason = 5; }
 message SetDeliverableClassResponse { Node node = 1; DeliverableClass prior_class = 2; FinishBar prior_finish_bar = 3; }
 message MeterInventoryRequest {}
 message MeterInventoryEntry { string limit_key = 1; string class = 2; repeated string declared_by = 3; repeated string bundle_keys = 4; bool byok = 5; }
@@ -138,6 +148,7 @@ service CatalogService {
   rpc ImportCatalog(ImportCatalogRequest) returns (ImportCatalogResponse);
   rpc MapAccount(MapAccountRequest) returns (MapAccountResponse);
   rpc MergeNodes(MergeNodesRequest) returns (MergeNodesResponse);
+  rpc RenameNode(RenameNodeRequest) returns (RenameNodeResponse);
   rpc VerifyCatalog(VerifyCatalogRequest) returns (VerifyCatalogResponse);
   rpc SetReleaseRank(SetReleaseRankRequest) returns (SetReleaseRankResponse);
   rpc SetDeliverableClass(SetDeliverableClassRequest) returns (SetDeliverableClassResponse);

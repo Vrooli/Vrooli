@@ -65,6 +65,9 @@ const (
 	// CatalogServiceMergeNodesProcedure is the fully-qualified name of the CatalogService's MergeNodes
 	// RPC.
 	CatalogServiceMergeNodesProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes"
+	// CatalogServiceRenameNodeProcedure is the fully-qualified name of the CatalogService's RenameNode
+	// RPC.
+	CatalogServiceRenameNodeProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/RenameNode"
 	// CatalogServiceVerifyCatalogProcedure is the fully-qualified name of the CatalogService's
 	// VerifyCatalog RPC.
 	CatalogServiceVerifyCatalogProcedure = "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog"
@@ -115,6 +118,7 @@ type CatalogServiceClient interface {
 	ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error)
 	MapAccount(context.Context, *connect.Request[offers.MapAccountRequest]) (*connect.Response[offers.MapAccountResponse], error)
 	MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error)
+	RenameNode(context.Context, *connect.Request[offers.RenameNodeRequest]) (*connect.Response[offers.RenameNodeResponse], error)
 	VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error)
 	SetReleaseRank(context.Context, *connect.Request[offers.SetReleaseRankRequest]) (*connect.Response[offers.SetReleaseRankResponse], error)
 	SetDeliverableClass(context.Context, *connect.Request[offers.SetDeliverableClassRequest]) (*connect.Response[offers.SetDeliverableClassResponse], error)
@@ -180,6 +184,12 @@ func NewCatalogServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(catalogServiceMethods.ByName("MergeNodes")),
 			connect.WithClientOptions(opts...),
 		),
+		renameNode: connect.NewClient[offers.RenameNodeRequest, offers.RenameNodeResponse](
+			httpClient,
+			baseURL+CatalogServiceRenameNodeProcedure,
+			connect.WithSchema(catalogServiceMethods.ByName("RenameNode")),
+			connect.WithClientOptions(opts...),
+		),
 		verifyCatalog: connect.NewClient[offers.VerifyCatalogRequest, offers.VerifyCatalogResponse](
 			httpClient,
 			baseURL+CatalogServiceVerifyCatalogProcedure,
@@ -217,6 +227,7 @@ type catalogServiceClient struct {
 	importCatalog       *connect.Client[offers.ImportCatalogRequest, offers.ImportCatalogResponse]
 	mapAccount          *connect.Client[offers.MapAccountRequest, offers.MapAccountResponse]
 	mergeNodes          *connect.Client[offers.MergeNodesRequest, offers.MergeNodesResponse]
+	renameNode          *connect.Client[offers.RenameNodeRequest, offers.RenameNodeResponse]
 	verifyCatalog       *connect.Client[offers.VerifyCatalogRequest, offers.VerifyCatalogResponse]
 	setReleaseRank      *connect.Client[offers.SetReleaseRankRequest, offers.SetReleaseRankResponse]
 	setDeliverableClass *connect.Client[offers.SetDeliverableClassRequest, offers.SetDeliverableClassResponse]
@@ -263,6 +274,11 @@ func (c *catalogServiceClient) MergeNodes(ctx context.Context, req *connect.Requ
 	return c.mergeNodes.CallUnary(ctx, req)
 }
 
+// RenameNode calls vrooli.offer_desk.v1.offers.CatalogService.RenameNode.
+func (c *catalogServiceClient) RenameNode(ctx context.Context, req *connect.Request[offers.RenameNodeRequest]) (*connect.Response[offers.RenameNodeResponse], error) {
+	return c.renameNode.CallUnary(ctx, req)
+}
+
 // VerifyCatalog calls vrooli.offer_desk.v1.offers.CatalogService.VerifyCatalog.
 func (c *catalogServiceClient) VerifyCatalog(ctx context.Context, req *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error) {
 	return c.verifyCatalog.CallUnary(ctx, req)
@@ -294,6 +310,7 @@ type CatalogServiceHandler interface {
 	ImportCatalog(context.Context, *connect.Request[offers.ImportCatalogRequest]) (*connect.Response[offers.ImportCatalogResponse], error)
 	MapAccount(context.Context, *connect.Request[offers.MapAccountRequest]) (*connect.Response[offers.MapAccountResponse], error)
 	MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error)
+	RenameNode(context.Context, *connect.Request[offers.RenameNodeRequest]) (*connect.Response[offers.RenameNodeResponse], error)
 	VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error)
 	SetReleaseRank(context.Context, *connect.Request[offers.SetReleaseRankRequest]) (*connect.Response[offers.SetReleaseRankResponse], error)
 	SetDeliverableClass(context.Context, *connect.Request[offers.SetDeliverableClassRequest]) (*connect.Response[offers.SetDeliverableClassResponse], error)
@@ -355,6 +372,12 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 		connect.WithSchema(catalogServiceMethods.ByName("MergeNodes")),
 		connect.WithHandlerOptions(opts...),
 	)
+	catalogServiceRenameNodeHandler := connect.NewUnaryHandler(
+		CatalogServiceRenameNodeProcedure,
+		svc.RenameNode,
+		connect.WithSchema(catalogServiceMethods.ByName("RenameNode")),
+		connect.WithHandlerOptions(opts...),
+	)
 	catalogServiceVerifyCatalogHandler := connect.NewUnaryHandler(
 		CatalogServiceVerifyCatalogProcedure,
 		svc.VerifyCatalog,
@@ -397,6 +420,8 @@ func NewCatalogServiceHandler(svc CatalogServiceHandler, opts ...connect.Handler
 			catalogServiceMapAccountHandler.ServeHTTP(w, r)
 		case CatalogServiceMergeNodesProcedure:
 			catalogServiceMergeNodesHandler.ServeHTTP(w, r)
+		case CatalogServiceRenameNodeProcedure:
+			catalogServiceRenameNodeHandler.ServeHTTP(w, r)
 		case CatalogServiceVerifyCatalogProcedure:
 			catalogServiceVerifyCatalogHandler.ServeHTTP(w, r)
 		case CatalogServiceSetReleaseRankProcedure:
@@ -444,6 +469,10 @@ func (UnimplementedCatalogServiceHandler) MapAccount(context.Context, *connect.R
 
 func (UnimplementedCatalogServiceHandler) MergeNodes(context.Context, *connect.Request[offers.MergeNodesRequest]) (*connect.Response[offers.MergeNodesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.MergeNodes is not implemented"))
+}
+
+func (UnimplementedCatalogServiceHandler) RenameNode(context.Context, *connect.Request[offers.RenameNodeRequest]) (*connect.Response[offers.RenameNodeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.offer_desk.v1.offers.CatalogService.RenameNode is not implemented"))
 }
 
 func (UnimplementedCatalogServiceHandler) VerifyCatalog(context.Context, *connect.Request[offers.VerifyCatalogRequest]) (*connect.Response[offers.VerifyCatalogResponse], error) {

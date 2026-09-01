@@ -1,0 +1,454 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "conversations",
+    "title": "Conversations",
+    "routes": [
+      "/conversations",
+      "/conversations/:threadId"
+    ],
+    "purpose": "Every thread across every channel in one list, with one thread open beside it. This page is also the in-app conversation surface, which is an ordinary channel adapter rather than a special case, so it must not offer any affordance an external channel cannot have.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-013",
+      "OT-P0-014",
+      "OT-P1-002",
+      "OT-P1-003",
+      "OT-P1-005",
+      "OT-P1-009"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which channel a thread arrived on, without reading the message"
+    },
+    {
+      "statement": "Whether the agent is currently permitted to answer in this thread"
+    },
+    {
+      "statement": "Who is in the room, when the room holds more than one person"
+    },
+    {
+      "statement": "The remaining turn budget and spend cap when either is close to exhausted"
+    },
+    {
+      "statement": "Which messages the agent wrote, distinguishable from a person's at a glance"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "A thread is selected and its transcript renders to the newest message."
+    },
+    {
+      "id": "loading",
+      "description": "Thread history is resolving; the list stays interactive."
+    },
+    {
+      "id": "empty",
+      "description": "No thread exists yet, and the empty state offers the one action that creates one."
+    },
+    {
+      "id": "submitting",
+      "description": "A message is being sent; the composer is busy and duplicate submission is prevented."
+    },
+    {
+      "id": "partial",
+      "description": "Older history failed to load while recent messages rendered."
+    },
+    {
+      "id": "success",
+      "description": "A sent message is acknowledged in the transcript."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The agent refused this turn; the refusal names what was withheld and what would unblock it."
+    },
+    {
+      "id": "request-error",
+      "description": "Sending failed terminally; the drafted text is preserved."
+    },
+    {
+      "id": "retry",
+      "description": "A send failed transiently and is backing off, with the next attempt stated."
+    },
+    {
+      "id": "offline",
+      "description": "The adapter for this thread is disconnected; sending is disabled with the reason stated."
+    },
+    {
+      "id": "stale",
+      "description": "The thread is showing cached history because the adapter has not reconnected."
+    }
+  ],
+  "elements": [
+    {
+      "id": "thread-list",
+      "role": "list",
+      "name": "Threads"
+    },
+    {
+      "id": "thread-item",
+      "role": "listitem",
+      "name": "Thread"
+    },
+    {
+      "id": "channel-chip",
+      "role": "img",
+      "name": "Channel"
+    },
+    {
+      "id": "transcript",
+      "role": "log",
+      "name": "Conversation"
+    },
+    {
+      "id": "message",
+      "role": "article",
+      "name": "Message"
+    },
+    {
+      "id": "agent-message-marker",
+      "role": "note",
+      "name": "Written by an agent"
+    },
+    {
+      "id": "roster",
+      "role": "group",
+      "name": "People in this thread"
+    },
+    {
+      "id": "gate-card",
+      "role": "alert",
+      "name": "Capability gate"
+    },
+    {
+      "id": "budget-meter",
+      "role": "meter",
+      "name": "Turn budget remaining"
+    },
+    {
+      "id": "composer",
+      "role": "form",
+      "name": "Send a message"
+    },
+    {
+      "id": "composer-input",
+      "role": "textbox",
+      "name": "Message"
+    },
+    {
+      "id": "attach-action",
+      "role": "button",
+      "name": "Attach a file"
+    },
+    {
+      "id": "send-action",
+      "role": "button",
+      "name": "Send"
+    },
+    {
+      "id": "silence-note",
+      "role": "status",
+      "name": "The agent is not answering here"
+    },
+    {
+      "id": "empty-cta",
+      "role": "button",
+      "name": "Start a conversation"
+    }
+  ],
+  "claims": [
+    {
+      "id": "channel-legible-without-reading",
+      "type": "element-present",
+      "statement": "Every thread row carries its channel identity, so the channel is known before the message is read.",
+      "tier": "aspirational",
+      "elements": [
+        "thread-item",
+        "channel-chip"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Priority one. A mixed-channel list where the channel is only in the detail pane forces a click to answer the first question."
+    },
+    {
+      "id": "agent-authorship-visible",
+      "type": "state-distinct",
+      "statement": "An agent-authored message is perceivably distinct from a human-authored one without relying on colour alone.",
+      "tier": "aspirational",
+      "elements": [
+        "message",
+        "agent-message-marker"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "OT-P1-004 makes authorship load-bearing; a person must be able to see what the loop breaker sees."
+    },
+    {
+      "id": "refusal-is-actionable",
+      "type": "element-present",
+      "statement": "A refusal states what was withheld and what would unblock it, rather than failing silently or answering partially.",
+      "tier": "aspirational",
+      "elements": [
+        "gate-card"
+      ],
+      "states": [
+        "permission-denied"
+      ],
+      "rationale": "OT-P1-002 forbids the partial answer, so the refusal itself has to carry the information."
+    },
+    {
+      "id": "silence-is-explained",
+      "type": "element-present",
+      "statement": "When speaking discipline suppresses a turn, the surface says the agent is not answering here rather than appearing broken.",
+      "tier": "aspirational",
+      "elements": [
+        "silence-note"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "OT-P1-003 makes silence correct behaviour, which means silence must be legible or it reads as a defect."
+    },
+    {
+      "id": "composer-disabled-with-reason",
+      "type": "custom",
+      "statement": "A disabled composer always states why it is disabled and what would re-enable it.",
+      "tier": "manual",
+      "elements": [
+        "composer",
+        "composer-input"
+      ],
+      "states": [
+        "offline",
+        "permission-denied"
+      ]
+    },
+    {
+      "id": "draft-survives-failure",
+      "type": "custom",
+      "statement": "A failed send preserves the drafted text in the composer.",
+      "tier": "manual",
+      "elements": [
+        "composer-input"
+      ],
+      "states": [
+        "request-error",
+        "retry"
+      ]
+    },
+    {
+      "id": "no-duplicate-send",
+      "type": "affordance-present",
+      "statement": "The send action prevents duplicate submission while a send is in flight.",
+      "tier": "aspirational",
+      "elements": [
+        "send-action"
+      ],
+      "states": [
+        "submitting"
+      ]
+    },
+    {
+      "id": "transcript-is-a-log",
+      "type": "accessible-name",
+      "statement": "The transcript exposes a log role so a screen reader announces arriving messages without moving focus.",
+      "tier": "aspirational",
+      "elements": [
+        "transcript"
+      ]
+    },
+    {
+      "id": "newest-visible",
+      "type": "visible-without-scroll",
+      "statement": "On opening a thread the newest message is visible without scrolling.",
+      "tier": "aspirational",
+      "elements": [
+        "transcript"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "budget-pressure-visible",
+      "type": "custom",
+      "statement": "Remaining turn budget is shown in the thread only when it is close to exhausted, not at all times.",
+      "tier": "manual",
+      "elements": [
+        "budget-meter"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "A meter that is always present becomes furniture and stops being read."
+    },
+    {
+      "id": "roster-when-group",
+      "type": "element-present",
+      "statement": "A thread with more than one human shows its roster, because the room's ceiling derives from it.",
+      "tier": "aspirational",
+      "elements": [
+        "roster"
+      ],
+      "states": [
+        "default"
+      ]
+    },
+    {
+      "id": "empty-offers-the-action",
+      "type": "element-present",
+      "statement": "The empty state offers the single action that creates a first thread.",
+      "tier": "aspirational",
+      "elements": [
+        "empty-cta"
+      ],
+      "states": [
+        "empty"
+      ]
+    },
+    {
+      "id": "no-in-app-privilege",
+      "type": "custom",
+      "statement": "The in-app thread offers no affordance that an external channel adapter cannot also provide.",
+      "tier": "manual",
+      "rationale": "OT-P0-014. If the console can do something Telegram cannot, the core has grown a special case."
+    },
+    {
+      "id": "focus-returns-after-gate",
+      "type": "focus-containment",
+      "statement": "Answering or dismissing the capability gate returns focus to the composer.",
+      "tier": "aspirational",
+      "elements": [
+        "gate-card",
+        "composer-input"
+      ],
+      "states": [
+        "permission-denied"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Authorship, refusal and offline treatments hold their distinction in both themes.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "thread-list-region",
+      "purpose": "The cross-channel thread list.",
+      "required": true,
+      "component": {
+        "local": "thread-list"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "transcript-region",
+      "purpose": "Message history for the selected thread.",
+      "required": true,
+      "component": {
+        "local": "transcript"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "partial",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "gate-region",
+      "purpose": "A capability gate awaiting an owner decision.",
+      "required": false,
+      "component": {
+        "local": "capability-gate"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "ready",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "thread-list": {
+        "testid": "conversations-thread-list"
+      },
+      "thread-item": {
+        "testid": "conversations-thread-item"
+      },
+      "channel-chip": {
+        "testid": "conversations-channel-chip"
+      },
+      "transcript": {
+        "testid": "conversations-transcript"
+      },
+      "message": {
+        "testid": "conversations-message"
+      },
+      "agent-message-marker": {
+        "testid": "conversations-agent-marker"
+      },
+      "roster": {
+        "testid": "conversations-roster"
+      },
+      "gate-card": {
+        "testid": "conversations-gate"
+      },
+      "budget-meter": {
+        "testid": "conversations-budget"
+      },
+      "composer": {
+        "testid": "conversations-composer"
+      },
+      "composer-input": {
+        "testid": "conversations-composer-input"
+      },
+      "attach-action": {
+        "testid": "conversations-attach"
+      },
+      "send-action": {
+        "testid": "conversations-send"
+      },
+      "silence-note": {
+        "testid": "conversations-silence"
+      },
+      "empty-cta": {
+        "testid": "conversations-empty-cta"
+      }
+    },
+    "regions": {
+      "thread-list-region": {
+        "testid": "conversations-thread-list-region"
+      },
+      "transcript-region": {
+        "testid": "conversations-transcript-region"
+      },
+      "gate-region": {
+        "testid": "conversations-gate-region"
+      }
+    }
+  }
+}

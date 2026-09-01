@@ -1,0 +1,185 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-component",
+  "schemaVersion": "1.0.0",
+  "component": {
+    "id": "capability-gate",
+    "title": "Capability gate",
+    "purpose": "The in-thread prompt an agent raises when it needs a capability it was not granted. It states what was withheld, what would unblock it, and how long the request remains open.",
+    "storyRef": "../../../react-component-library/library/components/ApprovalPrompt/versions/1.0.12/story.json"
+  },
+  "states": [
+    {
+      "id": "default",
+      "example": "default",
+      "description": "A gate awaiting an owner decision, with its expiry stated."
+    },
+    {
+      "id": "submitting",
+      "example": "submitting",
+      "description": "The decision is being written."
+    },
+    {
+      "id": "success",
+      "example": "success",
+      "description": "The capability was granted once and the turn resumed."
+    },
+    {
+      "id": "permission-denied",
+      "example": "permission-denied",
+      "description": "The viewer is not the owner and cannot answer this gate."
+    },
+    {
+      "id": "request-error",
+      "example": "request-error",
+      "description": "Writing the decision failed; the gate remains open."
+    },
+    {
+      "id": "retry",
+      "example": "retry",
+      "description": "The decision is being retried after a transient failure."
+    }
+  ],
+  "elements": [
+    {
+      "id": "gate-root",
+      "role": "alert",
+      "name": "Capability gate"
+    },
+    {
+      "id": "withheld-statement",
+      "role": "note",
+      "name": "What was withheld"
+    },
+    {
+      "id": "unblock-statement",
+      "role": "note",
+      "name": "What would unblock it"
+    },
+    {
+      "id": "expiry-status",
+      "role": "status",
+      "name": "Time remaining"
+    },
+    {
+      "id": "grant-once-action",
+      "role": "button",
+      "name": "Grant once"
+    },
+    {
+      "id": "deny-action",
+      "role": "button",
+      "name": "Not now"
+    }
+  ],
+  "claims": [
+    {
+      "id": "states-what-was-withheld",
+      "type": "element-present",
+      "statement": "The gate names the specific capability that was missing, not a generic permission error.",
+      "tier": "aspirational",
+      "elements": [
+        "withheld-statement",
+        "unblock-statement"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "OT-P1-009 exists so a person can make a decision; a generic error gives them nothing to decide with."
+    },
+    {
+      "id": "expiry-is-visible",
+      "type": "element-present",
+      "statement": "The remaining time before the request expires is visible without interaction.",
+      "tier": "aspirational",
+      "elements": [
+        "expiry-status"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "An expiring prompt that does not show its expiry surprises the owner when it disappears."
+    },
+    {
+      "id": "grant-is-once-by-default",
+      "type": "custom",
+      "statement": "The dominant action grants the capability for this turn only; any broader grant is a secondary path.",
+      "tier": "manual",
+      "elements": [
+        "grant-once-action"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "A one-click permanent grant is how a scoped system quietly becomes unscoped."
+    },
+    {
+      "id": "non-owner-cannot-answer",
+      "type": "element-absent",
+      "statement": "No grant control is rendered to a viewer who is not the owner.",
+      "tier": "aspirational",
+      "elements": [
+        "grant-once-action"
+      ],
+      "states": [
+        "permission-denied"
+      ],
+      "rationale": "A gate discloses what was withheld, so showing it to a group would breach OT-P1-002."
+    },
+    {
+      "id": "keyboard-answerable",
+      "type": "keyboard-reachable",
+      "statement": "Both decisions are reachable and operable from the keyboard alone.",
+      "tier": "aspirational",
+      "elements": [
+        "grant-once-action",
+        "deny-action"
+      ]
+    },
+    {
+      "id": "announced-politely",
+      "type": "custom",
+      "statement": "A gate arriving in an open thread is announced without stealing focus from the composer.",
+      "tier": "manual",
+      "elements": [
+        "gate-root"
+      ],
+      "states": [
+        "default"
+      ]
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "gate-root": {
+        "testid": "capability-gate"
+      },
+      "withheld-statement": {
+        "testid": "capability-gate-withheld"
+      },
+      "unblock-statement": {
+        "testid": "capability-gate-unblock"
+      },
+      "expiry-status": {
+        "testid": "capability-gate-expiry"
+      },
+      "grant-once-action": {
+        "testid": "capability-gate-grant"
+      },
+      "deny-action": {
+        "testid": "capability-gate-deny"
+      }
+    }
+  },
+  "priorities": [
+    {
+      "statement": "What the agent was not allowed to do"
+    },
+    {
+      "statement": "What granting it would permit"
+    },
+    {
+      "statement": "How long the request stays open"
+    }
+  ]
+}

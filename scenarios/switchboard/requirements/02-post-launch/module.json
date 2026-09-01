@@ -1,0 +1,235 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "The system should compute a group thread's ceiling as the lowest trust tier present in its roster, so that adding a lower-tier participant narrows the room rather than widening that participant.",
+      "id": "SWBD-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Group threads with a roster-derived ceiling",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should withhold from a group thread any content that only one member's tier unlocks, and should state the withholding rather than answering partially.",
+      "id": "SWBD-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "No cross-member disclosure in a group",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should stay silent in a thread with more than one human unless the agent is addressed by mention, reply, or wake word, while still recording every message to the thread.",
+      "id": "SWBD-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Speaking discipline",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should mark every agent-authored message and should never start a turn in response to one.",
+      "id": "SWBD-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Agent-authored message loop breaker",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should enforce an hourly turn budget per thread, should fail closed when it is exhausted, and should notify the owner once rather than on every suppressed turn.",
+      "id": "SWBD-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Per-thread turn budget",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-005] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should enforce a spend cap per thread so that a participant who is not the owner cannot exhaust the owner's balance, and should surface the cap to the owner.",
+      "id": "SWBD-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Per-thread spend cap",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-006] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should read a capability grant from the agent descriptor that names existing agent-manager scopes and program-runtime bindings, and should never define a second policy vocabulary.",
+      "id": "SWBD-P1-007",
+      "prd_ref": "OT-P1-007",
+      "status": "planned",
+      "title": "Capability grant on the agent descriptor",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-007] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should draft a complete agent descriptor from a plain-language description, should present it for confirmation before writing, and should write it through a typed action rather than a free-form model write.",
+      "id": "SWBD-P1-008",
+      "prd_ref": "OT-P1-008",
+      "status": "planned",
+      "title": "Assisted agent authoring",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-008] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should let an agent request a scope it lacks, should route that request to the owner only, and should expire an unanswered request rather than leaving the thread pending.",
+      "id": "SWBD-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "planned",
+      "title": "Approval gate with expiry",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-009] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should send and receive iMessage through a Mac in the owner's fleet reached by vrooli-bridge, and should report a stated unavailable reason when no Mac is reachable.",
+      "id": "SWBD-P1-010",
+      "prd_ref": "OT-P1-010",
+      "status": "planned",
+      "title": "iMessage adapter through a Mac fleet node",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-010] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should send and receive text, images, files, and threaded replies on Slack, using the same adapter contract as every other channel.",
+      "id": "SWBD-P1-011",
+      "prd_ref": "OT-P1-011",
+      "status": "planned",
+      "title": "Slack adapter",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-011] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should evaluate each descriptor's requirements against the facts vrooli-bridge and tunnel-manager already hold, and should present an unavailable channel as a prompt to satisfy the requirement rather than as a selectable option.",
+      "id": "SWBD-P1-012",
+      "prd_ref": "OT-P1-012",
+      "status": "planned",
+      "title": "Channel availability computed from host facts",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-012] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should present available channels ordered by the setup friction each descriptor declares, so that the least-effort path is first without any maintained ordering.",
+      "id": "SWBD-P1-013",
+      "prd_ref": "OT-P1-013",
+      "status": "planned",
+      "title": "Attach catalogue ordered by declared friction",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-013] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should charge cost-bearing inference and hosted speech through landing-page-business-suite, and should fall through to an operator-supplied provider key with no charge when one is configured.",
+      "id": "SWBD-P1-014",
+      "prd_ref": "OT-P1-014",
+      "status": "planned",
+      "title": "Metered inference through the business suite",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-014] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "The system should let notification-hub deliver one-shot notifications through the same conversational adapters, so that one channel is never implemented twice.",
+      "id": "SWBD-P1-015",
+      "prd_ref": "OT-P1-015",
+      "status": "planned",
+      "title": "Notification hub shares the adapter registry",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:SWBD-P1-015] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

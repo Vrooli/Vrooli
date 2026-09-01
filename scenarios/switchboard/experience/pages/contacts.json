@@ -1,0 +1,288 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "contacts",
+    "title": "Contacts",
+    "routes": [
+      "/contacts",
+      "/contacts/:contactId"
+    ],
+    "purpose": "Everyone who has ever reached an agent here, and the tier each one holds. This is the security surface of the product: a tier change is the only edit on it, and it is the edit with the largest blast radius.",
+    "prd_refs": [
+      "OT-P0-009",
+      "OT-P0-010",
+      "OT-P0-011",
+      "OT-P1-001"
+    ]
+  },
+  "priorities": [
+    {
+      "statement": "Which tier each contact holds, as a rank rather than a category"
+    },
+    {
+      "statement": "What a tier actually permits, stated before it is changed"
+    },
+    {
+      "statement": "Which rooms a contact is in, because a group's ceiling derives from its roster"
+    },
+    {
+      "statement": "That an unrecognised sender is already a stranger and needs no action"
+    },
+    {
+      "statement": "What a tier change will do, before it is confirmed"
+    }
+  ],
+  "states": [
+    {
+      "id": "default",
+      "description": "Contacts are listed with their tier and the rooms they appear in."
+    },
+    {
+      "id": "loading",
+      "description": "Contacts are resolving."
+    },
+    {
+      "id": "empty",
+      "description": "Nobody outside the owner has reached an agent yet."
+    },
+    {
+      "id": "saving",
+      "description": "A tier change is being written."
+    },
+    {
+      "id": "success",
+      "description": "A tier change was written; the affected rooms are stated."
+    },
+    {
+      "id": "validation-error",
+      "description": "The tier change was rejected; the reason sits beside the control."
+    },
+    {
+      "id": "request-error",
+      "description": "The write failed and the previous tier is restored."
+    },
+    {
+      "id": "permission-denied",
+      "description": "The signed-in person may not change tiers."
+    },
+    {
+      "id": "stale",
+      "description": "The list is cached; its age is stated."
+    },
+    {
+      "id": "partial",
+      "description": "One region failed while the rest resolved; the failure is named and the page stays usable."
+    }
+  ],
+  "elements": [
+    {
+      "id": "contact-list",
+      "role": "list",
+      "name": "Contacts"
+    },
+    {
+      "id": "contact-row",
+      "role": "listitem",
+      "name": "Contact"
+    },
+    {
+      "id": "tier-badge",
+      "role": "status",
+      "name": "Trust tier"
+    },
+    {
+      "id": "tier-control",
+      "role": "radiogroup",
+      "name": "Trust tier"
+    },
+    {
+      "id": "tier-effect-note",
+      "role": "note",
+      "name": "What this tier permits"
+    },
+    {
+      "id": "room-list",
+      "role": "list",
+      "name": "Rooms this contact is in"
+    },
+    {
+      "id": "ceiling-warning",
+      "role": "alert",
+      "name": "Effect on group ceilings"
+    },
+    {
+      "id": "confirm-action",
+      "role": "button",
+      "name": "Change tier"
+    }
+  ],
+  "claims": [
+    {
+      "id": "tier-is-a-rank",
+      "type": "custom",
+      "statement": "Tier is presented as an ordered ladder from stranger to owner, not as four unordered categories.",
+      "tier": "manual",
+      "elements": [
+        "tier-badge",
+        "tier-control"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "The whole model depends on tiers being comparable, because the room ceiling is a minimum across them."
+    },
+    {
+      "id": "effect-before-change",
+      "type": "element-present",
+      "statement": "What a tier permits is stated in plain language before the change is confirmed.",
+      "tier": "aspirational",
+      "elements": [
+        "tier-effect-note",
+        "confirm-action"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Nobody can consent to a permission change described only by its name."
+    },
+    {
+      "id": "ceiling-effect-is-shown",
+      "type": "element-present",
+      "statement": "Raising or lowering a tier states which group ceilings the change moves, before it is confirmed.",
+      "tier": "aspirational",
+      "elements": [
+        "ceiling-warning",
+        "room-list"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "OT-P1-001 makes a tier change ripple into every room the contact is in. That ripple must not be a surprise."
+    },
+    {
+      "id": "owner-tier-is-not-casual",
+      "type": "custom",
+      "statement": "Promoting a contact to owner is visibly distinct from every other tier change and requires deliberate confirmation.",
+      "tier": "manual",
+      "elements": [
+        "tier-control",
+        "confirm-action"
+      ],
+      "states": [
+        "default"
+      ],
+      "rationale": "Owner is the only tier that can reach an owner-only capability."
+    },
+    {
+      "id": "stranger-needs-no-action",
+      "type": "element-present",
+      "statement": "The empty state states that unrecognised senders are already strangers and that no action is required.",
+      "tier": "aspirational",
+      "states": [
+        "empty"
+      ],
+      "rationale": "OT-P0-009 makes stranger the default. An empty list that implies work is misleading."
+    },
+    {
+      "id": "failed-write-restores",
+      "type": "custom",
+      "statement": "A failed tier write restores the previous tier visibly rather than leaving the control in the attempted position.",
+      "tier": "manual",
+      "elements": [
+        "tier-control"
+      ],
+      "states": [
+        "request-error"
+      ]
+    },
+    {
+      "id": "tier-distinct-without-hue",
+      "type": "state-distinct",
+      "statement": "Tiers are distinguishable without relying on colour alone.",
+      "tier": "aspirational",
+      "elements": [
+        "tier-badge"
+      ]
+    },
+    {
+      "id": "dark-parity",
+      "type": "dark-parity",
+      "statement": "Tier treatments hold their ordering and contrast in both themes.",
+      "tier": "aspirational"
+    }
+  ],
+  "regions": [
+    {
+      "id": "contact-region",
+      "purpose": "Contacts and the tier each holds.",
+      "required": true,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    },
+    {
+      "id": "rooms-region",
+      "purpose": "Rooms the selected contact appears in.",
+      "required": false,
+      "component": {
+        "local": "async-region"
+      },
+      "lifecycle": {
+        "kind": "async",
+        "states": [
+          "loading",
+          "ready",
+          "empty",
+          "error"
+        ]
+      }
+    }
+  ],
+  "bindings": {
+    "elements": {
+      "contact-list": {
+        "testid": "contacts-list"
+      },
+      "contact-row": {
+        "testid": "contacts-row"
+      },
+      "tier-badge": {
+        "testid": "contacts-tier-badge"
+      },
+      "tier-control": {
+        "testid": "contacts-tier-control"
+      },
+      "tier-effect-note": {
+        "testid": "contacts-tier-effect"
+      },
+      "room-list": {
+        "testid": "contacts-rooms"
+      },
+      "ceiling-warning": {
+        "testid": "contacts-ceiling-warning"
+      },
+      "confirm-action": {
+        "testid": "contacts-confirm"
+      }
+    },
+    "regions": {
+      "contact-region": {
+        "testid": "contacts-contact-region"
+      },
+      "rooms-region": {
+        "testid": "contacts-rooms-region"
+      }
+    }
+  }
+}

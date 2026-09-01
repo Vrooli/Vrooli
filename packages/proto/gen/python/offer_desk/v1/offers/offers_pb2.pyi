@@ -565,19 +565,21 @@ class ImportCatalogResponse(_message.Message):
     def __init__(self, files: _Optional[_Iterable[_Union[ImportFileReport, _Mapping]]] = ..., status_map: _Optional[_Iterable[_Union[StatusMapEntry, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[ImportFinding, _Mapping]]] = ..., total_findings: _Optional[int] = ..., applied: _Optional[bool] = ...) -> None: ...
 
 class MergeNodesRequest(_message.Message):
-    __slots__ = ("surviving_id", "duplicate_id", "actor", "dry_run")
+    __slots__ = ("surviving_id", "duplicate_id", "actor", "dry_run", "reason")
     SURVIVING_ID_FIELD_NUMBER: _ClassVar[int]
     DUPLICATE_ID_FIELD_NUMBER: _ClassVar[int]
     ACTOR_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     surviving_id: str
     duplicate_id: str
     actor: str
     dry_run: bool
-    def __init__(self, surviving_id: _Optional[str] = ..., duplicate_id: _Optional[str] = ..., actor: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+    reason: str
+    def __init__(self, surviving_id: _Optional[str] = ..., duplicate_id: _Optional[str] = ..., actor: _Optional[str] = ..., dry_run: _Optional[bool] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class MergeNodesResponse(_message.Message):
-    __slots__ = ("surviving", "moved_edges", "moved_triggers", "moved_evaluations", "moved_proposals", "moved_findings", "collapsed_edge_ids")
+    __slots__ = ("surviving", "moved_edges", "moved_triggers", "moved_evaluations", "moved_proposals", "moved_findings", "collapsed_edge_ids", "retired")
     SURVIVING_FIELD_NUMBER: _ClassVar[int]
     MOVED_EDGES_FIELD_NUMBER: _ClassVar[int]
     MOVED_TRIGGERS_FIELD_NUMBER: _ClassVar[int]
@@ -585,6 +587,7 @@ class MergeNodesResponse(_message.Message):
     MOVED_PROPOSALS_FIELD_NUMBER: _ClassVar[int]
     MOVED_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     COLLAPSED_EDGE_IDS_FIELD_NUMBER: _ClassVar[int]
+    RETIRED_FIELD_NUMBER: _ClassVar[int]
     surviving: Node
     moved_edges: int
     moved_triggers: int
@@ -592,7 +595,28 @@ class MergeNodesResponse(_message.Message):
     moved_proposals: int
     moved_findings: int
     collapsed_edge_ids: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, surviving: _Optional[_Union[Node, _Mapping]] = ..., moved_edges: _Optional[int] = ..., moved_triggers: _Optional[int] = ..., moved_evaluations: _Optional[int] = ..., moved_proposals: _Optional[int] = ..., moved_findings: _Optional[int] = ..., collapsed_edge_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+    retired: Node
+    def __init__(self, surviving: _Optional[_Union[Node, _Mapping]] = ..., moved_edges: _Optional[int] = ..., moved_triggers: _Optional[int] = ..., moved_evaluations: _Optional[int] = ..., moved_proposals: _Optional[int] = ..., moved_findings: _Optional[int] = ..., collapsed_edge_ids: _Optional[_Iterable[str]] = ..., retired: _Optional[_Union[Node, _Mapping]] = ...) -> None: ...
+
+class RenameNodeRequest(_message.Message):
+    __slots__ = ("node_id", "name", "actor", "reason")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    node_id: str
+    name: str
+    actor: str
+    reason: str
+    def __init__(self, node_id: _Optional[str] = ..., name: _Optional[str] = ..., actor: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
+class RenameNodeResponse(_message.Message):
+    __slots__ = ("node", "prior_name")
+    NODE_FIELD_NUMBER: _ClassVar[int]
+    PRIOR_NAME_FIELD_NUMBER: _ClassVar[int]
+    node: Node
+    prior_name: str
+    def __init__(self, node: _Optional[_Union[Node, _Mapping]] = ..., prior_name: _Optional[str] = ...) -> None: ...
 
 class VerifyCatalogRequest(_message.Message):
     __slots__ = ("source_path", "source_mode")
@@ -613,7 +637,7 @@ class VerifyFileReport(_message.Message):
     def __init__(self, path: _Optional[str] = ..., expected: _Optional[int] = ..., live: _Optional[int] = ...) -> None: ...
 
 class VerifyCatalogResponse(_message.Message):
-    __slots__ = ("files", "duplicate_identities", "orphan_edge_ids", "extra_node_ids", "total_drift", "reconciled", "comparable", "not_comparable_reason")
+    __slots__ = ("files", "duplicate_identities", "orphan_edge_ids", "extra_node_ids", "total_drift", "reconciled", "comparable", "not_comparable_reason", "scenario_gaps")
     FILES_FIELD_NUMBER: _ClassVar[int]
     DUPLICATE_IDENTITIES_FIELD_NUMBER: _ClassVar[int]
     ORPHAN_EDGE_IDS_FIELD_NUMBER: _ClassVar[int]
@@ -622,6 +646,7 @@ class VerifyCatalogResponse(_message.Message):
     RECONCILED_FIELD_NUMBER: _ClassVar[int]
     COMPARABLE_FIELD_NUMBER: _ClassVar[int]
     NOT_COMPARABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_GAPS_FIELD_NUMBER: _ClassVar[int]
     files: _containers.RepeatedCompositeFieldContainer[VerifyFileReport]
     duplicate_identities: _containers.RepeatedScalarFieldContainer[str]
     orphan_edge_ids: _containers.RepeatedScalarFieldContainer[str]
@@ -630,7 +655,8 @@ class VerifyCatalogResponse(_message.Message):
     reconciled: bool
     comparable: bool
     not_comparable_reason: str
-    def __init__(self, files: _Optional[_Iterable[_Union[VerifyFileReport, _Mapping]]] = ..., duplicate_identities: _Optional[_Iterable[str]] = ..., orphan_edge_ids: _Optional[_Iterable[str]] = ..., extra_node_ids: _Optional[_Iterable[str]] = ..., total_drift: _Optional[int] = ..., reconciled: _Optional[bool] = ..., comparable: _Optional[bool] = ..., not_comparable_reason: _Optional[str] = ...) -> None: ...
+    scenario_gaps: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, files: _Optional[_Iterable[_Union[VerifyFileReport, _Mapping]]] = ..., duplicate_identities: _Optional[_Iterable[str]] = ..., orphan_edge_ids: _Optional[_Iterable[str]] = ..., extra_node_ids: _Optional[_Iterable[str]] = ..., total_drift: _Optional[int] = ..., reconciled: _Optional[bool] = ..., comparable: _Optional[bool] = ..., not_comparable_reason: _Optional[str] = ..., scenario_gaps: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SpaceCell(_message.Message):
     __slots__ = ("id", "group", "question", "owner", "status", "notes")
@@ -705,30 +731,34 @@ class ReleaseLadderEntry(_message.Message):
     def __init__(self, deliverable: _Optional[_Union[Node, _Mapping]] = ..., unlocked_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., unlocked_streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., cumulative_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., enablers: _Optional[_Iterable[_Union[PrerequisiteNode, _Mapping]]] = ..., goal_impacts: _Optional[_Iterable[_Union[GoalImpact, _Mapping]]] = ...) -> None: ...
 
 class ReleaseLadderResponse(_message.Message):
-    __slots__ = ("entries", "ramps", "streams", "audiences", "enabling", "availability")
+    __slots__ = ("entries", "ramps", "streams", "audiences", "enabling", "availability", "unscheduled")
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     RAMPS_FIELD_NUMBER: _ClassVar[int]
     STREAMS_FIELD_NUMBER: _ClassVar[int]
     AUDIENCES_FIELD_NUMBER: _ClassVar[int]
     ENABLING_FIELD_NUMBER: _ClassVar[int]
     AVAILABILITY_FIELD_NUMBER: _ClassVar[int]
+    UNSCHEDULED_FIELD_NUMBER: _ClassVar[int]
     entries: _containers.RepeatedCompositeFieldContainer[ReleaseLadderEntry]
     ramps: _containers.RepeatedCompositeFieldContainer[Node]
     streams: _containers.RepeatedCompositeFieldContainer[Node]
     audiences: _containers.RepeatedCompositeFieldContainer[Node]
     enabling: _containers.RepeatedCompositeFieldContainer[PrerequisiteNode]
     availability: _containers.RepeatedCompositeFieldContainer[Availability]
-    def __init__(self, entries: _Optional[_Iterable[_Union[ReleaseLadderEntry, _Mapping]]] = ..., ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., enabling: _Optional[_Iterable[_Union[PrerequisiteNode, _Mapping]]] = ..., availability: _Optional[_Iterable[_Union[Availability, _Mapping]]] = ...) -> None: ...
+    unscheduled: _containers.RepeatedCompositeFieldContainer[Node]
+    def __init__(self, entries: _Optional[_Iterable[_Union[ReleaseLadderEntry, _Mapping]]] = ..., ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., enabling: _Optional[_Iterable[_Union[PrerequisiteNode, _Mapping]]] = ..., availability: _Optional[_Iterable[_Union[Availability, _Mapping]]] = ..., unscheduled: _Optional[_Iterable[_Union[Node, _Mapping]]] = ...) -> None: ...
 
 class SetReleaseRankRequest(_message.Message):
-    __slots__ = ("node_id", "release_rank", "actor")
+    __slots__ = ("node_id", "release_rank", "actor", "reason")
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     RELEASE_RANK_FIELD_NUMBER: _ClassVar[int]
     ACTOR_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     node_id: str
     release_rank: int
     actor: str
-    def __init__(self, node_id: _Optional[str] = ..., release_rank: _Optional[int] = ..., actor: _Optional[str] = ...) -> None: ...
+    reason: str
+    def __init__(self, node_id: _Optional[str] = ..., release_rank: _Optional[int] = ..., actor: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class SetReleaseRankResponse(_message.Message):
     __slots__ = ("node", "prior_release_rank")
@@ -739,16 +769,18 @@ class SetReleaseRankResponse(_message.Message):
     def __init__(self, node: _Optional[_Union[Node, _Mapping]] = ..., prior_release_rank: _Optional[int] = ...) -> None: ...
 
 class SetDeliverableClassRequest(_message.Message):
-    __slots__ = ("node_id", "deliverable_class", "finish_bar", "actor")
+    __slots__ = ("node_id", "deliverable_class", "finish_bar", "actor", "reason")
     NODE_ID_FIELD_NUMBER: _ClassVar[int]
     DELIVERABLE_CLASS_FIELD_NUMBER: _ClassVar[int]
     FINISH_BAR_FIELD_NUMBER: _ClassVar[int]
     ACTOR_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
     node_id: str
     deliverable_class: DeliverableClass
     finish_bar: FinishBar
     actor: str
-    def __init__(self, node_id: _Optional[str] = ..., deliverable_class: _Optional[_Union[DeliverableClass, str]] = ..., finish_bar: _Optional[_Union[FinishBar, str]] = ..., actor: _Optional[str] = ...) -> None: ...
+    reason: str
+    def __init__(self, node_id: _Optional[str] = ..., deliverable_class: _Optional[_Union[DeliverableClass, str]] = ..., finish_bar: _Optional[_Union[FinishBar, str]] = ..., actor: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class SetDeliverableClassResponse(_message.Message):
     __slots__ = ("node", "prior_class", "prior_finish_bar")
