@@ -121,7 +121,7 @@ commands — so the curator can replay your path without your context.
 6. **Invoke the knowledge writer.** From the command line (or whatever invocation surface your runtime exposes):
 
    ```bash
-   prompt-manager team knowledge-add meta-optimization \
+     prompt-manager team friction-capture meta-optimization \
      --topic="friction-inbox/<scope>/<slug>" \
      --caller-note="filed via report-friction skill" \
      --content="$(cat <<'EOF'

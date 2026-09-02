@@ -31,10 +31,24 @@ type nextActionProjectionCache struct {
 	cached   nextActionProjection
 	cachedAt uint64
 	valid    bool
+	// refreshOnRead is required when the projection includes an external
+	// source, such as Offer Desk's release ladder, whose writes cannot emit
+	// Swarm Manager's local invalidation event.
+	refreshOnRead bool
 }
 
 func newNextActionProjectionCache(feed nextActionFeed) *nextActionProjectionCache {
 	return &nextActionProjectionCache{feed: feed}
+}
+
+// SetRefreshOnRead disables cross-scenario stale reads while retaining the
+// holder's single-computation behavior for callers that do not use external
+// projection inputs.
+func (c *nextActionProjectionCache) SetRefreshOnRead(enabled bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.refreshOnRead = enabled
+	c.valid = false
 }
 
 // Invalidate marks every cached projection stale. It is safe to call from any
@@ -54,7 +68,7 @@ func (c *nextActionProjectionCache) projection(ctx context.Context) (nextActionP
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.valid && c.cachedAt == generation {
+	if !c.refreshOnRead && c.valid && c.cachedAt == generation {
 		return c.cached, nil
 	}
 	projection, err := c.feed.project(ctx)

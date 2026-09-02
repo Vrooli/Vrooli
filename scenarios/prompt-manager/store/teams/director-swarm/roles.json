@@ -17,6 +17,11 @@
       "id": "vision-walk-prep",
       "name": "Vision Walk Prep",
       "description": "Synthesizes a daily structured briefing from all director-swarm outputs and swarm-manager state for the human's morning vision walk."
+    },
+    {
+      "id": "director-contrarian",
+      "name": "Director Contrarian",
+      "description": "Holds director-swarm against the target operating model and reports deviations without restructuring the team."
     }
   ]
 }

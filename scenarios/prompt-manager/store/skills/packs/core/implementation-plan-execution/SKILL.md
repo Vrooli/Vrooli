@@ -88,7 +88,7 @@ down. Higher tiers need more confidence, not more permission.
 
 | Tier | Divergence | Rule |
 |---|---|---|
-| **T0** | Environment and operational friction: a stopped scenario, a stale binary, a missing baseline, a broken fixture, an approved dependency that is not installed | Fix it and continue. Never report T0 as a blocker. Restarting a scenario is not a scope decision. |
+| **T0** | Environment and operational friction: a stopped scenario, a stale binary, a missing baseline, a broken fixture, an approved dependency that is not installed | Fix it and continue. Never report T0 as a blocker. Restarting a scenario is not a scope decision. Self-repair authority is defined in `docs/agent-system/TEAM_MEMBER_ARCHITECTURE.md`. |
 | **T1** | An edit outside `acceptance_allow` that a phase already in the plan needs in order to be implemented cleanly — a shared type, a proto, the API shape a handler depends on | Make the edit properly. Run `plan-manager exec boundary-extend <execution> --paths <glob> --reason <why>` first so validation scope follows, then record the divergence in Plan Manager's execution log. **A workaround that stays inside a stale boundary is the failure, not the fix.** |
 | **T2** | A defect in a dependency, tool, or adjacent scenario that blocks the phase | Fix it when you understand the cause **and** the plan's stakes justify the detour (§5). Otherwise work around it, `log bug-add`, and continue. Say which you chose. |
 | **T3** | Changing what the plan set out to do: adding, removing, or reordering phases; changing the target outcome; changing the chosen design | Do not do this silently. Finish everything else first, then record a candidate revision or a finding and report it. |

@@ -27,7 +27,7 @@ export const CONTEXT_TYPE_CAPS: Record<AgentSessionContextType, number> = {
   startup_brief: 1,
   plan_dependency_cycles: 1,
   plan_eta: 1,
-  goal: 1,
+  goal: 3,
 };
 
 export function allowedContextTypesForKind(kind: AgentSessionKind): AgentSessionContextType[] {

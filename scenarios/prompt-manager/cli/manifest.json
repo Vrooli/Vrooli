@@ -2247,6 +2247,13 @@
           }
         },
         {
+          "name": "audit",
+          "description": "Run the composed framework-health graph audit.",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]},
+          "architecture": {"primitive": "action"}
+        },
+        {
           "name": "rules",
           "description": "Read memberflow validation rules.",
           "binding": {

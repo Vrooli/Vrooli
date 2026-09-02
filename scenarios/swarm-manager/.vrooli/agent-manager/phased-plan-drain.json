@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/phased-plan-drain",
-  "version": "1.0.1",
+  "version": "1.0.13",
   "description": "Drain a stable plan in bounded fresh-run slices with compact ordered handoffs and explicit correction/approval paths.",
   "inputSchema": {
     "type": "object",
@@ -84,11 +84,16 @@
               "type": "string",
               "maxLength": 1024
             }
+          },
+          "sliceApprovalMode": {
+            "type": "string",
+            "enum": ["manual", "suggest", "auto"]
           }
         },
         "required": [
           "maxSlices",
-          "writeScope"
+          "writeScope",
+          "sliceApprovalMode"
         ],
         "additionalProperties": false
       }
@@ -296,7 +301,7 @@
       "kind": "child_workflow",
       "childWorkflow": {
         "workflowKey": "swarm-manager/phased-plan-slice-review",
-        "version": "1.0.0",
+        "version": "1.0.5",
         "bindings": [
           {
             "name": "plan_reference",
@@ -340,7 +345,7 @@
           {
             "name": "review_note",
             "source": "child_workflow_output",
-            "selector": "node=review;$.output.review.note",
+            "selector": "node=review;$.output.result.note",
             "order": "desc",
             "limit": 1,
             "maxBytes": 4096,
@@ -494,13 +499,13 @@
   {
     "from": "route",
     "to": "correction",
-    "condition": "((latest(journal).value.outcome == 'continue' && latest(journal).value.correctionRequired) || (has(latest(journal, 'review').output) && !latest(journal, 'review').output.review.accepted)) && count_since_last(journal, 'correction', 'slice') < 2",
+    "condition": "((latest(journal).value.outcome == 'continue' && latest(journal).value.correctionRequired) || (has(latest(journal, 'review').output) && !latest(journal, 'review').output.result.accepted)) && count_since_last(journal, 'correction', 'slice') < 2",
     "maxTraversals": 12
   },
   {
     "from": "route",
     "to": "blocked",
-    "condition": "has(latest(journal, 'review').output) && !latest(journal, 'review').output.review.accepted && count_since_last(journal, 'correction', 'slice') >= 2"
+    "condition": "has(latest(journal, 'review').output) && !latest(journal, 'review').output.result.accepted && count_since_last(journal, 'correction', 'slice') >= 2"
   },
     {
       "from": "route",
@@ -520,13 +525,19 @@
     {
       "from": "decision",
       "to": "approval",
-      "condition": "latest(journal).value.outcome == 'continue' && latest(journal).value.approvalRequired && count(journal, 'slice') < input.constraints.maxSlices",
+      "condition": "latest(journal).value.outcome == 'continue' && latest(journal).value.approvalRequired && input.constraints.sliceApprovalMode != 'auto' && count(journal, 'slice') < input.constraints.maxSlices",
       "maxTraversals": 6
     },
     {
       "from": "decision",
       "to": "slice",
       "condition": "latest(journal).value.outcome == 'continue' && !latest(journal).value.approvalRequired && count(journal, 'slice') < input.constraints.maxSlices",
+      "maxTraversals": 6
+    },
+    {
+      "from": "decision",
+      "to": "slice",
+      "condition": "latest(journal).value.outcome == 'continue' && latest(journal).value.approvalRequired && input.constraints.sliceApprovalMode == 'auto' && count(journal, 'slice') < input.constraints.maxSlices",
       "maxTraversals": 6
     },
     {

@@ -44,6 +44,7 @@ const (
 	StatusRunning ScenarioStatus = "running"
 	StatusStopped ScenarioStatus = "stopped"
 	StatusError   ScenarioStatus = "error"
+	StatusStartFailed ScenarioStatus = "start-failed"
 	StatusUnknown ScenarioStatus = "unknown"
 )
 

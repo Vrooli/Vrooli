@@ -23,7 +23,7 @@ Objective ids are stable and citable. Do not renumber a retired objective's id; 
 | # | Objective | Class | Served by | Evidence source |
 |---|---|---|---|---|
 | `T1` | **Income.** Vrooli sustains itself and its operator financially. | terminal | `team:monetization` (primary), `team:marketing-crew` (supporting) | Command Center `ledger`, `broadcast` |
-| `T2` | **Personal agency.** Health, finances, and household run with materially less of the operator's attention. | terminal | *none* (`pending-capability`) | *none* (`pending-capability`) |
+| `T2` | **Personal agency.** Health, finances, and household run with materially less of the operator's attention. | terminal | `switchboard` channel registry and governed dispatch | `switchboard` API/CLI channel and binding surfaces |
 | `T3` | **Contribution.** Other operators can run this system, and it outlives any one operator's involvement. | terminal | `team:marketing-crew` (partial — OSS surface only) | Command Center `broadcast` (all metrics `gap`) |
 | `I1` | **Capability compounding.** Every scenario built becomes a permanent capability that makes later work cheaper. | instrumental | `team:director-swarm`, `team:scenario-qa` | Command Center `hive`, `forge` |
 | `I2` | **Coherence.** The system stays reliable and stays reasonable-about as it grows. | instrumental | `team:infra-health`, `team:meta-optimization` | Command Center `mission-control`; `prompt-manager graph audit` |

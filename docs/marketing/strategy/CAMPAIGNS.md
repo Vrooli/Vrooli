@@ -19,6 +19,7 @@ When a `campaign-launch-proposal` is accepted, append an entry in the shape belo
 **Status:** active | closed
 **Theme:** <one-sentence hypothesis>
 **Audience(s):** <persona-key or keys from AUDIENCES.md>
+**Scenarios:** <one or more scenario names whose launch assets this campaign supports>
 **Launch window:** <YYYY-MM-DD or ongoing>
 **Duration:** <weeks or open-ended>
 **Channels:** <x-twitter, blog, video, etc.>
@@ -42,4 +43,4 @@ Closed campaigns stay in this file as historical record. Long-term, these may mo
 
 - Campaign creation: operator accepts `campaign-launch-proposal` → operator adds entry here → commit cites decision id.
 - Campaign close: `brand-manager` raises `campaign-launch-proposal` with status=close plus a post-mortem reference. The close note and final artifact go through `content-desk`'s operator approval gate; the former `content-publish-proposal` work type is retired.
-- Operator updates the campaign's outstanding artifact slots as the producer drafts them and they are released (this can be low-overhead — a tick-box pass during vision walks). Once `content-desk` owns campaign records, slot state is derived rather than ticked.
+- Operator updates the campaign's outstanding artifact slots as the producer drafts them and they are released (this can be low-overhead — a tick-box pass during vision walks). Content Desk now stores the scenario dimension and derives slot state with `content-desk campaigns launch-assets --scenario <name>`.

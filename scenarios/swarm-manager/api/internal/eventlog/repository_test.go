@@ -145,6 +145,14 @@ func TestAppendAndSince(t *testing.T) {
 	}
 }
 
+func TestAppendAttributedRequiresActorID(t *testing.T) {
+	db := setupTestDB(t)
+	repo := eventlog.NewSQLiteRepository(db)
+	if _, err := repo.AppendAttributed(context.Background(), eventlog.Event{EntityType: eventlog.EntitySystem, EntityID: "test", EventType: eventlog.EventBacklogCreated}); err == nil {
+		t.Fatal("AppendAttributed() error = nil, want actor_id validation")
+	}
+}
+
 func TestAll(t *testing.T) {
 	db := setupTestDB(t)
 	repo := eventlog.NewSQLiteRepository(db)

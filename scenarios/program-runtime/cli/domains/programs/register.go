@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,7 +25,27 @@ type handlers struct {
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	h := &handlers{client: programsconnect.NewProgramServiceClient(httpClient, baseURL)}
-	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.WaitForProgram": cliapp.ProtoList(h.waitCommand, h.waitReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "vrooli.program_runtime.v1.programs.ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport), "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals": cliapp.ProtoList(h.mineRefusals, h.refusalReport), "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings": cliapp.ProtoList(h.mineUnresolved, h.unresolvedReport)})
+	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{"ProgramService.SubmitProgram": cliapp.ProtoMutation(h.submit, h.submitReport), "ProgramService.GetProgram": cliapp.ProtoList(h.get, h.programReport), "ProgramService.WaitForProgram": cliapp.ProtoList(h.waitCommand, h.waitReport), "ProgramService.ListPrograms": cliapp.ProtoList(h.list, h.listReport), "vrooli.program_runtime.v1.programs.ProgramService.MineFailures": cliapp.ProtoList(h.mine, h.failureReport), "vrooli.program_runtime.v1.programs.ProgramService.MineRefusals": cliapp.ProtoList(h.mineRefusals, h.refusalReport), "vrooli.program_runtime.v1.programs.ProgramService.MineUnresolvedBindings": cliapp.ProtoList(h.mineUnresolved, h.unresolvedReport), "vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare": cliapp.ProtoList(h.governanceShare, h.governanceReport)})
+}
+
+func (h *handlers) governanceShare(ctx cliapp.OperationContext) (*programsv1.GovernanceShareResponse, error) {
+	window, err := strconv.ParseInt(ctx.Flag("window-seconds"), 10, 64)
+	if err != nil || window <= 0 {
+		return nil, fmt.Errorf("window-seconds must be a positive integer")
+	}
+	r, err := h.client.GovernanceShare(context.Background(), connect.NewRequest(&programsv1.GovernanceShareRequest{WindowSeconds: window, IncludeOperator: ctx.BoolFlag("include-operator")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("governance share", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (*handlers) governanceReport(_ cliapp.OperationContext, r *programsv1.GovernanceShareResponse) cliapp.ListReport {
+	results := []string{fmt.Sprintf("Governed calls: %d", r.GetGovernedCalls()), fmt.Sprintf("Observed calls: %d", r.GetObservedCalls()), fmt.Sprintf("Governed share: %.4f", r.GetGovernedShare()), "Window: " + r.GetWindowStart() + " to " + r.GetWindowEnd()}
+	for _, command := range r.GetObservedCommands() {
+		results = append(results, fmt.Sprintf("Observed %s: count=%d last_seen=%s", command.GetAttemptedName(), command.GetCount(), command.GetLastSeen()))
+	}
+	return cliapp.ListReport{Summary: []string{"Governed versus observed call share."}, ResultsHeading: "Governance", Results: results, ListShaped: true, ResultCount: len(results)}
 }
 
 func (h *handlers) submit(ctx cliapp.OperationContext) (*programsv1.SubmitProgramResponse, error) {
@@ -202,19 +223,61 @@ func (*handlers) listReport(_ cliapp.OperationContext, r *programsv1.ListProgram
 		}
 		results = append(results, fmt.Sprintf("%s [%s] session=%s library=%s", program.GetId(), program.GetStatus().String(), program.GetSessionId(), program.GetLibraryVersion()))
 	}
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d program(s).", len(r.Programs))}, ResultsHeading: "Programs", Results: results}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d program(s).", len(r.Programs))}, ResultsHeading: "Programs", Results: results, ListShaped: true, ResultCount: len(r.Programs)}
 }
 
 func (*handlers) failureReport(_ cliapp.OperationContext, r *programsv1.MineFailuresResponse) cliapp.ListReport {
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d recurring failure shape(s).", len(r.Shapes))}}
+	shapes := r.GetShapes()
+	results := make([]string, 0, len(shapes))
+	for _, s := range shapes {
+		if s == nil {
+			continue
+		}
+		results = append(results, fmt.Sprintf("%s — count=%d last_seen=%s sample=%s", s.GetShape(), s.GetCount(), s.GetLastSeen(), s.GetSampleProgramId()))
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%d recurring failure shape(s).", len(shapes))},
+		ResultsHeading: "Failure shapes",
+		Results:        results,
+		ListShaped:     true,
+		ResultCount:    len(shapes),
+	}
 }
 
 func (*handlers) refusalReport(_ cliapp.OperationContext, r *programsv1.MineRefusalsResponse) cliapp.ListReport {
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d recurring refusal shape(s).", len(r.Shapes))}}
+	shapes := r.GetShapes()
+	results := make([]string, 0, len(shapes))
+	for _, s := range shapes {
+		if s == nil {
+			continue
+		}
+		results = append(results, fmt.Sprintf("%s — %s (count=%d last_seen=%s)", s.GetBindingId(), s.GetReason(), s.GetCount(), s.GetLastSeen()))
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%d recurring refusal shape(s).", len(shapes))},
+		ResultsHeading: "Refusal shapes",
+		Results:        results,
+		ListShaped:     true,
+		ResultCount:    len(shapes),
+	}
 }
 
 func (*handlers) unresolvedReport(_ cliapp.OperationContext, r *programsv1.MineUnresolvedBindingsResponse) cliapp.ListReport {
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d unresolved binding name(s).", len(r.Shapes))}}
+	shapes := r.GetShapes()
+	results := make([]string, 0, len(shapes))
+	for _, s := range shapes {
+		if s == nil {
+			continue
+		}
+		results = append(results, fmt.Sprintf("%s — count=%d last_seen=%s", s.GetAttemptedName(), s.GetCount(), s.GetLastSeen()))
+	}
+	return cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%d unresolved binding name(s).", len(shapes))},
+		ResultsHeading: "Unresolved binding names",
+		Results:        results,
+		ListShaped:     true,
+		ResultCount:    len(shapes),
+	}
 }
 
 func parseProvenance(value string) (programsv1.Provenance, error) {

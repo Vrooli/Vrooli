@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -122,6 +123,15 @@ func (s *service) Import(ctx context.Context, sourcePath, markdown, title, slug 
 			Note:           "Canonicalized from markdown via plans import (non-destructive).",
 			WorkspaceID:    strings.TrimSpace(workspace.ID),
 			WorkspaceRoot:  strings.TrimSpace(workspace.Root),
+		}
+	} else if strings.TrimSpace(parsed.ImportProvenance.SourcePath) == "" && strings.TrimSpace(sourcePath) != "" {
+		// Legacy markdown may already carry import provenance from an older
+		// Plan Manager that did not retain the source path. Fill that missing
+		// identity at the import boundary so the next reconcile can recognize
+		// the source as canonical instead of importing another suffixed copy.
+		parsed.ImportProvenance.SourcePath = strings.TrimSpace(sourcePath)
+		if strings.TrimSpace(parsed.ImportProvenance.WorkspaceRoot) == "" {
+			parsed.ImportProvenance.WorkspaceRoot = strings.TrimSpace(workspace.Root)
 		}
 	}
 	// Imports preserve historical provenance rather than silently claiming a
@@ -338,6 +348,7 @@ func (s *service) reconcileSourceIntakeDir(ctx context.Context, req ReconcileReq
 	if err != nil {
 		return []ReconcileItem{{Action: ReconcileActionConflict, SourcePath: root, SourceUntouched: true, Error: err.Error()}}
 	}
+	sort.Strings(paths)
 	out := make([]ReconcileItem, 0, len(paths))
 	for _, sourcePath := range paths {
 		out = append(out, s.reconcileIntakeSource(ctx, req, filepath.Clean(sourcePath), index))
@@ -361,6 +372,25 @@ func (s *service) reconcileIntakeSource(ctx context.Context, req ReconcileReques
 	if err != nil {
 		return ReconcileItem{Action: ReconcileActionParseFailed, SourcePath: clean, SourceUntouched: true, Error: err.Error()}
 	}
+	// A rendered mirror can itself be present in an intake directory. Its
+	// Import Provenance points at the original source, while the mirror path is
+	// necessarily different. Treat that provenance as canonical identity so a
+	// reconcile remains idempotent instead of creating a suffixed duplicate
+	// slug on every pass.
+	if parsed.ImportProvenance != nil {
+		provenancePath := resolveProvenanceSourcePath(parsed.ImportProvenance.SourcePath, req.Workspace)
+		if match, ok := index.importedSources[provenancePath]; ok {
+			return ReconcileItem{
+				Action:          ReconcileActionAlreadyCanonical,
+				PlanID:          match.ID,
+				Slug:            match.Slug,
+				Title:           parsed.Title,
+				SourcePath:      clean,
+				Mirror:          match.Mirror,
+				SourceUntouched: true,
+			}
+		}
+	}
 	parsed.ContentHash = contentHash(parsed)
 	if match, ok := index.contentHashes[parsed.ContentHash]; ok {
 		return s.reconcileDuplicateIntakeSource(req, clean, parsed, match, index)
@@ -369,6 +399,20 @@ func (s *service) reconcileIntakeSource(ctx context.Context, req ReconcileReques
 		return reconcileSlugConflict(clean, parsed, match)
 	}
 	return s.importIntakeSource(ctx, req, clean, raw, parsed, index)
+}
+
+func resolveProvenanceSourcePath(sourcePath string, workspace WorkspaceScope) string {
+	sourcePath = strings.TrimSpace(sourcePath)
+	if sourcePath == "" {
+		return ""
+	}
+	if filepath.IsAbs(sourcePath) {
+		return filepath.Clean(sourcePath)
+	}
+	if root := strings.TrimSpace(workspace.Root); root != "" {
+		return filepath.Clean(filepath.Join(root, sourcePath))
+	}
+	return filepath.Clean(sourcePath)
 }
 
 func (s *service) reconcileDuplicateIntakeSource(req ReconcileRequest, clean string, parsed, match Plan, index *sourceIntakeIndex) ReconcileItem {
@@ -412,6 +456,9 @@ func (s *service) importIntakeSource(ctx context.Context, req ReconcileRequest, 
 	item.Mirror = imported.Mirror
 	index.contentHashes[imported.ContentHash] = imported
 	index.importedSources[clean] = imported
+	if imported.ImportProvenance != nil && strings.TrimSpace(imported.ImportProvenance.SourcePath) != "" {
+		index.importedSources[filepath.Clean(imported.ImportProvenance.SourcePath)] = imported
+	}
 	index.slugs[imported.Slug] = imported
 	return s.retireSourceIfEligible(req, item, index.protectedMirrorPaths)
 }

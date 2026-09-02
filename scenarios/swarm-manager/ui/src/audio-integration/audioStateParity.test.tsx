@@ -56,14 +56,29 @@ describe("consumer audio state parity", () => {
   it("keeps the same state markers in web-console", () => {
     const webComponents = resolve(AUDIO_ROOT, "../../../../web-console/ui/src/components");
     for (const state of SURFACES) {
-      const file = {
-        unavailable: "AudioUnavailableBanner.tsx",
-        "enable-audio": "EnableAudioBanner.tsx",
-        "command-suggestion": "VoiceCommandSuggestion.tsx",
-        player: "AudioPlayerBar.tsx",
-        rejection: "VoiceRejectionBanner.tsx",
+      const source = {
+        unavailable: {
+          file: "banners/descriptors.tsx",
+          marker: `"data-audio-state": "${state}"`,
+        },
+        "enable-audio": {
+          file: "banners/descriptors.tsx",
+          marker: `"data-audio-state": "${state}"`,
+        },
+        "command-suggestion": {
+          file: "VoiceCommandSuggestion.tsx",
+          marker: `data-audio-state="${state}"`,
+        },
+        player: {
+          file: "AudioPlayerBar.tsx",
+          marker: `data-audio-state="${state}"`,
+        },
+        rejection: {
+          file: "banners/descriptors.tsx",
+          marker: `"data-audio-state": "${state}"`,
+        },
       }[state];
-      expect(readFileSync(join(webComponents, file), "utf8"), file).toContain(`data-audio-state="${state}"`);
+      expect(readFileSync(join(webComponents, source.file), "utf8"), source.file).toContain(source.marker);
     }
   });
 });

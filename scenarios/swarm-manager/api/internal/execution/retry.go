@@ -51,6 +51,19 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 	switch parent.Status {
 	case StatusCompleted, StatusFailed, StatusCanceled, StatusNeedsFixup:
 		// OK
+	case StatusNeedsReview:
+		if !isTerminalAbstention(parent) || !backlogAllowsFollowUp(parent.BacklogKind, parent.BacklogName, s) {
+			return Record{}, apierr.BadRequest("cannot retry a needs_review execution; provide the missing evidence or operator decision first")
+		}
+	case StatusAbstained:
+		// A terminal abstention is retryable after the operator has routed it
+		// through the follow-up decision. Older records may have been reconciled
+		// to needs_review, which is handled above.
+		if !backlogAllowsFollowUp(parent.BacklogKind, parent.BacklogName, s) {
+			return Record{}, apierr.BadRequest("cannot retry an abstained execution; provide the missing evidence or operator decision first")
+		}
+	case StatusBudgetExhausted:
+		return Record{}, apierr.BadRequest("cannot retry a budget-exhausted execution at the same budget; increase the budget or resume it")
 	default:
 		return Record{}, apierr.BadRequest("cannot retry execution in %q state", parent.Status)
 	}
@@ -63,7 +76,7 @@ func (s *Service) Retry(ctx context.Context, req RetryRequest) (Record, error) {
 		if records[i].Operation != "retry" {
 			continue
 		}
-		if isInFlightStatus(records[i].Status) {
+		if isInFlightRecord(records[i]) {
 			return records[i], nil
 		}
 	}
@@ -112,6 +125,13 @@ func isInFlightStatus(status Status) bool {
 	return false
 }
 
+func isInFlightRecord(record Record) bool {
+	if record.Status == StatusNeedsReview && isTerminalAbstention(record) {
+		return false
+	}
+	return isInFlightStatus(record.Status)
+}
+
 // RetryLatestForBacklog finds the most recent retry-eligible execution for
 // the given backlog item and creates a new attempt parented to it. Used by
 // the backlog-level and initiative-level retry routes so callers do not have
@@ -145,6 +165,10 @@ func (s *Service) RetryLatestForBacklog(ctx context.Context, backlogKind, backlo
 		switch r.Status {
 		case StatusCompleted, StatusFailed, StatusCanceled, StatusNeedsFixup:
 			// eligible
+		case StatusNeedsReview:
+			if !isTerminalAbstention(*r) {
+				continue
+			}
 		default:
 			continue
 		}
@@ -166,4 +190,23 @@ func (s *Service) RetryLatestForBacklog(ctx context.Context, backlogKind, backlo
 		return Record{}, true, err
 	}
 	return newRecord, true, nil
+}
+
+// isTerminalAbstention distinguishes an abstained workflow that has already
+// finished from an active needs_review hold. Reconciliation historically maps
+// the workflow's abstained state to needs_review so the operator can decide;
+// once that decision is recorded, the finished record is a valid retry parent.
+func isTerminalAbstention(record Record) bool {
+	return record.Status == StatusNeedsReview && record.FinishedAt != "" &&
+		strings.Contains(strings.ToLower(record.FailureReason), "abstained")
+}
+
+// backlogAllowsFollowUp is intentionally conservative. The backlog review
+// decision is the authority that permits a terminal abstention to be retried.
+func backlogAllowsFollowUp(kind, name string, s *Service) bool {
+	item, err := s.loadBacklogItem(kind, name)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(item.Status), "needs_followup")
 }

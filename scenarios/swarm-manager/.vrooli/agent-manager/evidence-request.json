@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/evidence-request",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Gather bounded requested review evidence from an immutable thread snapshot.",
   "inputSchema": {
     "type": "object",
@@ -68,15 +68,37 @@
           "schema": {
             "type": "object",
             "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": ["fulfilled", "needs_attention"],
+                "description": "Use fulfilled when every requested artifact was captured; use needs_attention only when at least one artifact could not be captured."
+              },
               "summary": {
                 "type": "string",
                 "minLength": 1
               },
               "evidence": {
-                "type": "array"
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {"type": "string", "minLength": 1},
+                    "criterion_id": {"type": "string", "minLength": 1},
+                    "type": {"type": "string", "minLength": 1},
+                    "title": {"type": "string", "minLength": 1},
+                    "description": {"type": "string", "minLength": 1},
+                    "producer": {"type": "string", "minLength": 1},
+                    "trust": {"type": "string", "enum": ["authoritative", "observed", "reported", "operator_verified"]},
+                    "settlement": {"type": "string", "enum": ["settled", "refuted", "unavailable"]},
+                    "test_results": {"type": "array"}
+                  },
+                  "required": ["id", "criterion_id", "type", "title", "description", "producer", "trust", "settlement"],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [
+              "outcome",
               "summary",
               "evidence"
             ],

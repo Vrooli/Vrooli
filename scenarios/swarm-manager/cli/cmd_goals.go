@@ -102,14 +102,15 @@ func (a *App) cmdGoalsCreate(args []string) error {
 	name := fs.String("name", "", "Goal name")
 	title := fs.String("title", "", "Goal title")
 	targets := fs.String("targets", "", "Comma-separated item refs")
+	servesDeliverable := fs.String("serves-deliverable", "", "Offer Desk deliverable served by this goal")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if strings.TrimSpace(*name) == "" || strings.TrimSpace(*title) == "" {
-		return fmt.Errorf("usage: goals create --name NAME --title TITLE [--targets kind/name,...]")
+		return fmt.Errorf("usage: goals create --name NAME --title TITLE [--targets kind/name,...] [--serves-deliverable NAME]")
 	}
-	result, err := a.goalClient().CreateGoal(context.Background(), connect.NewRequest(&apipb.CreateGoalRequest{Name: *name, Title: *title, Targets: splitCSV(*targets)}))
+	result, err := a.goalClient().CreateGoal(context.Background(), connect.NewRequest(&apipb.CreateGoalRequest{Name: *name, Title: *title, Targets: splitCSV(*targets), ServesDeliverable: strings.TrimSpace(*servesDeliverable)}))
 	if err != nil {
 		return err
 	}
@@ -121,15 +122,22 @@ func (a *App) cmdGoalsCreate(args []string) error {
 }
 
 func (a *App) cmdGoalsArchive(args []string) error {
-	name, jsonOut, err := goalName(args, "goals archive")
+	fs := flag.NewFlagSet("goals archive", flag.ContinueOnError)
+	force := fs.Bool("force", false, "Archive and drop every open targeted item")
+	actor := fs.String("actor", "operator", "Actor recorded in the archive event")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("usage: goals archive <name> [--force] [--json]")
+	}
+	name := fs.Arg(0)
+	result, err := a.goalClient().ArchiveGoal(context.Background(), connect.NewRequest(&apipb.ArchiveGoalRequest{Name: name, Force: *force, Actor: *actor}))
 	if err != nil {
 		return err
 	}
-	result, err := a.goalClient().ArchiveGoal(context.Background(), connect.NewRequest(&apipb.ArchiveGoalRequest{Name: name}))
-	if err != nil {
-		return err
-	}
-	if jsonOut {
+	if *jsonOut {
 		return printGoalJSON(result.Msg, true)
 	}
 	printGoal(result.Msg)
@@ -172,12 +180,13 @@ func (a *App) cmdGoalsUpdate(args []string) error {
 	fs := flag.NewFlagSet("goals update", flag.ContinueOnError)
 	name, title, description := fs.String("name", "", "Goal name"), fs.String("title", "", "Goal title"), fs.String("description", "", "Goal description")
 	priority := fs.Int("priority", -1, "Goal priority")
+	servesDeliverable := fs.String("serves-deliverable", "", "Offer Desk deliverable served by this goal")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
-	if strings.TrimSpace(*name) == "" || (*title == "" && *description == "" && *priority < 0) {
-		return fmt.Errorf("usage: goals update --name NAME [--title TITLE] [--description TEXT] [--priority N]")
+	if strings.TrimSpace(*name) == "" || (*title == "" && *description == "" && *priority < 0 && strings.TrimSpace(*servesDeliverable) == "") {
+		return fmt.Errorf("usage: goals update --name NAME [--title TITLE] [--description TEXT] [--priority N] [--serves-deliverable NAME]")
 	}
 	req := &apipb.UpdateGoalRequest{Name: *name}
 	if *title != "" {
@@ -189,6 +198,10 @@ func (a *App) cmdGoalsUpdate(args []string) error {
 	if *priority >= 0 {
 		value := int32(*priority)
 		req.Priority = &value
+	}
+	if strings.TrimSpace(*servesDeliverable) != "" {
+		value := strings.TrimSpace(*servesDeliverable)
+		req.ServesDeliverable = &value
 	}
 	result, err := a.goalClient().UpdateGoal(context.Background(), connect.NewRequest(req))
 	if err != nil {

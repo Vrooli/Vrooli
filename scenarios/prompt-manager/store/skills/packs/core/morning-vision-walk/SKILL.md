@@ -10,9 +10,9 @@ metadata:
   writes_to: ["research-inbox/*","opportunity-inbox/*","validation-inbox/*","vision-walk-record/*"]
   icon: "sunrise"
   status: "active"
-  revision: 3
+  revision: 4
   createdAt: "2026-04-09T19:00:00Z"
-  updatedAt: "2026-05-04T00:00:00Z"
+  updatedAt: "2026-08-29T00:00:00Z"
   requires:
     scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
     commands: ["prompt-manager", "prompt-manager skill", "prompt-manager skill read", "prompt-manager team", "swarm-manager", "swarm-manager backlog", "vrooli capability", "vrooli core"]
@@ -76,14 +76,14 @@ This skill exists because of a core insight about Vrooli:
 Before starting the conversation, read the vision walk prep deliverable:
 
 ```
-Read the file: scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/last-handoff.md
+prompt-manager team handoff-latest director-swarm vision-walk-prep
 ```
 
-This file is generated daily at 5:00 AM by the vision-walk-prep agent and contains pre-compiled briefing data for all phases below. If the file is missing or stale (timestamp older than 36 hours), note this to the user and offer to gather the information live (this will be slower).
+The command reads the latest runtime handoff. The `store/teams/` tree contains Config-class team instructions; it does not contain RuntimeData-class heartbeat output. The vision-walk-prep agent runs daily at 5:00 AM and produces this pre-compiled briefing for all phases below. If the command reports no handoff, or the handoff timestamp is older than 36 hours, note this to the user and offer to gather the information live (this will be slower).
 
 **Do not read the prep deliverable verbatim.** Use it as source material to have a natural conversation. Synthesize, prioritize, and present information conversationally.
 
-**Check for a walk checkpoint.** If `last-handoff.md` contains a `## Walk Checkpoint` section, the previous walk diverged mid-session and did not complete. Before starting Phase 1, summarize the checkpoint to the user (phase left at, what was covered, what's pending, divergence scope + whether it resolved) and offer to resume from the pending phase rather than start fresh. See Section 5's "Explicit Divergence" pattern for how checkpoints are written and consumed.
+**Check for a walk checkpoint.** If the handoff contains a `## Walk Checkpoint` section, the previous walk diverged mid-session and did not complete. Before starting Phase 1, summarize the checkpoint to the user (phase left at, what was covered, what's pending, divergence scope + whether it resolved) and offer to resume from the pending phase rather than start fresh. See Section 5's "Explicit Divergence" pattern for how checkpoints are written and consumed.
 
 ---
 
@@ -500,7 +500,7 @@ For those cases, the walk supports an **Explicit Divergence**: leave the walk mi
 **No frequency guardrail.** If the walk regularly produces important-enough-to-act-on discoveries, that means the walk is working. Do not discourage divergence on the basis of "we diverged recently."
 
 **Checkpoint protocol:**
-1. Before leaving the walk, append a `## Walk Checkpoint (<ISO-timestamp with offset>)` section to `scenarios/prompt-manager/store/teams/director-swarm/members/vision-walk-prep/last-handoff.md`.
+1. Before leaving the walk, append a `## Walk Checkpoint (<ISO-timestamp with offset>)` section to the RuntimeData-class handoff returned by `prompt-manager team handoff-latest director-swarm vision-walk-prep`. Do not write runtime state into the Config-class `scenarios/prompt-manager/store/teams/` tree.
 2. The checkpoint must contain, in this order:
    - **Status line** — "Walk diverged mid-Phase-N by mutual agreement to …".
    - **Phases covered so far** — one bullet per completed/partial phase with the material outcome.

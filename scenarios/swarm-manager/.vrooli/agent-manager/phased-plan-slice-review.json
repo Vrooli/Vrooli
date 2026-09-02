@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/phased-plan-slice-review",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "Reusable independent review of one compact phased-plan slice handoff.",
   "inputSchema": {
     "type": "object",
@@ -27,13 +27,26 @@
   "outputSchema": {
     "type": "object",
     "properties": {
-      "review": {
+      "result": {
         "type": "object",
-        "additionalProperties": true
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "accepted",
+          "note"
+        ],
+        "additionalProperties": false
       }
     },
     "required": [
-      "review"
+      "result"
     ],
     "additionalProperties": false
   },

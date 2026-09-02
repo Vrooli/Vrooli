@@ -5,7 +5,7 @@ import { errorMessageOf } from "../../lib/error-utils";
 import { Check, Copy, ExternalLink, FileText, List, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { defaultQueryOptions } from "../../lib";
-import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import { extractHeadings } from "../../lib/heading-utils";
 import { backlogService } from "../../services";
 import { planWorkshopService } from "../../services/plan-workshop-service";

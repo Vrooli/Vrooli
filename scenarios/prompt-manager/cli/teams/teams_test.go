@@ -8,9 +8,49 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"prompt-manager/internal/teamconfig"
 )
+
+type fleetHealthContext struct {
+	fakeContext
+	teams     []Team
+	configs   map[string][]HeartbeatConfig
+	knowledge map[string]KnowledgeListResponse
+	products  map[string]bool
+}
+
+func (f *fleetHealthContext) HasDurableProduct(teamID, runID string, cutoff time.Time) (bool, error) {
+	return f.products[teamID+":"+runID], nil
+}
+
+func stringPtr(value string) *string { return &value }
+
+func (f *fleetHealthContext) Get(path string, result interface{}) error {
+	var value interface{}
+	switch path {
+	case "/teams":
+		value = f.teams
+	default:
+		const prefix = "/teams/"
+		const suffix = "/heartbeats"
+		if strings.HasPrefix(path, prefix) && strings.HasSuffix(path, suffix) {
+			teamID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+			value = f.configs[teamID]
+		} else if strings.HasPrefix(path, prefix) && strings.Contains(path, "/knowledge") {
+			teamID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), "/knowledge?last=100")
+			value = f.knowledge[teamID]
+		} else {
+			return f.fakeContext.Get(path, result)
+		}
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(raw, result)
+}
 
 func parseTeamFlagsForTest(t *testing.T, includeDefaults bool, args ...string) teamConfigFlagSet {
 	t.Helper()
@@ -182,6 +222,89 @@ func captureTeamStdout(t *testing.T, fn func() error) (string, error) {
 	}
 	_ = readPipe.Close()
 	return buf.String(), runErr
+}
+
+func TestCmdHeartbeatFleetHealthRetainsRecentCompletionWhileMemberIsRunning(t *testing.T) {
+	now := time.Now().UTC()
+	ctx := &fleetHealthContext{
+		teams: []Team{{ID: "director-swarm", Enabled: true}},
+		configs: map[string][]HeartbeatConfig{
+			"director-swarm": {{
+				TeamID:  "director-swarm",
+				AgentID: "vision-walk-prep",
+				Enabled: true,
+				LastExecution: &HeartbeatExecResult{
+					Status:    "running",
+					StartedAt: now.Format(time.RFC3339),
+				},
+				LastSuccessfulExecution: &HeartbeatExecResult{
+					Status:    "completed",
+					StartedAt: now.Add(-2 * time.Hour).Format(time.RFC3339),
+					EndedAt:   now.Add(-time.Hour).Format(time.RFC3339),
+					RunID:     "run-success",
+				},
+			}},
+		},
+		knowledge: map[string]KnowledgeListResponse{"director-swarm": {Entries: []KnowledgeEntry{{At: now.Add(-time.Hour).Format(time.RFC3339), Attribution: AttributionInfo{RunID: stringPtr("run-success")}}}}},
+	}
+
+	out, err := captureTeamStdout(t, func() error {
+		return cmdHeartbeatFleetHealth(ctx, []string{"--json"})
+	})
+	if err != nil {
+		t.Fatalf("cmdHeartbeatFleetHealth: %v", err)
+	}
+	var summary HeartbeatFleetHealth
+	if err := json.Unmarshal([]byte(out), &summary); err != nil {
+		t.Fatalf("decode fleet health: %v\n%s", err, out)
+	}
+	if summary.EnabledMembers != 1 || summary.SucceededMembers != 1 {
+		t.Fatalf("fleet health = %+v, want the in-flight member's recent completion retained", summary)
+	}
+	if summary.SuccessPercent != 100 || summary.ThresholdPercent != 90 || !summary.MeetsThreshold {
+		t.Fatalf("fleet threshold = %+v, want exact 100%% pass against 90%%", summary)
+	}
+}
+
+func TestCmdHeartbeatFleetHealthBlocksCompletionWithoutDurableWrite(t *testing.T) {
+	now := time.Now().UTC()
+	ctx := &fleetHealthContext{
+		teams:     []Team{{ID: "infra-health", Enabled: true}},
+		configs:   map[string][]HeartbeatConfig{"infra-health": {{Enabled: true, LastExecution: &HeartbeatExecResult{Status: "completed", RunID: "run-no-write", StartedAt: now.Add(-time.Hour).Format(time.RFC3339), EndedAt: now.Add(-30 * time.Minute).Format(time.RFC3339)}}}},
+		knowledge: map[string]KnowledgeListResponse{"infra-health": {}},
+	}
+	out, err := captureTeamStdout(t, func() error { return cmdHeartbeatFleetHealth(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var summary HeartbeatFleetHealth
+	if err := json.Unmarshal([]byte(out), &summary); err != nil {
+		t.Fatal(err)
+	}
+	if summary.SucceededMembers != 1 || summary.ProducedMembers != 0 || summary.BlockedMembers != 1 || summary.FailedMembers != 0 {
+		t.Fatalf("summary = %+v, want completed-but-unwritten member blocked", summary)
+	}
+}
+
+func TestCmdHeartbeatFleetHealthCountsSourceLedgerReceipt(t *testing.T) {
+	now := time.Now().UTC()
+	ctx := &fleetHealthContext{
+		teams:     []Team{{ID: "infra-health", Enabled: true}},
+		configs:   map[string][]HeartbeatConfig{"infra-health": {{Enabled: true, LastExecution: &HeartbeatExecResult{Status: "completed", RunID: "run-ledger", StartedAt: now.Add(-time.Hour).Format(time.RFC3339), EndedAt: now.Add(-30 * time.Minute).Format(time.RFC3339)}}}},
+		knowledge: map[string]KnowledgeListResponse{"infra-health": {}},
+		products:  map[string]bool{"infra-health:run-ledger": true},
+	}
+	out, err := captureTeamStdout(t, func() error { return cmdHeartbeatFleetHealth(ctx, []string{"--json"}) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	var summary HeartbeatFleetHealth
+	if err := json.Unmarshal([]byte(out), &summary); err != nil {
+		t.Fatal(err)
+	}
+	if summary.ProducedMembers != 1 || summary.BlockedMembers != 0 {
+		t.Fatalf("summary = %+v, want Source Ledger receipt counted", summary)
+	}
 }
 
 func TestCmdPromptPreviewCallsFullPreviewEndpoint(t *testing.T) {

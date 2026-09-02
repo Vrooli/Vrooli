@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchBindings, fetchUnbound } from "../../api/bindings";
 import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 
 export function BindingRegistry() {

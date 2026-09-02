@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
+import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActionMutation } from "../hooks/useActionMutation";
 import { BottomSheet } from "../components/ui/bottom-sheet";

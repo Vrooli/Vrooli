@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"swarm-manager/internal/stats"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitions"
 
@@ -84,7 +85,36 @@ func TestListTransitionsReturnsEveryDeclaredDefinition(t *testing.T) {
 		if actual.GetKey() != definition.Key || actual.GetSubject() != definition.Subject || actual.GetApplyAction() != definition.ApplyAction || actual.GetInputContract() != definition.InputContract {
 			t.Fatalf("transition %d = %#v, want registry definition %#v", index, actual, definition)
 		}
+		if len(actual.GetHumanGates()) != len(definition.HumanGates) {
+			t.Fatalf("transition %q gates = %d, want %d", definition.Key, len(actual.GetHumanGates()), len(definition.HumanGates))
+		}
 	}
+}
+
+func TestListTransitionsProjectsLiveGateEvidence(t *testing.T) {
+	registry, err := transitions.LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewServiceWithGateProjection(registry, nil, func() (map[string]string, map[string]stats.KindRate) {
+		return map[string]string{"capture-to-suggested": "auto"}, map[string]stats.KindRate{"capture-to-suggested": {Rate: .9, SampleSize: 20}}
+	})
+	response, err := service.ListTransitions(context.Background(), connect.NewRequest(&api.ListTransitionsRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, transition := range response.Msg.GetTransitions() {
+		for _, gate := range transition.GetHumanGates() {
+			if gate.GetId() != "capture-to-suggested" {
+				continue
+			}
+			if gate.GetMode() != "auto" || gate.GetSampleSize() != 20 || gate.GetReadiness() != "ready" {
+				t.Fatalf("live gate projection = %#v", gate)
+			}
+			return
+		}
+	}
+	t.Fatal("capture-to-suggested gate not found")
 }
 
 // [REQ:SWM-P0-014] workflow transitions start and apply through the catalog.

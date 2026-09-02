@@ -652,13 +652,19 @@ type TeamsIndexEntry struct {
 // DOC: docs/concepts/HEARTBEATS.md
 type HeartbeatConfig struct {
 	BaseEntity
-	TeamID         string               `json:"teamId"`
-	AgentID        string               `json:"agentId"`
-	Enabled        bool                 `json:"enabled"`
-	Schedule       string               `json:"schedule"`                 // Cron expression
-	ProfileKey     string               `json:"profileKey,omitempty"`     // agent-manager profile key
-	TimeoutSeconds int                  `json:"timeoutSeconds,omitempty"` // 0 = use default
-	LastExecution  *HeartbeatExecResult `json:"lastExecution,omitempty"`
+	TeamID              string `json:"teamId"`
+	AgentID             string `json:"agentId"`
+	Enabled             bool   `json:"enabled"`
+	Schedule            string `json:"schedule"`                 // Cron expression
+	ProfileKey          string `json:"profileKey,omitempty"`     // agent-manager profile key
+	TimeoutSeconds      int    `json:"timeoutSeconds,omitempty"` // 0 = use default
+	ConsecutiveFailures int    `json:"consecutiveFailures"`
+	LifecycleState      string `json:"lifecycleState"`
+	// LastManualTriggerAt bounds repeated operator/API triggers to one run per
+	// schedule window. Scheduled executions do not update this marker.
+	LastManualTriggerAt     string               `json:"lastManualTriggerAt,omitempty"`
+	LastExecution           *HeartbeatExecResult `json:"lastExecution,omitempty"`
+	LastSuccessfulExecution *HeartbeatExecResult `json:"lastSuccessfulExecution,omitempty"`
 	Timestamps
 }
 
@@ -675,20 +681,21 @@ type HeartbeatExecResult struct {
 // HeartbeatAttempt records an attempted heartbeat dispatch, including failures
 // that happen before agent-manager can create a run.
 type HeartbeatAttempt struct {
-	ID            string `json:"id"`
-	TeamID        string `json:"teamId"`
-	AgentID       string `json:"agentId"`
-	ProfileKey    string `json:"profileKey,omitempty"`
-	TaskID        string `json:"taskId,omitempty"`
-	RunID         string `json:"runId,omitempty"`
-	Tag           string `json:"tag,omitempty"`
-	Status        string `json:"status"`
-	Phase         string `json:"phase"`
-	StartedAt     string `json:"startedAt"`
-	EndedAt       string `json:"endedAt,omitempty"`
-	ErrorCategory string `json:"errorCategory,omitempty"`
-	Error         string `json:"error,omitempty"`
-	Recovery      string `json:"recovery,omitempty"`
+	ID                string `json:"id"`
+	TeamID            string `json:"teamId"`
+	AgentID           string `json:"agentId"`
+	ProfileKey        string `json:"profileKey,omitempty"`
+	TaskID            string `json:"taskId,omitempty"`
+	RunID             string `json:"runId,omitempty"`
+	Tag               string `json:"tag,omitempty"`
+	Status            string `json:"status"`
+	Phase             string `json:"phase"`
+	StartedAt         string `json:"startedAt"`
+	EndedAt           string `json:"endedAt,omitempty"`
+	ErrorCategory     string `json:"errorCategory,omitempty"`
+	Error             string `json:"error,omitempty"`
+	Recovery          string `json:"recovery,omitempty"`
+	RecoveryRequestID string `json:"recoveryRequestId,omitempty"`
 }
 
 // Heartbeat config constants
@@ -700,10 +707,59 @@ const (
 	HeartbeatStatusFailed    = "failed"
 	HeartbeatStatusCancelled = "cancelled"
 
+	HeartbeatLifecycleDisabled   = "disabled"
+	HeartbeatLifecycleNeverFired = "never_fired"
+	HeartbeatLifecycleHealthy    = "healthy"
+	HeartbeatLifecycleDegraded   = "degraded"
+	HeartbeatLifecycleBroken     = "broken"
+
 	DefaultHeartbeatTimeoutSeconds = 2700 // 45 minutes
 	MinHeartbeatTimeoutSeconds     = 60   // 1 minute
 	MaxHeartbeatTimeoutSeconds     = 7200 // 120 minutes
 )
+
+// RefreshHealth derives the operator-facing lifecycle state from persisted
+// execution facts. A legacy record without the new fields naturally starts at
+// zero failures and is classified without requiring an eager migration.
+func (c *HeartbeatConfig) RefreshHealth() {
+	if c.LastSuccessfulExecution == nil && c.LastExecution != nil && c.LastExecution.Status == HeartbeatStatusCompleted {
+		lastSuccess := *c.LastExecution
+		c.LastSuccessfulExecution = &lastSuccess
+	}
+	if !c.Enabled {
+		c.LifecycleState = HeartbeatLifecycleDisabled
+		return
+	}
+	if c.LastExecution == nil {
+		c.LifecycleState = HeartbeatLifecycleNeverFired
+		return
+	}
+	if c.ConsecutiveFailures >= 2 {
+		c.LifecycleState = HeartbeatLifecycleBroken
+		return
+	}
+	if c.ConsecutiveFailures == 1 {
+		c.LifecycleState = HeartbeatLifecycleDegraded
+		return
+	}
+	c.LifecycleState = HeartbeatLifecycleHealthy
+}
+
+// RecordHeartbeatStatus updates the failure streak and its derived lifecycle.
+// Cancellation is not an execution failure, so it preserves the current streak.
+func (c *HeartbeatConfig) RecordHeartbeatStatus(status string) {
+	switch status {
+	case HeartbeatStatusFailed:
+		c.ConsecutiveFailures++
+	case HeartbeatStatusCompleted:
+		c.ConsecutiveFailures = 0
+		if c.LastExecution != nil && c.LastExecution.Status == HeartbeatStatusCompleted {
+			lastSuccess := *c.LastExecution
+			c.LastSuccessfulExecution = &lastSuccess
+		}
+	}
+	c.RefreshHealth()
+}
 
 // EffectiveTimeout returns the timeout duration for this config,
 // clamped to [Min, Max] and defaulting to 45 minutes when unset.

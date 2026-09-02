@@ -25,7 +25,7 @@ Pipeline for moving repeated deterministic operations out of prose and into Acti
 | Action | Completed At | Measurement |
 |--------|--------------|-------------|
 | action:scenario.status.show | 2026-05-01 | Active seed Action; dry-run validates command rendering. Post-adoption usage not yet measured. |
-| action:team.swarm.work.list | 2026-05-01 | Active seed Action; validates with `apiRead` permission and dry-runs command rendering. Post-adoption usage not yet measured. |
+| action:team.swarm.work.list | 2026-05-01 | Corrected to stale-register after live registry reconciliation; absent from the live Action registry and has no post-adoption usage baseline. |
 
 ## Rejected / Retired
 

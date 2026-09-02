@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"prompt-manager/internal/store"
 
@@ -58,6 +59,33 @@ func TestGetLastHandoff_Found(t *testing.T) {
 	}
 	if resp.AgentID != "agent-1" {
 		t.Errorf("expected agentId 'agent-1', got: %s", resp.AgentID)
+	}
+}
+
+func TestExecutorStoresResolvedRunOutput(t *testing.T) {
+	client := newMockAgentClient().WithGetRunResponse("run-resolved", &Run{
+		ID: "run-resolved",
+		Result: &RunResult{
+			FinalOutput: "resolved handoff from the selected candidate",
+			Selection:   RunResultSelection{Status: "selected", SelectedCandidateID: "candidate-2"},
+		},
+	})
+	h := newTestHandlers(t, func(cfg *testHandlersConfig) { cfg.agentClient = client })
+	ctx := context.Background()
+	if err := h.TeamStore.Create(ctx, newIndependentTestTeam("team-resolved", "Resolved")); err != nil {
+		t.Fatalf("create team: %v", err)
+	}
+	if err := h.TeamStore.EnsureMemberDir(ctx, "team-resolved", "agent-1"); err != nil {
+		t.Fatalf("ensure member dir: %v", err)
+	}
+
+	h.Executor.extractAndStoreHandoff(ctx, "team-resolved", "agent-1", "run-resolved", time.Now().UTC())
+	content, err := h.TeamStore.GetLastHandoff(ctx, "team-resolved", "agent-1")
+	if err != nil {
+		t.Fatalf("get handoff: %v", err)
+	}
+	if content != "resolved handoff from the selected candidate" {
+		t.Fatalf("handoff=%q, want resolver output", content)
 	}
 }
 

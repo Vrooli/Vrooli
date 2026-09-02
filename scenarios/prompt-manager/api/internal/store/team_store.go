@@ -289,9 +289,64 @@ func (s *FileTeamStore) Update(ctx context.Context, id string, updates *Team) er
 
 	team.UpdateTimestamp()
 
-	// Write updated team.json
+	// Preserve fields owned by adjacent domains (for example objectivesServed,
+	// instrument, and topicCatalog) that are intentionally not part of Team.
+	// A partial update must not turn this package's narrow view into a lossy
+	// rewrite of the full persisted document.
 	teamPath := filepath.Join(s.teamsDir(), id, "team.json")
-	return SaveJSON(teamPath, team)
+	payload, err := os.ReadFile(teamPath)
+	if err != nil {
+		return fmt.Errorf("read team document for update: %w", err)
+	}
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &document); err != nil {
+		return fmt.Errorf("decode team document for update: %w", err)
+	}
+	set := func(key string, value any) error {
+		raw, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Errorf("encode team field %s: %w", key, err)
+		}
+		document[key] = raw
+		return nil
+	}
+	fields := map[string]any{
+		"revision":  team.Revision,
+		"updatedAt": team.UpdatedAt,
+	}
+	if updates.DisplayName != "" {
+		fields["displayName"] = team.DisplayName
+	}
+	if updates.Mission != "" {
+		fields["mission"] = team.Mission
+	}
+	if updates.EnabledSet {
+		fields["enabled"] = team.Enabled
+	}
+	if updates.Runtime.Mode != "" {
+		fields["runtime"] = team.Runtime
+	}
+	if updates.Coordination.Pattern != "" {
+		fields["coordination"] = team.Coordination
+	}
+	if updates.Execution.QueuePolicy != "" {
+		fields["execution"] = team.Execution
+	}
+	if updates.OperatingContract != nil {
+		fields["operatingContract"] = team.OperatingContract
+	}
+	if updates.Shared != nil {
+		fields["shared"] = team.Shared
+	}
+	if updates.Retention != nil {
+		fields["retention"] = team.Retention
+	}
+	for key, value := range fields {
+		if err := set(key, value); err != nil {
+			return err
+		}
+	}
+	return SaveJSON(teamPath, &document)
 }
 
 // Delete removes a team from both Config and RuntimeData roots.
@@ -616,7 +671,12 @@ func (s *FileTeamStore) GetHeartbeatConfig(ctx context.Context, teamID, agentID 
 		return nil, nil
 	}
 
-	return LoadJSON[HeartbeatConfig](configPath)
+	config, err := LoadJSON[HeartbeatConfig](configPath)
+	if err != nil {
+		return nil, err
+	}
+	config.RefreshHealth()
+	return config, nil
 }
 
 // SetHeartbeatConfig writes the heartbeat.json config for a team member
@@ -634,6 +694,7 @@ func (s *FileTeamStore) SetHeartbeatConfig(ctx context.Context, teamID, agentID 
 	config.SchemaVersion = CurrentSchemaVersion
 	config.TeamID = teamID
 	config.AgentID = agentID
+	config.RefreshHealth()
 
 	if config.CreatedAt == "" {
 		config.Timestamps = NewTimestamps()
@@ -689,6 +750,49 @@ func (s *FileTeamStore) ListHeartbeatConfigs(ctx context.Context, teamID string)
 	}
 
 	return configs, nil
+}
+
+// ValidateHeartbeatRoster keeps the runtime schedule set equal to the authored
+// team roster. Both orphan schedules and silent roster members are errors.
+func (s *FileTeamStore) ValidateHeartbeatRoster(ctx context.Context, teamID string) error {
+	if scoped := s.forContext(ctx); scoped != s {
+		return scoped.ValidateHeartbeatRoster(ctx, teamID)
+	}
+	if s.relationStore == nil {
+		return fmt.Errorf("validate heartbeat roster for %s: relation store not configured", teamID)
+	}
+	members, err := s.relationStore.ListTeamMembers(ctx, teamID)
+	if err != nil {
+		return fmt.Errorf("list roster for %s: %w", teamID, err)
+	}
+	configs, err := s.ListHeartbeatConfigs(ctx, teamID)
+	if err != nil {
+		return err
+	}
+	roster := make(map[string]struct{}, len(members))
+	for _, member := range members {
+		roster[member.AgentID] = struct{}{}
+	}
+	scheduled := make(map[string]struct{}, len(configs))
+	var orphaned []string
+	for _, config := range configs {
+		scheduled[config.AgentID] = struct{}{}
+		if _, ok := roster[config.AgentID]; !ok {
+			orphaned = append(orphaned, config.AgentID)
+		}
+	}
+	var unscheduled []string
+	for agentID := range roster {
+		if _, ok := scheduled[agentID]; !ok {
+			unscheduled = append(unscheduled, agentID)
+		}
+	}
+	sort.Strings(orphaned)
+	sort.Strings(unscheduled)
+	if len(orphaned) > 0 || len(unscheduled) > 0 {
+		return fmt.Errorf("heartbeat roster mismatch for %s: orphaned=%v unscheduled=%v", teamID, orphaned, unscheduled)
+	}
+	return nil
 }
 
 // AppendHeartbeatAttempt appends a durable heartbeat dispatch attempt record.
@@ -1229,18 +1333,26 @@ func (s *FileTeamStore) GetLastHandoff(ctx context.Context, teamID, agentID stri
 		return scoped.GetLastHandoff(ctx, teamID, agentID)
 	}
 	if s.ledger != nil {
-		entries, err := s.ledger.List(ctx, sourceLedgerScope(teamID), 500)
-		if err != nil {
-			return "", err
-		}
-		for i := len(entries) - 1; i >= 0; i-- {
-			if entries[i].Kind != sourceLedgerHandoffSnapshotKind {
-				continue
+		cursor := ""
+		for {
+			page, err := s.ledger.ListPage(ctx, sourceLedgerScope(teamID), cursor, 500)
+			if err != nil {
+				return "", err
 			}
-			handoff, ok := decodeHandoff(entries[i].Body)
-			if ok && handoff.AgentID == agentID {
-				return handoff.Content, nil
+			for i := len(page.Entries) - 1; i >= 0; i-- {
+				entry := page.Entries[i]
+				if entry.Kind != sourceLedgerHandoffSnapshotKind {
+					continue
+				}
+				handoff, ok := decodeHandoff(entry.Body)
+				if ok && handoff.AgentID == agentID {
+					return handoff.Content, nil
+				}
 			}
+			if page.NextCursor == "" {
+				break
+			}
+			cursor = page.NextCursor
 		}
 		return "", nil
 	}

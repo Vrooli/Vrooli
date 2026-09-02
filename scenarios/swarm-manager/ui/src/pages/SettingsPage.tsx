@@ -24,9 +24,11 @@ import { ExecutionTab } from "../components/settings/ExecutionTab";
 import { WorkshopTab } from "../components/settings/WorkshopTab";
 import { ReviewTab } from "../components/settings/ReviewTab";
 import { AudioTab } from "../components/settings/AudioTab";
+import { AutonomyTab } from "../components/settings/AutonomyTab";
 import { selectors } from "../consts/selectors";
 import { applyTheme, defaultQueryOptions } from "../lib";
-import { integrationStatusService, settingsService } from "../services";
+import { integrationStatusService, settingsService, statsService, transitionService } from "../services";
+import type { StatsResponse } from "../types/stats";
 import type { IntegrationStatusResponse } from "../services";
 import type { Settings, SettingsPolicyProjection } from "../types";
 
@@ -97,6 +99,18 @@ export function SettingsPage() {
   const { data: policyProjection } = useQuery<SettingsPolicyProjection | null>({
     queryKey: ["settings", "policy-projection"],
     queryFn: () => settingsService.getPolicyProjection(),
+    ...defaultQueryOptions,
+  });
+
+  const { data: transitionCatalog } = useQuery({
+    queryKey: ["transition-catalog"],
+    queryFn: () => transitionService.list(),
+    ...defaultQueryOptions,
+  });
+
+  const { data: stats } = useQuery<StatsResponse>({
+    queryKey: ["stats", "autonomy-gates"],
+    queryFn: () => statsService.getStats(),
     ...defaultQueryOptions,
   });
 
@@ -292,6 +306,7 @@ export function SettingsPage() {
           <TabsTrigger value="workshop" data-testid={selectors.settings.tabWorkshop}>Plan Workshop</TabsTrigger>
           <TabsTrigger value="review" data-testid={selectors.settings.tabReview}>Review</TabsTrigger>
           <TabsTrigger value="audio" data-testid={selectors.settings.tabAudio}>Audio</TabsTrigger>
+          <TabsTrigger value="autonomy" data-testid="settings-tab-autonomy">Autonomy</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -312,6 +327,10 @@ export function SettingsPage() {
 
         <TabsContent value="audio">
           <AudioTab />
+        </TabsContent>
+
+        <TabsContent value="autonomy">
+          <AutonomyTab form={form} patch={patch} transitions={transitionCatalog} stats={stats} />
         </TabsContent>
       </Tabs>
 

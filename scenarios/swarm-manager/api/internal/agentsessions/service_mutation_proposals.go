@@ -220,6 +220,47 @@ func (s *Service) RequestMutationProposalRevision(ctx context.Context, sessionID
 	return s.loadSession(ctx, session.ID)
 }
 
+// MarkProposalWaiting records an explicit operator decision to leave a ready
+// proposal in the review queue. It does not require an attributed run and does
+// not mutate the proposal target.
+func (s *Service) MarkProposalWaiting(ctx context.Context, sessionID, proposalID, note string) (Session, error) {
+	if strings.TrimSpace(note) == "" {
+		return Session{}, apierr.BadRequest("waiting note is required")
+	}
+	session, proposal, err := s.loadProposal(ctx, sessionID, proposalID)
+	if err != nil {
+		return Session{}, err
+	}
+	if proposal.Status != ProposalStatusReady {
+		return Session{}, apierr.Conflict("proposal must be ready before it can be marked waiting")
+	}
+	now := nowRFC3339()
+	proposal.Status = ProposalStatusNeedsRevision
+	proposal.NeedsRevision = true
+	proposal.UpdatedAt = now
+	proposal.Decisions = append(proposal.Decisions, ProposalDecision{Kind: "waiting", Note: strings.TrimSpace(note), DecidedAt: now})
+	if err := s.saveProposal(ctx, session.ID, proposal); err != nil {
+		return Session{}, err
+	}
+	return s.loadSession(ctx, session.ID)
+}
+
+func (s *Service) loadProposal(ctx context.Context, sessionID, proposalID string) (Session, Proposal, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, Proposal{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
+	if err != nil {
+		return Session{}, Proposal{}, mapStoreError(err)
+	}
+	proposal, ok := findProposal(session, strings.TrimSpace(proposalID))
+	if !ok {
+		return Session{}, Proposal{}, apierr.NotFound("session proposal not found")
+	}
+	return session, proposal, nil
+}
+
 func (s *Service) loadMutationProposal(ctx context.Context, sessionID, proposalID string) (Session, Proposal, error) {
 	store, err := s.storeFor(ctx)
 	if err != nil {

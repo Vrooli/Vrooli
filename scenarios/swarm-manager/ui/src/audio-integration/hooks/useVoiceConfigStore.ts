@@ -2,6 +2,7 @@
 // host scenario needs to drive its mic UI. audio-tools' stt_stream_config
 // (`vad_silence_ms`) is the single source of truth; this store caches the
 // last-hydrated values so consumers don't have to re-fetch per render.
+// HOST DIFFERENCE: this store is swarm-manager's workspace integration seam.
 //
 // Hydration is performed by useHydrateVoiceConfig (mounted at app root).
 // Until hydration completes the store returns the documented fallbacks,

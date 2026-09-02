@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -59,6 +60,171 @@ func TestServiceCreateMakesDraftWithoutSpawning(t *testing.T) {
 	}
 	if spawner.spawnCalls != 0 {
 		t.Fatalf("spawn calls = %d, want 0", spawner.spawnCalls)
+	}
+}
+
+func TestServiceReapExpiresRunningSessionAndRecordsFailure(t *testing.T) {
+	spawner := &fakeSessionSpawner{}
+	svc, err := NewService(ServiceConfig{
+		Store: NewFileStore(t.TempDir()), Spawner: spawner, RunningSessionTTL: time.Hour,
+		ProjectRoot: "/repo", ProfileKey: "swarm-manager/default",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "stale session"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	session.Status = StatusRunning
+	session.RunID = "run-stale"
+	session.UpdatedAt = "2026-08-30T10:00:00Z"
+	if err := svc.store.(*FileStore).SaveSession(session); err != nil {
+		t.Fatal(err)
+	}
+	reaped, err := svc.Reap(context.Background(), time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reaped) != 1 || reaped[0].Status != StatusFailed || !strings.Contains(reaped[0].FailureReason, "TTL expired") {
+		t.Fatalf("reaped = %+v", reaped)
+	}
+	if spawner.stoppedRunID != "run-stale" {
+		t.Fatalf("stopped run = %q, want run-stale", spawner.stoppedRunID)
+	}
+	second, err := svc.Reap(context.Background(), time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC))
+	if err != nil || len(second) != 0 {
+		t.Fatalf("second reap = (%v, %v), want no-op", second, err)
+	}
+}
+
+func TestServiceBatchCreateRequiresActorAndCapsWithoutOverride(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	items := make([]CreateRequest, DefaultBatchCreateLimit+1)
+	for i := range items {
+		items[i] = CreateRequest{Kind: KindSwarmOperations, Title: fmt.Sprintf("batch-%d", i)}
+	}
+	if _, err := svc.CreateBatch(context.Background(), BatchCreateRequest{Sessions: items}); err == nil || !strings.Contains(err.Error(), "actor is required") {
+		t.Fatalf("CreateBatch() error = %v, want actor validation", err)
+	}
+	if _, err := svc.CreateBatch(context.Background(), BatchCreateRequest{Sessions: items, Actor: "operator:test"}); err == nil || !strings.Contains(err.Error(), "exceeds cap") {
+		t.Fatalf("CreateBatch() error = %v, want cap validation", err)
+	}
+	created, err := svc.CreateBatch(context.Background(), BatchCreateRequest{Sessions: items, Actor: "operator:test", OverrideReason: "incident recovery fan-out"})
+	if err != nil || len(created) != len(items) {
+		t.Fatalf("CreateBatch() = %d, %v; want %d sessions", len(created), err, len(items))
+	}
+	for _, session := range created {
+		if session.CreatedBy == nil || session.CreatedBy.Source != "operator:test" {
+			t.Fatalf("batch actor not persisted on %+v", session)
+		}
+	}
+}
+
+func TestServiceDispositionPersistsReasonAndDoesNotDeleteDraft(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "old draft"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	retained, err := svc.Disposition(context.Background(), draft.ID, DispositionRetained, "kept for operator review after archival incident")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retained.Status != StatusDraft || retained.Disposition != DispositionRetained || retained.DispositionReason == "" {
+		t.Fatalf("retained session = %+v", retained)
+	}
+	dropped, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "drop me"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dropped, err = svc.Disposition(context.Background(), dropped.ID, DispositionDropped, "target was archived and no longer actionable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dropped.Status != StatusCanceled || dropped.Disposition != DispositionDropped || dropped.DispositionReason == "" {
+		t.Fatalf("dropped session = %+v", dropped)
+	}
+}
+
+func TestServiceAttachContextPersistsThreeGoalsAndNamesCapOnRefusal(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Portfolio triage"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	attached, err := svc.AttachContext(context.Background(), draft.ID, []ContextRef{
+		{Type: ContextGoal, Ref: "goal-one"},
+		{Type: ContextGoal, Ref: "goal-two"},
+		{Type: ContextGoal, Ref: "goal-three"},
+	})
+	if err != nil {
+		t.Fatalf("AttachContext() error = %v", err)
+	}
+	if len(attached.StagedContext) != 3 {
+		t.Fatalf("staged context = %+v, want three goals", attached.StagedContext)
+	}
+	stored, err := svc.Get(context.Background(), draft.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(stored.StagedContext) != 3 {
+		t.Fatalf("persisted staged context = %+v", stored.StagedContext)
+	}
+	_, err = svc.AttachContext(context.Background(), draft.ID, []ContextRef{{Type: ContextGoal, Ref: "goal-four"}})
+	if err == nil || !strings.Contains(err.Error(), "goal") || !strings.Contains(err.Error(), "max is 3") {
+		t.Fatalf("fourth goal error = %v, want goal cap 3", err)
+	}
+}
+
+func TestServiceAttachContextKeepsBacklogCapAtEight(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Backlog triage"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	refs := make([]ContextRef, 0, 9)
+	for i := 0; i < 9; i++ {
+		refs = append(refs, ContextRef{Type: ContextBacklogItem, Ref: fmt.Sprintf("chore/item-%d", i)})
+	}
+	_, err = svc.AttachContext(context.Background(), draft.ID, refs)
+	if err == nil || !strings.Contains(err.Error(), "backlog_item") || !strings.Contains(err.Error(), "max is 8") {
+		t.Fatalf("ninth backlog item error = %v, want backlog_item cap 8", err)
+	}
+}
+
+func TestServiceAttachContextDeduplicatesBeforeEnforcingTotalCap(t *testing.T) {
+	svc := newTestService(t, &fakeSessionSpawner{})
+	draft, err := svc.Create(context.Background(), CreateRequest{Kind: KindSwarmOperations, Title: "Deduplicate staged context"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	refs := make([]ContextRef, 0, 12)
+	for i := 0; i < 8; i++ {
+		refs = append(refs, ContextRef{Type: ContextBacklogItem, Ref: fmt.Sprintf("kind/item-%d", i)})
+	}
+	for i := 0; i < 3; i++ {
+		refs = append(refs, ContextRef{Type: ContextGoal, Ref: fmt.Sprintf("goal-%d", i)})
+	}
+	refs = append(refs, ContextRef{Type: ContextExecution, Ref: "execution-one"})
+	if _, err := svc.AttachContext(context.Background(), draft.ID, refs); err != nil {
+		t.Fatalf("initial AttachContext() error = %v", err)
+	}
+
+	attached, err := svc.AttachContext(context.Background(), draft.ID, refs)
+	if err != nil {
+		t.Fatalf("duplicate AttachContext() error = %v", err)
+	}
+	if len(attached.StagedContext) != 12 {
+		t.Fatalf("staged context = %+v, want 12 unique refs", attached.StagedContext)
+	}
+	stored, err := svc.Get(context.Background(), draft.ID)
+	if err != nil {
+		t.Fatalf("LoadSession() error = %v", err)
+	}
+	if len(stored.StagedContext) != 12 {
+		t.Fatalf("persisted staged context = %+v, want 12 unique refs", stored.StagedContext)
 	}
 }
 

@@ -17,11 +17,23 @@ import (
 
 type connectHandler struct {
 	teamsconnect.UnimplementedTeamsServiceHandler
-	legacy *domain.Handlers
+	legacy    *domain.Handlers
+	knowledge knowledgeHandlers
 }
 
-func NewConnectMount(legacy *domain.Handlers) (string, http.Handler) {
-	return teamsconnect.NewTeamsServiceHandler(&connectHandler{legacy: legacy})
+type knowledgeHandlers interface {
+	AddKnowledge(http.ResponseWriter, *http.Request)
+	ListTeamCorpus(http.ResponseWriter, *http.Request)
+	UpdateTeamCorpusHandler(http.ResponseWriter, *http.Request)
+	DeleteTeamCorpusHandler(http.ResponseWriter, *http.Request)
+}
+
+func NewConnectMount(legacy *domain.Handlers, knowledge ...knowledgeHandlers) (string, http.Handler) {
+	var kh knowledgeHandlers
+	if len(knowledge) > 0 {
+		kh = knowledge[0]
+	}
+	return teamsconnect.NewTeamsServiceHandler(&connectHandler{legacy: legacy, knowledge: kh})
 }
 
 func (h *connectHandler) ListTeams(ctx context.Context, req *connect.Request[teamsv1.ListTeamsRequest]) (*connect.Response[teamsv1.ListTeamsResponse], error) {
@@ -212,6 +224,106 @@ func (h *connectHandler) ExportClaudeCodeTeam(ctx context.Context, req *connect.
 		return nil, err
 	}
 	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) ListKnowledge(ctx context.Context, req *connect.Request[teamsv1.ListKnowledgeRequest]) (*connect.Response[teamsv1.ListKnowledgeResponse], error) {
+	if h.knowledge == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("knowledge handler is not configured"))
+	}
+	suffix := "/knowledge"
+	query := url.Values{}
+	if req.Msg.GetTopic() != "" {
+		query.Set("topic", req.Msg.GetTopic())
+	}
+	if req.Msg.GetTopicPrefix() != "" {
+		query.Set("topic_prefix", req.Msg.GetTopicPrefix())
+	}
+	if req.Msg.GetLast() != 0 {
+		query.Set("last", fmt.Sprintf("%d", req.Msg.GetLast()))
+	}
+	if encoded := query.Encode(); encoded != "" {
+		suffix += "?" + encoded
+	}
+	result, err := invokeTeam(ctx, req.Header(), h.knowledge.ListTeamCorpus, http.MethodGet, req.Msg.GetTeamId(), suffix, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	out := &teamsv1.ListKnowledgeResponse{}
+	if err := transportbridge.Decode(result.Body, out); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) AddKnowledge(ctx context.Context, req *connect.Request[teamsv1.AddKnowledgeRequest]) (*connect.Response[teamsv1.KnowledgeEntry], error) {
+	if h.knowledge == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("knowledge handler is not configured"))
+	}
+	body := map[string]string{
+		"topic":       req.Msg.GetTopic(),
+		"content":     req.Msg.GetContent(),
+		"caller_note": req.Msg.GetCallerNote(),
+		"source":      req.Msg.GetSource(),
+		"supersedes":  req.Msg.GetSupersedes(),
+	}
+	return knowledgeCall(ctx, req.Header(), h.knowledge.AddKnowledge, http.MethodPost, req.Msg.GetTeamId(), "/knowledge", body, nil, &teamsv1.KnowledgeEntry{})
+}
+
+func (h *connectHandler) UpdateKnowledge(ctx context.Context, req *connect.Request[teamsv1.UpdateKnowledgeRequest]) (*connect.Response[teamsv1.KnowledgeEntry], error) {
+	if h.knowledge == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("knowledge handler is not configured"))
+	}
+	body := map[string]string{}
+	if req.Msg.Topic != nil {
+		body["topic"] = req.Msg.GetTopic()
+	}
+	if req.Msg.Content != nil {
+		body["content"] = req.Msg.GetContent()
+	}
+	if req.Msg.Source != nil {
+		body["source"] = req.Msg.GetSource()
+	}
+	if req.Msg.Supersedes != nil {
+		body["supersedes"] = req.Msg.GetSupersedes()
+	}
+	vars := map[string]string{"knowledgeId": req.Msg.GetKnowledgeId()}
+	return knowledgeCall(ctx, req.Header(), h.knowledge.UpdateTeamCorpusHandler, http.MethodPut, req.Msg.GetTeamId(), "/knowledge/"+url.PathEscape(req.Msg.GetKnowledgeId()), body, vars, &teamsv1.KnowledgeEntry{})
+}
+
+func (h *connectHandler) DeleteKnowledge(ctx context.Context, req *connect.Request[teamsv1.DeleteKnowledgeRequest]) (*connect.Response[teamsv1.DeleteKnowledgeResponse], error) {
+	if h.knowledge == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("knowledge handler is not configured"))
+	}
+	vars := map[string]string{"knowledgeId": req.Msg.GetKnowledgeId()}
+	_, err := invokeKnowledge(ctx, req.Header(), h.knowledge.DeleteTeamCorpusHandler, http.MethodDelete, req.Msg.GetTeamId(), "/knowledge/"+url.PathEscape(req.Msg.GetKnowledgeId()), nil, vars)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&teamsv1.DeleteKnowledgeResponse{}), nil
+}
+
+func knowledgeCall[T any](ctx context.Context, headers http.Header, handler http.HandlerFunc, method, teamID, suffix string, body any, vars map[string]string, out *T) (*connect.Response[T], error) {
+	result, err := invokeKnowledge(ctx, headers, handler, method, teamID, suffix, body, vars)
+	if err != nil {
+		return nil, err
+	}
+	message, ok := any(out).(proto.Message)
+	if !ok {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("generated response is not a protobuf message"))
+	}
+	if err := transportbridge.Decode(result.Body, message); err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(out), nil
+}
+
+func invokeKnowledge(ctx context.Context, headers http.Header, handler http.HandlerFunc, method, teamID, suffix string, body any, vars map[string]string) (transportbridge.Result, error) {
+	if vars == nil {
+		vars = map[string]string{}
+	}
+	vars["id"] = teamID
+	target := "/teams/" + url.PathEscape(teamID) + suffix
+	return transportbridge.Invoke(ctx, headers, handler, method, target, body, vars)
 }
 
 func teamCall[T any](ctx context.Context, headers http.Header, handler http.HandlerFunc, method, teamID, suffix string, body any, vars map[string]string, out *T) (*connect.Response[T], error) {

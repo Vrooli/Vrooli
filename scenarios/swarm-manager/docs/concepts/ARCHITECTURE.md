@@ -6,11 +6,9 @@ The backlog workshop-round pilot uses Agent Manager as a consumer-neutral workfl
 
 Swarm Manager remains the domain owner. It validates the typed result and applies it exactly once through its backlog API, including stale-snapshot and replay protection. This boundary is intentionally narrow: it introduces no classifier, target registry, domain-action framework, compatibility wrapper, or duplicated result schema.
 
-Plan execution offers two declared strategies. `phased-plan-drain` owns
-phase-by-phase review and approval; `swarm-manager/until-drain` owns one warm,
-resumable engagement whose bounded `until` completion test is rendered into
-the Agent Manager run and whose authoritative completion check remains the
-Plan Manager frontier. The workflow owns slice/iteration composition:
+Plan execution has one fallback of record: `phased-plan-drain`. It owns
+phase-by-phase review, validation evidence, and operator approval. The workflow
+owns slice composition:
 each visit to `slice` creates an independent Run using
 `swarm-manager/deep-work`; ordered compact handoffs come from the append-only
 journal; `correction` explicitly continues the named slice; and the reusable
@@ -32,8 +30,8 @@ conclusion, legacy records, and UI paths are outside this pilot.
 
 ### Pilot decision
 
-Decision: **go for the generic Agent Manager workflow primitive and retain both
-narrow pilots**. The evidence supports the execution-identity model: fresh Run
+Decision: **use the generic Agent Manager workflow primitive with
+`phased-plan-drain` as the single governed fallback**. The evidence supports the execution-identity model: fresh Run
 per loop visit, node-local profiles, named continuation, child workflow,
 bounded journal context, finite cycles, durable waits, and consumer-owned
 exactly-once mutation all pass focused and race gates without domain vocabulary

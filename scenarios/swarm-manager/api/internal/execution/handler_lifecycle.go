@@ -170,6 +170,35 @@ func (h *Handler) ApprovePhasedPlanWorkflow(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// RebasePhasedPlanWorkflow records an operator-authorized migration from the
+// legacy backlog subject-version format. It is safe only when the live plan
+// frontier is unchanged; it never relaxes the workflow or frontier checks.
+func (h *Handler) RebasePhasedPlanWorkflow(w http.ResponseWriter, r *http.Request) {
+	executionID := strings.TrimSpace(mux.Vars(r)["execution_id"])
+	if executionID == "" {
+		apierr.MapError(w, "[execution] workflow-rebase", apierr.BadRequest("execution_id is required"))
+		return
+	}
+	var body struct {
+		Actor  string `json:"actor"`
+		Reason string `json:"reason"`
+	}
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			apierr.MapError(w, "[execution] workflow-rebase", apierr.BadRequest("invalid request body"))
+			return
+		}
+	}
+	record, err := h.service.RebasePhasedPlanWorkflow(r.Context(), executionID, body.Actor, body.Reason)
+	if err != nil {
+		apierr.MapError(w, "[execution] workflow-rebase", err)
+		return
+	}
+	if err := httputil.ProtoJSON(w, executionResponse(record)); err != nil {
+		apierr.MapError(w, "[execution] workflow-rebase", apierr.Internal("failed to encode response"))
+	}
+}
+
 // Retry creates a new execution attempt parented to a terminal execution.
 // The body is optional; if present it carries an informational note.
 func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {

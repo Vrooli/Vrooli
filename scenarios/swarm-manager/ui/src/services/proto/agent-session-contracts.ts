@@ -185,6 +185,9 @@ export function mapProtoAgentSession(protoSession: AgentSession): AgentSessionDo
     ...(protoSession.createdBy ? { createdBy: mapProtoAgentSessionAttribution(protoSession.createdBy) } : {}),
     ...(protoSession.proposalTarget ? { proposalTarget: mapProtoProposalTarget(protoSession.proposalTarget) } : {}),
     ...(protoSession.starterJobId ? { starterJobId: protoSession.starterJobId } : {}),
+    ...(protoSession.stagedContextRefs?.length
+      ? { stagedContextRefs: protoSession.stagedContextRefs.map((ref) => ({ type: ref.type as AgentSessionContextType, ref: ref.ref ?? "" })) }
+      : {}),
   };
 }
 

@@ -38,6 +38,34 @@ func TestWorkflowServiceProgressReadsLiveTrace(t *testing.T) {
 	}
 }
 
+func TestWorkflowExecutionStateReadsTerminalEvidenceFromAuthorizedResult(t *testing.T) {
+	output, _ := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "complete"}})
+	traceExecution := &domainpb.WorkflowExecution{Id: "workflow-1", Status: domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED}
+	resultExecution := proto.Clone(traceExecution).(*domainpb.WorkflowExecution)
+	resultExecution.Output = output
+	var resultAuthorized bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/trace"):
+			writeWorkflowProto(t, w, &apipb.GetWorkflowExecutionTraceResponse{Execution: traceExecution}, http.StatusOK)
+		case strings.HasSuffix(r.URL.Path, "/result"):
+			resultAuthorized = r.URL.Query().Get("explicitly_authorized") == "true"
+			writeWorkflowProto(t, w, &apipb.WorkflowExecutionResponse{Execution: resultExecution}, http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	service := NewWorkflowServiceWithClient(NewHTTPClientWithResolver(func(context.Context) (string, error) { return server.URL, nil }, server.Client()))
+	state, err := service.GetWorkflowExecutionState(context.Background(), "workflow-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !state.TerminalEvidence || !resultAuthorized {
+		t.Fatalf("state=%#v authorized=%v", state, resultAuthorized)
+	}
+}
+
 func TestWorkflowServiceCommandResultHandshake(t *testing.T) {
 	input, _ := structpb.NewValue(map[string]any{"entity": map[string]any{"kind": "idea", "name": "search", "version": "sha256:v"}, "snapshot": map[string]any{}, "operatorNote": "focus"})
 	output, _ := structpb.NewValue(map[string]any{"result": map[string]any{"outcome": "no_questions", "note": "ready", "readiness": map[string]any{"problem_clarity": 3}}})

@@ -11,6 +11,7 @@ import { Bot, HelpCircle, ListChecks, Plus, RefreshCw } from "lucide-react";
 import { CollapsibleSection } from "../../../components/ui/collapsible-section";
 import { ActivityRow } from "../../../components/operations/ActivityRow";
 import { LaneBar } from "../../../components/operations/LaneBar";
+import { AutonomyReadyPrompt } from "../../../components/operations/AutonomyReadyPrompt";
 import { groupByMilestone, laneLabel, orderLanes } from "../../../components/operations/utils";
 import { Button } from "../../../components/ui/button";
 import { Tooltip } from "../../../components/ui/tooltip";
@@ -129,6 +130,7 @@ export function NowColumn() {
           <LaneBar key={lane.lane} status={lane} />
         ))}
       </CollapsibleSection>
+      <AutonomyReadyPrompt />
       <div className="flex-1 space-y-3 overflow-y-auto p-2">
         {isIdle ? (
           <div

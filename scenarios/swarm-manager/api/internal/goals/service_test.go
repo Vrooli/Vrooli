@@ -10,8 +10,38 @@ import (
 
 type fakeBacklog struct{ items []backlog.BacklogItem }
 
+type fakeDeliverableRanks map[string]int
+
+func (f fakeDeliverableRanks) ReleaseRank(name string) (int, error) { return f[name], nil }
+
+type fakeDeliverableProjection struct {
+	ranks   map[string]int
+	urgency map[string]int
+}
+
+func (f fakeDeliverableProjection) ReleaseRank(name string) (int, error) { return f.ranks[name], nil }
+func (f fakeDeliverableProjection) DerivedUrgency(name string) (int, error) {
+	return f.urgency[name], nil
+}
+
 func (f *fakeBacklog) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogItem, error) {
 	return f.items, nil
+}
+
+type mutableFakeBacklog struct{ items []backlog.BacklogItem }
+
+func (f *mutableFakeBacklog) LoadAll(_ []backlog.BacklogKind) ([]backlog.BacklogItem, error) {
+	return f.items, nil
+}
+func (f *mutableFakeBacklog) SaveItem(item backlog.BacklogItem) error {
+	for i := range f.items {
+		if f.items[i].Kind == item.Kind && f.items[i].Name == item.Name {
+			f.items[i] = item
+			return nil
+		}
+	}
+	f.items = append(f.items, item)
+	return nil
 }
 
 func newTestService(t *testing.T, items []backlog.BacklogItem) *Service {
@@ -51,6 +81,27 @@ func TestService_CreateComputesScopeAndBaseline(t *testing.T) {
 	}
 	if !svc.store.Exists("my-goal") {
 		t.Fatal("goal not persisted")
+	}
+}
+
+func TestServiceArchiveRequiresDispositionAndForceNamesDroppedItems(t *testing.T) {
+	items := &mutableFakeBacklog{items: []backlog.BacklogItem{item("execute", "orphan", "backlog", nil)}}
+	svc := NewService(NewStore(t.TempDir()), items)
+	if _, err := svc.Create(CreateRequest{Name: "archive-guard", Targets: []string{"execute/orphan"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Archive("archive-guard"); err == nil || !strings.Contains(err.Error(), "execute/orphan") {
+		t.Fatalf("archive without disposition = %v", err)
+	}
+	archived, err := svc.ArchiveWithForce("archive-guard", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(archived.DroppedItems) != 1 || archived.DroppedItems[0] != "execute/orphan" {
+		t.Fatalf("dropped items = %v", archived.DroppedItems)
+	}
+	if items.items[0].Status != backlog.StatusDropped {
+		t.Fatalf("item status = %q, want dropped", items.items[0].Status)
 	}
 }
 
@@ -431,5 +482,74 @@ func TestService_ItemGoalPrioritiesAndReadyItems(t *testing.T) {
 	}
 	if ready[1].Name != "c" || ready[1].GoalPriority != 8 {
 		t.Fatalf("second ready = %+v, want c@8", ready[1])
+	}
+}
+
+func TestService_ReleaseRankDerivesPriorityWithoutMutatingAuthoredPriority(t *testing.T) {
+	svc := newTestService(t, []backlog.BacklogItem{item("execute", "a", "ready", nil)})
+	svc.SetDeliverableRankReader(fakeDeliverableRanks{"web-console": 2})
+	created, err := svc.Create(CreateRequest{Name: "release-goal", Priority: 9, ServesDeliverable: "web-console", Targets: []string{"execute/a"}})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	priorities, err := svc.ItemGoalPriorities()
+	if err != nil {
+		t.Fatalf("priorities: %v", err)
+	}
+	if priorities["execute/a"] != 2 {
+		t.Fatalf("derived priority = %d, want 2", priorities["execute/a"])
+	}
+	loaded, err := svc.store.Load(created.Goal.Name)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.Priority != 9 || loaded.ServesDeliverable != "web-console" {
+		t.Fatalf("stored goal = %+v; authored priority must remain 9", loaded)
+	}
+}
+
+func TestService_EnablingUrgencyDerivesPriorityWithoutMutatingAuthoredPriority(t *testing.T) {
+	svc := newTestService(t, []backlog.BacklogItem{item("execute", "a", "ready", nil)})
+	svc.SetDeliverableRankReader(fakeDeliverableProjection{ranks: map[string]int{"scenario-to-desktop": 0}, urgency: map[string]int{"scenario-to-desktop": 1}})
+	created, err := svc.Create(CreateRequest{Name: "desktop-goal", Priority: 9, ServesDeliverable: "scenario-to-desktop", Targets: []string{"execute/a"}})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	priorities, err := svc.ItemGoalPriorities()
+	if err != nil {
+		t.Fatalf("priorities: %v", err)
+	}
+	if priorities["execute/a"] != 1 {
+		t.Fatalf("derived enabling priority = %d, want 1", priorities["execute/a"])
+	}
+	loaded, err := svc.store.Load(created.Goal.Name)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.Priority != 9 || loaded.ServesDeliverable != "scenario-to-desktop" {
+		t.Fatalf("stored goal = %+v; authored priority must remain 9", loaded)
+	}
+}
+
+func TestService_ZeroDerivedUrgencyIsResolvedWithoutWarningFallback(t *testing.T) {
+	svc := newTestService(t, []backlog.BacklogItem{item("execute", "a", "ready", nil)})
+	svc.SetDeliverableRankReader(fakeDeliverableProjection{ranks: map[string]int{"money-ledger": 0}, urgency: map[string]int{"money-ledger": 0}})
+	created, err := svc.Create(CreateRequest{Name: "ledger-goal", Priority: 9, ServesDeliverable: "money-ledger", Targets: []string{"execute/a"}})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	priorities, err := svc.ItemGoalPriorities()
+	if err != nil {
+		t.Fatalf("priorities: %v", err)
+	}
+	if priorities["execute/a"] != 0 {
+		t.Fatalf("derived priority = %d, want 0", priorities["execute/a"])
+	}
+	loaded, err := svc.store.Load(created.Goal.Name)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if loaded.Priority != 9 {
+		t.Fatalf("stored priority = %d, want authored 9", loaded.Priority)
 	}
 }

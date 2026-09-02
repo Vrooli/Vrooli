@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import { AlertTriangle, Check, ChevronDown, ChevronUp, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib";

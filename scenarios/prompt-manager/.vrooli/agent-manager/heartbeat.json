@@ -1,9 +1,9 @@
 {
   "schemaVersion": "agent-profile/v1",
   "name": "prompt-manager-heartbeat",
-  "profileKey": "prompt-manager/heartbeat",
+  "profileKey": "prompt-manager/heartbeat-judgment",
   "description": "Portable profile for Prompt Manager multi-process heartbeats",
-  "roleRef": "code.cheap",
+  "roleRef": "code.judgment",
   "maxTurns": 50,
   "timeout": "600s",
   "allowedTools": ["read", "write", "shell"],
@@ -12,5 +12,6 @@
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_PROTECTED"
   },
-  "createdBy": "prompt-manager"
+  "createdBy": "prompt-manager",
+  "effort": "medium"
 }

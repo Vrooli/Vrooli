@@ -2,10 +2,18 @@
 package appctx
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
 	"net/url"
+	"strings"
+	"time"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliapp"
+	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
+	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 )
 
 // Context provides methods that commands can use to interact with the API.
@@ -34,6 +42,32 @@ type Context interface {
 // interface so commands can share one standard request substrate.
 type Runtime struct {
 	Core *cliapp.ScenarioApp
+}
+
+// HasDurableProduct reports whether the member's run has a recent Source
+// Ledger journal receipt. It is deliberately an optional Context capability so
+// command tests and isolated API fakes do not need a live Source Ledger.
+func (r Runtime) HasDurableProduct(teamID, runID string, cutoff time.Time) (bool, error) {
+	base, err := discovery.ResolveScenarioURLDefault(context.Background(), "source-ledger")
+	if err != nil {
+		return false, err
+	}
+	client := journalconnect.NewJournalServiceClient(http.DefaultClient, strings.TrimRight(base, "/"))
+	response, err := client.ListEntries(context.Background(), connect.NewRequest(&journalv1.ListEntriesRequest{
+		Scope: "team:" + strings.TrimPrefix(strings.TrimSpace(teamID), "team:"), Limit: 500,
+	}))
+	if err != nil {
+		return false, err
+	}
+	for _, entry := range response.Msg.GetEntries() {
+		if entry.GetCreatedAt() == nil || entry.GetCreatedAt().AsTime().Before(cutoff) {
+			continue
+		}
+		if strings.TrimSpace(entry.GetCorrelation().GetRunId()) == strings.TrimSpace(runID) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 var _ Context = Runtime{}

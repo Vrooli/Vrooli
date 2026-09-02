@@ -6,7 +6,7 @@ import { CheckCircle2, AlertTriangle, Star } from "lucide-react";
 import { cn } from "../../lib";
 import { selectors } from "../../consts/selectors";
 import { OTHER_KEY, filterAgentOther } from "../../lib/workshop-files";
-import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import type { PendingQuestion, ReviewStatus } from "../../types";
 
 /** Local answer state for a single question. */

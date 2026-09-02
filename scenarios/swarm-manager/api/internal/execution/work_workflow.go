@@ -219,6 +219,13 @@ func (s *Service) buildPlanExecuteTransitionInput(ctx context.Context, execution
 	if err != nil {
 		return transitionrunner.Snapshot{}, err
 	}
+	if definition, ok := s.transitionRegistry.Get("plan.execute"); ok {
+		if governance, govErr := s.governanceProvider.LoadGovernance(); govErr == nil {
+			if mode, found := transitions.EffectiveGateMode(definition, governance.GateModes, "slice-approval"); found {
+				snapshot.SliceApprovalMode = string(mode)
+			}
+		}
+	}
 	input, err := snapshot.input()
 	if err != nil {
 		return transitionrunner.Snapshot{}, err

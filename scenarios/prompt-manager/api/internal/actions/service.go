@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/vrooli/envkit-go"
 	"prompt-manager/internal/store"
 )
 
@@ -839,6 +841,7 @@ func (execCommandRunner) Run(ctx context.Context, argv []string, workDir string,
 		return CommandRunResult{ExitCode: -1}, fmt.Errorf("command argv is empty")
 	}
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
 	if workDir != "" {
 		cmd.Dir = workDir
 	}

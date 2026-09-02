@@ -14,5 +14,6 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "programs_mine", Method: "POST", Path: programsconnect.ProgramServiceMineFailuresProcedure, Summary: "Summarize recurring program failures.", Category: "programs"},
 	{ID: "programs_mine_refusals", Method: "POST", Path: programsconnect.ProgramServiceMineRefusalsProcedure, Summary: "Summarize durable binding refusals.", Category: "programs"},
 	{ID: "programs_mine_unresolved", Method: "POST", Path: programsconnect.ProgramServiceMineUnresolvedBindingsProcedure, Summary: "Summarize attempted names with no governed binding.", Category: "programs"},
+	{ID: "programs_governance_share", Method: "POST", Path: programsconnect.ProgramServiceGovernanceShareProcedure, Summary: "Report governed versus observed program calls over a window.", Category: "programs"},
 	{ID: "programs_authoring_eval", Method: "POST", Path: programsconnect.ProgramServiceRunAuthoringEvalProcedure, Summary: "Measure first-attempt authoring against the versioned corpus.", Category: "programs"},
 }

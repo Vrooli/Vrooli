@@ -27,6 +27,7 @@ type Repository interface {
 	MineFailures(context.Context, bool, time.Time) ([]*programsv1.FailureShape, error)
 	MineRefusals(context.Context, bool) ([]*programsv1.RefusalShape, error)
 	MineUnresolvedBindings(context.Context, bool) ([]*programsv1.UnresolvedBindingShape, error)
+	GovernanceShare(context.Context, time.Time, bool) (int64, int64, []*programsv1.ObservedCommand, error)
 }
 
 type sqliteRepository struct{ db SQLExecutor }
@@ -162,6 +163,44 @@ func (r *sqliteRepository) MineUnresolvedBindings(ctx context.Context, includeOp
 		out = append(out, shape)
 	}
 	return out, rows.Err()
+}
+
+func (r *sqliteRepository) GovernanceShare(ctx context.Context, since time.Time, includeOperator bool) (int64, int64, []*programsv1.ObservedCommand, error) {
+	start := since.UTC().Format(time.RFC3339Nano)
+	governedQuery := `SELECT COUNT(*) FROM binding_invocations WHERE occurred_at >= ?`
+	observedQuery := `SELECT COUNT(*) FROM unresolved_binding_attempts WHERE occurred_at >= ?`
+	args := []any{start}
+	if !includeOperator {
+		governedQuery += ` AND provenance != ?`
+		observedQuery += ` AND provenance != ?`
+		args = append(args, programsv1.Provenance_PROVENANCE_OPERATOR.String())
+	}
+	var governed, observed int64
+	if err := r.db.QueryRowContext(ctx, governedQuery, args...).Scan(&governed); err != nil {
+		return 0, 0, nil, err
+	}
+	if err := r.db.QueryRowContext(ctx, observedQuery, args...).Scan(&observed); err != nil {
+		return 0, 0, nil, err
+	}
+	query := `SELECT attempted_name, COUNT(*), MAX(occurred_at) FROM unresolved_binding_attempts WHERE occurred_at >= ?`
+	if !includeOperator {
+		query += ` AND provenance != ?`
+	}
+	query += ` GROUP BY attempted_name ORDER BY COUNT(*) DESC, attempted_name`
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	defer rows.Close()
+	var commands []*programsv1.ObservedCommand
+	for rows.Next() {
+		command := &programsv1.ObservedCommand{}
+		if err := rows.Scan(&command.AttemptedName, &command.Count, &command.LastSeen); err != nil {
+			return 0, 0, nil, err
+		}
+		commands = append(commands, command)
+	}
+	return governed, observed, commands, rows.Err()
 }
 
 type rowScanner interface{ Scan(...any) error }
@@ -336,4 +375,8 @@ func (r *memoryRepository) MineRefusals(context.Context, bool) ([]*programsv1.Re
 
 func (r *memoryRepository) MineUnresolvedBindings(context.Context, bool) ([]*programsv1.UnresolvedBindingShape, error) {
 	return nil, nil
+}
+
+func (r *memoryRepository) GovernanceShare(context.Context, time.Time, bool) (int64, int64, []*programsv1.ObservedCommand, error) {
+	return 0, 0, nil, nil
 }

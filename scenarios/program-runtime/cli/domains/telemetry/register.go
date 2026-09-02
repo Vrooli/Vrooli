@@ -24,7 +24,14 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		}
 		return r.Msg, nil
 	}, func(_ cliapp.OperationContext, r *telemetryv1.ListEventsResponse) cliapp.ListReport {
-		return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d typed event(s).", len(r.Events))}}
+		results := make([]string, 0, len(r.GetEvents()))
+		for _, event := range r.GetEvents() {
+			if event == nil {
+				continue
+			}
+			results = append(results, fmt.Sprintf("%s %s program=%s session=%s binding=%s reason=%s", event.GetOccurredAt(), event.GetKind().String(), event.GetProgramId(), event.GetSessionId(), event.GetBindingId(), event.GetReason()))
+		}
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d typed event(s).", len(r.GetEvents()))}, ResultsHeading: "Events", Results: results, ListShaped: true, ResultCount: len(r.GetEvents())}
 	})})
 }
 

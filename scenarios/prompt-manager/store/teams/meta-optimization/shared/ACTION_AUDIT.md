@@ -8,6 +8,7 @@ Action health and adoption snapshot. Maintained by `skill-optimizer`.
 |--------|--------|------------|-----------------|-------------|-------|
 | action:scenario.status.show | active | valid; dry-run passes with `--scenario=prompt-manager` | discoverability verified by `prompt-manager action list`; live registry entry | adopted | Active read-only seed Action; owner `project:vrooli`. |
 | action:team.swarm.work.list | missing | 404 on show/validate/run | absent from `prompt-manager action list` | stale-register | Previously recorded seed is not in the live Action registry; do not count it as active or propose consumers until reintroduced and revalidated. |
+| agent-system.framework-health | active | valid; dry-run passes (`prompt-manager graph audit`) | exact match found by `prompt-manager discover` | existing-action-reference | Read-only framework-health sensor Action owned by `scenario:prompt-manager`; API-read permission; runnable. Validation has an owner-governance warning because the owning scenario lacks declared `cli/manifest.json` governance. Proposed use: replace manual framework-health collection references in `agent-system-audit`; no new Action needed. |
 
 ## Measurement Signals
 
@@ -17,7 +18,9 @@ Action health and adoption snapshot. Maintained by `skill-optimizer`.
 - Graph inbound warnings: 0 for the one registered seed; the missing `team.swarm.work.list` entry has no live contract to validate.
 - Run history signals: no post-adoption usage baseline yet.
 - Skill prose collapsed to Action references: 0.
+- Skill prose collapsed to Action references: 1 proposed (`agent-system-audit` → `agent-system.framework-health`); acceptance pending owner work item.
 - Repeated manual operation count from run-introspector: not yet measured.
+- 2026-08-29 discovery for visited-tracker coverage found no exact Action; retain as skill-improvement work, not an Action candidate.
 
 ## Revisit Queue
 

@@ -3,6 +3,7 @@ package agentsessions
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -135,6 +136,7 @@ type Service struct {
 	sourceLedger              SourceLedger
 	relatedWork               RelatedWorkSearcher
 	promptClient              promptmanager.Client
+	runningSessionTTL         time.Duration
 	skillCacheMu              sync.Mutex
 	skillCache                map[string]cachedSkillText
 }
@@ -214,6 +216,7 @@ type ServiceConfig struct {
 	SourceLedger              SourceLedger
 	RelatedWork               RelatedWorkSearcher
 	PromptClient              promptmanager.Client
+	RunningSessionTTL         time.Duration
 }
 
 type CreateRequest struct {
@@ -221,6 +224,86 @@ type CreateRequest struct {
 	Title          string
 	ProposalTarget *ProposalTarget
 	StarterJob     string
+}
+
+const DefaultBatchCreateLimit = 10
+
+type BatchCreateRequest struct {
+	Sessions       []CreateRequest
+	Actor          string
+	OverrideReason string
+}
+
+func (r BatchCreateRequest) Validate() error {
+	if strings.TrimSpace(r.Actor) == "" {
+		return fmt.Errorf("actor is required")
+	}
+	if len(r.Sessions) == 0 {
+		return fmt.Errorf("at least one session is required")
+	}
+	if len(r.Sessions) > DefaultBatchCreateLimit && strings.TrimSpace(r.OverrideReason) == "" {
+		return fmt.Errorf("batch size %d exceeds cap %d; override_reason is required", len(r.Sessions), DefaultBatchCreateLimit)
+	}
+	return nil
+}
+
+func (s *Service) CreateBatch(ctx context.Context, req BatchCreateRequest) ([]Session, error) {
+	if err := req.Validate(); err != nil {
+		return nil, apierr.BadRequest("invalid session batch: %s", err)
+	}
+	created := make([]Session, 0, len(req.Sessions))
+	for _, item := range req.Sessions {
+		session, err := s.Create(ctx, item)
+		if err != nil {
+			return nil, err
+		}
+		// Keep the explicit batch actor on every created record. The normal
+		// request attribution remains useful for transport-level provenance,
+		// while this field records who authorized the fan-out itself.
+		session.CreatedBy = &Attribution{Type: AttributionOperator, Source: strings.TrimSpace(req.Actor)}
+		store, storeErr := s.storeFor(ctx)
+		if storeErr != nil {
+			return nil, storeErr
+		}
+		if err := store.SaveSession(session); err != nil {
+			return nil, err
+		}
+		created = append(created, session)
+	}
+	return created, nil
+}
+
+func (s *Service) Disposition(ctx context.Context, sessionID string, disposition Disposition, reason string) (Session, error) {
+	if disposition != DispositionDropped && disposition != DispositionRetained {
+		return Session{}, apierr.BadRequest("disposition must be dropped or retained")
+	}
+	if strings.TrimSpace(reason) == "" {
+		return Session{}, apierr.BadRequest("disposition reason is required")
+	}
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
+	if err != nil {
+		return Session{}, mapStoreError(err)
+	}
+	if session.Status != StatusDraft {
+		return Session{}, apierr.Conflict("only draft sessions can be dispositioned (current status: %s)", session.Status)
+	}
+	session.Disposition = disposition
+	session.DispositionReason = strings.TrimSpace(reason)
+	if disposition == DispositionDropped {
+		session.Status = StatusCanceled
+	}
+	session.UpdatedAt = nowRFC3339()
+	if err := store.SaveSession(session); err != nil {
+		return Session{}, err
+	}
+	if disposition == DispositionDropped {
+		s.emitCanceled(session)
+	}
+	return store.LoadSession(session.ID)
 }
 
 type ContinueRequest struct {
@@ -295,6 +378,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		sourceLedger:              cfg.SourceLedger,
 		relatedWork:               cfg.RelatedWork,
 		promptClient:              cfg.PromptClient,
+		runningSessionTTL:         cfg.RunningSessionTTL,
 		skillCache:                make(map[string]cachedSkillText),
 	}, nil
 }
@@ -406,15 +490,15 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 		return Session{}, err
 	}
 	messageText := strings.TrimSpace(req.Message)
-	if messageText == "" && len(req.AttachmentIDs) == 0 && len(req.ContextRefs) == 0 && strings.TrimSpace(req.StarterJob) == "" {
-		return Session{}, apierr.BadRequest("message, attachment, or context is required")
-	}
 	session, err := store.LoadSession(strings.TrimSpace(req.SessionID))
 	if err != nil {
 		return Session{}, mapStoreError(err)
 	}
 	if session.Status != StatusDraft || strings.TrimSpace(session.RunID) != "" {
 		return Session{}, apierr.Conflict("agent session is already started")
+	}
+	if messageText == "" && len(req.AttachmentIDs) == 0 && len(req.ContextRefs) == 0 && len(session.StagedContext) == 0 && strings.TrimSpace(req.StarterJob) == "" {
+		return Session{}, apierr.BadRequest("message, attachment, or context is required")
 	}
 	if strings.TrimSpace(req.StarterJob) != "" {
 		if !IsKnownStarterJob(req.StarterJob) {
@@ -428,7 +512,8 @@ func (s *Service) Start(ctx context.Context, req ContinueRequest) (Session, erro
 	if s.spawner == nil {
 		return Session{}, apierr.Unavailable("agent session spawning is unavailable")
 	}
-	refs := refsWithAutoContext(session.Kind, req.ContextRefs, req.AutoContextPolicy, s.startupBriefResolverAvailable())
+	refs := append(append([]ContextRef(nil), session.StagedContext...), req.ContextRefs...)
+	refs = refsWithAutoContext(session.Kind, refs, req.AutoContextPolicy, s.startupBriefResolverAvailable())
 	if session.ProposalTarget != nil {
 		refs = append(refs, ContextRef{Type: session.ProposalTarget.Type, Ref: session.ProposalTarget.Ref})
 	}
@@ -754,5 +839,6 @@ func isTerminalRunStopConflict(err error) bool {
 		return false
 	}
 	message := strings.ToLower(err.Error())
-	return strings.Contains(message, "status 409") && (strings.Contains(message, "state_terminal") || strings.Contains(message, "cannot stop run in"))
+	return (strings.Contains(message, "status 409") && (strings.Contains(message, "state_terminal") || strings.Contains(message, "cannot stop run in"))) ||
+		strings.Contains(message, "not found run") || strings.Contains(message, "run not found")
 }

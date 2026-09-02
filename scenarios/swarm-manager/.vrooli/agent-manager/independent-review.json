@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "swarm-manager",
   "key": "swarm-manager/independent-review",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "Gather bounded independent evidence for one completed backlog execution. Swarm owns the immutable execution snapshot, review ledger, and operator gate.",
   "inputSchema": {
     "type": "object",
@@ -48,6 +48,11 @@
       "result": {
         "type": "object",
         "properties": {
+          "outcome": {
+            "type": "string",
+            "enum": ["accepted", "changes-requested", "inconclusive"],
+            "description": "Use accepted for ready or ready_with_notes, changes-requested for needs_work, and inconclusive for not_assessable."
+          },
           "handoff": {
             "type": "object",
             "properties": {
@@ -309,6 +314,7 @@
           }
         },
         "required": [
+          "outcome",
           "handoff"
         ],
         "additionalProperties": false
@@ -332,6 +338,11 @@
           "schema": {
             "type": "object",
             "properties": {
+              "outcome": {
+                "type": "string",
+                "enum": ["accepted", "changes-requested", "inconclusive"],
+                "description": "Use accepted for ready or ready_with_notes, changes-requested for needs_work, and inconclusive for not_assessable."
+              },
               "handoff": {
                 "type": "object",
                 "properties": {
@@ -593,6 +604,7 @@
               }
             },
             "required": [
+              "outcome",
               "handoff"
             ],
             "additionalProperties": false

@@ -100,6 +100,17 @@ func (r *Runner) HasInput(transitionKey string) bool {
 	return r.input[strings.TrimSpace(transitionKey)] != nil
 }
 
+// DeclaredOutcomes returns the current registry contract for a transition.
+// Reconciliation code uses this for explicit migrations of durable
+// correlations created under an older registry definition.
+func (r *Runner) DeclaredOutcomes(transitionKey string) ([]string, error) {
+	definition, err := r.workflowDefinition(transitionKey)
+	if err != nil {
+		return nil, err
+	}
+	return append([]string(nil), definition.TerminalOutcomes...), nil
+}
+
 // BuildInput reprojects a subject through its registered builder without
 // starting anything. It exists so callers can check that a transition's
 // snapshot still satisfies its declared input contract — the property that
@@ -452,8 +463,37 @@ func completionOutcome(completion agentmanager.InvocationCompletion, correlation
 			outcome.Attempts = append(outcome.Attempts, transitionrun.Attempt{NodeID: attempt.NodeId, Ordinal: attempt.Ordinal, Strategy: attempt.Strategy, RunID: attempt.RunId, ConversationID: attempt.ConversationId, SourceAttemptID: attempt.SourceAttemptId, ProfileIdentity: attempt.ProfileIdentity})
 		}
 	}
-	// Both digests come from the rebuilt snapshot, never from the correlation.
-	// Feeding the correlation's own frontier back in would compare it to itself
-	// and leave FrontierChangedError unreachable.
-	return outcome, transitionrun.Completion{ExecutionID: completion.ExecutionID, DefinitionDigest: completion.DefinitionDigest, EntityVersion: current.EntityVersion, FrontierDigest: current.FrontierDigest, Status: status, Outcome: outcome.Name}, nil
+	// The rebuilt snapshot detects edits to the durable subject. When the
+	// transport also returns the workflow's original input, retain its digest
+	// when it disagrees with the pinned correlation so a malformed or replayed
+	// completion cannot pass the immutable-input guard.
+	entityVersion := current.EntityVersion
+	frontierDigest := current.FrontierDigest
+	if completion.Input != nil {
+		if value, ok := nestedStringField(completion.Input.AsInterface(), "frontierDigest"); ok && value != correlation.FrontierDigest {
+			frontierDigest = value
+		}
+	}
+	return outcome, transitionrun.Completion{ExecutionID: completion.ExecutionID, DefinitionDigest: completion.DefinitionDigest, EntityVersion: entityVersion, FrontierDigest: frontierDigest, Status: status, Outcome: outcome.Name}, nil
+}
+
+func nestedStringField(value any, field string) (string, bool) {
+	switch typed := value.(type) {
+	case map[string]any:
+		if found, ok := typed[field].(string); ok && strings.TrimSpace(found) != "" {
+			return found, true
+		}
+		for _, child := range typed {
+			if found, ok := nestedStringField(child, field); ok {
+				return found, true
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if found, ok := nestedStringField(child, field); ok {
+				return found, true
+			}
+		}
+	}
+	return "", false
 }

@@ -1,6 +1,6 @@
-// Package library owns the durable, explicitly promoted program library.
-// Successful submissions remain corpus evidence; they never become reusable
-// library programs without an operator-controlled promotion call.
+// Package library owns the durable, versioned program library. Successful
+// submissions enter the searchable candidate tier automatically; promotion
+// remains the explicit stability decision.
 package library
 
 import (
@@ -63,6 +63,122 @@ func ExtractCalledBindingIDs(source string) []string {
 
 func NewRepository(db SQLExecutor) *Repository { return &Repository{db: db} }
 
+func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
+	rows, err := db.QueryContext(ctx, "PRAGMA table_info(library_programs)")
+	if err != nil {
+		return fmt.Errorf("inspect library schema: %w", err)
+	}
+	defer rows.Close()
+	found := false
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return fmt.Errorf("scan library schema: %w", err)
+		}
+		if name == "tier" {
+			found = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if !found {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE library_programs ADD COLUMN tier TEXT NOT NULL DEFAULT 'promoted'"); err != nil {
+			return fmt.Errorf("add library tier: %w", err)
+		}
+	}
+	for _, column := range []struct{ name, definition string }{
+		{"declared_inputs", "TEXT NOT NULL DEFAULT '[]'"},
+		{"declared_outputs", "TEXT NOT NULL DEFAULT '[]'"},
+		{"coverage", "TEXT NOT NULL DEFAULT ''"},
+		{"validated_at", "TEXT NOT NULL DEFAULT ''"},
+	} {
+		var exists bool
+		probe, err := db.QueryContext(ctx, "PRAGMA table_info(library_programs)")
+		if err != nil {
+			return fmt.Errorf("inspect library column %s: %w", column.name, err)
+		}
+		for probe.Next() {
+			var cid, notNull, primaryKey int
+			var name, columnType string
+			var defaultValue any
+			if err := probe.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+				probe.Close()
+				return err
+			}
+			if name == column.name {
+				exists = true
+			}
+		}
+		probe.Close()
+		if !exists {
+			if _, err := db.ExecContext(ctx, "ALTER TABLE library_programs ADD COLUMN "+column.name+" "+column.definition); err != nil {
+				return fmt.Errorf("add library.%s: %w", column.name, err)
+			}
+		}
+	}
+	if _, err := db.ExecContext(ctx, "CREATE INDEX IF NOT EXISTS idx_library_programs_tier ON library_programs(tier, created_at)"); err != nil {
+		return fmt.Errorf("index library tier: %w", err)
+	}
+	// Candidate rows may predate the contract columns. Backfill the durable
+	// contract so older automatically accumulated candidates remain readable.
+	if _, err := db.ExecContext(ctx, `UPDATE library_programs SET declared_inputs='["session_id"]', declared_outputs='["bounded projection"]', coverage='successful governed program' WHERE tier='candidate' AND (declared_inputs='' OR declared_inputs='[]' OR coverage='')`); err != nil {
+		return fmt.Errorf("backfill candidate library contract: %w", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE library_programs SET validated_at=created_at WHERE tier='candidate' AND validated_at=''`); err != nil {
+		return fmt.Errorf("backfill candidate validation timestamp: %w", err)
+	}
+	return nil
+}
+
+// AddCandidate accumulates a successful program idempotently.
+func (r *Repository) AddCandidate(ctx context.Context, program *programsv1.Program, bindingIDs []string, now time.Time) error {
+	if program == nil || program.GetStatus() != programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED {
+		return nil
+	}
+	if len(bindingIDs) == 0 {
+		bindingIDs = ExtractCalledBindingIDs(program.GetSource())
+	}
+	ids, _ := json.Marshal(bindingIDs)
+	name := "candidate-" + program.GetId()
+	_, err := r.db.ExecContext(ctx, `INSERT INTO library_programs (id,name,version,source,description,origin,created_at,source_program_id,promoted_by,promotion_reason,called_binding_ids,tier,declared_inputs,declared_outputs,coverage,validated_at) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS (SELECT 1 FROM library_programs WHERE source_program_id=? AND tier='candidate')`, "lib_candidate_"+program.GetId(), name, 1, program.GetSource(), "Automatically accumulated successful program candidate.", "agent-authored", now.UTC().Format(time.RFC3339Nano), program.GetId(), "", "success", string(ids), "candidate", `["session_id"]`, `["bounded projection"]`, "successful governed program", now.UTC().Format(time.RFC3339Nano), program.GetId())
+	if err != nil {
+		return fmt.Errorf("add candidate for %q: %w", program.GetId(), err)
+	}
+	if _, err := r.db.ExecContext(ctx, `UPDATE library_programs SET declared_inputs='["session_id"]', declared_outputs='["bounded projection"]', coverage='successful governed program' WHERE source_program_id=? AND tier='candidate' AND (declared_inputs='' OR declared_inputs='[]' OR coverage='')`, program.GetId()); err != nil {
+		return fmt.Errorf("refresh candidate contract for %q: %w", program.GetId(), err)
+	}
+	return nil
+}
+
+func (r *Repository) invocationBindingIDs(ctx context.Context, programID string) []string {
+	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT binding_id FROM binding_invocations WHERE program_id=? AND binding_id<>'' ORDER BY binding_id`, programID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if rows.Scan(&id) == nil && id != "" {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func (r *Repository) candidateBindingIDs(ctx context.Context, programID string) []string {
+	var encoded string
+	if err := r.db.QueryRowContext(ctx, `SELECT called_binding_ids FROM library_programs WHERE source_program_id=? AND tier='candidate' ORDER BY version DESC LIMIT 1`, programID).Scan(&encoded); err != nil {
+		return nil
+	}
+	var ids []string
+	_ = json.Unmarshal([]byte(encoded), &ids)
+	return ids
+}
+
 func (r *Repository) EnsureSeeded(ctx context.Context, seeds []Seed, now time.Time) error {
 	for _, seed := range seeds {
 		if strings.TrimSpace(seed.Name) == "" || strings.TrimSpace(seed.Source) == "" {
@@ -99,7 +215,7 @@ func (r *Repository) RemoveSeededAliases(ctx context.Context) error {
 }
 
 func (r *Repository) List(ctx context.Context) ([]*sharedv1.LibraryProgram, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT p.id,p.name,p.version,p.source,p.description,p.origin,p.created_at,p.source_program_id,p.promoted_by,p.promotion_reason,p.called_binding_ids,COALESCE(c.name IS NOT NULL,0) FROM library_programs p LEFT JOIN library_current c ON c.name=p.name AND c.version=p.version ORDER BY p.name,p.version`)
+	rows, err := r.db.QueryContext(ctx, `SELECT p.id,p.name,p.version,p.source,p.description,p.origin,p.created_at,p.source_program_id,p.promoted_by,p.promotion_reason,p.called_binding_ids,p.tier,p.declared_inputs,p.declared_outputs,p.coverage,p.validated_at,COALESCE(c.name IS NOT NULL,0) FROM library_programs p LEFT JOIN library_current c ON c.name=p.name AND c.version=p.version ORDER BY CASE p.tier WHEN 'promoted' THEN 0 ELSE 1 END,p.name,p.version`)
 	if err != nil {
 		return nil, fmt.Errorf("list library: %w", err)
 	}
@@ -118,9 +234,9 @@ func (r *Repository) List(ctx context.Context) ([]*sharedv1.LibraryProgram, erro
 func (r *Repository) Get(ctx context.Context, name string, version int64) (*sharedv1.LibraryProgram, error) {
 	var row rowScanner
 	if version > 0 {
-		row = r.db.QueryRowContext(ctx, `SELECT p.id,p.name,p.version,p.source,p.description,p.origin,p.created_at,p.source_program_id,p.promoted_by,p.promotion_reason,p.called_binding_ids,COALESCE(c.name IS NOT NULL,0) FROM library_programs p LEFT JOIN library_current c ON c.name=p.name AND c.version=p.version WHERE p.name=? AND p.version=?`, name, version)
+		row = r.db.QueryRowContext(ctx, `SELECT p.id,p.name,p.version,p.source,p.description,p.origin,p.created_at,p.source_program_id,p.promoted_by,p.promotion_reason,p.called_binding_ids,p.tier,p.declared_inputs,p.declared_outputs,p.coverage,p.validated_at,COALESCE(c.name IS NOT NULL,0) FROM library_programs p LEFT JOIN library_current c ON c.name=p.name AND c.version=p.version WHERE p.name=? AND p.version=?`, name, version)
 	} else {
-		row = r.db.QueryRowContext(ctx, `SELECT p.id,p.name,p.version,p.source,p.description,p.origin,p.created_at,p.source_program_id,p.promoted_by,p.promotion_reason,p.called_binding_ids,1 FROM library_programs p JOIN library_current c ON c.name=p.name AND c.version=p.version WHERE p.name=?`, name)
+		row = r.db.QueryRowContext(ctx, `SELECT p.id,p.name,p.version,p.source,p.description,p.origin,p.created_at,p.source_program_id,p.promoted_by,p.promotion_reason,p.called_binding_ids,p.tier,p.declared_inputs,p.declared_outputs,p.coverage,p.validated_at,1 FROM library_programs p JOIN library_current c ON c.name=p.name AND c.version=p.version WHERE p.name=?`, name)
 	}
 	p, err := scan(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -132,7 +248,7 @@ func (r *Repository) Get(ctx context.Context, name string, version int64) (*shar
 	return p, nil
 }
 
-func (r *Repository) Promote(ctx context.Context, program *programsv1.Program, name, description, promotedBy, reason string, now time.Time) (*sharedv1.LibraryProgram, error) {
+func (r *Repository) Promote(ctx context.Context, program *programsv1.Program, name, description, promotedBy, reason, coverage string, declaredInputs, declaredOutputs []string, now time.Time) (*sharedv1.LibraryProgram, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, ErrNameRequired
@@ -144,15 +260,33 @@ func (r *Repository) Promote(ctx context.Context, program *programsv1.Program, n
 	if err := r.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(version),0)+1 FROM library_programs WHERE name=?`, name).Scan(&version); err != nil {
 		return nil, fmt.Errorf("next library version: %w", err)
 	}
-	ids, _ := json.Marshal(ExtractCalledBindingIDs(program.GetSource()))
-	_, err := r.db.ExecContext(ctx, `INSERT INTO library_programs (id,name,version,source,description,origin,created_at,source_program_id,promoted_by,promotion_reason,called_binding_ids) VALUES (?,?,?,?,?,?,?,?,?,?,?)`, "lib_"+uuid.NewString(), name, version, program.GetSource(), strings.TrimSpace(description), "promoted", now.UTC().Format(time.RFC3339Nano), program.GetId(), promotedBy, reason, string(ids))
+	calledIDs := r.candidateBindingIDs(ctx, program.GetId())
+	if len(calledIDs) == 0 {
+		calledIDs = r.invocationBindingIDs(ctx, program.GetId())
+	}
+	if len(calledIDs) == 0 {
+		calledIDs = ExtractCalledBindingIDs(program.GetSource())
+	}
+	ids, _ := json.Marshal(calledIDs)
+	if len(declaredInputs) == 0 {
+		declaredInputs = []string{"session_id"}
+	}
+	if len(declaredOutputs) == 0 {
+		declaredOutputs = []string{"bounded projection"}
+	}
+	if strings.TrimSpace(coverage) == "" {
+		coverage = "successful governed program"
+	}
+	inputs, _ := json.Marshal(declaredInputs)
+	outputs, _ := json.Marshal(declaredOutputs)
+	_, err := r.db.ExecContext(ctx, `INSERT INTO library_programs (id,name,version,source,description,origin,created_at,source_program_id,promoted_by,promotion_reason,called_binding_ids,tier,declared_inputs,declared_outputs,coverage,validated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, "lib_"+uuid.NewString(), name, version, program.GetSource(), strings.TrimSpace(description), "promoted", now.UTC().Format(time.RFC3339Nano), program.GetId(), promotedBy, reason, string(ids), "promoted", string(inputs), string(outputs), coverage, now.UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return nil, fmt.Errorf("promote library program: %w", err)
 	}
 	return r.Get(ctx, name, version)
 }
 
-func (r *Repository) PromoteByID(ctx context.Context, programID, name, description, promotedBy, reason string, now time.Time) (*sharedv1.LibraryProgram, error) {
+func (r *Repository) PromoteByID(ctx context.Context, programID, name, description, promotedBy, reason, coverage string, declaredInputs, declaredOutputs []string, now time.Time) (*sharedv1.LibraryProgram, error) {
 	var source, status string
 	if err := r.db.QueryRowContext(ctx, `SELECT source,status FROM programs WHERE id=?`, strings.TrimSpace(programID)).Scan(&source, &status); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -161,7 +295,7 @@ func (r *Repository) PromoteByID(ctx context.Context, programID, name, descripti
 		return nil, fmt.Errorf("read source program: %w", err)
 	}
 	program := &programsv1.Program{Id: programID, Source: source, Status: parseProgramStatus(status)}
-	return r.Promote(ctx, program, name, description, promotedBy, reason, now)
+	return r.Promote(ctx, program, name, description, promotedBy, reason, coverage, declaredInputs, declaredOutputs, now)
 }
 
 func parseProgramStatus(status string) programsv1.ProgramStatus {
@@ -206,10 +340,13 @@ func scan(row rowScanner) (*sharedv1.LibraryProgram, error) {
 	p := &sharedv1.LibraryProgram{}
 	var ids string
 	var current int
-	if err := row.Scan(&p.Id, &p.Name, &p.Version, &p.Source, &p.Description, &p.Origin, &p.CreatedAt, &p.SourceProgramId, &p.PromotedBy, &p.PromotionReason, &ids, &current); err != nil {
+	var inputs, outputs string
+	if err := row.Scan(&p.Id, &p.Name, &p.Version, &p.Source, &p.Description, &p.Origin, &p.CreatedAt, &p.SourceProgramId, &p.PromotedBy, &p.PromotionReason, &ids, &p.Tier, &inputs, &outputs, &p.Coverage, &p.ValidatedAt, &current); err != nil {
 		return nil, err
 	}
 	_ = json.Unmarshal([]byte(ids), &p.CalledBindingIds)
+	_ = json.Unmarshal([]byte(inputs), &p.DeclaredInputs)
+	_ = json.Unmarshal([]byte(outputs), &p.DeclaredOutputs)
 	p.Current = current != 0
 	return p, nil
 }

@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -14,9 +15,13 @@ import (
 	"swarm-manager/internal/stringsx"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitionrunner"
+	"swarm-manager/internal/transitions"
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -29,16 +34,17 @@ type phasedPlanResult struct {
 }
 
 type phasedPlanSnapshot struct {
-	PlanReference   string
-	FrontierDigest  string
-	ExecutionID     string
-	ProjectRoot     string
-	PlanExecutionID string
-	EntityKind      string
-	EntityName      string
-	EntityVersion   string
-	MaxSlices       int
-	WriteScope      []string
+	PlanReference     string
+	FrontierDigest    string
+	ExecutionID       string
+	ProjectRoot       string
+	PlanExecutionID   string
+	EntityKind        string
+	EntityName        string
+	EntityVersion     string
+	MaxSlices         int
+	WriteScope        []string
+	SliceApprovalMode string
 }
 
 type phasedPlanResultBlocker struct {
@@ -121,17 +127,94 @@ func (s *Service) SetWorkflowStartGuard(guard agentmanager.WorkflowStartGuard) {
 }
 
 func buildPhasedPlanSnapshot(item backlogItem, record Record, planHandle, projectRoot string, rendered renderedPlanContent) (phasedPlanSnapshot, error) {
-	itemBytes, err := json.Marshal(item)
+	itemBytes, err := marshalAuthoredBacklogItem(item)
 	if err != nil {
 		return phasedPlanSnapshot{}, fmt.Errorf("encode backlog snapshot: %w", err)
 	}
-	frontier := digestStrings(planHandle, rendered.Markdown)
+	if rendered.Plan == nil {
+		return phasedPlanSnapshot{}, fmt.Errorf("build phased-plan snapshot: canonical structured plan is required")
+	}
+	frontierJSON, err := authoredPlanFrontierJSON(rendered.Plan)
+	if err != nil {
+		return phasedPlanSnapshot{}, fmt.Errorf("build phased-plan snapshot: %w", err)
+	}
+	frontier := digestStrings(planHandle, frontierJSON)
 	return phasedPlanSnapshot{
 		PlanReference: planHandle, FrontierDigest: frontier, ExecutionID: record.ExecutionID,
 		ProjectRoot: filepath.Clean(projectRoot),
 		EntityKind:  item.Kind, EntityName: item.Name, EntityVersion: digestStrings(string(itemBytes)),
 		MaxSlices: firstPositive(record.MaxSlices, 6), WriteScope: append([]string(nil), item.AcceptanceAllow...), PlanExecutionID: record.PlanManagerExecutionID,
 	}, nil
+}
+
+// marshalAuthoredBacklogItem excludes lifecycle metadata that the execution
+// service updates as part of the normal queue/start/finish flow. Including
+// status or updated in the immutable subject version made a workflow reject
+// its own terminal result after the backlog moved from queued to in_progress.
+// Authored content remains covered, so a real edit still fails closed.
+func marshalAuthoredBacklogItem(item backlogItem) ([]byte, error) {
+	item.Status = ""
+	item.Updated = ""
+	item.PlanAcceptance = nil
+	return json.Marshal(item)
+}
+
+func authoredPlanFrontierJSON(plan *sharedv1.Plan) (string, error) {
+	stable, ok := proto.Clone(plan).(*sharedv1.Plan)
+	if !ok || stable == nil {
+		return "", fmt.Errorf("clone canonical structured plan")
+	}
+	stable.Status = sharedv1.PlanStatus_PLAN_STATUS_UNSPECIFIED
+	stable.ContentHash = ""
+	stable.UpdatedAt = ""
+	stable.WorkPosture = sharedv1.WorkPosture_WORK_POSTURE_UNSPECIFIED
+	stable.WorkPostureSource = sharedv1.WorkPostureSource_WORK_POSTURE_SOURCE_UNSPECIFIED
+	stable.WorkPostureDetail = ""
+	stable.Mirror = nil
+	stable.SupersededBy = nil
+	stripReferenceRuntimeState(stable.References)
+	stripRelevantContextRuntimeState(stable.RelevantContext)
+	if stable.RegressionAnchor != nil {
+		stable.RegressionAnchor.CapturedAt = ""
+	}
+	for _, phase := range stable.Phases {
+		phase.Status = sharedv1.PhaseStatus_PHASE_STATUS_UNSPECIFIED
+		phase.BaselineScope = nil
+		phase.LastValidation = nil
+		stripReferenceRuntimeState(phase.References)
+		stripRelevantContextRuntimeState(phase.RelevantContext)
+	}
+	data, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(stable)
+	if err != nil {
+		return "", fmt.Errorf("encode authored plan frontier: %w", err)
+	}
+	var canonical any
+	if err := json.Unmarshal(data, &canonical); err != nil {
+		return "", fmt.Errorf("decode authored plan frontier: %w", err)
+	}
+	var canonicalJSON bytes.Buffer
+	encoder := json.NewEncoder(&canonicalJSON)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(canonical); err != nil {
+		return "", fmt.Errorf("canonicalize authored plan frontier: %w", err)
+	}
+	data = bytes.TrimSuffix(canonicalJSON.Bytes(), []byte{'\n'})
+	return string(data), nil
+}
+
+func stripReferenceRuntimeState(references []*sharedv1.Reference) {
+	for _, reference := range references {
+		reference.Resolution = sharedv1.ReferenceResolution_REFERENCE_RESOLUTION_UNSPECIFIED
+		reference.Staleness = sharedv1.StalenessTier_STALENESS_TIER_UNSPECIFIED
+		reference.ChangeFactor = 0
+	}
+}
+
+func stripRelevantContextRuntimeState(items []*sharedv1.RelevantContextItem) {
+	for _, item := range items {
+		item.Status = sharedv1.RelevantContextStatus_RELEVANT_CONTEXT_STATUS_UNSPECIFIED
+		item.StatusDetail = ""
+	}
 }
 
 func firstPositive(value, fallback int) int {
@@ -154,7 +237,7 @@ func (snapshot phasedPlanSnapshot) input() (*structpb.Value, error) {
 			"executionId": snapshot.ExecutionID, "entityKind": snapshot.EntityKind,
 			"entityName": snapshot.EntityName, "entityVersion": snapshot.EntityVersion,
 		},
-		"constraints": map[string]any{"maxSlices": snapshot.MaxSlices, "writeScope": writeScope},
+		"constraints": map[string]any{"maxSlices": snapshot.MaxSlices, "writeScope": writeScope, "sliceApprovalMode": firstNonEmpty(snapshot.SliceApprovalMode, string(transitions.GateModeManual))},
 	})
 }
 
@@ -215,6 +298,73 @@ func (s *Service) ApprovePhasedPlanWorkflow(ctx context.Context, executionID, ac
 		return Record{}, wrapAgentError(signalErr)
 	}
 	return record, nil
+}
+
+// RebasePhasedPlanWorkflow migrates a legacy subject-version pin after an
+// execution service changed its authored backlog projection. The operator
+// must name the migration, and the current authored plan frontier must still
+// equal the pinned frontier. This preserves the meaningful stale-write guard
+// while allowing an already-terminal legacy workflow to be applied.
+func (s *Service) RebasePhasedPlanWorkflow(ctx context.Context, executionID, actor, reason string) (Record, error) {
+	actor = strings.TrimSpace(actor)
+	reason = strings.TrimSpace(reason)
+	if actor == "" || reason == "" {
+		return Record{}, apierr.BadRequest("workflow rebase requires actor and reason")
+	}
+	s.mu.Lock()
+	records, idx, err := s.loadRecordLocked(executionID)
+	if err != nil {
+		s.mu.Unlock()
+		return Record{}, err
+	}
+	record := records[idx]
+	correlation, err := s.transitionCorrelation(record)
+	s.mu.Unlock()
+	if err != nil || correlation.TransitionKey != "plan.execute" {
+		return Record{}, apierr.BadRequest("execution is not owned by a phased-plan workflow")
+	}
+	if isWorkflowConsumerTerminal(record.Status) || correlation.ApplyState == transitionrun.ApplyStateComplete {
+		return Record{}, apierr.Conflict("execution workflow is already terminal")
+	}
+	if s.transitionRunner == nil {
+		return Record{}, apierr.Unavailable("transition runner is not configured")
+	}
+	current, err := s.transitionRunner.BuildInput(ctx, "plan.execute", record.ExecutionID)
+	if err != nil {
+		return Record{}, apierr.BadGateway("rebuild current phased-plan input: %s", err)
+	}
+	if current.FrontierDigest != correlation.FrontierDigest {
+		return Record{}, apierr.Conflict("cannot rebase subject version after the authored plan frontier changed")
+	}
+	declaredOutcomes, err := s.transitionRunner.DeclaredOutcomes("plan.execute")
+	if err != nil {
+		return Record{}, apierr.BadGateway("read current phased-plan transition contract: %s", err)
+	}
+	if _, err := s.transitionRunner.UpdateCorrelation(correlation.ExecutionID, func(value *transitionrun.Correlation) error {
+		if value.ApplyState == transitionrun.ApplyStateComplete {
+			return apierr.Conflict("execution workflow is already terminal")
+		}
+		if value.FrontierDigest != current.FrontierDigest {
+			return apierr.Conflict("cannot rebase subject version after the authored plan frontier changed")
+		}
+		value.EntityVersion = current.EntityVersion
+		value.DeclaredOutcomes = append([]string(nil), declaredOutcomes...)
+		value.EntityVersionRebasedBy = actor
+		value.EntityVersionRebasedAt = nowRFC3339()
+		value.EntityVersionRebasedReason = reason
+		return nil
+	}); err != nil {
+		return Record{}, err
+	}
+	// Return the persisted record directly. Get also reconciles active executions,
+	// which would make an operator-only rebase unexpectedly advance lifecycle state.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	records, idx, err = s.loadRecordLocked(executionID)
+	if err != nil {
+		return Record{}, err
+	}
+	return records[idx], nil
 }
 
 // ApplyPhasedPlanWorkflow validates and applies one authorized terminal result.
@@ -362,7 +512,11 @@ func (s *Service) finishPhasedPlanClaim(record *Record, outcome transitionrunner
 			return err
 		}
 	case "blocked", "needs_review", "needs_attention", "abstained":
-		record.Status = StatusNeedsReview
+		if result.Outcome == "abstained" {
+			record.Status = StatusAbstained
+		} else {
+			record.Status = StatusNeedsReview
+		}
 		record.FailureReason = stringsx.FirstNonEmpty(result.Blocker.Summary, result.Reason, result.Summary, "workflow "+result.Outcome)
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
@@ -371,7 +525,7 @@ func (s *Service) finishPhasedPlanClaim(record *Record, outcome transitionrunner
 		// A bounded drain is an expected, resumable terminal. Preserve the
 		// reason and keep it in review so the operator can continue it; it is
 		// not evidence that the agent or transition failed.
-		record.Status = StatusNeedsReview
+		record.Status = StatusBudgetExhausted
 		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, result.Reason, result.Summary, "workflow budget exhausted")
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
@@ -389,7 +543,7 @@ func (s *Service) finishPhasedPlanClaim(record *Record, outcome transitionrunner
 
 func isWorkflowConsumerTerminal(status Status) bool {
 	switch status {
-	case StatusCompleted, StatusFailed, StatusCanceled:
+	case StatusCompleted, StatusFailed, StatusCanceled, StatusAbstained, StatusBudgetExhausted:
 		return true
 	default:
 		return false

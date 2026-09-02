@@ -10,7 +10,7 @@
  */
 import { NavLink } from "react-router-dom";
 
-import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/1.2.0";
+import { SidebarShell } from "@vrooli/react-component-library/SidebarShell/2";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

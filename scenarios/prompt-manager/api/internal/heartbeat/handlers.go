@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"prompt-manager/internal/store"
@@ -22,15 +23,16 @@ import (
 
 // Handlers provides HTTP handlers for heartbeat operations
 type Handlers struct {
-	teamStore     *store.FileTeamStore
-	agentStore    *store.FileAgentStore
-	relationStore store.RelationStore
-	scheduler     *Scheduler
-	executor      *Executor
-	runRegistry   *RunRegistry
-	agentClient   AgentClient
-	teamExecStore *TeamExecutionStore
-	controlStore  *HeartbeatControlStore
+	teamStore       *store.FileTeamStore
+	agentStore      *store.FileAgentStore
+	relationStore   store.RelationStore
+	scheduler       *Scheduler
+	executor        *Executor
+	runRegistry     *RunRegistry
+	agentClient     AgentClient
+	teamExecStore   *TeamExecutionStore
+	controlStore    *HeartbeatControlStore
+	manualTriggerMu sync.Mutex
 }
 
 // SetControlStore attaches the heartbeat engagement guard.
@@ -619,10 +621,34 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 	if h.teamExecStore != nil {
 		// Resolve profile key from heartbeat config; fall back to the
 		// runtime-mode default when not explicitly set.
-		profileKey := DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
+		profileKey, err := DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
+		if err != nil {
+			return nil, http.StatusInternalServerError, fmt.Errorf("resolve heartbeat profile: %w", err)
+		}
 		config, err := h.teamStore.GetHeartbeatConfig(ctx, teamID, agentID)
 		if err == nil && config != nil && config.ProfileKey != "" {
 			profileKey = config.ProfileKey
+		}
+
+		// A completed manual trigger must remain idempotent until the next
+		// scheduled boundary. The queue still owns in-flight duplicate
+		// protection; this persisted marker covers retries after completion and
+		// survives a prompt-manager restart.
+		h.manualTriggerMu.Lock()
+		defer h.manualTriggerMu.Unlock()
+		queueStatus := h.teamExecStore.Status(teamID)
+		for _, runningAgentID := range queueStatus.RunningAgentIDs {
+			if runningAgentID == agentID {
+				return nil, http.StatusConflict, &MemberAlreadyQueuedError{TeamID: teamID, AgentID: agentID}
+			}
+		}
+		for _, queuedAgentID := range queueStatus.Queue {
+			if queuedAgentID == agentID {
+				return nil, http.StatusConflict, &MemberAlreadyQueuedError{TeamID: teamID, AgentID: agentID}
+			}
+		}
+		if config != nil && withinManualTriggerWindow(config, time.Now().UTC()) {
+			return &TriggerHeartbeatResponse{TeamID: teamID, AgentID: agentID, Status: "deduplicated"}, http.StatusAccepted, nil
 		}
 
 		enqueueResult, err := h.teamExecStore.Enqueue(ctx, teamID, agentID, profileKey)
@@ -634,6 +660,13 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 				return nil, http.StatusConflict, errors.New("Team is disabled; enable the team to run heartbeats")
 			}
 			return nil, http.StatusInternalServerError, err
+		}
+		if config == nil {
+			config = &store.HeartbeatConfig{TeamID: teamID, AgentID: agentID, Schedule: "@hourly"}
+		}
+		config.LastManualTriggerAt = time.Now().UTC().Format(time.RFC3339Nano)
+		if err := h.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config); err != nil {
+			return nil, http.StatusInternalServerError, fmt.Errorf("record manual heartbeat trigger: %w", err)
 		}
 
 		return &TriggerHeartbeatResponse{
@@ -663,6 +696,23 @@ func (h *Handlers) triggerHeartbeatMember(ctx context.Context, teamID, agentID s
 		Status:  result.Status,
 		LogPath: result.LogPath,
 	}, http.StatusAccepted, nil
+}
+
+// withinManualTriggerWindow reports whether a manual trigger happened before
+// the next occurrence of the member's configured cron schedule. Invalid or
+// empty schedules use a conservative one-hour retry window.
+func withinManualTriggerWindow(config *store.HeartbeatConfig, now time.Time) bool {
+	if config == nil || strings.TrimSpace(config.LastManualTriggerAt) == "" {
+		return false
+	}
+	last, err := time.Parse(time.RFC3339Nano, config.LastManualTriggerAt)
+	if err != nil || now.Before(last) {
+		return false
+	}
+	if schedule, err := cronParser.Parse(strings.TrimSpace(config.Schedule)); err == nil {
+		return now.Before(schedule.Next(last))
+	}
+	return now.Sub(last) < time.Hour
 }
 
 func (h *Handlers) resolveHeartbeatTargetFromRunTag(ctx context.Context, tag string) (string, string, error) {
@@ -1557,7 +1607,11 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 
 		// Route through team execution store if available
 		if h.teamExecStore != nil {
-			profileKey := DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
+			profileKey, profileErr := DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
+			if profileErr != nil {
+				http.Error(w, fmt.Sprintf("resolve heartbeat profile: %v", profileErr), http.StatusInternalServerError)
+				return
+			}
 			if config.ProfileKey != "" {
 				profileKey = config.ProfileKey
 			}
@@ -1627,7 +1681,11 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 
 		// Route through team execution store if available
 		if h.teamExecStore != nil {
-			profileKey := DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
+			profileKey, profileErr := DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
+			if profileErr != nil {
+				http.Error(w, fmt.Sprintf("resolve heartbeat profile: %v", profileErr), http.StatusInternalServerError)
+				return
+			}
 			if config.ProfileKey != "" {
 				profileKey = config.ProfileKey
 			}
@@ -2109,14 +2167,16 @@ func formatDuration(d time.Duration) string {
 // toResponse converts a HeartbeatConfig to API response
 func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResponse {
 	resp := HeartbeatConfigResponse{
-		TeamID:         config.TeamID,
-		AgentID:        config.AgentID,
-		Enabled:        config.Enabled,
-		Schedule:       config.Schedule,
-		ProfileKey:     config.ProfileKey,
-		TimeoutSeconds: config.TimeoutSeconds,
-		CreatedAt:      config.CreatedAt,
-		UpdatedAt:      config.UpdatedAt,
+		TeamID:              config.TeamID,
+		AgentID:             config.AgentID,
+		Enabled:             config.Enabled,
+		Schedule:            config.Schedule,
+		ProfileKey:          config.ProfileKey,
+		TimeoutSeconds:      config.TimeoutSeconds,
+		ConsecutiveFailures: config.ConsecutiveFailures,
+		LifecycleState:      config.LifecycleState,
+		CreatedAt:           config.CreatedAt,
+		UpdatedAt:           config.UpdatedAt,
 	}
 
 	if config.LastExecution != nil {
@@ -2127,6 +2187,16 @@ func (h *Handlers) toResponse(config *store.HeartbeatConfig) HeartbeatConfigResp
 			RunID:     config.LastExecution.RunID,
 			LogPath:   filepath.Base(config.LastExecution.LogPath),
 			Error:     config.LastExecution.Error,
+		}
+	}
+	if config.LastSuccessfulExecution != nil {
+		resp.LastSuccessfulExecution = &HeartbeatExecResultDTO{
+			StartedAt: config.LastSuccessfulExecution.StartedAt,
+			EndedAt:   config.LastSuccessfulExecution.EndedAt,
+			Status:    config.LastSuccessfulExecution.Status,
+			RunID:     config.LastSuccessfulExecution.RunID,
+			LogPath:   filepath.Base(config.LastSuccessfulExecution.LogPath),
+			Error:     config.LastSuccessfulExecution.Error,
 		}
 	}
 
@@ -2553,7 +2623,8 @@ func (h *Handlers) UpdateTeamCorpusHandler(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "knowledge updated but fetch failed", http.StatusInternalServerError)
 		return
 	}
-	for _, e := range entries {
+	for i := len(entries) - 1; i >= 0; i-- {
+		e := entries[i]
 		if e.ID == knowledgeID {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(e)

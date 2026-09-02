@@ -87,7 +87,7 @@ func TestRegisteredBuildersCoverTheirDeclaredInputContract(t *testing.T) {
 		"capture.classify":        {"capture", "grounding"},
 		"plan.author":             {"entity", "snapshot"},
 		"plan.repair":             {"entity", "plan", "validation", "constraints"},
-		"plan.execute":            {"plan", "planExecutionId", "consumer", "constraints"},
+		"plan.execute":            {"projectRoot", "plan", "planExecutionId", "consumer", "constraints"},
 		"work.review":             {"entity", "snapshot"},
 		"review.evidence_request": {"entity", "snapshot"},
 		"work.correct":            {"entity", "snapshot"},

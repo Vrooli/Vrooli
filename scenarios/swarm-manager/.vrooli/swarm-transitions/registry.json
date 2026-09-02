@@ -61,7 +61,8 @@
       "rejected",
       "stale"
     ],
-    "applyAction": "apply_proposal"
+    "applyAction": "apply_proposal",
+    "humanGates": [{"id": "suggested-to-backlog", "decides": "Accept the suggested proposal into the backlog", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -84,7 +85,8 @@
       "abstained",
       "failed"
     ],
-    "applyAction": "apply_capture_classification"
+    "applyAction": "apply_capture_classification",
+    "humanGates": [{"id": "capture-to-suggested", "decides": "Accept the capture classification as a suggestion", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -129,7 +131,8 @@
       "abstained",
       "failed"
     ],
-    "applyAction": "bind_validated_plan_ref"
+    "applyAction": "bind_validated_plan_ref",
+    "humanGates": [{"id": "refining-to-ready", "decides": "Accept the validated plan as ready", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -172,7 +175,7 @@
     ],
     "inputContract": "plan-execution-input/v1",
     "terminalOutcomes": [
-      "completed",
+      "complete",
       "needs_review",
       "needs_attention",
       "abstained",
@@ -187,17 +190,10 @@
         "description": "Executes the accepted plan one verified phase at a time, with review and operator approval where needed.",
         "whenToUse": "Use for accepted plans that need durable phase-by-phase progress and resumability.",
         "costBand": "Governed by the configured per-turn estimate and workflow budget."
-      },
-      {
-        "id": "until-drain",
-        "workflowKey": "swarm-manager/until-drain",
-        "displayName": "Until drain",
-        "description": "Runs one warm, resumable engagement until the accepted plan is complete or a typed terminal is reached.",
-        "whenToUse": "Use when the operator would otherwise hand the whole accepted plan to one coding-agent engagement.",
-        "costBand": "Measurement-derived envelope: up to 18M tokens and 27 hours."
       }
     ],
-    "applyAction": "apply_plan_execution"
+    "applyAction": "apply_plan_execution",
+    "humanGates": [{"id": "ready-to-engaged", "decides": "Approve engaging the selected workflow", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}, {"id": "slice-approval", "decides": "Approve the next verified execution slice", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -220,7 +216,8 @@
       "inconclusive",
       "failed"
     ],
-    "applyAction": "apply_review_outcome"
+    "applyAction": "apply_review_outcome",
+    "humanGates": [{"id": "validating-to-completed", "decides": "Accept the review evidence as complete", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -289,7 +286,8 @@
       "abstained",
       "failed"
     ],
-    "applyAction": "apply_follow_up"
+    "applyAction": "apply_follow_up",
+    "humanGates": [{"id": "follow-up-instruction", "decides": "Choose the follow-up instruction for the outcome", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
   },
   {
     "schemaVersion": "swarm-transition/v1",
@@ -380,7 +378,8 @@
       "achieved",
       "needs_attention"
     ],
-    "applyAction": "mark_goal_achieved"
+    "applyAction": "mark_goal_achieved",
+    "humanGates": [{"id": "goal-close-out", "decides": "Accept goal close-out as achieved", "defaultMode": "manual", "threshold": 0.9, "minSample": 20}]
   },
   {
     "schemaVersion": "swarm-transition/v1",

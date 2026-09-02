@@ -4,15 +4,17 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/fstest"
 )
 
 type declaredWorkflow struct {
-	Owner string `json:"owner"`
-	Key   string `json:"key"`
-	Nodes []struct {
+	SchemaVersion string `json:"schemaVersion"`
+	Owner         string `json:"owner"`
+	Key           string `json:"key"`
+	Nodes         []struct {
 		ID       string      `json:"id"`
 		Kind     string      `json:"kind"`
 		Run      *nodePrompt `json:"run"`
@@ -47,6 +49,102 @@ func TestDeclaredRegistryCoversEveryTargetTransition(t *testing.T) {
 	}
 }
 
+func TestPhasedPlanSliceVerifiesTheCanonicalAuthoredProjection(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "prompt-manager", "store", "skills", "packs", "core", "swarm-manager-workflow-phased-plan-slice", "SKILL.md")
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read phased-plan slice contract: %v", err)
+	}
+	body := string(contents)
+	for _, marker := range []string{
+		"plan-manager plans get <plan_reference> --json",
+		"jq -cS",
+		"del(.status,.content_hash,.updated_at,.work_posture",
+		"delete `status`, `baseline_scope`, and `last_validation` from every phase",
+		"freshen_status: baseline_required",
+		"exact `capture_argv`",
+		"Plan Manager reports `final_dod_required`",
+		"status says `execution_complete`",
+		"required terminal Definition-of-Done validation result is absent",
+		"plan-manager exec complete <plan_execution_id>",
+		"Plan Manager execution is already complete",
+		"Set `approvalRequired: true`",
+		"operator approval wait",
+	} {
+		if !strings.Contains(body, marker) {
+			t.Errorf("phased-plan slice contract is missing signed-rendering marker %q", marker)
+		}
+	}
+}
+
+func TestPhasedPlanSliceReviewRunResultProjectsUnderCanonicalResult(t *testing.T) {
+	path := filepath.Join("..", "..", "..", ".vrooli", "agent-manager", "phased-plan-slice-review.json")
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read phased-plan slice review workflow: %v", err)
+	}
+	var workflow struct {
+		OutputSchema map[string]any `json:"outputSchema"`
+		Nodes        []struct {
+			Run *struct {
+				ResultSpec struct {
+					Schema map[string]any `json:"schema"`
+				} `json:"resultSpec"`
+			} `json:"run"`
+		} `json:"nodes"`
+	}
+	if err := json.Unmarshal(contents, &workflow); err != nil {
+		t.Fatalf("decode phased-plan slice review workflow: %v", err)
+	}
+	if len(workflow.Nodes) != 1 || workflow.Nodes[0].Run == nil {
+		t.Fatalf("review workflow must contain one terminal run node: %#v", workflow.Nodes)
+	}
+	properties, ok := workflow.OutputSchema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("workflow output properties missing: %#v", workflow.OutputSchema)
+	}
+	projected, ok := properties["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("workflow output must project the terminal node value under canonical result: %#v", workflow.OutputSchema)
+	}
+	if !reflect.DeepEqual(projected, workflow.Nodes[0].Run.ResultSpec.Schema) {
+		t.Fatalf("review output property must equal the bare terminal run result schema\nprojected: %#v\nresult: %#v", projected, workflow.Nodes[0].Run.ResultSpec.Schema)
+	}
+	parentPath := filepath.Join("..", "..", "..", ".vrooli", "agent-manager", "phased-plan-drain.json")
+	parentContents, err := os.ReadFile(parentPath)
+	if err != nil {
+		t.Fatalf("read phased-plan parent workflow: %v", err)
+	}
+	if strings.Contains(string(parentContents), "output.review") {
+		t.Fatal("parent workflow still selects the non-canonical review output key")
+	}
+	for _, marker := range []string{"$.output.result.note", "output.result.accepted"} {
+		if !strings.Contains(string(parentContents), marker) {
+			t.Errorf("parent workflow is missing canonical child output selector %q", marker)
+		}
+	}
+}
+
+func TestPhasedPlanSliceReviewDoesNotMakeApprovalCircular(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "prompt-manager", "store", "skills", "packs", "core", "swarm-manager-workflow-phased-plan-slice-review", "SKILL.md")
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read phased-plan slice review contract: %v", err)
+	}
+	body := string(contents)
+	for _, marker := range []string{
+		"stops for operator approval",
+		"future workflow obligations",
+		"not evidence this pre-approval slice can already possess",
+		"parent workflow success and Swarm consumer application happen only after this review accepts",
+		"never require those future effects as evidence from the slice",
+	} {
+		if !strings.Contains(body, marker) {
+			t.Errorf("review contract is missing non-circular approval marker %q", marker)
+		}
+	}
+}
+
 func TestIsSessionKindUsesRegistryDeclarations(t *testing.T) {
 	registry, err := LoadFS(fstest.MapFS{"registry/session.json": {Data: []byte(`[
 {"schemaVersion":"swarm-transition/v1","key":"session.review","subject":"review","kind":"session","session":{"briefRef":"brief/review","skillId":"review-skill","profileKey":"swarm-manager/review"},"inputContract":"session/v1","terminalOutcomes":["complete"],"applyAction":"review_session"}
@@ -59,6 +157,57 @@ func TestIsSessionKindUsesRegistryDeclarations(t *testing.T) {
 	}
 	if registry.IsSessionKind("missing") {
 		t.Fatal("undeclared session kind was recognized")
+	}
+}
+
+func TestValidateRejectsMalformedHumanGate(t *testing.T) {
+	definition := Definition{
+		SchemaVersion:    SchemaVersion,
+		Key:              "work.review",
+		Subject:          "backlog-item",
+		Kind:             KindDeterministic,
+		InputContract:    "review/v1",
+		TerminalOutcomes: []string{"accepted"},
+		ApplyAction:      "apply_review",
+		HumanGates:       []HumanGate{{ID: "operator-review", Decides: "Accept review", DefaultMode: GateModeManual, Threshold: 1.1, MinSample: 10}},
+	}
+	if err := Validate(definition); err == nil {
+		t.Fatal("Validate accepted a human gate with an out-of-range threshold")
+	}
+}
+
+func TestLoadFSRetainsHumanGateDeclaration(t *testing.T) {
+	fsys := fstest.MapFS{"registry/gate.json": {Data: []byte(`[
+{"schemaVersion":"swarm-transition/v1","key":"work.review","subject":"backlog-item","kind":"deterministic","inputContract":"review/v1","terminalOutcomes":["accepted"],"applyAction":"apply_review","humanGates":[{"id":"review-acceptance","decides":"Accept the review outcome","defaultMode":"manual","threshold":0.9,"minSample":20}]}
+]`)}}
+	registry, err := LoadFS(fsys, "registry")
+	if err != nil {
+		t.Fatalf("LoadFS: %v", err)
+	}
+	definition, ok := registry.Get("work.review")
+	if !ok || len(definition.HumanGates) != 1 || definition.HumanGates[0].ID != "review-acceptance" {
+		t.Fatalf("human gate declaration = %#v", definition.HumanGates)
+	}
+}
+
+func TestValidateRejectsHumanWaitWithoutGate(t *testing.T) {
+	definition := Definition{
+		SchemaVersion: SchemaVersion, Key: "plan.execute", Subject: "plan", Kind: KindWorkflow,
+		Workflow: &Locator{Owner: "swarm-manager", Key: "execute"}, InputContract: "plan/v1",
+		TerminalOutcomes: []string{"completed"}, ApplyAction: "apply_plan", HumanWait: true,
+	}
+	if err := Validate(definition); err == nil {
+		t.Fatal("Validate accepted a human wait without a declared gate")
+	}
+}
+
+func TestEffectiveGateModeUsesLiveOverride(t *testing.T) {
+	definition := Definition{HumanGates: []HumanGate{{ID: "review", DefaultMode: GateModeManual}}}
+	if got, ok := EffectiveGateMode(definition, map[string]string{"review": "auto"}, "review"); !ok || got != GateModeAuto {
+		t.Fatalf("effective mode = %q, found=%v", got, ok)
+	}
+	if got, ok := EffectiveGateMode(definition, map[string]string{"review": "invalid"}, "review"); !ok || got != GateModeManual {
+		t.Fatalf("invalid override changed mode = %q, found=%v", got, ok)
 	}
 }
 
@@ -126,6 +275,37 @@ func TestEveryRegisteredWorkflowHasAMatchingDeclaration(t *testing.T) {
 		if _, ok := declared[definition.Workflow.Owner+"/"+strings.TrimPrefix(definition.Workflow.Key, definition.Workflow.Owner+"/")]; !ok {
 			t.Errorf("workflow transition %q references undeclared workflow %s", definition.Key, definition.Workflow.Key)
 		}
+	}
+}
+
+func TestEveryDeclaredWorkflowIsReachableFromATransition(t *testing.T) {
+	registry, err := LoadDir(filepath.Join("..", "..", "..", ".vrooli", "swarm-transitions"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := os.DirFS(filepath.Join("..", "..", "..", ".vrooli"))
+	if err := ValidateWorkflowReachability(registry, root, "agent-manager", nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWorkflowReachabilityRequiresAReasonForUnboundDeclarations(t *testing.T) {
+	registry, err := LoadFS(fstest.MapFS{"registry/root.json": {Data: []byte(`{
+"schemaVersion":"swarm-transition/v1","key":"plan.execute","subject":"backlog-item","kind":"workflow",
+"workflow":{"owner":"swarm-manager","key":"swarm-manager/root"},"inputContract":"plan/v1",
+"terminalOutcomes":["completed"],"applyAction":"apply"}`)}}, "registry")
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflows := fstest.MapFS{
+		"workflows/root.json":   {Data: []byte(`{"schemaVersion":"agent-workflow/v1","key":"swarm-manager/root","nodes":[]}`)},
+		"workflows/orphan.json": {Data: []byte(`{"schemaVersion":"agent-workflow/v1","key":"swarm-manager/orphan","nodes":[]}`)},
+	}
+	if err := ValidateWorkflowReachability(registry, workflows, "workflows", nil); err == nil || !strings.Contains(err.Error(), "swarm-manager/orphan") {
+		t.Fatalf("unbound declaration error = %v", err)
+	}
+	if err := ValidateWorkflowReachability(registry, workflows, "workflows", map[string]string{"swarm-manager/orphan": "reserved for an operator-only experiment"}); err != nil {
+		t.Fatalf("recorded unbound reason was rejected: %v", err)
 	}
 }
 

@@ -22,9 +22,11 @@ type Dependencies struct {
 	BacklogFileUpload           CommandFunc
 	BacklogProcess              CommandFunc
 	BacklogQueue                CommandFunc
+	BacklogPlanAccept           CommandFunc
 	BacklogBatchCreate          CommandFunc
 	BacklogBatchQueue           CommandFunc
 	BacklogExport               CommandFunc
+	BacklogReconcileCounts      CommandFunc
 	BacklogImport               CommandFunc
 	BacklogReviewDecide         CommandFunc
 	BacklogRecoverReview        CommandFunc
@@ -112,9 +114,22 @@ type Dependencies struct {
 	OperationsBrief             CommandFunc
 	SessionsList                CommandFunc
 	SessionsGet                 CommandFunc
+	SessionsCreate              CommandFunc
+	SessionsCreateBatch         CommandFunc
+	SessionsAttach              CommandFunc
+	SessionsStart               CommandFunc
+	SessionsContinue            CommandFunc
+	SessionsComplete            CommandFunc
+	SessionsReap                CommandFunc
+	SessionsEvents              CommandFunc
+	SessionsProposalApply       CommandFunc
+	SessionsProposalRevise      CommandFunc
+	SessionsProposalWait        CommandFunc
+	SessionsProposalAcceptKeep  CommandFunc
 	SessionsStartupBrief        CommandFunc
 	SessionsPromptPreview       CommandFunc
 	SessionsDelete              CommandFunc
+	SessionsDisposition         CommandFunc
 	StatsSummary                CommandFunc
 	StatsThroughput             CommandFunc
 	StatsBlocking               CommandFunc

@@ -15,6 +15,19 @@ func TestValidateRejectsMissingOperatingContract(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsMissingRequiredSharedState(t *testing.T) {
+	storeDir := t.TempDir()
+	contract := Minimal("", "agent-1")
+	contract.Documents.SharedState = []SharedStateDocument{{
+		ID: "tasks", Path: PathRef{Base: BaseTeamShared, Path: "tasks.json"},
+		Kind: TeamWorkingStateKindTaskBoard, Required: true,
+	}}
+	findings := ValidateFindings(contract, ValidationInput{TeamID: "team-1", StoreDir: storeDir})
+	if len(findings) == 0 || !strings.Contains(findings[0].Detail, "required path is missing") {
+		t.Fatalf("findings = %+v, want missing required shared state", findings)
+	}
+}
+
 func TestValidateRejectsMissingActiveMemberContract(t *testing.T) {
 	contract := Minimal("", "agent-1")
 	err := Validate(contract, ValidationInput{

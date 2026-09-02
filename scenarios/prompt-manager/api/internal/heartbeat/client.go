@@ -106,6 +106,27 @@ type Run struct {
 	Tag       string      `json:"tag,omitempty"`
 	SessionID string      `json:"session_id,omitempty"`
 	Actions   *RunActions `json:"actions,omitempty"`
+	Result    *RunResult  `json:"result,omitempty"`
+}
+
+// RunResult is the provenance-bearing final-output projection returned by
+// agent-manager. Heartbeats consume the selected candidate directly instead
+// of reconstructing a result from transcript position.
+type RunResult struct {
+	FinalOutput string               `json:"final_output,omitempty"`
+	Selection   RunResultSelection   `json:"selection,omitempty"`
+	Candidates  []RunResultCandidate `json:"candidates,omitempty"`
+}
+
+type RunResultSelection struct {
+	Status              string `json:"status,omitempty"`
+	SelectedCandidateID string `json:"selected_candidate_id,omitempty"`
+	Rule                string `json:"rule,omitempty"`
+}
+
+type RunResultCandidate struct {
+	ID      string `json:"id,omitempty"`
+	Content string `json:"content,omitempty"`
 }
 
 // RunActions describes which actions are available for a run.
@@ -251,6 +272,35 @@ func (c *AgentManagerClient) CreateTask(ctx context.Context, task *Task) (*Task,
 		return nil, err
 	}
 	return result.Task, nil
+}
+
+// CancelTask transitions a queued or running task to cancelled so it can be
+// removed by the compensating cleanup after a failed run creation.
+func (c *AgentManagerClient) CancelTask(ctx context.Context, taskID string) error {
+	resp, err := c.doRequestWithRetry(ctx, "POST", "/api/v1/tasks/"+taskID+"/cancel", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return c.parseError(resp)
+	}
+	return nil
+}
+
+// DeleteTask removes a cancelled task that could not be associated with a run.
+// Heartbeat creation is a two-step API operation, so this compensating action
+// prevents a failed run request from leaving an orphaned task in Agent Manager.
+func (c *AgentManagerClient) DeleteTask(ctx context.Context, taskID string) error {
+	resp, err := c.doRequestWithRetry(ctx, "DELETE", "/api/v1/tasks/"+taskID, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return c.parseError(resp)
+	}
+	return nil
 }
 
 // CreateRun starts a new run for a task

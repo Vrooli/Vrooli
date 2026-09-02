@@ -1,3 +1,4 @@
+// HOST DIFFERENCE: swarm-manager renders its own readiness copy and tooltip.
 import type { JSX } from "react";
 
 export interface MicReadinessIndicatorProps {

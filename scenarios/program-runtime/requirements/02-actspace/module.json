@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Serve the Act denominator through the shared space verb, report the live binding numerator, and audit the denominator once the numerator exists.",
-    "last_validated_at": "2026-08-19T04:56:04-04:00",
+    "last_validated_at": "2026-08-26T16:11:12-04:00",
     "module": "actspace",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "PRT-P0-007",
       "title": "Act projection ownership",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "actspace.denominator",
       "criticality": "P0",
@@ -25,13 +25,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/actspace/space_test.go::TestServesActDenominator` (tag the test [REQ:PRT-P0-007]). The shared space projection verb returns the Act denominator parsed from docs/spaces/act-space.md."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/actspace/space_test.go::TestMatchesSpacedocContract` (tag the test [REQ:PRT-P0-007]). Output satisfies the shared spacedoc contract meta-optimization-manager reads, including denominator confidence."
         }
       ]
@@ -39,7 +39,7 @@
     {
       "id": "PRT-P0-008",
       "title": "Act numerator registry RPC",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-008",
       "category": "actspace.numerator",
       "criticality": "P0",
@@ -53,19 +53,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/actspace/numerator_test.go::TestReportsPerCellBindingResolution` (tag the test [REQ:PRT-P0-008]). The registry RPC reports, per Act operation class, whether every named operation resolves to a governed binding."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/actspace/numerator_test.go::TestPartiallyBoundCellIsInReach` (tag the test [REQ:PRT-P0-008]). A cell whose operations are only partially bound reports in-reach rather than covered."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/actspace/numerator_test.go::TestUnresolvableCellKeepsAuthoredStatus` (tag the test [REQ:PRT-P0-008]). A cell that cannot be resolved keeps its authored status and is never fabricated as missing."
         }
       ]
@@ -73,7 +73,7 @@
     {
       "id": "PRT-P1-009",
       "title": "Act denominator audit",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-009",
       "category": "actspace.denominator",
       "criticality": "P1",
@@ -88,13 +88,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/actspace/audit_test.go::TestEveryCellResolvesAgainstLiveRegistry` (tag the test [REQ:PRT-P1-009]). Every operation named by an Act cell resolves to a decided registry verdict — bound, unbound with a stated reason, or unresolvable — so no cell keeps an unaudited authoring judgment."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Target `api/internal/actspace/audit_test.go::TestConfidenceReflectsAuditCoverage` (tag the test [REQ:PRT-P1-009]). The served denominator confidence is derived from the share of audited cells and cannot report above SKETCH while unaudited cells remain."
         },
         {

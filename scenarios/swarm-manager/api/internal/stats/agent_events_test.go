@@ -82,6 +82,32 @@ func TestManualAcceptDoesNotDoubleCount(t *testing.T) {
 	}
 }
 
+func TestAgentStatsSeparateAbstainedAndBudgetExhausted(t *testing.T) {
+	engine, repo := setupEngine(t)
+	ctx := context.Background()
+	base := time.Now().UTC().Add(-time.Hour)
+
+	for i, reason := range []string{"abstained", "budget_exhausted", "agent flaked"} {
+		id := "exec-outcome-" + string(rune('a'+i))
+		at := base.Add(time.Duration(i) * time.Minute)
+		appendEvent(t, repo, at, eventlog.EntityExecution, id,
+			eventlog.EventExecutionCreated, eventlog.ExecutionCreatedPayload{BacklogKind: "idea", BacklogName: id, Mode: "yolo"})
+		appendEvent(t, repo, at.Add(time.Minute), eventlog.EntityExecution, id,
+			eventlog.EventExecutionFailed, eventlog.ExecutionFailedPayload{Reason: reason, DurationSeconds: 60})
+	}
+
+	if err := engine.Rebuild(ctx); err != nil {
+		t.Fatalf("rebuild: %v", err)
+	}
+	stats := engine.GetStats().Agent
+	if stats.AbstainedCount != 1 || stats.BudgetExhaustedCount != 1 || stats.FailedCount != 1 {
+		t.Fatalf("outcome counts = abstained:%d budget:%d failed:%d", stats.AbstainedCount, stats.BudgetExhaustedCount, stats.FailedCount)
+	}
+	if stats.SuccessRateSampleSize != 3 {
+		t.Fatalf("sample size = %d, want 3", stats.SuccessRateSampleSize)
+	}
+}
+
 // TestHistoryWindowReportsEarliestEvent verifies Phase 5: the top-level
 // response now reports the span of history observed so the UI can decide
 // whether a "30d" aggregate is misleading against a shorter real history.

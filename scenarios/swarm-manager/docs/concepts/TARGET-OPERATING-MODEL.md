@@ -145,16 +145,13 @@ operator approval satisfy the item's or milestone's completion policy. Swarm
 then applies the terminal domain change, writes the learning record, and emits
 events that power throughput, quality, and regression statistics.
 
-Plan execution has two registry-declared strategies. `phased-plan-drain`
-retains the per-phase review gate. `until-drain` is a bounded warm engagement:
-its engine-owned `until` text is evaluated against Plan Manager execution state,
-not agent narration. Agent Manager resolves the substrate from declared runner
-capabilities and profile preferences. A native interactive objective is used
-only when that capability is declared; codec-pipe delivery carries the same
-completion test in the prompt and resumes the conversation through warm
-iteration. Any weaker sandbox or substrate preference is surfaced as a
-run-level resolution event, and plans declaring destructive or irreversible
-work remain ineligible for `until-drain`.
+Plan execution has one registry-declared fallback of record:
+`phased-plan-drain`. It retains the per-phase review gate, creates fresh runs
+for bounded slices, invokes `phased-plan-slice-review` as a reachable child
+workflow, and parks at durable operator approval. Agent Manager resolves the
+substrate from declared runner capabilities and profile preferences. Any
+weaker sandbox or substrate preference is surfaced as a run-level resolution
+event.
 
 ### Operator inbox and goal completion
 

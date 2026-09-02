@@ -19,7 +19,7 @@ metadata:
 ---
 ## Visited Tracker Tools
 
-Use `visited-tracker` to record file coverage, avoid duplicate work, and leave handoff notes that persist across conversations.
+Use the visited-tracker CLI to record file coverage, avoid duplicate work, and leave handoff notes that persist across conversations.
 
 ---
 
@@ -34,9 +34,9 @@ visited-tracker least-visited \
   --limit 5
 ```
 
-**Check campaign status:**
+**Check campaign coverage:**
 ```bash
-visited-tracker status \
+visited-tracker coverage \
   --location {{LOCATION}} \
   --tag {{TAG}}
 ```
@@ -84,6 +84,6 @@ visited-tracker campaigns note \
 
 ### 3. Guardrails
 
-- Keep tags consistent per skill (e.g., `ux`, `ui-health`, `cli-steer`) to avoid mixing coverage.
+- Keep tags consistent per skill (for example, UX, UI health, or CLI steer) to avoid mixing coverage.
 - Prefer a single `visited-tracker visit` command with repeated `--file-note` entries (or `--note` + `--` list) over multiple single-file commands.
 - Use glob patterns relative to `--location`; verify they match expected files.

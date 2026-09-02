@@ -270,9 +270,11 @@ func mapWorkflowStatus(status domainpb.WorkflowExecutionStatus) Status {
 		return StatusComplete
 	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED:
 		return StatusCancelled
-	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED,
-		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED,
-		domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED:
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED:
+		return StatusAbstained
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED:
+		return StatusBudgetExhausted
+	case domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED:
 		return StatusFailed
 	default:
 		return StatusUnspecified
@@ -300,6 +302,10 @@ func mapRunStatus(status, errorMsg string) (Status, string) {
 		return StatusNeedsReview, ""
 	case string(StatusComplete):
 		return StatusComplete, ""
+	case string(StatusAbstained):
+		return StatusAbstained, strings.TrimSpace(errorMsg)
+	case string(StatusBudgetExhausted):
+		return StatusBudgetExhausted, strings.TrimSpace(errorMsg)
 	case string(StatusFailed):
 		return StatusFailed, strings.TrimSpace(errorMsg)
 	case string(StatusCancelled):

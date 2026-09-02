@@ -23,7 +23,9 @@ import react from "@vitejs/plugin-react";
 //              that channel, so the selection is argv the whole way down and
 //              carries no shell conditional.
 //
-// See scratch/perf-spike/README.md for the audit workflow.
+// See scenarios/test-genie/docs/phases/performance/README.md for the audit
+// workflow. Capture is BAS's performance tracer (CDP trace + web-vitals);
+// performance-health interprets the React commit marks this build emits.
 export default defineConfig(({ mode }): UserConfig => {
   const isProfile = mode === "profile";
   return {

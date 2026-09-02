@@ -49,22 +49,15 @@ func TestEmitRecordCreated_Stub(t *testing.T) {
 	}
 }
 
-func TestEmitRecordSuperseded(t *testing.T) {
+func TestEmitRecordSupersededRejectsMissingActor(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 	emitter.EmitRecordSuperseded(context.Background(), "rec-new", "rec-old", "regression")
 
-	e := lastEvent(t, repo)
-	if e.EntityID != "rec-new" {
-		t.Errorf("entity_id should be the successor (rec-new), got %q", e.EntityID)
+	events, err := repo.All(context.Background())
+	if err != nil {
+		t.Fatalf("all: %v", err)
 	}
-	if e.EventType != eventlog.EventRecordSuperseded {
-		t.Errorf("event_type = %q", e.EventType)
-	}
-	var p eventlog.RecordSupersededPayload
-	if err := json.Unmarshal(e.Metadata, &p); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if p.SupersededID != "rec-old" || p.Reason != "regression" {
-		t.Errorf("payload: %+v", p)
+	if len(events) != 0 {
+		t.Fatalf("record supersession without actor was persisted: %+v", events[0])
 	}
 }

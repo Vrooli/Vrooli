@@ -55,6 +55,11 @@
   "updatedAt": "2026-08-09T00:00:00Z",
   "topicCatalog": [
     {
+      "prefix": "contrarian-scan/YYYY-MM-DD",
+      "status": "live",
+      "purpose": "Record the director-swarm shape-sensor scan and its evidence-backed deviation or clean result."
+    },
+    {
       "prefix": "goal-portfolio-record/YYYY-MM-DD",
       "status": "live",
       "purpose": "Snapshot portfolio interpretation against the ranking criteria."
@@ -182,6 +187,11 @@
       ]
     },
     "knowledgeTopics": {
+      "contrarian-scan/YYYY-MM-DD": {
+        "ownerMemberId": "director-contrarian",
+        "supersedesPrevious": true,
+        "retention": "snapshot"
+      },
       "goal-portfolio-record/YYYY-MM-DD": {
         "ownerMemberId": "portfolio-manager",
         "supersedesPrevious": true,
@@ -236,11 +246,14 @@
         },
         "taskParameters": {
           "requiredScenarioCoverageCheck": "Run swarm-manager goals context before proposing scenario-scoped goals.",
-          "workDispositionLookup": "swarm-manager backlog get <item-id> --json"
+          "workDispositionLookup": "swarm-manager backlog get <item-id> --json",
+          "staleAfterDays": 14,
+          "stalenessItemLimit": 6,
+          "stalenessGoalLimit": 3
         }
       },
       "outcome-strategist": {
-        "lane": "Interpret Command Center outcomes when real metrics exist; otherwise produce blocked handoffs. Also this team's shape sensor (this team has no contrarian): hold the team against the target model's deviation catalogue and report deviations; never restructure.",
+        "lane": "Interpret Command Center outcomes when real metrics exist; otherwise produce blocked handoffs.",
         "allowedWrites": [
           {
             "kind": "knowledge"
@@ -265,6 +278,26 @@
         "safetyCriticalRules": [
           "Stay blocked until Command Center exposes stable outcome surfaces.",
           "Recommend; do not authorize portfolio changes."
+        ],
+        "readOnlyModeBehavior": {
+          "stillWriteKnowledge": true,
+          "stillWriteHandoff": true
+        }
+      },
+      "director-contrarian": {
+        "lane": "Hold director-swarm against the target operating model's deviation catalogue and report the first deviation with evidence; never restructure.",
+        "allowedWrites": [
+          {"kind": "knowledge"},
+          {"kind": "handoff"}
+        ],
+        "forbiddenWrites": [
+          {"kind": "task"},
+          {"base": "repo-root", "path": "docs/director-swarm/"},
+          {"base": "repo-root", "path": "docs/concepts/ARCHITECTURE.md"}
+        ],
+        "safetyCriticalRules": [
+          "Report only; do not restructure the team or authorize work.",
+          "A clean pass is a result worth recording once, not every heartbeat."
         ],
         "readOnlyModeBehavior": {
           "stillWriteKnowledge": true,
@@ -304,7 +337,8 @@
         "taskParameters": {
           "maxSummariesPerPhase": 3,
           "preserveWalkCheckpoint": true,
-          "capabilityGapConsumer": "director-swarm"
+          "capabilityGapConsumer": "director-swarm",
+          "portfolioStalenessInput": "goal-portfolio-record/YYYY-MM-DD"
         }
       }
     }

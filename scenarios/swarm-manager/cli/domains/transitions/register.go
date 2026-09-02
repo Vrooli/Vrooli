@@ -34,6 +34,9 @@ func listCommand() cliapp.Command {
 			rows := make([]string, 0, len(response.GetTransitions()))
 			for _, transition := range response.GetTransitions() {
 				rows = append(rows, fmt.Sprintf("%s — %s / %s", transition.GetKey(), transition.GetSubject(), transition.GetKind().String()))
+				for _, gate := range transition.GetHumanGates() {
+					rows = append(rows, fmt.Sprintf("  gate %s: mode=%s rate=%.1f%% sample=%d readiness=%s", gate.GetId(), gate.GetMode(), gate.GetAcceptanceRate()*100, gate.GetSampleSize(), gate.GetReadiness()))
+				}
 			}
 			return cliapp.ListReport{Summary: []string{fmt.Sprintf("Declared transitions: %d", len(rows))}, ResultsHeading: "Transitions", Results: rows}
 		},

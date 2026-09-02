@@ -10,6 +10,11 @@ CREATE TABLE IF NOT EXISTS library_programs (
   promoted_by TEXT NOT NULL DEFAULT '',
   promotion_reason TEXT NOT NULL DEFAULT '',
   called_binding_ids TEXT NOT NULL DEFAULT '[]',
+  tier TEXT NOT NULL DEFAULT 'promoted',
+  declared_inputs TEXT NOT NULL DEFAULT '[]',
+  declared_outputs TEXT NOT NULL DEFAULT '[]',
+  coverage TEXT NOT NULL DEFAULT '',
+  validated_at TEXT NOT NULL DEFAULT '',
   UNIQUE(name, version)
 );
 

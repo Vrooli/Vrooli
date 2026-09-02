@@ -125,12 +125,19 @@ flowchart LR
   VWP[Vision Walk Prep]
   %% @node WALK topic:vision-walk-record/<date>/<slug>
   WALK[(vision-walk-record/<date>/<slug>)]
+  %% @node DIRECTORCONT member:director-contrarian
+  DIRECTORCONT[director-contrarian]
+  %% @node CONTRARIANSC topic:contrarian-scan/*
+  CONTRARIANSC[(contrarian-scan/*)]
+  %% @node CONTRARIANSC2 topic:contrarian-scan/YYYY-MM-DD
+  CONTRARIANSC2[(contrarian-scan/YYYY-MM-DD)]
 
   OP --> OS
   OP --> PM
   OP --> VWP
   VW --> OS
   VW --> PM
+  DIRECTORCONT --> CONTRARIANSC
   OS --> OUTCOMETARGE
   PM --> GOALPORTFOLI
   VWP --> OI
@@ -139,6 +146,7 @@ flowchart LR
   VWP --> VISIONWALKRE
   APPROVAL --> SMWORK
   APPROVAL --> CANON
+  CONTRARIANSC2 --> DIRECTORCONT
   PORT --> PM
   OI --> MON
   OUT --> OS
@@ -153,6 +161,8 @@ Swarm Manager goal state and Command Center metrics are tool-read surfaces, not 
 
 | Topic family | Status | Owner / primary writer | Primary readers | Purpose |
 |---|---|---|---|---|
+| `topic:contrarian-scan/*` | live | member:director-contrarian | member:director-contrarian | Record the director-swarm shape-sensor scan and its evidence-backed deviation or clean result. |
+| `topic:contrarian-scan/YYYY-MM-DD` | live | member:director-contrarian | member:director-contrarian | Record the director-swarm shape-sensor scan and its evidence-backed deviation or clean result. |
 | `topic:goal-portfolio-record/*` | live | member:portfolio-manager | member:portfolio-manager | Snapshot portfolio interpretation against the ranking criteria. |
 | `topic:goal-portfolio-record/YYYY-MM-DD` | live | member:portfolio-manager | member:portfolio-manager | Snapshot portfolio interpretation against the ranking criteria. |
 | `topic:opportunity-inbox/*` | live | member:vision-walk-prep |  | Route vision-walk revenue-opportunity signal into the monetization opportunity queue for that team's drainer to classify. |

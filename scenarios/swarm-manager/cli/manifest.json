@@ -320,6 +320,20 @@
           }
         },
         {
+          "name": "plan-accept",
+          "description": "Accept the current canonical execution plan (--kind KIND --name NAME --actor ACTOR) [--json]",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "batch-create",
           "description": "Batch create backlog items from a plan file (--file items.json [--preview])",
           "binding": {
@@ -350,6 +364,20 @@
         {
           "name": "export",
           "description": "Export backlog items to markdown for offline editing",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile-counts",
+          "description": "Explain and reconcile record-derived and event-derived backlog counts [--json]",
           "binding": {
             "kind": "local"
           },
@@ -1112,6 +1140,25 @@
           }
         },
         {
+          "name": "unwired",
+          "description": "List goals without a served Offer Desk deliverable [--json]",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GoalService",
+            "method": "ListUnwiredGoals"
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "get",
           "description": "Get a goal with scope (--name NAME) [--json]",
           "binding": {
@@ -1132,7 +1179,7 @@
         },
         {
           "name": "create",
-          "description": "Create goal (--name NAME --title TITLE [--targets kind/name,...]) [--json]",
+          "description": "Create goal (--name NAME --title TITLE [--targets kind/name,...] [--serves-deliverable NAME]) [--json]",
           "binding": {
             "kind": "connect-rpc",
             "service": "GoalService",
@@ -1151,7 +1198,7 @@
         },
         {
           "name": "update",
-          "description": "Update goal (--name NAME [--title TITLE] [--description TEXT] [--priority N]) [--json]",
+          "description": "Update goal (--name NAME [--title TITLE] [--description TEXT] [--priority N] [--serves-deliverable NAME]) [--json]",
           "binding": {
             "kind": "connect-rpc",
             "service": "GoalService",
@@ -1887,6 +1934,66 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "create",
+          "description": "Create a draft session (--kind KIND) [--title TEXT] [--starter-job ID] [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "attach",
+          "description": "Attach typed draft context (--id ID --entity TYPE/REF...) [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "start",
+          "description": "Start a draft session (--id ID) [--message TEXT] [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "continue",
+          "description": "Continue a running session (--id ID --message TEXT) [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "complete",
+          "description": "Refresh and complete a terminal session (--id ID) [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "reap",
+          "description": "Expire running sessions past the configured TTL [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "events",
+          "description": "List session run events (--id ID) [--after-sequence N] [--limit N] [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "proposal-apply",
+          "description": "Apply accepted proposal mutations (--id ID --proposal ID --accept MUTATION_ID...) [--note TEXT] [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "proposal-revise",
+          "description": "Request proposal revision (--id ID --proposal ID) [--note TEXT] [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "proposal-accept-keep",
+          "description": "Accept a no-change recommendation (--id ID --proposal ID) [--note TEXT] [--json]",
+          "binding": { "kind": "local" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
           "name": "startup-brief",

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 )
 
 // HeaderName is the HTTP header that carries structured attribution
@@ -32,6 +33,13 @@ const HeaderName = "X-Vrooli-Attribution"
 // to inherit attribution from its spawner. See RUNTIME_ATTRIBUTION.md
 // § Env-var bridge for the lifecycle.
 const EnvVar = "VROOLI_PROMPT_MANAGER_ATTRIBUTION"
+
+const (
+	writerSkillEnvVar = "VROOLI_PROMPT_MANAGER_WRITER_SKILL"
+	writerTeamEnvVar  = "VROOLI_PROMPT_MANAGER_WRITER_TEAM"
+)
+
+var writerAttributionMu sync.Mutex
 
 // Attribution kinds. Closed vocabulary; mirrors api/store/models.go
 // (KnowledgeKind*). Drift between the CLI and API constants surfaces
@@ -87,10 +95,78 @@ type Info struct {
 // fail), so any encode failure indicates a programming bug and is
 // surfaced via panic in Encode().
 func HeaderValue() string {
+	if skill := strings.TrimSpace(os.Getenv(writerSkillEnvVar)); skill != "" {
+		if team := strings.TrimSpace(os.Getenv(writerTeamEnvVar)); team != "" {
+			return WriterSkillHeaderValue(skill, team)
+		}
+	}
 	if v := strings.TrimSpace(os.Getenv(EnvVar)); v != "" {
 		return v
 	}
 	return Encode(OperatorDirect())
+}
+
+// WriterSkillHeaderValue overlays writer-skill attribution on the current
+// process identity. Writer skills commonly write to a destination team's
+// inbox while running inside an originating team's heartbeat. The destination
+// team belongs in attribution.team_id for the API URL; member and run fields
+// remain the originating identity used for lineage joins.
+func WriterSkillHeaderValue(sourceSkillID, targetTeamID string) string {
+	raw := strings.TrimSpace(os.Getenv(EnvVar))
+	if raw == "" {
+		raw = Encode(OperatorDirect())
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		return raw
+	}
+	var info Info
+	if err := json.Unmarshal(decoded, &info); err != nil {
+		return raw
+	}
+	info.Kind = KindWriterSkill
+	info.SourceSkillID = stringPtr(strings.TrimSpace(sourceSkillID))
+	info.TeamID = stringPtr(strings.TrimSpace(targetTeamID))
+	return Encode(info)
+}
+
+// WithWriterSkill scopes the writer-skill overlay to one CLI command. The
+// standard HTTP header callback reads it lazily, so generated Connect clients
+// and REST requests receive the same destination-aware attribution.
+func WithWriterSkill(sourceSkillID, targetTeamID string, fn func() error) error {
+	if strings.TrimSpace(sourceSkillID) == "" || strings.TrimSpace(targetTeamID) == "" {
+		return fmt.Errorf("writer-skill attribution requires source skill and target team")
+	}
+	writerAttributionMu.Lock()
+	defer writerAttributionMu.Unlock()
+
+	oldSkill, hadSkill := os.LookupEnv(writerSkillEnvVar)
+	oldTeam, hadTeam := os.LookupEnv(writerTeamEnvVar)
+	if err := os.Setenv(writerSkillEnvVar, sourceSkillID); err != nil {
+		return fmt.Errorf("set writer skill attribution: %w", err)
+	}
+	if err := os.Setenv(writerTeamEnvVar, targetTeamID); err != nil {
+		restoreEnv(writerSkillEnvVar, oldSkill, hadSkill)
+		return fmt.Errorf("set writer team attribution: %w", err)
+	}
+	defer func() {
+		restoreEnv(writerSkillEnvVar, oldSkill, hadSkill)
+		restoreEnv(writerTeamEnvVar, oldTeam, hadTeam)
+	}()
+	return fn()
+}
+
+func restoreEnv(key, value string, existed bool) {
+	if existed {
+		_ = os.Setenv(key, value)
+		return
+	}
+	_ = os.Unsetenv(key)
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
 
 // OperatorDirect returns the default attribution for a human at the

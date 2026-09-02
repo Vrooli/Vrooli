@@ -115,7 +115,7 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}
-	strategyWorkflow, ok := s.workflowForStrategy(record.ExecutionStrategy)
+	_, ok := s.workflowForStrategy(record.ExecutionStrategy)
 	if !ok {
 		return Record{}, apierr.BadRequest("execution strategy %q is not declared", record.ExecutionStrategy)
 	}
@@ -126,13 +126,7 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	if err := s.store.Save(records); err != nil {
 		return Record{}, apierr.Internal("persist plan-execution record before start: %s", err.Error())
 	}
-	firstNode := "slice"
-	workflowOverride := ""
-	if record.ExecutionStrategy == "until-drain" {
-		firstNode = "iterate"
-		workflowOverride = strategyWorkflow
-	}
-	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: firstNode, WorkflowKeyOverride: workflowOverride, Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
+	started, err := s.transitionRunner.StartWith(ctx, "plan.execute", record.ExecutionID, transitionrunner.PreparedInput{FirstRunNodeID: "slice", Activity: &transitionrunner.Activity{OwnerType: "backlog", OwnerKind: record.BacklogKind, OwnerName: record.BacklogName, Purpose: "process"}})
 	if err != nil {
 		return Record{}, wrapAgentError(err)
 	}

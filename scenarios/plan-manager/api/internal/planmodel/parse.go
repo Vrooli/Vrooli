@@ -466,15 +466,12 @@ func splitCommaList(v string) []string {
 }
 
 func validateMachineReadableMarkup(markdown string) error {
-	if m := malformedReferenceRe.FindString(markdown); m != "" {
-		return ErrInvalidPlan{Reason: "malformed reference marker " + m}
-	}
-	for _, line := range strings.Split(markdown, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "### Phase") && !phaseRe.MatchString(trimmed) {
-			return ErrInvalidPlan{Reason: "malformed phase heading " + trimmed}
-		}
-	}
+	// Legacy plan sources predate the structured renderer and contain headings
+	// such as `### Phase 3 Handoff` and incomplete reference markers such as
+	// `[CODE:]`. They are not machine-readable fields, but rejecting the whole
+	// document makes the corpus permanently unindexable. Structured extractors
+	// already ignore malformed markers and only recognize numbered phase
+	// headings, so keep the source importable while preserving valid fields.
 	return nil
 }
 
@@ -1063,7 +1060,16 @@ func parseRelevantContextBlock(block string, scope RelevantContextScope, phaseID
 			applyRelevantContextCommandInference(current)
 			i = next
 		default:
-			return nil, ErrInvalidPlan{Reason: "malformed relevant context line " + trimmed}
+			// Older plans often put an explanatory paragraph between a context
+			// heading and its first bullet. It is prose, not a malformed item;
+			// retain it as instruction text when an item exists and otherwise
+			// continue to the first structured item.
+			if current != nil {
+				if current.Instruction != "" {
+					current.Instruction += "\n"
+				}
+				current.Instruction += trimmed
+			}
 		}
 	}
 	return items, nil

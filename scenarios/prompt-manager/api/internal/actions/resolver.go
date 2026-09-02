@@ -70,12 +70,33 @@ func (r *ManifestCommandResolver) ResolveCommand(ctx context.Context, argv []str
 				// adoption).
 			}
 		}
+		if owner.Type == "resource" {
+			return resolveResourceCommand(owner, target, argv[1:]), nil
+		}
 		return CommandResolution{
 			Certainty: CertaintyOwnerOnly,
 			Owner:     CommandOwner(owner),
 			Target:    target,
 			Message:   "binary is Vrooli-owned, but command path is not yet cataloged",
 		}, nil
+	}
+}
+
+func resolveResourceCommand(owner manifestOwner, target string, argv []string) CommandResolution {
+	if len(argv) == 0 {
+		return CommandResolution{Certainty: CertaintyNone, Owner: CommandOwner(owner), Target: target, Message: "resource subcommand is required"}
+	}
+	entry, ok := resourceCommandCatalog()[argv[0]]
+	if !ok {
+		return CommandResolution{Certainty: CertaintyNone, Owner: CommandOwner(owner), Target: target, CommandPath: []string{argv[0]}, Message: "unknown resource subcommand"}
+	}
+	return CommandResolution{
+		Certainty: CertaintyCommand,
+		Owner:     CommandOwner(owner), Target: target,
+		CommandPath: []string{argv[0]}, Effect: entry.Effect,
+		Permissions: append([]string(nil), entry.Permissions...),
+		RunSurfaces: []string{"cli", "action"},
+		Message:     "cataloged Vrooli resource command",
 	}
 }
 
@@ -266,16 +287,17 @@ func scenarioCommandCatalog() map[string]commandCatalogEntry {
 
 func resourceCommandCatalog() map[string]commandCatalogEntry {
 	return map[string]commandCatalogEntry{
-		"list":         {Effect: EffectRead, Permissions: []string{"filesystem:read"}},
-		"info":         {Effect: EffectRead, Permissions: []string{"filesystem:read"}},
-		"status":       {Effect: EffectRead, Permissions: []string{"filesystem:read", "process:start"}},
-		"start":        {Effect: EffectWrite, Permissions: []string{"process:start", "network:localhost"}},
-		"stop":         {Effect: EffectDestructive, Permissions: []string{"process:stop"}},
-		"restart":      {Effect: EffectDestructive, Permissions: []string{"process:stop", "process:start"}},
-		"setup":        {Effect: EffectAdmin, Permissions: []string{"filesystem:write", "process:start"}},
-		"logs":         {Effect: EffectRead, Permissions: []string{"filesystem:read"}},
-		"health":       {Effect: EffectRead, Permissions: []string{"network:localhost"}},
-		"validate-env": {Effect: EffectRead, Permissions: []string{"filesystem:read"}},
+		"list":          {Effect: EffectRead, Permissions: []string{"filesystem:read"}},
+		"info":          {Effect: EffectRead, Permissions: []string{"filesystem:read"}},
+		"status":        {Effect: EffectRead, Permissions: []string{"filesystem:read", "process:start"}},
+		"start":         {Effect: EffectWrite, Permissions: []string{"process:start", "network:localhost"}},
+		"stop":          {Effect: EffectDestructive, Permissions: []string{"process:stop"}},
+		"restart":       {Effect: EffectDestructive, Permissions: []string{"process:stop", "process:start"}},
+		"setup":         {Effect: EffectAdmin, Permissions: []string{"filesystem:write", "process:start"}},
+		"logs":          {Effect: EffectRead, Permissions: []string{"filesystem:read"}},
+		"health":        {Effect: EffectRead, Permissions: []string{"network:localhost"}},
+		"engine-health": {Effect: EffectRead, Permissions: []string{"network:localhost"}},
+		"validate-env":  {Effect: EffectRead, Permissions: []string{"filesystem:read"}},
 	}
 }
 

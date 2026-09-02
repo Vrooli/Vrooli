@@ -135,12 +135,21 @@ GET /teams/{teamId}/heartbeats
       "runId": "abc123",
       "logPath": "2026-02-01T10-00-00Z.log"
     },
+    "lastSuccessfulExecution": {
+      "startedAt": "2026-02-01T10:00:00Z",
+      "endedAt": "2026-02-01T10:05:32Z",
+      "status": "completed",
+      "runId": "abc123",
+      "logPath": "2026-02-01T10-00-00Z.log"
+    },
     "nextExecution": "2026-02-01T16:00:00Z",
     "createdAt": "2026-01-15T00:00:00Z",
     "updatedAt": "2026-02-01T10:05:32Z"
   }
 ]
 ```
+
+`lastExecution` is the current or most recent attempt. `lastSuccessfulExecution` remains unchanged while a newer attempt is running or failed, so rolling fleet-health calculations do not lose valid success evidence.
 
 ---
 

@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"encoding/json"
 	"math"
 
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
@@ -112,6 +113,7 @@ func settingsToProto(s Settings) *domainpb.Settings {
 		CostPerTurnEstimate:           s.CostPerTurnEstimate,
 		FixBeforeFeature:              s.FixBeforeFeature,
 		AutoFiler:                     autoFilerSettingsToProto(s.AutoFiler),
+		AutonomyGateModes:             s.AutonomyGateModes,
 	}
 }
 
@@ -151,6 +153,7 @@ func policyProjectionToProto(s Settings) *apipb.SettingsPolicyProjection {
 			ReviewRequireTests:          controls.Review.RequireTests,
 			AgentMaxTurns:               int32(controls.Budgets.MaxTurns),
 			AgentTimeoutSeconds:         int32(controls.Budgets.TimeoutSeconds),
+			AutonomyGateModes:           gateModesFromJSON(controls.Autonomy.GateModesJSON),
 		},
 		Classifications: make([]*apipb.SettingsFieldClassification, 0, len(classifications)),
 	}
@@ -163,6 +166,14 @@ func policyProjectionToProto(s Settings) *apipb.SettingsPolicyProjection {
 		})
 	}
 	return out
+}
+
+func gateModesFromJSON(raw string) map[string]string {
+	var modes map[string]string
+	if err := json.Unmarshal([]byte(raw), &modes); err != nil || modes == nil {
+		return map[string]string{}
+	}
+	return modes
 }
 
 func autoFilerSettingsToProto(s AutoFilerSettings) *domainpb.AutoFilerSettings {
@@ -302,6 +313,9 @@ func governancePatchFromProto(req *apipb.UpdateSettingsRequest, patch *SettingsP
 	if req.AutoFiler != nil {
 		patch.AutoFiler = autoFilerPatchFromProto(req.AutoFiler)
 	}
+	if req.AutonomyGateModes != nil {
+		patch.AutonomyGateModes = req.AutonomyGateModes
+	}
 }
 
 func autoFilerPatchFromProto(req *apipb.AutoFilerSettingsPatch) *AutoFilerSettingsPatch {
@@ -397,5 +411,6 @@ func isEmptyGovernanceRequest(req *apipb.UpdateSettingsRequest) bool {
 		req.ExecutionCostCapPerRun == nil &&
 		req.CostPerTurnEstimate == nil &&
 		req.FixBeforeFeature == nil &&
-		req.AutoFiler == nil
+		req.AutoFiler == nil &&
+		req.AutonomyGateModes == nil
 }

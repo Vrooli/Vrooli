@@ -100,6 +100,7 @@ export interface AgentStats {
   decision_items_total: number;
   decision_items_answered: number;
   recommendation_acceptance_by_kind: Record<string, KindRate>;
+  recommendation_acceptance_by_gate?: Record<string, KindRate>;
 }
 
 /** Per-kind breakdown of recommendation acceptance. */

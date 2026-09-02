@@ -72,7 +72,7 @@ func unavailableEvidence(reason string) map[string]any {
 }
 
 func independentReviewResult(attemptedProducer string) map[string]any {
-	return map[string]any{"result": map[string]any{"handoff": map[string]any{
+	return map[string]any{"result": map[string]any{"outcome": "accepted", "handoff": map[string]any{
 		"verdict": "ready", "agent_assessment": "Evidence is complete.", "evidence": []any{unavailableEvidence(attemptedProducer)}, "criterion_verdicts": []any{map[string]any{"criterion_id": "criterion-1", "settlement": "unavailable", "evidence_ids": []any{"evidence-1"}}}, "improvement_suggestions": []any{}, "regression_introduced": false, "notes": []any{}, "summary": "Review complete.", "disposition": map[string]any{"kind": "attention", "rationale": "Capture is unavailable.", "confidence": "low"},
 	}}}
 }

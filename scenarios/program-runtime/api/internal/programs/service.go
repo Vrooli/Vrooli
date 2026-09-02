@@ -38,6 +38,10 @@ type UsageSampler interface {
 	CPUTime(string) (time.Duration, bool)
 }
 
+type CandidateSink interface {
+	AddCandidate(context.Context, *programsv1.Program, []string, time.Time) error
+}
+
 type MetadataRunner interface {
 	ExecuteWithMetadata(context.Context, string, string, string, string, bool) (Result, error)
 }
@@ -68,6 +72,7 @@ type Options struct {
 	Preflight        func(string) []*programsv1.Diagnostic
 	PreflightSession func(context.Context, string, string) []*programsv1.Diagnostic
 	RecordUnresolved func(context.Context, string, string, string) error
+	CandidateSink    CandidateSink
 }
 
 type Service struct {
@@ -85,6 +90,7 @@ type Service struct {
 	preflightSession func(context.Context, string, string) []*programsv1.Diagnostic
 	recordUnresolved func(context.Context, string, string, string) error
 	repo             Repository
+	candidateSink    CandidateSink
 	eventSequence    atomic.Int64
 
 	// terminalWaiters is the notification side of WaitForProgram. One API
@@ -104,7 +110,7 @@ func NewService(options Options) *Service {
 	if options.Store != nil {
 		repo = NewRepository(options.Store)
 	}
-	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, repo: repo}
+	return &Service{clock: clock, runner: options.Runner, validateSession: options.ValidateSession, recordMemory: options.RecordMemory, executionBudget: options.ExecutionBudget, chargeExecution: options.ChargeExecution, libraryVersion: options.LibraryVersion, events: options.Events, preflight: options.Preflight, preflightSession: options.PreflightSession, recordUnresolved: options.RecordUnresolved, candidateSink: options.CandidateSink, repo: repo}
 }
 
 func (s *Service) SubmitWithDiagnostics(ctx context.Context, sessionID, source string, provenance programsv1.Provenance, includeMaterialized bool, explain bool, async ...bool) (*programsv1.Program, []*programsv1.Diagnostic, error) {
@@ -324,6 +330,19 @@ func (s *Service) execute(ctx context.Context, p *programsv1.Program, includeMat
 		p.Status = programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED
 		p.CompletedAt = s.clock().UTC().Format(time.RFC3339Nano)
 		_ = s.repo.Save(context.Background(), p)
+		if s.candidateSink != nil {
+			bindingIDs := make([]string, 0, len(result.Invocations))
+			seen := make(map[string]struct{}, len(result.Invocations))
+			for _, invocation := range result.Invocations {
+				if invocation.BindingID != "" {
+					if _, exists := seen[invocation.BindingID]; !exists {
+						seen[invocation.BindingID] = struct{}{}
+						bindingIDs = append(bindingIDs, invocation.BindingID)
+					}
+				}
+			}
+			_ = s.candidateSink.AddCandidate(context.Background(), p, bindingIDs, s.clock())
+		}
 		s.emitLifecycle(p, telemetryv1.EventKind_PROGRAM_SUCCEEDED)
 		s.notifyTerminal(p.Id)
 	}
@@ -503,6 +522,10 @@ func (s *Service) MineUnresolvedBindings(ctx context.Context, includeOperator bo
 		return nil
 	}
 	return out
+}
+
+func (s *Service) GovernanceShare(ctx context.Context, since time.Time, includeOperator bool) (int64, int64, []*programsv1.ObservedCommand, error) {
+	return s.repo.GovernanceShare(ctx, since, includeOperator)
 }
 
 var locationError = regexp.MustCompile(`(?i)(line\s+\d+|field\s+[a-z0-9_.-]+)`)

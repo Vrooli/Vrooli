@@ -1,0 +1,155 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "program-runtime.library",
+      "provider_group": "program-runtime",
+      "bucket": "BUCKET_REUSE",
+      "type": "program",
+      "description": "Find reusable governed programs for recurring or high-arity work. Route here when an agent wants to reuse a bounded program rather than rebuild a multi-scenario operation.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "lifecycle": "production",
+      "index_timestamp_field": "index_timestamp",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "program-runtime",
+          "path": "/internal/program-runtime/library/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"type\":\"{{type}}\"}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "program-runtime",
+          "path": "/internal/program-runtime/library/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"\",\"limit\":1}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "records",
+        "id_field": "id",
+        "title_field": "title",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "search-hub",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "tuning": {
+        "engine": "hybrid",
+        "embed_model": "mixed:ai-gateway:embedding.default,nomic-embed-text",
+      "embed_task_prefix": false,
+        "rerank_enabled": true,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "hybrid_fusion": "rrf"
+      },
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
+      "performance": {"p95_ms": 1500, "telemetry_required": true, "minimum_samples": 1},
+      "tests": {
+        "suite_id": "program-runtime.library.primary",
+        "name": "Program Runtime library intents",
+        "description": "Golden intents for finding reusable governed programs.",
+        "minimum": {"reviewed_positive": 9, "negative": 3},
+        "cases": [
+          {"id":"batch-classify","query":"classify a bounded corpus","tags":["strong","authoring"],"expect_ids":["batch-inference"],"expect_within_top_k":5},
+          {"id":"parallel-reads","query":"run independent reads concurrently","tags":["strong","concurrency"],"expect_ids":["concurrent-fanout"],"expect_within_top_k":5},
+          {"id":"delegate-work","query":"start and collect delegated workflows","tags":["strong","delegation"],"expect_ids":["delegated-run"],"expect_within_top_k":5},
+          {"id":"triage-failures","query":"find recurring program failure shapes","tags":["strong","diagnostics"],"expect_ids":["failure-triage"],"expect_within_top_k":5},
+          {"id":"fleet-summary","query":"read several scenario surfaces and summarize them","tags":["strong","fleet"],"expect_ids":["fleet-fanout"],"expect_within_top_k":5},
+          {"id":"shape-rows","query":"join filter and shape bounded rows","tags":["strong","data"],"expect_ids":["handle-shaping"],"expect_within_top_k":5},
+          {"id":"safe-sweep","query":"plan a safe registry sweep","tags":["strong","governance"],"expect_ids":["registry-sweep"],"expect_within_top_k":5},
+          {"id":"typed-ai","query":"classify independent inputs through governed AI","tags":["strong","inference"],"expect_ids":["typed-inference"],"expect_within_top_k":5},
+          {"id":"runtime-probe","query":"run a validated reusable library probe","tags":["weak-real","validation"],"expect_ids":["probe"],"expect_within_top_k":5},
+          {"id":"morning-prep","query":"prepare the morning vision walk briefing","expect_ids":["fleet-fanout"],"expect_within_top_k":5},
+          {"id":"bounded-program","query":"reuse a bounded multi-scenario program","expect_ids":["fleet-fanout","concurrent-fanout"],"expect_within_top_k":5},
+          {"id":"failure-analysis","query":"analyze why programs fail","expect_ids":["failure-triage"],"expect_within_top_k":5},
+          {"id":"no-result-weather","query":"book a flight to Mars","expect_no_strong_hit":true,"expect_max_score":0.2},
+          {"id":"no-result-cooking","query":"bake a chocolate cake","expect_no_strong_hit":true,"expect_max_score":0.2},
+          {"id":"no-result-music","query":"compose a symphony","expect_no_strong_hit":true,"expect_max_score":0.2}
+        ]
+      }
+    },
+    {
+      "provider_id": "program-runtime.bindings",
+      "provider_group": "program-runtime",
+      "bucket": "BUCKET_DO",
+      "type": "binding",
+      "description": "Find governed Vrooli bindings by operation intent. Route here when an agent needs the typed contract for a callable scenario capability.",
+      "scope": "SCOPE_PROJECT",
+      "class": "local_index",
+      "lifecycle": "production",
+      "index_timestamp_field": "index_timestamp",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "program-runtime",
+          "path": "/internal/program-runtime/bindings/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"type\":\"{{type}}\"}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "program-runtime",
+          "path": "/internal/program-runtime/bindings/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"\",\"limit\":1}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "result_mapping": {
+        "results_path": "records",
+        "id_field": "id",
+        "title_field": "title",
+        "snippet_field": "snippet",
+        "path_field": "path",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "reindex_endpoint": {
+        "http_json": {
+          "scenario_id": "search-hub",
+          "path": "/vrooli.search_hub.v1.control.SearchControlService/Reindex",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"scope\":\"{{scope}}\",\"dry_run\":false}",
+          "headers": {"Content-Type": "application/json"}
+        }
+      },
+      "tuning": {
+        "engine": "hybrid",
+        "embed_model": "mixed:ai-gateway:embedding.default,nomic-embed-text",
+      "embed_task_prefix": false,
+        "rerank_enabled": true,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "hybrid_fusion": "rrf"
+      },
+      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
+      "performance": {"p95_ms": 1500, "telemetry_required": true, "minimum_samples": 1},
+      "tests": {
+        "suite_id": "program-runtime.bindings.primary",
+        "name": "Program Runtime binding intents",
+        "description": "Golden intents for locating typed governed bindings.",
+        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "cases": [
+          {"id":"list-bindings","query":"list governed callable bindings","tags":["strong"],"expect_ids":["program-runtime/bindings/list"],"expect_within_top_k":5},
+          {"id":"no-result-recipe","query":"bake a chocolate cake","tags":["gibberish"],"expect_no_strong_hit":true,"expect_max_score":0.2}
+        ]
+      }
+    }
+  ]
+}

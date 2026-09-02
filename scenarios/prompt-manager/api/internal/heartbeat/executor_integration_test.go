@@ -168,6 +168,9 @@ func TestExecute_FullLifecycle(t *testing.T) {
 	if config.LastExecution.RunID != "run-200" {
 		t.Errorf("expected run-200, got %s", config.LastExecution.RunID)
 	}
+	if config.LastSuccessfulExecution == nil || config.LastSuccessfulExecution.RunID != "run-200" {
+		t.Errorf("expected last successful run-200, got %+v", config.LastSuccessfulExecution)
+	}
 }
 
 func TestExecute_TeamDisabled(t *testing.T) {
@@ -240,6 +243,12 @@ func TestExecute_CreateRunFailure(t *testing.T) {
 	}
 	if result.Status != store.HeartbeatStatusFailed {
 		t.Errorf("expected failed, got %s", result.Status)
+	}
+	if len(mockClient.deleteTaskCalls) != 1 || mockClient.deleteTaskCalls[0] != "task-1" {
+		t.Fatalf("delete task calls = %v, want [task-1]", mockClient.deleteTaskCalls)
+	}
+	if len(mockClient.cancelTaskCalls) != 1 || mockClient.cancelTaskCalls[0] != "task-1" {
+		t.Fatalf("cancel task calls = %v, want [task-1]", mockClient.cancelTaskCalls)
 	}
 }
 
@@ -395,7 +404,7 @@ func TestTriggerManual_DefaultProfile(t *testing.T) {
 		t.Fatalf("TriggerManual: %v", err)
 	}
 
-	if mockClient.createRunCalls[0].ProfileRef.ProfileKey != DefaultProfileKeyMultiProcess {
+	if mockClient.createRunCalls[0].ProfileRef.ProfileKey != declaredKeysForTest(t).MultiProcess {
 		t.Errorf("expected default profile, got %s", mockClient.createRunCalls[0].ProfileRef.ProfileKey)
 	}
 }
@@ -493,8 +502,8 @@ func TestExecute_SingleProcessTeam_UsesClaudeCodeProfile(t *testing.T) {
 		t.Fatalf("expected 1 CreateRun call, got %d", len(mockClient.createRunCalls))
 	}
 	ref := mockClient.createRunCalls[0].ProfileRef
-	if ref.ProfileKey != DefaultProfileKeySingleProcess {
-		t.Errorf("expected profile key %q, got %q", DefaultProfileKeySingleProcess, ref.ProfileKey)
+	if ref.ProfileKey != declaredKeysForTest(t).SingleProcess {
+		t.Errorf("expected profile key %q, got %q", declaredKeysForTest(t).SingleProcess, ref.ProfileKey)
 	}
 }
 
@@ -518,8 +527,8 @@ func TestExecute_MultiProcessTeam_UsesCodexProfile(t *testing.T) {
 	}
 
 	ref := mockClient.createRunCalls[0].ProfileRef
-	if ref.ProfileKey != DefaultProfileKeyMultiProcess {
-		t.Errorf("expected profile key %q, got %q", DefaultProfileKeyMultiProcess, ref.ProfileKey)
+	if ref.ProfileKey != declaredKeysForTest(t).MultiProcess {
+		t.Errorf("expected profile key %q, got %q", declaredKeysForTest(t).MultiProcess, ref.ProfileKey)
 	}
 }
 
@@ -542,8 +551,8 @@ func TestTriggerManual_SingleProcessTeam_DefaultsToClaudeCode(t *testing.T) {
 	}
 
 	ref := mockClient.createRunCalls[0].ProfileRef
-	if ref.ProfileKey != DefaultProfileKeySingleProcess {
-		t.Errorf("expected %q, got %q", DefaultProfileKeySingleProcess, ref.ProfileKey)
+	if ref.ProfileKey != declaredKeysForTest(t).SingleProcess {
+		t.Errorf("expected %q, got %q", declaredKeysForTest(t).SingleProcess, ref.ProfileKey)
 	}
 }
 
@@ -697,38 +706,21 @@ func TestExecute_AgentManagerReturnsValidationError(t *testing.T) {
 	}
 }
 
-// TestEnsureProfileFailure_CausesCreateRunProfileNotFound tests the real failure
-// chain: EnsureProfile fails at startup → profile never created → CreateRun
-// fails with "profile not found". This is the exact bug that was happening in
-// production due to the Timeout serialization issue.
-func TestEnsureProfileFailure_CausesCreateRunProfileNotFound(t *testing.T) {
-	teamStore, agentStore, _ := setupExecutorTestEnv(t)
+// TestSchedulerStartRejectsUnresolvedDeclaredProfile proves the scheduler
+// cannot start when either manifest-declared key is absent from the catalog.
+func TestSchedulerStartRejectsUnresolvedDeclaredProfile(t *testing.T) {
+	teamStore, _, _ := setupExecutorTestEnv(t)
 
-	// Simulate the failure chain with an HTTP server:
-	// 1. EnsureProfile returns 400 (bad Duration format)
-	// 2. CreateTask succeeds
-	// 3. CreateRun returns 400 "profile not found" (because EnsureProfile failed)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
+		case r.URL.Path == "/api/v1/profiles/reconcile-scenario":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{}`))
 		case r.URL.Path == "/api/v1/profiles/ensure":
-			// EnsureProfile fails due to invalid Duration format
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"message":"proto: (line 1:174): invalid google.protobuf.Duration value 600000000000"}`))
-
-		case r.URL.Path == "/api/v1/tasks":
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(CreateTaskResponse{
-				Task: &Task{ID: "task-1", Title: "test"},
-			})
-
-		case r.URL.Path == "/api/v1/runs":
-			// CreateRun fails because the profile was never created
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"error":"profile 'prompt-manager-heartbeat' not found"}`))
-
+			_, _ = w.Write([]byte(`{"message":"profile not found"}`))
 		default:
 			http.Error(w, "not found", http.StatusNotFound)
 		}
@@ -737,36 +729,9 @@ func TestEnsureProfileFailure_CausesCreateRunProfileNotFound(t *testing.T) {
 
 	client := newTestClient(t, srv)
 
-	// Create scheduler and attempt to start it (EnsureProfile will fail)
 	scheduler := NewScheduler(nil, client, teamStore, nil)
-	if err := scheduler.Start(context.Background()); err != nil {
-		t.Fatalf("Start should not fail (EnsureProfile failure is non-fatal): %v", err)
-	}
-	defer scheduler.Stop()
-
-	// Now execute a heartbeat - it should fail at CreateRun because profile doesn't exist
-	executor := newTestExecutor(t, teamStore, agentStore, client, t.TempDir(), nil, nil)
-	result, err := executor.Execute(context.Background(), "team-1", "agent-1", "prompt-manager-heartbeat")
-	if err == nil {
-		t.Fatal("expected error from CreateRun (profile not found)")
-	}
-	if !strings.Contains(err.Error(), "creating run") {
-		t.Errorf("expected 'creating run' in error, got: %v", err)
-	}
-	if result.Status != store.HeartbeatStatusFailed {
-		t.Errorf("expected failed status, got %s", result.Status)
-	}
-
-	// Verify the config was updated to reflect the failure
-	config, err := teamStore.GetHeartbeatConfig(context.Background(), "team-1", "agent-1")
-	if err != nil {
-		t.Fatalf("get config: %v", err)
-	}
-	if config.LastExecution == nil {
-		t.Fatal("expected LastExecution to be set after failure")
-	}
-	if config.LastExecution.Status != store.HeartbeatStatusFailed {
-		t.Errorf("expected config status failed, got %s", config.LastExecution.Status)
+	if err := scheduler.Start(context.Background()); err == nil || !strings.Contains(err.Error(), "profile not found") {
+		t.Fatalf("Start error = %v, want catalog resolution failure", err)
 	}
 }
 
@@ -785,7 +750,7 @@ func TestExecute_CreateRunUsesDeclaredProfile(t *testing.T) {
 	executor.OnComplete = onComplete
 	defer waitComplete()
 
-	profileKey := "prompt-manager/internal/heartbeat"
+	profileKey := declaredKeysForTest(t).MultiProcess
 	_, err := executor.Execute(context.Background(), "team-1", "agent-1", profileKey)
 	if err != nil {
 		t.Fatalf("Execute: %v", err)

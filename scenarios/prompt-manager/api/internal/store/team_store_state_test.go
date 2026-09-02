@@ -2,12 +2,97 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"prompt-manager/internal/teamconfig"
 )
+
+func TestHeartbeatHealthLifecycleAndFailureStreak(t *testing.T) {
+	cfg := HeartbeatConfig{Enabled: true}
+	cfg.RefreshHealth()
+	if cfg.LifecycleState != HeartbeatLifecycleNeverFired || cfg.ConsecutiveFailures != 0 {
+		t.Fatalf("initial health = %s/%d", cfg.LifecycleState, cfg.ConsecutiveFailures)
+	}
+
+	cfg.LastExecution = &HeartbeatExecResult{Status: HeartbeatStatusFailed}
+	cfg.RecordHeartbeatStatus(HeartbeatStatusFailed)
+	if cfg.LifecycleState != HeartbeatLifecycleDegraded || cfg.ConsecutiveFailures != 1 {
+		t.Fatalf("first failure = %s/%d", cfg.LifecycleState, cfg.ConsecutiveFailures)
+	}
+	cfg.RecordHeartbeatStatus(HeartbeatStatusFailed)
+	if cfg.LifecycleState != HeartbeatLifecycleBroken || cfg.ConsecutiveFailures != 2 {
+		t.Fatalf("second failure = %s/%d", cfg.LifecycleState, cfg.ConsecutiveFailures)
+	}
+	cfg.LastExecution.Status = HeartbeatStatusCompleted
+	cfg.RecordHeartbeatStatus(HeartbeatStatusCompleted)
+	if cfg.LifecycleState != HeartbeatLifecycleHealthy || cfg.ConsecutiveFailures != 0 {
+		t.Fatalf("completion = %s/%d", cfg.LifecycleState, cfg.ConsecutiveFailures)
+	}
+	if cfg.LastSuccessfulExecution == nil || cfg.LastSuccessfulExecution.Status != HeartbeatStatusCompleted {
+		t.Fatalf("completion did not hydrate last successful execution: %+v", cfg.LastSuccessfulExecution)
+	}
+	cfg.LastExecution = &HeartbeatExecResult{Status: HeartbeatStatusCompleted, RunID: "new-success"}
+	cfg.RecordHeartbeatStatus(HeartbeatStatusCompleted)
+	if cfg.LastSuccessfulExecution == nil || cfg.LastSuccessfulExecution.RunID != "new-success" {
+		t.Fatalf("new completion did not advance last successful execution: %+v", cfg.LastSuccessfulExecution)
+	}
+	cfg.LastExecution = &HeartbeatExecResult{Status: HeartbeatStatusRunning}
+	cfg.RefreshHealth()
+	if cfg.LastSuccessfulExecution == nil || cfg.LastSuccessfulExecution.RunID != "new-success" {
+		t.Fatalf("running attempt erased last successful execution: %+v", cfg.LastSuccessfulExecution)
+	}
+	cfg.Enabled = false
+	cfg.RefreshHealth()
+	if cfg.LifecycleState != HeartbeatLifecycleDisabled {
+		t.Fatalf("disabled lifecycle = %s", cfg.LifecycleState)
+	}
+}
+
+func TestGetHeartbeatConfigClassifiesLegacyRecord(t *testing.T) {
+	s := setupStateTestStore(t)
+	path := filepath.Join(s.runtimeMemberDir("team-1", "agent-1"), "heartbeat.json")
+	legacy := []byte(`{"teamId":"team-1","agentId":"agent-1","enabled":true,"schedule":"0 * * * *"}`)
+	if err := os.WriteFile(path, legacy, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := s.GetHeartbeatConfig(context.Background(), "team-1", "agent-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ConsecutiveFailures != 0 || cfg.LifecycleState != HeartbeatLifecycleNeverFired {
+		t.Fatalf("legacy health = %s/%d", cfg.LifecycleState, cfg.ConsecutiveFailures)
+	}
+}
+
+func TestValidateHeartbeatRosterRejectsOrphanAndMissingSchedule(t *testing.T) {
+	s := setupStateTestStore(t)
+	relations := NewFileRelationStore(s.configRoot)
+	s.relationStore = relations
+	ctx := context.Background()
+	if err := relations.SetTeamMember(ctx, &TeamMemberRelation{TeamID: "team-1", AgentID: "agent-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "orphan", &HeartbeatConfig{Enabled: true, Schedule: "0 * * * *"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ValidateHeartbeatRoster(ctx, "team-1"); err == nil || !strings.Contains(err.Error(), "orphaned=[orphan]") || !strings.Contains(err.Error(), "unscheduled=[agent-1]") {
+		t.Fatalf("validation error = %v", err)
+	}
+	if err := s.DeleteHeartbeatConfig(ctx, "team-1", "orphan"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetHeartbeatConfig(ctx, "team-1", "agent-1", &HeartbeatConfig{Enabled: true, Schedule: "0 * * * *"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ValidateHeartbeatRoster(ctx, "team-1"); err != nil {
+		t.Fatalf("matching roster rejected: %v", err)
+	}
+}
 
 func setupStateTestStore(t *testing.T) *FileTeamStore {
 	t.Helper()
@@ -368,5 +453,40 @@ func TestUpdatePersistsRuntime(t *testing.T) {
 	}
 	if got.Runtime.Mode != teamconfig.RuntimeModeSingleProcess {
 		t.Errorf("expected runtime.mode %q, got %q", teamconfig.RuntimeModeSingleProcess, got.Runtime.Mode)
+	}
+}
+
+func TestUpdatePreservesFieldsOutsideTeamModel(t *testing.T) {
+	s := setupStateTestStore(t)
+	ctx := context.Background()
+	path := filepath.Join(s.configTeamsDir(), "team-1", "team.json")
+	var document map[string]json.RawMessage
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(payload, &document); err != nil {
+		t.Fatal(err)
+	}
+	document["topicCatalog"] = json.RawMessage(`[{"prefix":"evidence/*","status":"live"}]`)
+	document["objectivesServed"] = json.RawMessage(`[{"id":"T1"}]`)
+	if err := SaveJSON(path, &document); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Update(ctx, "team-1", &Team{Enabled: true, EnabledSet: true}); err != nil {
+		t.Fatal(err)
+	}
+	payload, err = os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(payload, &document); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"topicCatalog", "objectivesServed"} {
+		if len(document[key]) == 0 {
+			t.Fatalf("partial update dropped %s", key)
+		}
 	}
 }

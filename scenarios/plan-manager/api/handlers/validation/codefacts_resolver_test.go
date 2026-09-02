@@ -42,6 +42,10 @@ func (s fakeCodeFactsService) DescribeCodeFacts(_ context.Context, _ *connect.Re
 	return connect.NewResponse(s.report), nil
 }
 
+func (s fakeCodeFactsService) Search(context.Context, *connect.Request[factsv1.SearchRequest]) (*connect.Response[factsv1.SearchResponse], error) {
+	return connect.NewResponse(&factsv1.SearchResponse{}), nil
+}
+
 func (s fakeCodeFactsService) DescribeFleetImports(context.Context, *connect.Request[factsv1.DescribeFleetImportsRequest]) (*connect.Response[factsv1.DescribeFleetImportsResponse], error) {
 	return connect.NewResponse(&factsv1.DescribeFleetImportsResponse{}), nil
 }
@@ -68,6 +72,34 @@ func (s fakeCodeFactsService) InspectCache(context.Context, *connect.Request[fac
 
 func (s fakeCodeFactsService) ClearCache(context.Context, *connect.Request[factsv1.ClearCacheRequest]) (*connect.Response[factsv1.ClearCacheResponse], error) {
 	return connect.NewResponse(&factsv1.ClearCacheResponse{}), nil
+}
+
+func (s fakeCodeFactsService) GetIndexStatus(context.Context, *connect.Request[factsv1.GetIndexStatusRequest]) (*connect.Response[factsv1.IndexStatus], error) {
+	return connect.NewResponse(&factsv1.IndexStatus{}), nil
+}
+
+func (s fakeCodeFactsService) ReconcileIndex(context.Context, *connect.Request[factsv1.ReconcileIndexRequest]) (*connect.Response[factsv1.IndexControlResponse], error) {
+	return connect.NewResponse(&factsv1.IndexControlResponse{}), nil
+}
+
+func (s fakeCodeFactsService) Reindex(context.Context, *connect.Request[factsv1.ReindexRequest]) (*connect.Response[factsv1.IndexControlResponse], error) {
+	return connect.NewResponse(&factsv1.IndexControlResponse{}), nil
+}
+
+func (s fakeCodeFactsService) CancelIndexJob(context.Context, *connect.Request[factsv1.CancelIndexJobRequest]) (*connect.Response[factsv1.IndexControlResponse], error) {
+	return connect.NewResponse(&factsv1.IndexControlResponse{}), nil
+}
+
+func (s fakeCodeFactsService) PromoteIndexGeneration(context.Context, *connect.Request[factsv1.PromoteIndexGenerationRequest]) (*connect.Response[factsv1.IndexControlResponse], error) {
+	return connect.NewResponse(&factsv1.IndexControlResponse{}), nil
+}
+
+func (s fakeCodeFactsService) RollbackIndexGeneration(context.Context, *connect.Request[factsv1.RollbackIndexGenerationRequest]) (*connect.Response[factsv1.IndexControlResponse], error) {
+	return connect.NewResponse(&factsv1.IndexControlResponse{}), nil
+}
+
+func (s fakeCodeFactsService) CleanupIndex(context.Context, *connect.Request[factsv1.CleanupIndexRequest]) (*connect.Response[factsv1.IndexControlResponse], error) {
+	return connect.NewResponse(&factsv1.IndexControlResponse{}), nil
 }
 
 func newCodeFactsTestServer(t *testing.T, svc fakeCodeFactsService) *httptest.Server {

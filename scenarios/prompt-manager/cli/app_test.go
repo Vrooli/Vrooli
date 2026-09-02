@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -79,6 +81,17 @@ func TestBugCapturePreservesRequiredAttributionAlongsideInvocationHeaders(t *tes
 	}
 	if attribution == "" {
 		t.Fatal("bug-capture dropped X-Vrooli-Attribution")
+	}
+	decoded, err := base64.StdEncoding.DecodeString(attribution)
+	if err != nil {
+		t.Fatalf("decode bug-capture attribution: %v", err)
+	}
+	var info map[string]any
+	if err := json.Unmarshal(decoded, &info); err != nil {
+		t.Fatalf("unmarshal bug-capture attribution: %v", err)
+	}
+	if info["kind"] != "writer-skill" || info["source_skill_id"] != "report-bug" || info["team_id"] != "scenario-qa" {
+		t.Fatalf("bug-capture attribution = %v, want writer-skill/report-bug/scenario-qa", info)
 	}
 	if invocation == "" {
 		t.Fatal("bug-capture dropped X-Vrooli-Invocation-ID")

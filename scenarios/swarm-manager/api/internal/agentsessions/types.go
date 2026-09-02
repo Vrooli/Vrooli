@@ -37,6 +37,13 @@ const (
 	StatusCanceled       Status = "canceled"
 )
 
+type Disposition string
+
+const (
+	DispositionDropped  Disposition = "dropped"
+	DispositionRetained Disposition = "retained"
+)
+
 type MessageRole string
 
 const (
@@ -271,24 +278,27 @@ type Artifact struct {
 }
 
 type Session struct {
-	ID             string          `json:"id"`
-	Title          string          `json:"title"`
-	Kind           Kind            `json:"kind"`
-	Status         Status          `json:"status"`
-	SkillID        string          `json:"skill_id"`
-	TaskID         string          `json:"task_id,omitempty"`
-	RunID          string          `json:"run_id,omitempty"`
-	ProfileKey     string          `json:"profile_key,omitempty"`
-	FailureReason  string          `json:"failure_reason,omitempty"`
-	CreatedAt      string          `json:"created_at"`
-	UpdatedAt      string          `json:"updated_at"`
-	Messages       []Message       `json:"messages,omitempty"`
-	Proposals      []Proposal      `json:"proposals,omitempty"`
-	Artifacts      []Artifact      `json:"artifacts,omitempty"`
-	CreatedBy      *Attribution    `json:"created_by,omitempty"`
-	Attachments    []Attachment    `json:"attachments,omitempty"`
-	ProposalTarget *ProposalTarget `json:"proposal_target,omitempty"`
-	StarterJob     string          `json:"starter_job,omitempty"`
+	ID                string          `json:"id"`
+	Title             string          `json:"title"`
+	Kind              Kind            `json:"kind"`
+	Status            Status          `json:"status"`
+	SkillID           string          `json:"skill_id"`
+	TaskID            string          `json:"task_id,omitempty"`
+	RunID             string          `json:"run_id,omitempty"`
+	ProfileKey        string          `json:"profile_key,omitempty"`
+	FailureReason     string          `json:"failure_reason,omitempty"`
+	Disposition       Disposition     `json:"disposition,omitempty"`
+	DispositionReason string          `json:"disposition_reason,omitempty"`
+	CreatedAt         string          `json:"created_at"`
+	UpdatedAt         string          `json:"updated_at"`
+	Messages          []Message       `json:"messages,omitempty"`
+	Proposals         []Proposal      `json:"proposals,omitempty"`
+	Artifacts         []Artifact      `json:"artifacts,omitempty"`
+	CreatedBy         *Attribution    `json:"created_by,omitempty"`
+	Attachments       []Attachment    `json:"attachments,omitempty"`
+	ProposalTarget    *ProposalTarget `json:"proposal_target,omitempty"`
+	StarterJob        string          `json:"starter_job,omitempty"`
+	StagedContext     []ContextRef    `json:"staged_context_refs,omitempty"`
 }
 
 func (s Session) Validate() error {
@@ -324,6 +334,9 @@ func (s Session) validate(kindValidator func(Kind) bool) error {
 	}
 	if s.StarterJob != "" && !IsKnownStarterJob(s.StarterJob) {
 		return validationError("starter_job is not declared")
+	}
+	if _, err := normalizeContextRefs(s.Kind, s.StagedContext); err != nil {
+		return validationError(fmt.Sprintf("staged_context_refs are invalid: %s", err))
 	}
 	if err := validateRFC3339("created_at", s.CreatedAt); err != nil {
 		return err

@@ -3,7 +3,7 @@ package domains
 import (
 	"testing"
 
-	testutil "github.com/vrooli/cli-core/cliapptest"
+	testutil "swarm-manager/cli/internal/testutil"
 )
 
 func TestCommandGroups(t *testing.T) {

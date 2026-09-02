@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -79,6 +80,35 @@ func TestExport_ToggleNotesOff(t *testing.T) {
 	}
 }
 
+func TestExport_NotesRoundTripMarkerAndExistingContent(t *testing.T) {
+	h, tmpDir := setupTestHandler(t)
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{
+		Name:     "noted-item",
+		Title:    "Noted Item",
+		Status:   StatusBacklog,
+		Priority: 5,
+		Created:  "2026-08-01T00:00:00Z",
+		Updated:  "2026-08-01T00:00:00Z",
+	})
+	notesPath := filepath.Join(tmpDir, backlogKindDirs[KindIdea], "noted-item", "notes.md")
+	if err := os.WriteFile(notesPath, []byte("Existing operator note.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	body := exportWithBody(t, h, `{"includeTemplate":false}`)
+	if !strings.Contains(body, "### Notes\n\n<!-- notes:idea/noted-item -->\nExisting operator note.") {
+		t.Fatalf("export did not emit parseable notes subsection:\n%s", body)
+	}
+
+	changes, errs := h.parseImportMarkdown(body)
+	if len(errs) != 0 {
+		t.Fatalf("round-trip parse errors: %v", errs)
+	}
+	if len(changes) != 0 {
+		t.Fatalf("unchanged exported notes produced changes: %+v", changes)
+	}
+}
+
 func TestExport_ToggleTemplateOff(t *testing.T) {
 	h, _ := setupTestHandler(t)
 	if !strings.Contains(exportWithBody(t, h, `{}`), "New Item Template") {
@@ -87,4 +117,64 @@ func TestExport_ToggleTemplateOff(t *testing.T) {
 	if strings.Contains(exportWithBody(t, h, `{"includeTemplate":false}`), "New Item Template") {
 		t.Error("expected template to be omitted")
 	}
+}
+
+func TestExport_FrontmatterArithmeticClosesAndDisclosesEveryFilter(t *testing.T) {
+	h, tmpDir := setupTestHandler(t)
+	archivedAt := "2026-08-01T00:00:00Z"
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{Name: "visible", Title: "Visible", Status: StatusBacklog, Priority: 2})
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{Name: "archived", Title: "Archived", Status: StatusBacklog, Priority: 2, ArchivedAt: &archivedAt})
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{Name: "dropped", Title: "Dropped", Status: StatusDropped, Priority: 2})
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{Name: "low-priority", Title: "Low priority", Status: StatusBacklog, Priority: 9})
+
+	body := exportWithBody(t, h, `{"priorityMax":5,"includeTemplate":false}`)
+	preFilter, exported, excluded := exportArithmetic(t, body)
+	if preFilter != 4 || exported != 1 || excluded != 3 {
+		t.Fatalf("frontmatter arithmetic = pre:%d excluded:%d exported:%d, want 4-3=1\n%s", preFilter, excluded, exported, body)
+	}
+	for _, filter := range []string{`filter: "archived"`, `filter: "status"`, `filter: "priority_max"`} {
+		if !strings.Contains(body, filter) {
+			t.Fatalf("frontmatter missing disclosed %s filter\n%s", filter, body)
+		}
+	}
+
+	withArchived := exportWithBody(t, h, `{"priorityMax":5,"includeArchived":true,"includeTemplate":false}`)
+	preFilter, exported, excluded = exportArithmetic(t, withArchived)
+	if preFilter != 4 || exported != 2 || excluded != 2 {
+		t.Fatalf("include-archived arithmetic = pre:%d excluded:%d exported:%d, want 4-2=2\n%s", preFilter, excluded, exported, withArchived)
+	}
+}
+
+func exportArithmetic(t *testing.T, body string) (preFilter, exported, excluded int) {
+	t.Helper()
+	for _, raw := range strings.Split(body, "\n") {
+		line := strings.TrimSpace(raw)
+		var target *int
+		switch {
+		case strings.HasPrefix(line, "pre_filter_total:"):
+			target = &preFilter
+			line = strings.TrimSpace(strings.TrimPrefix(line, "pre_filter_total:"))
+		case strings.HasPrefix(line, "items_count:"):
+			target = &exported
+			line = strings.TrimSpace(strings.TrimPrefix(line, "items_count:"))
+		case strings.HasPrefix(line, "count:"):
+			target = new(int)
+			line = strings.TrimSpace(strings.TrimPrefix(line, "count:"))
+		default:
+			continue
+		}
+		value, err := strconv.Atoi(line)
+		if err != nil {
+			t.Fatalf("parse frontmatter count %q: %v", line, err)
+		}
+		if strings.HasPrefix(strings.TrimSpace(raw), "count:") {
+			excluded += value
+		} else {
+			*target = value
+		}
+	}
+	if preFilter-excluded != exported {
+		t.Fatalf("frontmatter arithmetic does not close: %d-%d != %d", preFilter, excluded, exported)
+	}
+	return preFilter, exported, excluded
 }

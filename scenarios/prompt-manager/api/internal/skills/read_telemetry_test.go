@@ -50,7 +50,7 @@ func newRecorderAt(t *testing.T, now time.Time) (*ReadRecorder, *store.SkillRead
 }
 
 func TestRecordWritesOneEntryPerResolvedSkillAndCountsUsage(t *testing.T) {
-	now := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	now := time.Now().UTC().Truncate(time.Second)
 	rec, reads, _, usage := newRecorderAt(t, now)
 
 	rec.Record(attributedRequest(t, "agent-member", "skill-optimizer"), []string{"alpha", "beta"})
@@ -76,7 +76,7 @@ func TestRecordWritesOneEntryPerResolvedSkillAndCountsUsage(t *testing.T) {
 }
 
 func TestRecordCreditsDiscoveryOnlyForTheSameCallerInsideTheWindow(t *testing.T) {
-	now := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	now := time.Now().UTC().Truncate(time.Second)
 
 	cases := []struct {
 		name       string
@@ -124,7 +124,7 @@ func TestRecordCreditsDiscoveryOnlyForTheSameCallerInsideTheWindow(t *testing.T)
 // caller there is nothing distinguishing one agent's call from another's, and
 // matching on recency alone would manufacture conversions.
 func TestRecordNeverCreditsDiscoveryWithoutAttribution(t *testing.T) {
-	now := time.Date(2026, 7, 31, 12, 0, 0, 0, time.UTC)
+	now := time.Now().UTC().Truncate(time.Second)
 	rec, reads, calls, _ := newRecorderAt(t, now)
 	if err := calls.Append(store.DiscoveryCall{
 		ID:      "call-1",

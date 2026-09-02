@@ -29,6 +29,10 @@ func IsStale(item BacklogItem, repoRoot string, now time.Time) bool {
 	if len(item.AcceptanceAllow) == 0 || strings.TrimSpace(repoRoot) == "" {
 		return false
 	}
-	_, err = projectroot.ValidateAcceptance(repoRoot, item.AcceptanceAllow, item.Creates)
+	projectRoot, err := resolveRepoRoot(repoRoot)
+	if err != nil {
+		return true
+	}
+	_, err = projectroot.ValidateAcceptance(projectRoot, item.AcceptanceAllow, item.Creates)
 	return err != nil
 }

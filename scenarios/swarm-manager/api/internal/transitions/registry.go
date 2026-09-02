@@ -42,8 +42,47 @@ type Definition struct {
 	InputContract    string              `json:"inputContract"`
 	TerminalOutcomes []string            `json:"terminalOutcomes"`
 	ApplyAction      string              `json:"applyAction"`
+	HumanGates       []HumanGate         `json:"humanGates,omitempty"`
+	HumanWait        bool                `json:"humanWait,omitempty"`
 	Strategies       []ExecutionStrategy `json:"strategies,omitempty"`
 	Session          *SessionConfig      `json:"session,omitempty"`
+}
+
+type GateMode string
+
+const (
+	GateModeManual  GateMode = "manual"
+	GateModeSuggest GateMode = "suggest"
+	GateModeAuto    GateMode = "auto"
+)
+
+// HumanGate declares one operator decision attached to its transition. The
+// declaration is the source of truth for readiness and policy projection.
+type HumanGate struct {
+	ID          string   `json:"id"`
+	Decides     string   `json:"decides"`
+	DefaultMode GateMode `json:"defaultMode"`
+	Threshold   float64  `json:"threshold"`
+	MinSample   int      `json:"minSample"`
+}
+
+// EffectiveGateMode resolves the live operator override for a declared gate.
+// An absent override deliberately falls back to the versioned declaration.
+func EffectiveGateMode(definition Definition, overrides map[string]string, gateID string) (GateMode, bool) {
+	for _, gate := range definition.HumanGates {
+		if gate.ID != strings.TrimSpace(gateID) {
+			continue
+		}
+		mode := gate.DefaultMode
+		if override, ok := overrides[gate.ID]; ok {
+			switch GateMode(strings.TrimSpace(override)) {
+			case GateModeManual, GateModeSuggest, GateModeAuto:
+				mode = GateMode(strings.TrimSpace(override))
+			}
+		}
+		return mode, true
+	}
+	return "", false
 }
 
 // ExecutionStrategy is operator-facing metadata for an execution-capable
@@ -68,6 +107,17 @@ type SessionConfig struct {
 type Locator struct {
 	Owner string `json:"owner"`
 	Key   string `json:"key"`
+}
+
+type workflowDeclaration struct {
+	SchemaVersion string `json:"schemaVersion"`
+	Key           string `json:"key"`
+	Nodes         []struct {
+		Kind          string `json:"kind"`
+		ChildWorkflow *struct {
+			WorkflowKey string `json:"workflowKey"`
+		} `json:"childWorkflow"`
+	} `json:"nodes"`
 }
 
 // Registry is immutable after loading. Callers select a definition by its
@@ -100,6 +150,88 @@ func (r Registry) Definitions() []Definition {
 	}
 	sort.Slice(definitions, func(i, j int) bool { return definitions[i].Key < definitions[j].Key })
 	return definitions
+}
+
+// ValidateWorkflowReachability ensures every declared Agent Manager workflow
+// is reachable from a transition root, directly or through child_workflow
+// edges. An intentionally dormant workflow must have a non-empty reason.
+func ValidateWorkflowReachability(registry Registry, fsys fs.FS, dir string, unboundReasons map[string]string) error {
+	entries, err := fs.ReadDir(fsys, dir)
+	if err != nil {
+		return fmt.Errorf("read workflow declarations: %w", err)
+	}
+	declarations := make(map[string]workflowDeclaration)
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		contents, readErr := fs.ReadFile(fsys, filepath.Join(dir, entry.Name()))
+		if readErr != nil {
+			return fmt.Errorf("read workflow declaration %s: %w", entry.Name(), readErr)
+		}
+		var declaration workflowDeclaration
+		if decodeErr := json.Unmarshal(contents, &declaration); decodeErr != nil {
+			return fmt.Errorf("decode workflow declaration %s: %w", entry.Name(), decodeErr)
+		}
+		if declaration.SchemaVersion != "agent-workflow/v1" {
+			continue
+		}
+		key := strings.TrimSpace(declaration.Key)
+		if key == "" {
+			return fmt.Errorf("workflow declaration %s has no key", entry.Name())
+		}
+		if _, duplicate := declarations[key]; duplicate {
+			return fmt.Errorf("duplicate workflow declaration %q", key)
+		}
+		declarations[key] = declaration
+	}
+
+	queue := make([]string, 0)
+	for _, definition := range registry.Definitions() {
+		if definition.Kind != KindWorkflow || definition.Workflow == nil {
+			continue
+		}
+		queue = append(queue, strings.TrimSpace(definition.Workflow.Key))
+		for _, strategy := range definition.Strategies {
+			queue = append(queue, strings.TrimSpace(strategy.WorkflowKey))
+		}
+	}
+	reachable := make(map[string]struct{}, len(declarations))
+	for len(queue) > 0 {
+		key := queue[0]
+		queue = queue[1:]
+		if key == "" {
+			continue
+		}
+		if _, seen := reachable[key]; seen {
+			continue
+		}
+		declaration, declared := declarations[key]
+		if !declared {
+			return fmt.Errorf("reachable workflow %q has no declaration", key)
+		}
+		reachable[key] = struct{}{}
+		for _, node := range declaration.Nodes {
+			if node.Kind == "child_workflow" && node.ChildWorkflow != nil {
+				queue = append(queue, strings.TrimSpace(node.ChildWorkflow.WorkflowKey))
+			}
+		}
+	}
+
+	unbound := make([]string, 0)
+	for key := range declarations {
+		if _, ok := reachable[key]; ok {
+			continue
+		}
+		if strings.TrimSpace(unboundReasons[key]) == "" {
+			unbound = append(unbound, key)
+		}
+	}
+	if len(unbound) > 0 {
+		sort.Strings(unbound)
+		return fmt.Errorf("declared workflows have no transition or reachable child binding and no recorded reason: %s", strings.Join(unbound, ", "))
+	}
+	return nil
 }
 
 // IsSessionKind reports whether the registry declares a complete session
@@ -261,6 +393,32 @@ func Validate(definition Definition) error {
 			return fmt.Errorf("strategies contains duplicate %q", strategy.ID)
 		}
 		seenStrategy[strategy.ID] = struct{}{}
+	}
+	seenGate := make(map[string]struct{}, len(definition.HumanGates))
+	for _, gate := range definition.HumanGates {
+		gate.ID = strings.TrimSpace(gate.ID)
+		gate.Decides = strings.TrimSpace(gate.Decides)
+		if gate.ID == "" || gate.Decides == "" {
+			return fmt.Errorf("humanGates require id and decides")
+		}
+		if _, duplicate := seenGate[gate.ID]; duplicate {
+			return fmt.Errorf("humanGates contains duplicate %q", gate.ID)
+		}
+		seenGate[gate.ID] = struct{}{}
+		switch gate.DefaultMode {
+		case GateModeManual, GateModeSuggest, GateModeAuto:
+		default:
+			return fmt.Errorf("humanGate %q has invalid defaultMode %q", gate.ID, gate.DefaultMode)
+		}
+		if gate.Threshold < 0 || gate.Threshold > 1 {
+			return fmt.Errorf("humanGate %q threshold must be between 0 and 1", gate.ID)
+		}
+		if gate.MinSample <= 0 {
+			return fmt.Errorf("humanGate %q minSample must be positive", gate.ID)
+		}
+	}
+	if definition.HumanWait && len(definition.HumanGates) == 0 {
+		return fmt.Errorf("transition %q declares a human wait without a humanGate", definition.Key)
 	}
 	return nil
 }

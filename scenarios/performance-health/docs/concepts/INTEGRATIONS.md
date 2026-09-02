@@ -32,14 +32,18 @@ requires them.
 
 ## Scenario Dependencies
 
-These are the planned dependencies the real scenario composes (declared in
-`.vrooli/service.json` as code lands per the implementation plan). They are not
-yet wired in this documentation-first initialization.
+These are the dependencies the real scenario composes (declared in
+`.vrooli/service.json` as code lands per the implementation plan). The table was
+originally written documentation-first, when nothing was wired; rows now carry
+their own status. Treat a `planned` row as unverified rather than as evidence
+that the upstream capability is missing — the browser-automation-studio row said
+`planned` for some time after both the driver-side tracer and the consumer-side
+client had shipped, which is exactly the wrong signal to send a reader.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
 | code-facts | planned | Source of actual surfaces + UI framework for code-facts-gated tier detection (with a filesystem fallback that records a degraded reason). | `CodeFactsService.DescribeCodeFacts` over Connect. |
-| browser-automation-studio | planned | Raw perf-capture mechanism (CDP trace + web-vitals). performance-health owns tier meaning; BAS stays agnostic. | BAS `capture --capture perf` over Connect. |
+| browser-automation-studio | wired | Raw perf-capture mechanism (CDP trace + web-vitals). performance-health owns tier meaning; BAS stays agnostic. Driver side is `playwright-driver/src/tracing/performance-tracer.ts`; consumer side is `api/internal/capture/bas_client.go`, which detects Tier 1 by the `⚛` component mark. | `CaptureService.Capture` with `CAPTURE_TYPE_PERFORMANCE` over Connect. |
 | test-genie | planned | Consumes performance-health as its `Performance` phase provider (axes ① build-time + ③ Lighthouse) and runs the provider-contract scan. | shared `scenario-validation/v1 ScenarioValidationService`. |
 | structure-health | planned | Relinquishes its `perf` domain — the resource-aware startup benchmark (axis ②) is re-homed here. | greenfield move; no runtime call. |
 | cli-health | planned | Registers performance-health's CLI verbs into the search-hub command index for discoverability. | CLI manifest → command index. |
@@ -58,7 +62,7 @@ yet wired in this documentation-first initialization.
 | Service | Status | Reason | Contract |
 |---|---|---|---|
 | Lighthouse CLI | planned | The performance-health-owned Lighthouse runner uses its own Chrome (NOT via BAS). Browser UI scenarios must declare per-route accessibility error and warning thresholds; unavailable execution is degraded rather than passed. | `.vrooli/lighthouse.json` thresholds. |
-| Chrome | planned (indirect) | Reached via BAS perf-capture and the Lighthouse runner; the audit pipeline skips cleanly when unavailable. | indirect, through BAS / Lighthouse. |
+| Chrome | wired (indirect) | Reached via BAS perf-capture — now implemented — and the Lighthouse runner; the audit pipeline skips cleanly when unavailable. | indirect, through BAS / Lighthouse. |
 
 ## Failure Modes
 

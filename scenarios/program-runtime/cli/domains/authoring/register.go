@@ -40,13 +40,15 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			for _, miss := range result.GetRuleMisses() {
 				summary = append(summary, fmt.Sprintf("Rule miss: %s=%d.", miss.GetRuleId(), miss.GetCount()))
 			}
+			results := make([]string, 0, len(result.GetResults()))
 			for _, item := range result.GetResults() {
+				verdict := "miss"
 				if item.GetFirstAttemptOk() {
-					continue
+					verdict = "met"
 				}
-				summary = append(summary, fmt.Sprintf("Case %s: rule=%s cause=%s detail=%s", item.GetCaseId(), item.GetRuleId(), item.GetCause(), item.GetFailureDetail()))
+				results = append(results, fmt.Sprintf("%s: %s rule=%s cause=%s detail=%s", item.GetCaseId(), verdict, item.GetRuleId(), item.GetCause(), item.GetFailureDetail()))
 			}
-			return cliapp.ListReport{Summary: summary}
+			return cliapp.ListReport{Summary: summary, ResultsHeading: "Corpus cases", Results: results, ListShaped: true, ResultCount: len(results)}
 		}),
 	})
 }

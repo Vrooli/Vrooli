@@ -141,8 +141,16 @@ const (
 
 // System events for one-time migrations.
 const (
-	EventSystemMigrationApplied EventType = "system.migration_applied"
+	EventSystemMigrationApplied  EventType = "system.migration_applied"
+	EventAutonomyGateModeChanged EventType = "autonomy.gate_mode_changed"
 )
+
+// AutonomyGateModeChangedPayload records a reversible operator policy change.
+type AutonomyGateModeChangedPayload struct {
+	GateID string `json:"gate_id"`
+	From   string `json:"from"`
+	To     string `json:"to"`
+}
 
 // Operating mode events.
 const (
@@ -419,8 +427,12 @@ const (
 //     never increments this — picking "Other" rejects the recommendation.
 //   - ItemsFreeformChosen counts items where Selected == OtherKey.
 type WorkshopRoundPayload struct {
-	RoundNumber            int    `json:"round_number"`
-	Kind                   string `json:"kind,omitempty"`
+	RoundNumber int    `json:"round_number"`
+	Kind        string `json:"kind,omitempty"`
+	// GateID links decision evidence to the declared autonomy gate that
+	// produced it. Empty values preserve compatibility with older workshop
+	// events and continue to contribute only to the aggregate metrics.
+	GateID                 string `json:"gate_id,omitempty"`
 	ItemsTotal             int    `json:"items_total,omitempty"`
 	ItemsAnswered          int    `json:"items_answered,omitempty"`
 	ItemsRecommendedChosen int    `json:"items_recommended_chosen,omitempty"`
@@ -472,8 +484,10 @@ type ReviewFailedPayload struct {
 
 // ArchivePayload records an archive event with context about what was archived.
 type ArchivePayload struct {
-	PreviousStatus string `json:"previous_status"`
-	ArchivedAt     string `json:"archived_at"`
+	PreviousStatus string   `json:"previous_status"`
+	ArchivedAt     string   `json:"archived_at"`
+	Actor          string   `json:"actor,omitempty"`
+	DroppedItems   []string `json:"dropped_items,omitempty"`
 }
 
 // UnarchivePayload records an unarchive event.

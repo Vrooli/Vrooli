@@ -66,14 +66,6 @@ func (s *Service) QueueBacklog(ctx context.Context, req CreateRequest) (Record, 
 	if err != nil {
 		return Record{}, err
 	}
-	if req.Strategy == "until-drain" {
-		if reason, eligibilityErr := s.untilDrainEligibility(ctx, item); eligibilityErr != nil {
-			return Record{}, eligibilityErr
-		} else if reason != "" {
-			return Record{}, apierr.BadRequest("until-drain ineligible: %s", reason)
-		}
-	}
-
 	// Load governance settings for enforcement checks.
 	gov, govErr := s.governanceProvider.LoadGovernance()
 	if govErr != nil {

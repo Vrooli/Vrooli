@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -136,6 +137,46 @@ func TestTriggerHeartbeat_MemberAlreadyQueued(t *testing.T) {
 
 	if w2.Code != http.StatusConflict {
 		t.Fatalf("second trigger: expected 409, got %d: %s", w2.Code, w2.Body.String())
+	}
+}
+
+func TestTriggerHeartbeat_DeduplicatesCompletedManualTriggerWithinScheduleWindow(t *testing.T) {
+	roots := paths.RootsForTest(t)
+	fileStore := newFileStore(t, roots)
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	relationStore := fileStore.Relations()
+	ctx := context.Background()
+	if err := teamStore.Create(ctx, newIndependentTestTeam("team-1", "Team")); err != nil {
+		t.Fatal(err)
+	}
+	if err := agentStore.Create(ctx, &store.Agent{ID: "agent-1", DisplayName: "Agent"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := relationStore.SetTeamMember(ctx, &store.TeamMemberRelation{TeamID: "team-1", AgentID: "agent-1", Status: store.MemberStatusActive}); err != nil {
+		t.Fatal(err)
+	}
+	if err := teamStore.SetHeartbeatConfig(ctx, "team-1", "agent-1", &store.HeartbeatConfig{TeamID: "team-1", AgentID: "agent-1", Schedule: "0 * * * *", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	executor := newTestExecutor(t, teamStore, agentStore, nil, "", nil, nil)
+	teamExecStore := NewTeamExecutionStore(teamStore, &captureExecutor{}, t.TempDir(), nil)
+	handlers := NewHandlers(HandlersDeps{TeamStore: teamStore, AgentStore: agentStore, RelationStore: relationStore, Executor: executor, TeamExecStore: teamExecStore})
+
+	trigger := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/teams/team-1/heartbeats/agent-1/trigger", nil)
+		req = mux.SetURLVars(req, map[string]string{"id": "team-1", "agentId": "agent-1"})
+		w := httptest.NewRecorder()
+		handlers.TriggerHeartbeat(w, req)
+		return w
+	}
+	if first := trigger(); first.Code != http.StatusAccepted {
+		t.Fatalf("first trigger: status=%d body=%s", first.Code, first.Body.String())
+	}
+	teamExecStore.OnComplete("team-1", "agent-1")
+	second := trigger()
+	if second.Code != http.StatusAccepted || !strings.Contains(second.Body.String(), `"status":"deduplicated"`) {
+		t.Fatalf("second trigger: status=%d body=%s", second.Code, second.Body.String())
 	}
 }
 

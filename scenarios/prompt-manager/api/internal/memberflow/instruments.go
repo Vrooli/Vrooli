@@ -19,6 +19,7 @@
 package memberflow
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -26,6 +27,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // OperatingRuleGroupInstrument groups the instrument-declaration rules.
@@ -86,6 +88,43 @@ type InstrumentReading struct {
 	// GapOpenedOn is the parsed leading date of GapMarker, so an intentionally
 	// visible hole can be told apart from an overdue one.
 	GapOpenedOn string `json:"gapOpenedOn,omitempty"`
+	Reachable   *bool  `json:"reachable,omitempty"`
+}
+
+// InstrumentReachabilityChecker probes the declared instrument's scenario.
+// It is injected so declaration validation remains deterministic and tests do
+// not depend on the local scenario fleet.
+type InstrumentReachabilityChecker interface {
+	Check(context.Context, string) error
+}
+
+type scenarioInstrumentReachabilityChecker struct {
+	resolver instrumentScenarioURLResolver
+	client   *http.Client
+}
+
+type instrumentScenarioURLResolver interface {
+	ResolveScenarioURLDefault(context.Context, string) (string, error)
+}
+
+func (c scenarioInstrumentReachabilityChecker) Check(ctx context.Context, scenario string) error {
+	baseURL, err := c.resolver.ResolveScenarioURLDefault(ctx, strings.TrimSpace(scenario))
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/health", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("health returned HTTP %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // InBand reports whether this reading raises nothing.
@@ -156,6 +195,16 @@ func LoadTeamInstruments(configDir string) (map[string]*TeamInstrument, error) {
 
 // ComputeInstrumentCoverage reads every team's declaration and bands it.
 func ComputeInstrumentCoverage(configDir string) (InstrumentCoverageReport, error) {
+	return computeInstrumentCoverage(configDir, nil)
+}
+
+// ComputeInstrumentCoverageWithReachability preserves the declaration
+// deadband while checking whether each declared live instrument answers.
+func ComputeInstrumentCoverageWithReachability(configDir string, checker InstrumentReachabilityChecker) (InstrumentCoverageReport, error) {
+	return computeInstrumentCoverage(configDir, checker)
+}
+
+func computeInstrumentCoverage(configDir string, checker InstrumentReachabilityChecker) (InstrumentCoverageReport, error) {
 	report := InstrumentCoverageReport{Teams: []InstrumentReading{}, Note: instrumentReportNote}
 	declared, err := LoadTeamInstruments(configDir)
 	if err != nil {
@@ -163,6 +212,16 @@ func ComputeInstrumentCoverage(configDir string) (InstrumentCoverageReport, erro
 	}
 	for _, teamID := range sortedMapKeys(declared) {
 		reading := bandInstrument(teamID, declared[teamID])
+		if checker != nil && reading.Instrument != nil && reading.Instrument.Status == InstrumentStatusLive && strings.TrimSpace(reading.Instrument.Scenario) != "" {
+			probeCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			err := checker.Check(probeCtx, reading.Instrument.Scenario)
+			cancel()
+			reachable := err == nil
+			reading.Reachable = &reachable
+			if err != nil {
+				reading.Findings = append(reading.Findings, fmt.Sprintf("declared instrument scenario %q is unavailable: %v", reading.Instrument.Scenario, err))
+			}
+		}
 		switch {
 		case !reading.Declared:
 			report.Undeclared++
@@ -262,7 +321,7 @@ func instrumentGapDate(marker string) (string, bool) {
 
 // GetInstruments handles GET /instruments.
 func (h *Handlers) GetInstruments(w http.ResponseWriter, r *http.Request) {
-	report, err := ComputeInstrumentCoverage(h.configDir)
+	report, err := ComputeInstrumentCoverageWithReachability(h.configDir, h.instrumentProbe)
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, err.Error())
 		return

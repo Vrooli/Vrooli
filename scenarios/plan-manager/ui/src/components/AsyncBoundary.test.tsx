@@ -3,16 +3,15 @@
  * each render their own role + test id, and children render only when settled.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
-import { I18nextProvider } from "react-i18next";
+import { cleanup, screen } from "@testing-library/react";
 
 import { AsyncBoundary } from "./AsyncBoundary";
 import { selectors } from "../consts/selectors";
-import { i18n } from "../i18n";
 import { makeApiError } from "../api/client";
+import { renderWithProviders } from "../test-utils";
 
 const wrap = (ui: React.ReactElement) =>
-  render(<I18nextProvider i18n={i18n}>{ui}</I18nextProvider>);
+  renderWithProviders(ui);
 
 describe("AsyncBoundary", () => {
   afterEach(() => {

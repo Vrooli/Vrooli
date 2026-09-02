@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	programbindings "program-runtime/internal/bindings"
 	"program-runtime/internal/library"
 	"program-runtime/internal/module"
 
@@ -17,12 +18,13 @@ import (
 
 type handler struct {
 	libraryconnect.UnimplementedLibraryServiceHandler
-	repo *library.Repository
+	repo     *library.Repository
+	bindings *programbindings.Registry
 }
 
-func Module(repo *library.Repository) module.Module {
+func Module(repo *library.Repository, registry *programbindings.Registry) module.Module {
 	return module.Module{Name: "library", Mount: func(r *mux.Router) {
-		path, h := libraryconnect.NewLibraryServiceHandler(&handler{repo: repo})
+		path, h := libraryconnect.NewLibraryServiceHandler(&handler{repo: repo, bindings: registry})
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
 	}, Endpoints: Endpoints}
 }
@@ -40,11 +42,40 @@ func (h *handler) GetLibrary(ctx context.Context, req *connect.Request[libraryv1
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	return connect.NewResponse(&libraryv1.GetLibraryResponse{Program: program}), nil
+	response := &libraryv1.GetLibraryResponse{Program: program}
+	if h.bindings != nil {
+		for _, bindingID := range program.GetCalledBindingIds() {
+			drift := &libraryv1.BindingDrift{BindingId: bindingID, ValidatedAt: program.GetValidatedAt()}
+			conditions, conditionErr := h.bindings.Conditions(ctx, bindingID, "", 24*time.Hour)
+			if conditionErr != nil {
+				drift.DriftStatus = "unavailable"
+				drift.Reason = conditionErr.Error()
+				response.Drift = append(response.Drift, drift)
+				continue
+			}
+			for _, condition := range conditions.GetConditions() {
+				if condition.GetBindingId() != bindingID {
+					continue
+				}
+				drift.DriftStatus = condition.GetFreshness().GetDriftStatus().String()
+				drift.GenerationMtime = condition.GetFreshness().GetGenerationMtime()
+				drift.Reason = condition.GetFreshness().GetDriftReason()
+				generation, parseErr := time.Parse(time.RFC3339Nano, drift.GenerationMtime)
+				validated, validatedErr := time.Parse(time.RFC3339Nano, program.GetValidatedAt())
+				drift.Changed = parseErr == nil && validatedErr == nil && generation.After(validated)
+				if drift.Changed {
+					drift.Reason = "binding generation is newer than program validation"
+				}
+				break
+			}
+			response.Drift = append(response.Drift, drift)
+		}
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *handler) PromoteLibrary(ctx context.Context, req *connect.Request[libraryv1.PromoteLibraryRequest]) (*connect.Response[libraryv1.PromoteLibraryResponse], error) {
-	program, err := h.repo.PromoteByID(ctx, req.Msg.GetProgramId(), req.Msg.GetName(), req.Msg.GetDescription(), req.Msg.GetPromotedBy(), req.Msg.GetReason(), time.Now().UTC())
+	program, err := h.repo.PromoteByID(ctx, req.Msg.GetProgramId(), req.Msg.GetName(), req.Msg.GetDescription(), req.Msg.GetPromotedBy(), req.Msg.GetReason(), req.Msg.GetCoverage(), req.Msg.GetDeclaredInputs(), req.Msg.GetDeclaredOutputs(), time.Now().UTC())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}

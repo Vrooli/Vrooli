@@ -95,14 +95,16 @@ func (s *Service) emitProposalApplied(session Session, proposal Proposal, artifa
 }
 
 type AgentSessionEventPayload struct {
-	SessionID     string `json:"session_id"`
-	SessionKind   string `json:"session_kind"`
-	Status        string `json:"status"`
-	SkillID       string `json:"skill_id,omitempty"`
-	RunID         string `json:"run_id,omitempty"`
-	TaskID        string `json:"task_id,omitempty"`
-	ProfileKey    string `json:"profile_key,omitempty"`
-	FailureReason string `json:"failure_reason,omitempty"`
+	SessionID         string `json:"session_id"`
+	SessionKind       string `json:"session_kind"`
+	Status            string `json:"status"`
+	SkillID           string `json:"skill_id,omitempty"`
+	RunID             string `json:"run_id,omitempty"`
+	TaskID            string `json:"task_id,omitempty"`
+	ProfileKey        string `json:"profile_key,omitempty"`
+	FailureReason     string `json:"failure_reason,omitempty"`
+	Disposition       string `json:"disposition,omitempty"`
+	DispositionReason string `json:"disposition_reason,omitempty"`
 }
 
 type AgentSessionArtifactEventPayload struct {
@@ -127,14 +129,16 @@ type AgentSessionProposalEventPayload struct {
 
 func eventPayload(session Session) AgentSessionEventPayload {
 	return AgentSessionEventPayload{
-		SessionID:     session.ID,
-		SessionKind:   string(session.Kind),
-		Status:        string(session.Status),
-		SkillID:       session.SkillID,
-		RunID:         session.RunID,
-		TaskID:        session.TaskID,
-		ProfileKey:    session.ProfileKey,
-		FailureReason: session.FailureReason,
+		SessionID:         session.ID,
+		SessionKind:       string(session.Kind),
+		Status:            string(session.Status),
+		SkillID:           session.SkillID,
+		RunID:             session.RunID,
+		TaskID:            session.TaskID,
+		ProfileKey:        session.ProfileKey,
+		FailureReason:     session.FailureReason,
+		Disposition:       string(session.Disposition),
+		DispositionReason: session.DispositionReason,
 	}
 }
 

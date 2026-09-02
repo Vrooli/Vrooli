@@ -10,6 +10,24 @@ Durable lessons extracted from agent-manager runs by `run-introspector`. One run
 
 ## Lessons
 
+### 2026-08-29 · `9329b3ca-2218-49df-97ce-c2195f1d0308` · `agent-manager-imported` · slow
+
+**Lesson.** Imported runs can be marked complete while exposing no usable agent result, no diff, and thousands of unresolved replayed tool calls. Their wall-clock span is not valid agent-work duration; the investigation surface needs an explicit imported/replay health verdict before a run can count as a meaningful completion or slow-run sample.
+
+**What happened.** The selected run spanned 17,355 seconds (2026-08-29T03:58:35Z–08:47:50Z), but `agent-manager run report` showed `Turns: 0`, no final output, no diff, and `Receipts: unobserved`. It recorded 1,103 repeated tool calls: 1,048 unresolved `exec` calls and 57 unresolved `wait` calls, with only 58 successful tool results. The event trail is an imported Codex transcript whose work occurred in rapid bursts; the long span is replay/import timing, not agent execution. The run was not previously present in this artifact.
+
+**Implicated.** `agent-manager` run import/report and the run-introspector triage interpretation. `run report` currently presents `Status: complete` alongside zero turns, empty output, unavailable diff, unobserved receipts, and unresolved calls without a consolidated unusable-result warning. Run-introspector's slow tier also needs to exclude imported/replay runs unless agent-work duration and result provenance are available.
+
+**Action decision.** `capability-work-item`, not an Action candidate: this is a missing typed health/verdict contract in an existing control-plane surface, not a repeated deterministic CLI sequence. No existing Action would make the evidence trustworthy.
+
+**Proposed change.** Add an explicit imported-run integrity classification to the report/result surface (for example `result_state=unusable` or `replay_incomplete`) when a completed imported run has zero turns, no final result, unavailable diff, unobserved receipts, or unresolved tool calls. Expose the classification and source timing separately from agent-work duration. Update run-introspector guidance to exclude such runs from slow triage and route them to a single provenance/observability lesson.
+
+**Handoff.** `agent-manager` owner / scenario-qa for the report contract and import replay accounting; `team-agent-optimizer` for the run-introspector slow-tier interpretation.
+
+**Measurement plan.** Baseline for this sample: 1 imported run, 0 turns, 0 final-output candidates, 0 diff bytes, 0 observed receipts, 1,105 unresolved calls, and 17,355 seconds wall span. Post-change: imported runs with these markers should receive a non-success integrity verdict, and slow triage should not select them as agent slowness. Recheck after 7 heartbeats by sampling imported runs and comparing `started_at`–`ended_at` with event/tool activity span; expected false slow selections: 0.
+
+**Status.** pending (requires agent-manager owner and team-agent-optimizer interpretation changes).
+
 ### 2026-04-23 · `60116710-f77d-4c33-8058-2bd90c475289` · `agent-manager-investigation` · errored
 
 **Lesson.** The triage ladder's tier-1 ("errored") signal is contaminated by a known false-positive class: `exit_code=429` can be emitted on a **clean** run whose final assistant message merely *discusses* rate limiting as a topic. The substring matcher `detectRateLimit` in `claude_code.go:1518-1559` fires on any assistant text containing "rate limit" regardless of `IsError`, forcing `Success=false, ExitCode=429`. Investigating these as genuine failures wastes a heartbeat and draws the wrong lesson.
@@ -243,3 +261,33 @@ The "terminal error" definition uses the twin lesson's error-source-resolution p
 - **Standing-pattern watch (carry-over).** Seven sub-classes now stacked under tier-1 contamination across five heartbeats. Contrarian `framework-update` overdue by three heartbeats. If still not raised within next 2, the standing-pattern note itself is stale and should be retired (the prediction held; the systemic action did not). Out of lane to escalate.
 
 **Status.** pending (awaits team-agent-optimizer pickup; coordinates with `dec-1777330180871528504`, `dec-1777069916962818847`, `dec-1777416636519315268`; does not supersede any).
+
+### 2026-08-29 · `e8dae0f4-3320-4d0c-b2aa-e904dbe6dc47` · `agent-manager-imported` · slow
+
+**Lesson.** A second imported transcript independently reproduces the imported-run integrity gap: `complete`/exit 0 does not establish usable agent execution. The report must expose an explicit replay-integrity verdict and separate source-transcript span from agent-work duration before this run can be treated as a slow sample or successful completion.
+
+**What happened.** The run report measured `duration_ms=15146763` (~4h12m), but reported `turns=0`, no final result, no diff because the run has no sandbox, unobserved receipts, and 219 tool calls with 191 unresolved Bash calls. Event counts showed 33 messages and 219 tool results, while the imported transcript's visible final message described a completed planning handoff. The report's time accounting attributed 2,601,445ms to model generation and 12,312,594ms to unattributable time; therefore neither the wall span nor the classifier's synthetic 675-turn handoff episodes is a trustworthy agent-work measure. The run was imported from a Claude Code session and has no verified receipts.
+
+**Implicated.** `agent-manager` import/report integrity and run-introspector slow-tier interpretation. This corroborates the existing `agent-manager-imported-run-integrity-verdict` backlog item and the prior `9329b3ca-2218-49df-97ce-c2195f1d0308` lesson; no duplicate work item is needed. The episode classifier also needs to avoid presenting replay-derived handoff/stall durations as execution evidence when the parent run has zero turns and unresolved replay calls, but that is an agent-manager/scenario-qa surface observation, not an introspector implementation.
+
+**Action decision.** `capability-work-item`, specifically existing backlog `agent-manager-imported-run-integrity-verdict`; not an Action candidate. This is a typed provenance and result-health contract gap, not a repeated deterministic CLI sequence. Discovery gaps for the last 7 days are all singleton clusters, so no new Action or CLI backlog is justified from aggregate demand.
+
+**Measurement plan.** Baseline now includes at least 2 independently observed imported runs with `status=complete`, `exit_code=0`, `turns=0`, no final result, unavailable diff, unobserved receipts, and large unresolved-call counts. Post-change, imported reports with any of these integrity markers must receive a non-success replay/result verdict, and slow triage must use verified agent-work span rather than transcript wall time. Recheck after 7 heartbeats; expected false slow selections of unusable imported runs: 0.
+
+**Status.** pending; corroborates existing `agent-manager-imported-run-integrity-verdict` and prior imported-run lesson; no new filing.
+
+### 2026-08-30 · `2ff09b54-5990-4390-9462-9e9866688dc2` · `bug-investigator` · errored
+
+**Lesson.** An otherwise productive bug-investigator run was terminated while completing the final friction-recording step after encountering a known prompt-manager knowledge-route mismatch. The run reached a concrete reproduction, evidence handoff, and inbox supersession, but spent 47 Bash calls (46 repeated), including retries around unsupported backlog/knowledge mutation shapes; the final friction submission was still in progress when SIGINT ended the run. This is execution friction and a completion-integrity risk, not evidence that the underlying bug investigation was wrong.
+
+**What happened.** `agent-manager run report` shows `status=failed`, `exit_code=-1`, duration 198,567ms, 10 turns, 47 Bash calls (37 successful, 5 failed, 5 unresolved), one 23,965ms event gap, and 46 repeated tool calls. The event stream shows the agent confirmed the Git Control Tower API-test defect, attempted the evidence/backlog handoff, discovered the append-only refusal when deleting the drained inbox row, created a superseding pointer, then observed that the original row remained visible and began submitting a friction report through the actual structured CLI contract. The process exited by signal 2 four seconds later. No repeated file reads or model fallback were present.
+
+**Implicated.** Primary: prompt-manager team knowledge mutation/friction-report route discoverability and contract parity; secondary: bug-investigator workflow's long closeout ceremony and repeated shell-level retries. The prior team context already records `fix/prompt-manager-team-knowledge-routes`; this run is corroborating evidence, not a new work item. The run also confirms that a deterministic closeout Action could reduce retries only after the route contract is made reliable; current evidence does not establish a missing controlled CLI.
+
+**Action decision.** `capability-work-item` via the existing `fix/prompt-manager-team-knowledge-routes` work item; no duplicate filing and no new Action candidate. The single-run failure is sufficient to preserve the route mismatch, but discovery-gap clusters remain singleton-only, so aggregate demand does not justify a new Action or CLI backlog.
+
+**Handoff.** Existing prompt-manager route owner: make team knowledge list/update/delete and structured friction submission discoverable and mutually consistent, with append-only/supersession semantics exposed in the response. Run-introspector retains the lesson; does not edit the investigator workflow or scenario code.
+
+**Measurement plan.** Baseline: this run required 47 Bash calls, had 5 command failures, 5 unresolved calls, 46 repeated calls, and ended before friction submission receipt; the inbox row remained visible after supersession. After the route fix, run one equivalent bug-investigator closeout: target zero contract-shape retries, zero unresolved closeout calls, a confirmed friction receipt, and a machine-visible drained/superseded state. Recheck after 3 heartbeats; expected no repeat of the same route-mismatch termination pattern.
+
+**Status.** pending; corroborates existing `fix/prompt-manager-team-knowledge-routes`; no new filing.

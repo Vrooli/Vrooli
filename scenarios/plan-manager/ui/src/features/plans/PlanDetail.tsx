@@ -5,7 +5,7 @@ import { AsyncBoundary } from "../../components/AsyncBoundary";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Card, MetaRow, SectionPanel } from "../../components/Surfaces";
 import { Button } from "../../components/ui/button";
-import { MarkdownRenderer } from "../../components/markdown/MarkdownRenderer";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import { MermaidViewer } from "../../components/markdown/MermaidViewer";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";

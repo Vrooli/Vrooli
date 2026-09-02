@@ -141,6 +141,82 @@ func TestRetry_FromCompletedAllowed(t *testing.T) {
 	}
 }
 
+func TestRetry_FromReconciledAbstentionAfterFollowUpDecision(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "fix", "retry-abstained", map[string]any{
+		"name":        "retry-abstained",
+		"title":       "Retry Abstained",
+		"description": "desc",
+		"status":      "needs_followup",
+		"priority":    1,
+		"tags":        []string{},
+		"plan_ref": map[string]any{
+			"provider": "plan-manager",
+			"plan_id":  "plan-retry-abstained",
+			"slug":     "retry-abstained",
+			"role":     "execution_spec",
+		},
+	})
+	mustWriteDeliverableFile(t, root, "fix", "retry-abstained")
+
+	parent := Record{
+		ExecutionID:   "parent-abstained",
+		BacklogKind:   "fix",
+		BacklogName:   "retry-abstained",
+		Status:        StatusNeedsReview,
+		Mode:          ModeManual,
+		FailureReason: "workflow terminal state reconciled: workflow_execution_status_abstained (abstained)",
+		FinishedAt:    "2026-08-31T00:00:00Z",
+		CreatedAt:     "2026-08-31T00:00:00Z",
+		UpdatedAt:     "2026-08-31T00:01:00Z",
+	}
+	svc, _ := followUpTestService(t, root, []Record{parent}, &stubAgentService{})
+
+	retry, err := svc.Retry(context.Background(), RetryRequest{ExecutionID: parent.ExecutionID})
+	if err != nil {
+		t.Fatalf("retry after operator follow-up decision: %v", err)
+	}
+	if retry.ParentExecutionID != parent.ExecutionID || retry.Operation != "retry" {
+		t.Fatalf("expected governed retry parent linkage, got %#v", retry)
+	}
+}
+
+func TestRetry_RejectsAbstainedWithoutOperatorDecision(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "fix", "retry-unrouted-abstention", map[string]any{
+		"name": "retry-unrouted-abstention", "title": "Unrouted Abstention", "description": "desc",
+		"status": "in_review", "priority": 1, "tags": []string{},
+	})
+	mustWriteDeliverableFile(t, root, "fix", "retry-unrouted-abstention")
+
+	svc, _ := followUpTestService(t, root, []Record{{
+		ExecutionID: "abstained-without-decision", BacklogKind: "fix", BacklogName: "retry-unrouted-abstention",
+		Status: StatusAbstained, Mode: ModeManual, FinishedAt: "2026-08-31T00:00:00Z",
+		FailureReason: "workflow terminal state reconciled: workflow_execution_status_abstained (abstained)",
+	}}, &stubAgentService{})
+
+	if _, err := svc.Retry(context.Background(), RetryRequest{ExecutionID: "abstained-without-decision"}); err == nil {
+		t.Fatal("expected abstained execution to require an operator follow-up decision before retry")
+	}
+}
+
+func TestRetry_RejectsActiveNeedsReview(t *testing.T) {
+	root := t.TempDir()
+	mustWriteBacklogItem(t, root, "fix", "retry-active-review", map[string]any{
+		"name": "retry-active-review", "title": "Active Review", "description": "desc",
+		"status": "in_review", "priority": 1, "tags": []string{},
+	})
+	mustWriteDeliverableFile(t, root, "fix", "retry-active-review")
+	svc, _ := followUpTestService(t, root, []Record{{
+		ExecutionID: "active-review", BacklogKind: "fix", BacklogName: "retry-active-review",
+		Status: StatusNeedsReview, Mode: ModeManual,
+	}}, &stubAgentService{})
+
+	if _, err := svc.Retry(context.Background(), RetryRequest{ExecutionID: "active-review"}); err == nil {
+		t.Fatal("expected active needs_review execution to remain non-retryable")
+	}
+}
+
 func TestRetry_RejectsNonTerminal(t *testing.T) {
 	root := t.TempDir()
 	mustWriteBacklogItem(t, root, "idea", "retry-running", map[string]any{

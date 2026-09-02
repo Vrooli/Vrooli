@@ -151,6 +151,25 @@ func testPlanRenderer() *fakeMarkdownRenderer {
 	}}
 }
 
+func TestPlanAcceptanceAllowsQualityPassNeverStartedPlan(t *testing.T) {
+	item := backlogItem{
+		Kind: "execute", Name: "first-start", Title: "First start",
+		PlanRef: &planRef{Provider: planRefProviderPlanManager, PlanID: "plan-1", Slug: "plan-1", Role: planRefRoleExecutionSpec},
+	}
+	item.PlanAcceptance = &planAcceptance{
+		Actor: "operator", PlanContentHash: "sha256:first-start",
+		SubjectVersion: executionPlanAcceptanceSubjectVersion(item),
+	}
+	renderer := &fakeMarkdownRenderer{result: planclient.RenderMarkdownResult{
+		Markdown: "# First start", QualityStatus: "pass",
+		Plan: &sharedv1.Plan{Id: "plan-1", ContentHash: "sha256:first-start", Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT},
+	}}
+	svc := NewService(ServiceConfig{DataRoot: t.TempDir(), PlanRenderer: renderer})
+	if blocker := svc.planAcceptanceBlockingReason(context.Background(), item); blocker.Code != "" {
+		t.Fatalf("never-started quality-pass plan blocked: %+v", blocker)
+	}
+}
+
 func (s *snapshotAgentService) GetRunState(_ context.Context, _ string) (agentmanager.RunState, error) {
 	s.runStateCalls++
 	return agentmanager.RunState{Status: "completed", FinishedAt: "2026-05-14T00:00:00Z"}, nil

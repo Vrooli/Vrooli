@@ -8,6 +8,8 @@ import (
 
 	"swarm-manager/internal/planclient"
 	"swarm-manager/internal/stringsx"
+
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
 )
 
 const (
@@ -18,6 +20,7 @@ const (
 type renderedPlanContent struct {
 	Path            string
 	Markdown        string
+	Plan            *sharedv1.Plan
 	ContentHash     string
 	Status          string
 	QualityStatus   string
@@ -120,6 +123,7 @@ func renderPlan(ctx context.Context, planID string, renderer planclient.Markdown
 	}
 	return renderedPlanContent{
 		Markdown:        result.Markdown,
+		Plan:            result.Plan,
 		ContentHash:     result.Plan.GetContentHash(),
 		Status:          result.Plan.GetStatus().String(),
 		QualityStatus:   result.QualityStatus,

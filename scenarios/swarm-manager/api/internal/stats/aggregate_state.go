@@ -88,6 +88,7 @@ type aggregateState struct {
 	decisionItemsRecommendedChosen int
 	decisionItemsFreeformChosen    int
 	decisionByKind                 map[string]*decisionKindCounters
+	decisionByGate                 map[string]*decisionKindCounters
 
 	// Review evidence tracking.
 	reviewRoundsCompleted  int
@@ -162,6 +163,7 @@ func newAggregateState() *aggregateState {
 		workshopRounds:                make(map[string]int),
 		execOutcome:                   make(map[string]string),
 		decisionByKind:                make(map[string]*decisionKindCounters),
+		decisionByGate:                make(map[string]*decisionKindCounters),
 		sessionKind:                   make(map[string]string),
 		sessionStatus:                 make(map[string]string),
 		sessionCreatedAt:              make(map[string]time.Time),
@@ -253,10 +255,9 @@ func addNestedFloat(m map[string]map[string]float64, outer, inner string, delta 
 	m[outer][inner] += delta
 }
 
-// countExecOutcomes returns (completed, failed, manuallyAccepted) from
-// execOutcome. Canceled and non-terminal outcomes are excluded from both
-// numerator and denominator of success-rate math.
-func (s *aggregateState) countExecOutcomes() (completed, failed, manuallyAccepted int) {
+// countExecOutcomes returns terminal execution outcomes. Abstentions and
+// budget exhaustion are separate from ordinary failures.
+func (s *aggregateState) countExecOutcomes() (completed, failed, abstained, budgetExhausted, manuallyAccepted int) {
 	for _, outcome := range s.execOutcome {
 		switch outcome {
 		case "completed":
@@ -266,6 +267,10 @@ func (s *aggregateState) countExecOutcomes() (completed, failed, manuallyAccepte
 			manuallyAccepted++
 		case "failed":
 			failed++
+		case "abstained":
+			abstained++
+		case "budget_exhausted":
+			budgetExhausted++
 		}
 	}
 	return

@@ -314,8 +314,8 @@ func TestBundledMembersRenderWithoutRetiredSections(t *testing.T) {
 			count++
 		}
 	}
-	if count != 24 {
-		t.Fatalf("rendered %d bundled members, want 24", count)
+	if count != 25 {
+		t.Fatalf("rendered %d bundled members, want 25", count)
 	}
 }
 

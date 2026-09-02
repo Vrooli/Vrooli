@@ -182,7 +182,7 @@ func TestInvestigationApplyRequest_JSONFieldNames(t *testing.T) {
 func TestCreateRunRequest_ProfileRefIsKeyOnly(t *testing.T) {
 	req := CreateRunRequest{
 		TaskID:     "task-1",
-		ProfileRef: &ProfileRef{ProfileKey: "prompt-manager/internal/heartbeat"},
+		ProfileRef: &ProfileRef{ProfileKey: "prompt-manager/heartbeat"},
 	}
 
 	data, err := json.Marshal(req)
@@ -194,7 +194,7 @@ func TestCreateRunRequest_ProfileRefIsKeyOnly(t *testing.T) {
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if decoded.ProfileRef == nil || decoded.ProfileRef.ProfileKey != "prompt-manager/internal/heartbeat" {
+	if decoded.ProfileRef == nil || decoded.ProfileRef.ProfileKey != "prompt-manager/heartbeat" {
 		t.Fatalf("profile_ref = %#v, want only the declared profile key", decoded.ProfileRef)
 	}
 }
@@ -260,11 +260,11 @@ func TestGetRunResponse_TerminalStatusMapping(t *testing.T) {
 }
 
 func TestEnsureProfileRequest_IsKeyOnly(t *testing.T) {
-	data, err := json.Marshal(EnsureProfileRequest{ProfileKey: "prompt-manager/internal/heartbeat"})
+	data, err := json.Marshal(EnsureProfileRequest{ProfileKey: "prompt-manager/heartbeat"})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if string(data) != `{"profile_key":"prompt-manager/internal/heartbeat"}` {
+	if string(data) != `{"profile_key":"prompt-manager/heartbeat"}` {
 		t.Fatalf("EnsureProfileRequest JSON = %s", data)
 	}
 }

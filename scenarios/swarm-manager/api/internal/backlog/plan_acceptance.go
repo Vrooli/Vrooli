@@ -61,7 +61,12 @@ func (h *Handler) AcceptPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	contentHash := strings.TrimSpace(plan.GetContentHash())
-	if plan.GetStatus() == sharedv1.PlanStatus_PLAN_STATUS_DRAFT || plan.GetStatus() == sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED {
+	// Plan Manager's DRAFT status means no phase has started; it is not an
+	// authoring/finalization signal. Rejecting it here makes first execution
+	// circular because only a started execution moves the computed status to
+	// ACTIVE. Render quality and the pinned content hash are the acceptance
+	// authorities; only an archived plan is categorically non-executable.
+	if plan.GetStatus() == sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED {
 		apierr.MapError(w, "[backlog] accept-plan", apierr.Conflict("canonical plan is not executable in status %q", plan.GetStatus().String()))
 		return
 	}

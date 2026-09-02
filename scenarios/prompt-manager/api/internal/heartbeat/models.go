@@ -8,17 +8,20 @@ import "prompt-manager/internal/store"
 
 // HeartbeatConfigResponse is the API response for a heartbeat configuration
 type HeartbeatConfigResponse struct {
-	TeamID         string                  `json:"teamId"`
-	AgentID        string                  `json:"agentId"`
-	Enabled        bool                    `json:"enabled"`
-	Schedule       string                  `json:"schedule"`
-	ProfileKey     string                  `json:"profileKey,omitempty"`
-	TimeoutSeconds int                     `json:"timeoutSeconds,omitempty"`
-	LastExecution  *HeartbeatExecResultDTO `json:"lastExecution,omitempty"`
-	NextExecution  string                  `json:"nextExecution,omitempty"`
-	NextExecutions []string                `json:"nextExecutions,omitempty"`
-	CreatedAt      string                  `json:"createdAt"`
-	UpdatedAt      string                  `json:"updatedAt"`
+	TeamID                  string                  `json:"teamId"`
+	AgentID                 string                  `json:"agentId"`
+	Enabled                 bool                    `json:"enabled"`
+	Schedule                string                  `json:"schedule"`
+	ProfileKey              string                  `json:"profileKey,omitempty"`
+	TimeoutSeconds          int                     `json:"timeoutSeconds,omitempty"`
+	ConsecutiveFailures     int                     `json:"consecutiveFailures"`
+	LifecycleState          string                  `json:"lifecycleState"`
+	LastExecution           *HeartbeatExecResultDTO `json:"lastExecution,omitempty"`
+	LastSuccessfulExecution *HeartbeatExecResultDTO `json:"lastSuccessfulExecution,omitempty"`
+	NextExecution           string                  `json:"nextExecution,omitempty"`
+	NextExecutions          []string                `json:"nextExecutions,omitempty"`
+	CreatedAt               string                  `json:"createdAt"`
+	UpdatedAt               string                  `json:"updatedAt"`
 }
 
 // HeartbeatExecResultDTO represents execution result in API responses

@@ -15,6 +15,15 @@ type fakeRunner struct {
 	err    error
 }
 
+type candidateRecorder struct {
+	programs []*programsv1.Program
+}
+
+func (r *candidateRecorder) AddCandidate(_ context.Context, p *programsv1.Program, _ []string, _ time.Time) error {
+	r.programs = append(r.programs, p)
+	return nil
+}
+
 type blockingRunner struct {
 	started chan struct{}
 	release chan struct{}
@@ -39,6 +48,21 @@ func TestRetainsProgramSourceAndFailureDetail(t *testing.T) { // [REQ:PRT-P1-006
 	got, err := s.Get(context.Background(), p.Id)
 	if err != nil || got.Source != "raise ValueError()" || got.FailureDetail == "" {
 		t.Fatalf("program=%+v err=%v", got, err)
+	}
+}
+
+func TestSuccessfulAgentProgramEntersCandidateSink(t *testing.T) {
+	candidates := &candidateRecorder{}
+	s := NewService(Options{Runner: fakeRunner{result: Result{Stdout: "ok"}}, CandidateSink: candidates})
+	p, err := s.Submit(context.Background(), "s1", "print('ok')", programsv1.Provenance_PROVENANCE_AGENT, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.GetStatus() != programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED {
+		t.Fatalf("status=%v", p.GetStatus())
+	}
+	if len(candidates.programs) != 1 || candidates.programs[0].GetId() != p.GetId() {
+		t.Fatalf("candidate sink calls=%v, want one for %q", candidates.programs, p.GetId())
 	}
 }
 

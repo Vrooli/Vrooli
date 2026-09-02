@@ -674,6 +674,9 @@ func (h *handlers) finalize(ctx cliapp.RunContext) error {
 func finalizeWorkspaceRoot(raw string) string {
 	root := strings.TrimSpace(raw)
 	if root == "" {
+		root = strings.TrimSpace(os.Getenv("VROOLI_SANDBOX_REPO_ROOT"))
+	}
+	if root == "" {
 		resolved, err := repocontract.ResolveRepoRoot()
 		if err != nil {
 			return ""

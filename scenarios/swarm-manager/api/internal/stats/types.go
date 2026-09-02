@@ -133,6 +133,8 @@ type AgentStats struct {
 	TotalExecutions          int     `json:"total_executions"`
 	CompletedCount           int     `json:"completed_count"`
 	FailedCount              int     `json:"failed_count"`
+	AbstainedCount           int     `json:"abstained_count"`
+	BudgetExhaustedCount     int     `json:"budget_exhausted_count"`
 	ManuallyAcceptedCount    int     `json:"manually_accepted_count"`
 	SuccessRate              float64 `json:"success_rate"`
 	FailureRate              float64 `json:"failure_rate"`
@@ -155,6 +157,7 @@ type AgentStats struct {
 	DecisionItemsTotal                 int                 `json:"decision_items_total"`
 	DecisionItemsAnswered              int                 `json:"decision_items_answered"`
 	RecommendationAcceptanceByKind     map[string]KindRate `json:"recommendation_acceptance_by_kind"`
+	RecommendationAcceptanceByGate     map[string]KindRate `json:"recommendation_acceptance_by_gate"`
 }
 
 // KindRate is the per-kind breakdown for recommendation-acceptance stats.

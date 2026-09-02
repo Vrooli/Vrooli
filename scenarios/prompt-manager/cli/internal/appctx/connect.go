@@ -107,7 +107,7 @@ func (r Runtime) connectRequest(method, path string, query url.Values, payload a
 		return callLegacyMembers(ctx, client, method, segments, payload)
 	case "teams":
 		client := teamsconnect.NewTeamsServiceClient(httpClient, baseURL)
-		body, handled, callErr := callTeams(ctx, client, method, segments, payload)
+		body, handled, callErr := callTeams(ctx, client, method, segments, query, payload)
 		if handled {
 			return body, handled, callErr
 		}
@@ -679,7 +679,7 @@ func applyLegacyMemberPayload(agent *agentsv1.AgentInput, name, body, head, acce
 	}
 }
 
-func callTeams(ctx context.Context, client teamsconnect.TeamsServiceClient, method string, s []string, payload any) ([]byte, bool, error) {
+func callTeams(ctx context.Context, client teamsconnect.TeamsServiceClient, method string, s []string, query url.Values, payload any) ([]byte, bool, error) {
 	switch {
 	case method == "GET" && len(s) == 1:
 		resp, err := client.ListTeams(ctx, connect.NewRequest(&teamsv1.ListTeamsRequest{}))
@@ -703,6 +703,43 @@ func callTeams(ctx context.Context, client teamsconnect.TeamsServiceClient, meth
 		return rpcBody(resp, "", true, err)
 	case method == "DELETE" && len(s) == 2:
 		resp, err := client.DeleteTeam(ctx, connect.NewRequest(&teamsv1.DeleteTeamRequest{Id: s[1]}))
+		return rpcBody(resp, "", true, err)
+	case method == "GET" && len(s) == 3 && s[2] == "knowledge":
+		last := int32(0)
+		if value := query.Get("last"); value != "" {
+			if parsed, err := strconv.Atoi(value); err == nil {
+				last = int32(parsed)
+			}
+		}
+		resp, err := client.ListKnowledge(ctx, connect.NewRequest(&teamsv1.ListKnowledgeRequest{TeamId: s[1], Topic: query.Get("topic"), TopicPrefix: query.Get("topic_prefix"), Last: last}))
+		return rpcBody(resp, "", true, err)
+	case method == "POST" && len(s) == 3 && s[2] == "knowledge":
+		var body struct {
+			Topic      string `json:"topic"`
+			Content    string `json:"content"`
+			CallerNote string `json:"caller_note"`
+			Source     string `json:"source"`
+			Supersedes string `json:"supersedes"`
+		}
+		if err := decodePayload(payload, &body); err != nil {
+			return nil, true, err
+		}
+		resp, err := client.AddKnowledge(ctx, connect.NewRequest(&teamsv1.AddKnowledgeRequest{TeamId: s[1], Topic: body.Topic, Content: body.Content, CallerNote: body.CallerNote, Source: body.Source, Supersedes: body.Supersedes}))
+		return rpcBody(resp, "", true, err)
+	case method == "PUT" && len(s) == 4 && s[2] == "knowledge":
+		var body struct {
+			Topic      *string `json:"topic"`
+			Content    *string `json:"content"`
+			Source     *string `json:"source"`
+			Supersedes *string `json:"supersedes"`
+		}
+		if err := decodePayload(payload, &body); err != nil {
+			return nil, true, err
+		}
+		resp, err := client.UpdateKnowledge(ctx, connect.NewRequest(&teamsv1.UpdateKnowledgeRequest{TeamId: s[1], KnowledgeId: s[3], Topic: body.Topic, Content: body.Content, Source: body.Source, Supersedes: body.Supersedes}))
+		return rpcBody(resp, "", true, err)
+	case method == "DELETE" && len(s) == 4 && s[2] == "knowledge":
+		resp, err := client.DeleteKnowledge(ctx, connect.NewRequest(&teamsv1.DeleteKnowledgeRequest{TeamId: s[1], KnowledgeId: s[3]}))
 		return rpcBody(resp, "", true, err)
 	case method == "POST" && len(s) == 3 && s[2] == "members":
 		var body struct {

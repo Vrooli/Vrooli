@@ -204,6 +204,9 @@ func SessionToProto(session Session) *domainpb.AgentSession {
 	if session.StarterJob != "" {
 		msg.StarterJobId = proto.String(session.StarterJob)
 	}
+	for _, ref := range session.StagedContext {
+		msg.StagedContextRefs = append(msg.StagedContextRefs, &domainpb.AgentSessionStagedContextRef{Type: string(ref.Type), Ref: ref.Ref})
+	}
 	for _, message := range session.Messages {
 		msg.Messages = append(msg.Messages, messageToProto(message))
 	}

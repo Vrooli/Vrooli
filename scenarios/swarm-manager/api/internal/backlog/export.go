@@ -71,18 +71,13 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse kind/status/name/tag filters and load matching items.
-	items, statusFilter, nameFilter, tagFilter, ok := h.loadExportItems(w, &req)
+	items, kindFilter, statusFilter, nameFilter, tagFilter, ok := h.loadExportItems(w, &req)
 	if !ok {
 		return
 	}
 
 	// Apply filters.
-	var filtered []BacklogItem
-	for _, item := range items {
-		if exportItemPassesFilters(item, statusFilter, nameFilter, tagFilter, req.PriorityMax) {
-			filtered = append(filtered, item)
-		}
-	}
+	filtered, report := applyExportFilters(items, kindFilter, statusFilter, nameFilter, tagFilter, req.PriorityMax, req.GetIncludeArchived())
 
 	// Sort by priority (ascending) then by updated (descending).
 	sort.Slice(filtered, func(i, j int) bool {
@@ -114,7 +109,7 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 	var b strings.Builder
 
 	// YAML frontmatter.
-	writeExportFrontmatter(&b, &req, now, len(filtered))
+	writeExportFrontmatter(&b, &req, now, report)
 
 	// Render each item.
 	for _, item := range filtered {
@@ -137,20 +132,23 @@ func (h *Handler) Export(w http.ResponseWriter, r *http.Request) {
 // maps on success, or writes an error response and returns ok=false. Extracting
 // this removes five branches (kind parse loop, LoadAll err, status loop with
 // validate, name/tag set builds) from Export.
-func (h *Handler) loadExportItems(w http.ResponseWriter, req *apipb.ExportBacklogRequest) ([]BacklogItem, map[BacklogStatus]bool, map[string]bool, map[string]bool, bool) {
-	var kinds []BacklogKind
+func (h *Handler) loadExportItems(w http.ResponseWriter, req *apipb.ExportBacklogRequest) ([]BacklogItem, map[BacklogKind]bool, map[BacklogStatus]bool, map[string]bool, map[string]bool, bool) {
+	var kindFilter map[BacklogKind]bool
+	if len(req.GetKinds()) > 0 {
+		kindFilter = make(map[BacklogKind]bool, len(req.GetKinds()))
+	}
 	for _, raw := range req.GetKinds() {
 		k, err := ParseBacklogKind(raw)
 		if err != nil {
 			apierr.MapError(w, "[backlog] export", apierr.BadRequest("%s", err.Error()))
-			return nil, nil, nil, nil, false
+			return nil, nil, nil, nil, nil, false
 		}
-		kinds = append(kinds, k)
+		kindFilter[k] = true
 	}
-	items, err := h.store.LoadAll(kinds)
+	items, err := h.store.LoadAll(nil)
 	if err != nil {
 		apierr.MapError(w, "[backlog] export", apierr.Internal("failed to load backlog items"))
-		return nil, nil, nil, nil, false
+		return nil, nil, nil, nil, nil, false
 	}
 	statusFilter := defaultExportStatuses()
 	if len(req.GetStatuses()) > 0 {
@@ -158,19 +156,86 @@ func (h *Handler) loadExportItems(w http.ResponseWriter, req *apipb.ExportBacklo
 		for _, s := range req.GetStatuses() {
 			if !validateBacklogStatus(s) {
 				apierr.MapError(w, "[backlog] export", apierr.BadRequest("invalid status: %s", s))
-				return nil, nil, nil, nil, false
+				return nil, nil, nil, nil, nil, false
 			}
 			statusFilter[BacklogStatus(s)] = true
 		}
 	}
 	nameFilter := stringSetFilter(req.GetNames())
 	tagFilter := stringSetFilter(req.GetTags())
-	return items, statusFilter, nameFilter, tagFilter, true
+	return items, kindFilter, statusFilter, nameFilter, tagFilter, true
+}
+
+type exportExclusion struct {
+	Name  string
+	Rule  string
+	Count int
+}
+
+type exportFilterReport struct {
+	PreFilterTotal int
+	ItemsCount     int
+	Excluded       []exportExclusion
+}
+
+// applyExportFilters attributes every excluded item to the first filter it
+// fails. The ordered, non-overlapping counts make the frontmatter arithmetic
+// close exactly and ensure a new filter cannot remain invisible.
+func applyExportFilters(items []BacklogItem, kindFilter map[BacklogKind]bool, statusFilter map[BacklogStatus]bool, nameFilter, tagFilter map[string]bool, priorityMax *int32, includeArchived bool) ([]BacklogItem, exportFilterReport) {
+	exclusions := []exportExclusion{
+		{Name: "archived", Rule: "exclude archived records"},
+		{Name: "status", Rule: "include selected statuses"},
+	}
+	if kindFilter != nil {
+		exclusions = append(exclusions, exportExclusion{Name: "kind", Rule: "include selected kinds"})
+	}
+	if nameFilter != nil {
+		exclusions = append(exclusions, exportExclusion{Name: "name", Rule: "include selected kind/name keys"})
+	}
+	if priorityMax != nil {
+		exclusions = append(exclusions, exportExclusion{Name: "priority_max", Rule: fmt.Sprintf("priority <= %d", *priorityMax)})
+	}
+	if tagFilter != nil {
+		exclusions = append(exclusions, exportExclusion{Name: "tag", Rule: "include items matching any selected tag"})
+	}
+
+	filtered := make([]BacklogItem, 0, len(items))
+	for _, item := range items {
+		excludedBy := ""
+		switch {
+		case !includeArchived && item.ArchivedAt != nil:
+			excludedBy = "archived"
+		case !statusFilter[item.Status]:
+			excludedBy = "status"
+		case kindFilter != nil && !kindFilter[item.Kind]:
+			excludedBy = "kind"
+		case nameFilter != nil && !nameFilter[string(item.Kind)+"/"+item.Name]:
+			excludedBy = "name"
+		case priorityMax != nil && int32(item.Priority) > *priorityMax:
+			excludedBy = "priority_max"
+		case tagFilter != nil && !hasMatchingTag(item.Tags, tagFilter):
+			excludedBy = "tag"
+		}
+		if excludedBy == "" {
+			filtered = append(filtered, item)
+			continue
+		}
+		for i := range exclusions {
+			if exclusions[i].Name == excludedBy {
+				exclusions[i].Count++
+				break
+			}
+		}
+	}
+	if includeArchived {
+		exclusions[0].Rule = "include archived records"
+	}
+	return filtered, exportFilterReport{PreFilterTotal: len(items), ItemsCount: len(filtered), Excluded: exclusions}
 }
 
 // writeExportFrontmatter writes the YAML frontmatter block, including any
 // applied filters and the resulting item count.
-func writeExportFrontmatter(b *strings.Builder, req *apipb.ExportBacklogRequest, exportedAt string, itemCount int) {
+func writeExportFrontmatter(b *strings.Builder, req *apipb.ExportBacklogRequest, exportedAt string, report exportFilterReport) {
 	b.WriteString("---\n")
 	b.WriteString("version: 1\n")
 	fmt.Fprintf(b, "exported_at: %q\n", exportedAt)
@@ -189,7 +254,14 @@ func writeExportFrontmatter(b *strings.Builder, req *apipb.ExportBacklogRequest,
 	if len(req.GetTags()) > 0 {
 		fmt.Fprintf(b, "filter_tags: [%s]\n", strings.Join(req.GetTags(), ", "))
 	}
-	fmt.Fprintf(b, "items_count: %d\n", itemCount)
+	fmt.Fprintf(b, "pre_filter_total: %d\n", report.PreFilterTotal)
+	b.WriteString("excluded:\n")
+	for _, exclusion := range report.Excluded {
+		fmt.Fprintf(b, "  - filter: %q\n", exclusion.Name)
+		fmt.Fprintf(b, "    rule: %q\n", exclusion.Rule)
+		fmt.Fprintf(b, "    count: %d\n", exclusion.Count)
+	}
+	fmt.Fprintf(b, "items_count: %d\n", report.ItemsCount)
 	b.WriteString("---\n\n")
 }
 
@@ -289,10 +361,19 @@ func renderItem(b *strings.Builder, h *Handler, item BacklogItem, includePRD, in
 		renderRequirements(b, itemDir)
 	}
 
-	// Notes section placeholder.
+	// Notes are an editable round-trip subsection. The marker is the parser's
+	// boundary; the human-facing heading stays outside it so it is not persisted
+	// into notes.md.
 	if includeNotes {
 		b.WriteString("### Notes\n\n")
-		b.WriteString("_No notes._\n\n")
+		fmt.Fprintf(b, "<!-- notes:%s/%s -->\n", item.Kind, item.Name)
+		notes, err := os.ReadFile(filepath.Join(itemDir, "notes.md"))
+		if err == nil && strings.TrimSpace(string(notes)) != "" {
+			b.WriteString(strings.TrimSpace(string(notes)))
+			b.WriteString("\n\n")
+		} else {
+			b.WriteString("_No notes._\n\n")
+		}
 	}
 
 	b.WriteString("---\n\n")

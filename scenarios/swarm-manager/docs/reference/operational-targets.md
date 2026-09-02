@@ -39,9 +39,9 @@ References:
 - [CODE: api/internal/execution/preflight.go]
 
 ### OT-P0-005 - Strategy-selectable execution
-Status: In progress — `phased-plan-drain` and `until-drain` are declared and
-exposed with operator-facing descriptions and cost bands. End-to-end live
-execution and substrate-resolution evidence remain outstanding.
+Status: In progress — `phased-plan-drain` is the single declared fallback of
+record and is exposed with operator-facing description and cost. End-to-end
+live execution evidence remains outstanding.
 References:
 - [CODE: api/internal/execution/service_queue.go]
 - [CODE: api/internal/execution/strategies.go]

@@ -73,7 +73,10 @@ export type Settings = Omit<
   fixBeforeFeature: FixBeforeFeatureMode;
   /** Governed automatic backlog filing for maintenance findings. */
   autoFiler: AutoFilerSettings;
+  autonomyGateModes: Record<string, AutonomyGateMode>;
 };
+
+export type AutonomyGateMode = "manual" | "suggest" | "auto";
 
 /**
  * Fix-before-feature gate modes.
@@ -139,6 +142,7 @@ export interface PolicyControlsView {
   reviewRequireTests: boolean;
   agentMaxTurns: number;
   agentTimeoutSeconds: number;
+  autonomyGateModes: Record<string, AutonomyGateMode>;
 }
 
 /**

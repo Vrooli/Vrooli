@@ -8,11 +8,14 @@ These docs would answer: *what is this readiness check, when does it apply, when
 
 They would **not** answer: *step-by-step procedure for applying it.* That belongs in the paired skill.
 
-## Status: stub
+## Status: v1
 
-This registry currently has **no entries**. It exists to reserve the canonical home for individual readiness checks once GCT readiness dimensions stabilize and individual checks become candidate skills.
+This registry contains the readiness-check canon used by deployment-manager's
+deployment-time aggregator. Each check has a paired reasoning document and
+procedure skill. The checklist is declarative; adding a check does not require
+a schema or Test Genie phase change.
 
-The registry's shape — paired doc + skill per check — mirrors the `methods/investigation/` and `methods/audit/` siblings. Adoption rules below apply when the first concrete entry lands; until then, this stub is the only file.
+The registry's shape — paired doc + skill per check — mirrors the `methods/investigation/` and `methods/audit/` siblings. The v1 entries are the canonical reasoning layer for the deployment-manager checklist; procedures live in the paired prompt-manager skills.
 
 ## Why this is intentional asymmetry
 
@@ -22,13 +25,13 @@ The scenario-qa team's three technique registries are at deliberately different 
 |---|---|---|
 | `methods/audit/` | 7 entries (full) | Seven `quality-auditor` audit lenses already had paired skills before this PoR was authored. Closing the `skillless canon` smell on them was a single mechanical pass. |
 | `methods/investigation/` | 1 entry (`scientific-debugging`) | Default investigation method; future entries (bisect-debugging, minimal-reproduction, differential-trace, etc.) graduate via `meta-self-improvement` decisions when the bug-investigator's audit log surfaces graduation candidates. |
-| `methods/readiness/` (this folder) | 0 entries (stub) | GCT readiness dimensions are externally driven — by the GCT scenario itself, not by Vrooli skills. The right registry shape isn't yet known until those dimensions stabilize or are replaced by an internal Vrooli equivalent. Stubbing now reserves the home. |
+| `methods/readiness/` (this folder) | 21 entries (v1) | Deployment-manager owns the declarative checklist and consumes producer signals; paired docs and skills provide consistent review reasoning and procedure. |
 
 Cross-reference: scenario-qa README `## Future PoR work` enumerates this and other gaps.
 
 ## Doc + paired skill discipline
 
-When this registry receives its first entry, the same mandatory rule applies (mirrored from [`docs/marketing/catalogs/post-types/README.md`](../../../marketing/post-types/README.md)):
+The same mandatory rule applies (mirrored from [`docs/marketing/catalogs/post-types/README.md`](../../../marketing/post-types/README.md)):
 
 > Every entry ships as `doc + paired skill`. This is a hard rule, not a recommendation. Neither half is optional, and neither half replaces the other. The doc holds *reasoning*; the skill holds *procedure*. A doc with no skill is a stale shrine. A skill with no doc is brittle.
 
@@ -46,7 +49,7 @@ Each check has a status:
 
 ## Files in this folder
 
-None yet — populated as GCT dimensions stabilize.
+Each of the 21 checklist identifiers has one markdown method document here. The paired skills are registered under `scenarios/prompt-manager/store/skills/packs/core/readiness-*/`.
 
 ## Adding a check
 

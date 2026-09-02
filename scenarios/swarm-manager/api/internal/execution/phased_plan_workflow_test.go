@@ -3,6 +3,8 @@ package execution
 import (
 	"context"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"swarm-manager/internal/transitionrun"
@@ -11,6 +13,8 @@ import (
 
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	executionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/execution"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/plan-manager/v1/shared"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -43,6 +47,122 @@ func mustWorkflowOutput(t *testing.T, result map[string]any) *structpb.Value {
 		t.Fatal(err)
 	}
 	return output
+}
+
+func TestPhasedPlanFrontierPinsAuthoredContentNotRuntimeRendering(t *testing.T) {
+	item := backlogItem{Kind: "execute", Name: "stable-frontier"}
+	record := Record{ExecutionID: "swarm-exec-1"}
+	base := &sharedv1.Plan{
+		Id: "plan-1", Slug: "stable-frontier", Title: "Stable frontier", Purpose: "Prove the rail.",
+		Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT, ContentHash: "runtime-hash-1", UpdatedAt: "2026-01-01T00:00:00Z",
+		WorkPosture: sharedv1.WorkPosture_WORK_POSTURE_GREENFIELD, WorkPostureDetail: "first computed explanation",
+		Phases: []*sharedv1.Phase{{Id: "phase-1", Order: 1, Title: "Proof", Status: sharedv1.PhaseStatus_PHASE_STATUS_TODO, Steps: []string{"Run the governed check."}, BaselineScope: []string{"computed command one"}}},
+	}
+	before, err := buildPhasedPlanSnapshot(item, record, "plan-1", "/repo", renderedPlanContent{Plan: base})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeChanged := proto.Clone(base).(*sharedv1.Plan)
+	runtimeChanged.Status = sharedv1.PlanStatus_PLAN_STATUS_COMPLETE
+	runtimeChanged.ContentHash = "runtime-hash-2"
+	runtimeChanged.UpdatedAt = "2026-01-02T00:00:00Z"
+	runtimeChanged.WorkPostureDetail = "different computed explanation"
+	runtimeChanged.Phases[0].Status = sharedv1.PhaseStatus_PHASE_STATUS_DONE
+	runtimeChanged.Phases[0].BaselineScope = []string{"computed command two"}
+	afterStatusChange, err := buildPhasedPlanSnapshot(item, record, "plan-1", "/repo", renderedPlanContent{Plan: runtimeChanged})
+	if err != nil {
+		t.Fatal(err)
+	}
+	authoredChanged := proto.Clone(runtimeChanged).(*sharedv1.Plan)
+	authoredChanged.Phases[0].Steps = []string{"Run a different check."}
+	afterAuthoredChange, err := buildPhasedPlanSnapshot(item, record, "plan-1", "/repo", renderedPlanContent{Plan: authoredChanged})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.FrontierDigest != afterStatusChange.FrontierDigest {
+		t.Fatalf("runtime status changed frontier: before=%s after=%s", before.FrontierDigest, afterStatusChange.FrontierDigest)
+	}
+	if before.FrontierDigest == afterAuthoredChange.FrontierDigest {
+		t.Fatal("authored plan change did not invalidate frontier")
+	}
+}
+
+func TestAuthoredPlanFrontierPreservesLiteralHTMLCharacters(t *testing.T) {
+	frontier, err := authoredPlanFrontierJSON(&sharedv1.Plan{
+		Id:    "plan-1",
+		Title: "Execute <execution> & verify > output",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(frontier, `\\u003c`) || strings.Contains(frontier, `\\u003e`) || strings.Contains(frontier, `\\u0026`) {
+		t.Fatalf("frontier used HTML escaping: %s", frontier)
+	}
+	if !strings.Contains(frontier, `"title":"Execute <execution> & verify > output"`) {
+		t.Fatalf("frontier lost literal HTML characters: %s", frontier)
+	}
+}
+
+func TestRebasePhasedPlanWorkflowRequiresStableFrontier(t *testing.T) {
+	service, workflow, started, _ := setupPhasedPlanExecution(t, "rebase-plan")
+	correlation := workflowCorrelationFor(t, service, started)
+	legacyVersion := correlation.EntityVersion
+	if _, err := service.transitionRunner.UpdateCorrelation(correlation.ExecutionID, func(value *transitionrun.Correlation) error {
+		value.EntityVersion = "sha256:legacy-lifecycle-inclusive-version"
+		return nil
+	}); err != nil {
+		t.Fatalf("seed legacy correlation: %v", err)
+	}
+	rebased, err := service.RebasePhasedPlanWorkflow(context.Background(), started.ExecutionID, "operator:codex", "Migrate legacy lifecycle-inclusive subject version after canonicalization fix.")
+	if err != nil {
+		t.Fatalf("rebase: %v", err)
+	}
+	if rebased.Status != started.Status {
+		t.Fatalf("rebase changed lifecycle status: before=%s after=%s", started.Status, rebased.Status)
+	}
+	updated := workflowCorrelationFor(t, service, rebased)
+	if updated.EntityVersionRebasedBy != "operator:codex" || updated.EntityVersionRebasedAt == "" || updated.EntityVersionRebasedReason == "" {
+		t.Fatalf("rebase provenance missing: %#v", updated)
+	}
+	if !slices.Contains(updated.DeclaredOutcomes, "complete") {
+		t.Fatalf("rebase did not migrate declared outcomes: %#v", updated.DeclaredOutcomes)
+	}
+	if updated.FrontierDigest != correlation.FrontierDigest || updated.EntityVersion == "sha256:legacy-lifecycle-inclusive-version" || updated.EntityVersion != legacyVersion {
+		t.Fatalf("unexpected rebase correlation: before=%#v after=%#v", correlation, updated)
+	}
+	if workflow.collectCalls != 0 {
+		t.Fatalf("rebase should not collect or apply workflow result: %d", workflow.collectCalls)
+	}
+}
+
+func TestPhasedPlanEntityVersionIgnoresBacklogLifecycleMetadata(t *testing.T) {
+	item := backlogItem{Name: "stable", Kind: "fix", Title: "Stable", Status: "queued", Updated: "2026-01-01T00:00:00Z"}
+	record := Record{ExecutionID: "execution-1"}
+	plan := &sharedv1.Plan{Id: "plan-1", Title: "Plan"}
+	queued, err := buildPhasedPlanSnapshot(item, record, "plan-1", "/repo", renderedPlanContent{Plan: plan})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lifecycleChanged := item
+	lifecycleChanged.Status = "in_progress"
+	lifecycleChanged.Updated = "2026-01-01T00:01:00Z"
+	lifecycleChanged.PlanAcceptance = &planAcceptance{Actor: "operator", AcceptedAt: "2026-01-01T00:00:00Z", PlanContentHash: "sha256:plan", SubjectVersion: "sha256:acceptance"}
+	started, err := buildPhasedPlanSnapshot(lifecycleChanged, record, "plan-1", "/repo", renderedPlanContent{Plan: plan})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queued.EntityVersion != started.EntityVersion {
+		t.Fatalf("lifecycle metadata changed entity version: queued=%s started=%s", queued.EntityVersion, started.EntityVersion)
+	}
+	authoredChanged := lifecycleChanged
+	authoredChanged.Title = "Edited"
+	edited, err := buildPhasedPlanSnapshot(authoredChanged, record, "plan-1", "/repo", renderedPlanContent{Plan: plan})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if queued.EntityVersion == edited.EntityVersion {
+		t.Fatal("authored backlog edit did not invalidate entity version")
+	}
 }
 
 func setupPhasedPlanExecution(t *testing.T, name string) (*Service, *stubPhasedPlanWorkflow, Record, string) {
@@ -231,8 +351,8 @@ func TestApplyPhasedPlanWorkflow_BudgetExhaustedIsResumable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("apply budget exhaustion: %v", err)
 	}
-	if result.Record.Status != StatusNeedsReview {
-		t.Fatalf("status=%s, want resumable needs_review", result.Record.Status)
+	if result.Record.Status != StatusBudgetExhausted {
+		t.Fatalf("status=%s, want budget_exhausted", result.Record.Status)
 	}
 	if result.Record.FailureReason != "budget_exhausted" {
 		t.Fatalf("failure reason=%q, want terminal code", result.Record.FailureReason)

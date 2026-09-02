@@ -65,6 +65,8 @@ export interface LaneStatus {
   active: number;
   capacity: number;
   queue: number;
+  holders?: string[];
+  reason?: string;
 }
 
 export interface QueueStatus {

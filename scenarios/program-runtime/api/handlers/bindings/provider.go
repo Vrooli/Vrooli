@@ -38,6 +38,7 @@ type corpusRecord struct {
 	Score            float64  `json:"score"`
 	IndexTS          string   `json:"index_timestamp"`
 	CalledBindingIDs []string `json:"called_binding_ids,omitempty"`
+	Tier             string   `json:"tier,omitempty"`
 }
 
 type corpusResponse struct {
@@ -131,7 +132,11 @@ func LibraryCorpusHandler(repo *library.Repository) http.Handler {
 			if program == nil {
 				continue
 			}
-			record := corpusRecord{ID: program.GetName(), BindingID: program.GetName(), Scenario: "program-runtime", Group: "library", Command: program.GetName(), Effect: "read", Title: program.GetName(), Snippet: program.GetDescription(), Path: program.GetName(), IndexTS: stamp, CalledBindingIDs: program.GetCalledBindingIds()}
+			snippet := strings.TrimSpace(program.GetDescription())
+			if program.GetTier() != "" {
+				snippet += " — tier: " + program.GetTier()
+			}
+			record := corpusRecord{ID: program.GetName(), BindingID: program.GetName(), Scenario: "program-runtime", Group: "library", Command: program.GetName(), Effect: "read", Title: program.GetName(), Snippet: snippet, Path: program.GetName(), IndexTS: stamp, CalledBindingIDs: program.GetCalledBindingIds(), Tier: program.GetTier()}
 			record.Score = lexicalScore(request.Query, record)
 			if strings.TrimSpace(request.Query) != "" && record.Score == 0 {
 				continue
@@ -139,6 +144,9 @@ func LibraryCorpusHandler(repo *library.Repository) http.Handler {
 			rows = append(rows, scoredRecord{record: record, score: record.Score})
 		}
 		sort.SliceStable(rows, func(i, j int) bool {
+			if rows[i].record.Tier != rows[j].record.Tier {
+				return rows[i].record.Tier == "promoted"
+			}
 			if rows[i].score == rows[j].score {
 				return rows[i].record.ID < rows[j].record.ID
 			}

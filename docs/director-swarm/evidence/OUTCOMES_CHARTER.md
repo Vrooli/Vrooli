@@ -15,18 +15,25 @@ This charter does **not** duplicate what Command Center will render. Where a spe
 
 ## Sensor map
 
-Which surface observes each outcome category today (mirrors the sensor discipline in `path:scenarios/infrastructure-manager/docs/concepts/COVERAGE-MODEL.md`: a category with no sensor cannot be regulated). Read rule: `GET /api/v1/dashboards/<id>` on command-center is the live sensor for a category; `GET /api/v1/gaps` lists **only** metrics whose pipeline is missing — a metric absent from the gaps registry and present on its dashboard is live. Both sensors are HTTP-only today: the command-center CLI exposes no `gaps` or `dashboards` verb and the scenario runs on demand (`vrooli scenario start command-center`) — that CLI gap is a standing `outcome-gap` candidate.
+Which surface observes each outcome category today (mirrors the sensor discipline in
+`path:scenarios/infrastructure-manager/docs/concepts/COVERAGE-MODEL.md`: a category with no
+sensor cannot be regulated). The live sensor is the Command Center read surface, not a
+hand-maintained status table:
 
-| Category (dashboard id) | Observed 2026-07-23 | Actuator when the sensor shows a hole |
+| Category | Live surface | Gap/focus surface |
 |---|---|---|
-| Mission Control (`mission-control`) | Live except LPBS revenue metrics (registry `gap`) | `outcome-gap` naming the missing LPBS endpoint |
-| The Hive (`hive`) | Live except usage frequency (registry `gap`; usage is collected nowhere yet) | `outcome-gap` |
-| The Forge (`forge`) | Live — no gaps-registry entries | `outcome-direction` on measured evidence |
-| Ledger (`ledger`) | LPBS-backed rows `gap`/`partial` pre-first-customer (expected; see phase note below) | `outcome-gap`; expected to shrink once revenue starts |
-| Broadcast (`broadcast`) | All tracked metrics `gap` — no external-platform integrations exist | `outcome-gap` |
-| Panorama (`panorama`) | Composites `partial`/`gap`; each resolves through its input categories above | resolves via the rows above |
+| Mission Control | [`GET /api/v1/rooms/mission-control`](../../scenarios/command-center/docs/reference/api-endpoints.md) | [`GET /api/v1/gaps`](/api/v1/gaps) and [`GET /api/v1/focus`](/api/v1/focus) |
+| The Hive | `GET /api/v1/rooms/hive` | `GET /api/v1/gaps` and `GET /api/v1/focus` |
+| The Forge | `GET /api/v1/rooms/forge` | `GET /api/v1/gaps` and `GET /api/v1/focus` |
+| Ledger | `GET /api/v1/rooms/ledger` | `GET /api/v1/gaps` and `GET /api/v1/focus` |
+| Broadcast | `GET /api/v1/rooms/broadcast` | `GET /api/v1/gaps` and `GET /api/v1/focus` |
+| Panorama | `GET /api/v1/rooms/panorama` | `GET /api/v1/gaps` and `GET /api/v1/focus` |
 
-Honesty-flag vocabulary, three levels: registry **`gap`** = sensor named, no data pipeline; registry **`partial`** = raw data exists, aggregation missing; **`pending-command-center`** = the metric is not in the registry at all — naming it in a prediction block is precisely how it gets registered (prediction-ledger rule 1). Re-observe and update the middle column through approved decisions, never silent edits.
+The same reads are available through the read-only `command-center` CLI verbs `board`,
+`room`, `focus`, `open-loop`, `gaps`, and `describe`. Honesty flags remain machine-derived:
+`gap` means the sensor is named but no data pipeline exists, `partial` means raw data exists
+but aggregation is incomplete, and `pending-command-center` means an outcome is not yet in
+the registry.
 
 ## Outcome categories
 

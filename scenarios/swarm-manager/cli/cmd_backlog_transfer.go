@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,7 @@ func (a *App) cmdBacklogExport(args []string) error {
 	priorityMax := fs.Int("priority-max", 0, "Only items with priority <= this value")
 	tags := fs.String("tags", "", "Comma-separated tags (any match)")
 	noPRD := fs.Bool("no-prd", false, "Exclude PRD content (smaller file)")
+	includeArchived := fs.Bool("include-archived", false, "Include archived records")
 	outPath := fs.String("out", "", "Output file path (default: backlog-export-YYYY-MM-DD.md)")
 	jsonOut := cliutil.JSONFlag(fs)
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
@@ -48,6 +50,9 @@ func (a *App) cmdBacklogExport(args []string) error {
 	if *noPRD {
 		includePrd := false
 		payload["includePrd"] = includePrd
+	}
+	if *includeArchived {
+		payload["includeArchived"] = true
 	}
 
 	bodyBytes, err := json.Marshal(payload)
@@ -89,6 +94,158 @@ func (a *App) cmdBacklogExport(args []string) error {
 		cliCommand("backlog", "import", "--file", output, "--apply"),
 	})
 	return nil
+}
+
+type exportCountExclusion struct {
+	Filter string `json:"filter"`
+	Rule   string `json:"rule"`
+	Count  int    `json:"count"`
+}
+
+type exportCountMetadata struct {
+	PreFilterTotal int                    `json:"pre_filter_total"`
+	ItemsCount     int                    `json:"items_count"`
+	Excluded       []exportCountExclusion `json:"excluded"`
+}
+
+type backlogCountReconciliation struct {
+	RecordSurface struct {
+		Basis            string                 `json:"basis"`
+		OverviewTotal    int                    `json:"overview_total"`
+		ExportPreFilter  int                    `json:"export_pre_filter_total"`
+		ExportItems      int                    `json:"export_items_count"`
+		ExportExcluded   []exportCountExclusion `json:"export_excluded"`
+		TotalsAgree      bool                   `json:"totals_agree"`
+		ArithmeticCloses bool                   `json:"arithmetic_closes"`
+	} `json:"record_surface"`
+	EventSurface struct {
+		Basis                string `json:"basis"`
+		EventCount           int64  `json:"event_count"`
+		CreatedLast7Days     int    `json:"created_last_7_days"`
+		CompletedLast7Days   int    `json:"completed_last_7_days"`
+		DashboardBacklogSize int    `json:"dashboard_backlog_size"`
+		CompletedAllTime     int    `json:"completed_all_time"`
+	} `json:"event_surface"`
+}
+
+func (a *App) cmdBacklogReconcileCounts(args []string) error {
+	fs := flag.NewFlagSet("backlog reconcile-counts", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+
+	overviewBody, err := a.core.Get("/overview", nil)
+	if err != nil {
+		return err
+	}
+	var overview OverviewResponse
+	if err := json.Unmarshal(overviewBody, &overview); err != nil {
+		return fmt.Errorf("parse overview counts: %w", err)
+	}
+	exportBody, err := a.core.Request("POST", "/backlog/export", nil, json.RawMessage(`{}`))
+	if err != nil {
+		return err
+	}
+	metadata, err := parseExportCountMetadata(exportBody)
+	if err != nil {
+		return err
+	}
+	statsBody, err := a.fetchStats("")
+	if err != nil {
+		return err
+	}
+	var stats StatsResponse
+	if err := json.Unmarshal(statsBody, &stats); err != nil {
+		return fmt.Errorf("parse event-derived stats: %w", err)
+	}
+
+	var report backlogCountReconciliation
+	report.RecordSurface.Basis = "current backlog records; overview includes archived, export applies the disclosed exclusion ledger"
+	report.RecordSurface.OverviewTotal = overview.Summary.TotalItems
+	report.RecordSurface.ExportPreFilter = metadata.PreFilterTotal
+	report.RecordSurface.ExportItems = metadata.ItemsCount
+	report.RecordSurface.ExportExcluded = metadata.Excluded
+	report.RecordSurface.TotalsAgree = overview.Summary.TotalItems == metadata.PreFilterTotal
+	excluded := 0
+	for _, item := range metadata.Excluded {
+		excluded += item.Count
+	}
+	report.RecordSurface.ArithmeticCloses = metadata.PreFilterTotal-excluded == metadata.ItemsCount
+	report.EventSurface.Basis = "append-only lifecycle events; throughput windows are flows, not current-record totals"
+	report.EventSurface.EventCount = stats.EventCount
+	report.EventSurface.CreatedLast7Days = stats.Throughput.CreatedLast7Days
+	report.EventSurface.CompletedLast7Days = stats.Throughput.CompletedLast7Days
+	report.EventSurface.DashboardBacklogSize = stats.Dashboard.TotalBacklogSize
+	report.EventSurface.CompletedAllTime = stats.Dashboard.TotalCompletedAllTime
+
+	if *jsonOut {
+		encoded, _ := json.MarshalIndent(report, "", "  ")
+		fmt.Println(string(encoded))
+		return nil
+	}
+	printSection("Record-derived counts")
+	fmt.Printf("  Basis: %s\n", report.RecordSurface.Basis)
+	fmt.Printf("  Overview total: %d | Export pre-filter: %d | Exported: %d\n", report.RecordSurface.OverviewTotal, report.RecordSurface.ExportPreFilter, report.RecordSurface.ExportItems)
+	for _, item := range report.RecordSurface.ExportExcluded {
+		fmt.Printf("  Excluded by %s: %d (%s)\n", item.Filter, item.Count, item.Rule)
+	}
+	fmt.Printf("  Totals agree: %t | Arithmetic closes: %t\n", report.RecordSurface.TotalsAgree, report.RecordSurface.ArithmeticCloses)
+	printSection("Event-derived counts")
+	fmt.Printf("  Basis: %s\n", report.EventSurface.Basis)
+	fmt.Printf("  Events: %d | Created 7d: %d | Completed 7d: %d\n", report.EventSurface.EventCount, report.EventSurface.CreatedLast7Days, report.EventSurface.CompletedLast7Days)
+	return nil
+}
+
+func parseExportCountMetadata(body []byte) (exportCountMetadata, error) {
+	var metadata exportCountMetadata
+	var current *exportCountExclusion
+	inFrontmatter := false
+	for _, raw := range strings.Split(string(body), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "---" {
+			if inFrontmatter {
+				break
+			}
+			inFrontmatter = true
+			continue
+		}
+		if !inFrontmatter {
+			continue
+		}
+		parseInt := func(prefix string) (int, error) {
+			return strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, prefix)))
+		}
+		switch {
+		case strings.HasPrefix(line, "pre_filter_total:"):
+			value, parseErr := parseInt("pre_filter_total:")
+			if parseErr != nil {
+				return metadata, fmt.Errorf("parse export pre-filter total: %w", parseErr)
+			}
+			metadata.PreFilterTotal = value
+		case strings.HasPrefix(line, "items_count:"):
+			value, parseErr := parseInt("items_count:")
+			if parseErr != nil {
+				return metadata, fmt.Errorf("parse export item count: %w", parseErr)
+			}
+			metadata.ItemsCount = value
+		case strings.HasPrefix(line, "- filter:"):
+			metadata.Excluded = append(metadata.Excluded, exportCountExclusion{Filter: strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "- filter:")), `"`)})
+			current = &metadata.Excluded[len(metadata.Excluded)-1]
+		case current != nil && strings.HasPrefix(line, "rule:"):
+			current.Rule = strings.Trim(strings.TrimSpace(strings.TrimPrefix(line, "rule:")), `"`)
+		case current != nil && strings.HasPrefix(line, "count:"):
+			value, parseErr := parseInt("count:")
+			if parseErr != nil {
+				return metadata, fmt.Errorf("parse export exclusion count: %w", parseErr)
+			}
+			current.Count = value
+		}
+	}
+	if len(metadata.Excluded) == 0 {
+		return metadata, fmt.Errorf("export frontmatter does not disclose exclusions")
+	}
+	return metadata, nil
 }
 
 func (a *App) cmdBacklogImport(args []string) error {

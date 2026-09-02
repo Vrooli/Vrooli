@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"swarm-manager/internal/agentmanager"
 	"swarm-manager/internal/dispatch"
@@ -46,7 +47,8 @@ type ServiceConfig struct {
 	// LanePolicy returns the concurrency cap for each phase-kind lane. If
 	// nil, the service spawns without lane gating (legacy / test fallback);
 	// production wiring always supplies one.
-	LanePolicy LanePolicy
+	LanePolicy     LanePolicy
+	NeedsReviewTTL time.Duration
 }
 
 // Service projects Agent Manager Run activity for human-led sessions. Structured
@@ -60,15 +62,20 @@ type Service struct {
 	eventReader     runEventReader
 	sessionSpawner  sessionSpawner
 	lanePolicy      LanePolicy
+	needsReviewTTL  time.Duration
 	eventDispatcher dispatch.NodeDispatcher
 	mu              sync.Mutex
 }
 
 func NewService(cfg ServiceConfig) *Service {
 	svc := &Service{
-		store:        NewStore(cfg.StorePath),
-		agentService: cfg.AgentService,
-		lanePolicy:   cfg.LanePolicy,
+		store:          NewStore(cfg.StorePath),
+		agentService:   cfg.AgentService,
+		lanePolicy:     cfg.LanePolicy,
+		needsReviewTTL: cfg.NeedsReviewTTL,
+	}
+	if svc.needsReviewTTL <= 0 {
+		svc.needsReviewTTL = 24 * time.Hour
 	}
 	if continuer, ok := cfg.AgentService.(runContinuer); ok {
 		svc.continuer = continuer
@@ -149,7 +156,49 @@ func (s *Service) LaneActiveCounts() (map[Lane]int, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := s.reapExpiredNeedsReviewLocked(records, time.Now()); err != nil {
+		return nil, err
+	}
 	return LaneActiveCounts(records), nil
+}
+
+// LaneHolder identifies an active record that contributes to a lane count.
+type LaneHolder struct {
+	ActivityID string `json:"activity_id"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// LaneHolders returns the active records grouped by lane for operator-facing
+// saturation explanations.
+func (s *Service) LaneHolders() (map[Lane][]LaneHolder, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	records, err := s.store.Load()
+	if err != nil {
+		return nil, err
+	}
+	if err := s.reapExpiredNeedsReviewLocked(records, time.Now()); err != nil {
+		return nil, err
+	}
+	holders := make(map[Lane][]LaneHolder, len(Lanes()))
+	for _, lane := range Lanes() {
+		holders[lane] = []LaneHolder{}
+	}
+	for _, record := range records {
+		if !isActiveStatus(record.Status) {
+			continue
+		}
+		lane, err := LaneOf(record.Purpose, record.PhaseKind)
+		if err != nil {
+			continue
+		}
+		reason := record.FailureReason
+		if reason == "" {
+			reason = string(record.Status)
+		}
+		holders[lane] = append(holders[lane], LaneHolder{ActivityID: record.ActivityID, Reason: reason})
+	}
+	return holders, nil
 }
 
 // checkLaneCapacityLocked returns ErrLaneSaturated when the lane derived

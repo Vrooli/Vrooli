@@ -111,7 +111,8 @@ type Settings struct {
 	FixBeforeFeature string `json:"fix_before_feature"`
 
 	// AutoFiler governs automatic maintenance-intake filing.
-	AutoFiler AutoFilerSettings `json:"auto_filer"`
+	AutoFiler         AutoFilerSettings `json:"auto_filer"`
+	AutonomyGateModes map[string]string `json:"autonomy_gate_modes"`
 }
 
 // AutoFilerSettings controls governed automatic backlog filing for
@@ -164,8 +165,9 @@ type SettingsPatch struct {
 	ExecutionCostCapPerRun        *float64       `json:"execution_cost_cap_per_run,omitempty"`
 	CostPerTurnEstimate           *float64       `json:"cost_per_turn_estimate,omitempty"`
 
-	FixBeforeFeature *string                 `json:"fix_before_feature,omitempty"`
-	AutoFiler        *AutoFilerSettingsPatch `json:"auto_filer,omitempty"`
+	FixBeforeFeature  *string                 `json:"fix_before_feature,omitempty"`
+	AutoFiler         *AutoFilerSettingsPatch `json:"auto_filer,omitempty"`
+	AutonomyGateModes map[string]string       `json:"autonomy_gate_modes,omitempty"`
 }
 
 // AutoFilerSettingsPatch overlays a subset of the auto-filer block.
@@ -238,8 +240,9 @@ func DefaultSettings() Settings {
 		ExecutionCostCapPerRun:        0,
 		CostPerTurnEstimate:           0.10,
 
-		FixBeforeFeature: FixBeforeFeatureSuggest,
-		AutoFiler:        defaultAutoFilerSettings(),
+		FixBeforeFeature:  FixBeforeFeatureSuggest,
+		AutoFiler:         defaultAutoFilerSettings(),
+		AutonomyGateModes: map[string]string{},
 	}
 }
 
@@ -437,8 +440,24 @@ func normalizeSettings(settings Settings) Settings {
 		settings.FixBeforeFeature = FixBeforeFeatureSuggest
 	}
 	settings.AutoFiler = normalizeAutoFilerSettings(settings.AutoFiler)
+	settings.AutonomyGateModes = normalizeAutonomyGateModes(settings.AutonomyGateModes)
 
 	return settings
+}
+
+func normalizeAutonomyGateModes(modes map[string]string) map[string]string {
+	out := make(map[string]string, len(modes))
+	for id, mode := range modes {
+		id, mode = strings.TrimSpace(id), strings.TrimSpace(mode)
+		if id == "" {
+			continue
+		}
+		switch mode {
+		case "manual", "suggest", "auto":
+			out[id] = mode
+		}
+	}
+	return out
 }
 
 func normalizeAutoFilerSettings(settings AutoFilerSettings) AutoFilerSettings {
@@ -611,6 +630,9 @@ func applyGovernancePatch(current *Settings, patch SettingsPatch) {
 	}
 	if patch.AutoFiler != nil {
 		current.AutoFiler = applyAutoFilerPatch(current.AutoFiler, *patch.AutoFiler)
+	}
+	if patch.AutonomyGateModes != nil {
+		current.AutonomyGateModes = normalizeAutonomyGateModes(patch.AutonomyGateModes)
 	}
 }
 

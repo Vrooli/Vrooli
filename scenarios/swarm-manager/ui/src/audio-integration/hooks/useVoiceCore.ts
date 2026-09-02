@@ -2,7 +2,7 @@ import {
   useVoiceInput as useAdoptedVoiceInput,
   type VoiceInputOptions as AdoptedVoiceInputOptions,
   type VoiceCapabilityProbe,
-} from "@vrooli/react-component-library/useVoiceInput/3.0.0";
+} from "@vrooli/react-component-library/useVoiceInput/3";
 import { voiceCoreServices } from "../voiceCoreServices";
 
 // HOST DIFFERENCE: this hook only injects swarm's service bundle; state

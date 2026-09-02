@@ -673,11 +673,24 @@ class Namespace:
         environment: dict[str, Any] = {
             "vrooli": self,
             "Handle": Handle,
+            "gather": self.gather,
+            "discover": self.discover,
+            "describe": self.describe,
+            "reachable": self.reachable,
+            "lib": self.lib,
             "__name__": "program_runtime_library",
             "intent": kwargs.pop("intent", ""),
             "text": kwargs.pop("text", ""),
             "__builtins__": dict(_SAFE_BUILTINS),
         }
+        # Promoted source is executed in the same governed namespace as a
+        # submitted program. Expose the qualified scenario namespaces as
+        # locals too, because the authoring surface deliberately permits a
+        # bare name when it is unambiguous (for example
+        # ``agent_manager.measures.run_volume()``).
+        for scenario in self._bindings:
+            if scenario not in environment:
+                environment[scenario] = getattr(self, scenario)
         if kwargs:
             raise TypeError(f"unknown library inputs: {', '.join(sorted(kwargs))}")
         exec(compile(str(spec.get("source", "")), f"<library:{spec.get('name', 'unknown')}>", "exec"), environment, environment)

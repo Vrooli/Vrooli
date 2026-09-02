@@ -107,7 +107,9 @@ type UpdateRequest struct {
 }
 
 // Folders defines the valid folder names for skill storage.
-var Folders = []string{"core", "local", "drafts"}
+// "scenario" is readable but never writable: scenario-owned skills live in
+// scenarios/<name>/skills/<name>/SKILL.md and are owned by that scenario.
+var Folders = []string{"core", "local", "drafts", "scenario"}
 
 // WritableFolders defines folders where skills can be created/updated/deleted.
 var WritableFolders = []string{"core", "local", "drafts"}

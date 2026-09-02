@@ -441,6 +441,13 @@ func (s *Server) setupRoutes() {
 	decisionProvider := sessionDecisionProvider{sessions: s.agentSessionSvc}
 	backlogHandler.SetDecisionCountProvider(decisionProvider)
 	goalService := s.registerGoalsRoutes(s.dataRoot, backlogHandler)
+	var releaseRankReader goals.DeliverableRankReader
+	if rankReader, err := goals.NewOfferDeskRankReader(context.Background()); err != nil {
+		log.Printf("offer desk release ranks unavailable; authored goal priorities remain active: %v", err)
+	} else {
+		goalService.SetDeliverableRankReader(rankReader)
+		releaseRankReader = rankReader
+	}
 	attemptDecisions := attempt.NewRouter()
 	if err := attemptDecisions.Register(agentsessions.AttemptSubjectProposal, agentsessions.NewAttemptDecider(s.agentSessionSvc)); err != nil {
 		panic(fmt.Errorf("register agent-session proposal attempt decider: %w", err))
@@ -452,6 +459,7 @@ func (s *Server) setupRoutes() {
 	// registered on the server so plan routes and graph invalidation can reach
 	// the same instance.
 	s.nextActions = newNextActionProjectionCache(feed)
+	s.nextActions.SetRefreshOnRead(releaseRankReader != nil)
 	s.router.HandleFunc("/api/v1/next-actions/feed", s.nextActions.NextActionsFeed).Methods("GET")
 	s.registerCapturesRoutes(s.cacheRoot, backlogHandler)
 	s.registerRecordsRoutes(s.dataRoot, scenariosDir)
@@ -477,7 +485,22 @@ func (s *Server) setupRoutes() {
 	}
 	applyActions, inputBuilders := s.transitionRunner.Counts()
 	slog.Info("transition dispatch table verified", "workflow_apply_actions", applyActions, "deterministic_apply_actions", len(s.deterministicApplyActions()), "input_builders", inputBuilders)
-	transitioncatalog.RegisterRoutes(s.router, s.transitionRegistry, s.transitionRunner, s)
+	transitioncatalog.RegisterRoutesWithGateProjection(s.router, s.transitionRegistry, s.transitionRunner, func() (map[string]string, map[string]stats.KindRate) {
+		modes := map[string]string{}
+		if s.settingsStore != nil {
+			if current, err := s.settingsStore.Load(); err == nil {
+				for gateID, mode := range current.AutonomyGateModes {
+					modes[gateID] = mode
+				}
+			}
+		}
+		evidence := map[string]stats.KindRate{}
+		if s.statsEngine != nil {
+			_ = s.statsEngine.Refresh(context.Background())
+			evidence = s.statsEngine.GetStats().Agent.RecommendationAcceptanceByGate
+		}
+		return modes, evidence
+	}, s)
 	s.registerWorkFeedRoutes()
 	s.registerQueueRoutes(scenarioRoot)
 
@@ -958,7 +981,7 @@ func (s *Server) registerScenarioRoutes(scenariosDir string) {
 
 func (s *Server) registerSettingsRoutes(scenarioRoot string) {
 	settingsPath := filepath.Join(scenarioRoot, "config", "settings.json")
-	settingsHandler := settings.NewHandler(settingsPath)
+	settingsHandler := settings.NewHandlerWithEmitter(settingsPath, s.emitter)
 	settingsHandler.RegisterRoutes(s.router)
 	s.settingsStore = settingsHandler.GetStore()
 }

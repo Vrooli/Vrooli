@@ -52,6 +52,11 @@ type Entry struct {
 	ID, Body, FacetID, Kind, CreatedAt string
 }
 
+type EntryPage struct {
+	Entries    []Entry
+	NextCursor string
+}
+
 // WakeResult preserves the Source Ledger's bounded-view signal at the
 // prompt-manager boundary. Entries are the view; the remaining fields explain
 // whether the view is complete and which ceilings governed it.
@@ -123,15 +128,20 @@ func (c *Client) Append(ctx context.Context, scope, body, kind string) (Entry, e
 }
 
 func (c *Client) List(ctx context.Context, scope string, limit int) ([]Entry, error) {
-	response, err := c.Journal.ListEntries(ctx, connect.NewRequest(&journalv1.ListEntriesRequest{Scope: scope, Limit: int32(limit)}))
+	page, err := c.ListPage(ctx, scope, "", limit)
+	return page.Entries, err
+}
+
+func (c *Client) ListPage(ctx context.Context, scope, cursor string, limit int) (EntryPage, error) {
+	response, err := c.Journal.ListEntries(ctx, connect.NewRequest(&journalv1.ListEntriesRequest{Scope: scope, Cursor: cursor, Limit: int32(limit)}))
 	if err != nil {
-		return nil, fmt.Errorf("list source-ledger entries: %w", err)
+		return EntryPage{}, fmt.Errorf("list source-ledger entries: %w", err)
 	}
 	entries := make([]Entry, 0, len(response.Msg.GetEntries()))
 	for _, entry := range response.Msg.GetEntries() {
 		entries = append(entries, fromProto(entry))
 	}
-	return entries, nil
+	return EntryPage{Entries: entries, NextCursor: response.Msg.GetNextCursor()}, nil
 }
 
 func (c *Client) Recall(ctx context.Context, scope, query string, limit int) ([]Entry, error) {

@@ -1,22 +1,30 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
 
 type cliAgentSession struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Kind      string `json:"kind"`
-	Status    string `json:"status"`
-	RunID     string `json:"run_id,omitempty"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID                string                      `json:"id"`
+	Title             string                      `json:"title"`
+	Kind              string                      `json:"kind"`
+	Status            string                      `json:"status"`
+	RunID             string                      `json:"run_id,omitempty"`
+	CreatedAt         string                      `json:"created_at"`
+	UpdatedAt         string                      `json:"updated_at"`
+	StagedContextRefs []cliAgentSessionContextRef `json:"staged_context_refs,omitempty"`
+}
+
+type cliAgentSessionContextRef struct {
+	Type string `json:"type"`
+	Ref  string `json:"ref"`
 }
 
 type cliAgentSessionResponse struct {
@@ -43,6 +51,27 @@ type cliListAgentSessionsResponse struct {
 
 type cliDeleteAgentSessionResponse struct {
 	SessionID string `json:"session_id"`
+}
+
+type cliReapAgentSessionsResponse struct {
+	Sessions []cliAgentSession `json:"sessions"`
+	Reaped   int               `json:"reaped"`
+}
+
+type cliAgentSessionRunEvent struct {
+	Sequence  int64  `json:"sequence"`
+	CreatedAt string `json:"created_at"`
+	EventType string `json:"event_type"`
+	Role      string `json:"role"`
+	Content   string `json:"content"`
+	Status    string `json:"status"`
+	Summary   string `json:"summary"`
+}
+
+type cliListAgentSessionEventsResponse struct {
+	Events            []cliAgentSessionRunEvent `json:"events"`
+	HasMore           bool                      `json:"has_more"`
+	NextAfterSequence int64                     `json:"next_after_sequence"`
 }
 
 func (a *App) cmdSessionsList(args []string) error {
@@ -147,6 +176,363 @@ func (a *App) cmdSessionsGet(args []string) error {
 	printCommandListSection("Next Steps", []string{
 		cliCommand("sessions", "delete", "--id", session.ID, "--yes"),
 	})
+	return nil
+}
+
+func (a *App) cmdSessionsCreate(args []string) error {
+	fs := flag.NewFlagSet("sessions create", flag.ContinueOnError)
+	kind := fs.String("kind", "", "Session kind")
+	title := fs.String("title", "", "Human-readable title")
+	starterJob := fs.String("starter-job", "", "Server-declared starter job")
+	target := fs.String("target", "", "Optional proposal target as TYPE/REF")
+	targetName := fs.String("target-name", "", "Human-readable proposal target name")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("kind", *kind); err != nil {
+		return fmt.Errorf("usage: sessions create --kind KIND [--title TEXT] [--starter-job ID] [--target TYPE/REF] [--target-name NAME] [--json]\n\n%s", err)
+	}
+	trimmedKind := strings.TrimSpace(*kind)
+	trimmedTitle := strings.TrimSpace(*title)
+	if trimmedTitle == "" {
+		trimmedTitle = strings.ReplaceAll(trimmedKind, "_", " ") + " session"
+	}
+	payload := map[string]any{"kind": trimmedKind, "title": trimmedTitle}
+	if value := strings.TrimSpace(*starterJob); value != "" {
+		payload["starter_job_id"] = value
+	}
+	path := "/agent-sessions"
+	if value := strings.TrimSpace(*target); value != "" {
+		proposalTarget, targetErr := proposalTargetPayload(value, *targetName)
+		if targetErr != nil {
+			return targetErr
+		}
+		payload["target"] = proposalTarget
+		path = "/proposal-sessions"
+	}
+	body, err := a.core.Request("POST", path, nil, payload)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	if path == "/proposal-sessions" {
+		response, decodeErr := decodeResponse[cliProposalSession](body)
+		if decodeErr != nil {
+			return decodeErr
+		}
+		fmt.Printf("Created targeted draft session %s (%s)\n", response.ID, response.Kind)
+		return nil
+	}
+	response, err := decodeResponse[cliAgentSessionResponse](body)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Created draft session %s (%s)\n", response.Session.ID, response.Session.Kind)
+	return nil
+}
+
+func (a *App) cmdSessionsCreateBatch(args []string) error {
+	fs := flag.NewFlagSet("sessions create-batch", flag.ContinueOnError)
+	file := fs.String("file", "", "JSON file containing {\"sessions\":[...]}")
+	actor := fs.String("actor", "", "Named actor responsible for this batch")
+	overrideReason := fs.String("override-reason", "", "Required reason when the batch exceeds the server cap")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("file", *file); err != nil {
+		return err
+	}
+	if err := requireFlag("actor", *actor); err != nil {
+		return err
+	}
+	data, err := os.ReadFile(*file)
+	if err != nil {
+		return fmt.Errorf("read batch file: %w", err)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return fmt.Errorf("parse batch file: %w", err)
+	}
+	payload["actor"] = strings.TrimSpace(*actor)
+	if value := strings.TrimSpace(*overrideReason); value != "" {
+		payload["override_reason"] = value
+	}
+	body, err := a.core.Request("POST", "/agent-sessions/batch", nil, payload)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	var response struct {
+		Created int `json:"created"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return err
+	}
+	fmt.Printf("Created %d agent session(s)\n", response.Created)
+	return nil
+}
+
+func (a *App) cmdSessionsAttach(args []string) error {
+	fs := flag.NewFlagSet("sessions attach", flag.ContinueOnError)
+	id := fs.String("id", "", "Session ID")
+	var entities stringSlice
+	fs.Var(&entities, "entity", "Typed entity TYPE/REF (repeatable)")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return err
+	}
+	if len(entities) == 0 {
+		return fmt.Errorf("at least one --entity TYPE/REF is required")
+	}
+	refs, err := parseSessionEntities(entities)
+	if err != nil {
+		return err
+	}
+	body, err := a.core.Request("POST", "/agent-sessions/"+strings.TrimSpace(*id)+"/context", nil, map[string]any{"context_refs": refs})
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	response, err := decodeResponse[cliAgentSessionResponse](body)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Session %s now holds %d staged context item(s)\n", response.Session.ID, len(response.Session.StagedContextRefs))
+	return nil
+}
+
+func (a *App) cmdSessionsStart(args []string) error {
+	return a.sessionMessageAction(args, "sessions start", "start", false)
+}
+
+func (a *App) cmdSessionsContinue(args []string) error {
+	return a.sessionMessageAction(args, "sessions continue", "continue", true)
+}
+
+func (a *App) cmdSessionsComplete(args []string) error {
+	fs := flag.NewFlagSet("sessions complete", flag.ContinueOnError)
+	id := fs.String("id", "", "Session ID")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return err
+	}
+	body, err := a.core.Request("POST", "/agent-sessions/"+strings.TrimSpace(*id)+"/complete", nil, nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	response, err := decodeResponse[cliAgentSessionResponse](body)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Session %s status: %s\n", response.Session.ID, response.Session.Status)
+	return nil
+}
+
+func (a *App) cmdSessionsReap(args []string) error {
+	fs := flag.NewFlagSet("sessions reap", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	body, err := a.core.Request("POST", "/agent-sessions/reap", nil, nil)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	response, err := decodeResponse[cliReapAgentSessionsResponse](body)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Reaped %d stale running session(s)\n", response.Reaped)
+	return nil
+}
+
+func (a *App) cmdSessionsDisposition(args []string) error {
+	fs := flag.NewFlagSet("sessions disposition", flag.ContinueOnError)
+	id := fs.String("id", "", "Session ID")
+	disposition := fs.String("disposition", "", "dropped or retained")
+	reason := fs.String("reason", "", "Why this disposition was chosen")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	for name, value := range map[string]string{"id": *id, "disposition": *disposition, "reason": *reason} {
+		if err := requireFlag(name, value); err != nil {
+			return err
+		}
+	}
+	body, err := a.core.Request("POST", "/agent-sessions/"+strings.TrimSpace(*id)+"/disposition", nil, map[string]string{"disposition": strings.TrimSpace(*disposition), "reason": strings.TrimSpace(*reason)})
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	var response struct {
+		Session cliAgentSession `json:"session"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return err
+	}
+	fmt.Printf("Session %s disposition: %s (%s)\n", response.Session.ID, response.Session.Status, strings.TrimSpace(*disposition))
+	return nil
+}
+
+func (a *App) sessionMessageAction(args []string, command, action string, messageRequired bool) error {
+	fs := flag.NewFlagSet(command, flag.ContinueOnError)
+	id := fs.String("id", "", "Session ID")
+	message := fs.String("message", "", "Operator message")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return err
+	}
+	if messageRequired {
+		if err := requireFlag("message", *message); err != nil {
+			return err
+		}
+	}
+	body, err := a.core.Request("POST", "/agent-sessions/"+strings.TrimSpace(*id)+"/"+action, nil, map[string]any{"message": *message})
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	response, err := decodeResponse[cliAgentSessionResponse](body)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Session %s status: %s\n", response.Session.ID, response.Session.Status)
+	return nil
+}
+
+func (a *App) cmdSessionsEvents(args []string) error {
+	fs := flag.NewFlagSet("sessions events", flag.ContinueOnError)
+	id := fs.String("id", "", "Session ID")
+	after := fs.Int64("after-sequence", -1, "Return events after this sequence")
+	limit := fs.Int("limit", 0, "Maximum events")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return err
+	}
+	query := url.Values{}
+	if *after >= 0 {
+		query.Set("after_sequence", fmt.Sprintf("%d", *after))
+	}
+	if *limit > 0 {
+		query.Set("limit", fmt.Sprintf("%d", *limit))
+	}
+	body, err := a.core.Get("/agent-sessions/"+strings.TrimSpace(*id)+"/events", query)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	response, err := decodeResponse[cliListAgentSessionEventsResponse](body)
+	if err != nil {
+		return err
+	}
+	for _, event := range response.Events {
+		text := strings.TrimSpace(event.Summary)
+		if text == "" {
+			text = strings.TrimSpace(event.Content)
+		}
+		fmt.Printf("  %d  %s  %s\n", event.Sequence, event.EventType, text)
+	}
+	if len(response.Events) == 0 {
+		fmt.Println("No session events found.")
+	}
+	return nil
+}
+
+func (a *App) cmdSessionsProposalApply(args []string) error {
+	fs := flag.NewFlagSet("sessions proposal-apply", flag.ContinueOnError)
+	id := fs.String("id", "", "Session ID")
+	proposal := fs.String("proposal", "", "Proposal ID")
+	var accepted stringSlice
+	fs.Var(&accepted, "accept", "Accepted mutation ID (repeatable)")
+	note := fs.String("note", "", "Decision note")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return err
+	}
+	if err := requireFlag("proposal", *proposal); err != nil {
+		return err
+	}
+	if len(accepted) == 0 {
+		return fmt.Errorf("at least one --accept MUTATION_ID is required")
+	}
+	return a.sessionProposalDecision(strings.TrimSpace(*id), strings.TrimSpace(*proposal), "apply", map[string]any{"accepted_mutation_ids": []string(accepted), "note": strings.TrimSpace(*note)}, *jsonOut)
+}
+
+func (a *App) cmdSessionsProposalRevise(args []string) error {
+	return a.sessionProposalNoteAction(args, "sessions proposal-revise", "revise")
+}
+
+func (a *App) cmdSessionsProposalWait(args []string) error {
+	return a.sessionProposalNoteAction(args, "sessions proposal-wait", "wait")
+}
+
+func (a *App) cmdSessionsProposalAcceptKeep(args []string) error {
+	return a.sessionProposalNoteAction(args, "sessions proposal-accept-keep", "accept-keep")
+}
+
+func (a *App) sessionProposalNoteAction(args []string, command, action string) error {
+	fs := flag.NewFlagSet(command, flag.ContinueOnError)
+	id := fs.String("id", "", "Session ID")
+	proposal := fs.String("proposal", "", "Proposal ID")
+	note := fs.String("note", "", "Decision note")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlag("id", *id); err != nil {
+		return err
+	}
+	if err := requireFlag("proposal", *proposal); err != nil {
+		return err
+	}
+	return a.sessionProposalDecision(strings.TrimSpace(*id), strings.TrimSpace(*proposal), action, map[string]any{"note": strings.TrimSpace(*note)}, *jsonOut)
+}
+
+func (a *App) sessionProposalDecision(sessionID, proposalID, action string, payload map[string]any, jsonOut bool) error {
+	body, err := a.core.Request("POST", "/agent-sessions/"+sessionID+"/proposals/"+proposalID+"/"+action, nil, payload)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(jsonOut, body) {
+		return nil
+	}
+	fmt.Printf("Proposal %s decision submitted (%s)\n", proposalID, action)
 	return nil
 }
 

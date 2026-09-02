@@ -1,6 +1,7 @@
 // Mounts at app root. Fetches audio-tools' StreamConfig once on mount
 // and writes it into useVoiceConfigStore so downstream consumers (mic
 // button ring, segment-boundary emission) see authoritative values
+// HOST DIFFERENCE: this adapter hydrates swarm-manager's local workspace store.
 // without each issuing its own fetch.
 
 import { useEffect } from "react";

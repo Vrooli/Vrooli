@@ -88,6 +88,18 @@ prompt-manager team heartbeat-list my-team
 
 ---
 
+### prompt-manager team heartbeat-fleet-health
+
+Report the rolling 24-hour success aggregate across enabled heartbeat members of enabled teams.
+
+```bash
+prompt-manager team heartbeat-fleet-health [--json]
+```
+
+The numerator uses each heartbeat record's durable `lastSuccessfulExecution`. Starting a new run therefore does not erase that member's earlier completion from the rolling window, and the aggregate does not depend on event-history retention. The JSON response includes `successPercent`, `thresholdPercent`, and the integer-arithmetic `meetsThreshold` verdict; consumers should use that verdict instead of rounding the percentage. `membersWithTwoFailures` reports the number of enabled members whose consecutive-failure streak is at least two.
+
+---
+
 ### prompt-manager team heartbeat
 
 Get heartbeat configuration for a specific member.

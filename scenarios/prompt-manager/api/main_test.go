@@ -5,11 +5,45 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
 	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 )
+
+func TestHeartbeatFunctionalStatusHealthyFleet(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{{Enabled: true, HasExecution: true, ConsecutiveFailures: 1}})
+	if !status.Healthy {
+		t.Fatalf("status = %#v, want healthy", status)
+	}
+}
+
+func TestHeartbeatFunctionalStatusSingleFailureDoesNotTrip(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{
+		{Enabled: true, HasExecution: true, ConsecutiveFailures: 2, LastError: "run refused"},
+	})
+	if !status.Healthy {
+		t.Fatalf("status = %#v, want healthy with one failing member", status)
+	}
+}
+
+func TestHeartbeatFunctionalStatusFleetFailureReportsReason(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{
+		{Enabled: true, HasExecution: true, ConsecutiveFailures: 2, LastError: "run identity refused"},
+		{Enabled: true, HasExecution: true, ConsecutiveFailures: 3},
+	})
+	if status.Healthy || !strings.Contains(status.Reason, "2 enabled heartbeat members") || !strings.Contains(status.Reason, "run identity refused") {
+		t.Fatalf("status = %#v, want unhealthy fleet reason", status)
+	}
+}
+
+func TestHeartbeatFunctionalStatusIgnoresNeverFiredMember(t *testing.T) {
+	status := heartbeatFunctionalStatus([]heartbeatFunctionalObservation{{Enabled: true, HasExecution: false, ConsecutiveFailures: 99}})
+	if !status.Healthy {
+		t.Fatalf("status = %#v, want healthy for never-fired member", status)
+	}
+}
 
 func TestGorillaMuxAdapterMountsTrailingSlashServicesAsPrefixes(t *testing.T) {
 	router := mux.NewRouter()

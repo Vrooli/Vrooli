@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"swarm-manager/internal/stats"
 	"swarm-manager/internal/transitionrun"
 	"swarm-manager/internal/transitions"
 
@@ -29,10 +30,16 @@ type DeterministicDispatcher interface {
 	Dispatch(context.Context, string, string) (string, error)
 }
 
+// GateProjection supplies live policy and attributed evidence for catalog
+// consumers. It is intentionally a function seam so the catalog remains the
+// single transition surface without owning settings or event-log storage.
+type GateProjection func() (map[string]string, map[string]stats.KindRate)
+
 type Service struct {
-	registry      transitions.Registry
-	runner        Runner
-	deterministic DeterministicDispatcher
+	registry       transitions.Registry
+	runner         Runner
+	deterministic  DeterministicDispatcher
+	gateProjection GateProjection
 }
 
 func NewService(registry transitions.Registry, runner Runner, deterministic ...DeterministicDispatcher) *Service {
@@ -46,6 +53,17 @@ func NewService(registry transitions.Registry, runner Runner, deterministic ...D
 func RegisterRoutes(router *mux.Router, registry transitions.Registry, runner Runner, deterministic ...DeterministicDispatcher) {
 	path, handler := apiconnect.NewTransitionServiceHandler(NewService(registry, runner, deterministic...))
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
+}
+
+func RegisterRoutesWithGateProjection(router *mux.Router, registry transitions.Registry, runner Runner, projection GateProjection, deterministic ...DeterministicDispatcher) {
+	path, handler := apiconnect.NewTransitionServiceHandler(NewServiceWithGateProjection(registry, runner, projection, deterministic...))
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: path, Handler: handler})
+}
+
+func NewServiceWithGateProjection(registry transitions.Registry, runner Runner, projection GateProjection, deterministic ...DeterministicDispatcher) *Service {
+	svc := NewService(registry, runner, deterministic...)
+	svc.gateProjection = projection
+	return svc
 }
 
 func (s *Service) StartTransition(ctx context.Context, req *connect.Request[api.StartTransitionRequest]) (*connect.Response[api.StartTransitionResponse], error) {
@@ -118,24 +136,48 @@ func (s *Service) ListTransitions(_ context.Context, req *connect.Request[api.Li
 	if req == nil || req.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
 	}
+	var modes map[string]string
+	var evidence map[string]stats.KindRate
+	if s.gateProjection != nil {
+		modes, evidence = s.gateProjection()
+	}
 	response := &api.ListTransitionsResponse{Transitions: make([]*domain.Transition, 0, len(s.registry.Definitions()))}
 	for _, definition := range s.registry.Definitions() {
-		response.Transitions = append(response.Transitions, definitionProto(definition))
+		response.Transitions = append(response.Transitions, definitionProtoWithEvidence(definition, modes, evidence))
 	}
 	return connect.NewResponse(response), nil
 }
 
 func definitionProto(definition transitions.Definition) *domain.Transition {
+	return definitionProtoWithEvidence(definition, nil, nil)
+}
+
+func definitionProtoWithEvidence(definition transitions.Definition, modes map[string]string, evidence map[string]stats.KindRate) *domain.Transition {
 	transition := &domain.Transition{
 		Key: definition.Key, Subject: definition.Subject, Kind: kindProto(definition.Kind),
 		Requires: definition.Requires, InputContract: definition.InputContract,
-		TerminalOutcomes: definition.TerminalOutcomes, ApplyAction: definition.ApplyAction,
+		TerminalOutcomes: definition.TerminalOutcomes, ApplyAction: definition.ApplyAction, HumanWait: definition.HumanWait,
 	}
 	if definition.Workflow != nil {
 		transition.Workflow = &domain.WorkflowLocator{Owner: definition.Workflow.Owner, Key: definition.Workflow.Key}
 	}
 	for _, strategy := range definition.Strategies {
 		transition.Strategies = append(transition.Strategies, &domain.ExecutionStrategy{Id: strategy.ID, WorkflowKey: strategy.WorkflowKey, DisplayName: strategy.DisplayName, Description: strategy.Description, WhenToUse: strategy.WhenToUse, CostBand: strategy.CostBand})
+	}
+	for _, gate := range definition.HumanGates {
+		mode := string(gate.DefaultMode)
+		if override := transitions.GateMode(strings.TrimSpace(modes[gate.ID])); override == transitions.GateModeManual || override == transitions.GateModeSuggest || override == transitions.GateModeAuto {
+			mode = string(override)
+		}
+		metric := evidence[gate.ID]
+		readiness := "insufficient-sample"
+		if metric.SampleSize >= gate.MinSample {
+			readiness = "below-threshold"
+			if metric.Rate >= gate.Threshold {
+				readiness = "ready"
+			}
+		}
+		transition.HumanGates = append(transition.HumanGates, &domain.HumanGate{Id: gate.ID, Decides: gate.Decides, DefaultMode: string(gate.DefaultMode), Threshold: gate.Threshold, MinSample: int32(gate.MinSample), Mode: mode, AcceptanceRate: metric.Rate, SampleSize: int32(metric.SampleSize), Readiness: readiness})
 	}
 	return transition
 }

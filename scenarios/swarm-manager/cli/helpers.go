@@ -203,6 +203,29 @@ func cliCommand(parts ...string) string {
 	return strings.Join(segments, " ")
 }
 
+func proposalTargetPayload(value, name string) (map[string]any, error) {
+	targetType, targetRef, ok := strings.Cut(strings.TrimSpace(value), "/")
+	if !ok || strings.TrimSpace(targetType) == "" || strings.TrimSpace(targetRef) == "" {
+		return nil, fmt.Errorf("target %q must use TYPE/REF", value)
+	}
+	if strings.TrimSpace(name) == "" {
+		name = targetRef
+	}
+	return map[string]any{"type": strings.TrimSpace(targetType), "ref": strings.TrimSpace(targetRef), "name": strings.TrimSpace(name)}, nil
+}
+
+func parseSessionEntities(values []string) ([]cliAgentSessionContextRef, error) {
+	refs := make([]cliAgentSessionContextRef, 0, len(values))
+	for _, raw := range values {
+		contextType, ref, ok := strings.Cut(strings.TrimSpace(raw), "/")
+		if !ok || strings.TrimSpace(contextType) == "" || strings.TrimSpace(ref) == "" {
+			return nil, fmt.Errorf("entity %q must use TYPE/REF", raw)
+		}
+		refs = append(refs, cliAgentSessionContextRef{Type: strings.TrimSpace(contextType), Ref: strings.TrimSpace(ref)})
+	}
+	return refs, nil
+}
+
 func printSection(title string) {
 	fmt.Printf("%s:\n", title)
 }

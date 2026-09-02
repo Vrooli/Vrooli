@@ -95,27 +95,13 @@ func (s *WorkflowService) GetWorkflowProgress(ctx context.Context, executionID s
 	return progress, nil
 }
 
-// GetWorkflowExecutionState reads only the durable lifecycle state needed to
-// reconcile a correlation-only activity record.
+// GetWorkflowExecutionState reads the durable lifecycle state needed to
+// reconcile a correlation-only activity record. Trace is the lifecycle
+// authority but intentionally omits output, so a successful execution uses
+// the explicitly-authorized result endpoint only to establish that terminal
+// evidence exists.
 func (s *WorkflowService) GetWorkflowExecutionState(ctx context.Context, executionID string) (WorkflowExecutionState, error) {
-	trace, err := s.client.GetWorkflowExecutionTrace(ctx, executionID)
-	if err != nil {
-		return WorkflowExecutionState{}, err
-	}
-	if trace.Execution == nil {
-		return WorkflowExecutionState{}, fmt.Errorf("%w: workflow trace omitted execution", ErrRequestFailed)
-	}
-	state := WorkflowExecutionState{
-		Status:           trace.Execution.GetStatus(),
-		TerminalEvidence: trace.Execution.GetOutput() != nil,
-	}
-	if reason := trace.Execution.GetTerminalReason(); reason != nil {
-		state.TerminalCode = reason.GetCode()
-	}
-	if updated := trace.Execution.GetUpdatedAt(); updated != nil {
-		state.UpdatedAt = updated.AsTime().UTC().Format(time.RFC3339Nano)
-	}
-	return state, nil
+	return readWorkflowExecutionState(ctx, s.client, executionID)
 }
 
 // GetWorkflowExecutionState exposes the same read-only lifecycle projection
@@ -124,22 +110,30 @@ func (s *AgentService) GetWorkflowExecutionState(ctx context.Context, executionI
 	if !s.enabled {
 		return WorkflowExecutionState{}, ErrNotAvailable
 	}
-	trace, err := s.client.GetWorkflowExecutionTrace(ctx, executionID)
+	return readWorkflowExecutionState(ctx, s.client, executionID)
+}
+
+func readWorkflowExecutionState(ctx context.Context, client *HTTPClient, executionID string) (WorkflowExecutionState, error) {
+	trace, err := client.GetWorkflowExecutionTrace(ctx, executionID)
 	if err != nil {
 		return WorkflowExecutionState{}, err
 	}
 	if trace.Execution == nil {
 		return WorkflowExecutionState{}, fmt.Errorf("%w: workflow trace omitted execution", ErrRequestFailed)
 	}
-	state := WorkflowExecutionState{
-		Status:           trace.Execution.GetStatus(),
-		TerminalEvidence: trace.Execution.GetOutput() != nil,
-	}
+	state := WorkflowExecutionState{Status: trace.Execution.GetStatus()}
 	if reason := trace.Execution.GetTerminalReason(); reason != nil {
 		state.TerminalCode = reason.GetCode()
 	}
 	if updated := trace.Execution.GetUpdatedAt(); updated != nil {
 		state.UpdatedAt = updated.AsTime().UTC().Format(time.RFC3339Nano)
+	}
+	if state.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
+		result, err := client.GetWorkflowExecutionResult(ctx, executionID)
+		if err != nil {
+			return WorkflowExecutionState{}, err
+		}
+		state.TerminalEvidence = result.Execution != nil && result.Execution.GetOutput() != nil
 	}
 	return state, nil
 }

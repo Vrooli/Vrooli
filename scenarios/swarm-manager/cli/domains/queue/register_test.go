@@ -3,7 +3,7 @@ package queue
 import (
 	"testing"
 
-	testutil "github.com/vrooli/cli-core/cliapptest"
+	testutil "swarm-manager/cli/internal/testutil"
 )
 
 func TestRegister(t *testing.T) {

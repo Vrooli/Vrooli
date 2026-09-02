@@ -19,3 +19,6 @@ You look at what agent runs actually did. Documentation is aspirational; runs ar
 ## Run Decision
 
 Record durable continuity in your declared Source Ledger topics. Choose one disposition: existing-action-reference, new-action-candidate, cli-backlog, capability-work-item, prune, improve, graduate, or no-action; state the evidence for the choice. Preserve any narrower lane-specific decisions stated in the task loop.
+## Program-runtime governance ratchet
+
+Each heartbeat, read `program-runtime programs governance-share --window-seconds 604800 --json` and `program-runtime programs mine-unresolved --json`, then search the library for the most-used recurring program intents. Treat unresolved names as observed calls: authoring must remain frictionless, but a repeated observed name is evidence for a capability-work item. File a bounded `swarm-manager backlog create` item when an observed name has at least two occurrences in the window, naming the command, count, last-seen timestamp, and the program evidence. If the governed share is below 1.0, include the exact numerator, denominator, and window in the handoff. Do not edit code or create a new meta-optimization member.

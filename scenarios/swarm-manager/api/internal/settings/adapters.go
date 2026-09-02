@@ -77,7 +77,16 @@ func (a *governanceAdapter) LoadGovernance() (execution.GovernanceSettings, erro
 		FixBeforeFeature:  s.FixBeforeFeature,
 		AutoFilerEnabled:  s.AutoFiler.Enabled,
 		AutoFilerStrategy: s.AutoFiler.Strategy,
+		GateModes:         cloneStringMap(s.AutonomyGateModes),
 	}, nil
+}
+
+func cloneStringMap(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for key, value := range in {
+		out[key] = value
+	}
+	return out
 }
 
 // lanePolicyAdapter bridges Store to agentactivity.LanePolicy. Lookups

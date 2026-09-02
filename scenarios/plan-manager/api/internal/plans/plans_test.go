@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -769,6 +768,36 @@ func TestReconcileAdoptsLegacyPlansNonDestructively(t *testing.T) {
 	require.NotEmpty(t, mirror.files[imported.Mirror.Path])
 }
 
+func TestReconcileRecognizesRenderedMirrorByImportProvenance(t *testing.T) {
+	d, clk := newDB(t)
+	mirror := newFakeMirrorStore(t.TempDir())
+	source := filepath.Join("docs", "plans", "legacy.md")
+	renderedMirror := filepath.Join("docs", "plans", "legacy-mirror.md")
+	reader := fakeReader{files: map[string]string{
+		source:         "# Legacy plan\n\n## Purpose\nAdopt me.\n",
+		renderedMirror: "# Legacy plan\n\n## Purpose\nAdopt me.\n\n## Import Provenance\n\n- Source: `docs/plans/legacy.md`\n- Original format: legacy_markdown\n",
+	}}
+	svc := plans.NewService(plans.Deps{
+		Repo:   plans.NewSQLiteRepository(d, clk),
+		Clock:  clk,
+		Reader: reader,
+		Mirror: mirror,
+	})
+	ctx := context.Background()
+
+	first, err := svc.Reconcile(ctx, plans.ReconcileRequest{SourceIntake: true, SourceDocsPlans: true})
+	require.NoError(t, err)
+	require.Len(t, first.Items, 2)
+	require.Equal(t, plans.ReconcileActionImported, first.Items[0].Action)
+	require.Equal(t, plans.ReconcileActionAlreadyCanonical, first.Items[1].Action)
+
+	second, err := svc.Reconcile(ctx, plans.ReconcileRequest{DryRun: true, SourceIntake: true, SourceDocsPlans: true})
+	require.NoError(t, err)
+	for _, item := range second.Items {
+		require.NotEqual(t, plans.ReconcileActionImportPlanned, item.Action)
+	}
+}
+
 func TestReconcileRetireSourcesRemovesOnlyProvenLegacySources(t *testing.T) {
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(t.TempDir())
@@ -1025,7 +1054,7 @@ func TestReconcileCleanupNeverRemovesParseFailuresOrCanonicalMirrors(t *testing.
 	d, clk := newDB(t)
 	mirror := newFakeMirrorStore(filepath.Join("docs", "plans"))
 	reader := fakeReader{files: map[string]string{
-		filepath.Join("docs", "plans", "bad.md"): "# Bad\n\n## Phases\n\n### Phase A — malformed\n",
+		filepath.Join("docs", "plans", "bad.md"): "not a plan\n",
 	}}
 	svc := plans.NewService(plans.Deps{
 		Repo:   plans.NewSQLiteRepository(d, clk),
@@ -1774,7 +1803,7 @@ func TestParsePlanMarkdown(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestParsePlanMarkdownRejectsMalformedMachineMarkup(t *testing.T) {
+func TestParsePlanMarkdownImportsLegacyMachineMarkup(t *testing.T) {
 	cases := []struct {
 		name string
 		md   string
@@ -1791,9 +1820,7 @@ func TestParsePlanMarkdownRejectsMalformedMachineMarkup(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := plans.ParsePlanMarkdown(tc.md)
-			require.Error(t, err)
-			var invalid plans.ErrInvalidPlan
-			require.True(t, errors.As(err, &invalid))
+			require.NoError(t, err, "legacy markdown remains importable while preserving its prose")
 		})
 	}
 }

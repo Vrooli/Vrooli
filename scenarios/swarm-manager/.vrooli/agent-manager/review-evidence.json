@@ -13,5 +13,6 @@
     "mode": "SANDBOX_MODE_PROTECTED"
   },
   "spawnPolicy": {"axisOrder": ["sandboxMode", "executionMode"], "sandboxMode": {"prefer": ["protected", "tracking", "off"]}, "executionMode": {"prefer": ["codec_pipe", "interactive"]}, "require": []},
-  "createdBy": "swarm-manager"
+  "createdBy": "swarm-manager",
+  "effort": "medium"
 }

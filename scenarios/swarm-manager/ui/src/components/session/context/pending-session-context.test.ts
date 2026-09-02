@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { SessionContextOption } from "./session-context-refs";
-import { compatibleSessionKindsForContextType } from "./session-context-config";
+import { compatibleSessionKindsForContextType, CONTEXT_TYPE_CAPS } from "./session-context-config";
 import {
   clearStagedContextForSession,
   mergeContextOptions,
@@ -56,5 +56,10 @@ describe("pending session context", () => {
     ]);
     // The retired kind is not creatable, so it is compatible with nothing.
     expect(compatibleSessionKindsForContextType("operating_mode")).toEqual([]);
+  });
+
+  it("supports bounded portfolio batches without widening backlog context", () => {
+    expect(CONTEXT_TYPE_CAPS.goal).toBe(3);
+    expect(CONTEXT_TYPE_CAPS.backlog_item).toBe(8);
   });
 });

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "swarm-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "ed74c606b672943a5fde630b9498b9b2075e798a93c29e6728bf0083fb4d8ee9",
+  "manifest_hash": "ab890bf6ee7a31d7189897a669a00c4ce61b84070ed1906638e1d2fe0042122a",
   "commands": [
     {
       "path": "agent-manager metrics-sandbox-adoption",
@@ -134,6 +134,12 @@
       "binding": "."
     },
     {
+      "path": "backlog plan-accept",
+      "group": "backlog",
+      "command": "plan-accept",
+      "binding": "."
+    },
+    {
       "path": "backlog plan-workshop",
       "group": "backlog",
       "command": "plan-workshop",
@@ -149,6 +155,12 @@
       "path": "backlog queue",
       "group": "backlog",
       "command": "queue",
+      "binding": "."
+    },
+    {
+      "path": "backlog reconcile-counts",
+      "group": "backlog",
+      "command": "reconcile-counts",
       "binding": "."
     },
     {
@@ -845,9 +857,49 @@
       "binding": "."
     },
     {
+      "path": "sessions attach",
+      "group": "sessions",
+      "command": "attach",
+      "binding": "."
+    },
+    {
+      "path": "sessions complete",
+      "group": "sessions",
+      "command": "complete",
+      "binding": "."
+    },
+    {
+      "path": "sessions continue",
+      "group": "sessions",
+      "command": "continue",
+      "binding": "."
+    },
+    {
+      "path": "sessions create",
+      "group": "sessions",
+      "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "sessions create-batch",
+      "group": "sessions",
+      "command": "create-batch"
+    },
+    {
       "path": "sessions delete",
       "group": "sessions",
       "command": "delete",
+      "binding": "."
+    },
+    {
+      "path": "sessions disposition",
+      "group": "sessions",
+      "command": "disposition"
+    },
+    {
+      "path": "sessions events",
+      "group": "sessions",
+      "command": "events",
       "binding": "."
     },
     {
@@ -866,6 +918,41 @@
       "path": "sessions prompt-preview",
       "group": "sessions",
       "command": "prompt-preview",
+      "binding": "."
+    },
+    {
+      "path": "sessions proposal-accept-keep",
+      "group": "sessions",
+      "command": "proposal-accept-keep",
+      "binding": "."
+    },
+    {
+      "path": "sessions proposal-apply",
+      "group": "sessions",
+      "command": "proposal-apply",
+      "binding": "."
+    },
+    {
+      "path": "sessions proposal-revise",
+      "group": "sessions",
+      "command": "proposal-revise",
+      "binding": "."
+    },
+    {
+      "path": "sessions proposal-wait",
+      "group": "sessions",
+      "command": "proposal-wait"
+    },
+    {
+      "path": "sessions reap",
+      "group": "sessions",
+      "command": "reap",
+      "binding": "."
+    },
+    {
+      "path": "sessions start",
+      "group": "sessions",
+      "command": "start",
       "binding": "."
     },
     {

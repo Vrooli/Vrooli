@@ -265,6 +265,22 @@ func (r *SQLiteRepository) tableLacksColumn(ctx context.Context, table, column s
 
 // Append inserts a new event and returns its auto-generated ID.
 func (r *SQLiteRepository) Append(ctx context.Context, e Event) (int64, error) {
+	return r.append(ctx, e, false)
+}
+
+// AppendAttributed is the write-time-enforced seam for new production event
+// writers. Legacy Append remains available to replay/import historical rows.
+func (r *SQLiteRepository) AppendAttributed(ctx context.Context, e Event) (int64, error) {
+	if strings.TrimSpace(e.ActorID) == "" {
+		return 0, fmt.Errorf("eventlog append: actor_id is required for attributed events")
+	}
+	return r.append(ctx, e, true)
+}
+
+func (r *SQLiteRepository) append(ctx context.Context, e Event, attributed bool) (int64, error) {
+	if attributed && strings.TrimSpace(e.ActorID) == "" {
+		return 0, fmt.Errorf("eventlog append: actor_id is required for attributed events")
+	}
 	ts := e.Timestamp
 	if ts.IsZero() {
 		ts = time.Now().UTC()

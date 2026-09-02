@@ -118,6 +118,9 @@ func main() {
 		log.Fatalf("program schema compatibility failed: %v", err)
 	}
 	libraryRepository := library.NewRepository(db.Primary())
+	if err := library.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("library schema compatibility failed: %v", err)
+	}
 	if err := libraryRepository.RemoveSeededAliases(context.Background()); err != nil {
 		log.Fatalf("library alias migration failed: %v", err)
 	}
@@ -219,7 +222,7 @@ func main() {
 			return nil
 		}
 		return unresolvedRecorder.RecordUnresolved(ctx, sessionID, provenance, attemptedName, time.Now().UTC())
-	}, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ExecutionBudget: func(id string) (programs.ExecutionLimits, error) {
+	}, CandidateSink: libraryRepository, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ExecutionBudget: func(id string) (programs.ExecutionLimits, error) {
 		budget, err := sessionManager.ExecutionBudget(context.Background(), id)
 		if err != nil {
 			return programs.ExecutionLimits{}, err
@@ -309,7 +312,7 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry, libraryRepository),
 		programsH.Module(programService, authoringDeps),
-		libraryH.Module(libraryRepository),
+		libraryH.Module(libraryRepository, bindingRegistry),
 		sessionsH.Module(sessionManager),
 		telemetryH.Module(telemetryStore),
 	)

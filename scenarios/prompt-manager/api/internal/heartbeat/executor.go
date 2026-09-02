@@ -37,24 +37,60 @@ type TeamExecStoreRegistrar interface {
 
 // Executor handles the actual execution of heartbeats
 type Executor struct {
-	teamStore        *store.FileTeamStore
-	agentStore       *store.FileAgentStore
-	agentClient      AgentClient
-	vrooliRoot       string
-	promptBuilder    *PromptBuilder
-	runRegistry      *RunRegistry
-	handoffExtractor HandoffExtractor
-	teamExecStore    TeamExecStoreRegistrar
-	OnComplete       func(teamID, agentID string)
+	teamStore         *store.FileTeamStore
+	agentStore        *store.FileAgentStore
+	agentClient       AgentClient
+	vrooliRoot        string
+	promptBuilder     *PromptBuilder
+	runRegistry       *RunRegistry
+	handoffExtractor  HandoffExtractor
+	teamExecStore     TeamExecStoreRegistrar
+	OnComplete        func(teamID, agentID string)
+	RecoveryRequester func(ctx context.Context, scenario, reason string) (requestID string, err error)
 
 	// Completion waiters outlive the request that started them, so they are
 	// tracked here to give the executor a point where that work is known to
 	// be finished. See Shutdown.
-	mu           sync.Mutex
-	waiters      map[int64]context.CancelFunc
-	nextWaiterID int64
-	stopped      bool
-	inflight     sync.WaitGroup
+	mu                 sync.Mutex
+	waiters            map[int64]context.CancelFunc
+	nextWaiterID       int64
+	stopped            bool
+	inflight           sync.WaitGroup
+	recoveryMu         sync.Mutex
+	recoveryRequested  bool
+	recoveryRequestIDs sync.Map
+}
+
+const heartbeatRecoveryFailureThreshold = 3
+
+// SetRecoveryRequester wires the single control-plane recovery seam. The
+// executor never retries the heartbeat or implements recovery itself.
+func (e *Executor) SetRecoveryRequester(requester func(context.Context, string, string) (string, error)) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.RecoveryRequester = requester
+}
+
+func (e *Executor) requestRecovery(ctx context.Context, scenario, reason string) string {
+	e.mu.Lock()
+	requester := e.RecoveryRequester
+	e.mu.Unlock()
+	if requester == nil {
+		return ""
+	}
+	e.recoveryMu.Lock()
+	if e.recoveryRequested {
+		e.recoveryMu.Unlock()
+		return ""
+	}
+	e.recoveryRequested = true
+	e.recoveryMu.Unlock()
+	id, err := requester(ctx, scenario, reason)
+	if err != nil {
+		log.Printf("heartbeat recovery request failed: %v", err)
+		return ""
+	}
+	return id
 }
 
 // trackWaiter registers a completion waiter's cancel function so Shutdown can
@@ -178,7 +214,12 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 
 	// Resolve default profile key based on runtime mode when not explicitly set.
 	if profileKey == "" {
-		profileKey = DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
+		profileKey, err = DefaultProfileKeyForRuntimeMode(team.Runtime.Mode)
+		if err != nil {
+			result.Error = fmt.Errorf("resolving heartbeat profile: %w", err)
+			result.Status = store.HeartbeatStatusFailed
+			return result, result.Error
+		}
 	}
 
 	contract := team.Contract()
@@ -273,13 +314,28 @@ func (e *Executor) Execute(ctx context.Context, teamID, agentID, profileKey stri
 
 	run, err := e.agentClient.CreateRun(ctx, runReq)
 	if err != nil {
+		if cancelErr := e.agentClient.CancelTask(ctx, createdTask.ID); cancelErr != nil {
+			log.Printf("Warning: failed to cancel orphaned heartbeat task %s: %v", createdTask.ID, cancelErr)
+		} else if deleteErr := e.agentClient.DeleteTask(ctx, createdTask.ID); deleteErr != nil {
+			log.Printf("Warning: failed to delete cancelled heartbeat task %s: %v", createdTask.ID, deleteErr)
+		}
 		result.Error = fmt.Errorf("creating run: %w", err)
 		result.Status = store.HeartbeatStatusFailed
+		recoveryRequestID := ""
+		if config.ConsecutiveFailures+1 >= heartbeatRecoveryFailureThreshold {
+			recoveryRequestID = e.requestRecovery(ctx, "prompt-manager", result.Error.Error())
+		}
+		if recoveryRequestID != "" {
+			e.recoveryRequestIDs.Store(attemptID, recoveryRequestID)
+		}
 		e.updateConfigFailed(ctx, teamID, agentID, config, startedAt, result.Error.Error(), attemptID, profileKey, createdTask.ID, "", runTag, "creating_run")
 		return result, result.Error
 	}
 
 	result.RunID = run.ID
+	e.recoveryMu.Lock()
+	e.recoveryRequested = false
+	e.recoveryMu.Unlock()
 	config.LastExecution.RunID = run.ID
 	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
 	if e.teamExecStore != nil {
@@ -391,6 +447,7 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			LogPath:   logPath,
 			Error:     err.Error(),
 		}
+		config.RecordHeartbeatStatus(status)
 		category := classifyHeartbeatError(err.Error())
 		e.appendAttempt(cfgCtx, &store.HeartbeatAttempt{
 			ID:            attemptID,
@@ -424,6 +481,7 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 			LogPath:   logPath,
 			Error:     errMsg,
 		}
+		config.RecordHeartbeatStatus(status)
 		category := ""
 		recovery := ""
 		if errMsg != "" {
@@ -475,7 +533,41 @@ func (e *Executor) waitForCompletion(ctx context.Context, teamID, agentID, runID
 
 // extractAndStoreHandoff fetches run events and extracts/stores the handoff (best-effort).
 func (e *Executor) extractAndStoreHandoff(ctx context.Context, teamID, agentID, runID string, endedAt time.Time) {
-	if e.handoffExtractor == nil || e.agentClient == nil {
+	if e.agentClient == nil {
+		return
+	}
+
+	// Agent Manager persists the resolver's evidence-ranked selection on the
+	// run. The completion notification can arrive just before that projection
+	// is readable, so retry briefly before falling back to transcript parsing.
+	// A missing/ambiguous selection remains observable and must not be mistaken
+	// for a successful handoff.
+	const resultReadAttempts = 10
+	for attempt := 0; attempt < resultReadAttempts; attempt++ {
+		run, err := e.agentClient.GetRun(ctx, runID)
+		if err == nil && run != nil && run.Result != nil {
+			if strings.EqualFold(strings.TrimSpace(run.Result.Selection.Status), "selected") && strings.TrimSpace(run.Result.FinalOutput) != "" {
+				e.storeHandoff(ctx, teamID, agentID, runID, endedAt, run.Result.FinalOutput)
+				return
+			}
+			if attempt == resultReadAttempts-1 {
+				log.Printf("Warning: final-output resolver did not select a handoff (run %s: status=%s rule=%s)", runID, run.Result.Selection.Status, run.Result.Selection.Rule)
+			}
+		} else if err != nil && attempt == resultReadAttempts-1 {
+			log.Printf("Warning: failed to read resolved handoff (run %s): %v", runID, err)
+		}
+		if attempt < resultReadAttempts-1 {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(500 * time.Millisecond):
+			}
+		}
+	}
+
+	// Compatibility fallback for older agent-manager responses that predate the
+	// persisted result field. New responses take the resolver path above.
+	if e.handoffExtractor == nil {
 		return
 	}
 
@@ -495,6 +587,10 @@ func (e *Executor) extractAndStoreHandoff(ctx context.Context, teamID, agentID, 
 		return
 	}
 
+	e.storeHandoff(ctx, teamID, agentID, runID, endedAt, content)
+}
+
+func (e *Executor) storeHandoff(ctx context.Context, teamID, agentID, runID string, endedAt time.Time, content string) {
 	// Store last handoff for prompt injection
 	if err := e.teamStore.SetLastHandoff(ctx, teamID, agentID, content); err != nil {
 		log.Printf("Warning: failed to store last handoff (run %s): %v", runID, err)
@@ -521,9 +617,10 @@ func (e *Executor) updateConfigFailed(ctx context.Context, teamID, agentID strin
 		Status:    store.HeartbeatStatusFailed,
 		Error:     errMsg,
 	}
+	config.RecordHeartbeatStatus(store.HeartbeatStatusFailed)
 	_ = e.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config)
 	category := classifyHeartbeatError(errMsg)
-	e.appendAttempt(ctx, &store.HeartbeatAttempt{
+	attempt := &store.HeartbeatAttempt{
 		ID:            attemptID,
 		TeamID:        teamID,
 		AgentID:       agentID,
@@ -538,7 +635,11 @@ func (e *Executor) updateConfigFailed(ctx context.Context, teamID, agentID strin
 		ErrorCategory: category,
 		Error:         errMsg,
 		Recovery:      recoveryForHeartbeatError(category),
-	})
+	}
+	if requestID, ok := e.recoveryRequestIDs.LoadAndDelete(attemptID); ok {
+		attempt.RecoveryRequestID, _ = requestID.(string)
+	}
+	e.appendAttempt(ctx, attempt)
 }
 
 func (e *Executor) appendAttempt(ctx context.Context, attempt *store.HeartbeatAttempt) {

@@ -144,6 +144,20 @@ func TestCreateTask_ServerError(t *testing.T) {
 	}
 }
 
+func TestCancelTask_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/tasks/task-abc/cancel" {
+			t.Fatalf("unexpected cancel request: %s %s", r.Method, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	if err := newTestClient(t, srv).CancelTask(context.Background(), "task-abc"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 // --- CreateRun ---
 
 func TestCreateRun_Success(t *testing.T) {

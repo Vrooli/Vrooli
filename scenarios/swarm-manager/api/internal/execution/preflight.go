@@ -168,7 +168,10 @@ func (s *Service) planAcceptanceBlockingReason(ctx context.Context, item backlog
 	if strings.TrimSpace(rendered.QualityStatus) != "pass" {
 		return ProcessBlockingReason{Code: "plan_invalid", Message: fmt.Sprintf("canonical plan is not valid: quality status is %q", rendered.QualityStatus)}
 	}
-	if rendered.Status == "PLAN_STATUS_DRAFT" || rendered.Status == "PLAN_STATUS_ARCHIVED" {
+	// DRAFT is Plan Manager's computed never-started state, not evidence that
+	// authoring is incomplete. The quality result and accepted content hash are
+	// the execution-grade gates. Starting this plan is what moves it to ACTIVE.
+	if rendered.Status == "PLAN_STATUS_ARCHIVED" {
 		return ProcessBlockingReason{Code: "plan_invalid", Message: fmt.Sprintf("canonical plan is not executable in status %q", rendered.Status)}
 	}
 	if strings.TrimSpace(rendered.ContentHash) == "" {

@@ -89,6 +89,24 @@ func (h *handler) MineUnresolvedBindings(ctx context.Context, req *connect.Reque
 	return connect.NewResponse(&programsv1.MineUnresolvedBindingsResponse{Shapes: shapes, Count: int64(len(shapes))}), nil
 }
 
+func (h *handler) GovernanceShare(ctx context.Context, req *connect.Request[programsv1.GovernanceShareRequest]) (*connect.Response[programsv1.GovernanceShareResponse], error) {
+	window := time.Duration(req.Msg.GetWindowSeconds()) * time.Second
+	if window <= 0 {
+		window = 24 * time.Hour
+	}
+	end := time.Now().UTC()
+	governed, observed, commands, err := h.service.GovernanceShare(ctx, end.Add(-window), req.Msg.GetIncludeOperator())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	total := governed + observed
+	share := float64(0)
+	if total > 0 {
+		share = float64(governed) / float64(total)
+	}
+	return connect.NewResponse(&programsv1.GovernanceShareResponse{GovernedCalls: governed, ObservedCalls: observed, GovernedShare: share, WindowSeconds: int64(window / time.Second), WindowStart: end.Add(-window).Format(time.RFC3339Nano), WindowEnd: end.Format(time.RFC3339Nano), ObservedCommands: commands}), nil
+}
+
 // RunAuthoringEval measures first-attempt authoring correctness against the
 // versioned corpus.
 //

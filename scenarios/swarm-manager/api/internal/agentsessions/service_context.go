@@ -87,9 +87,6 @@ func (s *Service) resolveMessageContext(ctx context.Context, session Session, re
 
 func normalizeContextRefs(kind Kind, refs []ContextRef) ([]ContextRef, error) {
 	limits := contextLimitsForKind(kind)
-	if len(refs) > limits.MaxTotal {
-		return nil, apierr.BadRequest("no more than %d context items are allowed for %s sessions", limits.MaxTotal, kind)
-	}
 	seen := make(map[string]struct{}, len(refs))
 	counts := make(map[ContextType]int)
 	normalized := make([]ContextRef, 0, len(refs))
@@ -122,6 +119,34 @@ func normalizeContextRefs(kind Kind, refs []ContextRef) ([]ContextRef, error) {
 	return normalized, nil
 }
 
+// AttachContext durably merges typed context into an unstarted draft. The
+// server owns normalization and limits so every client receives the same
+// refusal semantics.
+func (s *Service) AttachContext(ctx context.Context, sessionID string, refs []ContextRef) (Session, error) {
+	store, err := s.storeFor(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+	session, err := store.LoadSession(strings.TrimSpace(sessionID))
+	if err != nil {
+		return Session{}, mapStoreError(err)
+	}
+	if session.Status != StatusDraft || strings.TrimSpace(session.RunID) != "" {
+		return Session{}, apierr.Conflict("context can only be attached to an unstarted draft session")
+	}
+	merged := append(append([]ContextRef(nil), session.StagedContext...), refs...)
+	normalized, err := normalizeContextRefs(session.Kind, merged)
+	if err != nil {
+		return Session{}, err
+	}
+	session.StagedContext = normalized
+	session.UpdatedAt = nowRFC3339()
+	if err := store.SaveSession(session); err != nil {
+		return Session{}, err
+	}
+	return store.LoadSession(session.ID)
+}
+
 func (s *Service) ChangeKind(ctx context.Context, req ChangeKindRequest) (ChangeKindResult, error) {
 	if !s.sessionKindAvailable(req.Kind) {
 		return ChangeKindResult{}, apierr.BadRequest("kind is not declared in the transition registry")
@@ -138,12 +163,14 @@ func (s *Service) ChangeKind(ctx context.Context, req ChangeKindRequest) (Change
 		return ChangeKindResult{}, apierr.Conflict("agent session kind cannot change from status %q", session.Status)
 	}
 
-	_, dropped, err := filterContextRefsForKind(req.Kind, req.ContextRefs)
+	candidates := append(append([]ContextRef(nil), session.StagedContext...), req.ContextRefs...)
+	kept, dropped, err := filterContextRefsForKind(req.Kind, candidates)
 	if err != nil {
 		return ChangeKindResult{}, err
 	}
 	cleared := !starterJobAllowedForKind(session.StarterJob, req.Kind)
 	session.Kind = req.Kind
+	session.StagedContext = kept
 	session.SkillID = s.skillIDForKind(req.Kind)
 	if cleared {
 		session.StarterJob = ""
@@ -160,9 +187,6 @@ func (s *Service) ChangeKind(ctx context.Context, req ChangeKindRequest) (Change
 }
 
 func filterContextRefsForKind(kind Kind, refs []ContextRef) ([]ContextRef, []ContextRef, error) {
-	if len(refs) > contextLimitsForKind(kind).MaxTotal {
-		return nil, nil, apierr.BadRequest("no more than %d context items are allowed for %s sessions", contextLimitsForKind(kind).MaxTotal, kind)
-	}
 	kept := make([]ContextRef, 0, len(refs))
 	dropped := make([]ContextRef, 0)
 	seen := map[string]struct{}{}
@@ -186,13 +210,16 @@ func filterContextRefsForKind(kind Kind, refs []ContextRef) ([]ContextRef, []Con
 			dropped = append(dropped, ref)
 		}
 	}
+	if len(kept) > contextLimitsForKind(kind).MaxTotal {
+		return nil, nil, apierr.BadRequest("no more than %d context items are allowed for %s sessions", contextLimitsForKind(kind).MaxTotal, kind)
+	}
 	return kept, dropped, nil
 }
 
 func contextLimitsForKind(kind Kind) ContextLimits {
 	common := map[ContextType]int{
 		ContextBacklogItem:          8,
-		ContextGoal:                 1,
+		ContextGoal:                 3,
 		ContextCapture:              4,
 		ContextExecution:            6,
 		ContextAgentActivity:        6,

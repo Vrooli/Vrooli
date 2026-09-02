@@ -112,6 +112,14 @@ func (s *Service) GovernanceStatus() (*GovernanceStatusResponse, error) {
 	if activityCounts[agentactivity.LaneExecute] < executeActive {
 		activityCounts[agentactivity.LaneExecute] = executeActive
 	}
+	activityHolders := map[agentactivity.Lane][]agentactivity.LaneHolder{}
+	if reader, ok := s.activityLaneReader.(interface {
+		LaneHolders() (map[agentactivity.Lane][]agentactivity.LaneHolder, error)
+	}); ok {
+		if holders, herr := reader.LaneHolders(); herr == nil {
+			activityHolders = holders
+		}
+	}
 
 	lanes := make([]LaneStatus, 0, 4)
 	for _, lane := range agentactivity.Lanes() {
@@ -119,12 +127,22 @@ func (s *Service) GovernanceStatus() (*GovernanceStatusResponse, error) {
 		if lane == agentactivity.LaneExecute {
 			laneQueue = queued
 		}
-		lanes = append(lanes, LaneStatus{
+		laneStatus := LaneStatus{
 			Lane:     string(lane),
 			Active:   activityCounts[lane],
 			Capacity: laneCapacity(gov, lane),
 			Queue:    laneQueue,
-		})
+		}
+		for _, holder := range activityHolders[lane] {
+			laneStatus.Holders = append(laneStatus.Holders, holder.ActivityID)
+			if laneStatus.Reason == "" {
+				laneStatus.Reason = holder.Reason
+			}
+		}
+		if laneStatus.Active >= laneStatus.Capacity && laneStatus.Capacity > 0 && laneStatus.Reason == "" {
+			laneStatus.Reason = "lane at configured capacity"
+		}
+		lanes = append(lanes, laneStatus)
 	}
 
 	totalActive := 0

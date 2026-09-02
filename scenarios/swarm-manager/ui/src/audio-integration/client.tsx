@@ -1,4 +1,5 @@
 // audio-integration React context.
+// HOST DIFFERENCE: swarm-manager owns its Connect client and provider context.
 //
 // Mirrors web-console's approach: the UI talks same-origin to
 // swarm-manager's own AudioAdminService + AudioRuntimeService, and the

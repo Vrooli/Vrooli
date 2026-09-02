@@ -67,6 +67,8 @@ func appendEvent(t *testing.T, repo *eventlog.SQLiteRepository, ts time.Time, en
 		EntityType: entityType,
 		EntityID:   entityID,
 		EventType:  eventType,
+		ActorType:  "operator",
+		ActorID:    "test/operator",
 		Metadata:   meta,
 	})
 	if err != nil {

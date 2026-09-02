@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/apierr"
 	"swarm-manager/internal/httputil"
@@ -25,6 +26,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions", h.List).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions", h.Create).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/batch", h.CreateBatch).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}", h.Get).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/kind", h.ChangeKind).Methods(http.MethodPatch)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/context", h.AttachContext).Methods(http.MethodPost)
@@ -34,13 +36,17 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/attachments/{attachment_id}", h.GetAttachment).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/start", h.Start).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/continue", h.Continue).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/complete", h.Complete).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/reap", h.Reap).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/prompt-preview", h.PreviewPrompt).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/events", h.ListEvents).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/refresh", h.Refresh).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/cancel", h.Cancel).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/disposition", h.Disposition).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/apply", h.ApplyProposal).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/accept-keep", h.AcceptNoChangeRecommendation).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/revise", h.ReviseMutationProposal).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/agent-sessions/{session_id}/proposals/{proposal_id}/wait", h.WaitProposal).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/proposal-sessions", h.CreateProposalSession).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/proposal-sessions", h.ListProposalSessions).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/agent-sessions/{session_id}/artifacts", h.ListArtifacts).Methods(http.MethodGet)
@@ -52,6 +58,16 @@ type proposalSessionRequest struct {
 	Title      string         `json:"title"`
 	Target     ProposalTarget `json:"target"`
 	StarterJob string         `json:"starter_job_id,omitempty"`
+}
+
+type batchCreateRequest struct {
+	Sessions []struct {
+		Kind       string `json:"kind"`
+		Title      string `json:"title"`
+		StarterJob string `json:"starter_job_id,omitempty"`
+	} `json:"sessions"`
+	Actor          string `json:"actor"`
+	OverrideReason string `json:"override_reason,omitempty"`
 }
 
 func (h *Handler) CreateProposalSession(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +88,24 @@ func (h *Handler) CreateProposalSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	_ = httputil.JSONWithStatus(w, http.StatusCreated, session)
+}
+
+func (h *Handler) CreateBatch(w http.ResponseWriter, r *http.Request) {
+	var req batchCreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierr.MapError(w, "[agent-sessions] create batch", apierr.BadRequest("invalid request body"))
+		return
+	}
+	items := make([]CreateRequest, 0, len(req.Sessions))
+	for _, item := range req.Sessions {
+		items = append(items, CreateRequest{Kind: Kind(item.Kind), Title: item.Title, StarterJob: item.StarterJob})
+	}
+	sessions, err := h.service.CreateBatch(r.Context(), BatchCreateRequest{Sessions: items, Actor: req.Actor, OverrideReason: req.OverrideReason})
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] create batch", err)
+		return
+	}
+	_ = httputil.JSONWithStatus(w, http.StatusCreated, map[string]any{"sessions": sessions, "created": len(sessions), "actor": strings.TrimSpace(req.Actor)})
 }
 
 func (h *Handler) ListProposalSessions(w http.ResponseWriter, r *http.Request) {
@@ -151,6 +185,21 @@ func (h *Handler) ReviseMutationProposal(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	_ = httputil.JSONWithStatus(w, http.StatusOK, session)
+}
+
+func (h *Handler) WaitProposal(w http.ResponseWriter, r *http.Request) {
+	var req mutationProposalRevisionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierr.MapError(w, "[agent-sessions] wait proposal", apierr.BadRequest("invalid request body"))
+		return
+	}
+	vars := mux.Vars(r)
+	session, err := h.service.MarkProposalWaiting(r.Context(), vars["session_id"], vars["proposal_id"], req.Note)
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] wait proposal", err)
+		return
+	}
+	_ = httputil.JSONWithStatus(w, http.StatusOK, map[string]any{"session": session})
 }
 
 func (h *Handler) StartupBrief(w http.ResponseWriter, r *http.Request) {
@@ -344,6 +393,26 @@ func (h *Handler) Continue(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) Complete(w http.ResponseWriter, r *http.Request) {
+	session, err := h.service.Complete(r.Context(), mux.Vars(r)["session_id"])
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] complete", err)
+		return
+	}
+	if err := httputil.JSONWithStatus(w, http.StatusOK, map[string]any{"session": session}); err != nil {
+		apierr.MapError(w, "[agent-sessions] complete", apierr.Internal("failed to encode response"))
+	}
+}
+
+func (h *Handler) Reap(w http.ResponseWriter, r *http.Request) {
+	reaped, err := h.service.Reap(r.Context(), time.Now().UTC())
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] reap", err)
+		return
+	}
+	_ = httputil.JSONWithStatus(w, http.StatusOK, map[string]any{"sessions": reaped, "reaped": len(reaped)})
+}
+
 func (h *Handler) UploadAttachments(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseMultipartForm(24 << 20); err != nil {
 		apierr.MapError(w, "[agent-sessions] upload-attachments", apierr.BadRequest("invalid multipart form"))
@@ -471,6 +540,23 @@ func (h *Handler) Cancel(w http.ResponseWriter, r *http.Request) {
 	if err := httputil.ProtoJSON(w, &apipb.CancelAgentSessionResponse{Session: SessionToProto(session)}); err != nil {
 		apierr.MapError(w, "[agent-sessions] cancel", apierr.Internal("failed to encode response"))
 	}
+}
+
+func (h *Handler) Disposition(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Disposition Disposition `json:"disposition"`
+		Reason      string      `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		apierr.MapError(w, "[agent-sessions] disposition", apierr.BadRequest("invalid request body"))
+		return
+	}
+	session, err := h.service.Disposition(r.Context(), mux.Vars(r)["session_id"], req.Disposition, req.Reason)
+	if err != nil {
+		apierr.MapError(w, "[agent-sessions] disposition", err)
+		return
+	}
+	_ = httputil.JSONWithStatus(w, http.StatusOK, map[string]any{"session": session})
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {

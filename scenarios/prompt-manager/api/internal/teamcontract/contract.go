@@ -441,8 +441,40 @@ func validateDocuments(contract *OperatingContract, input ValidationInput) error
 		if err := validatePathRefStructure([]PathRef{doc.Path}, input, "", "sharedState."+doc.ID); err != nil {
 			return err
 		}
+		if doc.Required && strings.TrimSpace(input.StoreDir) != "" {
+			path, err := requiredSharedStatePath(doc.Path, input)
+			if err != nil {
+				return fmt.Errorf("operatingContract.documents.sharedState.%s path cannot be resolved: %w", doc.ID, err)
+			}
+			if _, err := os.Stat(path); err != nil {
+				if os.IsNotExist(err) {
+					return fmt.Errorf("operatingContract.documents.sharedState.%s required path is missing: %s", doc.ID, path)
+				}
+				return fmt.Errorf("operatingContract.documents.sharedState.%s required path cannot be read: %w", doc.ID, err)
+			}
+		}
 	}
 	return nil
+}
+
+func requiredSharedStatePath(ref PathRef, input ValidationInput) (string, error) {
+	path := filepath.Clean(strings.TrimSpace(ref.Path))
+	if path == "." || path == "" || path == ".." || strings.HasPrefix(path, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("invalid path %q", ref.Path)
+	}
+	switch strings.TrimSpace(ref.Base) {
+	case BaseTeamShared:
+		return filepath.Join(input.StoreDir, "teams", input.TeamID, "shared", path), nil
+	case BaseTeamRoot:
+		return filepath.Join(input.StoreDir, "teams", input.TeamID, path), nil
+	case BaseRepoRoot:
+		if strings.TrimSpace(input.RepoRoot) == "" {
+			return "", fmt.Errorf("repo-root requires RepoRoot")
+		}
+		return filepath.Join(input.RepoRoot, path), nil
+	default:
+		return "", fmt.Errorf("unsupported required shared-state base %q", ref.Base)
+	}
 }
 
 func planOfRecordHubInPaths(doc PlanOfRecordDocument, input ValidationInput) bool {

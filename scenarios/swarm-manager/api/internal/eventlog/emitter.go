@@ -11,7 +11,8 @@ import (
 
 // Emitter provides typed methods for emitting events. All methods are
 // fire-and-forget: errors are logged but never returned, so event logging
-// cannot block or fail the calling mutation.
+// cannot block or fail the calling mutation. Production writes still go
+// through AppendAttributed, which rejects an event with no actor identity.
 type Emitter struct {
 	repo Repository
 }
@@ -24,7 +25,16 @@ func NewEmitter(repo Repository) *Emitter {
 // --- Backlog events ---
 
 func (e *Emitter) EmitBacklogCreated(entityID, kind, status string, priority int, initiative, effort string) {
-	e.EmitBacklogCreatedFromSource(entityID, kind, status, priority, initiative, effort, "user", "")
+	// This compatibility entrypoint predates request provenance. Keep its
+	// origin explicit as a system writer; request-aware callers must use the
+	// context/source variants so the operator or agent identity is preserved.
+	e.emitWithActor(EntityBacklogItem, entityID, EventBacklogCreated, "system", systemEmitterActor, BacklogCreatedPayload{
+		Kind:      kind,
+		Status:    status,
+		Priority:  priority,
+		Milestone: initiative,
+		Effort:    effort,
+	})
 }
 
 // EmitBacklogCreatedFromSource records a creation with explicit actor
@@ -209,6 +219,10 @@ func (e *Emitter) EmitGoalArchived(name, previousStatus, archivedAt string) {
 	})
 }
 
+func (e *Emitter) EmitGoalArchivedWithDisposition(name, previousStatus, archivedAt, actor string, droppedItems []string) {
+	e.emit(EntityGoal, name, EventGoalArchived, ArchivePayload{PreviousStatus: previousStatus, ArchivedAt: archivedAt, Actor: actor, DroppedItems: droppedItems})
+}
+
 func (e *Emitter) EmitGoalUnarchived(name, archivedAt string) {
 	e.emit(EntityGoal, name, EventGoalUnarchived, UnarchivePayload{ArchivedAt: archivedAt})
 }
@@ -332,6 +346,10 @@ func (e *Emitter) EmitWorkshopRoundCompleted(entityID string, payload WorkshopRo
 	e.emit(EntityBacklogItem, entityID, EventWorkshopRoundCompleted, payload)
 }
 
+func (e *Emitter) EmitAutonomyGateModeChanged(gateID, from, to, actorID string) {
+	e.emitWithActor(EntitySystem, gateID, EventAutonomyGateModeChanged, "operator", actorID, AutonomyGateModeChangedPayload{GateID: gateID, From: from, To: to})
+}
+
 // --- View events ---
 
 func (e *Emitter) EmitBacklogViewed(entityID, kind string) {
@@ -436,8 +454,13 @@ func proposalActor(p ProposalAppliedPayload) (actorType, actorID string) {
 // attribution consumer must use emitContext instead — see
 // docs/internal/PROVENANCE.md § Event seams.
 func (e *Emitter) emit(entityType EntityType, entityID string, eventType EventType, payload any) {
-	e.emitWithActor(entityType, entityID, eventType, "user", "", payload)
+	// Compatibility methods without a context identify the actual writer as
+	// this Swarm Manager system process. They must not manufacture a user or
+	// unattributed actor. New mutation paths should use emitContext.
+	e.emitWithActor(entityType, entityID, eventType, "system", systemEmitterActor, payload)
 }
+
+const systemEmitterActor = "system/swarm-manager/compatibility-emitter"
 
 // emitContext is the request-aware counterpart to emit. The caller's context
 // carries the verified provenance resolved by api-core's middleware, so the
@@ -490,6 +513,14 @@ func (e *Emitter) emitWithActorContext(ctx context.Context, entityType EntityTyp
 		Metadata:           metadata,
 	}
 
+	if attributed, ok := e.repo.(interface {
+		AppendAttributed(context.Context, Event) (int64, error)
+	}); ok {
+		if _, err := attributed.AppendAttributed(context.Background(), event); err != nil {
+			slog.Error("failed to append event", "event_type", eventType, "entity_type", entityType, "entity_id", entityID, "error", err)
+		}
+		return
+	}
 	if _, err := e.repo.Append(context.Background(), event); err != nil {
 		slog.Error("failed to append event", "event_type", eventType, "entity_type", entityType, "entity_id", entityID, "error", err)
 	}

@@ -113,7 +113,7 @@ Cross-reference: [docs/monetization/catalogs/skus/base/business.md](../../moneti
 |---|---|
 | `goal:portal` | Chat-first ecosystem front door — the surface that makes the whole ecosystem approachable. |
 | `goal:portal-front-door` | Portal's front-door UX slice. |
-| `goal:phone-agent` | Voice/phone interface — extends the ecosystem to a hands-free channel. |
+| `goal:phone-agent` | Voice/phone interface — extends the ecosystem to a hands-free channel. Switchboard owns the conversational presence plane and its channel registry. |
 | `goal:contact-book-plus` | Relationship-intelligence substrate — a consumer scenario and a data capability other scenarios compose. |
 | `goal:inventory-app` | Physical-capability substrate — bridges the ecosystem to real-world objects. |
 | `goal:routines-app` | Authority-layer content scenario — recurring-guidance delivery. |

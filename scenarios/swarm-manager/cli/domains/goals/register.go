@@ -18,7 +18,7 @@ import (
 // REST-only endpoints receive an equivalent Connect contract.
 func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 	return cliapp.SubcommandGroup{Name: "goals", Description: "Goal and milestone management", Subcommands: []cliapp.Command{
-		listCommand(), getCommand(), createCommand(), updateCommand(), deleteCommand(),
+		listCommand(), unwiredCommand(), getCommand(), createCommand(), updateCommand(), deleteCommand(),
 		archiveCommand(), unarchiveCommand(), contextCommand(), targetsCommand("targets-add", true),
 		targetsCommand("targets-remove", false),
 		workflowPendingCommand(), workflowApplyCommand(), closeOutCommand(),
@@ -61,6 +61,17 @@ func listCommand() cliapp.Command {
 	cmd := cliapp.Command{Name: "list", NeedsAPI: true, Description: "List goals [--json]"}
 	return cmd.WithPrimitive(cliapp.ProtoList(func(op cliapp.OperationContext) (*apipb.ListGoalsResponse, error) {
 		response, err := client(op).ListGoals(context.Background(), connect.NewRequest(&apipb.ListGoalsRequest{}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	}, goalListReport))
+}
+
+func unwiredCommand() cliapp.Command {
+	cmd := cliapp.Command{Name: "unwired", NeedsAPI: true, Description: "List goals without a served Offer Desk deliverable [--json]"}
+	return cmd.WithPrimitive(cliapp.ProtoList(func(op cliapp.OperationContext) (*apipb.ListGoalsResponse, error) {
+		response, err := client(op).ListUnwiredGoals(context.Background(), connect.NewRequest(&apipb.ListGoalsRequest{}))
 		if err != nil {
 			return nil, err
 		}
@@ -125,9 +136,9 @@ func goalDetailReport(_ cliapp.OperationContext, response *apipb.GoalResponse) c
 }
 
 func createCommand() cliapp.Command {
-	cmd := cliapp.Command{Name: "create", NeedsAPI: true, Description: "Create goal (--name NAME --title TITLE [--targets kind/name,...]) [--json]", Args: flags(nameFlag(), cliapp.Flag{Name: "title", Description: "Goal title", Required: true}, cliapp.Flag{Name: "targets", Description: "Comma-separated item references"})}
+	cmd := cliapp.Command{Name: "create", NeedsAPI: true, Description: "Create goal (--name NAME --title TITLE [--targets kind/name,...] [--serves-deliverable NAME]) [--json]", Args: flags(nameFlag(), cliapp.Flag{Name: "title", Description: "Goal title", Required: true}, cliapp.Flag{Name: "targets", Description: "Comma-separated item references"}, cliapp.Flag{Name: "serves-deliverable", Description: "Offer Desk deliverable served by this goal"})}
 	return cmd.WithPrimitive(cliapp.ProtoMutation(func(op cliapp.OperationContext) (*apipb.GoalResponse, error) {
-		response, err := client(op).CreateGoal(context.Background(), connect.NewRequest(&apipb.CreateGoalRequest{Name: strings.TrimSpace(op.Flag("name")), Title: strings.TrimSpace(op.Flag("title")), Targets: splitCSV(op.Flag("targets"))}))
+		response, err := client(op).CreateGoal(context.Background(), connect.NewRequest(&apipb.CreateGoalRequest{Name: strings.TrimSpace(op.Flag("name")), Title: strings.TrimSpace(op.Flag("title")), Targets: splitCSV(op.Flag("targets")), ServesDeliverable: strings.TrimSpace(op.Flag("serves-deliverable"))}))
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +147,7 @@ func createCommand() cliapp.Command {
 }
 
 func updateCommand() cliapp.Command {
-	cmd := cliapp.Command{Name: "update", NeedsAPI: true, Description: "Update goal (--name NAME [--title TITLE] [--description TEXT] [--priority N]) [--json]", Args: flags(nameFlag(), cliapp.Flag{Name: "title", Description: "Goal title"}, cliapp.Flag{Name: "description", Description: "Goal description"}, cliapp.Flag{Name: "priority", Description: "Goal priority"})}
+	cmd := cliapp.Command{Name: "update", NeedsAPI: true, Description: "Update goal (--name NAME [--title TITLE] [--description TEXT] [--priority N] [--serves-deliverable NAME]) [--json]", Args: flags(nameFlag(), cliapp.Flag{Name: "title", Description: "Goal title"}, cliapp.Flag{Name: "description", Description: "Goal description"}, cliapp.Flag{Name: "priority", Description: "Goal priority"}, cliapp.Flag{Name: "serves-deliverable", Description: "Offer Desk deliverable served by this goal"})}
 	return cmd.WithPrimitive(cliapp.ProtoMutation(func(op cliapp.OperationContext) (*apipb.GoalResponse, error) {
 		req := &apipb.UpdateGoalRequest{Name: strings.TrimSpace(op.Flag("name"))}
 		if title := op.Flag("title"); title != "" {
@@ -153,8 +164,11 @@ func updateCommand() cliapp.Command {
 			priority := int32(value)
 			req.Priority = &priority
 		}
-		if req.Title == nil && req.Description == nil && req.Priority == nil {
-			return nil, fmt.Errorf("one of --title, --description, or --priority is required")
+		if deliverable := strings.TrimSpace(op.Flag("serves-deliverable")); deliverable != "" {
+			req.ServesDeliverable = &deliverable
+		}
+		if req.Title == nil && req.Description == nil && req.Priority == nil && req.ServesDeliverable == nil {
+			return nil, fmt.Errorf("one of --title, --description, --priority, or --serves-deliverable is required")
 		}
 		response, err := client(op).UpdateGoal(context.Background(), connect.NewRequest(req))
 		if err != nil {
@@ -178,9 +192,14 @@ func deleteCommand() cliapp.Command {
 }
 
 func archiveCommand() cliapp.Command {
-	return goalNameMutation("archive", "Archive goal (--name NAME) [--json]", func(c apiconnect.GoalServiceClient, name string) (*connect.Response[apipb.GoalResponse], error) {
-		return c.ArchiveGoal(context.Background(), connect.NewRequest(&apipb.ArchiveGoalRequest{Name: name}))
-	})
+	cmd := cliapp.Command{Name: "archive", NeedsAPI: true, Description: "Archive goal (--name NAME) [--force] [--json]", Args: flags(nameFlag(), cliapp.Flag{Name: "force", Description: "Drop every open targeted item"}, cliapp.Flag{Name: "actor", Description: "Actor recorded in the archive event"})}
+	return cmd.WithPrimitive(cliapp.ProtoMutation(func(op cliapp.OperationContext) (*apipb.GoalResponse, error) {
+		response, err := client(op).ArchiveGoal(context.Background(), connect.NewRequest(&apipb.ArchiveGoalRequest{Name: strings.TrimSpace(op.Flag("name")), Force: op.Flag("force") == "true", Actor: strings.TrimSpace(op.Flag("actor"))}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	}, goalReport))
 }
 
 func unarchiveCommand() cliapp.Command {

@@ -73,6 +73,22 @@ func (s *aggregateState) processEvent(e *eventlog.Event) {
 		s.handleExecutionFailed(e)
 	case eventlog.EventExecutionCanceled:
 		s.execOutcome[e.EntityID] = "canceled"
+	case eventlog.EventExecutionStatusChanged:
+		var p eventlog.StatusChangePayload
+		if unmarshalMeta(e.Metadata, &p) {
+			switch strings.ToLower(strings.TrimSpace(p.To)) {
+			case "abstained":
+				s.execOutcome[e.EntityID] = "abstained"
+			case "budget_exhausted":
+				s.execOutcome[e.EntityID] = "budget_exhausted"
+			case "failed":
+				s.execOutcome[e.EntityID] = "failed"
+			case "completed", "complete":
+				if s.execOutcome[e.EntityID] != "manually_accepted" {
+					s.execOutcome[e.EntityID] = "completed"
+				}
+			}
+		}
 	case eventlog.EventExecutionManuallyAccepted:
 		// Manual acceptance is emitted in addition to execution.completed, so
 		// the completion itself will also be recorded. Marking the outcome
@@ -306,11 +322,20 @@ func (s *aggregateState) handleExecutionCompleted(e *eventlog.Event) {
 }
 
 func (s *aggregateState) handleExecutionFailed(e *eventlog.Event) {
-	s.execOutcome[e.EntityID] = "failed"
 	var p eventlog.ExecutionFailedPayload
 	if unmarshalMeta(e.Metadata, &p) {
+		switch strings.ToLower(strings.TrimSpace(p.Reason)) {
+		case "abstained", "needs_attention":
+			s.execOutcome[e.EntityID] = "abstained"
+		case "budget_exhausted", "budget exhausted":
+			s.execOutcome[e.EntityID] = "budget_exhausted"
+		default:
+			s.execOutcome[e.EntityID] = "failed"
+		}
 		s.execDurations = append(s.execDurations, p.DurationSeconds/60.0)
+		return
 	}
+	s.execOutcome[e.EntityID] = "failed"
 }
 
 // --- Native Agent Session handlers ---
@@ -418,6 +443,12 @@ func (s *aggregateState) handleWorkshopRoundCompleted(e *eventlog.Event) {
 	if p.RoundNumber > s.workshopRounds[e.EntityID] {
 		s.workshopRounds[e.EntityID] = p.RoundNumber
 	}
+	// Recommendation acceptance is a calibration metric, so it only uses
+	// events with a real actor. Legacy rows remain visible in the event log and
+	// workshop-round count, but cannot influence the rate.
+	if strings.TrimSpace(e.ActorID) == "" || strings.HasPrefix(strings.TrimSpace(e.ActorID), "system/swarm-manager/unattributed") {
+		return
+	}
 	// Per-item decision counters. Pre-schema events leave these
 	// zero; we just skip the contribution and continue.
 	if p.ItemsTotal <= 0 {
@@ -446,6 +477,17 @@ func (s *aggregateState) handleWorkshopRoundCompleted(e *eventlog.Event) {
 	bucket.itemsAnswered += p.ItemsAnswered
 	bucket.itemsRecommendedChosen += p.ItemsRecommendedChosen
 	bucket.itemsFreeformChosen += p.ItemsFreeformChosen
+	if gateID := strings.TrimSpace(p.GateID); gateID != "" {
+		gateBucket, ok := s.decisionByGate[gateID]
+		if !ok {
+			gateBucket = &decisionKindCounters{}
+			s.decisionByGate[gateID] = gateBucket
+		}
+		gateBucket.itemsTotal += p.ItemsTotal
+		gateBucket.itemsAnswered += p.ItemsAnswered
+		gateBucket.itemsRecommendedChosen += p.ItemsRecommendedChosen
+		gateBucket.itemsFreeformChosen += p.ItemsFreeformChosen
+	}
 }
 
 // --- Review evidence handlers ---

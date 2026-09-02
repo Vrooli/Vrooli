@@ -1,9 +1,9 @@
 import type { CSSProperties, Ref } from "react";
-import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1.0.0";
-import type { ResizeSeparatorProps } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
+import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1";
+import type { ResizeSeparatorProps } from "@vrooli/react-component-library/useResizablePanel/1";
 import { Code, Eye, List } from "lucide-react";
 import Editor from "@monaco-editor/react";
-import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import { Button } from "../ui/button";
 import { InlineLoadingIndicator } from "../ui/loading-states";
 import { selectors } from "../../consts/selectors";

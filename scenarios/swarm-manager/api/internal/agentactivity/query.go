@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"swarm-manager/internal/agentmanager"
 )
@@ -76,6 +77,11 @@ func (s *Service) Get(ctx context.Context, activityID string) (Record, error) {
 func (s *Service) List(ctx context.Context, filters ListFilters) ([]Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if records, err := s.store.Load(); err == nil {
+		if err := s.reapExpiredNeedsReviewLocked(records, time.Now()); err != nil {
+			return nil, err
+		}
+	}
 
 	if err := s.refreshActiveLocked(ctx); err != nil {
 		return nil, err

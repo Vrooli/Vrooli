@@ -77,33 +77,31 @@ func TestEmitBacklogCreatedFromContextPersistsVerifiedRunAttribution(t *testing.
 	}
 }
 
-func TestEmitBacklogCreatedFromContextPersistsHarnessObservationWithoutRun(t *testing.T) {
+func TestEmitBacklogCreatedFromContextRejectsHarnessObservationWithoutActor(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Invocation: provenance.Invocation{HarnessSessionID: "codex-thread-1", HarnessKind: "codex"}})
 	emitter.EmitBacklogCreatedFromContext(ctx, "execute/observed", "execute", "backlog", 5, "", "", "user", "")
 
-	e := lastEvent(t, repo)
-	if e.HarnessSessionID != "codex-thread-1" || e.HarnessKind != "codex" || e.VerificationStatus != provenance.VerificationAbsent || e.ActorID != "" {
-		t.Fatalf("harness observation = %+v", e)
+	events, err := repo.All(context.Background())
+	if err != nil {
+		t.Fatalf("all: %v", err)
+	}
+	if len(events) != 0 {
+		t.Fatalf("unattributed harness observation was persisted: %+v", events[0])
 	}
 }
 
-func TestEmitBacklogStatusChanged(t *testing.T) {
+func TestEmitBacklogStatusChangedRejectsMissingActor(t *testing.T) {
 	emitter, repo := setupEmitter(t)
 
 	emitter.EmitBacklogStatusChanged(context.Background(), "fix/bug-1", "backlog", "in_progress")
 
-	e := lastEvent(t, repo)
-	if e.EventType != eventlog.EventBacklogStatusChanged {
-		t.Errorf("event_type: got %q", e.EventType)
+	events, err := repo.All(context.Background())
+	if err != nil {
+		t.Fatalf("all: %v", err)
 	}
-
-	var p eventlog.StatusChangePayload
-	if err := json.Unmarshal(e.Metadata, &p); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if p.From != "backlog" || p.To != "in_progress" {
-		t.Errorf("payload: %+v", p)
+	if len(events) != 0 {
+		t.Fatalf("status change without actor was persisted: %+v", events[0])
 	}
 }
 
@@ -321,5 +319,21 @@ func TestDurabilityEventSeamsCarryProvenance(t *testing.T) {
 				t.Errorf("actor = %q/%q run=%q, want %q/%q run=%q", e.ActorType, e.ActorID, e.RunID, provenance.ActorAgent, "team/member", "run-durability")
 			}
 		})
+	}
+}
+
+func TestEmitter_AutonomyGateModeChangeIsAttributed(t *testing.T) {
+	emitter, repo := setupEmitter(t)
+	emitter.EmitAutonomyGateModeChanged("slice-approval", "manual", "auto", "operator-1")
+	e := lastEvent(t, repo)
+	if e.EventType != eventlog.EventAutonomyGateModeChanged || e.ActorID != "operator-1" {
+		t.Fatalf("mode change event = %#v", e)
+	}
+	var payload eventlog.AutonomyGateModeChangedPayload
+	if err := json.Unmarshal(e.Metadata, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.GateID != "slice-approval" || payload.From != "manual" || payload.To != "auto" {
+		t.Fatalf("mode change payload = %#v", payload)
 	}
 }

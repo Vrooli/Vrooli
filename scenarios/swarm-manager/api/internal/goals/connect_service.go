@@ -47,6 +47,21 @@ func (s *ConnectService) ListGoals(context.Context, *connect.Request[apipb.ListG
 	return connect.NewResponse(out), nil
 }
 
+func (s *ConnectService) ListUnwiredGoals(_ context.Context, _ *connect.Request[apipb.ListGoalsRequest]) (*connect.Response[apipb.ListGoalsResponse], error) {
+	goals, err := s.service.List()
+	if err != nil {
+		return nil, internal(err)
+	}
+	out := &apipb.ListGoalsResponse{Goals: make([]*apipb.GoalResponse, 0, len(goals))}
+	for _, goal := range goals {
+		if strings.TrimSpace(goal.Goal.ServesDeliverable) != "" {
+			continue
+		}
+		out.Goals = append(out.Goals, goalResponse(&goal))
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (s *ConnectService) GetGoal(_ context.Context, req *connect.Request[apipb.GetGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
 	goal, err := s.service.Get(req.Msg.GetName())
 	if err != nil {
@@ -57,7 +72,7 @@ func (s *ConnectService) GetGoal(_ context.Context, req *connect.Request[apipb.G
 
 func (s *ConnectService) CreateGoal(_ context.Context, req *connect.Request[apipb.CreateGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
 	in := req.Msg
-	goal, err := s.service.Create(CreateRequest{Name: in.Name, Title: in.Title, Description: in.Description, Priority: int(in.Priority), Targets: in.Targets})
+	goal, err := s.service.Create(CreateRequest{Name: in.Name, Title: in.Title, Description: in.Description, Priority: int(in.Priority), Targets: in.Targets, ServesDeliverable: in.ServesDeliverable})
 	if err != nil {
 		return nil, goalError(err)
 	}
@@ -66,7 +81,7 @@ func (s *ConnectService) CreateGoal(_ context.Context, req *connect.Request[apip
 
 func (s *ConnectService) UpdateGoal(_ context.Context, req *connect.Request[apipb.UpdateGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
 	in := req.Msg
-	goal, err := s.service.Update(in.Name, UpdateRequest{Title: in.Title, Description: in.Description, Priority: int32Ptr(in.Priority)})
+	goal, err := s.service.Update(in.Name, UpdateRequest{Title: in.Title, Description: in.Description, Priority: int32Ptr(in.Priority), ServesDeliverable: in.ServesDeliverable})
 	if err != nil {
 		return nil, goalError(err)
 	}
@@ -81,7 +96,7 @@ func (s *ConnectService) DeleteGoal(_ context.Context, req *connect.Request[apip
 }
 
 func (s *ConnectService) ArchiveGoal(_ context.Context, req *connect.Request[apipb.ArchiveGoalRequest]) (*connect.Response[apipb.GoalResponse], error) {
-	if _, err := s.service.Archive(req.Msg.GetName()); err != nil {
+	if _, err := s.service.archiveWithOptions(req.Msg.GetName(), req.Msg.GetForce(), req.Msg.GetActor()); err != nil {
 		return nil, goalError(err)
 	}
 	return s.GetGoal(context.Background(), connect.NewRequest(&apipb.GetGoalRequest{Name: req.Msg.GetName()}))
@@ -231,7 +246,7 @@ func milestoneFromProto(in *sharedpb.Milestone) Milestone {
 }
 
 func goalToProto(in Goal) *domainpb.Goal {
-	out := &domainpb.Goal{Name: in.Name, Title: in.Title, Description: in.Description, Status: in.Status, Priority: int32(in.Priority), Targets: in.Targets, Created: in.Created, Updated: in.Updated, ArchivedAt: in.ArchivedAt}
+	out := &domainpb.Goal{Name: in.Name, Title: in.Title, Description: in.Description, Status: in.Status, Priority: int32(in.Priority), Targets: in.Targets, Created: in.Created, Updated: in.Updated, ArchivedAt: in.ArchivedAt, DroppedItems: in.DroppedItems, ServesDeliverable: in.ServesDeliverable}
 	for _, milestone := range in.Milestones {
 		out.Milestones = append(out.Milestones, &sharedpb.Milestone{Name: milestone.Name, Title: milestone.Title, Description: milestone.Description, Items: milestone.Items, AcceptanceCriteria: milestone.AcceptanceCriteria, DependsOn: milestone.DependsOn, ArchivedAt: milestone.ArchivedAt})
 	}

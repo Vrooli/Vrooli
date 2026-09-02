@@ -1,6 +1,8 @@
 package backlog
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -30,5 +32,31 @@ func TestIsStaleUsesUpdatedAgeAndAcceptancePaths(t *testing.T) {
 	missing.AcceptanceAllow = []string{"missing/path/**"}
 	if !IsStale(missing, t.TempDir(), now) {
 		t.Fatal("missing acceptance path was not marked stale")
+	}
+}
+
+func TestIsStaleResolvesRepoRelativeAcceptanceFromScenarioAnchor(t *testing.T) {
+	projectRoot := t.TempDir()
+	writeRepoContractFixture(t, projectRoot)
+	scenarioRoot := filepath.Join(projectRoot, "scenarios", "swarm-manager")
+	if err := os.MkdirAll(filepath.Join(projectRoot, "scenarios", "deployment-manager"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(scenarioRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Date(2026, 8, 29, 9, 0, 0, 0, time.UTC)
+	item := BacklogItem{
+		Updated:         now.Add(-time.Hour).Format(time.RFC3339),
+		AcceptanceAllow: []string{"scenarios/deployment-manager/**"},
+	}
+	if IsStale(item, scenarioRoot, now) {
+		t.Fatal("repo-relative acceptance path was resolved under the scenario directory")
+	}
+
+	item.AcceptanceAllow = []string{"scenarios/missing/**"}
+	if !IsStale(item, scenarioRoot, now) {
+		t.Fatal("missing repo-relative acceptance path was not marked stale")
 	}
 }

@@ -2,6 +2,7 @@
 
 ## Primary Duties
 - Compile the morning vision-walk briefing.
+- Preserve one command-sourced fleet-health observation in each dated morning briefing, including the exact window and counts, the computed success ratio, the 90% verdict, and bounded explanations for failure streaks of two or more.
 - Surface open work items from director-swarm and relevant external teams with enough context for operator review.
 - Preserve walk checkpoints verbatim when regenerating continuity records.
 - Highlight changes and capability gaps without taking action.

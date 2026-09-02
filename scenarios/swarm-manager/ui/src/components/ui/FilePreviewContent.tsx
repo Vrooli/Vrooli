@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { useResolvedTheme } from "../../lib";
 import { getMonacoLanguage } from "../../lib/file-type-utils";
-import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0/0.3.2";
+import { MarkdownRenderer } from "@vrooli/react-component-library/markdown-renderer/0";
 import { ErrorState } from "./error-state";
 
 const DEFAULT_EDITOR_OPTIONS = {

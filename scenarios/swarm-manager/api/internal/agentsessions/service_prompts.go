@@ -401,6 +401,7 @@ func (s *Service) PreviewPrompt(ctx context.Context, req ContinueRequest) (Previ
 		// Mirror Start: the startup brief and any proposal target are added
 		// server-side, so a preview that omitted them would understate the
 		// prompt by its single largest section.
+		refs = append(append([]ContextRef(nil), session.StagedContext...), refs...)
 		refs = refsWithAutoContext(session.Kind, refs, req.AutoContextPolicy, s.startupBriefResolverAvailable())
 		if session.ProposalTarget != nil {
 			refs = append(refs, ContextRef{Type: session.ProposalTarget.Type, Ref: session.ProposalTarget.Ref})

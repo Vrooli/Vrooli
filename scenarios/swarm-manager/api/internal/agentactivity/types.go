@@ -62,14 +62,16 @@ const (
 type Status string
 
 const (
-	StatusPending     Status = "pending"
-	StatusStarting    Status = "starting"
-	StatusRunning     Status = "running"
-	StatusNeedsReview Status = "needs_review"
-	StatusComplete    Status = "complete"
-	StatusFailed      Status = "failed"
-	StatusCancelled   Status = "cancelled"
-	StatusUnspecified Status = "unspecified"
+	StatusPending         Status = "pending"
+	StatusStarting        Status = "starting"
+	StatusRunning         Status = "running"
+	StatusNeedsReview     Status = "needs_review"
+	StatusComplete        Status = "complete"
+	StatusAbstained       Status = "abstained"
+	StatusBudgetExhausted Status = "budget_exhausted"
+	StatusFailed          Status = "failed"
+	StatusCancelled       Status = "cancelled"
+	StatusUnspecified     Status = "unspecified"
 )
 
 type Record struct {

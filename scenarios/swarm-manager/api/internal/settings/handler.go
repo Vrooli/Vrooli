@@ -12,9 +12,11 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"swarm-manager/internal/apierr"
+	"swarm-manager/internal/eventlog"
 	"swarm-manager/internal/httputil"
 
 	"github.com/gorilla/mux"
@@ -24,12 +26,18 @@ import (
 // Handler exposes HTTP endpoints for settings persistence.
 // [REQ:REQ-P1-010-API] Settings persistence API
 type Handler struct {
-	store *Store
+	store   *Store
+	emitter *eventlog.Emitter
 }
 
 // NewHandler creates a new settings handler.
 func NewHandler(path string) *Handler {
 	return &Handler{store: NewStore(path)}
+}
+
+// NewHandlerWithEmitter adds durable audit events for autonomy mode changes.
+func NewHandlerWithEmitter(path string, emitter *eventlog.Emitter) *Handler {
+	return &Handler{store: NewStore(path), emitter: emitter}
 }
 
 // GetStore returns the underlying store (for dependency injection into other handlers).
@@ -91,6 +99,18 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		}
 		apierr.MapError(w, "[settings] update", apierr.Internal("failed to persist settings"))
 		return
+	}
+	if h.emitter != nil {
+		actorID := strings.TrimSpace(r.Header.Get("X-Actor-ID"))
+		if actorID == "" {
+			actorID = "operator"
+		}
+		for gateID, to := range updated.AutonomyGateModes {
+			from := current.AutonomyGateModes[gateID]
+			if from != to {
+				h.emitter.EmitAutonomyGateModeChanged(gateID, from, to, actorID)
+			}
+		}
 	}
 
 	slog.Info("settings updated",

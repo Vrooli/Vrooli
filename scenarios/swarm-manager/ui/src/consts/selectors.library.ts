@@ -6,9 +6,10 @@ export const librarySelectors = {
   },
 
 
-      "markdown-renderer": {
+        "markdown-renderer": {
     "root": "markdown-renderer",
   },
+
 
 
       "voiceinputbutton": {
@@ -17,19 +18,24 @@ export const librarySelectors = {
   },
 
 
-      "foundations.visual-recipes": {
+        "foundations.visual-recipes": {
     "root": "foundations.visual-recipes",
   },
 
 
-      "foundations.tokens": {
+
+        "foundations.tokens": {
     "root": "foundations.tokens",
+    "semanticCount": "foundations.tokens.semantic-count",
+    "spaceCount": "foundations.tokens.space-count",
   },
 
 
-      "controls.pressable": {
+
+        "controls.pressable": {
     "root": "controls.pressable",
   },
+
 
 
       "controls.icon-button": {
@@ -42,9 +48,12 @@ export const librarySelectors = {
   },
 
 
-                "controls.button": {
+                  "controls.button": {
     "root": "controls.button",
+    "icon": "controls.button.icon",
+    "label": "controls.button.label",
   },
+
 
 
 

@@ -297,6 +297,8 @@ func normalizeScenarioStatus(status string) ScenarioStatus {
 		return StatusStopped
 	case "error":
 		return StatusError
+	case "start-failed":
+		return StatusStartFailed
 	default:
 		return StatusUnknown
 	}

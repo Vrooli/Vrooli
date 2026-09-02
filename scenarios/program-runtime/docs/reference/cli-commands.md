@@ -209,14 +209,25 @@ naming the still-running program id, not a severed connection.
 
 ### `program-runtime library`
 
-The library is versioned and operator-controlled. Successful submissions are
-never promoted implicitly:
+The library is versioned with automatic candidates and explicit stable
+promotion:
 
 ```bash
 program-runtime library list --json
+program-runtime library search "prepare the morning vision walk briefing"
+program-runtime library get morning-vision-walk-prep --version 1 --json
 program-runtime library promote --program-id <program-id> --name probe --description "validated reusable probe" --reason "operator validation"
 program-runtime library set-current probe --version 1
-program-runtime library get probe --json
+```
+
+Successful agent programs enter the searchable `candidate` tier automatically;
+`library promote` graduates a version to `promoted`. `library get` includes the
+program contract and one freshness/drift row for each called binding.
+
+The governed-versus-observed call share is queryable over an explicit window:
+
+```bash
+program-runtime programs governance-share --window-seconds 2592000 --json
 ```
 
 ### `program-runtime telemetry`

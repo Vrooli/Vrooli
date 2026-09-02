@@ -116,6 +116,7 @@ export function mapProtoSettings(protoSettings: Settings): SettingsDomain {
     costPerTurnEstimate: protoSettings.costPerTurnEstimate ?? 0.10,
     fixBeforeFeature: normalizeFixBeforeFeature(protoSettings.fixBeforeFeature),
     autoFiler: mapAutoFilerSettings(protoSettings.autoFiler),
+    autonomyGateModes: mapAutonomyGateModes(protoSettings),
   };
 }
 
@@ -158,6 +159,7 @@ export function mapProtoPolicyProjection(
       reviewRequireTests: c.reviewRequireTests ?? false,
       agentMaxTurns: c.agentMaxTurns ?? 0,
       agentTimeoutSeconds: c.agentTimeoutSeconds ?? 0,
+      autonomyGateModes: mapAutonomyGateModes(c),
     },
     classifications: (proto.classifications ?? []).map((entry) => ({
       field: entry.field ?? "",
@@ -166,6 +168,18 @@ export function mapProtoPolicyProjection(
       note: entry.note ?? "",
     })),
   };
+}
+
+function mapAutonomyGateModes(input: unknown): Record<string, "manual" | "suggest" | "auto"> {
+  const out: Record<string, "manual" | "suggest" | "auto"> = {};
+  const value = input && typeof input === "object" ? input as Record<string, unknown> : {};
+  const modes = value.autonomyGateModes && typeof value.autonomyGateModes === "object"
+    ? value.autonomyGateModes as Record<string, unknown>
+    : {};
+  for (const [id, mode] of Object.entries(modes)) {
+    if (mode === "manual" || mode === "suggest" || mode === "auto") out[id] = mode;
+  }
+  return out;
 }
 
 function normalizeFixBeforeFeature(value: string | undefined): FixBeforeFeatureMode {

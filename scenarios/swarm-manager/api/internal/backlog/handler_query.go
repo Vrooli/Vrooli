@@ -123,7 +123,8 @@ func (h *Handler) listItems(filters ListFilters) (*apipb.ListBacklogItemsRespons
 	protoItems := make([]*domainpb.BacklogItem, 0, len(items))
 	for _, item := range items {
 		proto := backlogToProto(item)
-		proto.Stale = IsStale(item, h.repoRoot, time.Now().UTC())
+		stale := IsStale(item, h.repoRoot, time.Now().UTC())
+		proto.Stale = &stale
 		protoItems = append(protoItems, proto)
 	}
 
@@ -181,7 +182,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	proto := backlogToProto(item)
-	proto.Stale = IsStale(item, h.repoRoot, time.Now().UTC())
+	stale := IsStale(item, h.repoRoot, time.Now().UTC())
+	proto.Stale = &stale
 	resp := &apipb.BacklogItemResponse{Item: proto}
 	if err := httputil.ProtoJSON(w, resp); err != nil {
 		apierr.MapError(w, "[backlog] get", apierr.Internal("failed to encode response"))

@@ -28,6 +28,16 @@ type BacklogReader interface {
 	LoadAll(kinds []backlog.BacklogKind) ([]backlog.BacklogItem, error)
 }
 
+type BacklogMutator interface {
+	BacklogReader
+	SaveItem(item backlog.BacklogItem) error
+}
+
+// DeliverableRankReader is the narrow read seam for release-ladder priority.
+type DeliverableRankReader interface {
+	ReleaseRank(name string) (int, error)
+}
+
 // EventLogger records goal state-change events. *eventlog.Emitter satisfies it.
 type EventLogger interface {
 	EmitGoalCreated(name string, payload eventlog.GoalCreatedPayload)
@@ -45,6 +55,10 @@ type EventLogger interface {
 	EmitMilestoneArchived(goal, milestone string, payload eventlog.MilestonePayload)
 }
 
+type GoalArchiveDispositionLogger interface {
+	EmitGoalArchivedWithDisposition(name, previousStatus, archivedAt, actor string, droppedItems []string)
+}
+
 // AIIndexer keeps a goal's semantic-search vector in sync without coupling
 // this domain package to the aisearch implementation.
 type AIIndexer interface {
@@ -56,15 +70,21 @@ type AIIndexer interface {
 type Service struct {
 	store            *Store
 	backlog          BacklogReader
+	backlogMutator   BacklogMutator
 	eventLogger      EventLogger
 	eventDispatcher  dispatch.Invalidator
 	estimatorFactory EstimatorFactory
 	aiIndexer        AIIndexer
+	deliverableRanks DeliverableRankReader
 }
 
 // NewService creates a goals Service.
 func NewService(store *Store, backlogReader BacklogReader) *Service {
-	return &Service{store: store, backlog: backlogReader}
+	service := &Service{store: store, backlog: backlogReader}
+	if mutator, ok := backlogReader.(BacklogMutator); ok {
+		service.backlogMutator = mutator
+	}
+	return service
 }
 
 // SetEventLogger injects an optional event logger.
@@ -80,6 +100,69 @@ func (s *Service) SetEstimatorFactory(f EstimatorFactory) { s.estimatorFactory =
 // SetAIIndexer configures optional best-effort semantic-search synchronization.
 // Goal persistence is never blocked by an unavailable embedding service.
 func (s *Service) SetAIIndexer(indexer AIIndexer) { s.aiIndexer = indexer }
+
+// SetDeliverableRankReader enables read-time release priority derivation.
+func (s *Service) SetDeliverableRankReader(reader DeliverableRankReader) { s.deliverableRanks = reader }
+
+func (s *Service) priorityForGoal(g Goal) int {
+	if s.deliverableRanks == nil || strings.TrimSpace(g.ServesDeliverable) == "" {
+		return g.Priority
+	}
+	rank, err := s.deliverableRanks.ReleaseRank(g.ServesDeliverable)
+	resolved := err == nil && rank > 0
+	if urgencyReader, ok := s.deliverableRanks.(interface{ DerivedUrgency(string) (int, error) }); ok && (err != nil || rank <= 0) {
+		if urgency, urgencyErr := urgencyReader.DerivedUrgency(g.ServesDeliverable); urgencyErr == nil {
+			rank, err, resolved = urgency, nil, true
+		}
+	}
+	if !resolved {
+		slog.Warn("release rank unavailable for goal projection", "goal", g.Name, "deliverable", g.ServesDeliverable, "error", err)
+		return g.Priority
+	}
+	if rank <= 0 {
+		return 0
+	}
+	maxRank := 0
+	if reader, ok := s.deliverableRanks.(interface{ MaxReleaseRank() (int, error) }); ok {
+		if discovered, discoverErr := reader.MaxReleaseRank(); discoverErr == nil && discovered > 1 {
+			maxRank = discovered
+		}
+	}
+	slog.Debug("release rank projected onto goal", "goal", g.Name, "deliverable", g.ServesDeliverable, "rank", rank, "max_rank", maxRank)
+	if maxRank == 0 {
+		if rank > 10 {
+			return 10
+		}
+		return rank
+	}
+	if rank <= 1 || maxRank <= 1 {
+		return 0
+	}
+	if rank >= maxRank {
+		return 10
+	}
+	return ((rank - 1) * 10) / (maxRank - 1)
+}
+
+func (s *Service) validateServesDeliverable(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || s.deliverableRanks == nil {
+		return nil
+	}
+	reader, ok := s.deliverableRanks.(interface{ ValidateDeliverable(string) (bool, error) })
+	if !ok {
+		return nil
+	}
+	valid, err := reader.ValidateDeliverable(name)
+	if err != nil {
+		slog.Warn("could not validate serves_deliverable; accepting unverified value", "deliverable", name, "error", err)
+		return nil
+	}
+	if !valid {
+		return validationErr("unknown serves_deliverable %q; list deliverables from Offer Desk before retrying", name)
+	}
+	return nil
+}
 
 func (s *Service) indexGoalAsync(goal Goal) {
 	if s.aiIndexer == nil {
@@ -143,19 +226,23 @@ func (s *Service) Create(req CreateRequest) (*GoalWithScope, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := s.validateServesDeliverable(req.ServesDeliverable); err != nil {
+		return nil, err
+	}
 
 	now := nowRFC3339()
 	g := &Goal{
-		Name:        name,
-		Title:       strings.TrimSpace(req.Title),
-		Description: strings.TrimSpace(req.Description),
-		Status:      StatusActive,
-		Priority:    req.Priority,
-		Targets:     targets,
-		Seeded:      req.Seeded,
-		SpawnedFrom: req.SpawnedFrom,
-		Created:     now,
-		Updated:     now,
+		Name:              name,
+		Title:             strings.TrimSpace(req.Title),
+		Description:       strings.TrimSpace(req.Description),
+		Status:            StatusActive,
+		Priority:          req.Priority,
+		Targets:           targets,
+		Seeded:            req.Seeded,
+		SpawnedFrom:       req.SpawnedFrom,
+		ServesDeliverable: strings.TrimSpace(req.ServesDeliverable),
+		Created:           now,
+		Updated:           now,
 	}
 	if g.Title == "" {
 		g.Title = name
@@ -248,8 +335,9 @@ func (s *Service) ItemGoalPriorities() (map[string]int, error) {
 		gin.Targets = g.Targets
 		gin.Milestones = g.Milestones
 		for _, ref := range ComputeScope(gin).Closure {
-			if p, ok := out[ref]; !ok || g.Priority < p {
-				out[ref] = g.Priority
+			priority := s.priorityForGoal(g)
+			if p, ok := out[ref]; !ok || priority < p {
+				out[ref] = priority
 			}
 		}
 	}
@@ -278,8 +366,9 @@ func (s *Service) ReadyGoalItems() ([]ReadyGoalItem, error) {
 		gin.Targets = g.Targets
 		gin.Milestones = g.Milestones
 		for _, ref := range ComputeScope(gin).Ready {
-			if p, ok := best[ref]; !ok || g.Priority < p {
-				best[ref] = g.Priority
+			priority := s.priorityForGoal(g)
+			if p, ok := best[ref]; !ok || priority < p {
+				best[ref] = priority
 			}
 		}
 	}
@@ -341,9 +430,13 @@ func (s *Service) ListWithItemPriorities(items []backlog.BacklogItem) ([]GoalWit
 		// Priority is an active-goal concept: a paused or completed goal must
 		// not keep ranking items in the inbox.
 		if g.Status == StatusActive {
+			priority := s.priorityForGoal(g)
+			// The stored priority remains authored data, but all read projections
+			// must expose the current release-ladder priority.
+			g.Priority = priority
 			for _, ref := range scope.Closure {
-				if p, ok := priorities[ref]; !ok || g.Priority > p {
-					priorities[ref] = g.Priority
+				if p, ok := priorities[ref]; !ok || priority < p {
+					priorities[ref] = priority
 				}
 			}
 		}
@@ -396,6 +489,12 @@ func (s *Service) Update(name string, req UpdateRequest) (*GoalWithScope, error)
 			return nil, err
 		}
 		g.Targets = targets
+	}
+	if req.ServesDeliverable != nil {
+		if err := s.validateServesDeliverable(*req.ServesDeliverable); err != nil {
+			return nil, err
+		}
+		g.ServesDeliverable = strings.TrimSpace(*req.ServesDeliverable)
 	}
 	g.Updated = nowRFC3339()
 
@@ -502,6 +601,17 @@ func (s *Service) RemoveTargets(name string, targets []string) (*GoalWithScope, 
 
 // Archive marks a goal archived.
 func (s *Service) Archive(name string) (*Goal, error) {
+	return s.ArchiveWithForce(name, false)
+}
+
+// ArchiveWithForce requires an explicit cascade decision when open targeted
+// backlog items would otherwise be stranded. Forced cascades preserve every
+// item as dropped and return the dropped names in the goal projection.
+func (s *Service) ArchiveWithForce(name string, force bool) (*Goal, error) {
+	return s.archiveWithOptions(name, force, "")
+}
+
+func (s *Service) archiveWithOptions(name string, force bool, actor string) (*Goal, error) {
 	g, err := s.store.Load(name)
 	if err != nil {
 		return nil, err
@@ -509,16 +619,56 @@ func (s *Service) Archive(name string) (*Goal, error) {
 	if g.Status == StatusArchived {
 		return g, nil
 	}
+	items, err := s.backlog.LoadAll(nil)
+	if err != nil {
+		return nil, err
+	}
+	targets := make(map[string]bool, len(g.Targets))
+	for _, target := range g.Targets {
+		targets[target] = true
+	}
+	var open []backlog.BacklogItem
+	for _, candidate := range items {
+		ref := string(candidate.Kind) + "/" + candidate.Name
+		if targets[ref] && !backlog.IsResolvedStatus(candidate.Status) {
+			open = append(open, candidate)
+		}
+	}
+	if len(open) > 0 && !force {
+		refs := make([]string, 0, len(open))
+		for _, candidate := range open {
+			refs = append(refs, string(candidate.Kind)+"/"+candidate.Name)
+		}
+		sort.Strings(refs)
+		return nil, validationErr("cannot archive %q: open targeted items remain: %s; provide --force to drop them", name, strings.Join(refs, ", "))
+	}
+	if len(open) > 0 && s.backlogMutator == nil {
+		return nil, fmt.Errorf("cannot cascade archive %q: backlog is read-only", name)
+	}
+	dropped := make([]string, 0, len(open))
+	for _, candidate := range open {
+		candidate.Status = backlog.StatusDropped
+		if err := s.backlogMutator.SaveItem(candidate); err != nil {
+			return nil, err
+		}
+		dropped = append(dropped, string(candidate.Kind)+"/"+candidate.Name)
+	}
+	sort.Strings(dropped)
 	prev := g.Status
 	now := nowRFC3339()
 	g.Status = StatusArchived
 	g.ArchivedAt = &now
 	g.Updated = now
+	g.DroppedItems = dropped
 	if err := s.store.Save(g); err != nil {
 		return nil, err
 	}
 	if s.eventLogger != nil {
-		s.eventLogger.EmitGoalArchived(name, prev, now)
+		if logger, ok := s.eventLogger.(GoalArchiveDispositionLogger); ok {
+			logger.EmitGoalArchivedWithDisposition(name, prev, now, actor, dropped)
+		} else {
+			s.eventLogger.EmitGoalArchived(name, prev, now)
+		}
 	}
 	s.indexGoalAsync(*g)
 	s.invalidate()

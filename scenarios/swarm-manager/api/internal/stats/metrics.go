@@ -394,10 +394,10 @@ func (s *aggregateState) buildBlocking() BlockingStats {
 }
 
 func (s *aggregateState) buildAgent() AgentStats {
-	completed, failed, manuallyAccepted := s.countExecOutcomes()
+	completed, failed, abstained, budgetExhausted, manuallyAccepted := s.countExecOutcomes()
 
 	var successRate, failureRate, manualAcceptRate float64
-	finished := completed + failed
+	finished := completed + failed + abstained + budgetExhausted
 	if finished > 0 {
 		successRate = float64(completed) / float64(finished)
 		failureRate = float64(failed) / float64(finished)
@@ -444,11 +444,21 @@ func (s *aggregateState) buildAgent() AgentStats {
 			SampleSize: c.itemsAnswered,
 		}
 	}
+	byGate := make(map[string]KindRate, len(s.decisionByGate))
+	for gateID, c := range s.decisionByGate {
+		var rate float64
+		if c.itemsAnswered > 0 {
+			rate = float64(c.itemsRecommendedChosen) / float64(c.itemsAnswered)
+		}
+		byGate[gateID] = KindRate{Rate: rate, SampleSize: c.itemsAnswered}
+	}
 
 	return AgentStats{
 		TotalExecutions:                    s.execTotal,
 		CompletedCount:                     completed,
 		FailedCount:                        failed,
+		AbstainedCount:                     abstained,
+		BudgetExhaustedCount:               budgetExhausted,
 		ManuallyAcceptedCount:              manuallyAccepted,
 		SuccessRate:                        successRate,
 		FailureRate:                        failureRate,
@@ -465,6 +475,7 @@ func (s *aggregateState) buildAgent() AgentStats {
 		DecisionItemsTotal:                 s.decisionItemsTotal,
 		DecisionItemsAnswered:              s.decisionItemsAnswered,
 		RecommendationAcceptanceByKind:     byKind,
+		RecommendationAcceptanceByGate:     byGate,
 	}
 }
 

@@ -56,6 +56,12 @@ export function LaneBar({ status, className }: LaneBarProps) {
           )}
         </span>
       </div>
+      {status.reason && (
+        <div className="mt-0.5 truncate text-[10px] text-amber-200" title={status.reason}>
+          {status.reason}
+          {status.holders && status.holders.length > 0 ? ` (${status.holders.join(", ")})` : ""}
+        </div>
+      )}
       <div
         className={cn(
           "mt-1 h-1.5 w-full overflow-hidden rounded-full",

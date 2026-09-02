@@ -125,7 +125,7 @@ export type AgentSessionArtifact = Omit<
 
 export type AgentSession = Omit<
   ProtoMessage<ProtoAgentSession>,
-  "kind" | "status" | "messages" | "proposals" | "artifacts" | "attachments" | "createdBy" | "proposalTarget"
+  "kind" | "status" | "messages" | "proposals" | "artifacts" | "attachments" | "createdBy" | "proposalTarget" | "stagedContextRefs"
 > & {
   kind: AgentSessionKind;
   status: AgentSessionStatus;
@@ -135,6 +135,7 @@ export type AgentSession = Omit<
   attachments?: AgentSessionAttachment[];
   createdBy?: AgentSessionAttribution;
   proposalTarget?: AgentSessionProposalTarget;
+  stagedContextRefs?: AgentSessionContextRef[];
 };
 
 export type AgentSessionEventType =

@@ -7,3 +7,4 @@
 {"actionId":"scenario.status.show","startedAt":"2026-08-09T19:23:53.081814552Z","finishedAt":"2026-08-09T19:23:53.260558168Z","durationMs":178,"status":"dry-run","argv":["vrooli","scenario","status","prompt-manager"],"validationValid":true}
 {"actionId":"scenario.status.show","startedAt":"2026-08-19T04:46:03.44707092Z","finishedAt":"2026-08-19T04:46:03.447760539Z","durationMs":0,"status":"dry-run","argv":["vrooli","scenario","status","prompt-manager"],"validationValid":true}
 {"actionId":"scenario.status.show","startedAt":"2026-08-19T04:48:13.686274413Z","finishedAt":"2026-08-19T04:48:13.79033248Z","durationMs":104,"status":"dry-run","argv":["vrooli","scenario","status","prompt-manager"],"validationValid":true}
+{"actionId":"scenario.status.show","startedAt":"2026-08-29T22:15:57.106009207Z","finishedAt":"2026-08-29T22:15:57.132433146Z","durationMs":26,"status":"dry-run","argv":["vrooli","scenario","status","prompt-manager"],"validationValid":true}

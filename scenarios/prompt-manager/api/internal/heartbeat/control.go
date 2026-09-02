@@ -275,7 +275,7 @@ func (s *HeartbeatControlStore) Pause(ctx context.Context, teamID, reason string
 	now := formatTime(s.now())
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
-		reason = "manual pause"
+		return nil, fmt.Errorf("pause reason is required")
 	}
 	if teamID == "" {
 		doc.GlobalState.Status = HeartbeatControlStatusPausedManual

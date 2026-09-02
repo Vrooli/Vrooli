@@ -75,6 +75,7 @@ export const DEFAULT_SETTINGS: Settings = {
     intervalMinutes: 30,
     goalName: "automated-maintenance",
   },
+  autonomyGateModes: {},
 };
 
 type SettingsPatch = Partial<Settings>;
@@ -156,6 +157,7 @@ function normalizeSettings(input?: SettingsPatch): Settings {
     costPerTurnEstimate: input.costPerTurnEstimate ?? DEFAULT_SETTINGS.costPerTurnEstimate,
     fixBeforeFeature: input.fixBeforeFeature ?? DEFAULT_SETTINGS.fixBeforeFeature,
     autoFiler: normalizeAutoFiler(input.autoFiler),
+    autonomyGateModes: input.autonomyGateModes ?? DEFAULT_SETTINGS.autonomyGateModes,
   };
 }
 
@@ -218,6 +220,7 @@ export function createSettingsService(apiClient: IApiClient = defaultApiClient):
         ...(patch.costPerTurnEstimate !== undefined ? { costPerTurnEstimate: patch.costPerTurnEstimate } : {}),
         ...(patch.fixBeforeFeature !== undefined ? { fixBeforeFeature: patch.fixBeforeFeature } : {}),
         ...(patch.autoFiler !== undefined ? { autoFiler: patch.autoFiler } : {}),
+        ...(patch.autonomyGateModes !== undefined ? { autonomyGateModes: patch.autonomyGateModes } : {}),
       });
       const data = await apiClient.put<unknown>(
         API_ENDPOINTS.settings,

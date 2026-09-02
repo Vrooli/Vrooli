@@ -15,6 +15,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -58,6 +59,7 @@ import (
 	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/envkit-go"
 	measurelib "github.com/vrooli/measures-go"
 	searchregister "github.com/vrooli/searchregister-go"
 	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
@@ -91,6 +93,37 @@ func scalarMeasure(value int, query string) measurelib.MeasureResult {
 		Value:      strconv.Itoa(value),
 		Provenance: measurelib.Provenance{ExecutedQuery: query},
 	}
+}
+
+const heartbeatFunctionalFailureThreshold = 2
+
+type heartbeatFunctionalObservation struct {
+	Enabled             bool
+	HasExecution        bool
+	ConsecutiveFailures int
+	LastError           string
+}
+
+func heartbeatFunctionalStatus(observations []heartbeatFunctionalObservation) health.FunctionalStatus {
+	broken := 0
+	lastError := ""
+	for _, observation := range observations {
+		// Never-fired scheduled members are not failures.
+		if observation.Enabled && observation.HasExecution && observation.ConsecutiveFailures >= heartbeatFunctionalFailureThreshold {
+			broken++
+			if lastError == "" {
+				lastError = observation.LastError
+			}
+		}
+	}
+	if broken < heartbeatFunctionalFailureThreshold {
+		return health.FunctionalStatus{Healthy: true}
+	}
+	reason := fmt.Sprintf("%d enabled heartbeat members cannot create runs", broken)
+	if lastError != "" {
+		reason += ": " + lastError
+	}
+	return health.FunctionalStatus{Healthy: false, Reason: reason}
 }
 
 // securityHeaders applies the API-wide baseline before any route handler runs.
@@ -685,8 +718,36 @@ func main() {
 		handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "X-Vrooli-Attribution", "X-Caller-ID", "X-Agent-Identity-Token", "X-Experiment-Read-Receipt-ID"}),
 	)
 
-	// Health check
-	healthHandler := health.New().Version("2.0.0").Check(health.DB(db.Primary()), health.Critical).Handler()
+	// Health check. Process and database liveness are not enough for Prompt
+	// Manager: a fleet-wide inability to create Agent Manager runs is a
+	// functional outage even while this API answers normally.
+	healthHandler := health.New().Version("2.0.0").
+		Check(health.DB(db.Primary()), health.Critical).
+		Functional(func(ctx context.Context) health.FunctionalStatus {
+			teams, err := fileStore.Teams().List(ctx)
+			if err != nil {
+				return health.FunctionalStatus{Healthy: false, Reason: "heartbeat roster unavailable: " + err.Error()}
+			}
+			observations := make([]heartbeatFunctionalObservation, 0)
+			for _, team := range teams {
+				if !team.Enabled {
+					continue
+				}
+				configs, listErr := fileStore.Teams().(*store.FileTeamStore).ListHeartbeatConfigs(ctx, team.ID)
+				if listErr != nil {
+					continue
+				}
+				for _, config := range configs {
+					observation := heartbeatFunctionalObservation{Enabled: config.Enabled, ConsecutiveFailures: config.ConsecutiveFailures}
+					if config.LastExecution != nil {
+						observation.HasExecution = true
+						observation.LastError = config.LastExecution.Error
+					}
+					observations = append(observations, observation)
+				}
+			}
+			return heartbeatFunctionalStatus(observations)
+		}).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes
@@ -727,8 +788,6 @@ func main() {
 	teamHandlers := teams.NewHandlers(fileStore.Teams(), fileStore.Agents(), fileStore.Relations(), fileStore.Indexes(), nil)
 	teamHandlers.SetGraphInvalidator(graphIndex)
 	teamHandlers.SetAIIndexer(aiSearchService)
-	teamsConnectPath, teamsConnectHandler := teams.NewConnectMount(teamHandlers)
-	connectx.RegisterServices(router, connectx.ServiceMount{Path: teamsConnectPath, Handler: teamsConnectHandler})
 	// Member-flow (per-member topics.json) routes — declares each member's
 	// intake/output topic prefixes and feeds the team graph view.
 	// DOC: docs/agent-system/TOPICS_SCHEMA.md
@@ -873,6 +932,20 @@ func main() {
 		runRegistry,
 		nil, // uses default SentinelExtractor
 	)
+	heartbeatExecutor.SetRecoveryRequester(func(ctx context.Context, scenario, reason string) (string, error) {
+		childEnv := []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
+		cmd := exec.CommandContext(ctx, "vrooli", "agent", "recover", "--scenario", scenario, "--reason", reason, "--requester", "prompt-manager")
+		cmd.Env = childEnv
+		output, err := cmd.CombinedOutput()
+		fields := strings.Fields(string(output))
+		if err != nil {
+			return "", fmt.Errorf("agent recovery: %w: %s", err, strings.TrimSpace(string(output)))
+		}
+		if len(fields) < 3 {
+			return "", fmt.Errorf("agent recovery returned no request id")
+		}
+		return fields[2], nil
+	})
 	// Routes each member's own open declaration findings into its heartbeat
 	// prompt. Wired on the executor because that builder serves both the real
 	// spawn path and `team prompt-preview`, so the operator previews exactly
@@ -920,6 +993,10 @@ func main() {
 		TeamExecStore: teamExecStore,
 	})
 	heartbeatHandlers.SetControlStore(heartbeatControlStore)
+	// Teams knowledge is owned by the heartbeat handler because it enforces
+	// runtime attribution and the publication rules for the shared corpus.
+	teamsConnectPath, teamsConnectHandler := teams.NewConnectMount(teamHandlers, heartbeatHandlers)
+	connectx.RegisterServices(router, connectx.ServiceMount{Path: teamsConnectPath, Handler: teamsConnectHandler})
 	heartbeatConnectPath, heartbeatConnectHandler := heartbeat.NewConnectMount(heartbeatHandlers)
 	connectx.RegisterServices(router, connectx.ServiceMount{Path: heartbeatConnectPath, Handler: heartbeatConnectHandler})
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
@@ -940,7 +1017,12 @@ func main() {
 			if !team.Enabled {
 				continue
 			}
-			configs, _ := fileStore.Teams().(*store.FileTeamStore).ListHeartbeatConfigs(context.Background(), team.ID)
+			teamStore := fileStore.Teams().(*store.FileTeamStore)
+			if err := teamStore.ValidateHeartbeatRoster(context.Background(), team.ID); err != nil {
+				log.Printf("Warning: Refusing to schedule team with heartbeat roster drift: %v", err)
+				continue
+			}
+			configs, _ := teamStore.ListHeartbeatConfigs(context.Background(), team.ID)
 			for _, config := range configs {
 				if config.Enabled {
 					if err := heartbeatScheduler.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {

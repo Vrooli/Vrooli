@@ -204,6 +204,9 @@ func (h *Handler) applyUpdate(change *importChange) error {
 		}
 		modified = true
 	}
+	if ud.notesChanged {
+		modified = true
+	}
 
 	if modified {
 		item.Updated = time.Now().UTC().Format(time.RFC3339)
@@ -229,10 +232,10 @@ func (h *Handler) applyUpdate(change *importChange) error {
 	}
 
 	// Apply notes changes.
-	if ud.notes != "" {
+	if ud.notesChanged {
 		notesPath := filepath.Join(h.store.ItemDir(ud.kind, ud.name), "notes.md")
 		if err := os.WriteFile(notesPath, []byte(ud.notes+"\n"), 0o600); err != nil {
-			slog.Warn("import failed to write notes", "kind", ud.kind, "name", ud.name, "err", err)
+			return fmt.Errorf("failed to write notes: %w", err)
 		}
 	}
 

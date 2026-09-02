@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/discovery"
 )
 
 // Handlers provides HTTP handlers for member-flow operations.
@@ -21,6 +22,7 @@ type Handlers struct {
 	knowledgeQuery        KnowledgeQuery
 	agingOpts             InboxAgingOptions
 	promptSectionProvider OperatingGraphPromptSectionProvider
+	instrumentProbe       InstrumentReachabilityChecker
 }
 
 type OperatingGraphPromptSectionProvider interface {
@@ -36,7 +38,13 @@ type OperatingGraphPromptSectionProvider interface {
 // Use SetKnowledgeQuery to enable stalled_drain / piling_inbox warnings;
 // without it the API returns the pure-Go validation result.
 func NewHandlers(configDir, runtimeDataDir string) *Handlers {
-	return &Handlers{configDir: configDir, runtimeDataDir: runtimeDataDir}
+	return &Handlers{configDir: configDir, runtimeDataDir: runtimeDataDir, instrumentProbe: scenarioInstrumentReachabilityChecker{resolver: discovery.NewResolver(discovery.ResolverConfig{}), client: &http.Client{Timeout: 3 * time.Second}}}
+}
+
+// SetInstrumentReachabilityChecker replaces the live probe for deterministic
+// tests and controlled deployments. Passing nil disables probing.
+func (h *Handlers) SetInstrumentReachabilityChecker(checker InstrumentReachabilityChecker) {
+	h.instrumentProbe = checker
 }
 
 // SetKnowledgeQuery installs a backend used to compute inbox-aging warnings.

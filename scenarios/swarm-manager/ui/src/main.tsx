@@ -1,4 +1,4 @@
-import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1/1.0.1";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { i18n } from "./i18n";
 // ╔══════════════════════════════════════════════════════════════╗
 // ║  Runtime polyfills for older embedded browsers               ║

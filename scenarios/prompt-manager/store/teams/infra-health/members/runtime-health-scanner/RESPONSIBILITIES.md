@@ -2,6 +2,8 @@
 
 ## Primary Duties
 - Inspect aggregate runtime health since the previous heartbeat.
+- Inspect `vrooli scenario list --json` for durable `start-failed` states and read `scenario-dependency-analyzer drift --json` for manifest/lockfile divergence, including scenarios that never started.
+- Triage lockfile divergence only through the governed, dry-run-first `scenario-dependency-analyzer deps resync --scenario <name> --surface <surface>` command. Start failures and code defects are report-only; this lane does not edit source or run raw package managers.
 - Use the triage ladder to pick one signal worth deeper investigation.
 - Record durable runtime lessons and route operator-actionable findings through work items.
 - Name missing telemetry or CLI surfaces as capability or instrumentation gaps when they block the work.

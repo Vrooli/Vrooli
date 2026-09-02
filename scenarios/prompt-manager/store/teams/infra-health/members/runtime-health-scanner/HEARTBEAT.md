@@ -13,15 +13,17 @@ When the team resumes after a pause, the first heartbeat is a re-baselining pass
 5. Only then return to the normal task loop.
 
 ## Task Loop
-1. Read the ranked surface first: `infrastructure-manager focus next --json`. It merges out-of-band readings, untrusted readings, open-loop cells, coverage drift and source unavailability into one queue already ordered by cascade stage, and states which stage it applied. Check `sources` in the same response: a source reporting `available: false` means that whole finding class was not looked at, so an empty queue is not a quiet day.
-2. Take the top-ranked finding whose stage is the innermost unresolved tier. Do not skip down the list to a more interesting outer-tier item — that is the cascade violation the rubric fails mechanically. Pull the evidence with `infrastructure-manager condition explain <cell-ref> --json`, and the durable incident behind it with `vrooli-autoheal incidents latest --json`.
-3. Only when `focus next` is genuinely empty and every source is available, fall back to the wider sweep: capacity-claim mismatches (`vrooli capacity reconcile`), validation cost and cache reliability (`test-genie runs cost --window 7d --json`, including reliable-sample composition, calibration freshness, cache-hit rate, audit/demotion counts, and net saving), and capability availability aggregates. On quiet days, run the protocol-debt check: did any update protocol (setpoint review, REPLACES-MANUAL sweep, actuation-efficacy re-reads) trigger without completing?
-4. Pick one signal not already covered by the rolling lessons.
-5. Investigate with existing tooling first; use manual fallback only when necessary.
-6. Update the runtime lessons artifact.
-7. Record the runtime-health knowledge snapshot.
-8. Check supersession on owned open work items.
-9. Propose work items when the finding is concrete. Name the sensor the fix must move (`sensor_ref` on the finding) so actuation efficacy can be re-read afterwards.
+1. Read the control-plane failure population before the ranked surface: `vrooli scenario list --json` and retain every `start-failed` item with its reason and timestamp. Read dependency drift with `scenario-dependency-analyzer drift --json`; a lockfile drift entry is a triage item even when its scenario is currently off. Do not start a scenario as a repair.
+2. Read the ranked surface: `infrastructure-manager focus next --json`. It merges out-of-band readings, untrusted readings, open-loop cells, coverage drift and source unavailability into one queue already ordered by cascade stage, and states which stage it applied. Check `sources` in the same response: a source reporting `available: false` means that whole finding class was not looked at, so an empty queue is not a quiet day.
+3. Take the top-ranked finding whose stage is the innermost unresolved tier. Do not skip down the list to a more interesting outer-tier item — that is the cascade violation the rubric fails mechanically. Pull the evidence with `infrastructure-manager condition explain <cell-ref> --json`, and the durable incident behind it with `vrooli-autoheal incidents latest --json`.
+4. A lockfile drift is trivially repairable only with `scenario-dependency-analyzer deps resync --scenario <name> --surface <surface>` followed by explicit `--apply`. A start failure, code defect, or missing sensor is report-only. Never edit code or run a raw package manager from this lane.
+5. Only when `focus next` is genuinely empty and every source is available, fall back to the wider sweep: capacity-claim mismatches (`vrooli capacity reconcile`), validation cost and cache reliability (`test-genie runs cost --window 7d --json`, including reliable-sample composition, calibration freshness, cache-hit rate, audit/demotion counts, and net saving), and capability availability aggregates. On quiet days, run the protocol-debt check: did any update protocol (setpoint review, REPLACES-MANUAL sweep, actuation-efficacy re-reads) trigger without completing?
+6. Pick one signal not already covered by the rolling lessons.
+7. Investigate with existing tooling first; use manual fallback only when necessary.
+8. Update the runtime lessons artifact.
+9. Record the runtime-health knowledge snapshot.
+10. Check supersession on owned open work items.
+11. Propose work items when the finding is concrete. Name the sensor the fix must move (`sensor_ref` on the finding) so actuation efficacy can be re-read afterwards.
 
 For validation-cost scans, treat the Test Genie report as the source of truth. Do not rerun a comprehensive suite merely to obtain a cost sample when the report already has a recent reliable sample. If calibration is due, record the scheduler work item and wait for the server-owned run once; do not start a duplicate run because the cost command is slow.
 

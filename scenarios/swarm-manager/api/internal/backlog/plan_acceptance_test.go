@@ -33,7 +33,9 @@ func TestAcceptPlanPinsCanonicalHashAndScopeVersion(t *testing.T) {
 	h, root := setupTestHandler(t)
 	item := BacklogItem{Name: "accept-me", Title: "Accept me", Description: "scope", Status: StatusBacklog, Priority: 5, PlanRef: &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: "plan-1", Slug: "plan-1", Role: PlanRefRoleExecutionSpec}}
 	createTestItem(t, root, KindExecute, item)
-	h.SetPlanClient(acceptancePlanClient{plan: &sharedv1.Plan{Id: "plan-1", Slug: "plan-1", ContentHash: "sha256:accepted", Status: sharedv1.PlanStatus_PLAN_STATUS_ACTIVE}})
+	// A finalized, never-started plan reports DRAFT because status is computed
+	// from phase activity. First execution must still be accept-able.
+	h.SetPlanClient(acceptancePlanClient{plan: &sharedv1.Plan{Id: "plan-1", Slug: "plan-1", ContentHash: "sha256:accepted", Status: sharedv1.PlanStatus_PLAN_STATUS_DRAFT}})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/accept-me/plan-accept", strings.NewReader(`{}`))
 	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "accept-me"})
@@ -48,6 +50,21 @@ func TestAcceptPlanPinsCanonicalHashAndScopeVersion(t *testing.T) {
 	}
 	if saved.PlanAcceptance == nil || saved.PlanAcceptance.Actor != "operator" || saved.PlanAcceptance.PlanContentHash != "sha256:accepted" || !PlanAcceptanceMatches(saved, "sha256:accepted") {
 		t.Fatalf("saved acceptance = %#v", saved.PlanAcceptance)
+	}
+}
+
+func TestAcceptPlanRejectsArchivedPlan(t *testing.T) {
+	h, root := setupTestHandler(t)
+	item := BacklogItem{Name: "archived", Title: "Archived", Status: StatusBacklog, Priority: 5, PlanRef: &PlanRef{Provider: PlanRefProviderPlanManager, PlanID: "plan-1", Slug: "plan-1", Role: PlanRefRoleExecutionSpec}}
+	createTestItem(t, root, KindExecute, item)
+	h.SetPlanClient(acceptancePlanClient{plan: &sharedv1.Plan{Id: "plan-1", Slug: "plan-1", ContentHash: "sha256:archived", Status: sharedv1.PlanStatus_PLAN_STATUS_ARCHIVED}})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/backlog/execute/archived/plan-accept", strings.NewReader(`{}`))
+	req = mux.SetURLVars(req, map[string]string{"kind": "execute", "name": "archived"})
+	response := httptest.NewRecorder()
+	h.AcceptPlan(response, req)
+	if response.Code != http.StatusConflict {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
 	}
 }
 

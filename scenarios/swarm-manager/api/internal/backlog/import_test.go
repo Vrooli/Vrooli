@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"swarm-manager/internal/testutil"
 )
@@ -257,6 +258,86 @@ New description that was edited offline
 	if item.Description != "New description that was edited offline" {
 		t.Errorf("expected updated description, got %q", item.Description)
 	}
+}
+
+func TestImport_Apply_RefreshNoteAdvancesItemFreshness(t *testing.T) {
+	h, tmpDir := setupTestHandler(t)
+
+	const oldUpdated = "2026-02-15T00:00:00Z"
+	createTestItem(t, tmpDir, KindIdea, BacklogItem{
+		Name:        "stale-app",
+		Title:       "Stale Application",
+		Description: "Still relevant",
+		Status:      StatusBacklog,
+		Priority:    5,
+		Tags:        []string{"saas"},
+		Created:     "2026-02-10T00:00:00Z",
+		Updated:     oldUpdated,
+	})
+
+	md := `---
+version: 1
+items_count: 1
+---
+
+<!-- item:idea/stale-app -->
+## Stale Application
+
+| Field | Value |
+|-------|-------|
+| **Status** | backlog |
+| **Priority** | 5 |
+| **Tags** | saas |
+
+### Description
+
+Still relevant
+
+### Notes
+
+<!-- notes:idea/stale-app -->
+Refreshed because the acceptance path remains valid.
+`
+	req := postImportRequest(t, md, true)
+	w := httptest.NewRecorder()
+	h.Import(w, req)
+
+	resp := parseImportResp(t, w)
+	if len(resp.Errors) != 0 {
+		t.Fatalf("unexpected import errors: %v", resp.Errors)
+	}
+	if len(resp.Changes) != 1 || !slicesContain(resp.Changes[0].Details, "notes updated") {
+		t.Fatalf("expected one notes update, got %+v", resp.Changes)
+	}
+
+	item, err := h.store.LoadItem(KindIdea, "stale-app")
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated, err := time.Parse(time.RFC3339, item.Updated)
+	if err != nil {
+		t.Fatalf("parse updated timestamp %q: %v", item.Updated, err)
+	}
+	old, _ := time.Parse(time.RFC3339, oldUpdated)
+	if !updated.After(old) {
+		t.Fatalf("refresh note did not advance item freshness: got %s, old %s", item.Updated, oldUpdated)
+	}
+	notes, err := os.ReadFile(filepath.Join(tmpDir, backlogKindDirs[KindIdea], "stale-app", "notes.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(notes)) != "Refreshed because the acceptance path remains valid." {
+		t.Fatalf("unexpected notes content: %q", notes)
+	}
+}
+
+func slicesContain(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func TestImport_Apply_UpdateStatusAndPriority(t *testing.T) {

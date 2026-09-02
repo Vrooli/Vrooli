@@ -21,10 +21,10 @@
  */
 import { useEffect, useRef } from "react";
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
 
 import { SpatialGroup } from "./SpatialGroup";
-import { makeMockSpatialNavController } from "../test-utils";
+import { makeMockSpatialNavController, renderWithProviders as render } from "../test-utils";
 
 afterEach(() => {
   cleanup();

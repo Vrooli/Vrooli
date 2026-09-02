@@ -14,7 +14,7 @@ import { useOperationsStore } from "../../stores/operations-store";
 import { useAgentSessionPolling } from "../../hooks/useAgentSessionPolling";
 import { useCapturePolling } from "../../hooks/useCapturePolling";
 import { useStorePolling } from "../../hooks/useStorePolling";
-import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
+import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1";
 import { useIsMobile } from "../../hooks/useMediaQuery";
 import { BacklogItemsProvider } from "../../components/backlog/backlog-items-context";
 import { AppShellContext } from "./AppShellContext";

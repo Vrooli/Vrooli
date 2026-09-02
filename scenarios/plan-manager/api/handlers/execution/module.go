@@ -254,10 +254,10 @@ func orStalenessUnknown(tier planmodel.StalenessTier) string {
 
 // repoRoot resolves the repository root so the validation Service's filesystem
 // reference resolution treats `[CODE: scenarios/foo/...]` as repo-relative.
-// Mirrors handlers/validation/module.go: VROOLI_REPO_ROOT env, then a walk up for
+// Mirrors handlers/validation/module.go: VROOLI_ROOT env, then a walk up for
 // a `.git` marker, then the working directory as a last resort.
 func repoRoot() string {
-	if root, ok := os.LookupEnv("VROOLI_REPO_ROOT"); ok {
+	if root, ok := os.LookupEnv("VROOLI_ROOT"); ok {
 		if root = strings.TrimSpace(root); root != "" {
 			return root
 		}

@@ -26,7 +26,7 @@
     ],
     "gapMarker": "2026-08-13 — content-desk and asset-studio are both real and substantially built, but no single address aggregates them, so a member must know which of the two holds the answer. A third capability the operating model assigns to `social-media-scheduler` (account activation, warming, cadence, posting) has no scenario at all — that capability is unowned, not merely unaggregated. Decide the aggregator (content-desk is the likeliest) before building anything new."
   },
-  "enabled": false,
+  "enabled": true,
   "runtime": {
     "mode": "multi-process"
   },

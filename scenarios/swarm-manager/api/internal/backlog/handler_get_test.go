@@ -1,6 +1,7 @@
 package backlog
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,38 @@ import (
 
 	"github.com/gorilla/mux"
 )
+
+func TestList_EmitsExplicitFreshStalenessVerdict(t *testing.T) {
+	h, rootDir := setupTestHandler(t)
+	createTestItem(t, rootDir, KindIdea, BacklogItem{
+		Name: "fresh-item", Title: "Fresh Item", Status: StatusBacklog, Priority: 1,
+		Created: "2026-08-30T00:00:00Z", Updated: "2026-08-30T00:00:00Z",
+	})
+
+	w := httptest.NewRecorder()
+	h.List(w, httptest.NewRequest("GET", "/api/v1/backlog", nil))
+	testutil.AssertStatusOK(t, w)
+
+	var response map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	items, ok := response["items"].([]any)
+	if !ok || len(items) != 1 {
+		t.Fatalf("items = %#v", response["items"])
+	}
+	item, ok := items[0].(map[string]any)
+	if !ok {
+		t.Fatalf("item = %#v", items[0])
+	}
+	stale, ok := item["stale"]
+	if !ok {
+		t.Fatalf("fresh item omitted an explicit stale verdict: %s", w.Body.String())
+	}
+	if stale != false {
+		t.Fatalf("fresh item stale = %#v, want false", stale)
+	}
+}
 
 func TestList_Empty(t *testing.T) {
 	h, _ := setupTestHandler(t)

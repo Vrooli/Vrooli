@@ -113,11 +113,11 @@ func baselinePathSnapshots(snapshots []internalexecution.BaselineSetPathSnapshot
 }
 
 // repoRoot resolves the repository root so filesystem reference resolution
-// treats `[CODE: scenarios/foo/...]` as repo-relative. Order: VROOLI_REPO_ROOT
+// treats `[CODE: scenarios/foo/...]` as repo-relative. Order: VROOLI_ROOT
 // env, then a walk up from the working directory for a `.git` marker, then the
 // working directory as a last resort (references then resolve relative to it).
 func repoRoot() string {
-	if root, ok := os.LookupEnv("VROOLI_REPO_ROOT"); ok {
+	if root, ok := os.LookupEnv("VROOLI_ROOT"); ok {
 		if root = strings.TrimSpace(root); root != "" {
 			return root
 		}

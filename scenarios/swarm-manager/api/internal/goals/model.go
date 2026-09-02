@@ -41,10 +41,12 @@ type Goal struct {
 	ScopeHistory []ScopeSnapshot `json:"scope_history,omitempty"`
 	// Milestones are an optional owned partition of this goal's derived scope.
 	// They never alter the target set or dependency closure.
-	Milestones []Milestone `json:"milestones,omitempty"`
-	Created    string      `json:"created"`
-	Updated    string      `json:"updated"`
-	ArchivedAt *string     `json:"archived_at,omitempty"`
+	Milestones        []Milestone `json:"milestones,omitempty"`
+	Created           string      `json:"created"`
+	Updated           string      `json:"updated"`
+	ArchivedAt        *string     `json:"archived_at,omitempty"`
+	DroppedItems      []string    `json:"dropped_items,omitempty"`
+	ServesDeliverable string      `json:"serves_deliverable,omitempty"`
 }
 
 // Milestone is an owned, non-nestable subdivision of a goal. It is serialized
@@ -91,26 +93,28 @@ type ScopeSnapshot struct {
 
 // CreateRequest holds fields for creating a goal.
 type CreateRequest struct {
-	Name        string   `json:"name"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
-	Priority    int      `json:"priority,omitempty"`
-	Targets     []string `json:"targets,omitempty"`
-	Seeded      bool     `json:"seeded,omitempty"`
-	SpawnedFrom string   `json:"spawned_from,omitempty"`
+	Name              string   `json:"name"`
+	Title             string   `json:"title"`
+	Description       string   `json:"description,omitempty"`
+	Priority          int      `json:"priority,omitempty"`
+	Targets           []string `json:"targets,omitempty"`
+	Seeded            bool     `json:"seeded,omitempty"`
+	SpawnedFrom       string   `json:"spawned_from,omitempty"`
+	ServesDeliverable string   `json:"serves_deliverable,omitempty"`
 }
 
 // UpdateRequest holds optional fields for updating a goal.
 type UpdateRequest struct {
-	Title       *string   `json:"title,omitempty"`
-	Description *string   `json:"description,omitempty"`
-	Priority    *int      `json:"priority,omitempty"`
-	Targets     *[]string `json:"targets,omitempty"`
+	Title             *string   `json:"title,omitempty"`
+	Description       *string   `json:"description,omitempty"`
+	Priority          *int      `json:"priority,omitempty"`
+	Targets           *[]string `json:"targets,omitempty"`
+	ServesDeliverable *string   `json:"serves_deliverable,omitempty"`
 }
 
 // HasChanges reports whether the update carries at least one field.
 func (r UpdateRequest) HasChanges() bool {
-	return r.Title != nil || r.Description != nil || r.Priority != nil || r.Targets != nil
+	return r.Title != nil || r.Description != nil || r.Priority != nil || r.Targets != nil || r.ServesDeliverable != nil
 }
 
 // GoalWithScope pairs a goal with its computed scope for API responses. ETA is

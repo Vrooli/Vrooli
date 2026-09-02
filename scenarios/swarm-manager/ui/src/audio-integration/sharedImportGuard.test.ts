@@ -10,6 +10,14 @@ const AUDIO_ROOT = dirname(fileURLToPath(import.meta.url));
 const removedProviderFile = ["Voice", "Stream", "Provider"].join("") + ".ts";
 const UI_SOURCE = resolve(AUDIO_ROOT, "..");
 
+function isPurePackageReexport(source: string): boolean {
+  const withoutComments = source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "")
+    .trim();
+  return /^(?:export\s+(?:type\s+)?(?:\*|\{[\s\S]*?\})\s+from\s+["']@vrooli\/audio-capture-browser["'];?\s*)+$/.test(withoutComments);
+}
+
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const full = join(dir, entry);
@@ -49,7 +57,7 @@ describe("shared audio substrate boundary", () => {
 
   it("keeps orchestration in the shared browser package", () => {
     const hook = readFileSync(join(AUDIO_ROOT, "hooks", "useVoiceCore.ts"), "utf8");
-    expect(hook).toContain('from "./useVoiceInput"');
+    expect(hook).toContain('from "@vrooli/react-component-library/useVoiceInput/3"');
     expect(hook).toContain("useAdoptedVoiceInput");
     expect(hook).not.toContain("const INITIAL_STATE");
     expect(hook).not.toContain("useState(");
@@ -70,5 +78,10 @@ describe("shared audio substrate boundary", () => {
       /\bVoiceStreamProvider\b/.test(readFileSync(file, "utf8"))
     );
     expect(offenders).toEqual([]);
+  });
+
+  it("rejects an implementation hidden behind a package import", () => {
+    const source = 'import { downsample } from "@vrooli/audio-capture-browser";\nexport const divergent = downsample;\n';
+    expect(isPurePackageReexport(source)).toBe(false);
   });
 });

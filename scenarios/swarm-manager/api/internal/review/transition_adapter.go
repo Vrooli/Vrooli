@@ -134,6 +134,11 @@ func (s *Service) startReviewTransition(ctx context.Context, params startReviewP
 	if err != nil {
 		return fmt.Errorf("determine next round: %w", err)
 	}
+	priorEvidence, err := settledEvidenceForExecution(params.ItemDir, params.ExecutionID)
+	if err != nil {
+		return fmt.Errorf("load prior execution evidence: %w", err)
+	}
+	params.MachineEvidence = mergeEvidenceByID(params.MachineEvidence, priorEvidence)
 	encoded, err := json.Marshal(params)
 	if err != nil {
 		return fmt.Errorf("encode independent review snapshot: %w", err)
@@ -159,6 +164,52 @@ func (s *Service) startReviewTransition(ctx context.Context, params startReviewP
 		s.eventLogger.EmitReviewStarted(params.ExecutionID, roundNum)
 	}
 	return nil
+}
+
+func settledEvidenceForExecution(itemDir, executionID string) ([]EvidenceItem, error) {
+	rounds, err := readRounds(itemDir)
+	if err != nil {
+		return nil, err
+	}
+	var evidence []EvidenceItem
+	for _, round := range rounds {
+		if ExecutionIDFromSnapshot(round.AgentWorkflowSnapshot) != strings.TrimSpace(executionID) {
+			continue
+		}
+		requested := make(map[string]struct{})
+		for _, thread := range round.RequestThreads {
+			if thread.Status != "fulfilled" {
+				continue
+			}
+			for _, message := range thread.Messages {
+				for _, evidenceID := range message.AddedEvidenceIDs {
+					requested[evidenceID] = struct{}{}
+				}
+			}
+		}
+		for _, item := range round.Evidence {
+			if _, wasRequested := requested[item.ID]; wasRequested && item.Settlement == "settled" {
+				evidence = append(evidence, item)
+			}
+		}
+	}
+	return evidence, nil
+}
+
+func mergeEvidenceByID(base, additional []EvidenceItem) []EvidenceItem {
+	merged := append([]EvidenceItem(nil), base...)
+	seen := make(map[string]struct{}, len(merged))
+	for _, item := range merged {
+		seen[item.ID] = struct{}{}
+	}
+	for _, item := range additional {
+		if _, exists := seen[item.ID]; exists {
+			continue
+		}
+		merged = append(merged, item)
+		seen[item.ID] = struct{}{}
+	}
+	return merged
 }
 
 // ExecutionIDFromSnapshot projects the transition execution identity from the

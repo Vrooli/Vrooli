@@ -1,10 +1,13 @@
 package settings
 
+import "encoding/json"
+
 type PolicyControls struct {
 	Execution ExecutionControls
 	Retry     RetryControls
 	Review    ReviewControls
 	Budgets   AgentBudgetControls
+	Autonomy  AutonomyControls
 }
 type (
 	ExecutionControls struct{ DefaultMode string }
@@ -26,6 +29,13 @@ type ReviewControls struct {
 type AgentBudgetControls struct {
 	MaxTurns       int
 	TimeoutSeconds int
+}
+
+type AutonomyControls struct {
+	// GateModesJSON keeps PolicyControls comparable for the existing adapter
+	// contract. The API conversion decodes this canonical object into the
+	// typed protobuf map.
+	GateModesJSON string
 }
 type PolicyControlsProvider interface {
 	LoadPolicyControls() (PolicyControls, error)
@@ -64,7 +74,19 @@ func ProjectPolicyControls(s Settings) PolicyControls {
 			MaxTurns:       s.AgentMaxTurns,
 			TimeoutSeconds: s.AgentTimeoutSeconds,
 		},
+		Autonomy: AutonomyControls{GateModesJSON: canonicalGateModesJSON(s.AutonomyGateModes)},
 	}
+}
+
+func canonicalGateModesJSON(in map[string]string) string {
+	if len(in) == 0 {
+		return "{}"
+	}
+	data, err := json.Marshal(in)
+	if err != nil {
+		return "{}"
+	}
+	return string(data)
 }
 
 // policyControlsAdapter bridges Store to the policy-controls provider.
@@ -141,5 +163,6 @@ func PolicyFieldClassifications() []FieldClassification {
 		{Field: "review_max_warnings", Role: FieldRolePolicyControl, Control: "review.max_warnings", Note: "Retained user preference: review threshold consumed via policy controls."},
 		{Field: "review_require_screenshots", Role: FieldRolePolicyControl, Control: "review.require_screenshots", Note: "Retained user preference: review threshold consumed via policy controls."},
 		{Field: "review_require_tests", Role: FieldRolePolicyControl, Control: "review.require_tests", Note: "Retained user preference: review threshold consumed via policy controls."},
+		{Field: "autonomy_gate_modes", Role: FieldRolePolicyControl, Control: "autonomy.gate.<id>.mode", Note: "Per-transition human-gate mode; manual, suggest, and auto are governed by the transition catalog."},
 	}
 }

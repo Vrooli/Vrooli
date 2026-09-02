@@ -17,8 +17,8 @@ import {
   Lock,
   MoreHorizontal,
 } from "lucide-react";
-import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
-import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1.0.0";
+import { useResizablePanel } from "@vrooli/react-component-library/useResizablePanel/1";
+import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1";
 import { EntityFileBrowser, type FileActionType, type HeaderSlotProps } from "./entity-file-browser";
 import { ErrorBoundary } from "../ui/error-boundary";
 import { ErrorState } from "../ui/error-state";

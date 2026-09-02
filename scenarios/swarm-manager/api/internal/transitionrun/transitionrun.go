@@ -23,27 +23,30 @@ const (
 // Correlation is the durable hand-off between an Agent Manager workflow and a
 // subject-specific apply function. It intentionally contains no domain types.
 type Correlation struct {
-	TransitionKey        string          `json:"transition_key"`
-	SubjectKind          string          `json:"subject_kind"`
-	SubjectRef           string          `json:"subject_ref"`
-	ExecutionID          string          `json:"execution_id"`
-	WorkflowKey          string          `json:"workflow_key"`
-	DefinitionDigest     string          `json:"definition_digest"`
-	EntityVersion        string          `json:"entity_version"`
-	FrontierDigest       string          `json:"frontier_digest"`
-	ApplyState           string          `json:"apply_state"`
-	Outcome              string          `json:"outcome"`
-	TerminalCode         string          `json:"terminal_code,omitempty"`
-	BudgetName           string          `json:"budget_name,omitempty"`
-	Result               json.RawMessage `json:"result,omitempty"`
-	Attempts             []Attempt       `json:"attempts,omitempty"`
-	ApprovalActor        string          `json:"approval_actor,omitempty"`
-	ApprovalTime         string          `json:"approval_time,omitempty"`
-	ApplyAttemptCount    int             `json:"apply_attempt_count,omitempty"`
-	LastApplyAttemptTime string          `json:"last_apply_attempt_time,omitempty"`
-	LastApplyError       string          `json:"last_apply_error,omitempty"`
-	AppliedTime          string          `json:"applied_time,omitempty"`
-	DeclaredOutcomes     []string        `json:"declared_outcomes"`
+	TransitionKey              string          `json:"transition_key"`
+	SubjectKind                string          `json:"subject_kind"`
+	SubjectRef                 string          `json:"subject_ref"`
+	ExecutionID                string          `json:"execution_id"`
+	WorkflowKey                string          `json:"workflow_key"`
+	DefinitionDigest           string          `json:"definition_digest"`
+	EntityVersion              string          `json:"entity_version"`
+	FrontierDigest             string          `json:"frontier_digest"`
+	ApplyState                 string          `json:"apply_state"`
+	Outcome                    string          `json:"outcome"`
+	TerminalCode               string          `json:"terminal_code,omitempty"`
+	BudgetName                 string          `json:"budget_name,omitempty"`
+	Result                     json.RawMessage `json:"result,omitempty"`
+	Attempts                   []Attempt       `json:"attempts,omitempty"`
+	ApprovalActor              string          `json:"approval_actor,omitempty"`
+	ApprovalTime               string          `json:"approval_time,omitempty"`
+	EntityVersionRebasedBy     string          `json:"entity_version_rebased_by,omitempty"`
+	EntityVersionRebasedAt     string          `json:"entity_version_rebased_at,omitempty"`
+	EntityVersionRebasedReason string          `json:"entity_version_rebased_reason,omitempty"`
+	ApplyAttemptCount          int             `json:"apply_attempt_count,omitempty"`
+	LastApplyAttemptTime       string          `json:"last_apply_attempt_time,omitempty"`
+	LastApplyError             string          `json:"last_apply_error,omitempty"`
+	AppliedTime                string          `json:"applied_time,omitempty"`
+	DeclaredOutcomes           []string        `json:"declared_outcomes"`
 }
 
 // Attempt preserves enough workflow provenance for an operator to correlate a

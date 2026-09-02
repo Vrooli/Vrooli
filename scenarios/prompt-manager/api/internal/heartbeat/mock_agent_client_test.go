@@ -45,6 +45,8 @@ type mockAgentClient struct {
 
 	// Call tracking
 	createTaskCalls    []*Task
+	cancelTaskCalls    []string
+	deleteTaskCalls    []string
 	createRunCalls     []*CreateRunRequest
 	getRunCalls        []string
 	stopRunCalls       []string
@@ -164,7 +166,11 @@ func (m *mockAgentClient) EnsureProfile(_ context.Context, req *EnsureProfileReq
 	if m.ensureProfileResp != nil {
 		return m.ensureProfileResp, nil
 	}
-	return &EnsureProfileResponse{Created: false}, nil
+	profile := &AgentProfile{}
+	if req != nil {
+		profile.ProfileKey = req.ProfileKey
+	}
+	return &EnsureProfileResponse{Profile: profile, Created: false}, nil
 }
 
 func (m *mockAgentClient) ReconcileScenarioProfiles(_ context.Context, _ string) error {
@@ -190,6 +196,20 @@ func (m *mockAgentClient) CreateTask(_ context.Context, task *Task) (*Task, erro
 		ScopePath:   task.ScopePath,
 		ProjectRoot: task.ProjectRoot,
 	}, nil
+}
+
+func (m *mockAgentClient) DeleteTask(_ context.Context, taskID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.deleteTaskCalls = append(m.deleteTaskCalls, taskID)
+	return nil
+}
+
+func (m *mockAgentClient) CancelTask(_ context.Context, taskID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.cancelTaskCalls = append(m.cancelTaskCalls, taskID)
+	return nil
 }
 
 func (m *mockAgentClient) CreateRun(_ context.Context, req *CreateRunRequest) (*Run, error) {

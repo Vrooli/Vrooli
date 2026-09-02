@@ -181,7 +181,7 @@ func containsString(items []string, want string) bool {
 	return false
 }
 
-func TestParsePlanMarkdownRejectsMalformedMachineReadableMarkup(t *testing.T) {
+func TestParsePlanMarkdownImportsLegacyMachineReadableMarkup(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
@@ -208,10 +208,8 @@ func TestParsePlanMarkdownRejectsMalformedMachineReadableMarkup(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := ParsePlanMarkdown(tc.markdown)
-			var invalid ErrInvalidPlan
-			if !errors.As(err, &invalid) {
-				t.Fatalf("ParsePlanMarkdown() error = %v, want ErrInvalidPlan", err)
+			if _, err := ParsePlanMarkdown(tc.markdown); err != nil {
+				t.Fatalf("ParsePlanMarkdown() error = %v, want legacy source to remain importable", err)
 			}
 		})
 	}

@@ -285,3 +285,37 @@ func TestStorageMapFollowsMemberContract(t *testing.T) {
 		t.Error("forbidding a knowledge write did not change the Storage Map write surface")
 	}
 }
+
+func TestDirectorSwarmStalenessLaneReachesHeartbeatPrompts(t *testing.T) {
+	ctx := context.Background()
+	fileStore := newFileStore(t, paths.RootsForRepoStoreTest(t, "../../../store"))
+	teamStore := fileStore.Teams().(*store.FileTeamStore)
+	agentStore := fileStore.Agents().(*store.FileAgentStore)
+	builder := NewPromptBuilder(teamStore, agentStore)
+
+	portfolioPrompt, err := builder.Build(ctx, PromptBuildRequest{TeamID: "director-swarm", AgentID: "portfolio-manager"})
+	if err != nil {
+		t.Fatalf("build portfolio-manager prompt: %v", err)
+	}
+	for _, want := range []string{
+		".stale == true",
+		"at most the 6 oldest items",
+		"at most the 3 oldest goals",
+		"Never apply it",
+		"goal-portfolio-record/YYYY-MM-DD",
+	} {
+		if !strings.Contains(portfolioPrompt, want) {
+			t.Errorf("portfolio-manager prompt missing %q", want)
+		}
+	}
+
+	walkPrompt, err := builder.Build(ctx, PromptBuildRequest{TeamID: "director-swarm", AgentID: "vision-walk-prep"})
+	if err != nil {
+		t.Fatalf("build vision-walk-prep prompt: %v", err)
+	}
+	for _, want := range []string{"bounded staleness-verdict section", "typed reference, verdict, and evidence"} {
+		if !strings.Contains(walkPrompt, want) {
+			t.Errorf("vision-walk-prep prompt missing %q", want)
+		}
+	}
+}

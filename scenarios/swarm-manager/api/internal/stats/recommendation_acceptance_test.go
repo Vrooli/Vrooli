@@ -2,6 +2,7 @@ package stats
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"testing"
 	"time"
@@ -79,6 +80,23 @@ func TestEngine_LegacyPayloadIgnored(t *testing.T) {
 	}
 }
 
+func TestEngine_RecommendationAcceptanceExcludesUnattributedEvents(t *testing.T) {
+	engine, repo := setupEngine(t)
+	payload, err := json.Marshal(eventlog.WorkshopRoundPayload{RoundNumber: 1, Kind: "idea", ItemsTotal: 4, ItemsAnswered: 4, ItemsRecommendedChosen: 4})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.Append(context.Background(), eventlog.Event{Timestamp: time.Now().UTC(), EntityType: eventlog.EntityBacklogItem, EntityID: "idea/unattributed", EventType: eventlog.EventWorkshopRoundCompleted, Metadata: payload}); err != nil {
+		t.Fatal(err)
+	}
+	if err := engine.Rebuild(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := engine.GetStats().Agent.RecommendationAcceptanceSampleSize; got != 0 {
+		t.Fatalf("unattributed sample size = %d, want 0", got)
+	}
+}
+
 func TestEngine_FreeformCountsAsRejection(t *testing.T) {
 	engine, repo := setupEngine(t)
 
@@ -118,5 +136,20 @@ func TestEngine_KindFromEntityIDFallback(t *testing.T) {
 	research := a.RecommendationAcceptanceByKind["research"]
 	if research.SampleSize != 2 || research.Rate != 1 {
 		t.Errorf("research bucket: got %+v", research)
+	}
+}
+
+func TestEngine_RecommendationAcceptanceByGateUsesAttributedEvidence(t *testing.T) {
+	engine, repo := setupEngine(t)
+	emitWorkshop(t, repo, "idea/gated", eventlog.WorkshopRoundPayload{
+		RoundNumber: 1, GateID: "capture-to-suggested", Kind: "idea",
+		ItemsTotal: 4, ItemsAnswered: 4, ItemsRecommendedChosen: 3,
+	})
+	if err := engine.Rebuild(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	got := engine.GetStats().Agent.RecommendationAcceptanceByGate["capture-to-suggested"]
+	if got.SampleSize != 4 || !approxEq(got.Rate, 0.75) {
+		t.Fatalf("gate evidence = %+v, want sample 4 and rate .75", got)
 	}
 }

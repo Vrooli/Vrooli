@@ -77,6 +77,22 @@ func TestDefaultSettingsAutoFiler(t *testing.T) {
 	}
 }
 
+func TestNormalizeAutonomyGateModesDropsInvalidEntries(t *testing.T) {
+	got := normalizeSettings(Settings{AutonomyGateModes: map[string]string{
+		"review": "auto", "manual": "manual", "bad": "pause", "": "auto",
+	}}).AutonomyGateModes
+	if got["review"] != "auto" || got["manual"] != "manual" || len(got) != 2 {
+		t.Fatalf("normalized gate modes = %#v", got)
+	}
+}
+
+func TestApplyPatchAutonomyGateModesReplacesOverrides(t *testing.T) {
+	patched := applyPatch(DefaultSettings(), SettingsPatch{AutonomyGateModes: map[string]string{"review": "auto"}})
+	if patched.AutonomyGateModes["review"] != "auto" || len(patched.AutonomyGateModes) != 1 {
+		t.Fatalf("patched gate modes = %#v", patched.AutonomyGateModes)
+	}
+}
+
 func TestNormalizeAutoFilerSettings(t *testing.T) {
 	got := normalizeSettings(Settings{
 		AutoFiler: AutoFilerSettings{

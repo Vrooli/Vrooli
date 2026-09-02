@@ -162,6 +162,43 @@ func TestValidateCriterionVerdictsRequireCompleteBoundEvidence(t *testing.T) {
 	}
 }
 
+func TestSettledEvidenceForExecutionCarriesOnlyFulfilledRequestEvidence(t *testing.T) {
+	dir := t.TempDir()
+	if err := saveRound(dir, Round{
+		RoundNum:              1,
+		AgentWorkflowSnapshot: json.RawMessage(`{"executionId":"exec-1"}`),
+		Evidence: []EvidenceItem{
+			{ID: "review-derived", Settlement: "settled"},
+			{ID: "requested", Settlement: "settled"},
+			{ID: "unavailable", Settlement: "unavailable"},
+		},
+		RequestThreads: []RequestThread{{
+			ID:     "thread-1",
+			Status: "fulfilled",
+			Messages: []RequestMessage{{
+				Role:             "assistant",
+				AddedEvidenceIDs: []string{"requested", "unavailable"},
+			}},
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveRound(dir, Round{
+		RoundNum:              2,
+		AgentWorkflowSnapshot: json.RawMessage(`{"executionId":"exec-2"}`),
+		Evidence:              []EvidenceItem{{ID: "other-execution", Settlement: "settled"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := settledEvidenceForExecution(dir, "exec-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(evidence) != 1 || evidence[0].ID != "requested" {
+		t.Fatalf("settled evidence = %#v", evidence)
+	}
+}
+
 func setTestReviewRunner(t *testing.T, svc *Service, workflow *fakeReviewWorkflow) {
 	if t != nil {
 		t.Helper()

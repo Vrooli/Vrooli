@@ -33,10 +33,10 @@ func (c testGenieRunClient) GetRun(ctx context.Context, scenario, runID string) 
 		return internalvalidation.TestRunEvidence{}, fmt.Errorf("resolve test-genie URL: %w", err)
 	}
 	client := runsconnect.NewRunsServiceClient(c.http, baseURL)
-	resp, err := client.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{Scenario: scenario, RunId: runID}))
+	resp, err := client.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{Target: scenario, RunId: runID}))
 	if err != nil {
 		return internalvalidation.TestRunEvidence{}, fmt.Errorf("get test-genie run: %w", err)
 	}
 	run := resp.Msg.GetRun()
-	return internalvalidation.TestRunEvidence{Scenario: run.GetScenario(), RunID: run.GetRunId(), Status: run.GetStatus(), Fingerprint: run.GetTreeDigest(), TerminalAt: run.GetCompletedAt(), Detail: "Test Genie run " + run.GetRunId() + " is " + run.GetStatus()}, nil
+	return internalvalidation.TestRunEvidence{Scenario: run.GetTarget(), RunID: run.GetRunId(), Status: run.GetStatus(), Fingerprint: run.GetTreeDigest(), TerminalAt: run.GetCompletedAt(), Detail: "Test Genie run " + run.GetRunId() + " is " + run.GetStatus()}, nil
 }

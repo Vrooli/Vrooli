@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"prompt-manager/cli/internal/appctx"
+	"prompt-manager/cli/internal/attribution"
 	"prompt-manager/internal/teamconfig"
 	"prompt-manager/internal/teamcontract"
 
@@ -496,7 +497,7 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Name:        "team",
 				Aliases:     []string{"teams", "t"},
 				NeedsAPI:    true,
-				Description: "Manage teams (list|show|create|update|delete|add-member|update-member|remove-member|roles|org-*|message-*|heartbeat-*|retention|prune|import-cc|export-cc|trigger)",
+				Description: "Manage teams (list|show|create|update|delete|knowledge-*|bug-*|friction-*|add-member|heartbeat-*|retention|prune|import-cc|export-cc|trigger)",
 				Run: func(args []string) error {
 					return route(ctx, args)
 				},
@@ -558,6 +559,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdMessageClear(ctx, subArgs)
 	case "heartbeat-list":
 		return cmdHeartbeatList(ctx, subArgs)
+	case "heartbeat-fleet-health":
+		return cmdHeartbeatFleetHealth(ctx, subArgs)
 	case "heartbeat":
 		return cmdHeartbeat(ctx, subArgs)
 	case "heartbeat-enable":
@@ -620,6 +623,10 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdBugCapture(ctx, subArgs)
 	case "bug-repair":
 		return cmdBugRepair(ctx, subArgs)
+	case "friction-capture":
+		return cmdFrictionCapture(ctx, subArgs)
+	case "friction-repair":
+		return cmdFrictionRepair(ctx, subArgs)
 	case "retention":
 		return cmdRetention(ctx, subArgs)
 	case "prune":
@@ -657,6 +664,7 @@ Subcommands:
 
 Heartbeat Commands:
   heartbeat-list <team-id>                    List all heartbeat configs
+  heartbeat-fleet-health                      Count durable work products, blocked runs, and failures in the last 24 hours
   heartbeat <team-id> <agent-id>              Show heartbeat config
   heartbeat-enable <team-id> <agent-id>       Enable heartbeat with schedule
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat
@@ -1429,16 +1437,33 @@ func cmdMessageClear(ctx appctx.Context, args []string) error {
 
 // HeartbeatConfig represents a heartbeat configuration from the API
 type HeartbeatConfig struct {
-	TeamID         string               `json:"teamId"`
-	AgentID        string               `json:"agentId"`
-	Enabled        bool                 `json:"enabled"`
-	Schedule       string               `json:"schedule"`
-	ProfileKey     string               `json:"profileKey,omitempty"`
-	TimeoutSeconds int                  `json:"timeoutSeconds,omitempty"`
-	LastExecution  *HeartbeatExecResult `json:"lastExecution,omitempty"`
-	NextExecution  string               `json:"nextExecution,omitempty"`
-	CreatedAt      string               `json:"createdAt"`
-	UpdatedAt      string               `json:"updatedAt"`
+	TeamID                  string               `json:"teamId"`
+	AgentID                 string               `json:"agentId"`
+	Enabled                 bool                 `json:"enabled"`
+	Schedule                string               `json:"schedule"`
+	ProfileKey              string               `json:"profileKey,omitempty"`
+	TimeoutSeconds          int                  `json:"timeoutSeconds,omitempty"`
+	ConsecutiveFailures     int                  `json:"consecutiveFailures"`
+	LifecycleState          string               `json:"lifecycleState"`
+	LastExecution           *HeartbeatExecResult `json:"lastExecution,omitempty"`
+	LastSuccessfulExecution *HeartbeatExecResult `json:"lastSuccessfulExecution,omitempty"`
+	NextExecution           string               `json:"nextExecution,omitempty"`
+	CreatedAt               string               `json:"createdAt"`
+	UpdatedAt               string               `json:"updatedAt"`
+}
+
+type HeartbeatFleetHealth struct {
+	GeneratedAt            string  `json:"generatedAt"`
+	WindowHours            int     `json:"windowHours"`
+	EnabledMembers         int     `json:"enabledMembers"`
+	SucceededMembers       int     `json:"succeededMembers"`
+	ProducedMembers        int     `json:"producedMembers"`
+	BlockedMembers         int     `json:"blockedMembers"`
+	FailedMembers          int     `json:"failedMembers"`
+	MembersWithTwoFailures int     `json:"membersWithTwoFailures"`
+	SuccessPercent         float64 `json:"successPercent"`
+	ThresholdPercent       int     `json:"thresholdPercent"`
+	MeetsThreshold         bool    `json:"meetsThreshold"`
 }
 
 // HeartbeatExecResult represents execution result
@@ -1853,9 +1878,131 @@ func cmdHeartbeatList(ctx appctx.Context, args []string) error {
 		if c.LastExecution != nil {
 			lastRun = c.LastExecution.Status + " at " + c.LastExecution.StartedAt
 		}
-		fmt.Printf("  %s: %s [%s] - last: %s\n", c.AgentID, c.Schedule, status, lastRun)
+		fmt.Printf("  %s: %s [%s] - lifecycle: %s, failures: %d, last: %s\n", c.AgentID, c.Schedule, status, c.LifecycleState, c.ConsecutiveFailures, lastRun)
 	}
 	return nil
+}
+
+func cmdHeartbeatFleetHealth(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("heartbeat-fleet-health", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("usage: team heartbeat-fleet-health [--json]")
+	}
+
+	var teams []Team
+	if err := ctx.Get("/teams", &teams); err != nil {
+		return fmt.Errorf("failed to list teams: %w", err)
+	}
+	now := time.Now().UTC()
+	summary := HeartbeatFleetHealth{GeneratedAt: now.Format(time.RFC3339), WindowHours: 24, ThresholdPercent: 90}
+	cutoff := now.Add(-24 * time.Hour)
+	for _, team := range teams {
+		if !team.Enabled {
+			continue
+		}
+		var configs []HeartbeatConfig
+		if err := ctx.Get(fmt.Sprintf("/teams/%s/heartbeats", team.ID), &configs); err != nil {
+			return fmt.Errorf("failed to list heartbeats for %s: %w", team.ID, err)
+		}
+		for _, config := range configs {
+			if !config.Enabled {
+				continue
+			}
+			summary.EnabledMembers++
+			if config.ConsecutiveFailures >= 2 {
+				summary.MembersWithTwoFailures++
+			}
+			if heartbeatCompletedSince(config, cutoff) {
+				summary.SucceededMembers++
+			}
+			switch heartbeatProductStatus(ctx, team.ID, config, cutoff) {
+			case "produced":
+				summary.ProducedMembers++
+			case "failed":
+				summary.FailedMembers++
+			default:
+				summary.BlockedMembers++
+			}
+		}
+	}
+	if summary.EnabledMembers > 0 {
+		summary.SuccessPercent = 100 * float64(summary.ProducedMembers) / float64(summary.EnabledMembers)
+		summary.MeetsThreshold = summary.ProducedMembers*100 >= summary.EnabledMembers*summary.ThresholdPercent
+	}
+
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(summary)
+	}
+	fmt.Printf("Fleet health: %d of %d enabled members produced a durable work product in the last %d hours\n", summary.ProducedMembers, summary.EnabledMembers, summary.WindowHours)
+	fmt.Printf("Success: %.2f%% (threshold: %d%%, meets threshold: %t)\n", summary.SuccessPercent, summary.ThresholdPercent, summary.MeetsThreshold)
+	fmt.Printf("Members at failure streak 2 or higher: %d\n", summary.MembersWithTwoFailures)
+	return nil
+}
+
+func heartbeatProductStatus(ctx appctx.Context, teamID string, config HeartbeatConfig, cutoff time.Time) string {
+	last := config.LastExecution
+	if last == nil {
+		return "blocked"
+	}
+	if last.Status == "running" && config.LastSuccessfulExecution != nil {
+		last = config.LastSuccessfulExecution
+	}
+	ended, ok := heartbeatCompletionTime(last.StartedAt, last.EndedAt)
+	if !ok || ended.Before(cutoff) {
+		return "blocked"
+	}
+	if last.Status != "completed" {
+		return "failed"
+	}
+	var response KnowledgeListResponse
+	if err := ctx.Get(fmt.Sprintf("/teams/%s/knowledge?last=100", teamID), &response); err != nil {
+		return "blocked"
+	}
+	for _, entry := range response.Entries {
+		if entry.At < cutoff.Format(time.RFC3339) {
+			continue
+		}
+		if entry.Attribution.RunID != nil && strings.TrimSpace(*entry.Attribution.RunID) == strings.TrimSpace(last.RunID) {
+			return "produced"
+		}
+	}
+	if reader, ok := ctx.(interface {
+		HasDurableProduct(string, string, time.Time) (bool, error)
+	}); ok {
+		produced, err := reader.HasDurableProduct(teamID, last.RunID, cutoff)
+		if err == nil && produced {
+			return "produced"
+		}
+	}
+	return "blocked"
+}
+
+func heartbeatCompletedSince(config HeartbeatConfig, cutoff time.Time) bool {
+	for _, execution := range []*HeartbeatExecResult{config.LastSuccessfulExecution, config.LastExecution} {
+		if execution == nil || execution.Status != "completed" {
+			continue
+		}
+		completedAt, ok := heartbeatCompletionTime(execution.StartedAt, execution.EndedAt)
+		if ok && !completedAt.Before(cutoff) {
+			return true
+		}
+	}
+	return false
+}
+
+func heartbeatCompletionTime(startedAt, endedAt string) (time.Time, bool) {
+	value := endedAt
+	if value == "" {
+		value = startedAt
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	return parsed, err == nil
 }
 
 func cmdHeartbeat(ctx appctx.Context, args []string) error {
@@ -3163,6 +3310,78 @@ func cmdKnowledgeAdd(ctx appctx.Context, args []string) error {
 	return nil
 }
 
+type frictionCaptureRequest struct {
+	Scope        string            `json:"scope"`
+	Severity     string            `json:"severity"`
+	Expected     string            `json:"expected"`
+	Actual       string            `json:"actual"`
+	Description  string            `json:"description"`
+	Context      map[string]string `json:"context,omitempty"`
+	HonestyFlags []string          `json:"honesty_flags,omitempty"`
+}
+
+func cmdFrictionCapture(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("friction-capture", flag.ContinueOnError)
+	scope := fs.String("scope", "", "toolchain|run-execution|prompt-team-agent-storage|recurring-workaround|unknown")
+	severity := fs.String("severity", "", "blocking|recurring|one-off")
+	expected := fs.String("expected", "", "Expected behavior")
+	actual := fs.String("actual", "", "Observed behavior")
+	description := fs.String("description", "", "What happened and why this is structural friction")
+	slug := fs.String("slug", "", "Short kebab-case report slug")
+	honesty := fs.String("honesty-flags", "", "Comma-separated honesty flags")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() == 0 || fs.Arg(0) != "meta-optimization" {
+		return fmt.Errorf("usage: team friction-capture meta-optimization --scope=... --severity=... --expected=... --actual=... --description=... --slug=...")
+	}
+	validScopes := map[string]bool{"toolchain": true, "run-execution": true, "prompt-team-agent-storage": true, "recurring-workaround": true, "unknown": true}
+	validSeverities := map[string]bool{"blocking": true, "recurring": true, "one-off": true}
+	if !validScopes[*scope] || !validSeverities[*severity] || strings.TrimSpace(*expected) == "" || strings.TrimSpace(*actual) == "" || strings.TrimSpace(*description) == "" || strings.TrimSpace(*slug) == "" {
+		return fmt.Errorf("scope, severity, expected, actual, description, and slug are required; scope and severity must match the taxonomy")
+	}
+	content := fmt.Sprintf("---\nseverity: %s\nscope: %s\nreporter: operator\nreporter_team: operator\nobserved_at: %s\ncontext:\n  scenario: null\n  skill: report-friction\n  member: null\n  command: prompt-manager team friction-capture\n  doc: null\n  task: null\nexpected: %s\nactual: %s\ndescription: |\n  %s\nhonesty_flags: [%s]\n---\n", *severity, *scope, time.Now().UTC().Format("2006-01-02"), frictionYAMLScalar(*expected), frictionYAMLScalar(*actual), strings.ReplaceAll(strings.TrimSpace(*description), "\n", "\n  "), strings.Join(csvValues(*honesty), ", "))
+	var entry KnowledgeEntry
+	post := func() error {
+		return ctx.Post("/teams/meta-optimization/knowledge", AddKnowledgeRequest{Topic: "friction-inbox/" + *scope + "/" + *slug, Content: content, Source: "prompt-manager friction capture", CallerNote: "filed via report-friction skill"}, &entry)
+	}
+	if err := attribution.WithWriterSkill("report-friction", "meta-optimization", post); err != nil {
+		return fmt.Errorf("friction capture failed: %w", err)
+	}
+	if *jsonOut {
+		return json.NewEncoder(os.Stdout).Encode(entry)
+	}
+	fmt.Printf("Filed friction %s\n", entry.ID)
+	return nil
+}
+
+func frictionYAMLScalar(value string) string {
+	encoded, _ := json.Marshal(strings.TrimSpace(value))
+	return string(encoded)
+}
+
+func cmdFrictionRepair(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("friction-repair", flag.ContinueOnError)
+	content := fs.String("content", "", "Replacement complete friction report body")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 || strings.TrimSpace(*content) == "" {
+		return fmt.Errorf("usage: team friction-repair meta-optimization <knowledge-id> --content=...")
+	}
+	var entry KnowledgeEntry
+	if err := ctx.Put(fmt.Sprintf("/teams/%s/knowledge/%s", fs.Arg(0), fs.Arg(1)), map[string]string{"content": *content}, &entry); err != nil {
+		return fmt.Errorf("friction repair failed: %w", err)
+	}
+	if *jsonOut {
+		return json.NewEncoder(os.Stdout).Encode(entry)
+	}
+	fmt.Printf("Repaired friction %s\n", entry.ID)
+	return nil
+}
+
 // bugCaptureRequest mirrors heartbeat.BugCaptureRequest. Keeping the CLI's
 // shape local avoids importing API packages while preserving the typed wire
 // contract at the HTTP boundary.
@@ -3206,7 +3425,10 @@ func cmdBugCapture(ctx appctx.Context, args []string) error {
 	if fs.NArg() < 1 {
 		return fmt.Errorf("team bug-capture usage: scenario-qa --title=<title> --signal-type=<type> --severity=<severity> --repro=<step> --expected=<expected> --actual=<actual> --description=<description>")
 	}
-	return runBugCapture(ctx, false, fmt.Sprintf("/teams/%s/bugs/capture", fs.Arg(0)), flags.request(), *jsonOut)
+	teamID := fs.Arg(0)
+	return attribution.WithWriterSkill("report-bug", teamID, func() error {
+		return runBugCapture(ctx, false, fmt.Sprintf("/teams/%s/bugs/capture", teamID), flags.request(), *jsonOut)
+	})
 }
 
 func cmdBugRepair(ctx appctx.Context, args []string) error {
@@ -3219,7 +3441,10 @@ func cmdBugRepair(ctx appctx.Context, args []string) error {
 	if fs.NArg() < 2 {
 		return fmt.Errorf("usage: team bug-repair scenario-qa <draft-id> [--signal-type=... --severity=... --expected=... --actual=...]")
 	}
-	return runBugCapture(ctx, true, fmt.Sprintf("/teams/%s/bugs/%s/capture", fs.Arg(0), fs.Arg(1)), flags.request(), *jsonOut)
+	teamID := fs.Arg(0)
+	return attribution.WithWriterSkill("report-bug", teamID, func() error {
+		return runBugCapture(ctx, true, fmt.Sprintf("/teams/%s/bugs/%s/capture", teamID, fs.Arg(1)), flags.request(), *jsonOut)
+	})
 }
 
 type bugCaptureFlags struct{ title, signalType, severity, repro, expected, actual, description, scenario, skill, member, command, honestyFlags, idempotencyKey *string }

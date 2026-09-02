@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // Embedder generates text embeddings. The production implementation shells out
@@ -58,6 +61,7 @@ func newEmbedderWithRunner(role string, run embedderRunner) Embedder {
 
 func defaultRunner(ctx context.Context, args []string, stdin []byte) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, nil))
 	if len(stdin) > 0 {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}

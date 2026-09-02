@@ -43,10 +43,12 @@ const (
 	// StatusNeedsFixup is the run-level state set by finalization when the
 	// post-run validator detects actionable failures. See the type-level
 	// comment for the distinction from backlog.StatusNeedsFollowup.
-	StatusNeedsFixup Status = "needs_fixup"
-	StatusCompleted  Status = "completed"
-	StatusFailed     Status = "failed"
-	StatusCanceled   Status = "canceled"
+	StatusNeedsFixup      Status = "needs_fixup"
+	StatusCompleted       Status = "completed"
+	StatusAbstained       Status = "abstained"
+	StatusBudgetExhausted Status = "budget_exhausted"
+	StatusFailed          Status = "failed"
+	StatusCanceled        Status = "canceled"
 )
 
 // Mode controls when an execution starts.
@@ -301,9 +303,10 @@ type GovernanceSettings struct {
 	// (default), or "block". AutoFilerEnabled with the feature_pending
 	// strategy wakes the maintenance filing path for scenarios with no known
 	// open remediation work. See fix_before_feature.go.
-	FixBeforeFeature  string `json:"fix_before_feature"`
-	AutoFilerEnabled  bool   `json:"auto_filer_enabled"`
-	AutoFilerStrategy string `json:"auto_filer_strategy"`
+	FixBeforeFeature  string            `json:"fix_before_feature"`
+	AutoFilerEnabled  bool              `json:"auto_filer_enabled"`
+	AutoFilerStrategy string            `json:"auto_filer_strategy"`
+	GateModes         map[string]string `json:"gate_modes"`
 }
 
 // DefaultGovernanceSettings returns safe defaults for governance settings.
@@ -324,15 +327,18 @@ func DefaultGovernanceSettings() GovernanceSettings {
 		FixBeforeFeature:              FixBeforeFeatureSuggest,
 		AutoFilerEnabled:              false,
 		AutoFilerStrategy:             AutoFilerStrategyFeaturePending,
+		GateModes:                     map[string]string{},
 	}
 }
 
 // LaneStatus reports utilization for one phase-kind lane.
 type LaneStatus struct {
-	Lane     string `json:"lane"`
-	Active   int    `json:"active"`
-	Capacity int    `json:"capacity"`
-	Queue    int    `json:"queue"`
+	Lane     string   `json:"lane"`
+	Active   int      `json:"active"`
+	Capacity int      `json:"capacity"`
+	Queue    int      `json:"queue"`
+	Holders  []string `json:"holders,omitempty"`
+	Reason   string   `json:"reason,omitempty"`
 }
 
 // GovernanceStatusResponse contains governance state for the overview endpoint.

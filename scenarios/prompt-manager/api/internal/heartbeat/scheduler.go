@@ -2,8 +2,13 @@ package heartbeat
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -11,6 +16,7 @@ import (
 	"prompt-manager/internal/teamconfig"
 
 	"github.com/robfig/cron/v3"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // HeartbeatExecutor defines the execution behavior used by the scheduler.
@@ -77,11 +83,14 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	if s.running {
 		return nil
 	}
+	if _, err := LoadDeclaredProfileKeys(); err != nil {
+		return fmt.Errorf("load heartbeat profile declarations: %w", err)
+	}
 
-	// Ensure profile exists at startup
+	// Reconcile and resolve both declared profiles before scheduling work. A
+	// scheduler that cannot prove its profile keys is not safe to start.
 	if err := s.ensureProfile(ctx); err != nil {
-		log.Printf("Warning: Failed to ensure heartbeat profile: %v", err)
-		// Don't fail startup, profile will be created on first heartbeat
+		return fmt.Errorf("ensure heartbeat profiles: %w", err)
 	}
 
 	s.cron.Start()
@@ -316,23 +325,83 @@ func (s *Scheduler) ensureProfile(ctx context.Context) error {
 	if s.agentClient == nil {
 		return nil
 	}
-	return s.agentClient.ReconcileScenarioProfiles(ctx, "prompt-manager")
+	keys, err := LoadDeclaredProfileKeys()
+	if err != nil {
+		return err
+	}
+	if err := s.agentClient.ReconcileScenarioProfiles(ctx, "prompt-manager"); err != nil {
+		return fmt.Errorf("reconcile scenario profiles: %w", err)
+	}
+	for _, key := range []string{keys.MultiProcess, keys.SingleProcess} {
+		resolved, err := s.agentClient.EnsureProfile(ctx, &EnsureProfileRequest{ProfileKey: key})
+		if err != nil {
+			return fmt.Errorf("resolve declared profile %q: %w", key, err)
+		}
+		if resolved == nil || resolved.Profile == nil || resolved.Profile.ProfileKey != key {
+			return fmt.Errorf("resolve declared profile %q: catalog returned no matching profile", key)
+		}
+	}
+	return nil
 }
 
-// Default profile keys are scenario-owned portable profiles. Runtime mode
-// selects execution limits and interaction shape, never a concrete runner.
-const (
-	DefaultProfileKeyMultiProcess  = "prompt-manager/internal/heartbeat"
-	DefaultProfileKeySingleProcess = "prompt-manager/internal/heartbeat-single-process"
-)
+type declaredProfile struct {
+	ProfileKey string `json:"profileKey"`
+}
+
+type DeclaredProfileKeys struct {
+	MultiProcess  string
+	SingleProcess string
+}
+
+// LoadDeclaredProfileKeys reads the scenario-owned profile declarations from
+// the repository. The declarations remain the only source of their keys.
+func LoadDeclaredProfileKeys() (DeclaredProfileKeys, error) {
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return DeclaredProfileKeys{}, fmt.Errorf("resolve repository root: %w", err)
+	}
+	return loadDeclaredProfileKeys(repoRoot)
+}
+
+func loadDeclaredProfileKeys(repoRoot string) (DeclaredProfileKeys, error) {
+	load := func(filename string) (string, error) {
+		path := filepath.Join(repoRoot, "scenarios", "prompt-manager", ".vrooli", "agent-manager", filename)
+		payload, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("read %s: %w", path, err)
+		}
+		var declaration declaredProfile
+		if err := json.Unmarshal(payload, &declaration); err != nil {
+			return "", fmt.Errorf("decode %s: %w", path, err)
+		}
+		if strings.TrimSpace(declaration.ProfileKey) == "" {
+			return "", fmt.Errorf("profileKey is empty in %s", path)
+		}
+		return declaration.ProfileKey, nil
+	}
+
+	multi, err := load("heartbeat.json")
+	if err != nil {
+		return DeclaredProfileKeys{}, err
+	}
+	single, err := load("heartbeat-single-process.json")
+	if err != nil {
+		return DeclaredProfileKeys{}, err
+	}
+	return DeclaredProfileKeys{MultiProcess: multi, SingleProcess: single}, nil
+}
 
 // DefaultProfileKeyForRuntimeMode returns the portable profile appropriate for
 // the team's interaction mode.
-func DefaultProfileKeyForRuntimeMode(runtimeMode string) string {
-	if runtimeMode == teamconfig.RuntimeModeSingleProcess {
-		return DefaultProfileKeySingleProcess
+func DefaultProfileKeyForRuntimeMode(runtimeMode string) (string, error) {
+	keys, err := LoadDeclaredProfileKeys()
+	if err != nil {
+		return "", err
 	}
-	return DefaultProfileKeyMultiProcess
+	if runtimeMode == teamconfig.RuntimeModeSingleProcess {
+		return keys.SingleProcess, nil
+	}
+	return keys.MultiProcess, nil
 }
 
 // makeKey creates a unique key for a team/agent combination

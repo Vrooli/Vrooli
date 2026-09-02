@@ -37,6 +37,7 @@ type updateItemData struct {
 	suggestAccepted  map[int]bool
 	suggestRejection map[int]string
 	notes            string
+	notesChanged     bool
 }
 
 // extractQuestionNumber extracts the 0-based question index from a heading like "#### Q1" or "#### Q2: ...".
@@ -186,8 +187,11 @@ func (h *Handler) buildUpdateChange(parsed parsedItemSection) (importChange, []s
 	// Check suggest changes.
 	details = append(details, h.detectSuggestChangeDetails(kind, parsed)...)
 
-	// Check notes changes.
-	details = append(details, h.detectNotesChangeDetails(kind, parsed)...)
+	// Check notes changes. A refresh note is a freshness signal for the item,
+	// so applyUpdate must also advance the item's Updated timestamp.
+	noteDetails := h.detectNotesChangeDetails(kind, parsed)
+	ud.notesChanged = len(noteDetails) > 0
+	details = append(details, noteDetails...)
 
 	change.details = details
 	change.updateData = ud

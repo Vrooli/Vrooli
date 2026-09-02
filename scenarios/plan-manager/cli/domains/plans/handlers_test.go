@@ -21,6 +21,17 @@ import (
 	clitest "github.com/vrooli/cli-core/cliapptest"
 )
 
+func TestWorkspaceScopeUsesSandboxRepoRootBeforeTranslatedCWD(t *testing.T) {
+	t.Setenv("VROOLI_SANDBOX_REPO_ROOT", "/host/Vrooli")
+	got := workspaceScopeFromFlag("")
+	if got == nil || got.GetRoot() != "/host/Vrooli" {
+		t.Fatalf("workspace scope = %+v, want /host/Vrooli", got)
+	}
+	if explicit := workspaceScopeFromFlag("/explicit/repo"); explicit == nil || explicit.GetRoot() != "/explicit/repo" {
+		t.Fatalf("explicit workspace scope = %+v, want /explicit/repo", explicit)
+	}
+}
+
 // plansRecorder is a fake PlansService that captures the last request the CLI
 // handler built and returns a canned response message (or error). It lets the
 // tests assert on the flag->proto-field mapping the handler performs, which is

@@ -149,9 +149,13 @@ func (p *backlogMutationProcessor) state(target agentsessions.ProposalTarget) (p
 	if err != nil {
 		return proposals.CurrentState{}, err
 	}
-	milestone := strings.TrimSpace(item.Milestone)
-	if milestone == "" {
-		return proposals.CurrentState{}, fmt.Errorf("backlog proposal target %q is not assigned to a goal milestone", target.Ref)
+	goalList, err := p.goals.List()
+	if err != nil {
+		return proposals.CurrentState{}, err
+	}
+	milestone, milestoneItems, err := resolveBacklogProposalMilestone(target.Ref, item.Milestone, goalList)
+	if err != nil {
+		return proposals.CurrentState{}, err
 	}
 	all, err := p.store.LoadAll(nil)
 	if err != nil {
@@ -159,10 +163,11 @@ func (p *backlogMutationProcessor) state(target agentsessions.ProposalTarget) (p
 	}
 	state := proposals.CurrentState{MilestoneName: milestone, Nodes: map[string]proposals.GraphNode{}, KnownMilestones: map[string]struct{}{}, InProgressRefs: map[string]struct{}{}}
 	for _, candidate := range all {
-		if candidate.Milestone != milestone {
+		ref := string(candidate.Kind) + "/" + candidate.Name
+		_, listedInMilestone := milestoneItems[ref]
+		if candidate.Milestone != milestone && !listedInMilestone {
 			continue
 		}
-		ref := string(candidate.Kind) + "/" + candidate.Name
 		state.Nodes[ref] = proposals.GraphNode{ID: ref, Kind: string(candidate.Kind), Name: candidate.Name, Title: candidate.Title, Priority: candidate.Priority, Effort: candidate.Effort}
 		if candidate.Status == backlog.StatusInProgress {
 			state.InProgressRefs[ref] = struct{}{}
@@ -171,14 +176,43 @@ func (p *backlogMutationProcessor) state(target agentsessions.ProposalTarget) (p
 			state.Edges = append(state.Edges, proposals.GraphEdge{From: ref, To: dependency})
 		}
 	}
-	goalList, err := p.goals.List()
-	if err != nil {
-		return proposals.CurrentState{}, err
-	}
 	for _, listed := range goalList {
 		for _, candidate := range listed.Goal.Milestones {
 			state.KnownMilestones[listed.Goal.Name+"/"+candidate.Name] = struct{}{}
 		}
 	}
 	return state, nil
+}
+
+func resolveBacklogProposalMilestone(targetRef, storedMilestone string, goalList []goals.GoalWithScope) (string, map[string]struct{}, error) {
+	storedMilestone = strings.TrimSpace(storedMilestone)
+	matches := make(map[string]map[string]struct{})
+	for _, listed := range goalList {
+		for _, milestone := range listed.Goal.Milestones {
+			qualified := listed.Goal.Name + "/" + milestone.Name
+			members := make(map[string]struct{}, len(milestone.Items))
+			for _, ref := range milestone.Items {
+				members[strings.TrimSpace(ref)] = struct{}{}
+			}
+			if storedMilestone == qualified {
+				return qualified, members, nil
+			}
+			if _, ok := members[targetRef]; ok {
+				matches[qualified] = members
+			}
+		}
+	}
+	if storedMilestone != "" {
+		return storedMilestone, nil, nil
+	}
+	if len(matches) == 0 {
+		return "", nil, fmt.Errorf("backlog proposal target %q is not assigned to a goal milestone", targetRef)
+	}
+	if len(matches) > 1 {
+		return "", nil, fmt.Errorf("backlog proposal target %q is assigned to multiple goal milestones", targetRef)
+	}
+	for milestone, members := range matches {
+		return milestone, members, nil
+	}
+	panic("unreachable")
 }

@@ -3,6 +3,7 @@ package attribution
 import (
 	"encoding/base64"
 	"encoding/json"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -125,6 +126,74 @@ func TestHeaderMap_ContainsHeaderName(t *testing.T) {
 	}
 	if v == "" {
 		t.Fatalf("HeaderMap value for %q is empty", HeaderName)
+	}
+}
+
+func TestWriterSkillHeaderValue_OverlaysDestinationAndPreservesLineage(t *testing.T) {
+	memberID := "opportunity-scout"
+	originTeam := "monetization"
+	runID := "run-123"
+	base := Encode(Info{
+		Kind:        KindAgentMember,
+		MemberID:    &memberID,
+		TeamID:      &originTeam,
+		RunID:       &runID,
+		SpawnOrigin: SpawnOriginHeartbeat,
+	})
+	t.Setenv(EnvVar, base)
+
+	got := WriterSkillHeaderValue("report-bug", "scenario-qa")
+	decoded, err := base64.StdEncoding.DecodeString(got)
+	if err != nil {
+		t.Fatalf("decode writer-skill header: %v", err)
+	}
+	var info Info
+	if err := json.Unmarshal(decoded, &info); err != nil {
+		t.Fatalf("unmarshal writer-skill header: %v", err)
+	}
+	if info.Kind != KindWriterSkill {
+		t.Errorf("Kind = %q, want %q", info.Kind, KindWriterSkill)
+	}
+	if info.TeamID == nil || *info.TeamID != "scenario-qa" {
+		t.Errorf("TeamID = %v, want scenario-qa", info.TeamID)
+	}
+	if info.SourceSkillID == nil || *info.SourceSkillID != "report-bug" {
+		t.Errorf("SourceSkillID = %v, want report-bug", info.SourceSkillID)
+	}
+	if info.MemberID == nil || *info.MemberID != memberID || info.RunID == nil || *info.RunID != runID {
+		t.Errorf("lineage was not preserved: %+v", info)
+	}
+}
+
+func TestWithWriterSkill_ScopesOverlayAndRestoresEnvironment(t *testing.T) {
+	t.Setenv(EnvVar, Encode(OperatorDirect()))
+	if got := HeaderValue(); got == "" {
+		t.Fatal("baseline attribution must be present")
+	}
+
+	called := false
+	if err := WithWriterSkill("report-friction", "meta-optimization", func() error {
+		called = true
+		var info Info
+		decoded, err := base64.StdEncoding.DecodeString(HeaderValue())
+		if err != nil {
+			return err
+		}
+		if err := json.Unmarshal(decoded, &info); err != nil {
+			return err
+		}
+		if info.Kind != KindWriterSkill || info.TeamID == nil || *info.TeamID != "meta-optimization" {
+			t.Errorf("scoped attribution = %+v", info)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("WithWriterSkill() error = %v", err)
+	}
+	if !called {
+		t.Fatal("scoped callback was not called")
+	}
+	if _, ok := os.LookupEnv(writerSkillEnvVar); ok {
+		t.Fatal("writer skill override leaked after scope")
 	}
 }
 

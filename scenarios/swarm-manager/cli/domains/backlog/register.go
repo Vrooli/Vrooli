@@ -37,9 +37,11 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 			support.APICommand("file-upload", "Upload a file to a backlog item (--kind KIND --name NAME --path PATH --file FILE|--content CONTENT)", deps.BacklogFileUpload),
 			support.APICommand("process-preflight", "Check processing readiness (--kind KIND --name NAME)", deps.BacklogProcess),
 			support.APICommand("queue", "Preview/queue a backlog item (--kind KIND --name NAME [--execute] [--force])", deps.BacklogQueue),
+			support.APICommand("plan-accept", "Accept the current canonical execution plan (--kind KIND --name NAME --actor ACTOR) [--json]", deps.BacklogPlanAccept),
 			support.APICommand("batch-create", "Batch create backlog items from a plan file (--file items.json [--preview])", deps.BacklogBatchCreate),
 			support.APICommand("batch-queue", "Batch queue backlog items (--items kind/name,kind/name [--execute] [--force] [--mode MODE])", deps.BacklogBatchQueue),
 			support.APICommand("export", "Export backlog items to markdown for offline editing", deps.BacklogExport),
+			support.APICommand("reconcile-counts", "Compare record-derived overview/export counts and label event-derived statistics", deps.BacklogReconcileCounts),
 			support.APICommand("import", "Import edited markdown back into the backlog (--file FILE)", deps.BacklogImport),
 			reviewDecideCommand(),
 			support.APICommand("recover-review", "Recover an item stranded in_review with no live review round → review_pending (default) or backlog (--kind KIND --name NAME [--to review_pending|backlog] [--rationale MSG])", deps.BacklogRecoverReview),
@@ -55,7 +57,7 @@ func reviewDecideCommand() cliapp.Command {
 		func(op cliapp.OperationContext) (*apipb.DecideAttemptResponse, error) {
 			decision := ""
 			for _, candidate := range []string{"accept", "fail", "drop", "followup"} {
-				if op.Flag(candidate) == "true" {
+				if op.BoolFlag(candidate) {
 					if decision != "" {
 						return nil, fmt.Errorf("exactly one decision flag is required")
 					}

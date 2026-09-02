@@ -14,7 +14,7 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	kindFlag := fs.String("kind", "", "Backlog item kind")
 	nameFlag := fs.String("name", "", "Backlog item name")
 	executeFlag := fs.Bool("execute", false, "Execute queue mutation (default is preview-only)")
-	strategyFlag := fs.String("strategy", "", "Plan execution strategy: phased-plan-drain|until-drain")
+	strategyFlag := fs.String("strategy", "", "Plan execution strategy: phased-plan-drain")
 	forceFlag := fs.Bool("force", false, "Override unanswered feedback gates (questions/suggestions)")
 	mode, delaySeconds, operation, startedBy := addExecutionOptionsFlags(fs)
 	jsonOut := cliutil.JSONFlag(fs)
@@ -22,11 +22,11 @@ func (a *App) cmdBacklogQueue(args []string) error {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "name", *nameFlag); err != nil {
-		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--strategy phased-plan-drain|until-drain] [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: backlog queue --kind KIND --name NAME [--strategy phased-plan-drain] [--execute] [--force] [--mode manual|scheduled|yolo] [--delay-seconds N] [--operation generator|improver] [--started-by NAME] [--json]\n\n%s", err)
 	}
 	strategy := strings.TrimSpace(*strategyFlag)
-	if strategy != "" && strategy != "phased-plan-drain" && strategy != "until-drain" {
-		return fmt.Errorf("invalid strategy %q (expected phased-plan-drain or until-drain)", strategy)
+	if strategy != "" && strategy != "phased-plan-drain" {
+		return fmt.Errorf("invalid strategy %q (expected phased-plan-drain)", strategy)
 	}
 
 	opts, err := parseExecutionOptions(mode, delaySeconds, operation, startedBy, false)
@@ -73,6 +73,43 @@ func (a *App) cmdBacklogQueue(args []string) error {
 	}
 
 	printBacklogQueueResult(response, opts)
+	return nil
+}
+
+func (a *App) cmdBacklogPlanAccept(args []string) error {
+	fs := flag.NewFlagSet("backlog plan-accept", flag.ContinueOnError)
+	kind := fs.String("kind", "", "Backlog item kind")
+	name := fs.String("name", "", "Backlog item name")
+	actor := fs.String("actor", "", "Named operator accepting the plan")
+	hash := fs.String("plan-content-hash", "", "Optional content hash to reject stale acceptance")
+	jsonOut := cliutil.JSONFlag(fs)
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if err := requireFlags("kind", *kind, "name", *name, "actor", *actor); err != nil {
+		return err
+	}
+	payload := map[string]string{"actor": strings.TrimSpace(*actor)}
+	if value := strings.TrimSpace(*hash); value != "" {
+		payload["plan_content_hash"] = value
+	}
+	body, err := a.core.Request("POST", "/backlog/"+strings.TrimSpace(*kind)+"/"+strings.TrimSpace(*name)+"/plan-accept", nil, payload)
+	if err != nil {
+		return err
+	}
+	if printJSONIfRequested(*jsonOut, body) {
+		return nil
+	}
+	var response struct {
+		PlanAcceptance struct {
+			Actor      string `json:"actor"`
+			AcceptedAt string `json:"accepted_at"`
+		} `json:"plan_acceptance"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return err
+	}
+	fmt.Printf("Plan accepted for %s/%s by %s at %s\n", strings.TrimSpace(*kind), strings.TrimSpace(*name), response.PlanAcceptance.Actor, response.PlanAcceptance.AcceptedAt)
 	return nil
 }
 

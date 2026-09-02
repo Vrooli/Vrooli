@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/scenariocli"
+	"github.com/vrooli/envkit-go"
 )
 
 // ScoreFn computes a named scoring factor for a node within the graph context.
@@ -338,6 +340,7 @@ func (p *ScenarioCompletenessCLIProvider) ScenarioScore(ctx context.Context, sce
 	}
 
 	cmd := exec.CommandContext(callCtx, executable, "score", scenario, "--json")
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
 	output, err := cmd.Output()
 	if err != nil {
 		return 0.0, err

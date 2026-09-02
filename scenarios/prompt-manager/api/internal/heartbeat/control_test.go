@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -152,5 +153,19 @@ func TestHeartbeatControlStore_ManualPauseAndResume(t *testing.T) {
 	}
 	if _, err := s.AllowStart(context.Background(), "team-a"); err != nil {
 		t.Fatalf("AllowStart after resume: %v", err)
+	}
+}
+
+func TestHeartbeatControlStore_ManualPauseRequiresReason(t *testing.T) {
+	s := newControlStoreForTest(t, time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC))
+	if _, err := s.Pause(context.Background(), "team-a", "  ", operatorAttribution()); err == nil || !strings.Contains(err.Error(), "reason is required") {
+		t.Fatalf("Pause error = %v, want required reason", err)
+	}
+	status, err := s.TeamStatus(context.Background(), "team-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.Status == HeartbeatControlStatusPausedManual {
+		t.Fatalf("blank-reason pause mutated status to %q", status.Status)
 	}
 }

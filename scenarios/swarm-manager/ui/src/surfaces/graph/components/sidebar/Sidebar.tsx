@@ -6,8 +6,8 @@
  */
 
 import { useCallback, useState, type ChangeEvent, type CSSProperties, type Ref } from "react";
-import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1.0.0";
-import type { ResizeSeparatorProps } from "@vrooli/react-component-library/useResizablePanel/1.0.0";
+import { ResizeHandle } from "@vrooli/react-component-library/ResizeHandle/1";
+import type { ResizeSeparatorProps } from "@vrooli/react-component-library/useResizablePanel/1";
 import { ListChecks, Plus } from "lucide-react";
 import { cn } from "../../../../lib/utils";
 import { SearchBar } from "../../../../components/ui/search-bar";
