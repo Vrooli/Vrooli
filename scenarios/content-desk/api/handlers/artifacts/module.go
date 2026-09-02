@@ -44,7 +44,7 @@ func (h handler) ListDrafts(ctx context.Context, _ *connect.Request[artifactsv1.
 }
 
 func (h handler) CreateDraft(ctx context.Context, request *connect.Request[artifactsv1.CreateDraftRequest]) (*connect.Response[artifactsv1.CreateDraftResponse], error) {
-	draft, err := h.repo.Create(ctx, internalartifacts.Draft{CampaignID: request.Msg.CampaignId, PostTypeID: request.Msg.PostTypeId, Body: request.Msg.Body, Channel: request.Msg.Channel, Format: request.Msg.Format, Lane: request.Msg.Lane, SKU: request.Msg.Sku})
+	draft, err := h.repo.Create(ctx, internalartifacts.Draft{CampaignID: request.Msg.CampaignId, PostTypeID: request.Msg.PostTypeId, Body: request.Msg.Body, Channel: request.Msg.Channel, Format: request.Msg.Format, Lane: request.Msg.Lane, SKU: request.Msg.Sku, ScenarioName: request.Msg.ScenarioName})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -213,7 +213,7 @@ func (h handler) ApproveDraft(ctx context.Context, request *connect.Request[arti
 }
 
 func draftMessage(draft internalartifacts.Draft) *artifactsv1.Draft {
-	return &artifactsv1.Draft{Id: draft.ID, CampaignId: draft.CampaignID, Status: string(draft.Status), PostTypeId: draft.PostTypeID, Body: draft.Body, Channel: draft.Channel, Format: draft.Format, Lane: draft.Lane, Sku: draft.SKU}
+	return &artifactsv1.Draft{Id: draft.ID, CampaignId: draft.CampaignID, Status: string(draft.Status), PostTypeId: draft.PostTypeID, Body: draft.Body, Channel: draft.Channel, Format: draft.Format, Lane: draft.Lane, Sku: draft.SKU, ScenarioName: draft.ScenarioName}
 }
 
 func attachmentMessage(attachment internalartifacts.Attachment) *artifactsv1.DraftAttachment {

@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/vrooli/cli-core/agentcatalog"
+	"github.com/vrooli/envkit-go"
 )
 
 // ModelResolver is the narrow seam through which pricing asks a runner's
@@ -29,7 +31,9 @@ type CLIModelResolver struct {
 
 func NewCLIModelResolver() ModelResolver {
 	return CLIModelResolver{run: func(ctx context.Context, command string, args ...string) ([]byte, error) {
-		return exec.CommandContext(ctx, command, args...).CombinedOutput()
+		cmd := exec.CommandContext(ctx, command, args...)
+		cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, nil))
+		return cmd.CombinedOutput()
 	}}
 }
 
@@ -107,7 +111,9 @@ func (r CLIModelResolver) resolveUncached(ctx context.Context, runner, model str
 	commandRunner := r.run
 	if commandRunner == nil {
 		commandRunner = func(ctx context.Context, command string, args ...string) ([]byte, error) {
-			return exec.CommandContext(ctx, command, args...).CombinedOutput()
+			cmd := exec.CommandContext(ctx, command, args...)
+			cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, nil))
+			return cmd.CombinedOutput()
 		}
 	}
 	out, err := commandRunner(ctx, "resource-"+runner, "models", "resolve", "--model", model, "--json")

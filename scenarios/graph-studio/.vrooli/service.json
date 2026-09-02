@@ -105,7 +105,8 @@
         "enabled": true,
         "required": true,
         "purpose": "Store graph metadata, relationships, and versioning",
-        "database": "graph_studio"
+        "database": "graph_studio",
+        "startup_policy": "must_start"
       },
       "minio": {
         "enabled": true,
@@ -117,25 +118,29 @@
             "graph-renders",
             "graph-exports"
           ]
-        }
+        },
+        "startup_policy": "must_start"
       },
       "redis": {
         "enabled": false,
         "required": false,
         "purpose": "Cache frequently accessed graphs and session state",
-        "fallback": "No caching, direct database queries"
+        "fallback": "No caching, direct database queries",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "enabled": false,
         "required": false,
         "purpose": "AI-powered graph suggestions and natural language queries",
-        "fallback": "Disable AI features"
+        "fallback": "Disable AI features",
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "enabled": false,
         "required": false,
         "purpose": "Vector search for semantic graph similarity",
-        "fallback": "Keyword-based search only"
+        "fallback": "Keyword-based search only",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -231,6 +236,11 @@
           ]
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

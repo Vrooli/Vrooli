@@ -41,7 +41,7 @@ func (h handler) CreateCampaign(ctx context.Context, request *connect.Request[ca
 		}
 		slots = append(slots, internalcampaigns.Slot{Channel: slot.Channel, Format: slot.Format, Capacity: int(slot.Capacity)})
 	}
-	campaign, err := h.repo.Create(ctx, internalcampaigns.Campaign{Name: request.Msg.Name}, request.Msg.EvidenceRefs, slots)
+	campaign, err := h.repo.Create(ctx, internalcampaigns.Campaign{Name: request.Msg.Name, ScenarioNames: request.Msg.ScenarioNames}, request.Msg.EvidenceRefs, slots)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -64,8 +64,23 @@ func (h handler) ActivateCampaign(ctx context.Context, request *connect.Request[
 	return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("campaign %q was not found after activation", request.Msg.Id))
 }
 
+func (h handler) GetLaunchAssets(ctx context.Context, request *connect.Request[campaignsv1.GetLaunchAssetsRequest]) (*connect.Response[campaignsv1.GetLaunchAssetsResponse], error) {
+	if request.Msg.GetScenarioName() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario_name is required"))
+	}
+	slots, err := h.repo.LaunchAssets(ctx, request.Msg.GetScenarioName())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	response := &campaignsv1.GetLaunchAssetsResponse{ScenarioName: request.Msg.GetScenarioName()}
+	for _, slot := range slots {
+		response.Slots = append(response.Slots, &campaignsv1.LaunchAssetSlot{CampaignId: slot.CampaignID, CampaignName: slot.CampaignName, Channel: slot.Channel, Format: slot.Format, Capacity: int32(slot.Capacity), Reserved: int32(slot.Reserved), DraftCount: int32(slot.DraftCount)})
+	}
+	return connect.NewResponse(response), nil
+}
+
 func campaignMessage(campaign internalcampaigns.Campaign) *campaignsv1.Campaign {
-	return &campaignsv1.Campaign{Id: campaign.ID, Name: campaign.Name, Status: campaign.Status}
+	return &campaignsv1.Campaign{Id: campaign.ID, Name: campaign.Name, Status: campaign.Status, ScenarioNames: campaign.ScenarioNames}
 }
 
 func Module(db *database.RoutedDB) module.Module {
@@ -78,4 +93,5 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "campaigns_list", Path: campaignsconnect.CampaignsServiceListCampaignsProcedure, Method: "POST", Summary: "List campaigns", Category: "campaigns"},
 	{ID: "campaigns_create", Path: campaignsconnect.CampaignsServiceCreateCampaignProcedure, Method: "POST", Summary: "Create proposed campaign with evidence and slot budget", Category: "campaigns"},
 	{ID: "campaigns_activate", Path: campaignsconnect.CampaignsServiceActivateCampaignProcedure, Method: "POST", Summary: "Activate evidence-backed campaign", Category: "campaigns"},
+	{ID: "launch_assets", Path: campaignsconnect.CampaignsServiceGetLaunchAssetsProcedure, Method: "POST", Summary: "Report launch assets and open slots for a scenario", Category: "campaigns"},
 }

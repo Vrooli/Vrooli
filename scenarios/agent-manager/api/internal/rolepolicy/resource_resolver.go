@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"agent-manager/internal/domain"
+	"github.com/vrooli/envkit-go"
 )
 
 const resourcePolicySchemaVersion = "v1"
@@ -44,6 +45,7 @@ type commandExecutor struct{}
 
 func (commandExecutor) Run(ctx context.Context, command string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, command, args...)
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, nil))
 	// Resource policy CLIs resolve their repository-owned catalog paths
 	// relative to the repository root. Agent Manager is lifecycle-launched from
 	// its scenario API directory, so preserve the control-plane root explicitly

@@ -34,6 +34,13 @@
     "name": "agent-manager",
     "displayName": "Agent Manager",
     "description": "Central orchestration and governance layer for running AI agents against the codebase in a controlled, reviewable, and extensible way",
+    "platform_capabilities": {
+      "agent-orchestration": {
+        "linux": {"status": "build-verified", "mechanism": "native-go-agent-manager-api", "evidence": "Linux module and handler contract tests; host qualification is not claimed"},
+        "macos": {"status": "unqualified", "mechanism": "portable-go-api-with-platform-guarded-host-probes", "evidence": "darwin cross-build; no real-host qualification"},
+        "windows": {"status": "unqualified", "mechanism": "portable-go-api-with-platform-guarded-host-probes", "evidence": "windows cross-build; no real-host qualification"}
+      }
+    },
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	"github.com/vrooli/envkit-go"
 )
 
 const (
@@ -45,7 +46,9 @@ type CommandExecutor interface {
 type commandExecutor struct{}
 
 func (commandExecutor) Run(ctx context.Context, command string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, command, args...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, command, args...)
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, nil))
+	return cmd.CombinedOutput()
 }
 
 // Projector delegates projection to the resource that owns native permission

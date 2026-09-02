@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "libraryId": "react-component-library:BulkActionBar",
   "version": "1.0.9",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "resolvedAt": "2026-09-01T23:41:15.815Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:Button",
-      "version": "2.2.4",
+      "version": "2.2.6",
       "rank": 4
     },
     {

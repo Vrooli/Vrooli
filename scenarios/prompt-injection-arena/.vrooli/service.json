@@ -125,7 +125,8 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store injection library, agent configs, test results, leaderboards"
+        "purpose": "Store injection library, agent configs, test results, leaderboards",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
@@ -135,13 +136,15 @@
           "chat.small",
           "embedding.default"
         ],
-        "purpose": "Execute agent configurations against injection tests safely"
+        "purpose": "Execute agent configurations against injection tests safely",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns"
+        "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -195,6 +198,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

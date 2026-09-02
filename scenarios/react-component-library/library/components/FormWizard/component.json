@@ -1,15 +1,6 @@
 {
   "catalogId": "forms.form-wizard",
   "deprecatedVersions": [],
-  "description": "Resumable step-based form controller with validation boundaries",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Form Wizard",
   "draft": "",
   "evictedVersions": [
     "1.0.3",
@@ -18,10 +9,5 @@
     "1.0.0"
   ],
   "latest": "1.1.0",
-  "libraryId": "react-component-library:FormWizard",
-  "tags": [
-    "forms",
-    "wizard",
-    "setup"
-  ]
+  "libraryId": "react-component-library:FormWizard"
 }

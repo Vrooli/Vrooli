@@ -1,0 +1,15 @@
+{
+  "$schema": "../../test-genie/schemas/testing.schema.json",
+  "version": "1.0.0",
+  "phases": {
+    "tidiness": {
+      "budgets": {
+        "complexity_over_threshold": 0,
+        "baseline_complexity_over_threshold": 1,
+        "reserve": 1,
+        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget.",
+        "ratchet": true
+      }
+    }
+  }
+}

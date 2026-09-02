@@ -37,7 +37,7 @@
           "evidence": "Bridge channel contract tests on linux/amd64"
         },
         "macos": {
-          "status": "supported",
+          "status": "build-verified",
           "mechanism": "dial-out-websocket-channel",
           "evidence": "live minimouse Darwin amd64 agent handshake protocol_version=2 with machine_arch=amd64 and binary_arch=amd64"
         },

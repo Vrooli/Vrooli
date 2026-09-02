@@ -88,6 +88,10 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		Check(RolePolicyHealthChecker(deps.RolePolicyState), health.Critical).
 		Check(PermissionPolicyHealthChecker(deps.PermissionPolicyState, deps.PermissionPolicy), health.Critical).
 		Check(workspaceSandboxHealthChecker(deps.WorkspaceSandbox), health.Optional).
+		Functional(func(context.Context) health.FunctionalStatus {
+			healthy, reason := handlers.LifecycleRefusalFunctionalStatus()
+			return health.FunctionalStatus{Healthy: healthy, Reason: reason}
+		}).
 		Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 

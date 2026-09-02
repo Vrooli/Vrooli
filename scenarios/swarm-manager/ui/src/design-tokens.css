@@ -129,6 +129,9 @@
   --sidebar-max-width: 30rem;
   color-scheme: light;
 /* rcl:tokens:begin */
+  --border-thin: 1px;
+  --color-accent-subtle: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  --color-surface-sunken: color-mix(in srgb, var(--color-surface-muted) 72%, var(--color-background));
   --control-height: 2.75rem;
   --control-height-lg: 3.25rem;
   --control-height-sm: 2.25rem;
@@ -140,8 +143,13 @@
   --control-size-sm: 36px;
   --control-size-xl: 48px;
   --control-size-xs: 32px;
+  --dur-enter: var(--dur-quick);
+  --elev-subtle: 0 1px 2px rgba(9, 18, 22, .06);
   --panel-padding: var(--space-md);
   --panel-radius: var(--radius-panel);
+  --radius-overlay: 1rem;
+  --space-4xl: 80px;
+  --space-4xs: 4px;
 /* rcl:tokens:end */}
 
 :root[data-resolved-theme="dark"],

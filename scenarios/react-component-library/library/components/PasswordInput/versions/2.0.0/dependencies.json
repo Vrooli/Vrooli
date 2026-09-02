@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "libraryId": "react-component-library:PasswordInput",
   "version": "2.0.0",
-  "resolvedAt": "2026-09-01T14:32:13Z",
+  "resolvedAt": "2026-09-01T23:41:15.815Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:FormField",
@@ -16,7 +16,7 @@
     },
     {
       "libraryId": "react-component-library:IconButton",
-      "version": "3.1.4",
+      "version": "3.1.5",
       "rank": 4
     },
     {

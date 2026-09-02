@@ -9,7 +9,7 @@ import {
   assertFormalTracesReplay,
   transitionFromReplayAdapter,
 } from "../../../../test-utils";
-import { assertFormalArtifactFreshFromFiles } from "../../../../test-utils/modeltest/formal.node";
+import { assertFormalArtifactFreshFromFiles } from "@vrooli/flow-runtime/node";
 import {
   attachmentUploadFormalExpectation,
   attachmentUploadReplayFixtureContract,

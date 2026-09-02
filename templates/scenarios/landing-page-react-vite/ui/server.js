@@ -15,6 +15,25 @@
 
 import { createScenarioServer, injectBaseTag } from '@vrooli/api-base/server';
 
+// Both ports come from the scenario lifecycle. createScenarioServer already
+// rejects either one when it is missing or unparseable, so these guards change
+// no behaviour: the process still refuses to start. What they change is the
+// message — the library reports "Invalid UI_PORT configuration", which names
+// the symptom, and these name the cause and the fix.
+const uiPort = process.env.UI_PORT;
+if (!uiPort) {
+  throw new Error(
+    'UI_PORT is not set. The scenario lifecycle supplies it — start this scenario with `vrooli scenario start {{SCENARIO_ID}}` rather than running server.js directly.',
+  );
+}
+
+const apiPort = process.env.API_PORT;
+if (!apiPort) {
+  throw new Error(
+    'API_PORT is not set. The scenario lifecycle supplies it — start this scenario with `vrooli scenario start {{SCENARIO_ID}}` rather than running server.js directly.',
+  );
+}
+
 // -----------------------------------------------------------------------------
 // Branding Cache - fetches from API with TTL
 // -----------------------------------------------------------------------------
@@ -31,7 +50,6 @@ const BRANDING_CACHE_TTL_MS = 60000; // 1 minute cache
 function refreshBrandingCache() {
   if (fetchInProgress) return;
 
-  const apiPort = process.env.API_PORT;
   const apiUrl = `http://localhost:${apiPort}/api/v1/branding`;
 
   fetchInProgress = true;
@@ -193,8 +211,8 @@ function injectSeoTags(html, branding) {
 // -----------------------------------------------------------------------------
 
 const app = createScenarioServer({
-  uiPort: process.env.UI_PORT,
-  apiPort: process.env.API_PORT,
+  uiPort,
+  apiPort,
   distDir: './dist',
   serviceName: '{{SCENARIO_ID}}',
   version: '1.0.0',
@@ -226,4 +244,4 @@ const app = createScenarioServer({
   }
 });
 
-app.listen(process.env.UI_PORT);
+app.listen(uiPort);

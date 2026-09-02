@@ -56,7 +56,7 @@ func (h *handlers) createCall(ctx cliapp.OperationContext) (*campaignsv1.CreateC
 		}
 		slots = append(slots, &campaignsv1.CampaignSlot{Channel: parts[0], Format: parts[1], Capacity: int32(capacity)})
 	}
-	response, err := h.client.CreateCampaign(context.Background(), connect.NewRequest(&campaignsv1.CreateCampaignRequest{Name: ctx.Flag("name"), EvidenceRefs: splitCSV(ctx.Flag("evidence-ref")), Slots: slots}))
+	response, err := h.client.CreateCampaign(context.Background(), connect.NewRequest(&campaignsv1.CreateCampaignRequest{Name: ctx.Flag("name"), EvidenceRefs: splitCSV(ctx.Flag("evidence-ref")), Slots: slots, ScenarioNames: splitCSV(ctx.Flag("scenario"))}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("create campaign", err, nil)
 	}
@@ -96,12 +96,32 @@ func (h *handlers) activateReport(_ cliapp.OperationContext, message *campaignsv
 	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Campaign %s activated.", message.Campaign.Id)}}
 }
 
+func (h *handlers) launchAssetsCall(ctx cliapp.OperationContext) (*campaignsv1.GetLaunchAssetsResponse, error) {
+	response, err := h.client.GetLaunchAssets(context.Background(), connect.NewRequest(&campaignsv1.GetLaunchAssetsRequest{ScenarioName: ctx.Flag("scenario")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("get launch assets", err, nil)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, fmt.Errorf("server returned no launch-assets response")
+	}
+	return response.Msg, nil
+}
+
+func (h *handlers) launchAssetsReport(_ cliapp.OperationContext, message *campaignsv1.GetLaunchAssetsResponse) cliapp.ListReport {
+	results := make([]string, 0, len(message.Slots))
+	for _, slot := range message.Slots {
+		results = append(results, fmt.Sprintf("%s / %s — %s:%s reserved=%d/%d drafts=%d", slot.CampaignName, slot.CampaignId, slot.Channel, slot.Format, slot.Reserved, slot.Capacity, slot.DraftCount))
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Launch assets for %s: %d slot(s).", message.ScenarioName, len(results))}, ResultsHeading: "Launch assets", Results: results}
+}
+
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
 		"CampaignsService.ListCampaigns":    cliapp.ProtoList(h.listCall, h.listReport),
 		"CampaignsService.CreateCampaign":   cliapp.ProtoMutation(h.createCall, h.createReport),
 		"CampaignsService.ActivateCampaign": cliapp.ProtoMutation(h.activateCall, h.activateReport),
+		"CampaignsService.GetLaunchAssets":  cliapp.ProtoList(h.launchAssetsCall, h.launchAssetsReport),
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("campaigns: load from manifest: %w", err)

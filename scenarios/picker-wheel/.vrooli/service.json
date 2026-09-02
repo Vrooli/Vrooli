@@ -127,19 +127,22 @@
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "purpose": "Intelligent option suggestions via shared ollama workflow"
+        "purpose": "Intelligent option suggestions via shared ollama workflow",
+        "startup_policy": "try_start"
       },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store wheels, options, and spin history"
+        "purpose": "Store wheels, options, and spin history",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {}
@@ -194,6 +197,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

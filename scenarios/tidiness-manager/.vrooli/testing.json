@@ -28,6 +28,21 @@
   "phases": {
     "unit": {
       "timeout": "6m"
+    },
+    "tidiness": {
+      "budgets": {
+        "ratchet": true,
+        "duplication_line_debt": 6242,
+        "baseline_duplication_line_debt": 6243,
+        "long_files": 4,
+        "baseline_long_files": 5,
+        "complexity_over_threshold": 87,
+        "baseline_complexity_over_threshold": 88,
+        "debt_markers": 1,
+        "baseline_debt_markers": 2,
+        "reserve": 1,
+        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
+      }
     }
   },
   "structure": {

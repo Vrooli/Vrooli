@@ -1,25 +1,11 @@
 {
   "catalogId": "forms.password-input",
   "deprecatedVersions": [],
-  "description": "Secret input with reveal and paste-safe handling",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
-  ],
-  "displayName": "Password Input",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
     "1.0.0"
   ],
   "latest": "2.0.0",
-  "libraryId": "react-component-library:PasswordInput",
-  "tags": [
-    "forms",
-    "secret",
-    "setup"
-  ]
+  "libraryId": "react-component-library:PasswordInput"
 }

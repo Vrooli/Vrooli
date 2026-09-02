@@ -38,12 +38,12 @@
   },
   "storage": {
     "entries": {
-    "database": {
-      "rung": "owned",
-      "kind": "file",
-      "class": "data",
-      "regenerable": false,
-      "format": "sqlite",
+      "database": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "data",
+        "regenerable": false,
+        "format": "sqlite",
         "sensitive": false,
         "budget": {
           "max_bytes": "2GiB",
@@ -215,7 +215,8 @@
         "type": "ollama",
         "enabled": false,
         "required": false,
-        "purpose": "Optional local model inventory and cleanup provider"
+        "purpose": "Optional local model inventory and cleanup provider",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {

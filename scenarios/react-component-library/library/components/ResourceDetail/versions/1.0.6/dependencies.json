@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "libraryId": "react-component-library:ResourceDetail",
   "version": "1.0.6",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
+  "resolvedAt": "2026-09-01T23:41:15.815Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:AsyncBoundary",
-      "version": "1.0.6",
+      "version": "1.0.7",
       "rank": 4
     },
     {

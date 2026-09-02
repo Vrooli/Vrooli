@@ -14,3 +14,7 @@ replace github.com/vrooli/repo-contract-go => ../../../../packages/repo-contract
 replace github.com/vrooli/vrooli => ../../../..
 
 replace github.com/vrooli/envkit-go => ../../../../packages/envkit-go
+
+require vrooli-autoheal-langrecover v0.0.0
+
+replace vrooli-autoheal-langrecover => ../../langrecover

@@ -21,7 +21,7 @@
     "parent": "vrooli",
     "name": "scenario-authenticator",
     "displayName": "Scenario Authenticator",
-    "description": "Multi-tenant identity provider (IdP) for the Vrooli fleet: realm-scoped accounts, RS256/JWKS token issuance with stateless local verification, sessions, MFA, federation, and API keys \u2014 consumed API-to-API by other scenarios and deployable as the auth backend for hosted products.",
+    "description": "Multi-tenant identity provider (IdP) for the Vrooli fleet: realm-scoped accounts, RS256/JWKS token issuance with stateless local verification, sessions, MFA, federation, and API keys — consumed API-to-API by other scenarios and deployable as the auth backend for hosted products.",
     "version": "0.0.1",
     "type": "business-application",
     "category": "general",
@@ -121,7 +121,8 @@
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Hot state: server-tracked sessions, token-family revocation, OAuth CSRF state, and distributed rate limiting. Optional at tier-1-local, where the durable local store behind the same Store seam keeps this state across restart. Required above one replica, because a revocation blacklist that is not shared does not revoke; that per-tier answer is recorded in tier_feasibility. Account persistence is SQLite via the api-core/storage seam (no shared Postgres)."
+        "purpose": "Hot state: server-tracked sessions, token-family revocation, OAuth CSRF state, and distributed rate limiting. Optional at tier-1-local, where the durable local store behind the same Store seam keeps this state across restart. Required above one replica, because a revocation blacklist that is not shared does not revoke; that per-tier answer is recorded in tier_feasibility. Account persistence is SQLite via the api-core/storage seam (no shared Postgres).",
+        "startup_policy": "try_start"
       }
     }
   },

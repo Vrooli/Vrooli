@@ -129,7 +129,8 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "historical foliage data and user trips"
+        "purpose": "historical foliage data and user trips",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
@@ -138,13 +139,15 @@
         "model_roles": [
           "chat.small"
         ],
-        "purpose": "foliage predictions and pattern analysis"
+        "purpose": "foliage predictions and pattern analysis",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {}
@@ -199,6 +202,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

@@ -309,6 +309,60 @@
         "tiers": [
           "tier-1-local"
         ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "apple-root-cert-pem",
+        "label": "Apple receipt root certificate",
+        "description": "Apple trust anchor used to verify StoreKit signed transactions; keep it in governed server configuration.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "apple-bundle-id",
+        "label": "Apple application bundle ID",
+        "description": "Bundle identifier matched against signed Apple transactions.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "apple-product-plans",
+        "label": "Apple product-to-plan map",
+        "description": "Governed mapping from Apple product identifiers to Vrooli plan tiers.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "google-play-package-name",
+        "label": "Google Play package name",
+        "description": "Android package identifier used by the server-side Play purchase verifier.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "google-play-product-id",
+        "label": "Google Play product ID",
+        "description": "Subscription product identifier used by the server-side Play purchase verifier.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+        "field": "google-play-oauth-token",
+        "label": "Google Play verification credential",
+        "description": "Server-only OAuth credential resolved through the credential authority for Play verification.",
+        "required": false,
+        "provisioning": "operator",
+        "tiers": ["tier-1-local"]
       }
     ]
   },

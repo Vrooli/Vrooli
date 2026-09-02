@@ -132,5 +132,10 @@
         "port": "ui"
       }
     }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
   }
 }

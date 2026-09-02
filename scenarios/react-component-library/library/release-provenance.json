@@ -2378,6 +2378,12 @@
       "publishedAt": "2026-09-01T18:54:03Z"
     },
     {
+      "libraryId": "react-component-library:FreshnessArc",
+      "version": "0.1.1",
+      "draftVersion": "0.1.0-draft.1",
+      "publishedAt": "2026-09-01T23:58:26Z"
+    },
+    {
       "libraryId": "react-component-library:FullPageDrawer",
       "version": "1.0.3",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3656,6 +3662,12 @@
       "publishedAt": "2026-09-01T18:54:01Z"
     },
     {
+      "libraryId": "react-component-library:ProvenanceInk",
+      "version": "0.1.1",
+      "draftVersion": "0.1.0-draft.1",
+      "publishedAt": "2026-09-01T23:52:11Z"
+    },
+    {
       "libraryId": "react-component-library:QuarantineBadge",
       "version": "1.0.3",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -4052,10 +4064,28 @@
       "publishedAt": "2026-09-01T18:54:03Z"
     },
     {
+      "libraryId": "react-component-library:RollingNumber",
+      "version": "0.1.1",
+      "draftVersion": "0.1.0-draft.1",
+      "publishedAt": "2026-09-01T23:58:25Z"
+    },
+    {
+      "libraryId": "react-component-library:RollingNumber",
+      "version": "0.1.2",
+      "draftVersion": "0.1.2-draft.1",
+      "publishedAt": "2026-09-02T00:00:47Z"
+    },
+    {
       "libraryId": "react-component-library:SampleSeries",
       "version": "0.1.1",
       "draftVersion": "0.1.1-draft.1",
       "publishedAt": "2026-09-01T18:54:03Z"
+    },
+    {
+      "libraryId": "react-component-library:SampleSeries",
+      "version": "0.1.1",
+      "draftVersion": "0.1.0-draft.1",
+      "publishedAt": "2026-09-01T23:58:27Z"
     },
     {
       "libraryId": "react-component-library:ScoreGauge",
@@ -5598,6 +5628,12 @@
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
       "backfilled": true
+    },
+    {
+      "libraryId": "react-component-library:provenance-ink",
+      "version": "0.1.1",
+      "draftVersion": "0.1.0-draft.1",
+      "publishedAt": "2026-09-01T23:47:33Z"
     },
     {
       "libraryId": "react-component-library:recovery",

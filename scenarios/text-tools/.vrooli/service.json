@@ -128,31 +128,36 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store text metadata, operations history, and templates"
+        "purpose": "Store text metadata, operations history, and templates",
+        "startup_policy": "must_start"
       },
       "minio": {
         "type": "minio",
         "enabled": true,
         "required": true,
-        "purpose": "Store large text files and processing results"
+        "purpose": "Store large text files and processing results",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "purpose": "Enable semantic search, summarization, and NLP features"
+        "purpose": "Enable semantic search, summarization, and NLP features",
+        "startup_policy": "try_start"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Cache frequently accessed text and processing results"
+        "purpose": "Cache frequently accessed text and processing results",
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Vector storage for semantic search and similarity matching"
+        "purpose": "Vector storage for semantic search and similarity matching",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -240,6 +245,11 @@
           ]
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

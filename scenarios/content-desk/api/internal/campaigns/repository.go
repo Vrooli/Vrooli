@@ -3,6 +3,7 @@ package campaigns
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -24,6 +25,34 @@ type Repository interface {
 	ReserveSlot(context.Context, string, string, string) error
 	ReleaseSlot(context.Context, string, string, string) error
 	Slots(context.Context, string) ([]Slot, error)
+	LaunchAssets(context.Context, string) ([]LaunchAssetSlot, error)
+}
+
+func (r *sqliteRepository) LaunchAssets(ctx context.Context, scenarioName string) ([]LaunchAssetSlot, error) {
+	if scenarioName == "" {
+		return nil, fmt.Errorf("scenario name is required")
+	}
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT c.id, c.name, s.channel, s.format, s.capacity, s.reserved,
+		       (SELECT COUNT(*) FROM draft_slots ds JOIN drafts d ON d.id = ds.draft_id
+		        WHERE ds.campaign_id = c.id AND ds.channel = s.channel AND ds.format = s.format
+		          AND d.status IN ('approved','published'))
+		FROM campaigns c JOIN campaign_slots s ON s.campaign_id = c.id
+		WHERE EXISTS (SELECT 1 FROM json_each(c.scenario_names) WHERE value = ?)
+		ORDER BY c.name, s.channel, s.format`, scenarioName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []LaunchAssetSlot
+	for rows.Next() {
+		var item LaunchAssetSlot
+		if err := rows.Scan(&item.CampaignID, &item.CampaignName, &item.Channel, &item.Format, &item.Capacity, &item.Reserved, &item.DraftCount); err != nil {
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	return result, rows.Err()
 }
 
 type sqliteRepository struct{ db SQLExecutor }
@@ -42,7 +71,11 @@ func (r *sqliteRepository) Create(ctx context.Context, campaign Campaign, refs [
 		return Campaign{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	if _, err = tx.ExecContext(ctx, `INSERT INTO campaigns (id, name, status, created_at) VALUES (?, ?, ?, ?)`, campaign.ID, campaign.Name, campaign.Status, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	scenarios, err := json.Marshal(campaign.ScenarioNames)
+	if err != nil {
+		return Campaign{}, fmt.Errorf("encode campaign scenarios: %w", err)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO campaigns (id, name, status, scenario_names, created_at) VALUES (?, ?, ?, ?, ?)`, campaign.ID, campaign.Name, campaign.Status, string(scenarios), time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return Campaign{}, fmt.Errorf("create campaign: %w", err)
 	}
 	for _, ref := range refs {
@@ -104,7 +137,7 @@ func activationAllowed(ctx context.Context, tx *sql.Tx, id string) error {
 }
 
 func (r *sqliteRepository) List(ctx context.Context) ([]Campaign, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, name, status FROM campaigns ORDER BY created_at DESC, id DESC`)
+	rows, err := r.db.QueryContext(ctx, `SELECT id, name, status, scenario_names FROM campaigns ORDER BY created_at DESC, id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +145,12 @@ func (r *sqliteRepository) List(ctx context.Context) ([]Campaign, error) {
 	var out []Campaign
 	for rows.Next() {
 		var campaign Campaign
-		if err := rows.Scan(&campaign.ID, &campaign.Name, &campaign.Status); err != nil {
+		var scenarios string
+		if err := rows.Scan(&campaign.ID, &campaign.Name, &campaign.Status, &scenarios); err != nil {
 			return nil, err
+		}
+		if err := json.Unmarshal([]byte(scenarios), &campaign.ScenarioNames); err != nil {
+			return nil, fmt.Errorf("decode campaign scenarios: %w", err)
 		}
 		out = append(out, campaign)
 	}

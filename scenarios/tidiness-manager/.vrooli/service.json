@@ -84,25 +84,29 @@
         "enabled": true,
         "required": true,
         "description": "Primary relational data store for issue tracking, campaign state, and scan history",
-        "schema": "tidiness-manager"
+        "schema": "tidiness-manager",
+        "startup_policy": "must_start"
       },
       "claude-code": {
         "type": "ai",
         "enabled": false,
         "required": false,
-        "description": "AI-powered code analysis for smart scanning (deep pattern detection, refactoring suggestions)"
+        "description": "AI-powered code analysis for smart scanning (deep pattern detection, refactoring suggestions)",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {
       "visited-tracker": {
         "enabled": false,
         "required": false,
-        "description": "Campaign-based file tracking to ensure progressive coverage without redundancy"
+        "description": "Campaign-based file tracking to ensure progressive coverage without redundancy",
+        "startup_policy": "try_start"
       },
       "code-facts": {
         "enabled": true,
         "required": true,
-        "description": "Required symbol-resolved fact provider for canonical seam enforcement"
+        "description": "Required symbol-resolved fact provider for canonical seam enforcement",
+        "startup_policy": "must_start"
       }
     }
   },
@@ -157,6 +161,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

@@ -111,13 +111,15 @@
         "model_roles": [
           "chat.default"
         ],
-        "purpose": "AI-powered conversation engine for chatbots"
+        "purpose": "AI-powered conversation engine for chatbots",
+        "startup_policy": "must_start"
       },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store chatbot configs, conversations, user data, analytics"
+        "purpose": "Store chatbot configs, conversations, user data, analytics",
+        "startup_policy": "must_start"
       }
     }
   },
@@ -171,6 +173,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

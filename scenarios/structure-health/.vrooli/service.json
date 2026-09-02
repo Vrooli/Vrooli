@@ -117,7 +117,8 @@
         "type": "scenario",
         "enabled": true,
         "required": true,
-        "description": "Provides the code-facts ground truth (surface inventory + parse units) that structure-health derives each target's language/framework profile from and reconciles service.json intent against."
+        "description": "Provides the code-facts ground truth (surface inventory + parse units) that structure-health derives each target's language/framework profile from and reconciles service.json intent against.",
+        "startup_policy": "must_start"
       }
     }
   },

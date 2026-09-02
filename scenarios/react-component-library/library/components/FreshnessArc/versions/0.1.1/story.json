@@ -1,7 +1,71 @@
 {
-  "schemaVersion": 5,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Default", "args": {}, "expect": [] }]
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Draining",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "observed 9s ago · ttl 30s"
+        }
+      ],
+      "id": "draining",
+      "mode": "live",
+      "name": "Draining over the TTL",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Fresh",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "observed now · ttl 60s"
+        }
+      ],
+      "id": "fresh",
+      "mode": "pinned",
+      "name": "Just fetched",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Cached",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "last good 4m ago · retrying"
+        }
+      ],
+      "id": "cached",
+      "mode": "pinned",
+      "name": "Cached: dashed and drained",
+      "role": "boundary"
+    }
+  ],
+  "title": "FreshnessArc"
 }

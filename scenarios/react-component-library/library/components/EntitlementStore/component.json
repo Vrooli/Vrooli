@@ -1,20 +1,6 @@
 {
-  "libraryId": "react-component-library:EntitlementStore",
-  "displayName": "EntitlementStore",
-  "description": "Shared entitlement state contract for paid surfaces",
-  "kind": "control",
-  "tags": [
-    "entitlement",
-    "monetization"
-  ],
-  "entry": "EntitlementStore.tsx",
-  "latest": "1.0.0",
+  "catalogId": "react-component-library:EntitlementStore",
   "deprecatedVersions": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "latest": "1.0.0",
+  "libraryId": "react-component-library:EntitlementStore"
 }

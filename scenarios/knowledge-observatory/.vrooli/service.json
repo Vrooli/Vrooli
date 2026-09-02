@@ -115,7 +115,8 @@
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Primary vector database containing all semantic knowledge to monitor and search"
+        "description": "Primary vector database containing all semantic knowledge to monitor and search",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
@@ -125,13 +126,15 @@
         "model_roles": [
           "embedding.default",
           "rerank.llm_fallback"
-        ]
+        ],
+        "startup_policy": "try_start"
       },
       "postgres": {
         "type": "postgres",
         "enabled": false,
         "required": false,
-        "description": "Optional relational source for observatory metadata"
+        "description": "Optional relational source for observatory metadata",
+        "startup_policy": "try_start"
       },
       "reranker": {
         "type": "reranker",
@@ -219,6 +222,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

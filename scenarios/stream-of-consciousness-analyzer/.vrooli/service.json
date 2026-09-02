@@ -84,7 +84,8 @@
         "enabled": true,
         "required": true,
         "description": "Primary relational data store for schemes, thoughts, edges, and information items",
-        "schema": "stream-of-consciousness-analyzer"
+        "schema": "stream-of-consciousness-analyzer",
+        "startup_policy": "must_start"
       }
     }
   },
@@ -138,6 +139,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

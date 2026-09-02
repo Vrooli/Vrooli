@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/catalog-asset.schema.json",
+  "kind": "catalog-asset",
+  "schemaVersion": "1.0.0",
+  "api": {
+    "variants": {},
+    "modes": [],
+    "parts": []
+  },
+  "asset": {
+    "id": "data-display.provenance-ink",
+    "name": "ProvenanceInk",
+    "kind": "component",
+    "surface": "none",
+    "domain": "data-display",
+    "description": "The honesty system for ambient displays: one resolver turns a reading's coverage and trust into one of four material inks \u2014 solid, dimmed, hollow, dotted \u2014 plus the ink stylesheet, chip and legend swatch.",
+    "targets": [
+      "react-vite"
+    ],
+    "slot": "ui-primitive",
+    "delivery": "adopted",
+    "target": {
+      "priority": "P1",
+      "maturity": "implemented"
+    }
+  },
+  "dependencies": {
+    "requires": [
+      {
+        "asset": "foundations.style-sheet",
+        "reason": "Ink rules are injected once and keyed on data attributes."
+      },
+      {
+        "asset": "foundations.class-merge",
+        "reason": "Chips and swatches expose the shared className seam."
+      }
+    ],
+    "suggests": []
+  },
+  "requiredCapabilities": [
+    "non-color-status",
+    "contrast-floor",
+    "dark-parity"
+  ],
+  "requiredStates": [
+    "default"
+  ]
+}

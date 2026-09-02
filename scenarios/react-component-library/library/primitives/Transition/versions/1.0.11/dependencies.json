@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "libraryId": "react-component-library:Transition",
   "version": "1.0.11",
-  "resolvedAt": "2026-08-31T05:24:42Z",
+  "resolvedAt": "2026-09-01T23:41:15.815Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:Button",
-      "version": "2.2.4",
+      "version": "2.2.6",
       "rank": 4
     },
     {
@@ -16,7 +16,7 @@
     },
     {
       "libraryId": "react-component-library:MotionPrimitive",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "rank": 3
     },
     {

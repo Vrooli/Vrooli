@@ -132,7 +132,6 @@
               ".vrooli/agent-manager/plan-author.json",
               ".vrooli/agent-manager/phased-plan-slice-review.json",
               ".vrooli/agent-manager/phased-plan-drain.json",
-              ".vrooli/agent-manager/until-drain.json",
               ".vrooli/agent-manager/plan-repair.json",
               ".vrooli/agent-manager/capture-classify.json",
               ".vrooli/agent-manager/independent-review.json",
@@ -142,7 +141,8 @@
               ".vrooli/agent-manager/evidence-request.json",
               ".vrooli/agent-manager/goal-discover.json",
               ".vrooli/agent-manager/goal-plan.json",
-              ".vrooli/agent-manager/milestone-review.json"
+              ".vrooli/agent-manager/milestone-review.json",
+              ".vrooli/agent-manager/readiness-review.json"
             ]
           }
         }
@@ -201,7 +201,8 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "STT (mic input in MessageComposer + QuickCapture) and TTS (assistant message playback in Session Details) flow through audio-tools via the audio-integration UI module and the discovery Connect handler. swarm-manager contains zero audio synthesis/transcription code.",
-        "degraded_behavior": "If audio-tools is unreachable, the discovery handler returns available:false; the UI hides the mic button and renders an unavailable banner in the Audio settings tab. The API still boots."
+        "degraded_behavior": "If audio-tools is unreachable, the discovery handler returns available:false; the UI hides the mic button and renders an unavailable banner in the Audio settings tab. The API still boots.",
+        "supervision_precedence": "required"
       }
     }
   },

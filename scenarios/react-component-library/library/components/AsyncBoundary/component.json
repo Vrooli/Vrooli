@@ -16,15 +16,5 @@
     "1.0.1"
   ],
   "latest": "1.0.7",
-  "libraryId": "react-component-library:AsyncBoundary",
-  "displayName": "AsyncBoundary",
-  "description": "The declarative boundary coordinating loading, empty, partial, stale, refreshing, offline, error, and success presentation around arbitrary content, so no surface hand-rolls its own state ladder.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:AsyncBoundary"
 }

@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "libraryId": "react-component-library:CartesianCharts",
   "version": "1.0.6",
-  "resolvedAt": "2026-08-31T05:06:34Z",
+  "resolvedAt": "2026-09-01T23:41:15.815Z",
   "dependencies": [
     {
       "libraryId": "react-component-library:Chart",
-      "version": "1.0.9",
+      "version": "1.0.10",
       "rank": 4
     },
     {

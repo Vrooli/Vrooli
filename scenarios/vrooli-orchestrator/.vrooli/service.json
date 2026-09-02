@@ -191,5 +191,10 @@
         }
       }
     }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
   }
 }

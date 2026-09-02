@@ -2,18 +2,8 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "foundation",
   "catalogId": "foundations.icon-registry",
-  "latest": "1.1.0",
-  "libraryId": "react-component-library:IconRegistry",
-  "displayName": "Icon Registry",
-  "description": "The normalized icon source and geometry registry supporting individual imports, optical sizing, stroke policy, direction-aware flipping, and accessibility metadata for decorative versus meaningful icons.",
-  "tags": [],
-  "draft": "",
   "deprecatedVersions": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "draft": "",
+  "latest": "1.1.0",
+  "libraryId": "react-component-library:IconRegistry"
 }

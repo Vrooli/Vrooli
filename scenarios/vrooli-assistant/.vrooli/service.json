@@ -91,13 +91,15 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store issue history, patterns, and agent sessions"
+        "purpose": "Store issue history, patterns, and agent sessions",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "Vector search for similar issues and pattern matching"
+        "purpose": "Vector search for similar issues and pattern matching",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -156,6 +158,11 @@
           "env_set": "ENABLE_ELECTRON_OVERLAY"
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

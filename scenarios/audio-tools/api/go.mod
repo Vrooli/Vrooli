@@ -40,7 +40,10 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-require github.com/vrooli/envkit-go v0.0.0 // indirect
+require (
+	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+	github.com/vrooli/envkit-go v0.0.0 // indirect
+)
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 

@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   status TEXT NOT NULL,
+  scenario_names TEXT NOT NULL DEFAULT '[]',
   created_at TEXT NOT NULL
 );
 

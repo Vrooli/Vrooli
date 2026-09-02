@@ -94,19 +94,22 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store funnel definitions, steps, leads, and analytics data"
+        "purpose": "Store funnel definitions, steps, leads, and analytics data",
+        "startup_policy": "must_start"
       },
       "redis": {
         "type": "redis",
         "enabled": false,
         "required": false,
-        "purpose": "Cache funnel sessions and real-time analytics"
+        "purpose": "Cache funnel sessions and real-time analytics",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": false,
         "required": false,
-        "purpose": "Generate compelling copy for funnel steps"
+        "purpose": "Generate compelling copy for funnel steps",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -191,6 +194,11 @@
           ]
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

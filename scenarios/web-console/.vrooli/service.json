@@ -380,6 +380,25 @@
       ]
     }
   },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/lpbs-account",
+        "field": "refresh-token",
+        "label": "Vrooli subscription session",
+        "description": "Device-scoped subscription refresh credential shared by bundled scenarios. Access tokens remain in memory only.",
+        "required": false
+      },
+      {
+        "logical_id": "vrooli/openrouter",
+        "field": "api-key",
+        "label": "OpenRouter API key",
+        "description": "Optional user-provided key. The value is never returned and never stored in browser storage.",
+        "required": false,
+        "obtain_url": "https://openrouter.ai/keys"
+      }
+    ]
+  },
   "dependencies": {
     "resources": {
       "ollama": {
@@ -399,7 +418,7 @@
         "required": false,
         "startup_policy": "try_start",
         "description": "Cloud LLM provider (BYOK) for AI command generation; used as the fallback when Ollama is unavailable. Model selection resolves through resource-openrouter policy roles.",
-        "degraded_behavior": "AI generation is unavailable only if both Ollama and OpenRouter are unreachable; OpenRouter requires OPENROUTER_API_KEY.",
+        "degraded_behavior": "AI generation is unavailable only if both Ollama and OpenRouter are unreachable; OpenRouter uses the credential authority first and an environment fallback when configured.",
         "model_roles": [
           "chat.default"
         ]

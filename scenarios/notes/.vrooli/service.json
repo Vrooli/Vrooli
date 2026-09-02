@@ -130,19 +130,22 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store notes, folders, tags, and user preferences"
+        "purpose": "Store notes, folders, tags, and user preferences",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "purpose": "Vector storage for semantic search across notes"
+        "purpose": "Vector storage for semantic search across notes",
+        "startup_policy": "must_start"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Cache recent notes and real-time collaboration"
+        "purpose": "Cache recent notes and real-time collaboration",
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
@@ -151,7 +154,8 @@
         "purpose": "AI-powered note suggestions and summarization",
         "model_roles": [
           "embedding.default"
-        ]
+        ],
+        "startup_policy": "must_start"
       }
     }
   },
@@ -236,6 +240,11 @@
           ]
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

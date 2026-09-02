@@ -13,7 +13,7 @@ require (
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
-	modernc.org/sqlite v1.50.0
+	modernc.org/sqlite v1.50.1
 )
 
 replace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core

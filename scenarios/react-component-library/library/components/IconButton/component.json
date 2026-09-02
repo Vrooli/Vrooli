@@ -22,15 +22,5 @@
     "3.1.2"
   ],
   "latest": "3.1.5",
-  "libraryId": "react-component-library:IconButton",
-  "displayName": "IconButton",
-  "description": "The compact icon-only action with a mandatory accessible name, expanded touch target beyond its visual bounds, tooltip integration, loading state, and optional toggle semantics.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:IconButton"
 }

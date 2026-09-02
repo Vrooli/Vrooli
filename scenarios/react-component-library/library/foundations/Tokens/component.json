@@ -5,15 +5,5 @@
   "deprecatedVersions": [],
   "draft": "",
   "latest": "1.0.2",
-  "libraryId": "react-component-library:Tokens",
-  "displayName": "Tokens",
-  "description": "The three-layer semantic design-token system: primitive ramps for spacing, type, radius, elevation, motion, and layering; semantic roles built on them; and component tokens that are the only legal source of a rendered dimension.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:Tokens"
 }

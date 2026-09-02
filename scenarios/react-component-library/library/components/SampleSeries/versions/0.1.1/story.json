@@ -1,7 +1,71 @@
 {
-  "schemaVersion": 5,
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
   "kind": "component",
-  "args": { "fields": [] },
-  "environment": { "fixtures": [] },
-  "stories": [{ "id": "default", "name": "Default", "args": {}, "expect": [] }]
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Illustrative",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "hand-authored, mid-scale, reviewed 2026-09-01"
+        }
+      ],
+      "id": "illustrative",
+      "mode": "pinned",
+      "name": "Authored series draws dashed",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Measured",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "swarm-manager · six weekly readings"
+        }
+      ],
+      "id": "measured",
+      "mode": "pinned",
+      "name": "Measured series draws solid",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "SinglePoint",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "one reading, no series"
+        }
+      ],
+      "id": "single-point",
+      "mode": "pinned",
+      "name": "One point draws nothing",
+      "role": "boundary"
+    }
+  ],
+  "title": "SampleSeries"
 }

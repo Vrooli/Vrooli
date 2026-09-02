@@ -5,6 +5,15 @@
     "last_updated": "2025-11-06T23:58:54-05:00"
   },
   "version": "1.0.0",
+  "phases": {
+    "tidiness": {
+      "budgets": {
+        "duplication_line_debt": 0,
+        "baseline_duplication_line_debt": 1,
+        "ratchet": true
+      }
+    }
+  },
   "unit": {
     "options": {
       "verbose": false

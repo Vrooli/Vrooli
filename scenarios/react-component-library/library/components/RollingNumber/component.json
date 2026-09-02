@@ -1,24 +1,14 @@
 {
-  "deprecatedVersions": [],
-  "description": "Reusable command-display primitive",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
+  "catalogId": "data-display.rolling-number",
+  "deprecatedVersions": [
+    "0.1.0",
+    "0.1.1"
   ],
-  "displayName": "RollingNumber",
   "draft": "",
-  "entry": "RollingNumber.tsx",
   "evictedVersions": [
-    "0.1.0"
+    "0.1.0",
+    "0.1.1"
   ],
-  "kind": "control",
-  "latest": "0.1.1",
-  "libraryId": "react-component-library:RollingNumber",
-  "tags": [
-    "ambient-display",
-    "command-center"
-  ]
+  "latest": "0.1.2",
+  "libraryId": "react-component-library:RollingNumber"
 }

@@ -101,23 +101,27 @@
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Optional response cache for outbound place and weather lookups. The scenario falls back to live lookups when Redis is absent."
+        "purpose": "Optional response cache for outbound place and weather lookups. The scenario falls back to live lookups when Redis is absent.",
+        "startup_policy": "try_start"
       },
       "postgres": {
         "type": "postgres",
         "enabled": true,
-        "required": false
+        "required": false,
+        "startup_policy": "try_start"
       },
       "searxng": {
         "type": "searxng",
         "enabled": false,
-        "required": false
+        "required": false,
+        "startup_policy": "try_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
@@ -126,7 +130,8 @@
         "description": "Auto-detected via analyzer (heuristic)",
         "model_roles": [
           "chat.small"
-        ]
+        ],
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {}

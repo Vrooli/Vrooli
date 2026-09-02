@@ -126,19 +126,22 @@
         "enabled": true,
         "required": true,
         "description": "Stores rule definitions, scan results, user preferences, and audit history",
-        "schema": "scenario_auditor"
+        "schema": "scenario_auditor",
+        "startup_policy": "must_start"
       },
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
         "required": true,
-        "description": "AI agent spawning for automated fix generation and rule creation"
+        "description": "AI agent spawning for automated fix generation and rule creation",
+        "startup_policy": "must_start"
       },
       "opencode": {
         "type": "opencode",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (resource_cli)"
+        "description": "Auto-detected via analyzer (resource_cli)",
+        "startup_policy": "must_start"
       },
       "openrouter": {
         "type": "openrouter",
@@ -147,7 +150,8 @@
         "description": "Role-based model selection for dispatched fix agents via `resource-openrouter policy resolve`",
         "model_roles": [
           "agent.tools"
-        ]
+        ],
+        "startup_policy": "try_start"
       },
       "ollama": {
         "type": "ollama",
@@ -157,13 +161,15 @@
         "model_roles": [
           "chat.default",
           "embedding.default"
-        ]
+        ],
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       }
     }
   },
@@ -220,6 +226,11 @@
           "NODE_ENV": "production"
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

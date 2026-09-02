@@ -102,7 +102,8 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "The only inference path. Every candidate is produced through typed inference on the write.default (quality lane) and write.diverse (candidate-set lane) roles. This scenario names no model, holds no vendor credential, and speaks no vendor protocol, which is also what makes its metering Class A without implementing metering here.",
-        "degraded_behavior": "Generation refuses with a named error identifying the role. Styles, profiles, declarations, sessions, and every committed document stay fully readable. No direct-to-vendor fallback is ever attempted, and a partial candidate set is never presented as complete."
+        "degraded_behavior": "Generation refuses with a named error identifying the role. Styles, profiles, declarations, sessions, and every committed document stay fully readable. No direct-to-vendor fallback is ever attempted, and a partial candidate set is never presented as complete.",
+        "supervision_precedence": "required"
       },
       "search-hub": {
         "type": "scenario",

@@ -48,6 +48,13 @@
               "bind": {
                 "field": "slots"
               }
+            },
+            {
+              "name": "scenario",
+              "description": "Comma-separated scenario names supported by this campaign",
+              "bind": {
+                "field": "scenario_names"
+              }
             }
           ],
           "binding": {
@@ -90,6 +97,30 @@
           },
           "architecture": {
             "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "launch-assets",
+          "description": "Report launch assets, channels, and open slots for a scenario",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "CampaignsService",
+            "method": "GetLaunchAssets"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]

@@ -23,11 +23,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // ollamaModelPrefix is the uniform provider prefix used for locally-served
@@ -112,6 +115,7 @@ func (l *ollamaLister) list() []string {
 // discovery path in agent-manager.
 func defaultOllamaFetch(ctx context.Context) ([]string, error) {
 	cmd := exec.CommandContext(ctx, ollamaSSOTCommand, "models", "list", "--json")
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, nil))
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err

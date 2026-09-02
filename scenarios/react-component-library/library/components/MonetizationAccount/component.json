@@ -17,15 +17,5 @@
     "1.0.0"
   ],
   "latest": "2.0.0",
-  "libraryId": "react-component-library:MonetizationAccount",
-  "displayName": "Monetization Account",
-  "description": "Reusable monetization account component implementation for the React component library.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "libraryId": "react-component-library:MonetizationAccount"
 }

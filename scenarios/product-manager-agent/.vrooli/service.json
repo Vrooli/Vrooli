@@ -140,13 +140,15 @@
         "type": "redis",
         "enabled": true,
         "required": false,
-        "purpose": "Optional. The API constructs a client at startup and pings it, logging rather than failing when the ping errors, then holds the handle without ever performing a data operation. No scenario state depends on Redis being present."
+        "purpose": "Optional. The API constructs a client at startup and pings it, logging rather than failing when the ping errors, then holds the handle without ever performing a data operation. No scenario state depends on Redis being present.",
+        "startup_policy": "try_start"
       },
       "postgres": {
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store features, roadmaps, sprints, and analysis results"
+        "purpose": "Store features, roadmaps, sprints, and analysis results",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
@@ -155,13 +157,15 @@
         "model_roles": [
           "chat.small"
         ],
-        "purpose": "AI-powered analysis for market research, competitor analysis, and decision support"
+        "purpose": "AI-powered analysis for market research, competitor analysis, and decision support",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "purpose": "Vector store for product-analysis embeddings. api/main.go:48 calls log.Fatal when QDRANT_URL is absent, so this is a hard start requirement, not an accelerator."
+        "purpose": "Vector store for product-analysis embeddings. api/main.go:48 calls log.Fatal when QDRANT_URL is absent, so this is a hard start requirement, not an accelerator.",
+        "startup_policy": "must_start"
       }
     }
   },
@@ -236,6 +240,11 @@
           ]
         }
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

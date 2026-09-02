@@ -39,13 +39,15 @@
         }
       }
     },
-    "cleanup_providers": [{
-      "id": "test-genie-run-retention",
-      "name": "Test Genie retained runs",
-      "safety_tier": "safe_with_owner",
-      "default_mode": "disabled",
-      "default_approval": "owner"
-    }],
+    "cleanup_providers": [
+      {
+        "id": "test-genie-run-retention",
+        "name": "Test Genie retained runs",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
     "rationale": "Storage surfaces include durable API data plus governed, regenerable test-run and phase-cache artifacts."
   },
   "retention": {
@@ -170,13 +172,15 @@
         "type": "postgres",
         "enabled": false,
         "required": false,
-        "purpose": "Optional isolated database fixture provider"
+        "purpose": "Optional isolated database fixture provider",
+        "startup_policy": "try_start"
       },
       "redis": {
         "type": "redis",
         "enabled": false,
         "required": false,
-        "purpose": "Optional isolated cache fixture provider"
+        "purpose": "Optional isolated cache fixture provider",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {
@@ -184,7 +188,8 @@
         "enabled": true,
         "required": false,
         "description": "Optional external tool-discovery consumer. Test Genie publishes tool registry proto contracts that agent-inbox can consume.",
-        "degraded_behavior": "Core test execution continues when agent-inbox is unavailable; external tool invocation/discovery integrations may be unavailable."
+        "degraded_behavior": "Core test execution continues when agent-inbox is unavailable; external tool invocation/discovery integrations may be unavailable.",
+        "startup_policy": "try_start"
       },
       "agent-manager": {
         "enabled": true,
@@ -199,7 +204,8 @@
             ]
           }
         },
-        "degraded_behavior": "Core test execution continues when agent-manager is unavailable; evidence-bound remediation returns a clear unavailable error."
+        "degraded_behavior": "Core test execution continues when agent-manager is unavailable; evidence-bound remediation returns a clear unavailable error.",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -255,6 +261,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

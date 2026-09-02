@@ -193,5 +193,20 @@
         "strict": true
       }
     }
+  },
+  "phases": {
+    "tidiness": {
+      "budgets": {
+        "ratchet": true,
+        "duplication_line_debt": 309,
+        "baseline_duplication_line_debt": 310,
+        "long_files": 1,
+        "baseline_long_files": 2,
+        "complexity_over_threshold": 6,
+        "baseline_complexity_over_threshold": 7,
+        "reserve": 1,
+        "reserve_reason": "Measured fleet seed reserves one observed unit while successor cleanup earns each stricter budget."
+      }
+    }
   }
 }

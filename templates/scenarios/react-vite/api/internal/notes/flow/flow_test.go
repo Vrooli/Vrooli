@@ -3,7 +3,7 @@ package flow
 import (
 	"testing"
 	"{{SCENARIO_ID}}/internal/notes/flow/generated"
-	"{{SCENARIO_ID}}/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/packages/proto/modeltest"
 )
 
 func TestAttachmentUploadFormalReplay(t *testing.T) {

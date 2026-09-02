@@ -109,13 +109,15 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "test data storage"
+        "purpose": "test data storage",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "description": "Auto-detected via analyzer (heuristic)"
+        "description": "Auto-detected via analyzer (heuristic)",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {}
@@ -136,6 +138,11 @@
         "port": "api",
         "cwd": "."
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

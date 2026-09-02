@@ -10,7 +10,9 @@
     "version": "0.1.0",
     "type": "helper",
     "category": "deployment",
-    "capabilities": ["agent-plugin-fixture"]
+    "capabilities": [
+      "agent-plugin-fixture"
+    ]
   },
   "plugin": {
     "slug": "hello-plugin",
@@ -18,25 +20,52 @@
       {
         "name": "hello",
         "source": "skills/hello/SKILL.md",
-        "command_groups": ["hello", "status"]
+        "command_groups": [
+          "hello",
+          "status"
+        ]
       }
     ],
     "entitlement_tier": "free",
     "standalone": {
       "install_script": "cli/install.sh",
-      "runtime_binaries": ["cli/hello-plugin"],
+      "runtime_binaries": [
+        "cli/hello-plugin"
+      ],
       "resources": []
     }
   },
   "cli": {
     "enabled": true,
     "command": "hello-plugin",
-    "adapter": {"kind": "go_module", "module_dir": "cli"},
-    "invoke": {"kind": "installed_command", "command": "hello-plugin"},
-    "source_build": {"kind": "go_module"},
-    "freshness": {"inputs": ["cli/**", ".vrooli/service.json"]}
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "hello-plugin"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
   },
-  "runtime": {"kind": "one_shot", "auto_restart_default": false},
-  "dependencies": {"resources": {}},
-  "tier_feasibility": {"dependencies": {"resources": {}}}
+  "runtime": {
+    "kind": "one_shot",
+    "auto_restart_default": false
+  },
+  "dependencies": {
+    "resources": {}
+  },
+  "tier_feasibility": {
+    "dependencies": {
+      "resources": {}
+    }
+  }
 }

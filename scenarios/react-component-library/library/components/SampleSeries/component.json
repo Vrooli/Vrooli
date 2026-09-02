@@ -1,24 +1,12 @@
 {
-  "deprecatedVersions": [],
-  "description": "Reusable command-display primitive",
-  "designStyles": [
-    {
-      "affinity": "native",
-      "reason": "token-native operational-console baseline",
-      "styleId": "vrooli-default"
-    }
+  "catalogId": "visualization.sample-series",
+  "deprecatedVersions": [
+    "0.1.0"
   ],
-  "displayName": "SampleSeries",
   "draft": "",
-  "entry": "SampleSeries.tsx",
   "evictedVersions": [
     "0.1.0"
   ],
-  "kind": "control",
   "latest": "0.1.1",
-  "libraryId": "react-component-library:SampleSeries",
-  "tags": [
-    "ambient-display",
-    "command-center"
-  ]
+  "libraryId": "react-component-library:SampleSeries"
 }

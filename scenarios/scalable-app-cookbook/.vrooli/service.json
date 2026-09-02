@@ -115,13 +115,15 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store architectural patterns, recipes, implementations, and search metadata"
+        "purpose": "Store architectural patterns, recipes, implementations, and search metadata",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": false,
-        "purpose": "Generate pattern explanations, recommendations, and code examples on demand"
+        "purpose": "Generate pattern explanations, recommendations, and code examples on demand",
+        "startup_policy": "try_start"
       }
     }
   },
@@ -175,6 +177,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

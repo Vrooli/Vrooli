@@ -77,7 +77,7 @@
       },
       "kokoro": {
         "description": "Text-to-speech synthesis service",
-        "enabled": false,
+        "enabled": true,
         "required": false
       },
       "kopia": {
@@ -158,7 +158,7 @@
       },
       "sherpa-onnx": {
         "description": "Sherpa ONNX speech processing runtime",
-        "enabled": true,
+        "enabled": false,
         "required": false
       },
       "speaker-verification": {
@@ -192,6 +192,18 @@
       }
     }
   },
+  "hostCron": [
+    {
+      "name": "capacity-sweep",
+      "schedule": "*/5 * * * *",
+      "target": "tools/capacity-sweep"
+    },
+    {
+      "name": "resource-upstream-check",
+      "schedule": "@daily",
+      "target": "tools/resource-upstream-check"
+    }
+  ],
   "hostSafeguards": [
     {
       "name": "clock",
@@ -414,6 +426,24 @@
       "name": "emergency_watchdog",
       "notes": "Installs ~/.vrooli/libexec/emergency-watchdog.sh plus a systemd user service and timer under the invoking user's home. Needs no privilege. Replaces scripts/emergency-watchdog.sh, which was referenced by runbooks, installed by nothing, and whose hand-created unit hard-coded one operator's repository path. Holds unit restarts while CPU PSI shows the host is saturated.",
       "reason": "Give setup ownership of the last line of defense so every host has it, rather than depending on a hand-placed systemd unit that existed on exactly one machine",
+      "required": true,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "log_volume_bounds",
+      "notes": "Adds a maxsize bound to /etc/logrotate.d/rsyslog (original preserved under /var/lib/vrooli/log-volume-bounds), overrides logrotate.timer to hourly, installs a per-process rsyslog rate limit in /etc/rsyslog.d/05-vrooli-ratelimit.conf, and truncates any bounded log already more than eight times past the bound after preserving its last megabyte under /var/log/vrooli/log-volume-bounds. Hosts without a flat rsyslog stanza are not applicable.",
+      "reason": "Make the flat-file system log store unable to fill the disk: on 2026-09-01 a wedged keyring daemon wrote 320 GB into syslog and auth.log in 70 hours because rotation was weekly with no size trigger, while journald's own 4 GB cap held",
+      "required": true,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "keyring_daemon_limits",
+      "notes": "Writes ~/.config/systemd/user/gnome-keyring-daemon.service.d/99-vrooli-limits.conf (LimitNOFILE=65536) as the invoking user, reloads the user manager, reports how many descriptors the running daemon holds, and restarts the unit when it is at or above 50% of its limit or when a maintenance window is declared. Needs no privilege. Not applicable without a systemd-managed keyring unit.",
+      "reason": "A client leak took gnome-keyring-daemon to 1024/1024 descriptors on 2026-09-01; from then on every secret lookup hung, console sign-in stalled in pam_gnome_keyring, and the accept() failure was logged 50,000 times a second. The limit turns a weekly wedge into a year-scale leak and setup restarts the daemon before it wedges",
       "required": true,
       "when": [
         "setup"

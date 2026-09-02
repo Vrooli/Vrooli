@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"agent-manager/internal/availability"
+	"github.com/vrooli/envkit-go"
 )
 
 // CatalogResolution conservatively resolves an executable against the read-only manifest index.
@@ -408,7 +409,9 @@ func loadCatalog() (string, map[string]map[string]bool, string) {
 	// The control plane is not a scenario manifest. Index its read-only help
 	// tree as a second source so `vrooli ...` is project-owned evidence.
 	controlOutput := []byte("control-plane:unavailable")
-	if output, err := exec.Command("vrooli", "help").Output(); err == nil {
+	cmd := exec.Command("vrooli", "help")
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
+	if output, err := cmd.Output(); err == nil {
 		controlOutput = output
 	}
 	_, _ = hash.Write(controlOutput)

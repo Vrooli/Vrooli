@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
+	"github.com/vrooli/envkit-go"
 )
 
 type sandboxAvailabilityChecker interface {
@@ -117,6 +119,7 @@ func (e *CommandWorkspaceSandboxEnsurer) startLifecycle(ctx context.Context) err
 		return domain.NewConfigMissingError("workspaceSandboxEnsurer.command", "lifecycle command not configured", nil)
 	}
 	cmd := exec.CommandContext(ctx, e.command[0], e.command[1:]...)
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out

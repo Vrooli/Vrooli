@@ -5,10 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
 	"agent-manager/internal/domain"
+	"github.com/vrooli/envkit-go"
 )
 
 // Per-producer Waiter seam (durable park/resume, Phase 3).
@@ -71,7 +73,9 @@ type CommandRunner interface {
 type execCommandRunner struct{}
 
 func (execCommandRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
+	return cmd.CombinedOutput()
 }
 
 // splitProducerKey parses an await-handle key of the form "<scenario>/<id>"

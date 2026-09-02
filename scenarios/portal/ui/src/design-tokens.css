@@ -30,7 +30,9 @@
   --sidebar-min-width: 16.25rem;
   --sidebar-max-width: 30rem;
   color-scheme: light;
-}
+/* rcl:tokens:begin */
+
+/* rcl:tokens:end */}
 
 :root[data-resolved-theme="dark"],
 .dark {

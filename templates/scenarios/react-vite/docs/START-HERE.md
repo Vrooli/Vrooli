@@ -28,20 +28,25 @@ durable infrastructure below. In particular:
   example throughout the docs). Build one real domain beside it, prove
   that domain is green, then remove the example with one command:
   `template-manager detemplate <scenario>`.
-- The generated shell is durable infrastructure: `min-h-dvh` sizing,
-  overflow-contained main content, fixed safe-area bottom navigation on
-  mobile, desktop sidebar navigation, theme controls, and Settings-owned
-  locale switching. Keep those floors unless your scenario has an explicit
-  experience-spec opt-out.
-- The starter page content and the `notes` domain remain illustrative. Replace
-  them with scenario-specific surfaces once the real product shape is known.
+- **The shell is not this scenario's code.** `ui/src/layout/AppShell.tsx`
+  mounts `AppShell` from the component library and configures it: which
+  destinations, sidebar or rail, tabs or drawer on a phone, whether the main
+  pane scrolls or fills. Change that configuration freely in Gate 5; it is
+  three constants. Do not redraw the shell. If it cannot do what your primary
+  surface needs, record the gap in `docs/reference/component-library-gaps.md`
+  and eject with `react-component-library adoptions eject --reason`, so the
+  library owes you the fix rather than every scenario re-inventing one.
+- The home page is a placeholder that the "Design decision" orientation gate
+  (step id `design-language`) fails until you replace it. It is marked `PLACEHOLDER:home-surface` in
+  `ui/src/pages/DashboardPage.tsx`. The health card beside it is real and is
+  the example of a scenario-owned feature built from library parts.
 - Durable seams you should keep: i18n wiring (`SUPPORTED_LOCALES`,
-  `useTranslation`, the locale switcher behavior), accessibility
+  `useTranslation`, Settings-owned locale switching), accessibility
   primitives (`role`, `aria-*`, `data-testid` selectors), the
-  design-token plumbing (`bg-app-background`, `rounded-panel`, etc.),
-  governed component primitives under `ui/src/components/ui/`, and the
-  feature-folder pattern under `ui/src/features/<name>/`. Move these into
-  whatever shell/pages you design — do not delete the behaviors just because
+  design-token plumbing (`bg-app-background`, `rounded-panel`, the
+  `space-*` spacing scale), safe-area handling (owned by the library shell),
+  and the feature-folder pattern under `ui/src/features/<name>/`. Move these
+  into whatever pages you design — do not delete the behaviors just because
   you delete illustrative page content.
 
 Binding contract vs. illustrative example: every reference doc this
@@ -269,10 +274,13 @@ scenario dependencies the real scenario needs, and every third-party
 package was found + installed through SDA (no raw package-manager calls,
 no hand-edited governance JSON).
 
-### Gate 5 — Design Language
+### Gate 5 — Design Decision
 
-Generation installs root-level `DESIGN.md` from the selected design kit.
-Treat that file as the UI source of truth before building screens.
+Generation installs root-level `DESIGN.md` from the selected design kit and a
+shell from the component library. Neither is a decision anyone has made for
+your product. This gate is where you make it, in four steps, before opening
+`ui/` for feature work. The full walkthrough with the shell's configuration
+surface and the page templates is `docs/guides/choosing-ui.md`.
 
 **Binding vs. illustrative.** Read `DESIGN.md` carefully:
 
@@ -281,56 +289,56 @@ Treat that file as the UI source of truth before building screens.
   accessibility floors, responsive transformations, and the overall
   feel/density target.
 - *Illustrative* (examples, not exhaustive): any concrete list of
-  components, page surfaces, settings, or copy. If the design lists
-  "preferred primitives" or shows an example settings page, those are
-  **shape hints**, not a feature checklist. Implement the full set of
+  components, page surfaces, settings, or copy. Implement the full set of
   features and surfaces your scenario actually needs, even if the
   design doc does not enumerate them.
 
-Concretely: if `DESIGN.md` shows a settings page with three example
-controls, and your scenario also needs theme, locale, accessibility,
-account, or notification settings, build all of them. The design
-governs how they should look and behave, not which ones exist.
-
-- [ ] Read `DESIGN.md` and confirm it fits this scenario's users,
-      density, workflow, and accessibility needs.
-- [ ] Replace the `ORIENTATION-TODO: scenario-design-adaptation` marker
-      with a short scenario-specific adaptation note. Keep the binding token
-      contract unless the scenario intentionally adopts another design kit.
-- [ ] If the scenario needs a different language, regenerate with a
-      compatible `--design <kit-id>` or intentionally update
-      `DESIGN.md` before UI implementation.
-- [ ] Keep `ui/src/design-tokens.css`, `ui/tailwind.theme.json`,
-      `ui/tailwind.config.ts`, and reusable `ui/src/components/ui/`
-      primitives aligned with `DESIGN.md`.
-- [ ] Before creating a new shared UI primitive, search the component
-      canon and adopt what already exists:
+- [ ] **Decide.** Name the product people will compare this one to, and the
+      one surface that matters most. Write both, with the layout you want at
+      phone and desktop widths and the states that surface has (loading,
+      empty, partial, error), in `docs/concepts/EXPERIENCE.md`. If
+      `vrooli-default` and the sidebar shell are the right answer, say so; the
+      gate checks that the question was asked, not that the answer changed.
+- [ ] **Configure.** Set the three shell constants in
+      `ui/src/layout/AppShell.tsx` (`density`, `mobileNav`, `mainMode`) and
+      the destinations in `ui/src/layout/navItems.tsx`. Replace the mark in
+      `ui/src/layout/BrandMark.tsx` when branding exists.
+- [ ] **Adopt.** Before writing any shared UI, ask the library what it has
+      for your route list and link it:
 
 ```bash
-react-component-library components list --json
-react-component-library adoptions resolve-path <component-id> {{SCENARIO_ID}}
-react-component-library adoptions apply <component-id> {{SCENARIO_ID}} <adopted-path>
+react-component-library adoptions suggest {{SCENARIO_ID}} --json
+react-component-library adoptions link <component-id> {{SCENARIO_ID}}
+react-component-library adoptions obligations {{SCENARIO_ID}} --json
 ```
 
-      If no governed primitive exists, build the scenario-local component
-      token-bound and record the gap so it can be promoted to the canon later.
-- [ ] Replace illustrative page content with the real surfaces your scenario
-      needs. Preserve the shell floors listed above unless the experience spec
-      has an explicit opt-out.
-- [ ] Audit settings. The placeholder shell ships with the bare
-      minimum (currently theme + locale switching). Inventory every
-      preference your scenario needs (theme, font scale, locale,
-      a11y, account, notifications, scenario-specific toggles) and
-      build the full settings surface — do not constrain yourself to
-      whatever happens to be shown as an example in `DESIGN.md`.
+      `link` is a package import that leaves no file behind; the linked
+      version follows the library through `adoptions reconverge`. Page
+      headers, list-and-detail, async regions, empty states, forms, badges
+      and settings rows all exist. Do not re-implement something `suggest`
+      offered.
+- [ ] **Build** only what is left, token-bound, under `ui/src/features/`.
+      When it turns out to be generic, hand it back in Gate 7b.
+- [ ] Replace the `ORIENTATION-TODO: scenario-design-adaptation` marker in
+      `DESIGN.md` with the one-paragraph rationale from your decision. If the
+      scenario needs a different kit, regenerate with `--design <kit-id>` or
+      intentionally update `DESIGN.md` before UI implementation.
+- [ ] Replace the home placeholder. Delete the `PLACEHOLDER:home-surface`
+      block in `ui/src/pages/DashboardPage.tsx` together with the surface you
+      decided on. The gate reads that marker.
+- [ ] Audit settings. Settings owns every preference; the shell duplicates
+      none. Inventory what your scenario needs (theme, font scale, locale,
+      a11y, account, notifications, scenario-specific toggles) and add each as
+      a `SettingsList.Row`.
 - [ ] Do not create `docs/DESIGN_LANGUAGE.md`; root `DESIGN.md` is the
       canonical design contract.
 
-**Exit criteria:** UI work has a reviewed root `DESIGN.md`, scenario-specific
-page content, governed shared primitives where available, a settings surface
-covering everything this scenario actually needs, and global styles, Tailwind
-theme, selectors, experience specs, and accessibility tests all pointing back
-to the design contract.
+**Exit criteria:** `docs/concepts/EXPERIENCE.md` names the comparable product,
+the primary surface and its layout at both widths; the shell is configured
+rather than redrawn; the home placeholder marker is gone; linked library
+components cover the generic surfaces; and global styles, Tailwind theme,
+selectors, experience specs, and accessibility tests all point back to the
+design contract.
 
 ### Gate 5a — Experience Contract
 
@@ -443,6 +451,83 @@ and CLI manifest, then refreshes generated output (`make generate`,
 
 **Exit criteria:** only health plus real scenario domains remain, and the
 `example-domain-removed` orientation step passes.
+
+### Gate 7b — Contribute Back To The Component Canon
+
+Adoption takes what the canon already has. This gate closes the other half:
+anything generic this scenario built goes back, so the next scenario adopts it
+instead of rebuilding it. Skipping this is how a shared library starves while
+every scenario grows its own copy of the same component.
+
+It runs after the example domain is gone, because a component is harvested from
+this tree and the tree has to be real first.
+
+- [ ] Inventory every component built under `ui/src/components/` and
+      `ui/src/features/` during Gates 6–7. The test is one question:
+      **would a scenario in a different product area use this?** A thread list
+      is generic; a thread list that reads this scenario's own descriptor shape
+      is not — extract the generic half and promote that.
+- [ ] Prefer raising an existing asset over adding a new one. When the gap is
+      missing states rather than a missing component, add the states your
+      experience spec already declares. Never edit a released version
+      directory:
+
+```bash
+react-component-library components draft-begin <component>
+# add the stories/states your experience spec declares
+react-component-library components test <component-id>
+react-component-library components draft-publish <component>
+```
+
+      A raised component improves every scenario already consuming it, which a
+      new asset does not.
+- [ ] Promote a scenario-local component, carrying its experience contract with
+      it so the canon inherits the claims rather than losing them:
+
+```bash
+react-component-library components ingest {{SCENARIO_ID}} <tsx-path> <slug> \
+  --experience-contract experience/components/<component>.json \
+  --display-name "<Name>" --slot <slot>
+```
+
+- [ ] Validate before calling anything canonical:
+
+```bash
+react-component-library components test <component-id>
+react-component-library components style-fit <component-id> {{SCENARIO_ID}}
+react-component-library catalog evidence capture <asset-id>
+```
+
+- [ ] Read the promotion gate. It requires parity, examples, dependency
+      closure, drift evidence, and a clean replacement adoption in the origin
+      scenario:
+
+```bash
+react-component-library workflows promotion-readiness <asset-id> \
+  --origin-scenario {{SCENARIO_ID}}
+```
+
+- [ ] Adopt the published version back, then delete the local original:
+
+```bash
+react-component-library adoptions link <component-id> {{SCENARIO_ID}}
+```
+
+      Promotion is not finished while this scenario still runs its own copy.
+      That is a fork with extra steps, and `promotion-readiness` reports it as
+      an unmet origin replacement.
+- [ ] Record what stays local and why, in `docs/internal/DECISIONS.md`. A
+      genuinely scenario-specific component is a fine outcome; an unrecorded
+      one is indistinguishable from a fork.
+- [ ] Record what the canon still lacks. If this scenario needed a component
+      that does not exist and could not build it here, write it where a library
+      maintainer will read it, not only in this scenario's head.
+- [ ] Run `make test` after adopting back — an adoption changes real imports.
+
+**Exit criteria:** every generic component this scenario built is either
+published to the canon and adopted back, or recorded in
+`docs/internal/DECISIONS.md` with the reason it stayed local. No scenario-local
+component duplicates one that exists in the canon.
 
 ### Gate 8 — Progress Handoff
 

@@ -13,8 +13,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strconv"
+
+	"github.com/vrooli/envkit-go"
 )
 
 // OllamaExtractVRAMEstimateBytes is the coarse VRAM estimate used as the op
@@ -61,7 +64,9 @@ func (b *CLIBroker) run(ctx context.Context, args ...string) ([]byte, error) {
 	if b.Exec != nil {
 		return b.Exec(ctx, args...)
 	}
-	return exec.CommandContext(ctx, "vrooli", args...).Output()
+	cmd := exec.CommandContext(ctx, "vrooli", args...)
+	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
+	return cmd.Output()
 }
 
 // claimResponse mirrors the `vrooli capacity claim --json` envelope (only the

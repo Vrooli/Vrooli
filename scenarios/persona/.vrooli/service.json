@@ -102,7 +102,8 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "Owns run identity. Persona binds persona_id into Claims.Meta and verifies every act-as through agent-manager's live endpoint; token parsing, scope intersection, and attenuation are never reimplemented here.",
-        "degraded_behavior": "Act-as is refused and the refusal is journaled. Reads, the operator console, and human handoff completion remain available. There is no degraded evidence grade and no override."
+        "degraded_behavior": "Act-as is refused and the refusal is journaled. Reads, the operator console, and human handoff completion remain available. There is no degraded evidence grade and no override.",
+        "supervision_precedence": "required"
       },
       "document-manager": {
         "type": "scenario",
@@ -110,7 +111,8 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "Sole store for identity documents. Persona holds a binding and a release-into-handoff verb, never document bytes, so sensitivity classification and the append-only custody journal stay in one place.",
-        "degraded_behavior": "Binding and release are refused; existing bindings remain listable. No document content is ever cached locally to fall back on."
+        "degraded_behavior": "Binding and release are refused; existing bindings remain listable. No document content is ever cached locally to fall back on.",
+        "supervision_precedence": "required"
       },
       "secrets-manager": {
         "type": "scenario",
@@ -118,7 +120,8 @@
         "required": true,
         "startup_policy": "try_start",
         "description": "Holds mailbox and channel provider credentials. A persona records which credential to use and never the secret value itself.",
-        "degraded_behavior": "Affected channel adapters report unavailable and code retrieval is refused for them; other adapters continue. No credential was cached to leak."
+        "degraded_behavior": "Affected channel adapters report unavailable and code retrieval is refused for them; other adapters continue. No credential was cached to leak.",
+        "supervision_precedence": "required"
       },
       "prompt-manager": {
         "type": "scenario",

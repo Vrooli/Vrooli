@@ -26,6 +26,9 @@ importers:
       '@vrooli/api-base':
         specifier: file:../../../packages/api-base
         version: file:../../../packages/api-base(@bufbuild/protobuf@2.14.0)(@testing-library/dom@10.4.1)(express@4.22.2)(ws@8.21.3)
+      '@vrooli/flow-runtime':
+        specifier: file:../../../packages/flow-runtime
+        version: file:../../../packages/flow-runtime
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
@@ -1004,6 +1007,9 @@ packages:
     peerDependencies:
       express: ^4.18.2
       ws: ^8.16.0
+
+  '@vrooli/flow-runtime@file:../../../packages/flow-runtime':
+    resolution: {directory: ../../../packages/flow-runtime, type: directory}
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -3735,6 +3741,16 @@ snapshots:
       - '@bufbuild/protobuf'
       - '@testing-library/dom'
       - react-native
+
+  '@vrooli/flow-runtime@file:../../../packages/flow-runtime(@types/node@22.20.1)(jsdom@25.0.1)':
+    dependencies:
+      vitest: 2.1.9(@types/node@22.20.1)(jsdom@25.0.1)
+    transitivePeerDependencies:
+      - '@edge-runtime/vm'
+      - '@types/node'
+      - '@vitest/browser'
+      - '@vitest/ui'
+      - happy-dom
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 

@@ -1,182 +1,370 @@
+/* Canonical shared vocabulary; run design-token-generate after editing. */
 :root {
+  /* @tier Expression */
   --app-background: var(--color-background);
-  --app-shell: var(--color-shell);
-  --app-surface: var(--color-surface);
-  --app-surface-muted: var(--color-surface-muted);
-  --app-surface-raised: var(--color-surface-raised);
+  /* @tier Expression */
   --app-foreground: var(--color-foreground);
+  /* @tier Expression */
   --app-muted-foreground: var(--color-muted-foreground);
-  --control-border: 1px solid var(--color-border);
-  --motion-fast: var(--dur-quick);
-  --motion-normal: var(--dur-moderate);
-  --color-background: #f8fafc;
-  --color-shell: #020617;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f1f5f9;
-  --color-surface-raised: #ffffff;
-  --color-foreground: #0f172a;
-  --color-muted-foreground: #64748b;
-  --color-border: #cbd5e1;
-  --color-border-strong: #94a3b8;
-  --color-border-subtle: #e2e8f0;
-  --color-primary: #2563eb;
-  --color-primary-foreground: #ffffff;
-  --color-on-primary: var(--color-primary-foreground);
-  --color-primary-hover: #1d4ed8;
-  --color-primary-strong: #1e40af;
-  --color-accent: #0891b2;
-  --color-accent-subtle: color-mix(in srgb, var(--color-accent) 12%, var(--color-surface));
-  --color-success: #16a34a;
-  --color-success-foreground: #166534;
-  --color-danger: #dc2626;
-  --color-danger-foreground: #b91c1c;
-  --color-danger-border: #fca5a5;
-  --color-danger-subtle: #fef2f2;
-  --color-warning: #d97706;
-  --color-warning-foreground: #92400e;
-  --color-warning-subtle: #fffbeb;
-  --color-info: #0284c7;
-  --color-focus: #2563eb;
-  --color-focus-ring: var(--color-focus);
-  --scrollbar-thumb: #94a3b8;
-  --scrollbar-thumb-hover: #64748b;
-  --radius-control: 0.375rem;
-  --radius-panel: 0.5rem;
-  --radius-sheet: 1rem;
-  --radius-pill: 9999px;
-  --font-sans:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono:
-    "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-  --space-3xs: 4px;
-  --space-2xs: 8px;
-  --space-xs: 12px;
-  --space-sm: 16px;
-  --space-md: 24px;
-  --space-lg: 32px;
-  --space-xl: 40px;
-  --space-2xl: 48px;
-  --tap-target-min: 44px;
+  /* @tier Expression */
+  --app-shell: var(--color-shell);
+  /* @tier Expression */
+  --app-surface: var(--color-surface);
+  /* @tier Expression */
+  --app-surface-muted: var(--color-surface-muted);
+  /* @tier Expression */
+  --app-surface-raised: var(--color-surface-raised);
+  /* @tier Expression */
   --badge-border: var(--color-border);
+  /* @tier Contract */
   --border-focus: 2px;
-  --color-danger-foreground-inverse: #ffffff;
-  --color-overlay: rgba(15, 23, 42, 0.72);
-  --color-scrim: rgba(15, 23, 42, 0.72);
-  --container-content: 72rem;
-  --container-wide: 96rem;
-  --control-height: 2.75rem;
-  --control-height-lg: 3.25rem;
-  --control-height-sm: 2.25rem;
-  --control-padding: var(--space-sm);
-  --control-radius: var(--radius-control);
-  --dur-enter: var(--dur-quick);
-  --edge-fade: var(--color-surface);
-  --edge-fade-width: 2rem;
-  --elev-floating: 0 4px 12px rgba(9, 18, 22, 0.12);
-  --elev-subtle: 0 1px 2px rgba(9, 18, 22, 0.04);
-  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--focus-ring-color) 35%, transparent);
-  --focus-ring-color: var(--color-focus);
-  --focus-ring-offset: 2px;
-  --focus-ring-width: 2px;
-  --font-size-lg: 1.125rem;
-  --font-size-sm: 0.875rem;
-  --layer-popover: 200;
-  --layer-raised: 150;
-  --markdown-border: var(--color-border);
-  --markdown-code-surface: var(--color-surface-muted);
-  --markdown-code-text: var(--color-foreground);
-  --markdown-error: var(--color-danger);
-  --markdown-link: var(--color-primary);
-  --markdown-muted: var(--color-muted-foreground);
-  --panel-padding: var(--space-md);
-  --panel-radius: var(--radius-panel);
-  --radius-lg: 0.75rem;
-  --radius-md: 0.5rem;
-  --radius-none: 0;
-  --radius-overlay: 1rem;
-  --radius-sm: 0.25rem;
-  --radius-xl: 1.25rem;
-  --separator-thickness: 1px;
-  --skeleton-line-height: 1rem;
-  --space-4xl: 6rem;
-  --space-4xs: 2px;
-  --spinner-border: var(--color-border);
-  --surface-border: var(--color-border);
-  --text-code: 500 0.8125rem/1.25rem var(--font-mono);
-  --text-heading-lg: 600 1.25rem/1.75rem var(--font-sans);
-  --text-heading-sm: 600 1rem/1.5rem var(--font-sans);
-  --text-subtitle-tracking: 0;
-  --text-title-tracking: -0.01em;
-  --tracking-caps: 0.08em;
-  --tracking-tight: -0.01em;
-  --wc-kb-height: 2.5rem;
-  --wc-safe-top: env(safe-area-inset-top, 0px);
-  --text-display-size: 32px;
-  --text-display-line: 38px;
-  --text-title-size: 24px;
-  --text-title-line: 30px;
-  --text-heading-size: 18px;
-  --text-heading-line: 24px;
-  --text-subheading-size: 15px;
-  --text-subheading-line: 20px;
-  --text-body-size: 14px;
-  --text-body-line: 22px;
-  --text-body-sm-size: 13px;
-  --text-body-sm-line: 20px;
-  --text-label-size: 12px;
-  --text-label-line: 16px;
-  --text-caption-size: 11px;
-  --text-caption-line: 16px;
-  --text-label-tracking: 0.005em;
-  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-sans);
-  --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
-  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
-  --text-subtitle: 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans);
-  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
-  --text-body-sm: 400 var(--text-body-sm-size) / var(--text-body-sm-line) var(--font-sans);
-  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
-  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
-  --text-overline: 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
-  --icon-size-sm: 16px;
-  --icon-size-md: 20px;
-  --icon-size-lg: 24px;
-  --elev-flat: none;
-  --elev-raised: 0 1px 2px rgba(9, 18, 22, 0.06), 0 1px 3px rgba(9, 18, 22, 0.1);
-  --elev-overlay: 0 2px 4px rgba(9, 18, 22, 0.06), 0 4px 12px rgba(9, 18, 22, 0.1);
-  --elev-modal: 0 4px 12px rgba(9, 18, 22, 0.1), 0 16px 48px rgba(9, 18, 22, 0.18);
-  --layer-base: 0;
-  --layer-sticky: 100;
-  --layer-dropdown: 200;
-  --layer-overlay: 300;
-  --layer-modal: 400;
-  --layer-toast: 500;
-  --layer-tooltip: 600;
+  /* @tier Rhythm */
   --border-hairline: 1px;
+  /* @tier Rhythm */
+  --border-medium: 2px;
+  /* @tier Rhythm */
   --border-strong: 2px;
-  --opacity-disabled: 0.4;
-  --opacity-muted: 0.64;
-  --opacity-scrim: 0.72;
-  --dur-instant: 120ms;
-  --dur-quick: 180ms;
-  --dur-moderate: 280ms;
+  /* @tier Rhythm */
+  --border-thin: 1px;
+  /* @tier Expression */
+  --color-accent: #0891b2;
+  /* @tier Expression */
+  --color-accent-subtle: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  /* @tier Expression */
+  --color-background: #f8fafc;
+  /* @tier Expression */
+  --color-border: #cbd5e1;
+  /* @tier Expression */
+  --color-border-strong: color-mix(in srgb, var(--color-border) 72%, var(--color-foreground));
+  /* @tier Expression */
+  --color-danger: #dc2626;
+  /* @tier Expression */
+  --color-danger-border: color-mix(in srgb, var(--color-danger) 38%, var(--color-border));
+  /* @tier Expression */
+  --color-danger-foreground: color-mix(in srgb, var(--color-danger) 78%, var(--color-foreground));
+  /* @tier Expression */
+  --color-danger-foreground-inverse: var(--color-primary-foreground);
+  /* @tier Expression */
+  --color-danger-subtle: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface));
+  /* @tier Expression */
+  --color-field: var(--color-surface);
+  /* @tier Contract */
+  --color-focus: #2563eb;
+  /* @tier Contract */
+  --color-focus-ring: var(--color-focus);
+  /* @tier Expression */
+  --color-foreground: #0f172a;
+  /* @tier Expression */
+  --color-info: #0284c7;
+  /* @tier Expression */
+  --color-muted-foreground: #64748b;
+  /* @tier Expression */
+  --color-on-primary: var(--color-primary-foreground);
+  /* @tier Expression */
+  --color-overlay: var(--color-shell);
+  /* @tier Expression */
+  --color-primary: #2563eb;
+  /* @tier Expression */
+  --color-primary-foreground: #ffffff;
+  /* @tier Expression */
+  --color-primary-hover: color-mix(in srgb, var(--color-primary) 88%, var(--color-foreground));
+  /* @tier Expression */
+  --color-primary-strong: var(--color-primary);
+  /* @tier Expression */
+  --color-scrim: color-mix(in srgb, var(--color-shell) 52%, transparent);
+  /* @tier Expression */
+  --color-shell: #020617;
+  /* @tier Expression */
+  --color-success: #16a34a;
+  /* @tier Expression */
+  --color-success-foreground: color-mix(in srgb, var(--color-success) 76%, var(--color-foreground));
+  /* @tier Expression */
+  --color-surface: #ffffff;
+  /* @tier Expression */
+  --color-surface-muted: #f1f5f9;
+  /* @tier Expression */
+  --color-surface-raised: #ffffff;
+  /* @tier Expression */
+  --color-surface-sunken: color-mix(in srgb, var(--color-surface-muted) 72%, var(--color-background));
+  /* @tier Expression */
+  --color-warning: #d97706;
+  /* @tier Expression */
+  --color-warning-foreground: color-mix(in srgb, var(--color-warning) 72%, var(--color-foreground));
+  /* @tier Expression */
+  --color-warning-subtle: color-mix(in srgb, var(--color-warning) 16%, var(--color-surface));
+  /* @tier Rhythm */
+  --content-min-height: 12rem;
+  /* @tier Expression */
+  --control-border: 1px solid var(--color-border);
+  /* @tier Rhythm */
+  --control-height: 2.75rem;
+  /* @tier Rhythm */
+  --control-height-lg: 3.25rem;
+  /* @tier Rhythm */
+  --control-height-sm: 2.25rem;
+  /* @tier Rhythm */
+  --control-padding: var(--space-sm);
+  /* @tier Expression */
+  --control-radius: var(--radius-control);
+  /* @tier Rhythm */
+  --control-size-icon: 40px;
+  /* @tier Rhythm */
+  --control-size-lg: 44px;
+  /* @tier Rhythm */
+  --control-size-md: 40px;
+  /* @tier Rhythm */
+  --control-size-sm: 36px;
+  /* @tier Rhythm */
+  --control-size-xl: 48px;
+  /* @tier Rhythm */
+  --control-size-xs: 32px;
+  /* @tier Expression */
   --dur-deliberate: 400ms;
+  /* @tier Expression */
+  --dur-enter: var(--dur-quick);
+  /* @tier Expression */
   --dur-fast: var(--dur-instant);
+  /* @tier Expression */
+  --dur-instant: 120ms;
+  /* @tier Expression */
+  --dur-moderate: 280ms;
+  /* @tier Expression */
   --dur-normal: var(--dur-moderate);
+  /* @tier Expression */
+  --dur-quick: 180ms;
+  /* @tier Expression */
   --dur-slow: var(--dur-deliberate);
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  /* @tier Expression */
   --ease-enter: cubic-bezier(0, 0, 0, 1);
-  --ease-exit: cubic-bezier(0.3, 0, 1, 1);
-  --spring-subtle: cubic-bezier(0.2, 0.8, 0.2, 1.05);
-  --spring-expressive: cubic-bezier(0.16, 1.2, 0.3, 1.05);
-  --touch-target: 44px;
-  --sidebar-width: 20rem;
-  --sidebar-min-width: 16.25rem;
+  /* @tier Expression */
+  --ease-exit: cubic-bezier(.3, 0, 1, 1);
+  /* @tier Expression */
+  --ease-standard: cubic-bezier(.2, 0, 0, 1);
+  /* @tier Expression */
+  --elev-flat: none;
+  /* @tier Expression */
+  --elev-floating: 0 4px 12px rgba(9, 18, 22, 0.12);
+  /* @tier Expression */
+  --elev-modal: 0 4px 12px rgba(9, 18, 22, .10), 0 16px 48px rgba(9, 18, 22, .18);
+  /* @tier Expression */
+  --elev-overlay: 0 2px 4px rgba(9, 18, 22, .06), 0 4px 12px rgba(9, 18, 22, .10);
+  /* @tier Expression */
+  --elev-raised: 0 1px 2px rgba(9, 18, 22, .06), 0 1px 3px rgba(9, 18, 22, .10);
+  /* @tier Expression */
+  --elev-subtle: 0 1px 2px rgba(9, 18, 22, .06);
+  /* @tier Contract */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--color-focus) 35%, transparent);
+  /* @tier Contract */
+  --focus-ring-color: var(--color-focus);
+  /* @tier Contract */
+  --focus-ring-offset: 2px;
+  /* @tier Contract */
+  --focus-ring-width: 2px;
+  /* @tier Expression */
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  /* @tier Expression */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* @tier Expression */
+  --font-size-lg: 18px;
+  /* @tier Expression */
+  --font-size-sm: 14px;
+  /* @tier Expression */
+  --glow-primary: rgba(51,214,255,.5);
+  /* @tier Rhythm */
+  --icon-size-lg: 24px;
+  /* @tier Rhythm */
+  --icon-size-md: 20px;
+  /* @tier Rhythm */
+  --icon-size-sm: 16px;
+  /* @tier Rhythm */
+  --icon-size-xs: 12px;
+  /* @tier Contract */
+  --layer-alert: 700;
+  /* @tier Contract */
+  --layer-base: 0;
+  /* @tier Contract */
+  --layer-dropdown: 200;
+  /* @tier Contract */
+  --layer-menu: 610;
+  /* @tier Contract */
+  --layer-modal: 400;
+  /* @tier Contract */
+  --layer-overlay: 300;
+  /* @tier Contract */
+  --layer-popover: 200;
+  /* @tier Contract */
+  --layer-raised: 150;
+  /* @tier Contract */
+  --layer-sticky: 100;
+  /* @tier Contract */
+  --layer-toast: 500;
+  /* @tier Contract */
+  --layer-tooltip: 600;
+  /* @tier Expression */
+  --motion-fast: var(--dur-quick);
+  /* @tier Expression */
+  --motion-normal: var(--dur-moderate);
+  /* @tier Contract */
+  --opacity-disabled: .40;
+  /* @tier Expression */
+  --opacity-muted: .64;
+  /* @tier Expression */
+  --opacity-scrim: .72;
+  /* @tier Rhythm */
+  --overlay-dialog-lg: 48rem;
+  /* @tier Rhythm */
+  --overlay-dialog-md: 36rem;
+  /* @tier Rhythm */
+  --overlay-dialog-sm: 24rem;
+  /* @tier Rhythm */
+  --overlay-drawer-top-gap: 32px;
+  /* @tier Rhythm */
+  --overlay-grabber-block: 4px;
+  /* @tier Rhythm */
+  --overlay-grabber-inline: 36px;
+  /* @tier Rhythm */
+  --overlay-menu-align: 0px;
+  /* @tier Rhythm */
+  --panel-padding: var(--space-md);
+  /* @tier Expression */
+  --panel-radius: var(--radius-panel);
+  /* @tier Expression */
+  --provenance-absent: var(--color-muted-foreground);
+  /* @tier Expression */
+  --provenance-cached: var(--color-warning);
+  /* @tier Expression */
+  --provenance-measured: var(--color-success);
+  /* @tier Expression */
+  --provenance-sample: #b7a6ff;
+  /* @tier Expression */
+  --radius-control: 0.375rem;
+  /* @tier Expression */
+  --radius-overlay: 1rem;
+  /* @tier Expression */
+  --radius-panel: 0.5rem;
+  /* @tier Expression */
+  --radius-pill: 9999px;
+  /* @tier Expression */
+  --radius-sheet: 1rem;
+  /* @tier Expression */
+  --scrollbar-thumb: #94a3b8;
+  /* @tier Expression */
+  --scrollbar-thumb-hover: #64748b;
+  /* @tier Rhythm */
   --sidebar-max-width: 30rem;
+  /* @tier Rhythm */
+  --sidebar-min-width: 16.25rem;
+  /* @tier Rhythm */
+  --sidebar-width: 20rem;
+  /* @tier Rhythm */
+  --space-2xl: 48px;
+  /* @tier Rhythm */
+  --space-2xs: 8px;
+  /* @tier Rhythm */
+  --space-3xs: 4px;
+  /* @tier Rhythm */
+  --space-4xl: 80px;
+  /* @tier Rhythm */
+  --space-4xs: 4px;
+  /* @tier Rhythm */
+  --space-lg: 32px;
+  /* @tier Rhythm */
+  --space-md: 24px;
+  /* @tier Rhythm */
+  --space-sm: 16px;
+  /* @tier Rhythm */
+  --space-xl: 40px;
+  /* @tier Rhythm */
+  --space-xs: 12px;
+  /* @tier Expression */
+  --spring-expressive: cubic-bezier(.16, 1.2, .3, 1.05);
+  /* @tier Expression */
+  --spring-subtle: cubic-bezier(.2, .8, .2, 1.05);
+  /* @tier Contract */
+  --tap-target-min: 44px;
+  /* @tier Expression */
+  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
+  /* @tier Expression */
+  --text-body-line: 22px;
+  /* @tier Expression */
+  --text-body-size: 14px;
+  /* @tier Expression */
+  --text-body-sm: 400 var(--text-body-sm-size) / var(--text-body-sm-line) var(--font-sans);
+  /* @tier Expression */
+  --text-body-sm-line: 20px;
+  /* @tier Expression */
+  --text-body-sm-size: 13px;
+  /* @tier Expression */
+  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  /* @tier Expression */
+  --text-caption-line: 16px;
+  /* @tier Expression */
+  --text-caption-size: 11px;
+  /* @tier Expression */
+  --text-code: 500 0.8125rem/1.25rem var(--font-mono);
+  /* @tier Expression */
+  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-sans);
+  /* @tier Expression */
+  --text-display-line: 38px;
+  /* @tier Expression */
+  --text-display-size: 32px;
+  /* @tier Expression */
+  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
+  /* @tier Expression */
+  --text-heading-lg: 600 20px / 26px var(--font-sans);
+  /* @tier Expression */
+  --text-heading-line: 24px;
+  /* @tier Expression */
+  --text-heading-size: 18px;
+  /* @tier Expression */
+  --text-heading-sm: 600 16px / 22px var(--font-sans);
+  /* @tier Expression */
+  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
+  /* @tier Expression */
+  --text-label-line: 16px;
+  /* @tier Expression */
+  --text-label-size: 12px;
+  /* @tier Expression */
+  --text-label-tracking: 0.005em;
+  /* @tier Expression */
+  --text-overline: 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  /* @tier Expression */
+  --text-subheading-line: 20px;
+  /* @tier Expression */
+  --text-subheading-size: 15px;
+  /* @tier Expression */
+  --text-subtitle: 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans);
+  /* @tier Expression */
+  --text-subtitle-tracking: 0;
+  /* @tier Expression */
+  --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
+  /* @tier Expression */
+  --text-title-line: 30px;
+  /* @tier Expression */
+  --text-title-size: 24px;
+  /* @tier Expression */
+  --text-title-tracking: -.01em;
+  /* @tier Expression */
+  --text-wall: clamp(5rem, 16vw, 20rem);
+  /* @tier Expression */
+  --text-xs: 12px;
+  /* @tier Contract */
+  --touch-target: 44px;
+  /* @tier Expression */
+  --tracking-caps: .08em;
+  /* @tier Expression */
+  --tracking-tight: -.02em;
+  /* @tier Expression */
+  --weight-medium: 500;
+}
+
+:root {
+  /* Compatibility aliases for standalone catalog components. New source
+     should prefer the canonical --color/--dur names below, but released
+     assets may be adopted into older Vrooli shells. Keeping this bridge in
+     the kit prevents a component from silently degrading to browser chrome. */
   color-scheme: light;
 }
-/* rcl:tokens:begin */
-  /* template reference ramp; adoption sync may extend this managed region */
-/* rcl:tokens:end */
 
 :root[data-resolved-theme="dark"],
 .dark {
@@ -188,19 +376,8 @@
   --color-foreground: #f8fafc;
   --color-muted-foreground: #94a3b8;
   --color-border: #334155;
-  --color-border-strong: #64748b;
-  --color-border-subtle: #1e293b;
   --color-primary: #60a5fa;
   --color-primary-foreground: #020617;
-  --color-primary-hover: #93c5fd;
-  --color-primary-strong: #bfdbfe;
-  --color-accent-subtle: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface));
-  --color-success-foreground: #86efac;
-  --color-danger-foreground: #fca5a5;
-  --color-danger-border: #f87171;
-  --color-danger-subtle: #450a0a;
-  --color-warning-foreground: #fcd34d;
-  --color-warning-subtle: #451a03;
   --color-accent: #22d3ee;
   --color-success: #22c55e;
   --color-danger: #f87171;
@@ -209,6 +386,10 @@
   --color-focus: #60a5fa;
   --scrollbar-thumb: #475569;
   --scrollbar-thumb-hover: #64748b;
+  --elev-flat: none;
+  --elev-raised: 0 1px 2px rgba(0, 0, 0, .40);
+  --elev-overlay: 0 4px 16px rgba(0, 0, 0, .50);
+  --elev-modal: 0 16px 48px rgba(0, 0, 0, .60);
   color-scheme: dark;
 }
 
@@ -222,19 +403,8 @@
     --color-foreground: #f8fafc;
     --color-muted-foreground: #94a3b8;
     --color-border: #334155;
-    --color-border-strong: #64748b;
-    --color-border-subtle: #1e293b;
     --color-primary: #60a5fa;
     --color-primary-foreground: #020617;
-    --color-primary-hover: #93c5fd;
-    --color-primary-strong: #bfdbfe;
-    --color-accent-subtle: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface));
-    --color-success-foreground: #86efac;
-    --color-danger-foreground: #fca5a5;
-    --color-danger-border: #f87171;
-    --color-danger-subtle: #450a0a;
-    --color-warning-foreground: #fcd34d;
-    --color-warning-subtle: #451a03;
     --color-accent: #22d3ee;
     --color-success: #22c55e;
     --color-danger: #f87171;
@@ -303,18 +473,6 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-.bottom-safe {
-  bottom: max(env(safe-area-inset-bottom, 0px), 24px);
-}
-
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
-}
-
-.pl-safe {
-  padding-left: env(safe-area-inset-left, 0px);
-}
-
-.pr-safe {
-  padding-right: env(safe-area-inset-right, 0px);
 }

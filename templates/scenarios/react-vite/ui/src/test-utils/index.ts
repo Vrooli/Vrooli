@@ -63,19 +63,19 @@ export type { HealthResponse } from "./factories";
 export {
   assertTransitionMatrix,
   validateTransitionMatrix,
-} from "./modeltest/matrix";
+} from "@vrooli/flow-runtime";
 export type {
   MatrixRow,
   WorkflowTransition,
-} from "./modeltest/matrix";
+} from "@vrooli/flow-runtime";
 export {
   replayTraces,
   validateTraces,
-} from "./modeltest/traces";
+} from "@vrooli/flow-runtime";
 export type {
   Trace,
   TraceStep,
-} from "./modeltest/traces";
+} from "@vrooli/flow-runtime";
 export {
   assertFormalArtifactFresh,
   assertFormalTransitionsReplay,
@@ -84,7 +84,7 @@ export {
   validateFormalArtifactFresh,
   validateFormalTransitionsReplay,
   validateFormalTracesReplay,
-} from "./modeltest/formal";
+} from "@vrooli/flow-runtime";
 export type {
   FormalArtifact,
   FormalArtifactTraceCoverage,
@@ -92,7 +92,7 @@ export type {
   FormalArtifactTrace,
   FormalArtifactTraceStep,
   FormalArtifactTransition,
-} from "./modeltest/formal";
+} from "@vrooli/flow-runtime";
 
 // Mock builders for external SDKs. Each test file still calls
 // `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the

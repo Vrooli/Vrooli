@@ -57,6 +57,7 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // SandboxLauncher launches processes through workspace-sandbox /processes.
@@ -153,9 +154,13 @@ type NamespaceLayout struct {
 func (l NamespaceLayout) PathEntries() []string {
 	base := []string{"/usr/local/bin", "/usr/bin", "/bin"}
 	if IsHomeOverlayPresent(l.HomeOverlayState) && l.HostHome != "" {
+		binDir, err := repocontract.RuntimeHomeEntryPath(l.HostHome, repocontract.HomeKeyBin)
+		if err != nil {
+			return base
+		}
 		home := strings.TrimRight(l.HostHome, "/")
 		return append([]string{
-			home + "/.vrooli/bin",
+			binDir,
 			home + "/go/bin",
 			home + "/.local/bin",
 		}, base...)

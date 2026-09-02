@@ -115,7 +115,8 @@
         "type": "scenario",
         "enabled": true,
         "required": false,
-        "description": "Provides federated ecosystem search for omnibox suggestions and passive message attachments."
+        "description": "Provides federated ecosystem search for omnibox suggestions and passive message attachments.",
+        "startup_policy": "try_start"
       },
       "agent-manager": {
         "type": "scenario",
@@ -130,13 +131,15 @@
               ".vrooli/agent-manager/agent-chat.json"
             ]
           }
-        }
+        },
+        "startup_policy": "try_start"
       },
       "prompt-manager": {
         "type": "scenario",
         "enabled": true,
         "required": false,
-        "description": "Provides skills and prompt content for system-prompt injection."
+        "description": "Provides skills and prompt content for system-prompt injection.",
+        "startup_policy": "try_start"
       }
     }
   },

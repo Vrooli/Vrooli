@@ -39,6 +39,7 @@ import (
 	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
+	"github.com/vrooli/envkit-go"
 
 	"github.com/google/uuid"
 )
@@ -1232,6 +1233,7 @@ func (r *Reconciler) cleanupResourceRegistries(ctx context.Context) {
 	for _, cmd := range resourceCommands {
 		// Run agents cleanup to remove stale entries
 		cleanupCmd := exec.CommandContext(ctx, cmd, "agents", "cleanup")
+		cleanupCmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, nil))
 		if err := cleanupCmd.Run(); err != nil {
 			// Log but don't fail - cleanup is best-effort
 			// The resource might not be installed or the command might not exist

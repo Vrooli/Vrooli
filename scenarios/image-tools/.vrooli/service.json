@@ -199,7 +199,8 @@
           "image.edit.default",
           "image.edit.identity"
         ],
-        "description": "Optional BYOK cloud image backend (last tier). The concrete model is resolved per request from an OpenRouter policy role; callers carry intent via the openrouter_role param."
+        "description": "Optional BYOK cloud image backend (last tier). The concrete model is resolved per request from an OpenRouter policy role; callers carry intent via the openrouter_role param.",
+        "startup_policy": "try_start"
       }
     }
   },

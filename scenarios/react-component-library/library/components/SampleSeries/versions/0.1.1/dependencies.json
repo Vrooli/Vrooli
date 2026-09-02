@@ -2,6 +2,17 @@
   "schemaVersion": 1,
   "libraryId": "react-component-library:SampleSeries",
   "version": "0.1.1",
-  "resolvedAt": "2026-09-01T18:54:03Z",
-  "dependencies": []
+  "resolvedAt": "2026-09-01T23:58:27Z",
+  "dependencies": [
+    {
+      "libraryId": "react-component-library:ClassMerge",
+      "version": "1.0.2",
+      "rank": 1
+    },
+    {
+      "libraryId": "react-component-library:StyleSheet",
+      "version": "1.0.0",
+      "rank": 1
+    }
+  ]
 }

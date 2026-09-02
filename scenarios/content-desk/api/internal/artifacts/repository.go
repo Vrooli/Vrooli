@@ -11,8 +11,8 @@ import (
 )
 
 type Draft struct {
-	ID, CampaignID, PostTypeID, Body, Channel, Format, Lane, SKU string
-	Status                                                       DraftStatus
+	ID, CampaignID, PostTypeID, Body, Channel, Format, Lane, SKU, ScenarioName string
+	Status                                                                     DraftStatus
 }
 
 type EventRecord struct {
@@ -220,7 +220,7 @@ func scanDraft(ctx context.Context, queryer interface {
 }, id string,
 ) (Draft, error) {
 	var draft Draft
-	err := queryer.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.Channel, &draft.Format)
+	err := queryer.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format)
 	return draft, err
 }
 
@@ -398,7 +398,7 @@ func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, erro
 		return Draft{}, fmt.Errorf("campaign artifact slot is unavailable")
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	_, err = tx.ExecContext(ctx, `INSERT INTO drafts (id, campaign_id, post_type_id, lane, sku, body, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, draft.ID, draft.CampaignID, draft.PostTypeID, draft.Lane, draft.SKU, draft.Body, draft.Status, now, now)
+	_, err = tx.ExecContext(ctx, `INSERT INTO drafts (id, campaign_id, post_type_id, lane, sku, scenario_name, body, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, draft.ID, draft.CampaignID, draft.PostTypeID, draft.Lane, draft.SKU, draft.ScenarioName, draft.Body, draft.Status, now, now)
 	if err != nil {
 		return Draft{}, fmt.Errorf("create draft: %w", err)
 	}
@@ -412,7 +412,7 @@ func (r *sqliteRepository) Create(ctx context.Context, draft Draft) (Draft, erro
 }
 
 func (r *sqliteRepository) List(ctx context.Context) ([]Draft, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id ORDER BY d.updated_at DESC, d.id DESC`)
+	rows, err := r.db.QueryContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id ORDER BY d.updated_at DESC, d.id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -420,7 +420,7 @@ func (r *sqliteRepository) List(ctx context.Context) ([]Draft, error) {
 	var drafts []Draft
 	for rows.Next() {
 		var draft Draft
-		if err := rows.Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.Channel, &draft.Format); err != nil {
+		if err := rows.Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format); err != nil {
 			return nil, err
 		}
 		drafts = append(drafts, draft)
@@ -430,7 +430,7 @@ func (r *sqliteRepository) List(ctx context.Context) ([]Draft, error) {
 
 func (r *sqliteRepository) Get(ctx context.Context, id string) (Draft, error) {
 	var draft Draft
-	err := r.db.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.Channel, &draft.Format)
+	err := r.db.QueryRowContext(ctx, `SELECT d.id, d.campaign_id, d.post_type_id, d.body, d.status, d.lane, d.sku, d.scenario_name, COALESCE(s.channel,''), COALESCE(s.format,'') FROM drafts d LEFT JOIN draft_slots s ON s.draft_id = d.id WHERE d.id = ?`, id).Scan(&draft.ID, &draft.CampaignID, &draft.PostTypeID, &draft.Body, &draft.Status, &draft.Lane, &draft.SKU, &draft.ScenarioName, &draft.Channel, &draft.Format)
 	return draft, err
 }
 

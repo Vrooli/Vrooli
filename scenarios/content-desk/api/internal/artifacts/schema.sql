@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS drafts (
   post_type_id TEXT NOT NULL,
   lane TEXT NOT NULL DEFAULT '',
   sku TEXT NOT NULL DEFAULT '',
+  scenario_name TEXT NOT NULL DEFAULT '',
   body TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL,
   created_at TEXT NOT NULL,
