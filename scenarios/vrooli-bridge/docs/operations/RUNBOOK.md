@@ -247,6 +247,10 @@ ask. Every value is metacharacter-validated at the API boundary (no
 shell-injectable token can reach the node), and the setup sentinel is keyed on
 the profile, so changing it re-runs setup while an identical profile no-ops.
 
+For Darwin working-tree onboarding, omitted resource and scenario selections are
+finalized as `none` so the target does not inherit enabled workloads from the
+shipped checkout before typed onboarding selection is applied.
+
 **Source mode — pinned vs working-tree.** By default the node clones the
 `--revision` from the clone remote, which must be **pushed** (the control-plane
 preflight hard-fails an unpushed commit). For owner **development/validation**,

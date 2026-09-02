@@ -1,3 +1,5 @@
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
 /**
  * Vrooli Ascension selector registry
  *
@@ -347,7 +349,7 @@ const literalSelectors = {
       revision: "fleet-onboard-revision",
       provisionSudo: "fleet-onboard-provision-sudo",
       controlPlaneUrl: "fleet-onboard-control-plane-url",
-      setupEnvironment: "fleet-onboard-setup-environment",
+      setupPreset: "fleet-onboard-setup-preset",
       setupResources: "fleet-onboard-setup-resources",
       setupScenarios: "fleet-onboard-setup-scenarios",
       includeOptional: "fleet-onboard-include-optional",
@@ -597,7 +599,7 @@ const dynamicSelectorDefinitions = {
   },
 } satisfies DynamicSelectorTree;
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

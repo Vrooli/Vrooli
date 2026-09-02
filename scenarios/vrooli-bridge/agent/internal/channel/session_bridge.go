@@ -310,7 +310,7 @@ func shellExecutable(shell string) bool {
 	}
 	if filepath.IsAbs(shell) {
 		info, err := os.Stat(shell)
-		return err == nil && !info.IsDir() && info.Mode()&0111 != 0
+		return err == nil && !info.IsDir() && info.Mode()&0o111 != 0
 	}
 	_, err := exec.LookPath(shell)
 	return err == nil

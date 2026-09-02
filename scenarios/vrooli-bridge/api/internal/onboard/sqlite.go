@@ -3,6 +3,7 @@ package onboard
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
+	"vrooli-bridge/internal/onboarding"
 )
 
 // SQLExecutor is the narrow database surface sqliteRepository depends on. Both
@@ -42,12 +44,12 @@ const opTimeFormat = time.RFC3339Nano
 
 const (
 	insertOpSQL = `
-	INSERT INTO onboarding_ops (id, host, port, user_name, node_name, target_revision, source_mode, repo_url, state, node_id, correlation_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO onboarding_ops (id, host, port, user_name, node_name, target_revision, source_mode, repo_url, state, node_id, correlation_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at, configuration_dispositions)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectOpColumns = `
-	SELECT id, host, port, user_name, node_name, target_revision, source_mode, repo_url, state, node_id, correlation_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at
+	SELECT id, host, port, user_name, node_name, target_revision, source_mode, repo_url, state, node_id, correlation_id, failure_reason, failure_detail, control_plane_url, reachability_mode, exit_code, created_at, started_at, finished_at, configuration_dispositions
 FROM onboarding_ops
 `
 
@@ -55,7 +57,7 @@ FROM onboarding_ops
 
 	updateOpSQL = `
 UPDATE onboarding_ops
-SET state = ?, node_id = ?, failure_reason = ?, failure_detail = ?, exit_code = ?, started_at = ?, finished_at = ?
+SET state = ?, node_id = ?, failure_reason = ?, failure_detail = ?, exit_code = ?, started_at = ?, finished_at = ?, configuration_dispositions = ?
 WHERE id = ?
 `
 
@@ -85,10 +87,14 @@ func (s *sqliteRepository) Create(ctx context.Context, op Op) (Op, error) {
 	if op.State == StateUnspecified {
 		op.State = StatePending
 	}
+	dispositions, err := marshalDispositions(op.ConfigurationDispositions)
+	if err != nil {
+		return Op{}, err
+	}
 	if _, err := s.db.ExecContext(ctx, insertOpSQL,
 		op.ID, op.Host, op.Port, op.User, op.NodeName, op.TargetRevision, op.SourceMode.String(), op.RepoURL,
 		int(op.State), op.NodeID, op.CorrelationID, string(op.FailureReason), op.FailureDetail, op.ControlPlaneURL, op.ReachabilityMode, op.ExitCode,
-		op.CreatedAt.Format(opTimeFormat), formatNullableTime(op.StartedAt), formatNullableTime(op.FinishedAt),
+		op.CreatedAt.Format(opTimeFormat), formatNullableTime(op.StartedAt), formatNullableTime(op.FinishedAt), dispositions,
 	); err != nil {
 		return Op{}, fmt.Errorf("insert onboarding op %q: %w", op.ID, err)
 	}
@@ -157,10 +163,15 @@ func (s *sqliteRepository) Update(ctx context.Context, op Op) (Op, error) {
 	existing.ExitCode = op.ExitCode
 	existing.StartedAt = op.StartedAt
 	existing.FinishedAt = op.FinishedAt
+	existing.ConfigurationDispositions = append([]onboarding.Disposition(nil), op.ConfigurationDispositions...)
+	dispositions, err := marshalDispositions(existing.ConfigurationDispositions)
+	if err != nil {
+		return Op{}, err
+	}
 
 	if _, err := s.db.ExecContext(ctx, updateOpSQL,
 		int(existing.State), existing.NodeID, string(existing.FailureReason), existing.FailureDetail, existing.ExitCode,
-		formatNullableTime(existing.StartedAt), formatNullableTime(existing.FinishedAt), existing.ID,
+		formatNullableTime(existing.StartedAt), formatNullableTime(existing.FinishedAt), dispositions, existing.ID,
 	); err != nil {
 		return Op{}, fmt.Errorf("update onboarding op %q: %w", op.ID, err)
 	}
@@ -248,16 +259,17 @@ func scanOps(rows *sql.Rows) ([]Op, error) {
 
 func scanOp(sc rowScanner) (Op, error) {
 	var (
-		op          Op
-		state       int
-		failure     string
-		createdRaw  string
-		startedRaw  string
-		finishedRaw string
-		sourceMode  string
+		op              Op
+		state           int
+		failure         string
+		createdRaw      string
+		startedRaw      string
+		finishedRaw     string
+		sourceMode      string
+		dispositionsRaw string
 	)
 	if err := sc.Scan(&op.ID, &op.Host, &op.Port, &op.User, &op.NodeName, &op.TargetRevision, &sourceMode, &op.RepoURL,
-		&state, &op.NodeID, &op.CorrelationID, &failure, &op.FailureDetail, &op.ControlPlaneURL, &op.ReachabilityMode, &op.ExitCode, &createdRaw, &startedRaw, &finishedRaw); err != nil {
+		&state, &op.NodeID, &op.CorrelationID, &failure, &op.FailureDetail, &op.ControlPlaneURL, &op.ReachabilityMode, &op.ExitCode, &createdRaw, &startedRaw, &finishedRaw, &dispositionsRaw); err != nil {
 		return Op{}, err
 	}
 	if sourceMode == "working-tree" {
@@ -267,6 +279,11 @@ func scanOp(sc rowScanner) (Op, error) {
 	}
 	op.State = State(state)
 	op.FailureReason = FailureReason(failure)
+	if dispositionsRaw != "" {
+		if err := json.Unmarshal([]byte(dispositionsRaw), &op.ConfigurationDispositions); err != nil {
+			return Op{}, fmt.Errorf("decode configuration dispositions: %w", err)
+		}
+	}
 
 	var err error
 	if op.CreatedAt, err = time.Parse(opTimeFormat, createdRaw); err != nil {
@@ -279,6 +296,17 @@ func scanOp(sc rowScanner) (Op, error) {
 		return Op{}, fmt.Errorf("parse finished_at %q: %w", finishedRaw, err)
 	}
 	return op, nil
+}
+
+func marshalDispositions(value []onboarding.Disposition) (string, error) {
+	if value == nil {
+		return "[]", nil
+	}
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		return "", fmt.Errorf("encode configuration dispositions: %w", err)
+	}
+	return string(encoded), nil
 }
 
 // formatNullableTime renders a zero time as "" (the column default) so absence

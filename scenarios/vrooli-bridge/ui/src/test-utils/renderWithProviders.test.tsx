@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 
 import { renderWithProviders } from ".";
 import { strings } from "../consts/strings";
+import type { ProviderRenderOptions } from "@vrooli/api-base/testing";
 
 afterEach(() => cleanup());
 
@@ -103,7 +104,9 @@ describe("renderWithProviders QueryClient identity", () => {
       return <span data-testid="seeded">{String(q.data)}</span>;
     };
 
-    const { queryClient } = renderWithProviders(<Probe />, { queryClient: seeded });
+    const { queryClient } = renderWithProviders(<Probe />, {
+      queryClient: seeded as unknown as ProviderRenderOptions["queryClient"],
+    });
     expect(queryClient).toBe(seeded);
     await waitFor(() => {
       expect(screen.getByTestId("seeded")).toHaveTextContent("hello");

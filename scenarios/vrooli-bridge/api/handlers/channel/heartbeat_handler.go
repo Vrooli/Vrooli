@@ -32,10 +32,15 @@ type LastSeenRecorder interface {
 	TouchLastSeen(ctx context.Context, nodeID string, t time.Time) error
 }
 
+type CapabilityInventoryRecorder interface {
+	UpdateCapabilityInventory(context.Context, string, []registry.CapabilityObservation, time.Time) error
+}
+
 // HeartbeatDeps wires the seams the PresenceService handler needs.
 type HeartbeatDeps struct {
 	Hub                 *presence.Hub
 	LastSeen            LastSeenRecorder
+	CapabilityInventory CapabilityInventoryRecorder
 	DeliveryAckRecorder interface {
 		RecordDeliveryAck(context.Context, runs.DeliveryAck) error
 	}
@@ -56,6 +61,9 @@ type HeartbeatDeps struct {
 	}
 	CredentialReceipts interface {
 		RecordCredentialReceipt(context.Context, string, string, int64, bool, string) error
+	}
+	ScenarioResponses interface {
+		Deliver(string, []byte, string, bool, bool, string) error
 	}
 }
 
@@ -89,6 +97,12 @@ func WithCredentialReceiptRecorder(recorder interface {
 	RecordCredentialReceipt(context.Context, string, string, int64, bool, string) error
 }) HeartbeatOption {
 	return func(d *HeartbeatDeps) { d.CredentialReceipts = recorder }
+}
+
+func WithScenarioResponseSink(sink interface {
+	Deliver(string, []byte, string, bool, bool, string) error
+}) HeartbeatOption {
+	return func(d *HeartbeatDeps) { d.ScenarioResponses = sink }
 }
 
 type heartbeatHandler struct {
@@ -137,6 +151,15 @@ func (h *heartbeatHandler) ReportHeartbeat(ctx context.Context, req *connect.Req
 
 	snap := protoHealthToDomain(hb.GetHealth())
 	h.deps.Hub.Heartbeat(nodeID, snap)
+	if h.deps.CapabilityInventory != nil {
+		inventory := make([]registry.CapabilityObservation, 0, len(snap.Capabilities))
+		for _, item := range snap.Capabilities {
+			inventory = append(inventory, registry.CapabilityObservation{Capability: item.Capability, ID: item.ID, Label: item.Label, State: item.State, Path: item.Path, Version: item.Version, ProbedAt: item.ProbedAt, Detail: item.Detail})
+		}
+		if err := h.deps.CapabilityInventory.UpdateCapabilityInventory(ctx, nodeID, inventory, snap.ReportedAt); err != nil {
+			h.deps.Logger.Printf("heartbeat capability inventory for %q: %v", nodeID, err)
+		}
+	}
 
 	if h.deps.LastSeen != nil {
 		seenAt := snap.ReportedAt
@@ -275,6 +298,36 @@ func (h *heartbeatHandler) ReportCredentialReceipt(ctx context.Context, req *con
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	return connect.NewResponse(&presencev1.ReportCredentialReceiptResponse{Accepted: true}), nil
+}
+
+// ReportScenarioResponse accepts one bounded response from the node-side
+// scenario proxy and binds delivery to the authenticated node through the
+// scenario broker. The request body is opaque to Bridge.
+func (h *heartbeatHandler) ReportScenarioResponse(ctx context.Context, req *connect.Request[presencev1.ReportScenarioResponseRequest]) (*connect.Response[presencev1.ReportScenarioResponseResponse], error) {
+	response := req.Msg.GetResponse()
+	if response == nil || response.GetCorrelationId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario response requires correlation_id"))
+	}
+	nodeID := req.Header().Get(nodeauth.HeaderNode)
+	if nodeID == "" {
+		return nil, connect.NewError(connect.CodeUnauthenticated, nodeauth.ErrMissingProof)
+	}
+	if h.deps.Verifier != nil {
+		proof, err := nodeauth.ParseHeaders(nodeID, req.Header().Get(nodeauth.HeaderTS), req.Header().Get(nodeauth.HeaderSig))
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+		if err := h.deps.Verifier.VerifyProof(ctx, proof); err != nil {
+			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		}
+	}
+	if h.deps.ScenarioResponses == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("scenario response transport unavailable"))
+	}
+	if err := h.deps.ScenarioResponses.Deliver(response.GetCorrelationId(), response.GetResponse(), response.GetError(), response.GetTimedOut(), response.GetTruncated(), nodeID); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	return connect.NewResponse(&presencev1.ReportScenarioResponseResponse{Accepted: true}), nil
 }
 
 func relayResponseKind(kind sharedv1.RelayResponseKind) string {

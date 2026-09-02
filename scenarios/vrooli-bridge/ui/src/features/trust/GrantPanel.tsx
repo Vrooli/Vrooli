@@ -46,7 +46,7 @@ export function GrantPanel() {
       <div className="flex flex-col gap-2" aria-label="Credential grants">
         {(grants.data ?? []).map((grant) => (
           <div className="flex items-center justify-between rounded border border-app-border p-3" key={grant.id}>
-            <span>{grant.nodeId} · {grant.logicalId}:{grant.field} · {grant.class}/{grant.retention} · generation {grant.generation.toString()} · acked {grant.ackedGeneration.toString()}</span>
+            <span>{grant.nodeId} · {grant.logicalId}:{grant.field} · {grant.class}/{grant.retention} · generation {grant.generation.toString()} · {grant.receiptAccepted && grant.ackedGeneration >= grant.generation ? `held; receipt ${grant.receiptAt ? new Date(Number(grant.receiptAt.seconds) * 1000).toLocaleString() : "recorded"}` : grant.receiptReason ? `refused: ${grant.receiptReason}` : "delivery pending"}</span>
             <button type="button" onClick={() => revokeGrant.mutate(grant.id)} disabled={revokeGrant.isPending}>Revoke</button>
           </div>
         ))}

@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS credential_grants (
   granted_at TEXT NOT NULL,
   revoked_at TEXT NOT NULL DEFAULT '',
   acked_generation INTEGER NOT NULL DEFAULT 0,
+  receipt_at TEXT NOT NULL DEFAULT '',
+  receipt_accepted INTEGER NOT NULL DEFAULT 0,
+  receipt_reason TEXT NOT NULL DEFAULT '',
   UNIQUE (node_id, logical_id, field)
 );
 CREATE INDEX IF NOT EXISTS idx_credential_grants_node ON credential_grants(node_id, revoked_at);

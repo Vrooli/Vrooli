@@ -98,7 +98,7 @@ func TestMachineEnrollmentCreatesAttemptBeforeSSHAndCompletesIt(t *testing.T) {
 	attempt, err := store.GetAttempt(ctx, decision.Attempt.ID)
 	require.NoError(t, err)
 	require.Equal(t, onboard.AttemptSucceeded, attempt.State)
-	require.Equal(t, "enrolled", attempt.TerminalResult)
+	require.Equal(t, "paired", attempt.TerminalResult)
 	require.Equal(t, "machine-machine-1", driver.CapturedKeyName)
 }
 

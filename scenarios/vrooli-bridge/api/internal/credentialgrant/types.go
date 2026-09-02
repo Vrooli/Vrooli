@@ -37,6 +37,9 @@ type Grant struct {
 	AckedGeneration int64
 	GrantedAt       time.Time
 	RevokedAt       time.Time
+	ReceiptAt       time.Time
+	ReceiptAccepted bool
+	ReceiptReason   string
 }
 
 type CreateInput struct {
@@ -61,6 +64,10 @@ type Repository interface {
 type GenerationRepository interface {
 	BumpGeneration(context.Context, string, string) (int64, error)
 	SetGrantGeneration(context.Context, string, string, int64) error
+}
+
+type ReceiptRepository interface {
+	RecordReceipt(context.Context, string, int64, bool, string, time.Time) error
 }
 
 type NodeKindResolver interface {
@@ -233,9 +240,18 @@ func (s *Service) RecordCredentialReceipt(ctx context.Context, id, nodeID string
 		// Rejection is still a valid, value-free receipt. It must not advance
 		// acked_generation, but the caller can retain the reason in its audit
 		// stream without treating it as a transport failure.
+		if receipts, ok := s.repo.(ReceiptRepository); ok {
+			return receipts.RecordReceipt(ctx, id, generation, false, reason, s.now().UTC())
+		}
 		return nil
 	}
-	return s.Ack(ctx, id, generation)
+	if err := s.Ack(ctx, id, generation); err != nil {
+		return err
+	}
+	if receipts, ok := s.repo.(ReceiptRepository); ok {
+		return receipts.RecordReceipt(ctx, id, generation, true, "", s.now().UTC())
+	}
+	return nil
 }
 
 func validClass(class Class) bool {

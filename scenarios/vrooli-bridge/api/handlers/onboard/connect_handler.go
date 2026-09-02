@@ -2,6 +2,7 @@ package onboard
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -12,9 +13,11 @@ import (
 	"vrooli-bridge/internal/cprev"
 	"vrooli-bridge/internal/machines"
 	"vrooli-bridge/internal/onboard"
+	"vrooli-bridge/internal/onboarding"
 
 	"connectrpc.com/connect"
 
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 	onboardv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/onboard"
 )
 
@@ -22,6 +25,44 @@ import (
 // (cli-core/cliutil.DryRunHeader). StartOnboarding honours it by validating then
 // short-circuiting before the first side effect.
 const dryRunHeader = "X-Dry-Run"
+
+func selectionFromProto(value *setupv1.Selection) *onboarding.Selection {
+	if value == nil {
+		return nil
+	}
+	selection := *value
+	selection.Scenarios = append([]string(nil), value.GetScenarios()...)
+	selection.OptionalResources = append([]string(nil), value.GetOptionalResources()...)
+	selection.CoreSeed = append([]string(nil), value.GetCoreSeed()...)
+	selection.TrustedBase = append([]string(nil), value.GetTrustedBase()...)
+	selection.HostTools = append([]string(nil), value.GetHostTools()...)
+	selection.HostSafeguards = append([]string(nil), value.GetHostSafeguards()...)
+	selection.CredentialAddresses = append([]string(nil), value.GetCredentialAddresses()...)
+	selection.OperatingMode = mapsClone(value.GetOperatingMode())
+	return &selection
+}
+
+func selectionFromJSON(value string) (*onboarding.Selection, error) {
+	if strings.TrimSpace(value) == "" {
+		return nil, nil
+	}
+	var selection onboarding.Selection
+	if err := json.Unmarshal([]byte(value), &selection); err != nil {
+		return nil, fmt.Errorf("decode desired selection: %w", err)
+	}
+	return &selection, nil
+}
+
+func mapsClone(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make(map[string]string, len(values))
+	for key, value := range values {
+		result[key] = value
+	}
+	return result
+}
 
 // Deps wires the seams the Connect onboard handler needs. All verbs are
 // owner-gated operator verbs.
@@ -46,11 +87,22 @@ type connectHandler struct {
 	deps Deps
 }
 
+func firstSetupValue(explicit, profile string) string {
+	if strings.TrimSpace(explicit) != "" {
+		return explicit
+	}
+	return profile
+}
+
 // machineReader validates an explicitly selected Machine before onboarding can
 // use its Bridge-owned SSH key. Locator matching here is validation, not
 // identity discovery: the caller must provide the durable Machine ID.
 type machineReader interface {
 	Get(context.Context, string) (machines.Machine, error)
+}
+
+type policyApplier interface {
+	ApplyPolicy(context.Context, machines.PolicyChangeInput) (machines.Machine, machines.PolicySnapshot, error)
 }
 
 type machineResolver interface {
@@ -236,6 +288,47 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 			return nil, err
 		}
 	}
+	// A selected Machine carries the desired configuration document. Resolve
+	// that document at the Bridge boundary so onboarding does not mirror the
+	// control plane's operator state for every remote node.
+	profile := machines.PolicySnapshot{}
+	if !dryRun && h.deps.Machines != nil && req.Msg.GetMachineId() != "" {
+		machine, getErr := h.deps.Machines.Get(ctx, req.Msg.GetMachineId())
+		if getErr != nil {
+			return nil, getErr
+		}
+		profileID := machine.DesiredProfileID
+		if preset := strings.ToLower(strings.TrimSpace(req.Msg.GetSetupPreset())); preset != "" {
+			profileID, err = profileForSetupPreset(preset)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInvalidArgument, err)
+			}
+			if profileID != machine.DesiredProfileID {
+				applier, ok := h.deps.Machines.(policyApplier)
+				if !ok {
+					return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("machine policy changes are unavailable; select a durable configuration before onboarding"))
+				}
+				machine, profile, err = applier.ApplyPolicy(ctx, machines.PolicyChangeInput{
+					MachineID:       machine.ID,
+					ExpectedVersion: machine.Version,
+					ProfileID:       profileID,
+					ProfileVersion:  "v1",
+					Actor:           actor,
+					Reason:          "onboarding setup preset",
+					ConfirmRemoval:  true,
+				})
+				if err != nil {
+					return nil, onboard.ToConnectError(err)
+				}
+			}
+		}
+		if profile.SelectionJSON == "" {
+			profile, err = machines.ResolveProfile(machine.ID, profileID, machine.DesiredProfileVersion, nil)
+		}
+		if err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
 
 	// Copy the password into an owned mutable slice for the service to zero; the
 	// proto string itself is immutable and cannot be wiped, so we never hold it.
@@ -248,6 +341,13 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		setupPassphrase = []byte(passphrase)
 	}
 
+	selected := selectionFromProto(req.Msg.GetSelection())
+	if selected == nil {
+		selected, err = selectionFromJSON(profile.SelectionJSON)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
 	input := onboard.StartInput{
 		Actor:                actor,
 		MachineID:            req.Msg.GetMachineId(),
@@ -267,10 +367,8 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		SkipSetup:            req.Msg.GetSkipSetup(),
 		SkipPrereqs:          req.Msg.GetSkipPrereqs(),
 		ProvisionSudo:        req.Msg.GetProvisionSudo(),
-		SetupEnvironment:     req.Msg.GetSetupEnvironment(),
-		SetupResources:       req.Msg.GetSetupResources(),
-		SetupScenarios:       req.Msg.GetSetupScenarios(),
-		IncludeOptional:      req.Msg.GetIncludeOptional(),
+		SetupPreset:          firstSetupValue(req.Msg.GetSetupPreset(), profile.Preset),
+		Selection:            selected,
 		ProvisionServiceUser: req.Msg.GetProvisionServiceUser(),
 		SourceMode:           sourceModeFromProto(req.Msg.GetSourceMode()),
 		DryRun:               dryRun,
@@ -313,6 +411,25 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		MachineId:           machineID,
 		EnrollmentAttemptId: attemptID,
 	}), nil
+}
+
+func profileForSetupPreset(preset string) (string, error) {
+	switch preset {
+	case "minimal", "managed-connection":
+		return "managed-connection", nil
+	case "production", "production-runtime":
+		return "production-runtime", nil
+	case "development", "development-runner":
+		return "development-runner", nil
+	case "presence":
+		return "presence", nil
+	case "deployment-target":
+		return "deployment-target", nil
+	case "custom":
+		return "custom", nil
+	default:
+		return "", fmt.Errorf("setup_preset: unknown named preset %q", preset)
+	}
 }
 
 // ProtectOnboarding is the named post-pairing protection step. The caller has

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { artifactDownloadUrl } from "../../api/client";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
@@ -121,7 +121,7 @@ function RunProgress({ run }: { run: Run }) {
         {active && (
           <Button
             size="sm"
-            variant="outline"
+            variant="secondary"
             data-testid={selectors.runs.cancel({ id: run.id })}
             onClick={handleCancel}
             disabled={abort.isPending}
@@ -156,7 +156,7 @@ function RunProgress({ run }: { run: Run }) {
   );
 }
 
-function eventLine(event: RunEvent, t: ReturnType<typeof useTranslation>["t"]): string {
+function eventLine(event: RunEvent, t: (key: string) => string): string {
   switch (event.kind) {
     case RunEventKind.LOG:
       return event.logChunk;
@@ -200,7 +200,7 @@ function RunDetail({ runId }: { runId: string }) {
           className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-control bg-app-background p-2 font-mono text-xs text-app-foreground"
         >
           {events.length > 0
-            ? events.map((e) => eventLine(e, t)).filter(Boolean).join("\n")
+            ? events.map((e) => eventLine(e, t as unknown as (key: string) => string)).filter(Boolean).join("\n")
             : t(strings.runs.outputEmpty)}
         </pre>
       </div>
@@ -300,7 +300,7 @@ export function RunHistory() {
                   </div>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     data-testid={selectors.runs.view({ id: run.id })}
                     aria-expanded={open}
                     onClick={() => setOpenId(open ? null : run.id)}

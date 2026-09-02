@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { TFunction } from "i18next";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -141,7 +141,7 @@ export function PendingPairingPanel() {
                 <Button
                   type="button"
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   data-testid={selectors.fleet.pairingRequests.reject({ id: request.id })}
                   disabled={isPending}
                   onClick={() => approve.mutate({ requestId: request.id, approve: false })}

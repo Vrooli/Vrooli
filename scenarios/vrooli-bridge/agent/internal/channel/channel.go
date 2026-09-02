@@ -20,6 +20,7 @@ package channel
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/ecdh"
 	"errors"
@@ -38,6 +39,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/cliresolve"
 
 	"vrooli-bridge/agent/internal/buildinfo"
@@ -100,6 +102,7 @@ type Client struct {
 	httpClient     *http.Client
 	rpc            presence_v1connect.PresenceServiceClient
 	grantRPC       credentialgrantconnect.CredentialGrantServiceClient
+	scenarioRPC    scenarioResponseReporter
 	runsRPC        runs_v1connect.RunsServiceClient
 	artifactsRPC   artifacts_v1connect.ArtifactsServiceClient
 	provisionRPC   provision_v1connect.ProvisionServiceClient
@@ -137,13 +140,14 @@ type Client struct {
 	// context, so a control-plane AbortJob frame (OT-P1-004) stops the run's
 	// process instead of letting it run to completion as an ignored stale
 	// completion.
-	mu            sync.Mutex
-	runningJobs   map[string]context.CancelFunc
-	runningRelays map[string]*relayState
-	sessions      map[string]*nodeSession
-	relayReporter RelayResponseReporter
-	commandRunner exec.CommandRunner
-	shutdown      func()
+	mu                      sync.Mutex
+	runningJobs             map[string]context.CancelFunc
+	runningRelays           map[string]*relayState
+	sessions                map[string]*nodeSession
+	relayReporter           RelayResponseReporter
+	commandRunner           exec.CommandRunner
+	resolveScenarioPortFunc func(context.Context, string) (int, error)
+	shutdown                func()
 }
 
 // Option customises a Client (transport, sampler, clock, backoff) for tests and
@@ -207,12 +211,26 @@ type RelayResponseReporter interface {
 	ReportRelayResponse(context.Context, *sharedv1.RelayResponse) error
 }
 
+type scenarioResponseReporter interface {
+	ReportScenarioResponse(context.Context, *connect.Request[presencev1.ReportScenarioResponseRequest]) (*connect.Response[presencev1.ReportScenarioResponseResponse], error)
+}
+
 func WithRelayResponseReporter(reporter RelayResponseReporter) Option {
 	return func(c *Client) { c.relayReporter = reporter }
 }
 
+func WithScenarioResponseReporter(reporter scenarioResponseReporter) Option {
+	return func(c *Client) { c.scenarioRPC = reporter }
+}
+
 func WithCommandRunner(runner exec.CommandRunner) Option {
 	return func(c *Client) { c.commandRunner = runner }
+}
+
+// WithScenarioPortResolver overrides the node-local port lookup for tests and
+// embedded agents. Production uses cli-core's shared peer/registry/CLI ladder.
+func WithScenarioPortResolver(resolver func(context.Context, string) (int, error)) Option {
+	return func(c *Client) { c.resolveScenarioPortFunc = resolver }
 }
 
 // WithShutdown supplies the process lifecycle hook used after a successful
@@ -242,6 +260,9 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	base := strings.TrimRight(cfg.ControlPlaneURL, "/")
 	c.rpc = presence_v1connect.NewPresenceServiceClient(c.httpClient, base)
 	c.grantRPC = credentialgrantconnect.NewCredentialGrantServiceClient(c.httpClient, base)
+	if c.scenarioRPC == nil {
+		c.scenarioRPC = c.rpc
+	}
 	c.runsRPC = runs_v1connect.NewRunsServiceClient(c.httpClient, base)
 	c.artifactsRPC = artifacts_v1connect.NewArtifactsServiceClient(c.httpClient, base)
 	c.provisionRPC = provision_v1connect.NewProvisionServiceClient(c.httpClient, base)
@@ -549,6 +570,14 @@ func (c *Client) handleServerFrame(payload string) {
 		c.logger.Printf("channel: received job run_id=%q verb=%q scenario=%q", job.GetRunId(), job.GetVerb(), job.GetScenario())
 		go c.runJob(job)
 	}
+	if request := frame.GetScenarioRequest(); request != nil {
+		if c.cfg.PresenceOnly {
+			c.logger.Printf("channel: rejecting scenario request correlation_id=%q because agent is in presence-only posture", request.GetCorrelationId())
+			return
+		}
+		c.logger.Printf("channel: received scenario request correlation_id=%q scenario=%q service=%q method=%q", request.GetCorrelationId(), request.GetScenario(), request.GetService(), request.GetMethod())
+		go c.runScenarioRequest(request)
+	}
 	if relayRequest := frame.GetRelay(); relayRequest != nil {
 		if c.cfg.PresenceOnly {
 			c.logger.Printf("channel: rejecting relay correlation_id=%q because agent is in presence-only posture", relayRequest.GetCorrelationId())
@@ -632,7 +661,11 @@ func (c *Client) handleCredentialPush(push *channelv1.CredentialPush) {
 	if err != nil {
 		c.rejectedCredentialPushes.Add(1)
 		c.logger.Printf("channel: credential push refused for logical_id=%q field=%q: %v", push.GetLogicalId(), push.GetField(), err)
-		c.reportCredentialReceipt(&channelv1.CredentialReceipt{GrantId: push.GetGrantId(), NodeId: c.cfg.NodeID, LogicalId: push.GetLogicalId(), Field: push.GetField(), Generation: push.GetGeneration(), Accepted: false, Reason: "ingest failed"})
+		if result.Receipt != nil {
+			c.reportCredentialReceipt(result.Receipt)
+		} else {
+			c.reportCredentialReceipt(&channelv1.CredentialReceipt{GrantId: push.GetGrantId(), NodeId: c.cfg.NodeID, LogicalId: push.GetLogicalId(), Field: push.GetField(), Generation: push.GetGeneration(), Accepted: false, Reason: err.Error()})
+		}
 		return
 	}
 	if result.Rejected {
@@ -853,6 +886,121 @@ func (c *Client) runJob(job *channelv1.JobPush) {
 		runnerOpts...)
 	if err := runner.Execute(ctx, job); err != nil && base.Err() == nil {
 		c.logger.Printf("channel: run %q: reporting events failed: %v", job.GetRunId(), err)
+	}
+}
+
+const (
+	defaultScenarioRequestTimeout = 30 * time.Second
+	maxScenarioRequestTimeout     = 5 * time.Minute
+	defaultScenarioResponseBytes  = 8 << 20
+	maxScenarioResponseBytes      = 8 << 20
+)
+
+// runScenarioRequest resolves a scenario through the node's own three-rung
+// port ladder and performs one bounded unary HTTP call. The control plane
+// supplies only serialized request bytes; owner/browser credentials never
+// cross this node-facing path. The response is reported over the signed node
+// Presence RPC and is bounded before it leaves the node.
+func (c *Client) runScenarioRequest(request *channelv1.ScenarioRequest) {
+	base := c.baseCtxOrBackground()
+	timeout := time.Duration(request.GetTimeoutSeconds()) * time.Second
+	if timeout <= 0 {
+		timeout = defaultScenarioRequestTimeout
+	}
+	if timeout > maxScenarioRequestTimeout {
+		timeout = maxScenarioRequestTimeout
+	}
+	ctx, cancel := context.WithTimeout(base, timeout)
+	defer cancel()
+	response := &channelv1.ScenarioResponse{CorrelationId: request.GetCorrelationId()}
+	port, err := c.resolveScenarioPort(ctx, request.GetScenario())
+	if err == nil {
+		maxBytes := request.GetMaxResponseBytes()
+		if maxBytes == 0 || maxBytes > maxScenarioResponseBytes {
+			maxBytes = defaultScenarioResponseBytes
+		}
+		path := "/" + strings.Trim(request.GetService(), "/") + "/" + strings.Trim(request.GetMethod(), "/")
+		if request.GetHttpPath() != "" {
+			path = "/" + strings.Trim(request.GetHttpPath(), "/")
+		}
+		if request.GetService() == "" || request.GetMethod() == "" {
+			err = errors.New("scenario request requires service and method")
+		} else {
+			urlValue := "http://127.0.0.1:" + strconv.Itoa(port) + path
+			verb := strings.ToUpper(strings.TrimSpace(request.GetHttpMethod()))
+			if verb == "" {
+				verb = http.MethodPost
+			}
+			httpRequest, requestErr := http.NewRequestWithContext(ctx, verb, urlValue, bytes.NewReader(request.GetRequest()))
+			if requestErr != nil {
+				err = requestErr
+			} else {
+				httpRequest.Header.Set("Content-Type", "application/proto")
+				httpRequest.Header.Set("Accept", "application/proto")
+				httpResponse, doErr := c.httpClient.Do(httpRequest)
+				if doErr != nil {
+					err = doErr
+				} else {
+					defer httpResponse.Body.Close()
+					body, readErr := io.ReadAll(io.LimitReader(httpResponse.Body, int64(maxBytes)+1))
+					if readErr != nil {
+						err = readErr
+					} else if len(body) > int(maxBytes) {
+						response.Response = body[:maxBytes]
+						response.Truncated = true
+						err = fmt.Errorf("scenario response exceeds %d bytes", maxBytes)
+					} else if httpResponse.StatusCode < http.StatusOK || httpResponse.StatusCode >= http.StatusMultipleChoices {
+						response.Response = body
+						err = fmt.Errorf("scenario API returned HTTP %d", httpResponse.StatusCode)
+					} else {
+						response.Response = body
+					}
+				}
+			}
+		}
+	}
+	if err != nil {
+		response.Error = err.Error()
+		response.TimedOut = errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded)
+	}
+	c.reportScenarioResponse(response)
+}
+
+func (c *Client) resolveScenarioPort(ctx context.Context, scenario string) (int, error) {
+	if strings.TrimSpace(scenario) == "" {
+		return 0, errors.New("scenario is required")
+	}
+	if c.resolveScenarioPortFunc != nil {
+		return c.resolveScenarioPortFunc(ctx, scenario)
+	}
+	outcome := cliutil.LookupScenarioPort(ctx, scenario, "API_PORT", cliutil.DefaultPortCachePolicy)
+	if !outcome.Resolved() {
+		if outcome.Err != nil {
+			return 0, fmt.Errorf("resolve local scenario %q port: %w", scenario, outcome.Err)
+		}
+		return 0, fmt.Errorf("resolve local scenario %q port: invalid port %q", scenario, outcome.Output)
+	}
+	port, err := strconv.Atoi(outcome.Port)
+	if err != nil || port <= 0 {
+		return 0, fmt.Errorf("resolve local scenario %q port: invalid port %q", scenario, outcome.Port)
+	}
+	return port, nil
+}
+
+func (c *Client) reportScenarioResponse(response *channelv1.ScenarioResponse) {
+	if c.scenarioRPC == nil || response == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(c.baseCtxOrBackground(), 10*time.Second)
+	defer cancel()
+	req := connect.NewRequest(&presencev1.ReportScenarioResponseRequest{Response: response})
+	if c.cred != nil {
+		for key, value := range c.cred.Headers(c.cfg.NodeID, c.now().UTC()) {
+			req.Header().Set(key, value)
+		}
+	}
+	if _, err := c.scenarioRPC.ReportScenarioResponse(ctx, req); err != nil {
+		c.logger.Printf("channel: scenario response correlation_id=%q failed: %v", response.GetCorrelationId(), err)
 	}
 }
 
@@ -1202,6 +1350,22 @@ func snapshotToProto(s health.Snapshot) *sharedv1.HealthSnapshot {
 		DiskHeadroomBytes:  s.DiskHeadroomBytes,
 		ContainerRuntimeUp: s.ContainerRuntimeUp,
 		Details:            s.Details,
+	}
+	for _, capability := range s.Capabilities {
+		state := sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_UNKNOWN
+		switch capability.State {
+		case "ready":
+			state = sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_READY
+		case "missing":
+			state = sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_MISSING
+		case "not_applicable":
+			state = sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_NOT_APPLICABLE
+		}
+		item := &sharedv1.CapabilityObservation{Capability: capability.Capability, Id: capability.ID, Label: capability.Label, State: state, Path: capability.Path, Version: capability.Version, Detail: capability.Detail}
+		if !capability.ProbedAt.IsZero() {
+			item.ProbedAt = timestamppb.New(capability.ProbedAt.UTC())
+		}
+		out.Capabilities = append(out.Capabilities, item)
 	}
 	if !s.ReportedAt.IsZero() {
 		out.ReportedAt = timestamppb.New(s.ReportedAt.UTC())

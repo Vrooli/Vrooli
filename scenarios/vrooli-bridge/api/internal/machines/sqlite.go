@@ -176,8 +176,8 @@ func (s *sqliteRepository) machineForEvidence(ctx context.Context, evidence, val
 
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Machine, error) {
 	var m Machine
-	var created, updated, arch, removed string
-	e := s.db.QueryRowContext(ctx, "SELECT id,lifecycle,version,desired_profile_id,desired_profile_version,trust_ref,created_at,updated_at,archived_at,removed_at FROM machines WHERE id=?", id).Scan(&m.ID, &m.Lifecycle, &m.Version, &m.DesiredProfileID, &m.DesiredProfileVersion, &m.TrustRef, &created, &updated, &arch, &removed)
+	var created, updated, arch, removed, appliedAt string
+	e := s.db.QueryRowContext(ctx, "SELECT id,lifecycle,version,desired_profile_id,desired_profile_version,desired_selection_json,applied_profile_id,applied_profile_version,applied_selection_json,applied_at,trust_ref,created_at,updated_at,archived_at,removed_at FROM machines WHERE id=?", id).Scan(&m.ID, &m.Lifecycle, &m.Version, &m.DesiredProfileID, &m.DesiredProfileVersion, &m.DesiredSelectionJSON, &m.AppliedProfileID, &m.AppliedProfileVersion, &m.AppliedSelectionJSON, &appliedAt, &m.TrustRef, &created, &updated, &arch, &removed)
 	if errors.Is(e, sql.ErrNoRows) {
 		return Machine{}, ErrNotFound{id}
 	}
@@ -195,6 +195,9 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Machine, error) 
 		return Machine{}, er
 	}
 	if m.RemovedAt, er = nullableTime(removed); er != nil {
+		return Machine{}, er
+	}
+	if m.AppliedAt, er = nullableTime(appliedAt); er != nil {
 		return Machine{}, er
 	}
 	rows, e := s.db.QueryContext(ctx, "SELECT kind,value,ordinal FROM machine_locators WHERE machine_id=? ORDER BY ordinal", id)
@@ -877,6 +880,61 @@ func (s *sqliteRepository) SavePolicySnapshot(ctx context.Context, snapshot Poli
 	return snapshot, nil
 }
 
+// LatestPolicySnapshot returns the immutable policy decision most recently
+// recorded for a machine. History is authoritative for policy changes; the
+// original single-snapshot table remains a compatibility fallback for older
+// installations.
+func (s *sqliteRepository) LatestPolicySnapshot(ctx context.Context, machineID string) (PolicySnapshot, error) {
+	var profileID, profileVersion, snapshotJSON string
+	err := s.db.QueryRowContext(ctx, "SELECT profile_id, profile_version, snapshot_json FROM machine_policy_snapshot_history WHERE machine_id=? ORDER BY created_at DESC,id DESC LIMIT 1", machineID).Scan(&profileID, &profileVersion, &snapshotJSON)
+	if errors.Is(err, sql.ErrNoRows) {
+		err = s.db.QueryRowContext(ctx, "SELECT profile_id, profile_version, snapshot_json FROM machine_policy_snapshots WHERE machine_id=?", machineID).Scan(&profileID, &profileVersion, &snapshotJSON)
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return PolicySnapshot{}, ErrNotFound{machineID}
+	}
+	if err != nil {
+		return PolicySnapshot{}, fmt.Errorf("read latest policy snapshot: %w", err)
+	}
+	return decodePolicySnapshot(machineID, profileID, profileVersion, snapshotJSON)
+}
+
+func decodePolicySnapshot(machineID, profileID, profileVersion, snapshotJSON string) (PolicySnapshot, error) {
+	var payload struct {
+		Preset               string
+		Scenarios            []string
+		OptionalResources    []string
+		SuggestedScopes      []string
+		RequiredCapabilities []string
+	}
+	if err := json.Unmarshal([]byte(snapshotJSON), &payload); err != nil {
+		return PolicySnapshot{}, fmt.Errorf("decode policy snapshot: %w", err)
+	}
+	return PolicySnapshot{MachineID: machineID, ProfileID: profileID, ProfileVersion: profileVersion, Preset: payload.Preset, Scenarios: payload.Scenarios, OptionalResources: payload.OptionalResources, SuggestedScopes: payload.SuggestedScopes, RequiredCapabilities: payload.RequiredCapabilities, JSON: snapshotJSON}, nil
+}
+
+// MarkProfileApplied records the profile that remote onboarding applied after
+// its readiness check succeeded. Repeating the same result is idempotent.
+func (s *sqliteRepository) MarkProfileApplied(ctx context.Context, machineID, profileID, profileVersion string, appliedAt time.Time) (Machine, error) {
+	if machineID == "" || profileID == "" || profileVersion == "" || appliedAt.IsZero() {
+		return Machine{}, ErrInvalid{"applied_profile", "machine, profile, version, and time are required"}
+	}
+	stamp := appliedAt.UTC().Format(machineTimeFormat)
+	var desiredSelection string
+	if err := s.db.QueryRowContext(ctx, "SELECT desired_selection_json FROM machines WHERE id=?", machineID).Scan(&desiredSelection); err != nil {
+		return Machine{}, err
+	}
+	result, err := s.db.ExecContext(ctx, "UPDATE machines SET applied_profile_id=?,applied_profile_version=?,applied_selection_json=?,applied_at=?,updated_at=? WHERE id=?", profileID, profileVersion, desiredSelection, stamp, stamp, machineID)
+	if err != nil {
+		return Machine{}, fmt.Errorf("mark profile applied: %w", err)
+	}
+	changed, _ := result.RowsAffected()
+	if changed == 0 {
+		return Machine{}, ErrNotFound{machineID}
+	}
+	return s.Get(ctx, machineID)
+}
+
 // ApplyPolicy resolves a built-in profile once, appends immutable evidence,
 // and updates only the Machine's desired policy under optimistic concurrency.
 // Registry-approved scopes are intentionally not present in this transaction.
@@ -928,7 +986,7 @@ func (s *sqliteRepository) ApplyPolicy(ctx context.Context, input PolicyChangeIn
 	if _, err = tx.ExecContext(ctx, "INSERT INTO machine_policy_snapshot_history (id,machine_id,profile_id,profile_version,overrides_json,snapshot_json,actor,reason,created_at) VALUES (?,?,?,?,?,?,?,?,?)", uuid.NewString(), input.MachineID, snapshot.ProfileID, snapshot.ProfileVersion, string(overrides), snapshot.JSON, input.Actor, input.Reason, now.Format(machineTimeFormat)); err != nil {
 		return Machine{}, PolicySnapshot{}, fmt.Errorf("append policy snapshot: %w", err)
 	}
-	result, err := tx.ExecContext(ctx, "UPDATE machines SET desired_profile_id=?,desired_profile_version=?,version=version+1,updated_at=? WHERE id=? AND version=?", snapshot.ProfileID, snapshot.ProfileVersion, now.Format(machineTimeFormat), input.MachineID, input.ExpectedVersion)
+	result, err := tx.ExecContext(ctx, "UPDATE machines SET desired_profile_id=?,desired_profile_version=?,desired_selection_json=?,version=version+1,updated_at=? WHERE id=? AND version=?", snapshot.ProfileID, snapshot.ProfileVersion, snapshot.SelectionJSON, now.Format(machineTimeFormat), input.MachineID, input.ExpectedVersion)
 	if err != nil {
 		return Machine{}, PolicySnapshot{}, err
 	}

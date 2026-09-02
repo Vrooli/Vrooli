@@ -42,3 +42,31 @@ func TestSQLiteRepositoryBumpGenerationContinuesExistingGrantGeneration(t *testi
 		t.Fatalf("second rotation generation = %d, want 9", generation)
 	}
 }
+
+func TestSQLiteRepositoryPersistsCredentialReceiptMetadata(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if _, err := db.Exec(schemaSQL); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Unix(20, 0).UTC()
+	repo := NewSQLiteRepository(db, func() time.Time { return now })
+	grant, err := repo.Create(context.Background(), Grant{NodeID: "node-1", LogicalID: "vrooli/test", Field: "token", Class: ClassUserPrompt, Retention: RetentionDurable, Generation: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	receiptAt := now.Add(time.Minute)
+	if err := repo.RecordReceipt(context.Background(), grant.ID, 2, true, "", receiptAt); err != nil {
+		t.Fatal(err)
+	}
+	grants, err := repo.List(context.Background(), "node-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(grants) != 1 || grants[0].AckedGeneration != 2 || !grants[0].ReceiptAccepted || !grants[0].ReceiptAt.Equal(receiptAt) {
+		t.Fatalf("receipt metadata = %#v, want accepted generation 2 at %s", grants, receiptAt)
+	}
+}

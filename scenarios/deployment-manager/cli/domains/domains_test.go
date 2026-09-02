@@ -21,7 +21,7 @@ func testApp(t *testing.T) *cliapp.ScenarioApp {
 
 func TestCommandGroupsRegisterEveryLegacyDomain(t *testing.T) {
 	groups := CommandGroups(testApp(t))
-	if len(groups) != 9 {
+	if len(groups) != 10 {
 		t.Fatalf("command group count = %d", len(groups))
 	}
 	for _, group := range groups {

@@ -50,7 +50,24 @@ type Node struct {
 	// Persisted so "last seen 2h ago" survives a control-plane restart.
 	LastSeenAt time.Time
 	// RevokedAt is set when the node is revoked; zero on active nodes.
-	RevokedAt time.Time
+	RevokedAt           time.Time
+	CapabilityInventory []CapabilityObservation
+	CapabilityProbedAt  time.Time
+	ConfigurationOpID   string
+	ConfigurationState  string
+	ConfigurationAt     time.Time
+	ConfigurationUnmet  []string
+}
+
+type CapabilityObservation struct {
+	Capability string    `json:"capability"`
+	ID         string    `json:"id"`
+	Label      string    `json:"label"`
+	State      string    `json:"state"`
+	Path       string    `json:"path,omitempty"`
+	Version    string    `json:"version,omitempty"`
+	ProbedAt   time.Time `json:"probed_at"`
+	Detail     string    `json:"detail,omitempty"`
 }
 
 // Revoked reports whether the node has been revoked. A revoked node is always
@@ -74,13 +91,17 @@ type RegisterInput struct {
 
 // UpdateInput is the desired post-state of a node's owner-editable surface.
 type UpdateInput struct {
-	ID           string
-	Name         string
-	Endpoint     string
-	Capabilities []string
-	Scopes       []string
-	Revision     string
-	Kind         string
+	ID                 string
+	Name               string
+	Endpoint           string
+	Capabilities       []string
+	Scopes             []string
+	Revision           string
+	Kind               string
+	ConfigurationOpID  string
+	ConfigurationState string
+	ConfigurationAt    time.Time
+	ConfigurationUnmet []string
 }
 
 // ErrNodeNotFound is the typed sentinel returned when no row matches an id.

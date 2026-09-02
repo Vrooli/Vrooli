@@ -45,6 +45,9 @@ func domainOpToProto(op onboard.Op) *onboardv1.OnboardingOp {
 		ControlPlaneUrl:   op.ControlPlaneURL,
 		ReachabilityMode:  op.ReachabilityMode,
 	}
+	for _, item := range op.ConfigurationDispositions {
+		out.ConfigurationDispositions = append(out.ConfigurationDispositions, &onboardv1.ConfigurationDisposition{Id: item.ID, Kind: item.Kind, Name: item.Name, Disposition: item.Disposition, Reason: item.Reason, Remediation: item.Remediation})
+	}
 	if !op.StartedAt.IsZero() {
 		out.StartedAt = timestamppb.New(op.StartedAt)
 	}
@@ -68,6 +71,8 @@ func stateToProto(s onboard.State) onboardv1.OnboardingState {
 		return onboardv1.OnboardingState_ONBOARDING_STATE_VERIFYING
 	case onboard.StateSucceeded:
 		return onboardv1.OnboardingState_ONBOARDING_STATE_SUCCEEDED
+	case onboard.StatePaired:
+		return onboardv1.OnboardingState_ONBOARDING_STATE_PAIRED
 	case onboard.StateFailed:
 		return onboardv1.OnboardingState_ONBOARDING_STATE_FAILED
 	case onboard.StateCancelled:
@@ -153,6 +158,7 @@ func (a codeIssuerAdapter) ResolveEnrollment(ctx context.Context, correlationID 
 type machineLinkerAdapter struct {
 	attempts onboard.AttemptStore
 	machines machines.Service
+	registry registry.Service
 }
 
 var _ onboard.MachineLinker = machineLinkerAdapter{}
@@ -187,6 +193,60 @@ func (a machineLinkerAdapter) RecordCorrelatedTrust(ctx context.Context, correla
 	}
 	_, err = a.machines.UpsertTrust(ctx, machines.TrustRecord{MachineID: attempt.MachineID, ClientKeyRef: conn.ClientKeyRef, ClientKeyFingerprint: conn.ClientKeyFingerprint, HostKeyFingerprint: conn.HostKeyFingerprint, HostKeyState: state, SSHUser: conn.User, SSHPort: conn.Port, ConnectionState: machines.ConnectionTrusted})
 	return err
+}
+
+func (a machineLinkerAdapter) RecordConfigurationOutcome(ctx context.Context, correlationID, nodeID, state string, unmet []string, appliedAt time.Time) error {
+	var attempt onboard.EnrollmentAttempt
+	var err error
+	if correlationID != "" {
+		attempt, err = a.attempts.GetAttemptByCorrelation(ctx, correlationID)
+	}
+	if err != nil {
+		var absent onboard.ErrOpNotFound
+		if !errors.As(err, &absent) {
+			return err
+		}
+	}
+	var node registry.Node
+	if nodeID != "" {
+		node, err = a.registry.Get(ctx, nodeID)
+	} else {
+		node, err = a.registry.GetByPairingCorrelation(ctx, correlationID)
+	}
+	// A retry can report a stale/new bootstrap identity while the durable
+	// Machine lineage still points at the already-registered node. Machine ID is
+	// the authoritative ownership boundary for this recovery path; use its
+	// current lineage only after the direct node lookup fails.
+	if err != nil && attempt.MachineID != "" {
+		if machine, machineErr := a.machines.Get(ctx, attempt.MachineID); machineErr == nil {
+			for _, lineage := range machine.Lineage {
+				if !lineage.Current || lineage.NodeID == "" {
+					continue
+				}
+				node, err = a.registry.Get(ctx, lineage.NodeID)
+				if err == nil {
+					break
+				}
+			}
+		}
+	}
+	if err != nil {
+		return err
+	}
+	opID := attempt.ID
+	_, err = a.registry.Update(ctx, registry.UpdateInput{ID: node.ID, Name: node.Name, Endpoint: node.Endpoint, Capabilities: node.Capabilities, Scopes: node.Scopes, Revision: node.Revision, Kind: node.Kind, ConfigurationOpID: opID, ConfigurationState: state, ConfigurationAt: appliedAt, ConfigurationUnmet: unmet})
+	if err != nil {
+		return err
+	}
+	if attempt.MachineID != "" && state == onboard.StateSucceeded.String() {
+		machine, getErr := a.machines.Get(ctx, attempt.MachineID)
+		if getErr != nil {
+			return getErr
+		}
+		_, getErr = a.machines.MarkProfileApplied(ctx, machine.ID, machine.DesiredProfileID, machine.DesiredProfileVersion, appliedAt)
+		return getErr
+	}
+	return nil
 }
 
 // nodeRevisionRecorderAdapter stamps a node's provenance revision after

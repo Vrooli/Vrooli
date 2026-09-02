@@ -86,6 +86,11 @@ BRIDGE_PAIRING_CODE="$(vrooli-bridge pair issue --name web-01 --json | jq -r .co
 | `--setup-scenarios` | `BRIDGE_SETUP_SCENARIOS` | *(node default)* | Node-side `vrooli setup --scenarios`: `none` \| `all` \| `<comma-list>`. |
 | `--include-optional` | *(none — flag)* | off | Also apply optional (non-required) host safeguards. |
 
+For Darwin nodes receiving prebuilt bootstrap artifacts, omitted resource and
+scenario selections are finalized as `none`. This prevents the target checkout
+from installing enabled workloads before the paired node's typed onboarding
+selection is applied. Explicit selections remain authoritative.
+
 ### Elevated, profile-driven setup
 
 The **setup** step treats project-level `vrooli setup` as the **sole

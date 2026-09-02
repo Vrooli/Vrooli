@@ -66,8 +66,8 @@ func TestInProcessResolvePreservesUnconfiguredTaxonomy(t *testing.T) {
 	}
 }
 
-func TestIPCTransportReturnsTypedUnavailableError(t *testing.T) {
-	_, err := NewClient(ClientOptions{BundlePortFile: t.TempDir() + "/port", BundleTokenFile: t.TempDir() + "/token"})
+func TestUnavailableTransportReturnsTypedError(t *testing.T) {
+	_, err := NewClient(ClientOptions{})
 	if err == nil {
 		t.Fatal("expected no transport when IPC files are absent")
 	}

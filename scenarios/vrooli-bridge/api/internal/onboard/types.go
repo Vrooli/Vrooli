@@ -31,12 +31,14 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"vrooli-bridge/internal/onboarding"
 )
 
 // State is an onboarding op's lifecycle state. It mirrors the onboard.proto
 // OnboardingState so the domain never imports proto; the handler translates at
 // the boundary. PENDING/SSH_SETUP/PUSHING_SCRIPT/BOOTSTRAPPING/VERIFYING are
-// non-terminal; SUCCEEDED/FAILED/CANCELLED are terminal.
+// non-terminal; SUCCEEDED/PAIRED/FAILED/CANCELLED are terminal.
 type State int
 
 const (
@@ -58,13 +60,16 @@ const (
 	StateFailed State = 7
 	// StateCancelled — terminal: the operator cancelled the op.
 	StateCancelled State = 8
+	// StatePaired — terminal: the node paired and reached ONLINE, but no
+	// configuration selection was applied.
+	StatePaired State = 9
 )
 
 // Terminal reports whether the state is a terminal one. Wait returns once an op
 // reaches a terminal state; a late transition on a terminal op is ignored.
 func (s State) Terminal() bool {
 	switch s {
-	case StateSucceeded, StateFailed, StateCancelled:
+	case StateSucceeded, StatePaired, StateFailed, StateCancelled:
 		return true
 	default:
 		return false
@@ -90,6 +95,8 @@ func (s State) String() string {
 		return "failed"
 	case StateCancelled:
 		return "cancelled"
+	case StatePaired:
+		return "paired"
 	default:
 		return "unspecified"
 	}
@@ -259,7 +266,8 @@ type Op struct {
 	// success/cancelled and for control-plane-side failures that never reached the
 	// node. It never carries secret material (the node streams only its own build/
 	// setup diagnostics; the password and pairing code never touch its output).
-	FailureDetail string
+	FailureDetail             string
+	ConfigurationDispositions []onboarding.Disposition
 
 	// SourceMode records how the node acquired its source. In working-tree mode
 	// BaseRevision + WorkingTreeDigest carry the dirty provenance (TargetRevision
@@ -297,8 +305,8 @@ type StepEvent struct {
 // owned, mutable slice you do not reuse.
 type StartInput struct {
 	Actor string
-	// MachineID is the durable physical-machine identity used by the optional
-	// onboarding handoff. It is empty for legacy host-only onboarding.
+	// MachineID is the durable physical-machine identity used by the onboarding
+	// handoff. It is empty for pairing-only onboarding.
 	MachineID string
 	// EnrollmentCorrelationID binds this operation to an immutable Machine
 	// attempt. It is internal until the typed Machine API cutover.
@@ -336,15 +344,13 @@ type StartInput struct {
 	// the bootstrap runs. Threaded into `make setup SETUP_ARGS=…`; each value is
 	// metacharacter-validated at Start so no shell-injectable token reaches the
 	// remote script. Empty falls through to the node's `vrooli setup` defaults.
-	SetupEnvironment string // development | production | minimal | ""
-	SetupResources   string // enabled | none | <comma list> | ""
-	SetupScenarios   string // none | all | <comma list> | ""
-	IncludeOptional  bool   // also apply optional (non-required) host safeguards
+	SetupPreset string // named setup preset | ""
+	Selection   *onboarding.Selection
 	// ProvisionServiceUser selects the separate OS principal for the privileged
 	// provisioning helper. Empty preserves the unprivileged-agent-only posture.
 	// It is an account name, not a password or other credential.
 	ProvisionServiceUser string
-	// NodeKind is forwarded to the optional vrooli-onboarding handoff. Empty
+	// NodeKind is forwarded to the vrooli-onboarding handoff. Empty
 	// preserves the agent default for callers that predate typed node kinds.
 	NodeKind string
 
@@ -462,24 +468,13 @@ const setupProfileMetachars = "|&;<>()$`\\\"'\n\r\t*?[]{}!#~ "
 
 var provisionServiceUserPattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
-// validSetupEnvironments is the enum-ish allow-list for setup_environment. Empty
-// is always valid (the node falls through to its own default).
-var validSetupEnvironments = map[string]struct{}{
-	"development": {},
-	"production":  {},
-	"minimal":     {},
-}
-
 // validateSetupProfile rejects any profile value carrying a shell metacharacter
 // (mirroring the cprev revision filter so the rejection is friendly here rather
-// than an opaque failure deep in the node-side script) and, for the enum-ish
-// environment, a value outside {development, production, minimal}. Empty values
-// pass — they fall through to the node's `vrooli setup` defaults.
+// than an opaque failure deep in the node-side script). Empty values pass — the
+// node falls through to its own setup defaults.
 func validateSetupProfile(in StartInput) error {
 	for field, value := range map[string]string{
-		"setup_environment": in.SetupEnvironment,
-		"setup_resources":   in.SetupResources,
-		"setup_scenarios":   in.SetupScenarios,
+		"setup_preset": in.SetupPreset,
 	} {
 		v := trimField(value)
 		if v == "" {
@@ -492,12 +487,9 @@ func validateSetupProfile(in StartInput) error {
 			}
 		}
 	}
-	if env := trimField(in.SetupEnvironment); env != "" {
-		if _, ok := validSetupEnvironments[env]; !ok {
-			return ErrInvalid{
-				Field:  "setup_environment",
-				Reason: "must be one of development, production, minimal (or empty for the node default)",
-			}
+	if preset := trimField(in.SetupPreset); preset != "" {
+		if !knownSetupPreset(preset) {
+			return ErrInvalid{Field: "setup_preset", Reason: "must name a registered setup preset"}
 		}
 	}
 	if helper := trimField(in.ProvisionServiceUser); helper != "" {

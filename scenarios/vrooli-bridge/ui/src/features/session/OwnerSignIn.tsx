@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Code, ConnectError } from "@connectrpc/connect";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -88,7 +88,7 @@ export function OwnerSignIn() {
         </p>
         <Button
           data-testid={selectors.session.owner.signOutButton}
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={clearOwnerToken}
         >

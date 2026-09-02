@@ -24,10 +24,19 @@ func TestBuiltInProfileResolvesToImmutableSnapshot(t *testing.T) {
 }
 
 func TestProfileRegistryIncludesOnlyVersionedBuiltInsAndCopiesSlices(t *testing.T) {
-	for _, id := range []string{"managed-connection", "presence", "deployment-target", "production-runtime", "development-runner", "custom"} {
+	expectedScenarios := map[string][]string{
+		"managed-connection": {"vrooli-bridge"},
+		"presence":           {"vrooli-bridge"},
+		"deployment-target":  {"deployment-manager", "vrooli-bridge"},
+		"production-runtime": {"system-monitor", "vrooli-bridge"},
+		"development-runner": {"test-genie", "vrooli-bridge"},
+		"custom":             {"vrooli-bridge"},
+	}
+	for id, expected := range expectedScenarios {
 		snapshot, err := machines.ResolveProfile("machine-1", id, "v1", nil)
 		require.NoError(t, err, id)
 		require.NotEmpty(t, snapshot.JSON)
+		require.Equal(t, expected, snapshot.Scenarios, id)
 	}
 	first, err := machines.ResolveProfile("machine-1", "presence", "v1", nil)
 	require.NoError(t, err)
@@ -35,7 +44,7 @@ func TestProfileRegistryIncludesOnlyVersionedBuiltInsAndCopiesSlices(t *testing.
 	second, err := machines.ResolveProfile("machine-2", "presence", "v1", nil)
 	require.NoError(t, err)
 	require.Equal(t, "presence.read", second.SuggestedScopes[0])
-	_, err = machines.ResolveProfile("machine-1", "presence", "v1", map[string]string{"setup_environment": "unsafe"})
+	_, err = machines.ResolveProfile("machine-1", "presence", "v1", map[string]string{"preset": "unsafe"})
 	require.Error(t, err)
 }
 
@@ -55,6 +64,22 @@ func TestApplyPolicyAppendsImmutableHistoryAndUsesVersion(t *testing.T) {
 	var entries int
 	require.NoError(t, d.QueryRowContext(ctx, "SELECT COUNT(*) FROM machine_policy_snapshot_history WHERE machine_id='m1'").Scan(&entries))
 	require.Equal(t, 1, entries)
+}
+
+func TestLatestPolicySnapshotPreservesOverrides(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	machine, err := repo.Create(ctx, machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: "profile-host.example"}}})
+	require.NoError(t, err)
+	updated, snapshot, err := repo.ApplyPolicy(ctx, machines.PolicyChangeInput{MachineID: machine.ID, ExpectedVersion: machine.Version, ProfileID: "custom", ProfileVersion: "v1", Overrides: map[string]string{"scenarios": "alpha,beta", "optional_resources": "redis"}})
+	require.NoError(t, err)
+	require.Equal(t, int64(2), updated.Version)
+	got, err := repo.(machines.PolicyReader).LatestPolicySnapshot(ctx, machine.ID)
+	require.NoError(t, err)
+	require.Equal(t, snapshot.JSON, got.JSON)
+	require.Equal(t, []string{"alpha", "beta"}, got.Scenarios)
+	require.Equal(t, []string{"redis"}, got.OptionalResources)
 }
 
 func TestApplyPolicyRequiresConfirmationForDowngrade(t *testing.T) {

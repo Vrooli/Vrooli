@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -35,6 +36,9 @@ type HTTPCloudHealthClient struct {
 // NewHTTPCloudHealthClient constructs the default cloud health client through
 // scenario discovery.
 func NewHTTPCloudHealthClient(log func(string, map[string]interface{})) (*HTTPCloudHealthClient, error) {
+	if configured := strings.TrimSpace(os.Getenv("SCENARIO_TO_CLOUD_URL")); configured != "" {
+		return NewHTTPCloudHealthClientAt(configured, log), nil
+	}
 	baseURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-to-cloud")
 	if err != nil {
 		return nil, fmt.Errorf("resolve scenario-to-cloud URL: %w", err)

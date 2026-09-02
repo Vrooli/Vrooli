@@ -80,6 +80,14 @@ func (f *fakeReleasesRepo) ListByProfile(_ context.Context, _ string, _ int) ([]
 	return nil, nil
 }
 
+func (f *fakeReleasesRepo) GetLatestReadiness(_ context.Context, _ string) (*releases.ReadinessRecord, error) {
+	return nil, nil
+}
+
+func (f *fakeReleasesRepo) RecordReadinessWaiver(_ context.Context, _, _, _, _ string) error {
+	return nil
+}
+
 func (f *fakeReleasesRepo) UpdateStatus(_ context.Context, id, status string) error {
 	f.statuses[id] = status
 	return nil

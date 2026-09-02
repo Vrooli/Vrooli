@@ -1,6 +1,9 @@
 package machines
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type Repository interface {
 	Create(context.Context, CreateInput) (Machine, error)
@@ -21,4 +24,5 @@ type Repository interface {
 	ReviewHostKey(context.Context, string, string) (TrustRecord, error)
 	SavePolicySnapshot(context.Context, PolicySnapshot) (PolicySnapshot, error)
 	ApplyPolicy(context.Context, PolicyChangeInput) (Machine, PolicySnapshot, error)
+	MarkProfileApplied(context.Context, string, string, string, time.Time) (Machine, error)
 }

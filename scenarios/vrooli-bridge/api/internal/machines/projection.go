@@ -1,6 +1,10 @@
 package machines
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+	"reflect"
+)
 
 // NodeSnapshot and PresenceSnapshot are read models supplied by their owning
 // Registry and Presence domains. They intentionally contain no Machine fields.
@@ -40,6 +44,70 @@ type Projection struct {
 type Readiness struct {
 	Ready   bool
 	Reasons []string
+}
+
+// DriftItem is a computed difference between desired machine intent and the
+// last applied profile/current node facts. It is deliberately structured so
+// callers can render or act on each difference without parsing prose.
+type DriftItem struct {
+	Kind   string
+	Name   string
+	Reason string
+}
+
+// ComputeDrift compares durable desired intent with the applied profile and
+// live node observations. A missing applied record is itself drift; an absent
+// node is reported separately so a disconnected machine is never mistaken
+// for a configured one.
+func ComputeDrift(machine Machine, policy PolicySnapshot, projection Projection) []DriftItem {
+	items := make([]DriftItem, 0)
+	if machine.AppliedProfileID == "" || machine.AppliedProfileVersion == "" {
+		items = append(items, DriftItem{Kind: "profile", Name: policy.ProfileID, Reason: "profile has not been applied"})
+	} else if machine.AppliedProfileID != policy.ProfileID || machine.AppliedProfileVersion != policy.ProfileVersion {
+		items = append(items, DriftItem{Kind: "profile", Name: policy.ProfileID, Reason: "desired profile differs from the applied profile"})
+	}
+	desired := machine.DesiredSelectionJSON
+	if desired == "" {
+		desired = policy.SelectionJSON
+	}
+	if machine.AppliedSelectionJSON != "" && desired != "" {
+		items = append(items, selectionDrift(desired, machine.AppliedSelectionJSON)...)
+	}
+	if !projection.HasNode {
+		return items
+	}
+	have := make(map[string]struct{}, len(projection.Node.Capabilities))
+	for _, capability := range projection.Node.Capabilities {
+		have[capability] = struct{}{}
+	}
+	for _, capability := range policy.RequiredCapabilities {
+		if _, ok := have[capability]; !ok {
+			items = append(items, DriftItem{Kind: "capability", Name: capability, Reason: "required capability is not reported by the node"})
+		}
+	}
+	return items
+}
+
+func selectionDrift(desiredJSON, appliedJSON string) []DriftItem {
+	var desired, applied map[string]json.RawMessage
+	if json.Unmarshal([]byte(desiredJSON), &desired) != nil || json.Unmarshal([]byte(appliedJSON), &applied) != nil {
+		return []DriftItem{{Kind: "selection", Name: "document", Reason: "desired and applied selection documents are not both valid"}}
+	}
+	keys := make(map[string]struct{}, len(desired)+len(applied))
+	for key := range desired {
+		keys[key] = struct{}{}
+	}
+	for key := range applied {
+		keys[key] = struct{}{}
+	}
+	items := make([]DriftItem, 0)
+	for key := range keys {
+		var left, right any
+		if json.Unmarshal(desired[key], &left) != nil || json.Unmarshal(applied[key], &right) != nil || !reflect.DeepEqual(left, right) {
+			items = append(items, DriftItem{Kind: "selection", Name: key, Reason: "desired selection field differs from applied selection field"})
+		}
+	}
+	return items
 }
 
 // EvaluateReadiness joins independent Machine, trust, policy, Registry, and

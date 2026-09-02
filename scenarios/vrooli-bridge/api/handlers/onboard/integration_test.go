@@ -45,7 +45,7 @@ const (
 // WaitOnboarding through the real Connect handler and the real SSH capability
 // (system ssh/scp + the streaming remote exec) against an in-process sshd, with
 // a stub bootstrap script that emits the real VBOOTSTRAP marker vocabulary. It
-// proves: the durable op reaches SUCCEEDED, the persisted step history matches
+// proves: the durable op reaches PAIRED when setup is skipped, the persisted step history matches
 // the script's emitted steps, the pairing code is delivered env-only (received
 // by the script, absent from argv/DB/events/logs), and the SSH password is
 // zeroed. The ONLINE-confirmation seam is faked because a stub cannot open a
@@ -107,7 +107,7 @@ func TestOnboarding_FullFlow_ThroughConnectHandler(t *testing.T) {
 	require.False(t, waitResp.Msg.GetTimedOut(), "op did not finish in time")
 
 	op := waitResp.Msg.GetOp()
-	require.Equal(t, onboardv1.OnboardingState_ONBOARDING_STATE_SUCCEEDED, op.GetState(), "failure_reason=%s", op.GetFailureReason())
+	require.Equal(t, onboardv1.OnboardingState_ONBOARDING_STATE_PAIRED, op.GetState(), "failure_reason=%s", op.GetFailureReason())
 	require.Equal(t, intNodeID, op.GetNodeId())
 
 	// Persisted step history matches the stub's emitted steps.

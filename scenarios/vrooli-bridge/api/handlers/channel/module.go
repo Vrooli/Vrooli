@@ -29,16 +29,21 @@ func Module(hub *presence.Hub, lastSeen LastSeenRecorder, verifier *nodeauth.Ver
 		Verifier: verifier,
 		Logger:   logger,
 	}
+	if recorder, ok := lastSeen.(CapabilityInventoryRecorder); ok {
+		heartbeatDeps.CapabilityInventory = recorder
+	}
 	for _, opt := range opts {
 		opt(&heartbeatDeps)
 	}
 	sse := newSSEHandler(sseDeps{Hub: hub, Verifier: verifier, Logger: logger, Registry: heartbeatDeps.SessionRegistry})
 	path, handler := presenceconnect.NewPresenceServiceHandler(NewHeartbeatHandler(HeartbeatDeps{
 		Hub: heartbeatDeps.Hub, LastSeen: heartbeatDeps.LastSeen,
-		Verifier: heartbeatDeps.Verifier, Logger: heartbeatDeps.Logger,
+		CapabilityInventory: heartbeatDeps.CapabilityInventory,
+		Verifier:            heartbeatDeps.Verifier, Logger: heartbeatDeps.Logger,
 		DeliveryAckRecorder: heartbeatDeps.DeliveryAckRecorder, Audit: heartbeatDeps.Audit,
 		SessionManager: heartbeatDeps.SessionManager, SessionPush: heartbeatDeps.SessionPush,
 		RelayResponses: heartbeatDeps.RelayResponses, CredentialReceipts: heartbeatDeps.CredentialReceipts,
+		ScenarioResponses: heartbeatDeps.ScenarioResponses,
 	}))
 	return module.Module{
 		Name: "channel",

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	auditmocks "vrooli-bridge/internal/audit/mocks"
+	"vrooli-bridge/internal/compat"
 	"vrooli-bridge/internal/cpkeys"
 	internalgate "vrooli-bridge/internal/gate"
 	gatemocks "vrooli-bridge/internal/gate/mocks"
@@ -60,6 +61,7 @@ func newDMHarness(t *testing.T) *dmHarness {
 	// never blocks on an unread channel.
 	for _, id := range []string{"ubuntu-1", "mac-1", "win-1"} {
 		conn := hub.Connect(id)
+		hub.SetCompatibility(id, compat.StatusOK)
 		t.Cleanup(conn.Close)
 		go func() {
 			for range conn.Out() {

@@ -9,6 +9,7 @@ import (
 	"vrooli-bridge/internal/queue"
 	"vrooli-bridge/internal/relay"
 	"vrooli-bridge/internal/runs"
+	internalScenario "vrooli-bridge/internal/scenario"
 
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -129,6 +130,34 @@ type channelRelayPusher struct {
 
 func NewChannelRelayPusher(hub *presence.Hub, signer channelsign.Signer) relay.Pusher {
 	return channelRelayPusher{hub: hub, signer: signer}
+}
+
+type channelScenarioPusher struct {
+	hub    *presence.Hub
+	signer channelsign.Signer
+}
+
+// NewChannelScenarioPusher delivers opaque request bytes over the signed
+// scenario-request frame. The proxy service performs admission and bounds
+// checks before this adapter is reached.
+func NewChannelScenarioPusher(hub *presence.Hub, signer channelsign.Signer) internalScenario.Pusher {
+	return channelScenarioPusher{hub: hub, signer: signer}
+}
+
+func (p channelScenarioPusher) Push(_ context.Context, nodeID string, request internalScenario.Request) (int, error) {
+	frame := &channelv1.ServerFrame{
+		FrameId: uuid.NewString(),
+		Payload: &channelv1.ServerFrame_ScenarioRequest{ScenarioRequest: &channelv1.ScenarioRequest{
+			CorrelationId: request.CorrelationID, Scenario: request.Scenario, Service: request.Service,
+			Method: request.Method, Request: append([]byte(nil), request.Body...), TimeoutSeconds: request.TimeoutSeconds,
+			MaxResponseBytes: request.MaxResponseBytes, HttpMethod: request.HTTPMethod, HttpPath: request.HTTPPath,
+		}},
+	}
+	payload, err := channelsign.Marshal(p.signer, frame)
+	if err != nil {
+		return 0, err
+	}
+	return p.hub.PushFrame(nodeID, frame.GetFrameId(), payload), nil
 }
 
 var _ relay.Pusher = channelRelayPusher{}

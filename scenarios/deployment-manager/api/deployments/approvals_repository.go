@@ -7,6 +7,8 @@ import (
 	"time"
 
 	internalEvidence "deployment-manager/internal/evidence"
+	"deployment-manager/readiness"
+	"deployment-manager/releases"
 	"deployment-manager/shared"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -29,9 +31,12 @@ type ApprovalsRepository interface {
 
 // SQLApprovalsRepository implements ApprovalsRepository with PostgreSQL.
 type SQLApprovalsRepository struct {
-	conn         shared.DBTX       // used for regular queries (may be *sql.DB or *sql.Tx)
-	db           shared.RoutedDBTX // retained for schema compatibility and transactional configuration
-	evidenceRepo internalEvidence.Repository
+	conn          shared.DBTX       // used for regular queries (may be *sql.DB or *sql.Tx)
+	db            shared.RoutedDBTX // retained for schema compatibility and transactional configuration
+	evidenceRepo  internalEvidence.Repository
+	readinessRepo interface {
+		GetReadinessByProfileCommit(context.Context, string, string) (*releases.ReadinessRecord, error)
+	}
 }
 
 // NewSQLApprovalsRepository creates a new SQL-backed approvals repository.
@@ -41,6 +46,15 @@ func NewSQLApprovalsRepository(db shared.RoutedDBTX) *SQLApprovalsRepository {
 
 func (r *SQLApprovalsRepository) WithEvidenceRepository(repo internalEvidence.Repository) *SQLApprovalsRepository {
 	r.evidenceRepo = repo
+	return r
+}
+
+// WithReadinessRepository enables the release readiness input without adding
+// readiness columns or semantics to the approval repository interface.
+func (r *SQLApprovalsRepository) WithReadinessRepository(repo interface {
+	GetReadinessByProfileCommit(context.Context, string, string) (*releases.ReadinessRecord, error)
+}) *SQLApprovalsRepository {
+	r.readinessRepo = repo
 	return r
 }
 
@@ -216,6 +230,18 @@ func (r *SQLApprovalsRepository) CheckReleaseGate(ctx context.Context, profileID
 	if len(required) == 0 {
 		gate.Reason = "no_required_targets_configured"
 	}
+	readinessBlocked := false
+	if r.readinessRepo != nil {
+		record, readinessErr := r.readinessRepo.GetReadinessByProfileCommit(ctx, profileID, commitHash)
+		if readinessErr != nil {
+			return nil, readinessErr
+		}
+		if readinessErr := readiness.CheckReleaseReadiness(commitHash, toReadinessRecord(record)); readinessErr != nil {
+			gate.Ready = false
+			gate.Reason = readinessErr.Error()
+			readinessBlocked = true
+		}
+	}
 
 	for _, target := range required {
 		platform := target.Platform
@@ -249,13 +275,13 @@ func (r *SQLApprovalsRepository) CheckReleaseGate(ctx context.Context, profileID
 			targetStatus.EvidenceDisposition = "missing"
 		}
 		gate.Targets = append(gate.Targets, targetStatus)
-		if targetStatus.EvidenceDisposition == commonv1.Disposition_DISPOSITION_FAILED.String() {
+		if targetStatus.EvidenceDisposition == commonv1.Disposition_DISPOSITION_FAILED.String() && !readinessBlocked {
 			gate.Ready = false
 			gate.Reason = "target_evidence_failed"
-		} else if targetStatus.EvidenceDisposition != commonv1.Disposition_DISPOSITION_PASSED.String() {
+		} else if targetStatus.EvidenceDisposition != commonv1.Disposition_DISPOSITION_PASSED.String() && !readinessBlocked {
 			gate.Ready = false
 			gate.Reason = "target_evidence_missing"
-		} else if ps.Status != ApprovalStatusApproved {
+		} else if ps.Status != ApprovalStatusApproved && !readinessBlocked {
 			gate.Ready = false
 			gate.Reason = "approval_missing"
 		}
@@ -263,6 +289,22 @@ func (r *SQLApprovalsRepository) CheckReleaseGate(ctx context.Context, profileID
 	}
 
 	return gate, nil
+}
+
+func toReadinessRecord(record *releases.ReadinessRecord) *readiness.ReleaseRecord {
+	if record == nil {
+		return nil
+	}
+	result := &readiness.ReleaseRecord{
+		VerdictPresent:   record.VerdictPresent,
+		ApprovedAtCommit: record.ApprovedAtCommit,
+		GoalRef:          record.ReadinessGoalRef,
+		GoalClosed:       record.GoalClosed,
+	}
+	if record.Waiver != nil {
+		result.Waiver = &readiness.Waiver{Reason: record.Waiver.Reason, Actor: record.Waiver.Actor, Commit: record.Waiver.Commit, At: record.Waiver.At}
+	}
+	return result
 }
 
 func (r *SQLApprovalsRepository) checkLegacyReleaseGate(ctx context.Context, profileID, commitHash string) (*ReleaseGateStatus, error) {

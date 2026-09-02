@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, ChevronRight, Eye, EyeOff, Loader2, Rocket, XCircle } from "lucide-react";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -43,6 +43,7 @@ const STATE_LABEL = {
   [OnboardingState.SUCCEEDED]: strings.fleet.onboard.state.succeeded,
   [OnboardingState.FAILED]: strings.fleet.onboard.state.failed,
   [OnboardingState.CANCELLED]: strings.fleet.onboard.state.cancelled,
+  [OnboardingState.PAIRED]: strings.fleet.onboard.state.paired,
 } as const satisfies Record<OnboardingState, string>;
 
 const STEP_STATUS_LABEL = {
@@ -378,10 +379,7 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
   // Setup profile — blank fields fall through to the node's `vrooli setup`
   // defaults (the sensible fleet default: don't reshape a node's setup unless the
   // operator asks). includeOptional defaults off (required safeguards only).
-  const [setupEnvironment, setSetupEnvironment] = useState("");
-  const [setupResources, setSetupResources] = useState("");
-  const [setupScenarios, setSetupScenarios] = useState("");
-  const [includeOptional, setIncludeOptional] = useState(false);
+  const [setupPreset, setSetupPreset] = useState("");
   // Source mode: default working-tree — ship THIS computer's current files
   // (uncommitted work included) over SSH, so onboarding your own machines needs no
   // git push. Unchecking switches to pinned (the node downloads a pushed revision),
@@ -467,10 +465,7 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
         controlPlaneUrl: controlPlaneUrl.trim(),
         reachabilityMode,
         provisionSudo,
-        setupEnvironment: setupEnvironment.trim(),
-        setupResources: setupResources.trim(),
-        setupScenarios: setupScenarios.trim(),
-        includeOptional,
+        setupPreset: setupPreset.trim(),
         sourceMode: workingTree ? SourceMode.WORKING_TREE : SourceMode.PINNED_REVISION,
         machineId: retryTarget?.machineId ?? "",
         retryOfEnrollmentAttemptId: retryTarget?.enrollmentAttemptId ?? "",
@@ -720,48 +715,15 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
                       <span>{t(strings.fleet.onboard.reachabilityModeHelp)}</span>
                     </label>
                     <Field
-                      id="fleet-onboard-setup-environment-input"
-                      testId={selectors.fleet.onboard.setupEnvironment}
-                      label={t(strings.fleet.onboard.setupEnvironmentLabel)}
-                      value={setupEnvironment}
-                      onChange={setSetupEnvironment}
-                      placeholder={t(strings.fleet.onboard.setupEnvironmentPlaceholder)}
-                      help={t(strings.fleet.onboard.setupEnvironmentHelp)}
-                    />
-                    <Field
-                      id="fleet-onboard-setup-resources-input"
-                      testId={selectors.fleet.onboard.setupResources}
-                      label={t(strings.fleet.onboard.setupResourcesLabel)}
-                      value={setupResources}
-                      onChange={setSetupResources}
-                      placeholder={t(strings.fleet.onboard.setupResourcesPlaceholder)}
-                      help={t(strings.fleet.onboard.setupResourcesHelp)}
-                    />
-                    <Field
-                      id="fleet-onboard-setup-scenarios-input"
-                      testId={selectors.fleet.onboard.setupScenarios}
-                      label={t(strings.fleet.onboard.setupScenariosLabel)}
-                      value={setupScenarios}
-                      onChange={setSetupScenarios}
-                      placeholder={t(strings.fleet.onboard.setupScenariosPlaceholder)}
-                      help={t(strings.fleet.onboard.setupScenariosHelp)}
+                      id="fleet-onboard-setup-preset-input"
+                      testId={selectors.fleet.onboard.setupPreset}
+                      label={t(strings.fleet.onboard.setupPresetLabel)}
+                      value={setupPreset}
+                      onChange={setSetupPreset}
+                      placeholder={t(strings.fleet.onboard.setupPresetPlaceholder)}
+                      help={t(strings.fleet.onboard.setupPresetHelp)}
                     />
                   </div>
-                  <label className="flex items-start gap-2 text-xs text-app-foreground">
-                    <input
-                      id="fleet-onboard-include-optional-input"
-                      data-testid={selectors.fleet.onboard.includeOptional}
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 shrink-0"
-                      checked={includeOptional}
-                      onChange={(e) => setIncludeOptional(e.target.checked)}
-                    />
-                    <span>{t(strings.fleet.onboard.includeOptionalLabel)}</span>
-                  </label>
-                  <p className="text-[0.65rem] text-app-muted-foreground">
-                    {t(strings.fleet.onboard.includeOptionalHelp)}
-                  </p>
-
                   <label className="flex items-start gap-2 text-xs text-app-foreground">
                     <input
                       id="fleet-onboard-source-working-tree-input"
@@ -805,7 +767,7 @@ export function OnboardNodeForm({ retryTarget }: { retryTarget?: OnboardingOp | 
         <div className="flex items-center justify-between gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
             data-testid={selectors.fleet.onboard.back}
             onClick={goBack}

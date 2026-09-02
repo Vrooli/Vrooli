@@ -56,6 +56,28 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-09-01 — Reference-node end-to-end proof remains pending
+
+**Symptom:** The repository now exposes target-aware configuration, credential,
+and re-apply surfaces, but the recorded `minimouse` proof still ends at
+credential and safeguard blockers.
+
+**Root cause:** The remeasurement harness and Web Console flow now exist, but
+the connected node still needs its outstanding credential and safeguard inputs
+before a fresh Web Console-only run can be completed.
+
+**Workaround:** Use the focused Bridge/Web Console tests and the durable
+onboarding run status while treating the live node as unverified.
+
+**Real fix:** Re-run the live flow after supplying the node's credential and
+safeguard inputs, then record operation id, answer delivery, final readiness,
+empty drift, and a deliberate re-apply in the evidence record.
+
+**Owner:** next live validation pass.
+
+**Refs:** `docs/reference/cross-platform-effort/evidence/node-setup-seam-measurements-2026-08-31.md`,
+`scenarios/web-console/ui/src/components/fleet/ConfigurationPanel.tsx`.
+
 ### 2026-08-11 — Remote terminal evidence and native PTY remain open
 
 **Symptom:** Web-console can now create a server-side Bridge target session and

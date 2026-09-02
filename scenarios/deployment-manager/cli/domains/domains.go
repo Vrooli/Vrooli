@@ -6,6 +6,7 @@ import (
 	"deployment-manager/cli/domains/evidence"
 	"deployment-manager/cli/domains/overview"
 	"deployment-manager/cli/domains/profiles"
+	"deployment-manager/cli/domains/readiness"
 	"deployment-manager/cli/domains/releases"
 	"deployment-manager/cli/domains/secrets"
 	"deployment-manager/cli/domains/signing"
@@ -26,6 +27,7 @@ func CommandGroups(app *cliapp.ScenarioApp) []cliapp.CommandGroup {
 		validations.Register(app),
 		approvals.Register(app),
 		releases.Register(app),
+		readiness.Register(app),
 	}
 }
 

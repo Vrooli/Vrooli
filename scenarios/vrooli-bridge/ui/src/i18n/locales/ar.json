@@ -195,9 +195,9 @@
       "provisionSudoHelp": "يثبّت ملف sudoers محدود النطاق لمستخدم SSH عند أول اتصال حتى تعمل الخطوات المتميزة اللاحقة (الإعداد، المتطلبات المسبقة، التشغيل التلقائي) عبر SSH غير التفاعلي. تُستخدم كلمة مرور المالك مرة واحدة ولا تُخزَّن أبدًا.",
       "advancedHeading": "خيارات متقدمة",
       "advancedHelp": "يمكن لمعظم الأشخاص تخطّيها — فهي تتحكم في التسمية ومراجعة المصدر وتفاصيل الإعداد.",
-      "setupEnvironmentLabel": "البيئة",
-      "setupEnvironmentPlaceholder": "development | production | minimal",
-      "setupEnvironmentHelp": "ملف تعريف بيئة المضيف المطبّق على العقدة. الفراغ يعني القيمة الافتراضية للعقدة (development).",
+      "setupPresetLabel": "إعداد التكوين",
+      "setupPresetPlaceholder": "development | production | minimal",
+      "setupPresetHelp": "إعداد تكوين مسمى يُطبّق على العقدة. الفراغ يعني الإعداد الافتراضي للعقدة.",
       "setupResourcesLabel": "الموارد",
       "setupResourcesPlaceholder": "enabled | none | ollama,postgres",
       "setupResourcesHelp": "الموارد المحلية التي توفّرها العقدة. الفراغ يعني القيمة الافتراضية للعقدة.",
@@ -239,7 +239,8 @@
         "verifying": "جارٍ التحقق من الاتصال",
         "succeeded": "نجح",
         "failed": "فشل",
-        "cancelled": "أُلغِي"
+        "cancelled": "أُلغِي",
+        "paired": "مقترن"
       },
       "stepStatus": {
         "unspecified": "غير معروف",

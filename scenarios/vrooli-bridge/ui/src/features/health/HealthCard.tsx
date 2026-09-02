@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";

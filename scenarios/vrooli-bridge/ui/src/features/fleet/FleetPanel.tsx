@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
@@ -124,13 +124,13 @@ function FailedOnboardingItem({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>{t(strings.fleet.onboard.savedFailureDetail, { name: op.nodeName || op.host, host: op.host })}</span>
         <span className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="outline" data-testid={selectors.fleet.onboardViewLogs({ id: op.id })} onClick={() => setShowDiagnostics((open) => !open)}>
+          <Button type="button" size="sm" variant="secondary" data-testid={selectors.fleet.onboardViewLogs({ id: op.id })} onClick={() => setShowDiagnostics((open) => !open)}>
             {t(showDiagnostics ? strings.fleet.onboard.hideLogs : strings.fleet.onboard.viewLogs)}
           </Button>
-          <Button type="button" size="sm" variant="outline" data-testid={selectors.fleet.onboardRetry({ id: op.id })} onClick={() => onRetry?.(op)}>
+          <Button type="button" size="sm" variant="secondary" data-testid={selectors.fleet.onboardRetry({ id: op.id })} onClick={() => onRetry?.(op)}>
             {t(strings.fleet.onboard.retrySaved)}
           </Button>
-          <Button type="button" size="sm" variant="outline" data-testid={selectors.fleet.onboardRemove({ id: op.id })} onClick={() => onRemove(op.id)} disabled={removing}>
+          <Button type="button" size="sm" variant="secondary" data-testid={selectors.fleet.onboardRemove({ id: op.id })} onClick={() => onRemove(op.id)} disabled={removing}>
             {t(strings.fleet.onboard.removeSaved)}
           </Button>
         </span>
@@ -250,12 +250,12 @@ export function FleetPanel({
               <p>{t(strings.fleet.bridgeReadinessRemediation, { host: readinessCandidate.host, source: readinessCandidateIP })}</p>
               {readinessQuery.data.firewall?.broker_available ? (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Button size="sm" type="button" variant="outline" disabled={firewallAction.isPending} onClick={() => firewallAction.mutate({ action: "preview", candidateIP: readinessCandidateIP, confirm: false })}>{t(strings.fleet.bridgeReadinessPreview)}</Button>
+                  <Button size="sm" type="button" variant="secondary" disabled={firewallAction.isPending} onClick={() => firewallAction.mutate({ action: "preview", candidateIP: readinessCandidateIP, confirm: false })}>{t(strings.fleet.bridgeReadinessPreview)}</Button>
                   <Button size="sm" type="button" disabled={firewallAction.isPending} onClick={() => firewallAction.mutate({ action: "verify", candidateIP: readinessCandidateIP, confirm: false })}>{t(strings.fleet.bridgeReadinessVerify)}</Button>
                   <Button size="sm" type="button" disabled={firewallAction.isPending} onClick={() => {
                     if (window.confirm(t(strings.fleet.bridgeReadinessAllowConfirm, { source: readinessCandidateIP }))) firewallAction.mutate({ action: "allow", candidateIP: readinessCandidateIP, confirm: true });
                   }}>{t(strings.fleet.bridgeReadinessAllow)}</Button>
-                  {readinessQuery.data.firewall.rule_found ? <Button size="sm" type="button" variant="outline" disabled={firewallAction.isPending} onClick={() => {
+                  {readinessQuery.data.firewall.rule_found ? <Button size="sm" type="button" variant="secondary" disabled={firewallAction.isPending} onClick={() => {
                     if (window.confirm(t(strings.fleet.bridgeReadinessRevokeConfirm, { source: readinessCandidateIP }))) firewallAction.mutate({ action: "revoke", candidateIP: readinessCandidateIP, confirm: true });
                   }}>{t(strings.fleet.bridgeReadinessRevoke)}</Button> : null}
                 </div>
@@ -350,13 +350,20 @@ export function FleetPanel({
                       : t(strings.fleet.neverSeen)}
                   </p>
 
+                  {node.configurationState && (
+                    <p data-testid={`fleet-node-configuration-${node.id}`} className="mt-1 text-xs text-app-muted-foreground">
+                      <span className="font-medium text-app-foreground">Configuration:</span> {node.configurationState}
+                      {node.configurationUnmet.length > 0 && ` · Unmet: ${node.configurationUnmet.join(", ")}`}
+                    </p>
+                  )}
+
                   <JobStatus nodeId={node.id} queue={queueQuery.data?.get(node.id)} />
                 </div>
 
                 <div className="flex shrink-0 gap-2">
-                  <Button type="button" size="sm" variant="outline" onClick={() => setSelectedNode(node)}>{t(strings.fleet.management.details)}</Button>
+                  <Button type="button" size="sm" variant="secondary" onClick={() => setSelectedNode(node)}>{t(strings.fleet.management.details)}</Button>
                   {node.status !== NodeStatus.REVOKED && (
-                    <Button data-testid={selectors.fleet.revoke({ id: node.id })} size="sm" variant="outline" onClick={() => handleRevoke(node)} disabled={revoke.isPending} aria-label={t(strings.fleet.revoke)}><ShieldOff aria-hidden="true" className="h-4 w-4" /></Button>
+                    <Button data-testid={selectors.fleet.revoke({ id: node.id })} size="sm" variant="secondary" onClick={() => handleRevoke(node)} disabled={revoke.isPending} aria-label={t(strings.fleet.revoke)}><ShieldOff aria-hidden="true" className="h-4 w-4" /></Button>
                   )}
                 </div>
               </li>

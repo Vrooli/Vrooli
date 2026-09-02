@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { killSession } from "../../api/sessions";
-import { Button } from "../../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 
 type SessionKillButtonProps = {
   sessionId: string;
@@ -32,7 +32,7 @@ export function SessionKillButton({ sessionId, onKilled }: SessionKillButtonProp
 
   return (
     <div>
-      <Button type="button" variant="outline" disabled={busy} onClick={() => void handleKill()}>
+      <Button type="button" variant="secondary" disabled={busy} onClick={() => void handleKill()}>
         {busy ? "Terminating…" : "Terminate session"}
       </Button>
       {error ? <p role="alert">{error}</p> : null}

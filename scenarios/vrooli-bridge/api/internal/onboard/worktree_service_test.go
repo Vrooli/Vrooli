@@ -62,7 +62,7 @@ func TestStart_WorkingTreeShipsTreeAndRecordsDirtyProvenance(t *testing.T) {
 	require.NoError(t, err)
 
 	op := waitTerminal(t, svc, dec.OpID)
-	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, onboard.StatePaired, op.State)
 
 	// The resolver's working-tree pipeline ran, not the pinned one.
 	require.True(t, res.calledWorkingTree, "working-tree mode must use ResolveWorkingTree")
@@ -126,7 +126,7 @@ func TestStart_PinnedModeNeverShipsTree(t *testing.T) {
 	dec, err := svc.Start(context.Background(), in)
 	require.NoError(t, err)
 	op := waitTerminal(t, svc, dec.OpID)
-	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, onboard.StatePaired, op.State)
 
 	require.True(t, res.calledResolve, "pinned mode uses the pinned Resolve")
 	require.False(t, res.calledWorkingTree)

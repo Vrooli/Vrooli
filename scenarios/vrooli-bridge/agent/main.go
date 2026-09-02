@@ -17,6 +17,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -301,15 +302,70 @@ type cliCredentialSink struct {
 }
 
 func (s cliCredentialSink) Put(logicalID, field, value string) error {
+	if refusal, ok := s.storeRefusal(); ok {
+		return refusal
+	}
 	cmd := exec.Command(s.binary, "credentials", "provision", "--identity", logicalID, "--field", field)
 	cmd.Dir = s.workDir
 	cmd.Stdin = strings.NewReader(value)
 	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		message := strings.ToLower(stderr.String())
+		if refusal, ok := credentialStoreRefusal(stderr.String()); ok {
+			return refusal
+		}
+		if strings.Contains(message, "unresponsive") || strings.Contains(message, "timed out") {
+			return credentialpush.StoreRefusal{State: "unresponsive", Recovery: "run `vrooli credentials keyring repair` on the node and retry"}
+		}
 		return fmt.Errorf("node credential authority provision: %w", err)
 	}
 	return nil
+}
+
+// storeRefusal reads only metadata from the node authority before attempting a
+// write. The provision command intentionally discards its output, and some
+// store implementations report only a generic exit status; the status probe
+// makes locked/uninitialized recovery deterministic without exposing values.
+func (s cliCredentialSink) storeRefusal() (credentialpush.StoreRefusal, bool) {
+	cmd := exec.Command(s.binary, "credentials", "store", "status", "--format", "json")
+	cmd.Dir = s.workDir
+	output, err := cmd.CombinedOutput()
+	if refusal, ok := credentialStoreRefusal(string(output)); ok {
+		return refusal, true
+	}
+	if err != nil {
+		return credentialpush.StoreRefusal{}, false
+	}
+	var status struct {
+		Initialized bool `json:"initialized"`
+		Unlocked    bool `json:"unlocked"`
+	}
+	if err := json.Unmarshal(output, &status); err != nil {
+		return credentialpush.StoreRefusal{}, false
+	}
+	if !status.Initialized {
+		return credentialpush.StoreRefusal{State: "uninitialized", Recovery: "run `vrooli credentials store init` on the node and retry"}, true
+	}
+	if !status.Unlocked {
+		return credentialpush.StoreRefusal{State: "locked", Recovery: "run `vrooli credentials store unlock` on the node and retry"}, true
+	}
+	return credentialpush.StoreRefusal{}, false
+}
+
+func credentialStoreRefusal(output string) (credentialpush.StoreRefusal, bool) {
+	message := strings.ToLower(output)
+	if strings.Contains(message, "uninitialized") || strings.Contains(message, "not initialized") {
+		return credentialpush.StoreRefusal{State: "uninitialized", Recovery: "run `vrooli credentials store init` on the node and retry"}, true
+	}
+	if strings.Contains(message, "locked") || strings.Contains(message, "unlock") {
+		return credentialpush.StoreRefusal{State: "locked", Recovery: "run `vrooli credentials store unlock` on the node and retry"}, true
+	}
+	if strings.Contains(message, "unresponsive") || strings.Contains(message, "timed out") {
+		return credentialpush.StoreRefusal{State: "unresponsive", Recovery: "run `vrooli credentials keyring repair` on the node and retry"}, true
+	}
+	return credentialpush.StoreRefusal{}, false
 }
 
 func (s cliCredentialSink) Delete(logicalID, field string) error {

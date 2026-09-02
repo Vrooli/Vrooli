@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
 import { CleanupStatus } from "@vrooli/proto-types/vrooli-bridge/v1/cleanup/cleanup_pb";
 import { sealCleanupPassphrase } from "../../api/cleanup";
 import { errorMessage } from "../../lib/errorMessage";
@@ -152,7 +152,7 @@ export function CleanupPanel() {
           return (
             <div key={node.id} className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-app-border bg-app-background p-2">
               <span className="text-xs text-app-foreground">{node.name || node.id}</span>
-              <Button type="button" size="sm" variant="outline" onClick={() => startCleanup(node.id)} disabled={!target || start.isPending}>
+              <Button type="button" size="sm" variant="secondary" onClick={() => startCleanup(node.id)} disabled={!target || start.isPending}>
                 Preview cleanup
               </Button>
             </div>

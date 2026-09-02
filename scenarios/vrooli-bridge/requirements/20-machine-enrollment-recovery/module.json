@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Durable Machine intent, immutable enrollment recovery, trust, and capability-policy invariants.",
-    "last_validated_at": "2026-08-24T17:40:20-04:00",
+    "last_validated_at": "2026-08-31T21:49:09-04:00",
     "module": "machine-enrollment-recovery",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -119,6 +119,54 @@
           "phase": "unit",
           "status": "failing",
           "notes": "CLI request captures verify credential-safe intake and trusted reconnect behavior."
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-006",
+      "title": "Node capability inventory and configuration outcome",
+      "status": "in_progress",
+      "category": "core",
+      "description": "A Bridge agent reports one typed capability observation per declared coding agent, Bridge persists the inventory and probe time, and a terminal configuration attempt records its operation, state, time, and unmet items on the node.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/registry/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "agent/internal/channel/channel_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/onboard/orchestrator_test.go",
+          "phase": "unit",
+          "status": "failing"
+        }
+      ]
+    },
+    {
+      "id": "BRG-MEC-007",
+      "title": "Per-machine desired configuration and drift",
+      "status": "in_progress",
+      "category": "core",
+      "description": "A machine profile carries desired scenarios, optional resources, required capabilities, and setup environment; the machine records the applied profile version and time; and drift is returned as typed differences.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/machines/sqlite_test.go",
+          "phase": "unit",
+          "status": "failing"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/onboard/orchestrator_test.go",
+          "phase": "unit",
+          "status": "failing"
         }
       ]
     }

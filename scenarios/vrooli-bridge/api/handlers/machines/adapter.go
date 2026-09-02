@@ -40,6 +40,14 @@ func readinessToProto(readiness internalmachines.Readiness) *machinesv1.MachineR
 	return &machinesv1.MachineReadiness{Ready: readiness.Ready, Reasons: append([]string(nil), readiness.Reasons...)}
 }
 
+func driftToProto(items []internalmachines.DriftItem) []*machinesv1.MachineDrift {
+	out := make([]*machinesv1.MachineDrift, 0, len(items))
+	for _, item := range items {
+		out = append(out, &machinesv1.MachineDrift{Kind: item.Kind, Name: item.Name, Reason: item.Reason})
+	}
+	return out
+}
+
 // domainToProto is the sole translation boundary between Machine persistence
 // and its public contract. Nodes remain referenced as lineage, never copied.
 func domainToProto(m internalmachines.Machine) *machinesv1.Machine {
@@ -49,10 +57,17 @@ func domainToProto(m internalmachines.Machine) *machinesv1.Machine {
 		Version:               m.Version,
 		DesiredProfileId:      m.DesiredProfileID,
 		DesiredProfileVersion: m.DesiredProfileVersion,
+		AppliedProfileId:      m.AppliedProfileID,
+		AppliedProfileVersion: m.AppliedProfileVersion,
+		DesiredSelectionJson:  m.DesiredSelectionJSON,
+		AppliedSelectionJson:  m.AppliedSelectionJSON,
 		CreatedAt:             timestamppb.New(m.CreatedAt),
 		UpdatedAt:             timestamppb.New(m.UpdatedAt),
 		Locators:              make([]*machinesv1.ConnectionLocator, 0, len(m.Locators)),
 		NodeLineage:           make([]*machinesv1.NodeLineage, 0, len(m.Lineage)),
+	}
+	if !m.AppliedAt.IsZero() {
+		out.AppliedAt = timestamppb.New(m.AppliedAt)
 	}
 	for _, locator := range m.Locators {
 		out.Locators = append(out.Locators, &machinesv1.ConnectionLocator{Kind: locator.Kind, Value: locator.Value, Ordinal: int32(locator.Ordinal)})
@@ -91,5 +106,5 @@ func cleanupToProto(cleanup internalmachines.CleanupTombstone) *machinesv1.Machi
 }
 
 func policyToProto(snapshot internalmachines.PolicySnapshot) *machinesv1.EffectivePolicy {
-	return &machinesv1.EffectivePolicy{ProfileId: snapshot.ProfileID, ProfileVersion: snapshot.ProfileVersion, SetupEnvironment: snapshot.SetupEnvironment, SuggestedScopes: append([]string(nil), snapshot.SuggestedScopes...), RequiredCapabilities: append([]string(nil), snapshot.RequiredCapabilities...), SnapshotJson: snapshot.JSON}
+	return &machinesv1.EffectivePolicy{ProfileId: snapshot.ProfileID, ProfileVersion: snapshot.ProfileVersion, SetupPreset: snapshot.Preset, Scenarios: append([]string(nil), snapshot.Scenarios...), OptionalResources: append([]string(nil), snapshot.OptionalResources...), SuggestedScopes: append([]string(nil), snapshot.SuggestedScopes...), RequiredCapabilities: append([]string(nil), snapshot.RequiredCapabilities...), SnapshotJson: snapshot.JSON}
 }

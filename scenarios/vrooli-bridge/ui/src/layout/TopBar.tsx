@@ -1,4 +1,4 @@
-import { Button } from "../components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useSession } from "../features/session/SessionProvider";
@@ -92,7 +92,7 @@ export function TopBar() {
             </span>
             <Button
               data-testid={selectors.session.topbar.signOut}
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={clearOwnerToken}
             >

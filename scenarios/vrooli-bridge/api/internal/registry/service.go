@@ -146,13 +146,17 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Node, error) {
 		return Node{}, ErrInvalidNode{Field: "kind", Reason: "must be agent, ssh, attached, or control_plane"}
 	}
 	return s.repo.Update(ctx, Node{
-		ID:           id,
-		Name:         name,
-		Endpoint:     strings.TrimSpace(in.Endpoint),
-		Capabilities: trimAll(in.Capabilities),
-		Scopes:       trimAll(in.Scopes),
-		Revision:     strings.TrimSpace(in.Revision),
-		Kind:         kind,
+		ID:                 id,
+		Name:               name,
+		Endpoint:           strings.TrimSpace(in.Endpoint),
+		Capabilities:       trimAll(in.Capabilities),
+		Scopes:             trimAll(in.Scopes),
+		Revision:           strings.TrimSpace(in.Revision),
+		Kind:               kind,
+		ConfigurationOpID:  strings.TrimSpace(in.ConfigurationOpID),
+		ConfigurationState: strings.TrimSpace(in.ConfigurationState),
+		ConfigurationAt:    in.ConfigurationAt,
+		ConfigurationUnmet: trimAll(in.ConfigurationUnmet),
 	})
 }
 

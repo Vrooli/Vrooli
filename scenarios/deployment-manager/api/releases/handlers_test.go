@@ -105,6 +105,17 @@ func (m *mockRepo) AcquireProfileLock(_ context.Context, profileID string) (bool
 	}, nil
 }
 
+func (m *mockRepo) RecordReadinessWaiver(_ context.Context, profileID, commit, reason, actor string) error {
+	if profileID == "" || commit == "" || reason == "" || actor == "" {
+		return errors.New("waiver fields required")
+	}
+	return nil
+}
+
+func (m *mockRepo) GetLatestReadiness(_ context.Context, _ string) (*ReadinessRecord, error) {
+	return &ReadinessRecord{}, nil
+}
+
 type mockLPBSConfig struct {
 	mu      sync.Mutex
 	configs map[string]*profiles.LPBSReleaseConfig

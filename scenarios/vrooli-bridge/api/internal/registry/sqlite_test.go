@@ -67,6 +67,21 @@ func TestSQLiteRepository_CreateGetRoundTrip(t *testing.T) {
 	require.True(t, got.LastSeenAt.IsZero())
 }
 
+func TestSQLiteRepository_PersistsCapabilityInventory(t *testing.T) {
+	d, clk := newSchemaDB(t)
+	repo := registry.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	node, err := repo.Create(ctx, registry.Node{Name: "mac", OS: "darwin", Arch: "amd64"})
+	require.NoError(t, err)
+	when := time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
+	want := []registry.CapabilityObservation{{Capability: "ai-cli", ID: "grok", State: "missing", ProbedAt: when, Detail: "command is not on PATH"}}
+	require.NoError(t, repo.UpdateCapabilityInventory(ctx, node.ID, want, when))
+	got, err := repo.Get(ctx, node.ID)
+	require.NoError(t, err)
+	require.Equal(t, want, got.CapabilityInventory)
+	require.Equal(t, when, got.CapabilityProbedAt)
+}
+
 func TestSQLiteRepository_UpdateArchitecturePreservesOwnerFields(t *testing.T) {
 	d, clk := newSchemaDB(t)
 	repo := registry.NewSQLiteRepository(d, clk)

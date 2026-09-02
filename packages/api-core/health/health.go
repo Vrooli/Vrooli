@@ -108,6 +108,18 @@ type Response struct {
 
 	// Metrics contains runtime metrics (goroutines, heap, uptime).
 	Metrics map[string]interface{} `json:"metrics,omitempty"`
+
+	// Functional describes whether the service's primary purpose is currently
+	// served. It is independent from process and dependency liveness so a
+	// healthy HTTP server cannot hide a service-wide refusal of real work.
+	Functional *FunctionalStatus `json:"functional,omitempty"`
+}
+
+// FunctionalStatus is an optional purpose-level health dimension. A nil value
+// preserves the legacy response shape and semantics.
+type FunctionalStatus struct {
+	Healthy bool   `json:"healthy"`
+	Reason  string `json:"reason,omitempty"`
 }
 
 // DependencyStatus represents the health of a single dependency.
@@ -165,12 +177,13 @@ type Checker interface {
 
 // Builder constructs a health handler with configuration and checks.
 type Builder struct {
-	service   string
-	version   string
-	checks    []checkerEntry
-	metrics   []metricEntry
-	timeout   time.Duration
-	startTime time.Time
+	service    string
+	version    string
+	checks     []checkerEntry
+	metrics    []metricEntry
+	functional func(context.Context) FunctionalStatus
+	timeout    time.Duration
+	startTime  time.Time
 
 	// For testing
 	nowFunc func() time.Time
@@ -261,6 +274,14 @@ func (b *Builder) Metric(name string, value func(time.Time) any) *Builder {
 	return b
 }
 
+// Functional adds an optional purpose-level health assertion. A false result
+// makes the response degraded while retaining readiness for diagnosis. The
+// callback is only evaluated when the health endpoint is requested.
+func (b *Builder) Functional(check func(context.Context) FunctionalStatus) *Builder {
+	b.functional = check
+	return b
+}
+
 // Timeout sets the maximum duration for all health checks.
 // Default is 5 seconds.
 func (b *Builder) Timeout(d time.Duration) *Builder {
@@ -303,6 +324,13 @@ func (b *Builder) buildResponse(ctx context.Context) Response {
 
 	if len(b.checks) > 0 {
 		resp.Dependencies = b.runChecks(ctx, &resp)
+	}
+	if b.functional != nil {
+		functional := b.functional(ctx)
+		resp.Functional = &functional
+		if !functional.Healthy && resp.Status == StatusHealthy {
+			resp.Status = StatusDegraded
+		}
 	}
 
 	return resp

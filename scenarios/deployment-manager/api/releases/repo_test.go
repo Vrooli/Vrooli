@@ -29,6 +29,12 @@ func TestSQLRepositoryStatusAndPlatformUpdates(t *testing.T) {
 	if err := repo.SetVerificationEvidence(ctx, "r1", []VerificationItem{{Platform: "linux", ObservedVersion: "1.0"}}); err != nil {
 		t.Fatalf("evidence: %v", err)
 	}
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE releases
+		SET readiness_goal_ref = $2, approved_at_commit = $3, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1`)).WithArgs("r1", sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	if err := repo.SetReadinessApproval(ctx, "r1", "goal-1", "abc"); err != nil {
+		t.Fatalf("readiness approval: %v", err)
+	}
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE release_platforms")).WithArgs("r1", "linux", PlatformStatusPublished, int64(42)).WillReturnResult(sqlmock.NewResult(0, 1))
 	if err := repo.MarkPlatformPublished(ctx, "r1", "linux", 42); err != nil {
 		t.Fatalf("platform published: %v", err)
@@ -57,8 +63,8 @@ func TestReleaseHelpers(t *testing.T) {
 
 func releaseRows(id string) *sqlmock.Rows {
 	now := time.Now()
-	return sqlmock.NewRows([]string{"id", "profile_id", "deployment_id", "profile_version", "git_commit_hash", "release_version", "channel", "status", "release_notes", "released_by", "promoted_from_release_id", "verification_evidence", "created_at", "published_at", "updated_at"}).
-		AddRow(id, "p1", nil, 1, "abc", "1.0.0", "stable", StatusPending, nil, nil, nil, []byte(`[]`), now, nil, now)
+	return sqlmock.NewRows([]string{"id", "profile_id", "deployment_id", "profile_version", "git_commit_hash", "release_version", "channel", "status", "release_notes", "released_by", "promoted_from_release_id", "readiness_goal_ref", "approved_at_commit", "verification_evidence", "created_at", "published_at", "updated_at"}).
+		AddRow(id, "p1", nil, 1, "abc", "1.0.0", "stable", StatusPending, nil, nil, nil, nil, nil, []byte(`[]`), now, nil, now)
 }
 
 func releasePlatformRows(id string) *sqlmock.Rows {

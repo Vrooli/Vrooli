@@ -116,6 +116,21 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "presence_report_scenario_response",
+		Path:        presenceconnect.PresenceServiceReportScenarioResponseProcedure,
+		Method:      "POST",
+		Summary:     "Receive a proxied scenario response",
+		Description: "Node-facing: carries bounded response bytes from a node-local scenario API back to the waiting target-aware call.",
+		Category:    "channel",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"response": "ScenarioResponse (correlation_id, status_code, body)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"accepted": "boolean"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing scenario correlation id or invalid response"},
+			{Status: 401, Code: "unauthenticated", Description: "Missing or invalid node proof"},
+			{Status: 403, Code: "permission_denied", Description: "Correlation does not belong to this node"},
+		},
+	},
+	{
 		ID: "channel_session_frame", Path: presenceconnect.PresenceServiceReportSessionFrameProcedure, Method: "POST",
 		Summary: "Receive an authenticated node session frame", Description: "Node-facing Connect-RPC for PTY output and session close events. Requires the node proof and binds the frame to its Bridge session.", Category: "channel",
 	},

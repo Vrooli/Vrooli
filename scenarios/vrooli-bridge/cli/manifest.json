@@ -633,8 +633,8 @@
               "description": "Profile version (defaults to current built-in)"
             },
             {
-              "name": "setup-environment",
-              "description": "Explicit custom-profile setup environment override"
+              "name": "preset",
+              "description": "Named setup preset override"
             },
             {
               "name": "confirm-removal",
@@ -1839,9 +1839,7 @@
             { "name": "control-plane-url", "description": "Control-plane URL the node dials back to" },
             { "name": "reachability-mode", "description": "lan, tunnel, or manual" },
             { "name": "verify-timeout", "description": "Seconds to wait for ONLINE" },
-            { "name": "setup-environment", "description": "development, production, or minimal" },
-            { "name": "setup-resources", "description": "enabled, none, or a comma-separated list" },
-            { "name": "setup-scenarios", "description": "none, all, or a comma-separated list" },
+            { "name": "preset", "description": "Named setup preset (for example: development, production, minimal)" },
             { "name": "provision-service-user", "description": "Separate OS account for the privileged provisioning helper" },
             { "name": "include-optional", "bool": true, "description": "Apply optional host safeguards" },
             { "name": "skip-setup", "bool": true, "description": "Skip node setup" },
@@ -1913,25 +1911,12 @@
               "description": "Seconds to wait for the node to come ONLINE (0 = bootstrap default)"
             },
             {
-              "name": "setup-environment",
-              "description": "Node-side setup environment profile: development | production | minimal (empty = node default)"
-            },
-            {
-              "name": "setup-resources",
-              "description": "Node-side setup resource selection: enabled | none | <comma-list> (empty = node default)"
-            },
-            {
-              "name": "setup-scenarios",
-              "description": "Node-side setup scenario selection: none | all | <comma-list> (empty = node default)"
+              "name": "preset",
+              "description": "Named node setup preset (empty = node default)"
             },
             {
               "name": "provision-service-user",
               "description": "Separate OS principal for the privileged provisioning helper"
-            },
-            {
-              "name": "include-optional",
-              "bool": true,
-              "description": "Also apply optional (non-required) host safeguards during node setup"
             },
             {
               "name": "skip-setup",
@@ -2133,6 +2118,88 @@
               "network:internal"
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "credentials",
+      "description": "Grant, reconcile, rotate, and revoke sealed credential delivery to trusted nodes",
+      "commands": [
+        {
+          "name": "grant",
+          "description": "Create a metadata-only credential grant and push its sealed value when the node is online",
+          "flags": [
+            { "name": "node-id", "required": true, "description": "Trusted node id" },
+            { "name": "logical-id", "required": true, "description": "Credential logical identity" },
+            { "name": "field", "required": true, "description": "Credential field" },
+            { "name": "class", "required": true, "description": "Credential class" },
+            { "name": "retention", "required": true, "description": "durable or ephemeral" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CredentialGrantService", "method": "CreateGrant" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "list",
+          "description": "List active credential grants and delivery acknowledgements",
+          "flags": [{ "name": "node-id", "description": "Filter by trusted node id" }],
+          "binding": { "kind": "connect-rpc", "service": "CredentialGrantService", "method": "ListGrants" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke a credential grant and purge it from the node when online",
+          "positionals": [{ "name": "id", "required": true, "description": "Credential grant id" }],
+          "binding": { "kind": "connect-rpc", "service": "CredentialGrantService", "method": "RevokeGrant" },
+          "governance": { "effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "rotate",
+          "description": "Rotate a credential address generation and fan out the sealed replacement",
+          "flags": [{ "name": "logical-id", "required": true, "description": "Credential logical identity" }, { "name": "field", "required": true, "description": "Credential field" }],
+          "binding": { "kind": "connect-rpc", "service": "CredentialGrantService", "method": "RotateAddress" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "sync",
+          "description": "Reconcile active credential grants for a node",
+          "flags": [{ "name": "node-id", "required": true, "description": "Trusted node id" }],
+          "binding": { "kind": "connect-rpc", "service": "CredentialGrantService", "method": "SyncNodeGrants" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"] }
+        }
+      ]
+    },
+    {
+      "name": "configuration",
+      "description": "Read, apply, and inspect desired machine configuration and typed drift",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Show the machine's desired policy, applied evidence, readiness, and drift",
+          "positionals": [{ "name": "id", "required": true, "description": "Machine id" }],
+          "binding": { "kind": "connect-rpc", "service": "MachineService", "method": "GetMachineConfiguration" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "apply",
+          "description": "Apply the machine's selected configuration policy",
+          "positionals": [{ "name": "id", "required": true, "description": "Machine id" }],
+          "flags": [
+            { "name": "version", "required": true, "description": "Current machine version for optimistic concurrency" },
+            { "name": "profile", "required": true, "description": "Versioned configuration profile" },
+            { "name": "profile-version", "description": "Profile version (defaults to current built-in)" },
+            { "name": "preset", "description": "Named setup preset override" },
+            { "name": "reason", "description": "Operator reason recorded with the policy decision" },
+            { "name": "confirm-removal", "description": "Confirm removal of capability or scope intent" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MachineService", "method": "ApplyMachineConfiguration" },
+          "governance": { "effect": "write", "run_eligible": false, "permissions": ["network:internal", "admin"] }
+        },
+        {
+          "name": "drift",
+          "description": "Show typed differences between desired policy and applied node state",
+          "positionals": [{ "name": "id", "required": true, "description": "Machine id" }],
+          "binding": { "kind": "connect-rpc", "service": "MachineService", "method": "GetMachineDrift" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },

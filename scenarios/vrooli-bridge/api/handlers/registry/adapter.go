@@ -10,7 +10,38 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/shared"
 )
+
+func applyCapabilityInventory(out *registryv1.Node, p CapabilityPresence, nodeID string) {
+	snap, ok := p.Health(nodeID)
+	if !ok {
+		return
+	}
+	// Presence is the freshest observation. Replace the durable projection
+	// rather than appending to it, otherwise a node returned through the
+	// readiness-aware path exposes every capability twice.
+	out.CapabilityInventory = nil
+	for _, item := range snap.Capabilities {
+		state := sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_UNKNOWN
+		switch item.State {
+		case "ready":
+			state = sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_READY
+		case "missing":
+			state = sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_MISSING
+		case "not_applicable":
+			state = sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_NOT_APPLICABLE
+		}
+		observation := &sharedv1.CapabilityObservation{Capability: item.Capability, Id: item.ID, Label: item.Label, State: state, Path: item.Path, Version: item.Version, Detail: item.Detail}
+		if !item.ProbedAt.IsZero() {
+			observation.ProbedAt = timestamppb.New(item.ProbedAt.UTC())
+		}
+		out.CapabilityInventory = append(out.CapabilityInventory, observation)
+	}
+	if !snap.ReportedAt.IsZero() {
+		out.CapabilityProbedAt = timestamppb.New(snap.ReportedAt.UTC())
+	}
+}
 
 // domainToProto translates a domain Node into its wire shape, stamping the
 // presence overlay (online + status) the handler computed from the live
@@ -54,6 +85,31 @@ func domainToProto(n registry.Node, online, dispatchable bool, staleAfter time.D
 		ChannelHeld:           readiness.ChannelHeld,
 		ProtocolCompatible:    readiness.ProtocolCompatible,
 		Dispatchable:          effectiveDispatchable,
+		ConfigurationOpId:     n.ConfigurationOpID,
+		ConfigurationState:    n.ConfigurationState,
+		ConfigurationUnmet:    append([]string(nil), n.ConfigurationUnmet...),
+	}
+	for _, item := range n.CapabilityInventory {
+		state := sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_UNKNOWN
+		switch item.State {
+		case "ready":
+			state = sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_READY
+		case "missing":
+			state = sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_MISSING
+		case "not_applicable":
+			state = sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_NOT_APPLICABLE
+		}
+		observation := &sharedv1.CapabilityObservation{Capability: item.Capability, Id: item.ID, Label: item.Label, State: state, Path: item.Path, Version: item.Version, Detail: item.Detail}
+		if !item.ProbedAt.IsZero() {
+			observation.ProbedAt = timestamppb.New(item.ProbedAt.UTC())
+		}
+		out.CapabilityInventory = append(out.CapabilityInventory, observation)
+	}
+	if !n.CapabilityProbedAt.IsZero() {
+		out.CapabilityProbedAt = timestamppb.New(n.CapabilityProbedAt.UTC())
+	}
+	if !n.ConfigurationAt.IsZero() {
+		out.ConfigurationAt = timestamppb.New(n.ConfigurationAt.UTC())
 	}
 	if !n.LastSeenAt.IsZero() {
 		out.LastSeenAt = timestamppb.New(n.LastSeenAt)

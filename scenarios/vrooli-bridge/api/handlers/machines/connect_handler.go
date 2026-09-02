@@ -157,6 +157,19 @@ func (h *connectHandler) GetMachine(ctx context.Context, req *connect.Request[ma
 	return h.composeProjection(ctx, machine, response)
 }
 
+// GetMachineConfiguration is the explicit configuration-document read path.
+// It shares the composed response with GetMachine so the CLI and Web Console
+// cannot observe different desired/applied/drift projections.
+func (h *connectHandler) GetMachineConfiguration(ctx context.Context, req *connect.Request[machinesv1.GetMachineRequest]) (*connect.Response[machinesv1.GetMachineResponse], error) {
+	return h.GetMachine(ctx, req)
+}
+
+// GetMachineDrift returns the same typed configuration projection under the
+// focused drift command name.
+func (h *connectHandler) GetMachineDrift(ctx context.Context, req *connect.Request[machinesv1.GetMachineRequest]) (*connect.Response[machinesv1.GetMachineResponse], error) {
+	return h.GetMachine(ctx, req)
+}
+
 func (h *connectHandler) composeProjection(ctx context.Context, machine internalmachines.Machine, response *machinesv1.GetMachineResponse) (*connect.Response[machinesv1.GetMachineResponse], error) {
 	projection := internalmachines.Projection{Machine: machine}
 	if h.deps.Projection != nil {
@@ -171,11 +184,21 @@ func (h *connectHandler) composeProjection(ctx context.Context, machine internal
 	if err != nil {
 		trust = internalmachines.TrustRecord{MachineID: machine.ID, HostKeyState: internalmachines.HostKeyUnverified}
 	}
-	policy, err := internalmachines.ResolveProfile(machine.ID, machine.DesiredProfileID, machine.DesiredProfileVersion, nil)
-	if err != nil {
-		policy = internalmachines.PolicySnapshot{}
+	policy := internalmachines.PolicySnapshot{}
+	if reader, ok := h.deps.Service.(internalmachines.PolicyReader); ok {
+		policy, err = reader.LatestPolicySnapshot(ctx, machine.ID)
+	}
+	if policy.JSON == "" {
+		policy, err = internalmachines.ResolveProfile(machine.ID, machine.DesiredProfileID, machine.DesiredProfileVersion, nil)
+		if err != nil {
+			policy = internalmachines.PolicySnapshot{}
+		}
+	}
+	if policy.JSON != "" {
+		response.EffectivePolicy = policyToProto(policy)
 	}
 	response.Readiness = readinessToProto(internalmachines.EvaluateReadiness(machine, trust, policy, projection))
+	response.Drift = driftToProto(internalmachines.ComputeDrift(machine, policy, projection))
 	return connect.NewResponse(response), nil
 }
 
@@ -306,6 +329,12 @@ func (h *connectHandler) ApplyMachinePolicy(ctx context.Context, req *connect.Re
 	}
 	h.record(ctx, machine.ID, "apply_policy", snapshot.ProfileID+"@"+snapshot.ProfileVersion)
 	return connect.NewResponse(&machinesv1.ApplyMachinePolicyResponse{Machine: domainToProto(machine), Policy: policyToProto(snapshot)}), nil
+}
+
+// ApplyMachineConfiguration is the document-oriented name for applying the
+// desired machine policy. The policy RPC remains available for compatibility.
+func (h *connectHandler) ApplyMachineConfiguration(ctx context.Context, req *connect.Request[machinesv1.ApplyMachinePolicyRequest]) (*connect.Response[machinesv1.ApplyMachinePolicyResponse], error) {
+	return h.ApplyMachinePolicy(ctx, req)
 }
 
 func (h *connectHandler) RevokeMachineNode(ctx context.Context, req *connect.Request[machinesv1.RevokeMachineNodeRequest]) (*connect.Response[machinesv1.RevokeMachineNodeResponse], error) {

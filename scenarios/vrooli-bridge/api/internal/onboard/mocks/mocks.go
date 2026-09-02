@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/onboard"
+	"vrooli-bridge/internal/onboarding"
 
 	"github.com/google/uuid"
 )
@@ -351,6 +352,13 @@ func (d *FakeSSHDriver) RunBootstrap(ctx context.Context, p onboard.RunParams, o
 		return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit, Diagnostics: d.RunBootstrapDiagnostics, NodeID: d.RunBootstrapNodeID}, d.RunBootstrapErr
 	}
 	return onboard.BootstrapResult{ExitCode: d.RunBootstrapExit, Diagnostics: d.RunBootstrapDiagnostics, NodeID: d.RunBootstrapNodeID}, nil
+}
+
+// Run makes declarative onboarding testable without adding a real SSH command
+// path to the bootstrap fake. It returns the same successful JSON shape the
+// remote onboarding CLI emits after applying a selection.
+func (d *FakeSSHDriver) Run(_ context.Context, _ onboarding.Target, _ string) (onboarding.Result, error) {
+	return onboarding.Result{ExitCode: 0, Stdout: `{"status":"ready"}`}, nil
 }
 
 // PairingCode returns a copy of the code the driver was handed.

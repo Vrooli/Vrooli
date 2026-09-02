@@ -156,8 +156,8 @@ func (h *handlers) applyPolicy(ctx cliapp.RunContext) error {
 		return err
 	}
 	overrides := map[string]string{}
-	if environment := strings.TrimSpace(ctx.Flag("setup-environment")); environment != "" {
-		overrides["setup_environment"] = environment
+	if preset := strings.TrimSpace(ctx.Flag("preset")); preset != "" {
+		overrides["preset"] = preset
 	}
 	resp, err := h.client.ApplyMachinePolicy(context.Background(), connect.NewRequest(&machinesv1.ApplyMachinePolicyRequest{MachineId: id, Version: version, ProfileId: ctx.Flag("profile"), ProfileVersion: ctx.Flag("profile-version"), Overrides: overrides, Reason: ctx.Flag("reason"), ConfirmRemoval: ctx.Flag("confirm-removal") == "true"}))
 	if err != nil {
@@ -166,7 +166,7 @@ func (h *handlers) applyPolicy(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil || resp.Msg.Machine == nil || resp.Msg.Policy == nil {
 		return fmt.Errorf("server returned no Machine policy")
 	}
-	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Applied %s@%s to Machine %s.", resp.Msg.Policy.ProfileId, resp.Msg.Policy.ProfileVersion, id)}, Changes: []string{formatMachine(resp.Msg.Machine), fmt.Sprintf("setup=%s suggested scopes=%s", resp.Msg.Policy.SetupEnvironment, strings.Join(resp.Msg.Policy.SuggestedScopes, ","))}})
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Applied %s@%s to Machine %s.", resp.Msg.Policy.ProfileId, resp.Msg.Policy.ProfileVersion, id)}, Changes: []string{formatMachine(resp.Msg.Machine), fmt.Sprintf("preset=%s suggested scopes=%s", resp.Msg.Policy.SetupPreset, strings.Join(resp.Msg.Policy.SuggestedScopes, ","))}})
 }
 
 func (h *handlers) revokeNode(ctx cliapp.RunContext) error {

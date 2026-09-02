@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/auth"
+	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/registry"
 	"vrooli-bridge/internal/registry/mocks"
 
@@ -25,6 +26,13 @@ type fakePresence struct {
 func (f fakePresence) IsOnline(id string) bool { return f.online[id] }
 
 func (f fakePresence) Dispatchable(id string) bool { return f.online[id] && !f.flagged[id] }
+
+type capabilityPresence struct {
+	fakePresence
+	health presence.HealthSnapshot
+}
+
+func (f capabilityPresence) Health(string) (presence.HealthSnapshot, bool) { return f.health, true }
 
 func ownerCtx() context.Context {
 	return auth.WithIdentity(context.Background(), auth.Identity{OwnerID: "owner-1"})
@@ -82,6 +90,24 @@ func TestHandler_GetNode_FlaggedNodeReadsNeedsUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, resp.Msg.Node.Online)
 	require.Equal(t, registryv1.NodeStatus_NODE_STATUS_NEEDS_UPDATE, resp.Msg.Node.Status)
+}
+
+func TestHandler_GetNode_LiveCapabilityInventoryReplacesDurableProjection(t *testing.T) {
+	probedAt := time.Date(2026, 8, 31, 7, 0, 0, 0, time.UTC)
+	svc := &mocks.FakeService{GetOut: registry.Node{
+		ID: "n1", Name: "node", OS: "darwin", Arch: "amd64", LastSeenAt: time.Now().UTC(),
+		CapabilityInventory: []registry.CapabilityObservation{{Capability: "ai-cli", ID: "old", State: "missing"}},
+	}}
+	h := newHarness(svc, capabilityPresence{
+		fakePresence: fakePresence{online: map[string]bool{"n1": true}},
+		health:       presence.HealthSnapshot{Capabilities: []presence.CapabilityObservation{{Capability: "ai-cli", ID: "codex", State: "ready", ProbedAt: probedAt}}},
+	})
+
+	resp, err := h.GetNode(ownerCtx(), connect.NewRequest(&registryv1.GetNodeRequest{Id: "n1"}))
+	require.NoError(t, err)
+	require.Len(t, resp.Msg.Node.CapabilityInventory, 1)
+	require.Equal(t, "codex", resp.Msg.Node.CapabilityInventory[0].Id)
+	require.Equal(t, probedAt, resp.Msg.Node.CapabilityInventory[0].ProbedAt.AsTime())
 }
 
 func TestHandler_RegisterNode_PassesInputAndOverlaysPresence(t *testing.T) {

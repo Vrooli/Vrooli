@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHTTPHandoffClientIsInertWhenEndpointUnset(t *testing.T) {
-	selection, err := (HTTPHandoffClient{}).Resolve(context.Background(), HandoffRequest{NodeID: "node-1"})
-	require.NoError(t, err)
-	require.False(t, selection.Apply)
+func TestHTTPHandoffClientRefusesWhenEndpointUnset(t *testing.T) {
+	_, err := (HTTPHandoffClient{}).Resolve(context.Background(), HandoffRequest{NodeID: "node-1"})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "start vrooli-onboarding")
 }
 
 func TestHTTPHandoffClientCarriesIdentityAndDecodesSelection(t *testing.T) {
@@ -73,16 +73,6 @@ func TestApplySendsCapabilityDocumentWithoutArgvJSON(t *testing.T) {
 	}
 }
 
-func TestFromSetupProfile(t *testing.T) {
-	selection, ok := FromSetupProfile("alpha,beta", "ollama", false)
-	if !ok || len(selection.Scenarios) != 2 || len(selection.OptionalResources) != 1 {
-		t.Fatalf("selection=%+v, ok=%t", selection, ok)
-	}
-	if _, ok := FromSetupProfile("none", "none", false); ok {
-		t.Fatal("empty profile should not trigger remote onboarding")
-	}
-}
-
 func TestReadinessExitCode(t *testing.T) {
 	if code, err := ReadinessExitCode(Result{ExitCode: 0}, nil); err != nil || code != 0 {
 		t.Fatalf("green result = %d, %v", code, err)
@@ -109,6 +99,34 @@ func TestApplyAndReadinessReturnsAuthoritativeRemoteReport(t *testing.T) {
 	}
 	if len(runner.commands) != 2 || !strings.Contains(runner.commands[1], "readiness --json") || !strings.Contains(runner.commands[1], "$HOME/.vrooli/bin/vrooli-onboarding") {
 		t.Fatalf("commands = %#v", runner.commands)
+	}
+}
+
+func TestApplyAndReadinessCarriesPerItemDispositions(t *testing.T) {
+	runner := &sequenceRunner{results: []Result{
+		{ExitCode: 0, Stdout: `{"status":"applied","items":[{"id":"safeguard:tpm","kind":"safeguard","name":"tpm","disposition":"not_applicable","error":"macOS has no TPM interface","remediation":"skip on macOS"}]}`},
+		{ExitCode: 0, Stdout: `{"status":"ready"}`},
+	}}
+	result, err := ApplyAndReadiness(context.Background(), runner, Target{Host: "example.test"}, Selection{Scenarios: []string{"demo"}, Apply: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Dispositions) != 1 || result.Dispositions[0].Disposition != "not_applicable" || result.Dispositions[0].Name != "tpm" {
+		t.Fatalf("dispositions = %#v", result.Dispositions)
+	}
+}
+
+func TestApplyAndReadinessNormalizesRunnerOutcome(t *testing.T) {
+	runner := &sequenceRunner{results: []Result{
+		{ExitCode: 2, Stdout: `{"status":"blocked","items":[{"id":"host:autoheal","kind":"safeguard","name":"autoheal","outcome":"blocked","error":"missing","remediation":"apply it"}]}`},
+		{ExitCode: 2, Stdout: `{"status":"degraded","items":[{"id":"host:tpm","kind":"safeguard","name":"tpm","outcome":"not_applicable"}]}`},
+	}}
+	result, err := ApplyAndReadiness(context.Background(), runner, Target{Host: "example.test"}, Selection{Scenarios: []string{"demo"}, Apply: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Dispositions) != 2 || result.Dispositions[0].Disposition != "blocked" || result.Dispositions[1].Disposition != "not_applicable" {
+		t.Fatalf("normalized dispositions = %#v", result.Dispositions)
 	}
 }
 

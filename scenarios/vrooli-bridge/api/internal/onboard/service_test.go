@@ -142,7 +142,7 @@ func TestStart_SuccessFullFlow(t *testing.T) {
 	require.False(t, dec.DryRun)
 
 	op := waitTerminal(t, svc, dec.OpID)
-	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, onboard.StatePaired, op.State)
 	require.Equal(t, testNodeID, op.NodeID)
 	require.Equal(t, int32(0), op.ExitCode)
 	require.Empty(t, op.FailureReason)
@@ -172,11 +172,36 @@ func TestStart_SuccessFullFlow(t *testing.T) {
 	for _, step := range bootstrapSteps {
 		require.True(t, stepsSeen[step], "missing persisted step %q", step)
 	}
-	require.False(t, stepsSeen[onboard.StepApplySelection], "unset onboarding handoff must preserve the legacy setup path")
+	require.False(t, stepsSeen[onboard.StepApplySelection], "unset onboarding handoff must leave selection unapplied")
 	// Sequences are strictly increasing.
 	for i := 1; i < len(events); i++ {
 		require.Greater(t, events[i].Sequence, events[i-1].Sequence)
 	}
+}
+
+func TestStart_RequestedConfigurationRefusesMissingHandoff(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
+	svc := newTestService(repo, driver, &mocks.FakeCodeIssuer{Code: testCode}, &mocks.FakeOnlineConfirmer{Online: true})
+
+	in := validInput()
+	in.MachineID = "machine-1"
+	in.Selection = &onboarding.Selection{SchemaVersion: "v1", Target: "machine-1", Apply: true, Scenarios: []string{"system-monitor"}}
+	dec, err := svc.Start(context.Background(), in)
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StateFailed, op.State)
+	require.Equal(t, onboard.FailureOnboarding, op.FailureReason)
+	_, events, err := svc.GetOp(context.Background(), dec.OpID)
+	require.NoError(t, err)
+	var handoffFailure string
+	for _, event := range events {
+		if event.StepID == onboard.StepApplySelection && event.Status == onboard.StepStatusFailed {
+			handoffFailure = event.Detail
+		}
+	}
+	require.Contains(t, handoffFailure, "onboarding handoff is unavailable")
+	require.Contains(t, handoffFailure, "start vrooli-onboarding")
 }
 
 func TestProtectOnboardingFreshMaterialRecordsNamedStep(t *testing.T) {
@@ -315,7 +340,7 @@ func TestStart_ThreadsPostureDefaultScopesIntoPairing(t *testing.T) {
 	dec, err := svc.Start(context.Background(), validInput())
 	require.NoError(t, err)
 	op := waitTerminal(t, svc, dec.OpID)
-	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, onboard.StatePaired, op.State)
 	require.Equal(t, []string{"vrooli-bridge:read", "vrooli-bridge:write"}, issuer.LastParams.Scopes)
 	requireArgPair(t, driver.CapturedArgs, "--presence-only", "false")
 }
@@ -336,7 +361,7 @@ func TestStart_ProvisionSudoThreadsAndNamesOutcome(t *testing.T) {
 	require.NoError(t, err)
 
 	op := waitTerminal(t, svc, dec.OpID)
-	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, onboard.StatePaired, op.State)
 
 	// The provisioning intent was threaded down to the SSH first-touch seam...
 	require.True(t, driver.CapturedProvisionSudo, "provision_sudo must reach FirstTouchParams")
@@ -362,23 +387,16 @@ func TestStart_SetupProfileThreadsToBootstrapArgs(t *testing.T) {
 	svc := newTestService(repo, driver, issuer, confirmer)
 
 	in := validInput()
-	in.SetupEnvironment = "production"
-	in.SetupResources = "enabled"
-	in.SetupScenarios = "none"
-	in.IncludeOptional = true
+	in.SetupPreset = "production"
 
 	dec, err := svc.Start(context.Background(), in)
 	require.NoError(t, err)
 
 	op := waitTerminal(t, svc, dec.OpID)
-	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, onboard.StatePaired, op.State)
 
-	// Each profile field reaches the node-side bootstrap as its flag/value pair,
-	// and --include-optional is present as a bare flag.
+	// The preset is the only setup value expanded at the bootstrap seam.
 	requireArgPair(t, driver.CapturedArgs, "--setup-environment", "production")
-	requireArgPair(t, driver.CapturedArgs, "--setup-resources", "enabled")
-	requireArgPair(t, driver.CapturedArgs, "--setup-scenarios", "none")
-	require.Contains(t, driver.CapturedArgs, "--include-optional")
 }
 
 func TestStart_ProvisionServiceUserThreadsToBootstrapArgs(t *testing.T) {
@@ -405,7 +423,7 @@ func TestStart_SetupProfileOmittedWhenEmpty(t *testing.T) {
 	dec, err := svc.Start(context.Background(), validInput())
 	require.NoError(t, err)
 	op := waitTerminal(t, svc, dec.OpID)
-	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, onboard.StatePaired, op.State)
 
 	for _, flag := range []string{"--setup-environment", "--setup-resources", "--setup-scenarios", "--include-optional"} {
 		require.NotContains(t, driver.CapturedArgs, flag, "empty profile must not emit %s", flag)
@@ -417,10 +435,8 @@ func TestStart_SetupProfileValidation(t *testing.T) {
 		mutate func(*onboard.StartInput)
 		field  string
 	}{
-		"metachar in resources":    {func(in *onboard.StartInput) { in.SetupResources = "a;rm -rf /" }, "setup_resources"},
-		"command sub in scenarios": {func(in *onboard.StartInput) { in.SetupScenarios = "$(whoami)" }, "setup_scenarios"},
-		"metachar in environment":  {func(in *onboard.StartInput) { in.SetupEnvironment = "dev|x" }, "setup_environment"},
-		"bad environment enum":     {func(in *onboard.StartInput) { in.SetupEnvironment = "staging" }, "setup_environment"},
+		"metachar in preset":       {func(in *onboard.StartInput) { in.SetupPreset = "dev|x" }, "setup_preset"},
+		"bad preset":               {func(in *onboard.StartInput) { in.SetupPreset = "staging" }, "setup_preset"},
 		"unsafe provisioning user": {func(in *onboard.StartInput) { in.ProvisionServiceUser = "root;bad" }, "provision_service_user"},
 		"same provisioning user":   {func(in *onboard.StartInput) { in.ProvisionServiceUser = in.User }, "provision_service_user"},
 	}
@@ -460,7 +476,7 @@ func TestStart_SecretsNeverPersisted(t *testing.T) {
 	dec, err := svc.Start(context.Background(), validInput())
 	require.NoError(t, err)
 	op := waitTerminal(t, svc, dec.OpID)
-	require.Equal(t, onboard.StateSucceeded, op.State)
+	require.Equal(t, onboard.StatePaired, op.State)
 
 	// Neither the password nor the pairing code may appear anywhere in the durable
 	// op row.

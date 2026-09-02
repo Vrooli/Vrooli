@@ -43,5 +43,21 @@ func protoHealthToDomain(h *sharedv1.HealthSnapshot) presence.HealthSnapshot {
 	if ts := h.GetReportedAt(); ts != nil {
 		snap.ReportedAt = ts.AsTime()
 	}
+	for _, capability := range h.GetCapabilities() {
+		state := "unknown"
+		switch capability.GetState() {
+		case sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_READY:
+			state = "ready"
+		case sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_MISSING:
+			state = "missing"
+		case sharedv1.CapabilityObservationState_CAPABILITY_OBSERVATION_STATE_NOT_APPLICABLE:
+			state = "not_applicable"
+		}
+		item := presence.CapabilityObservation{Capability: capability.GetCapability(), ID: capability.GetId(), Label: capability.GetLabel(), State: state, Path: capability.GetPath(), Version: capability.GetVersion(), Detail: capability.GetDetail()}
+		if ts := capability.GetProbedAt(); ts != nil {
+			item.ProbedAt = ts.AsTime()
+		}
+		snap.Capabilities = append(snap.Capabilities, item)
+	}
 	return snap
 }

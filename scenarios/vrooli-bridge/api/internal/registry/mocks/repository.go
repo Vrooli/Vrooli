@@ -85,6 +85,19 @@ func (f *FakeRepository) Get(_ context.Context, id string) (registry.Node, error
 	return n, nil
 }
 
+func (f *FakeRepository) UpdateCapabilityInventory(_ context.Context, id string, observations []registry.CapabilityObservation, probedAt time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	n, ok := f.nodes[id]
+	if !ok {
+		return registry.ErrNodeNotFound{ID: id}
+	}
+	n.CapabilityInventory = append([]registry.CapabilityObservation(nil), observations...)
+	n.CapabilityProbedAt = probedAt
+	f.nodes[id] = n
+	return nil
+}
+
 func (f *FakeRepository) GetByPairingCorrelation(_ context.Context, correlationID string) (registry.Node, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

@@ -31,3 +31,19 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	}
 	return group, nil
 }
+
+// RegisterConfiguration exposes the document-oriented aliases while keeping
+// the legacy machines group stable for existing scripts.
+func RegisterConfiguration(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
+	h := newHandlers(core)
+	bindings := map[string]func(cliapp.RunContext) error{
+		"MachineService.GetMachineConfiguration":    h.get,
+		"MachineService.ApplyMachineConfiguration": h.applyPolicy,
+		"MachineService.GetMachineDrift":            h.get,
+	}
+	group, err := cliapp.LoadFromManifest(manifest, "configuration", bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("configuration: load from manifest: %w", err)
+	}
+	return group, nil
+}

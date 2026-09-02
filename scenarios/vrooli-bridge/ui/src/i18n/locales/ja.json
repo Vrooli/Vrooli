@@ -194,9 +194,9 @@
       "provisionSudoHelp": "初回接続時に SSH ユーザー向けの限定的な sudoers ドロップインを設定し、以降の特権操作（セットアップ、前提条件、自動起動）を非対話型 SSH で実行できるようにします。オーナーのパスワードは一度だけ使用され、保存されません。",
       "advancedHeading": "詳細オプション",
       "advancedHelp": "ほとんどの場合は不要です。名前、ソースリビジョン、セットアップの詳細を制御します。",
-      "setupEnvironmentLabel": "環境",
-      "setupEnvironmentPlaceholder": "development | production | minimal",
-      "setupEnvironmentHelp": "ノードに適用するホスト環境プロファイル。空欄はノードの既定値（development）です。",
+      "setupPresetLabel": "セットアッププリセット",
+      "setupPresetPlaceholder": "development | production | minimal",
+      "setupPresetHelp": "ノードに適用する名前付きセットアッププリセット。空欄はノードの既定値です。",
       "setupResourcesLabel": "リソース",
       "setupResourcesPlaceholder": "enabled | none | ollama,postgres",
       "setupResourcesHelp": "ノードがプロビジョニングするローカルリソース。空欄はノードの既定値です。",
@@ -238,7 +238,8 @@
         "verifying": "オンライン確認中",
         "succeeded": "成功",
         "failed": "失敗",
-        "cancelled": "キャンセル"
+        "cancelled": "キャンセル",
+        "paired": "ペアリング済み"
       },
       "stepStatus": {
         "unspecified": "不明",

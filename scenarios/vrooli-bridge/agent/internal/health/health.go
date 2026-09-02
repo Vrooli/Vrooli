@@ -14,10 +14,13 @@
 package health
 
 import (
+	"context"
 	"math"
 	"os/exec"
 	"runtime"
 	"time"
+
+	"github.com/vrooli/vrooli/packages/capabilityprobe"
 )
 
 // Snapshot mirrors channel.HealthSnapshot in the agent's own vocabulary so the
@@ -28,6 +31,7 @@ type Snapshot struct {
 	ContainerRuntimeUp bool
 	Details            map[string]string
 	ReportedAt         time.Time
+	Capabilities       []capabilityprobe.Observation
 }
 
 // Sampler produces a readiness Snapshot. It is the test seam: the live dial
@@ -78,6 +82,7 @@ func (s *SystemSampler) Sample() Snapshot {
 		ContainerRuntimeUp: binExists("docker") || binExists("podman"),
 		Details:            details,
 		ReportedAt:         now().UTC(),
+		Capabilities:       capabilityprobe.Probe(context.Background(), capabilityprobe.AITools),
 	}
 }
 

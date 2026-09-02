@@ -1615,6 +1615,29 @@
       ]
     },
     {
+      "id": "machines_get_configuration",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachineConfiguration",
+      "method": "POST",
+      "summary": "Get machine configuration",
+      "description": "Returns desired and applied selection documents with readiness and typed drift. Owner-gated.",
+      "category": "configuration",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied_selection_json": "string",
+          "desired_selection_json": "string",
+          "drift": "array<MachineDrift>",
+          "machine": "Machine"
+        }
+      }
+    },
+    {
       "id": "machines_list",
       "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ListMachines",
       "method": "POST",
@@ -1817,6 +1840,49 @@
         "properties": {
           "machine": "Machine",
           "policy": "EffectivePolicy"
+        }
+      }
+    },
+    {
+      "id": "machines_apply_configuration",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/ApplyMachineConfiguration",
+      "method": "POST",
+      "summary": "Apply machine configuration",
+      "description": "Applies the desired configuration document and records the result. Owner-gated.",
+      "category": "configuration",
+      "request": {
+        "type": "object",
+        "properties": {
+          "machine_id": "string (required)",
+          "profile_id": "string (required)",
+          "version": "int64 (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "machine": "Machine",
+          "policy": "EffectivePolicy"
+        }
+      }
+    },
+    {
+      "id": "machines_get_drift",
+      "path": "/vrooli.vrooli_bridge.v1.machines.MachineService/GetMachineDrift",
+      "method": "POST",
+      "summary": "Get machine configuration drift",
+      "description": "Returns typed differences between desired and applied machine configuration. Owner-gated.",
+      "category": "configuration",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "drift": "array<MachineDrift>"
         }
       }
     },

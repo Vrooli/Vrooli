@@ -34,7 +34,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, grant Grant) (Grant, erro
 	if grant.GrantedAt.IsZero() {
 		grant.GrantedAt = r.now().UTC()
 	}
-	_, err := r.db.ExecContext(ctx, `INSERT INTO credential_grants (id,node_id,logical_id,field,class,retention,generation,granted_at,revoked_at,acked_generation) VALUES (?,?,?,?,?,?,?,?,'',?)`, grant.ID, grant.NodeID, grant.LogicalID, grant.Field, grant.Class, grant.Retention, grant.Generation, grant.GrantedAt.UTC().Format(time.RFC3339Nano), grant.AckedGeneration)
+	_, err := r.db.ExecContext(ctx, `INSERT INTO credential_grants (id,node_id,logical_id,field,class,retention,generation,granted_at,revoked_at,acked_generation,receipt_at,receipt_accepted,receipt_reason) VALUES (?,?,?,?,?,?,?,?,'',?,'',?,?)`, grant.ID, grant.NodeID, grant.LogicalID, grant.Field, grant.Class, grant.Retention, grant.Generation, grant.GrantedAt.UTC().Format(time.RFC3339Nano), grant.AckedGeneration, grant.ReceiptAccepted, grant.ReceiptReason)
 	if err != nil {
 		return Grant{}, fmt.Errorf("create credential grant: %w", err)
 	}
@@ -42,7 +42,7 @@ func (r *SQLiteRepository) Create(ctx context.Context, grant Grant) (Grant, erro
 }
 
 func (r *SQLiteRepository) List(ctx context.Context, nodeID string) ([]Grant, error) {
-	query := `SELECT id,node_id,logical_id,field,class,retention,generation,granted_at,revoked_at,acked_generation FROM credential_grants WHERE revoked_at=''`
+	query := `SELECT id,node_id,logical_id,field,class,retention,generation,granted_at,revoked_at,acked_generation,receipt_at,receipt_accepted,receipt_reason FROM credential_grants WHERE revoked_at=''`
 	args := []any{}
 	if nodeID != "" {
 		query += ` AND node_id=?`
@@ -57,8 +57,8 @@ func (r *SQLiteRepository) List(ctx context.Context, nodeID string) ([]Grant, er
 	var grants []Grant
 	for rows.Next() {
 		var grant Grant
-		var class, retention, grantedAt, revokedAt string
-		if err := rows.Scan(&grant.ID, &grant.NodeID, &grant.LogicalID, &grant.Field, &class, &retention, &grant.Generation, &grantedAt, &revokedAt, &grant.AckedGeneration); err != nil {
+		var class, retention, grantedAt, revokedAt, receiptAt string
+		if err := rows.Scan(&grant.ID, &grant.NodeID, &grant.LogicalID, &grant.Field, &class, &retention, &grant.Generation, &grantedAt, &revokedAt, &grant.AckedGeneration, &receiptAt, &grant.ReceiptAccepted, &grant.ReceiptReason); err != nil {
 			return nil, err
 		}
 		grant.Class, grant.Retention = Class(class), Retention(retention)
@@ -72,9 +72,30 @@ func (r *SQLiteRepository) List(ctx context.Context, nodeID string) ([]Grant, er
 				return nil, err
 			}
 		}
+		if receiptAt != "" {
+			grant.ReceiptAt, err = time.Parse(time.RFC3339Nano, receiptAt)
+			if err != nil {
+				return nil, err
+			}
+		}
 		grants = append(grants, grant)
 	}
 	return grants, rows.Err()
+}
+
+func (r *SQLiteRepository) RecordReceipt(ctx context.Context, id string, generation int64, accepted bool, reason string, at time.Time) error {
+	result, err := r.db.ExecContext(ctx, `UPDATE credential_grants SET receipt_at=?, receipt_accepted=?, receipt_reason=? WHERE id=? AND revoked_at=''`, at.UTC().Format(time.RFC3339Nano), accepted, reason, id)
+	if err != nil {
+		return fmt.Errorf("record credential receipt: %w", err)
+	}
+	if accepted {
+		_, err = r.db.ExecContext(ctx, `UPDATE credential_grants SET acked_generation=CASE WHEN acked_generation<? THEN ? ELSE acked_generation END WHERE id=? AND revoked_at=''`, generation, generation, id)
+	}
+	if err != nil {
+		return fmt.Errorf("ack credential receipt: %w", err)
+	}
+	_ = result
+	return nil
 }
 
 func (r *SQLiteRepository) Revoke(ctx context.Context, id string) error {

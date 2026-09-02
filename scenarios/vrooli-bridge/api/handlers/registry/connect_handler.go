@@ -34,6 +34,10 @@ type ReadinessPresence interface {
 	Readiness(nodeID string) internalpresence.ReadinessFacts
 }
 
+type CapabilityPresence interface {
+	Health(nodeID string) (internalpresence.HealthSnapshot, bool)
+}
+
 // CredentialRevoker severs a node's mutual-auth credential. The pairing service
 // satisfies it; revocation calls it so a single RevokeNode kills durable
 // identity AND the node's ability to authenticate (SECURITY.md atomic
@@ -68,9 +72,17 @@ func (h *connectHandler) nodeProto(n registry.Node) *registryv1.Node {
 	online := h.deps.Presence.IsOnline(n.ID)
 	dispatchable := h.deps.Presence.Dispatchable(n.ID)
 	if r, ok := h.deps.Presence.(ReadinessPresence); ok {
-		return domainToProto(n, online, dispatchable, h.deps.PresenceStaleAfter, r.Readiness(n.ID))
+		out := domainToProto(n, online, dispatchable, h.deps.PresenceStaleAfter, r.Readiness(n.ID))
+		if p, ok := h.deps.Presence.(CapabilityPresence); ok {
+			applyCapabilityInventory(out, p, n.ID)
+		}
+		return out
 	}
-	return domainToProto(n, online, dispatchable, h.deps.PresenceStaleAfter)
+	out := domainToProto(n, online, dispatchable, h.deps.PresenceStaleAfter)
+	if p, ok := h.deps.Presence.(CapabilityPresence); ok {
+		applyCapabilityInventory(out, p, n.ID)
+	}
+	return out
 }
 
 // NewConnectHandler constructs the handler, defaulting the logger and the

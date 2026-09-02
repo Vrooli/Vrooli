@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS releases (
     release_notes TEXT,
     released_by TEXT,
     promoted_from_release_id TEXT,
+    readiness_goal_ref TEXT,
+    approved_at_commit TEXT,
     verification_evidence TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     published_at TIMESTAMP,
@@ -31,3 +33,12 @@ CREATE INDEX IF NOT EXISTS idx_releases_profile_channel ON releases(profile_id, 
 CREATE INDEX IF NOT EXISTS idx_releases_status ON releases(status);
 CREATE INDEX IF NOT EXISTS idx_releases_commit ON releases(profile_id, git_commit_hash);
 CREATE INDEX IF NOT EXISTS idx_releases_deployment ON releases(deployment_id);
+
+CREATE TABLE IF NOT EXISTS readiness_waivers (
+    profile_id TEXT NOT NULL,
+    git_commit_hash TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    actor TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (profile_id, git_commit_hash)
+);

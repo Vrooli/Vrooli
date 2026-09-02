@@ -77,8 +77,8 @@ func TestLANAdmissionAutomaticallyAllowsCandidateAndRetries(t *testing.T) {
 	if err != nil || timedOut {
 		t.Fatalf("Wait err=%v timedOut=%v", err, timedOut)
 	}
-	if op.State != onboard.StateSucceeded {
-		t.Fatalf("onboarding did not succeed after remediation: %+v", op)
+	if op.State != onboard.StatePaired {
+		t.Fatalf("onboarding did not pair after remediation: %+v", op)
 	}
 	if allowedIP != "192.168.1.176" {
 		t.Fatalf("allowed IP=%q", allowedIP)

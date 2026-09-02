@@ -543,6 +543,20 @@
           }
         },
         {
+          "name": "readiness",
+          "description": "Aggregate deployment readiness verdicts",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "secrets",
           "description": "Inspect secret templates",
           "binding": {

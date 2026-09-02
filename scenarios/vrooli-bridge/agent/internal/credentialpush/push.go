@@ -21,6 +21,18 @@ type Sink interface {
 	Delete(logicalID, field string) error
 }
 
+// StoreRefusal is a metadata-only failure returned when the node authority
+// cannot accept a durable value. It gives the control plane a stable recovery
+// message without exposing the value or the authority's raw output.
+type StoreRefusal struct {
+	State    string
+	Recovery string
+}
+
+func (e StoreRefusal) Error() string {
+	return fmt.Sprintf("credential store %s; recovery: %s", e.State, e.Recovery)
+}
+
 type Result struct {
 	Receipt      *channelv1.CredentialReceipt
 	Ephemeral    []byte
@@ -120,11 +132,15 @@ func Apply(push *channelv1.CredentialPush, nodeID string, private *ecdh.PrivateK
 	}
 	if sink == nil {
 		zero(plaintext)
-		return Result{}, errors.New("credential push: durable authority sink is unavailable")
+		receipt.Accepted = false
+		receipt.Reason = "credential push: durable authority sink is unavailable"
+		return Result{Receipt: receipt}, errors.New(receipt.Reason)
 	}
 	if err := sink.Put(push.GetLogicalId(), push.GetField(), string(plaintext)); err != nil {
 		zero(plaintext)
-		return Result{}, fmt.Errorf("credential push: store durable value: %w", err)
+		receipt.Accepted = false
+		receipt.Reason = fmt.Sprintf("credential push: store durable value: %v", err)
+		return Result{Receipt: receipt}, errors.New(receipt.Reason)
 	}
 	zero(plaintext)
 	receipt.Accepted = true

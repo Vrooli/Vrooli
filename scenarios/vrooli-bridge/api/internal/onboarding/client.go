@@ -1,3 +1,4 @@
+// DOC: docs/concepts/REACH-AND-CONFIGURATION.md
 // Package onboarding is the transport-neutral contract between vrooli-bridge
 // and vrooli-onboarding. Bridge owns reaching a node; this package owns the
 // stable selection document and the machine-readable result of applying it.
@@ -12,18 +13,18 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
 
 // Selection is intentionally capability-shaped rather than an operator-state
 // document. It can therefore cross a deployment boundary without coupling
 // bridge to onboarding's persistence schema.
-type Selection struct {
-	Scenarios         []string        `json:"scenarios,omitempty"`
-	OptionalResources []string        `json:"optional_resources,omitempty"`
-	Host              HostSelection   `json:"host,omitempty"`
-	OperatingMode     map[string]Mode `json:"operating_mode,omitempty"`
-	Apply             bool            `json:"apply,omitempty"`
-}
+// Selection is the generated, versioned setup contract. Keeping this alias
+// makes the handoff API use the same message as Bridge's wire surface, so the
+// capability document cannot silently lose setup classes at a scenario
+// boundary.
+type Selection = setupv1.Selection
 
 // HandoffRequest is the only identity Bridge sends across the scenario
 // boundary. It deliberately contains no credentials or Bridge persistence
@@ -32,10 +33,15 @@ type HandoffRequest struct {
 	MachineID string `json:"machine_id"`
 	NodeID    string `json:"node_id"`
 	NodeKind  string `json:"node_kind"`
+	// DesiredSelection is resolved by Bridge from the selected Machine's
+	// versioned desired document. When present, onboarding must apply this
+	// document instead of mirroring its own control-plane operator state.
+	DesiredSelection *Selection `json:"desired_selection,omitempty"`
 }
 
-// HandoffClient is the optional cross-scenario seam. A nil client means the
-// legacy Bridge-owned setup profile remains in force.
+// HandoffClient is the cross-scenario selection seam. Production composition
+// must supply a reachable onboarding endpoint whenever configuration is
+// requested; pairing-only operations do not invoke this seam.
 type HandoffClient interface {
 	Resolve(ctx context.Context, request HandoffRequest) (Selection, error)
 }
@@ -69,7 +75,7 @@ type HTTPHandoffClient struct {
 
 func (c HTTPHandoffClient) Resolve(ctx context.Context, request HandoffRequest) (Selection, error) {
 	if strings.TrimSpace(c.Endpoint) == "" {
-		return Selection{}, nil
+		return Selection{}, fmt.Errorf("onboarding handoff endpoint is not configured; start vrooli-onboarding on the target and retry configuration")
 	}
 	payload, err := json.Marshal(request)
 	if err != nil {
@@ -103,36 +109,6 @@ func (c HTTPHandoffClient) Resolve(ctx context.Context, request HandoffRequest) 
 	return selection, nil
 }
 
-type HostSelection struct {
-	Tools      []string `json:"tools,omitempty"`
-	Safeguards []string `json:"safeguards,omitempty"`
-}
-
-type Mode struct {
-	AutoRestart bool `json:"auto_restart"`
-}
-
-// FromSetupProfile converts the existing bridge profile flags into the stable
-// onboarding document. Empty profiles intentionally return nil: old callers
-// that request only pairing/bootstrap retain their existing behavior.
-func FromSetupProfile(scenarios, resources string, includeOptional bool) (Selection, bool) {
-	selection := Selection{Apply: true}
-	selection.Scenarios = append(selection.Scenarios, splitNames(scenarios)...)
-	selection.OptionalResources = append(selection.OptionalResources, splitNames(resources)...)
-	return selection, len(selection.Scenarios) > 0 || len(selection.OptionalResources) > 0
-}
-
-func splitNames(value string) []string {
-	parts := strings.Split(value, ",")
-	result := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if name := strings.TrimSpace(part); name != "" && name != "all" && name != "none" && name != "enabled" {
-			result = append(result, name)
-		}
-	}
-	return result
-}
-
 // Target is the minimum connection information needed by a bridge transport.
 type Target struct {
 	Host string
@@ -142,9 +118,51 @@ type Target struct {
 }
 
 type Result struct {
-	ExitCode int
-	Stdout   string
-	Stderr   string
+	ExitCode     int
+	Stdout       string
+	Stderr       string
+	Dispositions []Disposition
+}
+
+type Disposition struct {
+	ID          string `json:"id"`
+	Kind        string `json:"kind"`
+	Name        string `json:"name"`
+	Disposition string `json:"disposition"`
+	Reason      string `json:"error,omitempty"`
+	Remediation string `json:"remediation,omitempty"`
+}
+
+// UnmarshalJSON accepts both the stable operator-facing disposition field and
+// the onboarding runner's historical outcome field. The remote apply contract
+// emits outcome for completed items on some versions, and dropping that value
+// would turn a useful per-item report into an identity-only list.
+func (d *Disposition) UnmarshalJSON(data []byte) error {
+	type wire struct {
+		ID          string `json:"id"`
+		Kind        string `json:"kind"`
+		Name        string `json:"name"`
+		Disposition string `json:"disposition"`
+		Outcome     string `json:"outcome"`
+		Error       string `json:"error"`
+		Reason      string `json:"reason"`
+		Remediation string `json:"remediation"`
+	}
+	var value wire
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	d.ID, d.Kind, d.Name = value.ID, value.Kind, value.Name
+	d.Disposition = value.Disposition
+	if d.Disposition == "" {
+		d.Disposition = value.Outcome
+	}
+	d.Reason = value.Error
+	if d.Reason == "" {
+		d.Reason = value.Reason
+	}
+	d.Remediation = value.Remediation
+	return nil
 }
 
 // Runner is implemented by bridge's SSH transport. Keeping it here avoids
@@ -193,6 +211,7 @@ func ApplyAndReadiness(ctx context.Context, runner Runner, target Target, select
 	if err != nil {
 		return result, err
 	}
+	applyDispositions := parseDispositions(result.Stdout)
 	if result.ExitCode != 0 {
 		// wizard commit performs the apply and may already have fetched
 		// readiness, but its exit path is allowed to contain only the concise
@@ -200,12 +219,29 @@ func ApplyAndReadiness(ctx context.Context, runner Runner, target Target, select
 		// so the bridge failure record retains the named metadata-only blockers.
 		readiness, readinessErr := Readiness(ctx, runner, target)
 		result = mergeResults(result, readiness)
+		result.Dispositions = append(applyDispositions, parseDispositions(readiness.Stdout)...)
 		if readinessErr != nil {
 			return result, readinessErr
 		}
 		return result, nil
 	}
-	return Readiness(ctx, runner, target)
+	readiness, readinessErr := Readiness(ctx, runner, target)
+	readiness.Dispositions = append(applyDispositions, parseDispositions(readiness.Stdout)...)
+	return readiness, readinessErr
+}
+
+func parseDispositions(output string) []Disposition {
+	var result []Disposition
+	for _, line := range strings.Split(output, "\n") {
+		var envelope struct {
+			Items []Disposition `json:"items"`
+		}
+		if err := json.Unmarshal([]byte(strings.TrimSpace(line)), &envelope); err != nil || len(envelope.Items) == 0 {
+			continue
+		}
+		result = append(result, envelope.Items...)
+	}
+	return result
 }
 
 func mergeResults(first, second Result) Result {

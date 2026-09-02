@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS onboarding_ops (
   created_at      TEXT NOT NULL,
   started_at      TEXT NOT NULL DEFAULT '',
   finished_at     TEXT NOT NULL DEFAULT ''
+  ,configuration_dispositions TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE INDEX IF NOT EXISTS idx_onboarding_ops_created_at ON onboarding_ops(created_at DESC);

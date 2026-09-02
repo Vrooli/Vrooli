@@ -48,12 +48,12 @@ const (
 	nodeTimeFormat = time.RFC3339Nano
 
 	insertNodeSQL = `
-INSERT INTO nodes (id, name, kind, os, arch, machine_arch, binary_arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO nodes (id, name, kind, os, arch, machine_arch, binary_arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at, capability_inventory, capability_probed_at, configuration_op_id, configuration_state, configuration_at, configuration_unmet)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 	selectNodeColumns = `
-	SELECT id, name, kind, os, arch, machine_arch, binary_arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at
+	SELECT id, name, kind, os, arch, machine_arch, binary_arch, revision, endpoint, capabilities, scopes, pairing_correlation_id, created_at, updated_at, last_seen_at, revoked_at, capability_inventory, capability_probed_at, configuration_op_id, configuration_state, configuration_at, configuration_unmet
 FROM nodes
 `
 
@@ -63,7 +63,7 @@ FROM nodes
 
 	updateNodeSQL = `
 	UPDATE nodes
-SET name = ?, kind = ?, endpoint = ?, capabilities = ?, scopes = ?, revision = ?, updated_at = ?
+SET name = ?, kind = ?, endpoint = ?, capabilities = ?, scopes = ?, revision = ?, configuration_op_id = ?, configuration_state = ?, configuration_at = ?, configuration_unmet = ?, updated_at = ?
 WHERE id = ?
 `
 
@@ -110,6 +110,10 @@ func (s *sqliteRepository) Create(ctx context.Context, n Node) (Node, error) {
 	if err != nil {
 		return Node{}, fmt.Errorf("encode scopes: %w", err)
 	}
+	inventory, err := marshalCapabilityInventory(n.CapabilityInventory)
+	if err != nil {
+		return Node{}, fmt.Errorf("encode capability inventory: %w", err)
+	}
 
 	if n.Kind == "" {
 		n.Kind = KindAgent
@@ -119,6 +123,8 @@ func (s *sqliteRepository) Create(ctx context.Context, n Node) (Node, error) {
 		n.PairingCorrelationID,
 		n.CreatedAt.Format(nodeTimeFormat), n.UpdatedAt.Format(nodeTimeFormat),
 		formatNullableTime(n.LastSeenAt), formatNullableTime(n.RevokedAt),
+		inventory, formatNullableTime(n.CapabilityProbedAt),
+		n.ConfigurationOpID, n.ConfigurationState, formatNullableTime(n.ConfigurationAt), configurationUnmetJSON(n.ConfigurationUnmet),
 	)
 	if err != nil {
 		return Node{}, fmt.Errorf("insert node %q: %w", n.ID, err)
@@ -200,6 +206,10 @@ func (s *sqliteRepository) Update(ctx context.Context, n Node) (Node, error) {
 		existing.Kind = n.Kind
 	}
 	existing.UpdatedAt = s.clock.Now().UTC()
+	existing.ConfigurationOpID = n.ConfigurationOpID
+	existing.ConfigurationState = n.ConfigurationState
+	existing.ConfigurationAt = n.ConfigurationAt
+	existing.ConfigurationUnmet = n.ConfigurationUnmet
 
 	caps, err := marshalStrings(existing.Capabilities)
 	if err != nil {
@@ -212,6 +222,7 @@ func (s *sqliteRepository) Update(ctx context.Context, n Node) (Node, error) {
 
 	if _, err := s.db.ExecContext(ctx, updateNodeSQL,
 		existing.Name, existing.Kind, existing.Endpoint, caps, scopes, existing.Revision,
+		existing.ConfigurationOpID, existing.ConfigurationState, formatNullableTime(existing.ConfigurationAt), configurationUnmetJSON(existing.ConfigurationUnmet),
 		existing.UpdatedAt.Format(nodeTimeFormat), existing.ID,
 	); err != nil {
 		return Node{}, fmt.Errorf("update node %q: %w", n.ID, err)
@@ -288,6 +299,18 @@ func (s *sqliteRepository) TouchLastSeen(ctx context.Context, id string, t time.
 	return nil
 }
 
+func (s *sqliteRepository) UpdateCapabilityInventory(ctx context.Context, id string, observations []CapabilityObservation, probedAt time.Time) error {
+	if err := s.ensureColumns(ctx); err != nil {
+		return err
+	}
+	inventory, err := marshalCapabilityInventory(observations)
+	if err != nil {
+		return fmt.Errorf("encode capability inventory: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `UPDATE nodes SET capability_inventory = ?, capability_probed_at = ?, updated_at = ? WHERE id = ?`, inventory, formatNullableTime(probedAt), s.clock.Now().UTC().Format(nodeTimeFormat), id)
+	return err
+}
+
 // rowScanner unifies *sql.Row and *sql.Rows under their common Scan surface.
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -295,16 +318,19 @@ type rowScanner interface {
 
 func scanNode(s rowScanner) (Node, error) {
 	var (
-		n           Node
-		capsRaw     string
-		scopesRaw   string
-		createdRaw  string
-		updatedRaw  string
-		lastSeenRaw string
-		revokedRaw  string
+		n                                                                                Node
+		capsRaw                                                                          string
+		scopesRaw                                                                        string
+		createdRaw                                                                       string
+		updatedRaw                                                                       string
+		lastSeenRaw                                                                      string
+		revokedRaw                                                                       string
+		inventoryRaw                                                                     string
+		probedRaw                                                                        string
+		configurationOpID, configurationState, configurationAtRaw, configurationUnmetRaw string
 	)
 	if err := s.Scan(&n.ID, &n.Name, &n.Kind, &n.OS, &n.Arch, &n.MachineArch, &n.BinaryArch, &n.Revision, &n.Endpoint,
-		&capsRaw, &scopesRaw, &n.PairingCorrelationID, &createdRaw, &updatedRaw, &lastSeenRaw, &revokedRaw); err != nil {
+		&capsRaw, &scopesRaw, &n.PairingCorrelationID, &createdRaw, &updatedRaw, &lastSeenRaw, &revokedRaw, &inventoryRaw, &probedRaw, &configurationOpID, &configurationState, &configurationAtRaw, &configurationUnmetRaw); err != nil {
 		return Node{}, err
 	}
 
@@ -331,6 +357,22 @@ func scanNode(s rowScanner) (Node, error) {
 	if n.RevokedAt, err = parseNullableTime(revokedRaw); err != nil {
 		return Node{}, fmt.Errorf("parse revoked_at %q: %w", revokedRaw, err)
 	}
+	if inventoryRaw != "" {
+		if err := json.Unmarshal([]byte(inventoryRaw), &n.CapabilityInventory); err != nil {
+			return Node{}, fmt.Errorf("decode capability inventory: %w", err)
+		}
+	}
+	if n.CapabilityProbedAt, err = parseNullableTime(probedRaw); err != nil {
+		return Node{}, fmt.Errorf("parse capability_probed_at %q: %w", probedRaw, err)
+	}
+	n.ConfigurationOpID = configurationOpID
+	n.ConfigurationState = configurationState
+	if n.ConfigurationAt, err = parseNullableTime(configurationAtRaw); err != nil {
+		return Node{}, fmt.Errorf("parse configuration_at %q: %w", configurationAtRaw, err)
+	}
+	if configurationUnmetRaw != "" && json.Unmarshal([]byte(configurationUnmetRaw), &n.ConfigurationUnmet) != nil {
+		return Node{}, fmt.Errorf("decode configuration unmet items")
+	}
 	return n, nil
 }
 
@@ -340,6 +382,12 @@ func (s *sqliteRepository) ensureColumns(ctx context.Context) error {
 			`ALTER TABLE nodes ADD COLUMN kind TEXT NOT NULL DEFAULT 'agent'`,
 			`ALTER TABLE nodes ADD COLUMN machine_arch TEXT NOT NULL DEFAULT ''`,
 			`ALTER TABLE nodes ADD COLUMN binary_arch TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE nodes ADD COLUMN capability_inventory TEXT NOT NULL DEFAULT '[]'`,
+			`ALTER TABLE nodes ADD COLUMN capability_probed_at TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE nodes ADD COLUMN configuration_op_id TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE nodes ADD COLUMN configuration_state TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE nodes ADD COLUMN configuration_at TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE nodes ADD COLUMN configuration_unmet TEXT NOT NULL DEFAULT '[]'`,
 		} {
 			_, s.migrateErr = s.db.ExecContext(ctx, stmt)
 			if s.migrateErr != nil && !strings.Contains(s.migrateErr.Error(), "duplicate column") {
@@ -362,6 +410,22 @@ func marshalStrings(v []string) (string, error) {
 		return "", err
 	}
 	return string(b), nil
+}
+
+func configurationUnmetJSON(v []string) string {
+	encoded, err := marshalStrings(v)
+	if err != nil {
+		return "[]"
+	}
+	return encoded
+}
+
+func marshalCapabilityInventory(v []CapabilityObservation) (string, error) {
+	if v == nil {
+		v = []CapabilityObservation{}
+	}
+	b, err := json.Marshal(v)
+	return string(b), err
 }
 
 func unmarshalStrings(raw string) ([]string, error) {

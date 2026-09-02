@@ -102,6 +102,13 @@ describe("FleetPanel", () => {
     expect(row).toHaveTextContent(strings.fleet.readiness.ready);
   });
 
+  it("renders configuration outcome separately from transport readiness", async () => {
+    listNodes.mockResolvedValue({ nodes: [makeNode({ id: "configured-1", configurationState: "paired", configurationUnmet: ["resource:opencode"] })] });
+    renderWithProviders(<FleetPanel />);
+    expect(await screen.findByTestId("fleet-node-configuration-configured-1")).toHaveTextContent("paired");
+    expect(screen.getByTestId("fleet-node-configuration-configured-1")).toHaveTextContent("resource:opencode");
+  });
+
   it("shows an offline node with its last-seen and offline label", async () => {
     listNodes.mockResolvedValue({
       nodes: [

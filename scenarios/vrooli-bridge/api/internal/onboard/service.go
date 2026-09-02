@@ -177,8 +177,9 @@ func WithNodeRevisionRecorder(r NodeRevisionRecorder) Option {
 	return func(s *service) { s.nodeRev = r }
 }
 
-// WithOnboardingHandoff enables the optional cross-scenario selection
-// handoff. When omitted, onboarding remains fully Bridge-local and unchanged.
+// WithOnboardingHandoff wires the cross-scenario selection handoff. A requested
+// configuration fails closed when production composition has not supplied it;
+// isolated pairing-only tests may omit it.
 func WithOnboardingHandoff(client onboarding.HandoffClient) Option {
 	return func(s *service) { s.handoff = client }
 }
@@ -393,7 +394,7 @@ func (s *service) Protect(ctx context.Context, in ProtectionInput) (ProtectionDe
 	if err != nil {
 		return ProtectionDecision{}, err
 	}
-	if op.State != StateSucceeded {
+	if op.State != StateSucceeded && op.State != StatePaired {
 		return ProtectionDecision{}, ErrConflict{Field: "onboarding_state", Reason: "protection requires a succeeded onboarding operation"}
 	}
 	if op.NodeID != in.NodeID {

@@ -32,6 +32,11 @@ type Machine struct {
 	Version               int64
 	DesiredProfileID      string
 	DesiredProfileVersion string
+	AppliedProfileID      string
+	AppliedProfileVersion string
+	DesiredSelectionJSON  string
+	AppliedSelectionJSON  string
+	AppliedAt             time.Time
 	TrustRef              string
 	Locators              []Locator
 	Lineage               []NodeLineage

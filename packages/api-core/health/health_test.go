@@ -95,6 +95,39 @@ func TestHandler_Minimal(t *testing.T) {
 	}
 }
 
+func TestHandler_FunctionalFailureDegradesWithoutChangingReadiness(t *testing.T) {
+	handler := New("test").Functional(func(context.Context) FunctionalStatus {
+		return FunctionalStatus{Healthy: false, Reason: "lifecycle refusals exceeded"}
+	}).Handler()
+	w := httptest.NewRecorder()
+	handler(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var resp Response
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if w.Code != http.StatusOK || resp.Status != StatusDegraded || !resp.Readiness {
+		t.Fatalf("status=%d response=%#v, want 200/degraded/ready", w.Code, resp)
+	}
+	if resp.Functional == nil || resp.Functional.Healthy || resp.Functional.Reason != "lifecycle refusals exceeded" {
+		t.Fatalf("functional=%#v, want failed status with reason", resp.Functional)
+	}
+}
+
+func TestHandler_FunctionalSuccessIsReported(t *testing.T) {
+	handler := New("test").Functional(func(context.Context) FunctionalStatus {
+		return FunctionalStatus{Healthy: true}
+	}).Handler()
+	w := httptest.NewRecorder()
+	handler(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var resp Response
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if resp.Status != StatusHealthy || resp.Functional == nil || !resp.Functional.Healthy {
+		t.Fatalf("response=%#v, want healthy functional status", resp)
+	}
+}
+
 func TestHandler_ServiceFromEnv(t *testing.T) {
 	// Use scenario package test hooks
 	cleanup := scenario.SetTestHooks(

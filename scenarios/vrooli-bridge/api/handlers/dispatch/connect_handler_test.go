@@ -9,6 +9,7 @@ import (
 	auditmocks "vrooli-bridge/internal/audit/mocks"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/channelsign"
+	"vrooli-bridge/internal/compat"
 	"vrooli-bridge/internal/cpkeys"
 	"vrooli-bridge/internal/dispatch"
 	"vrooli-bridge/internal/presence"
@@ -92,6 +93,7 @@ func TestDispatchHandler_EndToEndPushesTypedJob(t *testing.T) {
 	hub := presence.NewHub(clk)
 	conn := hub.Connect("n1")
 	defer conn.Close()
+	hub.SetCompatibility("n1", compat.StatusOK)
 
 	// Wire the dispatch service with the same adapters the production Module uses,
 	// including the per-node scheduler on the push path (a free slot pushes the

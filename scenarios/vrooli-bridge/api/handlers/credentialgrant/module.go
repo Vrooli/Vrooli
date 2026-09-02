@@ -27,6 +27,7 @@ type ModuleDeps struct {
 	Signer           channelsign.Signer
 	SealingPublicKey func(context.Context, string) ([]byte, error)
 	ResolveValue     func(context.Context, string, string) (string, error)
+	ProvisionValue   func(context.Context, string, string, string) error
 	NodeVerifier     *nodeauth.Verifier
 	Logger           *log.Logger
 }
@@ -37,6 +38,7 @@ type handler struct {
 	signer           channelsign.Signer
 	sealingPublicKey func(context.Context, string) ([]byte, error)
 	resolveValue     func(context.Context, string, string) (string, error)
+	provisionValue   func(context.Context, string, string, string) error
 	nodeVerifier     *nodeauth.Verifier
 	logger           *log.Logger
 }
@@ -45,7 +47,7 @@ func NewHandler(deps ModuleDeps) *handler {
 	if deps.Logger == nil {
 		deps.Logger = log.Default()
 	}
-	return &handler{service: deps.Service, presence: deps.Presence, signer: deps.Signer, sealingPublicKey: deps.SealingPublicKey, resolveValue: deps.ResolveValue, nodeVerifier: deps.NodeVerifier, logger: deps.Logger}
+	return &handler{service: deps.Service, presence: deps.Presence, signer: deps.Signer, sealingPublicKey: deps.SealingPublicKey, resolveValue: deps.ResolveValue, provisionValue: deps.ProvisionValue, nodeVerifier: deps.NodeVerifier, logger: deps.Logger}
 }
 
 func Module(h *handler) module.Module {
@@ -72,6 +74,31 @@ func (h *handler) CreateGrant(ctx context.Context, req *connect.Request[grantv1.
 	}
 	if err := h.deliverGrant(ctx, grant); err != nil {
 		h.logger.Printf("credential grant %q delivery deferred: %v", grant.ID, err)
+	}
+	return connect.NewResponse(toProto(grant)), nil
+}
+
+func (h *handler) AnswerSecret(ctx context.Context, req *connect.Request[grantv1.AnswerSecretRequest]) (*connect.Response[grantv1.CredentialGrant], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	if h.provisionValue == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("credential provisioning is unavailable"))
+	}
+	if req.Msg.GetValue() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("secret value is required"))
+	}
+	grant, err := h.service.Create(ctx, internalgrant.CreateInput{NodeID: req.Msg.GetNodeId(), LogicalID: req.Msg.GetLogicalId(), Field: req.Msg.GetField(), Class: internalgrant.Class(req.Msg.GetClass()), Retention: internalgrant.Retention(req.Msg.GetRetention()), Generation: 1})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	value := req.Msg.GetValue()
+	defer func() { value = "" }()
+	if err := h.provisionValue(ctx, grant.LogicalID, grant.Field, value); err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("credential authority rejected the answer: %w", err))
+	}
+	if err := h.deliverGrant(ctx, grant); err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("sealed credential delivery failed: %w", err))
 	}
 	return connect.NewResponse(toProto(grant)), nil
 }
@@ -180,6 +207,8 @@ func (h *handler) SyncNode(ctx context.Context, nodeID string) error {
 	return nil
 }
 
+// deliverGrant seals and pushes the node-bound credential value.
+// DOC: scenarios/vrooli-bridge/docs/reference/credential-delivery.md
 func (h *handler) deliverGrant(ctx context.Context, grant internalgrant.Grant) error {
 	if h.presence == nil || h.signer == nil || h.presence.IsOnline(grant.NodeID) == false {
 		return nil
@@ -240,6 +269,11 @@ func toProto(grant internalgrant.Grant) *grantv1.CredentialGrant {
 	if !grant.RevokedAt.IsZero() {
 		out.RevokedAt = timestamppb.New(grant.RevokedAt)
 	}
+	if !grant.ReceiptAt.IsZero() {
+		out.ReceiptAt = timestamppb.New(grant.ReceiptAt)
+	}
+	out.ReceiptAccepted = grant.ReceiptAccepted
+	out.ReceiptReason = grant.ReceiptReason
 	return out
 }
 

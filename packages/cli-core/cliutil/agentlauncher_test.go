@@ -102,6 +102,45 @@ func TestLaunchCodingAgentTreatsHTTP500AndHangAsFallback(t *testing.T) {
 	}
 }
 
+func TestLaunchCodingAgentReportsAttachmentFailureClass(t *testing.T) {
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	tests := []struct {
+		name   string
+		base   string
+		handle http.Handler
+		want   string
+	}{
+		{name: "bad-url", base: "://bad", want: "bad base URL"},
+		{name: "unreachable", base: "http://127.0.0.1:1", want: "agent-manager unreachable"},
+		{name: "non-2xx", handle: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusForbidden) }), want: "non-2xx response"},
+		{name: "malformed", handle: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, `{}`) }), want: "malformed response"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base := tt.base
+			var server *httptest.Server
+			if tt.handle != nil {
+				server = httptest.NewServer(tt.handle)
+				defer server.Close()
+				base = server.URL
+			}
+			result, err := LaunchCodingAgentResult(context.Background(), AgentLaunchRequest{
+				Agent:         "codex",
+				APIBase:       base,
+				AttachTimeout: 50 * time.Millisecond,
+				LookPath:      func(string) (string, error) { return "/safe/fixture/codex", nil },
+				RunChild:      func(context.Context, string, []string, []string, io.Reader, io.Writer, io.Writer) error { return nil },
+			})
+			if err != nil {
+				t.Fatalf("LaunchCodingAgentResult() error = %v", err)
+			}
+			if result.Tier != "tier-4" || result.AttachFailure != tt.want {
+				t.Fatalf("result = %#v, want tier-4/%q", result, tt.want)
+			}
+		})
+	}
+}
+
 func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	// A token in the ambient environment would make the launcher adopt it and
 	// skip attaching, so pin it empty to keep this test about the attach path.

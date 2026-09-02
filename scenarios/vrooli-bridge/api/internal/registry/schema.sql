@@ -22,6 +22,12 @@ CREATE TABLE IF NOT EXISTS nodes (
   updated_at   TEXT NOT NULL,
   last_seen_at TEXT NOT NULL DEFAULT '',
   revoked_at   TEXT NOT NULL DEFAULT ''
+  ,capability_inventory TEXT NOT NULL DEFAULT '[]'
+  ,capability_probed_at TEXT NOT NULL DEFAULT ''
+  ,configuration_op_id TEXT NOT NULL DEFAULT ''
+  ,configuration_state TEXT NOT NULL DEFAULT ''
+  ,configuration_at TEXT NOT NULL DEFAULT ''
+  ,configuration_unmet TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE INDEX IF NOT EXISTS idx_nodes_created_at ON nodes(created_at DESC);

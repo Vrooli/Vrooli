@@ -40,11 +40,31 @@ type Release struct {
 	ReleaseNotes          string             `json:"release_notes,omitempty"`
 	ReleasedBy            string             `json:"released_by,omitempty"`
 	PromotedFromReleaseID string             `json:"promoted_from_release_id,omitempty"`
+	ReadinessGoalRef      string             `json:"readiness_goal_ref,omitempty"`
+	ApprovedAtCommit      string             `json:"approved_at_commit,omitempty"`
 	VerificationEvidence  []VerificationItem `json:"verification_evidence,omitempty"`
 	Platforms             []ReleasePlatform  `json:"platforms,omitempty"`
 	CreatedAt             time.Time          `json:"created_at"`
 	PublishedAt           *time.Time         `json:"published_at,omitempty"`
 	UpdatedAt             time.Time          `json:"updated_at"`
+}
+
+// ReadinessRecord is the release-owned projection consumed by the deployment
+// gate. Goal lifecycle remains owned by swarm-manager; commit identity remains
+// owned here.
+type ReadinessRecord struct {
+	VerdictPresent   bool
+	ReadinessGoalRef string
+	ApprovedAtCommit string
+	GoalClosed       bool
+	Waiver           *ReadinessWaiver
+}
+
+type ReadinessWaiver struct {
+	Reason string
+	Actor  string
+	Commit string
+	At     time.Time
 }
 
 // ReleasePlatform is per-platform publish/verify state for a release.
@@ -109,6 +129,11 @@ type Repository interface {
 	// given profile. Returns true if the lock was acquired, false if another
 	// release orchestration is already in flight.
 	AcquireProfileLock(ctx context.Context, profileID string) (bool, func(), error)
+
+	// RecordReadinessWaiver records an actor-bound exception for one exact
+	// profile and commit. Waivers are explicit operator evidence, not approval.
+	RecordReadinessWaiver(ctx context.Context, profileID, commit, reason, actor string) error
+	GetLatestReadiness(ctx context.Context, profileID string) (*ReadinessRecord, error)
 }
 
 // StartRequest is the body for POST /api/v1/profiles/{id}/releases/start.

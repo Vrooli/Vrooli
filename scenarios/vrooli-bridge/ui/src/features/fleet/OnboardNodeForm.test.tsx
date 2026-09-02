@@ -264,20 +264,14 @@ describe("OnboardNodeForm submission", () => {
     renderWithProviders(<OnboardNodeForm />);
     await toReview(user);
     await openAdvanced(user);
-    await user.type(screen.getByTestId(s.setupEnvironment), "production");
-    await user.type(screen.getByTestId(s.setupResources), "enabled");
-    await user.type(screen.getByTestId(s.setupScenarios), "none");
-    await user.type(screen.getByTestId(s.controlPlaneUrl), "http://control-plane.example.com:8080");
-    await user.click(screen.getByTestId(s.includeOptional));
+	await user.type(screen.getByTestId(s.setupPreset), "production");
+	await user.type(screen.getByTestId(s.controlPlaneUrl), "http://control-plane.example.com:8080");
     await user.click(screen.getByTestId(s.submit));
 
     await waitFor(() => expect(startOnboarding).toHaveBeenCalledTimes(1));
     const input = startOnboarding.mock.calls[0]?.[0];
-    expect(input?.setupEnvironment).toBe("production");
-    expect(input?.setupResources).toBe("enabled");
-    expect(input?.setupScenarios).toBe("none");
-    expect(input?.includeOptional).toBe(true);
-    expect(input?.controlPlaneUrl).toBe("http://control-plane.example.com:8080");
+	expect(input?.setupPreset).toBe("production");
+	expect(input?.controlPlaneUrl).toBe("http://control-plane.example.com:8080");
   });
 
   it("omits the setup profile (blank fields, optional off) by default", async () => {
@@ -290,10 +284,7 @@ describe("OnboardNodeForm submission", () => {
     await startOnboard();
     await waitFor(() => expect(startOnboarding).toHaveBeenCalledTimes(1));
     const input = startOnboarding.mock.calls[0]?.[0];
-    expect(input?.setupEnvironment).toBe("");
-    expect(input?.setupResources).toBe("");
-    expect(input?.setupScenarios).toBe("");
-    expect(input?.includeOptional).toBe(false);
+	expect(input?.setupPreset).toBe("");
     // Blank control-plane URL falls through to the server-side default.
     expect(input?.controlPlaneUrl).toBe("");
   });

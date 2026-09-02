@@ -15,6 +15,7 @@ import (
 	"vrooli-bridge/internal/onboard/ssh"
 	"vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/presence"
+	"vrooli-bridge/internal/registry"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -30,10 +31,25 @@ import (
 // presence hub (ONLINE confirmation). main.go constructs it once and calls
 // ResumeInterrupted on it at boot to reconcile ops orphaned by a restart.
 func NewService(db internalonboard.SQLExecutor, clk schedule.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, opts ...internalonboard.Option) internalonboard.Service {
+	return newService(db, clk, pairingSvc, hub, sshSvc, scriptPath, nil, opts...)
+}
+
+// NewServiceWithRegistry binds the production registry instance so onboarding
+// can record configuration outcomes through the same grant authority used by
+// the rest of Bridge. A second unconfigured registry service would fail closed
+// on nodes carrying non-empty execution scopes.
+func NewServiceWithRegistry(db internalonboard.SQLExecutor, clk schedule.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, registrySvc registry.Service, opts ...internalonboard.Option) internalonboard.Service {
+	return newService(db, clk, pairingSvc, hub, sshSvc, scriptPath, registrySvc, opts...)
+}
+
+func newService(db internalonboard.SQLExecutor, clk schedule.Clock, pairingSvc *pairing.Service, hub *presence.Hub, sshSvc *ssh.Service, scriptPath string, registrySvc registry.Service, opts ...internalonboard.Option) internalonboard.Service {
 	opts = append(opts, internalonboard.WithEnrollmentResolver(codeIssuerAdapter{svc: pairingSvc}))
 	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(internalonboard.AttemptStore)
 	if attempts != nil {
-		opts = append(opts, internalonboard.WithMachineLinker(machineLinkerAdapter{attempts: attempts, machines: machines.NewService(machines.NewSQLiteRepository(db, clk))}))
+		if registrySvc == nil {
+			registrySvc = registry.NewService(registry.NewSQLiteRepository(db, clk))
+		}
+		opts = append(opts, internalonboard.WithMachineLinker(machineLinkerAdapter{attempts: attempts, machines: machines.NewService(machines.NewSQLiteRepository(db, clk)), registry: registrySvc}))
 	}
 	return internalonboard.NewService(
 		internalonboard.NewSQLiteRepository(db, clk),

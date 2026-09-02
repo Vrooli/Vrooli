@@ -70,6 +70,39 @@ func TestMachineCreateAndNodeLineage(t *testing.T) {
 	require.Equal(t, "corr-2", current.CorrelationID)
 }
 
+func TestMachineRecordsAppliedProfileEvidence(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	created, err := repo.Create(ctx, machines.CreateInput{ID: "machine-applied", Locators: []machines.Locator{{Kind: "hostname", Value: "applied.local"}}, DesiredProfileID: "developer", DesiredProfileVersion: "v2"})
+	require.NoError(t, err)
+	appliedAt := clk.Now().Add(time.Minute)
+	updated, err := repo.MarkProfileApplied(ctx, created.ID, created.DesiredProfileID, created.DesiredProfileVersion, appliedAt)
+	require.NoError(t, err)
+	require.Equal(t, "developer", updated.AppliedProfileID)
+	require.Equal(t, "v2", updated.AppliedProfileVersion)
+	require.Equal(t, appliedAt, updated.AppliedAt)
+	loaded, err := repo.Get(ctx, created.ID)
+	require.NoError(t, err)
+	require.Equal(t, updated.AppliedAt, loaded.AppliedAt)
+}
+
+func TestMachinePersistsSeparateDesiredAndAppliedSelections(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	machine, err := repo.Create(ctx, machines.CreateInput{ID: "machine-selections", Locators: []machines.Locator{{Kind: "hostname", Value: "selections.local"}}})
+	require.NoError(t, err)
+	updated, policy, err := repo.ApplyPolicy(ctx, machines.PolicyChangeInput{MachineID: machine.ID, ExpectedVersion: machine.Version, ProfileID: "presence", ProfileVersion: "v1"})
+	require.NoError(t, err)
+	require.NotEmpty(t, policy.SelectionJSON)
+	require.Equal(t, policy.SelectionJSON, updated.DesiredSelectionJSON)
+	require.Empty(t, updated.AppliedSelectionJSON)
+	updated, err = repo.MarkProfileApplied(ctx, machine.ID, policy.ProfileID, policy.ProfileVersion, clk.Now().UTC())
+	require.NoError(t, err)
+	require.Equal(t, policy.SelectionJSON, updated.AppliedSelectionJSON)
+}
+
 func TestLinkNodeReconcilesStaleArchivedOwner(t *testing.T) {
 	d, clk := newDB(t)
 	repo := machines.NewSQLiteRepository(d, clk)

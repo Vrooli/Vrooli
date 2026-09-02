@@ -8,12 +8,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"time"
+
+	"github.com/vrooli/envkit-go"
 )
 
 const (
@@ -58,6 +62,7 @@ type AgentLaunchRequest struct {
 	Args        []string
 	Environment []string
 	APIBase     string
+	WorkingDir  string
 
 	// AttachTimeout bounds only the optional attribution request. It never
 	// bounds or cancels the coding agent itself.
@@ -95,17 +100,36 @@ func (e *AgentLaunchError) Error() string {
 
 func (e *AgentLaunchError) Unwrap() error { return e.Err }
 
+// LaunchResult reports which attribution tier was reached. Tier 1 is an
+// Agent Manager attachment; tier 4 is an ungoverned local launch.
+type LaunchResult struct {
+	Tier          string
+	AttachFailure string
+}
+
+var ungovernedLaunches atomic.Uint64
+
+func UngovernedLaunchCount() uint64 { return ungovernedLaunches.Load() }
+
 // LaunchCodingAgent resolves one supported coding-agent binary, makes a
 // bounded best-effort attach, starts the child, and quietly best-effort
 // detaches it after the child exits. Attach/detach failures never alter child
 // execution or its exit status.
 func LaunchCodingAgent(ctx context.Context, request AgentLaunchRequest) error {
+	_, err := LaunchCodingAgentResult(ctx, request)
+	return err
+}
+
+// LaunchCodingAgentResult is LaunchCodingAgent with an observability result.
+// Attribution remains fail-open so a missing Agent Manager never prevents the
+// underlying coding agent from starting.
+func LaunchCodingAgentResult(ctx context.Context, request AgentLaunchRequest) (LaunchResult, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	harnessKind, binary, err := codingAgentSpec(request.Agent)
 	if err != nil {
-		return &AgentLaunchError{Agent: request.Agent, Err: err}
+		return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: err}
 	}
 
 	lookPath := request.LookPath
@@ -114,13 +138,17 @@ func LaunchCodingAgent(ctx context.Context, request AgentLaunchRequest) error {
 	}
 	path, err := lookPath(binary)
 	if err != nil {
-		return &AgentLaunchError{Agent: request.Agent, Err: fmt.Errorf("resolve %q: %w", binary, err)}
+		return LaunchResult{}, &AgentLaunchError{Agent: request.Agent, Err: fmt.Errorf("resolve %q: %w", binary, err)}
 	}
 
 	environment := append([]string(nil), request.Environment...)
 	if environment == nil {
 		environment = os.Environ()
 	}
+	// Coding-agent children are an explicit delegation boundary. Preserve only
+	// the identity credential that is intentionally delegated and drop scenario
+	// ownership/session observations before any launcher-owned overlay is added.
+	environment = []string(envkit.WithOverlay(envkit.Env(environment), envkit.DelegatedAgent, nil))
 	environment = PrepareWebConsoleAgentHome(request.Agent, environment)
 
 	// Deciding this before attaching matters: a launch that replaces its own
@@ -131,8 +159,17 @@ func LaunchCodingAgent(ctx context.Context, request AgentLaunchRequest) error {
 	willExec := request.RunChild == nil && execReplaceSupported && stdioIsInherited(request)
 
 	attach := attachCodingAgent(ctx, request, harnessKind, willExec)
+	launchResult := LaunchResult{Tier: "tier-4"}
 	if attach.token != "" {
 		environment = withEnvironmentValue(environment, AgentManagerIdentityTokenEnv, attach.token)
+		launchResult.Tier = "tier-1"
+	} else {
+		ungovernedLaunches.Add(1)
+		launchResult.AttachFailure = attach.failure
+		if launchResult.AttachFailure == "" {
+			launchResult.AttachFailure = "agent-manager attachment unavailable"
+		}
+		log.Printf("agent launch attribution degraded agent=%s base=%s", request.Agent, agentManagerLauncherBase(request))
 	}
 
 	if willExec {
@@ -155,7 +192,7 @@ func LaunchCodingAgent(ctx context.Context, request AgentLaunchRequest) error {
 	if runChild == nil {
 		runChild = runNativeChild(request, binary)
 	}
-	return runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
+	return launchResult, runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
 }
 
 // stdioIsInherited reports whether the request's streams are exactly this
@@ -180,8 +217,9 @@ func stdioIsInherited(request AgentLaunchRequest) bool {
 }
 
 type codingAgentAttachment struct {
-	runID string
-	token string
+	runID   string
+	token   string
+	failure string
 }
 
 func codingAgentSpec(agent string) (harnessKind, binary string, err error) {
@@ -223,7 +261,7 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	base := agentManagerLauncherBase(request)
 	parsed, err := url.Parse(base)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return codingAgentAttachment{}
+		return codingAgentAttachment{failure: "bad base URL"}
 	}
 
 	sessionID := harnessSessionID(harnessKind)
@@ -239,7 +277,7 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {
-		return codingAgentAttachment{}
+		return codingAgentAttachment{failure: "malformed request"}
 	}
 
 	timeout := launcherAttachTimeout(request.AttachTimeout)
@@ -247,7 +285,7 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/v1/runs/attach", strings.NewReader(string(payload)))
 	if err != nil {
-		return codingAgentAttachment{}
+		return codingAgentAttachment{failure: "bad base URL"}
 	}
 	req.Header.Set("Content-Type", "application/json")
 	client := request.HTTPClient
@@ -256,11 +294,14 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	}
 	response, err := client.Do(req)
 	if err != nil {
-		return codingAgentAttachment{}
+		if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return codingAgentAttachment{failure: "timeout"}
+		}
+		return codingAgentAttachment{failure: "agent-manager unreachable"}
 	}
 	defer response.Body.Close()
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return codingAgentAttachment{}
+		return codingAgentAttachment{failure: "non-2xx response"}
 	}
 	var result struct {
 		Run struct {
@@ -269,9 +310,13 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 		IdentityToken string `json:"identity_token"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
-		return codingAgentAttachment{}
+		return codingAgentAttachment{failure: "malformed response"}
 	}
-	return codingAgentAttachment{runID: strings.TrimSpace(result.Run.ID), token: strings.TrimSpace(result.IdentityToken)}
+	attachment := codingAgentAttachment{runID: strings.TrimSpace(result.Run.ID), token: strings.TrimSpace(result.IdentityToken)}
+	if attachment.token == "" {
+		attachment.failure = "malformed response"
+	}
+	return attachment
 }
 
 func detachCodingAgent(parent context.Context, request AgentLaunchRequest, runID string) error {
@@ -322,10 +367,14 @@ func harnessSessionID(harnessKind string) string {
 }
 
 func agentManagerLauncherBase(request AgentLaunchRequest) string {
+	defaultBase := defaultAgentManagerLauncherBase
+	if port := strings.TrimSpace(detectAgentManagerPort()); port != "" {
+		defaultBase = "http://127.0.0.1:" + port
+	}
 	return strings.TrimRight(DetermineAPIBase(APIBaseOptions{
 		Override:    request.APIBase,
 		EnvVars:     []string{AgentManagerLauncherBaseEnv, "AGENT_MANAGER_API_URL"},
-		DefaultBase: defaultAgentManagerLauncherBase,
+		DefaultBase: defaultBase,
 	}), "/")
 }
 
@@ -383,6 +432,7 @@ func runNativeChild(request AgentLaunchRequest, argv0 string) ChildRunner {
 		command.Stdin = stdin
 		command.Stdout = stdout
 		command.Stderr = stderr
+		command.Dir = request.WorkingDir
 		return command.Run()
 	}
 }

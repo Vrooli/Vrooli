@@ -14,8 +14,8 @@ history, provisioning gates, and the operator surfaces that use them:
 - `agent/` is a standalone CGO-free Go module that cross-compiles for all six
   supported OS/architecture pairs. It resolves installed scenario CLIs by
   absolute path and executes typed argv without a shell.
-- `packages/nodeclient` is the shared typed client for downstream scenarios;
-  they do not carry private Bridge wire adapters.
+- `packages/api-core/nodereach` is the shared typed client for downstream
+  scenarios; they do not carry private Bridge wire adapters.
 
 > **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
 > owns the first-session initialization protocol — charter, requirements,
@@ -53,7 +53,7 @@ not presented as ready.
   only when this scenario actually needs them.
 - The standalone `agent/` module cross-compiles for the supported OS/architecture
   pairs and resolves installed scenario CLIs by absolute path without a shell.
-- Downstream scenarios use [`packages/nodeclient`](../../packages/nodeclient/)
+- Downstream scenarios use [`packages/api-core/nodereach`](../../packages/api-core/nodereach/)
   for Bridge discovery, authentication, typed relay arguments, durable runs,
   and interactive sessions. Browser payloads never contain Bridge owner or
   node credentials.

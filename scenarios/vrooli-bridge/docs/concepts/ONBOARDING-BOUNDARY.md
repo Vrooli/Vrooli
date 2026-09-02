@@ -20,3 +20,11 @@ This narrow contract is shared by desktop and VPS provisioning: consumers use
 the onboarding union export to decide which scenario, resource, host-tool, and
 safeguard declarations to ship, while the target's onboarding service remains
 responsible for validating the resulting host.
+
+After pairing, the same boundary remains addressable without a second tool:
+Bridge resolves the target, sends the versioned capability-shaped handoff, and
+returns the outstanding question set and applied result to the operator
+surface. The handoff is the only configuration path; profile flags and ad-hoc
+`setup_*` strings are not a second source of configuration truth. Bridge keeps
+the desired document per Machine, Onboarding writes the applied copy, and the
+difference is reported as drift for explicit re-application.

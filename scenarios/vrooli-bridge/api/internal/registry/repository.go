@@ -43,6 +43,7 @@ type Repository interface {
 	// A no-op (nil) when no row matches — a heartbeat from an unknown/removed
 	// node should not error the presence path.
 	TouchLastSeen(ctx context.Context, id string, t time.Time) error
+	UpdateCapabilityInventory(ctx context.Context, id string, observations []CapabilityObservation, probedAt time.Time) error
 }
 
 const (

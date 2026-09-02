@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { ShieldOff, X } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
 import { strings } from "../../consts/strings";
 import { selectors } from "../../consts/selectors";
 import { useTranslation } from "../../i18n";
@@ -41,7 +41,7 @@ export function NodeManagementPanel({ node, onClose }: { node: Node; onClose: ()
   return <aside aria-label={t(strings.fleet.management.heading, { name: node.name || node.id })} className="rounded-sheet border border-app-border bg-app-surface-raised p-5 shadow-lg">
     <div className="flex items-start justify-between gap-4">
       <div><p className="text-xs font-medium uppercase tracking-wide text-app-muted-foreground">{node.os || t(strings.fleet.unknownValue)} · {node.arch || t(strings.fleet.unknownValue)}</p><h3 className="mt-1 text-lg font-semibold">{t(strings.fleet.management.heading, { name: node.name || node.id })}</h3><p className="mt-1 text-sm text-app-muted-foreground">{t(strings.fleet.management.overview)}</p></div>
-      <Button type="button" size="sm" variant="outline" onClick={onClose} aria-label={t(strings.fleet.management.close)}><X className="h-4 w-4" /></Button>
+      <Button type="button" size="sm" variant="secondary" onClick={onClose} aria-label={t(strings.fleet.management.close)}><X className="h-4 w-4" /></Button>
     </div>
     <div className="mt-5 grid gap-3 sm:grid-cols-2">
       <label className="text-xs text-app-muted-foreground">{t(strings.fleet.onboard.nameLabel)}<Input data-testid={selectors.fleet.managementNameInput} className="mt-1" value={name} onChange={(event) => setName(event.target.value)} /></label>
@@ -51,7 +51,7 @@ export function NodeManagementPanel({ node, onClose }: { node: Node; onClose: ()
       <label className="text-xs text-app-muted-foreground sm:col-span-2">{t(strings.fleet.onboard.revisionLabel)}<Input className="mt-1" value={revision} onChange={(event) => setRevision(event.target.value)} /></label>
     </div>
     <div className="mt-4 flex flex-wrap gap-2"><Button type="button" onClick={save} disabled={update.isPending}>{t(update.isPending ? strings.fleet.management.saving : strings.fleet.management.save)}</Button></div>
-    <div className="mt-6 border-t border-app-border pt-4"><h4 className="text-sm font-semibold">{t(strings.fleet.management.revokeHeading)}</h4><p className="mt-1 max-w-2xl text-xs text-app-muted-foreground">{t(strings.fleet.management.revokeDescription)}</p><Button className="mt-3" type="button" variant="outline" disabled={revoke.isPending} onClick={revokeNode}><ShieldOff className="mr-1 h-4 w-4" />{t(strings.fleet.management.revoke)}</Button></div>
-    <div className="mt-5 rounded-control bg-app-surface-muted p-3"><h4 className="text-sm font-semibold">{t(strings.fleet.management.removeHeading)}</h4><p className="mt-1 text-xs text-app-muted-foreground">{t(strings.fleet.management.removeDescription)}</p>{node.status !== NodeStatus.REVOKED ? <p className="mt-2 text-xs text-app-warning">{t(strings.fleet.management.removeBlocked)}</p> : <Button className="mt-3" type="button" variant="outline" disabled={removeNode.isPending} onClick={remove}>{t(strings.fleet.management.removeAction)}</Button>}</div>
+    <div className="mt-6 border-t border-app-border pt-4"><h4 className="text-sm font-semibold">{t(strings.fleet.management.revokeHeading)}</h4><p className="mt-1 max-w-2xl text-xs text-app-muted-foreground">{t(strings.fleet.management.revokeDescription)}</p><Button className="mt-3" type="button" variant="secondary" disabled={revoke.isPending} onClick={revokeNode}><ShieldOff className="mr-1 h-4 w-4" />{t(strings.fleet.management.revoke)}</Button></div>
+    <div className="mt-5 rounded-control bg-app-surface-muted p-3"><h4 className="text-sm font-semibold">{t(strings.fleet.management.removeHeading)}</h4><p className="mt-1 text-xs text-app-muted-foreground">{t(strings.fleet.management.removeDescription)}</p>{node.status !== NodeStatus.REVOKED ? <p className="mt-2 text-xs text-app-warning">{t(strings.fleet.management.removeBlocked)}</p> : <Button className="mt-3" type="button" variant="secondary" disabled={removeNode.isPending} onClick={remove}>{t(strings.fleet.management.removeAction)}</Button>}</div>
   </aside>;
 }

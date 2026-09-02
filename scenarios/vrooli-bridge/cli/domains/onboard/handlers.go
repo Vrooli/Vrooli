@@ -116,8 +116,7 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 		RepoUrl: ctx.Flag("repo-url"), CheckoutDir: ctx.Flag("checkout-dir"), ControlPlaneUrl: ctx.Flag("control-plane-url"),
 		ReachabilityMode: strings.TrimSpace(ctx.Flag("reachability-mode")), VerifyTimeoutSeconds: int32(parseInt(ctx.Flag("verify-timeout"))),
 		SkipSetup: ctx.BoolFlag("skip-setup"), SkipPrereqs: ctx.BoolFlag("skip-prereqs"), ProvisionSudo: resolveProvisionSudo(ctx),
-		SetupEnvironment: strings.TrimSpace(ctx.Flag("setup-environment")), SetupResources: strings.TrimSpace(ctx.Flag("setup-resources")),
-		SetupScenarios: strings.TrimSpace(ctx.Flag("setup-scenarios")), IncludeOptional: ctx.BoolFlag("include-optional"),
+		SetupPreset:          strings.TrimSpace(ctx.Flag("preset")),
 		ProvisionServiceUser: strings.TrimSpace(ctx.Flag("provision-service-user")), SourceMode: sourceMode,
 	}))
 	if err != nil {
@@ -480,10 +479,7 @@ func (h *handlers) start(ctx cliapp.RunContext) error {
 		SkipSetup:            ctx.BoolFlag("skip-setup"),
 		SkipPrereqs:          ctx.BoolFlag("skip-prereqs"),
 		ProvisionSudo:        resolveProvisionSudo(ctx),
-		SetupEnvironment:     strings.TrimSpace(ctx.Flag("setup-environment")),
-		SetupResources:       strings.TrimSpace(ctx.Flag("setup-resources")),
-		SetupScenarios:       strings.TrimSpace(ctx.Flag("setup-scenarios")),
-		IncludeOptional:      ctx.BoolFlag("include-optional"),
+		SetupPreset:          strings.TrimSpace(ctx.Flag("preset")),
 		ProvisionServiceUser: strings.TrimSpace(ctx.Flag("provision-service-user")),
 		SourceMode:           sourceMode,
 	}))

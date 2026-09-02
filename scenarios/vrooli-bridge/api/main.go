@@ -36,6 +36,7 @@ import (
 	internalregistry "vrooli-bridge/internal/registry"
 	internalrelay "vrooli-bridge/internal/relay"
 	internalruns "vrooli-bridge/internal/runs"
+	internalscenario "vrooli-bridge/internal/scenario"
 	"vrooli-bridge/internal/server"
 	internalsession "vrooli-bridge/internal/session"
 
@@ -79,6 +80,7 @@ import (
 	registryH "vrooli-bridge/handlers/registry"
 	relayH "vrooli-bridge/handlers/relay"
 	runsH "vrooli-bridge/handlers/runs"
+	scenarioH "vrooli-bridge/handlers/scenario"
 )
 
 // registrarAdapter bridges the registry service to the pairing domain's
@@ -89,6 +91,12 @@ type registrarAdapter struct {
 }
 
 type registryNodeKindResolver struct{ svc internalregistry.Service }
+
+type scenarioResponseSink struct{ broker *internalscenario.Broker }
+
+func (s scenarioResponseSink) Deliver(correlationID string, body []byte, reason string, timedOut, truncated bool, nodeID string) error {
+	return s.broker.Deliver(nodeID, internalscenario.Response{CorrelationID: correlationID, Body: body, Error: reason, TimedOut: timedOut, Truncated: truncated})
+}
 
 func (r registryNodeKindResolver) NodeKind(ctx context.Context, nodeID string) (string, error) {
 	node, err := r.svc.Get(ctx, nodeID)
@@ -409,6 +417,9 @@ func main() {
 	if err := internalonboard.Migrate(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("onboard schema migration failed: %v", err)
 	}
+	if err := internalcredentialgrant.Migrate(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("credential grant schema migration failed: %v", err)
+	}
 	if err := internalregistry.Migrate(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("registry schema migration failed: %v", err)
 	}
@@ -565,6 +576,17 @@ func main() {
 				return "", err
 			}
 			return authority.Require(identity, field)
+		},
+		ProvisionValue: func(ctx context.Context, logicalID, field, value string) error {
+			authority, err := credentialauthority.Default()
+			if err != nil {
+				return err
+			}
+			identity, err := credentialauthority.ParseIdentity(logicalID)
+			if err != nil {
+				return err
+			}
+			return authority.Put(identity, field, value)
 		},
 	})
 	if _, err := pairingSvc.ReconcileEnrollments(context.Background()); err != nil {
@@ -747,13 +769,15 @@ func main() {
 			return internalonboard.FirewallAdmissionResult{Status: result.Status, Code: result.Code, Changed: result.Changed, Managed: result.Evidence.Managed}, err
 		})),
 	}
-	if handoffEndpoint, handoffErr := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-onboarding"); handoffErr == nil {
+	handoffCtx, handoffCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	if handoffEndpoint, handoffErr := discovery.ResolveScenarioURLDefault(handoffCtx, "vrooli-onboarding"); handoffErr == nil {
 		handoffURL := internalonboarding.HandoffEndpoint(handoffEndpoint)
 		onboardOpts = append(onboardOpts, internalonboard.WithOnboardingHandoff(internalonboarding.HTTPHandoffClient{Endpoint: handoffURL}))
 		log.Printf("onboard: scenario selection handoff enabled at %s", handoffURL)
 	} else {
-		log.Printf("onboard: optional onboarding scenario unavailable: %v", handoffErr)
+		log.Printf("onboard: configuration handoff unavailable; pairing-only onboarding remains available: %v", handoffErr)
 	}
+	handoffCancel()
 	if cpURL, source := canonicalControlPlaneEndpoint(); source == "configured" {
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(cpURL))
 	} else {
@@ -765,7 +789,7 @@ func main() {
 		log.Printf("onboard: default control-plane URL derived as %s (override per request or with BRIDGE_CONTROL_PLANE_URL)", derived)
 		onboardOpts = append(onboardOpts, internalonboard.WithDefaultControlPlaneURL(derived))
 	}
-	onboardSvc := onboardH.NewService(db, clk, pairingSvc, presenceHub, sshSvc, bootstrapScript, onboardOpts...)
+	onboardSvc := onboardH.NewServiceWithRegistry(db, clk, pairingSvc, presenceHub, sshSvc, bootstrapScript, registrySvc, onboardOpts...)
 	if n, rerr := onboardSvc.ResumeInterrupted(context.Background()); rerr != nil {
 		log.Printf("onboard: reconcile interrupted ops failed: %v", rerr)
 	} else if n > 0 {
@@ -785,6 +809,11 @@ func main() {
 	relaySvc := relayH.NewService(
 		registrySvc, presenceHub, auditStore,
 		queueH.NewChannelRelayPusher(presenceHub, cpKeypair), relayBroker,
+	)
+	scenarioBroker := internalscenario.NewBroker()
+	scenarioSvc := scenarioH.NewService(
+		registrySvc, presenceHub,
+		queueH.NewChannelScenarioPusher(presenceHub, cpKeypair), scenarioBroker,
 	)
 
 	srv := server.New(
@@ -807,7 +836,8 @@ func main() {
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger,
 			channelH.WithDeliveryAckRecorder(runsSvc), channelH.WithAuditSink(auditStore),
 			channelH.WithSessionManager(sessionManager, authClient, registrySvc), channelH.WithSessionPush(pushSession),
-			channelH.WithRelayResponseSink(relayBroker), channelH.WithCredentialReceiptRecorder(grantSvc)),
+			channelH.WithRelayResponseSink(relayBroker), channelH.WithCredentialReceiptRecorder(grantSvc),
+			channelH.WithScenarioResponseSink(scenarioResponseSink{broker: scenarioBroker})),
 		cleanupH.Module(cleanupSvc, nodeVerifier, logger),
 		credentialgrantH.Module(grantHandler),
 		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), pairingDefaultScopes, internalpairing.PermissionPresets(grantCatalog), nodeVerifier, logger),
@@ -820,6 +850,7 @@ func main() {
 		// delegated to the same dispatch policy before the signed node frame is
 		// emitted; the response is bounded and correlated to this call.
 		relayH.Module(relaySvc, logger),
+		scenarioH.Module(scenarioSvc),
 		// runs (OT-P0-005): durable run lifecycle + node-facing event ingest.
 		runsH.Module(runsSvc, nodeVerifier, logger),
 		// queue (OT-P1-004): read-only control-plane view over the per-node

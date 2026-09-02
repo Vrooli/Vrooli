@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"vrooli-bridge/internal/onboard"
+	"vrooli-bridge/internal/onboarding"
 
 	db "github.com/vrooli/api-core/databasetest"
 
@@ -85,6 +86,19 @@ func TestSQLiteRepository_UpdateLifecycle(t *testing.T) {
 	require.Equal(t, "node-xyz", got.NodeID)
 	require.Equal(t, created.FailureDetail, got.FailureDetail, "failure_detail must round-trip through the durable store")
 	require.False(t, got.FinishedAt.IsZero())
+}
+
+func TestSQLiteRepository_ConfigurationDispositionsRoundTrip(t *testing.T) {
+	d, clk := newSchemaDB(t)
+	repo := onboard.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+
+	op, err := repo.Create(ctx, onboard.Op{Host: "h", ConfigurationDispositions: []onboarding.Disposition{{ID: "scenario-x", Kind: "scenario", Name: "scenario-x", Disposition: "not_applicable", Reason: "disabled by profile", Remediation: "enable scenario-x"}}})
+	require.NoError(t, err)
+
+	got, err := repo.Get(ctx, op.ID)
+	require.NoError(t, err)
+	require.Equal(t, []onboarding.Disposition{{ID: "scenario-x", Kind: "scenario", Name: "scenario-x", Disposition: "not_applicable", Reason: "disabled by profile", Remediation: "enable scenario-x"}}, got.ConfigurationDispositions)
 }
 
 func TestSQLiteRepository_EventsAppendOnlyOrderedDeduped(t *testing.T) {

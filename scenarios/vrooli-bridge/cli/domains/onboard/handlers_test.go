@@ -175,7 +175,7 @@ func startSchema() cliapp.ArgSchema {
 		{Name: "control-plane-url"},
 		{Name: "reachability-mode"},
 		{Name: "verify-timeout"},
-		{Name: "setup-environment"},
+		{Name: "preset"},
 		{Name: "setup-resources"},
 		{Name: "setup-scenarios"},
 		{Name: "provision-service-user"},
@@ -525,7 +525,7 @@ func TestStart_SetupProfileFlagsReachRequest(t *testing.T) {
 	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
 			"host":                   "h",
-			"setup-environment":      "production",
+			"preset":                 "production",
 			"setup-resources":        "enabled",
 			"setup-scenarios":        "none",
 			"provision-service-user": "root",
@@ -534,11 +534,8 @@ func TestStart_SetupProfileFlagsReachRequest(t *testing.T) {
 	})
 	require.NoError(t, h.start(ctx))
 
-	require.Equal(t, "production", svc.startReq.SetupEnvironment)
-	require.Equal(t, "enabled", svc.startReq.SetupResources)
-	require.Equal(t, "none", svc.startReq.SetupScenarios)
+	require.Equal(t, "production", svc.startReq.SetupPreset)
 	require.Equal(t, "root", svc.startReq.ProvisionServiceUser)
-	require.True(t, svc.startReq.IncludeOptional)
 
 	// Omitted profile flags default to empty (the node uses its own setup defaults).
 	svcEmpty := &fakeOnboard{startResp: &onboardv1.StartOnboardingResponse{OpId: "op-e", Host: "h", Port: 22, User: "root"}}
@@ -549,10 +546,7 @@ func TestStart_SetupProfileFlagsReachRequest(t *testing.T) {
 		Flags: map[string]string{"host": "h"},
 	})
 	require.NoError(t, hEmpty.start(ctxEmpty))
-	require.Empty(t, svcEmpty.startReq.SetupEnvironment)
-	require.Empty(t, svcEmpty.startReq.SetupResources)
-	require.Empty(t, svcEmpty.startReq.SetupScenarios)
-	require.False(t, svcEmpty.startReq.IncludeOptional)
+	require.Empty(t, svcEmpty.startReq.SetupPreset)
 }
 
 func TestStart_SourceModeFlag(t *testing.T) {

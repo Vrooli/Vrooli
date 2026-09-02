@@ -20,6 +20,12 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 	if err := addMachineTrustColumns(ctx, db); err != nil {
 		return err
 	}
+	if err := addAppliedProfileColumns(ctx, db); err != nil {
+		return err
+	}
+	if err := addSelectionColumns(ctx, db); err != nil {
+		return err
+	}
 	exists, err := migrationTableExists(ctx, db, "machine_migration_reviews")
 	if err != nil {
 		return err
@@ -39,6 +45,57 @@ func Migrate(ctx context.Context, db SQLExecutor) error {
 		return err
 	}
 	return migrateLegacyCleanupTombstones(ctx, db)
+}
+
+func addSelectionColumns(ctx context.Context, db SQLExecutor) error {
+	exists, err := migrationTableExists(ctx, db, "machines")
+	if err != nil || !exists {
+		return err
+	}
+	for _, column := range []struct{ name, ddl string }{
+		{"desired_selection_json", "ALTER TABLE machines ADD COLUMN desired_selection_json TEXT NOT NULL DEFAULT ''"},
+		{"applied_selection_json", "ALTER TABLE machines ADD COLUMN applied_selection_json TEXT NOT NULL DEFAULT ''"},
+	} {
+		var found int
+		err := db.QueryRowContext(ctx, "SELECT 1 FROM pragma_table_info('machines') WHERE name=?", column.name).Scan(&found)
+		if errors.Is(err, sql.ErrNoRows) {
+			if _, err = db.ExecContext(ctx, column.ddl); err != nil {
+				return fmt.Errorf("add machines.%s: %w", column.name, err)
+			}
+		} else if err != nil {
+			return fmt.Errorf("inspect machines.%s: %w", column.name, err)
+		}
+	}
+	return nil
+}
+
+func addAppliedProfileColumns(ctx context.Context, db SQLExecutor) error {
+	exists, err := migrationTableExists(ctx, db, "machines")
+	if err != nil || !exists {
+		return err
+	}
+	columns := []struct {
+		name string
+		ddl  string
+	}{
+		{"applied_profile_id", "ALTER TABLE machines ADD COLUMN applied_profile_id TEXT NOT NULL DEFAULT ''"},
+		{"applied_profile_version", "ALTER TABLE machines ADD COLUMN applied_profile_version TEXT NOT NULL DEFAULT ''"},
+		{"applied_at", "ALTER TABLE machines ADD COLUMN applied_at TEXT NOT NULL DEFAULT ''"},
+	}
+	for _, column := range columns {
+		var found int
+		err := db.QueryRowContext(ctx, "SELECT 1 FROM pragma_table_info('machines') WHERE name=?", column.name).Scan(&found)
+		if errors.Is(err, sql.ErrNoRows) {
+			if _, err := db.ExecContext(ctx, column.ddl); err != nil {
+				return fmt.Errorf("add machines.%s: %w", column.name, err)
+			}
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("inspect machines.%s: %w", column.name, err)
+		}
+	}
+	return nil
 }
 
 // migrateLegacyCleanupTombstones turns pre-operation cleanup records into

@@ -80,6 +80,16 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Current seams
 
+### Configuration document handoff
+
+| | |
+|---|---|
+| **Seam** | Versioned desired configuration handed from Bridge to Onboarding |
+| **Interface** | `packages/proto/gen/go/setup/v1::Selection`, carried by `StartOnboardingRequest.selection` and `onboarding.HandoffRequest.DesiredSelection` |
+| **Production wiring** | Bridge resolves a machine policy, sends the generated selection through the onboarding handoff, and records the resulting configuration state and typed drift projection. |
+| **Test fake** | `internal/onboard` tests inject a recording `HandoffClient`; handler tests use generated Connect requests. |
+| **Why it exists** | One capability-shaped document preserves scenarios, resources, host requirements, credentials, trust, update, session, operating mode, and target across the scenario boundary. The old profile-to-string fallback is not a production path. |
+
 ### Clock
 
 | | |
@@ -434,7 +444,7 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 |---|---|
 | **Seam** | The boundary where bridge SUPPLIES the cross-OS validation capability and the *consumer* OWNS the promotion verdict. Bridge exposes `GateService` (RunGate/WaitGate); deployment-manager maps the aggregate gate verdict to its own production-readiness decision. |
 | **Interface** | Consumer side: `scenarios/deployment-manager/api/crossosgate::Bridge` (`RunGate`/`WaitGate`) + `Gate.Evaluate(Request) Verdict`. Producer side: the generated `GateService` Connect contract. |
-| **Production wiring** | deployment-manager's `crossosgate.NewHTTPHandler` uses the shared `packages/nodeclient` transport to speak bridge's `GateService` over the Connect unary JSON protocol; the route reports the typed unavailable state when Bridge discovery or authorization fails. |
+| **Production wiring** | deployment-manager's `crossosgate.NewHTTPHandler` uses the shared `packages/api-core/nodereach` transport to speak bridge's `GateService` over the Connect unary JSON protocol; the route reports the typed unavailable state when Bridge discovery or authorization fails. |
 | **Test fake** | `deployment-manager/api/crossosgate/crossosgate_test.go` (fake Bridge for the Evaluate mapping; httptest-backed `httpBridge` for the wire contract). |
 | **Why it exists** | "Bridge supplies the capability, deployment-manager owns the verdict." The consumer never imports bridge internals; it speaks the wire contract, so the two scenarios evolve independently behind the proto contract. |
 

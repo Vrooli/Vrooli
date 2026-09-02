@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"deployment-manager/shared"
@@ -76,7 +77,8 @@ func (r *SQLRepository) Get(ctx context.Context, releaseID string) (*Release, er
 	row := r.db.QueryRowContext(ctx, `
 		SELECT id, profile_id, deployment_id, profile_version, git_commit_hash,
 		       release_version, channel, status, release_notes, released_by,
-		       promoted_from_release_id, verification_evidence, created_at,
+		       promoted_from_release_id, readiness_goal_ref, approved_at_commit,
+		       verification_evidence, created_at,
 		       published_at, updated_at
 		FROM releases
 		WHERE id = $1
@@ -103,7 +105,8 @@ func (r *SQLRepository) ListByProfile(ctx context.Context, profileID string, lim
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT id, profile_id, deployment_id, profile_version, git_commit_hash,
 		       release_version, channel, status, release_notes, released_by,
-		       promoted_from_release_id, verification_evidence, created_at,
+		       promoted_from_release_id, readiness_goal_ref, approved_at_commit,
+		       verification_evidence, created_at,
 		       published_at, updated_at
 		FROM releases
 		WHERE profile_id = $1
@@ -164,6 +167,87 @@ func (r *SQLRepository) SetVerificationEvidence(ctx context.Context, releaseID s
 	_, err = r.db.ExecContext(ctx, `
 		UPDATE releases SET verification_evidence = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1
 	`, releaseID, data)
+	return err
+}
+
+// SetReadinessApproval records the goal and exact commit that cleared
+// readiness. It is intentionally separate from platform approval state.
+func (r *SQLRepository) SetReadinessApproval(ctx context.Context, releaseID, goalRef, approvedCommit string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE releases
+		SET readiness_goal_ref = $2, approved_at_commit = $3, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+	`, releaseID, nullString(goalRef), nullString(approvedCommit))
+	return err
+}
+
+// GetReadinessByProfileCommit returns the latest release-side readiness
+// projection for the exact commit being evaluated.
+func (r *SQLRepository) GetReadinessByProfileCommit(ctx context.Context, profileID, commit string) (*ReadinessRecord, error) {
+	var goalRef, approvedCommit sql.NullString
+	err := r.db.QueryRowContext(ctx, `
+		SELECT readiness_goal_ref, approved_at_commit
+		FROM releases
+		WHERE profile_id = $1 AND git_commit_hash = $2
+		ORDER BY created_at DESC LIMIT 1
+	`, profileID, commit).Scan(&goalRef, &approvedCommit)
+	if err == sql.ErrNoRows {
+		return &ReadinessRecord{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	record := &ReadinessRecord{
+		VerdictPresent:   approvedCommit.Valid,
+		ReadinessGoalRef: goalRef.String,
+		ApprovedAtCommit: approvedCommit.String,
+		// The approval commit is written by RecordApproval only after
+		// swarm-manager reports the readiness goal closed. Release publication
+		// is a separate lifecycle transition and must not stand in for goal
+		// closure.
+		GoalClosed: approvedCommit.Valid,
+	}
+	var waiver ReadinessWaiver
+	err = r.db.QueryRowContext(ctx, `
+		SELECT reason, actor, git_commit_hash, created_at FROM readiness_waivers
+		WHERE profile_id = $1 AND git_commit_hash = $2
+	`, profileID, commit).Scan(&waiver.Reason, &waiver.Actor, &waiver.Commit, &waiver.At)
+	if err == nil {
+		record.Waiver = &waiver
+	} else if err != sql.ErrNoRows {
+		return nil, err
+	}
+	return record, nil
+}
+
+// GetLatestReadiness returns the newest release-side readiness projection for
+// a profile, for read-only surfaces such as the Offer Desk ladder.
+func (r *SQLRepository) GetLatestReadiness(ctx context.Context, profileID string) (*ReadinessRecord, error) {
+	var goalRef, approvedCommit sql.NullString
+	err := r.db.QueryRowContext(ctx, `
+		SELECT readiness_goal_ref, approved_at_commit FROM releases
+		WHERE profile_id = $1 ORDER BY created_at DESC LIMIT 1
+	`, profileID).Scan(&goalRef, &approvedCommit)
+	if err == sql.ErrNoRows {
+		return &ReadinessRecord{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ReadinessRecord{VerdictPresent: approvedCommit.Valid, ReadinessGoalRef: goalRef.String, ApprovedAtCommit: approvedCommit.String, GoalClosed: approvedCommit.Valid}, nil
+}
+
+// RecordReadinessWaiver records a reasoned, actor-bound exception for exactly
+// one commit. The primary key makes repeated recording idempotent.
+func (r *SQLRepository) RecordReadinessWaiver(ctx context.Context, profileID, commit, reason, actor string) error {
+	if strings.TrimSpace(profileID) == "" || strings.TrimSpace(commit) == "" || strings.TrimSpace(reason) == "" || strings.TrimSpace(actor) == "" {
+		return fmt.Errorf("profile, commit, reason, and actor are required")
+	}
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO readiness_waivers (profile_id, git_commit_hash, reason, actor)
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (profile_id, git_commit_hash) DO UPDATE SET reason = EXCLUDED.reason, actor = EXCLUDED.actor
+	`, profileID, commit, reason, actor)
 	return err
 }
 
@@ -298,7 +382,7 @@ func scanReleaseRow(rows *sql.Rows) (*Release, error) {
 
 func scanReleaseFields(row rowScanner) (*Release, error) {
 	rel := &Release{}
-	var deploymentID, releaseNotes, releasedBy, promotedFrom sql.NullString
+	var deploymentID, releaseNotes, releasedBy, promotedFrom, readinessGoalRef, approvedAtCommit sql.NullString
 	var profileVersion sql.NullInt32
 	var publishedAt sql.NullTime
 	var evidence []byte
@@ -306,7 +390,7 @@ func scanReleaseFields(row rowScanner) (*Release, error) {
 	err := row.Scan(
 		&rel.ID, &rel.ProfileID, &deploymentID, &profileVersion,
 		&rel.GitCommitHash, &rel.ReleaseVersion, &rel.Channel, &rel.Status,
-		&releaseNotes, &releasedBy, &promotedFrom, &evidence,
+		&releaseNotes, &releasedBy, &promotedFrom, &readinessGoalRef, &approvedAtCommit, &evidence,
 		&rel.CreatedAt, &publishedAt, &rel.UpdatedAt,
 	)
 	if err != nil {
@@ -316,6 +400,8 @@ func scanReleaseFields(row rowScanner) (*Release, error) {
 	rel.ReleaseNotes = releaseNotes.String
 	rel.ReleasedBy = releasedBy.String
 	rel.PromotedFromReleaseID = promotedFrom.String
+	rel.ReadinessGoalRef = readinessGoalRef.String
+	rel.ApprovedAtCommit = approvedAtCommit.String
 	if profileVersion.Valid {
 		rel.ProfileVersion = int(profileVersion.Int32)
 	}

@@ -730,7 +730,11 @@ locate_offpath() {
   local bin="$1" dir
   while IFS= read -r dir; do
     [ -n "$dir" ] || continue
-    if [ -x "${dir}/${bin}" ]; then
+    if [ -x "${dir}/${bin}" ] && case "$bin" in
+      go) "${dir}/${bin}" version >/dev/null 2>&1 ;;
+      pnpm) "${dir}/${bin}" --version >/dev/null 2>&1 ;;
+      *) true ;;
+    esac; then
       printf '%s' "$dir"
       return 0
     fi
@@ -794,7 +798,12 @@ step_build_native_vrooli() {
   # This executes on the Mac after bootstrap-only setup installed Go. The
   # distribution primitive now runs natively, so CGO links the Security
   # framework and emits the same fingerprint sidecar contract as releases.
-  if ! ( cd "$CHECKOUT_DIR" && CGO_ENABLED=1 GOWORK=off go run ./cmd/vrooli-dist \
+  local goflags="${GOFLAGS:-}"
+  case " $goflags " in
+    *" -p="*) ;;
+    *) goflags="${goflags:+${goflags} }-p=1" ;;
+  esac
+  if ! ( cd "$CHECKOUT_DIR" && GOMAXPROCS="${GOMAXPROCS:-1}" GOFLAGS="$goflags" CGO_ENABLED=1 GOWORK=off go run ./cmd/vrooli-dist \
       --root "$CHECKOUT_DIR" --goos "$OS" --goarch "$ARCH" \
       --output "$RUNTIME_VROOLI_BIN" ) >&2; then
     fail 1 "native macOS Vrooli build failed; the final CLI must link the Keychain backend"
@@ -822,8 +831,20 @@ step_finalize_setup() {
   out="$(mktemp)"
   local -a cmd=(env "VROOLI_SOURCE_ROOT=${CHECKOUT_DIR}" "$RUNTIME_VROOLI_BIN" --no-stale-check setup)
   [ -n "$SETUP_ENVIRONMENT" ] && cmd+=(--environment "$SETUP_ENVIRONMENT")
-  [ -n "$SETUP_RESOURCES" ] && cmd+=(--resources "$SETUP_RESOURCES")
-  [ -n "$SETUP_SCENARIOS" ] && cmd+=(--scenarios "$SETUP_SCENARIOS")
+  # An empty onboarding selection must not inherit the target checkout's
+  # enabled-resource defaults during finalization. Resource/scenario selection
+  # is applied through the typed onboarding handoff after the node is paired;
+  # finalization only prepares the host, credential store, and agent.
+  if [ -n "$SETUP_RESOURCES" ]; then
+    cmd+=(--resources "$SETUP_RESOURCES")
+  else
+    cmd+=(--resources none)
+  fi
+  if [ -n "$SETUP_SCENARIOS" ]; then
+    cmd+=(--scenarios "$SETUP_SCENARIOS")
+  else
+    cmd+=(--scenarios none)
+  fi
   [ "$INCLUDE_OPTIONAL" -eq 1 ] && cmd+=(--include-optional)
   if [ "$OS" = "darwin" ] && have_passwordless_sudo; then
     cmd+=(--sudo-mode ask)

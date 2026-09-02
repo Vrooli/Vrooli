@@ -29,7 +29,19 @@ type HealthSnapshot struct {
 	// Details carries free-form extra readiness facts (e.g. "go" -> "1.25.0").
 	Details map[string]string
 	// ReportedAt is when the agent sampled the snapshot.
-	ReportedAt time.Time
+	ReportedAt   time.Time
+	Capabilities []CapabilityObservation
+}
+
+type CapabilityObservation struct {
+	Capability string
+	ID         string
+	Label      string
+	State      string
+	Path       string
+	Version    string
+	ProbedAt   time.Time
+	Detail     string
 }
 
 // ReadinessFacts are independent live facts used by operator diagnostics. A

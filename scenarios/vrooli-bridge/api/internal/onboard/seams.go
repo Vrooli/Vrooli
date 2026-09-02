@@ -288,6 +288,13 @@ type MachineLinker interface {
 	RecordCorrelatedTrust(context.Context, string, Conn) error
 }
 
+// ConfigurationRecorder is optional so legacy onboarding callers can still
+// pair nodes without a Machine record. Production records applied profile
+// evidence after remote readiness succeeds.
+type ConfigurationRecorder interface {
+	RecordConfigurationOutcome(context.Context, string, string, string, []string, time.Time) error
+}
+
 // OnlineConfirmer is the presence read seam: confirm a freshly-onboarded node is
 // ONLINE in the fleet (holds a live dial-out channel) with its control-plane key
 // pinned. Production wraps the presence hub + the credential store. It blocks up

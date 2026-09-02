@@ -3,6 +3,7 @@ package credentialpush
 import (
 	"crypto/ecdh"
 	"crypto/rand"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,6 +18,11 @@ type sink struct{ value string }
 
 func (s *sink) Put(_, _, value string) error { s.value = value; return nil }
 func (s *sink) Delete(_, _ string) error     { s.value = ""; return nil }
+
+type refusingSink struct{}
+
+func (refusingSink) Put(_, _, _ string) error { return errors.New("credential backend locked") }
+func (refusingSink) Delete(_, _ string) error { return nil }
 
 func TestApplyRejectsUngrantedPushWithoutLocalConsent(t *testing.T) {
 	private, err := ecdh.X25519().GenerateKey(rand.Reader)
@@ -40,6 +46,20 @@ func TestApplyDurableDecryptsAndZeroesPlaintext(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, result.Receipt.GetAccepted())
 	require.Equal(t, "fixture-secret", got.value)
+}
+
+func TestApplyPreservesStoreRefusalInReceipt(t *testing.T) {
+	private, err := ecdh.X25519().GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	grant := credentialgrant.Grant{ID: "g1", NodeID: "node-1", LogicalID: "vrooli/test", Field: "api-key", Class: credentialgrant.ClassUserPrompt, Retention: credentialgrant.RetentionDurable, Generation: 1}
+	aad := []byte("credential-aad")
+	sealed, err := sealing.Seal(private.PublicKey().Bytes(), []byte("fixture-secret"), aad)
+	require.NoError(t, err)
+	result, err := Apply(&channelv1.CredentialPush{GrantId: "g1", NodeId: "node-1", LogicalId: "vrooli/test", Field: "api-key", Generation: 1, Retention: credentialgrant.RetentionDurable, SealedValue: sealed, Aad: aad}, "node-1", private, credentialgrant.NewMemoryStore(grant), refusingSink{})
+	require.Error(t, err)
+	require.NotNil(t, result.Receipt)
+	require.False(t, result.Receipt.GetAccepted())
+	require.Contains(t, result.Receipt.GetReason(), "credential backend locked")
 }
 
 func TestApplyEphemeralReturnsBufferAndCallerCanZeroIt(t *testing.T) {

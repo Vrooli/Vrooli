@@ -2,8 +2,8 @@ import { useState } from "react";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { KeyRound } from "lucide-react";
 
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
@@ -109,7 +109,7 @@ export function PairNodeForm() {
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="secondary"
               data-testid={selectors.fleet.pairing.copy}
               onClick={handleCopy}
             >

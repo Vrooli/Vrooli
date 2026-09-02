@@ -132,6 +132,7 @@ func New() (*Server, error) {
 
 	// Releases repository (canonical release records + per-platform rows).
 	releasesRepo := releases.NewSQLRepository(routedDB)
+	approvalsRepo.WithReadinessRepository(releasesRepo)
 
 	// Evidence is a reference ledger owned by deployment-manager. Producers
 	// retain their bytes; this service stores only target verdicts and references.

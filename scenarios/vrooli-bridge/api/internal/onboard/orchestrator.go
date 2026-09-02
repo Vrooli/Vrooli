@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -242,7 +243,13 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 					}
 				}
 			}
-			s.finishFailed(ctx, opID, &seq, reason, int32(res.ExitCode), fmt.Sprintf("bootstrap exited %d", res.ExitCode), res.Diagnostics)
+			// A node can already be paired from an earlier enrollment attempt;
+			// in that case the resolver has no row for this attempt, but the
+			// bootstrap result still carries the authoritative node identity.
+			if nodeID == "" {
+				nodeID = res.NodeID
+			}
+			s.finishFailedForNode(ctx, opID, &seq, reason, int32(res.ExitCode), nodeID, fmt.Sprintf("bootstrap exited %d", res.ExitCode), res.Diagnostics)
 			return
 		}
 	}
@@ -313,9 +320,25 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	}
 	s.emit(ctx, opID, &seq, StepVerifyOnline, StepStatusOK, "node is online with control-plane key pinned and final SSH trust verified")
 	s.recordNodeRevision(ctx, opID, &seq, nodeID, in)
-	selection, requested := onboarding.FromSetupProfile(in.SetupScenarios, in.SetupResources, in.IncludeOptional)
+	selection := onboarding.Selection{}
+	requested := false
+	if in.Selection != nil {
+		selection = *in.Selection
+		requested = selection.Apply
+	}
+	if requested && s.handoff == nil {
+		detail := "onboarding handoff is unavailable; start vrooli-onboarding on the target and retry configuration"
+		s.emit(ctx, opID, &seq, StepApplySelection, StepStatusFailed, detail)
+		s.finishFailed(ctx, opID, &seq, FailureOnboarding, int32(res.ExitCode), detail, res.Diagnostics)
+		return
+	}
 	if s.handoff != nil {
-		resolved, handoffErr := s.handoff.Resolve(ctx, onboarding.HandoffRequest{MachineID: in.MachineID, NodeID: nodeID, NodeKind: in.NodeKind})
+		handoffRequest := onboarding.HandoffRequest{MachineID: in.MachineID, NodeID: nodeID, NodeKind: in.NodeKind}
+		if requested {
+			desired := selection
+			handoffRequest.DesiredSelection = &desired
+		}
+		resolved, handoffErr := s.handoff.Resolve(ctx, handoffRequest)
 		if handoffErr != nil {
 			detail := "onboarding handoff failed: " + handoffErr.Error()
 			s.emit(ctx, opID, &seq, StepApplySelection, StepStatusFailed, detail)
@@ -335,6 +358,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		}
 		s.emit(ctx, opID, &seq, StepApplySelection, StepStatusStarted, "applying the committed onboarding selection")
 		remote, applyErr := onboarding.ApplyAndReadiness(ctx, runner, onboarding.Target{Host: conn.Host, Port: conn.Port, User: conn.User, Key: conn.KeyPath}, selection)
+		s.recordConfigurationDispositions(ctx, opID, remote.Dispositions)
 		if applyErr != nil || remote.ExitCode != 0 {
 			detail := fmt.Sprintf("remote onboarding readiness exited %d", remote.ExitCode)
 			if applyErr != nil {
@@ -346,12 +370,28 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 				}
 			}
 			s.emit(ctx, opID, &seq, StepApplySelection, StepStatusFailed, detail)
-			s.finishFailed(ctx, opID, &seq, FailureOnboarding, int32(remote.ExitCode), detail, remote.Stderr)
+			s.finishFailedForNode(ctx, opID, &seq, FailureOnboarding, int32(remote.ExitCode), nodeID, detail, remote.Stderr)
 			return
 		}
 		s.emit(ctx, opID, &seq, StepApplySelection, StepStatusOK, "remote onboarding selection applied and readiness verified")
 	}
-	s.finishSucceeded(ctx, opID, nodeID, int32(res.ExitCode))
+	if requested {
+		s.finishSucceeded(ctx, opID, nodeID, int32(res.ExitCode))
+	} else {
+		s.finishPaired(ctx, opID, nodeID, int32(res.ExitCode))
+	}
+}
+
+func (s *service) recordConfigurationDispositions(ctx context.Context, opID string, dispositions []onboarding.Disposition) {
+	if len(dispositions) == 0 {
+		return
+	}
+	op, err := s.repo.Get(ctx, opID)
+	if err != nil {
+		return
+	}
+	op.ConfigurationDispositions = append([]onboarding.Disposition(nil), dispositions...)
+	_, _ = s.repo.Update(ctx, op)
 }
 
 func correlationForOp(ctx context.Context, repo Repository, opID string) string {
@@ -485,17 +525,10 @@ func buildBootstrapArgsForScopes(in StartInput, wtSourceDir, wtDigest string, ar
 	// Setup profile — the values are metachar-validated at Start (validateSetupProfile),
 	// so they are safe to pass as bootstrap flags; the script quotes them defensively
 	// and splices them into `make setup SETUP_ARGS=…`.
-	if env := trimField(in.SetupEnvironment); env != "" {
-		args = append(args, "--setup-environment", env)
-	}
-	if res := trimField(in.SetupResources); res != "" {
-		args = append(args, "--setup-resources", res)
-	}
-	if scn := trimField(in.SetupScenarios); scn != "" {
-		args = append(args, "--setup-scenarios", scn)
-	}
-	if in.IncludeOptional {
-		args = append(args, "--include-optional")
+	if preset := trimField(in.SetupPreset); preset != "" {
+		if env, ok := environmentForSetupPreset(preset); ok && env != "" {
+			args = append(args, "--setup-environment", env)
+		}
 	}
 	if helper := trimField(in.ProvisionServiceUser); helper != "" {
 		args = append(args, "--provision-service-user", helper)
@@ -649,16 +682,24 @@ func (s *service) finishSucceeded(ctx context.Context, opID, nodeID string, exit
 	s.finish(ctx, opID, StateSucceeded, "", exitCode, nodeID, "")
 }
 
+func (s *service) finishPaired(ctx context.Context, opID, nodeID string, exitCode int32) {
+	s.finish(ctx, opID, StatePaired, "", exitCode, nodeID, "")
+}
+
 // finishFailed drives an op to FAILED. detail is a single-line step-event note
 // (the taxonomy in human words); diagnostics is the bounded, multi-line node-side
 // output tail (empty for control-plane-side failures that never ran the remote
 // script) persisted on the op so the operator sees the concrete cause, not just
 // the reason code.
 func (s *service) finishFailed(ctx context.Context, opID string, seq *uint64, reason FailureReason, exitCode int32, detail, diagnostics string) {
+	s.finishFailedForNode(ctx, opID, seq, reason, exitCode, "", detail, diagnostics)
+}
+
+func (s *service) finishFailedForNode(ctx context.Context, opID string, seq *uint64, reason FailureReason, exitCode int32, nodeID, detail, diagnostics string) {
 	if detail != "" {
 		s.emit(ctx, opID, seq, StepRun, StepStatusFailed, detail)
 	}
-	s.finish(ctx, opID, StateFailed, reason, exitCode, "", diagnostics)
+	s.finish(ctx, opID, StateFailed, reason, exitCode, nodeID, diagnostics)
 }
 
 func (s *service) finishCancelled(ctx context.Context, opID string, seq *uint64) {
@@ -697,11 +738,20 @@ func (s *service) finish(ctx context.Context, opID string, state State, reason F
 	if _, err := s.repo.Update(ctx, op); err != nil {
 		return
 	}
+	if recorder, ok := s.linker.(ConfigurationRecorder); ok {
+		unmet := []string{}
+		if reason != "" {
+			unmet = append(unmet, string(reason))
+		}
+		if err := recorder.RecordConfigurationOutcome(ctx, op.CorrelationID, op.NodeID, state.String(), unmet, now); err != nil {
+			log.Printf("onboard: record configuration outcome for op %s: %v", op.ID, err)
+		}
+	}
 	if op.CorrelationID != "" {
 		if attempts, ok := s.repo.(AttemptStore); ok {
 			if attempt, lookupErr := attempts.GetAttemptByCorrelation(ctx, op.CorrelationID); lookupErr == nil {
 				attemptState := AttemptFailed
-				if state == StateSucceeded {
+				if state == StateSucceeded || state == StatePaired {
 					attemptState = AttemptSucceeded
 				} else if state == StateCancelled {
 					attemptState = AttemptInterrupted
@@ -709,6 +759,8 @@ func (s *service) finish(ctx context.Context, opID string, state State, reason F
 				result := string(reason)
 				if state == StateSucceeded {
 					result = "enrolled"
+				} else if state == StatePaired {
+					result = "paired"
 				}
 				_, _ = attempts.CompleteAttempt(ctx, attempt.ID, attemptState, result, diagnostics)
 			}
