@@ -1,15 +1,16 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: {{SCENARIO_DISPLAY_NAME}} のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "{{SCENARIO_DISPLAY_NAME}}",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "{{SCENARIO_DISPLAY_NAME}}"
   },
   "layout": {
-    "sidebarLabel": "メインナビゲーション",
-    "bottomNavLabel": "モバイルナビゲーション",
+    "navigationLabel": "メインナビゲーション",
+    "mobileNavigationLabel": "モバイルナビゲーション",
+    "skipToContent": "コンテンツへスキップ",
+    "openNavigation": "ナビゲーションを開く",
+    "closeNavigation": "ナビゲーションを閉じる",
     "nav": {
-      "dashboard": "ダッシュボード",
+      "dashboard": "ホーム",
       "notes": "ノート",
       "settings": "設定"
     }
@@ -24,17 +25,23 @@
   },
   "pages": {
     "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+      "title": "ホーム",
+      "description": "オペレーターが最初に目にする画面です。出荷前にここに何を置くか決めてください。",
+      "placeholderTitle": "このシナリオのホーム画面はまだ決まっていません",
+      "placeholderDescription": "START-HERE のゲート 5 を開き、このページが答える一つの問いを決めてください。このプレースホルダーをその画面に置き換えます。隣のヘルスカードは、ライブラリ部品で作ったシナリオ所有機能の例です。"
     },
     "notes": {
-      "title": "ノート"
+      "title": "ノート",
+      "description": "動作するサンプルドメイン: 一覧、作成、計測。形を一度写したら detemplate で削除します。"
     },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
-      "localeHeading": "言語"
+      "localeHeading": "言語",
+      "description": "このブラウザーの設定です。シナリオに必要な設定をすべてここに追加します。シェルの他の場所で重複させません。",
+      "preferences": "環境設定",
+      "themeHint": "ライト、ダーク、またはシステムに従う。",
+      "localeHint": "このコンソールにのみ適用されます。"
     }
   },
   "health": {
@@ -43,9 +50,9 @@
     "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
     "refresh": "再読み込み",
     "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
     "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
+    "timestampLabel": "タイムスタンプ:",
+    "description": "このシナリオの API をポーリングし、その応答を表示します。"
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
@@ -55,7 +62,6 @@
     "loading": "ノートを読み込み中…",
     "empty": "まだノートはありません。",
     "create": "ノートを作成",
-    "createdAtLabel": "作成:",
     "attachmentsLabel": "添付ファイル {{count}} 件",
     "table": {
       "title": "タイトル",

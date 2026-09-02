@@ -71,6 +71,11 @@
           "type": "string",
           "description": "High-level scenario category"
         },
+        "class": {
+          "type": "string",
+          "enum": ["meta", "interface-enabler", "external-integration", "product"],
+          "description": "Functional ecosystem role; orthogonal to delivery category and monetization meter class."
+        },
         "tags": {
           "type": "array",
           "items": {
@@ -96,7 +101,12 @@
             "properties": {
               "linux": {"$ref": "#/definitions/platformCapability"},
               "macos": {"$ref": "#/definitions/platformCapability"},
-              "windows": {"$ref": "#/definitions/platformCapability"}
+              "windows": {"$ref": "#/definitions/platformCapability"},
+              "pairs": {
+                "type": "array",
+                "items": {"$ref": "#/definitions/platformPairCapability"},
+                "uniqueItems": true
+              }
             }
           }
         },
@@ -295,6 +305,32 @@
         "$ref": "#/definitions/hostRequirement"
       }
     },
+    "hostCron": {
+      "type": "array",
+      "description": "Repository-owned user-cron entries. Targets are repository-relative and the control plane audits, but does not silently install or remove, these entries.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "schedule", "target"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "schedule": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "not": {
+              "pattern": "^(?:/|[A-Za-z]:[\\\\/]|(?:^|[\\\\/])\\.\\.(?:[\\\\/]|$))"
+            }
+          }
+        }
+      }
+    },
     "runtime": {
       "type": "object",
       "description": "How this scenario or service is meant to be run. Declares the scenario's recommended runtime shape; per-install operator choices (whether to actually keep it running) live in operator-state.json.",
@@ -471,6 +507,8 @@
       "properties": {
         "status": {"$ref": "common.schema.json#/definitions/platformStatusToken"},
         "mechanism": {"type": "string", "minLength": 1},
+        "since": {"type": "string", "format": "date"},
+        "review_by": {"type": "string", "format": "date"},
         "evidence": {
           "oneOf": [
             { "type": "null" },
@@ -481,9 +519,53 @@
       },
       "allOf": [
         {
-          "if": {"properties": {"status": {"const": "unsupported"}}, "required": ["status"]},
+          "if": {"properties": {"status": {"enum": ["unsupported", "not_applicable"]}}, "required": ["status"]},
           "then": {},
           "else": {"required": ["mechanism"]}
+        },
+        {
+          "if": {"properties": {"status": {"const": "not_applicable"}}, "required": ["status"]},
+          "then": {"required": ["evidence", "review_by"], "not": {"required": ["mechanism"]}}
+        },
+        {
+          "if": {"properties": {"status": {"const": "not_implemented"}}, "required": ["status"]},
+          "then": {"required": ["evidence", "mechanism", "since"], "not": {"properties": {"mechanism": {"const": "handler"}}}}
+        }
+      ]
+    },
+    "platformPairCapability": {
+      "type": "object",
+      "description": "One console-to-node cross-machine declaration.",
+      "required": ["console", "node", "status", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "console": {"enum": ["linux", "macos", "windows"]},
+        "node": {"enum": ["linux", "macos", "windows"]},
+        "status": {"$ref": "common.schema.json#/definitions/platformStatusToken"},
+        "mechanism": {"type": "string", "minLength": 1},
+        "since": {"type": "string", "format": "date"},
+        "review_by": {"type": "string", "format": "date"},
+        "evidence": {
+          "oneOf": [
+            {"type": "null"},
+            {"$ref": "common.schema.json#/definitions/platformEvidence"},
+            {"type": "string", "minLength": 1}
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"enum": ["unsupported", "not_applicable"]}}, "required": ["status"]},
+          "then": {},
+          "else": {"required": ["mechanism"]}
+        },
+        {
+          "if": {"properties": {"status": {"const": "not_applicable"}}, "required": ["status"]},
+          "then": {"required": ["review_by"], "not": {"required": ["mechanism"]}}
+        },
+        {
+          "if": {"properties": {"status": {"const": "not_implemented"}}, "required": ["status"]},
+          "then": {"required": ["since"], "not": {"properties": {"mechanism": {"const": "handler"}}}}
         }
       ]
     },
@@ -522,6 +604,24 @@
         "output": {
           "type": "string",
           "minLength": 1
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "entry": {
+                "type": "string",
+                "minLength": 1
+              },
+              "output": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["output"],
+            "additionalProperties": false
+          }
         },
         "reuse": {
           "type": "string",
@@ -941,7 +1041,12 @@
             "try_start",
             "ignore"
           ],
-          "description": "How lifecycle orchestration should treat this dependency during startup. Defaults to `must_start` when `required=true`, otherwise `ignore`."
+          "description": "One input to the derived supervision intent. Values are `must_start`, `try_start`, and `ignore`. When omitted, intent derives as `must_start` for required edges and `try_start` otherwise. Repository manifests declare this explicitly."
+        },
+        "supervision_precedence": {
+          "type": "string",
+          "enum": ["required", "startup_policy"],
+          "description": "Explicit acknowledgement required only when `required` and `startup_policy` disagree. `required=true` with `try_start` derives `must_start` and uses `required`; `required=false` with `must_start` derives `must_start` and uses `startup_policy`."
         },
         "freshness_policy": {
           "type": "string",
@@ -1282,7 +1387,7 @@
         "mcp": {"$ref": "#/definitions/pluginMCP"},
         "entitlement_tier": {
           "type": "string",
-          "enum": ["free", "pro", "enterprise"]
+          "enum": ["free", "solo", "pro", "studio", "business"]
         },
         "standalone": {"$ref": "#/definitions/pluginStandalone"}
       },

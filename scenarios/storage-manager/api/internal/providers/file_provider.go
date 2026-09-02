@@ -132,6 +132,17 @@ func NewTmpProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProvi
 	return newFileProvider(files, clock, cfg, cleanup.SafetyTierSafe, cleanup.ProviderModeDisabled, cleanup.ApprovalModeOperator, "tmp-remove", desktopPlatforms)
 }
 
+// NewScratchProvider reaps the repository's agent-scratch directory.
+//
+// It is tiered Safe rather than SafeWithOwner: scratch has no owning scenario
+// to consult, because the agents that write there are precisely the ones that
+// did not route through an owner. Approval stays with the operator, and the
+// provider ships disabled by default like every other file provider, so a host
+// only reaps scratch once someone turns it on.
+func NewScratchProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig) *FileProvider {
+	return newFileProvider(files, clock, cfg, cleanup.SafetyTierSafe, cleanup.ProviderModeDisabled, cleanup.ApprovalModeOperator, "scratch-remove", desktopPlatforms)
+}
+
 func NewCacheProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FileProviderConfig) *FileProvider {
 	return newFileProvider(files, clock, cfg, cleanup.SafetyTierConditional, cleanup.ProviderModeDisabled, cleanup.ApprovalModeOperator, "cache-remove", desktopPlatforms)
 }

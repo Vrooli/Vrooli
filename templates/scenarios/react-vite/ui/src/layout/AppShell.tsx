@@ -1,36 +1,75 @@
-import { Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+
+import { AppShell as LibraryAppShell, type AppShellNavItem } from "@vrooli/react-component-library/AppShell/2";
 
 import { selectors } from "../consts/selectors";
-import { BottomNav } from "./BottomNav";
-import { Sidebar } from "./Sidebar";
-import { TopBar } from "./TopBar";
+import { strings } from "../consts/strings";
+import { useTranslation } from "../i18n";
+import { BrandMark } from "./BrandMark";
+import { NAV_ITEMS, isNavItemActive } from "./navItems";
 
 /**
- * Responsive app shell. CSS grid with a header row and a (sidebar | content)
- * main row; mobile collapses the sidebar to a pinned bottom nav.
+ * The shell is the component library's. This file configures it and plugs in
+ * the router; it does not draw chrome.
  *
- * This is the real shell — replaces the centered single-card placeholder.
- * Page content renders into the `<Outlet />`; routes are configured in
- * `app/routes.tsx`.
+ * Decide these three settings in Gate 5 of `docs/START-HERE.md` and change
+ * them here. Nothing else in the tree needs to know.
+ *
+ * - `density`: `"sidebar"` (icon + label, resizable) for a tool with several
+ *   peer surfaces; `"rail"` (icon over a short label, narrow) when one surface
+ *   needs the width.
+ * - `mobileNav`: `"tabs"` for three to five destinations; `"drawer"` for more.
+ * - `mainMode`: `"scroll"` pads and scrolls pages for you; `"fill"` hands a
+ *   page the whole pane so it can pin its own header and composer.
+ *
+ * If the shell cannot do what your primary surface needs, do not fork it:
+ * record the gap in `docs/reference/component-library-gaps.md` and eject with
+ * `react-component-library adoptions eject --reason`.
  */
+const SHELL = {
+  density: "sidebar",
+  mobileNav: "tabs",
+  mainMode: "scroll",
+} as const;
+
 export function AppShell() {
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  const items: AppShellNavItem[] = NAV_ITEMS.map((item) => ({
+    id: item.key,
+    label: t(item.labelKey),
+    href: item.path,
+    icon: item.icon,
+    current: isNavItemActive(item, pathname),
+    testId: selectors.layout.navLink({ key: item.key }),
+  }));
+
   return (
-    <div
-      data-testid={selectors.layout.shell}
-      className="flex min-h-dvh flex-col bg-app-background text-app-foreground"
+    <LibraryAppShell
+      brand={<span data-testid={selectors.app.title}>{t(strings.app.title)}</span>}
+      brandMark={<BrandMark />}
+      brandHref="/"
+      items={items}
+      density={SHELL.density}
+      mobileNav={SHELL.mobileNav}
+      mainMode={SHELL.mainMode}
+      renderLink={(item, { href, children, onClick, ...rest }) => (
+        <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find((entry) => entry.key === item.id)?.end === true} onClick={onClick} {...rest}>
+          {children}
+        </NavLink>
+      )}
+      onNavigate={(item) => navigate(item.href)}
+      navigationLabel={t(strings.layout.navigationLabel)}
+      mobileNavigationLabel={t(strings.layout.mobileNavigationLabel)}
+      skipLabel={t(strings.layout.skipToContent)}
+      menuLabel={t(strings.layout.openNavigation)}
+      closeLabel={t(strings.layout.closeNavigation)}
+      sidebarStorageKey="{{SCENARIO_ID}}.sidebar-width"
+      testId={selectors.layout.shell}
     >
-      <TopBar />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <main
-          data-testid={selectors.layout.main}
-          aria-label="Main content"
-          className="min-w-0 flex-1 overflow-auto px-4 py-4 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:p-6"
-        >
-          <Outlet />
-        </main>
-      </div>
-      <BottomNav />
-    </div>
+      <Outlet />
+    </LibraryAppShell>
   );
 }

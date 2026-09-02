@@ -469,7 +469,7 @@
             {
               "name": "band",
               "required": true,
-              "description": "Escalation band: warning (observe), high (preview), or critical (apply safe-tier)"
+              "description": "Escalation band: warning (observe), high (apply safe-tier), or critical (apply safe-tier)"
             },
             {
               "name": "used-percent",

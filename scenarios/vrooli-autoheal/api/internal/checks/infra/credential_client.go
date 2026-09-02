@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/api-core/storage"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 )
@@ -22,18 +22,18 @@ func autohealCredentialClient() (credentialclient.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	home, err := os.UserHomeDir()
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
 		return nil, err
 	}
-	stateDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	paths, err := resolver.Resolve(storage.Options{ScenarioID: "vrooli-autoheal"})
 	if err != nil {
 		return nil, err
 	}
 	root := repositoryRoot()
 	return credentialclient.NewClient(credentialclient.ClientOptions{
 		Authority:   authority,
-		StateDir:    stateDir,
+		StateDir:    paths.StateDir,
 		Descriptors: func() ([]credentialclient.CredentialRef, error) { return credentialclient.DiscoverDescriptors(root) },
 	})
 }

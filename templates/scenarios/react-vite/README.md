@@ -34,10 +34,11 @@ the standard full-stack Vrooli scenario shape:
   standalone-mode mobile tags, proxy-safe relative install asset URLs,
   a minimal app-shell service worker, safe-area CSS tokens, and generic
   placeholder icons ready for scenario-specific replacement.
-- Canonical responsive shell plus adopted-provenance UI primitives from
-  `react-component-library` for common shared surfaces such as buttons,
-  cards, data tables, empty states, inputs, selects, status badges, sidebar
-  shell, and bottom navigation.
+- The application shell, page headers, settings rows, empty states, cards,
+  buttons, badges and async regions come from `react-component-library` as
+  linked package imports. `ui/src/layout/` holds only this scenario's
+  navigation data, mark, and three shell settings; nothing in the tree
+  redraws chrome.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
 - Generated `experience/` L0 specs for the starter routes. These are UX
@@ -64,11 +65,10 @@ visual layout:
 - i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
 - Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
 - Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- Adopted shared UI primitives under `ui/src/components/ui/`; prefer
-  `react-component-library adoptions apply` over hand-rolling a new primitive.
-- The responsive shell floors: full viewport height, overflow-contained main
-  content, desktop sidebar, fixed safe-area mobile bottom nav, and Settings
-  ownership of locale switching.
+- Library components linked through `react-component-library adoptions link`;
+  ask `adoptions suggest` before hand-rolling anything generic.
+- The shell as a library import, configured in `ui/src/layout/AppShell.tsx`
+  and never redrawn locally; Settings owns every preference.
 - The feature-folder pattern under `ui/src/features/<name>/`.
 - The proto → API → CLI → UI vertical-slice shape.
 
@@ -107,6 +107,7 @@ finer-grained presets.
 |---|---|
 | Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
 | Establish UI design language | `DESIGN.md` at this scenario's root |
+| Decide, configure and adopt the UI | [`docs/guides/choosing-ui.md`](docs/guides/choosing-ui.md), [`docs/concepts/EXPERIENCE.md`](docs/concepts/EXPERIENCE.md) |
 | Author UX intent | [`experience/README.md`](experience/README.md) |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
 | Understand the architecture | [`docs/concepts/ARCHITECTURE.md`](docs/concepts/ARCHITECTURE.md) |
@@ -141,5 +142,6 @@ lockfiles yourself before committing. Scripts use `pnpm` directly (no
 
 ## Need Inspiration?
 
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+Read `docs/guides/choosing-ui.md` before opening `ui/`. Then open
+`scenarios/browser-automation-studio/` to see the same template shape taken to
+completion on the API and CLI side; its UI predates the library shell.

@@ -115,6 +115,13 @@ func main() {
 	service.SetDesktopSender(hub.NewDesktopSender())
 	slog.Info("desktop notification transport selected", "platform", runtime.GOOS)
 	service.SetRemoteDelivery(hub.NewBridgeRemoteFromEnvironment())
+	if switchboardURL := strings.TrimSpace(os.Getenv("SWITCHBOARD_API_URL")); switchboardURL != "" {
+		service.SetChannelDelivery(hub.NewSwitchboardDelivery(switchboardURL))
+	} else if switchboardURL, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "switchboard"); resolveErr == nil {
+		service.SetChannelDelivery(hub.NewSwitchboardDelivery(switchboardURL))
+	} else {
+		slog.Warn("switchboard URL unavailable; conversational notification delivery will retry when configured", "error", resolveErr)
+	}
 	eventDefaults := integrations.LiveConfig{
 		Pattern:               "incident.**",
 		SensitivityBySeverity: map[string]string{"critical": "critical", "warning": "sensitive", "informational": "public"},

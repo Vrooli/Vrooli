@@ -4,9 +4,13 @@
   "schemaVersion": "1.0.0",
   "page": {
     "id": "dashboard",
-    "title": "Dashboard",
-    "routes": ["/"],
+    "title": "Home",
+    "routes": [
+      "/"
+    ],
     "purpose": "Give the operator the first useful view of {{SCENARIO_DISPLAY_NAME}} and make the primary next action clear.",
-    "prd_refs": ["OT-P0-001"]
+    "prd_refs": [
+      "OT-P0-001"
+    ]
   }
 }

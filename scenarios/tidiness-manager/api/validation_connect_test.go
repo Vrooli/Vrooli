@@ -57,14 +57,18 @@ func TestScenarioValidationHandlerPacksTidinessNativeDetail(t *testing.T) {
 
 func TestTidinessNativeDetailCarriesDuplicationLineDebt(t *testing.T) {
 	result, err := tidinessScanToProto(&TidinessScanResponse{
-		Scenario: "demo",
-		Summary:  TidinessScanSummary{DuplicationLineDebt: 37},
+		Scenario:  "demo",
+		Summary:   TidinessScanSummary{DuplicationLineDebt: 37},
+		SeamFiles: []string{"/repo/.vrooli/canonical-seams.json", "/repo/internal/.vrooli/seams.json"},
 	})
 	if err != nil {
 		t.Fatalf("tidinessScanToProto() error = %v", err)
 	}
 	if got := result.GetSummary().GetDuplicationLineDebt(); got != 37 {
 		t.Fatalf("duplication_line_debt = %d, want 37", got)
+	}
+	if got := result.GetSeamFiles(); len(got) != 2 || got[1] != "/repo/internal/.vrooli/seams.json" {
+		t.Fatalf("seam_files = %#v", got)
 	}
 }
 

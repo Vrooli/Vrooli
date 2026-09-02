@@ -2,6 +2,7 @@ package scan
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -47,6 +48,7 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	forceRescan := fs.Bool("force-rescan", false, "Re-analyze files already seen in this smart scan session")
 	campaignID := fs.Int("campaign-id", 0, "Attach smart scan results to a campaign")
 	jsonOutput := cliutil.JSONFlag(fs)
+	budgetAudit := fs.Bool("budget-audit", false, "Print declared and observed seam and metric budgets")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
@@ -54,6 +56,9 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	target := "."
 	if fs.NArg() > 0 {
 		target = fs.Arg(0)
+	}
+	if *budgetAudit {
+		return runBudgetAudit(core, target, *timeout, *jsonOutput)
 	}
 
 	switch strings.ToLower(strings.TrimSpace(*scanType)) {
@@ -66,6 +71,89 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	default:
 		return fmt.Errorf("unsupported scan type %q", *scanType)
 	}
+}
+
+type budgetAuditReport struct {
+	Scenario string              `json:"scenario"`
+	Seams    []seamBudgetAudit   `json:"seams"`
+	Metrics  []metricBudgetAudit `json:"metrics"`
+	Blocking bool                `json:"blocking"`
+}
+
+type seamBudgetAudit struct {
+	ID               string   `json:"id"`
+	DeclaredBudget   int      `json:"declared_budget"`
+	DeclaredBaseline *int     `json:"declared_baseline"`
+	Observed         int      `json:"observed"`
+	Reserve          int      `json:"reserve"`
+	ReserveReason    string   `json:"reserve_reason,omitempty"`
+	Verdicts         []string `json:"verdicts"`
+}
+
+type metricBudgetAudit struct {
+	Name             string   `json:"name"`
+	DeclaredBudget   *int     `json:"declared_budget"`
+	DeclaredBaseline *int     `json:"declared_baseline"`
+	Observed         int      `json:"observed"`
+	Reserve          int      `json:"reserve"`
+	Verdicts         []string `json:"verdicts"`
+}
+
+func runBudgetAudit(core *cliapp.ScenarioApp, target string, timeout int, jsonOutput bool) error {
+	scenarioPath, err := support.ScenarioPath(target)
+	if err != nil {
+		return err
+	}
+	if timeout <= 0 {
+		timeout = 600
+	}
+	originalHTTPClient, originalAPIClient := core.HTTPClient, core.APIClient
+	core.HTTPClient = core.HTTPClient.CloneWithTimeout(time.Duration(timeout) * time.Second)
+	core.APIClient = nil
+	defer func() {
+		core.HTTPClient, core.APIClient = originalHTTPClient, originalAPIClient
+	}()
+	body, err := core.Request("POST", "/budget-audit", nil, map[string]any{
+		"scenario":      support.ScenarioName(target),
+		"scenario_path": scenarioPath,
+		"timeout_sec":   timeout,
+	})
+	if err != nil {
+		return err
+	}
+	var report budgetAuditReport
+	if err := support.Decode(body, &report); err != nil {
+		return err
+	}
+	if jsonOutput {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		if err := encoder.Encode(report); err != nil {
+			return err
+		}
+	} else {
+		rows := make([]string, 0, len(report.Seams)+len(report.Metrics))
+		for _, seam := range report.Seams {
+			rows = append(rows, fmt.Sprintf("seam %-40s budget=%d observed=%d reserve=%d verdict=%s", seam.ID, seam.DeclaredBudget, seam.Observed, seam.Reserve, strings.Join(seam.Verdicts, ",")))
+		}
+		for _, metric := range report.Metrics {
+			rows = append(rows, fmt.Sprintf("metric %-38s budget=%s baseline=%s observed=%d verdict=%s", metric.Name, optionalInt(metric.DeclaredBudget), optionalInt(metric.DeclaredBaseline), metric.Observed, strings.Join(metric.Verdicts, ",")))
+		}
+		if err := cliapp.RenderListReport(os.Stdout, cliapp.ListReport{Summary: []string{fmt.Sprintf("Scenario: %s", report.Scenario), fmt.Sprintf("Blocking verdicts: %t", report.Blocking)}, ResultsHeading: "Budget Audit", Results: rows}); err != nil {
+			return err
+		}
+	}
+	if report.Blocking {
+		return fmt.Errorf("budget audit reported blocking verdicts")
+	}
+	return nil
+}
+
+func optionalInt(value *int) string {
+	if value == nil {
+		return "undeclared"
+	}
+	return fmt.Sprintf("%d", *value)
 }
 
 func runTidiness(core *cliapp.ScenarioApp, target string, timeout int, jsonOutput bool) error {

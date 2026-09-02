@@ -157,6 +157,9 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 			units = append(units, targetpack.ParseUnit{Language: unit.Language, RootPath: unit.RootPath, ConfigPath: unit.ConfigPath, Status: unit.Status})
 		}
 		findings = packs.EvaluateTargetWithParseUnits(targetKind, facts.RootPath, facts.Scenario, units)
+		if targetKind == "control-plane" {
+			findings = append(findings, rules.EvaluateControlPlane(rules.Input{Model: model})...)
+		}
 	}
 	errCount, warnCount := 0, 0
 	for _, f := range findings {

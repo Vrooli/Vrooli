@@ -84,7 +84,9 @@ func (r CLIPlacementReporter) DriftedResources(ctx context.Context) ([]DriftedRe
 }
 
 // acceleratorDeclaringResources reads the repository's manifests and returns
-// the resources that declare a non-CPU backend.
+// every resource that declares an acceleration policy, including an explicit
+// CPU fallback. This keeps a host GPU from hiding a resource that is silently
+// serving on CPU merely because its preferred accelerator is unavailable.
 //
 // The reporter resolves this itself rather than being handed a list, so the
 // check is self-contained and does not depend on the order its factory builds
@@ -114,11 +116,8 @@ func acceleratorDeclaringResources(root string) []string {
 		if json.Unmarshal(data, &manifest) != nil || manifest.Acceleration == nil {
 			continue
 		}
-		for _, backend := range manifest.Acceleration.Backends {
-			if strings.TrimSpace(strings.ToLower(backend)) != "cpu" {
-				out = append(out, entry.Name())
-				break
-			}
+		if len(manifest.Acceleration.Backends) > 0 {
+			out = append(out, entry.Name())
 		}
 	}
 	sort.Strings(out)

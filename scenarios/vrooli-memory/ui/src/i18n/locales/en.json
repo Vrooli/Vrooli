@@ -2,6 +2,14 @@
   "$rowKey": "id",
   "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
   "$text": "Sync all queued workspace changes",
+  "Changes saved successfully": {
+    "": "We couldn’t save your changes."
+  },
+  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
+    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
+  },
+  "Request in progress": "Ready to save",
+  "Saved": "Try again",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Vrooli Memory are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.",
@@ -14,11 +22,14 @@
   "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
   "capability": "navigation",
   "caption": "No rows table",
+  "children": "Try again",
   "clsx": "^2.1.1",
+  "component": "button",
   "default": "primary",
   "defaultValue": "locked",
   "desc": "asc",
   "description": "Icon-leading action that still exposes text.",
+  "detail": "The generic harness supplies context; Button remains the subject.",
   "dialog": "complementary",
   "emptyMessage": "No scenarios match",
   "equals": "Current",
@@ -49,6 +60,7 @@
   "export": "IconStart",
   "field": "name",
   "fixture": "fixtures.user-directory",
+  "format": "renderable-text",
   "header": "Scenario",
   "health": {
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
@@ -61,6 +73,7 @@
     "timestampLabel": "Timestamp:",
     "title": "API Health"
   },
+  "iconName": "arrowEnd",
   "id": "icon-start",
   "journal": {
     "changeFacet": "Choose facet",
@@ -86,6 +99,7 @@
     },
     "sidebarLabel": "Primary navigation"
   },
+  "libraryId": "react-component-library:Pressable",
   "locale": {
     "switcherLabel": "Language"
   },
@@ -152,11 +166,14 @@
     "summary": "summary of {{count}} memories",
     "title": "Recall memory"
   },
+  "ref": "../../../../../experience/components/button.json",
   "region": "navigation",
+  "resolvedAt": "2026-08-31T05:19:38Z",
   "role": "button",
   "schema": "scenario-experience-spec/v1",
   "schemaVersion": "1.1.0",
   "selector": "button",
+  "size": "lg",
   "statement": "The disabled example prevents activation while retaining its visible action label.",
   "status": "Behind",
   "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json",

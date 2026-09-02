@@ -42,11 +42,11 @@ export function HealthCard() {
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle>{t(strings.health.title)}</CardTitle>
-            <CardDescription>{t(strings.pages.dashboard.description)}</CardDescription>
+            <CardTitle as="h2">{t(strings.health.title)}</CardTitle>
+            <CardDescription>{t(strings.health.description)}</CardDescription>
           </div>
           {data && (
-            <StatusBadge tone={data.status === "ok" ? "success" : "warning"}>
+            <StatusBadge tone={data.status === "ok" || data.status === "healthy" ? "success" : "warning"}>
               <span data-testid={selectors.health.statusValue}>{data.status}</span>
             </StatusBadge>
           )}

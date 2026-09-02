@@ -14,9 +14,10 @@ export const librarySelectors = {
   },
 
 
-      "forms.select": {
+        "forms.select": {
     "root": "forms.select",
   },
+
 
 
       "feedback.empty-state": {
@@ -29,9 +30,12 @@ export const librarySelectors = {
   },
 
 
-      "controls.button": {
+        "controls.button": {
     "root": "controls.button",
+    "icon": "controls.button.icon",
+    "label": "controls.button.label",
   },
+
 
 
                 "navigation.bottom-navigation": {

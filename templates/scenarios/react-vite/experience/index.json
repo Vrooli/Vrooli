@@ -12,7 +12,7 @@
     {
       "id": "dashboard",
       "path": "pages/dashboard.json",
-      "title": "Dashboard",
+      "title": "Home",
       "status": "active"
     },
     {

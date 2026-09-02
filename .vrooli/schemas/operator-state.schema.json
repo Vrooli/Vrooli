@@ -198,7 +198,7 @@
       "additionalProperties": false,
       "required": ["step"],
       "properties": {
-        "step": {"type": "integer", "minimum": 0, "maximum": 7}
+        "step": {"type": "integer", "minimum": 0, "maximum": 8}
       }
     }
   }

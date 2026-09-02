@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
 
 const (
@@ -166,26 +167,13 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	return status, nil
 }
 
+// backupKeyring preserves the keyring before its passphrase is changed. The
+// secure store owns the single backup writer so this copy and the repair
+// copy are listed and retired by the same code.
 func backupKeyring(path string) (string, error) {
-	contents, err := os.ReadFile(path)
+	backup, err := securestore.BackupKeyringFileAs(path, ".vrooli-login-unlock-backup")
 	if err != nil {
-		return "", fmt.Errorf("read login keyring: %w", err)
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return "", fmt.Errorf("stat login keyring: %w", err)
-	}
-	backup := path + ".vrooli-login-unlock-backup"
-	file, err := os.OpenFile(backup, os.O_WRONLY|os.O_CREATE|os.O_EXCL, info.Mode().Perm())
-	if err != nil {
-		return "", fmt.Errorf("create login-keyring backup: %w", err)
-	}
-	defer file.Close()
-	if _, err := file.Write(contents); err != nil {
-		return "", fmt.Errorf("write login-keyring backup: %w", err)
-	}
-	if err := file.Sync(); err != nil {
-		return "", fmt.Errorf("sync login-keyring backup: %w", err)
+		return "", fmt.Errorf("login-keyring backup: %w", err)
 	}
 	return backup, nil
 }

@@ -9,6 +9,7 @@ import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { NotesPage } from "../pages/NotesPage"; // EXAMPLE-DOMAIN:notes
 import { SettingsPage } from "../pages/SettingsPage";
+import { ThemeProvider } from "../theme/ThemeProvider";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -54,5 +55,9 @@ export function AppRouter() {
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
   const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
-  return <RouterProvider router={router} future={routerProviderFuture} />;
+  return (
+    <ThemeProvider>
+      <RouterProvider router={router} future={routerProviderFuture} />
+    </ThemeProvider>
+  );
 }

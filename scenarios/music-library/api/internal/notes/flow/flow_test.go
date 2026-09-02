@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"music-library/internal/notes/flow/generated"
-	"music-library/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/packages/proto/modeltest"
 )
 
 func TestAttachmentUploadFormalReplay(t *testing.T) {

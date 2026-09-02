@@ -23,6 +23,29 @@
  * easier to follow.
  */
 import "@testing-library/jest-dom/vitest";
+
+// jsdom ships no matchMedia. The library shell, its overlays and the
+// ThemeProvider query it at render, so give tests a stable "desktop, light,
+// no reduced motion" answer instead of a TypeError.
+if (typeof window !== "undefined") {
+  // jsdom's own scrollTo only logs "not implemented"; make it a silent no-op.
+  Object.defineProperty(window, "scrollTo", { writable: true, value: () => undefined });
+}
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+}
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
 
@@ -37,7 +60,10 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  const errorCalls = consoleError.mock.calls;
+  // jsdom's CSSOM cannot parse some modern CSS the component library injects
+  // (`translate`, `inset-inline`, `color-mix`). That is a jsdom limitation, not
+  // an application error, so it is the one message this gate lets through.
+  const errorCalls = consoleError.mock.calls.filter((args) => !String(args[0]).includes("Could not parse CSS stylesheet"));
   const warnCalls = consoleWarn.mock.calls;
   consoleError.mockRestore();
   consoleWarn.mockRestore();

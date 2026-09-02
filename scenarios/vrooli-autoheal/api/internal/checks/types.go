@@ -246,7 +246,7 @@ type ConfigProvider interface {
 	// IsAutoHealEnabled returns whether auto-healing is enabled for a check
 	IsAutoHealEnabled(checkID string) bool
 	// GetAutoHealOn returns when auto-heal should trigger for this check.
-	// Valid values: "critical", "warning+critical".
+	// Valid values: "critical", "critical+signature", "warning+critical".
 	GetAutoHealOn(checkID string) string
 }
 

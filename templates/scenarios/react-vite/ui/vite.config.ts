@@ -50,6 +50,9 @@ export default defineConfig(({ mode }): UserConfig => {
       globals: true,
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],
+      // `scripts/*.test.mjs` are node:test suites run by `pnpm test:template-library`;
+      // vitest must not collect them.
+      include: ['src/**/*.{test,spec}.{ts,tsx}'],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary', 'json'],
@@ -85,9 +88,8 @@ export default defineConfig(({ mode }): UserConfig => {
           // hand-authored thin-test at the feature root.
           'src/**/generated/**',
         ],
-        // 85% is the floor every canonical-surface file (App.tsx +
-        // button/input/textarea + consts + i18n + api/client + lib/utils +
-        // hooks/{useGamepad,useSpatialNav,SpatialGroup}) clears with the
+        // 85% is the floor every scenario-owned file (App.tsx, the shell
+        // configuration, pages, consts, i18n, api/client, lib) clears with the
         // tests shipped in this template. Tightening beyond actual
         // coverage of a healthy template would make every new scenario
         // start red; loosening below it would make the gate vacuous.

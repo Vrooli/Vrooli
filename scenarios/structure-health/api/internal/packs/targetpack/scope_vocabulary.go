@@ -18,9 +18,9 @@ import (
 
 var concreteScopeLiteral = regexp.MustCompile(`\b[a-z0-9][a-z0-9-]*:(?:read|write|destructive)\b`)
 
-// projectScopeVocabularyRules keeps concrete command scopes enforced by a
-// relying party subordinate to the CLI-derived catalog. Wildcard grants and
-// transport capabilities are deliberately outside this concrete-scope rule.
+// projectScopeVocabularyRules keeps concrete command and transport scopes
+// enforced by any production Go relying party subordinate to the CLI-derived
+// catalog. Wildcard grants remain outside this concrete-scope rule.
 func projectScopeVocabularyRules(root string) []rules.Finding {
 	if _, err := os.Stat(filepath.Join(root, "cli", "manifest.json")); err != nil {
 		return nil
@@ -31,30 +31,32 @@ func projectScopeVocabularyRules(root string) []rules.Finding {
 	}
 
 	var out []rules.Finding
-	for _, base := range []string{
-		"packages/api-core/discovery",
-		"scenarios/agent-manager/api/internal/orchestration/phases",
-		"scenarios/vrooli-bridge/api/internal/dispatch",
-		"scenarios/vrooli-bridge/api/internal/registry",
-	} {
-		_ = filepath.WalkDir(filepath.Join(root, filepath.FromSlash(base)), func(path string, entry fs.DirEntry, walkErr error) error {
-			if walkErr != nil || entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
-				return nil
-			}
-			raw, err := os.ReadFile(path)
-			if err != nil {
-				return nil
-			}
-			for _, scope := range concreteScopeLiteral.FindAllString(string(raw), -1) {
-				if catalog.HasScope(scope) {
-					continue
-				}
-				rel, _ := filepath.Rel(root, path)
-				out = append(out, finding("PROJECT_SCOPE_VOCABULARY", "error", fmt.Sprintf("relying party enforces unknown concrete scope %q", scope), filepath.ToSlash(rel), "Declare command authority in CLI governance metadata or use an existing catalog scope."))
+	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "vendor" {
+				return filepath.SkipDir
 			}
 			return nil
-		})
-	}
+		}
+		if !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		for _, scope := range concreteScopeLiteral.FindAllString(string(raw), -1) {
+			if catalog.HasScope(scope) {
+				continue
+			}
+			rel, _ := filepath.Rel(root, path)
+			out = append(out, finding("PROJECT_SCOPE_VOCABULARY", "error", fmt.Sprintf("relying party enforces unknown concrete scope %q", scope), filepath.ToSlash(rel), "Declare command authority in CLI governance metadata or use an existing catalog scope."))
+		}
+		return nil
+	})
 	return out
 }
 

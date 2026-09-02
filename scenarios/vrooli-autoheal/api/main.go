@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -32,6 +33,7 @@ import (
 	"github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/envkit-go"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/middleware"
@@ -106,6 +108,20 @@ func run() error {
 		}
 	}
 	registry := checks.NewRegistry(plat)
+	registry.SetRecoveryRequester(func(ctx context.Context, scenario, reason string) (string, error) {
+		childEnv := []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
+		cmd := exec.CommandContext(ctx, "vrooli", "agent", "recover", "--scenario", scenario, "--reason", reason, "--requester", "vrooli-autoheal")
+		cmd.Env = childEnv
+		output, err := cmd.CombinedOutput()
+		fields := strings.Fields(string(output))
+		if err != nil {
+			return "", fmt.Errorf("agent recovery: %w: %s", err, strings.TrimSpace(string(output)))
+		}
+		if len(fields) < 3 {
+			return "", fmt.Errorf("agent recovery returned no request id")
+		}
+		return fields[2], nil
+	})
 	if home, err := os.UserHomeDir(); err != nil {
 		log.Printf("warning: runtime recovery ownership gate unavailable: %v", err)
 	} else {

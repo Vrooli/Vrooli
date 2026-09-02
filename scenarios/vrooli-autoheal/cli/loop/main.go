@@ -51,6 +51,20 @@ type Config struct {
 	VrooliCmdPath       string
 }
 
+// runtimeHomeEntry resolves operator runtime paths through the repository
+// contract. Callers must not construct home/.vrooli paths themselves.
+func runtimeHomeEntry(key string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	path, err := repocontract.RuntimeHomeEntryPath(home, key)
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
 type scenarioStatusResponse struct {
 	Success  bool `json:"success"`
 	Scenario struct {
@@ -221,7 +235,7 @@ func main() {
 				// whatever was making progress and guarantees the next attempt
 				// meets the same state. Confirm the process has actually stopped
 				// answering before reaching for the biggest hammer available.
-				if config.ManageAPILifecycle && consecutiveFailures >= config.MaxFailures && apiIsAlive(config.APIPort) {
+				if config.ManageAPILifecycle && consecutiveFailures >= config.MaxFailures && autohealIsAlive(config.APIPort) {
 					log.Printf("[Tick %d] %d consecutive tick failures, but the API is still answering on port %s; not restarting. Ticks fail this way while the database is busy, and a restart would only interrupt it.",
 						tickCount, consecutiveFailures, config.APIPort)
 					// Reset so the next sustained outage gets a fresh count
@@ -384,10 +398,10 @@ func detectAPIPort(config *Config) string {
 	}
 
 	// Strategy 2: Read from vrooli process registry (most reliable for Vrooli-managed scenarios)
-	homeDir, _ := os.UserHomeDir()
+	processRoot := runtimeHomeEntry(repocontract.HomeKeyProcesses)
 	registryPaths := []string{
 		filepath.Join(config.VrooliRoot, ".vrooli", "processes", "scenarios", config.ScenarioName, "port"),
-		filepath.Join(homeDir, ".vrooli", "processes", "scenarios", config.ScenarioName, "port"),
+		filepath.Join(processRoot, "scenarios", config.ScenarioName, "port"),
 	}
 
 	for _, portFile := range registryPaths {
@@ -418,7 +432,7 @@ func detectAPIPort(config *Config) string {
 	// Strategy 4: Check process metadata
 	metadataPaths := []string{
 		filepath.Join(config.VrooliRoot, ".vrooli", "processes", "scenarios", config.ScenarioName, "metadata.json"),
-		filepath.Join(homeDir, ".vrooli", "processes", "scenarios", config.ScenarioName, "metadata.json"),
+		filepath.Join(processRoot, "scenarios", config.ScenarioName, "metadata.json"),
 	}
 
 	for _, metaFile := range metadataPaths {
@@ -442,8 +456,11 @@ func detectAPIPort(config *Config) string {
 		}
 	}
 
-	// Strategy 5: Use last known port if we have one
-	if config.LastKnownPort != "" && isPortHealthy(config.LastKnownPort) {
+	// Strategy 5: Use last known port if we have one.
+	// Identity-checked: the lifecycle can reassign a port to another scenario,
+	// and adopting whatever now answers there points the watchdog at a process
+	// it does not supervise.
+	if config.LastKnownPort != "" && isAutohealAPI(config.LastKnownPort) {
 		return config.LastKnownPort
 	}
 
@@ -456,8 +473,12 @@ func detectAPIPort(config *Config) string {
 		18000, 18001, 18002, 18003, 18004, // Middle of range
 	}
 
+	// Identity-checked: this list is a guess, so a bare 200 proves only that
+	// SOMETHING listens there. Adopting a stranger here is what let two
+	// orphaned test fixtures on 15000/15001 convince the watchdog that a
+	// stopped autoheal was alive, suppressing recovery entirely.
 	for _, port := range probePorts {
-		if isPortHealthy(strconv.Itoa(port)) {
+		if isAutohealAPI(strconv.Itoa(port)) {
 			return strconv.Itoa(port)
 		}
 	}
@@ -650,52 +671,12 @@ func isPortHealthy(port string) bool {
 	return resp.StatusCode == 200
 }
 
-// apiIsAlive reports whether the API process is still answering HTTP at all,
-// regardless of what it says about its own health.
-//
-// This is the question a supervisor should ask before restarting something, and
-// it is NOT the question isPortHealthy answers. On 2026-08-01 the API was
-// serving every request correctly while its database was busy with a retention
-// cycle; /health reported unhealthy, ticks timed out behind the same
-// contention, and this loop restarted a process with nothing wrong with it. The
-// restart aborted the cycle, and RunOnStart began it again — so the supervisor
-// was the mechanism that prevented recovery, on every iteration, indefinitely.
-//
-// A process that completes an HTTP round trip is not the failure a restart
-// fixes. Restarting is for a process that has stopped answering.
-func apiIsAlive(port string) bool {
-	if port == "" {
-		return false
-	}
-	healthURL, err := localHealthEndpoint(port)
-	if err != nil {
-		return false
-	}
-	// Generous relative to the health handler's own budget: the point is to
-	// find out whether anything is listening and answering, not whether it is
-	// answering quickly.
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, healthURL, nil) //nolint:gosec // validated loopback-only health probe
-	if err != nil {
-		return false
-	}
-	resp, err := client.Do(req) //nolint:gosec // validated loopback-only health probe
-	if err != nil {
-		return false
-	}
-	resp.Body.Close()
-	// Any status is an answer. A 503 from a service reporting its own degraded
-	// dependency is still a live process that a restart cannot improve.
-	return true
-}
-
-// isScenarioRunning checks if the scenario process is active
 func isScenarioRunning(config *Config) bool {
 	// Check PID file
-	homeDir, _ := os.UserHomeDir()
+	processRoot := runtimeHomeEntry(repocontract.HomeKeyProcesses)
 	pidPaths := []string{
 		filepath.Join(config.VrooliRoot, ".vrooli", "processes", "scenarios", config.ScenarioName, "start-api.pid"),
-		filepath.Join(homeDir, ".vrooli", "processes", "scenarios", config.ScenarioName, "start-api.pid"),
+		filepath.Join(processRoot, "scenarios", config.ScenarioName, "start-api.pid"),
 	}
 
 	for _, pidFile := range pidPaths {
@@ -774,13 +755,7 @@ func ensureAPIRunning(config *Config) error {
 
 // startAPI starts the scenario using vrooli
 func startAPI(config *Config) error {
-	output, err := runVrooliCommand(config, "scenario", "start", config.ScenarioName, "--best-effort")
-	if err != nil {
-		return fmt.Errorf("start command failed: %v\nOutput: %s", err, string(output))
-	}
-
-	log.Printf("Start output: %s", strings.TrimSpace(string(output)))
-	return nil
+	return runLifecycleWithRecovery(config, "start")
 }
 
 // restartAPI attempts to restart the autoheal API
@@ -788,13 +763,47 @@ func restartAPI(config *Config) error {
 	if config.VrooliCmdPath == "" {
 		return fmt.Errorf("vrooli command not found")
 	}
+	return runLifecycleWithRecovery(config, "restart")
+}
 
-	output, err := runVrooliCommand(config, "scenario", "restart", config.ScenarioName, "--best-effort")
-	if err != nil {
-		return fmt.Errorf("restart command failed: %v\nOutput: %s", err, string(output))
+// runLifecycleWithRecovery runs `vrooli scenario <verb> <scenario>` and, when
+// it fails with a healable dependency-drift signature, applies the recovery
+// floor and retries exactly once.
+//
+// The single retry is deliberate. Recovery either changes tracked files (in
+// which case one more attempt is the whole point) or it does not (in which
+// case further attempts fail identically). Repetition beyond that is the
+// circuit breaker's business, not this function's.
+func runLifecycleWithRecovery(config *Config, verb string) error {
+	output, err := runVrooliCommand(config, "scenario", verb, config.ScenarioName, "--best-effort")
+	if err == nil {
+		log.Printf("%s output: %s", titleVerb(verb), strings.TrimSpace(string(output)))
+		// A clean start means any earlier drift is resolved; release the
+		// breaker so a future, unrelated failure gets a full attempt budget.
+		resetSelfHealState(selfHealStatePath())
+		return nil
 	}
 
-	log.Printf("Restart output: %s", strings.TrimSpace(string(output)))
+	failure := fmt.Errorf("%s command failed: %v\nOutput: %s", verb, err, string(output))
+
+	// The output we already hold is the only place the healable signature
+	// appears. Before this existed, the loop discarded it.
+	outcome := attemptSelfHeal(config, string(output))
+	if !outcome.Attempted {
+		log.Printf("Recovery floor did not engage: %s", outcome.Detail)
+		return failure
+	}
+	log.Printf("Recovery floor engaged: %s", outcome.Detail)
+	if !outcome.Healed {
+		return failure
+	}
+
+	log.Printf("Recovery floor healed dependency drift; retrying scenario %s once", verb)
+	retryOutput, retryErr := runVrooliCommand(config, "scenario", verb, config.ScenarioName, "--best-effort")
+	if retryErr != nil {
+		return fmt.Errorf("%s failed again after recovery: %v\nOutput: %s", verb, retryErr, string(retryOutput))
+	}
+	log.Printf("%s succeeded after recovery floor repair", titleVerb(verb))
 	return nil
 }
 

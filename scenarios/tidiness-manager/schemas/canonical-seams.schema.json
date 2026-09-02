@@ -17,26 +17,64 @@
     "seam": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "canonical", "why", "remediation", "bypass", "scope", "severity", "budget"],
+      "required": ["id"],
+      "allOf": [
+        {
+          "if": { "properties": { "disabled": { "const": true } }, "required": ["disabled"] },
+          "then": { "required": ["disabled", "reserve_reason"] },
+          "else": { "required": ["canonical", "why", "remediation", "bypass", "scope", "severity", "budget"] }
+        },
+        {
+          "if": {
+            "anyOf": [
+              { "properties": { "budget": { "minimum": 1 } }, "required": ["budget"] },
+              { "properties": { "reserve": { "minimum": 1 } }, "required": ["reserve"] }
+            ]
+          },
+          "then": { "required": ["reserve_reason"] }
+        }
+      ],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "canonical": { "type": "string", "minLength": 1 },
         "why": { "type": "string", "minLength": 1 },
         "remediation": { "type": "string", "minLength": 1 },
         "resolver": { "enum": ["local", "code-facts"], "default": "local" },
+        "disabled": { "type": "boolean", "default": false },
         "bypass": {
           "type": "object",
           "additionalProperties": false,
           "required": ["kind", "pattern"],
+          "allOf": [
+            {
+              "if": { "properties": { "shapeKind": { "const": "json_nesting" } }, "required": ["shapeKind"] },
+              "then": { "required": ["outerKey", "innerKey"] }
+            },
+            {
+              "if": { "properties": { "shapeKind": { "const": "constructs_type" } }, "required": ["shapeKind"] },
+              "then": { "required": ["constructedType"] }
+            }
+          ],
           "properties": {
-            "kind": { "enum": ["call", "literal", "declaration", "shape", "directive", "absence"], "description": "absence declares a required target that must be present under the selected scope" },
+            "kind": { "enum": ["call", "literal", "declaration", "semantic-naming", "replaced-call", "shape", "directive", "suppression-breadth", "absence"], "description": "absence declares a required target that must be present under the selected scope" },
             "pattern": { "type": "string", "minLength": 1 },
             "declKind": { "enum": ["func", "method", "type", "interface", "const", "var"] },
+            "genericWords": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+            "minDomainWords": { "type": "integer", "minimum": 1 },
+            "unit": { "enum": ["declarations", "directives"], "default": "declarations" },
+            "canonicalCall": { "type": "string", "minLength": 1 },
+            "outerKey": { "type": "string", "minLength": 1 },
+            "innerKey": { "type": "string", "minLength": 1 },
+            "constructedType": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$" },
+            "excludeSymbols": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
             "repeatedAcrossPackages": { "type": "integer", "minimum": 1 },
-            "shapeKind": { "enum": ["switch_on_argv", "interface_method_set", "struct_field_set", "error_boundary", "context_duration_literal", "service_manifest_decoder", "dynamic_json_writer"] },
+            "pairedPathPatterns": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "string", "minLength": 1 } },
+            "excludeAliases": { "type": "boolean" },
+            "shapeKind": { "enum": ["switch_on_argv", "interface_method_set", "struct_field_set", "error_boundary", "context_duration_literal", "json_nesting", "constructs_type", "nested_swap_loop"] },
             "minMembers": { "type": "integer", "minimum": 1 },
             "requireFor": { "type": "string", "minLength": 1, "description": "file or glob that activates the absence rule" },
-            "requirePresent": { "type": "string", "minLength": 1, "description": "file or JSON pointer target required when requireFor matches" }
+            "requirePresent": { "type": "string", "minLength": 1, "description": "file or JSON pointer target required when requireFor matches" },
+            "forbidKind": { "enum": ["executable"], "description": "artifact kind forbidden when the absence rule matches" }
           }
         },
         "scope": {
@@ -49,7 +87,9 @@
           }
         },
         "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
-        "budget": { "type": "integer", "minimum": 0 }
+        "budget": { "type": "integer", "minimum": 0 },
+        "reserve": { "type": "integer", "minimum": 0 },
+        "reserve_reason": { "type": "string", "minLength": 1 }
       }
     }
   }

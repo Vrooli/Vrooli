@@ -15,12 +15,22 @@ discovered after the first million rows.
 SQLite through the `api-core` storage seam. One database file, WAL mode,
 owned by the scenario.
 
-There is no PostgreSQL, no Redis, and no Docker. This is a capability
-decision, not a convenience one: both `resource-postgres` and
-`resource-redis` remain Docker-backed and are recorded `unsupported` on
-macOS and Windows in `docs/reference/platform-support.md`. Depending on
-either would prevent this scenario from running on the macOS fleet node
-that cross-node delivery exists to reach.
+There is no PostgreSQL and no Redis. This is a capability decision, not a
+convenience one, and the reason is macOS evidence rather than Docker.
+Neither resource is Docker-backed in the start path any more — both declare
+`driver: managed-service`, and the Linux `postgres` path stages a
+digest-pinned filesystem tree with no container runtime — though both are
+still *acquired* as OCI images
+(`managed_service.acquisition.kind: "oci-image"`).
+
+What rules them out is that neither is `supported` on macOS.
+`path:docs/reference/platform-support.md` records `postgres` there as
+`build-verified` with **no macOS hardware run performed**, and its two
+tables disagree about `redis` on macOS: the generated resource matrix says
+`build-verified` while the narrative capability table says `unsupported`.
+Depending on either would put this scenario on unproven — possibly
+unsupported — footing on the macOS fleet node that cross-node delivery
+exists to reach.
 
 The queue, the retry schedule, the dedupe counters, and the deadline
 sweeper are all in-process and SQLite-backed. At single-owner volume — tens

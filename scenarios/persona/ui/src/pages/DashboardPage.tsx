@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listAllHandoffs, listPersonas } from "../api/persona";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { HealthCard } from "../features/health/HealthCard";
 import { useTranslation } from "../i18n";

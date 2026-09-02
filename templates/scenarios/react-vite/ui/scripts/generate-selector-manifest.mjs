@@ -8,7 +8,7 @@ const tempDir = mkdtempSync(join(tmpdir(), 'react-vite-selectors-'));
 
 try {
   execSync(
-    `pnpm exec tsc src/consts/selectors.ts --module commonjs --moduleResolution node --target es2022 --skipLibCheck --outDir ${tempDir}`,
+    `pnpm exec tsc src/consts/selectors.ts --rootDir src --module commonjs --moduleResolution node --target es2022 --skipLibCheck --outDir ${tempDir}`,
     { stdio: 'pipe' },
   );
 

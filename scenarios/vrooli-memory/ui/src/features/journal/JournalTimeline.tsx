@@ -13,7 +13,7 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { formatDate } from "../../i18n/format";
 import { errorMessage } from "../../lib/errorMessage";
-import { Select } from "@vrooli/react-component-library/Select/1.1.0";
+import { Select } from "@vrooli/react-component-library/Select/1";
 
 export function JournalTimeline() {
   const { t } = useTranslation();

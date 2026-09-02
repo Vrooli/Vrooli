@@ -15,7 +15,7 @@ import { useTranslation } from "../../i18n";
 import { notesClient } from "../../api/notes";
 import { errorMessage } from "../../lib/errorMessage";
 import { AttachmentUpload } from "./AttachmentUpload";
-import { ExperienceSurface, type ExperienceSurfaceState } from "../../components/experience/ExperienceSurface";
+import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1";
 
 const NOTES_QUERY_KEY = ["notes"] as const;
 
@@ -113,7 +113,7 @@ export function NotesCard() {
     >
       <Card data-testid={selectors.notes.card} aria-label={t(strings.notes.title)}>
         <CardHeader className="flex-row items-center justify-between gap-3">
-          <CardTitle>{t(strings.notes.title)}</CardTitle>
+          <CardTitle as="h2">{t(strings.notes.title)}</CardTitle>
           <Button
             data-testid={selectors.notes.createButton}
             size="sm"

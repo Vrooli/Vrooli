@@ -72,6 +72,11 @@
         "contract": { "$ref": "#/$defs/Contract" },
         "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
         "description": { "type": "string" },
+        "adoptionMaturityFloor": {
+          "type": "string",
+          "enum": ["scaffolded", "implemented", "verified", "production-ready"],
+          "description": "The minimum maturity rung the catalog currently claims as its adoption floor. This is configuration, not an implementation result."
+        },
         "domains": {
           "type": "array",
           "minItems": 1,
@@ -93,7 +98,7 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["id", "description", "appliesTo", "rung", "attribution"],
+            "required": ["id", "description", "appliesTo", "rung", "blocking", "runner"],
             "properties": {
               "id": { "$ref": "#/$defs/Slug" },
               "description": { "type": "string", "minLength": 15 },
@@ -114,16 +119,32 @@
                 "enum": ["scaffolded", "implemented", "verified", "production-ready"],
                 "description": "The maturity rung at which this gate becomes applicable. Rungs are inherited upward; every rung at or below an asset target must have an applicable blocking gate."
               },
-              "attribution": {
-                "type": "string",
-                "enum": ["attributable", "corpus"],
-                "description": "Whether findings identify one catalog asset or describe a system-wide invariant. Corpus gates never contribute to an asset score."
-              },
               "runner": {
                 "type": "object",
                 "description": "Per-target command or entrypoint that executes this gate. Keys are target ids. A gate with no runner for a target is unrunnable there, which is reported rather than silently skipped.",
                 "additionalProperties": { "type": "string" },
                 "propertyNames": { "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" }
+              },
+              "evidenceKinds": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true,
+                "description": "Evidence channels that may substantiate this gate."
+              },
+              "experienceClaimTypes": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 },
+                "uniqueItems": true,
+                "description": "Experience claim types that may substantiate this gate."
+              },
+              "runnerConfig": {
+                "type": "object",
+                "properties": {
+                  "minimumViewports": { "type": "integer", "minimum": 1 },
+                  "requiresCapture": { "type": "boolean" }
+                },
+                "additionalProperties": false,
+                "description": "Typed options consumed by the gate runner."
               }
             },
             "patternProperties": { "^x-": {} },
@@ -158,6 +179,7 @@
         "kind": { "type": "string", "const": "catalog-asset" },
         "schemaVersion": { "$ref": "#/$defs/SchemaVersion" },
         "asset": { "$ref": "#/$defs/AssetIdentity" },
+        "rationale": { "type": "string", "description": "Why this asset is in the target catalog at all. Most valuable on entries whose necessity is not self-evident." },
         "budgets": {
           "type": "object",
           "description": "Measured render budgets for browser-backed evidence. Omitted mountMs uses the kind default: primitive 8ms, component 16ms, page-template 50ms.",
@@ -304,6 +326,7 @@
           "description": "What we are aiming for, not what exists. Both fields are aspiration; neither is ever updated to reflect reality.",
           "properties": {
             "priority": { "type": "string", "enum": ["P0", "P1", "P2"] },
+            "plannedBy": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
             "maturity": {
               "type": "string",
               "enum": ["scaffolded", "implemented", "verified", "production-ready", "deprecated"],

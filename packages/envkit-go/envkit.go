@@ -108,15 +108,22 @@ func keepInherited(key string, relationship Relationship, platform Platform) boo
 	if isRelative(normalized) {
 		return relationship == SameScenario
 	}
-	if relationship == DelegatedAgent && normalized == "VROOLI_AGENT_IDENTITY_TOKEN" {
-		return true
-	}
-	// Inbound observations are never emitted as delegated identity. They may
-	// remain ambient for a same-process child, but are dropped at boundaries.
-	if relationship != SameScenario && (normalized == "CLAUDE_CODE_SESSION_ID" || normalized == "CODEX_THREAD_ID") {
-		return false
+	// A credential identifies the process that holds it. Identity and session
+	// credentials therefore cross an ownership boundary only when the boundary
+	// explicitly delegates the child as the agent that owns the credential.
+	if isNonInheritableIdentity(normalized) {
+		return relationship == DelegatedAgent && normalized == "VROOLI_AGENT_IDENTITY_TOKEN"
 	}
 	return true
+}
+
+func isNonInheritableIdentity(key string) bool {
+	switch key {
+	case "VROOLI_AGENT_IDENTITY_TOKEN", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID":
+		return true
+	default:
+		return false
+	}
 }
 
 func isRelative(key string) bool {

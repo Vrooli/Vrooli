@@ -88,6 +88,17 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 			// half-deleted fragment of an otherwise coherent directory.
 			TopLevelEntries: true,
 		}),
+		NewScratchProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
+			ID:          "agent-scratch",
+			Name:        "Agent scratch",
+			Roots:       deps.ScratchRoots,
+			Description: "Remove aged entries from the repository scratch directory",
+			// A plan's scratch directory is a unit, for the same reason a temp
+			// staging directory is: aging its files independently can leave a
+			// half-deleted fragment that is worse than either keeping or
+			// removing the whole capture.
+			TopLevelEntries: true,
+		}),
 		NewCacheProvider(deps.FileSystem, deps.Clock, FileProviderConfig{
 			ID:          "go-build-cache",
 			Name:        "Go build cache",
@@ -154,6 +165,7 @@ type BuiltInDeps struct {
 	Clock                cleanup.Clock
 	TrashRoots           []string
 	TmpRoots             []string
+	ScratchRoots         []string
 	GoBuildCacheRoots    []string
 	PlaywrightCacheRoots []string
 	ScenarioBinariesRoot string

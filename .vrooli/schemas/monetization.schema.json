@@ -11,6 +11,9 @@
     "bundle_key": { "type": "string", "minLength": 1 },
     "app_key": { "type": "string", "minLength": 1 },
     "requires_entitlement": { "type": "boolean", "default": true },
+    "account_surface_paths": { "type": "array", "items": { "$ref": "#/$defs/path" } },
+    "journey_probe_paths": { "type": "array", "items": { "$ref": "#/$defs/path" } },
+    "tier_feasibility": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0, "maximum": 100 } },
     "features": {
       "type": "array",
       "items": { "$ref": "#/$defs/feature" }

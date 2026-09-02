@@ -17,7 +17,6 @@
  * 2. Update the `dynamicSelectorDefinitions` object for parameterized selectors
  * 3. `selectorsManifest` updates from the same source maps automatically
  */
-import { LOCALE_CODES } from "../i18n/locales";
 
 type LiteralSelectorTree = { readonly [key: string]: string | LiteralSelectorTree };
 type LiteralNode = string | LiteralSelectorTree;
@@ -292,8 +291,6 @@ export const createSelectorRegistry = <
 const literalSelectors = {
   app: {
     title: "app-title",
-    eyebrow: "app-eyebrow",
-    description: "app-description",
   },
   health: {
     card: "health-card",
@@ -332,18 +329,22 @@ const literalSelectors = {
   },
   // EXAMPLE-DOMAIN:notes END
   layout: {
+    // The library AppShell derives every part id from the root id it is given.
     shell: "layout-shell",
-    topBar: "layout-top-bar",
-    sidebar: "layout-sidebar",
-    bottomNav: "layout-bottom-nav",
-    main: "layout-main",
+    navigation: "layout-shell-navigation",
+    tabs: "layout-shell-tabs",
+    main: "layout-shell-main",
+    brand: "layout-shell-brand",
+    skip: "layout-shell-skip",
   },
-  theme: {
-    switcher: "theme-switcher",
-    select: "theme-select",
+  settingsPage: {
+    themeSelect: "page-settings-theme",
+    localeSelect: "page-settings-locale",
   },
   pages: {
     dashboard: "page-dashboard",
+    dashboardHeader: "page-dashboard-header",
+    dashboardPlaceholder: "page-dashboard-placeholder",
     notes: "page-notes", // EXAMPLE-DOMAIN:notes
     settings: "page-settings",
   },
@@ -355,9 +356,9 @@ const literalSelectors = {
 
 const dynamicSelectorDefinitions = {
   layout: {
-    sidebarLink: defineDynamicSelector({
-      description: "Sidebar navigation link by canonical nav key",
-      testIdPattern: "layout-sidebar-link-${key}",
+    navLink: defineDynamicSelector({
+      description: "Primary navigation link by canonical nav key; the phone tab derives `-tab` from the same id",
+      testIdPattern: "layout-nav-${key}",
       params: {
         key: {
           type: "enum",
@@ -369,9 +370,9 @@ const dynamicSelectorDefinitions = {
         },
       },
     }),
-    bottomNavLink: defineDynamicSelector({
-      description: "Bottom-nav link by canonical nav key",
-      testIdPattern: "layout-bottom-nav-link-${key}",
+    navTab: defineDynamicSelector({
+      description: "Phone tab-bar item by canonical nav key",
+      testIdPattern: "layout-nav-${key}-tab",
       params: {
         key: {
           type: "enum",
@@ -382,18 +383,6 @@ const dynamicSelectorDefinitions = {
           ] as const,
         },
       },
-    }),
-  },
-  settingsPage: {
-    themeOption: defineDynamicSelector({
-      description: "Theme choice radio button on the settings page",
-      testIdPattern: "page-settings-theme-${choice}",
-      params: { choice: { type: "enum", values: ["light", "dark", "system"] as const } },
-    }),
-    localeOption: defineDynamicSelector({
-      description: "Locale choice radio button on the settings page",
-      testIdPattern: "page-settings-locale-${code}",
-      params: { code: { type: "enum", values: LOCALE_CODES } },
     }),
   },
 } satisfies DynamicSelectorTree;

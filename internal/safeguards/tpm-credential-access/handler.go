@@ -13,32 +13,26 @@ package tpmcredentialaccess
 
 import (
 	"fmt"
-	"os"
 	"os/user"
 	"slices"
-	"strconv"
-
-	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/resources/securestore"
 )
-
-// tpmDevices are the TPM character devices systemd-creds can use, preferred
-// first. The resource manager is the one a non-root account can be granted;
-// the raw device is the fallback a host may expose instead.
-var tpmDevices = []string{"/dev/tpmrm0", "/dev/tpm0"}
 
 type handler struct {
 	manifest hostreqkit.SafeguardManifest
 }
 
 // These seams keep the safeguard matrix testable without manufacturing device
-// nodes or changing the process supplementary groups. In production they
-// point at the host probes below; tests replace them with deterministic host
-// states and still observe the exact privileged argv.
+// nodes or changing the process supplementary groups. In production the device
+// probe is the secure store's own (the same device order and group-readable
+// rule its fix text uses, so safeguard and store never disagree); tests replace
+// them with deterministic host states and still observe the exact privileged
+// argv.
 var (
-	grantableDeviceFn = grantableDevice
+	grantableDeviceFn = securestore.GrantableTPMDevice
 	accountInGroupFn  = accountInGroup
 )
 
@@ -174,27 +168,6 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	return status, nil
 }
 
-// grantableDevice reports the first TPM device whose access can actually be
-// granted by joining a group, with that group's name.
-//
-// A device whose mode gives the group nothing is deliberately not grantable:
-// adding an account to its group would change nothing, and reporting otherwise
-// would send an operator after a fix that cannot work.
-func grantableDevice() (device string, group string, found bool) {
-	for _, candidate := range tpmDevices {
-		info, err := os.Stat(candidate)
-		if err != nil {
-			continue
-		}
-		gid, ok := fileInfoGroupID(info)
-		if !ok || info.Mode().Perm()&tuning.PermGroupReadWrite == 0 {
-			continue
-		}
-		return candidate, groupLabel(int(gid)), true
-	}
-	return "", "", false
-}
-
 // accountInGroup asks the OS about the named account rather than reading this
 // process's own group set. Under `sudo vrooli setup` the process is root, whose
 // membership says nothing about the operator's.
@@ -212,11 +185,4 @@ func accountInGroup(account, group string) (bool, error) {
 		return false, err
 	}
 	return slices.Contains(groupIDs, wanted.Gid), nil
-}
-
-func groupLabel(gid int) string {
-	if group, err := user.LookupGroupId(strconv.Itoa(gid)); err == nil && group.Name != "" {
-		return group.Name
-	}
-	return strconv.Itoa(gid)
 }

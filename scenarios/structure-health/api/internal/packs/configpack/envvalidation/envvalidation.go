@@ -497,7 +497,11 @@ func checkGoEnvValidation(content, filepath string) []Violation {
 			// Categorize the variable
 			category := categorizeEnvVar(envVar, lines, i)
 			sensitiveVar := isSensitiveVar(envVar)
-			hasValidation := false
+			// An inline comparison on the os.Getenv line itself is validation,
+			// and the strongest kind: the raw value never escapes the
+			// expression. The scan below starts at i+1 and cannot see it, so
+			// `os.Getenv("FLAG") == "1"` was reported as unvalidated.
+			hasValidation := goLineConstrainsValue(line)
 			logLine := -1
 
 			for j := i + 1; j < len(lines) && j < i+8; j++ {
@@ -594,6 +598,23 @@ func checkGoEnvValidation(content, filepath string) []Violation {
 	return violations
 }
 
+// goLineConstrainsValue reports whether an os.Getenv call is compared or
+// switched on within the same line, which constrains the value at the point of
+// read rather than deferring it to a later guard.
+func goLineConstrainsValue(line string) bool {
+	if !strings.Contains(line, "os.Getenv(") {
+		return false
+	}
+	trimmed := strings.TrimSpace(line)
+	for _, operator := range []string{"==", "!=", ">=", "<=", " > ", " < "} {
+		if strings.Contains(trimmed, operator) {
+			return true
+		}
+	}
+	// switch os.Getenv("X") { ... } constrains it through its cases.
+	return strings.HasPrefix(trimmed, "switch ")
+}
+
 func checkBashEnvValidation(content, filepath string) []Violation {
 	lines := strings.Split(content, "\n")
 	usages := collectBashUsages(lines)
@@ -687,7 +708,11 @@ func checkJSEnvValidation(content, filepath string) []Violation {
 		envVar := strings.ToUpper(usage.envVar)
 		category := categorizeEnvVar(envVar, lines, usage.lineIndex)
 		sensitive := isSensitiveVar(envVar)
-		hasValidation := jsHasValidation(lines, usage)
+		// Same-line constraint counts as validation, mirroring the Go path.
+		// `process.env.NODE_ENV !== 'production'` and
+		// `(process.env.API_HOST || '127.0.0.1').trim()` both bound the value
+		// where it is read; jsHasValidation only recognises a following `if`.
+		hasValidation := jsHasValidation(lines, usage) || jsLineConstrainsValue(lines, usage)
 		logged, logLine := jsLogsSensitive(lines, usage)
 
 		// Check for JS/TS default patterns
@@ -912,6 +937,26 @@ func jsHasValidation(lines []string, usage envUsage) bool {
 		}
 	}
 
+	return false
+}
+
+// jsLineConstrainsValue reports whether the line reading process.env bounds the
+// value on that same line — by comparison, or by supplying a fallback with ||
+// or ??. Either way the raw value never escapes unconstrained, so a separate
+// guard on a later line is not required.
+func jsLineConstrainsValue(lines []string, usage envUsage) bool {
+	if usage.lineIndex < 0 || usage.lineIndex >= len(lines) {
+		return false
+	}
+	line := lines[usage.lineIndex]
+	if !strings.Contains(line, "process.env.") {
+		return false
+	}
+	for _, operator := range []string{"===", "!==", "==", "!=", "||", "??", ">=", "<="} {
+		if strings.Contains(line, operator) {
+			return true
+		}
+	}
 	return false
 }
 

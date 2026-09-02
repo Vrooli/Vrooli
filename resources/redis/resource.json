@@ -79,18 +79,19 @@
           ]
         },
         "macos": {
-          "support": "conditional",
+          "support": "unsupported",
           "mode": "manual",
           "architectures": [
             "amd64",
             "arm64"
           ],
           "limitations": [
-            "Redis is usable on macOS through Docker Desktop; the selected native acquisition channel does not publish a macOS artifact."
+            "The selected native acquisition channel publishes no macOS artifact. Redis remains usable on macOS through Docker Desktop, which is outside this managed-service path."
           ],
           "evidence": [
             "manifest-validation"
-          ]
+          ],
+          "reason": "No native macOS redis-server executable is staged. The macOS acquisition targets previously pointed at the Linux `library/redis` OCI image, whose `usr/local/bin/redis-server` is an ELF binary that cannot execute on macOS."
         },
         "windows": {
           "support": "conditional",
@@ -123,7 +124,7 @@
   },
   "platforms": {
     "linux": "supported",
-    "macos": "build-verified",
+    "macos": "unsupported",
     "windows": "build-verified"
   },
   "dependencies": [],
@@ -191,8 +192,8 @@
         {"when": {"os": "linux", "arch": "arm64"}, "image": "library/redis@sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621", "layout": "dir", "bin_path": "usr/local/bin/redis-server"},
         {"when": {"os": "windows", "arch": "amd64"}, "kind": "url", "url": "https://github.com/redis-windows/redis-windows/releases/download/8.10.0/Redis-8.10.0-Windows-x64-msys2.zip", "sha256": "743a39b0a97d0b8ec8355591cd31874dd9da8b0f48a7d6becddacdb082ce6c30", "archive": "zip", "layout": "dir", "bin_path": "Redis-8.10.0-Windows-x64-msys2/redis-server.exe", "artifact_sha256": "244a71ad6fb02ab39737b1a462bed0c5c48b35730bd0f616da9a42a32e14a3c7"},
         {"when": {"os": "windows", "arch": "arm64"}, "unsupported": "The selected Redis Windows release publishes only an x64 archive; no Windows ARM artifact is pinned."},
-        {"when": {"os": "macos", "arch": "amd64"}, "image": "library/redis@sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621", "layout": "dir", "bin_path": "usr/local/bin/redis-server"},
-        {"when": {"os": "macos", "arch": "arm64"}, "image": "library/redis@sha256:5fa2edb1e408fa8235e6db8fab01d1afaaae96c9403ba67b70feceb8661e8621", "layout": "dir", "bin_path": "usr/local/bin/redis-server"}
+        {"when": {"os": "macos", "arch": "amd64"}, "unsupported": "No native macOS redis-server artifact is published by the selected acquisition channel."},
+        {"when": {"os": "macos", "arch": "arm64"}, "unsupported": "No native macOS redis-server artifact is published by the selected acquisition channel."}
       ]
     },
     "attach_health_path": "/",

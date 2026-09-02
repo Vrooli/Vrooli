@@ -51,7 +51,9 @@ func Evaluate(in Input) []Finding {
 	out = append(out, dependencyRules(in)...)
 	out = append(out, portBandRules(in)...)
 	out = append(out, reconcileRules(in)...)
-	out = append(out, deployabilityInstanceRules(in)...)
+	// Control-plane rules are NOT evaluated here. Every finding Evaluate
+	// returns must be located inside in.Model.RootPath, so a scenario can
+	// act on it. See EvaluateControlPlane and TestEvaluateFindingsStayInsideTarget.
 	return out
 }
 

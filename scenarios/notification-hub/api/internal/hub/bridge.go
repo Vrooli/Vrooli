@@ -10,16 +10,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vrooli/nodeclient"
+	"github.com/vrooli/api-core/nodereach"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 )
 
 type bridgeRemote struct {
-	client *nodeclient.Client
+	client *nodereach.Client
 }
 
 func NewBridgeRemoteFromEnvironment() RemoteDelivery {
-	client := nodeclient.New(nodeclient.Config{
+	client := nodereach.New(nodereach.Config{
 		Token: firstNonEmpty(os.Getenv("VROOLI_BRIDGE_API_TOKEN"), os.Getenv("VROOLI_API_TOKEN")),
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -50,7 +50,7 @@ func (b *bridgeRemote) Deliver(ctx context.Context, machineID string, n Notifica
 		return "", err
 	}
 	encoded := base64.RawStdEncoding.EncodeToString(payload)
-	dispatched, err := b.client.Dispatch(ctx, nodeclient.DispatchRequest{
+	dispatched, err := b.client.Dispatch(ctx, nodereach.DispatchRequest{
 		NodeID: nodeID, Verb: "notification-hub notifications relay", Args: []string{"--payload-base64", encoded}, Timeout: 120 * time.Second,
 	})
 	if err != nil {

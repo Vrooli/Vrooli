@@ -7,9 +7,9 @@ Track issues, blockers, and deferred decisions here. Keep open issues at the top
 ## Work ladder
 
 - Rung: W3 / R0
-- Evidence: W0 passes for goal `tidiness-manager-declarative-canonical-seams` and `OT-P0-011`; W1 and W2 gates report `PASSED`; comprehensive Test Genie run `20260827-084210-f3ca275b` failed 7 of 21 phases (`portability`, `ui-health`, `dependencies`, `docs`, `unit`, `storage`, `workflow`) and reports `workingRung: R0`.
-- Blocker: clear the runnable-and-green baseline before implementing the R4 declarative-seam capability.
-- Measured: 2026-08-27
+- Evidence: W0 passes because active goal `tidiness-manager-declarative-canonical-seams` names AST-based declarative canonical seams and `OT-P0-011` requires the same capability; post-repair `business-health validate scenario tidiness-manager` and `vrooli scenario requirements validate tidiness-manager` both report `PASSED`; comprehensive Test Genie run `20260829-074127-7720df99` completed with 17 of 24 phases passing, including the scoped `tidiness` phase, while `ui-health`, `dependencies`, `docs`, `unit`, `storage`, and `workflow` remain failed. The scenario therefore remains at W3 / R0 despite the scoped seam-control repair.
+- Blocker: the runnable-and-green baseline remains below the declarative-seam implementation work; the active fourth-layer plan repairs the scoped seam-control implementation without claiming the unrelated W3 findings are resolved.
+- Measured: 2026-08-29
 
 ### Completeness Tool BATS Test Recognition Limitation
 **Status**: Open (Ecosystem-level tool limitation)

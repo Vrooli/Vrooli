@@ -105,7 +105,7 @@ func TestAnalyzeArchitectureAllowsGeneratedTemporalReplayBridge(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
 	writeFile(t, filepath.Join(root, "internal", "testutil", "modeltest", "model.go"), "package modeltest\n")
-	writeFile(t, filepath.Join(root, "internal", "orders", "flow", "generated", "replay.go"), "package generated\n\nimport _ \"demo/internal/testutil/modeltest\"\n")
+	writeFile(t, filepath.Join(root, "internal", "orders", "flow", "generated", "replay.go"), "package generated\n\nimport _ \"github.com/vrooli/vrooli/packages/proto/modeltest\"\n")
 
 	ws := Workspace{ID: "api", Language: "go", RootPath: root}
 	findings := analyzeArchitecture("demo", []Workspace{ws}, fixedNowStr)

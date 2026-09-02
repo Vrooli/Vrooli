@@ -143,7 +143,10 @@ func TestRunTick_RequestsCompactResponse(t *testing.T) {
 // restart one that is answering slowly. Conflating the two is what made a
 // working retention cycle unrecoverable: every restart aborted it and the next
 // attempt met the same load.
-func TestAPIIsAliveTreatsAnyHTTPAnswerAsAlive(t *testing.T) {
+//
+// The liveness question is now identity-scoped: it asks whether AUTOHEAL is
+// answering, not whether anything is.
+func TestAutohealIsAliveTreatsAnyAutohealAnswerAsAlive(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		status int
@@ -155,28 +158,70 @@ func TestAPIIsAliveTreatsAnyHTTPAnswerAsAlive(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(`{"service":"Vrooli Autoheal API","status":"degraded"}`))
 			}))
 			defer srv.Close()
 
 			port := srv.Listener.Addr().(*net.TCPAddr).Port
-			if !apiIsAlive(strconv.Itoa(port)) {
-				t.Errorf("status %d reported as not alive; a process that answers HTTP is not the failure a restart fixes", tc.status)
+			if !autohealIsAlive(strconv.Itoa(port)) {
+				t.Errorf("status %d reported as not alive; a process that answers is not the failure a restart fixes", tc.status)
 			}
 		})
 	}
 }
 
 // The converse: nothing listening is exactly the condition a restart is for.
-func TestAPIIsAliveReportsNothingListeningAsDead(t *testing.T) {
+func TestAutohealIsAliveReportsNothingListeningAsDead(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	port := srv.Listener.Addr().(*net.TCPAddr).Port
 	srv.Close()
 
-	if apiIsAlive(strconv.Itoa(port)) {
+	if autohealIsAlive(strconv.Itoa(port)) {
 		t.Error("a closed port reported as alive; a genuinely dead API would never be restarted")
 	}
-	if apiIsAlive("") {
+	if autohealIsAlive("") {
 		t.Error("an undetected port reported as alive")
+	}
+}
+
+// The 2026-09-01 sabotage, reproduced: an orphaned mock server answering 200 on
+// a probed port must NOT be mistaken for autoheal. This is the check that keeps
+// a stray fixture from suppressing recovery indefinitely.
+func TestAutohealIsAliveRejectsForeignProcess(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"service":"mock-api","status":"ok"}`))
+	}))
+	defer srv.Close()
+
+	port := srv.Listener.Addr().(*net.TCPAddr).Port
+	if autohealIsAlive(strconv.Itoa(port)) {
+		t.Fatal("a foreign service answering 200 must not be adopted as autoheal")
+	}
+	if isAutohealAPI(strconv.Itoa(port)) {
+		t.Error("identity probe must reject a foreign service")
+	}
+}
+
+func TestBodyIdentifiesAutoheal(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"autoheal api", `{"service":"Vrooli Autoheal API"}`, true},
+		{"case insensitive", `{"service":"vrooli AUTOHEAL api"}`, true},
+		{"foreign service", `{"service":"mock-api"}`, false},
+		{"no service field", `{"status":"healthy"}`, false},
+		{"not json", `<html>hello</html>`, false},
+		{"empty", ``, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := bodyIdentifiesAutoheal([]byte(tc.body)); got != tc.want {
+				t.Errorf("body %q -> %v, want %v", tc.body, got, tc.want)
+			}
+		})
 	}
 }
 

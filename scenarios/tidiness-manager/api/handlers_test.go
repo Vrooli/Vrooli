@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -352,6 +353,86 @@ func TestFrozenBudgetFailsTheGate(t *testing.T) {
 	}
 }
 
+func TestTidinessBudgetReserveRequiresReasonAndCoversMeasuredSeed(t *testing.T) {
+	scenarioPath := t.TempDir()
+	if err := os.Mkdir(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(scenarioPath, ".vrooli", "testing.json")
+	write := func(config string) {
+		t.Helper()
+		if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	write(`{"phases":{"tidiness":{"budgets":{"duplication_line_debt":99,"baseline_duplication_line_debt":100,"reserve":1,"reserve_reason":"Measured seed keeps the current observation visible until cleanup earns a tighter budget.","ratchet":true}}}}`)
+	if finding := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{DuplicationLineDebt: 100}); finding != nil {
+		t.Fatalf("measured reserve failed = %#v", finding)
+	}
+	report := newBudgetAuditReport("demo", scenarioPath, nil, nil, TidinessScanSummary{DuplicationLineDebt: 100})
+	if report.Blocking || report.Metrics[0].Reserve != 1 || report.Metrics[0].ReserveReason == "" {
+		t.Fatalf("reserve audit = %#v", report.Metrics[0])
+	}
+
+	write(`{"phases":{"tidiness":{"budgets":{"duplication_line_debt":99,"baseline_duplication_line_debt":100,"reserve":1,"reserve_reason":"short","ratchet":true}}}}`)
+	report = newBudgetAuditReport("demo", scenarioPath, nil, nil, TidinessScanSummary{DuplicationLineDebt: 100})
+	if !report.Blocking || !slices.Contains(report.Metrics[0].Verdicts, "reserve_reason_missing") {
+		t.Fatalf("short reserve reason passed = %#v", report.Metrics[0])
+	}
+}
+
+func TestTidinessBudgetRatchetAppliesToEveryMetric(t *testing.T) {
+	metrics := []struct {
+		name         string
+		baselineName string
+		summary      func(int) TidinessScanSummary
+	}{
+		{name: "duplication_line_debt", baselineName: "baseline_duplication_line_debt", summary: func(value int) TidinessScanSummary { return TidinessScanSummary{DuplicationLineDebt: value} }},
+		{name: "long_files", baselineName: "baseline_long_files", summary: func(value int) TidinessScanSummary { return TidinessScanSummary{LongFiles: value} }},
+		{name: "complexity_over_threshold", baselineName: "baseline_complexity_over_threshold", summary: func(value int) TidinessScanSummary { return TidinessScanSummary{Complexity: value} }},
+		{name: "coupling_over_threshold", baselineName: "baseline_coupling_over_threshold", summary: func(value int) TidinessScanSummary { return TidinessScanSummary{Coupling: value} }},
+		{name: "debt_markers", baselineName: "baseline_debt_markers", summary: func(value int) TidinessScanSummary { return TidinessScanSummary{TechDebt: value} }},
+	}
+	for _, metric := range metrics {
+		t.Run(metric.name, func(t *testing.T) {
+			scenarioPath := t.TempDir()
+			if err := os.Mkdir(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			writeBudget := func(budget int, baseline *int) {
+				t.Helper()
+				fields := fmt.Sprintf(`"%s":%d`, metric.name, budget)
+				if baseline != nil {
+					fields += fmt.Sprintf(`,"%s":%d`, metric.baselineName, *baseline)
+				}
+				config := fmt.Sprintf(`{"phases":{"tidiness":{"budgets":{%s,"ratchet":true}}}}`, fields)
+				if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "testing.json"), []byte(config), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			baseline := 5
+			writeBudget(5, &baseline)
+			if finding := tidinessBudgetFinding("demo", scenarioPath, metric.summary(5)); finding == nil || finding.Evidence["violation"] != "frozen_budget" || finding.Evidence["metric"] != metric.name {
+				t.Fatalf("frozen finding = %#v", finding)
+			}
+			writeBudget(6, &baseline)
+			if finding := tidinessBudgetFinding("demo", scenarioPath, metric.summary(4)); finding == nil || finding.Evidence["violation"] != "ratchet_loosened_budget" {
+				t.Fatalf("loosened finding = %#v", finding)
+			}
+			writeBudget(4, &baseline)
+			if finding := tidinessBudgetFinding("demo", scenarioPath, metric.summary(6)); finding == nil || finding.Evidence["violation"] != "ratchet_worsened_debt" {
+				t.Fatalf("worsened finding = %#v", finding)
+			}
+			writeBudget(5, nil)
+			if finding := tidinessBudgetFinding("demo", scenarioPath, metric.summary(5)); finding != nil {
+				t.Fatalf("baseline opt-in finding = %#v", finding)
+			}
+		})
+	}
+}
+
 func TestTidinessBudgetFinding_EnforcesDeclaredZero(t *testing.T) {
 	scenarioPath := t.TempDir()
 	if err := os.Mkdir(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
@@ -366,6 +447,58 @@ func TestTidinessBudgetFinding_EnforcesDeclaredZero(t *testing.T) {
 	}
 	if finding := tidinessBudgetFinding("demo", scenarioPath, TidinessScanSummary{}); finding != nil {
 		t.Fatalf("clean declared zero = %#v", finding)
+	}
+}
+
+func TestBudgetAuditReportIncludesEverySeamAndMetric(t *testing.T) {
+	scenarioPath := t.TempDir()
+	if err := os.Mkdir(filepath.Join(scenarioPath, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	config := `{"phases":{"tidiness":{"budgets":{"long_files":2,"baseline_long_files":3,"ratchet":true}}}}`
+	if err := os.WriteFile(filepath.Join(scenarioPath, ".vrooli", "testing.json"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	seams := []Seam{
+		{ID: "exact", Budget: 1, ReserveReason: "tracked debt"},
+		{ID: "loose", Budget: 3, Reserve: 1, ReserveReason: "one reviewed exception"},
+	}
+	hits := []SeamHit{{SeamID: "exact"}, {SeamID: "loose"}}
+	report := newBudgetAuditReport("demo", scenarioPath, seams, hits, TidinessScanSummary{LongFiles: 1})
+	if len(report.Seams) != 2 || len(report.Metrics) != 5 {
+		t.Fatalf("audit shape = %#v", report)
+	}
+	if report.Seams[0].Observed != 1 || report.Seams[0].DeclaredBaseline != nil || report.Seams[0].Verdicts[0] != "ok" {
+		t.Fatalf("exact seam audit = %#v", report.Seams[0])
+	}
+	if report.Seams[1].DeclaredBudget != 3 || report.Seams[1].Observed != 1 || report.Seams[1].Reserve != 1 || report.Seams[1].Verdicts[0] != "SEAM_BUDGET_SLACK" {
+		t.Fatalf("loose seam audit = %#v", report.Seams[1])
+	}
+	if report.Metrics[1].Name != "long_files" || report.Metrics[1].DeclaredBudget == nil || *report.Metrics[1].DeclaredBudget != 2 || report.Metrics[1].DeclaredBaseline == nil || *report.Metrics[1].DeclaredBaseline != 3 || report.Metrics[1].Observed != 1 {
+		t.Fatalf("long-file metric audit = %#v", report.Metrics[1])
+	}
+	if !report.Blocking {
+		t.Fatal("slack seam did not block the audit")
+	}
+}
+
+func TestHandleBudgetAuditRequiresAndReusesCompletedValidation(t *testing.T) {
+	scenarioPath := t.TempDir()
+	srv := &Server{}
+	body := BudgetAuditRequest{Scenario: "demo", ScenarioPath: scenarioPath}
+	missing := testHandlerRequest(t, "POST", "/api/v1/budget-audit", body, srv.handleBudgetAudit)
+	assertHandlerStatus(t, missing, http.StatusConflict, "handleBudgetAudit() without validation")
+
+	want := &BudgetAuditReport{Scenario: "demo", Seams: []SeamBudgetAudit{}, Metrics: []MetricBudgetAudit{}}
+	srv.storeBudgetAudit(scenarioPath, want)
+	cached := testHandlerRequest(t, "POST", "/api/v1/budget-audit", body, srv.handleBudgetAudit)
+	assertHandlerStatus(t, cached, http.StatusOK, "handleBudgetAudit() with validation")
+	var got BudgetAuditReport
+	if err := json.Unmarshal(cached.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Scenario != want.Scenario {
+		t.Fatalf("cached audit = %#v", got)
 	}
 }
 

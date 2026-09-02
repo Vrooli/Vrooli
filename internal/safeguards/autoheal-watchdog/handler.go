@@ -6,10 +6,12 @@ package autohealwatchdog
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	platformgo "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -41,7 +43,19 @@ var (
 	commandOutputFn    = func(name string, args ...string) ([]byte, error) { return hostreqkit.CombinedOutputFn(name, args...) }
 	lingeringEnabledFn = lingeringEnabled
 	buildLoopFn        = func(root, output string, opts hostreqkit.EnsureOptions) error {
-		return hostreqkit.RunAsInvokingUser("go", []string{"-C", filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal"), "build", "-o", output, "./cli/loop"}, opts)
+		// Build from inside the loop's own module directory.
+		//
+		// `go -C <scenario> build ./cli/loop` does not work: the scenario
+		// directory has no go.mod, so -C resolves to the repo-root module,
+		// which does not contain that package, and the build fails with
+		// "main module does not contain package .../cli/loop". The loop is a
+		// separate module (vrooli-autoheal-loop) and must be built as one.
+		//
+		// This mattered: the failure left the watchdog binary frozen at
+		// whatever build happened to be on disk while its source moved on, so
+		// fixes to the loop never shipped.
+		loopDir := filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal", "cli", "loop")
+		return hostreqkit.RunAsInvokingUser("go", []string{"-C", loopDir, "build", "-o", output, "."}, opts)
 	}
 )
 
@@ -77,8 +91,13 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 		status.Notes = append(status.Notes, err.Error())
 		return status
 	}
-	if _, err := os.Stat(loopPath(root, host.OS)); err != nil {
-		status.Notes = append(status.Notes, "autoheal loop binary missing; setup will build it")
+	// A stale binary must keep the safeguard un-applied, not merely annotated.
+	// Apply() returns early when status.Applied is true, so reporting
+	// "already present" over superseded code is how a fix to the watchdog
+	// stops shipping while every signal still reads green.
+	loopStale, loopStaleReason := loopBinaryStale(root, loopPath(root, host.OS))
+	if loopStale {
+		status.Notes = append(status.Notes, "autoheal loop binary needs building ("+loopStaleReason+"); setup will build it")
 	}
 	if !hostreqkit.FileContentMatches(path, definition) {
 		status.Notes = append(status.Notes, "autoheal native scheduler definition is missing or stale")
@@ -95,6 +114,11 @@ func (h handler) Inspect(host hostreqkit.Host, requirement hostreqspec.ResolvedR
 	}
 	if bootPolicy(requirement.Config) == handlerDedicated && hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && !lingeringEnabledFn(hostreqkit.InvokingUser()) {
 		status.Notes = append(status.Notes, "user service is enabled but boot protection is incomplete: Linux lingering is disabled", recoveryNote())
+		return status
+	}
+	if loopStale {
+		// Scheduler is healthy but supervising superseded code: not applied.
+		status.Notes = append(status.Notes, "autoheal scheduler is active but its binary is stale; setup will rebuild and restart it")
 		return status
 	}
 	status.Applied = true
@@ -119,10 +143,15 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 	loop := loopPath(root, host.OS)
-	if _, err := os.Stat(loop); err != nil {
+	// Rebuild when the binary is missing OR older than its sources. Presence
+	// alone is not enough: the watchdog is a long-lived process that nothing
+	// else rebuilds, so a stale binary means every fix to the loop -- including
+	// its dependency-drift recovery floor -- silently never ships.
+	rebuiltLoop := false
+	if stale, reason := loopBinaryStale(root, loop); stale {
 		if opts.DryRun {
 			status.ExecutionState = hostreqkit.ExecutionWouldApply
-			status.Notes = append(status.Notes, "dry-run: would build "+loop)
+			status.Notes = append(status.Notes, "dry-run: would build "+loop+" ("+reason+")")
 			return status, nil
 		}
 		if err := buildLoopFn(root, loop, opts); err != nil {
@@ -130,6 +159,8 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			status.Notes = append(status.Notes, "autoheal loop build failed: "+err.Error())
 			return status, nil
 		}
+		status.Notes = append(status.Notes, "rebuilt autoheal loop binary ("+reason+")")
+		rebuiltLoop = true
 	}
 	definition, path, name, err := nativeDefinition(host.OS, root, home)
 	if err != nil {
@@ -152,6 +183,18 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "native scheduler enable failed: "+err.Error(), recoveryNote())
 		return status, nil
 	}
+	// `enable --now` starts a stopped unit but leaves a running one on the old
+	// executable, so a rebuild only reaches the supervised process after an
+	// explicit restart.
+	if rebuiltLoop {
+		if err := restartScheduler(host.OS, name, opts); err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "autoheal scheduler restart after rebuild failed: "+err.Error(), recoveryNote())
+			return status, nil
+		}
+		status.Notes = append(status.Notes, "restarted autoheal scheduler onto the rebuilt binary")
+	}
+
 	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && bootPolicy(status.Config) == handlerDedicated {
 		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "loginctl", []string{"enable-linger", hostreqkit.InvokingUser()}, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
@@ -274,4 +317,101 @@ func lingeringEnabled(user string) bool {
 	}
 	out, err := commandOutputFn("loginctl", "show-user", user, "--property=Linger")
 	return err == nil && strings.TrimSpace(string(out)) == "Linger=yes"
+}
+
+// loopSourceDirs lists the directories whose contents the loop binary is built
+// from, relative to the repo root. langrecover is included because the loop
+// depends on it for dependency-drift recovery: a change there must reach the
+// watchdog, or the recovery floor silently runs old logic.
+func loopSourceDirs(root string) []string {
+	scenario := filepath.Join(root, repocontractmeta.ScenarioDir, "vrooli-autoheal")
+	return []string{
+		filepath.Join(scenario, "cli", "loop"),
+		filepath.Join(scenario, "langrecover"),
+	}
+}
+
+// loopBinaryStale reports whether the loop binary needs rebuilding, and why.
+//
+// A missing binary is unambiguous. Otherwise the binary is compared against
+// the newest source file in its module and its in-repo dependencies; if the
+// sources are newer, the running watchdog would be executing superseded code.
+// On any error reading the sources the answer is "not stale", so a probe
+// failure never triggers an unnecessary build.
+func loopBinaryStale(root, loop string) (bool, string) {
+	info, err := os.Stat(loop)
+	if err != nil {
+		return true, "binary missing"
+	}
+	builtAt := info.ModTime()
+
+	newest, newestPath, err := newestSourceModTime(loopSourceDirs(root))
+	if err != nil || newestPath == "" {
+		return false, ""
+	}
+	if newest.After(builtAt) {
+		return true, "binary older than " + filepath.Base(newestPath)
+	}
+	return false, ""
+}
+
+// newestSourceModTime returns the most recent modification time among Go
+// source and module files under the supplied directories.
+func newestSourceModTime(dirs []string) (time.Time, string, error) {
+	var (
+		newest     time.Time
+		newestPath string
+	)
+	for _, dir := range dirs {
+		err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			name := entry.Name()
+			// Test files do not affect the built binary.
+			if strings.HasSuffix(name, "_test.go") {
+				return nil
+			}
+			if !strings.HasSuffix(name, ".go") && name != "go.mod" && name != "go.sum" {
+				return nil
+			}
+			info, err := entry.Info()
+			if err != nil {
+				return err
+			}
+			if info.ModTime().After(newest) {
+				newest, newestPath = info.ModTime(), path
+			}
+			return nil
+		})
+		if err != nil {
+			return time.Time{}, "", err
+		}
+	}
+	return newest, newestPath, nil
+}
+
+// restartScheduler restarts the native scheduler unit so a freshly built
+// binary actually replaces the running process.
+func restartScheduler(osName, name string, opts hostreqkit.EnsureOptions) error {
+	if hostreqspec.PlatformFromGOOS(osName) == hostreqspec.PlatformLinux {
+		cmd, args := asUserArgs("systemctl", "--user", "restart", name)
+		return hostreqkit.RunCommandFn(cmd, args, opts)
+	}
+	if isMacOS(osName) {
+		uid := "0"
+		if current, err := user.Current(); err == nil && current.Uid != "" {
+			uid = current.Uid
+		}
+		// kickstart -k kills the running job and restarts it in one step.
+		cmd, args := asUserArgs("launchctl", "kickstart", "-k", "gui/"+uid+"/"+strings.TrimSuffix(name, ".plist"))
+		return hostreqkit.RunCommandFn(cmd, args, opts)
+	}
+	if err := hostreqkit.RunCommandFn("schtasks", []string{"/End", "/TN", name}, opts); err != nil {
+		return err
+	}
+	return hostreqkit.RunCommandFn("schtasks", []string{"/Run", "/TN", name}, opts)
 }

@@ -16,9 +16,8 @@
  *     provider additions (router, theme) propagate to every test.
  *   - `make<Domain>` factories — stable typed default test data with
  *     `Partial<Domain>` overrides.
- *   - `mocks/` — shared mock builders for external SDKs (e.g. the
- *     spatial-nav module). Inline `vi.mock(...)` factories invoke
- *     these so the contract for each SDK lives in one file.
+ *   - `mocks/` — shared mock builders (the API surface). Inline
+ *     `vi.mock(...)` factories invoke these so the contract lives in one file.
  *
  * # API mocking is intentionally NOT a helper
  *
@@ -45,7 +44,22 @@
  * initialised. The pattern above is hoisting-safe and preserves every
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
-export { renderWithProviders } from "@vrooli/api-base/testing";
+import { createElement, type ReactElement, type ReactNode } from "react";
+import { renderWithProviders as renderWithBaseProviders, type ProviderRenderOptions, type ProviderRenderResult } from "@vrooli/api-base/testing";
+import { i18n } from "../i18n";
+import { ThemeProvider } from "../theme/ThemeProvider";
+
+/**
+ * Renders with this scenario's providers: the shared api-base wrapper (query
+ * client, router, i18n provider) fed this scenario's initialized i18n
+ * instance, plus the ThemeProvider every page expects. Without the `i18n`
+ * argument the base wrapper falls back to an empty `cimode` instance and every
+ * "real locale" assertion fails.
+ */
+export function renderWithProviders(ui: ReactElement, options: ProviderRenderOptions = {}): ProviderRenderResult {
+  const extraProviders = options.extraProviders ?? ((children: ReactNode) => createElement(ThemeProvider, null, children));
+  return renderWithBaseProviders(ui, { ...options, i18n, extraProviders });
+}
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { interp } from "./interp";
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
@@ -98,15 +112,6 @@ export type {
 // `vi.mock(<module>, ...)` inline (Vitest hoisting requires it); the
 // builders live in one place so a future API addition is a one-edit
 // change rather than a fan-out across consumers.
-export {
-  makeGamepadInputManagerCtor,
-  makeMockGamepadInputManager,
-  makeMockSpatialNavController,
-} from "./mocks/spatial";
-export type {
-  MockGamepadInputManager,
-  MockSpatialNavController,
-} from "./mocks/spatial";
 
 // Internal-seam mock builders for cross-domain HTTP wrappers (the
 // generic `api/health` health/error path). Domain-specific mocks

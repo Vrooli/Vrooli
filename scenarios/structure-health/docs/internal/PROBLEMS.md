@@ -49,6 +49,16 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### SH-PROB-001 — `TestFleetManifestsValidateCanonicalSchema` fails on non-scenario directories
+- **Status**: open
+- **Severity**: medium (one failing package test; no runtime effect)
+- **Affects**: `internal/packs/configpack/manifestschema`
+- **Symptom**: The test requires every directory under `scenarios/` to declare `.vrooli/service.json`, and three do not: `rcl-fixture-positive-1787641498371379912`, `scenarios`, and `template-validation-react-vite-deep`. It reports "validated 121 of 124 scenario directories".
+- **Impact**: `go test ./...` is red in this scenario, which masks new failures in the same package.
+- **Root cause**: The same distinction fixed in the deployability vocabulary on 2026-09-01 — a *directory* under `scenarios/` is not necessarily a *scenario*. The test enumerates directories where it means scenarios.
+- **Blocked on**: An operator decision about the three directories, which is a repo-layout question rather than a test bug: give them manifests, move them out of `scenarios/`, or teach the enumeration to skip a declared fixture set. Deliberately not guessed.
+
+
 _None yet._
 
 ### 2026-08-06 — Work-ladder owner unavailable

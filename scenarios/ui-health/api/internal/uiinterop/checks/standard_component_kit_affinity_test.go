@@ -43,6 +43,25 @@ func TestComponentKitAffinityRejectsPrivateTokenWithoutNativeAffinity(t *testing
 	}
 }
 
+func TestKitPrivateTokenPatternsComeFromRegistryMetadata(t *testing.T) {
+	root := t.TempDir()
+	metadataPath := filepath.Join(root, "templates", "design", "fixture-kit", "metadata.json")
+	if err := os.MkdirAll(filepath.Dir(metadataPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(metadataPath, []byte(`{"id":"fixture-kit","privateTokens":["fixture-token"],"privateTokenPrefixes":["fixture-"]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	patterns, err := loadKitPrivateTokenPatterns(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pattern := patterns["fixture-kit"]
+	if pattern == nil || !pattern.MatchString("fixture-surface") || !pattern.MatchString("fixture-token") {
+		t.Fatalf("registry pattern = %v, want exact and prefix matches", pattern)
+	}
+}
+
 func TestComponentKitAffinityAcceptsNativePrivateToken(t *testing.T) {
 	root := t.TempDir()
 	scenarioRoot := filepath.Join(root, "scenarios", "fixture")

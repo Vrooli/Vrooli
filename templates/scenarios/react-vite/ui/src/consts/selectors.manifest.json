@@ -4,14 +4,6 @@
       "testId": "app-title",
       "selector": "[data-testid=\"app-title\"]"
     },
-    "app.eyebrow": {
-      "testId": "app-eyebrow",
-      "selector": "[data-testid=\"app-eyebrow\"]"
-    },
-    "app.description": {
-      "testId": "app-description",
-      "selector": "[data-testid=\"app-description\"]"
-    },
     "health.card": {
       "testId": "health-card",
       "selector": "[data-testid=\"health-card\"]"
@@ -47,6 +39,10 @@
     "notifications.summary": {
       "testId": "notifications-summary",
       "selector": "[data-testid=\"notifications-summary\"]"
+    },
+    "notes.surface": {
+      "testId": "notes-surface",
+      "selector": "[data-testid=\"notes-surface\"]"
     },
     "notes.card": {
       "testId": "notes-card",
@@ -116,33 +112,45 @@
       "testId": "layout-shell",
       "selector": "[data-testid=\"layout-shell\"]"
     },
-    "layout.topBar": {
-      "testId": "layout-top-bar",
-      "selector": "[data-testid=\"layout-top-bar\"]"
+    "layout.navigation": {
+      "testId": "layout-shell-navigation",
+      "selector": "[data-testid=\"layout-shell-navigation\"]"
     },
-    "layout.sidebar": {
-      "testId": "layout-sidebar",
-      "selector": "[data-testid=\"layout-sidebar\"]"
-    },
-    "layout.bottomNav": {
-      "testId": "layout-bottom-nav",
-      "selector": "[data-testid=\"layout-bottom-nav\"]"
+    "layout.tabs": {
+      "testId": "layout-shell-tabs",
+      "selector": "[data-testid=\"layout-shell-tabs\"]"
     },
     "layout.main": {
-      "testId": "layout-main",
-      "selector": "[data-testid=\"layout-main\"]"
+      "testId": "layout-shell-main",
+      "selector": "[data-testid=\"layout-shell-main\"]"
     },
-    "theme.switcher": {
-      "testId": "theme-switcher",
-      "selector": "[data-testid=\"theme-switcher\"]"
+    "layout.brand": {
+      "testId": "layout-shell-brand",
+      "selector": "[data-testid=\"layout-shell-brand\"]"
     },
-    "theme.select": {
-      "testId": "theme-select",
-      "selector": "[data-testid=\"theme-select\"]"
+    "layout.skip": {
+      "testId": "layout-shell-skip",
+      "selector": "[data-testid=\"layout-shell-skip\"]"
+    },
+    "settingsPage.themeSelect": {
+      "testId": "page-settings-theme",
+      "selector": "[data-testid=\"page-settings-theme\"]"
+    },
+    "settingsPage.localeSelect": {
+      "testId": "page-settings-locale",
+      "selector": "[data-testid=\"page-settings-locale\"]"
     },
     "pages.dashboard": {
       "testId": "page-dashboard",
       "selector": "[data-testid=\"page-dashboard\"]"
+    },
+    "pages.dashboardHeader": {
+      "testId": "page-dashboard-header",
+      "selector": "[data-testid=\"page-dashboard-header\"]"
+    },
+    "pages.dashboardPlaceholder": {
+      "testId": "page-dashboard-placeholder",
+      "selector": "[data-testid=\"page-dashboard-placeholder\"]"
     },
     "pages.notes": {
       "testId": "page-notes",
@@ -162,10 +170,10 @@
     }
   },
   "dynamicSelectors": {
-    "layout.sidebarLink": {
-      "description": "Sidebar navigation link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-sidebar-link-${key}\"]",
-      "testIdPattern": "layout-sidebar-link-${key}",
+    "layout.navLink": {
+      "description": "Primary navigation link by canonical nav key; the phone tab derives `-tab` from the same id",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}\"]",
+      "testIdPattern": "layout-nav-${key}",
       "params": [
         {
           "name": "key",
@@ -178,10 +186,10 @@
         }
       ]
     },
-    "layout.bottomNavLink": {
-      "description": "Bottom-nav link by canonical nav key",
-      "selectorPattern": "[data-testid=\"layout-bottom-nav-link-${key}\"]",
-      "testIdPattern": "layout-bottom-nav-link-${key}",
+    "layout.navTab": {
+      "description": "Phone tab-bar item by canonical nav key",
+      "selectorPattern": "[data-testid=\"layout-nav-${key}-tab\"]",
+      "testIdPattern": "layout-nav-${key}-tab",
       "params": [
         {
           "name": "key",
@@ -190,38 +198,6 @@
             "dashboard",
             "notes",
             "settings"
-          ]
-        }
-      ]
-    },
-    "settingsPage.themeOption": {
-      "description": "Theme choice radio button on the settings page",
-      "selectorPattern": "[data-testid=\"page-settings-theme-${choice}\"]",
-      "testIdPattern": "page-settings-theme-${choice}",
-      "params": [
-        {
-          "name": "choice",
-          "type": "enum",
-          "values": [
-            "light",
-            "dark",
-            "system"
-          ]
-        }
-      ]
-    },
-    "settingsPage.localeOption": {
-      "description": "Locale choice radio button on the settings page",
-      "selectorPattern": "[data-testid=\"page-settings-locale-${code}\"]",
-      "testIdPattern": "page-settings-locale-${code}",
-      "params": [
-        {
-          "name": "code",
-          "type": "enum",
-          "values": [
-            "en",
-            "ja",
-            "ar"
           ]
         }
       ]

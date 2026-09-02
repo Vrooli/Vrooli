@@ -14,7 +14,7 @@
     "type-check": "pnpm strings:check && tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:template-library": "node --test scripts/template-library-link.test.mjs",
+    "test:template-library": "node --test scripts/template-library-link.test.mjs scripts/design-tokens-composed.test.mjs",
     "strings:gen": "node scripts/gen-strings.mjs",
     "strings:check": "node scripts/gen-strings.mjs --check",
     "selector:manifest": "node ./scripts/generate-selector-manifest.mjs"

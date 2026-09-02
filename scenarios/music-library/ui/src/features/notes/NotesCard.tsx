@@ -4,10 +4,10 @@ import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { CreateNoteRequestSchema } from "@vrooli/proto-types/music-library/v1/notes/notes_pb";
 import type { Note } from "../../api/notes";
 
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1.2.0";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
+import { DataTable, type DataTableColumn } from "@vrooli/react-component-library/DataTable/1";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";

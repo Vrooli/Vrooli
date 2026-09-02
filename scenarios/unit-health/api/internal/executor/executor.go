@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -263,7 +264,7 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 	if cmd.Dir != "" {
 		c.Dir = cmd.Dir
 	}
-	c.Env = append(scrubbedEnviron(), "GOWORK=off", "CI=1")
+	c.Env = append(scrubbedEnviron(path), "GOWORK=off", "CI=1")
 	keys := make([]string, 0, len(cmd.Env))
 	canonicalEnv := make(map[string]string, len(cmd.Env))
 	for key, value := range cmd.Env {
@@ -358,6 +359,7 @@ func (b Bounded) Run(ctx context.Context, cmd Command) Result {
 
 	stalled := watchNoOutput(watchCtx, watchCancel, []*tailWriter{stdout, stderr}, noOutput)
 	waitErr := c.Wait()
+	resourceCollector.ObserveProcess(c.ProcessState)
 	resourceMetrics := resourceCollector.Stop()
 	// Ensure the whole process group is gone even on normal exit.
 	killGroup(c)
@@ -553,18 +555,32 @@ var scenarioIdentityEnvVars = map[string]struct{}{
 }
 
 // scrubbedEnviron returns the inherited environment minus this scenario's
-// identity variables.
-func scrubbedEnviron() []string {
+// identity variables. When Unit Health has already resolved the Go executable,
+// that executable is the toolchain authority: an inherited GOROOT/GOTOOLDIR
+// may point at a different installation and make the selected binary load an
+// incompatible standard library. Omitting those overrides lets Go use the root
+// embedded in (or discovered from) the resolved executable on every platform.
+func scrubbedEnviron(executable string) []string {
 	env := os.Environ()
 	out := make([]string, 0, len(env))
+	scrubGoRoot := isGoExecutable(executable)
 	for _, kv := range env {
 		key, _, ok := strings.Cut(kv, "=")
-		if ok && isScenarioIdentityEnv(key) {
+		if ok && (isScenarioIdentityEnv(key) || (scrubGoRoot && isGoRootEnv(key))) {
 			continue
 		}
 		out = append(out, kv)
 	}
 	return out
+}
+
+func isGoExecutable(executable string) bool {
+	name := strings.TrimSuffix(strings.ToLower(filepath.Base(executable)), ".exe")
+	return name == "go"
+}
+
+func isGoRootEnv(key string) bool {
+	return strings.EqualFold(key, "GOROOT") || strings.EqualFold(key, "GOTOOLDIR")
 }
 
 func isScenarioIdentityEnv(key string) bool {

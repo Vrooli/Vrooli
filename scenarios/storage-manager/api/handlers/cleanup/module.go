@@ -238,6 +238,7 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 
 		TrashRoots:           roots.Trash,
 		TmpRoots:             roots.Tmp,
+		ScratchRoots:         hostpaths.ScratchRoots(repoRoot),
 		GoBuildCacheRoots:    roots.GoBuildCache,
 		PlaywrightCacheRoots: roots.PlaywrightCache,
 		ScenarioBinariesRoot: binRoot,
@@ -548,7 +549,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        cleanupconnect.CleanupServiceReportPressureProcedure,
 		Method:      "POST",
 		Summary:     "Report disk pressure",
-		Description: "Inbound disk-pressure signal from a safeguard. Warning plans and applies the safe tier; high runs estimate and preview without deleting; critical applies safe-tier providers with no operator present. Duplicate concurrent reports of the same partition and band collapse into one execution.",
+		Description: "Inbound disk-pressure signal from a safeguard. Warning, high, and critical apply only provably safe-tier providers with no operator present; owner, conditional, and forbidden providers remain withheld. Duplicate concurrent reports of the same partition and band collapse into one execution.",
 		Category:    "cleanup",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
 			"source_scenario": "string",

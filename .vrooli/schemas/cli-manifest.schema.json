@@ -279,7 +279,12 @@
               "kind": {
                 "type": "string",
                 "const": "local",
-                "description": "A real top-level CLI command implemented locally rather than through a Connect RPC. It is cataloged for governance and discoverability but must not be passed to cliapp.LoadFromManifest."
+                "description": "A real top-level CLI command implemented locally rather than through a Connect RPC."
+              },
+              "handler": {
+                "type": "string",
+                "minLength": 1,
+                "description": "The owning CLI handler key used when LoadFromManifest constructs a local command."
               }
             }
           }

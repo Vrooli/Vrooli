@@ -139,3 +139,38 @@ func existing(candidates ...string) []string {
 	}
 	return out
 }
+
+// ScratchRootName is the repository-relative directory agents fall back to when
+// they need somewhere to put temporary work and have not been given a better
+// location.
+const ScratchRootName = "scratch"
+
+// ScratchRoots resolves the repository's agent-scratch directory.
+//
+// # Why this one is not a foreign namespace
+//
+// Every other root in this package belongs to somebody else — the OS temp
+// directory, the XDG trash, Go's and Playwright's caches — and the package doc
+// above explains why Vrooli-owned paths do not belong here. This root is the
+// deliberate exception, and it takes the repository root as an argument rather
+// than joining Resolve() so that the exception stays visible at every call
+// site instead of hiding inside host resolution.
+//
+// It earns the exception on three counts. The directory is gitignored, so
+// nothing tracked can be destroyed by reaping it. Its contents are disposable
+// by definition — it exists precisely so that a model which has not followed
+// storage guidance still writes somewhere reclaimable. And it is deliberately
+// at the repository root, where an agent running `ls` will find it, which is
+// the property that makes it useful and also the reason it accumulates.
+//
+// The declaration lives in .vrooli/repo-contract.json and the exception is
+// stated in docs/reference/storage-retention.md. Callers pass an empty or
+// relative root to opt out; an unresolvable root yields no entries, so the
+// provider reports nothing rather than failing.
+func ScratchRoots(repoRoot string) []string {
+	repoRoot = strings.TrimSpace(repoRoot)
+	if repoRoot == "" || !filepath.IsAbs(repoRoot) {
+		return nil
+	}
+	return existing(filepath.Join(repoRoot, ScratchRootName))
+}

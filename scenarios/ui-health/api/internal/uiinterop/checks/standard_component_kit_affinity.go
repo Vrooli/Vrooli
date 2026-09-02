@@ -44,6 +44,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -52,12 +53,6 @@ import (
 
 func init() {
 	uiinterop.Register("standard_component_kit_affinity", checkComponentKitAffinity)
-}
-
-var kitPrivateTokenPatterns = map[string]*regexp.Regexp{
-	"vrooli-default":            regexp.MustCompile(`(?:^|[^A-Za-z0-9_-])(?:w-sidebar|sidebar|font-sans|sans)(?:$|[^A-Za-z0-9_-])`),
-	"vrooli-command-display":    regexp.MustCompile(`(?:^|[^A-Za-z0-9_-])(?:display-[A-Za-z0-9_-]+|--display-[A-Za-z0-9_-]+)`),
-	"vrooli-conversion-landing": regexp.MustCompile(`(?:^|[^A-Za-z0-9_-])(?:landing-[A-Za-z0-9_-]+|--(?:color-accent-tertiary|section-spacing|container-max-width|radius-card|radius-panel|shadow-card|shadow-panel))`),
 }
 
 type componentKitManifest struct {
@@ -75,6 +70,10 @@ func checkComponentKitAffinity(ctx uiinterop.CheckContext) uiinterop.RuleResult 
 		return uiinterop.RuleResult{RuleID: ruleID, Skipped: true, SkipReason: "no UI source files", Message: "no UI source files; skipping component kit affinity"}
 	}
 	repoRoot := findRepoRoot(ctx.ScenarioRoot)
+	kitPrivateTokenPatterns, patternsErr := loadKitPrivateTokenPatterns(repoRoot)
+	if patternsErr != nil {
+		return uiinterop.RuleResult{RuleID: ruleID, Skipped: true, SkipReason: patternsErr.Error(), Message: "design-kit metadata unavailable; skipping component kit affinity"}
+	}
 	violations := []uiinterop.Violation{}
 	for _, source := range files {
 		libraryID := provenanceField(source.Content, "@vrooliComponentSource")
@@ -122,4 +121,45 @@ func checkComponentKitAffinity(ctx uiinterop.CheckContext) uiinterop.RuleResult 
 		return uiinterop.RuleResult{RuleID: ruleID, Passed: true, Message: "governed components use only shared or natively-affined kit tokens"}
 	}
 	return uiinterop.RuleResult{RuleID: ruleID, Passed: false, Message: "component kit affinity contract violated", Violations: violations}
+}
+
+func loadKitPrivateTokenPatterns(repoRoot string) (map[string]*regexp.Regexp, error) {
+	designRoot := filepath.Join(repoRoot, "templates", "design")
+	if _, err := os.Stat(designRoot); err != nil {
+		_, source, _, ok := runtime.Caller(0)
+		if !ok {
+			return nil, fmt.Errorf("design-kit registry unavailable")
+		}
+		designRoot = filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..", "..", "..", "..", "..", "templates", "design"))
+	}
+	paths, err := filepath.Glob(filepath.Join(designRoot, "*", "metadata.json"))
+	if err != nil {
+		return nil, err
+	}
+	patterns := map[string]*regexp.Regexp{}
+	for _, path := range paths {
+		raw, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil, readErr
+		}
+		var metadata struct {
+			ID                   string   `json:"id"`
+			PrivateTokens        []string `json:"privateTokens"`
+			PrivateTokenPrefixes []string `json:"privateTokenPrefixes"`
+		}
+		if decodeErr := json.Unmarshal(raw, &metadata); decodeErr != nil {
+			return nil, decodeErr
+		}
+		var alternatives []string
+		for _, token := range metadata.PrivateTokens {
+			alternatives = append(alternatives, regexp.QuoteMeta(token))
+		}
+		for _, prefix := range metadata.PrivateTokenPrefixes {
+			alternatives = append(alternatives, regexp.QuoteMeta(prefix)+`[A-Za-z0-9_-]+`)
+		}
+		if metadata.ID != "" && len(alternatives) > 0 {
+			patterns[metadata.ID] = regexp.MustCompile(`(?:^|[^A-Za-z0-9_-])(?:` + strings.Join(alternatives, "|") + `)(?:$|[^A-Za-z0-9_-])`)
+		}
+	}
+	return patterns, nil
 }

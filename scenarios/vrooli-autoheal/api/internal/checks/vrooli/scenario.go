@@ -5,13 +5,13 @@ package vrooli
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
+	"vrooli-autoheal-langrecover"
 
 	"github.com/vrooli/api-core/coreset"
+	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/langrecover"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing/strategies"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
 
@@ -39,16 +39,24 @@ type ScenarioCheck struct {
 	// only surface during start/setup attempts, not in `scenario status` output.
 	// Returns "" if no log is available. Overridable for tests.
 	readLifecycleLog func() string
+	// componentProbe checks whether a non-API component port is answering.
+	// Overridable for tests; defaults to a loopback HTTP probe.
+	componentProbe componentProbe
 }
 
 const (
 	rootCauseSharedPackageDrift = "shared-package-drift"
 	rootCauseGoModuleDrift      = "go-module-drift"
 	rootCausePnpmInstallDrift   = "pnpm-install-drift"
+	// rootCauseUIUnreachable marks a scenario the orchestrator calls healthy
+	// whose UI port is allocated but dead. The scenario-level health_status
+	// reflects the API probe only, so without this the state reads green.
+	rootCauseUIUnreachable = "ui-unreachable"
 
 	recommendedActionSetupRestart = "setup-restart"
 	recommendedActionRecoverGo    = "recover-go"
 	recommendedActionRecoverPnpm  = "recover-pnpm"
+	recommendedActionRestart      = "restart"
 )
 
 type scenarioRecoveryPollConfig struct {
@@ -80,6 +88,11 @@ func WithScenarioDirectHealthChecker(checker func(context.Context) (bool, string
 	return func(c *ScenarioCheck) {
 		c.directHealth = checker
 	}
+}
+
+// WithScenarioComponentProbe overrides the component reachability probe.
+func WithScenarioComponentProbe(probe componentProbe) ScenarioCheckOption {
+	return func(c *ScenarioCheck) { c.componentProbe = probe }
 }
 
 // WithScenarioLifecycleLogReader overrides the lifecycle-log reader (for testing).
@@ -156,11 +169,14 @@ const lifecycleLogTailBytes = 16 * 1024
 // ~/.vrooli/logs/<scenario>.log. Returns "" if the file is missing or
 // unreadable; drift detection treats empty input as "no signature".
 func readScenarioLifecycleLogTail(scenarioName string, n int64) string {
-	homeDir, err := os.UserHomeDir()
+	homeDir, err := process.HomeDir()
 	if err != nil {
 		return ""
 	}
-	path := filepath.Join(homeDir, ".vrooli", "logs", scenarioName+".log")
+	path, err := process.ScenarioLifecycleLogPath(homeDir, scenarioName)
+	if err != nil {
+		return ""
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return ""
@@ -314,10 +330,12 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 		result.Status = checks.StatusOK
 		result.Message = c.scenarioName + " scenario is healthy"
 		result.Details["available"] = true
+		c.applyComponentReachability(ctx, &result, parsed.Scenario)
 	case "degraded":
 		result.Status = checks.StatusWarning
 		result.Message = c.scenarioName + " scenario is degraded"
 		result.Details["available"] = true
+		c.applyComponentReachability(ctx, &result, parsed.Scenario)
 	case "unhealthy":
 		result.Status = CLIStatusToCheckStatus(CLIStatusStopped, c.critical)
 		result.Message = c.scenarioName + " scenario is unhealthy"
@@ -569,3 +587,41 @@ func (c *ScenarioCheck) ExecuteAction(ctx context.Context, actionID string) chec
 // verifyRecovery checks that the scenario reports healthy runtime state after a
 // start/restart action using the authoritative `vrooli scenario status --json`
 // contract.
+
+// applyComponentReachability probes the scenario's non-API component ports and
+// escalates a healthy-looking scenario whose UI is dead.
+//
+// Why this is needed: `vrooli scenario status` reports a single health_status
+// derived from the API probe. A scenario whose UI process has exited, or whose
+// dev server holds the port without serving, still reports "healthy". Autoheal
+// therefore recorded StatusOK for a scenario no user could load.
+//
+// The escalation is deliberately conservative:
+//   - Only an ALLOCATED port that fails to answer counts. A scenario with no
+//     UI_PORT is skipped, never failed.
+//   - Any HTTP status counts as reachable, so a 404 from a live dev server
+//     does not trigger a restart.
+//   - The result is StatusWarning, not StatusCritical: the API is still
+//     serving, so this is a partial outage. It carries healableDegradation so
+//     the "critical+signature" policy can act on it without widening
+//     auto-heal to every warning in the system.
+func (c *ScenarioCheck) applyComponentReachability(ctx context.Context, result *checks.Result, detail integration.ScenarioStatusDetail) {
+	uiPort, present := detail.Port(roleUIPort)
+	probeResult := probeComponent(ctx, c.componentProbe, roleUIPort, uiPort, present)
+	result.Details["uiProbe"] = string(probeResult.State)
+	if probeResult.Detail != "" {
+		result.Details["uiProbeDetail"] = probeResult.Detail
+	}
+	if !probeResult.Unreachable() {
+		return
+	}
+
+	// A dead UI on a scenario the orchestrator calls healthy is exactly the
+	// false green this probe exists to remove.
+	result.Status = checks.StatusWarning
+	result.Message = c.scenarioName + " scenario is running but its UI is not answering"
+	result.Details["rootCause"] = rootCauseUIUnreachable
+	result.Details["recommendedAction"] = recommendedActionRestart
+	result.Details["healableDegradation"] = true
+	result.Details["available"] = true
+}

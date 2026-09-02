@@ -3,6 +3,8 @@ package system
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -150,5 +152,21 @@ func TestDriftedResourceRendersAnUnknownBackend(t *testing.T) {
 	got := DriftedResource{Name: "kokoro", Declared: "cuda", Observed: ""}.String()
 	if !strings.Contains(got, "an unknown backend") {
 		t.Fatalf("String() = %q, want it to name the observed backend as unknown", got)
+	}
+}
+
+func TestAcceleratorDeclaringResourcesIncludesExplicitCPUFallback(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "whisper")
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := []byte(`{"acceleration":{"backends":["cpu"]}}`)
+	if err := os.WriteFile(filepath.Join(resourceDir, "resource.json"), manifest, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resources := acceleratorDeclaringResources(root)
+	if len(resources) != 1 || resources[0] != "whisper" {
+		t.Fatalf("resources = %v, want explicit CPU resource included", resources)
 	}
 }

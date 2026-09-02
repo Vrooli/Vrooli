@@ -3,17 +3,18 @@
 # Structural Rule Catalog
 
 This page is generated from the Structure Health rule catalog.
+Regenerate with `go run ./cmd/gen-structure-rules` from `api/`.
 
 | Code | Target kind | Severity | Enforcement | Claim | What it checks | Remediation |
 |---|---|---|---|---|---|---|
 | CONTROL_PLANE_LAYOUT_MISSING | control-plane | warning | enforced | control-plane.go-native | Control-plane targets are backed by Go source. | Keep control-plane cmd/internal targets backed by Go source files. |
+| DEPLOYABILITY_INSTANCE_IDENTIFIER | control-plane | error | enforced | control-plane.no-instance-identifiers | Deployability decision code does not hard-code the name of a declared resource, safeguard, or scenario. | Remove the instance literal and pass manifest declarations into the pure resolver. |
 | DOCS_LAYOUT_MISSING | docs | warning | enforced | docs.layout | The documentation target has a README hub. | Add the documentation hub README.md. |
 | DOCS_MANIFEST_INVALID | docs | error | enforced | docs.manifest | Documentation manifests are valid and complete. | Repair manifest.json with version, title, and sections. |
 | PACKAGE_BUILD_OUTPUTS_COMMITTED | package | error | enforced | package.no-committed-build-outputs | Generated package build outputs are not committed to the repository. | Remove generated outputs from version control and ignore the declared output paths. |
 | PACKAGE_BUILD_OUTPUTS_UNDECLARED | package | error | enforced | package.build-output-declarations | Every package generate or build lifecycle command declares the files it produces. | Add non-empty repository-relative outputs globs to each generate or build command in .vrooli/package.json. |
 | PACKAGE_CONSUMER_CLASS_SCAN_FAILED | package | error | enforced | package.consumer-discovery | Package consumer discovery is available to evaluate declared adoption boundaries. | Restore the control-plane package registry and re-run the package structure gate. |
 | PACKAGE_CONSUMER_CLASS_VIOLATION | package | error | enforced | package.allowed-consumers | Discovered package consumers belong to classes explicitly allowed by the package manifest. | Declare the consumer class in package.adoption.allowed_consumers or move the consumer behind an appropriate package boundary. |
-| PACKAGE_RESOURCE_ENV_OWNER_INVALID | package | error | enforced | package.resource-environment-ownership | Package resource-environment ownership claims name existing resource manifests. | Declare an existing resources/<name>/resource.json or remove the ownership claim. |
 | PACKAGE_GO_REPLACE_MISSING | package | error | enforced | package.go-replaces | Modules depending on local Vrooli modules repeat the required local replace directives. | Use Scenario Dependency Analyzer to reconcile the module's local replaces. |
 | PACKAGE_INTERNAL_IMPORT | package | error | enforced | package.no-root-internal | Packages do not import the control plane's private internal packages. | Promote or duplicate the shared capability and remove the root internal import. |
 | PACKAGE_LAYOUT_MISSING | package | error | enforced | package.layout | A package has README.md and a language configuration at its root. | Provide README.md and a go.mod or package.json at the package root. |
@@ -22,6 +23,7 @@ This page is generated from the Structure Health rule catalog.
 | PACKAGE_MODULE_PATH_MISMATCH | package | error | enforced | package.module-identifiers | Declared package module identifiers match discovered module paths. | Add the discovered module path to package.module_identifiers. |
 | PACKAGE_NAME_MISMATCH | package | error | enforced | package.identity | The package manifest name matches the target identifier. | Set package.name to the canonical package id. |
 | PACKAGE_OWN_MODULE_MISSING | package | error | enforced | package.own-module | A module-language parse unit rooted at a package has its own module configuration. | Add a module configuration at the package root or record an intentional exception. |
+| PACKAGE_RESOURCE_ENV_OWNER_INVALID | package | error | enforced | package.resource-environment-ownership | Package resource-environment ownership claims name existing resource manifests. | Declare an existing resources/<name>/resource.json or remove the ownership claim. |
 | PACKAGE_SOURCE_ENTRYPOINT | package | error | enforced | package.compiled-entrypoints | JavaScript package entrypoints resolve to compiled output rather than source files. | Point package metadata exports at dist/ or another declared generated output directory. |
 | PROFILE_CONFORMANCE_VIOLATION | scenario | warning | advisory | scenario.profile-advisory | Unrecognized scenario profiles report profile-specific conventions without blocking. | Review the profile-specific finding and either satisfy the convention or use a recognized profile. |
 | PROFILE_ENV_VALIDATION | scenario | warning | enforced | scenario.environment-validation | Scenario environment validation follows the profile convention. | Validate environment variables at the scenario boundary. |
@@ -61,8 +63,9 @@ This page is generated from the Structure Health rule catalog.
 | SCENARIO_COMPONENT_INVALID | scenario | warning | enforced | scenario.component-contract | Component builds, ports, supervisors, dependencies, reuse edges, and graph cycles resolve within the scenario manifest. | Repair components so every build and process reference resolves without a cycle. |
 | SCENARIO_HARDCODED_PEER_ADDRESS | scenario | error | enforced | scenario.no-hardcoded-peer-address | Scenarios with peer dependencies do not hardcode loopback peer ports in component environment values. | Declare a dependencies.scenarios binding for the peer port. |
 | SCENARIO_MANIFEST_INVALID | scenario | error | enforced | scenario.manifest | Scenario manifests validate against the canonical service schema. | Repair .vrooli/service.json against .vrooli/schemas/service.schema.json, or correct the schema if it no longer describes the implemented contract. |
-| SCENARIO_PEER_BINDING_INVALID | scenario | warning | enforced | scenario.peer-bindings | Scenario manifests do not declare the retired peer-binding environment projection. | Remove dependencies.scenarios[].bindings and resolve peer addresses through discovery. |
+| SCENARIO_PEER_BINDING_INVALID | scenario | warning | enforced | scenario.peer-bindings | Scenario peer bindings name ports declared by the peer and use availability policies consistent with startup and degraded behavior. | Repair the binding against the peer manifest and align when_unavailable with startup_policy and degraded_behavior. |
 | SCENARIO_PORT_ENV_CONVENTION | scenario | error | enforced | scenario.port-env-convention | Every declared port key NAME publishes the environment variable NAME_PORT used by component port ownership. | Rename ports.<name>.env_var to the uppercase port key followed by _PORT and update its consumers. |
+| SCENARIO_README_POLICY | scenario | error | enforced | scenario.readme-identity | Scenario README files describe the permanent scenario capability rather than template provenance. | Rewrite the README to remove template scaffold language and describe the scenario. |
 | SCENARIO_REDECLARES_RESOURCE_ENV | scenario | error | enforced | scenario.resource-env-authority | Component environment values do not redeclare variables exported by enabled resources. | Delete the duplicate component environment value and consume the resource export. |
 | SCENARIO_SECRET_LITERAL | scenario | error | enforced | scenario.no-secret-literals | Component environment declarations contain neither secret-bearing keys nor high-entropy literals. | Declare secret inputs through the credential authority. |
 | SCENARIO_SHARED_PACKAGE_BYPASS | scenario | error | enforced | scenario.shared-package-boundary | Scenario UIs consume shared packages through governed compiled outputs instead of package source trees. | Remove packages/*/src aliases and consume the package through its declared file dependency and compiled exports. |
@@ -83,12 +86,12 @@ This page is generated from the Structure Health rule catalog.
 
 | Target kind | Rules | Enforced | Advisory | None | Reachable | Callers |
 |---|---:|---:|---:|---:|---|---:|
-| scenario | 24 | 22 | 2 | 0 | yes | 2 |
+| scenario | 25 | 23 | 2 | 0 | yes | 2 |
 | resource | 4 | 4 | 0 | 0 | yes | 2 |
 | tool | 3 | 3 | 0 | 0 | yes | 2 |
 | safeguard | 3 | 3 | 0 | 0 | yes | 2 |
 | team | 4 | 4 | 0 | 0 | yes | 2 |
-| package | 13 | 13 | 0 | 0 | yes | 2 |
-| control-plane | 1 | 1 | 0 | 0 | yes | 2 |
+| package | 14 | 14 | 0 | 0 | yes | 2 |
+| control-plane | 2 | 2 | 0 | 0 | yes | 2 |
 | docs | 2 | 2 | 0 | 0 | yes | 2 |
 | project | 17 | 17 | 0 | 0 | yes | 2 |

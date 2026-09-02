@@ -138,7 +138,10 @@ func (m *Manager) GetCheck(checkID string) CheckConfig {
 		},
 	}
 	if result.Settings.AutoHealOn == "" {
-		result.Settings.AutoHealOn = "critical"
+		// "critical+signature" rather than bare "critical": a check that
+		// positively identified a root cause and named its repair should be
+		// allowed to act on a warning. Bare warnings still do not heal.
+		result.Settings.AutoHealOn = "critical+signature"
 	}
 
 	// Copy default thresholds if present
@@ -187,7 +190,11 @@ func (m *Manager) GetCheck(checkID string) CheckConfig {
 		if intent == "try_start" {
 			result.Settings.AutoHealOn = "warning+critical"
 		} else {
-			result.Settings.AutoHealOn = "critical"
+			// The platform recovery floor is at least as sensitive for
+			// must-start members as it is for best-effort members. Critical
+			// scenarios therefore receive the same warning coverage, ensuring a
+			// running-but-refusing service cannot remain invisible.
+			result.Settings.AutoHealOn = "warning+critical"
 		}
 	}
 
@@ -228,11 +235,18 @@ func (m *Manager) IsAutoHealEnabled(checkID string) bool {
 }
 
 // GetAutoHealOn returns the status threshold that triggers auto-heal.
-// Valid values: "critical", "warning+critical".
+// Valid values: "critical", "critical+signature", "warning+critical".
+//
+// The default is "critical+signature": critical results always heal, and so do
+// warnings a check positively classified with a root cause and a named
+// recovery action. Before this, a scenario running with a dead UI produced a
+// warning that nothing ever acted on, because the only widening available was
+// "warning+critical" -- which would have let every soft signal restart a
+// scenario. Set "critical" explicitly to restore the narrowest behaviour.
 func (m *Manager) GetAutoHealOn(checkID string) string {
 	cfg := m.GetCheck(checkID)
 	if cfg.Settings.AutoHealOn == "" {
-		return "critical"
+		return "critical+signature"
 	}
 	return cfg.Settings.AutoHealOn
 }
@@ -530,10 +544,12 @@ func (m *Manager) Validate(config *Config) ValidationResult {
 			}
 		}
 		if check.Settings != nil && check.Settings.AutoHealOn != "" {
-			if check.Settings.AutoHealOn != "critical" && check.Settings.AutoHealOn != "warning+critical" {
+			switch check.Settings.AutoHealOn {
+			case "critical", "critical+signature", "warning+critical":
+			default:
 				errors = append(errors, ValidationError{
 					Path:    fmt.Sprintf("checks.%s.settings.autoHealOn", checkID),
-					Message: "must be 'critical' or 'warning+critical'",
+					Message: "must be 'critical', 'critical+signature', or 'warning+critical'",
 				})
 			}
 		}

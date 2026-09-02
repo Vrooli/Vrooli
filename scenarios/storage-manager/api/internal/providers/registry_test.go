@@ -40,6 +40,7 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		Clock:                cleanupfakes.Clock{Time: time.Unix(10, 0)},
 		TrashRoots:           []string{"/fake/trash"},
 		TmpRoots:             []string{"/fake/tmp"},
+		ScratchRoots:         []string{"/fake/scratch"},
 		GoBuildCacheRoots:    []string{"/fake/go-build"},
 		PlaywrightCacheRoots: []string{"/fake/playwright"},
 	})
@@ -51,8 +52,16 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		t.Fatalf("NewRegistry() error = %v", err)
 	}
 	got := registry.List()
-	if len(got) != 15 {
-		t.Fatalf("List() len = %d, want 15", len(got))
+	// A count pin catches an accidental duplicate registration, but it says
+	// nothing about which providers are present — so the named checks below
+	// carry the real contract. Update this number deliberately when adding one.
+	const wantBuiltIns = 16
+	if len(got) != wantBuiltIns {
+		ids := make([]string, 0, len(got))
+		for _, meta := range got {
+			ids = append(ids, meta.ID)
+		}
+		t.Fatalf("List() len = %d, want %d; got %v", len(got), wantBuiltIns, ids)
 	}
 	for i := 1; i < len(got); i++ {
 		if got[i-1].ID > got[i].ID {
@@ -61,6 +70,18 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 	}
 	if _, ok := registry.Get("docker"); !ok {
 		t.Fatal("Get(\"docker\") missing built-in provider")
+	}
+	// agent-scratch reaps a Vrooli-owned path inside the repository checkout,
+	// which every other file provider deliberately avoids, so pin its posture:
+	// operator approval, and disabled until someone turns it on.
+	scratch, ok := registry.Get("agent-scratch")
+	if !ok {
+		t.Fatal("Get(\"agent-scratch\") missing built-in provider")
+	}
+	if meta := scratch.Metadata(); meta.SafetyTier != cleanup.SafetyTierSafe ||
+		meta.DefaultMode != cleanup.ProviderModeDisabled ||
+		meta.DefaultApproval != cleanup.ApprovalModeOperator {
+		t.Fatalf("agent-scratch metadata = %#v, want disabled safe operator-approval", meta)
 	}
 	for _, id := range []string{"workspace-sandbox-retention", "test-genie-run-retention", "web-console-sessions", "architecture-cartographer-snapshots", "browser-automation-studio-recordings"} {
 		provider, ok := registry.Get(id)

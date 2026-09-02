@@ -86,7 +86,11 @@
         },
         "theme": {
           "type": "string",
-          "enum": ["system", "light", "dark"],
+          "enum": [
+            "system",
+            "light",
+            "dark"
+          ],
           "default": "system",
           "description": "Color theme preference"
         },
@@ -97,7 +101,11 @@
         },
         "defaultTab": {
           "type": "string",
-          "enum": ["dashboard", "trends", "docs"],
+          "enum": [
+            "dashboard",
+            "trends",
+            "docs"
+          ],
           "default": "dashboard",
           "description": "Default tab when opening the UI"
         }
@@ -105,7 +113,9 @@
       "additionalProperties": false
     }
   },
-  "required": ["version"],
+  "required": [
+    "version"
+  ],
   "additionalProperties": false,
   "$defs": {
     "checkConfig": {
@@ -156,7 +166,9 @@
             },
             "partitions": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Disk partitions to monitor (for disk checks)"
             }
           },
@@ -190,9 +202,13 @@
             },
             "autoHealOn": {
               "type": "string",
-              "enum": ["critical", "warning+critical"],
-              "default": "critical",
-              "description": "Health states that trigger auto-heal execution for this check"
+              "enum": [
+                "critical",
+                "critical+signature",
+                "warning+critical"
+              ],
+              "default": "critical+signature",
+              "description": "Health states that trigger auto-heal execution for this check. 'critical' heals only critical results. 'critical+signature' (default) additionally heals warnings the check positively classified with a root cause and a named recovery action (e.g. an allocated-but-dead UI port, or a go.sum drift signature). 'warning+critical' heals every warning, including unclassified ones."
             }
           },
           "additionalProperties": false

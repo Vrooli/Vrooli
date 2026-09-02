@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	schema "tidiness-manager/internal/tidiness"
@@ -38,6 +40,8 @@ type Server struct {
 	campaignOrchestrator *AutoCampaignOrchestrator
 	scanCoordinator      *ScanCoordinator
 	scenarioLocator      *ScenarioLocator
+	budgetAuditMu        sync.RWMutex
+	budgetAudits         map[string]*BudgetAuditReport
 	// environment is the host CaptureEnvironment captured once at init
 	// (os/arch/cpu/mem/present-GPUs). nil is safe — the metrics collector
 	// backfills os/arch/num_cpu from the stdlib.
@@ -81,6 +85,7 @@ func NewServer() (*Server, error) {
 		router:          mux.NewRouter(),
 		campaignMgr:     NewCampaignManager(),
 		scenarioLocator: scenarioLocator,
+		budgetAudits:    make(map[string]*BudgetAuditReport),
 		environment:     environment,
 	}
 
@@ -107,6 +112,28 @@ func NewServer() (*Server, error) {
 	return srv, nil
 }
 
+func (s *Server) storeBudgetAudit(scenarioPath string, audit *BudgetAuditReport) {
+	if s == nil || audit == nil {
+		return
+	}
+	s.budgetAuditMu.Lock()
+	defer s.budgetAuditMu.Unlock()
+	if s.budgetAudits == nil {
+		s.budgetAudits = make(map[string]*BudgetAuditReport)
+	}
+	s.budgetAudits[filepath.Clean(scenarioPath)] = audit
+}
+
+func (s *Server) loadBudgetAudit(scenarioPath string) (*BudgetAuditReport, bool) {
+	if s == nil {
+		return nil, false
+	}
+	s.budgetAuditMu.RLock()
+	defer s.budgetAuditMu.RUnlock()
+	audit, ok := s.budgetAudits[filepath.Clean(scenarioPath)]
+	return audit, ok
+}
+
 func (s *Server) setupRoutes() {
 	// Add CORS middleware for all routes
 	s.router.Use(loggingMiddleware)
@@ -121,6 +148,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/scan/light", s.handleLightScan).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-lint", s.handleParseLint).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-type", s.handleParseType).Methods("POST")
+	s.router.HandleFunc("/api/v1/budget-audit", s.handleBudgetAudit).Methods("POST")
 
 	// Scenario-level tidiness validation is exposed through the shared
 	// scenario-validation/v1 Connect-RPC contract.

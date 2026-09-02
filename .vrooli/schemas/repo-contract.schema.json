@@ -30,7 +30,11 @@
     },
     "platform": {
       "type": "object",
-      "required": ["mode", "legacy_project_bash_supported", "platform_conformance_gate"],
+      "required": [
+        "mode",
+        "legacy_project_bash_supported",
+        "platform_conformance_gate"
+      ],
       "properties": {
         "mode": {
           "type": "string",
@@ -49,11 +53,16 @@
     },
     "root": {
       "type": "object",
-      "required": ["markers"],
+      "required": [
+        "markers"
+      ],
       "properties": {
         "markers": {
           "type": "object",
-          "required": ["required_dirs", "required_files"],
+          "required": [
+            "required_dirs",
+            "required_files"
+          ],
           "properties": {
             "required_dirs": {
               "type": "array",
@@ -90,18 +99,39 @@
         "docs_dir"
       ],
       "properties": {
-        "project_config_dir": { "$ref": "#/definitions/slashPath" },
-        "scenario_dir": { "$ref": "#/definitions/slashPath" },
-        "resource_dir": { "$ref": "#/definitions/slashPath" },
-        "template_dir": { "$ref": "#/definitions/slashPath" },
-        "package_dir": { "$ref": "#/definitions/slashPath" },
-        "command_dir": { "$ref": "#/definitions/slashPath" },
-        "internal_dir": { "$ref": "#/definitions/slashPath" },
-        "docs_dir": { "$ref": "#/definitions/slashPath" },
+        "project_config_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "scenario_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "resource_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "template_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "package_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "command_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "internal_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "docs_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
+        "scratch_dir": {
+          "$ref": "#/definitions/slashPath"
+        },
         "project_config_allowlist": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "$ref": "#/definitions/slashPath" },
+          "items": {
+            "$ref": "#/definitions/slashPath"
+          },
           "description": "Explicitly approved entries in the repository .vrooli project-config directory."
         }
       },
@@ -109,26 +139,36 @@
     },
     "targets": {
       "type": "object",
-      "required": ["kinds"],
+      "required": [
+        "kinds"
+      ],
       "properties": {
         "kinds": {
           "type": "object",
           "minProperties": 1,
           "additionalProperties": {
             "type": "object",
-            "required": ["roots"],
+            "required": [
+              "roots"
+            ],
             "properties": {
               "roots": {
                 "type": "array",
                 "minItems": 1,
                 "uniqueItems": true,
-                "items": { "$ref": "#/definitions/slashGlob" }
+                "items": {
+                  "$ref": "#/definitions/slashGlob"
+                }
               },
-              "marker": { "$ref": "#/definitions/slashPath" },
+              "marker": {
+                "$ref": "#/definitions/slashPath"
+              },
               "exclude": {
                 "type": "array",
                 "uniqueItems": true,
-                "items": { "$ref": "#/definitions/slashGlob" }
+                "items": {
+                  "$ref": "#/definitions/slashGlob"
+                }
               }
             },
             "additionalProperties": false
@@ -140,7 +180,12 @@
     "runtime_home": {
       "type": "object",
       "description": "Structural authority for the operator runtime home ($HOME/.vrooli): its directory name and the well-known entries inside it. Distinct from layout.project_config_dir (the repo-relative .vrooli). Resolution (sudo-awareness) is NOT defined here — only structure.",
-      "required": ["dir_name", "env_overrides", "entries", "scoped"],
+      "required": [
+        "dir_name",
+        "env_overrides",
+        "entries",
+        "scoped"
+      ],
       "properties": {
         "dir_name": {
           "type": "string",
@@ -150,13 +195,17 @@
         "env_overrides": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "$ref": "#/definitions/envVarName" },
+          "items": {
+            "$ref": "#/definitions/envVarName"
+          },
           "description": "Environment variables that may override the resolved home root. Empty: no overrides are honored (single resolution path)."
         },
         "entries": {
           "type": "object",
           "minProperties": 1,
-          "additionalProperties": { "$ref": "common.schema.json#/definitions/durableDataEntry" },
+          "additionalProperties": {
+            "$ref": "common.schema.json#/definitions/durableDataEntry"
+          },
           "description": "Well-known entries directly under the runtime home, keyed by stable logical name."
         },
         "scoped": {
@@ -173,27 +222,59 @@
     },
     "scenario": {
       "type": "object",
-      "required": ["required_files", "well_known_paths"],
+      "required": [
+        "required_files",
+        "well_known_paths"
+      ],
       "properties": {
         "required_files": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "#/definitions/slashPath" }
+          "items": {
+            "$ref": "#/definitions/slashPath"
+          }
         },
         "well_known_paths": {
           "type": "object",
-          "required": ["service", "docs", "docs_manifest", "requirements", "api", "ui", "cli", "cli_manifest"],
+          "required": [
+            "service",
+            "docs",
+            "docs_manifest",
+            "requirements",
+            "api",
+            "ui",
+            "cli",
+            "cli_manifest"
+          ],
           "properties": {
-            "service": { "$ref": "#/definitions/slashPath" },
-            "orientation": { "$ref": "#/definitions/slashPath" },
-            "docs": { "$ref": "#/definitions/slashPath" },
-            "docs_manifest": { "$ref": "#/definitions/slashPath" },
-            "requirements": { "$ref": "#/definitions/slashPath" },
-            "api": { "$ref": "#/definitions/slashPath" },
-            "ui": { "$ref": "#/definitions/slashPath" },
-            "cli": { "$ref": "#/definitions/slashPath" },
-            "cli_manifest": { "$ref": "#/definitions/slashPath" }
+            "service": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "orientation": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "docs": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "docs_manifest": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "requirements": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "api": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "ui": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "cli": {
+              "$ref": "#/definitions/slashPath"
+            },
+            "cli_manifest": {
+              "$ref": "#/definitions/slashPath"
+            }
           },
           "additionalProperties": false
         }
@@ -202,14 +283,23 @@
     },
     "resource": {
       "type": "object",
-      "required": ["manifest", "well_known_paths"],
+      "required": [
+        "manifest",
+        "well_known_paths"
+      ],
       "properties": {
-        "manifest": { "$ref": "#/definitions/slashPath" },
+        "manifest": {
+          "$ref": "#/definitions/slashPath"
+        },
         "well_known_paths": {
           "type": "object",
-          "required": ["docs"],
+          "required": [
+            "docs"
+          ],
           "properties": {
-            "docs": { "$ref": "#/definitions/slashPath" }
+            "docs": {
+              "$ref": "#/definitions/slashPath"
+            }
           },
           "additionalProperties": false
         }
@@ -218,7 +308,13 @@
     },
     "globs": {
       "type": "object",
-      "required": ["syntax", "root_relative", "case_sensitive", "allow_absolute", "path_format"],
+      "required": [
+        "syntax",
+        "root_relative",
+        "case_sensitive",
+        "allow_absolute",
+        "path_format"
+      ],
       "properties": {
         "syntax": {
           "type": "string",
@@ -245,17 +341,35 @@
     },
     "environment": {
       "type": "object",
-      "required": ["variables"],
+      "required": [
+        "variables"
+      ],
       "properties": {
         "variables": {
           "type": "object",
-          "required": ["repo_root", "source_root", "sandbox_id", "sandbox_merged", "sandbox_scope"],
+          "required": [
+            "repo_root",
+            "source_root",
+            "sandbox_id",
+            "sandbox_merged",
+            "sandbox_scope"
+          ],
           "properties": {
-            "repo_root": { "$ref": "#/definitions/envVarName" },
-            "source_root": { "$ref": "#/definitions/envVarName" },
-            "sandbox_id": { "$ref": "#/definitions/envVarName" },
-            "sandbox_merged": { "$ref": "#/definitions/envVarName" },
-            "sandbox_scope": { "$ref": "#/definitions/envVarName" }
+            "repo_root": {
+              "$ref": "#/definitions/envVarName"
+            },
+            "source_root": {
+              "$ref": "#/definitions/envVarName"
+            },
+            "sandbox_id": {
+              "$ref": "#/definitions/envVarName"
+            },
+            "sandbox_merged": {
+              "$ref": "#/definitions/envVarName"
+            },
+            "sandbox_scope": {
+              "$ref": "#/definitions/envVarName"
+            }
           },
           "additionalProperties": false
         }
@@ -264,7 +378,10 @@
     },
     "sandbox": {
       "type": "object",
-      "required": ["full_repo_scopes", "scenario_scope_prefix"],
+      "required": [
+        "full_repo_scopes",
+        "scenario_scope_prefix"
+      ],
       "properties": {
         "full_repo_scopes": {
           "type": "array",
@@ -283,7 +400,9 @@
     },
     "profiles": {
       "type": "object",
-      "required": ["mini_vrooli_bundle"],
+      "required": [
+        "mini_vrooli_bundle"
+      ],
       "properties": {
         "mini_vrooli_bundle": {
           "$ref": "#/definitions/profile"
@@ -312,7 +431,13 @@
     },
     "profile": {
       "type": "object",
-      "required": ["description", "parameters", "include", "optional_include", "exclude"],
+      "required": [
+        "description",
+        "parameters",
+        "include",
+        "optional_include",
+        "exclude"
+      ],
       "properties": {
         "description": {
           "type": "string",

@@ -2,6 +2,7 @@ package validation
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -64,5 +65,37 @@ func TestStorageCoverageAuditsEmptyOwnerAcrossSiblingClassRoots(t *testing.T) {
 	}
 	if len(findings) != 1 || findings[0].Code != "STORAGE_PATH_UNCOVERED" {
 		t.Fatalf("findings = %#v, want an uncovered finding for an empty owner", findings)
+	}
+}
+
+func TestStorageCoverageSkipsLargeDeclaredDirectory(t *testing.T) {
+	root := t.TempDir()
+	dataRoot := filepath.Join(root, "runtime")
+	t.Setenv("VROOLI_DATA_ROOT", dataRoot)
+	owner := &corestorage.OwnerManifest{
+		Kind:         corestorage.OwnerScenario,
+		ID:           "large-owner",
+		ManifestPath: filepath.Join(root, "scenarios", "large-owner", ".vrooli", "service.json"),
+		StorageEntries: []corestorage.StorageEntry{{
+			Name: "runs", Class: corestorage.ClassData, Subpath: "runs", Kind: "dir",
+		}},
+	}
+	runs := filepath.Join(dataRoot, "vrooli", "large-owner", "runs")
+	if err := os.MkdirAll(runs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < maxWalkEntries+1; i++ {
+		path := filepath.Join(runs, fmt.Sprintf("run-%05d.json", i))
+		if err := os.WriteFile(path, []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	findings, err := (&storageCoverage{}).Analyze(context.Background(), AnalyzerContext{RepoRoot: root, Platform: corestorage.PlatformLinux, Owner: owner})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("findings = %#v, want declared directory skipped without exhausting scan cap", findings)
 	}
 }

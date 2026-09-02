@@ -168,6 +168,8 @@
   --font-size-lg: 18px;
   /* @tier Expression */
   --font-size-sm: 14px;
+  /* @tier Expression */
+  --glow-primary: rgba(51,214,255,.5);
   /* @tier Rhythm */
   --icon-size-lg: 24px;
   /* @tier Rhythm */
@@ -226,6 +228,14 @@
   --panel-padding: var(--space-md);
   /* @tier Expression */
   --panel-radius: var(--radius-panel);
+  /* @tier Expression */
+  --provenance-absent: var(--color-muted-foreground);
+  /* @tier Expression */
+  --provenance-cached: var(--color-warning);
+  /* @tier Expression */
+  --provenance-measured: var(--color-success);
+  /* @tier Expression */
+  --provenance-sample: #b7a6ff;
   /* @tier Expression */
   --radius-control: 0.375rem;
   /* @tier Expression */
@@ -334,6 +344,8 @@
   --text-title-size: 24px;
   /* @tier Expression */
   --text-title-tracking: -.01em;
+  /* @tier Expression */
+  --text-wall: clamp(5rem, 16vw, 20rem);
   /* @tier Expression */
   --text-xs: 12px;
   /* @tier Contract */

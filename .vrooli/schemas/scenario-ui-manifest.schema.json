@@ -4,35 +4,102 @@
   "title": "Scenario UI Manifest",
   "description": "Declarative contract for a scenario's UI layout. Owned by the template the scenario was generated from. Declares named placement slots, template capabilities, supported targets, and the structure version consumed by adoption and fleet validation. Slot names remain open so a new template can add a placement role without a schema bump. A scenario overlay may override existing slots but may not introduce new ones. Path patterns may contain {ComponentName}, {componentName}, {camelName}, {kebab-name}, {feature}, and {locale}.",
   "type": "object",
-  "required": ["contract", "slots"],
+  "required": [
+    "contract",
+    "slots"
+  ],
   "properties": {
-    "version": { "type": "string" },
-    "schemaVersion": { "type": "string" },
-    "title": { "type": "string" },
-    "description": { "type": "string" },
-    "contract": { "$ref": "#/$defs/Contract" },
-    "targets": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" }, "uniqueItems": true },
-    "idiom": { "type": "string", "minLength": 1 },
-    "provides": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-    "gates": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-    "templateStructureVersion": { "type": "string", "minLength": 1 },
-    "slotCoverage": { "type": "string", "enum": ["partial", "full"] },
+    "version": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "contract": {
+      "$ref": "#/$defs/Contract"
+    },
+    "targets": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "uniqueItems": true
+    },
+    "idiom": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provides": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "templateStructureVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "slotCoverage": {
+      "type": "string",
+      "enum": [
+        "partial",
+        "full"
+      ]
+    },
     "slots": {
       "type": "object",
       "minProperties": 1,
-      "additionalProperties": { "$ref": "#/$defs/Slot" },
+      "additionalProperties": {
+        "$ref": "#/$defs/Slot"
+      },
       "description": "Map of slot name to slot definition. Slot names are an open set; see the schema description for the v1 canonical vocabulary."
     },
-    "defaults": { "$ref": "#/$defs/Defaults" }
+    "defaults": {
+      "$ref": "#/$defs/Defaults"
+    },
+    "files": {
+      "type": "object",
+      "description": "Named files that tooling reads or writes in a generated scenario, so react-component-library, ui-health and template tooling resolve locations from the manifest instead of hard-coded paths. Keys are an open set; the v3 canonical keys are designTokens, tailwindTheme, tokenMap, localeCatalogue, selectorRegistry, librarySelectors, appEntry, stringsRegistry. A scenario overlay may override the path of a declared key but may not introduce new keys.",
+      "additionalProperties": {
+        "$ref": "#/$defs/FileDeclaration"
+      }
+    }
   },
   "additionalProperties": false,
   "$defs": {
     "Contract": {
       "type": "object",
-      "required": ["kind", "schema"],
+      "required": [
+        "kind",
+        "schema"
+      ],
       "properties": {
-        "kind": { "type": "string", "const": "scenario-ui" },
-        "schema": { "type": "string", "enum": ["scenario-ui-manifest/v1", "scenario-ui-manifest/v2"] },
+        "kind": {
+          "type": "string",
+          "const": "scenario-ui"
+        },
+        "schema": {
+          "type": "string",
+          "enum": [
+            "scenario-ui-manifest/v1",
+            "scenario-ui-manifest/v2"
+          ]
+        },
         "template": {
           "type": "string",
           "description": "Identifier of the template that owns this manifest (e.g. \"react-vite\"). Optional but recommended."
@@ -46,14 +113,18 @@
     },
     "Slot": {
       "type": "object",
-      "required": ["dir"],
+      "required": [
+        "dir"
+      ],
       "properties": {
         "dir": {
           "type": "string",
           "minLength": 1,
           "description": "Directory inside the scenario root that holds components for this slot (e.g. \"ui/src/layout\")."
         },
-        "description": { "type": "string" },
+        "description": {
+          "type": "string"
+        },
         "pathPattern": {
           "type": "string",
           "description": "Template for the resolved filesystem path. Defaults to \"{dir}/{ComponentName}.tsx\" if omitted. Supported tokens: {dir}, {ComponentName}, {componentName}, {camelName}, {kebab-name}, {feature}, {locale}."
@@ -68,7 +139,12 @@
           "default": false,
           "description": "When true, callers must supply a feature folder name for the resolver to substitute {feature}."
         },
-        "barrel": { "type": ["string", "null"] }
+        "barrel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       },
       "additionalProperties": true
     },
@@ -79,7 +155,48 @@
           "type": "string",
           "description": "Slot name to use when a component declares no slot of its own."
         },
-        "fallbackDir": { "type": "string", "minLength": 1 }
+        "fallbackDir": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "FileDeclaration": {
+      "type": "object",
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Scenario-relative path. May contain {locale} for per-locale files."
+        },
+        "description": {
+          "type": "string"
+        },
+        "defaultLocale": {
+          "type": "string",
+          "description": "For a {locale} pattern, the locale tooling treats as the source catalogue."
+        },
+        "managedRegion": {
+          "type": "object",
+          "required": [
+            "begin",
+            "end"
+          ],
+          "properties": {
+            "begin": {
+              "type": "string"
+            },
+            "end": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "description": "Marker comments delimiting the region a tool owns inside the file."
+        }
       },
       "additionalProperties": true
     }

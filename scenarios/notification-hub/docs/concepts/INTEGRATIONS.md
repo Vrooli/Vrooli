@@ -30,11 +30,16 @@ Use this document to answer:
 ## Vrooli Resources
 
 The core carries **no resource dependency at all**, and this is a
-capability decision rather than a default left untouched. PostgreSQL and
-Redis are still Docker-backed and are recorded `unsupported` on macOS and
-Windows in `path:../../docs/reference/platform-support.md`, so depending on
-either would make this scenario unable to run on the Mac fleet node that
-the relay lane exists to reach. See OT-P0-009.
+capability decision rather than a default left untouched. The reason is
+macOS evidence, not Docker: both PostgreSQL and Redis now declare
+`driver: managed-service` and neither needs a container runtime to start,
+although both are still acquired as OCI images. Neither is `supported` on
+macOS — `path:docs/reference/platform-support.md` records `postgres` as
+`build-verified` with no macOS hardware run performed, and its two tables
+disagree about `redis` there (generated matrix: `build-verified`;
+narrative capability table: `unsupported`). Depending on either would put
+this scenario on unproven footing on the Mac fleet node that the relay lane
+exists to reach. See OT-P0-009.
 
 The primary channel needs no resource at all. Web Push is served from
 this scenario's own installed progressive web app: the service worker
@@ -46,7 +51,7 @@ process.
 
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
-| `postgres` | rejected | Docker-backed; `unsupported` on macOS and Windows. Would forfeit cross-node delivery. | Revisit only if the resource earns a portable managed-service acquisition path. |
+| `postgres` | rejected | `managed-service`, not Docker, but only `build-verified` on macOS with no hardware run performed. Would put cross-node delivery on unproven footing. | A macOS hardware run, plus a workload SQLite cannot carry. |
 | `redis` | rejected | Same portability ceiling. Queue, retry schedule, and rate-limit counters are in-process and SQLite-backed instead. | Revisit if this scenario ever runs replicated, which is not planned. |
 | `ntfy` | rejected, blueprinted | Evaluated as the push provider and rejected. A self-hosted relay still routes its wake-up through a third party to Apple, so it adds a server without removing a dependency, and it requires the phone to reach that server at delivery time or degrade to a contentless placeholder. Web Push needs no server and encrypts the body end to end. | Preserved at `.vrooli/resources/blueprints/ntfy.json`, `status: candidate`. Revisit if a `curl`-able endpoint for non-Vrooli scripts is needed, or if fully de-googled Android delivery becomes a goal. |
 | `twilio` | available, unused | Existing `cloud-api` resource with `account-sid` and `auth-token` descriptors. | Adopt when OT-P2-002 (SMS) activates. |

@@ -3,6 +3,7 @@ package checks
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -17,6 +18,7 @@ type AutoHealResult struct {
 	ConsecutiveFailures int           `json:"consecutiveFailures,omitempty"`
 	Suspended           bool          `json:"suspended,omitempty"`
 	SuspensionReason    string        `json:"suspensionReason,omitempty"`
+	RecoveryRequestID   string        `json:"recoveryRequestId,omitempty"`
 }
 
 // healCandidate represents a check that needs healing with its metadata
@@ -238,10 +240,30 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		// Update heal tracker based on result
 		outcome := outcomeFromActionResult(actionResult)
 		r.updateHealTracker(c.result.CheckID, outcome)
+		if outcome == outcomeSuccess {
+			r.clearRecoveryRequest(c.result.CheckID)
+		}
 
 		// Get updated tracker for result
 		updatedTracker := r.getHealTrackerSnapshot(c.result.CheckID)
 		r.recordHealIncident(ctx, c.result.CheckID, c.selectedAction.ID, actionResult, outcome, updatedTracker)
+		recoveryRequestID := ""
+		if outcome == outcomeFailure && strings.HasPrefix(c.result.CheckID, "scenario-") {
+			if policy, ok := r.getAutoHealPolicy(); ok && updatedTracker.ConsecutiveFailures >= policy.MaxRestartAttempts {
+				if requester := r.getRecoveryRequester(); requester != nil && r.claimRecoveryRequest(c.result.CheckID) {
+					scenario := strings.TrimPrefix(c.result.CheckID, "scenario-")
+					reason := actionResult.Error
+					if reason == "" {
+						reason = actionResult.Message
+					}
+					var requestErr error
+					recoveryRequestID, requestErr = requester(ctx, scenario, fmt.Sprintf("mechanical autoheal exhausted action %s: %s", c.selectedAction.ID, reason))
+					if requestErr != nil {
+						log.Printf("vrooli-autoheal: control-plane recovery request for %s failed: %v", scenario, requestErr)
+					}
+				}
+			}
+		}
 
 		autoHealResults = append(autoHealResults, AutoHealResult{
 			CheckID:             c.result.CheckID,
@@ -252,6 +274,7 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 			ConsecutiveFailures: updatedTracker.ConsecutiveFailures,
 			Suspended:           updatedTracker.IsSuspended(),
 			SuspensionReason:    updatedTracker.SuspensionReason,
+			RecoveryRequestID:   recoveryRequestID,
 		})
 	}
 
@@ -406,7 +429,7 @@ func (r *Registry) shouldTriggerAutoHeal(result Result) bool {
 	}
 
 	// Safety default: only critical triggers unless explicitly widened.
-	policy := "critical"
+	policy := AutoHealOnCriticalSignature
 	if r.config != nil {
 		if configured := r.config.GetAutoHealOn(result.CheckID); configured != "" {
 			policy = configured
@@ -414,11 +437,53 @@ func (r *Registry) shouldTriggerAutoHeal(result Result) bool {
 	}
 
 	switch policy {
-	case "warning+critical":
+	case AutoHealOnWarningCritical:
 		return result.Status == StatusWarning || result.Status == StatusCritical
+	case AutoHealOnCriticalSignature:
+		// Critical always, plus warnings the check has positively classified
+		// with a specific root cause and a targeted recovery action.
+		//
+		// This exists because the two states are not comparable. A bare
+		// warning means "something looks off" and healing it is a guess. A
+		// signature-backed warning means the check identified the failure --
+		// a dead UI port, a go.sum drift signature -- and named the action
+		// that repairs it. Widening all the way to "warning+critical" would
+		// let every soft signal restart a scenario; this widens only to the
+		// warnings that carry evidence.
+		if result.Status == StatusCritical {
+			return true
+		}
+		return result.Status == StatusWarning && hasHealableDegradation(result)
 	default:
 		return result.Status == StatusCritical
 	}
+}
+
+// Auto-heal trigger policies, in increasing order of breadth.
+const (
+	// AutoHealOnCritical heals only critical results.
+	AutoHealOnCritical = "critical"
+	// AutoHealOnCriticalSignature heals critical results plus warnings that
+	// carry an identified, healable root cause. This is the default.
+	AutoHealOnCriticalSignature = "critical+signature"
+	// AutoHealOnWarningCritical heals every warning and critical result.
+	AutoHealOnWarningCritical = "warning+critical"
+)
+
+// hasHealableDegradation reports whether a check positively classified this
+// warning as a degradation it knows how to repair. Requires BOTH the explicit
+// marker and a named recommended action, so a check cannot opt into
+// unattended healing without also saying what to run.
+func hasHealableDegradation(result Result) bool {
+	if result.Details == nil {
+		return false
+	}
+	healable, ok := result.Details["healableDegradation"].(bool)
+	if !ok || !healable {
+		return false
+	}
+	action, ok := result.Details["recommendedAction"].(string)
+	return ok && action != ""
 }
 
 func selectAutoHealAction(result Result, actions []RecoveryAction) *RecoveryAction {

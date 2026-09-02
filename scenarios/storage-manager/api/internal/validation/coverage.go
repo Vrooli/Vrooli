@@ -122,7 +122,13 @@ func (storageCoverage) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding
 					return fs.SkipAll
 				}
 			}
-			if d.IsDir() || coveredBy(path, declared) {
+			if d.IsDir() {
+				if path != root && coveredBy(path, declared) {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			if coveredBy(path, declared) {
 				return nil
 			}
 			fileInfo, statErr := d.Info()

@@ -157,9 +157,10 @@ func (g *pressureGuard) release(partition string, band PressureBand, now time.Ti
 
 // ReportPressure handles an inbound pressure signal.
 //
-// Escalation is graded: warning plans and applies only the safe tier, high runs
-// an estimate and preview without deleting anything, and critical applies
-// safe-tier providers with no operator present.
+// Escalation is graded: warning plans and applies only the safe tier, high and
+// critical apply only the provably safe tier with no operator present. High is
+// an automatic remediation band because it is already an affirmative signal
+// from the host-pressure observer; the safety boundary remains per-provider.
 func (s *Service) ReportPressure(ctx context.Context, signal PressureSignal) (PressureOutcome, error) {
 	if _, err := ParsePressureBand(string(signal.Band)); err != nil {
 		return PressureOutcome{}, err
@@ -219,13 +220,11 @@ func (s *Service) ReportPressure(ctx context.Context, signal PressureSignal) (Pr
 	outcome.EstimatedBytes = plan.TotalBytes
 
 	if signal.Band == BandHigh {
-		outcome.Action = ActionPreviewed
 		_ = s.audit(ctx, AuditEvent{
-			Type:    "pressure.previewed",
+			Type:    "pressure.high_action",
 			PlanID:  plan.ID,
-			Message: fmt.Sprintf("high pressure on %s: %d bytes reclaimable, nothing deleted", signal.Partition, plan.TotalBytes),
+			Message: fmt.Sprintf("high pressure on %s: applying provably safe-tier cleanup", signal.Partition),
 		})
-		return outcome, nil
 	}
 
 	return s.applyAutonomously(ctx, signal, plan, outcome)

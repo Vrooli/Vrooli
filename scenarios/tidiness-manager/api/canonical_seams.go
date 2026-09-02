@@ -16,31 +16,49 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
-const canonicalSeamsPath = ".vrooli/canonical-seams.json"
+const (
+	repositorySeamsPath = ".vrooli/canonical-seams.json"
+	targetSeamsPath     = ".vrooli/seams.json"
+)
 
 type Seam struct {
-	ID          string     `json:"id"`
-	Canonical   string     `json:"canonical"`
-	Why         string     `json:"why"`
-	Remediation string     `json:"remediation"`
-	Bypass      SeamBypass `json:"bypass"`
-	Scope       SeamScope  `json:"scope"`
-	Severity    string     `json:"severity"`
-	Budget      int        `json:"budget"`
-	Resolver    string     `json:"resolver,omitempty"`
+	ID            string     `json:"id"`
+	Canonical     string     `json:"canonical"`
+	Why           string     `json:"why"`
+	Remediation   string     `json:"remediation"`
+	Bypass        SeamBypass `json:"bypass"`
+	Scope         SeamScope  `json:"scope"`
+	Severity      string     `json:"severity"`
+	Budget        int        `json:"budget"`
+	Reserve       int        `json:"reserve,omitempty"`
+	ReserveReason string     `json:"reserve_reason,omitempty"`
+	Resolver      string     `json:"resolver,omitempty"`
+	Disabled      bool       `json:"disabled,omitempty"`
 }
 
 type SeamBypass struct {
-	Kind                   string `json:"kind"`
-	Pattern                string `json:"pattern"`
-	DeclKind               string `json:"declKind,omitempty"`
-	RepeatedAcrossPackages int    `json:"repeatedAcrossPackages,omitempty"`
-	ShapeKind              string `json:"shapeKind,omitempty"`
-	MinMembers             int    `json:"minMembers,omitempty"`
-	RequireFor             string `json:"requireFor,omitempty"`
-	RequirePresent         string `json:"requirePresent,omitempty"`
+	Kind                   string   `json:"kind"`
+	Pattern                string   `json:"pattern"`
+	DeclKind               string   `json:"declKind,omitempty"`
+	GenericWords           []string `json:"genericWords,omitempty"`
+	MinDomainWords         int      `json:"minDomainWords,omitempty"`
+	Unit                   string   `json:"unit,omitempty"`
+	CanonicalCall          string   `json:"canonicalCall,omitempty"`
+	OuterKey               string   `json:"outerKey,omitempty"`
+	InnerKey               string   `json:"innerKey,omitempty"`
+	ConstructedType        string   `json:"constructedType,omitempty"`
+	ExcludeSymbols         []string `json:"excludeSymbols,omitempty"`
+	RepeatedAcrossPackages int      `json:"repeatedAcrossPackages,omitempty"`
+	PairedPathPatterns     []string `json:"pairedPathPatterns,omitempty"`
+	ExcludeAliases         bool     `json:"excludeAliases,omitempty"`
+	ShapeKind              string   `json:"shapeKind,omitempty"`
+	MinMembers             int      `json:"minMembers,omitempty"`
+	RequireFor             string   `json:"requireFor,omitempty"`
+	RequirePresent         string   `json:"requirePresent,omitempty"`
+	ForbidKind             string   `json:"forbidKind,omitempty"`
 }
 
 type SeamScope struct {
@@ -68,13 +86,18 @@ type SeamHit struct {
 }
 
 type compiledSeam struct {
-	seam    Seam
-	pattern *regexp.Regexp
+	seam        Seam
+	pattern     *regexp.Regexp
+	pairedPaths []*regexp.Regexp
 }
 
 func LoadSeams(treeRoot string) ([]Seam, error) {
-	data, err := os.ReadFile(filepath.Join(treeRoot, filepath.FromSlash(canonicalSeamsPath)))
-	if os.IsNotExist(err) {
+	return loadSeamsFile(filepath.Join(treeRoot, filepath.FromSlash(repositorySeamsPath)), false)
+}
+
+func loadSeamsFile(path string, allowDisabled bool) ([]Seam, error) {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) || os.IsPermission(err) {
 		return []Seam{}, nil
 	}
 	if err != nil {
@@ -99,13 +122,22 @@ func LoadSeams(treeRoot string) ([]Seam, error) {
 	for i := range config.Seams {
 		seam := &config.Seams[i]
 		seam.ID = strings.TrimSpace(seam.ID)
-		if seam.ID == "" || strings.TrimSpace(seam.Canonical) == "" || strings.TrimSpace(seam.Why) == "" || strings.TrimSpace(seam.Remediation) == "" {
-			return nil, fmt.Errorf("canonical seam %d is missing required text", i)
-		}
 		if _, duplicate := seen[seam.ID]; duplicate {
 			return nil, fmt.Errorf("canonical seam id %q is duplicated", seam.ID)
 		}
 		seen[seam.ID] = struct{}{}
+		if seam.Disabled {
+			if !allowDisabled {
+				return nil, fmt.Errorf("canonical seam %q cannot be disabled in the repository baseline", seam.ID)
+			}
+			if seam.ID == "" || strings.TrimSpace(seam.ReserveReason) == "" {
+				return nil, fmt.Errorf("disabled canonical seam %d requires id and reserve_reason", i)
+			}
+			continue
+		}
+		if seam.ID == "" || strings.TrimSpace(seam.Canonical) == "" || strings.TrimSpace(seam.Why) == "" || strings.TrimSpace(seam.Remediation) == "" {
+			return nil, fmt.Errorf("canonical seam %d is missing required text", i)
+		}
 		if !validBypassKind(seam.Bypass.Kind) {
 			return nil, fmt.Errorf("canonical seam %q has unsupported bypass kind %q", seam.ID, seam.Bypass.Kind)
 		}
@@ -118,11 +150,49 @@ func LoadSeams(treeRoot string) ([]Seam, error) {
 		if seam.Bypass.RepeatedAcrossPackages < 0 {
 			return nil, fmt.Errorf("canonical seam %q has invalid repeatedAcrossPackages", seam.ID)
 		}
+		if len(seam.Bypass.PairedPathPatterns) != 0 && len(seam.Bypass.PairedPathPatterns) != 2 {
+			return nil, fmt.Errorf("canonical seam %q pairedPathPatterns requires exactly two patterns", seam.ID)
+		}
+		for _, pathPattern := range seam.Bypass.PairedPathPatterns {
+			compiled, err := regexp.Compile(pathPattern)
+			if err != nil || compiled.NumSubexp() != 1 {
+				return nil, fmt.Errorf("canonical seam %q pairedPathPatterns entries must compile with exactly one capture group", seam.ID)
+			}
+		}
 		if seam.Bypass.MinMembers < 0 {
 			return nil, fmt.Errorf("canonical seam %q has invalid minMembers", seam.ID)
 		}
-		if seam.Bypass.Kind == "absence" && (seam.Bypass.RequireFor == "" || seam.Bypass.RequirePresent == "") {
-			return nil, fmt.Errorf("canonical seam %q absence requires requireFor and requirePresent", seam.ID)
+		if seam.Bypass.MinDomainWords < 0 {
+			return nil, fmt.Errorf("canonical seam %q has invalid minDomainWords", seam.ID)
+		}
+		if seam.Bypass.Kind == "semantic-naming" && (seam.Bypass.DeclKind == "" || seam.Bypass.MinDomainWords < 1) {
+			return nil, fmt.Errorf("canonical seam %q semantic-naming requires declKind and positive minDomainWords", seam.ID)
+		}
+		if seam.Bypass.Kind == "suppression-breadth" && seam.Bypass.Unit != "" && seam.Bypass.Unit != "declarations" && seam.Bypass.Unit != "directives" {
+			return nil, fmt.Errorf("canonical seam %q suppression-breadth has invalid unit %q", seam.ID, seam.Bypass.Unit)
+		}
+		if seam.Bypass.Kind == "replaced-call" && (strings.TrimSpace(seam.Bypass.CanonicalCall) == "" || seam.Bypass.ShapeKind == "") {
+			return nil, fmt.Errorf("canonical seam %q replaced-call requires canonicalCall and shapeKind", seam.ID)
+		}
+		if seam.Bypass.ShapeKind == "json_nesting" && (strings.TrimSpace(seam.Bypass.OuterKey) == "" || strings.TrimSpace(seam.Bypass.InnerKey) == "") {
+			return nil, fmt.Errorf("canonical seam %q json_nesting requires outerKey and innerKey", seam.ID)
+		}
+		if seam.Bypass.ShapeKind == "constructs_type" && strings.TrimSpace(seam.Bypass.ConstructedType) == "" {
+			return nil, fmt.Errorf("canonical seam %q constructs_type requires constructedType", seam.ID)
+		}
+		if seam.Reserve < 0 {
+			return nil, fmt.Errorf("canonical seam %q has invalid reserve", seam.ID)
+		}
+		if (seam.Budget > 0 || seam.Reserve > 0) && strings.TrimSpace(seam.ReserveReason) == "" {
+			return nil, fmt.Errorf("canonical seam %q requires reserve_reason for non-zero budget or reserve", seam.ID)
+		}
+		if seam.Bypass.Kind == "absence" {
+			if seam.Bypass.RequireFor == "" || (seam.Bypass.RequirePresent == "" && seam.Bypass.ForbidKind == "") {
+				return nil, fmt.Errorf("canonical seam %q absence requires requireFor and either requirePresent or forbidKind", seam.ID)
+			}
+			if seam.Bypass.ForbidKind != "" && seam.Bypass.ForbidKind != "executable" {
+				return nil, fmt.Errorf("canonical seam %q has unsupported forbidden kind %q", seam.ID, seam.Bypass.ForbidKind)
+			}
 		}
 		if seam.Bypass.ShapeKind != "" && !validShapeKind(seam.Bypass.ShapeKind) {
 			return nil, fmt.Errorf("canonical seam %q has invalid shape kind %q", seam.ID, seam.Bypass.ShapeKind)
@@ -142,17 +212,138 @@ func LoadSeams(treeRoot string) ([]Seam, error) {
 	return config.Seams, nil
 }
 
+type SeamTargetKind string
+
+const (
+	SeamTargetScenario     SeamTargetKind = "scenario"
+	SeamTargetControlPlane SeamTargetKind = "control-plane"
+)
+
+type SeamResolution struct {
+	ScanRoot string
+	Files    []string
+}
+
+func ResolveSeams(scanRoot string, targetKind SeamTargetKind) ([]Seam, SeamResolution, error) {
+	scanRoot = filepath.Clean(scanRoot)
+	repositoryRoot := seamRepositoryRoot(scanRoot)
+	effectiveScanRoot := scanRoot
+	if targetKind == SeamTargetControlPlane {
+		effectiveScanRoot = repositoryRoot
+	}
+	resolution := SeamResolution{ScanRoot: effectiveScanRoot}
+	baselinePath := filepath.Join(repositoryRoot, filepath.FromSlash(repositorySeamsPath))
+	baseline, err := loadSeamsFile(baselinePath, false)
+	if err != nil {
+		return nil, resolution, err
+	}
+	if pathExists(baselinePath) {
+		resolution.Files = append(resolution.Files, filepath.ToSlash(baselinePath))
+	}
+	if targetKind == SeamTargetScenario && repositoryRoot != scanRoot {
+		baseline = rebaseRepositorySeams(baseline, repositoryRoot, scanRoot)
+	}
+	overlayPath := filepath.Join(scanRoot, filepath.FromSlash(targetSeamsPath))
+	if !pathExists(overlayPath) {
+		return baseline, resolution, nil
+	}
+	overlay, err := loadSeamsFile(overlayPath, true)
+	if err != nil {
+		return nil, resolution, err
+	}
+	merged, err := mergeSeams(baseline, overlay)
+	if err != nil {
+		return nil, resolution, err
+	}
+	resolution.Files = append(resolution.Files, filepath.ToSlash(overlayPath))
+	return merged, resolution, nil
+}
+
+func rebaseRepositorySeams(seams []Seam, repositoryRoot, targetRoot string) []Seam {
+	targetRelative, err := filepath.Rel(repositoryRoot, targetRoot)
+	if err != nil || targetRelative == "." || strings.HasPrefix(targetRelative, "..") {
+		return nil
+	}
+	prefix := filepath.ToSlash(targetRelative) + "/"
+	rebased := make([]Seam, 0, len(seams))
+	for _, seam := range seams {
+		includes := make([]string, 0, len(seam.Scope.Include))
+		for _, pattern := range seam.Scope.Include {
+			if strings.HasPrefix(pattern, prefix) {
+				includes = append(includes, strings.TrimPrefix(pattern, prefix))
+			}
+		}
+		if len(includes) == 0 {
+			continue
+		}
+		seam.Scope.Include = includes
+		for index, pattern := range seam.Scope.Exclude {
+			if strings.HasPrefix(pattern, prefix) {
+				seam.Scope.Exclude[index] = strings.TrimPrefix(pattern, prefix)
+			}
+		}
+		rebased = append(rebased, seam)
+	}
+	return rebased
+}
+
+func seamRepositoryRoot(scanRoot string) string {
+	for candidate := filepath.Clean(scanRoot); ; candidate = filepath.Dir(candidate) {
+		if pathExists(filepath.Join(candidate, filepath.FromSlash(repositorySeamsPath))) {
+			return candidate
+		}
+		parent := filepath.Dir(candidate)
+		if parent == candidate {
+			return scanRoot
+		}
+	}
+}
+
+func mergeSeams(baseline, overlay []Seam) ([]Seam, error) {
+	merged := append([]Seam(nil), baseline...)
+	indexes := make(map[string]int, len(merged))
+	for index, seam := range merged {
+		indexes[seam.ID] = index
+	}
+	for _, seam := range overlay {
+		index, exists := indexes[seam.ID]
+		if seam.Disabled {
+			if !exists {
+				return nil, fmt.Errorf("disabled canonical seam %q does not exist in the repository baseline", seam.ID)
+			}
+			merged = append(merged[:index], merged[index+1:]...)
+			indexes = make(map[string]int, len(merged))
+			for replacementIndex, remaining := range merged {
+				indexes[remaining.ID] = replacementIndex
+			}
+			continue
+		}
+		if exists {
+			merged[index] = seam
+			continue
+		}
+		indexes[seam.ID] = len(merged)
+		merged = append(merged, seam)
+	}
+	return merged, nil
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 // seamTreeRoot keeps ordinary scenario scans local while allowing the control
 // plane's bounded internal/ target to consume repository-level seam rules.
 func seamTreeRoot(scanRoot string) string {
-	if _, err := os.Stat(filepath.Join(scanRoot, filepath.FromSlash(canonicalSeamsPath))); err == nil {
+	if _, err := os.Stat(filepath.Join(scanRoot, filepath.FromSlash(repositorySeamsPath))); err == nil {
 		return scanRoot
 	}
 	if filepath.Base(filepath.Clean(scanRoot)) != "internal" {
 		return scanRoot
 	}
 	parent := filepath.Dir(filepath.Clean(scanRoot))
-	if _, err := os.Stat(filepath.Join(parent, filepath.FromSlash(canonicalSeamsPath))); err == nil {
+	if _, err := os.Stat(filepath.Join(parent, filepath.FromSlash(repositorySeamsPath))); err == nil {
 		return parent
 	}
 	return scanRoot
@@ -168,7 +359,11 @@ func ScanSeams(treeRoot string, seams []Seam) ([]SeamHit, error) {
 		if err != nil {
 			return nil, fmt.Errorf("canonical seam %q bypass pattern: %w", seam.ID, err)
 		}
-		compiled = append(compiled, compiledSeam{seam: seam, pattern: pattern})
+		candidate := compiledSeam{seam: seam, pattern: pattern}
+		for _, pathPattern := range seam.Bypass.PairedPathPatterns {
+			candidate.pairedPaths = append(candidate.pairedPaths, regexp.MustCompile(pathPattern))
+		}
+		compiled = append(compiled, candidate)
 	}
 	absenceHits, err := scanAbsenceSeams(treeRoot, compiled)
 	if err != nil {
@@ -207,6 +402,9 @@ func ScanSeams(treeRoot string, seams []Seam) ([]SeamHit, error) {
 		rel = filepath.ToSlash(rel)
 		applicable := make([]compiledSeam, 0, len(compiled))
 		for _, candidate := range compiled {
+			if candidate.seam.Bypass.Kind == "absence" {
+				continue
+			}
 			if seamPathIncluded(rel, candidate.seam.Scope) {
 				applicable = append(applicable, candidate)
 			}
@@ -223,11 +421,17 @@ func ScanSeams(treeRoot string, seams []Seam) ([]SeamHit, error) {
 		for _, commentGroup := range file.Comments {
 			for _, comment := range commentGroup.List {
 				for _, candidate := range applicable {
-					if candidate.seam.Bypass.Kind != "directive" || !candidate.pattern.MatchString(strings.TrimSpace(comment.Text)) {
+					if (candidate.seam.Bypass.Kind != "directive" && candidate.seam.Bypass.Kind != "suppression-breadth") || !candidate.pattern.MatchString(strings.TrimSpace(comment.Text)) {
 						continue
 					}
 					position := fset.Position(comment.Pos())
-					hits = append(hits, SeamHit{SeamID: candidate.seam.ID, Canonical: candidate.seam.Canonical, Why: candidate.seam.Why, Remediation: candidate.seam.Remediation, Severity: candidate.seam.Severity, Budget: candidate.seam.Budget, Path: rel, Symbol: strings.TrimSpace(comment.Text), Line: position.Line})
+					cost := 1
+					if candidate.seam.Bypass.Kind == "suppression-breadth" && candidate.seam.Bypass.Unit != "directives" && comment.Pos() < file.Package {
+						cost = topLevelDeclarationCount(file)
+					}
+					for range cost {
+						hits = append(hits, SeamHit{SeamID: candidate.seam.ID, Canonical: candidate.seam.Canonical, Why: candidate.seam.Why, Remediation: candidate.seam.Remediation, Severity: candidate.seam.Severity, Budget: candidate.seam.Budget, Path: rel, Symbol: strings.TrimSpace(comment.Text), Line: position.Line})
+					}
 				}
 			}
 		}
@@ -251,24 +455,27 @@ func ScanSeams(treeRoot string, seams []Seam) ([]SeamHit, error) {
 				}
 				var symbols []string
 				if candidate.seam.Bypass.Kind == "declaration" {
-					symbols = declarationMatches(node, candidate.pattern, candidate.seam.Bypass.DeclKind, inConst)
-					if candidate.seam.ID == "stamped-test-names" {
-						filtered := symbols[:0]
-						for _, symbol := range symbols {
-							if symbol != "TestConformance" {
-								filtered = append(filtered, symbol)
-							}
-						}
-						symbols = filtered
-					}
+					symbols = declarationMatches(node, candidate.pattern, candidate.seam.Bypass.DeclKind, inConst, candidate.seam.Bypass.ExcludeAliases)
+				} else if candidate.seam.Bypass.Kind == "semantic-naming" {
+					symbols = semanticNamingMatches(node, candidate.pattern, candidate.seam.Bypass, inConst)
+				} else if candidate.seam.Bypass.Kind == "replaced-call" {
+					symbols = replacedCallMatches(node, candidate.pattern, candidate.seam.Bypass.ShapeKind)
 				} else if candidate.seam.Bypass.Kind == "shape" {
-					symbols = shapeMatches(node, candidate.seam.Bypass.ShapeKind, candidate.pattern, candidate.seam.Bypass.MinMembers, shapeGroups[candidate.seam.ID])
+					symbols = shapeMatches(node, candidate.seam.Bypass, candidate.pattern, shapeGroups[candidate.seam.ID])
 				} else {
 					symbols = seamNodeMatches(node, candidate.seam.Bypass.Kind, candidate.pattern, aliases, inConst)
 				}
 				for _, symbol := range symbols {
+					if symbolExcluded(symbol, candidate.seam.Bypass.ExcludeSymbols) {
+						continue
+					}
 					if minimum := candidate.seam.Bypass.RepeatedAcrossPackages; minimum > 0 && len(declarationPackages[candidate.seam.ID+"\x00"+symbol]) < minimum {
 						continue
+					}
+					if len(candidate.pairedPaths) == 2 {
+						if !hasPairedPathDeclarations(declarationPackages[candidate.seam.ID+"\x00"+symbol], candidate.pairedPaths, rel) || pairedPathSide(candidate.pairedPaths, rel) != 1 {
+							continue
+						}
 					}
 					position := fset.Position(node.Pos())
 					hits = append(hits, SeamHit{SeamID: candidate.seam.ID, Canonical: candidate.seam.Canonical, Why: candidate.seam.Why, Remediation: candidate.seam.Remediation, Severity: candidate.seam.Severity, Budget: candidate.seam.Budget, Path: rel, Symbol: symbol, Line: position.Line})
@@ -293,26 +500,117 @@ func ScanSeams(treeRoot string, seams []Seam) ([]SeamHit, error) {
 	return hits, nil
 }
 
+var supportedBypassKinds = []string{"call", "literal", "declaration", "semantic-naming", "replaced-call", "shape", "directive", "suppression-breadth", "absence"}
+
 func validBypassKind(kind string) bool {
-	switch kind {
-	case "call", "literal", "declaration", "shape", "directive", "absence":
-		return true
-	default:
+	for _, supported := range supportedBypassKinds {
+		if kind == supported {
+			return true
+		}
+	}
+	return false
+}
+
+func topLevelDeclarationCount(file *ast.File) int {
+	count := 0
+	for _, declaration := range file.Decls {
+		switch value := declaration.(type) {
+		case *ast.FuncDecl:
+			count++
+		case *ast.GenDecl:
+			if value.Tok != token.IMPORT {
+				count += len(value.Specs)
+			}
+		}
+	}
+	if count == 0 {
+		return 1
+	}
+	return count
+}
+
+func replacedCallMatches(node ast.Node, pattern *regexp.Regexp, shapeKind string) []string {
+	function, ok := node.(*ast.FuncDecl)
+	if !ok || function.Body == nil || ast.IsExported(function.Name.Name) || !pattern.MatchString(function.Name.Name) {
+		return nil
+	}
+	hasCall := false
+	ast.Inspect(function.Body, func(node ast.Node) bool {
+		if call, ok := node.(*ast.CallExpr); ok {
+			if builtin, ok := call.Fun.(*ast.Ident); ok && (builtin.Name == "len" || builtin.Name == "cap") {
+				return true
+			}
+			hasCall = true
+			return false
+		}
+		return !hasCall
+	})
+	if hasCall || shapeKind != "nested_swap_loop" || !hasNestedSwapLoop(function.Body) {
+		return nil
+	}
+	return []string{function.Name.Name}
+}
+
+func hasNestedSwapLoop(body *ast.BlockStmt) bool {
+	found := false
+	ast.Inspect(body, func(node ast.Node) bool {
+		outer, ok := node.(*ast.ForStmt)
+		if !ok {
+			return !found
+		}
+		ast.Inspect(outer.Body, func(innerNode ast.Node) bool {
+			inner, ok := innerNode.(*ast.ForStmt)
+			if !ok || inner == outer {
+				return !found
+			}
+			ast.Inspect(inner.Body, func(candidate ast.Node) bool {
+				assignment, ok := candidate.(*ast.AssignStmt)
+				if ok && assignmentIsSliceSwap(assignment) {
+					found = true
+					return false
+				}
+				return !found
+			})
+			return !found
+		})
+		return !found
+	})
+	return found
+}
+
+func assignmentIsSliceSwap(assignment *ast.AssignStmt) bool {
+	if assignment.Tok != token.ASSIGN || len(assignment.Lhs) != 2 || len(assignment.Rhs) != 2 {
 		return false
 	}
+	leftFirst, okLeftFirst := assignment.Lhs[0].(*ast.IndexExpr)
+	leftSecond, okLeftSecond := assignment.Lhs[1].(*ast.IndexExpr)
+	rightFirst, okRightFirst := assignment.Rhs[0].(*ast.IndexExpr)
+	rightSecond, okRightSecond := assignment.Rhs[1].(*ast.IndexExpr)
+	if !okLeftFirst || !okLeftSecond || !okRightFirst || !okRightSecond {
+		return false
+	}
+	collection := fieldTypeText(leftFirst.X)
+	return collection != "" &&
+		fieldTypeText(leftSecond.X) == collection &&
+		fieldTypeText(rightFirst.X) == collection &&
+		fieldTypeText(rightSecond.X) == collection &&
+		fieldTypeText(leftFirst.Index) == fieldTypeText(rightSecond.Index) &&
+		fieldTypeText(leftSecond.Index) == fieldTypeText(rightFirst.Index)
 }
+
+var supportedShapeKinds = []string{"switch_on_argv", "interface_method_set", "struct_field_set", "error_boundary", "context_duration_literal", "json_nesting", "constructs_type", "nested_swap_loop"}
 
 func validShapeKind(kind string) bool {
-	switch kind {
-	case "switch_on_argv", "interface_method_set", "struct_field_set", "error_boundary", "context_duration_literal", "service_manifest_decoder", "dynamic_json_writer":
-		return true
-	default:
-		return false
+	for _, supported := range supportedShapeKinds {
+		if kind == supported {
+			return true
+		}
 	}
+	return false
 }
 
-func shapeMatches(node ast.Node, shapeKind string, pattern *regexp.Regexp, minMembers int, groups map[string]int) []string {
-	switch shapeKind {
+func shapeMatches(node ast.Node, bypass SeamBypass, pattern *regexp.Regexp, groups map[string]int) []string {
+	switch bypass.ShapeKind {
 	case "switch_on_argv":
 		switchNode, ok := node.(*ast.SwitchStmt)
 		if !ok || switchNode.Tag == nil {
@@ -350,10 +648,10 @@ func shapeMatches(node ast.Node, shapeKind string, pattern *regexp.Regexp, minMe
 			return nil
 		}
 		signature := interfaceSignature(interfaceType)
-		if minMembers < 1 {
-			minMembers = 2
+		if bypass.MinMembers < 1 {
+			bypass.MinMembers = 2
 		}
-		if groups[signature] >= minMembers {
+		if groups[signature] >= bypass.MinMembers {
 			return []string{typeSpec.Name.Name}
 		}
 	case "struct_field_set":
@@ -366,10 +664,10 @@ func shapeMatches(node ast.Node, shapeKind string, pattern *regexp.Regexp, minMe
 			return nil
 		}
 		signature := structSignature(structType)
-		if minMembers < 1 {
-			minMembers = 2
+		if bypass.MinMembers < 1 {
+			bypass.MinMembers = 2
 		}
-		if groups[signature] >= minMembers {
+		if groups[signature] >= bypass.MinMembers {
 			return []string{typeSpec.Name.Name}
 		}
 	case "error_boundary":
@@ -383,13 +681,13 @@ func shapeMatches(node ast.Node, shapeKind string, pattern *regexp.Regexp, minMe
 			return nil
 		}
 		return []string{"context deadline duration literal"}
-	case "service_manifest_decoder":
-		if structure, ok := node.(*ast.StructType); ok && structHasJSONNesting(structure, "dependencies", "resources") {
-			return []string{"anonymous service-manifest decoder"}
+	case "json_nesting":
+		if structure, ok := node.(*ast.StructType); ok && structHasJSONNesting(structure, bypass.OuterKey, bypass.InnerKey) {
+			return []string{"anonymous nested JSON decoder"}
 		}
-	case "dynamic_json_writer":
+	case "constructs_type":
 		function, ok := node.(*ast.FuncDecl)
-		if ok && function.Body != nil && functionHasStructPBConstruction(function) && pattern.MatchString(function.Name.Name) {
+		if ok && function.Body != nil && functionConstructsType(function, bypass.ConstructedType) && pattern.MatchString(function.Name.Name) {
 			return []string{function.Name.Name}
 		}
 	default:
@@ -398,24 +696,42 @@ func shapeMatches(node ast.Node, shapeKind string, pattern *regexp.Regexp, minMe
 	return nil
 }
 
-func functionHasStructPBConstruction(function *ast.FuncDecl) bool {
+func functionConstructsType(function *ast.FuncDecl, constructedType string) bool {
+	parts := strings.Split(constructedType, ".")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return false
+	}
+	packageName, typeName := parts[0], parts[1]
 	found := false
 	ast.Inspect(function.Body, func(node ast.Node) bool {
+		if literal, ok := node.(*ast.CompositeLit); ok && fieldTypeText(literal.Type) == constructedType {
+			found = true
+			return false
+		}
 		call, ok := node.(*ast.CallExpr)
 		if !ok {
 			return !found
 		}
 		selector, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || selector.Sel == nil || (selector.Sel.Name != "NewValue" && selector.Sel.Name != "NewStruct") {
+		if !ok || selector.Sel == nil || selector.Sel.Name != "New"+typeName {
 			return !found
 		}
 		ident, ok := selector.X.(*ast.Ident)
-		if ok && ident.Name == "structpb" {
+		if ok && ident.Name == packageName {
 			found = true
 		}
 		return !found
 	})
 	return found
+}
+
+func symbolExcluded(symbol string, exclusions []string) bool {
+	for _, exclusion := range exclusions {
+		if symbol == exclusion {
+			return true
+		}
+	}
+	return false
 }
 
 func shapeContextCall(node ast.Expr, pattern *regexp.Regexp) bool {
@@ -662,6 +978,15 @@ func scanAbsenceSeams(treeRoot string, seams []compiledSeam) ([]SeamHit, error) 
 				if path != treeRoot && (entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "vendor") {
 					return filepath.SkipDir
 				}
+				if path != treeRoot {
+					rel, err := filepath.Rel(treeRoot, path)
+					if err != nil {
+						return err
+					}
+					if seamDirectoryExcluded(filepath.ToSlash(rel), candidate.seam.Scope) {
+						return filepath.SkipDir
+					}
+				}
 				return nil
 			}
 			rel, err := filepath.Rel(treeRoot, path)
@@ -670,6 +995,19 @@ func scanAbsenceSeams(treeRoot string, seams []compiledSeam) ([]SeamHit, error) 
 			}
 			rel = filepath.ToSlash(rel)
 			if !seamGlob(candidate.seam.Bypass.RequireFor).MatchString(rel) {
+				return nil
+			}
+			if !seamPathIncluded(rel, candidate.seam.Scope) {
+				return nil
+			}
+			if candidate.seam.Bypass.ForbidKind == "executable" {
+				executable, err := isExecutableArtifact(path)
+				if err != nil {
+					return err
+				}
+				if executable {
+					hits = append(hits, SeamHit{SeamID: candidate.seam.ID, Canonical: candidate.seam.Canonical, Why: candidate.seam.Why, Remediation: candidate.seam.Remediation, Severity: candidate.seam.Severity, Budget: candidate.seam.Budget, Path: rel, Symbol: "executable artifact", Line: 1})
+				}
 				return nil
 			}
 			present, err := requiredTargetPresent(treeRoot, candidate.seam.Bypass.RequirePresent)
@@ -697,6 +1035,57 @@ func scanAbsenceSeams(treeRoot string, seams []compiledSeam) ([]SeamHit, error) 
 		}
 	}
 	return hits, nil
+}
+
+func seamDirectoryExcluded(rel string, scope SeamScope) bool {
+	probe := strings.TrimSuffix(rel, "/") + "/__seam_probe__"
+	for _, pattern := range scope.Exclude {
+		if seamGlob(pattern).MatchString(probe) {
+			return true
+		}
+	}
+	return false
+}
+
+func isExecutableArtifact(path string) (bool, error) {
+	pathInfo, err := os.Lstat(path)
+	if os.IsNotExist(err) || os.IsPermission(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("stat executable candidate %s: %w", path, err)
+	}
+	if !pathInfo.Mode().IsRegular() {
+		return false, nil
+	}
+	if pathInfo.Mode().Perm()&0o111 == 0 && !strings.EqualFold(filepath.Ext(path), ".exe") {
+		return false, nil
+	}
+	file, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("open executable candidate %s: %w", path, err)
+	}
+	defer file.Close()
+	header := make([]byte, 4)
+	read, err := io.ReadFull(file, header)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return false, fmt.Errorf("read executable candidate %s: %w", path, err)
+	}
+	if read >= 2 && bytes.Equal(header[:2], []byte{'M', 'Z'}) {
+		return true, nil
+	}
+	if read < len(header) {
+		return false, nil
+	}
+	switch string(header) {
+	case "\x7fELF", "\xfe\xed\xfa\xce", "\xfe\xed\xfa\xcf", "\xce\xfa\xed\xfe", "\xcf\xfa\xed\xfe", "\xca\xfe\xba\xbe", "\xbe\xba\xfe\xca":
+		return true, nil
+	default:
+		return false, nil
+	}
 }
 
 // jsonContractAssertionPresent enforces the credentials JSON contract
@@ -848,12 +1237,18 @@ func collectDeclarationPackages(treeRoot string, seams []compiledSeam) (map[stri
 			}
 			constStack = append(constStack, inConst)
 			for _, candidate := range applicable {
-				for _, symbol := range declarationMatches(node, candidate.pattern, candidate.seam.Bypass.DeclKind, inConst) {
+				for _, symbol := range declarationMatches(node, candidate.pattern, candidate.seam.Bypass.DeclKind, inConst, candidate.seam.Bypass.ExcludeAliases) {
 					key := candidate.seam.ID + "\x00" + symbol
 					if packages[key] == nil {
 						packages[key] = make(map[string]struct{})
 					}
 					packages[key][file.Name.Name] = struct{}{}
+					for pairIndex, pathPattern := range candidate.pairedPaths {
+						match := pathPattern.FindStringSubmatch(rel)
+						if len(match) == 2 {
+							packages[key][fmt.Sprintf("pair:%d:%s", pairIndex, match[1])] = struct{}{}
+						}
+					}
 				}
 			}
 			return true
@@ -861,6 +1256,28 @@ func collectDeclarationPackages(treeRoot string, seams []compiledSeam) (map[stri
 		return nil
 	})
 	return packages, err
+}
+
+func hasPairedPathDeclarations(locations map[string]struct{}, patterns []*regexp.Regexp, path string) bool {
+	for _, pattern := range patterns {
+		match := pattern.FindStringSubmatch(path)
+		if len(match) != 2 {
+			continue
+		}
+		_, left := locations["pair:0:"+match[1]]
+		_, right := locations["pair:1:"+match[1]]
+		return left && right
+	}
+	return false
+}
+
+func pairedPathSide(patterns []*regexp.Regexp, path string) int {
+	for index, pattern := range patterns {
+		if len(pattern.FindStringSubmatch(path)) == 2 {
+			return index
+		}
+	}
+	return -1
 }
 
 func seamNodeMatches(node ast.Node, kind string, pattern *regexp.Regexp, aliases map[string]string, inConst bool) []string {
@@ -911,7 +1328,7 @@ func seamNodeMatches(node ast.Node, kind string, pattern *regexp.Regexp, aliases
 		}
 		return matches
 	case "declaration":
-		return declarationMatches(node, pattern, "", inConst)
+		return declarationMatches(node, pattern, "", inConst, false)
 	default:
 		return nil
 	}
@@ -926,7 +1343,7 @@ func validDeclarationKind(kind string) bool {
 	}
 }
 
-func declarationMatches(node ast.Node, pattern *regexp.Regexp, declKind string, inConst bool) []string {
+func declarationMatches(node ast.Node, pattern *regexp.Regexp, declKind string, inConst, excludeAliases bool) []string {
 	want := ""
 	name := ""
 	switch declaration := node.(type) {
@@ -938,6 +1355,9 @@ func declarationMatches(node ast.Node, pattern *regexp.Regexp, declKind string, 
 			want = "method"
 		}
 	case *ast.TypeSpec:
+		if excludeAliases && declaration.Assign.IsValid() {
+			return nil
+		}
 		name = declaration.Name.Name
 		want = "type"
 		if _, ok := declaration.Type.(*ast.InterfaceType); ok {
@@ -965,6 +1385,83 @@ func declarationMatches(node ast.Node, pattern *regexp.Regexp, declKind string, 
 		return []string{name}
 	}
 	return nil
+}
+
+func semanticNamingMatches(node ast.Node, pattern *regexp.Regexp, bypass SeamBypass, inConst bool) []string {
+	declaration, ok := node.(*ast.ValueSpec)
+	if !ok || (bypass.DeclKind == "const" && !inConst) || (bypass.DeclKind == "var" && inConst) {
+		return nil
+	}
+	generic := make(map[string]struct{}, len(bypass.GenericWords))
+	for _, word := range bypass.GenericWords {
+		generic[strings.ToLower(strings.TrimSpace(word))] = struct{}{}
+	}
+	var matches []string
+	for _, identifier := range declaration.Names {
+		// The blank identifier discards a value; it does not name a domain concept.
+		if identifier.Name == "_" {
+			continue
+		}
+		if !pattern.MatchString(identifier.Name) {
+			continue
+		}
+		domainWords := 0
+		for _, word := range splitIdentifierWords(identifier.Name) {
+			lower := strings.ToLower(word)
+			_, listed := generic[lower]
+			if !listed && !genericIdentifierWord(word) {
+				domainWords++
+			}
+		}
+		if domainWords < bypass.MinDomainWords {
+			matches = append(matches, identifier.Name)
+		}
+	}
+	return matches
+}
+
+func genericIdentifierWord(word string) bool {
+	runes := []rune(word)
+	if len(runes) == 1 {
+		return true
+	}
+	for _, current := range runes {
+		if !unicode.IsDigit(current) {
+			return false
+		}
+	}
+	return true
+}
+
+func splitIdentifierWords(identifier string) []string {
+	runes := []rune(identifier)
+	words := make([]string, 0, 4)
+	start := 0
+	flush := func(end int) {
+		if end > start {
+			words = append(words, string(runes[start:end]))
+		}
+		start = end
+	}
+	for index, current := range runes {
+		if current == '_' {
+			flush(index)
+			start = index + 1
+			continue
+		}
+		if index == start {
+			continue
+		}
+		previous := runes[index-1]
+		nextIsLower := index+1 < len(runes) && unicode.IsLower(runes[index+1])
+		caseBoundary := unicode.IsUpper(current) && (unicode.IsLower(previous) || unicode.IsDigit(previous) || (unicode.IsUpper(previous) && nextIsLower))
+		digitBoundary := unicode.IsDigit(current) != unicode.IsDigit(previous)
+		if caseBoundary || digitBoundary {
+			flush(index)
+		}
+	}
+	flush(len(runes))
+	return words
 }
 
 func seamLiteralValue(literal *ast.BasicLit) (string, bool) {

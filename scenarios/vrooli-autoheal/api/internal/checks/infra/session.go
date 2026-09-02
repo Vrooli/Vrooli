@@ -4,7 +4,6 @@ package infra
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"strings"
 	"time"
@@ -35,16 +34,9 @@ func sessionBusEnv(ctx context.Context, exec checks.CommandExecutor) []string {
 	if err != nil {
 		return nil
 	}
-	uid := strings.TrimSpace(string(output))
-	if uid == "" {
-		return nil
-	}
-
-	runtimeDir := fmt.Sprintf("/run/user/%s", uid)
-	return []string{
-		fmt.Sprintf("XDG_RUNTIME_DIR=%s", runtimeDir),
-		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=%s/bus", runtimeDir),
-	}
+	// The runtime-directory layout is owned by the host inventory; this check
+	// only decides *whose* session to address.
+	return sharedhost.SessionBusEnv(string(output))
 }
 
 // keyringProbeTimeout bounds the secret-service probe.
@@ -74,19 +66,15 @@ func loginKeyringCollectionPresent(ctx context.Context, exec checks.CommandExecu
 		return false
 	}
 
-	args := append(append([]string{}, env...),
-		"gdbus", "call", "--session",
-		"--dest", "org.freedesktop.secrets",
-		"--object-path", "/org/freedesktop/secrets",
-		"--method", "org.freedesktop.DBus.Properties.Get",
-		"org.freedesktop.Secret.Service", "Collections")
+	args := append(append([]string{}, env...), "gdbus", "call", "--session")
+	args = append(args, sharedhost.SecretServiceCollectionsArgs()...)
 
 	output, err := exec.CombinedOutput(ctx, "env", args...)
 	if err != nil {
 		return false
 	}
 
-	return strings.Contains(string(output), "/org/freedesktop/secrets/collection/login")
+	return strings.Contains(string(output), sharedhost.SecretServiceLoginPath)
 }
 
 // autoLoginUser returns the user GDM is configured to log in automatically, or

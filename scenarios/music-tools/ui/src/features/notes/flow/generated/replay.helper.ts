@@ -3,13 +3,13 @@
 import { describe, it } from "vitest";
 
 import formalArtifact from "./artifact.json";
-import type { FormalArtifact } from "../../../../test-utils";
+import type { FormalArtifact } from "@vrooli/flow-runtime";
 import {
   assertFormalTransitionsReplay,
   assertFormalTracesReplay,
   transitionFromReplayAdapter,
-} from "../../../../test-utils";
-import { assertFormalArtifactFreshFromFiles } from "../../../../test-utils/modeltest/formal.node";
+} from "@vrooli/flow-runtime";
+import { assertFormalArtifactFreshFromFiles } from "@vrooli/flow-runtime/node";
 import {
   attachmentUploadFormalExpectation,
   attachmentUploadReplayFixtureContract,

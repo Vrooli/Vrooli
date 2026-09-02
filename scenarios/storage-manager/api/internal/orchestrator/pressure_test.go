@@ -241,9 +241,9 @@ func TestAutonomousTierAllowed(t *testing.T) {
 	}
 }
 
-// TestReportPressure_HighPreviewsWithoutDeleting asserts the high band looks
-// but does not touch.
-func TestReportPressure_HighPreviewsWithoutDeleting(t *testing.T) {
+// TestReportPressure_HighAppliesSafeTier asserts high pressure automatically
+// reclaims only the provably safe tier.
+func TestReportPressure_HighAppliesSafeTier(t *testing.T) {
 	safe := &tierProvider{id: "tmp", tier: cleanup.SafetyTierSafe, approval: cleanup.ApprovalModeNone}
 	svc := newPressureService(t, safe)
 
@@ -256,17 +256,17 @@ func TestReportPressure_HighPreviewsWithoutDeleting(t *testing.T) {
 		t.Fatalf("ReportPressure: %v", err)
 	}
 
-	if outcome.Action != ActionPreviewed {
-		t.Errorf("action = %s, want previewed", outcome.Action)
+	if outcome.Action != ActionApplied {
+		t.Errorf("action = %s, want applied", outcome.Action)
 	}
-	if safe.didApply() {
-		t.Error("the high band deleted something; it must only preview")
+	if !safe.didApply() {
+		t.Error("the high band did not apply safe-tier cleanup")
 	}
-	if outcome.EstimatedBytes == 0 {
-		t.Error("a high-band preview reported no estimate, so an operator learns nothing")
+	if outcome.ReclaimedBytes == 0 {
+		t.Error("a high-band apply reported no reclaimed bytes")
 	}
 	if outcome.PlanID == "" {
-		t.Error("a high-band preview produced no plan id to inspect")
+		t.Error("a high-band apply produced no plan id to inspect")
 	}
 }
 

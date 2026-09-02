@@ -14,12 +14,13 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
   },
   layout: {
-    sidebarLabel: "layout.sidebarLabel",
-    bottomNavLabel: "layout.bottomNavLabel",
+    navigationLabel: "layout.navigationLabel",
+    mobileNavigationLabel: "layout.mobileNavigationLabel",
+    skipToContent: "layout.skipToContent",
+    openNavigation: "layout.openNavigation",
+    closeNavigation: "layout.closeNavigation",
     nav: {
       dashboard: "layout.nav.dashboard",
       notes: "layout.nav.notes",
@@ -38,15 +39,21 @@ export const strings = {
     dashboard: {
       title: "pages.dashboard.title",
       description: "pages.dashboard.description",
-      statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
+      placeholderTitle: "pages.dashboard.placeholderTitle",
+      placeholderDescription: "pages.dashboard.placeholderDescription",
     },
     notes: {
       title: "pages.notes.title",
+      description: "pages.notes.description",
     },
     settings: {
       title: "pages.settings.title",
       themeHeading: "pages.settings.themeHeading",
       localeHeading: "pages.settings.localeHeading",
+      description: "pages.settings.description",
+      preferences: "pages.settings.preferences",
+      themeHint: "pages.settings.themeHint",
+      localeHint: "pages.settings.localeHint",
     },
   },
   health: {
@@ -56,9 +63,9 @@ export const strings = {
     refresh: "health.refresh",
     refreshCount: "health.refreshCount",
     refreshCount_one: "health.refreshCount_one",
-    statusLabel: "health.statusLabel",
     serviceLabel: "health.serviceLabel",
     timestampLabel: "health.timestampLabel",
+    description: "health.description",
   },
   notifications: {
     summary: "notifications.summary",
@@ -70,7 +77,6 @@ export const strings = {
     loading: "notes.loading",
     empty: "notes.empty",
     create: "notes.create",
-    createdAtLabel: "notes.createdAtLabel",
     attachmentsLabel: "notes.attachmentsLabel",
     attachmentsLabel_one: "notes.attachmentsLabel_one",
     table: {

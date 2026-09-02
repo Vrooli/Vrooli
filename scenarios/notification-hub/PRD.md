@@ -73,7 +73,7 @@ The traffic runs both ways. Once a notification can carry a decision back (OT-P1
 
 **Preferred stack** — The `react-vite` template shape without deviation: a Go API on Connect-RPC with proto-defined contracts, a React and TypeScript UI on the `vrooli-default` design kit, and a Go CLI on `cli-core`. The webhook receiver is the one sanctioned REST exception.
 
-**Data** — SQLite through the `api-core` storage seam. No PostgreSQL, no Redis, no Docker, and no resource dependency of any kind. The queue, the retry schedule, and the rate-limit counters are in-process and SQLite-backed. This is a capability decision, not a shortcut: PostgreSQL and Redis are still Docker-backed and are recorded `unsupported` on macOS and Windows, so depending on either would make the scenario unable to run on the Mac node the relay lane exists to reach. Retention is set before the schema is written, not after: retry multiplies delivery-attempt rows, and an unbounded attempt table is a known failure mode elsewhere in this repo.
+**Data** — SQLite through the `api-core` storage seam. No PostgreSQL, no Redis, no Docker, and no resource dependency of any kind. The queue, the retry schedule, and the rate-limit counters are in-process and SQLite-backed. This is a capability decision, not a shortcut: neither PostgreSQL nor Redis is `supported` on macOS — `postgres` is `build-verified` there with no macOS hardware run performed, and the platform matrix's two tables disagree about `redis` — so depending on either would put the scenario on unproven footing on the Mac node the relay lane exists to reach. Both are `managed-service` rather than Docker-backed; the constraint is macOS evidence, not a container runtime. Retention is set before the schema is written, not after: retry multiplies delivery-attempt rows, and an unbounded attempt table is a known failure mode elsewhere in this repo.
 
 **Ingress contract** — The sensitivity label and the idempotency key are required fields on the request from the first version of the proto. Both are cheap to specify now and expensive to retrofit, because adding a required field later is a breaking change across the API, the CLI, and the UI at once. The label is set by the caller, since only the caller knows whether the body is safe on a locked screen.
 
@@ -91,7 +91,7 @@ Because readiness is asked rather than pushed, freshness is this scenario's resp
 
 ## 🤝 Dependencies & Launch Plan
 
-**Resources** — **None, at any tier that ships first.** Web Push needs no resource, so `dependencies.resources` stays empty and OT-P0-009 is literally true rather than aspirational. This also keeps the scenario runnable on a macOS fleet node, which `postgres` and `redis` would prevent: both remain Docker-backed and are recorded `unsupported` on macOS and Windows in the platform matrix. The existing `twilio` resource is adopted only when SMS activates at P2, as an optional dependency.
+**Resources** — **None, at any tier that ships first.** Web Push needs no resource, so `dependencies.resources` stays empty and OT-P0-009 is literally true rather than aspirational. This also keeps the scenario runnable on a macOS fleet node, which `postgres` and `redis` would put at risk: neither is recorded `supported` on macOS in the platform matrix, and both are acquired as OCI images even though they now start as `managed-service` rather than under Docker. The existing `twilio` resource is adopted only when SMS activates at P2, as an optional dependency.
 
 **Scenario dependencies**
 

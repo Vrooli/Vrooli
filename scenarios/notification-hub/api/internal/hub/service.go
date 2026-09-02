@@ -61,6 +61,13 @@ type RemoteDelivery interface {
 	ChannelsStatus(context.Context, string, string) (ChannelStatus, error)
 }
 
+// ChannelDelivery delegates one-shot delivery to Switchboard's shared
+// descriptor and adapter registry. Notification-hub does not own a second
+// implementation for conversational channels.
+type ChannelDelivery interface {
+	Send(context.Context, string, string, string, string) (string, error)
+}
+
 type unavailablePush struct{}
 
 func (unavailablePush) Send(context.Context, PushSubscription, string, string) (string, error) {
@@ -76,6 +83,7 @@ type Service struct {
 	email            EmailSender
 	desktop          DesktopSender
 	remote           RemoteDelivery
+	channel          ChannelDelivery
 	defaultRecipient string
 	webPushPublicKey string
 	worker           chan string
@@ -138,6 +146,12 @@ func (s *Service) SetDesktopSender(sender DesktopSender) {
 func (s *Service) SetRemoteDelivery(sender RemoteDelivery) {
 	s.mu.Lock()
 	s.remote = sender
+	s.mu.Unlock()
+}
+
+func (s *Service) SetChannelDelivery(sender ChannelDelivery) {
+	s.mu.Lock()
+	s.channel = sender
 	s.mu.Unlock()
 }
 
@@ -530,6 +544,14 @@ func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Not
 		return email.Send(ctx, target.Address, n.Title, body)
 	case "macos_notification", "imessage":
 		return desktop.Send(ctx, target.Channel, target.Address, n.Title, body)
+	case "in-app", "telegram", "slack":
+		s.mu.RLock()
+		channel := s.channel
+		s.mu.RUnlock()
+		if channel == nil {
+			return "", fmt.Errorf("shared switchboard channel registry is not configured")
+		}
+		return channel.Send(ctx, target.Channel, target.Address, n.Title, body)
 	default:
 		return "", fmt.Errorf("channel %q has no adapter", target.Channel)
 	}

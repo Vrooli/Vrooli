@@ -104,8 +104,9 @@ func validateSupervisionReport(report coreset.Report) error {
 	return nil
 }
 
-// SupervisionController reconciles canonical members plus additive operator
-// overrides into the live check registry.
+// SupervisionController reconciles the canonical supervision set into the live
+// check registry. Operator monitoring config is advisory only and cannot add
+// a second, unreconciled supervision universe.
 type SupervisionController struct {
 	mu        sync.Mutex
 	registry  *checks.Registry
@@ -125,23 +126,6 @@ func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapsho
 	}
 
 	desired := make(map[string]checks.Check)
-	monitoring := c.configMgr.GetMonitoring()
-	for name, monitored := range monitoring.Scenarios {
-		intent := coreset.IntentTryStart
-		if monitored.Critical {
-			intent = coreset.IntentMustStart
-		}
-		chain := operatorOverrideChain(name, coreset.MemberKindScenario, intent)
-		desired["scenario-"+name] = checksvrooli.NewScenarioCheck(name, monitored.Critical, checksvrooli.WithScenarioSupervision(intent, chain))
-	}
-	resources, dropped := PruneMissingResources(monitoring.Resources)
-	for _, name := range dropped {
-		log.Printf("vrooli-autoheal: operator override %q is not a repository resource; dropping it from active checks", name)
-	}
-	for _, name := range resources {
-		chain := operatorOverrideChain(name, coreset.MemberKindResource, coreset.IntentMustStart)
-		desired["resource-"+name] = checksvrooli.NewResourceCheck(name, checksvrooli.WithResourceSupervision(coreset.IntentMustStart, chain))
-	}
 
 	supervised := make(map[string]string, len(snapshot.Report.Members))
 	for _, member := range snapshot.Report.Members {
@@ -164,6 +148,20 @@ func (c *SupervisionController) Refresh(ctx context.Context) (SupervisionSnapsho
 		}
 		desired[id] = check
 		supervised[id] = member.SupervisionIntent
+	}
+	// Report stale operator entries once per reconciliation, but never register
+	// them. This makes retirement observable without allowing the old additive
+	// config to recreate deleted scenarios or resources.
+	monitoring := c.configMgr.GetMonitoring()
+	for name := range monitoring.Scenarios {
+		if _, ok := supervised["scenario-"+name]; !ok {
+			log.Printf("vrooli-autoheal: stale operator scenario override %q dropped", name)
+		}
+	}
+	for _, name := range monitoring.Resources {
+		if _, ok := supervised["resource-"+name]; !ok {
+			log.Printf("vrooli-autoheal: stale operator resource override %q dropped", name)
+		}
 	}
 
 	c.mu.Lock()
@@ -196,10 +194,6 @@ func (c *SupervisionController) Reconcile(ctx context.Context) error {
 	return err
 }
 
-func operatorOverrideChain(name, kind, intent string) []coreset.AttributionStep {
-	return []coreset.AttributionStep{{Name: name, Kind: kind, SupervisionIntent: intent, Source: "operator.override"}}
-}
-
 type supervisionSourceCheck struct{ controller *SupervisionController }
 
 func (c *supervisionSourceCheck) ID() string    { return supervisionSourceCheckID }
@@ -207,6 +201,7 @@ func (c *supervisionSourceCheck) Title() string { return "Supervision Set Author
 func (c *supervisionSourceCheck) Description() string {
 	return "Reloads the canonical supervision set and reconciles active target checks"
 }
+
 func (c *supervisionSourceCheck) Importance() string {
 	return "Prevents autoheal from drifting to an independent hardcoded core list"
 }

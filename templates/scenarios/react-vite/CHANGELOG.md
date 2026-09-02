@@ -76,6 +76,93 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 3.0.0 — 2026-09-01
+
+The shell is the component library's; the template configures it and draws no
+chrome. The design gate now asks for a decision instead of a marker.
+
+### Breaking
+
+- `ui/src/layout/` no longer contains `TopBar.tsx`, `Sidebar.tsx` or
+  `BottomNav.tsx`. `AppShell.tsx` mounts `@vrooli/react-component-library/AppShell/2`
+  with the scenario's nav items, a react-router adapter, and three settings
+  (`density`, `mobileNav`, `mainMode`). `navItems.ts` became `navItems.tsx`
+  and carries icons; `BrandMark.tsx` holds the scenario's mark.
+- The top bar and its theme select are gone. Settings owns every preference
+  through `SettingsList/1` rows and `RadioGroup/1`.
+- Layout selectors changed: `layout.topBar`, `layout.sidebar`,
+  `layout.bottomNav`, `theme.*` and the `sidebarLink` / `bottomNavLink`
+  dynamic selectors are removed. The shell derives part ids from
+  `layout.shell` (`-navigation`, `-tabs`, `-main`, `-brand`, `-skip`);
+  `layout.navLink({key})` and `layout.navTab({key})` address the two
+  presentations of one item.
+- Every routed page opens with `PageHeader/2` (eyebrow, title, description,
+  leading, actions, heading level). The local `ExperienceSurface` copy is
+  replaced by the library's `ExperienceSurface/1`.
+- The home page is a placeholder marked `PLACEHOLDER:home-surface` beside the
+  real `HealthCard`. The `design-language` orientation step is retitled
+  "Design decision" and now also requires `docs/concepts/EXPERIENCE.md` with
+  no `EXPERIENCE-TODO` left and the home marker removed.
+- Strings: `layout.sidebarLabel` / `bottomNavLabel` replaced by
+  `layout.navigationLabel`, `mobileNavigationLabel`, `skipToContent`,
+  `openNavigation`, `closeNavigation`; `app.eyebrow` and
+  `pages.dashboard.statPlaceholderLabel` removed; descriptions and hints
+  added for home, notes, settings and the health card.
+- `body` no longer pads for safe areas; the library shell owns them.
+
+### Added
+
+- `docs/guides/choosing-ui.md` — decide, configure, adopt, build.
+- `docs/concepts/EXPERIENCE.md` — where the UI decision is written; read by
+  the orientation gate.
+- Tokenised page spacing (`gap-space-md`, `gap-space-sm`) in every page.
+
+### Removed
+
+- Dead scaffolding that predated the library: `hooks/{SpatialGroup,useGamepad,useSpatialNav}`
+  and `test-utils/mocks/spatial.ts` (spatial navigation is initialised from
+  `@vrooli/iframe-bridge` in `main.tsx`), `components/ui/sidebar-menu-escape.ts`
+  (the old hand-drawn sidebar), `lib/utils.ts` (`cn`, unused), and
+  `theme/tokens.css` (eight semantic variables nothing read). `styles.css` no
+  longer duplicates the safe-area and touch-target utilities the design kit
+  already publishes.
+
+### Fixed
+
+- Explicit theme choice now applies: `ThemeProvider` writes `data-resolved-theme`
+  (the attribute the design kit's dark palette keys on) alongside `data-theme`.
+  Choosing Dark on a light OS previously changed nothing.
+- `ui/src/design-tokens.css` is again the exact output generation produces for
+  the default kit (`_base` + adapter); `scripts/design-tokens-composed.test.mjs`
+  keeps it from drifting. `theme-color` metas use the kit's background values.
+- `ui/manifest.json` declares `files` (design tokens with their managed region,
+  tailwind theme, token map, locale catalogue pattern, selector registry,
+  library selectors, app entry, strings registry) so react-component-library
+  resolves those locations from the manifest instead of hard-coded paths.
+
+### Migration (for agents updating older scenarios)
+
+- [ ] Delete `ui/src/layout/{TopBar,Sidebar,BottomNav}.tsx`; replace
+      `ui/src/layout/AppShell.tsx` and `navItems.ts(x)` with the template's,
+      then move your destinations and icons into `navItems.tsx`.
+- [ ] Move any top-bar content into Settings rows, or into the shell's
+      `header` prop if it is genuinely global.
+- [ ] Update selectors, strings (all locales) and shell tests as listed under
+      Breaking; regenerate `strings.generated.ts` and `selectors.manifest.json`.
+- [ ] Open every routed page with `PageHeader/2`; import `ExperienceSurface`
+      from the library and delete the local copy.
+- [ ] Write `docs/concepts/EXPERIENCE.md` (copy the template's), register it
+      and `docs/guides/choosing-ui.md` in `docs/manifest.json`, and adopt the
+      new `design-language` step checks in `.vrooli/orientation.json` if the
+      scenario is still oriented.
+- [ ] Run `react-component-library adoptions obligations <scenario> --json`
+      and `make test`.
+- [ ] Delete the unused hooks, spatial mocks, `sidebar-menu-escape`, `lib/utils.ts` and
+      `theme/tokens.css` if your scenario never imported them; port the
+      `data-resolved-theme` write into `ThemeProvider`; add the `files` section
+      to any `.vrooli/ui-manifest.json` overlay only if you moved those files.
+- [ ] Set `.vrooli/service.json::generation.template.version` to `3.0.0`.
+
 ## 2.0.0 — 2026-08-19
 
 Scenario execution now uses the declared component contract in both local and

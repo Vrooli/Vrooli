@@ -34,6 +34,27 @@ both when adding or renaming a slot.
 `defaults.slot` is `shared-component` — components that publish no slot resolve
 through this slot.
 
+## Files
+
+Beside slots, `files` names the individual files tooling reads or writes.
+Each entry is `{ "path": "...", "description": "...", "defaultLocale"?,
+"managedRegion"?: { "begin", "end" } }`. Paths are scenario-relative and may
+carry `{locale}`.
+
+| Key | Default path | Read or written by |
+|---|---|---|
+| `designTokens` | `ui/src/design-tokens.css` | generation (base + kit adapter); `react-component-library adoptions tokens-sync` inside the `rcl:tokens` managed region; the scenario-token-requirements gate |
+| `tailwindTheme` | `ui/tailwind.theme.json` | generation (kit adapter) |
+| `tokenMap` | `ui/token-map.json` | react-component-library adoption preflight and preview |
+| `localeCatalogue` | `ui/src/i18n/locales/{locale}.json` (`en`) | `pnpm strings:gen`; `adoptions link` merges library strings |
+| `selectorRegistry` | `ui/src/consts/selectors.ts` | `adoptions link` composes the library import; `pnpm selector:manifest` |
+| `librarySelectors` | `ui/src/consts/selectors.library.ts` | written by `adoptions link` |
+| `appEntry` | `ui/src/main.tsx` | `adoptions link` mounts the library strings provider |
+| `stringsRegistry` | `ui/src/consts/strings.generated.ts` | `pnpm strings:gen` |
+
+A scenario overlay may change a declared path but may not introduce a key. A
+tool that finds no declaration falls back to the default path above.
+
 ## Path-Pattern Tokens
 
 | Token | Meaning | Example |

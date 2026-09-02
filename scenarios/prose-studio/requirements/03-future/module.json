@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P2 operational targets.",
-    "last_validated_at": "2026-08-18T17:14:37-04:00",
+    "last_validated_at": "2026-08-30T16:36:48-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -40,7 +40,7 @@
     {
       "id": "PS-P2-003",
       "title": "Semantic diversity metrics",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-003",
       "criticality": "P2",
       "description": "The system may add embedding-based semantic diversity alongside the lexical tier once an embedding surface is available through ai-gateway",
@@ -49,7 +49,7 @@
           "type": "manual",
           "ref": "api/internal/prose/service_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Embedding-backed semantic set measurement is resolved through ai-gateway in generateResolved and recorded on the round; document-level semantic repetition is measured at assembly."
         }
       ]

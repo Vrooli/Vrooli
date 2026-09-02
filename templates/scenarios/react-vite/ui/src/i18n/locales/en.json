@@ -1,15 +1,16 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like {{SCENARIO_DISPLAY_NAME}} are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "{{SCENARIO_DISPLAY_NAME}}",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "{{SCENARIO_DISPLAY_NAME}}"
   },
   "layout": {
-    "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Mobile navigation",
+    "navigationLabel": "Primary navigation",
+    "mobileNavigationLabel": "Mobile navigation",
+    "skipToContent": "Skip to content",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
     "nav": {
-      "dashboard": "Dashboard",
+      "dashboard": "Home",
       "notes": "Notes",
       "settings": "Settings"
     }
@@ -24,17 +25,23 @@
   },
   "pages": {
     "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+      "title": "Home",
+      "description": "The first thing an operator sees. Decide what belongs here before you ship.",
+      "placeholderTitle": "This scenario has not decided its home surface yet",
+      "placeholderDescription": "Open START-HERE, Gate 5, and name the one question this page answers. Replace this placeholder with that surface. The health card beside it is the example of a scenario-owned feature built from library parts."
     },
     "notes": {
-      "title": "Notes"
+      "title": "Notes",
+      "description": "A worked example domain: list, create, measure. Copy the shape once, then remove it with detemplate."
     },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
-      "localeHeading": "Language"
+      "localeHeading": "Language",
+      "description": "Preferences for this browser. Add every setting your scenario actually needs; nothing else in the shell duplicates one.",
+      "preferences": "Preferences",
+      "themeHint": "Light, dark, or follow the system.",
+      "localeHint": "Applies to this console only."
     }
   },
   "health": {
@@ -44,9 +51,9 @@
     "refresh": "Refresh",
     "refreshCount": "Refreshed {{count}} times",
     "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
     "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
+    "timestampLabel": "Timestamp:",
+    "description": "Polls this scenario's API and reports what it says."
   },
   "notifications": {
     "summary": "{{count}} notifications",
@@ -58,7 +65,6 @@
     "loading": "Loading notes…",
     "empty": "No notes yet.",
     "create": "Create note",
-    "createdAtLabel": "Created:",
     "attachmentsLabel": "{{count}} attachments",
     "attachmentsLabel_one": "1 attachment",
     "table": {

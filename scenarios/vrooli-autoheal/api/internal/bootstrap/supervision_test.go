@@ -114,7 +114,7 @@ func TestSupervisionControllerReconcilesCanonicalSetAndAdditiveOverrides(t *test
 	if _, err := controller.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"scenario-search-hub", "resource-qdrant", "scenario-operator-extra", "resource-redis"} {
+	for _, id := range []string{"scenario-search-hub", "resource-qdrant"} {
 		if _, ok := registry.GetCheck(id); !ok {
 			t.Errorf("active checks missing %q", id)
 		}
@@ -134,8 +134,8 @@ func TestSupervisionControllerReconcilesCanonicalSetAndAdditiveOverrides(t *test
 	if _, ok := registry.GetCheck("resource-qdrant"); ok {
 		t.Fatal("removed canonical member remained registered after reload")
 	}
-	if _, ok := registry.GetCheck("resource-redis"); !ok {
-		t.Fatal("additive operator override disappeared during canonical reload")
+	if _, ok := registry.GetCheck("resource-redis"); ok {
+		t.Fatal("stale operator override remained registered after canonical reload")
 	}
 	canonical, _ = registry.GetCheck("scenario-search-hub")
 	if scenario := canonical.(*checksvrooli.ScenarioCheck); scenario.IsCritical() {

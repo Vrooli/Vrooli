@@ -79,7 +79,7 @@ func (h *scenarioValidationHandler) ValidateTarget(ctx context.Context, req *con
 
 func (h *scenarioValidationHandler) validate(ctx context.Context, scenarioName, scenarioPath string, includeExecution bool, excludes []string) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	collector := metrics.Start(metrics.WithEnvironment(h.server.environment))
-	result, err := buildTidinessScan(WithMetrics(ctx, collector), scenarioName, scenarioPath, validationTimeout(includeExecution), excludes...)
+	result, audit, err := buildTidinessScanWithAudit(WithMetrics(ctx, collector), scenarioName, scenarioPath, validationTimeout(includeExecution), excludes...)
 	if err != nil {
 		collector.Stop()
 		h.server.log("tidiness validation failed", map[string]interface{}{
@@ -88,6 +88,7 @@ func (h *scenarioValidationHandler) validate(ctx context.Context, scenarioName, 
 		})
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("tidiness scan failed: %w", err))
 	}
+	h.server.storeBudgetAudit(scenarioPath, audit)
 	if h.server.store != nil {
 		if _, err := h.server.store.ResolveLegacyPercentageDuplicationIssues(ctx, scenarioName); err != nil {
 			h.server.log("failed to resolve legacy percentage duplication issues", map[string]interface{}{
@@ -195,6 +196,7 @@ func tidinessScanToProto(result *TidinessScanResponse) (*validationv1.TidinessSc
 			DuplicationLineDebt: int32(result.Summary.DuplicationLineDebt),
 		},
 		Assessment: result.Assessment,
+		SeamFiles:  result.SeamFiles,
 	}, nil
 }
 

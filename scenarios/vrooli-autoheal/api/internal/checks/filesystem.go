@@ -5,8 +5,10 @@ package checks
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -84,6 +86,11 @@ type ProcReader interface {
 	ReadProcessCmdline(pid int) (string, error)
 }
 
+// ErrProcNotApplicable is returned when a host does not expose Linux's
+// /proc contract. Callers must report this as not-applicable/degraded, never
+// as a green empty process list.
+var ErrProcNotApplicable = errors.New("process inspection is not applicable on this platform")
+
 // RealProcReader is the production implementation of ProcReader.
 type RealProcReader struct{}
 
@@ -105,6 +112,9 @@ func (r *RealProcReader) ReadMeminfo() (*MemInfo, error) {
 
 // ListProcesses reads process information from /proc.
 func (r *RealProcReader) ListProcesses() ([]ProcessInfo, error) {
+	if runtime.GOOS != "linux" {
+		return nil, ErrProcNotApplicable
+	}
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
 		return nil, err
@@ -192,6 +202,9 @@ var DefaultProcReader ProcReader = &RealProcReader{}
 // Environment variables are stored as null-separated KEY=VALUE pairs.
 // Returns an error if the environ file cannot be read (e.g., permission denied).
 func (r *RealProcReader) ReadProcessEnviron(pid int) (map[string]string, error) {
+	if runtime.GOOS != "linux" {
+		return nil, ErrProcNotApplicable
+	}
 	environPath := "/proc/" + strconv.Itoa(pid) + "/environ"
 	data, err := os.ReadFile(environPath)
 	if err != nil {
@@ -218,6 +231,9 @@ func (r *RealProcReader) ReadProcessEnviron(pid int) (map[string]string, error) 
 // ReadProcessCmdline reads the full command line from /proc/[pid]/cmdline.
 // Arguments are stored as null-separated strings.
 func (r *RealProcReader) ReadProcessCmdline(pid int) (string, error) {
+	if runtime.GOOS != "linux" {
+		return "", ErrProcNotApplicable
+	}
 	cmdlinePath := "/proc/" + strconv.Itoa(pid) + "/cmdline"
 	data, err := os.ReadFile(cmdlinePath)
 	if err != nil {

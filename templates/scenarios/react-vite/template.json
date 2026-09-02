@@ -9,7 +9,7 @@
     "go",
     "cli"
   ],
-  "version": "2.0.0",
+  "version": "3.0.0",
   "startDocument": "docs/START-HERE.md",
   "design": {
     "adapter": "react-vite-tailwind",
@@ -38,7 +38,10 @@
         "checks": [
           {
             "kind": "command",
-            "exec": ["make", "test"],
+            "exec": [
+              "make",
+              "test"
+            ],
             "timeout": "15m"
           }
         ]
@@ -148,10 +151,12 @@
       },
       {
         "id": "design-language",
-        "title": "Design language",
-        "description": "Confirm the generated scenario has a root design contract before UI work expands.",
+        "title": "Design decision",
+        "description": "Decide the comparable product and primary surface, configure the library shell, link library components, and replace the home placeholder before UI work expands.",
         "docs": [
           "docs/START-HERE.md",
+          "docs/guides/choosing-ui.md",
+          "docs/concepts/EXPERIENCE.md",
           "DESIGN.md"
         ],
         "checks": [
@@ -163,6 +168,20 @@
             "kind": "text_absent",
             "path": "DESIGN.md",
             "text": "ORIENTATION-TODO: scenario-design-adaptation"
+          },
+          {
+            "kind": "file_exists",
+            "path": "docs/concepts/EXPERIENCE.md"
+          },
+          {
+            "kind": "text_absent",
+            "path": "docs/concepts/EXPERIENCE.md",
+            "text": "EXPERIENCE-TODO"
+          },
+          {
+            "kind": "text_absent",
+            "path": "ui/src/pages/DashboardPage.tsx",
+            "text": "PLACEHOLDER:home-surface"
           }
         ]
       },
@@ -343,7 +362,13 @@
   "postHooks": [
     {
       "description": "Generate the static primitive-evidence artifact (.vrooli/generated/cli-primitive-evidence.json) so cli-health can verify command architecture from committed evidence",
-      "argv": ["go", "test", "-run", "TestPrimitiveEvidenceArtifactCurrent", "."],
+      "argv": [
+        "go",
+        "test",
+        "-run",
+        "TestPrimitiveEvidenceArtifactCurrent",
+        "."
+      ],
       "env": {
         "GOWORK": "off",
         "UPDATE_CLI_EVIDENCE": "1"
@@ -359,7 +384,10 @@
       "post": [
         {
           "description": "Regenerate proto artifacts (Go + TypeScript + Python)",
-          "argv": ["make", "generate"],
+          "argv": [
+            "make",
+            "generate"
+          ],
           "cwd": "packages/proto"
         }
       ]

@@ -31,7 +31,7 @@ export function NotesMeasureCard() {
       aria-label={t(strings.notes.measure.title)}
     >
       <CardHeader>
-        <CardTitle>{t(strings.notes.measure.title)}</CardTitle>
+        <CardTitle as="h2">{t(strings.notes.measure.title)}</CardTitle>
       </CardHeader>
       <CardContent>
       {countQuery.isLoading && (

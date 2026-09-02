@@ -267,6 +267,11 @@ type HealIncidentReporter interface {
 	ResolveHealIncident(ctx context.Context, checkID, actionID string) error
 }
 
+// RecoveryRequester delegates exhausted scenario repair to the control-plane
+// recovery broker. Autoheal observes and schedules recovery; it does not own
+// an agent-spawn ladder.
+type RecoveryRequester func(ctx context.Context, scenario, reason string) (requestID string, err error)
+
 // Registry manages health checks
 type Registry struct {
 	mu                   sync.RWMutex
@@ -280,10 +285,46 @@ type Registry struct {
 	healTrackerStore     HealTrackerStore // Optional persistence for heal trackers
 	recoveryGate         RecoveryOwnershipGate
 	healIncidentReporter HealIncidentReporter
+	recoveryRequester    RecoveryRequester
+	recoveryRequested    map[string]bool
 	clock                Clock
 	interlockMu          sync.Mutex
 	recentHealActions    map[HealTarget]RecentHealAction
 	healInterlockWindow  time.Duration
+}
+
+// SetRecoveryRequester installs the control-plane escalation seam.
+func (r *Registry) SetRecoveryRequester(requester RecoveryRequester) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.recoveryRequester = requester
+}
+
+func (r *Registry) getRecoveryRequester() RecoveryRequester {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.recoveryRequester
+}
+
+func (r *Registry) claimRecoveryRequest(checkID string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.recoveryRequested == nil {
+		r.recoveryRequested = make(map[string]bool)
+	}
+	if r.recoveryRequested[checkID] {
+		return false
+	}
+	r.recoveryRequested[checkID] = true
+	return true
+}
+
+func (r *Registry) clearRecoveryRequest(checkID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.recoveryRequested != nil {
+		delete(r.recoveryRequested, checkID)
+	}
 }
 
 // SetRecoveryOwnershipGate installs the cross-controller restart ownership
@@ -336,6 +377,7 @@ func NewRegistry(plat *platform.Capabilities) *Registry {
 		lastRun:             make(map[string]time.Time),
 		healTrackers:        make(map[string]*HealTracker),
 		recentHealActions:   make(map[HealTarget]RecentHealAction),
+		recoveryRequested:   make(map[string]bool),
 		healInterlockWindow: DefaultHealInterlockWindow,
 		platform:            plat,
 		clock:               realClock{},

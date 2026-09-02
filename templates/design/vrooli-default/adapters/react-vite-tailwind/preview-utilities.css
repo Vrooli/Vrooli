@@ -58,6 +58,9 @@
 .grid {
     display: grid
 }
+.contents {
+    display: contents
+}
 .hidden {
     display: none
 }
@@ -138,6 +141,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap
+}
+.text-wrap {
+    text-wrap: wrap
 }
 .break-words {
     overflow-wrap: break-word

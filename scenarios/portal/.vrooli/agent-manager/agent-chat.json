@@ -5,5 +5,6 @@
   "description": "Portable profile for Portal agent-mode conversations",
   "roleRef": "code.default",
   "maxTurns": 20,
-  "createdBy": "portal"
+  "createdBy": "portal",
+  "effort": "medium"
 }

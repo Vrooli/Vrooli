@@ -25,14 +25,19 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
 const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
   if (typeof document === "undefined") return;
-  // `system` clears the attribute so the CSS @media fallback in tokens.css
-  // owns resolution. Explicit choices write the attribute.
+  // The design kit's dark palette keys on `data-resolved-theme` (see the
+  // `[data-resolved-theme="dark"]` block in design-tokens.css), so the resolved
+  // value is always written. `data-theme` records the user's choice for
+  // anything that wants to know whether the theme is explicit or follows the
+  // system; `system` clears it.
+  document.documentElement.setAttribute("data-resolved-theme", resolved);
+  document.documentElement.style.colorScheme = resolved;
   if (choice === "system") {
     document.documentElement.removeAttribute("data-theme");
   } else {
@@ -55,7 +60,7 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return undefined;
     if (choice !== "system") return undefined;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => setResolved(mq.matches ? "dark" : "light");

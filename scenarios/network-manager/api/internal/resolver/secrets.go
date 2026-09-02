@@ -28,7 +28,7 @@ type CredentialAuthorityResolver struct {
 }
 
 type credentialStore interface {
-	Resolve(credentialauthority.Identity, string) (string, error)
+	Require(credentialauthority.Identity, string) (string, error)
 }
 
 func NewCredentialAuthorityResolver() *CredentialAuthorityResolver {
@@ -70,7 +70,7 @@ func (r *CredentialAuthorityResolver) ResolveAdGuardCredentials(ctx context.Cont
 }
 
 func resolveAuthorityField(store credentialStore, identity credentialauthority.Identity, field string) (string, error) {
-	value, err := store.Resolve(identity, field)
+	value, err := store.Require(identity, field)
 	if errors.Is(err, credentialauthority.ErrUnconfigured) {
 		return "", nil
 	}
@@ -82,7 +82,7 @@ func resolveAuthorityField(store credentialStore, identity credentialauthority.I
 
 type unavailableCredentialStore struct{ err error }
 
-func (s unavailableCredentialStore) Resolve(credentialauthority.Identity, string) (string, error) {
+func (s unavailableCredentialStore) Require(credentialauthority.Identity, string) (string, error) {
 	return "", s.err
 }
 

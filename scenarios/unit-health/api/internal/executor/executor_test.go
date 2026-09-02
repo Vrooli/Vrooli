@@ -155,6 +155,55 @@ func TestBoundedRunMissingCommand(t *testing.T) {
 	}
 }
 
+func TestScrubbedEnvironBindsResolvedGoToolchain(t *testing.T) {
+	t.Setenv("GOROOT", filepath.Join(t.TempDir(), "foreign-go-root"))
+	t.Setenv("GOTOOLDIR", filepath.Join(t.TempDir(), "foreign-go-tools"))
+	t.Setenv("UNIT_HEALTH_PRESERVED_ENV", "present")
+
+	env := scrubbedEnviron(filepath.Join("managed", "go", "bin", "go"))
+	for _, kv := range env {
+		key, _, _ := strings.Cut(kv, "=")
+		if isGoRootEnv(key) {
+			t.Fatalf("resolved Go command inherited incompatible toolchain override %q", kv)
+		}
+	}
+	if !environmentContains(env, "UNIT_HEALTH_PRESERVED_ENV", "present") {
+		t.Fatal("unrelated inherited environment was not preserved")
+	}
+}
+
+func TestScrubbedEnvironPreservesGoRootForNonGoCommand(t *testing.T) {
+	want := filepath.Join(t.TempDir(), "language-runtime-root")
+	t.Setenv("GOROOT", want)
+
+	if !environmentContains(scrubbedEnviron("node"), "GOROOT", want) {
+		t.Fatal("non-Go command lost an unrelated inherited environment variable")
+	}
+}
+
+func TestIsGoExecutableCrossPlatformNames(t *testing.T) {
+	for _, executable := range []string{"go", filepath.Join("managed", "bin", "go"), filepath.Join("managed", "bin", "go.exe"), filepath.Join("managed", "bin", "GO.EXE")} {
+		if !isGoExecutable(executable) {
+			t.Errorf("isGoExecutable(%q) = false, want true", executable)
+		}
+	}
+	for _, executable := range []string{"cargo", "gofumpt", "go-test"} {
+		if isGoExecutable(executable) {
+			t.Errorf("isGoExecutable(%q) = true, want false", executable)
+		}
+	}
+}
+
+func environmentContains(env []string, wantKey, wantValue string) bool {
+	for _, kv := range env {
+		key, value, ok := strings.Cut(kv, "=")
+		if ok && strings.EqualFold(key, wantKey) && value == wantValue {
+			return true
+		}
+	}
+	return false
+}
+
 func TestBoundedRunFailsClosedForUnsupportedHermeticPolicy(t *testing.T) {
 	policies := []HermeticPolicy{{Network: "allow_declared"}, {DetectOpenHandles: true}, {OrderIndependent: true}}
 	if !HostHermeticCapabilities().NetworkDeny {

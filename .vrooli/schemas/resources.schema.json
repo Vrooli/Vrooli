@@ -69,7 +69,12 @@
         "startup_policy": {
           "type": "string",
           "enum": ["must_start", "try_start", "ignore"],
-          "description": "How lifecycle orchestration should treat this dependency during startup. Defaults to `must_start` when `required=true`, otherwise `ignore`."
+          "description": "One input to the derived supervision intent. Values are `must_start`, `try_start`, and `ignore`. When omitted, intent derives as `must_start` for required edges and `try_start` otherwise. Repository manifests declare this explicitly."
+        },
+        "supervision_precedence": {
+          "type": "string",
+          "enum": ["required", "startup_policy"],
+          "description": "Explicit acknowledgement required only when `required` and `startup_policy` disagree. `required=true` with `try_start` derives `must_start` and uses `required`; `required=false` with `must_start` derives `must_start` and uses `startup_policy`."
         },
         "freshness_policy": {
           "type": "string",

@@ -3,6 +3,27 @@
   "title": "Capability vocabulary",
   "type": "object",
   "required": ["version", "capabilities"],
+  "definitions": {
+    "platformPolicyValue": {
+      "oneOf": [
+        { "enum": ["no_equivalent_ever","no_work_required"] },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "rationale", "review_by"],
+          "properties": {
+            "status": { "enum": ["no_equivalent_ever","no_work_required"] },
+            "rationale": {
+              "type": "string",
+              "minLength": 1,
+              "not": { "pattern": "(?i)(no implementation|not applicable on this host os|handler|vrooli)" }
+            },
+            "review_by": { "type": "string", "format": "date" }
+          }
+        }
+      ]
+    }
+  },
   "properties": {
     "$schema": {"type": "string"},
     "version": {"type": "integer", "minimum": 1},
@@ -38,12 +59,12 @@
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "linux": {"enum": ["no_work_required", "no_equivalent_ever"]},
-                "macos": {"enum": ["no_work_required", "no_equivalent_ever"]},
-                "windows": {"enum": ["no_work_required", "no_equivalent_ever"]}
+                "linux": {"$ref": "#/definitions/platformPolicyValue"},
+                "macos": {"$ref": "#/definitions/platformPolicyValue"},
+                "windows": {"$ref": "#/definitions/platformPolicyValue"}
               },
               "patternProperties": {
-                "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"enum": ["no_work_required", "no_equivalent_ever"]}
+                "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"$ref": "#/definitions/platformPolicyValue"}
               }
             }
           ]
@@ -58,12 +79,12 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "linux": {"enum": ["no_work_required", "no_equivalent_ever"]},
-            "macos": {"enum": ["no_work_required", "no_equivalent_ever"]},
-            "windows": {"enum": ["no_work_required", "no_equivalent_ever"]}
+            "linux": {"enum": ["no_equivalent_ever","no_work_required"]},
+            "macos": {"enum": ["no_equivalent_ever","no_work_required"]},
+            "windows": {"enum": ["no_equivalent_ever","no_work_required"]}
           },
           "patternProperties": {
-            "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"enum": ["no_work_required", "no_equivalent_ever"]}
+            "^(linux|macos|windows)/(amd64|arm64|arm|386|armv7)$": {"enum": ["no_equivalent_ever","no_work_required"]}
           }
         }
       }

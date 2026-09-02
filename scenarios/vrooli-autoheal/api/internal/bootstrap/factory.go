@@ -211,6 +211,10 @@ func (f *DefaultCheckFactory) CreateVrooliChecks(caps *platform.Capabilities) []
 		vrooli.NewRuntimeSupervisorCheck(),
 		vrooli.NewStaleLockCheck(), // Stale port lock detection
 		vrooli.NewOrphanCheck(),    // Orphan process detection
+		// Repo-root Go module consistency. Without this, a shared-package
+		// import change that strands consumer go.sum files is invisible until
+		// something fails to start -- and by then every restart is destructive.
+		vrooli.NewRepoModulesCheck(),
 	}
 
 	// Resource checks. Names that are not resources in this repository are

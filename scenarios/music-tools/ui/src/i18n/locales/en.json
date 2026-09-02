@@ -1,107 +1,177 @@
 {
+  "$rowKey": "id",
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "$text": "Blocked",
+  "Changes saved successfully": {
+    "": "We couldn’t save your changes."
+  },
+  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
+    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
+  },
+  "Request in progress": "Ready to save",
+  "Saved": "Try again",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Music Tools are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Music Tools",
+    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place.",
     "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Music Tools"
   },
+  "aria-label": "Release notes",
+  "ascending": "descending",
+  "asset": "navigation.page",
+  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-border text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground",
+  "capability": "navigation",
+  "caption": "No rows table",
+  "children": "Try again",
+  "clsx": "^2.1.1",
+  "component": "button",
+  "default": "success",
+  "defaultValue": "locked",
+  "desc": "asc",
+  "description": "The responsive navigation shell.",
+  "detail": "The generic harness supplies context; Button remains the subject.",
+  "dialog": "complementary",
+  "emptyMessage": "No scenarios match",
+  "equals": "Current",
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "errors": {
+    "aborted": "Operation aborted.",
+    "already_exists": "Already exists.",
+    "canceled": "Operation canceled.",
+    "data_loss": "Data loss detected.",
+    "deadline_exceeded": "Operation timed out.",
+    "failed_precondition": "Cannot perform this action: {{message}}",
+    "internal": "Something went wrong. Please try again.",
+    "invalid_argument": "Invalid input: {{message}}",
+    "not_found": "Resource not found.",
+    "out_of_range": "Out of range.",
+    "permission_denied": "Permission denied.",
+    "resource_exhausted": "Resource limit reached.",
+    "unauthenticated": "Please sign in to continue.",
+    "unavailable": "Service temporarily unavailable.",
+    "unimplemented": "Not yet implemented.",
+    "unknown": "An unknown error occurred."
+  },
+  "example": "overlay-open",
+  "export": "ResponsiveClosed",
+  "field": "name",
+  "fixture": "fixtures.resource-collection",
+  "format": "renderable-text",
+  "header": "Scenario",
+  "health": {
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "statusLabel": "Status:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
+  },
+  "iconName": "arrowEnd",
+  "id": "danger",
+  "kind": "text",
+  "label": "Label",
   "layout": {
-    "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
       "notes": "Notes",
       "settings": "Settings"
-    }
+    },
+    "sidebarLabel": "Primary navigation"
   },
-  "theme": {
-    "switcherLabel": "Theme",
-    "choice": {
-      "light": "Light",
-      "dark": "Dark",
-      "system": "System"
-    }
+  "libraryId": "react-component-library:Pressable",
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "lucide-react": "^0.424.0",
+  "mode": "pinned",
+  "module": "./story.tsx",
+  "name": "Danger",
+  "notes": {
+    "attachmentFileLabel": "Attachment file",
+    "attachmentsLabel": "{{count}} attachments",
+    "attachmentsLabel_one": "1 attachment",
+    "create": "Create note",
+    "createdAtLabel": "Created:",
+    "empty": "No notes yet.",
+    "loading": "Loading notes…",
+    "measure": {
+      "loading": "Counting…",
+      "thisWeek": "{{count}} notes created this week",
+      "title": "Notes this week"
+    },
+    "noFileSelected": "Select a file before uploading.",
+    "table": {
+      "actions": "Actions",
+      "attachments": "Attachments",
+      "created": "Created",
+      "search": "Search notes",
+      "title": "Title"
+    },
+    "title": "Notes",
+    "uploadAttachment": "Upload attachment",
+    "uploadSuccess": "Uploaded {{name}}."
+  },
+  "notifications": {
+    "summary": "{{count}} notifications",
+    "summary_one": "1 notification",
+    "summary_zero": "No notifications"
   },
   "pages": {
     "dashboard": {
-      "title": "Dashboard",
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+      "statPlaceholderLabel": "Stat",
+      "title": "Dashboard"
     },
     "notes": {
       "title": "Notes"
     },
     "settings": {
-      "title": "Settings",
+      "localeHeading": "Language",
       "themeHeading": "Appearance",
-      "localeHeading": "Language"
+      "title": "Settings"
     }
   },
-  "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "table": {
-      "title": "Title",
-      "created": "Created",
-      "attachments": "Attachments",
-      "actions": "Actions",
-      "search": "Search notes"
+  "path": "children",
+  "placeholder": "Choose status",
+  "provenance": "react-component-library/Button@1.2.0",
+  "purpose": "A responsive, dismissible navigation container with safe-area and resize affordances.",
+  "react": "^18",
+  "react-component-library:useEscapeKey": "^1.0.0",
+  "ref": "../../../../../experience/components/button.json",
+  "region": "navigation",
+  "resolvedAt": "2026-08-31T05:19:38Z",
+  "role": "combobox",
+  "schema": "scenario-experience-spec/v1",
+  "schemaVersion": "1.1.0",
+  "selector": "select",
+  "size": "lg",
+  "statement": "The shell remains bounded by the document viewport in both presentations.",
+  "status": "Behind",
+  "storyRef": "../../library/components/SidebarShell/versions/1.2.0/story.json",
+  "tailwind-merge": "^2.3.0",
+  "testid": "sidebar-shell",
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
     },
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
+    "switcherLabel": "Theme"
   },
-  "errors": {
-    "canceled": "Operation canceled.",
-    "unknown": "An unknown error occurred.",
-    "invalid_argument": "Invalid input: {{message}}",
-    "deadline_exceeded": "Operation timed out.",
-    "not_found": "Resource not found.",
-    "already_exists": "Already exists.",
-    "permission_denied": "Permission denied.",
-    "resource_exhausted": "Resource limit reached.",
-    "failed_precondition": "Cannot perform this action: {{message}}",
-    "aborted": "Operation aborted.",
-    "out_of_range": "Out of range.",
-    "unimplemented": "Not yet implemented.",
-    "internal": "Something went wrong. Please try again.",
-    "unavailable": "Service temporarily unavailable.",
-    "data_loss": "Data loss detected.",
-    "unauthenticated": "Please sign in to continue."
-  },
-  "locale": {
-    "switcherLabel": "Language"
-  },
-  "errorBoundary": {
-    "title": "Something went wrong",
-    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
-    "retry": "Try again"
-  }
+  "tier": "machine",
+  "title": "Status Badge",
+  "tone": "danger",
+  "true": "false",
+  "type": "no-document-horizontal-overflow",
+  "value": "Blocked",
+  "variant": "primary",
+  "version": "1.0.0"
 }

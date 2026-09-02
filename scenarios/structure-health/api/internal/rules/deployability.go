@@ -14,6 +14,17 @@ import (
 
 const deployabilityInstanceRule = "DEPLOYABILITY_INSTANCE_IDENTIFIER"
 
+// EvaluateControlPlane runs the rules that inspect control-plane source rather
+// than a scenario tree. It is called only for the control-plane target kind.
+//
+// This rule used to run in Evaluate, on every scenario. Because it always walks
+// <repo>/internal/deployability regardless of the target, every scenario report
+// carried an identical set of errors located outside the scenario, which nobody
+// validating a scenario could act on and which left no scenario able to pass.
+func EvaluateControlPlane(in Input) []Finding {
+	return deployabilityInstanceRules(in)
+}
+
 // deployabilityInstanceRules registers the shared no-instance-identifier
 // policy with structure-health. The instance vocabulary is loaded from the
 // manifests; structure-health owns enforcement, while deployability owns the
@@ -31,6 +42,23 @@ func deployabilityInstanceRules(in Input) []Finding {
 	var findings []Finding
 	_ = filepath.WalkDir(deployabilityRoot, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() || filepath.Ext(path) != ".go" {
+			return nil
+		}
+		// A test has to name a concrete object to exercise the resolver at all;
+		// that is the fixture doing its job, not decision code carrying an
+		// instance. The remediation ("pass manifest declarations into the pure
+		// resolver") has no meaning for a fixture, so flagging one is noise.
+		if strings.HasSuffix(entry.Name(), "_test.go") {
+			return nil
+		}
+		// cmd/ is the wiring boundary. The remediation for this rule is to
+		// "pass manifest declarations into the pure resolver" — which names the
+		// resolver, not the command that supplies it. A command dialling a
+		// service by name is the boundary doing its job, and it is accepted
+		// practice elsewhere in the control plane (see
+		// internal/cli/scenariohandlers/tool_runtime.go). Decision code under
+		// internal/deployability is still fully scanned.
+		if isUnderCmd(path, deployabilityRoot) {
 			return nil
 		}
 		source, readErr := os.ReadFile(path) // #nosec G304 -- path is constrained under the repository deployability root.
@@ -82,9 +110,13 @@ func declaredInstanceNames(repoRoot string) []string {
 			seen[name] = struct{}{}
 		}
 	}
+	// Tools are deliberately excluded. The policy is that deployability
+	// decision code must not name a concrete object it deploys; a tool is an
+	// ambient host binary that this code legitimately invokes. Including them
+	// made every exec of "go", "git" or "docker" a violation, and the tool
+	// vocabulary is full of generic words that collide with ordinary strings.
 	for _, pattern := range []string{
 		filepath.Join(repoRoot, "resources", "*", "resource.json"),
-		filepath.Join(repoRoot, "internal", "tools", "*", "tool.json"),
 		filepath.Join(repoRoot, "internal", "safeguards", "*", "safeguard.json"),
 	} {
 		matches, _ := filepath.Glob(pattern)
@@ -98,12 +130,18 @@ func declaredInstanceNames(repoRoot string) []string {
 			}
 		}
 	}
-	for _, pattern := range []string{filepath.Join(repoRoot, "scenarios", "*")} {
-		matches, _ := filepath.Glob(pattern)
-		for _, path := range matches {
-			if info, err := os.Stat(path); err == nil && info.IsDir() {
-				add(filepath.Base(path))
-			}
+	// A scenario is named by its manifest, not by its directory. Using the
+	// basename added non-scenario directories such as scenarios/scenarios to
+	// the vocabulary, so the generic word "scenarios" became a violation.
+	for _, path := range globDirs(filepath.Join(repoRoot, "scenarios", "*")) {
+		var manifest struct {
+			Service struct {
+				Name string `json:"name"`
+			} `json:"service"`
+		}
+		raw, err := os.ReadFile(filepath.Join(path, ".vrooli", "service.json")) // #nosec G304 -- repository-local glob.
+		if err == nil && json.Unmarshal(raw, &manifest) == nil {
+			add(manifest.Service.Name)
 		}
 	}
 	result := make([]string, 0, len(seen))
@@ -112,4 +150,30 @@ func declaredInstanceNames(repoRoot string) []string {
 	}
 	sort.Strings(result)
 	return result
+}
+
+// globDirs returns only the directories matching pattern.
+func globDirs(pattern string) []string {
+	matches, _ := filepath.Glob(pattern)
+	dirs := make([]string, 0, len(matches))
+	for _, path := range matches {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			dirs = append(dirs, path)
+		}
+	}
+	return dirs
+}
+
+// isUnderCmd reports whether path sits beneath a cmd/ directory within root.
+func isUnderCmd(path, root string) bool {
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false
+	}
+	for _, segment := range strings.Split(filepath.ToSlash(rel), "/") {
+		if segment == "cmd" {
+			return true
+		}
+	}
+	return false
 }

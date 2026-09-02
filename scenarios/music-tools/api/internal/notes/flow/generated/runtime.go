@@ -25,7 +25,7 @@ const AttachmentUploadModelPath = "api/internal/notes/flow/generated/model.qnt"
 const AttachmentUploadGeneratorPath = "flow-verifier"
 const AttachmentUploadContractSHA256 = "bfb1c9e2650de4160080c15634c609f912893d463efc46b987f01035bf38ab47"
 const AttachmentUploadModelSHA256 = "535419a1d2462f9e6a3660cb53af47448b0a641ef84d4a0635a40ace84ce7c0e"
-const AttachmentUploadGeneratorSHA256 = "b7362f6363aea370c6932eb535d0ce1300ebe0d7c711e026dc045a0a468c6312"
+const AttachmentUploadGeneratorSHA256 = "2f4bdb4736a693e8d45276b8ad50a7f9078816d749b1d31b315d67302d62b864"
 
 var attachmentUploadFormalInvariants = []string{"TypeOK", "TerminalClosure", "IllegalTransitionsPreserveState", "MetadataRequiresBytesStored"}
 var attachmentUploadFormalGeneratedChecks = []string{"transitionTable"}

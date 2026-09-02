@@ -12,7 +12,7 @@ type fakeCredentialStore struct {
 	values map[string]string
 }
 
-func (f fakeCredentialStore) Resolve(identity credentialauthority.Identity, field string) (string, error) {
+func (f fakeCredentialStore) Require(identity credentialauthority.Identity, field string) (string, error) {
 	value, ok := f.values[string(identity)+":"+field]
 	if !ok {
 		return "", credentialauthority.ErrUnconfigured

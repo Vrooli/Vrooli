@@ -65,7 +65,6 @@ func RegisterChecksFromConfig(registry *checks.Registry, caps *platform.Capabili
 // This enables testing check registration with mock factories.
 // [REQ:TEST-SEAM-001]
 func RegisterChecksWithFactory(registry *checks.Registry, caps *platform.Capabilities, factory CheckFactory) {
-
 	started := time.Now()
 	// Infrastructure checks
 	sectionStarted := time.Now()
