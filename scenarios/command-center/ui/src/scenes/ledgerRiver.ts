@@ -1,4 +1,4 @@
-import { drawGlow, focalPoint, freeBand, inQuiet, rgba, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, focalPoint, freeBand, inQuiet, rgba, type Scene } from "./engine";
 
 interface Mote { column: number; y: number; speed: number; x: number }
 
@@ -17,6 +17,7 @@ export function ledgerRiver(): Scene {
       const allIllustrative = data.order.every((id) => data.readings[id]?.ink !== "solid" && data.readings[id]?.ink !== "dimmed");
       const focal = focalPoint(frame);
       const rule = rgba(ctx, palette.primary, 0.09);
+      clipOutsideQuiet(frame);
       ctx.lineWidth = 1;
       for (let y = h * 0.12; y < h; y += h * 0.07) {
         ctx.strokeStyle = rule;
@@ -25,6 +26,7 @@ export function ledgerRiver(): Scene {
         ctx.lineTo(w * 0.96, y);
         ctx.stroke();
       }
+      ctx.restore();
       const band = freeBand(h, quiet.filter((rect) => rect.w >= w * 0.7));
       const bandW = Math.min(w * 0.42, band.size * 1.1);
       const colW = bandW / tiers.length;

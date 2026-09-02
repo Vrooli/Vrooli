@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "+": "−",
+  "M": "L",
+  "cached": "live",
+  "day": "days",
+  "export": "Unavailable",
+  "id": "unavailable",
+  "illustrative": "measured",
+  "kind": "text",
+  "libraryId": "react-component-library:StyleSheet",
+  "mode": "pinned",
+  "module": "./story.tsx",
+  "name": "A silent sensor is framed, not zeroed",
+  "none": "currentColor",
+  "resolvedAt": "2026-09-01T23:52:11Z",
+  "role": "boundary",
+  "rolled": "held",
+  "sample": "none",
+  "title": "ProvenanceInk",
+  "value": "vrooli-core not answering · deadline exceeded",
+  "version": "1.0.0"
+}

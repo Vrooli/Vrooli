@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,8 +23,10 @@ import (
 	"audio-tools/internal/protoint"
 	"audio-tools/internal/store"
 	sttpkg "audio-tools/internal/stt"
+	voicepipeline "audio-tools/internal/stt/pipeline"
 	"audio-tools/internal/stt/segmenter"
 	"audio-tools/internal/stt/session"
+	"audio-tools/internal/sttengine"
 )
 
 // Voice streaming WS message types. These match the wire shape the
@@ -174,11 +177,13 @@ func (w *wsCoalescingWriter) enqueue(m wsMessage) {
 // transient status updates are snapshots, not lossless commitments; keeping
 // them durable would let a high-rate status source grow an unbounded queue.
 func wsMessageDeliveryClass(m wsMessage) sttchain.DeliveryClass {
-	// A processed acknowledgement advances the browser's durable recovery
-	// cursor. Provider identity is also durable qualification evidence: it must
-	// survive terminal final/done delivery or the browser cannot prove which
-	// provider cell actually handled the turn.
-	if m.Type == wsMsgStatus && (m.Code == "processed_acknowledgement" || m.Code == "provider_identity") {
+	// Provider identity is durable qualification evidence: it must survive
+	// terminal final/done delivery or the browser cannot prove which provider
+	// cell actually handled the turn. Processed acknowledgements are server-
+	// side ledger bookkeeping and are intentionally not sent to the browser;
+	// emitting one per PCM batch creates transport backpressure without adding
+	// user-visible information.
+	if m.Type == wsMsgStatus && m.Code == "provider_identity" {
 		return sttchain.DeliveryDurable
 	}
 	switch m.Type {
@@ -307,6 +312,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		}
 		defer conn.Close()
 		conn.SetReadLimit(maxWSMessageBytes)
+		streamStartedAt := time.Now()
 
 		// No absolute wall-clock cap: bound the session by INACTIVITY instead.
 		// The old context.WithTimeout(..., 5*time.Minute) fired on active
@@ -370,6 +376,32 @@ func StreamWSHandler(d Deps) http.Handler {
 			}
 		}
 		cfg := resolveStreamPipelineConfigFromDeps(ctx, d)
+		// Resolve the default on the server boundary. The browser deliberately
+		// sends no engine id, and every other WebSocket client must receive the
+		// same accelerated default without having to duplicate this policy.
+		var seatedResolution *sttengine.Resolution
+		if start.EngineID == "" && d.Registry != nil {
+			if d.EngineResolver != nil {
+				if resolution, resolveErr := d.EngineResolver.Resolve(ctx, d.Registry); resolveErr == nil && resolution.Selected != "" {
+					start.EngineID = resolution.Selected
+					seatedResolution = &resolution
+				}
+			}
+			if start.EngineID == "" {
+				start.EngineID = d.Registry.ResolveEngineID(func(id string) bool {
+					return d.Chain.LocalEngineAvailable(ctx, id)
+				})
+			}
+			cfg.EngineID = start.EngineID
+		}
+		// A streaming session seated on a buffered engine is a degradation, not a
+		// configuration. It was previously invisible: a stalled native-streaming
+		// resource silently handed every dictation session to a CPU batch engine,
+		// and the only symptom anybody could see was that the words came out
+		// wrong. Say it on the wire, once, with the reason the engine lost.
+		if notice := streamingDegradationNotice(seatedResolution, start.EngineID); notice != "" {
+			writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "streaming_engine_degraded", Text: notice})
+		}
 		virtualReplayAuthorized := streamVirtualReplayAuthorized(d, r)
 		// An explicit engine_id on the WebSocket request is the per-session
 		// selection used by the browser product path and by the long-form soak.
@@ -545,6 +577,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		}()
 
 		segIdx := 0
+		segmentOrdinal := 0
 		if ledger != nil && resumed {
 			// A reconnect may have missed a durable segment after the server
 			// committed it but before the browser received it. Replay the ledger's
@@ -566,6 +599,26 @@ func StreamWSHandler(d Deps) http.Handler {
 		var providerID string
 		var modelID string
 		providerCloseReason := "provider_done"
+		partialCount := 0
+		durabilityReduced := false
+		lastAckPersist := time.Time{}
+		markDurabilityReduced := func(code string) {
+			if durabilityReduced {
+				return
+			}
+			durabilityReduced = true
+			writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "durability_reduced", Text: code})
+		}
+		persistAck := func() {
+			if ledger == nil {
+				return
+			}
+			if err := ledgers.PersistContext(ctx, ledger); err != nil {
+				markDurabilityReduced("Audio recovery persistence is temporarily unavailable; streaming continues.")
+				return
+			}
+			lastAckPersist = time.Now()
+		}
 		for ev := range events {
 			switch ev.Kind {
 			case sttchain.StreamEventAcknowledgement:
@@ -582,51 +635,51 @@ func StreamWSHandler(d Deps) http.Handler {
 					writer.enqueue(wsMessage{Type: wsMsgError, Code: "processed_ack_failed", Text: "Unable to preserve processed audio coverage."})
 					continue
 				}
-				if err := ledgers.PersistContext(ctx, ledger); err != nil {
-					writer.enqueue(wsMessage{Type: wsMsgError, Code: "persistence_failed", Text: "Unable to preserve audio recovery state."})
-					continue
+				if lastAckPersist.IsZero() || time.Since(lastAckPersist) >= time.Second {
+					persistAck()
 				}
-				state := ledger.Snapshot()
-				writer.enqueue(wsMessage{
-					Type: wsMsgStatus, Code: "processed_acknowledgement",
-					ReceivedSequence: state.ReceivedSequence, ProcessedSequence: state.ProcessedSequence,
-					Text: "Captured audio processing coverage updated.",
-				})
 			case sttchain.StreamEventPartial:
 				if ev.Partial != nil {
-					writer.enqueue(wsMessage{Type: wsMsgPartial, Text: ev.Partial.Text})
+					partialCount++
+					writer.enqueue(wsMessage{Type: wsMsgPartial, Text: voicepipeline.NormalizeTranscriptText(ev.Partial.Text)})
 				}
 			case sttchain.StreamEventSegment:
 				if ev.Segment != nil {
 					if virtualReplayAuthorized {
 						d.Logger.Printf("voice-ws: virtual replay segment event start_sample=%d end_sample=%d", ev.Segment.StartSample, ev.Segment.EndSample)
 					}
+					// Normalize before the ledger, not after: the durable
+					// transcript and the wire transcript must be the same string,
+					// or a resumed session replays text the live session never
+					// showed.
+					segmentText := voicepipeline.NormalizeTranscriptText(ev.Segment.Text)
 					segmentID := ev.Segment.SegmentID
 					if segmentID == "" {
-						segmentID = fmt.Sprintf("%s:%d:%d:%d", start.SessionID, start.Generation, ev.Segment.StartSample, ev.Segment.EndSample)
+						segmentID = fmt.Sprintf("%s:%d:%d:%d", start.SessionID, segmentOrdinal, ev.Segment.StartSample, ev.Segment.EndSample)
 					}
+					segmentOrdinal++
+					emitSegment := true
 					if ledger != nil {
-						isNew, commitErr := ledger.Commit(session.Segment{ID: segmentID, Text: ev.Segment.Text, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample})
+						isNew, commitErr := ledger.Commit(session.Segment{ID: segmentID, Text: segmentText, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample})
 						if commitErr != nil {
-							ledger.Fail(session.TerminalReason("commit_conflict"))
-							_ = ledgers.PersistContext(ctx, ledger)
-							providerCloseReason = "commit_conflict"
-							writer.enqueue(wsMessage{Type: wsMsgError, Code: "commit_conflict", Text: "Unable to preserve a durable transcript segment."})
-							continue
-						}
-						if err := ledgers.PersistContext(ctx, ledger); err != nil {
-							ledger.Fail(session.TerminalReason("persistence_failed"))
-							providerCloseReason = "persistence_failed"
-							writer.enqueue(wsMessage{Type: wsMsgError, Code: "persistence_failed", Text: "Unable to preserve transcript recovery state."})
-							continue
-						}
-						if !isNew {
-							// The segment was already replayed from the ledger above.
-							continue
+							// A ledger collision must not silence the user's words. Give
+							// the degraded wire event a fresh identity and continue;
+							// recovery is explicitly marked non-authoritative below.
+							segmentID = fmt.Sprintf("%s:degraded:%d", segmentID, segIdx)
+							markDurabilityReduced("Transcript recovery encountered a segment conflict; streaming continues without durable replay for this segment.")
+						} else if err := ledgers.PersistContext(ctx, ledger); err != nil {
+							markDurabilityReduced("Transcript recovery persistence is temporarily unavailable; streaming continues.")
+						} else {
+							lastAckPersist = time.Now()
+							if !isNew {
+								emitSegment = false
+							}
 						}
 					}
-					writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: ev.Segment.Text, SegmentID: segmentID, Generation: start.Generation, SegmentIndex: segIdx})
-					segIdx++
+					if emitSegment {
+						writer.enqueue(wsMessage{Type: wsMsgSegmentFinal, Text: segmentText, SegmentID: segmentID, Generation: start.Generation, SegmentIndex: segIdx})
+						segIdx++
+					}
 					if fault.closeAfterCommits > 0 && segIdx >= fault.closeAfterCommits {
 						// This is deliberately after the durable commit has been written
 						// to the session ledger but before final/done. It exercises the
@@ -695,7 +748,7 @@ func StreamWSHandler(d Deps) http.Handler {
 			case readerCloseErr = <-readerErr:
 			default:
 			}
-			emitStreamDeliveryTelemetry(d, segIdx, false, readerCloseErr, "recoverable_transport_boundary")
+			emitStreamDeliveryTelemetryDetailed(d, start.EngineID, providerID, modelID, partialCount, segIdx, false, readerCloseErr, "recoverable_transport_boundary", streamStartedAt, "")
 			return
 		}
 		// The Done event carries `committed` — the full concatenation of
@@ -731,17 +784,10 @@ func StreamWSHandler(d Deps) http.Handler {
 				}
 			}
 			if err := ledgers.PersistContext(ctx, ledger); err != nil {
-				writer.enqueue(wsMessage{Type: wsMsgError, Code: "persistence_failed", Text: "Unable to preserve audio recovery state."})
+				markDurabilityReduced("Audio recovery persistence is temporarily unavailable; streaming continues.")
 			}
 			state = ledger.Snapshot()
 			terminalReason = state.TerminalReason
-			if !fault.suppressProcessedAck {
-				writer.enqueue(wsMessage{
-					Type: wsMsgStatus, Code: "processed_acknowledgement",
-					ReceivedSequence: state.ReceivedSequence, ProcessedSequence: state.ProcessedSequence,
-					Text: "Captured audio processing coverage updated.",
-				})
-			}
 		}
 		if providerID != "" || modelID != "" {
 			writer.enqueue(wsMessage{Type: wsMsgStatus, Code: "provider_identity", ProviderID: providerID, ModelID: modelID, Text: "Streaming provider identity observed."})
@@ -749,7 +795,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		if segIdx > 0 {
 			writer.enqueue(wsMessage{Type: wsMsgFinal, Text: ""})
 		} else {
-			writer.enqueue(wsMessage{Type: wsMsgFinal, Text: finalText})
+			writer.enqueue(wsMessage{Type: wsMsgFinal, Text: voicepipeline.NormalizeTranscriptText(finalText)})
 		}
 		writer.enqueue(wsMessage{Type: wsMsgDone, Code: string(terminalReason)})
 
@@ -769,7 +815,7 @@ func StreamWSHandler(d Deps) http.Handler {
 		case readerCloseErr = <-readerErr:
 		default:
 		}
-		emitStreamDeliveryTelemetry(d, segIdx, finalText != "", readerCloseErr, providerCloseReason)
+		emitStreamDeliveryTelemetryDetailed(d, start.EngineID, providerID, modelID, partialCount, segIdx, finalText != "", readerCloseErr, providerCloseReason, streamStartedAt, string(terminalReason))
 	})
 }
 
@@ -798,11 +844,24 @@ func streamCloseOutcome(readerCloseErr error) string {
 // and whose Error is set on a non-graceful close (the drop metric). Both are
 // best-effort and must never affect the live session.
 func emitStreamDeliveryTelemetry(d Deps, segments int, tailFinalDelivered bool, readerCloseErr error, providerCloseReason string) {
+	emitStreamDeliveryTelemetryDetailed(d, "", "", "", 0, segments, tailFinalDelivered, readerCloseErr, providerCloseReason, time.Now(), "")
+}
+
+func emitStreamDeliveryTelemetryDetailed(d Deps, engineID, providerID, modelID string, partials, segments int, tailFinalDelivered bool, readerCloseErr error, providerCloseReason string, startedAt time.Time, terminalReason string) {
 	outcome := streamCloseOutcome(readerCloseErr)
 	graceful := outcome == "graceful"
 	if d.Logger != nil {
-		d.Logger.Printf("voice-ws: session closed outcome=%s providerCloseReason=%s segments=%d tailFinalDelivered=%t graceful=%t",
-			outcome, providerCloseReason, segments, tailFinalDelivered, graceful)
+		line := map[string]interface{}{
+			"engine": engineID, "provider": providerID, "model": modelID,
+			"partials": partials, "segments": segments, "terminal_reason": terminalReason,
+			"duration_ms": time.Since(startedAt).Milliseconds(), "outcome": outcome,
+			"provider_close_reason": providerCloseReason, "tail_final_delivered": tailFinalDelivered,
+			"graceful": graceful,
+		}
+		data, err := json.Marshal(line)
+		if err == nil {
+			d.Logger.Printf("voice-ws: stream_close %s", data)
+		}
 	}
 	if d.Usage == nil {
 		return
@@ -868,4 +927,39 @@ func buildStreamStart(r *http.Request) sttchain.StreamStart {
 func resolveStreamPipelineConfigFromDeps(ctx context.Context, d Deps) sttpkg.StreamConfig {
 	h := &connectHandler{deps: d}
 	return h.resolveStreamPipelineConfig(ctx)
+}
+
+// streamingDegradationNotice reports when a streaming session was seated on an
+// engine that cannot stream natively while an engine that can exists in the
+// manifest but was not serviceable.
+//
+// Returning "" means there is nothing to say: either the seated engine streams
+// natively, or no native-streaming engine is declared at all, in which case
+// buffered transcription is the design and not a fallback.
+func streamingDegradationNotice(resolution *sttengine.Resolution, seatedID string) string {
+	if resolution == nil || seatedID == "" {
+		return ""
+	}
+	var seated *sttengine.Candidate
+	rejected := make([]sttengine.Candidate, 0, len(resolution.Candidates))
+	for i := range resolution.Candidates {
+		candidate := resolution.Candidates[i]
+		if candidate.Engine.ID == seatedID {
+			seated = &resolution.Candidates[i]
+			continue
+		}
+		if candidate.Engine.Provides.NativeStreaming && candidate.Verdict == "rejected" {
+			rejected = append(rejected, candidate)
+		}
+	}
+	if seated == nil || seated.Engine.Provides.NativeStreaming || len(rejected) == 0 {
+		return ""
+	}
+	reasons := make([]string, 0, len(rejected))
+	for _, candidate := range rejected {
+		reasons = append(reasons, fmt.Sprintf("%s (%s)", candidate.Engine.ID, candidate.Reason))
+	}
+	return fmt.Sprintf(
+		"Live transcription is running on %s, which transcribes in batches rather than streaming. The streaming engine is unavailable: %s",
+		seatedID, strings.Join(reasons, "; "))
 }

@@ -27,3 +27,25 @@ describe("HeroReadout", () => {
     expect(screen.getByText("Illustrative figures are hidden.")).toBeInTheDocument();
   });
 });
+
+describe("HeroReadout — the two lines a figure can carry beside the qualifier", () => {
+  it("shows an integrity finding with an untrusted number instead of the number alone", () => {
+    renderWithProviders(<HeroReadout reading={reading({ coverage: "NOW", trust: "UNTRUSTED", trustReason: "exceeds the denominator", value: 900, observedAt: new Date().toISOString(), sample: null, format: "integer", unit: "count" })} />);
+    expect(screen.getByText(/cannot be believed: exceeds the denominator/)).toBeInTheDocument();
+  });
+  it("names the prediction verdict when the empirical axis is bound", () => {
+    renderWithProviders(<HeroReadout reading={reading({ coverage: "NOW", trust: "VALID", value: 58, observedAt: new Date().toISOString(), sample: null, empirical: "MISS", format: "integer", unit: "count" })} />);
+    expect(screen.getByText("prediction miss")).toBeInTheDocument();
+  });
+  it("marks an in-reach hero as in reach", () => {
+    renderWithProviders(<HeroReadout reading={reading({ coverage: "IN-REACH" })} />);
+    expect(screen.getByText("in reach")).toBeInTheDocument();
+  });
+});
+
+describe("HeroReadout without a reading", () => {
+  it("falls back to the default empty reason", () => {
+    renderWithProviders(<HeroReadout reading={null} />);
+    expect(screen.getByText("Nothing in this room is measured yet.")).toBeInTheDocument();
+  });
+});

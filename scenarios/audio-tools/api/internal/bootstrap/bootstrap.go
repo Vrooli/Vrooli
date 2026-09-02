@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -157,7 +158,26 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	voiceSvc.SetBackendEnsurer(sttbackend.NewCLIEnsurer(), "whisper")
 	voiceSvc.SetAutoEnsure(sttpipeline.AutoEnsureEnabledFromEnv())
 
-	ttsCache := inttts.NewCache(64 * 1024 * 1024)
+	cacheNamespace, err := storage.ScenarioNamespace("audio-tools")
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, nil, fmt.Errorf("resolve TTS cache namespace: %w", err)
+	}
+	cacheResolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, nil, fmt.Errorf("create TTS cache storage resolver: %w", err)
+	}
+	cachePaths, err := cacheResolver.Resolve(storage.Options{ScenarioID: cacheNamespace})
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, nil, fmt.Errorf("resolve TTS cache storage: %w", err)
+	}
+	ttsCache, err := inttts.NewPersistentCache(64*1024*1024, filepath.Join(cachePaths.DataDir, "tts-cache"), 30*24*time.Hour)
+	if err != nil {
+		_ = db.Close()
+		return nil, nil, nil, fmt.Errorf("create TTS cache: %w", err)
+	}
 	kokoroSynth := &inttts.KokoroSynthesizer{BaseURL: env.KokoroURL, Doer: httpc.DefaultDoer()}
 	ttsCfg := inttts.DefaultConfig()
 	ttsSvc := inttts.NewService(inttts.Deps{

@@ -1,5 +1,5 @@
 import type { Reading } from "../lib/api";
-import { figureValue, resolveReading, type Ink } from "../lib/provenance";
+import { figureValue, resolveReading, type Ink } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
 
 export type SceneTier = "full" | "reduced";
 
@@ -171,6 +171,20 @@ export function freeBand(h: number, rects: Rect[]): { y: number; size: number; t
   }
   if (h - cursor > best.size) best = { y: cursor + (h - cursor) / 2, size: h - cursor, top: cursor, bottom: h };
   return best;
+}
+
+/**
+ * Clips subsequent drawing to everything outside the quiet zones. Strokes that
+ * sweep the whole canvas (rings, beams, rules) use this so they never cross a
+ * figure; restore the context when done.
+ */
+export function clipOutsideQuiet(frame: Frame): void {
+  const { ctx, w, h, quiet } = frame;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  for (const rect of quiet) ctx.rect(rect.x - 8, rect.y - 8, rect.w + 16, rect.h + 16);
+  ctx.clip("evenodd");
 }
 
 export const ease = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v * v * (3 - 2 * v));

@@ -16,15 +16,15 @@ describe("ReadingTile", () => {
     const tile = container.querySelector("[data-reading]");
     expect(tile).toHaveAttribute("data-ink", "hollow");
     expect(tile).toHaveAttribute("data-provenance", "sample");
-    expect(container.querySelector(".cc-sparkline")).toHaveAttribute("data-illustrative", "true");
+    expect(container.querySelector("[data-rcl-sample-series]")).toHaveAttribute("data-illustrative", "true");
     expect(screen.getByText("illustrative · needs an aggregation endpoint")).toBeInTheDocument();
   });
   it("draws a cached reading dimmed with its age and no sparkline", () => {
     const observedAt = new Date(Date.now() - 4 * 60_000).toISOString();
     const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ coverage: "NOW", trust: "CACHED", value: 128400, observedAt, sample: null, trustReason: "connection refused" })} /></ul>);
     expect(container.querySelector("[data-reading]")).toHaveAttribute("data-ink", "dimmed");
-    expect(container.querySelector(".cc-sparkline")).toBeNull();
-    expect(container.querySelector(".cc-hairline-cached")).not.toBeNull();
+    expect(container.querySelector("[data-rcl-sample-series]")).toBeNull();
+    expect(container.querySelector("[data-rcl-freshness='cached']")).not.toBeNull();
     expect(screen.getByText("last good 4m ago · connection refused")).toBeInTheDocument();
   });
   it("frames a silent sensor instead of showing a zero", () => {

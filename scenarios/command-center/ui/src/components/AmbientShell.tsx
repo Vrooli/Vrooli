@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ExperienceSurface } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
 import { formatClock } from "../lib/format";
-import { INK_LABELS } from "../lib/provenance";
+import { INK_LABELS, InkSwatch } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
 import { useBoardController, type SamplesMode } from "../lib/boardContext";
 
 interface AmbientShellProps {
@@ -52,7 +52,7 @@ export function AmbientShell({ theme, title, position, status, legend = false, c
       {legend && board.samples === "mark" ? (
         <ExperienceSurface surfaceId="legend" as="div" data-testid="room-legend" className="cc-legend" state="static" aria-label="Provenance legend">
           {(["solid", "dimmed", "hollow", "dotted"] as const).map((ink) => (
-            <span key={ink} className="cc-legend-item"><span className="cc-legend-swatch" data-ink={ink}>8</span>{INK_LABELS[ink]}</span>
+            <span key={ink} className="cc-legend-item"><InkSwatch ink={ink} />{INK_LABELS[ink]}</span>
           ))}
         </ExperienceSurface>
       ) : null}
@@ -120,7 +120,7 @@ function HelpOverlay() {
         </table>
         <p className="cc-help-inks">
           {(["solid", "dimmed", "hollow", "dotted"] as const).map((ink) => (
-            <span key={ink} className="cc-legend-item"><span className="cc-legend-swatch" data-ink={ink}>8</span>{INK_LABELS[ink]}</span>
+            <span key={ink} className="cc-legend-item"><InkSwatch ink={ink} />{INK_LABELS[ink]}</span>
           ))}
         </p>
         <p className="cc-help-url">?room=forge&amp;cycle=45&amp;samples=mark&amp;fullscreen=1 boots a configured kiosk.</p>

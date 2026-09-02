@@ -3,6 +3,7 @@ package strategy_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -47,6 +48,42 @@ func TestVADSegmenter_RetainsAudioAfterProviderFailure(t *testing.T) {
 	require.GreaterOrEqual(t, calls, 2, "a later VAD boundary must retry the retained segment")
 	require.GreaterOrEqual(t, errorsSeen, 1, "the provider failure must be observable")
 	require.Contains(t, segments, "recovered speech", "retained audio must reach the consumer after retry")
+}
+
+func TestVADSegmenter_EmitsDistinctAbsoluteSegmentIdentity(t *testing.T) {
+	prov := sttmocks.NewFakeProvider(sttchain.TierLocal, sttchain.ProviderTraits{})
+	var call int
+	prov.TranscribeFn = func(context.Context, sttchain.Request) (*sttchain.Result, error) {
+		call++
+		return &sttchain.Result{Text: fmt.Sprintf("segment %d", call), Tier: sttchain.TierLocal, ProviderID: "fake", ModelID: "fake"}, nil
+	}
+	strat := &strategy.VADSegmenter{Provider: prov, SilenceMs: 200, PreRollMs: 0, TrailingPadMs: 0}
+	audio := testaudio.SineSamples(440, 250)
+	audio = append(audio, testaudio.SilenceSamples(250)...)
+	audio = append(audio, testaudio.SineSamples(440, 250)...)
+	audio = append(audio, testaudio.SilenceSamples(250)...)
+	audio = append(audio, testaudio.SineSamples(440, 250)...)
+	audio = append(audio, testaudio.SilenceSamples(250)...)
+	got := runStrategy(t, context.Background(), strat, sttchain.StreamStart{SessionID: "identity-test"}, chunksFrom(audio))
+
+	var segments []*sttchain.SegmentEvent
+	for _, ev := range got {
+		if ev.Kind == sttchain.StreamEventSegment && ev.Segment != nil {
+			segments = append(segments, ev.Segment)
+		}
+	}
+	require.GreaterOrEqual(t, len(segments), 3)
+	seen := make(map[string]struct{}, len(segments))
+	for i, segment := range segments {
+		require.NotEmpty(t, segment.SegmentID)
+		_, duplicate := seen[segment.SegmentID]
+		require.False(t, duplicate, "segment %d reused id %q", i, segment.SegmentID)
+		seen[segment.SegmentID] = struct{}{}
+		require.Greater(t, segment.EndSample, segment.StartSample)
+		if i > 0 {
+			require.GreaterOrEqual(t, segment.StartSample, segments[i-1].EndSample)
+		}
+	}
 }
 
 // vadStateEvents extracts the VadState ticks from a strategy event run.

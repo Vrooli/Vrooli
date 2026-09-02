@@ -227,12 +227,12 @@ func TestStreamWS_EmitsInitialStatus(t *testing.T) {
 	require.NotEmpty(t, m.Text)
 }
 
-func TestWSMessageDeliveryClass_ProcessedAcknowledgementIsDurable(t *testing.T) {
+func TestWSMessageDeliveryClass_ProcessedAcknowledgementIsProgressOnly(t *testing.T) {
 	require.Equal(t, sttchain.DeliveryProgress, wsMessageDeliveryClass(wsMessage{
 		Type: wsMsgStatus,
 		Code: "stream_connected",
 	}))
-	require.Equal(t, sttchain.DeliveryDurable, wsMessageDeliveryClass(wsMessage{
+	require.Equal(t, sttchain.DeliveryProgress, wsMessageDeliveryClass(wsMessage{
 		Type:              wsMsgStatus,
 		Code:              "processed_acknowledgement",
 		ReceivedSequence:  4,
@@ -592,7 +592,7 @@ func TestStreamWS_EmitsProcessedAcknowledgementFromCoverageCursor(t *testing.T) 
 			sawDone = true
 		}
 	}
-	require.True(t, sawAck, "coverage acknowledgement must be emitted before terminal completion")
+	require.False(t, sawAck, "processed acknowledgements are server-side ledger bookkeeping")
 }
 
 func TestStreamWS_IgnoresCoverageAcknowledgementWithoutV2Ledger(t *testing.T) {
@@ -1043,6 +1043,26 @@ func TestEmitStreamDeliveryTelemetry_NoRecorderIsSafe(t *testing.T) {
 	require.NotPanics(t, func() {
 		emitStreamDeliveryTelemetry(Deps{Logger: logger}, 2, true, nil, "provider_done")
 	})
+}
+
+func TestEmitStreamDeliveryTelemetry_UsesStructuredCloseLine(t *testing.T) {
+	logger := mocks.NewFakeLogger()
+	emitStreamDeliveryTelemetryDetailed(
+		Deps{Logger: logger}, "kyutai", "kyutai", "kyutai-v1", 17, 4,
+		true, nil, "provider_done", time.Now().Add(-time.Second), "completed",
+	)
+	entries := logger.Entries()
+	require.Len(t, entries, 1)
+	require.True(t, strings.HasPrefix(entries[0], "voice-ws: stream_close "))
+	var payload map[string]any
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimPrefix(entries[0], "voice-ws: stream_close ")), &payload))
+	require.Equal(t, "kyutai", payload["engine"])
+	require.Equal(t, "kyutai", payload["provider"])
+	require.Equal(t, "kyutai-v1", payload["model"])
+	require.Equal(t, float64(17), payload["partials"])
+	require.Equal(t, float64(4), payload["segments"])
+	require.Equal(t, "completed", payload["terminal_reason"])
+	require.Greater(t, payload["duration_ms"], float64(0))
 }
 
 // ensure the package-internal ctx alias compiles into tests too.

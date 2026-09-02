@@ -26,6 +26,25 @@ func TestCache_PutAndGet(t *testing.T) {
 	}
 }
 
+func TestPersistentCacheSurvivesReopen(t *testing.T) {
+	dir := t.TempDir()
+	key := CacheKey{EventID: "restart-event", Voice: "af_heart", Speed: 1, Version: "active", ChunkIndex: 2}
+	first, err := NewPersistentCache(1024, dir, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first.Put(key, []byte("persisted-audio"), "audio/mpeg")
+
+	second, err := NewPersistentCache(1024, dir, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, ok := second.Get(key)
+	if !ok || string(entry.Audio) != "persisted-audio" || entry.ContentType != "audio/mpeg" {
+		t.Fatalf("persistent cache lookup = %#v, %v", entry, ok)
+	}
+}
+
 func TestCache_CacheMiss(t *testing.T) {
 	cache := NewCache(1024 * 1024)
 

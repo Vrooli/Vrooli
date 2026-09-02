@@ -31,7 +31,7 @@
   ],
   "selectionPolicy": {
     "hardFilters": ["platform_supported", "resource_serviceable", "workload_capable"],
-    "rankedPreferences": ["accelerated"],
+    "rankedPreferences": ["native_streaming", "accelerated"],
     "tiebreakRank": ["manifest_order"],
     "probeTtlSeconds": 30
   },

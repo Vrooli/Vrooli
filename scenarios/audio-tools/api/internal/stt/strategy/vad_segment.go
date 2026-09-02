@@ -168,6 +168,10 @@ func (v *VADSegmenter) Run(
 	}
 
 	var buf []byte
+	// bufStartSample is the absolute sample offset represented by buf[0]. It
+	// survives compaction so segment ranges remain meaningful after the
+	// pre-roll window is carried into the next segment.
+	var bufStartSample int64
 	segStart := 0      // offset in buf where the current segment begins
 	nextFrame := 0     // offset of the next frame to evaluate
 	silentFrames := 0  // consecutive silent frames observed
@@ -179,6 +183,7 @@ func (v *VADSegmenter) Run(
 	// initial_prompt.
 	committed := ""
 	lastPromptText := ""
+	segmentOrdinal := 0
 
 	var lastTier sttchain.ProviderTier
 	var lastProviderID, lastModelID string
@@ -283,8 +288,15 @@ func (v *VADSegmenter) Run(
 		lastPromptText = res.Text
 
 		if newTail != "" {
+			segmentOrdinal++
+			startSample := bufStartSample + int64(segStart/sampleBytes)
+			endSample := bufStartSample + int64(end/sampleBytes)
 			events <- sttchain.StreamEvent{Kind: sttchain.StreamEventSegment, Segment: &sttchain.SegmentEvent{
 				Text:             newTail,
+				SegmentID:        fmt.Sprintf("%s:%d:vad:%d", start.SessionID, start.Generation, segmentOrdinal),
+				Generation:       start.Generation,
+				StartSample:      startSample,
+				EndSample:        endSample,
 				DetectedLanguage: res.DetectedLanguage,
 				ProviderTier:     res.Tier,
 				ProviderID:       res.ProviderID,
@@ -308,6 +320,7 @@ func (v *VADSegmenter) Run(
 			prefix := segStart
 			copy(buf, buf[prefix:])
 			buf = buf[:len(buf)-prefix]
+			bufStartSample += int64(prefix / sampleBytes)
 			nextFrame -= prefix
 			if nextFrame < 0 {
 				nextFrame = 0

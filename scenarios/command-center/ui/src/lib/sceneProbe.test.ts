@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { frameIsBlank, probeTier } from "./sceneProbe";
 
 const context = (alpha: number, size = 64): CanvasRenderingContext2D => ({
@@ -25,5 +25,29 @@ describe("probeTier", () => {
   });
   it("never selects the full tier without WebGL", () => {
     expect(["still", "reduced"]).toContain(probeTier(null));
+  });
+});
+
+describe("probeTier on a constrained device", () => {
+  it("drops to the reduced tier when the machine reports few cores", () => {
+    const original = Object.getOwnPropertyDescriptor(Navigator.prototype, "hardwareConcurrency");
+    Object.defineProperty(navigator, "hardwareConcurrency", { configurable: true, value: 2 });
+    try {
+      expect(probeTier(null)).toBe("reduced");
+    } finally {
+      if (original) Object.defineProperty(Navigator.prototype, "hardwareConcurrency", original);
+      else delete (navigator as unknown as Record<string, unknown>).hardwareConcurrency;
+    }
+  });
+});
+
+describe("probeTier when the probe itself fails", () => {
+  it("never blocks first paint: a throwing canvas probe resolves to the reduced tier", () => {
+    const spy = vi.spyOn(document, "createElement").mockImplementation(() => { throw new Error("no canvas here"); });
+    try {
+      expect(probeTier(null)).toBe("reduced");
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

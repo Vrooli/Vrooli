@@ -1,4 +1,4 @@
-import { drawGlow, focalPoint, inQuiet, rgba, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, focalPoint, inQuiet, rgba, type Scene } from "./engine";
 
 const NODES: Array<{ id: string; label: string; color: string; metric: string }> = [
   { id: "mission-control", label: "MISSION CONTROL", color: "#33d6ff", metric: "composite_system_health" },
@@ -20,6 +20,7 @@ export function panoramaConstellation(): Scene {
         const angle = (i / NODES.length) * Math.PI * 2 + t * (Math.PI * 2 / 220) - Math.PI / 2;
         return { node, x: focal.x + Math.cos(angle) * radius * 0.98, y: focal.y + Math.sin(angle) * radius * 0.7 };
       });
+      clipOutsideQuiet(frame);
       ctx.lineWidth = 1;
       for (let i = 0; i < positions.length; i += 1) {
         const a = positions[i];
@@ -37,6 +38,7 @@ export function panoramaConstellation(): Scene {
         ctx.quadraticCurveTo((a.x + focal.x) / 2, (a.y + focal.y) / 2 + sag * 0.6, a.x, a.y);
         ctx.stroke();
       }
+      ctx.restore();
       ctx.globalCompositeOperation = "lighter";
       drawGlow(frame, focal.x, focal.y, radius * 0.5, palette.primary, 0.35);
       drawGlow(frame, focal.x, focal.y, 12, palette.accent, 1);

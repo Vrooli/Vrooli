@@ -9,7 +9,7 @@ import { HeroReadout } from "../components/HeroReadout";
 import { ReadingTile } from "../components/ReadingTile";
 import { fetchRoom, hasValue, type RoomResponse } from "../lib/api";
 import { pickHero } from "../lib/hero";
-import { resolveReading } from "../lib/provenance";
+import { resolveReading } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
 
 const THEMES: Record<string, string> = { "mission-control": "ground-control", hive: "bioluminescent", forge: "foundry", ledger: "vault", broadcast: "signal-tower", panorama: "cosmos" };
 

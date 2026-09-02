@@ -1,4 +1,4 @@
-import { drawGlow, inQuiet, read, rgba, type Frame, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, inQuiet, read, rgba, type Frame, type Scene } from "./engine";
 
 interface Spark { x: number; lane: number; speed: number; size: number; age: number; pooled: boolean; swirl: number }
 
@@ -33,6 +33,7 @@ export function flowCurrent(): Scene {
       heat.addColorStop(1, rgba(ctx, palette.primary, 0.12));
       ctx.fillStyle = heat;
       ctx.fillRect(0, h * 0.55, w, h * 0.45);
+      clipOutsideQuiet(frame);
       ctx.lineWidth = 1;
       for (let lane = 0; lane < lanes; lane += 1) {
         ctx.strokeStyle = rgba(ctx, palette.primary, 0.22);
@@ -54,6 +55,7 @@ export function flowCurrent(): Scene {
         ctx.stroke();
         ctx.setLineDash([]);
       }
+      ctx.restore();
       emitDebt += rate * dt;
       while (emitDebt >= 1) {
         emitDebt -= 1;

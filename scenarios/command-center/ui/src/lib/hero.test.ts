@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Reading } from "./api";
+import type { Reading } from "../lib/api";
 import { pickHero } from "./hero";
 import { authoredSample, makeReading } from "../test-utils/readings";
 

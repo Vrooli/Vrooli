@@ -2,7 +2,11 @@ package tts
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -46,6 +50,14 @@ type Cache struct {
 	maxSize  int
 	currSize int
 	clk      schedule.Clock
+	diskDir  string
+	maxAge   time.Duration
+}
+
+type diskCacheMetadata struct {
+	EventID     string    `json:"event_id"`
+	ContentType string    `json:"content_type"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // NewCache creates a cache with the given maximum size in bytes using
@@ -78,13 +90,32 @@ func NewCacheWithClock(maxSizeBytes int, clk schedule.Clock) *Cache {
 	}
 }
 
+// NewPersistentCache adds a bounded disk tier beneath the in-memory LRU. Disk
+// entries are keyed by the same content hash as memory entries, so a process
+// restart can replay synthesized paragraphs without synthesizing them again.
+// A non-positive maxAge disables age eviction while retaining the size bound.
+func NewPersistentCache(maxSizeBytes int, dir string, maxAge time.Duration) (*Cache, error) {
+	c := NewCache(maxSizeBytes)
+	c.diskDir = dir
+	c.maxAge = maxAge
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("create TTS cache directory: %w", err)
+	}
+	if err := c.loadDisk(); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 // Get retrieves a cached entry. Returns nil, false on miss.
 func (c *Cache) Get(key CacheKey) (*CacheEntry, bool) {
 	hash := cacheKeyHash(key)
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	entry, ok := c.entries[hash]
-	return entry, ok
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if entry, ok := c.entries[hash]; ok {
+		return entry, true
+	}
+	return c.loadDiskEntryLocked(hash)
 }
 
 // Put stores audio in the cache, evicting oldest entries if necessary.
@@ -120,6 +151,7 @@ func (c *Cache) Put(key CacheKey, audio []byte, contentType string) {
 	}
 	c.order = append(c.order, hash)
 	c.currSize += size
+	c.persistDiskLocked(hash, c.entries[hash])
 }
 
 // Evict removes all cached entries for a given event ID (all versions/voices).
@@ -139,6 +171,7 @@ func (c *Cache) Evict(eventID string) {
 			delete(c.entries, hash)
 			c.removeFromOrder(hash)
 		}
+		c.removeDiskLocked(hash)
 	}
 }
 
@@ -163,6 +196,7 @@ func (c *Cache) evictOldest() {
 		c.currSize -= len(entry.Audio)
 		delete(c.entries, oldest)
 	}
+	c.removeDiskLocked(oldest)
 }
 
 func (c *Cache) removeFromOrder(hash string) {
@@ -172,4 +206,95 @@ func (c *Cache) removeFromOrder(hash string) {
 			return
 		}
 	}
+}
+
+func (c *Cache) diskPaths(hash string) (string, string) {
+	return filepath.Join(c.diskDir, hash+".audio"), filepath.Join(c.diskDir, hash+".json")
+}
+
+func (c *Cache) persistDiskLocked(hash string, entry *CacheEntry) {
+	if c.diskDir == "" {
+		return
+	}
+	audioPath, metadataPath := c.diskPaths(hash)
+	metadata, err := json.Marshal(diskCacheMetadata{EventID: entry.eventID, ContentType: entry.ContentType, CreatedAt: entry.CreatedAt})
+	if err != nil {
+		return
+	}
+	if err := os.WriteFile(audioPath, entry.Audio, 0o600); err != nil {
+		return
+	}
+	_ = os.WriteFile(metadataPath, metadata, 0o600)
+}
+
+func (c *Cache) removeDiskLocked(hash string) {
+	if c.diskDir == "" {
+		return
+	}
+	audioPath, metadataPath := c.diskPaths(hash)
+	_ = os.Remove(audioPath)
+	_ = os.Remove(metadataPath)
+}
+
+func (c *Cache) loadDiskEntryLocked(hash string) (*CacheEntry, bool) {
+	if c.diskDir == "" {
+		return nil, false
+	}
+	audioPath, metadataPath := c.diskPaths(hash)
+	metadataBytes, err := os.ReadFile(metadataPath)
+	if err != nil {
+		return nil, false
+	}
+	var metadata diskCacheMetadata
+	if json.Unmarshal(metadataBytes, &metadata) != nil || (c.maxAge > 0 && c.now().Sub(metadata.CreatedAt) > c.maxAge) {
+		c.removeDiskLocked(hash)
+		return nil, false
+	}
+	audio, err := os.ReadFile(audioPath)
+	if err != nil || len(audio) > c.maxSize {
+		c.removeDiskLocked(hash)
+		return nil, false
+	}
+	entry := &CacheEntry{Audio: audio, ContentType: metadata.ContentType, CreatedAt: metadata.CreatedAt, eventID: metadata.EventID}
+	for c.currSize+len(audio) > c.maxSize && len(c.order) > 0 {
+		c.evictOldest()
+	}
+	c.entries[hash] = entry
+	c.order = append(c.order, hash)
+	c.currSize += len(audio)
+	return entry, true
+}
+
+func (c *Cache) loadDisk() error {
+	entries, err := os.ReadDir(c.diskDir)
+	if err != nil {
+		return fmt.Errorf("read TTS cache directory: %w", err)
+	}
+	type diskEntry struct {
+		hash string
+		when time.Time
+	}
+	var candidates []diskEntry
+	for _, item := range entries {
+		if item.IsDir() || filepath.Ext(item.Name()) != ".json" {
+			continue
+		}
+		hash := item.Name()[:len(item.Name())-len(filepath.Ext(item.Name()))]
+		data, readErr := os.ReadFile(filepath.Join(c.diskDir, item.Name()))
+		var metadata diskCacheMetadata
+		if readErr != nil || json.Unmarshal(data, &metadata) != nil {
+			c.removeDiskLocked(hash)
+			continue
+		}
+		candidates = append(candidates, diskEntry{hash: hash, when: metadata.CreatedAt})
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].when.Before(candidates[j].when) })
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for _, candidate := range candidates {
+		if _, ok := c.loadDiskEntryLocked(candidate.hash); !ok {
+			continue
+		}
+	}
+	return nil
 }

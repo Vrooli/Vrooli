@@ -57,7 +57,10 @@ export default defineConfig(({ mode }): UserConfig => {
       // react-component-library. Inline both workspace packages so Vitest
       // follows their TypeScript graphs instead of loading extensionless ESM
       // from either package's dist/ directory under Node.
-      server: { deps: { inline: [/@vrooli\/(audio-capture-browser|react-component-library)/] } },
+      server: {
+        fs: { allow: ['../../../packages'] },
+        deps: { inline: [/@vrooli\/(audio-capture-browser|react-component-library)/] },
+      },
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary', 'json'],

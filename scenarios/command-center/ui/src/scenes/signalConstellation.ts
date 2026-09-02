@@ -1,4 +1,4 @@
-import { drawGlow, focalPoint, inQuiet, read, rgba, type Scene } from "./engine";
+import { clipOutsideQuiet, drawGlow, focalPoint, inQuiet, read, rgba, type Scene } from "./engine";
 
 interface Receiver { x: number; y: number; lit: number }
 
@@ -18,6 +18,7 @@ export function signalConstellation(): Scene {
       const visitors = Math.max(1, read(data, "visitors", 2840));
       const stages = [1, read(data, "conversions", 61) / visitors, read(data, "cta_clicks", 412) / visitors];
       const stageRadius = Math.max(w, h) * 0.9;
+      clipOutsideQuiet(frame);
       ctx.lineWidth = 1.2;
       for (let k = 0; k < travel / period; k += 1) {
         const age = ((t + k * period) % travel);
@@ -60,6 +61,7 @@ export function signalConstellation(): Scene {
       drawGlow(frame, focal.x, focal.y, Math.min(w, h) * 0.12, palette.primary, 0.6);
       drawGlow(frame, focal.x, focal.y, 10, palette.accent, 1);
       ctx.globalCompositeOperation = "source-over";
+      ctx.restore();
     },
   };
 }

@@ -16,6 +16,14 @@
         "api/internal/ai/summarizechain/provider_vrooli.go",
         "api/integrations/lpbs/remote_reporter.go"
       ]
+    },
+    {
+      "limit_key": "voice_minutes",
+      "class": "B",
+      "enforcement_paths": [
+        "api/internal/ai/ttschain/provider_vrooli.go",
+        "api/internal/ai/sttchain/provider_vrooli.go"
+      ]
     }
   ]
 }

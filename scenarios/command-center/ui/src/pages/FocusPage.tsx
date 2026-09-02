@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
 import { AmbientShell } from "../components/AmbientShell";
+import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.1";
 import { useBoardController } from "../lib/boardContext";
 import { fetchFocus, type FocusEntry, type FocusKind } from "../lib/api";
 
@@ -41,10 +42,10 @@ export default function FocusPage() {
           <ExperienceSurface surfaceId="ranking-basis" as="section" data-testid="focus-ranking-basis" className="cc-panel" state="static" aria-label="Ranking basis">
             <h3>Ranking basis</h3>
             <ol className="cc-basis">
-              <li><span className="cc-ink-mark" data-ink="unavailable">1</span> sources that exist and are not answering</li>
-              <li><span className="cc-ink-mark" data-ink="hollow">2</span> pipelines missing on a live instrument</li>
-              <li><span className="cc-ink-mark" data-ink="dotted">3</span> teams with no instrument at all</li>
-              <li><span className="cc-ink-mark" data-ink="dotted">4</span> outcomes the objective set names and no row covers</li>
+              <li><InkMark ink="unavailable">1</InkMark> sources that exist and are not answering</li>
+              <li><InkMark ink="hollow">2</InkMark> pipelines missing on a live instrument</li>
+              <li><InkMark ink="dotted">3</InkMark> teams with no instrument at all</li>
+              <li><InkMark ink="dotted">4</InkMark> outcomes the objective set names and no row covers</li>
             </ol>
             <p className="cc-panel-note">A finding is one owner and one kind. Six missing pipelines on a team with no instrument are one finding, not six.</p>
           </ExperienceSurface>
@@ -73,7 +74,7 @@ function FocusItem({ entry, rank }: { entry: FocusEntry; rank: number }) {
       <span className="cc-rank-number" aria-label={`rank ${rank}`}>{String(rank).padStart(2, "0")}</span>
       <div className="cc-rank-body">
         <div className="cc-rank-head">
-          <span className="cc-ink-mark" data-ink={kind.ink}>{kind.label}</span>
+          <InkMark ink={kind.ink}>{kind.label}</InkMark>
           <span className="cc-rank-owner" data-owner>{entry.owner || "unknown owner"}</span>
           {entry.metricId ? <span className="cc-rank-metric">{entry.metricId}</span> : null}
         </div>

@@ -211,6 +211,7 @@ func (h *connectHandler) TranscribeStream(
 	// Done is held until the ledger confirms processed coverage: a transport
 	// close or provider final is not proof that captured audio was processed.
 	var terminal *sttchain.StreamEvent
+	segmentOrdinal := 0
 	for ev := range events {
 		if ev.Kind == sttchain.StreamEventDone {
 			copy := ev
@@ -219,8 +220,9 @@ func (h *connectHandler) TranscribeStream(
 		}
 		if ev.Kind == sttchain.StreamEventSegment && ev.Segment != nil {
 			if ev.Segment.SegmentID == "" {
-				ev.Segment.SegmentID = fmt.Sprintf("%s:%d:%d:%d", start.SessionID, start.Generation, ev.Segment.StartSample, ev.Segment.EndSample)
+				ev.Segment.SegmentID = fmt.Sprintf("%s:%d:%d:%d", start.SessionID, segmentOrdinal, ev.Segment.StartSample, ev.Segment.EndSample)
 			}
+			segmentOrdinal++
 			ev.Segment.Generation = start.Generation
 			if _, commitErr := ledger.Commit(session.Segment{ID: ev.Segment.SegmentID, Text: ev.Segment.Text, StartSample: ev.Segment.StartSample, EndSample: ev.Segment.EndSample}); commitErr != nil {
 				ledger.Fail(session.TerminalReason("commit_conflict"))

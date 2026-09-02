@@ -290,16 +290,64 @@ func (r *Registry) ResolveFacts(facts map[string]EngineFacts) (Resolution, error
 	return resolution, nil
 }
 
+// eligible reports the candidates that survived the hard filters. A claim about
+// "all candidates" is only true of these; rejected engines were never in the
+// running and must not be counted for or against a preference.
+func eligible(candidates []Candidate) []Candidate {
+	out := make([]Candidate, 0, len(candidates))
+	for _, c := range candidates {
+		if c.Verdict == "rejected" {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+func countEligible(candidates []Candidate, pred func(Candidate) bool) int {
+	n := 0
+	for _, c := range eligible(candidates) {
+		if pred(c) {
+			n++
+		}
+	}
+	return n
+}
+
+// selectionReason explains the decision in terms that survive being read back
+// as evidence.
+//
+// The prior version inferred a universal from a single fact: when the SELECTED
+// engine was not accelerated it reported "accelerated=false for all
+// candidates", without looking at any other candidate. That sentence reads as a
+// benign tuning note, and it is what a stalled GPU engine hid behind while
+// every dictation session ran on a CPU batch engine. A reason string is a
+// diagnostic surface; it may only assert what it has actually checked.
 func selectionReason(policy SelectionPolicy, candidates []Candidate, selected int, facts map[string]EngineFacts) string {
 	for _, preference := range policy.RankedPreferences {
-		if preference == "accelerated" {
+		switch preference {
+		case "native_streaming":
+			if candidates[selected].Engine.Provides.NativeStreaming {
+				return "native_streaming=true ranked above buffered candidates"
+			}
+			if others := countEligible(candidates, func(c Candidate) bool {
+				return c.Engine.Provides.NativeStreaming
+			}); others > 0 {
+				// The winner is buffered while a streaming engine was eligible.
+				// Say so: this is the shape of a policy inversion, not a tie.
+				return fmt.Sprintf("selected engine is buffered while %d native-streaming candidate(s) were eligible; check ranked preference order", others)
+			}
+			return "no eligible candidate offers native streaming; tiebreak=manifest_order"
+		case "accelerated":
 			if facts[candidates[selected].Engine.ID].Accelerated {
 				return "accelerated=true ranked above non-accelerated candidates"
 			}
-			return "accelerated=false for all candidates; tiebreak=manifest_order"
-		}
-		if preference == "native_streaming" && candidates[selected].Engine.Provides.NativeStreaming {
-			return "native_streaming=true ranked above buffered candidates"
+			if others := countEligible(candidates, func(c Candidate) bool {
+				return facts[c.Engine.ID].Accelerated
+			}); others > 0 {
+				return fmt.Sprintf("selected engine is not accelerated while %d accelerated candidate(s) were eligible; check ranked preference order", others)
+			}
+			return "no eligible candidate reported acceleration; tiebreak=manifest_order"
 		}
 	}
 	return "tiebreak: declared policy then manifest order"
