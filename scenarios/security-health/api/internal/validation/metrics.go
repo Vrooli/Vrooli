@@ -19,6 +19,7 @@ func WithMetrics(ctx context.Context, collector *metrics.Collector) context.Cont
 	if collector == nil {
 		return ctx
 	}
+	ctx = collector.Context()
 	return context.WithValue(ctx, metricsCtxKey{}, collector)
 }
 

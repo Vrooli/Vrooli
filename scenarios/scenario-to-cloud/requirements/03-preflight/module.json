@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-14T06:44:27-04:00"
+    "last_validated_at": "2026-08-26T15:00:19-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-003",
       "title": "VPS readiness validation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "preflight",
       "description": "Validate SSH connectivity, Ubuntu version, disk/RAM thresholds, outbound network, ports 80/443 availability, and domain DNS pointing to the VPS.",
@@ -22,7 +22,7 @@
           "type": "test",
           "ref": "api/preflight_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tag tests with [REQ:STC-P0-003]."
         },
         {
@@ -37,7 +37,7 @@
     {
       "id": "STC-P0-009",
       "title": "Preflight errors are actionable",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "preflight",
       "description": "Preflight failures emit a specific reason and next-step hint (e.g. DNS not pointing, ports blocked, SSH auth failed) without leaking secrets.",
@@ -50,7 +50,7 @@
           "type": "test",
           "ref": "api/preflight_errors_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tag tests with [REQ:STC-P0-009]."
         }
       ]

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"io/fs"
 	"os"
@@ -16,6 +17,18 @@ import (
 )
 
 const evidenceFingerprintVersion = "security-health-evidence-v2"
+
+type evidenceWalkCacheKey struct{}
+
+type evidenceWalkCache struct {
+	files map[string][]string
+}
+
+var walkModuleEvidenceFilesForEvidence = walkModuleEvidenceFiles
+
+func withEvidenceWalkCache(ctx context.Context) context.Context {
+	return context.WithValue(ctx, evidenceWalkCacheKey{}, &evidenceWalkCache{files: make(map[string][]string)})
+}
 
 type toolDigestCacheEntry struct {
 	identity string
@@ -47,7 +60,11 @@ func scannerEvidencePlan(ctx context.Context, cmd Commander, scanner, binary, sc
 		}
 	}
 	if advisory {
-		writeFingerprintPart(h, now.UTC().Format("2006-01-02"))
+		if database, ok := advisoryDatabaseIdentity(ctx, cmd, scanner); ok {
+			writeFingerprintPart(h, "advisory-database:"+database)
+		} else {
+			writeFingerprintPart(h, "advisory-epoch:"+advisoryEpoch(filepath.Base(filepath.Clean(scenarioDir)), now))
+		}
 	}
 	for _, path := range files {
 		select {
@@ -96,6 +113,52 @@ func scannerEvidencePlan(ctx context.Context, cmd Commander, scanner, binary, sc
 	return ScannerEvidencePlan{Fingerprint: hex.EncodeToString(h.Sum(nil)), Weight: weight, FreshFor: ttl}, nil
 }
 
+var advisoryDatabaseCache sync.Map
+
+// advisoryDatabaseIdentity returns a cheap scanner-reported database identity.
+// On 2026-08-28 govulncheck reported a stable "DB updated" timestamp from
+// `govulncheck -version`; osv-scanner 1.9.2 reported only its tool version.
+// Therefore govulncheck uses its database timestamp and osv-scanner falls back
+// to the staggered per-scenario epoch. Results are cached for this process so
+// a fleet scan does not fork a version probe per target.
+func advisoryDatabaseIdentity(ctx context.Context, cmd Commander, scanner string) (string, bool) {
+	if cached, ok := advisoryDatabaseCache.Load(scanner); ok {
+		identity := cached.(string)
+		return identity, identity != ""
+	}
+	if scanner != "govulncheck" {
+		advisoryDatabaseCache.Store(scanner, "")
+		return "", false
+	}
+	stdout, _, _, err := cmd.Run(ctx, "", scanner, "-version")
+	if err == nil {
+		for _, line := range strings.Split(string(stdout), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "DB updated:") {
+				identity := strings.TrimSpace(strings.TrimPrefix(line, "DB updated:"))
+				if identity != "" {
+					advisoryDatabaseCache.Store(scanner, identity)
+					return identity, true
+				}
+			}
+		}
+	}
+	advisoryDatabaseCache.Store(scanner, "")
+	return "", false
+}
+
+// advisoryEpoch assigns each target a stable UTC hour bucket. The epoch is the
+// most recent hour at which that target's bucket occurred, so every target
+// refreshes within 24 hours without the fleet sharing one expiry cliff.
+func advisoryEpoch(targetID string, now time.Time) string {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(strings.TrimSpace(targetID)))
+	bucket := int(h.Sum32() % 24)
+	hour := now.UTC().Truncate(time.Hour)
+	delta := (hour.Hour() - bucket + 24) % 24
+	return hour.Add(-time.Duration(delta) * time.Hour).Format("2006-01-02T15")
+}
+
 func writeFingerprintPart(w io.Writer, value string) {
 	_, _ = io.WriteString(w, fmt.Sprintf("%d:%s\n", len(value), value))
 }
@@ -123,10 +186,10 @@ func scannerEvidenceFiles(ctx context.Context, cmd Commander, scanner, scenarioD
 		files, err := commitEligibleFiles(ctx, cmd, scenarioDir)
 		return files, false, 1, err
 	case "gosec":
-		files, err := walkModuleEvidenceFiles(scenarioDir, sub.GoModDirs)
+		files, err := cachedWalkModuleEvidenceFiles(ctx, scenarioDir, sub.GoModDirs)
 		return files, false, 2, err
 	case "govulncheck":
-		files, err := walkModuleEvidenceFiles(scenarioDir, sub.GoModDirs)
+		files, err := cachedWalkModuleEvidenceFiles(ctx, scenarioDir, sub.GoModDirs)
 		return files, true, 3, err
 	case "pnpm-audit":
 		files, err := walkModuleEvidenceFiles(scenarioDir, sub.PnpmLockDirs)
@@ -137,6 +200,31 @@ func scannerEvidenceFiles(ctx context.Context, cmd Commander, scanner, scenarioD
 	default:
 		return nil, false, 1, fmt.Errorf("scanner %q has no evidence-input policy", scanner)
 	}
+}
+
+func cachedWalkModuleEvidenceFiles(ctx context.Context, root string, dirs []string) ([]string, error) {
+	cache, ok := ctx.Value(evidenceWalkCacheKey{}).(*evidenceWalkCache)
+	if !ok || cache == nil {
+		return walkModuleEvidenceFilesForEvidence(root, dirs)
+	}
+	keyDirs := append([]string(nil), dirs...)
+	if len(keyDirs) == 0 {
+		keyDirs = []string{"."}
+	}
+	for i := range keyDirs {
+		keyDirs[i] = filepath.ToSlash(filepath.Clean(keyDirs[i]))
+	}
+	sort.Strings(keyDirs)
+	key := filepath.Clean(root) + "\x00" + strings.Join(keyDirs, "\x00")
+	if files, found := cache.files[key]; found {
+		return files, nil
+	}
+	files, err := walkModuleEvidenceFilesForEvidence(root, keyDirs)
+	if err != nil {
+		return nil, err
+	}
+	cache.files[key] = files
+	return files, nil
 }
 
 // OSVEvidenceFingerprint is the canonical cache identity for the raw OSV

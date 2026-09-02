@@ -1,7 +1,7 @@
 import { BarChart3, Home, Inbox, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "@vrooli/react-component-library/BottomNav/1.2.0";
+import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "@vrooli/react-component-library/BottomNav/1";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";

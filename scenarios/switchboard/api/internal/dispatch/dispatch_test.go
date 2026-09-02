@@ -2,6 +2,10 @@ package dispatch
 
 import (
 	"context"
+	"fmt"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/require"
 	apidb "github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
@@ -9,8 +13,6 @@ import (
 	"switchboard/internal/ingress"
 	"switchboard/internal/threads"
 	"switchboard/internal/trust"
-	"testing"
-	"time"
 )
 
 type runner struct{ calls int }
@@ -36,6 +38,7 @@ func TestDuplicateAndAgentMessagesNeverRun(t *testing.T) {
 	require.Equal(t, OutcomeSuppressed, out.Outcome)
 	require.Equal(t, 1, r.calls)
 }
+
 func TestLowerTierCannotRunOwnerScope(t *testing.T) {
 	r := &runner{}
 	p := &Processor{Ingress: ingress.New(), Runner: r, Grant: trust.Grant{Scopes: []string{"owner"}}}
@@ -110,4 +113,66 @@ func TestProcessNotifiesOwnerOnlyOnFirstBudgetSuppression(t *testing.T) {
 		}
 	}
 	require.Equal(t, 1, notices)
+}
+
+// [REQ:SWBD-P0-010] [REQ:SWBD-P0-011] [REQ:SWBD-P1-009]
+func TestRefusalIsStatedOutLoudAndEveryOutcomeIsRecorded(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(threads.Schema)))
+	store := threads.NewStore(database)
+	var sent []channels.Outbound
+	p := &Processor{
+		Ingress: ingress.New(), Threads: store, Runner: &runner{}, Grant: trust.Grant{Scopes: []string{"read"}},
+		Send: PersistingReply(store, func(_ context.Context, out channels.Outbound) error { sent = append(sent, out); return nil }, func(channels.Outbound) string { return "agent-x" }),
+	}
+	e := channels.Envelope{ChannelID: "telegram", ThreadKey: "chat", RemoteMessageID: "r1", SenderAddress: "stranger-1", AuthorKind: channels.AuthorHuman, Text: "hi", ReceivedAt: time.Now()}
+	out, err := p.Process(context.Background(), e, trust.Stranger, trust.Stranger, "agent-x", false, true)
+	require.NoError(t, err)
+	require.Equal(t, OutcomeRefused, out.Outcome)
+	require.Len(t, sent, 1)
+	require.Contains(t, sent[0].Text, "trust tier is stranger")
+	require.Equal(t, "r1", sent[0].ReplyToRemoteID)
+
+	var kinds []string
+	rows, err := database.QueryContext(context.Background(), `SELECT author_kind FROM switchboard_messages ORDER BY id`)
+	require.NoError(t, err)
+	for rows.Next() {
+		var k string
+		require.NoError(t, rows.Scan(&k))
+		kinds = append(kinds, k)
+	}
+	rows.Close()
+	require.Equal(t, []string{"human", "agent"}, kinds, "the refusal is persisted as an agent message")
+
+	var outcome string
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT outcome FROM switchboard_turn_events`).Scan(&outcome))
+	require.Equal(t, "refused", outcome)
+	require.Equal(t, "this room's ceiling is known because of who else is in it", RefusalText(trust.Owner, trust.Known)[len("I can't act on that from this conversation: "):len("I can't act on that from this conversation: ")+len("this room's ceiling is known because of who else is in it")])
+}
+
+type failingRunner struct{}
+
+func (failingRunner) Run(context.Context, string, []string, string) (string, error) {
+	return "", fmt.Errorf("create agent run: agent-manager returned 503: CAPACITY_MAX_RUNS")
+}
+
+// [REQ:SWBD-P1-009]
+func TestRunnerFailureIsStatedOutLoudAndRecorded(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(threads.Schema)))
+	store := threads.NewStore(database)
+	var sent []channels.Outbound
+	p := &Processor{
+		Ingress: ingress.New(), Threads: store, Runner: failingRunner{}, Grant: trust.Grant{Scopes: []string{"read"}},
+		Send: PersistingReply(store, func(_ context.Context, out channels.Outbound) error { sent = append(sent, out); return nil }, nil),
+	}
+	e := channels.Envelope{ChannelID: "in-app", ThreadKey: "t", RemoteMessageID: "m", SenderAddress: "owner", AuthorKind: channels.AuthorHuman, Text: "hi", ReceivedAt: time.Now()}
+	out, err := p.Process(context.Background(), e, trust.Owner, trust.Owner, "a", false, true)
+	require.NoError(t, err)
+	require.Equal(t, OutcomeFailed, out.Outcome)
+	require.Len(t, sent, 1)
+	require.Contains(t, sent[0].Text, "at capacity")
+	var outcome string
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT outcome FROM switchboard_turn_events`).Scan(&outcome))
+	require.Equal(t, "failed", outcome)
 }

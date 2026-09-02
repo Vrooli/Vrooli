@@ -88,6 +88,17 @@ func (r *Registry) HTTPAdapters() []HTTPAdapter {
 	return out
 }
 
+// ThreadStarters returns every adapter that can open a conversation on demand.
+func (r *Registry) ThreadStarters() []ThreadStarter {
+	out := make([]ThreadStarter, 0)
+	for _, adapter := range r.adapters {
+		if starter, ok := adapter.(ThreadStarter); ok {
+			out = append(out, starter)
+		}
+	}
+	return out
+}
+
 // Start connects all configured, non-HTTP adapters whose descriptor says they
 // are available on this host. The returned function cancels and joins all
 // adapter loops. HTTP adapters are already bound by the HTTP module and must
@@ -140,6 +151,7 @@ func (r *Registry) Start(ctx context.Context, facts HostFacts, receive func(Enve
 		wg.Wait()
 	}
 }
+
 func (r *Registry) List(_ context.Context, facts HostFacts) []Listing {
 	out := make([]Listing, 0, len(r.descriptors))
 	for _, d := range r.descriptors {

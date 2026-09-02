@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-10T10:56:58-04:00"
+    "last_validated_at": "2026-08-27T15:52:00-04:00"
   },
   "requirements": [
     {
       "id": "STD-TEMPLATE-BASIC",
       "title": "Basic Electron template generates correctly",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "When an operator selects the basic template, the generator shall produce an Electron project with its main process, preload bridge, package manifest, TypeScript configuration, splash page, and assets.",
@@ -15,14 +15,14 @@
           "type": "test",
           "ref": "api/template_generator_test.go::TestTemplateGeneratorInterpolatesPlaceholders",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-TEMPLATE-ADVANCED",
       "title": "Advanced Electron template with system tray and shortcuts",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "When an operator selects the advanced template, the generator shall include the configured system-tray, global-shortcut, and background-operation capabilities.",
@@ -31,14 +31,14 @@
           "type": "test",
           "ref": "api/system/handler_test.go::TestTemplateInfosDefinesSupportedTemplates",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-TEMPLATE-MULTI-WINDOW",
       "title": "Multi-window template with window management",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "When an operator selects the multi-window template, the generated Electron project shall support multiple windows and an explicit inter-window communication path.",
@@ -47,14 +47,14 @@
           "type": "test",
           "ref": "api/generation/connect_handler_test.go::TestConnectServiceSynthesizesDesktopConfig",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-TEMPLATE-KIOSK",
       "title": "Kiosk template with fullscreen and security hardening",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "criticality": "P0",
       "description": "When an operator selects the kiosk template, the generated Electron project shall enforce fullscreen kiosk behavior and the declared security and recovery controls.",
@@ -63,14 +63,14 @@
           "type": "test",
           "ref": "api/system/handler_test.go::TestTemplateInfosDefinesSupportedTemplates",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-FRAMEWORK-ELECTRON",
       "title": "Electron framework fully supported",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
       "description": "The generator shall expose Electron as its sole supported desktop runtime and shall reject requests for unsupported desktop frameworks.",
@@ -79,7 +79,7 @@
           "type": "test",
           "ref": "api/generation/connect_handler_test.go::TestConnectServiceSynthesizesDesktopConfig",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

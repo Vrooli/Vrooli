@@ -18,6 +18,7 @@ import (
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
 	"scenario-to-desktop-api/captures"
 	"scenario-to-desktop-api/procmetrics"
+	sharedenv "scenario-to-desktop-api/shared/env"
 )
 
 const (
@@ -179,8 +180,8 @@ func (api monetizationJourneyAPI) Probe(ctx context.Context, operation string) (
 	if err != nil {
 		return JourneyOperationResult{}, err
 	}
-	if authorization := strings.TrimSpace(os.Getenv("S2D_MONETIZATION_AUTHORIZATION")); authorization != "" {
-		req.Header.Set("Authorization", authorization)
+	if token := strings.TrimSpace(sharedenv.ResolveSecret("LPBS_SERVICE_SECRET")); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	if identity := strings.TrimSpace(os.Getenv("S2D_MONETIZATION_USER_IDENTITY")); identity != "" {
 		req.Header.Set("X-User-Email", identity)

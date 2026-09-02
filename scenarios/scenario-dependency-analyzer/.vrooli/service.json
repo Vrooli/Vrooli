@@ -134,7 +134,8 @@
         "type": "claude-code",
         "enabled": true,
         "required": true,
-        "purpose": "AI-powered analysis of scenario code, configurations, and proposed scenario descriptions"
+        "purpose": "AI-powered analysis of scenario code, configurations, and proposed scenario descriptions",
+        "startup_policy": "must_start"
       },
       "ollama": {
         "type": "ollama",
@@ -143,19 +144,22 @@
         "purpose": "Generate embeddings for semantic similarity matching against Qdrant",
         "model_roles": [
           "embedding.default"
-        ]
+        ],
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "purpose": "Semantic similarity matching for proposed scenarios and dependency pattern recognition"
+        "purpose": "Semantic similarity matching for proposed scenarios and dependency pattern recognition",
+        "startup_policy": "must_start"
       },
       "redis": {
         "type": "redis",
         "enabled": false,
         "required": false,
-        "purpose": "Cache frequently accessed dependency data and analysis results for performance optimization"
+        "purpose": "Cache frequently accessed dependency data and analysis results for performance optimization",
+        "startup_policy": "try_start"
       }
     },
     "scenarios": {
@@ -163,13 +167,15 @@
         "enabled": true,
         "required": true,
         "description": "Provides batch protobuf surface facts for actual cross-scenario interface graph attribution",
-        "degraded_behavior": "Dependency graph analysis remains available without protobuf attribution, but interface-level evidence is marked incomplete until proto-health recovers."
+        "degraded_behavior": "Dependency graph analysis remains available without protobuf attribution, but interface-level evidence is marked incomplete until proto-health recovers.",
+        "startup_policy": "must_start"
       },
       "code-facts": {
         "enabled": true,
         "required": true,
         "description": "Provides batch import facts used to build actual cross-scenario usage evidence",
-        "degraded_behavior": "Dependency graph analysis remains available without import attribution, but cross-scenario usage evidence is marked incomplete until code-facts recovers."
+        "degraded_behavior": "Dependency graph analysis remains available without import attribution, but cross-scenario usage evidence is marked incomplete until code-facts recovers.",
+        "startup_policy": "must_start"
       }
     }
   },

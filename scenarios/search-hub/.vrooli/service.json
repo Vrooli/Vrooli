@@ -122,7 +122,8 @@
         "model_roles": [
           "classify.routing",
           "rerank.llm_fallback"
-        ]
+        ],
+        "supervision_precedence": "required"
       },
       "qdrant": {
         "type": "qdrant",
@@ -131,7 +132,8 @@
         "startup_policy": "try_start",
         "purpose": "Provider-owned dense and hybrid corpora use Qdrant; Search Hub observes its availability for dependency-aware readiness.",
         "description": "Shared vector substrate required by dense provider leaves.",
-        "degraded_behavior": "Dense provider leaves become unavailable or circuit-open while the substrate is down; explicit routing remains honest and reports the dependency."
+        "degraded_behavior": "Dense provider leaves become unavailable or circuit-open while the substrate is down; explicit routing remains honest and reports the dependency.",
+        "supervision_precedence": "required"
       },
       "reranker": {
         "type": "reranker",

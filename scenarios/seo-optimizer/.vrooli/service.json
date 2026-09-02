@@ -150,7 +150,8 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "Store SEO audits, keyword data, rankings, and competitor analysis"
+        "purpose": "Store SEO audits, keyword data, rankings, and competitor analysis",
+        "startup_policy": "must_start"
       },
       "qdrant": {
         "type": "qdrant",
@@ -162,7 +163,8 @@
       "ollama": {
         "type": "ollama",
         "enabled": true,
-        "required": true
+        "required": true,
+        "startup_policy": "must_start"
       }
     }
   },
@@ -195,6 +197,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

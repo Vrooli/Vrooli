@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P2 requirements — the highest-risk capture path, lower-friction capture surfaces, and the model relaxations that only make sense once real usage has shown they are needed.",
-    "last_validated_at": "2026-07-27T23:11:07-04:00",
+    "last_validated_at": "2026-08-31T00:36:22-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -25,19 +25,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The adapter declares tier 2, ships disabled, and requires an explicit per-adapter enable that is distinct from a global toggle."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Request pacing stays inside the declared envelope and is enforced by the runner rather than by the adapter."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Any challenge, forbidden, or rate-limit response disables the adapter immediately and raises an operator alert."
         },
         {
@@ -91,7 +91,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Disposition ownership resolves deterministically when a signal belongs to categories with different consumers."
         },
         {
@@ -132,7 +132,7 @@
     {
       "id": "SIG-P2-005",
       "title": "Category suggestion from clustering",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-005",
       "category": "categories",
       "criticality": "P2",
@@ -146,13 +146,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A coherent cluster of uncategorized signals surfaces as a proposal and never creates a category without confirmation."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Declining a suggestion suppresses it from recurring on the same cluster."
         }
       ]

@@ -1,13 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-10T10:56:58-04:00",
-    "shared_contract_owner": "packages/delivery-ramp-go"
+    "last_validated_at": "2026-08-27T15:52:00-04:00"
   },
   "requirements": [
     {
       "id": "STD-E2E-GENERATION",
       "title": "E2E test for desktop app generation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "description": "End-to-end test that generates a desktop app and validates the complete output",
       "validation": [
@@ -15,14 +14,14 @@
           "type": "test",
           "ref": "api/template_generator_test.go::TestTemplateGeneratorInterpolatesPlaceholders",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-E2E-STRUCTURE",
       "title": "Generated desktop app has correct file structure",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "description": "Validates that generated desktop apps follow the standard platforms/electron/ structure",
       "validation": [
@@ -30,14 +29,14 @@
           "type": "test",
           "ref": "api/template_generator_test.go::TestTemplateGeneratorInjectsBundledRuntimeConfig",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-E2E-DEPENDENCIES",
       "title": "Generated desktop app dependencies install successfully",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "description": "npm install completes successfully in generated desktop app directory",
       "validation": [
@@ -45,14 +44,14 @@
           "type": "test",
           "ref": "api/generation/service_test.go::TestGenerateRecordsTemplateGeneratorSuccessAndFailure",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-E2E-BUILD",
       "title": "Generated desktop app TypeScript builds successfully",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "description": "TypeScript compilation completes and produces valid JavaScript in dist/",
       "validation": [
@@ -60,14 +59,14 @@
           "type": "test",
           "ref": "api/template_generator_test.go::TestTemplateGeneratorInterpolatesPlaceholders",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-NATIVE-MENUS",
       "title": "Native menu integration in templates",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "description": "Templates include native menu bar with File, Edit, View, Window, Help menus",
       "validation": [
@@ -75,14 +74,14 @@
           "type": "test",
           "ref": "api/template_generator_test.go::TestTemplateGeneratorInterpolatesPlaceholders",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-NATIVE-TRAY",
       "title": "System tray integration in advanced templates",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "description": "Advanced/multi-window/kiosk templates include system tray with context menu",
       "validation": [
@@ -90,14 +89,14 @@
           "type": "test",
           "ref": "api/generation/connect_handler_test.go::TestConnectServiceSynthesizesDesktopConfig",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-NATIVE-FILE-DIALOGS",
       "title": "Native file dialog integration",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "description": "Templates include IPC handlers for native file open/save dialogs",
       "validation": [
@@ -105,14 +104,14 @@
           "type": "test",
           "ref": "api/template_generator_test.go::TestTemplateGeneratorInjectsBundledRuntimeConfig",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-NATIVE-NOTIFICATIONS",
       "title": "System notification support",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "description": "Templates support system notifications via Electron notification API",
       "validation": [
@@ -120,14 +119,14 @@
           "type": "test",
           "ref": "api/template_generator_test.go::TestTemplateGeneratorInterpolatesPlaceholders",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-PLATFORM-WINDOWS",
       "title": "Windows platform build support",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "description": "Desktop apps can be packaged as Windows .msi installers",
       "validation": [
@@ -135,14 +134,14 @@
           "type": "test",
           "ref": "api/shared/packaging/packaging_test.go::TestFindBuiltPackageWith_Windows",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-PLATFORM-MACOS",
       "title": "macOS platform build support",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "description": "Desktop apps can be packaged as macOS .pkg installers",
       "validation": [
@@ -150,14 +149,14 @@
           "type": "test",
           "ref": "api/shared/packaging/packaging_test.go::TestFindBuiltPackageWith_Mac",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "STD-PLATFORM-LINUX",
       "title": "Linux platform build support",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "description": "Desktop apps can be packaged as Linux .AppImage or .deb packages",
       "validation": [
@@ -165,7 +164,7 @@
           "type": "test",
           "ref": "api/shared/packaging/packaging_test.go::TestFindBuiltPackageWith_Linux",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     }

@@ -68,7 +68,7 @@ func (g *gosecScanner) Scan(ctx context.Context, scenarioDir string, sub Substra
 		// loader failure. Without it, stdout always carries the JSON report
 		// ({"Issues":[]} when clean) and the progress chatter goes to stderr.
 		args := append([]string{"-fmt=json", "-no-fail"}, patterns...)
-		stdout, stderr, _, err := g.cmd.Run(ctx, modDir, "gosec", args...)
+		stdout, stderr, _, _, err := runCommandWithEnv(ctx, g.cmd, modDir, scannerEnvironment(), "gosec", args...)
 		if err != nil {
 			lastErr = fmt.Errorf("gosec failed to run in %s: %w", rel, err)
 			continue

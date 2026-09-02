@@ -8,9 +8,13 @@ import (
 	"os"
 	"strings"
 
+	"switchboard/internal/agents"
+	"switchboard/internal/authoring"
 	"switchboard/internal/capabilities"
 	channelcore "switchboard/internal/channels"
 	"switchboard/internal/channels/adapters"
+	"switchboard/internal/console"
+	"switchboard/internal/contacts"
 	"switchboard/internal/dispatch"
 	"switchboard/internal/egress"
 	"switchboard/internal/gates"
@@ -18,7 +22,6 @@ import (
 	"switchboard/internal/modules"
 	"switchboard/internal/server"
 	"switchboard/internal/threads"
-	"switchboard/internal/trust"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -36,6 +39,7 @@ import (
 	capsH "switchboard/handlers/capabilities"
 	channelsH "switchboard/handlers/channels"
 	conformanceH "switchboard/handlers/conformance"
+	consoleH "switchboard/handlers/console"
 	healthH "switchboard/handlers/health"
 )
 
@@ -95,10 +99,37 @@ func main() {
 	}
 	router := &egress.Router{Registry: channelRegistry}
 	threadStore := threads.NewStore(db.Primary())
+	contactStore := contacts.NewStore(db.Primary())
+	bindingStore := agents.NewStore(db.Primary())
 	gateStore := gates.NewStore(db.Primary(), schedule.System().Now)
-	processor := &dispatch.Processor{Ingress: ingress.New(), Threads: threadStore, Runner: dispatch.AgentManagerRunner{BaseURL: agentManagerURL, Threads: threadStore, Send: router.Send}, Send: router.Send, Grant: trust.Grant{Scopes: []string{"read"}}}
-	channelDeps := channelsH.ModuleDeps{Registry: channelRegistry, Facts: hostFacts, DB: db.Primary(), Egress: router, Processor: processor, Gates: gateStore, Identity: authVerifier}
+	// Agent profiles are held by reference: prompt-manager is the only source
+	// of a profile and of the capability grant it declares.
+	promptManagerURL, _ := discovery.ResolveScenarioURLDefault(context.Background(), "prompt-manager")
+	roster := agents.NewRoster(promptManagerURL)
+	authenticatorURL, _ := discovery.ResolveScenarioURLDefault(context.Background(), owneridentity.DefaultAuthScenario)
+	// Every agent-authored message is persisted on its thread before it
+	// leaves through the adapter that received the conversation.
+	agentFor := func(out channelcore.Outbound) string {
+		records, err := bindingStore.List(context.Background(), "")
+		if err != nil {
+			return ""
+		}
+		for _, record := range records {
+			if record.ChannelID == out.ChannelID && record.ThreadKey == out.ThreadKey {
+				return record.AgentID
+			}
+		}
+		return ""
+	}
+	reply := dispatch.PersistingReply(threadStore, router.Send, agentFor)
+	processor := &dispatch.Processor{Ingress: ingress.New(), Threads: threadStore, Runner: dispatch.AgentManagerRunner{BaseURL: agentManagerURL, Threads: threadStore, Send: reply}, Send: reply, Grants: roster}
+	channelDeps := channelsH.ModuleDeps{Registry: channelRegistry, Facts: hostFacts, DB: db.Primary(), Egress: router, Processor: processor, Gates: gateStore, Identity: authVerifier, Contacts: contactStore, Threads: threadStore}
 	stopChannels := channelsH.Start(context.Background(), channelDeps, log.Printf)
+	consoleDeps := consoleH.Deps{
+		Queries:  console.Queries{DB: db.Primary(), Registry: channelRegistry, Contacts: contactStore, Now: schedule.System().Now},
+		Registry: channelRegistry, Facts: hostFacts, Contacts: contactStore, Bindings: bindingStore, Profiles: roster,
+		Authoring: authoring.New(roster), CreatedID: roster.CreatedID, Identity: authVerifier, AuthURL: authenticatorURL, Now: schedule.System().Now,
+	}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
@@ -106,6 +137,7 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		channelsH.Module(channelDeps),
 		conformanceH.Module(channelRegistry),
+		consoleH.Module(consoleDeps),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

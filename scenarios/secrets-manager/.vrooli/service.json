@@ -174,13 +174,15 @@
         "enabled": true,
         "required": true,
         "description": "Secrets metadata and scan history",
-        "database": "vrooli_secrets_manager"
+        "database": "vrooli_secrets_manager",
+        "startup_policy": "must_start"
       },
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
         "required": false,
-        "description": "Launch vulnerability-fixing agents"
+        "description": "Launch vulnerability-fixing agents",
+        "startup_policy": "try_start"
       }
     }
   },

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "scenario-to-desktop",
   "generator": "v1.0.0",
-  "manifest_hash": "53f07852c8db0175eaa167c42121e4a307d7935dc767b82a1199d1fca8210fab",
+  "manifest_hash": "4c1cb74ee9445bc2262f84cf0dc0d1df8a7094980d6cb977eedfb9b83ba80349",
   "commands": [
     {
       "path": "build get",
@@ -131,6 +131,12 @@
       "command": "list",
       "binding": "EvidenceService.ListEvidenceCaptures",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evidence publish-offer-fact",
+      "group": "evidence",
+      "command": "publish-offer-fact",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "evidence summary",

@@ -1,42 +1,21 @@
-import {
-  createBrowserRouter,
-  createMemoryRouter,
-  RouterProvider,
-  type RouteObject,
-} from "react-router-dom";
+import { createBrowserRouter, createMemoryRouter, Navigate, RouterProvider, type RouteObject } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
+import { AgentDetailPage } from "../pages/AgentDetailPage";
+import { AgentNewPage } from "../pages/AgentNewPage";
+import { AgentsPage } from "../pages/AgentsPage";
+import { CallPage } from "../pages/CallPage";
+import { ChannelsPage } from "../pages/ChannelsPage";
+import { ContactsPage } from "../pages/ContactsPage";
+import { ConversationsPage } from "../pages/ConversationsPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
-import { ChannelsPage } from "../pages/ChannelsPage";
-import { AgentsPage } from "../pages/AgentsPage";
-import { ConversationsPage } from "../pages/ConversationsPage";
-import { ContactsPage } from "../pages/ContactsPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
-import { strings } from "../consts/strings";
-import { useTranslation } from "../i18n";
-import { ExperienceSurface, type ExperienceSurfaceState } from "../components/experience/ExperienceSurface";
-
-type SurfaceKey = (typeof strings.console.surface)[keyof typeof strings.console.surface];
-
-function SurfacePage({ titleKey, region, descriptionKey, state = "ready" }: { titleKey: SurfaceKey; region: string; descriptionKey: SurfaceKey; state?: ExperienceSurfaceState }) {
-  const { t } = useTranslation();
-  return (
-    <section aria-labelledby={`${region}-heading`} className="flex flex-col gap-4">
-      <h2 id={`${region}-heading`} className="text-2xl font-semibold">{t(titleKey)}</h2>
-      <p className="text-app-muted-foreground">{t(descriptionKey)}</p>
-      <ExperienceSurface surfaceId={region} state={state} className="rounded-lg border p-6">
-        {t(strings.console.surface.nothingConfigured)}
-      </ExperienceSurface>
-    </section>
-  );
-}
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
- * from the same config the production app uses.
- *
- * Add new pages by appending to the `children` array.
+ * from the same config the production app uses. Every route here is a page
+ * the experience contract declares; there are no placeholder surfaces.
  */
 export const routes: RouteObject[] = [
   {
@@ -44,18 +23,19 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "welcome", element: <SurfacePage titleKey={strings.console.surface.welcome} region="draft-region" descriptionKey={strings.console.surface.welcomeDescription} /> },
+      { path: "welcome", element: <Navigate to="/agents/new" replace /> },
       { path: "settings", element: <SettingsPage /> },
       { path: "channels", element: <ChannelsPage /> },
-      { path: "channels/:channelId", element: <SurfacePage titleKey={strings.console.surface.channel} region="catalog-region" descriptionKey={strings.console.surface.channelDescription} state="empty" /> },
+      { path: "channels/:channelId", element: <ChannelsPage /> },
       { path: "agents", element: <AgentsPage /> },
-      { path: "agents/:agentId", element: <SurfacePage titleKey={strings.console.surface.agent} region="grant-region" descriptionKey={strings.console.surface.agentDescription} /> },
-      { path: "agents/new", element: <AgentsPage /> },
+      { path: "agents/new", element: <AgentNewPage /> },
+      { path: "agents/:agentId", element: <AgentDetailPage /> },
       { path: "conversations", element: <ConversationsPage /> },
       { path: "conversations/:threadId", element: <ConversationsPage /> },
-      { path: "call/:threadId", element: <SurfacePage titleKey={strings.console.surface.call} region="transcript-region" descriptionKey={strings.console.surface.callDescription} /> },
+      { path: "call/:threadId", element: <CallPage /> },
       { path: "contacts", element: <ContactsPage /> },
-      { path: "contacts/:contactId", element: <SurfacePage titleKey={strings.console.surface.contact} region="contact-region" descriptionKey={strings.console.surface.contactDescription} state="empty" /> },
+      { path: "contacts/:contactId", element: <ContactsPage /> },
+      { path: "*", element: <Navigate to="/" replace /> },
     ],
   },
 ];
@@ -68,23 +48,18 @@ const dataRouterFuture = {
 };
 const routerProviderFuture = { v7_startTransition: true };
 
-/**
- * Production router (uses real browser history). Built lazily so module load
- * doesn't fail in test environments where `window.location` semantics differ
- * from production.
- */
+/** Production router (uses real browser history). */
 export function AppRouter() {
-  // Re-create per mount so HMR / re-mounts pick up updated routes during dev
-  // and so tests that manipulate `window.history` see fresh routing each time.
   const router = createBrowserRouter(routes, { future: dataRouterFuture });
   return <RouterProvider router={router} future={routerProviderFuture} />;
 }
 
-/**
- * Test helper: render the same routes against an in-memory router with a
- * specific starting URL. Only used by `routes.test.tsx`.
- */
+/** Test helper: the same routes against an in-memory router. */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
   const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
-  return <ThemeProvider><RouterProvider router={router} future={routerProviderFuture} /></ThemeProvider>;
+  return (
+    <ThemeProvider>
+      <RouterProvider router={router} future={routerProviderFuture} />
+    </ThemeProvider>
+  );
 }

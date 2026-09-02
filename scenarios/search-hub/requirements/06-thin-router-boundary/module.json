@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T00:30:40-04:00"
+    "last_validated_at": "2026-08-28T08:23:12-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-012",
       "title": "No data accretion (no qdrant, no corpus tables)",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "architecture",
       "description": "An architectural test asserts the router module imports no qdrant client and declares no corpus-content tables — only registry and metrics tables.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Source scan finds no qdrant import in the router/registry/routing packages."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Schema declares only registry + metrics tables (allow-list assertion)."
         }
       ]

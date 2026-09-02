@@ -5,10 +5,10 @@ import { AnnotationAuthor, DispositionState } from "../../../../../../packages/p
 
 import { retrievalClient } from "../../api/retrieval";
 import { triageClient } from "../../api/triage";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { EmptyState } from "@vrooli/react-component-library/EmptyState/1.1.0";
-import { Textarea } from "@vrooli/react-component-library/Textarea/1.0.0";
+import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
+import { Textarea } from "@vrooli/react-component-library/Textarea/1";
 import { useTriageKeys } from "../../hooks/useTriageKeys";
 import { SignalClassificationControl } from "../categories/SignalClassificationControl";
 

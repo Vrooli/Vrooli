@@ -29,6 +29,7 @@ func (g *gitleaksScanner) Binary() string { return "gitleaks" }
 
 // Applies to every scenario: secrets can hide in any substrate.
 func (g *gitleaksScanner) Applies(Substrate) bool { return true }
+
 func (g *gitleaksScanner) EvidencePlan(ctx context.Context, scenarioDir string, sub Substrate, now time.Time) (ScannerEvidencePlan, error) {
 	return scannerEvidencePlan(ctx, g.cmd, g.Name(), g.Binary(), scenarioDir, sub, now)
 }
@@ -53,7 +54,7 @@ func (g *gitleaksScanner) Scan(ctx context.Context, scenarioDir string, _ Substr
 	// Commander captures); --no-git scans the working tree rather than history;
 	// --no-banner keeps stderr clean. gitleaks exits 1 when leaks are found, so
 	// we ignore exitCode and parse stdout directly.
-	stdout, stderr, _, err := g.cmd.Run(ctx, sourceDir,
+	stdout, stderr, _, _, err := runCommand(ctx, g.cmd, sourceDir,
 		"gitleaks", "detect",
 		"--source", ".",
 		"--no-git",

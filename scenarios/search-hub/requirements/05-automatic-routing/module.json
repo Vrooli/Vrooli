@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T00:30:40-04:00"
+    "last_validated_at": "2026-08-28T08:23:12-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-010",
       "title": "Description-driven classification",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "core",
       "description": "The classifier ranks provider leaves using only registry natural-language descriptions and the query — no provider-specific routing code. Search Hub retrieves a bounded description shortlist through the shared embedding contract and retains deterministic enumeration as an explicit degraded fallback.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Against the composed router.routing suite, routing recall@K \u003e= 0.85; per-provider breakdown and precision reported."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Adding a new registry row changes routing with no classifier code change."
         }
       ]
@@ -28,7 +28,7 @@
     {
       "id": "REQ-P0-011",
       "title": "Widen-on-uncertainty + override",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "core",
       "description": "When the classifier is uncertain it widens (more provider types) rather than dropping; explicit --type/--all always override the classifier; --explain returns the routing rationale.",
@@ -36,13 +36,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An ambiguous query routes to a wider set, not an empty/narrow set."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "--type overrides classifier output exactly."
         }
       ]
@@ -50,7 +50,7 @@
     {
       "id": "REQ-P0-014",
       "title": "Bounded provider-description retrieval",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "core",
       "description": "The router shall retrieve only a bounded provider-description shortlist through the shared embedding contract, persist descriptor vectors with model metadata, and name routing_index_unavailable when deterministic relevance-scored enumeration is used as the fallback.",
@@ -59,21 +59,21 @@
           "type": "test",
           "ref": "api/internal/routing/provider_index_test.go::TestEmbeddingDescriptionIndexShortlistsAndNamesOmissions",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The index returns a bounded shortlist and records omitted providers."
         },
         {
           "type": "test",
           "ref": "api/internal/routing/provider_index_test.go::TestDescriptionIndexReembedsOnlyChangedDescriptorAndSurvivesRestart",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Persisted descriptor vectors are reused across restart and only changed descriptors are re-embedded."
         },
         {
           "type": "test",
           "ref": "api/internal/routing/provider_index_test.go::TestDescriptionIndexUnavailableUsesBoundedFallbackReason",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Unavailable embedding falls back with the stable routing_index_unavailable reason."
         }
       ]

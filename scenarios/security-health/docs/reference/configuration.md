@@ -33,28 +33,36 @@ for the full policy.
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 | `SECURITY_HEALTH_RECONCILE_INTERVAL` | `5m` | Base cadence of the background fleet reconcile loop (Go duration, e.g. `5m`, `10m`). A per-tick jitter of up to `interval/4` is added so a fleet of self-monitoring scenarios doesn't burst on an aligned boundary. Invalid/non-positive values fall back to the default. |
+| `SECURITY_HEALTH_RECONCILE_MAX_INTERVAL` | `1h` | Ceiling for exponential backoff after unchanged fleet reconciles. Each unchanged pass doubles the effective interval; any scanner work resets it to the base interval. Jitter remains applied. |
 | `SECURITY_HEALTH_SCAN_CONCURRENCY` | `4` | Max scenarios scanned in parallel during a fleet reconcile. Bounds peak CPU from the ~110 per-scenario `osv-scanner` runs; raise it to shorten a large changed-scenario pass at the cost of higher peak CPU. Minimum `1`; invalid values fall back to the default. |
 | `SECURITY_HEALTH_SCANNER_CAPACITY` | `4` | Shared weighted capacity for validation scanner subprocesses. Valid range is `3-32`; invalid values fall back to `4`. Higher values admit more expensive scanner work concurrently across requests and increase peak CPU/memory. |
+| `SECURITY_HEALTH_SCANNER_MAX_PROCS` | one quarter of host CPUs, floor `2` | Sets child `GOMAXPROCS` for `gosec` and `govulncheck`. Values are clamped to `1..runtime.NumCPU()`; invalid values use the default. |
 
 Scanner weights and evidence freshness are correctness policy, not operator
 preferences, so they are intentionally not configurable. Static scanners use
 weights `1-2`; advisory scanners use weights `2-3`. Advisory identities include
-the UTC calendar day, while static evidence remains valid until content, tool,
-or normalization policy changes. See
+a stable per-scenario UTC-hour epoch, while static evidence remains valid until
+content, tool, or normalization policy changes. See
 [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md) for input boundaries,
 metrics, failure behavior, and safe invalidation.
 
 The per-scenario `osv-scanner` result is content-cached (no flag — on by default): a
 reconcile re-scans a scenario only when its resolved-version lockfiles
 (`go.mod`/`go.sum`/`pnpm-lock.yaml`/`package-lock.json`/`yarn.lock`/`npm-shrinkwrap.json`),
-the installed `osv-scanner` version, or the UTC calendar day changes — so steady-state
+the installed `osv-scanner` version, or the stable per-scenario advisory epoch changes — so steady-state
 reconciles run near-zero scanner subprocesses while every scenario still re-scans at most
 once per day to pick up newly-published vulnerabilities. The cache key folds in all of those
-inputs, so it is always correctness-preserving: a real change forces a re-scan and the daily
-epoch bounds staleness to a day. Scans run **online** (osv-scanner resolves the live OSV
+inputs, so it is always correctness-preserving: a real change forces a re-scan and the 25-hour
+epoch bounds staleness. Scans run **online** (osv-scanner resolves the live OSV
 database); offline mode was rejected because osv-scanner loads its full ~200 MB+ per-ecosystem
 database into memory on every invocation (see `docs/perf/2026-06-24-reconcile-scan-incremental.md`).
-The reconcile loop and the on-demand `Reindex` RPC share an overlap lock so they can never
+When a scanner exposes a database identity, that identity is preferred over the
+epoch: govulncheck reports its `DB updated` timestamp, while osv-scanner 1.9.2
+did not report one in the 2026-08-28 measurement and therefore uses the
+per-scenario fallback.
+The reconcile loop backs off exponentially after unchanged passes, up to
+`SECURITY_HEALTH_RECONCILE_MAX_INTERVAL`, and resets immediately when scanner
+work is required. The reconcile loop and the on-demand `Reindex` RPC share an overlap lock so they can never
 scan the fleet concurrently. Cache effectiveness is reported on the dependencies `Status`
 reconcile outcome (`scans_run=… scans_skipped_cache=…`).
 

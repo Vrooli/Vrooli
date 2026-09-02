@@ -1,6 +1,6 @@
-// Package coreset registers the `core-set` CLI verb, which surfaces the
-// reflexive core set (9-seed ∪ transitive Required closure) and the
-// trusted-base subset that the Baseline Modes decision tree consumes.
+// Package coreset registers the compatibility `core-set` CLI verb. It reads
+// the same database-free computation as `vrooli supervision-set`; it does not
+// own another authority.
 package coreset
 
 import (
@@ -28,7 +28,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 		Commands: []cliapp.Command{
 			{
 				Name:        "core-set",
-				Description: "Show the reflexive core set (9-seed ∪ required closure) and trusted-base subset",
+				Description: "Show the compatibility view of `vrooli supervision-set` and its trusted-base subset",
 				NeedsAPI:    true,
 				Run: func(args []string) error {
 					return run(core, args)

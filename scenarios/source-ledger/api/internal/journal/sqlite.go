@@ -102,6 +102,11 @@ func (r *SQLiteRepository) List(ctx context.Context, limit int) ([]Entry, error)
 	return r.list(ctx, "WHERE e.scope = ?", limit, policy.ScopeFromContext(ctx))
 }
 
+func (r *SQLiteRepository) ListAfter(ctx context.Context, cursor string, limit int) ([]Entry, error) {
+	scope := policy.ScopeFromContext(ctx)
+	return r.list(ctx, "WHERE e.scope = ? AND e.rowid > (SELECT rowid FROM entries WHERE id = ? AND scope = ?)", limit, scope, cursor, scope)
+}
+
 func (r *SQLiteRepository) ListByRun(ctx context.Context, runID string, limit int) ([]Entry, error) {
 	if runID == "" {
 		return nil, nil

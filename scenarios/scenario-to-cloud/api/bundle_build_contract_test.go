@@ -201,11 +201,13 @@ func TestBundleHelpersResolveScenarioPathsFromContract(t *testing.T) {
 	}
 
 	t.Setenv("SCENARIO_TO_CLOUD_REPO_ROOT", repoRoot)
+	storageRoot := t.TempDir()
+	t.Setenv("VROOLI_STORAGE_ROOT", storageRoot)
 	bundlesDir, err := bundle.GetLocalBundlesDir()
 	if err != nil {
 		t.Fatalf("GetLocalBundlesDir: %v", err)
 	}
-	if got, want := bundlesDir, filepath.Join(repoRoot, "scenarios", "scenario-to-cloud", "coverage", "bundles"); got != want {
+	if got, want := bundlesDir, filepath.Join(storageRoot, "cache", "vrooli", "scenario-to-cloud", "bundles"); got != want {
 		t.Fatalf("GetLocalBundlesDir = %q, want %q", got, want)
 	}
 }

@@ -44,6 +44,8 @@ type ManagerSecret struct {
 	ID                string                 `json:"id"`
 	ResourceName      string                 `json:"resource_name"`
 	SecretKey         string                 `json:"secret_key"`
+	LogicalID         string                 `json:"logical_id,omitempty"`
+	Field             string                 `json:"field,omitempty"`
 	SecretType        string                 `json:"secret_type"` // env_var, file, password, api_key
 	Required          bool                   `json:"required"`
 	Classification    string                 `json:"classification"` // infrastructure, integration, user_defined
@@ -217,6 +219,9 @@ func transformSecrets(secrets []ManagerSecret, tier string) []domain.BundleSecre
 				Type: targetType,
 				Name: s.SecretKey,
 			},
+		}
+		if class != "per_install_generated" && strings.TrimSpace(s.LogicalID) != "" && strings.TrimSpace(s.Field) != "" {
+			plan.Descriptor = &domain.DescriptorAddress{LogicalID: strings.TrimSpace(s.LogicalID), Field: strings.TrimSpace(s.Field)}
 		}
 
 		// Add prompt metadata for user_prompt secrets

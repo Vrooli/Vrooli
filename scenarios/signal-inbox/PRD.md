@@ -18,13 +18,13 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | Immutable signal journal | The system shall persist every captured signal to an append-only journal whose entries are never rewritten and never deleted, and shall reject a duplicate capture of identical source content by content hash.
+- [ ] OT-P0-001 | Immutable signal journal | The system shall persist every captured signal to an append-only journal whose entries are never rewritten and never deleted, and shall reject a duplicate capture of identical source content by content hash.
 - [ ] OT-P0-002 | Manual capture | The system shall accept a signal supplied directly by the operator as a URL, as pasted text, or as a pasted or uploaded image, with an optional note recorded at capture time.
 - [ ] OT-P0-003 | Content extraction with empty-result detection | When a signal carries a resolvable source, the system shall extract its text content, and shall mark the signal `needs-attention` rather than storing an empty body when extraction yields no content.
-- [x] OT-P0-004 | Operator-defined categories | The system shall let the operator create, rename, and retire categories at runtime, and shall never require a code change to add one.
+- [ ] OT-P0-004 | Operator-defined categories | The system shall let the operator create, rename, and retire categories at runtime, and shall never require a code change to add one.
 - [ ] OT-P0-005 | Assisted classification with operator override | When a signal is captured, the system shall propose a category with a confidence score, shall require operator confirmation before the assignment is authoritative, and shall allow reassignment at any later time.
-- [x] OT-P0-006 | Annotation thread | The system shall accept append-only annotations on any signal, including free-text notes and typed outcome links that reference what the signal produced.
-- [x] OT-P0-007 | Disposition lifecycle | The system shall track exactly one disposition per signal across `new`, `triaged`, `routed`, `done`, and `dropped`, and shall support deferring a signal to a future review date.
+- [ ] OT-P0-006 | Annotation thread | The system shall accept append-only annotations on any signal, including free-text notes and typed outcome links that reference what the signal produced.
+- [ ] OT-P0-007 | Disposition lifecycle | The system shall track exactly one disposition per signal across `new`, `triaged`, `routed`, `done`, and `dropped`, and shall support deferring a signal to a future review date.
 - [ ] OT-P0-008 | Idempotent archive import | The system shall import operator-supplied platform exports, and re-running an import over unchanged source data shall create no duplicate signals.
 - [ ] OT-P0-009 | Structured query contract | The system shall expose filtering by category, disposition, source, capture date, and tag through both API and CLI as a stable contract other scenarios consume.
 - [ ] OT-P0-010 | Semantic search over signals | The system shall embed each signal's extracted content and shall answer natural-language queries over the full corpus, including signals whose disposition is `done` or `dropped`.
@@ -35,7 +35,7 @@
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-001 | Category taxonomies | The system should let a category declare a typed vocabulary so signals in that category carry a subtype, while categories without a taxonomy carry none.
+- [ ] OT-P1-001 | Category taxonomies | The system should let a category declare a typed vocabulary so signals in that category carry a subtype, while categories without a taxonomy carry none.
 - [ ] OT-P1-002 | Intake-pipeline routing | The system should route a triaged signal into the agent-system intake pipeline as a team knowledge entry under the topic shape that pipeline expects, and should record the routing as an outcome link.
 - [ ] OT-P1-003 | Reddit saved-posts adapter | The system should import saved posts through Reddit's official API under operator-supplied credentials as the first tier-1 adapter.
 - [ ] OT-P1-004 | Conversation share-link extraction | The system should extract full conversation content from AI chat share links whose transcripts are embedded in the page rather than served by an API.
@@ -51,7 +51,7 @@
 - [ ] OT-P2-002 | Browser-extension capture | The system may accept a signal pushed from a browser extension so capture does not require leaving the page.
 - [ ] OT-P2-003 | Cross-category signals | The system may allow a signal to carry more than one authoritative category once a disposition-ownership rule exists for the multi-consumer case.
 - [ ] OT-P2-004 | Retrieval eval corpus | The system may register a golden retrieval suite with search-hub so signal recall quality is measured over time like any other provider.
-- [x] OT-P2-005 | Category suggestion from clustering | The system may propose new categories by clustering signals that repeatedly land in `uncategorized`.
+- [ ] OT-P2-005 | Category suggestion from clustering | The system may propose new categories by clustering signals that repeatedly land in `uncategorized`.
 
 ## 🧱 Tech Direction Snapshot
 

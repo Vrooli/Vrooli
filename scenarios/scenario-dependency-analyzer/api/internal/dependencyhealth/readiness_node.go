@@ -20,6 +20,13 @@ func checkNodeSurface(surface *healthv1.DependencyHealthSurface) []*healthv1.Dep
 	if len(lockfiles) > 1 {
 		findings = append(findings, readinessFinding("node."+surfaceID(surface)+".multiple-lockfiles", "ERROR", "Conflicting JavaScript lockfiles", "A JavaScript/TypeScript dependency surface has multiple package-manager lockfiles.", "Keep exactly one lockfile for the intended package manager and remove stale lockfiles.", surface, "dependency.node.single_lockfile", strings.Join(lockfiles, ", "), "exactly one package-manager lockfile"))
 	}
+	if len(lockfiles) == 1 {
+		if drift, err := nodeDependencyDrift(surface); err != nil {
+			findings = append(findings, readinessFinding("node."+surfaceID(surface)+".lockfile-drift-unreadable", "WARNING", "JavaScript lockfile drift could not be checked", err.Error(), "Repair or replace the lockfile through the governed dependency analyzer before starting this surface.", surface, "dependency.node.lockfile_drift", "probe failed", "manifest and lockfile specifiers comparable"))
+		} else if len(drift) > 0 {
+			findings = append(findings, readinessFinding("node."+surfaceID(surface)+".lockfile-drift", "ERROR", "JavaScript lockfile specifiers diverge", "The package manifest and lockfile declare different dependency ranges: "+strings.Join(drift, ", ")+".", "Run `scenario-dependency-analyzer deps resync --scenario <name> --surface "+surfaceID(surface)+"` and review the dry-run verdict before applying.", surface, "dependency.node.lockfile_drift", strings.Join(drift, ", "), "manifest and lockfile specifiers match"))
+		}
+	}
 	if !dirExists(filepath.Join(root, "node_modules")) {
 		findings = append(findings, readinessFinding("node."+surfaceID(surface)+".node-modules-missing", "WARNING", "JavaScript install state is missing locally", "node_modules is absent for this JavaScript/TypeScript surface. This is local readiness, not dependency declaration drift.", "Install dependencies in the reported workspace without changing dependency declarations, for example `pnpm install --ignore-workspace` when pnpm is the intended manager.", surface, "dependency.node.install_state", "node_modules missing", "local install state present when local execution needs it"))
 	}

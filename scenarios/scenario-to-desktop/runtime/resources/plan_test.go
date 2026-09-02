@@ -1,15 +1,21 @@
 package resources
 
 import (
+	"archive/tar"
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/binaryfetch"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -52,6 +58,140 @@ func TestLoadValidatesBundledClientArtifacts(t *testing.T) {
 	}
 	if _, err := Load(root); err == nil {
 		t.Fatal("expected artifact tampering to fail")
+	}
+}
+
+func TestResolveDeferredOffersRequiresHostCapabilityAndExplicitOutcome(t *testing.T) {
+	plan := &Plan{DeferredTargets: []DeferredResourceTarget{{
+		Resource: "whisper", OS: runtimeOS(), Architecture: runtime.GOARCH,
+		When: map[string]string{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "has:vulkan"},
+		Kind: "oci-image", Image: "ghcr.io/example/whisper@sha256:" + strings.Repeat("a", 64), SizeBytes: 123456,
+	}}}
+	if got := ResolveDeferredOffers(plan, binaryfetch.Facts{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "cpu"}, nil); len(got) != 0 {
+		t.Fatalf("CPU facts unexpectedly offered %v", got)
+	}
+	got := ResolveDeferredOffers(plan, binaryfetch.Facts{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "vulkan"}, nil)
+	if len(got) != 1 || got[0].Resource != "whisper" || got[0].SizeBytes != 123456 {
+		t.Fatalf("offers = %#v", got)
+	}
+	outcomes := map[string]UpgradeOutcome{"whisper": {Resource: "whisper", Decision: "declined"}}
+	if got := ResolveDeferredOffers(plan, binaryfetch.Facts{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "vulkan"}, outcomes); len(got) != 0 {
+		t.Fatalf("declined candidate re-offered: %#v", got)
+	}
+}
+
+func TestUpgradeOutcomePersistsDeclineAndFailureWithoutTouchingBundle(t *testing.T) {
+	appData := t.TempDir()
+	for _, decision := range []string{"declined", "failed"} {
+		if err := RecordUpgradeOutcome(appData, UpgradeOutcome{Resource: "whisper", Decision: decision}); err != nil {
+			t.Fatal(err)
+		}
+		outcomes, err := LoadUpgradeOutcomes(appData)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if outcomes["whisper"].Decision != decision {
+			t.Fatalf("decision = %#v", outcomes)
+		}
+		info, err := os.Stat(filepath.Join(appData, "resource-upgrade-outcomes.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("outcome permissions = %o", info.Mode().Perm())
+		}
+	}
+}
+
+func TestApplyDeferredUpgradeFailureLeavesStagedArtifact(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "whisper", "fallback")
+	if err := os.MkdirAll(filepath.Join(resourceDir, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resourceDir, "bin", "server"), []byte("fallback"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	digest, err := binaryfetch.TreeDigest(filepath.Join(root, "resources", "whisper", "fallback"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := &Plan{
+		Resources:       []Item{{Resource: "whisper", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-service", Support: "supported", Privilege: "user", Bundling: "vendorable", Service: &Service{Artifact: "fallback", Layout: "dir", EntryPath: "bin/server", Version: "1", SHA256: digest, Files: []Artifact{{Name: "fallback", SHA256: digest}}}}},
+		DeferredTargets: []DeferredResourceTarget{{Resource: "whisper", OS: runtimeOS(), Architecture: runtime.GOARCH, When: map[string]string{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "has:vulkan"}, Kind: "oci-image", Image: "https://127.0.0.1:1/never@sha256:" + strings.Repeat("a", 64), Layout: "dir", BinPath: "bin/server"}},
+	}
+	err = ApplyDeferredUpgrade(context.Background(), root, plan, "whisper", binaryfetch.Facts{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "vulkan"})
+	if err == nil {
+		t.Fatal("expected acquisition failure")
+	}
+	got, err := os.ReadFile(filepath.Join(resourceDir, "bin", "server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "fallback" {
+		t.Fatalf("fallback changed after failed upgrade: %q", got)
+	}
+}
+
+func TestApplyDeferredUpgradeAtomicallyInstallsVerifiedTree(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "whisper", "fallback")
+	if err := os.MkdirAll(filepath.Join(resourceDir, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resourceDir, "bin", "server"), []byte("fallback"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	upgrade := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(upgrade, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	acceleratedBody := []byte(strings.Repeat("accelerated\n", 128))
+	if err := os.WriteFile(filepath.Join(upgrade, "bin", "server"), acceleratedBody, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	artifactDigest, err := binaryfetch.TreeDigest(upgrade)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var layer bytes.Buffer
+	tw := tar.NewWriter(&layer)
+	body := acceleratedBody
+	if err := tw.WriteHeader(&tar.Header{Name: "bin/server", Mode: 0o755, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	layerSum := sha256.Sum256(layer.Bytes())
+	layerDigest := hex.EncodeToString(layerSum[:])
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/blobs/sha256:"+layerDigest) {
+			_, _ = w.Write(layer.Bytes())
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	plan := &Plan{
+		Resources:       []Item{{Resource: "whisper", OS: runtimeOS(), Architecture: runtime.GOARCH, Mode: "bundled-service", Support: "supported", Privilege: "user", Bundling: "vendorable", Service: &Service{Artifact: "fallback", Layout: "dir", EntryPath: "bin/server", Version: "1", SHA256: "old", Files: []Artifact{{Name: "fallback", SHA256: "old"}}}}},
+		DeferredTargets: []DeferredResourceTarget{{Resource: "whisper", OS: runtimeOS(), Architecture: runtime.GOARCH, When: map[string]string{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "has:vulkan"}, Kind: "oci-image", Image: srv.URL + "/example@sha256:" + layerDigest, ArtifactSHA256: artifactDigest, Layout: "dir", BinPath: "bin/server"}},
+	}
+	if err := ApplyDeferredUpgrade(context.Background(), root, plan, "whisper", binaryfetch.Facts{"os": runtimeOS(), "arch": runtime.GOARCH, "accel.backends": "vulkan"}); err != nil {
+		t.Fatalf("apply upgrade: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(root, "resources", "whisper", "fallback", "bin", "server"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(acceleratedBody) {
+		t.Fatalf("installed tree = %q", got)
+	}
+	if plan.Resources[0].Service.SHA256 != artifactDigest {
+		t.Fatalf("plan digest = %q", plan.Resources[0].Service.SHA256)
 	}
 }
 

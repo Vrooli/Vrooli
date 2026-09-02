@@ -2,7 +2,10 @@ package evidence
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -65,5 +68,33 @@ func TestEvidenceCommandsRequireScenario(t *testing.T) {
 	schema := cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "scenario", Required: true}}}
 	if _, err := cliapptest.NewTestRunContextFromArgs(schema, nil, nil, nil, nil); err == nil {
 		t.Fatal("missing scenario should fail production argument parsing")
+	}
+}
+
+func TestReadDesktopBuildFactUsesDurableRecordTimestamp(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "desktop_records_v2.json")
+	content := `[{"scenario_name":"web-console","updated_at":"2026-09-01T11:00:00Z"},{"scenario_name":"web-console","updated_at":"2026-09-01T12:00:00Z"}]`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fact, err := readDesktopBuildFact(path, "web-console", 30)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fact.GetValue() != 1 || fact.GetDimension() != "producer:scenario-to-desktop" {
+		t.Fatalf("fact = %v/%s", fact.GetValue(), fact.GetDimension())
+	}
+	if got := fact.GetObservedAt().AsTime(); !got.Equal(time.Date(2026, 9, 1, 12, 0, 0, 0, time.UTC)) {
+		t.Fatalf("observed_at = %s", got)
+	}
+}
+
+func TestReadDesktopBuildFactRejectsUnknownScenario(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "desktop_records_v2.json")
+	if err := os.WriteFile(path, []byte(`[{"scenario_name":"other","updated_at":"2026-09-01T12:00:00Z"}]`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readDesktopBuildFact(path, "web-console", 30); err == nil {
+		t.Fatal("unknown scenario was accepted")
 	}
 }

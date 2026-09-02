@@ -87,6 +87,7 @@ func New(d Deps) *Service {
 	if logger == nil {
 		logger = log.Default()
 	}
+	logger.Printf("[security-health] scanner subprocess GOMAXPROCS=%d", scannerMaxProcs())
 	policy := d.PolicyMode
 	if policy == "" {
 		policy = RolloutAdvisory
@@ -166,6 +167,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 // the root module and nested package modules under the provider-owned SAST and
 // vulnerability pipeline without teaching scanners about repository layout.
 func (s *Service) ValidateTarget(ctx context.Context, kind ValidationTargetKind, path string) (Report, error) {
+	ctx = withEvidenceWalkCache(ctx)
 	kind = ValidationTargetKind(strings.ToLower(strings.TrimSpace(string(kind))))
 	path = strings.TrimSpace(path)
 	if path == "" {
@@ -281,6 +283,7 @@ func (s *Service) ValidateTarget(ctx context.Context, kind ValidationTargetKind,
 			scanFindings, outcome, scanErr = s.evidence.ExecuteUncached(ctx, sc.Name(), 1, run)
 		}
 		scannerStage.
+			Gauge("child_peak_rss_bytes", float64(collector.ChildPeakRSSBytes())).
 			Gauge("cache_hit", boolGauge(outcome.Source == EvidenceSourceCache)).
 			Gauge("cache_miss", boolGauge(outcome.Source == EvidenceSourceExecution || outcome.Source == EvidenceSourceCoalesced)).
 			Gauge("coalesced", boolGauge(outcome.Source == EvidenceSourceCoalesced)).

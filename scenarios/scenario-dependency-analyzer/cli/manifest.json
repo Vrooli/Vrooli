@@ -69,6 +69,10 @@
               "default": "false"
             },
             {
+              "name": "module",
+              "description": "Only check one Go module by repository-relative path or module path"
+            },
+            {
               "name": "concurrency",
               "description": "Maximum package surfaces to check concurrently",
               "default": "8"

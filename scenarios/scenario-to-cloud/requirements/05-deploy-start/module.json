@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-14T06:44:27-04:00"
+    "last_validated_at": "2026-08-26T15:00:19-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-005",
       "title": "Start resources + scenario and verify HTTPS",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "deploy",
       "description": "Start analyzer-derived resources, start the scenario with UI_PORT=3000/API_PORT=3001 overrides, configure Caddy+LE, and confirm https://\u003cdomain\u003e/health returns 200.",
@@ -21,7 +21,7 @@
           "type": "test",
           "ref": "api/deploy_plan_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tag tests with [REQ:STC-P0-005]."
         }
       ]
@@ -29,7 +29,7 @@
     {
       "id": "STC-P0-011",
       "title": "Caddy + Let’s Encrypt configured and verified",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "deploy",
       "description": "Deployment installs/configures Caddy for the domain, obtains a certificate, and validates that HTTPS routes to the scenario UI health endpoint.",
@@ -43,7 +43,7 @@
           "type": "test",
           "ref": "api/deploy_plan_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tag tests with [REQ:STC-P0-011]."
         }
       ]

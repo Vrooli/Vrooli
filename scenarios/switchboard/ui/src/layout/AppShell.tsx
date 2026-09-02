@@ -8,29 +8,26 @@ import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 
 /**
- * Responsive app shell. CSS grid with a header row and a (sidebar | content)
- * main row; mobile collapses the sidebar to a pinned bottom nav.
- *
- * This is the real shell — replaces the centered single-card placeholder.
- * Page content renders into the `<Outlet />`; routes are configured in
- * `app/routes.tsx`.
+ * Responsive app shell: a fixed-height column (top bar, then sidebar beside a
+ * scrolling main) so pages that need a pinned composer can fill the viewport,
+ * and ordinary pages simply scroll inside `<main>`. Below `md` the sidebar
+ * yields to a pinned bottom nav and the main area reserves room for it.
  */
 export function AppShell() {
   const { t } = useTranslation();
   return (
-    <div
-      data-testid={selectors.layout.shell}
-      className="flex min-h-dvh flex-col bg-app-background text-app-foreground"
-    >
+    <div data-testid={selectors.layout.shell} className="flex h-dvh flex-col bg-app-background text-app-foreground">
       <TopBar />
       <div className="flex min-h-0 flex-1">
         <Sidebar />
         <main
           data-testid={selectors.layout.main}
           aria-label={t(strings.console.mainContent)}
-          className="min-w-0 flex-1 overflow-auto px-4 py-4 pb-[calc(5rem+var(--safe-area-inset-bottom))] md:p-6"
+          className="min-w-0 flex-1 overflow-auto px-4 pb-[calc(6rem+var(--safe-area-inset-bottom))] pt-4 md:px-8 md:py-6 md:pb-6"
         >
-          <Outlet />
+          <div className="mx-auto h-full w-full max-w-[1400px]">
+            <Outlet />
+          </div>
         </main>
       </div>
       <BottomNav />

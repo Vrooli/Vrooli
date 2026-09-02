@@ -76,7 +76,15 @@ scenario-dependency-analyzer deps approved search "React graph library" --json
 
 # Check deployment readiness
 scenario-dependency-analyzer deployment swarm-manager
+
+# Compatibility view of the control-plane supervision set
+scenario-dependency-analyzer core-set --json
 ```
+
+The `core-set` verb is retained for Scenario Dependency Analyzer consumers. It
+uses the same database-free service as `vrooli supervision-set`; it does not
+own a separate seed or dependency list. New platform consumers should prefer
+`vrooli supervision-set --json` or the in-process supervision service.
 
 ---
 

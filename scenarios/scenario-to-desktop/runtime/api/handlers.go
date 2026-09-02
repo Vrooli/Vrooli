@@ -106,6 +106,12 @@ type ProviderObservationSource interface {
 	ProviderObservations() map[string]resourceplan.ProviderObservation
 }
 
+type ResourceUpgradeSource interface {
+	ResourceUpgradeOffers() ([]resourceplan.UpgradeOffer, error)
+	ApplyResourceUpgrade(context.Context, string) error
+	RecordResourceUpgrade(outcome resourceplan.UpgradeOutcome) error
+}
+
 // SecretStore defines the interface for secret management used by the API.
 type SecretStore interface {
 	Get() map[string]string
@@ -154,6 +160,7 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/validate", s.handleValidate)
 	mux.HandleFunc("/status", s.handleStatus)
 	mux.HandleFunc("/provider-observations", s.handleProviderObservations)
+	mux.HandleFunc("/resource-upgrades", s.handleResourceUpgrades)
 }
 
 // AuthMiddleware returns middleware that enforces bearer token authentication.
@@ -267,6 +274,46 @@ func (s *Server) handleProviderObservations(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{"observations": source.ProviderObservations()})
+}
+
+func (s *Server) handleResourceUpgrades(w http.ResponseWriter, r *http.Request) {
+	source, ok := s.runtime.(ResourceUpgradeSource)
+	if !ok {
+		http.Error(w, "resource upgrades unavailable", http.StatusNotImplemented)
+		return
+	}
+	if r.Method == http.MethodGet {
+		offers, err := source.ResourceUpgradeOffers()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]interface{}{"offers": offers})
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var outcome resourceplan.UpgradeOutcome
+	if err := json.NewDecoder(r.Body).Decode(&outcome); err != nil {
+		http.Error(w, "invalid upgrade outcome", http.StatusBadRequest)
+		return
+	}
+	if outcome.Decision == "accepted" {
+		if err := source.ApplyResourceUpgrade(r.Context(), outcome.Resource); err != nil {
+			outcome.Decision = "failed"
+			outcome.Reason = err.Error()
+			_ = source.RecordResourceUpgrade(outcome)
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+	}
+	if err := source.RecordResourceUpgrade(outcome); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "recorded"})
 }
 
 func runtimeBuildVersion() string {

@@ -115,6 +115,10 @@ func (s *Service) List(ctx context.Context, limit int) ([]Entry, error) {
 	return s.repo.List(ctx, limit)
 }
 
+func (s *Service) ListAfter(ctx context.Context, cursor string, limit int) ([]Entry, error) {
+	return s.repo.ListAfter(ctx, cursor, limit)
+}
+
 func (s *Service) ListByRun(ctx context.Context, runID string, limit int) ([]Entry, error) {
 	return s.repo.ListByRun(ctx, runID, limit)
 }

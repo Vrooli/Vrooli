@@ -16,6 +16,7 @@ type Adapter struct {
 	clients  map[string]map[*websocket.Conn]struct{}
 	receive  func(channels.Envelope) error
 	upgrader websocket.Upgrader
+	starter  starter
 }
 
 func New() *Adapter {
@@ -30,6 +31,7 @@ func (a *Adapter) BindReceive(fn func(channels.Envelope) error) {
 	a.receive = fn
 	a.mu.Unlock()
 }
+
 func (a *Adapter) Connect(_ context.Context, fn func(channels.Envelope) error) error {
 	a.BindReceive(fn)
 	return nil

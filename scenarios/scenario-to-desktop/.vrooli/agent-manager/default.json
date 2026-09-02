@@ -11,5 +11,6 @@
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_OFF"
   },
-  "createdBy": "scenario-to-desktop"
+  "createdBy": "scenario-to-desktop",
+  "effort": "medium"
 }

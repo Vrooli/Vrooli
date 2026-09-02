@@ -1,14 +1,17 @@
 package bundleruntime
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 
+	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/api"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/infra"
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/manifest"
@@ -99,6 +102,54 @@ func (s *Supervisor) loadOrCreateToken(path string) (string, error) {
 // AppDataDir returns the resolved app data directory.
 func (s *Supervisor) AppDataDir() string {
 	return s.appData
+}
+
+// ResourceUpgradeOffers evaluates deferred hardware candidates without
+// changing the staged fallback. An upgrade is only acted on after the client
+// records an explicit outcome through the control API.
+func (s *Supervisor) ResourceUpgradeOffers() ([]resourceplan.UpgradeOffer, error) {
+	outcomes, err := resourceplan.LoadUpgradeOutcomes(s.appData)
+	if err != nil {
+		return nil, err
+	}
+	facts := s.resourceUpgradeFacts()
+	return resourceplan.ResolveDeferredOffers(s.resourcePlan, facts, outcomes), nil
+}
+
+func (s *Supervisor) resourceUpgradeFacts() binaryfetch.Facts {
+	facts := binaryfetch.Facts{}
+	status := s.GPUStatus()
+	if status.Available {
+		for key, value := range status.Facts {
+			facts[key] = value
+		}
+	}
+	if status.Available {
+		backend := strings.ToLower(status.Method)
+		switch {
+		case strings.Contains(backend, "nvidia"):
+			facts["accel.backends"] = "cuda"
+		case strings.Contains(backend, "system_profiler"), strings.Contains(backend, "darwin"):
+			facts["accel.backends"] = "metal"
+		default:
+			facts["accel.backends"] = backend
+		}
+		facts["accel.backend"] = facts["accel.backends"]
+	}
+	if !status.Available {
+		facts["accel.backends"] = "cpu"
+		facts["accel.backend"] = "cpu"
+	}
+	facts["os"], facts["arch"] = runtime.GOOS, runtime.GOARCH
+	return facts
+}
+
+func (s *Supervisor) ApplyResourceUpgrade(ctx context.Context, resource string) error {
+	return resourceplan.ApplyDeferredUpgrade(ctx, s.opts.BundlePath, s.resourcePlan, resource, s.resourceUpgradeFacts())
+}
+
+func (s *Supervisor) RecordResourceUpgrade(outcome resourceplan.UpgradeOutcome) error {
+	return resourceplan.RecordUpgradeOutcome(s.appData, outcome)
 }
 
 // TelemetryPath returns the telemetry file path.

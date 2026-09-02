@@ -30,6 +30,7 @@ import (
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/internal/capabilities"
 	"scenario-to-desktop-api/livedesktop"
+	"scenario-to-desktop-api/offerfacts"
 	"scenario-to-desktop-api/persistence"
 	"scenario-to-desktop-api/pipeline"
 	"scenario-to-desktop-api/procmetrics"
@@ -776,6 +777,9 @@ func main() {
 
 	// Create server
 	srv := NewServer(port)
+	factCtx, factCancel := context.WithCancel(context.Background())
+	defer factCancel()
+	offerfacts.Start(factCtx, globalLogger.Info)
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()

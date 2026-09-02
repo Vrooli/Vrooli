@@ -77,7 +77,7 @@ func (g *govulncheckScanner) Scan(ctx context.Context, scenarioDir string, sub S
 	for _, rel := range dirs {
 		modDir := filepath.Join(scenarioDir, rel)
 		args := append([]string{"-json"}, goPackagePatterns(sub, rel)...)
-		stdout, stderr, _, err := g.cmd.Run(ctx, modDir, "govulncheck", args...)
+		stdout, stderr, _, _, err := runCommandWithEnv(ctx, g.cmd, modDir, scannerEnvironment(), "govulncheck", args...)
 		if err != nil {
 			lastErr = fmt.Errorf("govulncheck failed to run in %s: %w", rel, err)
 			continue

@@ -42,6 +42,9 @@ func ValidateUserPromptSecrets(manifest domain.CloudManifest, providedSecrets ma
 		if secret.Class != "user_prompt" {
 			continue // Not a user-provided secret
 		}
+		if secret.Descriptor == nil && strings.TrimSpace(secret.DescriptorReason) == "" {
+			return nil, fmt.Errorf("user_prompt secret %q has no credential descriptor address or documented reason", secret.ID)
+		}
 		if !secret.Required {
 			continue // Optional secret
 		}
@@ -54,6 +57,12 @@ func ValidateUserPromptSecrets(manifest domain.CloudManifest, providedSecrets ma
 		// Check if secret was provided
 		if _, ok := providedSecrets[key]; ok {
 			continue // Secret provided
+		}
+		if secret.Descriptor != nil {
+			address := strings.TrimSpace(secret.Descriptor.LogicalID) + ":" + strings.TrimSpace(secret.Descriptor.Field)
+			if _, ok := providedSecrets[address]; ok {
+				continue
+			}
 		}
 
 		// Secret is missing - collect info for error message
@@ -126,6 +135,9 @@ func BuildPortEnvVars(ports domain.ManifestPorts) string {
 // normalization and read under another is a credential that silently is not
 // there. Only the choice of which part of the plan names it belongs here.
 func credentialFieldFor(secret domain.BundleSecretPlan) string {
+	if secret.Descriptor != nil && strings.TrimSpace(secret.Descriptor.Field) != "" {
+		return secrets.CredentialField(secret.Descriptor.Field)
+	}
 	raw := strings.TrimSpace(secret.ID)
 	if raw == "" {
 		raw = strings.TrimSpace(secret.Target.Name)
@@ -146,15 +158,27 @@ func credentialFieldFor(secret domain.BundleSecretPlan) string {
 // credential a cloud deploy ships. That is the whole point of a durable
 // backend-neutral name: the deployment tier must not change where a value
 // lives.
-func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[string]string) map[string]string {
+func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[string]string) (map[string]string, error) {
 	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	authority, authErr := credentialauthority.Default()
 	identity, identityErr := credentialauthority.ParseIdentity("vrooli/" + strings.TrimSpace(manifest.Scenario.ID))
+	if authErr != nil {
+		return nil, fmt.Errorf("initialize credential authority: %w", authErr)
+	}
+	if identityErr != nil {
+		return nil, fmt.Errorf("parse deployment identity: %w", identityErr)
+	}
 
 	out := make(map[string]string)
+	descriptorKey := func(address *domain.DescriptorAddress) string {
+		if address == nil {
+			return ""
+		}
+		return strings.TrimSpace(address.LogicalID) + ":" + strings.TrimSpace(address.Field)
+	}
 	for _, secret := range manifest.Secrets.BundleSecrets {
 		if secret.Class != "user_prompt" {
 			continue
@@ -166,28 +190,43 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 		if key == "" {
 			continue
 		}
-
-		// Merge precedence (lowest -> highest): the stored credential, then a
-		// value the caller supplied explicitly for this deploy.
-		if authErr == nil && identityErr == nil {
-			if field := credentialFieldFor(secret); field != "" {
-				// A credential that is simply unset is a normal answer here and
-				// leaves the key absent, which is what the caller's own
-				// missing-secret reporting already handles.
-				if value, err := authority.Resolve(identity, field); err == nil && strings.TrimSpace(value) != "" {
-					out[key] = value
-				}
+		descriptor := descriptorKey(secret.Descriptor)
+		if descriptor != "" {
+			if v, ok := providedSecrets[descriptor]; ok && strings.TrimSpace(v) != "" {
+				out[key] = v
+				continue
 			}
 		}
 		if v, ok := providedSecrets[key]; ok && strings.TrimSpace(v) != "" {
 			out[key] = v
+			continue
+		}
+
+		// Merge precedence (lowest -> highest): the stored credential, then a
+		// value the caller supplied explicitly for this deploy.
+		resolveIdentity := identity
+		if secret.Descriptor != nil {
+			resolveIdentity, identityErr = credentialauthority.ParseIdentity(strings.TrimSpace(secret.Descriptor.LogicalID))
+			if identityErr != nil {
+				return nil, fmt.Errorf("parse descriptor identity for %s: %w", key, identityErr)
+			}
+		}
+		if field := credentialFieldFor(secret); field != "" {
+			// Unconfigured is handled by the caller's missing-secret check, but
+			// provider failures must remain visible and never become empty input.
+			value, resolveErr := authority.Require(resolveIdentity, field)
+			if resolveErr == nil && strings.TrimSpace(value) != "" {
+				out[key] = value
+			} else if resolveErr != nil && !errors.Is(resolveErr, credentialauthority.ErrUnconfigured) {
+				return nil, fmt.Errorf("resolve deployment credential %s:%s: %w", resolveIdentity, field, resolveErr)
+			}
 		}
 	}
 
 	if len(out) == 0 {
-		return nil
+		return nil, nil
 	}
-	return out
+	return out, nil
 }
 
 // ServiceJSON represents the structure of .vrooli/service.json
@@ -590,7 +629,10 @@ func RunDeployWithProgress(
 		}
 
 		// Provision generated and user-provided values to the target authority.
-		userSecrets := buildUserSecretMap(manifest, providedSecrets)
+		userSecrets, resolveErr := buildUserSecretMap(manifest, providedSecrets)
+		if resolveErr != nil {
+			return failStep("secrets_provision", "Provisioning secrets", resolveErr)
+		}
 		if err := secrets.WriteToVPS(ctx, sshRunner, cfg, workdir, generated, userSecrets, manifest.Scenario.ID); err != nil {
 			return failStep("secrets_provision", "Provisioning secrets", fmt.Errorf("write secrets: %w", err))
 		}

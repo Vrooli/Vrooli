@@ -90,14 +90,23 @@ type ManifestSecrets struct {
 // BundleSecretPlan represents a secret from secrets-manager.
 // This is included in the manifest so the deploy target can generate/prompt for secrets.
 type BundleSecretPlan struct {
-	ID          string                 `json:"id"`
-	Class       string                 `json:"class"` // per_install_generated, user_prompt, remote_fetch, infrastructure
-	Required    bool                   `json:"required"`
-	Description string                 `json:"description,omitempty"`
-	Format      string                 `json:"format,omitempty"` // validation pattern
-	Target      BundleSecretTarget     `json:"target"`
-	Prompt      *SecretPromptMetadata  `json:"prompt,omitempty"`
-	Generator   map[string]interface{} `json:"generator,omitempty"`
+	ID               string                 `json:"id"`
+	Class            string                 `json:"class"` // per_install_generated, user_prompt, remote_fetch, infrastructure
+	Required         bool                   `json:"required"`
+	Description      string                 `json:"description,omitempty"`
+	Format           string                 `json:"format,omitempty"` // validation pattern
+	Target           BundleSecretTarget     `json:"target"`
+	Descriptor       *DescriptorAddress     `json:"descriptor,omitempty"`
+	DescriptorReason string                 `json:"descriptor_reason,omitempty"`
+	Prompt           *SecretPromptMetadata  `json:"prompt,omitempty"`
+	Generator        map[string]interface{} `json:"generator,omitempty"`
+}
+
+// DescriptorAddress is the canonical credential-authority address satisfied
+// by a deployment secret. It remains optional for legacy manifests.
+type DescriptorAddress struct {
+	LogicalID string `json:"logical_id"`
+	Field     string `json:"field"`
 }
 
 // BundleSecretTarget specifies where to inject the secret value.

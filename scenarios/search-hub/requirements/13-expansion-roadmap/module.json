@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T00:30:40-04:00"
+    "last_validated_at": "2026-08-28T08:23:12-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P2-001",
       "title": "External provider scope is transportable",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-001",
       "category": "expansion",
       "description": "The provider descriptor carries EXTERNAL scope and the registration contract remains usable for paid or external corpora.",
@@ -14,7 +14,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Add an external-scope registration and routing contract test when an external provider is selected."
         }
       ]
@@ -22,7 +22,7 @@
     {
       "id": "REQ-P2-002",
       "title": "Group-scoped federation remains explicit",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-002",
       "category": "expansion",
       "description": "A future --group selector can reproduce a scenario's unified search through Search Hub without changing the owning scenario's search surface.",
@@ -30,7 +30,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Add a group-scope contract test when the owning scenario exposes the required group search semantics."
         }
       ]
@@ -38,7 +38,7 @@
     {
       "id": "REQ-P2-003",
       "title": "Federation coverage is measurable",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P2-003",
       "category": "expansion",
       "description": "The registry can eventually report registered live leaves divided by the known-corpus denominator as the Track-A adoption gauge.",
@@ -46,7 +46,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Add a coverage-measure contract test once the known-corpus denominator is owned by a stable registry."
         }
       ]

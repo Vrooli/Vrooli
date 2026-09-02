@@ -100,6 +100,7 @@ func runFreshness(args []string) error {
 	var repoRoot string
 	var concurrency int
 	var touched, all, apply, build, jsonOutput bool
+	var module string
 	var timeout time.Duration
 	var noCache bool
 	fs.StringVar(&repoRoot, "repo-root", "", "Repository root (defaults to current workspace)")
@@ -108,6 +109,7 @@ func runFreshness(args []string) error {
 	fs.BoolVar(&all, "all", false, "Check every discovered Go scenario surface")
 	fs.BoolVar(&apply, "apply", false, "Run go mod tidy on stale surfaces")
 	fs.BoolVar(&build, "build", false, "Run go build ./... after tidy checks")
+	fs.StringVar(&module, "module", "", "Only check one Go module by repository-relative path or module path")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	fs.DurationVar(&timeout, "timeout", 5*time.Minute, "Overall freshness deadline")
 	fs.BoolVar(&noCache, "no-cache", false, "Do not read or write the freshness result cache")
@@ -115,9 +117,9 @@ func runFreshness(args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 || (touched && all) {
-		return fmt.Errorf("usage: %s freshness [--touched|--all] [--apply] [--build] [--concurrency <n>] [--repo-root <path>] [--json]", support.AppName)
+		return fmt.Errorf("usage: %s freshness [--touched|--all|--module <path>] [--apply] [--build] [--concurrency <n>] [--repo-root <path>] [--json]", support.AppName)
 	}
-	if !touched && !all {
+	if !touched && !all && module == "" {
 		touched = true
 	}
 	root, err := resolveRepoRoot(repoRoot)
@@ -126,7 +128,7 @@ func runFreshness(args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	report, err := checkFreshness(ctx, root, freshnessRequest{touched: touched, apply: apply, build: build, noCache: noCache, concurrency: concurrency})
+	report, err := checkFreshness(ctx, root, freshnessRequest{touched: touched, all: all, module: module, apply: apply, build: build, noCache: noCache, concurrency: concurrency})
 	if err != nil {
 		return err
 	}
@@ -138,6 +140,8 @@ func runFreshness(args []string) error {
 
 type freshnessRequest struct {
 	touched       bool
+	all           bool
+	module        string
 	apply         bool
 	build         bool
 	noCache       bool
@@ -158,7 +162,9 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 	}
 	touchedPaths := []string(nil)
 	impacted := map[string][]string{}
-	if req.touched {
+	if req.module != "" {
+		surfaces = filterGoSurfacesByModule(root, surfaces, req.module)
+	} else if req.touched {
 		touchedPaths, err = changedPaths(root)
 		if err != nil {
 			return freshnessReport{}, err
@@ -186,6 +192,8 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 	}
 	if req.touched {
 		report.Mode = "touched"
+	} else if req.module != "" {
+		report.Mode = "module"
 	}
 	report.Surfaces = checkGoSurfaces(ctx, root, surfaces, impacted, req)
 	for _, item := range report.Surfaces {
@@ -223,6 +231,22 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 	}
 	report.ElapsedMs = time.Since(start).Milliseconds()
 	return report, nil
+}
+
+func filterGoSurfacesByModule(root string, surfaces []goSurface, selector string) []goSurface {
+	selector = filepath.ToSlash(filepath.Clean(strings.TrimSpace(selector)))
+	if selector == "." || selector == "" {
+		return surfaces
+	}
+	out := make([]goSurface, 0, 1)
+	for _, surface := range surfaces {
+		relGoMod := filepath.ToSlash(mustRel(root, surface.goMod))
+		relDir := filepath.ToSlash(mustRel(root, filepath.Dir(surface.goMod)))
+		if selector == surface.module || selector == relGoMod || selector == relDir {
+			out = append(out, surface)
+		}
+	}
+	return out
 }
 
 func discoverGoExclusions(root string, modules map[string]goModule) []freshnessExclusionReport {

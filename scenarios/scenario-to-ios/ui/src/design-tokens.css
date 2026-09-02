@@ -92,7 +92,59 @@
   --sidebar-min-width: 16.25rem;
   --sidebar-max-width: 30rem;
   color-scheme: light;
-}
+/* rcl:tokens:begin */
+  --badge-border: var(--color-border);
+  --color-border-strong: #64748b;
+  --color-field: var(--color-surface);
+  --color-surface-sunken: #0b1220;
+  --container-content: 72rem;
+  --container-wide: 96rem;
+  --control-height: initial;
+  --control-height-lg: initial;
+  --control-height-sm: initial;
+  --control-padding: var(--space-sm);
+  --control-radius: var(--radius-control);
+  --control-size-icon: 40px;
+  --control-size-lg: 44px;
+  --control-size-md: 40px;
+  --control-size-sm: 36px;
+  --control-size-xl: 48px;
+  --control-size-xs: 32px;
+  --dur-enter: var(--dur-quick);
+  --dur-fast: var(--dur-instant);
+  --dur-normal: var(--dur-moderate);
+  --dur-slow: var(--dur-deliberate);
+  --elev-: initial;
+  --elev-floating: 0 4px 12px rgba(9, 18, 22, 0.12);
+  --elev-subtle: 0 1px 2px rgba(9, 18, 22, 0.04);
+  --icon-size-lg: 24px;
+  --icon-size-md: 20px;
+  --icon-size-sm: 16px;
+  --layout-content: 34rem;
+  --layout-content-compact: 28rem;
+  --layout-content-wide: 42rem;
+  --panel-padding: var(--space-md);
+  --panel-radius: var(--radius-panel);
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-none: 0;
+  --radius-overlay: 1rem;
+  --radius-sm: 0.25rem;
+  --radius-xl: 1.25rem;
+  --space-: initial;
+  --space-4xl: 6rem;
+  --space-4xs: 2px;
+  --text-body: 400 var(--text-body-size) / var(--text-body-line) var(--font-sans);
+  --text-caption: 600 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-code: 500 0.8125rem/1.25rem var(--font-mono);
+  --text-display: 700 var(--text-display-size) / var(--text-display-line) var(--font-sans);
+  --text-heading: 600 var(--text-heading-size) / var(--text-heading-line) var(--font-sans);
+  --text-label: 500 var(--text-label-size) / var(--text-label-line) var(--font-sans);
+  --text-label-tracking: 0.005em;
+  --text-overline: 700 var(--text-caption-size) / var(--text-caption-line) var(--font-sans);
+  --text-subtitle: 600 var(--text-subheading-size) / var(--text-subheading-line) var(--font-sans);
+  --text-title: 700 var(--text-title-size) / var(--text-title-line) var(--font-sans);
+/* rcl:tokens:end */}
 
 :root[data-resolved-theme="dark"],
 .dark {

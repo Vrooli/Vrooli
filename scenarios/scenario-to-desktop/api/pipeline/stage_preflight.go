@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"scenario-to-desktop-api/generation"
@@ -176,6 +177,14 @@ func (s *PreflightStage) appendResourceEligibilityWarnings(input *StageInput, re
 		if item.Verdict == "ineligible" || item.Verdict == "degraded" {
 			result.Logs = append(result.Logs, fmt.Sprintf("Warning: %s %s is %s for %s; %s", item.Kind, item.Name, item.Verdict, item.OS, item.Reason))
 		}
+	}
+	for _, deferred := range input.ResourceDeploymentPlan.DeferredTargets {
+		facts := make([]string, 0, len(deferred.When))
+		for name := range deferred.When {
+			facts = append(facts, name)
+		}
+		sort.Strings(facts)
+		result.Logs = append(result.Logs, fmt.Sprintf("Deferred resource target: %s for %s-%s (runtime facts: %s)", deferred.Resource, deferred.OS, deferred.Architecture, strings.Join(facts, ", ")))
 	}
 }
 

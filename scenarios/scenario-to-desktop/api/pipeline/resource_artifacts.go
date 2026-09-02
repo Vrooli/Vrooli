@@ -24,6 +24,30 @@ type ResourceDeploymentPlan struct {
 	Promotable        bool                                 `json:"promotable"`
 	Resources         []ResourceDeploymentPlanItem         `json:"resources"`
 	HostRequirements  []HostRequirementPlanItem            `json:"host_requirements,omitempty"`
+	DeferredTargets   []DeferredResourceTarget             `json:"deferred_targets,omitempty"`
+}
+
+// DeferredResourceTarget records an acquisition candidate that could not be
+// selected while packaging because it requires runtime hardware facts. The
+// installed control plane re-evaluates the original resource manifest with
+// those facts on first run and can offer the accelerated artifact explicitly.
+type DeferredResourceTarget struct {
+	TargetIndex    int               `json:"target_index"`
+	Resource       string            `json:"resource"`
+	OS             string            `json:"os"`
+	Architecture   string            `json:"architecture"`
+	When           map[string]string `json:"when"`
+	Kind           string            `json:"kind,omitempty"`
+	URL            string            `json:"url,omitempty"`
+	Image          string            `json:"image,omitempty"`
+	SHA256         string            `json:"sha256,omitempty"`
+	ArtifactSHA256 string            `json:"artifact_sha256,omitempty"`
+	Archive        string            `json:"archive,omitempty"`
+	Layout         string            `json:"layout,omitempty"`
+	BinPath        string            `json:"bin_path,omitempty"`
+	Mode           string            `json:"mode,omitempty"`
+	SizeBytes      int64             `json:"size_bytes,omitempty"`
+	AbsentFacts    []string          `json:"absent_facts,omitempty"`
 }
 
 // HostRequirementPlanItem records the selected scenario/resource host
@@ -178,6 +202,9 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArti
 					return nil, err
 				}
 			}
+			if deferred := deferredResourceTargets(item.Resource, root, platform); len(deferred) > 0 {
+				plan.DeferredTargets = append(plan.DeferredTargets, deferred...)
+			}
 			plan.Resources = append(plan.Resources, item)
 		}
 	}
@@ -200,6 +227,55 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArti
 		return plan.Resources[i].RequestedResource < plan.Resources[j].RequestedResource
 	})
 	return plan, nil
+}
+
+func deferredResourceTargets(resource, root string, platform resourcedeployment.Platform) []DeferredResourceTarget {
+	manifest, err := loadResourceArtifactManifest(filepath.Join(root, "resources", resource, "resource.json"))
+	if err != nil || manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
+		return nil
+	}
+	factsOS := platform.OS
+	if factsOS == "macos" {
+		factsOS = "darwin"
+	}
+	deferred := make([]DeferredResourceTarget, 0)
+	for targetIndex, target := range manifest.ManagedService.Acquisition.Targets {
+		if binaryfetch.UsesOnlyBuildTimeFacts(target) {
+			continue
+		}
+		whenOS := strings.TrimSpace(target.When["os"])
+		whenArch := strings.TrimSpace(target.When["arch"])
+		if whenOS != "" && whenOS != factsOS || whenArch != "" && whenArch != platform.Arch {
+			continue
+		}
+		absent := make([]string, 0)
+		for fact := range target.When {
+			if fact != "os" && fact != "arch" {
+				absent = append(absent, fact)
+			}
+		}
+		sort.Strings(absent)
+		deferred = append(deferred, DeferredResourceTarget{
+			TargetIndex: targetIndex,
+			Resource:    resource, OS: platform.OS, Architecture: platform.Arch, When: cloneStringMap(target.When),
+			Kind: manifest.ManagedService.Acquisition.EffectiveKind(target), URL: target.URL, Image: target.Image,
+			SHA256: target.SHA256, ArtifactSHA256: target.ArtifactSHA256, Archive: target.Archive,
+			Layout: target.Layout, BinPath: target.BinPath, Mode: target.Mode,
+			AbsentFacts: absent,
+		})
+	}
+	return deferred
+}
+
+func cloneStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	copy := make(map[string]string, len(values))
+	for key, value := range values {
+		copy[key] = value
+	}
+	return copy
 }
 
 func resolveDesktopHostRequirements(root, scenarioPath string, resources []string, platform resourcedeployment.Platform, toolArtifactRoot string, trustMode resourcedeployment.ArtifactTrustMode) ([]HostRequirementPlanItem, error) {

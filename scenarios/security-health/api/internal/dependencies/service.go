@@ -92,14 +92,24 @@ type Service struct {
 	readyCheckedAt  time.Time
 }
 
+// LastScanStats exposes the most recent reconcile scan counters to the
+// lifecycle loop without exposing the annotator implementation.
+func (s *Service) LastScanStats() ScanStats {
+	if s == nil || s.annot == nil {
+		return ScanStats{}
+	}
+	return s.annot.LastScanStats()
+}
+
 // Deps wires the service. A nil Annotator/Clock defaults to the real ones.
 type Deps struct {
-	RepoRoot  string
-	Store     *Store
-	Annotator *Annotator
-	Clock     schedule.Clock
-	Index     SemanticIndex
-	AIProbe   func(ctx context.Context) (ollama, qdrant bool)
+	RepoRoot    string
+	Store       *Store
+	Annotator   *Annotator
+	Coordinator *validation.EvidenceCoordinator
+	Clock       schedule.Clock
+	Index       SemanticIndex
+	AIProbe     func(ctx context.Context) (ollama, qdrant bool)
 }
 
 // NewService constructs the dependencies service.
@@ -111,6 +121,7 @@ func NewService(d Deps) *Service {
 	annot := d.Annotator
 	if annot == nil {
 		annot = NewAnnotator(d.RepoRoot, validation.NewExecCommander())
+		annot = annot.WithCoordinator(d.Coordinator)
 		// Wire the result cache (the SQLite store) so steady-state reconciles
 		// skip osv-scanner for unchanged scenarios and scan offline. An
 		// explicitly-supplied annotator (tests) opts in via WithCache itself.

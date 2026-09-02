@@ -52,6 +52,10 @@ func (r *Repository) List(context.Context, int) ([]journal.Entry, error) {
 	return append([]journal.Entry(nil), r.ListOut...), nil
 }
 
+func (r *Repository) ListAfter(ctx context.Context, _ string, limit int) ([]journal.Entry, error) {
+	return r.List(ctx, limit)
+}
+
 func (r *Repository) ListByRun(_ context.Context, runID string, _ int) ([]journal.Entry, error) {
 	var out []journal.Entry
 	for _, entry := range r.ListOut {

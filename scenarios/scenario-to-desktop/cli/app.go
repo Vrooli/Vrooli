@@ -34,7 +34,7 @@ func NewApp() (*App, error) {
 		Version:              appVersion,
 		Description:          "Convert Vrooli scenarios into cross-platform desktop applications",
 		DefaultAPIBase:       defaultAPIBase,
-		ExtraAPIEnvVars:      []string{"API_BASE_URL"},
+		ExtraAPIEnvVars:      []string{"API_BASE_URL", "OFFER_DESK_API_BASE_URL"},
 		BuildFingerprint:     buildFingerprint,
 		BuildTimestamp:       buildTimestamp,
 		BuildSourceRoot:      buildSourceRoot,

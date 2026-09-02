@@ -84,6 +84,7 @@ func (o *osvScanner) Applies(s Substrate) bool {
 	}
 	return false
 }
+
 func (o *osvScanner) EvidencePlan(ctx context.Context, scenarioDir string, sub Substrate, now time.Time) (ScannerEvidencePlan, error) {
 	return scannerEvidencePlan(ctx, o.cmd, o.Name(), o.Binary(), scenarioDir, sub, now)
 }
@@ -233,7 +234,7 @@ func (o *osvScanner) runUncached(ctx context.Context, scenarioDir string) (OSVRe
 	for _, lockfile := range lockfiles {
 		args = append(args, "--lockfile", lockfile)
 	}
-	stdout, stderr, _, err := o.cmd.Run(ctx, scenarioDir, "osv-scanner", args...)
+	stdout, stderr, _, _, err := runCommand(ctx, o.cmd, scenarioDir, "osv-scanner", args...)
 	if err != nil {
 		return OSVReport{}, fmt.Errorf("osv-scanner failed to run: %w", err)
 	}

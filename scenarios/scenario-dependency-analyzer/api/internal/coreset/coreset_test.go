@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	apicoreset "github.com/vrooli/api-core/coreset"
 )
 
 // writeService writes a minimal .vrooli/service.json for the named scenario
@@ -29,11 +31,27 @@ func writeService(t *testing.T, root, name string, deps map[string]bool) {
 		if required {
 			req = "true"
 		}
-		b = append(b, []byte(`"`+dep+`":{"enabled":true,"required":`+req+`}`)...)
+		policy := "ignore"
+		if required {
+			policy = "must_start"
+		}
+		b = append(b, []byte(`"`+dep+`":{"enabled":true,"required":`+req+`,"startup_policy":"`+policy+`"}`)...)
 	}
 	b = append(b, []byte(`}}}`)...)
 
 	if err := os.WriteFile(filepath.Join(dir, "service.json"), b, 0o644); err != nil {
+		t.Fatalf("write service.json: %v", err)
+	}
+}
+
+func writeServiceDependencies(t *testing.T, root, name, dependencies string) {
+	t.Helper()
+	dir := filepath.Join(root, name, ".vrooli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", dir, err)
+	}
+	document := []byte(`{"service":{"name":"` + name + `"},"dependencies":` + dependencies + `}`)
+	if err := os.WriteFile(filepath.Join(dir, "service.json"), document, 0o644); err != nil {
 		t.Fatalf("write service.json: %v", err)
 	}
 }
@@ -124,6 +142,59 @@ func TestNonRequiredEdgeNotAdded(t *testing.T) {
 	if len(res.AddedByClosure) != 0 {
 		t.Errorf("no closure additions expected, got %v", res.AddedByClosure)
 	}
+}
+
+func TestResourceIntentControlsClosureMembership(t *testing.T) {
+	root := t.TempDir()
+	writeServiceDependencies(t, root, "seed", `{"resources":{"postgres":{"enabled":true,"required":false,"startup_policy":"try_start"},"debug-only":{"enabled":true,"required":false,"startup_policy":"ignore"}}}`)
+
+	res := compute(root, apicoreset.Authority{Seed: []string{"seed"}, TrustedBase: []string{"seed"}})
+	postgres, ok := findMember(res.Members, "resource", "postgres")
+	if !ok {
+		t.Fatalf("try_start resource missing from supervision closure: %+v", res.Members)
+	}
+	if postgres.SupervisionIntent != "try_start" {
+		t.Fatalf("postgres intent = %q, want try_start", postgres.SupervisionIntent)
+	}
+	if _, ok := findMember(res.Members, "resource", "debug-only"); ok {
+		t.Fatal("ignore resource was included in supervision closure")
+	}
+	if got := res.MemberCounts["resource"]; got != 1 {
+		t.Fatalf("resource member count = %d, want 1", got)
+	}
+}
+
+func TestEveryMemberHasAttributionChainEndingAtCoreSeed(t *testing.T) {
+	root := t.TempDir()
+	writeServiceDependencies(t, root, "seed", `{"scenarios":{"child":{"enabled":true,"required":false,"startup_policy":"try_start"}}}`)
+	writeServiceDependencies(t, root, "child", `{"resources":{"redis":{"enabled":true,"required":true,"startup_policy":"must_start"}}}`)
+
+	res := compute(root, apicoreset.Authority{Seed: []string{"seed"}, TrustedBase: []string{"seed"}})
+	for _, member := range res.Members {
+		if len(member.AttributionChain) == 0 {
+			t.Fatalf("member %s:%s has no attribution chain", member.Kind, member.Name)
+		}
+		last := member.AttributionChain[len(member.AttributionChain)-1]
+		if last.Source != "core.seed" || last.Name != "seed" {
+			t.Fatalf("member %s:%s chain does not end at core.seed: %+v", member.Kind, member.Name, member.AttributionChain)
+		}
+	}
+	redis, ok := findMember(res.Members, "resource", "redis")
+	if !ok {
+		t.Fatal("transitive resource missing")
+	}
+	if len(redis.AttributionChain) != 3 || redis.AttributionChain[0].DeclaredBy != "child" {
+		t.Fatalf("redis attribution chain = %+v", redis.AttributionChain)
+	}
+}
+
+func findMember(members []apicoreset.Member, kind, name string) (apicoreset.Member, bool) {
+	for _, member := range members {
+		if member.Kind == kind && member.Name == name {
+			return member, true
+		}
+	}
+	return apicoreset.Member{}, false
 }
 
 // TestMisMarkedSeedNeverDropped is the GCT case: git-control-tower declares all

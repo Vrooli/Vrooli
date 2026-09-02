@@ -336,6 +336,83 @@ and scenario tests.
 
 **Exit criteria:** only health plus real scenario domains remain.
 
+### Gate 7b — Contribute Back To The Component Canon
+
+Adoption takes what the canon already has. This gate closes the other half:
+anything generic this scenario built goes back, so the next scenario adopts it
+instead of rebuilding it. Skipping this is how a shared library starves while
+every scenario grows its own copy of the same component.
+
+It runs after the example domain is gone, because a component is harvested from
+this tree and the tree has to be real first.
+
+- [ ] Inventory every component built under `ui/src/components/` and
+      `ui/src/features/` during Gates 6–7. The test is one question:
+      **would a scenario in a different product area use this?** A thread list
+      is generic; a thread list that reads this scenario's own descriptor shape
+      is not — extract the generic half and promote that.
+- [ ] Prefer raising an existing asset over adding a new one. When the gap is
+      missing states rather than a missing component, add the states your
+      experience spec already declares. Never edit a released version
+      directory:
+
+```bash
+react-component-library components draft-begin <component>
+# add the stories/states your experience spec declares
+react-component-library components test <component-id>
+react-component-library components draft-publish <component>
+```
+
+      A raised component improves every scenario already consuming it, which a
+      new asset does not.
+- [ ] Promote a scenario-local component, carrying its experience contract with
+      it so the canon inherits the claims rather than losing them:
+
+```bash
+react-component-library components ingest security-health <tsx-path> <slug> \
+  --experience-contract experience/components/<component>.json \
+  --display-name "<Name>" --slot <slot>
+```
+
+- [ ] Validate before calling anything canonical:
+
+```bash
+react-component-library components test <component-id>
+react-component-library components style-fit <component-id> security-health
+react-component-library catalog evidence capture <asset-id>
+```
+
+- [ ] Read the promotion gate. It requires parity, examples, dependency
+      closure, drift evidence, and a clean replacement adoption in the origin
+      scenario:
+
+```bash
+react-component-library workflows promotion-readiness <asset-id> \
+  --origin-scenario security-health
+```
+
+- [ ] Adopt the published version back, then delete the local original:
+
+```bash
+react-component-library adoptions apply <component-id> security-health <adopted-path>
+```
+
+      Promotion is not finished while this scenario still runs its own copy.
+      That is a fork with extra steps, and `promotion-readiness` reports it as
+      an unmet origin replacement.
+- [ ] Record what stays local and why, in `docs/internal/DECISIONS.md`. A
+      genuinely scenario-specific component is a fine outcome; an unrecorded
+      one is indistinguishable from a fork.
+- [ ] Record what the canon still lacks. If this scenario needed a component
+      that does not exist and could not build it here, write it where a library
+      maintainer will read it, not only in this scenario's head.
+- [ ] Run `make test` after adopting back — an adoption changes real imports.
+
+**Exit criteria:** every generic component this scenario built is either
+published to the canon and adopted back, or recorded in
+`docs/internal/DECISIONS.md` with the reason it stayed local. No scenario-local
+component duplicates one that exists in the canon.
+
 ### Gate 8 — Progress Handoff
 
 - [ ] Append a concise row to `docs/internal/PROGRESS.md` after

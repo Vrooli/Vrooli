@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P0 requirements — the journal, capture, categorization, disposition, retrieval, and the two consumption surfaces. All planned; validation entries declare intended evidence without asserting refs that do not exist yet.",
-    "last_validated_at": "2026-07-27T23:11:07-04:00",
+    "last_validated_at": "2026-08-31T00:36:22-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "SIG-P0-001",
       "title": "Immutable signal journal",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "storage",
       "criticality": "P0",
@@ -24,19 +24,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A capture of content already present under the same normalized source identity returns the existing signal id and appends no row."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "No code path issues UPDATE or DELETE against the signal table; category, disposition, and annotation writes touch only their own tables."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Two signals whose source URLs differ only by tracking parameters normalize to one identity and deduplicate."
         }
       ]
@@ -59,13 +59,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A bare URL, a text blob, and an image each produce a signal with the correct inferred kind and no operator type declaration."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A capture-time note is stored as the signal's first annotation, not as a mutable field on the signal."
         },
         {
@@ -94,13 +94,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An extraction returning zero content units marks the signal needs-attention and stores no empty body."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An image signal routes to image-tools; no OCR library is linked into this scenario."
         },
         {
@@ -114,7 +114,7 @@
     {
       "id": "SIG-P0-004",
       "title": "Operator-defined categories",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "categories",
       "criticality": "P0",
@@ -128,19 +128,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Creating, renaming, and retiring a category all take effect without restart and with no code reference to any category name."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Retiring a category leaves its signals in the journal, reassigns them to uncategorized, and keeps them retrievable by search."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The reserved uncategorized category cannot be retired or renamed."
         }
       ]
@@ -163,19 +163,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A proposed category is stored as a proposal with its confidence and does not satisfy queries filtering on confirmed category until confirmed."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An override records an annotation carrying both the proposed and the chosen category."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Reassigning a category on a signal dispositioned done succeeds and leaves the journal row untouched."
         },
         {
@@ -189,7 +189,7 @@
     {
       "id": "SIG-P0-006",
       "title": "Annotation thread",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "annotation",
       "criticality": "P0",
@@ -203,19 +203,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Annotations accumulate in order and no code path updates or deletes an existing annotation."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A typed outcome link validates its target kind and stores an identifier rather than a copied payload."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A signal with multiple outcome links reports all of them, since one signal may produce several results."
         }
       ]
@@ -223,7 +223,7 @@
     {
       "id": "SIG-P0-007",
       "title": "Disposition lifecycle",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-007",
       "category": "disposition",
       "criticality": "P0",
@@ -237,19 +237,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Disposition transitions are validated and an unknown transition is rejected with a specific error."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A signal dispositioned done or dropped is still returned by both structured query and semantic search."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A signal deferred with revisit_at is excluded from the ambient view until that date and included after it."
         }
       ]
@@ -272,13 +272,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Importing the same export file twice produces the same signal count as importing it once."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An import of a partially-overlapping newer export adds only the new entries."
         },
         {
@@ -312,13 +312,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Every documented filter dimension is honored, and filters compose conjunctively."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The CLI and the API return equivalent result sets for the same filter, since the CLI is a thin wrapper over the API."
         },
         {
@@ -347,13 +347,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Indexing covers every signal regardless of category, confidence, or disposition, including uncategorized and dropped."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Embeddings request the document task prefix for indexing and the query prefix for retrieval."
         },
         {
@@ -382,7 +382,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The descriptor validates against the search schema and declares the search and status endpoints the router calls."
         },
         {
@@ -417,13 +417,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The ambient view excludes done and dropped signals and honors the configured budget exactly."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Scoping the ambient view to a category returns only that category's unresolved signals."
         },
         {
@@ -493,25 +493,25 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An adapter registered without a declared risk tier is rejected at load."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Adapters above tier 0 report disabled on a fresh install and cannot run until explicitly enabled."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A 429, a 403, and a challenge-page response each disable the adapter and record an alert; none produces a retry."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An auto-disabled adapter stays disabled across restart until an operator re-enables it."
         },
         {

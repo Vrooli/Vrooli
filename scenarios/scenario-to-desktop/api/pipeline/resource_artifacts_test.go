@@ -63,6 +63,20 @@ func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.
 	}
 }
 
+func TestDeferredResourceTargetsRecordsRuntimeAcceleratorCandidate(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "whisper")
+	mustMkdirAll(t, resourceDir)
+	mustWriteFile(t, filepath.Join(resourceDir, "resource.json"), []byte(`{"name":"whisper","managed_service":{"acquisition":{"kind":"url","targets":[{"when":{"os":"linux","arch":"amd64","accel.backends":"has:vulkan"},"kind":"oci-image","image":"ghcr.io/example/whisper@sha256:abc"},{"when":{"os":"linux","arch":"amd64"},"url":"https://example.test/whisper.tar.gz"}]}}}`), 0o644)
+	deferred := deferredResourceTargets("whisper", root, resourcedeployment.Platform{OS: "linux", Arch: "amd64"})
+	if len(deferred) != 1 {
+		t.Fatalf("deferred targets = %+v, want one runtime-fact candidate", deferred)
+	}
+	if deferred[0].When["accel.backends"] != "has:vulkan" || deferred[0].Resource != "whisper" {
+		t.Fatalf("deferred target = %+v", deferred[0])
+	}
+}
+
 func TestStageBundledServiceStagesSeparatelyPinnedServer(t *testing.T) {
 	root := t.TempDir()
 	scenarioPath := filepath.Join(root, "scenarios", "demo")

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"security-health/internal/validation"
+
 	"github.com/vrooli/api-core/schedule"
 )
 
@@ -110,6 +112,38 @@ func TestAnnotate_CacheHitSkipsSubprocess(t *testing.T) {
 	}
 	if st := a.LastScanStats(); st.ScansRun != 0 || st.ScansSkipped != 1 {
 		t.Fatalf("warm stats = %+v, want run=0 skipped=1", st)
+	}
+}
+
+func TestAnnotatorCoordinatorSharesCapacityAcrossReconcileScans(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeScenario(t, repoRoot, "demo", "module example.test\ngo 1.24\n")
+	cmd := &countingCommander{delay: 40 * time.Millisecond}
+	a := NewAnnotator(repoRoot, cmd).WithCoordinator(
+		validation.NewEvidenceCoordinator(validation.EvidenceCoordinatorDeps{Capacity: 2}),
+	)
+	scenarioDir := filepath.Join(repoRoot, "scenarios", "demo")
+	firstDone := make(chan struct{})
+	go func() {
+		_, _ = a.runScan(context.Background(), scenarioDir)
+		close(firstDone)
+	}()
+	for cmd.calls() == 0 {
+		time.Sleep(time.Millisecond)
+	}
+	secondDone := make(chan struct{})
+	go func() {
+		_, _ = a.runScan(context.Background(), scenarioDir)
+		close(secondDone)
+	}()
+	time.Sleep(10 * time.Millisecond)
+	if cmd.calls() != 1 {
+		t.Fatalf("second reconcile scan started before shared capacity was released")
+	}
+	<-firstDone
+	<-secondDone
+	if peak := atomic.LoadInt32(&cmd.maxInFl); peak > 1 {
+		t.Fatalf("shared coordinator allowed %d concurrent reconcile scans", peak)
 	}
 }
 

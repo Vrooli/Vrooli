@@ -1,94 +1,41 @@
 {
-  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Switchboard are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: uppercase-snake-case placeholders are replaced by `template-manager generate` before the scenario is built. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Switchboard"
   },
-  "asset": "navigation.page",
-  "capability": "navigation",
-  "console": {
-    "agents": {
-      "confirmWrite": "Confirm and write",
-      "confirmed": "Draft confirmed; Prompt Manager is the profile source.",
-      "defaultGrant": "Default grant: read. Owner-only capabilities are not proposed automatically.",
-      "description": "Every agent, its reachable handles, and its granted scopes.",
-      "descriptionLabel": "Description",
-      "descriptionPlaceholder": "A household planning assistant",
-      "draftDescription": "Describe the job first. Nothing is written until you confirm the draft.",
-      "draftHeading": "Draft an agent",
-      "prepareDraft": "Prepare draft",
-      "reviewHeading": "Review before writing",
-      "title": "Agents"
+  "layout": {
+    "bottomNavLabel": "Mobile navigation",
+    "nav": {
+      "agents": "Agents",
+      "channels": "Channels",
+      "contacts": "Contacts",
+      "conversations": "Conversations",
+      "dashboard": "Dashboard",
+      "settings": "Settings"
     },
-    "capabilityGate": {
-      "expires": "Expires:",
-      "grantOnce": "Grant once",
-      "notNow": "Not now",
-      "ownerOnly": "Only the agent owner can answer this request.",
-      "title": "Capability approval needed",
-      "unblock": "What would unblock it:",
-      "withheld": "Withheld:"
-    },
-    "channels": {
-      "address": "Address",
-      "addressPlaceholder": "chat or handle",
-      "agentId": "Agent ID",
-      "attachAgent": "Attach agent",
-      "attachFormLabel": "Attach an agent",
-      "attached": "Agent attached to {{channel}}",
-      "attaching": "Attaching…",
-      "bindingDescription": "The binding maps one channel address to an agent and thread.",
-      "cancel": "Cancel",
-      "confirmAttachment": "Confirm attachment",
-      "connectRequirement": "Connect requirement",
-      "description": "Attach an agent to a reachable channel.",
-      "descriptorLoaded": "Channel descriptors are loaded from the boot-time descriptor registry.",
-      "setupFriction": "Setup friction {{friction}}",
-      "threadKey": "Thread key (optional)",
-      "title": "Channels"
-    },
-    "contacts": {
-      "description": "Manage sender identity and trust tiers. Unknown senders start as strangers.",
-      "empty": "No contacts recorded.",
-      "title": "Contacts"
-    },
-    "conversations": {
-      "agent": "Agent",
-      "attachFile": "Attach a file",
-      "attachment": "Attachment: {{name}} ({{mime}}, {{size}} bytes)",
-      "connected": "Connected",
-      "description": "Threads are durable, cross-channel, and governed before a turn starts.",
-      "disconnectError": "The in-app adapter disconnected. Retry when it is available.",
-      "empty": "No messages yet. Start a conversation below.",
-      "message": "Message",
-      "offline": "Offline",
-      "send": "Send",
-      "thread": "In-app thread",
-      "title": "Conversations",
-      "unreadableError": "The adapter returned an unreadable message.",
-      "writePlaceholder": "Write to your agent",
-      "you": "You"
-    },
-    "mainContent": "Main content",
-    "surface": {
-      "agent": "Agent",
-      "agentDescription": "Agent grants, reachable channels, and activity.",
-      "call": "Call",
-      "callDescription": "Live call transcript and controls.",
-      "channel": "Channel",
-      "channelDescription": "Channel details and connection status.",
-      "contact": "Contact",
-      "contactDescription": "Sender identity and trust tier.",
-      "nothingConfigured": "Nothing is configured yet. This surface will show data when the first record exists.",
-      "welcome": "Welcome",
-      "welcomeDescription": "Create your first reachable agent."
+    "sidebarLabel": "Primary navigation",
+    "navShort": {
+      "dashboard": "Overview",
+      "conversations": "Chats"
     }
   },
-  "default": "Primary navigation",
-  "errorBoundary": {
-    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
-    "retry": "Try again",
-    "title": "Something went wrong"
+  "theme": {
+    "choice": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "switcherLabel": "Theme"
+  },
+  "health": {
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "loading": "Checking API status…",
+    "refresh": "Refresh",
+    "refreshCount": "Refreshed {{count}} times",
+    "refreshCount_one": "Refreshed once",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:",
+    "title": "API Health"
   },
   "errors": {
     "aborted": "Operation aborted.",
@@ -108,82 +55,306 @@
     "unimplemented": "Not yet implemented.",
     "unknown": "An unknown error occurred."
   },
-  "export": "LongLabels",
-  "fixture": "fixtures.user-directory",
-  "health": {
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "loading": "Checking API status…",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:",
-    "title": "API Health"
-  },
-  "id": "long-labels",
-  "kind": "text",
-  "label": "Compact navigation",
-  "layout": {
-    "bottomNavLabel": "Mobile navigation",
-    "nav": {
-      "agents": "Agents",
-      "channels": "Channels",
-      "contacts": "Contacts",
-      "conversations": "Conversations",
-      "dashboard": "Dashboard",
-      "settings": "Settings"
-    },
-    "sidebarLabel": "Primary navigation"
-  },
-  "libraryId": "react-component-library:StyleSheet",
-  "locale": {
-    "switcherLabel": "Language"
-  },
-  "mode": "pinned",
-  "module": "./story.tsx",
-  "name": "Long Labels",
   "notifications": {
     "summary": "{{count}} notifications",
     "summary_one": "1 notification",
     "summary_zero": "No notifications"
   },
-  "pages": {
-    "dashboard": {
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat",
-      "title": "Dashboard"
+  "locale": {
+    "switcherLabel": "Language"
+  },
+  "errorBoundary": {
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
+  "console": {
+    "mainContent": "Main content",
+    "common": {
+      "back": "Back",
+      "cancel": "Cancel",
+      "close": "Close"
     },
-    "settings": {
-      "blastRadius": "Applies to every agent",
-      "byokLabel": "Your own provider key",
-      "byokNote": "A personal key is never charged.",
-      "descriptorHeading": "Channel descriptors",
-      "descriptorStatus": "Descriptors loaded from the boot-time registry.",
-      "localeHeading": "Language",
-      "meteringHeading": "Metered work",
-      "quietHoursDescription": "Quiet hours apply to every agent.",
-      "quietHoursHeading": "Quiet hours",
-      "save": "Save",
-      "themeHeading": "Appearance",
-      "title": "Settings"
+    "shell": {
+      "apiConnected": "API connected",
+      "apiUnreachable": "API unreachable"
+    },
+    "attention": {
+      "pendingCount": "{{count}} waiting",
+      "pendingCount_one": "1 waiting"
+    },
+    "region": {
+      "loading": "Loading…",
+      "errorTitle": "This section could not load.",
+      "retry": "Try again"
+    },
+    "tiers": {
+      "stranger": "Stranger",
+      "known": "Known",
+      "trusted": "Trusted",
+      "owner": "Owner",
+      "effect": {
+        "stranger": "No capability at all. The agent records the message and refuses out loud. Every unrecognised sender starts here.",
+        "known": "Read-only scopes only. The agent can answer questions but cannot act on anything.",
+        "trusted": "Every scope in the agent's grant except owner-only ones. Nothing here can reach the terminal or spend money on your behalf.",
+        "owner": "The full grant, including owner-only scopes. This is you. Granting it to someone else makes them you, everywhere this agent listens."
+      }
+    },
+    "budget": {
+      "turnsThisHour": "Turns this hour",
+      "remaining": "{{remaining}} of {{total}} left",
+      "unlimited": "No turn budget",
+      "spend": "{{spent}} of {{cap}} spent",
+      "noSpendCap": "No spend cap on this thread",
+      "exhausted": "Budget exhausted",
+      "nearLimit": "Near limit"
+    },
+    "capabilityGate": {
+      "title": "Capability approval needed",
+      "withheld": "Withheld:",
+      "unblock": "What would unblock it:",
+      "expiresIn": "Expires {{when}}",
+      "grantOnce": "Grant once",
+      "notNow": "Not now",
+      "ownerOnly": "Only the agent owner can answer this request.",
+      "status": {
+        "granted": "Granted",
+        "denied": "Denied",
+        "expired": "Expired unanswered"
+      }
+    },
+    "overview": {
+      "refresh": "Refresh",
+      "updated": "Updated {{when}}",
+      "waitingOnYou": "Waiting on you",
+      "allClear": "Nothing needs your attention",
+      "allClearDetail": "No capability gate is waiting for an answer.",
+      "openThread": "Open the thread",
+      "channelHealth": "Channel health",
+      "manageChannels": "Manage channels",
+      "channelCounts": "{{bindings}} bindings · {{threads}} threads",
+      "budgetPressure": "Budget pressure",
+      "noBudgetPressure": "No thread is near its budget",
+      "noBudgetPressureDetail": "Threads appear here when they use 70% of their hourly turns or spend cap.",
+      "recentRefusals": "Recent refusals",
+      "noRefusals": "No refused turns",
+      "noRefusalsDetail": "A refusal appears here when a sender's tier leaves no permitted scope.",
+      "stats": {
+        "liveChannels": "Live channels",
+        "ofTotal": "of {{total}} declared",
+        "threads": "Threads",
+        "agents": "Agents",
+        "contacts": "Contacts"
+      }
+    },
+    "conversations": {
+      "title": "Conversations",
+      "description": "Every thread across every channel, governed before a turn starts.",
+      "threads": "Threads",
+      "search": "Search threads",
+      "filterByChannel": "Filter by channel",
+      "allChannels": "All channels",
+      "noMatches": "No threads match.",
+      "noMessagesYet": "No messages yet",
+      "attachmentOnly": "Attachment",
+      "groupRoom": "Group room",
+      "gateWaiting": "Gate waiting",
+      "emptyTitle": "No conversations yet",
+      "emptyDescription": "Start one here, or attach an agent to a channel and message it from your phone.",
+      "startCta": "Start a conversation",
+      "startTitle": "Start a conversation",
+      "startDescription": "Pick the agent you want to talk to. A new in-app thread opens with your owner tier.",
+      "startConfirm": "Open thread",
+      "pickThread": "Pick a thread to read it here.",
+      "you": "You",
+      "agentMarker": "Agent",
+      "sending": "Sending…",
+      "message": "Message",
+      "writePlaceholder": "Write to your agent",
+      "send": "Send",
+      "sendLabel": "Send a message",
+      "attachFile": "Attach a file",
+      "removeAttachment": "Remove attachment",
+      "sendFailed": "The message was not sent. Your draft is still here.",
+      "enterHint": "Enter to send · Shift+Enter for a new line",
+      "connecting": "Connecting to the in-app channel…",
+      "repliesLiveOn": "This conversation lives on {{channel}}. Replies happen there, not here.",
+      "speaksWhenAddressed": "Speaks only when addressed",
+      "roster": "People in this thread",
+      "roomCeiling": "Room ceiling",
+      "agentPermitted": "Agent may answer",
+      "agentRefusing": "Agent refuses here",
+      "agentSilenced": "Agent silenced by budget",
+      "strangerCeiling": "Someone in this room is a stranger, so the room ceiling leaves the agent no capability. It records messages and refuses out loud.",
+      "reviewContacts": "Review contacts",
+      "sayHello": "Say hello. Your message reaches the agent under your owner tier.",
+      "threadNotFound": "No thread with this id",
+      "threadNotFoundDetail": "It may have been removed, or the link is stale. Pick a thread from the list."
+    },
+    "agents": {
+      "title": "Agents",
+      "description": "Every agent this install operates: where each is reachable and what it may do.",
+      "newAgent": "New agent",
+      "emptyTitle": "No agents yet",
+      "empty": "Agents are profiles owned by Prompt Manager. Create one to give it a handle here.",
+      "createFirst": "Create your first agent",
+      "live": "Live",
+      "paused": "Paused",
+      "unbound": "Not attached",
+      "brokenReference": "Broken reference",
+      "reachableAt": "Reachable at",
+      "notReachable": "Not reachable on any channel yet",
+      "reachesTerminal": "Reaches the terminal",
+      "defaultGrantShort": "default grant",
+      "activity24h": "{{turns}} turns · {{refusals}} refusals · 24h",
+      "sourceUnavailable": "Prompt Manager is unreachable, so this roster shows only agents with a binding here.",
+      "sourceUnavailableShort": "roster source down",
+      "draftDescription": "Describe the job first. Nothing is written until you confirm the draft.",
+      "descriptionLabel": "What should this agent do?",
+      "descriptionPlaceholder": "A household planning assistant that keeps the family calendar and answers questions about it",
+      "draftHint": "The draft proposes a name and a read-only grant. Owner-only capabilities are never proposed.",
+      "prepareDraft": "Prepare draft",
+      "reviewHeading": "Review before writing",
+      "reviewPlaceholder": "The draft appears here once prepared.",
+      "displayName": "Display name",
+      "proposedGrant": "Proposed grant:",
+      "defaultGrant": "Default grant: read. Owner-only capabilities are not proposed automatically.",
+      "confirmWrite": "Confirm and write to Prompt Manager",
+      "notWritable": "Prompt Manager does not expose a writable agent endpoint on this host, so the draft was not written. Create the profile with the prompt-manager CLI instead."
+    },
+    "agentDetail": {
+      "editInPromptManager": "Edit profile in Prompt Manager",
+      "profileOwnedElsewhere": "The profile is owned by Prompt Manager and held here by reference. Switchboard never stores a copy.",
+      "whatItMayDo": "What this agent may do",
+      "scopeGranted": "granted",
+      "programBinding": "program binding",
+      "defaultGrant": "This agent's descriptor declares no grant, so the default read-only grant applies.",
+      "descriptorGrant": "Read from the agent descriptor's grant block.",
+      "ownerOnlyNote": "Owner-only scopes are unreachable from any other tier by construction. They are not a setting that can be turned on for someone else.",
+      "attachToChannel": "Attach to a channel",
+      "notReachableDetail": "Attach it to a channel so people can message it.",
+      "budgets": "Budgets and caps",
+      "noThreads": "No threads for this agent yet.",
+      "recentActivity": "Recent activity",
+      "noActivity": "No turns recorded yet.",
+      "activityKind": {
+        "turn": "Answered a turn",
+        "refusal": "Refused a turn",
+        "suppressed": "Stayed silent",
+        "gate": "Raised a capability gate"
+      },
+      "notFound": "No agent with this id",
+      "notFoundDetail": "Prompt Manager has no profile by that name and nothing is bound to it here."
+    },
+    "channels": {
+      "title": "Channels",
+      "description": "Every channel this install could use, ordered by how much setup each takes.",
+      "emptyTitle": "No channel descriptors loaded",
+      "emptyDetail": "Add a descriptor under data/channels to register a channel.",
+      "availability": {
+        "available": "Available",
+        "unavailable": "Needs setup",
+        "unimplemented": "Not implemented",
+        "unknown": "Unknown"
+      },
+      "friction": {
+        "none": "No setup",
+        "low": "Light setup",
+        "medium": "Some setup",
+        "high": "Involved setup"
+      },
+      "setupEffort": "Setup effort: {{level}}",
+      "supports": {
+        "images": "Images",
+        "files": "Files",
+        "groups": "Groups",
+        "threads": "Threads"
+      },
+      "textLimit": "{{kb}} KB per message",
+      "cost": {
+        "byok": "Your own keys",
+        "metered": "Included with a subscription"
+      },
+      "toEnable": "To enable:",
+      "satisfyRequirement": "Satisfy requirement",
+      "showAll": "Show {{count}} channels that need setup",
+      "attachAgent": "Attach agent",
+      "attachTo": "Attach an agent to {{channel}}",
+      "attachFormLabel": "Attach an agent",
+      "bindingDescription": "A binding maps one address on this channel to one agent. Messages from that address start turns for that agent.",
+      "agent": "Agent",
+      "address": "Address",
+      "addressPlaceholder": "chat id, handle, or phone number",
+      "addressHint": "The sender address as the channel reports it.",
+      "threadKey": "Thread key (optional)",
+      "threadKeyHint": "Leave empty to bind every room from this address.",
+      "confirmAttachment": "Attach",
+      "attached": "Agent attached to {{channel}}.",
+      "goToConversations": "Go to conversations",
+      "descriptorLoaded": "Channel descriptors are loaded from data/channels at boot. The file is the source of truth; the database is a cache."
+    },
+    "contacts": {
+      "title": "Contacts",
+      "description": "Everyone who has reached an agent here, and the tier each one holds.",
+      "emptyTitle": "Nobody has reached an agent yet",
+      "empty": "Contacts appear the first time someone messages an agent. Unknown senders start as strangers and need no action.",
+      "search": "Search contacts",
+      "noMatches": "No contacts match.",
+      "pickContact": "Pick a contact to review their tier and rooms.",
+      "lastSeen": "Seen {{when}}",
+      "firstSeen": "First seen",
+      "messages": "Messages",
+      "rooms": "Rooms",
+      "roomCount": "{{count}} rooms",
+      "people": "{{count}} people",
+      "trustTier": "Trust tier",
+      "changeTier": "Change tier",
+      "ceilingWarning": "This contact is the lowest tier in {{count}} group rooms. Lowering them to {{tier}} narrows what the agent may do for everyone in those rooms.",
+      "ownerWarning": "Owner is not a permission level. It makes this person indistinguishable from you to every agent they can reach.",
+      "tierChanged": "Tier changed to {{tier}}. {{rooms}} room ceilings updated.",
+      "roomsTitle": "Rooms this contact is in",
+      "noRooms": "Not in any room yet."
+    },
+    "session": {
+      "title": "Sign in as the owner",
+      "description": "Changing a tier, attaching an agent, answering a gate, or writing an agent profile needs the owner's credentials. They are sent to this host's authenticator and never stored here; only the issued token is kept for this tab.",
+      "email": "Email",
+      "password": "Password",
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "badCredentials": "Those credentials were not accepted."
+    },
+    "call": {
+      "title": "Call",
+      "description": "Live call transcript and controls.",
+      "unavailableTitle": "Call mode is not available in this release",
+      "unavailableDetail": "Voice and video calls are a later target. The conversation itself is still here.",
+      "backToThread": "Back to the conversation"
     }
   },
-  "path": "items",
-  "react": "^18",
-  "region": "navigation",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
-  "role": "boundary",
-  "selector": "nav",
-  "theme": {
-    "choice": {
-      "dark": "Dark",
-      "light": "Light",
-      "system": "System"
+  "pages": {
+    "dashboard": {
+      "title": "Overview",
+      "description": "Is anything waiting on you? Gates, refusals, channel health and budget pressure, in that order."
     },
-    "switcherLabel": "Theme"
-  },
-  "title": "BottomNav",
-  "true": "false",
-  "value": "Integrations",
-  "version": "1.0.0"
+    "settings": {
+      "title": "Settings",
+      "description": "Preferences for this browser, and the facts about this install.",
+      "themeHeading": "Appearance",
+      "themeDescription": "Light, dark, or follow the system.",
+      "localeHeading": "Language",
+      "localeDescription": "Applies to this console only.",
+      "descriptorHeading": "Channel descriptors",
+      "descriptorStatus": "{{count}} descriptors loaded from the boot-time registry.",
+      "trustHeading": "Trust rules",
+      "trustDescription": "How every turn is admitted. These are not configurable per agent.",
+      "trustRule1": "Effective scope is the narrowest of sender tier, room ceiling, and the agent's grant, resolved before the agent reads the message.",
+      "trustRule2": "A room's ceiling is the lowest tier in it. Adding a stranger narrows the room; it never widens the stranger.",
+      "trustRule3": "Every thread has an hourly turn budget and a spend cap. Both fail closed and tell you once, not every time.",
+      "meteringHeading": "Metered work",
+      "meteringDescription": "Inference runs through agent-manager with the provider keys configured on this host.",
+      "byokNote": "Your own provider keys are never charged. Metered inference through the business suite is an addition on top of this path and is not configured on this host.",
+      "aboutHeading": "About this install"
+    }
+  }
 }

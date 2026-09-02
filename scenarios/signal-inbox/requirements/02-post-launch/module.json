@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P1 requirements — category taxonomies and intake routing, the first networked adapter, richer source kinds, consumer events, and the measurement loop over operator overrides.",
-    "last_validated_at": "2026-07-27T23:11:07-04:00",
+    "last_validated_at": "2026-08-31T00:36:22-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -10,7 +10,7 @@
     {
       "id": "SIG-P1-001",
       "title": "Category taxonomies",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
       "category": "categories",
       "criticality": "P1",
@@ -25,19 +25,19 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A category with a declared taxonomy accepts only that taxonomy's subtypes and rejects unknown ones."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A category without a taxonomy stores no subtype and is unaffected by taxonomy validation."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The alpha taxonomy's tokens match the vision-walk vocabulary exactly, guarding the routing contract against drift."
         }
       ]
@@ -60,13 +60,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A routed signal produces a topic string matching the declared inbox prefix and its taxonomy subtype."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Routing records an outcome-link annotation naming the created knowledge topic."
         },
         {
@@ -95,13 +95,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The adapter declares tier 1 and reports disabled until an operator enables it."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A throttled response disables the adapter through the shared runner path and issues no retry."
         },
         {
@@ -135,13 +135,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The decoder resolves an index-referenced payload into ordered conversation turns."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A share page yielding zero turns marks the signal needs-attention rather than importing an empty conversation."
         },
         {
@@ -169,13 +169,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A video capture issues a transcript-only request and never requests media bytes."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An operator timestamp selects the surrounding transcript window as extracted content and is preserved as an annotation."
         },
         {
@@ -202,13 +202,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A category assignment publishes one event carrying identifiers and no signal body."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A category reassignment publishes an event reflecting the new category."
         },
         {
@@ -237,7 +237,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A saved view round-trips its full filter set and returns the same result as the equivalent ad-hoc filter."
         },
         {
@@ -265,13 +265,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Accuracy is computed only over signals carrying both a proposal and an operator confirmation or override."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "The report distinguishes accuracy per category, since a single aggregate hides a category that is uniformly misclassified."
         },
         {
@@ -299,7 +299,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A bulk operation applies to exactly the previewed set and to no signal outside it."
         },
         {
@@ -311,7 +311,7 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "A bulk drop changes disposition only and deletes no signal, annotation, or index entry."
         }
       ]

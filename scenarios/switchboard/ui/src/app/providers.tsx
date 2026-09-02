@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { SessionProvider } from "../features/session/SessionProvider";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 /**
@@ -10,5 +11,9 @@ import { ThemeProvider } from "../theme/ThemeProvider";
  * here so tests and Storybook-style harnesses can re-use the same composition.
  */
 export function Providers({ children }: { children: ReactNode }) {
-  return <ThemeProvider>{children}</ThemeProvider>;
+  return (
+    <ThemeProvider>
+      <SessionProvider>{children}</SessionProvider>
+    </ThemeProvider>
+  );
 }

@@ -141,26 +141,29 @@
         "enabled": true,
         "required": true,
         "description": "Deployment records storage",
-        "schema": "scenario_to_cloud"
+        "schema": "scenario_to_cloud",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {
       "scenario-dependency-analyzer": {
         "enabled": true,
         "required": true,
-        "description": "Provides dependency analysis for manifest generation"
+        "description": "Provides dependency analysis for manifest generation",
+        "startup_policy": "must_start"
       },
       "agent-manager": {
         "enabled": true,
         "required": false,
-      "description": "Optional investigation and task orchestration backend"
-    },
-    "secrets-manager": {
-      "required": false,
-      "startup_policy": "try_start",
-      "runtime_only": true,
-      "runtime_only_rationale": "Secret resolution uses the secrets-manager HTTP boundary through discovery.",
-      "degraded_behavior": "Operations requiring secret resolution fail explicitly while secrets-manager is unavailable."
+        "description": "Optional investigation and task orchestration backend",
+        "startup_policy": "try_start"
+      },
+      "secrets-manager": {
+        "required": false,
+        "startup_policy": "try_start",
+        "runtime_only": true,
+        "runtime_only_rationale": "Secret resolution uses the secrets-manager HTTP boundary through discovery.",
+        "degraded_behavior": "Operations requiring secret resolution fail explicitly while secrets-manager is unavailable."
       }
     }
   },
@@ -214,6 +217,11 @@
         "cwd": "ui",
         "port": "ui"
       }
+    }
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite"
     }
   }
 }

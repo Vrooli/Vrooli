@@ -97,49 +97,58 @@
     "resources": {
       "android-sdk": {
         "required": true,
-        "purpose": "Governed Android SDK, platform-tools, emulator, system images, and AVD lifecycle for mobile validation."
+        "purpose": "Governed Android SDK, platform-tools, emulator, system images, and AVD lifecycle for mobile validation.",
+        "startup_policy": "must_start"
       }
     },
     "scenarios": {
       "device-control": {
         "purpose": "Every device verb — install, launch, input, permission control, screenshot, screen recording — under a held lease. This ramp implements no device driving of its own.",
         "required": true,
-        "degraded_behavior": "Journey cells report unavailable naming device-control as the missing capability. The ramp never falls back to driving adb directly, because that would bypass leases and audit."
+        "degraded_behavior": "Journey cells report unavailable naming device-control as the missing capability. The ramp never falls back to driving adb directly, because that would bypass leases and audit.",
+        "startup_policy": "must_start"
       },
       "vrooli-bridge": {
         "purpose": "Device and node reach plane: fleet registry, per-node scopes, allowlisted dispatch, and durable runs for remote Android targets.",
         "required": true,
-        "degraded_behavior": "Remote targets report unavailable carrying the reach reason and are never silently omitted from inventory. The local emulator target remains usable."
+        "degraded_behavior": "Remote targets report unavailable carrying the reach reason and are never silently omitted from inventory. The local emulator target remains usable.",
+        "startup_policy": "must_start"
       },
       "deployment-manager": {
         "purpose": "Consumes this ramp's reference-only common.v1.TargetVerdict and owns the cross-ramp release gate.",
         "required": true,
-        "degraded_behavior": "The local gate still computes and evidence is retained; verdict emission retries. Evidence is never discarded because the consumer is down."
+        "degraded_behavior": "The local gate still computes and evidence is retained; verdict emission retries. Evidence is never discarded because the consumer is down.",
+        "startup_policy": "must_start"
       },
       "browser-automation-studio": {
         "purpose": "Executes a scenario's own named web-content flows against the generated app's WebView, so an author writes a flow once and it replays on Android unchanged.",
         "required": true,
-        "degraded_behavior": "Web-content chapters report unavailable; native shell chapters still execute and the run reports partial honestly rather than passing."
+        "degraded_behavior": "Web-content chapters report unavailable; native shell chapters still execute and the run reports partial honestly rather than passing.",
+        "startup_policy": "must_start"
       },
       "backdrop-studio": {
         "purpose": "Provides the typed backdrop composition contract used by the Android journey adapter for scenario-owned web-content flows.",
         "required": true,
-        "degraded_behavior": "Journey web-content chapters report unavailable with the missing backdrop capability; the ramp never silently replaces the typed client."
+        "degraded_behavior": "Journey web-content chapters report unavailable with the missing backdrop capability; the ramp never silently replaces the typed client.",
+        "startup_policy": "must_start"
       },
       "secrets-manager": {
         "purpose": "Holds the upload signing key by reference so no key material exists in this repository, in a generated project, or in evidence.",
         "required": true,
-        "degraded_behavior": "Builds requiring a signed artifact report unavailable naming the signing rung. The ramp never generates an ad-hoc local key as a fallback."
+        "degraded_behavior": "Builds requiring a signed artifact report unavailable naming the signing rung. The ramp never generates an ad-hoc local key as a fallback.",
+        "startup_policy": "must_start"
       },
       "hello-mobile": {
         "purpose": "Conformance fixture. The ramp must be provable end to end without depending on any product scenario's correctness.",
         "required": false,
-        "degraded_behavior": "The ramp's own conformance proof cannot run. Product scenario deliveries are unaffected."
+        "degraded_behavior": "The ramp's own conformance proof cannot run. Product scenario deliveries are unaffected.",
+        "startup_policy": "try_start"
       },
       "scenario-to-desktop": {
         "purpose": "Compile-time shared target-verdict domain contract used by the release matrix; the Android ramp does not call the desktop scenario at runtime.",
         "required": false,
-        "degraded_behavior": "The local release matrix cannot compile until the shared desktop-domain package is available; no desktop process is required at runtime."
+        "degraded_behavior": "The local release matrix cannot compile until the shared desktop-domain package is available; no desktop process is required at runtime.",
+        "startup_policy": "try_start"
       }
     }
   },

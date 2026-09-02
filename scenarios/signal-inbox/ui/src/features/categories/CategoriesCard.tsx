@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { categoriesClient, type Category } from "../../api/categories";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { strings } from "../../consts/strings";

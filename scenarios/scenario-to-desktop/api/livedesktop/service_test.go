@@ -20,6 +20,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type testProcess struct {
+	cmd *exec.Cmd
+}
+
+func (p *testProcess) PID() int {
+	if p != nil && p.cmd != nil && p.cmd.Process != nil {
+		return p.cmd.Process.Pid
+	}
+	return 0
+}
+
+func (p *testProcess) IsRunning() bool {
+	return p != nil && p.cmd != nil && p.cmd.ProcessState == nil && p.cmd.Process != nil
+}
+
 // --- Mock PlatformBackend ---
 
 type mockPlatformBackend struct {
@@ -81,14 +96,14 @@ func (b *mockPlatformBackend) LaunchApp(ctx context.Context, display PlatformDis
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	return &linuxProcess{cmd: cmd}, nil
+	return &testProcess{cmd: cmd}, nil
 }
 
 func (b *mockPlatformBackend) KillApp(proc PlatformProcess) {
 	b.mu.Lock()
 	b.killCalled = true
 	b.mu.Unlock()
-	lp, ok := proc.(*linuxProcess)
+	lp, ok := proc.(*testProcess)
 	if ok && lp != nil && lp.cmd != nil && lp.cmd.Process != nil {
 		_ = lp.cmd.Process.Kill()
 		_ = lp.cmd.Wait()
@@ -347,7 +362,7 @@ func TestStopSession_KillsAppProcess(t *testing.T) {
 	cmd := exec.Command("sleep", "3600")
 	require.NoError(t, cmd.Start())
 	session.mu.Lock()
-	session.AppProcess = &linuxProcess{cmd: cmd}
+	session.AppProcess = &testProcess{cmd: cmd}
 	session.AppRunning = true
 	session.mu.Unlock()
 
@@ -372,7 +387,7 @@ func TestLaunchApp_KillsPreviousApp(t *testing.T) {
 	oldCmd := exec.Command("sleep", "3600")
 	require.NoError(t, oldCmd.Start())
 	session.mu.Lock()
-	session.AppProcess = &linuxProcess{cmd: oldCmd}
+	session.AppProcess = &testProcess{cmd: oldCmd}
 	session.AppRunning = true
 	session.mu.Unlock()
 
@@ -545,7 +560,7 @@ func TestKillApp_StopsMonitor(t *testing.T) {
 	cmd := exec.Command("sleep", "3600")
 	require.NoError(t, cmd.Start())
 	session.mu.Lock()
-	session.AppProcess = &linuxProcess{cmd: cmd}
+	session.AppProcess = &testProcess{cmd: cmd}
 	session.AppRunning = true
 	session.mu.Unlock()
 

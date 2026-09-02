@@ -1,53 +1,48 @@
-import {
-  Home,
-  Settings,
-} from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { BottomNav as CanonicalBottomNav, type BottomNavItem } from "@vrooli/react-component-library/BottomNav/1.5.3";
+
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { NAV_ITEMS, type NavItem } from "./navItems";
+import { useAttention } from "./useAttention";
+import { navIcon } from "./navIcons";
+import { NAV_ITEMS, isNavItemActive } from "./navItems";
 
 /**
- * Mobile bottom nav. Visible below the `md` breakpoint; on desktop, see
- * `Sidebar`. Same nav targets as `NAV_ITEMS`, rendered as a flex row pinned to
- * the viewport bottom.
+ * Mobile bottom nav. The RCL component is always `position: fixed`, so the
+ * breakpoint lives on this wrapper: hidden from `md` up, where the sidebar
+ * takes over.
  */
 export function BottomNav() {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
-  const items = NAV_ITEMS.map((item): BottomNavItem => ({
+  const attention = useAttention();
+  const items = NAV_ITEMS.filter((item) => item.mobile).map((item): BottomNavItem => ({
     id: item.key,
-    label: t(item.labelKey),
-    icon: iconForItem(item),
-    active: item.end ? location.pathname === item.path : location.pathname.startsWith(item.path),
+    label: t(item.shortLabelKey ?? item.labelKey),
+    icon: navIcon(item.key),
+    active: isNavItemActive(item, location.pathname),
     testId: selectors.layout.bottomNavLink({ key: item.key }),
+    badge:
+      item.key === "dashboard" && attention.pending > 0
+        ? { value: attention.pending, tone: "warning", label: t(strings.console.attention.pendingCount, { count: attention.pending }) }
+        : undefined,
   }));
 
   return (
-    <CanonicalBottomNav
-      items={items}
-      label={t(strings.layout.bottomNavLabel)}
-      testId={selectors.layout.bottomNav}
-      onItemSelect={(item) => {
-        const navItem = NAV_ITEMS.find((entry) => entry.key === item.id);
-        if (navItem) {
-          navigate(navItem.path);
-        }
-      }}
-    />
+    <div className="md:hidden">
+      <CanonicalBottomNav
+        items={items}
+        label={t(strings.layout.bottomNavLabel)}
+        testId={selectors.layout.bottomNav}
+        safeArea="floor"
+        onItemSelect={(item) => {
+          const navItem = NAV_ITEMS.find((entry) => entry.key === item.id);
+          if (navItem) navigate(navItem.path);
+        }}
+      />
+    </div>
   );
-}
-
-function iconForItem(item: NavItem) {
-  const iconClass = "h-5 w-5";
-  switch (item.key) {
-    case "settings":
-      return <Settings aria-hidden className={iconClass} />;
-    case "dashboard":
-      return <Home aria-hidden className={iconClass} />;
-  }
 }

@@ -4,6 +4,7 @@
 package resources
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -13,17 +14,243 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/vrooli/binaryfetch"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 type Plan struct {
-	SchemaVersion     string `json:"schema_version"`
-	ArtifactTrustMode string `json:"artifact_trust_mode,omitempty"`
-	Promotable        bool   `json:"promotable"`
-	Resources         []Item `json:"resources"`
+	SchemaVersion     string                   `json:"schema_version"`
+	ArtifactTrustMode string                   `json:"artifact_trust_mode,omitempty"`
+	Promotable        bool                     `json:"promotable"`
+	Resources         []Item                   `json:"resources"`
+	DeferredTargets   []DeferredResourceTarget `json:"deferred_targets,omitempty"`
 }
+
+// DeferredResourceTarget is a hardware-dependent candidate retained by the
+// packager. The staged resource remains the fallback until an explicit
+// first-run upgrade outcome is recorded.
+type DeferredResourceTarget struct {
+	TargetIndex    int               `json:"target_index"`
+	Resource       string            `json:"resource"`
+	OS             string            `json:"os"`
+	Architecture   string            `json:"architecture"`
+	When           map[string]string `json:"when"`
+	Kind           string            `json:"kind,omitempty"`
+	URL            string            `json:"url,omitempty"`
+	Image          string            `json:"image,omitempty"`
+	SHA256         string            `json:"sha256,omitempty"`
+	ArtifactSHA256 string            `json:"artifact_sha256,omitempty"`
+	Archive        string            `json:"archive,omitempty"`
+	Layout         string            `json:"layout,omitempty"`
+	BinPath        string            `json:"bin_path,omitempty"`
+	Mode           string            `json:"mode,omitempty"`
+	SizeBytes      int64             `json:"size_bytes,omitempty"`
+	AbsentFacts    []string          `json:"absent_facts,omitempty"`
+}
+
+type UpgradeOffer struct {
+	Resource  string `json:"resource"`
+	Kind      string `json:"kind"`
+	SizeBytes int64  `json:"size_bytes,omitempty"`
+	Reason    string `json:"reason"`
+}
+
+type UpgradeOutcome struct {
+	Resource   string `json:"resource"`
+	Decision   string `json:"decision"` // accepted, declined, failed
+	Reason     string `json:"reason,omitempty"`
+	ObservedAt string `json:"observed_at"`
+}
+
+// ApplyDeferredUpgrade acquires a matching candidate into a temporary sibling
+// and atomically replaces the selected service tree only after verification.
+// The caller records the outcome after this returns; any error leaves the
+// shipped artifact untouched.
+func ApplyDeferredUpgrade(ctx context.Context, bundleRoot string, plan *Plan, resource string, facts binaryfetch.Facts) error {
+	if plan == nil {
+		return fmt.Errorf("resource upgrade plan is unavailable")
+	}
+	var candidate *DeferredResourceTarget
+	var resolved binaryfetch.AcquisitionTarget
+	var resolveErr error
+	for i := range plan.DeferredTargets {
+		current := &plan.DeferredTargets[i]
+		if current.Resource != resource || current.OS != runtimeOS() || current.Architecture != runtime.GOARCH {
+			continue
+		}
+		candidateAcquisition := binaryfetch.Acquisition{Kind: current.Kind, Targets: []binaryfetch.AcquisitionTarget{{When: current.When, Kind: current.Kind, URL: current.URL, Image: current.Image, SHA256: current.SHA256, ArtifactSHA256: current.ArtifactSHA256, Archive: current.Archive, Layout: current.Layout, BinPath: current.BinPath, Mode: current.Mode}}}
+		resolved, resolveErr = candidateAcquisition.Resolve(facts)
+		if resolveErr == nil {
+			candidate = current
+			break
+		}
+	}
+	if candidate == nil {
+		if resolveErr != nil {
+			return fmt.Errorf("deferred candidate no longer matches: %w", resolveErr)
+		}
+		return fmt.Errorf("no deferred candidate for resource %q", resource)
+	}
+	var item *Item
+	for i := range plan.Resources {
+		if plan.Resources[i].Resource == resource {
+			item = &plan.Resources[i]
+			break
+		}
+	}
+	if item == nil || item.Service == nil {
+		return fmt.Errorf("resource %q has no bundled service fallback", resource)
+	}
+	resourceDir := filepath.Join(bundleRoot, "resources", resource)
+	if err := os.MkdirAll(resourceDir, 0o755); err != nil {
+		return err
+	}
+	tmp := filepath.Join(resourceDir, ".upgrade-staging")
+	_ = os.RemoveAll(tmp)
+	defer os.RemoveAll(tmp)
+	layout := strings.ToLower(strings.TrimSpace(resolved.Layout))
+	kind := strings.ToLower(strings.TrimSpace(resolved.Kind))
+	if kind == "oci-image" {
+		if layout == "dir" {
+			if _, err := binaryfetch.FetchOCI(ctx, resolved, tmp, nil); err != nil {
+				return fmt.Errorf("acquire deferred resource %q: %w", resource, err)
+			}
+		} else {
+			if _, err := binaryfetch.FetchOCIFile(ctx, resolved, tmp, nil); err != nil {
+				return fmt.Errorf("acquire deferred resource %q: %w", resource, err)
+			}
+		}
+	} else if kind == "url" {
+		spec := binaryfetch.Target{Name: "upgrade", URL: resolved.URL, SHA256: resolved.SHA256, Archive: resolved.Archive, Layout: layout, BinPath: resolved.BinPath, Mode: resolved.Mode}
+		if layout == "dir" {
+			if _, err := binaryfetch.FetchDir(ctx, spec, tmp, nil); err != nil {
+				return fmt.Errorf("acquire deferred resource %q: %w", resource, err)
+			}
+		} else {
+			if _, err := binaryfetch.Fetch(ctx, spec, resourceDir, nil); err != nil {
+				return fmt.Errorf("acquire deferred resource %q: %w", resource, err)
+			}
+			if err := os.Rename(filepath.Join(resourceDir, "upgrade"), tmp); err != nil {
+				return fmt.Errorf("stage deferred resource %q: %w", resource, err)
+			}
+		}
+	} else {
+		return fmt.Errorf("resource upgrade %q uses unsupported acquisition kind %q", resource, kind)
+	}
+	actual, err := serviceArtifactDigest(tmp, layout)
+	if err != nil {
+		return fmt.Errorf("digest deferred resource %q: %w", resource, err)
+	}
+	if candidate.ArtifactSHA256 != "" && !strings.EqualFold(actual, candidate.ArtifactSHA256) {
+		return fmt.Errorf("deferred resource %q artifact digest mismatch: got %s want %s", resource, actual, candidate.ArtifactSHA256)
+	}
+	finalPath := filepath.Join(resourceDir, item.Service.Artifact)
+	backup := filepath.Join(resourceDir, ".upgrade-previous")
+	_ = os.RemoveAll(backup)
+	if err := os.Rename(finalPath, backup); err != nil {
+		return fmt.Errorf("stage fallback for resource %q: %w", resource, err)
+	}
+	if err := os.Rename(tmp, finalPath); err != nil {
+		_ = os.Rename(backup, finalPath)
+		return fmt.Errorf("install deferred resource %q: %w", resource, err)
+	}
+	item.Service.Layout = "dir"
+	item.Service.EntryPath = resolved.BinPath
+	item.Service.SHA256 = actual
+	item.Service.Files = []Artifact{{Name: item.Service.Artifact, SHA256: actual}}
+	data, err := json.MarshalIndent(plan, "", "  ")
+	if err != nil {
+		_ = os.RemoveAll(finalPath)
+		_ = os.Rename(backup, finalPath)
+		return err
+	}
+	planPath := filepath.Join(bundleRoot, "resource-deployment-plan.json")
+	planTmp := planPath + ".upgrade-tmp"
+	if err := os.WriteFile(planTmp, append(data, '\n'), 0o644); err != nil {
+		_ = os.RemoveAll(finalPath)
+		_ = os.Rename(backup, finalPath)
+		return err
+	}
+	if err := os.Rename(planTmp, planPath); err != nil {
+		_ = os.RemoveAll(planTmp)
+		_ = os.RemoveAll(finalPath)
+		_ = os.Rename(backup, finalPath)
+		return err
+	}
+	_ = os.RemoveAll(backup)
+	return nil
+}
+
+func ResolveDeferredOffers(plan *Plan, facts binaryfetch.Facts, outcomes map[string]UpgradeOutcome) []UpgradeOffer {
+	if plan == nil {
+		return nil
+	}
+	offers := make([]UpgradeOffer, 0)
+	for _, candidate := range plan.DeferredTargets {
+		if candidate.OS != runtimeOS() || candidate.Architecture != runtime.GOARCH {
+			continue
+		}
+		if outcome, ok := outcomes[candidate.Resource]; ok && strings.TrimSpace(outcome.Decision) != "" {
+			continue
+		}
+		acq := binaryfetch.Acquisition{Kind: candidate.Kind, Targets: []binaryfetch.AcquisitionTarget{{When: candidate.When, Kind: candidate.Kind, URL: candidate.URL, Image: candidate.Image, SHA256: candidate.SHA256, ArtifactSHA256: candidate.ArtifactSHA256, Archive: candidate.Archive, Layout: candidate.Layout, BinPath: candidate.BinPath, Mode: candidate.Mode}}}
+		if _, err := acq.Resolve(facts); err != nil {
+			continue
+		}
+		offers = append(offers, UpgradeOffer{Resource: candidate.Resource, Kind: candidate.Kind, SizeBytes: candidate.SizeBytes, Reason: "accelerated resource candidate matches detected host capabilities"})
+	}
+	return offers
+}
+
+func LoadUpgradeOutcomes(appData string) (map[string]UpgradeOutcome, error) {
+	path := filepath.Join(appData, "resource-upgrade-outcomes.json")
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return map[string]UpgradeOutcome{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read resource upgrade outcomes: %w", err)
+	}
+	var outcomes map[string]UpgradeOutcome
+	if err := json.Unmarshal(data, &outcomes); err != nil {
+		return nil, fmt.Errorf("parse resource upgrade outcomes: %w", err)
+	}
+	return outcomes, nil
+}
+
+func RecordUpgradeOutcome(appData string, outcome UpgradeOutcome) error {
+	if strings.TrimSpace(outcome.Resource) == "" || strings.TrimSpace(outcome.Decision) == "" {
+		return fmt.Errorf("resource upgrade outcome requires resource and decision")
+	}
+	switch outcome.Decision {
+	case "accepted", "declined", "failed":
+	default:
+		return fmt.Errorf("resource upgrade outcome has unknown decision %q", outcome.Decision)
+	}
+	outcomes, err := LoadUpgradeOutcomes(appData)
+	if err != nil {
+		return err
+	}
+	if outcome.ObservedAt == "" {
+		outcome.ObservedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	outcomes[outcome.Resource] = outcome
+	data, err := json.MarshalIndent(outcomes, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(appData, 0o700); err != nil {
+		return err
+	}
+	tmp := filepath.Join(appData, ".resource-upgrade-outcomes.tmp")
+	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, filepath.Join(appData, "resource-upgrade-outcomes.json"))
+}
+
 type Item struct {
 	RequestedResource string     `json:"requested_resource"`
 	Resource          string     `json:"resource"`

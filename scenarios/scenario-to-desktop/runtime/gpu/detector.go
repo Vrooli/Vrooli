@@ -15,6 +15,8 @@ type Status struct {
 	Available bool   // Whether a usable GPU was detected
 	Method    string // Detection method used (env_override, nvidia-smi, system_profiler, wmic, probe)
 	Reason    string // Human-readable explanation
+	Backends  []string
+	Facts     map[string]string
 }
 
 // Detector abstracts GPU detection for testing.
@@ -46,7 +48,7 @@ func (d *RealDetector) Detect() Status {
 	override := strings.TrimSpace(d.EnvReader.Getenv("BUNDLE_GPU_AVAILABLE"))
 	switch strings.ToLower(override) {
 	case "1", "true", "yes", "on":
-		return Status{Available: true, Method: "env_override", Reason: "forced available via BUNDLE_GPU_AVAILABLE"}
+		return Status{Available: true, Method: "env_override", Reason: "forced available via BUNDLE_GPU_AVAILABLE", Backends: []string{"gpu"}}
 	case "0", "false", "no", "off":
 		return Status{Available: false, Method: "env_override", Reason: "forced unavailable via BUNDLE_GPU_AVAILABLE"}
 	}
@@ -70,12 +72,17 @@ func (d *RealDetector) collectSnapshot(ctx context.Context) (hostinventory.Snaps
 }
 
 func statusFromSnapshot(snapshot hostinventory.Snapshot) Status {
+	facts := snapshot.AcceleratorFacts()
+	backends := strings.Split(facts[hostinventory.FactAccelBackends], ",")
 	if len(snapshot.GPUs) > 0 {
 		method := snapshot.GPUs[0].Source
 		if method == "" {
 			method = "hostinventory"
 		}
-		return Status{Available: true, Method: method, Reason: gpuReason(method)}
+		return Status{Available: len(snapshot.GPUs) > 0, Method: method, Reason: gpuReason(method), Backends: backends, Facts: facts}
+	}
+	if len(facts) > 0 {
+		return Status{Available: false, Method: "probe", Reason: "no GPU detected", Backends: backends, Facts: facts}
 	}
 	return Status{Available: false, Method: "probe", Reason: "no GPU detected"}
 }

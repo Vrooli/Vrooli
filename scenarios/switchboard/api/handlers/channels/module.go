@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -18,10 +17,13 @@ import (
 
 	agents "switchboard/internal/agents"
 	channelcore "switchboard/internal/channels"
+	"switchboard/internal/contacts"
 	"switchboard/internal/dispatch"
 	"switchboard/internal/egress"
 	"switchboard/internal/gates"
+	"switchboard/internal/identity"
 	"switchboard/internal/module"
+	"switchboard/internal/threads"
 	"switchboard/internal/trust"
 )
 
@@ -33,6 +35,8 @@ type ModuleDeps struct {
 	Processor *dispatch.Processor
 	Gates     *gates.Store
 	Identity  owneridentity.Validator
+	Contacts  *contacts.Store
+	Threads   *threads.Store
 }
 
 type service struct{ deps ModuleDeps }
@@ -98,6 +102,7 @@ func (s *service) ListBindings(ctx context.Context, req *connect.Request[channel
 	}
 	return out, nil
 }
+
 func (s *service) CreateBinding(ctx context.Context, req *connect.Request[channelv1.CreateBindingRequest]) (*connect.Response[channelv1.CreateBindingResponse], error) {
 	if s.deps.DB == nil {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("binding storage unavailable"))
@@ -236,24 +241,7 @@ func (s *service) authenticatedSubject(req *http.Request) (string, error) {
 }
 
 func (s *service) authenticatedSubjectFromHeaders(ctx context.Context, headers http.Header) (string, error) {
-	if s.deps.Identity == nil {
-		if subject := headers.Get("X-Vrooli-Identity-Subject"); subject != "" {
-			return subject, nil
-		}
-		return "", owneridentity.ErrUnauthenticated
-	}
-	token := strings.TrimSpace(strings.TrimPrefix(headers.Get("Authorization"), "Bearer "))
-	if token == "" {
-		return "", owneridentity.ErrUnauthenticated
-	}
-	identity, err := s.deps.Identity.Validate(ctx, token)
-	if err != nil {
-		return "", err
-	}
-	if strings.TrimSpace(identity.Subject) == "" {
-		return "", owneridentity.ErrUnauthenticated
-	}
-	return identity.Subject, nil
+	return identity.Subject(ctx, headers, s.deps.Identity)
 }
 
 func writeGate(w http.ResponseWriter, g gates.Gate) {
@@ -261,6 +249,11 @@ func writeGate(w http.ResponseWriter, g gates.Gate) {
 	_ = json.NewEncoder(w).Encode(g)
 }
 
+// ingest is the single inbound path for every adapter. It resolves the
+// binding, records the sender as a contact at the tier the channel descriptor
+// declares for a first appearance, joins the thread roster, and hands the
+// REAL sender tier and room ceiling to the processor. Nothing here reads a
+// channel identifier: the default tier is descriptor data.
 func (s *service) ingest(ctx context.Context, envelope channelcore.Envelope) (dispatch.Result, error) {
 	records, err := agents.NewStore(s.deps.DB).List(ctx, "")
 	if err != nil {
@@ -272,13 +265,61 @@ func (s *service) ingest(ctx context.Context, envelope channelcore.Envelope) (di
 	}
 	binding, err := agents.Resolve(bindings, envelope.ChannelID, envelope.ThreadKey, envelope.SenderAddress)
 	if err != nil {
-		return dispatch.Result{}, errUnbound
+		// A group room is bound by its thread key alone: any human in the room
+		// may address the agent, and the trust guard decides what they get.
+		binding, err = agents.Resolve(bindings, envelope.ChannelID, envelope.ThreadKey, "")
+		if err != nil {
+			return dispatch.Result{}, errUnbound
+		}
 	}
-	result, err := s.deps.Processor.Process(ctx, envelope, trust.Known, trust.Known, binding.AgentID, envelope.Group, len(envelope.Mentions) > 0 || envelope.ReplyToRemoteID != "")
+	sender, ceiling := trust.Stranger, trust.Stranger
+	if envelope.AuthorKind != channelcore.AuthorAgent && s.deps.Contacts != nil && s.deps.Threads != nil {
+		defaultTier := "stranger"
+		if d, ok := s.deps.Registry.Get(envelope.ChannelID); ok {
+			defaultTier = d.DefaultTier()
+		}
+		contact, err := s.deps.Contacts.Seen(ctx, envelope.ChannelID, envelope.SenderAddress, defaultTier)
+		if err != nil {
+			return dispatch.Result{}, err
+		}
+		thread, err := s.deps.Threads.Upsert(ctx, envelope, envelope.Group)
+		if err != nil {
+			return dispatch.Result{}, err
+		}
+		if err := s.deps.Contacts.Join(ctx, thread.ID, contact.ID); err != nil {
+			return dispatch.Result{}, err
+		}
+		if sender, err = trust.ParseTier(contact.Tier); err != nil {
+			return dispatch.Result{}, err
+		}
+		if ceiling, err = s.deps.Contacts.Ceiling(ctx, thread.ID); err != nil {
+			return dispatch.Result{}, err
+		}
+		if !thread.IsGroup && !envelope.Group {
+			ceiling = sender
+		}
+	}
+	result, err := s.deps.Processor.Process(ctx, envelope, sender, ceiling, binding.AgentID, envelope.Group, len(envelope.Mentions) > 0 || envelope.ReplyToRemoteID != "")
 	if err != nil {
 		return dispatch.Result{}, err
 	}
 	return result, nil
+}
+
+// startThread is injected into every adapter that can open a conversation on
+// demand. It creates the binding and the durable thread in one step.
+func (s *service) startThread(ctx context.Context, agentID string, started channelcore.Started) (string, error) {
+	if s.deps.DB == nil || s.deps.Threads == nil {
+		return "", fmt.Errorf("binding storage unavailable")
+	}
+	if _, err := agents.NewStore(s.deps.DB).Create(ctx, agents.Binding{AgentID: agentID, ChannelID: started.ChannelID, Address: started.Address, ThreadKey: started.ThreadKey}); err != nil {
+		return "", err
+	}
+	thread, err := s.deps.Threads.Upsert(ctx, channelcore.Envelope{ChannelID: started.ChannelID, ThreadKey: started.ThreadKey}, false)
+	if err != nil {
+		return "", err
+	}
+	return thread.ID, nil
 }
 
 func (s *service) SendMessage(ctx context.Context, req *connect.Request[channelv1.SendMessageRequest]) (*connect.Response[channelv1.SendMessageResponse], error) {
@@ -303,6 +344,10 @@ func Module(d ModuleDeps) module.Module {
 			adapter.BindReceive(func(e channelcore.Envelope) error { _, err := svc.ingest(context.Background(), e); return err })
 			r.Handle(adapter.HTTPPath(), adapter.Handler()).Methods(http.MethodGet)
 		}
+		for _, adapter := range d.Registry.ThreadStarters() {
+			adapter.BindStart(svc.startThread)
+			r.Handle(adapter.StartPath(), adapter.StartHandler()).Methods(http.MethodPost)
+		}
 		path, handler := channelconnect.NewChannelServiceHandler(&service{deps: d})
 		r.PathPrefix(path).Handler(handler)
 		r.HandleFunc("/api/v1/channels", func(w http.ResponseWriter, req *http.Request) {
@@ -323,6 +368,7 @@ func Module(d ModuleDeps) module.Module {
 
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "channels_list", Path: "/api/v1/channels", Method: http.MethodGet, Summary: "List channel availability", Description: "Lists descriptor-backed channels ordered by setup friction.", Category: "channels", RESTException: jsonRESTException(false)},
+	{ID: "channels_start_thread", Path: "/api/v1/channels/in-app/threads", Method: http.MethodPost, Summary: "Start an in-app conversation", Description: "Opens a new in-app thread with one agent: creates the binding and the durable thread, and returns the thread key the console connects with.", Category: "channels", RESTException: jsonRESTException(true)},
 	{ID: "channels_socket", Path: "/api/v1/channels/socket", Method: http.MethodGet, Summary: "Connect an in-app conversation", Description: "Connects an in-app conversation over the registered WebSocket adapter.", Category: "channels", RESTException: websocketRESTException()},
 	{ID: "channels_rpc_list", Path: channelconnect.ChannelServiceListChannelsProcedure, Method: http.MethodPost, Summary: "List channels", Category: "channels"},
 	{ID: "channels_rpc_get", Path: channelconnect.ChannelServiceGetChannelProcedure, Method: http.MethodPost, Summary: "Get channel", Category: "channels"},

@@ -7,7 +7,7 @@ import {
   StopCircle,
 } from "lucide-react";
 import { selectors } from "../../consts/selectors";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { Button } from "../ui/button";
 
 type Target = {

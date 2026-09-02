@@ -150,6 +150,19 @@ func TestDiscoverGoSurfacesIncludesNonAPIModules(t *testing.T) {
 	}
 }
 
+func TestFilterGoSurfacesByModuleAcceptsRepositoryRelativeDirectory(t *testing.T) {
+	root := filepath.Clean("/repo")
+	surfaces := []goSurface{
+		{goMod: filepath.Join(root, "packages", "delivery-ramp-go", "go.mod"), module: "github.com/vrooli/delivery-ramp-go"},
+		{goMod: filepath.Join(root, "packages", "other", "go.mod"), module: "github.com/vrooli/other"},
+	}
+
+	got := filterGoSurfacesByModule(root, surfaces, "packages/delivery-ramp-go")
+	if len(got) != 1 || got[0].module != "github.com/vrooli/delivery-ramp-go" {
+		t.Fatalf("filtered surfaces = %#v, want delivery-ramp-go only", got)
+	}
+}
+
 func TestCheckGoFreshnessApplyReportsCleanAfterVerifiedTidy(t *testing.T) {
 	root := filepath.Clean("/repo")
 	surface := goSurface{

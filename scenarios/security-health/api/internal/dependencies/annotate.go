@@ -49,15 +49,23 @@ type scanCache interface {
 // scanner. The fleet annotate runs scenarios in bounded parallel (concurrency
 // env-capped) against the offline OSV DB.
 type Annotator struct {
-	repoRoot string
-	cmd      validation.Commander
-	cache    scanCache
-	clock    schedule.Clock
+	repoRoot    string
+	cmd         validation.Commander
+	cache       scanCache
+	clock       schedule.Clock
+	coordinator *validation.EvidenceCoordinator
 
 	// last run's scan counters (observability): how many scenarios re-ran the
 	// scanner vs. were served from cache.
 	lastScansRun     atomic.Int64
 	lastScansSkipped atomic.Int64
+}
+
+// WithCoordinator shares the validation scanner capacity budget with fleet
+// reconciliation. A nil coordinator preserves the isolated/test behavior.
+func (a *Annotator) WithCoordinator(coordinator *validation.EvidenceCoordinator) *Annotator {
+	a.coordinator = coordinator
+	return a
 }
 
 // NewAnnotator returns an annotator rooted at repoRoot. A nil Commander uses
@@ -205,7 +213,18 @@ func (a *Annotator) scanScenario(ctx context.Context, scenario string) (report v
 }
 
 func (a *Annotator) runScan(ctx context.Context, scenarioDir string) (validation.OSVReport, bool) {
-	report, err := validation.RunOSVScanner(ctx, a.cmd, scenarioDir)
+	var report validation.OSVReport
+	run := func(runCtx context.Context) ([]validation.Finding, error) {
+		var err error
+		report, err = validation.RunOSVScanner(runCtx, a.cmd, scenarioDir)
+		return nil, err
+	}
+	var err error
+	if a.coordinator != nil {
+		_, _, err = a.coordinator.ExecuteUncached(ctx, "osv-scanner", 2, run)
+	} else {
+		_, err = run(ctx)
+	}
 	if err != nil {
 		return validation.OSVReport{}, false
 	}

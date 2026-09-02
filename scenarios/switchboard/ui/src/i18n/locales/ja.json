@@ -1,11 +1,8 @@
 {
-  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Switchboard のような大文字スネークケースのプレースホルダーは、`template-manager generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: uppercase-snake-case placeholders are replaced by `template-manager generate` before the scenario is built. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "title": "Switchboard"
   },
-  "asset": "navigation.page",
-  "capability": "navigation",
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "モバイルナビゲーション",
@@ -16,6 +13,10 @@
       "contacts": "連絡先",
       "channels": "チャンネル",
       "settings": "設定"
+    },
+    "navShort": {
+      "dashboard": "概要",
+      "conversations": "チャット"
     }
   },
   "theme": {
@@ -26,27 +27,6 @@
       "system": "システム"
     }
   },
-  "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
-    },
-    "settings": {
-      "title": "設定",
-      "themeHeading": "外観",
-      "localeHeading": "言語",
-      "descriptorHeading": "チャンネル記述子",
-      "descriptorStatus": "起動時レジストリから記述子を読み込みました。",
-      "meteringHeading": "従量制の処理",
-      "byokLabel": "自分のプロバイダーキー",
-      "byokNote": "個人キーは課金されません。",
-      "quietHoursHeading": "静穏時間",
-      "quietHoursDescription": "静穏時間はすべてのエージェントに適用されます。",
-      "blastRadius": "すべてのエージェントに適用",
-      "save": "保存"
-    }
-  },
   "health": {
     "title": "API ステータス",
     "loading": "API のステータスを確認中…",
@@ -55,9 +35,6 @@
     "refreshCount": "{{count}} 回更新しました",
     "serviceLabel": "サービス:",
     "timestampLabel": "タイムスタンプ:"
-  },
-  "notifications": {
-    "summary": "{{count}} 件の通知"
   },
   "errors": {
     "canceled": "Operation canceled.",
@@ -77,41 +54,303 @@
     "data_loss": "Data loss detected.",
     "unauthenticated": "Please sign in to continue."
   },
+  "notifications": {
+    "summary": "{{count}} 件の通知"
+  },
   "locale": {
     "switcherLabel": "言語"
-  },
-  "console": {
-    "mainContent":"Main content",
-    "agents": {"title":"Agents","description":"Every agent, its reachable handles, and its granted scopes.","draftHeading":"Draft an agent","draftDescription":"Describe the job first. Nothing is written until you confirm the draft.","descriptionLabel":"Description","descriptionPlaceholder":"A household planning assistant","prepareDraft":"Prepare draft","reviewHeading":"Review before writing","defaultGrant":"Default grant: read. Owner-only capabilities are not proposed automatically.","confirmWrite":"Confirm and write","confirmed":"Draft confirmed; Prompt Manager is the profile source."},
-    "channels": {"title":"Channels","description":"Attach an agent to a reachable channel.","attachAgent":"Attach agent","agentId":"Agent ID","address":"Address","threadKey":"Thread key (optional)","addressPlaceholder":"chat or handle","bindingDescription":"The binding maps one channel address to an agent and thread.","attachFormLabel":"Attach an agent","connectRequirement":"Connect requirement","attaching":"Attaching…","setupFriction":"Setup friction {{friction}}","descriptorLoaded":"Channel descriptors are loaded from the boot-time descriptor registry.","confirmAttachment":"Confirm attachment","cancel":"Cancel","attached":"Agent attached to {{channel}}"},
-    "contacts": {"title":"Contacts","description":"Manage sender identity and trust tiers. Unknown senders start as strangers.","empty":"No contacts recorded."},
-    "conversations": {"title":"Conversations","description":"Threads are durable, cross-channel, and governed before a turn starts.","thread":"In-app thread","connected":"Connected","offline":"Offline","empty":"No messages yet. Start a conversation below.","message":"Message","writePlaceholder":"Write to your agent","attachFile":"Attach a file","send":"Send","agent":"Agent","you":"You","attachment":"Attachment: {{name}} ({{mime}}, {{size}} bytes)","disconnectError":"The in-app adapter disconnected. Retry when it is available.","unreadableError":"The adapter returned an unreadable message."},
-    "capabilityGate": {"title":"Capability approval needed","withheld":"Withheld:","unblock":"What would unblock it:","expires":"Expires:","grantOnce":"Grant once","notNow":"Not now","ownerOnly":"Only the agent owner can answer this request."},
-    "surface": {"nothingConfigured":"Nothing is configured yet. This surface will show data when the first record exists.","welcome":"Welcome","welcomeDescription":"Create your first reachable agent.","channel":"Channel","channelDescription":"Channel details and connection status.","agent":"Agent","agentDescription":"Agent grants, reachable channels, and activity.","call":"Call","callDescription":"Live call transcript and controls.","contact":"Contact","contactDescription":"Sender identity and trust tier."}
   },
   "errorBoundary": {
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
   },
-  "default": "Primary navigation",
-  "export": "LongLabels",
-  "fixture": "fixtures.user-directory",
-  "id": "long-labels",
-  "kind": "text",
-  "label": "Compact navigation",
-  "libraryId": "react-component-library:StyleSheet",
-  "mode": "pinned",
-  "module": "./story.tsx",
-  "name": "Long Labels",
-  "path": "items",
-  "react": "^18",
-  "region": "navigation",
-  "resolvedAt": "2026-08-31T08:56:56.781Z",
-  "role": "boundary",
-  "selector": "nav",
-  "title": "BottomNav",
-  "true": "false",
-  "value": "Integrations",
-  "version": "1.0.0"
+  "console": {
+    "mainContent": "メインコンテンツ",
+    "common": {
+      "back": "戻る",
+      "cancel": "キャンセル",
+      "close": "閉じる"
+    },
+    "shell": {
+      "apiConnected": "API 接続中",
+      "apiUnreachable": "API に接続できません"
+    },
+    "attention": {
+      "pendingCount": "{{count}} 件待ち"
+    },
+    "region": {
+      "loading": "読み込み中…",
+      "errorTitle": "このセクションを読み込めませんでした。",
+      "retry": "再試行"
+    },
+    "tiers": {
+      "stranger": "未知",
+      "known": "既知",
+      "trusted": "信頼",
+      "owner": "オーナー",
+      "effect": {
+        "stranger": "権限なし。エージェントはメッセージを記録し、明示的に拒否します。認識されない送信者はすべてここから始まります。",
+        "known": "読み取り専用スコープのみ。質問には答えられますが、何も実行できません。",
+        "trusted": "オーナー専用を除く、付与済みのすべてのスコープ。ターミナルに到達したり、あなたの代わりに支出することはできません。",
+        "owner": "オーナー専用スコープを含む全権限。これはあなた自身です。他人に付与すると、このエージェントが聞いているすべての場所でその人があなたになります。"
+      }
+    },
+    "budget": {
+      "turnsThisHour": "この1時間のターン",
+      "remaining": "{{total}} 中 {{remaining}} 残り",
+      "unlimited": "ターン上限なし",
+      "spend": "{{cap}} 中 {{spent}} 使用",
+      "noSpendCap": "このスレッドに支出上限はありません",
+      "exhausted": "予算を使い切りました",
+      "nearLimit": "上限間近"
+    },
+    "capabilityGate": {
+      "title": "権限の承認が必要です",
+      "withheld": "保留:",
+      "unblock": "解除する方法:",
+      "expiresIn": "{{when}}に期限切れ",
+      "grantOnce": "一度だけ許可",
+      "notNow": "今はしない",
+      "ownerOnly": "この要求に回答できるのはエージェントのオーナーだけです。",
+      "status": {
+        "granted": "許可済み",
+        "denied": "拒否済み",
+        "expired": "未回答で期限切れ"
+      }
+    },
+    "overview": {
+      "refresh": "更新",
+      "updated": "{{when}}に更新",
+      "waitingOnYou": "あなたの判断待ち",
+      "allClear": "対応が必要なものはありません",
+      "allClearDetail": "回答待ちの権限ゲートはありません。",
+      "openThread": "スレッドを開く",
+      "channelHealth": "チャンネルの状態",
+      "manageChannels": "チャンネルを管理",
+      "channelCounts": "バインディング {{bindings}} · スレッド {{threads}}",
+      "budgetPressure": "予算の圧迫",
+      "noBudgetPressure": "予算上限に近いスレッドはありません",
+      "noBudgetPressureDetail": "1時間のターンまたは支出上限の70%を使うとここに表示されます。",
+      "recentRefusals": "最近の拒否",
+      "noRefusals": "拒否されたターンはありません",
+      "noRefusalsDetail": "送信者の階層に許可されたスコープが残らない場合、ここに拒否が表示されます。",
+      "stats": {
+        "liveChannels": "稼働中チャンネル",
+        "ofTotal": "宣言済み {{total}} 中",
+        "threads": "スレッド",
+        "agents": "エージェント",
+        "contacts": "連絡先"
+      }
+    },
+    "conversations": {
+      "title": "会話",
+      "description": "すべてのチャンネルのすべてのスレッド。ターン開始前に統制されます。",
+      "threads": "スレッド",
+      "search": "スレッドを検索",
+      "filterByChannel": "チャンネルで絞り込む",
+      "allChannels": "すべてのチャンネル",
+      "noMatches": "一致するスレッドはありません。",
+      "noMessagesYet": "メッセージはまだありません",
+      "attachmentOnly": "添付ファイル",
+      "groupRoom": "グループルーム",
+      "gateWaiting": "ゲート待ち",
+      "emptyTitle": "会話はまだありません",
+      "emptyDescription": "ここで始めるか、エージェントをチャンネルに接続してスマートフォンからメッセージを送ってください。",
+      "startCta": "会話を始める",
+      "startTitle": "会話を始める",
+      "startDescription": "話したいエージェントを選んでください。オーナー階層で新しいアプリ内スレッドが開きます。",
+      "startConfirm": "スレッドを開く",
+      "pickThread": "スレッドを選ぶとここに表示されます。",
+      "you": "あなた",
+      "agentMarker": "エージェント",
+      "sending": "送信中…",
+      "message": "メッセージ",
+      "writePlaceholder": "エージェントに書く",
+      "send": "送信",
+      "sendLabel": "メッセージを送信",
+      "attachFile": "ファイルを添付",
+      "removeAttachment": "添付を削除",
+      "sendFailed": "メッセージは送信されませんでした。下書きは残っています。",
+      "enterHint": "Enter で送信 · Shift+Enter で改行",
+      "connecting": "アプリ内チャンネルに接続中…",
+      "repliesLiveOn": "この会話は {{channel}} 上にあります。返信はそこで行われます。",
+      "speaksWhenAddressed": "呼びかけられたときだけ発言",
+      "roster": "このスレッドの参加者",
+      "roomCeiling": "ルーム上限",
+      "agentPermitted": "エージェントは回答可能",
+      "agentRefusing": "エージェントはここで拒否",
+      "agentSilenced": "予算によりエージェントは沈黙",
+      "strangerCeiling": "このルームに未知の人がいるため、ルーム上限によりエージェントには権限がありません。メッセージを記録し、明示的に拒否します。",
+      "reviewContacts": "連絡先を確認",
+      "sayHello": "挨拶してみましょう。メッセージはオーナー階層でエージェントに届きます。",
+      "threadNotFound": "この ID のスレッドはありません",
+      "threadNotFoundDetail": "削除されたか、リンクが古い可能性があります。一覧からスレッドを選んでください。"
+    },
+    "agents": {
+      "title": "エージェント",
+      "description": "このインストールが運用するすべてのエージェント。到達先と権限。",
+      "newAgent": "新しいエージェント",
+      "emptyTitle": "エージェントはまだありません",
+      "empty": "エージェントは Prompt Manager が所有するプロファイルです。作成してここでハンドルを与えてください。",
+      "createFirst": "最初のエージェントを作成",
+      "live": "稼働中",
+      "paused": "一時停止",
+      "unbound": "未接続",
+      "brokenReference": "参照が壊れています",
+      "reachableAt": "到達先",
+      "notReachable": "まだどのチャンネルにも到達できません",
+      "reachesTerminal": "ターミナルに到達",
+      "defaultGrantShort": "既定の権限",
+      "activity24h": "ターン {{turns}} · 拒否 {{refusals}} · 24時間",
+      "sourceUnavailable": "Prompt Manager に到達できないため、ここにバインディングのあるエージェントのみ表示しています。",
+      "sourceUnavailableShort": "名簿ソース停止中",
+      "draftDescription": "まず仕事を記述してください。下書きを確認するまで何も書き込まれません。",
+      "descriptionLabel": "このエージェントは何をしますか?",
+      "descriptionPlaceholder": "家族のカレンダーを管理し、それについての質問に答える家庭用アシスタント",
+      "draftHint": "下書きは名前と読み取り専用の権限を提案します。オーナー専用の権限は提案されません。",
+      "prepareDraft": "下書きを準備",
+      "reviewHeading": "書き込む前に確認",
+      "reviewPlaceholder": "準備が完了すると下書きがここに表示されます。",
+      "displayName": "表示名",
+      "proposedGrant": "提案された権限:",
+      "defaultGrant": "既定の権限: read。オーナー専用の権限は自動的に提案されません。",
+      "confirmWrite": "確認して Prompt Manager に書き込む",
+      "notWritable": "このホストの Prompt Manager には書き込み可能なエージェントエンドポイントがないため、下書きは書き込まれませんでした。代わりに prompt-manager CLI でプロファイルを作成してください。"
+    },
+    "agentDetail": {
+      "editInPromptManager": "Prompt Manager でプロファイルを編集",
+      "profileOwnedElsewhere": "プロファイルは Prompt Manager が所有し、ここでは参照として保持されます。Switchboard はコピーを保存しません。",
+      "whatItMayDo": "このエージェントができること",
+      "scopeGranted": "付与済み",
+      "programBinding": "プログラムバインディング",
+      "defaultGrant": "このエージェントのディスクリプタは権限を宣言していないため、既定の読み取り専用権限が適用されます。",
+      "descriptorGrant": "エージェントディスクリプタの grant ブロックから読み取り。",
+      "ownerOnlyNote": "オーナー専用スコープは、構造上他の階層からは到達できません。他人のために有効にできる設定ではありません。",
+      "attachToChannel": "チャンネルに接続",
+      "notReachableDetail": "人がメッセージを送れるように、チャンネルに接続してください。",
+      "budgets": "予算と上限",
+      "noThreads": "このエージェントのスレッドはまだありません。",
+      "recentActivity": "最近のアクティビティ",
+      "noActivity": "記録されたターンはまだありません。",
+      "activityKind": {
+        "turn": "ターンに回答",
+        "refusal": "ターンを拒否",
+        "suppressed": "沈黙を維持",
+        "gate": "権限ゲートを提起"
+      },
+      "notFound": "この ID のエージェントはありません",
+      "notFoundDetail": "Prompt Manager にその名前のプロファイルはなく、ここに何もバインドされていません。"
+    },
+    "channels": {
+      "title": "チャンネル",
+      "description": "このインストールが使用できるすべてのチャンネル。セットアップの手間順。",
+      "emptyTitle": "チャンネルディスクリプタが読み込まれていません",
+      "emptyDetail": "data/channels にディスクリプタを追加してチャンネルを登録してください。",
+      "availability": {
+        "available": "利用可能",
+        "unavailable": "セットアップが必要",
+        "unimplemented": "未実装",
+        "unknown": "不明"
+      },
+      "friction": {
+        "none": "セットアップ不要",
+        "low": "軽いセットアップ",
+        "medium": "多少のセットアップ",
+        "high": "複雑なセットアップ"
+      },
+      "setupEffort": "セットアップの手間: {{level}}",
+      "supports": {
+        "images": "画像",
+        "files": "ファイル",
+        "groups": "グループ",
+        "threads": "スレッド"
+      },
+      "textLimit": "1メッセージ {{kb}} KB",
+      "cost": {
+        "byok": "自身のキー",
+        "metered": "サブスクリプションに含まれる"
+      },
+      "toEnable": "有効にするには:",
+      "satisfyRequirement": "要件を満たす",
+      "showAll": "セットアップが必要な {{count}} チャンネルを表示",
+      "attachAgent": "エージェントを接続",
+      "attachTo": "{{channel}} にエージェントを接続",
+      "attachFormLabel": "エージェントを接続",
+      "bindingDescription": "バインディングはこのチャンネル上の1つのアドレスを1つのエージェントに対応付けます。そのアドレスからのメッセージがそのエージェントのターンを開始します。",
+      "agent": "エージェント",
+      "address": "アドレス",
+      "addressPlaceholder": "チャット ID、ハンドル、または電話番号",
+      "addressHint": "チャンネルが報告する送信者アドレス。",
+      "threadKey": "スレッドキー(任意)",
+      "threadKeyHint": "空のままにすると、このアドレスからのすべてのルームにバインドします。",
+      "confirmAttachment": "接続",
+      "attached": "エージェントを {{channel}} に接続しました。",
+      "goToConversations": "会話へ",
+      "descriptorLoaded": "チャンネルディスクリプタは起動時に data/channels から読み込まれます。ファイルが正であり、データベースはキャッシュです。"
+    },
+    "contacts": {
+      "title": "連絡先",
+      "description": "ここでエージェントに到達したすべての人と、それぞれが持つ階層。",
+      "emptyTitle": "まだ誰もエージェントに到達していません",
+      "empty": "誰かがエージェントに初めてメッセージを送ると連絡先が表示されます。未知の送信者は未知階層から始まり、対応は不要です。",
+      "search": "連絡先を検索",
+      "noMatches": "一致する連絡先はありません。",
+      "pickContact": "連絡先を選んで階層とルームを確認します。",
+      "lastSeen": "{{when}}に確認",
+      "firstSeen": "初回確認",
+      "messages": "メッセージ",
+      "rooms": "ルーム",
+      "roomCount": "{{count}} ルーム",
+      "people": "{{count}} 人",
+      "trustTier": "信頼階層",
+      "changeTier": "階層を変更",
+      "ceilingWarning": "この連絡先は {{count}} のグループルームで最低階層です。{{tier}} に下げると、それらのルームの全員に対してエージェントができることが狭まります。",
+      "ownerWarning": "オーナーは権限レベルではありません。この人は到達できるすべてのエージェントにとってあなたと区別できなくなります。",
+      "tierChanged": "階層を {{tier}} に変更しました。{{rooms}} のルーム上限を更新しました。",
+      "roomsTitle": "この連絡先が参加しているルーム",
+      "noRooms": "まだどのルームにも参加していません。"
+    },
+    "session": {
+      "title": "オーナーとしてサインイン",
+      "description": "階層の変更、エージェントの接続、ゲートへの回答、エージェントプロファイルの書き込みにはオーナーの資格情報が必要です。このホストの認証器に送信され、ここには保存されません。発行されたトークンのみがこのタブに保持されます。",
+      "email": "メールアドレス",
+      "password": "パスワード",
+      "signIn": "サインイン",
+      "signOut": "サインアウト",
+      "badCredentials": "その資格情報は受け付けられませんでした。"
+    },
+    "call": {
+      "title": "通話",
+      "description": "ライブ通話の文字起こしと操作。",
+      "unavailableTitle": "このリリースでは通話モードは利用できません",
+      "unavailableDetail": "音声・ビデオ通話は今後の目標です。会話そのものはここにあります。",
+      "backToThread": "会話に戻る"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "概要",
+      "description": "あなたの判断待ちはありますか? ゲート、拒否、チャンネルの状態、予算の圧迫の順に表示します。"
+    },
+    "settings": {
+      "title": "設定",
+      "description": "このブラウザの設定と、このインストールに関する事実。",
+      "themeHeading": "外観",
+      "themeDescription": "ライト、ダーク、またはシステムに従う。",
+      "localeHeading": "言語",
+      "localeDescription": "このコンソールにのみ適用されます。",
+      "descriptorHeading": "チャンネルディスクリプタ",
+      "descriptorStatus": "起動時レジストリから {{count}} 個のディスクリプタを読み込みました。",
+      "trustHeading": "信頼ルール",
+      "trustDescription": "すべてのターンの許可方法。エージェントごとに設定はできません。",
+      "trustRule1": "有効スコープは、送信者階層、ルーム上限、エージェントの権限の最も狭いものであり、エージェントがメッセージを読む前に解決されます。",
+      "trustRule2": "ルームの上限はその中の最低階層です。未知の人を追加するとルームは狭まり、その人が広がることはありません。",
+      "trustRule3": "すべてのスレッドには1時間あたりのターン予算と支出上限があります。どちらもフェイルクローズで、毎回ではなく一度だけ通知します。",
+      "meteringHeading": "従量課金",
+      "meteringDescription": "推論は、このホストに設定されたプロバイダーキーで agent-manager を通じて実行されます。",
+      "byokNote": "自身のプロバイダーキーに課金されることはありません。ビジネススイート経由の従量課金推論はこの経路の上に追加されるもので、このホストでは設定されていません。",
+      "aboutHeading": "このインストールについて"
+    }
+  }
 }

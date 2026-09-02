@@ -11,7 +11,7 @@
  * run "react-component-library adoptions refresh" to inspect drift.
  */
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { ControlBase, type ControlDensity, type ControlShape, type ControlSize, type ControlVariant } from "@vrooli/react-component-library/ControlBase/1.0.0";
+import { ControlBase, type ControlDensity, type ControlShape, type ControlSize, type ControlVariant } from "@vrooli/react-component-library/ControlBase/1";
 
 export type ButtonVariant = ControlVariant;
 export type ButtonSize = ControlSize;

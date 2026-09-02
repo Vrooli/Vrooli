@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1.1.0";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";

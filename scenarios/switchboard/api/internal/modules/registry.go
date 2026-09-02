@@ -22,6 +22,8 @@ import (
 
 	capsH "switchboard/handlers/capabilities"
 	channelsH "switchboard/handlers/channels"
+	consoleH "switchboard/handlers/console"
+	contactstore "switchboard/internal/contacts"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -42,6 +44,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
 	out = append(out, channelsH.Endpoints...)
+	out = append(out, consoleH.Endpoints...)
 	return out
 }
 
@@ -84,5 +87,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(threadstore.Schema),
 		apidb.SchemaProviderFunc(agentstore.Schema),
 		apidb.SchemaProviderFunc(gatestore.Schema),
+		apidb.SchemaProviderFunc(contactstore.Schema),
 	}
 }

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-08-13T01:35:59-04:00",
+    "last_validated_at": "2026-08-30T15:42:00-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -78,7 +78,7 @@
     {
       "id": "SL-P0-005",
       "title": "Durable corpus authority",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "criticality": "P0",
       "description": "The ledger shall keep one authoritative SQLite corpus with registered backup and restore evidence.",
@@ -87,7 +87,7 @@
           "type": "manual",
           "ref": "data-backup-manager:trigger-run,verify,audit,restore",
           "phase": "storage",
-          "status": "not_implemented",
+          "status": "failing",
           "notes": "Registered SQLite target was backed up, verified, audited for integrity, restored to a temporary file, and compared read-only: 6089 entries and 8 scopes matched."
         }
       ]

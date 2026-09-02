@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-14T06:44:27-04:00"
+    "last_validated_at": "2026-08-26T15:00:19-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-002",
       "title": "Deterministic mini-Vrooli tarball",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "bundling",
       "description": "Given a manifest, produce a tarball that includes required scenarios/resources (from analyzer), always includes packages/, always includes vrooli-autoheal, excludes unrelated content, and embeds a generated trimmed go.work so stripped modules aren’t referenced.",
@@ -20,21 +20,21 @@
           "type": "test",
           "ref": "api/bundling_rules_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Bundle include/exclude rules + deterministic archive writer."
         },
         {
           "type": "test",
           "ref": "api/bundle_build_contract_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "API endpoint builds a tarball artifact from a manifest."
         },
         {
           "type": "test",
           "ref": "cli/main_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "CLI can request /api/v1/bundle/build."
         }
       ]
@@ -42,7 +42,7 @@
     {
       "id": "STC-P0-008",
       "title": "Tarball is reproducible and self-contained",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "category": "bundling",
       "description": "The produced tarball can be scp’d to a fresh VPS and unpacked without missing files (packages/, required scenarios/resources present, no references back to the original repo path).",
@@ -55,7 +55,7 @@
           "type": "test",
           "ref": "api/bundling_rules_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Asserts deterministic bytes and relative tar entry names."
         }
       ]

@@ -49,14 +49,20 @@ func TestBuildUserSecretMapNeverReadsAPlaintextFile(t *testing.T) {
 		},
 	}
 
-	got := buildUserSecretMap(manifest, nil)
+	got, err := buildUserSecretMap(manifest, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if value, ok := got["API_KEY"]; ok && strings.Contains(value, "plaintext") {
 		t.Fatalf("buildUserSecretMap read a plaintext file: API_KEY = %q", value)
 	}
 
 	// An explicitly supplied value is an instruction for this deploy and still
 	// takes precedence over anything the store holds.
-	got = buildUserSecretMap(manifest, map[string]string{"API_KEY": "provided"})
+	got, err = buildUserSecretMap(manifest, map[string]string{"API_KEY": "provided"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if got["API_KEY"] != "provided" {
 		t.Fatalf("buildUserSecretMap explicit = %q, want %q", got["API_KEY"], "provided")
 	}
@@ -75,6 +81,34 @@ func TestCredentialFieldForMatchesTheRemoteProvisioningNormalization(t *testing.
 		if got := credentialFieldFor(plan); got != testCase.want {
 			t.Fatalf("credentialFieldFor(%q,%q) = %q, want %q", testCase.id, testCase.target, got, testCase.want)
 		}
+	}
+}
+
+func TestDescriptorAddressProvidedSecretUsesCanonicalKey(t *testing.T) {
+	manifest := domain.CloudManifest{
+		Scenario: domain.ManifestScenario{ID: "demo"},
+		Secrets: &domain.ManifestSecrets{BundleSecrets: []domain.BundleSecretPlan{{
+			ID: "cloudflare", Class: "user_prompt", Required: true,
+			Target:     domain.BundleSecretTarget{Name: "CLOUDFLARE_API_TOKEN"},
+			Descriptor: &domain.DescriptorAddress{LogicalID: "vrooli/tunnel-manager", Field: "cloudflare-api-token"},
+		}}},
+	}
+	got, err := buildUserSecretMap(manifest, map[string]string{"vrooli/tunnel-manager:cloudflare-api-token": "provided"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["CLOUDFLARE_API_TOKEN"] != "provided" {
+		t.Fatalf("descriptor-address secret = %q, want provided", got["CLOUDFLARE_API_TOKEN"])
+	}
+}
+
+func TestValidateUserPromptSecretsRejectsUndeclaredSecret(t *testing.T) {
+	manifest := domain.CloudManifest{Secrets: &domain.ManifestSecrets{BundleSecrets: []domain.BundleSecretPlan{{
+		ID: "undeclared", Class: "user_prompt", Required: true,
+		Target: domain.BundleSecretTarget{Name: "UNDECLARED_SECRET"},
+	}}}}
+	if _, err := ValidateUserPromptSecrets(manifest, nil); err == nil || !strings.Contains(err.Error(), "descriptor address") {
+		t.Fatalf("expected descriptor-address validation error, got %v", err)
 	}
 }
 

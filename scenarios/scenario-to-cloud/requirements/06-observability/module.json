@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-14T06:44:27-04:00"
+    "last_validated_at": "2026-08-26T15:00:19-04:00"
   },
   "requirements": [
     {
       "id": "STC-P0-006",
       "title": "Remote status and logs retrieval",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-006",
       "category": "observability",
       "description": "Provide commands and/or API methods to fetch 'vrooli scenario status' and 'vrooli scenario logs' output from the VPS over SSH.",
@@ -20,7 +20,7 @@
           "type": "test",
           "ref": "api/vps_inspect_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Tag tests with [REQ:STC-P0-006]."
         },
         {

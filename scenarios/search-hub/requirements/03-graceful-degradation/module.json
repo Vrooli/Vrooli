@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-08-21T00:30:40-04:00"
+    "last_validated_at": "2026-08-28T08:23:12-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-007",
       "title": "Down/stale provider never fails the query",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
       "category": "core",
       "description": "When a provider is unreachable or reports stale freshness, its ProviderResultGroup is marked degraded with a human note (e.g. \"unreachable — skipped\" / \"last sync 3h ago\") and the query still returns successfully with the remaining providers' results.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An unreachable provider yields a degraded group + note; the response degraded flag is set; other providers' hits are present."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Status aggregates per-provider freshness from status_endpoint reports."
         }
       ]

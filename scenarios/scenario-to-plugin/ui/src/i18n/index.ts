@@ -112,8 +112,3 @@ export const getCurrentLocale = (): Locale =>
   isSupported(i18n.language) ? i18n.language : "en";
 
 export { i18n, useTranslation };
-
-// vrooli:library-locale-bridge start
-const vrooliLibraryTranslate = (key: string, fallback: string): string => i18n.t(key, { defaultValue: fallback });
-globalThis.__vrooliTranslate = vrooliLibraryTranslate;
-// vrooli:library-locale-bridge end

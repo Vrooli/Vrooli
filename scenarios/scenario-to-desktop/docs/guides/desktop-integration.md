@@ -21,6 +21,22 @@ scenarios/<scenario>/
 
 ## Desktop Features
 
+## Monetization journey identifiers
+
+The desktop readiness journey uses these stable step identifiers:
+
+- `signin_shared_session`
+- `second_app_resolves`
+- `tampered_class_a`
+- `class_b_local`
+- `offline_class_b`
+- `offline_gate_degrades`
+- `outbox_drains_once`
+- `expired_lease_falls_back`
+
+Paid bundle guidance must also identify an account-surface path and a
+journey-probe path. Those paths are checked by monetization conformance.
+
 ### File System Access
 
 The Electron wrapper exposes file system APIs to your React app through the `window.electron` bridge.

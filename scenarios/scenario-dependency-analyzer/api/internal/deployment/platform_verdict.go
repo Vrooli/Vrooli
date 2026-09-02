@@ -205,10 +205,11 @@ func sourcePlatformVerdict(scenarioRoot string, hostOS deployability.HostOS) *Pl
 }
 
 type authoredPlatformCapability struct {
-	Status    string `json:"status"`
-	Mechanism string `json:"mechanism"`
-	Evidence  string `json:"evidence"`
-	Essential bool   `json:"essential"`
+	Status    string          `json:"status"`
+	Mechanism string          `json:"mechanism"`
+	Evidence  string          `json:"evidence"`
+	Essential bool            `json:"essential"`
+	Pairs     json.RawMessage `json:"pairs"`
 }
 
 // authoredPlatformOverrides reads the two intentionally hand-authored
@@ -222,7 +223,7 @@ func authoredPlatformOverrides(path string) (map[deployability.HostOS]PlatformVe
 	}
 	var manifest struct {
 		Service struct {
-			PlatformCapabilities map[string]map[string]authoredPlatformCapability `json:"platform_capabilities"`
+			PlatformCapabilities map[string]json.RawMessage `json:"platform_capabilities"`
 		} `json:"service"`
 	}
 	if err := json.Unmarshal(data, &manifest); err != nil {
@@ -232,8 +233,19 @@ func authoredPlatformOverrides(path string) (map[deployability.HostOS]PlatformVe
 		name  string
 		claim authoredPlatformCapability
 	})
-	for capability, platforms := range manifest.Service.PlatformCapabilities {
+	for capability, rawPlatforms := range manifest.Service.PlatformCapabilities {
+		var platforms map[string]json.RawMessage
+		if err := json.Unmarshal(rawPlatforms, &platforms); err != nil {
+			return nil, fmt.Errorf("decode platform capability %q: %w", capability, err)
+		}
 		for osName, claim := range platforms {
+			if osName == "pairs" {
+				continue
+			}
+			var decoded authoredPlatformCapability
+			if err := json.Unmarshal(claim, &decoded); err != nil {
+				return nil, fmt.Errorf("decode platform claim %s/%s: %w", capability, osName, err)
+			}
 			hostOS, ok := parsePlatformVerdictOS(osName)
 			if !ok {
 				return nil, fmt.Errorf("unknown host OS %q for capability %q", osName, capability)
@@ -241,7 +253,7 @@ func authoredPlatformOverrides(path string) (map[deployability.HostOS]PlatformVe
 			byOS[hostOS] = append(byOS[hostOS], struct {
 				name  string
 				claim authoredPlatformCapability
-			}{name: capability, claim: claim})
+			}{name: capability, claim: decoded})
 		}
 	}
 	result := make(map[deployability.HostOS]PlatformVerdict, len(byOS))

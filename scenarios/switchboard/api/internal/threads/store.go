@@ -3,6 +3,7 @@ package threads
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -40,7 +41,12 @@ func (s *Store) Upsert(ctx context.Context, e channels.Envelope, group bool) (Th
 }
 
 func (s *Store) Append(ctx context.Context, thread Thread, e channels.Envelope) (bool, error) {
-	result, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO switchboard_messages(thread_id,channel_id,remote_id,author_kind,sender_address,text,reply_to_remote_id,received_at) VALUES(?,?,?,?,?,?,?,?)`, thread.ID, e.ChannelID, e.RemoteMessageID, e.AuthorKind, e.SenderAddress, e.Text, e.ReplyToRemoteID, e.ReceivedAt.UTC().Format(time.RFC3339Nano))
+	media, _ := json.Marshal(nonNilMedia(e.Media))
+	received := e.ReceivedAt
+	if received.IsZero() {
+		received = time.Now()
+	}
+	result, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO switchboard_messages(thread_id,channel_id,remote_id,author_kind,sender_address,text,reply_to_remote_id,received_at,media_json) VALUES(?,?,?,?,?,?,?,?,?)`, thread.ID, e.ChannelID, e.RemoteMessageID, e.AuthorKind, e.SenderAddress, e.Text, e.ReplyToRemoteID, received.UTC().Format(time.RFC3339Nano), string(media))
 	if err != nil {
 		return false, err
 	}
@@ -103,5 +109,52 @@ func (s *Store) SetRunID(ctx context.Context, e channels.Envelope, runID string)
 		return fmt.Errorf("run id is required")
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO switchboard_thread_runs(thread_id,run_id,updated_at) VALUES(?,?,?) ON CONFLICT(thread_id) DO UPDATE SET run_id=excluded.run_id,updated_at=excluded.updated_at`, thread.ID, runID, time.Now().UTC().Format(time.RFC3339Nano))
+	return err
+}
+
+func nonNilMedia(in []channels.Media) []channels.Media {
+	if in == nil {
+		return []channels.Media{}
+	}
+	return in
+}
+
+// AppendOutbound records an agent-authored message on the thread that is
+// about to receive it, so the transcript survives a reload and the loop
+// breaker can see who wrote what. The remote id is minted here because the
+// adapter has not assigned one yet.
+func (s *Store) AppendOutbound(ctx context.Context, out channels.Outbound, agentID string) error {
+	thread, err := s.Upsert(ctx, channels.Envelope{ChannelID: out.ChannelID, ThreadKey: out.ThreadKey}, false)
+	if err != nil {
+		return err
+	}
+	_, err = s.Append(ctx, thread, channels.Envelope{
+		ChannelID: out.ChannelID, ThreadKey: out.ThreadKey, RemoteMessageID: "agent-" + uuid.NewString(),
+		SenderAddress: agentID, AuthorKind: channels.AuthorAgent, Text: out.Text, Media: out.Media,
+		ReplyToRemoteID: out.ReplyToRemoteID, ReceivedAt: time.Now(),
+	})
+	return err
+}
+
+// TurnEvent is one admission decision for one inbound message.
+type TurnEvent struct {
+	ID            string `json:"id"`
+	ThreadID      string `json:"thread_id"`
+	AgentID       string `json:"agent_id"`
+	ChannelID     string `json:"channel_id"`
+	SenderAddress string `json:"sender_address"`
+	Outcome       string `json:"outcome"`
+	Reason        string `json:"reason"`
+	CreatedAt     string `json:"created_at"`
+}
+
+// RecordEvent persists the outcome of one turn admission.
+func (s *Store) RecordEvent(ctx context.Context, e channels.Envelope, agentID, outcome, reason string) error {
+	thread, err := s.Upsert(ctx, e, e.Group)
+	if err != nil {
+		return err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO switchboard_turn_events(id,thread_id,agent_id,channel_id,sender_address,outcome,reason,created_at) VALUES(?,?,?,?,?,?,?,?)`,
+		uuid.NewString(), thread.ID, agentID, e.ChannelID, e.SenderAddress, outcome, reason, time.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }

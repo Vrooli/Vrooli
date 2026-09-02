@@ -10,21 +10,24 @@ import (
 
 	"scenario-to-cloud/domain"
 
+	corestorage "github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // GetLocalBundlesDir returns the path to the local bundles directory.
 // This consolidates the repeated pattern of finding repo root and appending the bundles path.
 func GetLocalBundlesDir() (string, error) {
-	repoRoot, err := FindRepoRootFromCWD()
+	resolver, err := corestorage.NewResolver(corestorage.ResolverConfig{AppID: "vrooli", Profile: corestorage.ProfileAuto})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("create bundle storage resolver: %w", err)
 	}
-	scenarioDir, err := ResolveScenarioPath(repoRoot, "scenario-to-cloud")
+	dir, err := resolver.EnsureArtifactDir(corestorage.Options{ScenarioID: "scenario-to-cloud"}, corestorage.ArtifactRef{
+		Owner: "scenario-to-cloud", Domain: "bundles", Class: corestorage.ClassCache,
+	}, 0o755)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("resolve bundles directory: %w", err)
 	}
-	return filepath.Join(scenarioDir, "coverage", "bundles"), nil
+	return dir, nil
 }
 
 // ListBundles lists all bundles in the given directory.

@@ -780,6 +780,43 @@
               "description": "Scenario name"
             }
           ]
+        },
+        {
+          "name": "publish-offer-fact",
+          "description": "Publish a producer-owned release fact to Offer Desk",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "OfferDeskGatesService",
+            "method": "AddFact"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "bind_waiver": "Producer input used to select the scenario's durable desktop build records before constructing the AddFact request."
+            },
+            {
+              "name": "stale-after-days",
+              "default": "30",
+              "bind_waiver": "Producer input used to set the AddFact freshness window after reading durable desktop build records."
+            }
+          ],
+          "positionals": [
+            {
+              "name": "trigger-id",
+              "required": true
+            }
+          ]
         }
       ]
     },

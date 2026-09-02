@@ -41,13 +41,15 @@ describe("AppShell structure (cimode)", () => {
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
-    for (const key of [
-      "dashboard",
-      "settings",
-    ] as const) {
+    for (const key of ["dashboard", "conversations", "agents", "contacts", "channels"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
       expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
     }
+    // Settings stays in the sidebar; on mobile it lives in the top bar so the
+    // bottom nav keeps five targets.
+    expect(screen.getByTestId(selectors.layout.sidebarLink({ key: "settings" }))).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.layout.bottomNavLink({ key: "settings" }))).not.toBeInTheDocument();
+    expect(screen.getByTestId("topbar-settings")).toBeInTheDocument();
   });
 });
 

@@ -47,3 +47,21 @@ func TestReconcileJitterBounded(t *testing.T) {
 		t.Fatalf("reconcileJitter(0) = %s, want 0", j)
 	}
 }
+
+func TestNextReconcileIntervalBacksOffAndResets(t *testing.T) {
+	base, ceiling := 5*time.Minute, time.Hour
+	interval, passes := nextReconcileInterval(base, ceiling, base, 0, false)
+	if interval != 10*time.Minute || passes != 1 {
+		t.Fatalf("first unchanged pass = %s/%d", interval, passes)
+	}
+	for i := 0; i < 10; i++ {
+		interval, passes = nextReconcileInterval(base, ceiling, interval, passes, false)
+	}
+	if interval != ceiling {
+		t.Fatalf("ceiling = %s, want %s", interval, ceiling)
+	}
+	interval, passes = nextReconcileInterval(base, ceiling, interval, passes, true)
+	if interval != base || passes != 0 {
+		t.Fatalf("changed pass = %s/%d, want %s/0", interval, passes, base)
+	}
+}

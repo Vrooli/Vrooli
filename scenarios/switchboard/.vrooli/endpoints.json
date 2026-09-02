@@ -96,6 +96,31 @@
       }
     },
     {
+      "id": "channels_start_thread",
+      "path": "/api/v1/channels/in-app/threads",
+      "method": "POST",
+      "summary": "Start an in-app conversation",
+      "description": "Opens a new in-app thread with one agent: creates the binding and the durable thread, and returns the thread key the console connects with.",
+      "category": "channels",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
       "id": "channels_socket",
       "path": "/api/v1/channels/socket",
       "method": "GET",
@@ -224,6 +249,331 @@
           "request": {
             "transport": "json",
             "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_overview",
+      "path": "/api/v1/overview",
+      "method": "GET",
+      "summary": "Operator overview",
+      "description": "Pending gates, recent refusals, channel health, and threads under budget pressure.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_threads_list",
+      "path": "/api/v1/threads",
+      "method": "GET",
+      "summary": "List threads",
+      "description": "Every thread across every channel, newest activity first.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_threads_get",
+      "path": "/api/v1/threads/{id}",
+      "method": "GET",
+      "summary": "Read a thread",
+      "description": "Thread, transcript, roster, gates, and run link.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_contacts_list",
+      "path": "/api/v1/contacts",
+      "method": "GET",
+      "summary": "List contacts",
+      "description": "",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_contacts_get",
+      "path": "/api/v1/contacts/{id}",
+      "method": "GET",
+      "summary": "Read a contact and its rooms",
+      "description": "",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_contacts_update",
+      "path": "/api/v1/contacts/{id}",
+      "method": "PUT",
+      "summary": "Change a contact's tier or name",
+      "description": "Owner-authenticated. Reports every room whose ceiling moved.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_agents_list",
+      "path": "/api/v1/agents",
+      "method": "GET",
+      "summary": "Agent roster by reference",
+      "description": "Profiles from prompt-manager joined with bindings, grants, and activity.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_agents_create",
+      "path": "/api/v1/agents",
+      "method": "POST",
+      "summary": "Confirm an agent draft",
+      "description": "Owner-authenticated. Writes the profile through prompt-manager's typed create.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_agents_draft",
+      "path": "/api/v1/agents/draft",
+      "method": "POST",
+      "summary": "Draft an agent",
+      "description": "Typed draft from a description; nothing is written.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_agents_get",
+      "path": "/api/v1/agents/{id}",
+      "method": "GET",
+      "summary": "Read one agent with its activity log",
+      "description": "",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_gates_list",
+      "path": "/api/v1/gates",
+      "method": "GET",
+      "summary": "List capability gates",
+      "description": "Filter with ?status=pending and ?thread_id=.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_session_login",
+      "path": "/api/v1/session/login",
+      "method": "POST",
+      "summary": "Owner sign-in facade",
+      "description": "Forwards to scenario-authenticator and relays the issued owner token.",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "console_session",
+      "path": "/api/v1/session",
+      "method": "GET",
+      "summary": "Current owner session",
+      "description": "",
+      "category": "console",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
             "transport": "json",

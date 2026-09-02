@@ -15,6 +15,7 @@ import (
 	"time"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
+	sharedenv "scenario-to-desktop-api/shared/env"
 )
 
 // desktopRampBuilder adapts the scenario's existing artifact index to the
@@ -101,7 +102,7 @@ func (d desktopRampDistributor) Distribute(ctx context.Context, request delivery
 	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") || parsedURL.Host == "" {
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "artifact URL must be an absolute HTTP(S) URL"}, nil
 	}
-	token := strings.TrimSpace(os.Getenv("S2D_LPBS_ADMIN_TOKEN"))
+	token := strings.TrimSpace(sharedenv.ResolveSecret("LPBS_SERVICE_SECRET"))
 	if token == "" {
 		return deliveryramp.DistributionResult{Disposition: deliveryramp.DispositionUnavailable, Reason: "LPBS catalog authorization is unavailable"}, nil
 	}

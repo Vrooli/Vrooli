@@ -34,6 +34,7 @@ type ModuleDeps struct {
 	RepoRoot       string
 	EvidenceStore  validation.EvidenceStore
 	OSVReportCache validation.OSVReportCache
+	Coordinator    *validation.EvidenceCoordinator
 }
 
 const (
@@ -52,9 +53,12 @@ func Module(deps ModuleDeps) module.Module {
 	if policy != validation.RolloutAdvisory && policy != validation.RolloutGuided && policy != validation.RolloutGuarded && policy != validation.RolloutEnforcing {
 		policy = validation.RolloutAdvisory
 	}
-	coordinator := validation.NewEvidenceCoordinator(validation.EvidenceCoordinatorDeps{
-		Store: deps.EvidenceStore, Capacity: scannerCapacity(logger),
-	})
+	coordinator := deps.Coordinator
+	if coordinator == nil {
+		coordinator = validation.NewEvidenceCoordinator(validation.EvidenceCoordinatorDeps{
+			Store: deps.EvidenceStore, Capacity: scannerCapacity(logger),
+		})
+	}
 	validator := validation.New(validation.Deps{
 		RepoRoot: repoRoot, Logger: logger, PolicyMode: policy,
 		EvidenceCoordinator: coordinator, OSVReportCache: deps.OSVReportCache,
@@ -99,6 +103,10 @@ func Module(deps ModuleDeps) module.Module {
 		Endpoints: Endpoints,
 	}
 }
+
+// ScannerCapacity exposes the configured shared scanner budget to process
+// bootstrap so request validation and fleet reconciliation share one budget.
+func ScannerCapacity(logger *log.Logger) int64 { return scannerCapacity(logger) }
 
 type testingConfig struct {
 	Phases struct {

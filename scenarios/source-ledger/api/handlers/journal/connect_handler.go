@@ -73,7 +73,13 @@ func (h *connectHandler) ListEntries(ctx context.Context, req *connect.Request[j
 	if limit > 500 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errRequired("limit must be at most 500"))
 	}
-	entries, err := h.service.List(ctx, limit)
+	var entries []internaljournal.Entry
+	var err error
+	if req.Msg.GetCursor() == "" {
+		entries, err = h.service.List(ctx, limit)
+	} else {
+		entries, err = h.service.ListAfter(ctx, req.Msg.GetCursor(), limit)
+	}
 	if err != nil {
 		h.logger.Printf("journal.ListEntries: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -83,6 +89,9 @@ func (h *connectHandler) ListEntries(ctx context.Context, req *connect.Request[j
 		if req.Msg.GetFacetId() == "" || entry.FacetID == req.Msg.GetFacetId() {
 			resp.Entries = append(resp.Entries, entryToProto(entry))
 		}
+	}
+	if len(entries) == limit {
+		resp.NextCursor = entries[len(entries)-1].ID
 	}
 	return connect.NewResponse(resp), nil
 }

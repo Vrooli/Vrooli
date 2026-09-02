@@ -18,7 +18,9 @@ Use this document to answer:
 |---|---|---|---|
 | Unchanged validation scan | `num[target]:500ms` | Connect response `metrics.stages[name=scan].duration_ms` | active |
 | Scanner admission capacity | `num[threshold]:3-32` weighted units; default `num[decision]:4` | `SECURITY_HEALTH_SCANNER_CAPACITY` and scanner child-stage gauges | active |
-| Advisory freshness | one UTC-day identity | fingerprint epoch; not a timer-only cache | active |
+| Scanner child CPU | host quarter, floor 2 | `SECURITY_HEALTH_SCANNER_MAX_PROCS` → child `GOMAXPROCS` | active |
+| Idle reconcile cadence | `5m` base, `1h` ceiling | `SECURITY_HEALTH_RECONCILE_MAX_INTERVAL` with reset-on-change | active |
+| Advisory freshness | stable per-scenario UTC-hour identity, 25h TTL | fingerprint epoch; not a timer-only cache | active |
 | API/UI health | lifecycle health timeout | `/health` checks | active |
 
 ## Current Measurements
@@ -46,16 +48,16 @@ clean with only pre-existing failures.
 Every default scanner implements `IncrementalScanner.EvidencePlan`. The
 fingerprint is a SHA-256 digest over a framed format version, scanner identity,
 normalization-policy version, scanner executable identity, relevant file paths
-and contents, and (for advisory-backed scanners) the UTC date. A cache hit is
+and contents, and (for advisory-backed scanners) a stable per-scenario UTC-hour epoch. A cache hit is
 valid only for an exact fingerprint and unexpired normalized payload.
 
 | Scanner | Relevant input boundary | Weight | Freshness |
 |---|---|---:|---|
 | gitleaks | tracked plus non-ignored untracked files, staged into an exact temporary snapshot | 1 | content/tool/policy changes |
 | gosec | first-party module trees, excluding generated/vendor directories | 2 | content/tool/policy changes |
-| govulncheck | first-party Go module trees | 3 | UTC day plus content/tool/policy changes |
-| pnpm-audit | first-party package trees and lockfiles | 2 | UTC day plus content/tool/policy changes |
-| osv-scanner | supported manifests/lockfiles plus adjacent `go.sum` resolution input | 2 | UTC day plus content/tool/policy changes |
+| govulncheck | first-party Go module trees | 3 | per-scenario UTC hour plus content/tool/policy changes |
+| pnpm-audit | first-party package trees and lockfiles | 2 | per-scenario UTC hour plus content/tool/policy changes |
+| osv-scanner | supported manifests/lockfiles plus adjacent `go.sum` resolution input | 2 | per-scenario UTC hour plus content/tool/policy changes |
 
 Gitleaks intentionally gates the commit-eligible inventory. Ignored runtime
 databases, installed packages, build output, and local secret files cannot enter

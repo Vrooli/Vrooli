@@ -3,10 +3,10 @@ import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { useState } from "react";
 
 import { retrievalClient, type RetrievedSignal } from "../../api/retrieval";
-import { Button } from "@vrooli/react-component-library/Button/1.2.0";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
-import { Select } from "@vrooli/react-component-library/Select/1.1.0";
+import { Select } from "@vrooli/react-component-library/Select/1";
 
 function optionalTimestamp(value: string) {
   if (!value) return undefined;

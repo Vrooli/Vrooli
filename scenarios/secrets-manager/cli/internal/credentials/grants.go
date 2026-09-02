@@ -21,13 +21,9 @@ type GrantClient struct {
 }
 
 func NewGrantClient() (*GrantClient, error) {
-	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("VROOLI_BRIDGE_URL")), "/")
-	if baseURL == "" {
-		resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-bridge")
-		if err != nil {
-			return nil, fmt.Errorf("resolve vrooli-bridge endpoint: %w", err)
-		}
-		baseURL = strings.TrimRight(strings.TrimSpace(resolved), "/")
+	baseURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-bridge")
+	if err != nil {
+		return nil, fmt.Errorf("resolve vrooli-bridge endpoint: %w", err)
 	}
 	authorizationScheme, token := resolveGrantAuthorization()
 	if token == "" {
