@@ -45,16 +45,9 @@ func probeCredentialStore(ctx context.Context, c Collector, user string) Credent
 		return CredentialStoreCapability{Supported: true, State: "unavailable", Reason: "active session user has no resolvable uid"}
 	}
 
-	runtimeDir := "/run/user/" + uid
-	envArgs := []string{
-		"XDG_RUNTIME_DIR=" + runtimeDir,
-		"DBUS_SESSION_BUS_ADDRESS=unix:path=" + runtimeDir + "/bus",
-	}
+	envArgs := SessionBusEnv(uid)
 
-	owner := runCredentialStoreProbe(ctx, c, credentialStoreOwnerTimeout, envArgs,
-		"--dest", "org.freedesktop.DBus",
-		"--object-path", "/org/freedesktop/DBus",
-		"--method", "org.freedesktop.DBus.NameHasOwner", "org.freedesktop.secrets")
+	owner := runCredentialStoreProbe(ctx, c, credentialStoreOwnerTimeout, envArgs, SecretServiceOwnerArgs()...)
 	if owner.err != nil {
 		if owner.timedOut {
 			return CredentialStoreCapability{Supported: true, Observed: true, State: "unresponsive", Reason: "Secret Service owner probe did not answer before the deadline"}
@@ -65,21 +58,13 @@ func probeCredentialStore(ctx context.Context, c Collector, user string) Credent
 		return CredentialStoreCapability{Supported: true, State: "unavailable", Reason: "Secret Service has no session-bus owner"}
 	}
 
-	collections := runCredentialStoreProbe(ctx, c, credentialStoreCollectionsTimeout, envArgs,
-		"--dest", "org.freedesktop.secrets",
-		"--object-path", "/org/freedesktop/secrets",
-		"--method", "org.freedesktop.DBus.Properties.Get",
-		"org.freedesktop.Secret.Service", "Collections")
+	collections := runCredentialStoreProbe(ctx, c, credentialStoreCollectionsTimeout, envArgs, SecretServiceCollectionsArgs()...)
 	if collections.err != nil {
 		if collections.timedOut {
 			return CredentialStoreCapability{Supported: true, Observed: true, State: "unresponsive", Reason: "Secret Service Collections did not answer before the deadline"}
 		}
 
-		loginCollection := runCredentialStoreProbe(ctx, c, credentialStoreCollectionTimeout, envArgs,
-			"--dest", "org.freedesktop.secrets",
-			"--object-path", "/org/freedesktop/secrets/collection/login",
-			"--method", "org.freedesktop.DBus.Properties.Get",
-			"org.freedesktop.Secret.Collection", "Label")
+		loginCollection := runCredentialStoreProbe(ctx, c, credentialStoreCollectionTimeout, envArgs, SecretServiceCollectionLabelArgs(SecretServiceLoginPath)...)
 		if loginCollection.err == nil && strings.TrimSpace(string(loginCollection.output)) != "" {
 			return CredentialStoreCapability{Supported: true, Observed: true, State: "ready", ProbeSucceeded: true}
 		}
@@ -93,7 +78,7 @@ func probeCredentialStore(ctx context.Context, c Collector, user string) Credent
 	}
 
 	text := string(collections.output)
-	if strings.Contains(text, "/org/freedesktop/secrets/collection/login") {
+	if strings.Contains(text, SecretServiceLoginPath) {
 		return CredentialStoreCapability{Supported: true, Observed: true, State: "ready", ProbeSucceeded: true}
 	}
 	return CredentialStoreCapability{Supported: true, Observed: true, State: "empty", ProbeSucceeded: true, Reason: "Secret Service returned no login collection"}

@@ -66,7 +66,14 @@ func acquisitionCoversPlatform(acquisition *binaryfetch.Acquisition, platform Ho
 		if targetOS, ok := target.When["os"]; ok && normalizeFactOS(targetOS) != string(platform) {
 			continue
 		}
-		if strings.TrimSpace(target.Unsupported) != "" || strings.TrimSpace(target.URL) != "" || strings.TrimSpace(target.Image) != "" {
+		if strings.TrimSpace(target.Unsupported) != "" || strings.TrimSpace(target.URL) != "" {
+			return true
+		}
+		// An OCI image is a Linux filesystem tree, so it only covers Linux. A
+		// macOS or Windows target pointing at one stages an ELF binary that
+		// cannot execute there, which previously read as genuine coverage and
+		// let the capability ledger report support that does not exist.
+		if strings.TrimSpace(target.Image) != "" && platform == HostOSLinux {
 			return true
 		}
 	}

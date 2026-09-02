@@ -29,6 +29,13 @@ const (
 	invalidInvocationExitCode    = 2
 )
 
+// ledgerProviderScenario names the scenario that serves the capability ledger.
+// It lives here, at the command's wiring boundary, rather than inside the
+// fetch path: this package owns control-plane wiring, and the deployability
+// resolver itself must stay free of fleet object names. If a declared provider
+// registry ever exists, this is the single line that reads from it.
+const ledgerProviderScenario = "infrastructure-manager"
+
 type ledger struct {
 	Capabilities []capability `json:"capabilities"`
 	Resources    []resource   `json:"resources"`
@@ -85,7 +92,7 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
-	data, err := fetchLedger(context.Background())
+	data, err := fetchLedger(context.Background(), ledgerProviderScenario)
 	if err != nil {
 		fatal(err)
 	}
@@ -113,12 +120,12 @@ func main() {
 	}
 }
 
-func fetchLedger(ctx context.Context) ([]byte, error) {
+func fetchLedger(ctx context.Context, provider string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, tuning.PlatformSupportRequestTimeout())
 	defer cancel()
-	base, err := discovery.ResolveScenarioURLDefault(ctx, "infrastructure-manager")
+	base, err := discovery.ResolveScenarioURLDefault(ctx, provider)
 	if err != nil {
-		return nil, fmt.Errorf("read capability ledger: resolve infrastructure-manager: %w", err)
+		return nil, fmt.Errorf("read capability ledger: resolve %s: %w", provider, err)
 	}
 	client := portabilityconnect.NewPortabilityServiceClient(&http.Client{Timeout: tuning.PlatformSupportRequestTimeout()}, base)
 	response, err := client.GetGrid(ctx, connect.NewRequest(&portabilityv1.GetGridRequest{}))
@@ -127,7 +134,7 @@ func fetchLedger(ctx context.Context) ([]byte, error) {
 	}
 	grid := response.Msg.GetGrid()
 	if grid == nil {
-		return nil, fmt.Errorf("read capability ledger: infrastructure-manager returned no grid")
+		return nil, fmt.Errorf("read capability ledger: %s returned no grid", provider)
 	}
 	// The Connect response is a protobuf message. Use protojson here so enum
 	// fields remain their stable symbolic names; encoding/json serializes the

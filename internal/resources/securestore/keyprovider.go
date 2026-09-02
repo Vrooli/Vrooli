@@ -2,6 +2,7 @@ package securestore
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/pbkdf2"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/credentialpolicy"
 	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // A key-encryption provider wraps the data key that seals every entry. Several
@@ -365,12 +367,19 @@ func runSystemdCreds(args []string, stdin []byte) ([]byte, error) {
 		return nil, fmt.Errorf("%w: systemd-creds is not installed", errKeyProviderUnavailable)
 	}
 	name, argv := withDeviceGroup("systemd-creds", args)
-	cmd := shell.NewCommand(name, argv...)
+	// A TPM that has stopped answering, or an `sg` that unexpectedly prompts,
+	// must fail this unwrap rather than hang every credential read behind it.
+	ctx, cancel := context.WithTimeout(context.Background(), tuning.CredentialServiceTimeout())
+	defer cancel()
+	cmd := shell.NewCommandContext(ctx, name, argv...)
 	cmd.Stdin = bytes.NewReader(stdin)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return nil, fmt.Errorf("%w: systemd-creds %s did not answer within %s", errKeyProviderUnavailable, args[0], tuning.CredentialServiceTimeout())
+		}
 		detail := strings.TrimSpace(stderr.String())
 		if detail == "" {
 			detail = err.Error()

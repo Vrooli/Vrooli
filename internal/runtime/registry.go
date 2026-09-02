@@ -24,6 +24,8 @@ import (
 	hosthardening "github.com/vrooli/vrooli/internal/safeguards/host-hardening"
 	kdumpobservability "github.com/vrooli/vrooli/internal/safeguards/kdump-observability"
 	kernelconfig "github.com/vrooli/vrooli/internal/safeguards/kernel-config"
+	keyringdaemonlimits "github.com/vrooli/vrooli/internal/safeguards/keyring-daemon-limits"
+	logvolumebounds "github.com/vrooli/vrooli/internal/safeguards/log-volume-bounds"
 	loginkeyringunlock "github.com/vrooli/vrooli/internal/safeguards/login-keyring-unlock"
 	modelpolicydrift "github.com/vrooli/vrooli/internal/safeguards/model-policy-drift"
 	natprotection "github.com/vrooli/vrooli/internal/safeguards/nat-protection"
@@ -95,6 +97,8 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"tpm_credential_access":        tpmcredentialaccess.NewHandler,
 	"edac_modules":                 edacmodules.NewHandler,
 	"emergency_watchdog":           emergencywatchdog.NewHandler,
+	"log_volume_bounds":            logvolumebounds.NewHandler,
+	"keyring_daemon_limits":        keyringdaemonlimits.NewHandler,
 	"host_hardening":               hosthardening.NewHandler,
 	"kdump_observability":          kdumpobservability.NewHandler,
 	"kernel_config":                kernelconfig.NewHandler,

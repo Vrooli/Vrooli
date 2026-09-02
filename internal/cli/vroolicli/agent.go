@@ -5,11 +5,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
-	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/recovery"
 )
 
 const (
@@ -41,8 +45,11 @@ func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
 	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
 		return clipolicy.UsageErrorf("agent", "an agent subcommand is required (supported: launch)")
 	}
+	if args[0] == "recover" {
+		return app.runAgentRecovery(ctx, args[1:])
+	}
 	if args[0] != "launch" {
-		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch)", args[0])
+		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch, recover)", args[0])
 	}
 
 	fs := commandtree.NewFlagSet("vrooli agent launch")
@@ -67,14 +74,84 @@ func (app *App) runAgentCommand(ctx *CommandContext, args []string) error {
 		return err
 	}
 	childArgs := agentInvocationArgs(binary, extra, *prompt)
-	command := shell.NewCommandContext(context.Background(), binary, childArgs...)
-	command.Stdin = ctx.Stdin
-	command.Stdout = ctx.Stdout
-	command.Stderr = ctx.Stderr
-	if strings.TrimSpace(*cwd) != "" {
-		command.Dir = strings.TrimSpace(*cwd)
+	launch, err := cliutil.LaunchCodingAgentResult(context.Background(), cliutil.AgentLaunchRequest{
+		Agent:      *runner,
+		Args:       childArgs,
+		WorkingDir: strings.TrimSpace(*cwd),
+		Stdin:      ctx.Stdin,
+		Stdout:     ctx.Stdout,
+		Stderr:     ctx.Stderr,
+	})
+	if err != nil {
+		return err
 	}
-	return command.Run()
+	if launch.AttachFailure != "" && ctx.Stderr != nil {
+		_, _ = fmt.Fprintf(ctx.Stderr, "agent launch attribution degraded at %s: %s\n", launch.Tier, launch.AttachFailure)
+	}
+	return nil
+}
+
+func (app *App) runAgentRecovery(ctx *CommandContext, args []string) error {
+	if len(args) > 0 && args[0] == "list" {
+		path, err := recovery.DefaultRecordPath()
+		if err != nil {
+			return fmt.Errorf("resolve recovery record path: %w", err)
+		}
+		broker, err := recovery.New(path, nil)
+		if err != nil {
+			return err
+		}
+		for _, record := range broker.Records() {
+			if ctx.Stdout != nil {
+				_, _ = fmt.Fprintf(ctx.Stdout, "%s scenario=%s tier=%s budget_remaining=%d outcome=%s\n", record.ID, record.Scenario, record.TierReached, record.BudgetRemaining, record.Outcome)
+			}
+		}
+		return nil
+	}
+	fs := commandtree.NewFlagSet("vrooli agent recover")
+	fs.SetOutput(ctx.Stderr)
+	scenario := fs.String("scenario", "", "scenario to recover")
+	reason := fs.String("reason", "", "reason for recovery")
+	requester := fs.String("requester", "vrooli-cli", "component requesting recovery")
+	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if fs.NArg() != 0 {
+		return clipolicy.UsageErrorf("agent recover", "unexpected positional arguments: %s", strings.Join(fs.Args(), " "))
+	}
+	path, err := recovery.DefaultRecordPath()
+	if err != nil {
+		return fmt.Errorf("resolve recovery record path: %w", err)
+	}
+	broker, err := recovery.New(path, func(runCtx context.Context, tier, target string, childEnv []string) error {
+		args := []string{"scenario", "start", target}
+		if tier == recovery.RecoveryTierTwo {
+			args = append(args, "--best-effort")
+		}
+		if tier == recovery.RecoveryTierThree {
+			setup := exec.CommandContext(runCtx, "vrooli", "scenario", "setup", target)
+			setup.Env = childEnv
+			if output, setupErr := setup.CombinedOutput(); setupErr != nil {
+				return fmt.Errorf("setup: %w: %s", setupErr, strings.TrimSpace(string(output)))
+			}
+		}
+		cmd := exec.CommandContext(runCtx, "vrooli", args...)
+		cmd.Env = childEnv
+		cmd.Stdout = ctx.Stdout
+		cmd.Stderr = ctx.Stderr
+		return cmd.Run()
+	})
+	if err != nil {
+		return err
+	}
+	record, recoverErr := broker.Recover(context.Background(), recovery.Request{Scenario: strings.TrimSpace(*scenario), Reason: strings.TrimSpace(*reason), Requester: strings.TrimSpace(*requester)}, envkit.Env(os.Environ()))
+	if ctx.Stdout != nil {
+		_, _ = fmt.Fprintf(ctx.Stdout, "agent recovery %s: tier=%s budget_remaining=%d outcome=%s\n", record.ID, record.TierReached, record.BudgetRemaining, record.Outcome)
+	}
+	return recoverErr
 }
 
 // agentInvocationArgs keeps the governed wrapper's prompt contract aligned

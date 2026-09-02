@@ -586,7 +586,30 @@ func verifyKeyringValuesPreserved(before, after []keyringField) error {
 // overwrites an existing backup: on a host being repaired twice, the first copy
 // is the one taken before anything touched the file.
 func backupKeyringFile(path string, contents []byte, mode os.FileMode) (string, error) {
-	backup := path + ".corrupt-backup"
+	return writeKeyringBackup(path+".corrupt-backup", contents, mode)
+}
+
+// BackupKeyringFileAs copies a keyring file to `<path><suffix>` with the same
+// permissions, never overwriting an earlier backup. It is the one backup writer
+// for every caller that must preserve a keyring before changing it, so
+// listKeyringBackups can recognise every backup by construction rather than by
+// guessing at suffixes.
+func BackupKeyringFileAs(path, suffix string) (string, error) {
+	if !strings.Contains(suffix, "backup") {
+		return "", fmt.Errorf("keyring backup suffix %q must contain \"backup\" so it is listed as one", suffix)
+	}
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read keyring: %w", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("stat keyring: %w", err)
+	}
+	return writeKeyringBackup(path+suffix, contents, info.Mode().Perm())
+}
+
+func writeKeyringBackup(backup string, contents []byte, mode os.FileMode) (string, error) {
 	for suffix := 0; ; suffix++ {
 		candidate := backup
 		if suffix > 0 {

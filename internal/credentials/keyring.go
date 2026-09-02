@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -66,6 +67,15 @@ func DefaultKeyringPath(path string) (string, error) {
 	dir, err := securestore.DefaultKeyringDir()
 	if err != nil {
 		return "", err
+	}
+	// The login keyring is the one every operator-facing message talks about
+	// and the one pam_gnome_keyring unlocks, so it wins whenever it exists. A
+	// host that also carries Default_keyring.keyring must not have that file
+	// inspected and repaired under the name "login keyring", which is what a
+	// plain sorted glob did.
+	login := filepath.Join(dir, "login.keyring")
+	if _, err := os.Stat(login); err == nil {
+		return login, nil
 	}
 	matches, err := filepath.Glob(filepath.Join(dir, "*.keyring"))
 	if err != nil {

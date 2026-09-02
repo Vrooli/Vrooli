@@ -216,12 +216,21 @@ func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, 
 // schema-valid.
 func degradedHealthDetail(body []byte) string {
 	var payload struct {
+		Functional *struct {
+			Healthy bool   `json:"healthy"`
+			Reason  string `json:"reason"`
+		} `json:"functional"`
 		Dependencies map[string]struct {
 			Error any `json:"error"`
 		} `json:"dependencies"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return ""
+	}
+	if payload.Functional != nil && !payload.Functional.Healthy {
+		if reason := strings.TrimSpace(payload.Functional.Reason); reason != "" {
+			return "functional: " + reason
+		}
 	}
 	for name, dependency := range payload.Dependencies {
 		if dependency.Error == nil {

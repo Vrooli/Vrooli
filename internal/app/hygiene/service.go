@@ -49,7 +49,7 @@ func (s Service) Run(req Request) (Report, error) {
 	report := Report{Root: root, Success: true}
 
 	if req.IncludeContract {
-		registry := NewRegistry(s.structureProvider(), s.layoutProvider())
+		registry := NewRegistry(s.structureProvider(), s.layoutProvider(), pathAuthorityProvider{root: root})
 		if err := registry.Run(context.Background(), req, &report, structureProviderID, layoutProviderID); err != nil {
 			return Report{}, err
 		}

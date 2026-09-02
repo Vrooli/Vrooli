@@ -99,6 +99,28 @@ func TestHealthProbePreservesDegradedStatusWithProviderDetail(t *testing.T) {
 	}
 }
 
+func TestHealthProbePreservesFunctionalDegradedReason(t *testing.T) {
+	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"degraded","service":"prompt-manager-api","timestamp":"2026-05-08T12:00:00Z","readiness":true,"functional":{"healthy":false,"reason":"2 enabled heartbeat members cannot create runs: capacity exceeded"}}`))
+	}))
+	defer server.Close()
+
+	snapshot := HealthProbe{Clock: clk}.Probe(context.Background(), HealthProbeInput{
+		InstanceID: "inst-prompt-manager",
+		Scenario:   "prompt-manager",
+		HealthConfig: &scenario.HealthConfig{Checks: []scenario.HealthCheck{{
+			Name: "api", Type: "http", Target: server.URL, Critical: true,
+		}}},
+	})
+	if snapshot.Status != HealthStatusDegraded {
+		t.Fatalf("snapshot.Status = %q, want degraded", snapshot.Status)
+	}
+	if snapshot.Error != "functional: 2 enabled heartbeat members cannot create runs: capacity exceeded" {
+		t.Fatalf("snapshot.Error = %q, want functional reason", snapshot.Error)
+	}
+}
+
 func TestHealthProbeInvalidSchemaIsDiagnosticMetadata(t *testing.T) {
 	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -15,3 +15,7 @@ func hostBoundFix() string { return "" }
 func PendingGroupGrant() string { return "" }
 
 func nativeStorageStrength() (string, string) { return "", "" }
+
+// GrantableTPMDevice has no answer here: systemd-creds and the tss device
+// group are Linux facilities.
+func GrantableTPMDevice() (device, group string, found bool) { return "", "", false }

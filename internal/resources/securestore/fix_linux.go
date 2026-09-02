@@ -109,6 +109,19 @@ type tpmGrant struct {
 	processMember bool
 }
 
+// GrantableTPMDevice reports the first TPM device whose access can be granted
+// by joining a group, with that group's label. It is the single answer to
+// "which device, which group" for both the credential fix text and the
+// tpm_credential_access safeguard, so the two can never disagree about the
+// device order or the group-readable rule.
+func GrantableTPMDevice() (device, group string, found bool) {
+	grant, ok := tpmDeviceGrant()
+	if !ok {
+		return "", "", false
+	}
+	return grant.device, grant.group, true
+}
+
 func tpmDeviceGrant() (tpmGrant, bool) {
 	for _, device := range tpmResourceManagers {
 		info, err := os.Stat(device)
