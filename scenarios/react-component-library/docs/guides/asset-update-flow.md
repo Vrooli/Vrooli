@@ -85,6 +85,19 @@ Inspect them with `react-component-library adoptions obligations <scenario>
 token obligations together; follow it with `adoptions preflight` to confirm
 the maturity floor and gate verdicts.
 
+Where those files live is the target template's decision, not the library's.
+`link`, `tokens-sync`, `tokens-prune`, `obligations` and the
+`scenario-token-requirements` gate resolve the design-token ramp, the default
+locale catalogue, the selector registry, the library-selectors file and the
+application entry from the template's `ui/manifest.json` `files` section
+(`designTokens`, `localeCatalogue`, `selectorRegistry`, `librarySelectors`,
+`appEntry`), overlaid by the scenario's `.vrooli/ui-manifest.json`. A template
+that declares no `files` gets the react-vite layout
+(`ui/src/design-tokens.css`, `ui/src/i18n/locales/en.json`,
+`ui/src/consts/selectors.ts`, `ui/src/consts/selectors.library.ts`,
+`ui/src/main.tsx`). The obligations report echoes the resolved paths under
+`files`.
+
 ## Canonical version shape
 
 Each released version contains one authored entrypoint named after the asset,

@@ -12,7 +12,7 @@
     "name": "AppShell",
     "kind": "navigation",
     "domain": "navigation",
-    "description": "The top-level application frame coordinating navigation, content, overlay hosting, safe areas, responsive breakpoints, skip links, and persistent workspace regions.",
+    "description": "The one application frame a generated scenario mounts: brand, a SidebarShell-owned navigation column (resizable sidebar or icon rail), a BottomNav-owned phone tab bar or drawer, an optional header strip, a skip link, and the routed main pane in scroll or fill mode. Navigation is data; the router plugs in through renderLink and onNavigate.",
     "targets": [
       "react-vite"
     ],
@@ -30,12 +30,24 @@
         "reason": "Sizing, spacing, radius, and layer order resolve to declared ramps."
       },
       {
-        "asset": "navigation.app-navigation",
-        "reason": "Navigation is adopted as one coherent unit rather than as separate surfaces."
+        "asset": "foundations.class-merge",
+        "reason": "Consumer className merges through the shared helper."
       },
       {
-        "asset": "services.layer-manager",
-        "reason": "The shell hosts the portal root and owns stacking order."
+        "asset": "navigation.sidebar",
+        "reason": "The desktop navigation column, drawer, and resize seam are owned by SidebarShell rather than re-drawn here."
+      },
+      {
+        "asset": "navigation.bottom-navigation",
+        "reason": "The phone tab bar is owned by BottomNav; the same item list drives both presentations."
+      },
+      {
+        "asset": "controls.icon-button",
+        "reason": "The drawer's menu control is the governed icon button, so its tap target and focus ring are not re-implemented."
+      },
+      {
+        "asset": "hooks.use-media-query",
+        "reason": "The md breakpoint is the library's, read once, so the shell and its navigation assets agree on where a phone ends."
       },
       {
         "asset": "hooks.use-locale",

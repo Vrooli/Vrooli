@@ -5,31 +5,66 @@
   "component": {
     "id": "app-shell",
     "title": "AppShell",
-    "purpose": "A responsive application frame with named navigation, a skip link, and scroll-safe main content.",
-    "storyRef": "../../library/components/AppShell/versions/1.0.7/story.json"
+    "purpose": "The one application frame a generated scenario mounts: brand, a SidebarShell-owned navigation column or icon rail, a BottomNav-owned phone tab bar or drawer, an optional header strip, a skip link, and a routed main pane that scrolls or fills. Navigation is data; the router plugs in through renderLink and onNavigate.",
+    "storyRef": "../../library/components/AppShell/versions/2.0.2/story.json"
   },
   "states": [
     {
       "id": "default",
       "example": "default",
-      "description": "The application frame is available."
+      "description": "Sidebar density with a phone tab bar: the shape a generated scenario mounts."
     },
     {
-      "id": "long-content",
-      "example": "long-content",
-      "description": "Long content stays inside the main region without forcing the shell wider than its viewport."
+      "id": "density",
+      "example": "density",
+      "description": "Icon-over-label rail for a product whose primary surface needs the width."
+    },
+    {
+      "id": "mobile-nav",
+      "example": "mobile-nav",
+      "description": "Below the md breakpoint the column is a drawer behind a menu button; above it nothing changes."
+    },
+    {
+      "id": "main-mode",
+      "example": "main-mode",
+      "description": "The routed page owns the pane and pins its own header and composer."
+    },
+    {
+      "id": "with-header",
+      "example": "with-header",
+      "description": "An optional global strip above the routed content, present at every width."
+    },
+    {
+      "id": "badges",
+      "example": "badges",
+      "description": "Counts on navigation items in the column and the tab bar, labelled so they are never colour alone."
+    },
+    {
+      "id": "long-labels",
+      "example": "long-labels",
+      "description": "Long labels truncate inside the column instead of widening it; a disabled destination stays visible and inert."
+    },
+    {
+      "id": "right-to-left",
+      "example": "right-to-left",
+      "description": "Right-to-left layout with the column anchored to the inline start."
     }
   ],
   "elements": [
     {
       "id": "navigation",
-      "role": "complementary",
-      "description": "The named application navigation region."
+      "role": "navigation",
+      "description": "The named primary navigation landmark inside the column."
+    },
+    {
+      "id": "mobile-navigation",
+      "role": "navigation",
+      "description": "The named phone tab bar landmark."
     },
     {
       "id": "main",
       "role": "main",
-      "description": "The scroll-safe routed content region."
+      "description": "The routed content region, scrolling or filling."
     },
     {
       "id": "skip-link",
@@ -41,46 +76,104 @@
     {
       "id": "landmarks",
       "type": "element-present",
-      "statement": "The shell exposes complementary navigation and a named main region.",
+      "statement": "The shell exposes a named main region and, at the viewport's width, a visible named navigation landmark.",
       "tier": "machine",
-      "elements": ["navigation", "main"],
-      "states": ["default", "long-content"]
+      "elements": [
+        "main"
+      ],
+      "states": [
+        "default",
+        "density",
+        "mobile-nav",
+        "main-mode",
+        "with-header",
+        "badges",
+        "long-labels",
+        "right-to-left"
+      ]
     },
     {
       "id": "skip-navigation",
       "type": "element-present",
       "statement": "Keyboard users can skip directly to the main region.",
       "tier": "machine",
-      "elements": ["skip-link", "main"],
-      "states": ["default", "long-content"]
+      "elements": [
+        "skip-link",
+        "main"
+      ],
+      "states": [
+        "default",
+        "density",
+        "mobile-nav",
+        "main-mode",
+        "with-header",
+        "badges",
+        "long-labels",
+        "right-to-left"
+      ]
     },
     {
       "id": "viewport-fill",
       "type": "viewport-fill",
       "statement": "The shell fills the captured viewport while its content columns remain min-width safe.",
       "tier": "machine",
-      "states": ["default", "long-content"]
+      "states": [
+        "default",
+        "density",
+        "mobile-nav",
+        "main-mode",
+        "with-header",
+        "badges",
+        "long-labels",
+        "right-to-left"
+      ]
     },
     {
       "id": "chrome-pinned",
       "type": "chrome-pinned",
       "statement": "Navigation and header chrome remain inside the viewport while main content scrolls.",
       "tier": "machine",
-      "states": ["default", "long-content"]
+      "states": [
+        "default",
+        "density",
+        "mobile-nav",
+        "main-mode",
+        "with-header",
+        "badges",
+        "long-labels",
+        "right-to-left"
+      ]
     },
     {
       "id": "single-line-chrome",
       "type": "single-line-chrome",
-      "statement": "Shell chrome labels remain single-line controls at every captured viewport.",
+      "statement": "Shell chrome labels remain single-line controls at every captured viewport, truncating rather than wrapping.",
       "tier": "machine",
-      "states": ["default", "long-content"]
+      "states": [
+        "default",
+        "density",
+        "main-mode",
+        "with-header",
+        "badges",
+        "long-labels",
+        "right-to-left"
+      ]
     }
   ],
   "bindings": {
     "elements": {
-      "navigation": { "selector": "[role='complementary']" },
-      "main": { "selector": "[role='main']" },
-      "skip-link": { "selector": "[role='link']" }
+      "navigation": {
+        "selector": "[data-rcl-app-shell-column] nav"
+      },
+      "mobile-navigation": {
+        "selector": "[data-rcl-app-shell-tabs] nav"
+      },
+      "main": {
+        "selector": "[data-rcl-app-shell-main]"
+      },
+      "skip-link": {
+        "selector": "[data-rcl-app-shell-skip]"
+      }
     }
   }
 }

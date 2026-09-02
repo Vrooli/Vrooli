@@ -13,7 +13,7 @@
     "kind": "component",
     "surface": "raised",
     "domain": "navigation",
-    "description": "The responsive title region carrying breadcrumbs, description, metadata, primary and overflow actions, optional tabs, and compact behavior as the page scrolls.",
+    "description": "The unframed title region every routed page opens with: optional eyebrow, leading element, title at level one or two, description, and right-aligned actions that wrap under the copy on a phone. Compact density for headers inside panes.",
     "targets": [
       "react-vite"
     ],
@@ -27,16 +27,12 @@
   "dependencies": {
     "requires": [
       {
-        "asset": "primitives.heading",
-        "reason": "Title level is semantic and independent of visual scale."
+        "asset": "foundations.tokens",
+        "reason": "Type ramp, spacing, and rule colour resolve to declared tokens."
       },
       {
-        "asset": "controls.button-group",
-        "reason": "Actions collapse into overflow through the shared group."
-      },
-      {
-        "asset": "hooks.use-locale",
-        "reason": "User-facing copy resolves through the adopting host locale bridge."
+        "asset": "foundations.class-merge",
+        "reason": "Consumer className merges through the shared helper."
       }
     ],
     "suggests": [

@@ -62,7 +62,7 @@ func ValidateScenarioTokenRequirements(scope Scope) (Result, error) {
 				return Result{}, collectErr
 			}
 		}
-		rampPath := filepath.Join(scenariosRoot, scenario, scenarioRampPath)
+		rampPath := filepath.Join(scenariosRoot, scenario, scenarioTokenRampPath(root, scenario))
 		_, rampErr := readManagedRampProperties(rampPath)
 		if rampErr != nil {
 			result.Findings = append(result.Findings, Finding{

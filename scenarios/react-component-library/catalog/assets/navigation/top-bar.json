@@ -20,7 +20,7 @@
     "delivery": "adopted",
     "target": {
       "priority": "P0",
-      "maturity": "production-ready"
+      "maturity": "deprecated"
     }
   },
   "dependencies": {
@@ -53,5 +53,10 @@
     "focus-order",
     "safe-area-respected",
     "no-horizontal-overflow"
-  ]
+  ],
+  "deprecation": {
+    "reason": "An inline-style placeholder whose only job in generated scenarios was to hold a theme select; AppShell 2 has an optional header slot for products that need a strip and spends no chrome otherwise.",
+    "replacedBy": "navigation.app-shell",
+    "migration": "Move header content into AppShell 2's header prop, or delete the strip and put preferences in Settings."
+  }
 }

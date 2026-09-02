@@ -24,7 +24,7 @@
     "delivery": "adopted",
     "target": {
       "priority": "P0",
-      "maturity": "production-ready"
+      "maturity": "deprecated"
     }
   },
   "dependencies": {
@@ -80,5 +80,10 @@
     "mobile-capability-parity",
     "reading-order-honest"
   ],
-  "rationale": "The composed asset decided in the navigation question: sidebar, header nav, and bottom nav are presentations of one model, so the DESIGN.md transformations are asserted here as machine claims. A floor could check each surface in isolation but could never assert that this sidebar becomes that drawer, which is the part that actually breaks."
+  "rationale": "The composed asset decided in the navigation question: sidebar, header nav, and bottom nav are presentations of one model, so the DESIGN.md transformations are asserted here as machine claims. A floor could check each surface in isolation but could never assert that this sidebar becomes that drawer, which is the part that actually breaks.",
+  "deprecation": {
+    "reason": "Presentation mode was a prop the caller had to set rather than a measured viewport, and the asset shipped fake default destinations; AppShell 2 composes SidebarShell and BottomNav from one item list instead.",
+    "replacedBy": "navigation.app-shell",
+    "migration": "Pass the same items array to AppShell 2 and drop the mode prop; the shell measures the viewport."
+  }
 }

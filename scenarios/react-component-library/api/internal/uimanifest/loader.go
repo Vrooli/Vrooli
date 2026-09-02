@@ -30,6 +30,28 @@ type Manifest struct {
 	Gates                    []string        `json:"gates"`
 	TemplateStructureVersion string          `json:"templateStructureVersion"`
 	SlotCoverage             string          `json:"slotCoverage"`
+	// Files names the scenario files that tooling reads or writes (design
+	// tokens, locale catalogues, selector registry, application entry), so a
+	// consumer such as react-component-library resolves locations from the
+	// template's declaration instead of a hard-coded path. Keys are an open set;
+	// see the schema for the canonical ones.
+	Files map[string]FileDeclaration `json:"files"`
+}
+
+// FileDeclaration is one named file a template declares under `files`.
+type FileDeclaration struct {
+	// Path is scenario-relative and may carry a `{locale}` placeholder.
+	Path          string         `json:"path"`
+	Description   string         `json:"description"`
+	DefaultLocale string         `json:"defaultLocale"`
+	ManagedRegion *ManagedRegion `json:"managedRegion"`
+}
+
+// ManagedRegion is the pair of marker comments delimiting the part of a file
+// a tool owns.
+type ManagedRegion struct {
+	Begin string `json:"begin"`
+	End   string `json:"end"`
 }
 
 // Contract block (mirrors the schema's Contract subobject).
@@ -168,6 +190,11 @@ func (l *FSLoader) Load(scenario string) (Manifest, error) {
 				return Manifest{}, ErrInvalidManifest{Path: overlayPath, Reason: fmt.Sprintf("overlay slot %q is not declared by the template", name)}
 			}
 		}
+		for key := range overlay.Files {
+			if _, ok := mf.Files[key]; !ok {
+				return Manifest{}, ErrInvalidManifest{Path: overlayPath, Reason: fmt.Sprintf("overlay file %q is not declared by the template", key)}
+			}
+		}
 		mf = merge(mf, overlay)
 	} else if !errors.Is(readErr, os.ErrNotExist) {
 		return Manifest{}, fmt.Errorf("read %s: %w", overlayPath, readErr)
@@ -212,6 +239,12 @@ func validate(mf Manifest, path string) error {
 			return ErrInvalidManifest{Path: path, Reason: fmt.Sprintf("slot %q: dir is required", name)}
 		}
 	}
+	for key, file := range mf.Files {
+		clean := filepath.ToSlash(filepath.Clean(strings.TrimSpace(file.Path)))
+		if clean == "" || clean == "." || strings.HasPrefix(clean, "../") || filepath.IsAbs(file.Path) {
+			return ErrInvalidManifest{Path: path, Reason: fmt.Sprintf("files.%s: path must be a scenario-relative file path", key)}
+		}
+	}
 	return nil
 }
 
@@ -248,7 +281,52 @@ func merge(base, overlay Manifest) Manifest {
 	if overlay.SlotCoverage != "" {
 		merged.SlotCoverage = overlay.SlotCoverage
 	}
+	if len(base.Files) > 0 || len(overlay.Files) > 0 {
+		merged.Files = make(map[string]FileDeclaration, len(base.Files)+len(overlay.Files))
+		for key, value := range base.Files {
+			merged.Files[key] = value
+		}
+		for key, value := range overlay.Files {
+			merged.Files[key] = value
+		}
+	}
 	return merged
+}
+
+// ResolveFile returns the scenario-relative path declared for `key`, or
+// `fallback` when the template declares no such file. The fallback keeps
+// pre-`files` templates working; new tooling should treat a declared path as
+// authoritative.
+func (m Manifest) ResolveFile(key, fallback string) string {
+	if file, ok := m.Files[key]; ok && strings.TrimSpace(file.Path) != "" {
+		return filepath.ToSlash(filepath.Clean(file.Path))
+	}
+	return fallback
+}
+
+// ResolveLocaleFile resolves a `{locale}` pattern declared for `key`. An empty
+// locale selects the declaration's defaultLocale (or "en").
+func (m Manifest) ResolveLocaleFile(key, locale, fallback string) string {
+	file, ok := m.Files[key]
+	if !ok || strings.TrimSpace(file.Path) == "" {
+		return fallback
+	}
+	if locale == "" {
+		locale = file.DefaultLocale
+	}
+	if locale == "" {
+		locale = "en"
+	}
+	return filepath.ToSlash(filepath.Clean(strings.ReplaceAll(file.Path, "{locale}", locale)))
+}
+
+// ManagedRegionMarkers returns the begin/end markers declared for `key`, or
+// the fallbacks when the declaration carries none.
+func (m Manifest) ManagedRegionMarkers(key, beginFallback, endFallback string) (string, string) {
+	if file, ok := m.Files[key]; ok && file.ManagedRegion != nil && file.ManagedRegion.Begin != "" && file.ManagedRegion.End != "" {
+		return file.ManagedRegion.Begin, file.ManagedRegion.End
+	}
+	return beginFallback, endFallback
 }
 
 // LookupSlot returns the named slot or false. Helper kept here so the

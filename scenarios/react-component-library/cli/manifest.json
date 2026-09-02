@@ -118,7 +118,7 @@
         },
         {
           "name": "obligations",
-          "description": "Verify the seven durable files and contract dimensions for a scenario adoption",
+          "description": "Verify the durable files (resolved from the template ui/manifest.json) and contract dimensions for a scenario adoption",
           "positionals": [{ "name": "scenario", "required": true, "description": "Target scenario name" }],
           "binding": { "kind": "local" },
           "governance": {

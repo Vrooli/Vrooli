@@ -84,24 +84,30 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 	for _, file := range versionInfo.Files {
 		versionSource += "\n" + file.Content
 	}
+	// Locale entries come only from the version's `<Entry>.strings.ts`
+	// companion (a defineStrings map). Scanning every version file for
+	// `"key": "value"` pairs used to copy story.json and dependencies.json
+	// fields into the adopter's catalogue as if they were translations.
+	localeSource := ""
 	if reader, ok := s.library.(VersionFileReader); ok {
 		entry := strings.TrimSuffix(filepath.Base(versionInfo.SourcePath), filepath.Ext(versionInfo.SourcePath))
 		for _, candidate := range []string{entry + ".strings.ts", component.Slug + ".strings.ts"} {
 			content, readErr := reader.GetVersionContentAt(ctx, component.ID, version, candidate)
 			if readErr == nil {
-				versionSource += "\n" + content.Body
+				localeSource = content.Body
 				break
 			}
 		}
 	}
-	if err := mergeLocaleCatalog(ctx, s.files, in.Scenario, derivedLocaleEntries(versionSource)); err != nil {
+	paths := s.scenarioPaths(in.Scenario)
+	if err := mergeLocaleCatalog(ctx, s.files, in.Scenario, paths.LocaleCatalogue, derivedLocaleEntries(localeSource)); err != nil {
 		return LinkResult{}, err
 	}
-	if _, err := s.files.Exists(ctx, in.Scenario, "ui/src/i18n/locales/en.json"); err == nil {
-		updatedFiles = append(updatedFiles, "ui/src/i18n/locales/en.json")
+	if _, err := s.files.Exists(ctx, in.Scenario, paths.LocaleCatalogue); err == nil {
+		updatedFiles = append(updatedFiles, paths.LocaleCatalogue)
 	}
 
-	selectorPath := "ui/src/consts/selectors.library.ts"
+	selectorPath := paths.LibrarySelectors
 	selectorExists, err := s.files.Exists(ctx, in.Scenario, selectorPath)
 	if err != nil {
 		return LinkResult{}, fmt.Errorf("check adopter selector registry: %w", err)
@@ -121,15 +127,15 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 		}
 		updatedFiles = append(updatedFiles, selectorPath)
 	}
-	if changed, err := composeSelectorRegistry(ctx, s.files, in.Scenario); err != nil {
+	if changed, err := composeSelectorRegistry(ctx, s.files, in.Scenario, paths.SelectorRegistry, paths.LibrarySelectors); err != nil {
 		return LinkResult{}, err
 	} else if changed {
-		updatedFiles = append(updatedFiles, "ui/src/consts/selectors.ts")
+		updatedFiles = append(updatedFiles, paths.SelectorRegistry)
 	}
-	if changed, err := mountLibraryStringsProvider(ctx, s.files, in.Scenario); err != nil {
+	if changed, err := mountLibraryStringsProvider(ctx, s.files, in.Scenario, paths.AppEntry); err != nil {
 		return LinkResult{}, err
 	} else if changed {
-		updatedFiles = append(updatedFiles, "ui/src/main.tsx")
+		updatedFiles = append(updatedFiles, paths.AppEntry)
 	}
 	// A governed link must leave its consumer's token contract satisfied.
 	if s.tokenInventory != nil {
@@ -138,7 +144,7 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 			return LinkResult{}, fmt.Errorf("sync adopter design tokens: %w", err)
 		}
 		if tokenSync.Changed || len(tokenSync.Added) > 0 || len(tokenSync.Collisions) > 0 {
-			updatedFiles = append(updatedFiles, "ui/src/design-tokens.css")
+			updatedFiles = append(updatedFiles, paths.TokenRamp)
 		}
 	}
 
@@ -264,11 +270,10 @@ func derivedLocaleEntries(source string) map[string]string {
 	return entries
 }
 
-func mergeLocaleCatalog(ctx context.Context, files ScenarioFileWriter, scenario string, entries map[string]string) error {
+func mergeLocaleCatalog(ctx context.Context, files ScenarioFileWriter, scenario, path string, entries map[string]string) error {
 	if len(entries) == 0 {
 		return nil
 	}
-	path := "ui/src/i18n/locales/en.json"
 	exists, err := files.Exists(ctx, scenario, path)
 	if err != nil {
 		return fmt.Errorf("check adopter English catalog: %w", err)
@@ -488,14 +493,14 @@ func selectorEntry(name, root string, ids []string) string {
 	return builder.String()
 }
 
-func composeSelectorRegistry(ctx context.Context, files ScenarioFileWriter, scenario string) (bool, error) {
-	path := "ui/src/consts/selectors.ts"
+func composeSelectorRegistry(ctx context.Context, files ScenarioFileWriter, scenario, path, libraryPath string) (bool, error) {
+	libraryImport := relativeImport(path, libraryPath)
 	exists, err := files.Exists(ctx, scenario, path)
 	if err != nil {
 		return false, fmt.Errorf("check adopter selector composition: %w", err)
 	}
 	if !exists {
-		body := "import { librarySelectors } from \"./selectors.library\";\n\n"
+		body := "import { librarySelectors } from \"" + libraryImport + "\";\n\n"
 		body += "export { librarySelectors };\n"
 		body += "export const selectors = { library: librarySelectors } as const;\n"
 		body += "export const selectorsManifest = { selectors: librarySelectors } as const;\n"
@@ -511,12 +516,12 @@ func composeSelectorRegistry(ctx context.Context, files ScenarioFileWriter, scen
 	source := string(raw)
 	updated := source
 	if !librarySelectorsImportPresent(updated) {
-		updated = "import { librarySelectors } from \"./selectors.library\";\n" + updated
+		updated = "import { librarySelectors } from \"" + libraryImport + "\";\n" + updated
 	}
 	if !strings.Contains(updated, "export { librarySelectors }") {
 		updated = strings.Replace(updated, "\n", "\nexport { librarySelectors };\n", 1)
 	}
-	updated = strings.Replace(updated, "createSelectorRegistry(literalSelectors", "createSelectorRegistry({ library: librarySelectors, ...literalSelectors },", 1)
+	updated = strings.Replace(updated, "createSelectorRegistry(literalSelectors", "createSelectorRegistry({ library: librarySelectors, ...literalSelectors }", 1)
 	if updated == source {
 		return false, nil
 	}
@@ -534,8 +539,7 @@ func librarySelectorsImportPresent(source string) bool {
 // available to package-backed library components. The generated wrapper is
 // deliberately idempotent and lives at the application root, so a linked
 // component does not need a private locale bridge or a copied source tree.
-func mountLibraryStringsProvider(ctx context.Context, files ScenarioFileWriter, scenario string) (bool, error) {
-	path := "ui/src/main.tsx"
+func mountLibraryStringsProvider(ctx context.Context, files ScenarioFileWriter, scenario, path string) (bool, error) {
 	exists, err := files.Exists(ctx, scenario, path)
 	if err != nil {
 		return false, fmt.Errorf("check adopter application root: %w", err)
@@ -551,7 +555,7 @@ func mountLibraryStringsProvider(ctx context.Context, files ScenarioFileWriter, 
 	if strings.Contains(source, stringsProviderStart) {
 		return false, nil
 	}
-	providerImport := `import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1.0.1";`
+	providerImport := `import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";`
 	if !strings.Contains(source, "LibraryStringsProvider") {
 		source = providerImport + "\n" + source
 	}

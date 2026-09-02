@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "schemaVersion": 5,
+  "kind": "component",
+  "title": "Base Styles",
+  "args": { "fields": [] },
+  "environment": { "fixtures": [] },
+  "stories": [
+    {
+      "id": "mounted",
+      "name": "Mounted",
+      "role": "anatomy",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "Mounted" }
+      },
+      "expect": [{ "kind": "visible", "selector": "[data-testid='foundations.base-styles']" }]
+    },
+    {
+      "id": "viewport-contract-overridden",
+      "name": "Viewport contract overridden",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "ViewportContractOverridden" }
+      },
+      "expect": [{ "kind": "visible", "selector": "[data-testid='foundations.base-styles.host-override']" }]
+    },
+    {
+      "id": "unlayered-override",
+      "name": "Unlayered scenario override",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "UnlayeredOverride" }
+      },
+      "expect": [{ "kind": "visible", "selector": "[data-testid='foundations.base-styles.measured']" }]
+    },
+    {
+      "id": "canonical-token-defaults",
+      "name": "Canonical token defaults",
+      "role": "boundary",
+      "mode": "live",
+      "args": {},
+      "composition": {
+        "specimen": { "module": "./story.tsx", "export": "CanonicalTokenDefaults" }
+      },
+      "expect": [{ "kind": "text", "selector": "[data-testid='foundations.base-styles.computed']", "value": "padding=24px; radius=8px" }]
+    }
+  ]
+}

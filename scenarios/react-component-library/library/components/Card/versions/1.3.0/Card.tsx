@@ -1,8 +1,9 @@
 /**
  * @libraryId react-component-library:Card
  * @displayName Card
- * @version 1.2.4
- * @tags ["surface","layout"]
+ * @description The structured surface for a genuinely framed object, with header, body, footer, and media regions plus optional selection, press, and loading behavior.
+ * @version 1.3.0
+ * @tags []
  * @deps {"react":"^18","clsx":"^2.1.1","tailwind-merge":"^2.3.0"}
  * @warning Managed by React Component Library. Preserve this header when editing adopted copies.
  */
@@ -30,6 +31,12 @@ export interface CardHeaderProps extends HTMLAttributes<HTMLDivElement> {
 
 export interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
   children: ReactNode;
+  /**
+   * Heading level. Defaults to `h3`, which follows a page whose title is `h1`
+   * and whose sections are `h2`. A card that sits directly under the page
+   * title passes `as="h2"` so the document outline does not skip a level.
+   */
+  as?: "h2" | "h3" | "h4";
 }
 
 export interface CardDescriptionProps extends HTMLAttributes<HTMLParagraphElement> {
@@ -84,12 +91,13 @@ export const CardHeader = withClassName(function CardHeader({
 export const CardTitle = withClassName(function CardTitle({
   children,
   className,
+  as: Heading = "h3",
   ...props
 }: CardTitleProps) {
   return (
-    <h3 className={cn("rcl-card__title", className)} {...props}>
+    <Heading className={cn("rcl-card__title", className)} {...props}>
       {children}
-    </h3>
+    </Heading>
   );
 });
 

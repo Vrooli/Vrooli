@@ -72,6 +72,15 @@ var additions = map[string]string{
 	"--tracking-caps":                   ".08em",
 	"--tracking-tight":                  "-.02em",
 	"--weight-medium":                   "500",
+	// Provenance encodings and the wall figure were promoted from Command Center
+	// on 2026-09-01 and hand-added to Tokens 1.0.2 without a canonical home; the
+	// ramp is where every kit inherits them from.
+	"--provenance-measured": "var(--color-success)",
+	"--provenance-cached":   "var(--color-warning)",
+	"--provenance-sample":   "#b7a6ff",
+	"--provenance-absent":   "var(--color-muted-foreground)",
+	"--glow-primary":        "rgba(51,214,255,.5)",
+	"--text-wall":           "clamp(5rem, 16vw, 20rem)",
 }
 
 var deadTokens = map[string]bool{
@@ -458,6 +467,13 @@ export const SEMANTIC_TOKENS = {
   focus: "var(--color-focus)",
 } as const;
 
+export const PROVENANCE_TOKENS = {
+  measured: "var(--provenance-measured)",
+  cached: "var(--provenance-cached)",
+  sample: "var(--provenance-sample)",
+  absent: "var(--provenance-absent)",
+  glow: "var(--glow-primary)",
+} as const;
 export const COMPONENT_TOKENS = {
   controlSize: "var(--control-size-md)",
   controlRadius: "var(--control-radius)",
@@ -477,6 +493,7 @@ export const TEXT_STYLES = {
   caption: "var(--text-caption)",
   code: "var(--text-code)",
   overline: "var(--text-overline)",
+  wall: "var(--text-wall)",
 } as const;
 
 export const tokens = {
@@ -857,6 +874,10 @@ func describe(name string) (string, string) {
 		return "Corner treatment for " + label + ".", "Rounding the named surface or control role."
 	case strings.HasPrefix(name, "--dur-") || strings.HasPrefix(name, "--ease-") || strings.HasPrefix(name, "--spring-") || strings.HasPrefix(name, "--motion-"):
 		return "Motion timing role for " + label + ".", "Animating the named transition with the shared motion language."
+	case strings.HasPrefix(name, "--provenance-"):
+		return "Provenance encoding for a value that is " + strings.TrimPrefix(name, "--provenance-") + ".", "Marking where a displayed figure came from so measured, cached, sampled and absent values never share a colour."
+	case strings.HasPrefix(name, "--glow-"):
+		return "Ambient glow for " + label + ".", "Lifting a live or focused figure on dark display surfaces without a local shadow literal."
 	case strings.HasPrefix(name, "--elev-") || strings.HasPrefix(name, "--shadow-"):
 		return "Elevation treatment for " + label + ".", "Expressing the named depth level without a local shadow literal."
 	default:

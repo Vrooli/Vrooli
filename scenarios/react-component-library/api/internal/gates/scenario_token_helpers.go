@@ -10,6 +10,7 @@ import (
 	"react-component-library/internal/components"
 	"react-component-library/internal/librarywalk"
 	"react-component-library/internal/themes"
+	"react-component-library/internal/uimanifest"
 )
 
 const (
@@ -17,6 +18,18 @@ const (
 	scenarioRampBegin = "/* rcl:tokens:begin */"
 	scenarioRampEnd   = "/* rcl:tokens:end */"
 )
+
+// scenarioTokenRampPath resolves the scenario's design-token file from its
+// template's ui/manifest.json `files.designTokens` declaration, falling back
+// to the react-vite layout when the scenario declares no template or the
+// template declares no files.
+func scenarioTokenRampPath(root, scenario string) string {
+	manifest, err := uimanifest.NewFSLoader(root).Load(scenario)
+	if err != nil {
+		return scenarioRampPath
+	}
+	return filepath.FromSlash(manifest.ResolveFile("designTokens", scenarioRampPath))
+}
 
 type gateLibraryAsset struct {
 	name        string

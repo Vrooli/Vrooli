@@ -18,6 +18,78 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
+// durableFiles are the consumer files a governed adoption relies on, keyed by
+// the ui/manifest.json `files` name that declares each. The path is the
+// react-vite layout every generated scenario carried before templates declared
+// files; a template that declares a key overrides it.
+var durableFiles = []struct{ key, fallback string }{
+	{"designTokens", "ui/src/design-tokens.css"},
+	{"localeCatalogue", "ui/src/i18n/locales/en.json"},
+	{"librarySelectors", "ui/src/consts/selectors.library.ts"},
+	{"selectorRegistry", "ui/src/consts/selectors.ts"},
+	{"appEntry", "ui/src/main.tsx"},
+}
+
+// resolveDurableFiles reads the scenario's template manifest (and any
+// .vrooli/ui-manifest.json overlay) so the check inspects the paths the
+// template actually declares. Every failure to read falls back to the default
+// layout: the obligations report should say "missing", not "unresolvable".
+func resolveDurableFiles(root, scenario string) map[string]string {
+	resolved := make(map[string]string, len(durableFiles))
+	for _, file := range durableFiles {
+		resolved[file.key] = file.fallback
+	}
+	var service struct {
+		Generation struct {
+			Template struct {
+				ID string `json:"id"`
+			} `json:"template"`
+		} `json:"generation"`
+	}
+	if raw, err := os.ReadFile(filepath.Join(root, "scenarios", scenario, ".vrooli", "service.json")); err != nil || json.Unmarshal(raw, &service) != nil || service.Generation.Template.ID == "" {
+		return resolved
+	}
+	type fileDecl struct {
+		Path          string `json:"path"`
+		DefaultLocale string `json:"defaultLocale"`
+	}
+	var declared struct {
+		Files map[string]fileDecl `json:"files"`
+	}
+	for _, manifestPath := range []string{
+		filepath.Join(root, "templates", "scenarios", service.Generation.Template.ID, "ui", "manifest.json"),
+		filepath.Join(root, "scenarios", scenario, ".vrooli", "ui-manifest.json"),
+	} {
+		raw, err := os.ReadFile(manifestPath)
+		if err != nil {
+			continue
+		}
+		var overlay struct {
+			Files map[string]fileDecl `json:"files"`
+		}
+		if json.Unmarshal(raw, &overlay) != nil {
+			continue
+		}
+		if declared.Files == nil {
+			declared.Files = map[string]fileDecl{}
+		}
+		for key, value := range overlay.Files {
+			declared.Files[key] = value
+		}
+	}
+	for key, decl := range declared.Files {
+		if _, wanted := resolved[key]; !wanted || strings.TrimSpace(decl.Path) == "" {
+			continue
+		}
+		locale := decl.DefaultLocale
+		if locale == "" {
+			locale = "en"
+		}
+		resolved[key] = filepath.FromSlash(strings.ReplaceAll(decl.Path, "{locale}", locale))
+	}
+	return resolved
+}
+
 func (h *handlers) obligations(ctx cliapp.RunContext) error {
 	scenario := strings.TrimSpace(ctx.Positional("scenario"))
 	root, err := findRepoRoot()
@@ -25,35 +97,43 @@ func (h *handlers) obligations(ctx cliapp.RunContext) error {
 		return err
 	}
 	base := filepath.Join(root, "scenarios", scenario)
-	checks := map[string]bool{}
-	for _, path := range []string{"ui/src/design-tokens.css", "ui/src/i18n/locales/en.json", "ui/src/consts/selectors.library.ts", "ui/src/consts/selectors.ts", "ui/src/main.tsx", "ui/package.json"} {
-		_, statErr := os.Stat(filepath.Join(base, path))
-		checks[path] = statErr == nil
+	files := resolveDurableFiles(root, scenario)
+	present := func(key string) bool {
+		_, statErr := os.Stat(filepath.Join(base, files[key]))
+		return statErr == nil
 	}
-	checks["adoption-record"] = false
-	checks["component-import"] = false
+	adoptionRecord, componentImport := false, false
 	adoptions, listErr := h.client.ListAdoptions(context.Background(), connect.NewRequest(&adoptionsv1.ListAdoptionsRequest{Scenario: scenario}))
 	if listErr != nil {
 		return cliapp.WrapAPIError("list adoption obligations", listErr, nil)
 	}
 	for _, adoption := range adoptions.Msg.GetAdoptions() {
-		checks["adoption-record"] = true
+		adoptionRecord = true
 		if adoption.GetAdoptedPath() == "" {
 			continue
 		}
-		adopted := filepath.Join(base, filepath.FromSlash(adoption.GetAdoptedPath()))
-		if _, statErr := os.Stat(adopted); statErr == nil {
-			checks["component-import"] = true
+		if _, statErr := os.Stat(filepath.Join(base, filepath.FromSlash(adoption.GetAdoptedPath()))); statErr == nil {
+			componentImport = true
 		}
 	}
-	if data, readErr := os.ReadFile(filepath.Join(base, "ui/package.json")); readErr == nil {
-		checks["package"] = strings.Contains(string(data), "@vrooli/react-component-library")
+	packageDeclared := false
+	if data, readErr := os.ReadFile(filepath.Join(base, "ui", "package.json")); readErr == nil {
+		packageDeclared = strings.Contains(string(data), "@vrooli/react-component-library")
 	}
-	result := map[string]any{"scenario": scenario, "token": checks["ui/src/design-tokens.css"], "locale_bridge": checks["ui/src/i18n/locales/en.json"] && checks["ui/src/main.tsx"], "selector": checks["ui/src/consts/selectors.library.ts"] && checks["ui/src/consts/selectors.ts"], "adoption_record": checks["adoption-record"], "package": checks["ui/package.json"], "component_import": checks["component-import"]}
+	result := map[string]any{
+		"scenario":         scenario,
+		"files":            files,
+		"token":            present("designTokens"),
+		"locale_bridge":    present("localeCatalogue") && present("appEntry"),
+		"selector":         present("librarySelectors") && present("selectorRegistry"),
+		"adoption_record":  adoptionRecord,
+		"package":          packageDeclared,
+		"component_import": componentImport,
+	}
 	if ctx.JSON() {
 		return json.NewEncoder(os.Stdout).Encode(result)
 	}
-	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Obligation report for %s", scenario)}, ResultsHeading: "Adoption obligations", Results: []string{fmt.Sprintf("tokens=%t locale-bridge=%t selector=%t adoption-record=%t", result["token"], result["locale_bridge"], result["selector"], result["adoption_record"])}})
+	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Obligation report for %s", scenario)}, ResultsHeading: "Adoption obligations", Results: []string{fmt.Sprintf("tokens=%t locale-bridge=%t selector=%t adoption-record=%t package=%t component-import=%t", result["token"], result["locale_bridge"], result["selector"], result["adoption_record"], result["package"], result["component_import"])}})
 }
 
 func findRepoRoot() (string, error) {

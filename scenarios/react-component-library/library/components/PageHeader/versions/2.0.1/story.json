@@ -1,0 +1,253 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": [
+      {
+        "default": 1,
+        "kind": "enum",
+        "label": "Heading level",
+        "options": [
+          1,
+          2
+        ],
+        "path": "level"
+      },
+      {
+        "default": "comfortable",
+        "kind": "enum",
+        "label": "Density",
+        "options": [
+          "comfortable",
+          "compact"
+        ],
+        "path": "density"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Eyebrow",
+        "path": "eyebrow"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Leading",
+        "path": "leading"
+      },
+      {
+        "default": true,
+        "kind": "boolean",
+        "label": "Actions",
+        "path": "actions"
+      },
+      {
+        "default": false,
+        "kind": "boolean",
+        "label": "Long title",
+        "path": "longTitle"
+      }
+    ]
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "actions": true,
+        "density": "comfortable",
+        "level": 1
+      },
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "The header a routed page opens with: a level-one heading, one line of description, and the page's actions on the right.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Agents",
+          "role": "heading"
+        },
+        {
+          "kind": "role",
+          "name": "New agent",
+          "role": "button"
+        },
+        {
+          "attribute": "data-level",
+          "kind": "attribute",
+          "selector": "[data-testid='story-page-header']",
+          "value": "1"
+        }
+      ],
+      "id": "default",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Title, description, actions",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "level": 2
+      },
+      "axis": "level",
+      "composition": {
+        "specimen": {
+          "export": "LevelAxis",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "level": [
+          1,
+          2
+        ]
+      },
+      "description": "The same header as a level-two section heading inside a page, at the heading ramp rather than the title ramp.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Agents",
+          "role": "heading"
+        },
+        {
+          "attribute": "data-level",
+          "kind": "attribute",
+          "selector": "[data-testid='story-page-header']",
+          "value": "2"
+        }
+      ],
+      "id": "level",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Section heading",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "density": "compact"
+      },
+      "axis": "density",
+      "composition": {
+        "specimen": {
+          "export": "DensityAxis",
+          "module": "./story.tsx"
+        }
+      },
+      "covers": {
+        "density": [
+          "comfortable",
+          "compact"
+        ]
+      },
+      "description": "No bottom rule and a tighter rhythm, for a header that sits inside a list or detail pane rather than at the top of a page.",
+      "expect": [
+        {
+          "attribute": "data-density",
+          "kind": "attribute",
+          "selector": "[data-testid='story-page-header']",
+          "value": "compact"
+        }
+      ],
+      "id": "density",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Compact inside a pane",
+      "role": "axis"
+    },
+    {
+      "args": {
+        "actions": true,
+        "eyebrow": true,
+        "leading": true
+      },
+      "composition": {
+        "specimen": {
+          "export": "FullAnatomy",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "Every optional part present at once: an eyebrow link back to the collection, a leading mark, and two actions.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Agents",
+          "role": "link"
+        },
+        {
+          "kind": "role",
+          "name": "Agents",
+          "role": "heading"
+        },
+        {
+          "kind": "role",
+          "name": "Refresh",
+          "role": "button"
+        }
+      ],
+      "id": "full-anatomy",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Eyebrow, leading, actions",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "actions": true,
+        "longTitle": true
+      },
+      "composition": {
+        "specimen": {
+          "export": "LongTitle",
+          "module": "./story.tsx"
+        }
+      },
+      "description": "A title long enough to wrap; the actions drop under the copy on a phone instead of being pushed off the edge.",
+      "expect": [
+        {
+          "kind": "role",
+          "name": "New agent",
+          "role": "button"
+        },
+        {
+          "kind": "text",
+          "value": "A deliberately long page title that has to wrap on a phone without pushing the actions off the screen"
+        }
+      ],
+      "id": "long-title",
+      "interactions": [
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Long title",
+      "role": "boundary",
+      "states": [
+        "overflow"
+      ]
+    }
+  ],
+  "title": "PageHeader"
+}

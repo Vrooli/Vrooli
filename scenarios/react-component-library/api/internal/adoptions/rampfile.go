@@ -119,7 +119,8 @@ func (s *service) SyncScenarioTokens(ctx context.Context, in TokenSyncInput) (To
 		}
 	}
 	result := TokenSyncResult{Scenario: scenario, Added: sortedKeys(missing)}
-	raw, readErr := s.files.Read(ctx, scenario, tokenRampPath)
+	paths := s.scenarioPaths(scenario)
+	raw, readErr := s.files.Read(ctx, scenario, paths.TokenRamp)
 	if readErr != nil && !isMissingAdoptedFile(readErr) {
 		return TokenSyncResult{}, readErr
 	}
@@ -190,7 +191,7 @@ func (s *service) SyncScenarioTokens(ctx context.Context, in TokenSyncInput) (To
 	ramp.managed = renderRampDeclarations(managed)
 	result.Changed = len(result.Added) > 0 || runtimeCollisionRemoved || contractTierRemoved || !strings.Contains(string(raw), tokenRampBegin)
 	if result.Changed && !in.DryRun {
-		if _, err := s.files.Write(ctx, scenario, tokenRampPath, []byte(ramp.render())); err != nil {
+		if _, err := s.files.Write(ctx, scenario, paths.TokenRamp, []byte(ramp.render())); err != nil {
 			return TokenSyncResult{}, err
 		}
 	}
@@ -206,7 +207,8 @@ func (s *service) PruneScenarioTokens(ctx context.Context, in TokenPruneInput) (
 	if err != nil {
 		return TokenPruneResult{}, err
 	}
-	raw, err := s.files.Read(ctx, scenario, tokenRampPath)
+	paths := s.scenarioPaths(scenario)
+	raw, err := s.files.Read(ctx, scenario, paths.TokenRamp)
 	if err != nil {
 		if isMissingAdoptedFile(err) {
 			return TokenPruneResult{Scenario: scenario}, nil
@@ -236,7 +238,7 @@ func (s *service) PruneScenarioTokens(ctx context.Context, in TokenPruneInput) (
 	result.Changed = len(result.Removed) > 0
 	if result.Changed && in.Apply {
 		ramp.managed = renderRampDeclarations(managed)
-		if _, err := s.files.Write(ctx, scenario, tokenRampPath, []byte(ramp.render())); err != nil {
+		if _, err := s.files.Write(ctx, scenario, paths.TokenRamp, []byte(ramp.render())); err != nil {
 			return TokenPruneResult{}, err
 		}
 	}
