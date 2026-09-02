@@ -19,7 +19,7 @@ import { SyncButton } from "./SyncButton";
 import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { useHeaderState } from "../hooks/useHeaderState";
-import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 
 interface MobileHeaderProps {
   status?: RepoStatus;

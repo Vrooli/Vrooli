@@ -22,7 +22,7 @@
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Workflow search and action discovery | Index `bas/flows` as agent-runnable workflow capabilities, `bas/cases` as validation evidence, and `bas/actions` as hidden dependency fragments with safety-aware ranking.
 - [ ] OT-P1-002 | Deterministic remediation | Preview and apply mechanical fixes for registry freshness, metadata normalization, docs stubs, reset metadata, and unambiguous requirement-label repair.
-- [ ] OT-P1-003 | Operational workflow UI | Provide a dense production UI for inventory, maturity, search, runs, artifacts, findings, fixes, and settings.
+- [x] OT-P1-003 | Operational workflow UI | Provide a dense production UI for inventory, maturity, search, runs, artifacts, findings, fixes, and settings.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Workflow maturity intelligence | Track an L0-L5 workflow maturity ladder across discoverability, traceability, safety, executability, and operational richness.

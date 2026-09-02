@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { strings } from "../../consts/strings";
 import IntegrationsPanel from "../IntegrationsPanel";
 
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 export default function IntegrationsSection({ open }: { open: boolean }) {
   const { t } = useTranslation();

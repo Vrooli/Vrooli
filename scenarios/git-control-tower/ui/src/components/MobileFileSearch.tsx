@@ -15,7 +15,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { BottomSheet } from "./ui/bottom-sheet";
-import { Tabs } from "@vrooli/react-component-library/Tabs/1.2.0";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import { useFileSearch, useContentSearch } from "../lib/hooks";
 import type { FileInfo, ContentSearchMatch, ContentSearchRequest } from "../lib/api";
 import {

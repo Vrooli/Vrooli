@@ -7,11 +7,13 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // createTestDB creates an in-memory SQLite database for testing.
@@ -87,6 +89,33 @@ func createTestService(t *testing.T) (*Service, *sql.DB) {
 	})
 
 	return svc, db
+}
+
+func TestPendingOutboxCountReadsDurableIdentityScopedRows(t *testing.T) {
+	svc, db := createTestService(t)
+	defer db.Close()
+	svc.monetizationOutbox = monetization.NewOutbox(monetization.NewSQLStore(db, monetization.SQLDialectSQLite), nil)
+
+	usage := monetization.Usage{
+		OperationID:  "pending-operation",
+		UserIdentity: "alice@example.com",
+		BundleKey:    "business_suite",
+		AppKey:       "browser-automation-studio",
+		MeterKey:     "workflow_executions",
+		Units:        1,
+		OccurredAt:   time.Now().UTC(),
+	}
+	if err := svc.monetizationOutbox.Enqueue(context.Background(), usage); err != nil {
+		t.Fatalf("enqueue pending usage: %v", err)
+	}
+
+	count, err := svc.PendingOutboxCount(context.Background(), "alice@example.com")
+	if err != nil {
+		t.Fatalf("pending count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("pending count = %d, want 1", count)
+	}
 }
 
 // ============================================================================

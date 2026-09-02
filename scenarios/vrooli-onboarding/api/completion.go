@@ -94,7 +94,7 @@ func assessCompletion(readiness readinessResponse, run *applyRun) completionAsse
 	}
 	if run != nil {
 		for _, item := range run.Items {
-			if item.Outcome == "applied" || item.Outcome == "already_satisfied" {
+			if item.Outcome == "applied" || item.Outcome == "already_satisfied" || item.Outcome == "not_applicable" {
 				continue
 			}
 			assessment.Blockers = append(assessment.Blockers, completionBlocker{

@@ -66,7 +66,7 @@ importers:
         version: file:../../../packages/proto/gen/typescript
       '@vrooli/react-component-library':
         specifier: file:../../../packages/react-component-library
-        version: file:../../../packages/react-component-library(react@18.3.1)
+        version: file:../../../packages/react-component-library(react-dom@18.3.1(react@18.3.1))(react-markdown@9.1.0(@types/react@18.3.29)(react@18.3.1))(react@18.3.1)(remark-gfm@4.0.1)
       '@vrooli/vitest-requirement-reporter':
         specifier: file:../../../packages/vitest-requirement-reporter
         version: file:../../../packages/vitest-requirement-reporter(vitest@3.2.4(@types/debug@4.1.13)(jsdom@27.4.0))
@@ -1295,7 +1295,21 @@ packages:
   '@vrooli/react-component-library@file:../../../packages/react-component-library':
     resolution: {directory: ../../../packages/react-component-library, type: directory}
     peerDependencies:
+      mermaid: '>=11.0.0'
       react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+      react-markdown: '>=10.0.0'
+      remark-gfm: '>=4.0.0'
+      shiki: '>=4.0.0'
+    peerDependenciesMeta:
+      mermaid:
+        optional: true
+      react-markdown:
+        optional: true
+      remark-gfm:
+        optional: true
+      shiki:
+        optional: true
 
   '@vrooli/vitest-requirement-reporter@file:../../../packages/vitest-requirement-reporter':
     resolution: {directory: ../../../packages/vitest-requirement-reporter, type: directory}
@@ -2484,6 +2498,11 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0
 
+  lucide-react@0.424.0:
+    resolution: {integrity: sha512-x2Nj2aytk1iOyHqt4hKenfVlySq0rYxNeEf8hE0o+Yh0iE36Rqz0rkngVdv2uQtjZ70LAE73eeplhhptYt9x4Q==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
+
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
     hasBin: true
@@ -3301,6 +3320,9 @@ packages:
 
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
+
+  tailwind-merge@2.3.0:
+    resolution: {integrity: sha512-vkYrLpIP+lgR0tQCG6AP7zZXCTLc1Lnv/CCRT3BqJ9CZ3ui2++GPaGb1x/ILsINIMSYqqvrpqjUFsMNLlW99EA==}
 
   tailwind-merge@2.6.1:
     resolution: {integrity: sha512-Oo6tHdpZsGpkKG88HJ8RR1rg/RdnEkQEfMoEk2x1XRI3F1AxeU+ijRXpiVUF4UbLfcxxRGw6TbUINKYdWVsQTQ==}
@@ -4771,9 +4793,16 @@ snapshots:
     dependencies:
       '@bufbuild/protobuf': 2.12.0
 
-  '@vrooli/react-component-library@file:../../../packages/react-component-library(react@18.3.1)':
+  '@vrooli/react-component-library@file:../../../packages/react-component-library(react-dom@18.3.1(react@18.3.1))(react-markdown@9.1.0(@types/react@18.3.29)(react@18.3.1))(react@18.3.1)(remark-gfm@4.0.1)':
     dependencies:
+      clsx: 2.1.1
+      lucide-react: 0.424.0(react@18.3.1)
       react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      tailwind-merge: 2.3.0
+    optionalDependencies:
+      react-markdown: 9.1.0(@types/react@18.3.29)(react@18.3.1)
+      remark-gfm: 4.0.1
 
   '@vrooli/vitest-requirement-reporter@file:../../../packages/vitest-requirement-reporter(vitest@3.2.4(@types/debug@4.1.13)(jsdom@27.4.0))':
     dependencies:
@@ -6111,6 +6140,10 @@ snapshots:
     dependencies:
       react: 18.3.1
 
+  lucide-react@0.424.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
   lz-string@1.5.0: {}
 
   magic-string@0.30.21:
@@ -7246,6 +7279,10 @@ snapshots:
   supports-preserve-symlinks-flag@1.0.0: {}
 
   symbol-tree@3.2.4: {}
+
+  tailwind-merge@2.3.0:
+    dependencies:
+      '@babel/runtime': 7.29.2
 
   tailwind-merge@2.6.1: {}
 

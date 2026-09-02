@@ -713,7 +713,7 @@ class GoalImpact(_message.Message):
     def __init__(self, goal_name: _Optional[str] = ..., goal_title: _Optional[str] = ..., deliverable_name: _Optional[str] = ..., projected_priority: _Optional[int] = ...) -> None: ...
 
 class ReleaseLadderEntry(_message.Message):
-    __slots__ = ("deliverable", "unlocked_ramps", "unlocked_streams", "audiences", "cumulative_ramps", "enablers", "goal_impacts")
+    __slots__ = ("deliverable", "unlocked_ramps", "unlocked_streams", "audiences", "cumulative_ramps", "enablers", "goal_impacts", "readiness_goal_exists", "readiness_goal_closed", "readiness_approved_commit")
     DELIVERABLE_FIELD_NUMBER: _ClassVar[int]
     UNLOCKED_RAMPS_FIELD_NUMBER: _ClassVar[int]
     UNLOCKED_STREAMS_FIELD_NUMBER: _ClassVar[int]
@@ -721,6 +721,9 @@ class ReleaseLadderEntry(_message.Message):
     CUMULATIVE_RAMPS_FIELD_NUMBER: _ClassVar[int]
     ENABLERS_FIELD_NUMBER: _ClassVar[int]
     GOAL_IMPACTS_FIELD_NUMBER: _ClassVar[int]
+    READINESS_GOAL_EXISTS_FIELD_NUMBER: _ClassVar[int]
+    READINESS_GOAL_CLOSED_FIELD_NUMBER: _ClassVar[int]
+    READINESS_APPROVED_COMMIT_FIELD_NUMBER: _ClassVar[int]
     deliverable: Node
     unlocked_ramps: _containers.RepeatedCompositeFieldContainer[Node]
     unlocked_streams: _containers.RepeatedCompositeFieldContainer[Node]
@@ -728,7 +731,10 @@ class ReleaseLadderEntry(_message.Message):
     cumulative_ramps: _containers.RepeatedCompositeFieldContainer[Node]
     enablers: _containers.RepeatedCompositeFieldContainer[PrerequisiteNode]
     goal_impacts: _containers.RepeatedCompositeFieldContainer[GoalImpact]
-    def __init__(self, deliverable: _Optional[_Union[Node, _Mapping]] = ..., unlocked_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., unlocked_streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., cumulative_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., enablers: _Optional[_Iterable[_Union[PrerequisiteNode, _Mapping]]] = ..., goal_impacts: _Optional[_Iterable[_Union[GoalImpact, _Mapping]]] = ...) -> None: ...
+    readiness_goal_exists: bool
+    readiness_goal_closed: bool
+    readiness_approved_commit: str
+    def __init__(self, deliverable: _Optional[_Union[Node, _Mapping]] = ..., unlocked_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., unlocked_streams: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., audiences: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., cumulative_ramps: _Optional[_Iterable[_Union[Node, _Mapping]]] = ..., enablers: _Optional[_Iterable[_Union[PrerequisiteNode, _Mapping]]] = ..., goal_impacts: _Optional[_Iterable[_Union[GoalImpact, _Mapping]]] = ..., readiness_goal_exists: _Optional[bool] = ..., readiness_goal_closed: _Optional[bool] = ..., readiness_approved_commit: _Optional[str] = ...) -> None: ...
 
 class ReleaseLadderResponse(_message.Message):
     __slots__ = ("entries", "ramps", "streams", "audiences", "enabling", "availability", "unscheduled")

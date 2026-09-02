@@ -71,6 +71,7 @@ import {
 } from "./banners/useRecoveryBanners";
 import WorkspaceMinimap from "./WorkspaceMinimap";
 import SettingsModal from "./SettingsModal";
+import { SubscriptionBadge } from "@vrooli/react-component-library/MonetizationAccount/2";
 import AppearanceModal from "./AppearanceModal";
 import ManageGroupsDrawer from "./ManageGroupsDrawer";
 import CloseGroupDialog from "./CloseGroupDialog";
@@ -1979,6 +1980,11 @@ export default function Workspace({ appBanners = [] }: WorkspaceProps = {}) {
 
       <TopSafeArea testId="workspace-top-edge">
         <BannerRegion banners={banners} />
+        <div className="flex justify-end px-2 py-1">
+          <div data-testid="subscription-badge">
+            <SubscriptionBadge plan="free" status="inactive" credits={0} onClick={() => { openSettingsTab("account"); }} />
+          </div>
+        </div>
 
         {/* Tab bar (only in tabs mode) */}
         {workspace.displayMode === "tabs" && (

@@ -9,6 +9,7 @@ import { OperationLogModal } from './OperationLogModal';
 import { FeatureAccessList } from './FeatureAccessList';
 import { UpgradePromptSection } from './UpgradePromptSection';
 import { LoadingSpinner } from '@shared/ui';
+import { PendingSyncBadge } from '@vrooli/react-component-library/MonetizationAccount/2.0.0';
 
 export function SubscriptionTab() {
   const {
@@ -16,6 +17,8 @@ export function SubscriptionTab() {
     isLoading,
     fetchStatus,
     getUserEmail,
+    fetchPendingSyncCount,
+    pendingSyncCount,
   } = useEntitlementStore();
 
   // Operation log modal state
@@ -44,6 +47,10 @@ export function SubscriptionTab() {
     void init();
   }, [fetchStatus, getUserEmail]);
 
+  useEffect(() => {
+    void fetchPendingSyncCount();
+  }, [fetchPendingSyncCount]);
+
   // Sync entitlement store when auth user changes
   useEffect(() => {
     if (isAuthenticated && authUser?.email) {
@@ -65,6 +72,8 @@ export function SubscriptionTab() {
     <div className="space-y-8">
       {/* Authentication */}
       <AuthSection />
+
+      {pendingSyncCount !== null && <PendingSyncBadge pending={pendingSyncCount} />}
 
       {/* Status Card - only show if we have status */}
       {status && <SubscriptionStatusCard />}

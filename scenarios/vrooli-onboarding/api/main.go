@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -22,6 +23,7 @@ import (
 type Server struct {
 	router *mux.Router
 	roots  Roots
+	bridge *nodereach.Client
 }
 
 // routingMuxAdapter adapts gorilla/mux's fluent Handle signature to the small
@@ -41,6 +43,7 @@ func NewServer() *Server {
 	srv := &Server{
 		router: mux.NewRouter(),
 		roots:  roots,
+		bridge: nodereach.New(nodereach.Config{}),
 	}
 	srv.setupRoutes()
 	return srv
@@ -49,6 +52,7 @@ func NewServer() *Server {
 func (s *Server) setupRoutes() {
 	s.router.Use(securityHeadersMiddleware)
 	s.router.Use(loggingMiddleware)
+	s.router.Use(s.targetProxyMiddleware)
 	// Health endpoint at both root (for infrastructure) and /api/v1 (for clients)
 	// Uses api-core/health for standardized response format
 	healthHandler := health.New().Version("2.0.0").Handler()
@@ -78,6 +82,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v2/session/step", s.handleV2Session).Methods("POST")
 	s.router.HandleFunc("/api/v2/steps", s.handleV2Steps).Methods("GET")
 	s.router.HandleFunc("/api/v2/operator-inputs", s.handleV2OperatorInputs).Methods("GET")
+	s.router.HandleFunc("/api/v2/targets", s.handleV2Targets).Methods("GET")
 	s.router.Handle("/api/v2/operator-inputs/resolve", onboardingMutationAuth(http.HandlerFunc(s.handleV2OperatorInputsResolve))).Methods("POST")
 	s.router.HandleFunc("/api/v2/capabilities", s.handleV2Capabilities).Methods("GET")
 	s.router.HandleFunc("/api/v2/capabilities/status", s.handleV2Capabilities).Methods("GET")

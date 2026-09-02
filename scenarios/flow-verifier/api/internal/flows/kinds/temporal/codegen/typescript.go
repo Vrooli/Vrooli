@@ -120,8 +120,8 @@ func renderTypeScriptReplayHelper(flow model.Flow) (string, error) {
 	helperPath := flow.Layout.ReplayHelperPath
 	artifactImport := tsRelativeImport(helperPath, flow.Layout.ArtifactPath)
 	runtimeImport := tsRelativeImport(helperPath, strings.TrimSuffix(flow.Layout.RuntimePath, ".ts"))
-	testUtilsImport := tsRelativeImport(helperPath, "ui/src/test-utils")
-	formalNodeImport := tsRelativeImport(helperPath, "ui/src/test-utils/modeltest/formal.node")
+	testUtilsImport := "@vrooli/flow-runtime"
+	formalNodeImport := "@vrooli/flow-runtime/node"
 	statusField := strings.TrimPrefix(flow.Replay.Transition.StatusAccessor, "state.")
 	// In the v6 layout convention, the wrapper is always
 	// <BaseDir>/transition.ts, sibling of the contract.

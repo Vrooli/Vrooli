@@ -103,7 +103,9 @@ describe("MobileNav", () => {
     );
 
     expect(screen.getByTestId("mobile-nav")).toBeInTheDocument();
-    expect(screen.getByTestId("mobile-nav")).toHaveClass("pb-safe");
+    expect(screen.getByTestId("mobile-nav")).toHaveAttribute("data-rcl-bottom-nav-presentation", "flow");
+    expect(screen.getByTestId("mobile-nav")).toHaveAttribute("data-rcl-bottom-nav-safe-area", "floor");
+    expect(screen.getByTestId("mobile-nav")).toHaveAttribute("data-rcl-bottom-nav-indicator", "slide");
     expect(screen.getByTestId("mobile-nav-diff")).toHaveAttribute("aria-current", "page");
     expect(screen.getByTestId("mobile-nav-changes")).toHaveTextContent("99+");
     expect(screen.getByTestId("mobile-nav-commit")).toHaveTextContent("99+");

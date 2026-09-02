@@ -268,7 +268,7 @@ func TestTransitionAuditIsAppendOnly(t *testing.T) { // [REQ:GRAPH-004]
 	require.Equal(t, int32(offerspb.Status_RETIRED), next)
 }
 
-func TestMergeMovesEveryReferenceThenRemovesDuplicate(t *testing.T) { // [REQ:GRAPH-005]
+func TestMergeMovesEveryReferenceThenRetiresDuplicate(t *testing.T) { // [REQ:GRAPH-005]
 	s, ctx := testCatalog(t)
 	survivor, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Same offer", offerspb.Status_IDEA, "", "")
 	require.NoError(t, err)
@@ -303,7 +303,10 @@ func TestMergeMovesEveryReferenceThenRemovesDuplicate(t *testing.T) { // [REQ:GR
 	require.EqualValues(t, 1, report.MovedProposals)
 	require.EqualValues(t, 1, report.MovedFindings)
 	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM nodes WHERE id=?`, duplicate.Id).Scan(&count))
-	require.Zero(t, count)
+	require.Equal(t, 1, count)
+	var retired int32
+	require.NoError(t, s.db.QueryRowContext(ctx, `SELECT status FROM nodes WHERE id=?`, duplicate.Id).Scan(&retired))
+	require.Equal(t, int32(offerspb.Status_RETIRED), retired)
 	for _, table := range []string{"edges", "triggers", "evaluations", "proposals", "migration_findings"} {
 		require.NoError(t, s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table+` WHERE `+map[string]string{"edges": "from_id", "triggers": "node_id", "evaluations": "node_id", "proposals": "node_id", "migration_findings": "node_id"}[table]+`=?`, duplicate.Id).Scan(&count))
 		require.Zero(t, count, table)
@@ -327,6 +330,102 @@ func TestMergeRefusesAcrossKinds(t *testing.T) { // [REQ:GRAPH-005]
 	require.Contains(t, err.Error(), "CHANNEL")
 	require.Contains(t, err.Error(), offer.Id)
 	require.Contains(t, err.Error(), channel.Id)
+}
+
+func TestDerivedUrgencyResolvesThroughRampAndStream(t *testing.T) {
+	s := &Store{}
+	marketed := &offerspb.Node{Id: "system-monitor", Kind: offerspb.NodeKind_DELIVERABLE, DeliverableClass: offerspb.DeliverableClass_MARKETED, ReleaseRank: 2}
+	ramp := &offerspb.Node{Id: "agent", Kind: offerspb.NodeKind_RAMP}
+	enabler := &offerspb.Node{Id: "scenario-to-plugin", Kind: offerspb.NodeKind_DELIVERABLE, DeliverableClass: offerspb.DeliverableClass_ENABLING}
+	got, err := s.derivedUrgencies([]*offerspb.Node{marketed, ramp, enabler}, []*offerspb.Edge{{FromId: marketed.Id, ToId: ramp.Id, Kind: "unlocks"}, {FromId: enabler.Id, ToId: ramp.Id, Kind: "enables"}})
+	require.NoError(t, err)
+	require.EqualValues(t, 2, got[enabler.Id])
+}
+
+func TestDerivedUrgencyIgnoresNonMarketedOpener(t *testing.T) {
+	s := &Store{}
+	opener := &offerspb.Node{Id: "enabler", Kind: offerspb.NodeKind_DELIVERABLE, DeliverableClass: offerspb.DeliverableClass_ENABLING, ReleaseRank: 3}
+	ramp := &offerspb.Node{Id: "ramp", Kind: offerspb.NodeKind_RAMP}
+	got, err := s.derivedUrgencies([]*offerspb.Node{opener, ramp}, []*offerspb.Edge{{FromId: opener.Id, ToId: ramp.Id, Kind: "unlocks"}})
+	require.NoError(t, err)
+	require.Zero(t, got[opener.Id])
+}
+
+func TestDerivedUrgencyUsesEarliestMarketedOpener(t *testing.T) {
+	s := &Store{}
+	first := &offerspb.Node{Id: "first", Kind: offerspb.NodeKind_DELIVERABLE, DeliverableClass: offerspb.DeliverableClass_MARKETED, ReleaseRank: 7}
+	second := &offerspb.Node{Id: "second", Kind: offerspb.NodeKind_DELIVERABLE, DeliverableClass: offerspb.DeliverableClass_MARKETED, ReleaseRank: 3}
+	stream := &offerspb.Node{Id: "stream", Kind: offerspb.NodeKind_STREAM}
+	enabler := &offerspb.Node{Id: "enabler", Kind: offerspb.NodeKind_DELIVERABLE, DeliverableClass: offerspb.DeliverableClass_ENABLING}
+	got, err := s.derivedUrgencies([]*offerspb.Node{first, second, stream, enabler}, []*offerspb.Edge{
+		{FromId: first.Id, ToId: stream.Id, Kind: "unlocks"},
+		{FromId: second.Id, ToId: stream.Id, Kind: "unlocks"},
+		{FromId: enabler.Id, ToId: stream.Id, Kind: "enables"},
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, 3, got[enabler.Id])
+}
+
+func TestReleaseLadderReportsUnscheduledAndFiltersRetired(t *testing.T) {
+	s, ctx := testCatalog(t)
+	ranked, err := s.CreateNodeWithDetails(ctx, offerspb.NodeKind_DELIVERABLE, "Ranked", offerspb.Status_ACTIVE, "", "", offerspb.DeliverableClass_MARKETED, offerspb.FinishBar_CUSTOMER_FACING)
+	require.NoError(t, err)
+	unscheduled, err := s.CreateNodeWithDetails(ctx, offerspb.NodeKind_DELIVERABLE, "Unscheduled", offerspb.Status_IDEA, "", "", offerspb.DeliverableClass_MARKETED, offerspb.FinishBar_CUSTOMER_FACING)
+	require.NoError(t, err)
+	retired, err := s.CreateNodeWithDetails(ctx, offerspb.NodeKind_DELIVERABLE, "Retired", offerspb.Status_RETIRED, "", "", offerspb.DeliverableClass_MARKETED, offerspb.FinishBar_CUSTOMER_FACING)
+	require.NoError(t, err)
+	_, _, err = s.SetReleaseRank(ctx, ranked.Id, 1, "operator")
+	require.NoError(t, err)
+	got, err := s.ReleaseLadder(ctx, false)
+	require.NoError(t, err)
+	require.Len(t, got.Entries, 1)
+	require.Equal(t, unscheduled.Id, got.Unscheduled[0].Id)
+	for _, node := range got.Entries {
+		require.NotEqual(t, retired.Id, node.Deliverable.Id)
+	}
+	got, err = s.ReleaseLadder(ctx, true)
+	require.NoError(t, err)
+	require.Len(t, got.Unscheduled, 2)
+}
+
+func TestReleaseLadderConsumesReadinessProjection(t *testing.T) {
+	s, ctx := testCatalog(t)
+	node, err := s.CreateNodeWithDetails(ctx, offerspb.NodeKind_DELIVERABLE, "Ready deliverable", offerspb.Status_ACTIVE, "", "", offerspb.DeliverableClass_MARKETED, offerspb.FinishBar_CUSTOMER_FACING)
+	require.NoError(t, err)
+	_, _, err = s.SetReleaseRank(ctx, node.Id, 1, "operator")
+	require.NoError(t, err)
+	s.SetReadinessProvider(func(context.Context, *offerspb.Node) (ReadinessState, error) {
+		return ReadinessState{GoalExists: true, GoalClosed: true, ApprovedCommit: "abc"}, nil
+	})
+	got, err := s.ReleaseLadder(ctx, false)
+	require.NoError(t, err)
+	require.Len(t, got.Entries, 1)
+	require.True(t, got.Entries[0].ReadinessGoalExists)
+	require.True(t, got.Entries[0].ReadinessGoalClosed)
+	require.Equal(t, "abc", got.Entries[0].ReadinessApprovedCommit)
+}
+
+func TestRenameNodePreservesEdgesAndRejectsDuplicate(t *testing.T) {
+	s, ctx := testCatalog(t)
+	first, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "First", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	second, err := s.CreateNode(ctx, offerspb.NodeKind_OFFER, "Second", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	target, err := s.CreateNode(ctx, offerspb.NodeKind_VARIANT, "Target", offerspb.Status_IDEA, "", "")
+	require.NoError(t, err)
+	e, err := s.CreateEdge(ctx, &offerspb.Edge{FromId: first.Id, ToId: target.Id, Kind: "sells_at"})
+	require.NoError(t, err)
+	_, _, err = s.RenameNode(ctx, first.Id, "Second", "operator", "rename test")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), second.Id)
+	n, prior, err := s.RenameNode(ctx, first.Id, "Renamed", "operator", "rename test")
+	require.NoError(t, err)
+	require.Equal(t, "First", prior)
+	require.Equal(t, "Renamed", n.Name)
+	edges, err := s.ListEdges(ctx, first.Id)
+	require.NoError(t, err)
+	require.Len(t, edges, 1)
+	require.Equal(t, e.Id, edges[0].Id)
 }
 
 func TestCreateNodeRefusesDuplicateKindAndName(t *testing.T) {

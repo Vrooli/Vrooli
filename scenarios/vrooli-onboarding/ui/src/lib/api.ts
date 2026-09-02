@@ -27,7 +27,18 @@ const API_BASE = resolveApiBase({ appendSuffix: true });
 
 /** Type-safe fetch wrapper that handles error checking and JSON parsing */
 async function typedFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, {
+  let requestURL = url;
+  if (typeof window !== "undefined" && !url.endsWith("/v2/targets")) {
+    const target = new URLSearchParams(window.location.search).get("target");
+    if (target && target !== "local") {
+      const parsed = new URL(url, window.location.origin);
+      if (parsed.pathname.includes("/api/v2/")) {
+        parsed.searchParams.set("target", target);
+        requestURL = parsed.toString();
+      }
+    }
+  }
+  const res = await fetch(requestURL, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
@@ -168,11 +179,17 @@ export function fetchV2Steps() {
   return typedFetch<V2StepsResponse>(url, { cache: "no-store" });
 }
 
-export function fetchOperatorInputs() {
+export function fetchV2Targets() {
+  const url = buildApiUrl("/v2/targets", { baseUrl: API_BASE.replace(/\/v1$/, "") });
+  return typedFetch<import("../types").V2TargetsResponse>(url, { cache: "no-store" });
+}
+
+export function fetchOperatorInputs(target = "local") {
   const url = buildApiUrl("/v2/operator-inputs", {
     baseUrl: API_BASE.replace(/\/v1$/, ""),
   });
-  return typedFetch<OperatorInputQueue>(url, { cache: "no-store" });
+  const separator = url.includes("?") ? "&" : "?";
+  return typedFetch<OperatorInputQueue>(`${url}${separator}target=${encodeURIComponent(target)}`, { cache: "no-store" });
 }
 
 export function fetchCapabilities() {
@@ -211,11 +228,13 @@ export function applyCapability(request: CapabilityActionRequest) {
 
 export function resolveOperatorInputs(
   answers: Array<{ request_id: string; value: string }>,
+  target = "local",
 ) {
   const url = buildApiUrl("/v2/operator-inputs/resolve", {
     baseUrl: API_BASE.replace(/\/v1$/, ""),
   });
-  return typedFetch<{ status: string; configuration_pending: boolean }>(url, {
+  const separator = url.includes("?") ? "&" : "?";
+  return typedFetch<{ status: string; configuration_pending: boolean }>(`${url}${separator}target=${encodeURIComponent(target)}`, {
     method: "POST",
     body: JSON.stringify(answers),
   });

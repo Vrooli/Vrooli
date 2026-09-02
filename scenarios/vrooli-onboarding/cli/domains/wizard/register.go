@@ -1159,6 +1159,10 @@ func apply(core *cliapp.ScenarioApp, args []string) error {
 	if err := json.Unmarshal(body, &selection); err != nil {
 		return fmt.Errorf("decode selection: %w", err)
 	}
+	selection, err = expandSpecialSelection(core, selection)
+	if err != nil {
+		return err
+	}
 	patch := selectionPatch(selection)
 	patchBody, err := json.Marshal(patch)
 	if err != nil {
@@ -1176,6 +1180,107 @@ func apply(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	return cliapp.RenderMutationReport(os.Stdout, cliapp.MutationReport{Result: []string{"Selection committed and applied"}, NextCommand: []string{support.CLIName + " wizard status"}})
+}
+
+// expandSpecialSelection resolves the small set of bridge profile aliases at
+// the node where the selection is committed. The profile document remains
+// portable, while the applied operator state contains concrete names rather
+// than pretending that "all" is a scenario.
+func expandSpecialSelection(core *cliapp.ScenarioApp, selection Selection) (Selection, error) {
+	var err error
+	selection.Scenarios, err = expandScenarioNames(core, selection.Scenarios)
+	if err != nil {
+		return Selection{}, err
+	}
+	selection.OptionalResources, err = expandResourceNames(core, selection.OptionalResources)
+	if err != nil {
+		return Selection{}, err
+	}
+	return selection, nil
+}
+
+func expandScenarioNames(core *cliapp.ScenarioApp, names []string) ([]string, error) {
+	if !containsAlias(names, "all") {
+		return removeAlias(names, "none"), nil
+	}
+	body, err := core.Get("/v2/scenarios", nil)
+	if err != nil {
+		return nil, fmt.Errorf("expand all scenarios: %w", err)
+	}
+	var response struct {
+		Scenarios []struct {
+			Name    string `json:"name"`
+			Enabled bool   `json:"enabled"`
+		} `json:"scenarios"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("decode scenarios while expanding selection: %w", err)
+	}
+	result := removeAlias(names, "all")
+	for _, scenario := range response.Scenarios {
+		if scenario.Enabled {
+			result = append(result, scenario.Name)
+		}
+	}
+	return uniqueNames(result), nil
+}
+
+func expandResourceNames(core *cliapp.ScenarioApp, names []string) ([]string, error) {
+	if !containsAlias(names, "enabled") {
+		return removeAlias(names, "none"), nil
+	}
+	body, err := core.Get("/v2/resources", nil)
+	if err != nil {
+		return nil, fmt.Errorf("expand enabled resources: %w", err)
+	}
+	var response struct {
+		Resources []struct {
+			Name    string `json:"name"`
+			Enabled bool   `json:"enabled"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("decode resources while expanding selection: %w", err)
+	}
+	result := removeAlias(names, "enabled")
+	for _, resource := range response.Resources {
+		if resource.Enabled {
+			result = append(result, resource.Name)
+		}
+	}
+	return uniqueNames(result), nil
+}
+
+func containsAlias(names []string, alias string) bool {
+	for _, name := range names {
+		if name == alias {
+			return true
+		}
+	}
+	return false
+}
+
+func removeAlias(names []string, alias string) []string {
+	result := make([]string, 0, len(names))
+	for _, name := range names {
+		if name != alias {
+			result = append(result, name)
+		}
+	}
+	return result
+}
+
+func uniqueNames(names []string) []string {
+	seen := make(map[string]struct{}, len(names))
+	result := make([]string, 0, len(names))
+	for _, name := range names {
+		if _, ok := seen[name]; ok || strings.TrimSpace(name) == "" {
+			continue
+		}
+		seen[name] = struct{}{}
+		result = append(result, name)
+	}
+	return result
 }
 
 func exportSelection(core *cliapp.ScenarioApp, args []string) error {

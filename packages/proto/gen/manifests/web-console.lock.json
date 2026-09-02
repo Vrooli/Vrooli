@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "web-console",
-  "input_digest": "sha256:d55067ec58735b75b02ecedc5edef2dfcd2f4d6bc59b882a2622cc8d80f9b16c",
+  "input_digest": "sha256:ce1db9199fac6cd9630369160ac2d0aa356351d59576b8662fec974f83e658b9",
   "input_files": [
     "schemas/setup/v1/selection.proto",
     "schemas/vrooli-bridge/v1/credentialgrant/credentialgrant.proto",
@@ -42,7 +42,7 @@
     }
   },
   "outputs": {
-    "gen/go/web-console/v1/ai/ai.pb.go": "sha256:1d33447af6600199d8315d0032ebff42733119c85f8a71bdf238cc6f2fd89e1f",
+    "gen/go/web-console/v1/ai/ai.pb.go": "sha256:95b838f22aa19d46f0493d705768b0ab29ee6be967c3852f5e63afa742fec6c2",
     "gen/go/web-console/v1/ai/ai_v1connect/ai.connect.go": "sha256:d953e597a36709acf2158f7237ccb0690ec73538d3fe8bfa8bf42a01b7c46208",
     "gen/go/web-console/v1/audio_admin/audio_admin.pb.go": "sha256:4e2495a47e4e41c788f0740296ac01e9b8ebcd8bc60c38d9b3727eab129725f4",
     "gen/go/web-console/v1/audio_admin/audio_admin_v1connect/audio_admin.connect.go": "sha256:be6f864531c5acb0eb2584f894531a5761acbab6beac6bca5a8cc02b215c6a66",
@@ -85,8 +85,8 @@
     "gen/go/web-console/v1/workspace/workspace.pb.go": "sha256:c91efba13d04a224df091b8fdb52b0e50136852bb1372e8a3609954ecae2238c",
     "gen/go/web-console/v1/workspace/workspace_v1connect/workspace.connect.go": "sha256:0dec9912ecf212c9760e540879afc267320183f80737f340d2f57821561012b7",
     "gen/python/web_console/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/web_console/v1/ai/ai_pb2.py": "sha256:40d7456944b292d43e0d7e3c3245668fa8a7a27c8650aa5afbe387a66f1c27d6",
-    "gen/python/web_console/v1/ai/ai_pb2.pyi": "sha256:3a31e6aae029a1976f562b759b93a22c39f51c4bc3a7cce5085fbe88702cb51b",
+    "gen/python/web_console/v1/ai/ai_pb2.py": "sha256:6015b67e55daa99a6b85ec5d69f6a736b5fd0c57261c6f09a99db63959c1d2c1",
+    "gen/python/web_console/v1/ai/ai_pb2.pyi": "sha256:c7c1c7b3b51b5a435e2f0f1528be957c5189ad23ff31727e392b4a5c75d7af79",
     "gen/python/web_console/v1/ai/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/web_console/v1/audio_admin/audio_admin_pb2.py": "sha256:b9060d1b8c8ef834072199dccca53dc5df9962fe8e2d7f4f66b5d8580a34e3c3",
     "gen/python/web_console/v1/audio_admin/audio_admin_pb2.pyi": "sha256:352ebcf31962e519fb804a58729773c4c15a8660903329cefb29f1062a372ff8",
@@ -155,7 +155,7 @@
     "gen/python/web_console/v1/workspace/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/web_console/v1/workspace/workspace_pb2.py": "sha256:a5a3028f381c69a0900fef775e93e325763ffbfdc2b13561bbfae697383bb956",
     "gen/python/web_console/v1/workspace/workspace_pb2.pyi": "sha256:297eb21cc5d9ad1069039ba931c9972e647f49778747547877bd2259e7fbbb9e",
-    "gen/typescript/web-console/v1/ai/ai_pb.ts": "sha256:b179f539a8290f81afacf40b37f3de6551ffed972f6fc4407df4f31ff6e9a233",
+    "gen/typescript/web-console/v1/ai/ai_pb.ts": "sha256:cbb82174c04d6b0ec1b4d6379c668d379ab4d57cfd107ab9703b9bf23c2c26d8",
     "gen/typescript/web-console/v1/audio_admin/audio_admin_pb.ts": "sha256:68f28dd9895835e9174cdb3a97a31c00095916c9197f6a7f8e1c7f350985b6e4",
     "gen/typescript/web-console/v1/audio_common/audio_common_pb.ts": "sha256:aa8196ada2f1af8f9946a04543c9739a56cf667baf48511a6ed326a669767045",
     "gen/typescript/web-console/v1/audio_runtime/audio_runtime_pb.ts": "sha256:9ac2f5bf9900ae81a34d038ad512d7f7db45f5e898e536f34d909b7001f4ec5b",

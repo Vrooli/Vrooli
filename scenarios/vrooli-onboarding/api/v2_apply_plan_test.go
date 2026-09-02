@@ -42,3 +42,20 @@ func hasApplyItem(items []applyItem, id string) bool {
 	}
 	return false
 }
+
+func TestBuildApplyPlanKeepsNotApplicableRequirementsAsExplicitItems(t *testing.T) {
+	plan := buildApplyPlan(applyPlanInput{
+		Requirements: hostRequirementsResponse{
+			Tools: []hostItem{{
+				hostRequirement: hostRequirement{Name: "linux-only", Required: true},
+				Status:          "not_applicable",
+			}},
+		},
+	})
+	if len(plan) != 1 || plan[0].ID != "tool:linux-only" {
+		t.Fatalf("not-applicable requirement was omitted: %#v", plan)
+	}
+	if plan[0].State != "not_applicable" {
+		t.Fatalf("state = %q, want not_applicable", plan[0].State)
+	}
+}

@@ -43,8 +43,8 @@ import { FileSection } from "./FileSection";
 import { groupKindLabel } from "../lib/groupKinds";
 import { RunSheet } from "./RunSheet";
 import { runHue } from "../lib/runAttribution";
-import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.2";
-import { Tabs } from "@vrooli/react-component-library/Tabs/1.2.0";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 
 export type { GroupingRule, FileCategory, SelectedFileEntry, FileListProps } from "./FileListTypes";
 

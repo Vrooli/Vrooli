@@ -24,7 +24,6 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
-	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // setupRoutes is the transport assembly point for the API. Domain handlers
@@ -46,9 +45,21 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/health", healthHandler).Methods("GET")
 	s.router.HandleFunc("/api/v1/health", healthHandler).Methods("GET")
 	s.registerOwnerCleanupRoutes()
-	voiceGate := monetizationGate{gate: s.monetization, outbox: s.monetizationOutbox}
-	s.router.Handle("/api/v1/monetization/voice", monetization.InjectEntitlement(http.HandlerFunc(voiceGate.voiceSynthesis))).Methods(http.MethodPost)
-
+	if session := s.subscriptionSessionModule(); session != nil {
+		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Provision).Methods(http.MethodPost)
+		s.router.HandleFunc("/api/v1/auth/subscription/session", session.Status).Methods(http.MethodGet)
+		s.router.HandleFunc("/api/v1/auth/subscription/session", func(w http.ResponseWriter, r *http.Request) {
+			session.Delete(w, r)
+			if s.subscriptionResolver != nil {
+				s.subscriptionResolver.Clear()
+			}
+		}).Methods(http.MethodDelete)
+		s.router.HandleFunc("/api/v1/auth/subscription/summary", s.subscriptionSummaryHandler).Methods(http.MethodGet)
+	}
+	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialProvisionHandler).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/credentials/provision", s.credentialDeleteHandler).Methods(http.MethodDelete)
+	s.router.HandleFunc("/api/v1/credentials/test", s.credentialTestHandler).Methods(http.MethodPost)
+	s.router.HandleFunc("/api/v1/internal/monetization/journey", s.journeyHandler).Methods(http.MethodGet)
 	sessionsH.Module(&sessionsH.Adapter{
 		Manager:             s.sessions,
 		Store:               s.sessionStore,

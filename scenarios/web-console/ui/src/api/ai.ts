@@ -4,6 +4,8 @@ import { createClient } from "@connectrpc/connect";
 import { AIService } from "@vrooli/proto-types/web-console/v1/ai/ai_pb";
 
 import { transport } from "./client";
+import { extractAPIError } from "../lib/errors";
+import { getAccessToken } from "../lib/auth";
 
 export const aiClient = createClient(AIService, transport);
 
@@ -14,7 +16,16 @@ export interface AIGenerateResponse {
 }
 
 export async function generateAICommand(prompt: string, context?: string): Promise<AIGenerateResponse> {
-  const resp = await aiClient.generate({ prompt, context: context ?? "" });
+  const headers = new Headers({ "Content-Type": "application/json" });
+  const accessToken = await getAccessToken();
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  const response = await fetch("/api/v1/ai/generate", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ prompt, context: context ?? "" }),
+  });
+  if (!response.ok) throw await extractAPIError(response, "AI generation failed");
+  const resp = await response.json() as AIGenerateResponse;
   return { command: resp.command, provider: resp.provider };
 }
 
@@ -36,6 +47,8 @@ export interface ProviderConfig {
   priority: number;
   timeout_sec: number;
   max_retries: number;
+  key_configured?: boolean;
+  key_source?: string;
 }
 
 export interface ProviderHealth {
@@ -65,6 +78,8 @@ function decodeProviderConfig(p: AIProviderConfigProto): ProviderConfig {
     priority: p.priority,
     timeout_sec: p.timeoutSec,
     max_retries: p.maxRetries,
+    key_configured: p.keyConfigured,
+    key_source: p.keySource,
   };
 }
 

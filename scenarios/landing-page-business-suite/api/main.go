@@ -368,7 +368,7 @@ func NewServer() (*Server, error) {
 		downloadHosting:      downloadHosting,
 		downloadAuthorizer:   downloadAuthorizer,
 		accountService:       accountService,
-		receiptValidators:    commerce.ReceiptValidators{},
+		receiptValidators:    newReceiptValidators(userAuthService, planService),
 		landingConfigService: newLandingConfigService(configStore, planService, downloadService, stripeService),
 		paymentSettings:      paymentSettings,
 		paymentAnomaly:       paymentAnomaly,

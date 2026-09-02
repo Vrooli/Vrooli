@@ -82,21 +82,7 @@ func (g *Gate) Feature(ctx context.Context, identity, feature string, minPlanRan
 		return fallbackDecision(err, g.upgradePath())
 	}
 	decision := StatusDecision(payload, g.upgradePath())
-	if !decision.Allowed {
-		return decision
-	}
-	if strings.TrimSpace(feature) != "" && !HasFeature(payload, feature) {
-		decision.Allowed = false
-		decision.Reason = ReasonFeatureMissing
-		decision.Warning = false
-		return decision
-	}
-	if minPlanRank > 0 && !AtLeastRank(payload, minPlanRank) {
-		decision.Allowed = false
-		decision.Reason = ReasonRankInsufficient
-		decision.Warning = false
-	}
-	return decision
+	return FeatureDecision(payload, feature, minPlanRank, decision)
 }
 
 // Meter evaluates a declared limit and returns the server-authoritative value.
@@ -132,19 +118,7 @@ func (g *Gate) CachedFeatureAt(identity, feature string, minPlanRank int32, now 
 		return fallbackDecision(err, g.upgradePath())
 	}
 	decision := StatusDecision(payload, g.upgradePath())
-	if !decision.Allowed {
-		return decision
-	}
-	if strings.TrimSpace(feature) != "" && !HasFeature(payload, feature) {
-		decision.Allowed = false
-		decision.Reason = ReasonFeatureMissing
-		return decision
-	}
-	if minPlanRank > 0 && !AtLeastRank(payload, minPlanRank) {
-		decision.Allowed = false
-		decision.Reason = ReasonRankInsufficient
-	}
-	return decision
+	return FeatureDecision(payload, feature, minPlanRank, decision)
 }
 
 // CachedMeter evaluates a local Class B limit without touching the network.
@@ -192,6 +166,28 @@ func StatusDecision(payload entitlementclient.Payload, upgradePath string) Decis
 		decision.Reason = ReasonPastDue
 	default:
 		decision.Reason = ReasonSubscriptionInactive
+	}
+	return decision
+}
+
+// FeatureDecision applies feature and rank requirements to an already
+// verified lease decision. Callers that already have a lease (for example an
+// inbound request middleware) can use this without performing a second
+// authority lookup.
+func FeatureDecision(payload entitlementclient.Payload, feature string, minPlanRank int32, decision Decision) Decision {
+	if !decision.Allowed {
+		return decision
+	}
+	if strings.TrimSpace(feature) != "" && !HasFeature(payload, feature) {
+		decision.Allowed = false
+		decision.Reason = ReasonFeatureMissing
+		decision.Warning = false
+		return decision
+	}
+	if minPlanRank > 0 && !AtLeastRank(payload, minPlanRank) {
+		decision.Allowed = false
+		decision.Reason = ReasonRankInsufficient
+		decision.Warning = false
 	}
 	return decision
 }

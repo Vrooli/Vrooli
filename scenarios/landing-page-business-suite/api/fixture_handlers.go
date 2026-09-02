@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/http"
 	"strings"
+
+	"github.com/vrooli/api-core/database"
 )
 
 // Fixture commands are deliberately HTTP-visible only on a local development
@@ -54,6 +56,13 @@ func fixtureRequestAllowed(r *http.Request) bool {
 	return host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
+func (s *Server) fixtureDB() (*database.RoutedDB, error) {
+	if s.routedDB == nil {
+		return nil, errors.New("fixture database routing is unavailable")
+	}
+	return s.routedDB, nil
+}
+
 func (s *Server) fixtureSeed(w http.ResponseWriter, r *http.Request) {
 	var request fixtureSeedRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -73,7 +82,12 @@ func (s *Server) fixtureSeed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
-	tx, err := s.primaryDB().BeginTx(ctx, nil)
+	db, err := s.fixtureDB()
+	if err != nil {
+		writeJSONError(w, http.StatusServiceUnavailable, err.Error(), ApiErrorTypeServerError)
+		return
+	}
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		writeJSONError(w, http.StatusServiceUnavailable, "fixture database unavailable", ApiErrorTypeServerError)
 		return
@@ -170,8 +184,13 @@ func (s *Server) fixtureBalance(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "email is required", ApiErrorTypeValidation)
 		return
 	}
+	db, err := s.fixtureDB()
+	if err != nil {
+		writeJSONError(w, http.StatusServiceUnavailable, err.Error(), ApiErrorTypeServerError)
+		return
+	}
 	var balance int64
-	if err := s.primaryDB().QueryRowContext(r.Context(), `SELECT COALESCE(balance_credits, 0) FROM credit_wallets WHERE customer_email = $1`, email).Scan(&balance); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err := db.QueryRowContext(r.Context(), `SELECT COALESCE(balance_credits, 0) FROM credit_wallets WHERE customer_email = $1`, email).Scan(&balance); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		writeJSONError(w, http.StatusInternalServerError, "read fixture balance failed", ApiErrorTypeServerError)
 		return
 	}
@@ -189,7 +208,12 @@ func (s *Server) fixtureZero(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, http.StatusBadRequest, "email is required", ApiErrorTypeValidation)
 		return
 	}
-	if _, err := s.primaryDB().ExecContext(r.Context(), `UPDATE credit_wallets SET balance_credits = 0, updated_at = NOW() WHERE customer_email = $1`, email); err != nil {
+	db, err := s.fixtureDB()
+	if err != nil {
+		writeJSONError(w, http.StatusServiceUnavailable, err.Error(), ApiErrorTypeServerError)
+		return
+	}
+	if _, err := db.ExecContext(r.Context(), `UPDATE credit_wallets SET balance_credits = 0, updated_at = NOW() WHERE customer_email = $1`, email); err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "zero fixture balance failed", ApiErrorTypeServerError)
 		return
 	}

@@ -33,7 +33,7 @@ func TestInspectHostReadinessBranches(t *testing.T) {
 	}
 	unsupported := testHost("unsupported", "opted_in")
 	unsupported.Platforms = []string{"not-this-platform"}
-	if got := inspectToolReadiness(unsupported); got.Status != "unsupported" {
+	if got := inspectToolReadiness(unsupported); got.Status != "not_applicable" {
 		t.Fatalf("unsupported tool = %#v", got)
 	}
 	noCommand := testHost("no-command", "required")
@@ -58,7 +58,7 @@ func TestInspectHostReadinessBranches(t *testing.T) {
 	}
 	unsupportedSafeguard := testHost("unsupported", "required")
 	unsupportedSafeguard.Platforms = []string{"not-this-platform"}
-	if got := inspectSafeguardReadiness(root, unsupportedSafeguard); got.Status != "unsupported" {
+	if got := inspectSafeguardReadiness(root, unsupportedSafeguard); got.Status != "not_applicable" {
 		t.Fatalf("unsupported safeguard = %#v", got)
 	}
 	missingSafeguard := testHost("missing", "required")

@@ -126,6 +126,9 @@ message ReleaseLadderEntry {
   repeated Node cumulative_ramps = 5;
   repeated PrerequisiteNode enablers = 6;
   repeated GoalImpact goal_impacts = 7;
+  bool readiness_goal_exists = 8;
+  bool readiness_goal_closed = 9;
+  string readiness_approved_commit = 10;
 }
 message ReleaseLadderResponse { repeated ReleaseLadderEntry entries = 1; repeated Node ramps = 2; repeated Node streams = 3; repeated Node audiences = 4; repeated PrerequisiteNode enabling = 5; repeated Availability availability = 6; repeated Node unscheduled = 7; }
 message SetReleaseRankRequest { string node_id = 1; int32 release_rank = 2; string actor = 3; string reason = 4; }

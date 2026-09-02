@@ -279,6 +279,7 @@ const createSelectorRegistry = <
 
 const literalSelectors: LiteralSelectorTree = {
   workspace: {
+    settings: 'toolbar-settings',
     paneGrid: 'pane-grid',
     newTerminalButton: 'new-terminal-button',
     paneContainer: 'terminal-pane-container',
@@ -289,6 +290,7 @@ const literalSelectors: LiteralSelectorTree = {
     sidebarTopbar: 'workspace-sidebar-topbar',
     sidebarActiveTitle: 'workspace-sidebar-active-title',
     toggleView: 'workspace-toggle-view',
+    topEdge: 'workspace-top-edge',
   },
   terminal: {
     pane: 'terminal-pane',
@@ -399,6 +401,19 @@ const literalSelectors: LiteralSelectorTree = {
   settings: {
     error: 'settings-error',
     createProfile: 'create-profile',
+    account: 'settings-account',
+    accountTab: 'settings-tab-account',
+    integrationsTab: 'settings-tab-integrations',
+    accountRefreshToken: 'account-refresh-token',
+    accountPlan: 'account-plan',
+    accountCredits: 'account-credits',
+    accountPendingSync: 'account-pending-sync',
+    openRouterKeyInput: 'openrouter-key-input',
+    openRouterKeySave: 'openrouter-key-save',
+    openRouterKeyTest: 'openrouter-key-test',
+    openRouterKeyRemove: 'openrouter-key-remove',
+    subscriptionBadge: 'subscription-badge',
+    tunnelManagerAwareness: 'tunnel-manager-awareness',
   },
   toolbar: {
     container: 'mobile-toolbar',
@@ -429,6 +444,7 @@ const literalSelectors: LiteralSelectorTree = {
     errorTooltip: 'voice-error-tooltip',
   },
   ai: {
+    open: 'toolbar-ai',
     input: 'ai-input',
     prompt: 'ai-input-prompt',
     generate: 'ai-input-generate',
@@ -436,6 +452,12 @@ const literalSelectors: LiteralSelectorTree = {
     execute: 'ai-input-execute',
     copy: 'ai-input-copy',
     error: 'ai-input-error',
+    resolutionStrip: 'ai-resolution-strip',
+    providerProvenance: 'ai-provider-provenance',
+  },
+  commercial: {
+    sourceProvenanceAligned: 'body[data-source-provenance-aligned="true"]',
+    localVoiceRefusal: 'body[data-local-voice-refusal="false"]',
   },
   provider: {
     refresh: 'provider-refresh',

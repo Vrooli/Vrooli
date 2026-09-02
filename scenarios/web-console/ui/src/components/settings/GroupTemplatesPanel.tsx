@@ -18,7 +18,7 @@ import { strings } from "../../consts/strings";
 import { cn } from "../../lib/classnames";
 import { Button } from "../ui/button";
 
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 // [REQ:P0-014g] Group Templates
 

@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { StepApply } from "./StepApply";
-import { StepDerivedResources } from "./StepDerivedResources";
-import { StepHostRequirements } from "./StepHostRequirements";
+import { DerivedResourceStep } from "./DerivedResourceStep";
+import { HostRequirementStep } from "./HostRequirementStep";
 import { StepIntegrationsDeferred } from "./StepIntegrationsDeferred";
 import { StepOperatingMode } from "./StepOperatingMode";
 import { StepReadiness } from "./StepReadiness";
-import { StepSelectScenarios } from "./StepSelectScenarios";
+import { ScenarioCatalogStep } from "./ScenarioCatalogStep";
 import { StepCoreSet } from "./StepCoreSet";
 import { StepWelcome } from "./StepWelcome";
 import type { OperatorState, V2Step } from "../../types";
@@ -28,6 +28,7 @@ export interface StepRegistryProps {
     config: Record<string, unknown>,
   ) => void;
   setResourceEnabled: (name: string, enabled: boolean) => void;
+  target: string;
 }
 
 type StepRenderer = (props: StepRegistryProps) => ReactNode;
@@ -35,7 +36,7 @@ type StepRenderer = (props: StepRegistryProps) => ReactNode;
 export const stepRegistry: Record<string, StepRenderer> = {
   welcome: () => <StepWelcome />,
   scenarios: ({ selectedScenarios, toggleScenario }) => (
-    <StepSelectScenarios
+    <ScenarioCatalogStep
       selected={selectedScenarios}
       onToggle={toggleScenario}
     />
@@ -48,16 +49,16 @@ export const stepRegistry: Record<string, StepRenderer> = {
     />
   ),
   resources: ({ selectedScenarios, operatorState, setResourceEnabled }) => (
-    <StepDerivedResources
+    <DerivedResourceStep
       selected={selectedScenarios}
       operatorState={operatorState}
       onToggle={setResourceEnabled}
     />
   ),
-  credentials: () => <StepReadiness title="Credentials" />,
+  credentials: ({ target }) => <StepReadiness title="Credentials" target={target} />,
   integrations: () => <StepIntegrationsDeferred />,
   host: ({ setHostOptIn, setHostConfig }) => (
-    <StepHostRequirements
+    <HostRequirementStep
       onTool={(name, value) => setHostOptIn("host_tools", name, value)}
       onSafeguard={(name, value) =>
         setHostOptIn("host_safeguards", name, value)
@@ -77,5 +78,5 @@ export const stepRegistry: Record<string, StepRenderer> = {
     />
   ),
   apply: () => <StepApply />,
-  validation: () => <StepReadiness title="Validation" />,
+  validation: ({ target }) => <StepReadiness title="Validation" target={target} />,
 };

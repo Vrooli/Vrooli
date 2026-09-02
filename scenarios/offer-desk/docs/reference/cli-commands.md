@@ -9,7 +9,8 @@ same generated Connect contract used by the UI.
 |---|---|---|
 | `catalog-list` | List typed graph nodes. | — |
 | `catalog-import` | Rehearse or apply a declared catalog source. | `--source-path`, `--source-mode`, `--apply` |
-| `catalog-merge` | Dry-run or apply an audited same-kind duplicate merge. Dry-run is the default. | `--surviving-id`, `--duplicate-id`, `--dry-run=false` to apply |
+| `catalog-merge` | Dry-run or apply an audited same-kind duplicate merge; the duplicate is retired after references move. Dry-run is the default. | `--surviving-id`, `--duplicate-id`, `--actor`, `--reason`, `--dry-run=false` to apply |
+| `catalog-rename` | Rename a node while preserving graph references and rejecting same-kind name collisions. | `--node-id`, `--name`, `--actor`, `--reason` |
 | `catalog-create` | Create a graph node. | `--name`, `--actual-account-id` |
 | `catalog-transition` | Apply a legal transition or show refusal/remedy. | `--node-id`, `--status`, `--actor` |
 | `catalog-edge` / `catalog-edges` | Create or list typed relationships. | `--from-id`, `--to-id`, `--kind`, `--currency` |
@@ -45,7 +46,7 @@ comprehensive suite is `vrooli scenario test offer-desk`.
 | `offers catalog-create --name <n> --kind <k> --status <s> --actor <a> --reason <r>` | Create a node. `--kind` is one of `offer`, `variant`, `channel`, `revenue-line`, `deliverable`; an unknown kind is refused rather than defaulted. Actor/reason are recorded for audited canon re-declarations. |
 | `offers catalog-set-class --node-id <id> --class marketed\|enabling --finish-bar <bar>` | Classify a deliverable. Enabling deliverables cannot receive a release rank. |
 | `offers meters` | Show the generated meter inventory and graph conformance gaps. |
-| `offers release-ladder` | Show marketed schedule rows and enabling deliverables separately. |
+| `offers release-ladder` | Show marketed schedule rows, enabling urgency, cumulative ramps, goal impacts, and unscheduled marketed deliverables. Retired nodes are excluded unless requested. |
 | `offers release-prerequisites --stream-node-id <id> --max-depth <n> --include-shipped` | Walk all transitive prerequisites for a stream. |
 | `offers catalog-map-account --node-id <id> --account-id <acct>` | Attach the Money Ledger account whose postings are this node's actuals. Omit `--account-id` to clear. Audited. |
 | `offers catalog-merge --surviving-id <a> --duplicate-id <b>` | Audited duplicate-identity collapse. Dry-runs by default. |

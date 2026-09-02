@@ -9,7 +9,8 @@
         "ai-gateway",
         "audio-tools",
         "browser-automation-studio",
-        "landing-page-business-suite"
+        "landing-page-business-suite",
+        "switchboard"
       ],
       "bundle_keys": [
         "business_suite"
@@ -20,7 +21,7 @@
       "limit_key": "voice_minutes",
       "class": "B",
       "declared_by": [
-        "web-console"
+        "audio-tools"
       ],
       "bundle_keys": [
         "business_suite"

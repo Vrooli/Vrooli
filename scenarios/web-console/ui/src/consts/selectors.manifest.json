@@ -132,6 +132,10 @@
       "testId": "hooks.use-viewport-environment",
       "selector": "[data-testid=\"hooks.use-viewport-environment\"]"
     },
+    "workspace.settings": {
+      "testId": "toolbar-settings",
+      "selector": "[data-testid=\"toolbar-settings\"]"
+    },
     "workspace.paneGrid": {
       "testId": "pane-grid",
       "selector": "[data-testid=\"pane-grid\"]"
@@ -516,6 +520,58 @@
       "testId": "create-profile",
       "selector": "[data-testid=\"create-profile\"]"
     },
+    "settings.account": {
+      "testId": "settings-account",
+      "selector": "[data-testid=\"settings-account\"]"
+    },
+    "settings.accountTab": {
+      "testId": "settings-tab-account",
+      "selector": "[data-testid=\"settings-tab-account\"]"
+    },
+    "settings.integrationsTab": {
+      "testId": "settings-tab-integrations",
+      "selector": "[data-testid=\"settings-tab-integrations\"]"
+    },
+    "settings.accountRefreshToken": {
+      "testId": "account-refresh-token",
+      "selector": "[data-testid=\"account-refresh-token\"]"
+    },
+    "settings.accountPlan": {
+      "testId": "account-plan",
+      "selector": "[data-testid=\"account-plan\"]"
+    },
+    "settings.accountCredits": {
+      "testId": "account-credits",
+      "selector": "[data-testid=\"account-credits\"]"
+    },
+    "settings.accountPendingSync": {
+      "testId": "account-pending-sync",
+      "selector": "[data-testid=\"account-pending-sync\"]"
+    },
+    "settings.openRouterKeyInput": {
+      "testId": "openrouter-key-input",
+      "selector": "[data-testid=\"openrouter-key-input\"]"
+    },
+    "settings.openRouterKeySave": {
+      "testId": "openrouter-key-save",
+      "selector": "[data-testid=\"openrouter-key-save\"]"
+    },
+    "settings.openRouterKeyTest": {
+      "testId": "openrouter-key-test",
+      "selector": "[data-testid=\"openrouter-key-test\"]"
+    },
+    "settings.openRouterKeyRemove": {
+      "testId": "openrouter-key-remove",
+      "selector": "[data-testid=\"openrouter-key-remove\"]"
+    },
+    "settings.subscriptionBadge": {
+      "testId": "subscription-badge",
+      "selector": "[data-testid=\"subscription-badge\"]"
+    },
+    "settings.tunnelManagerAwareness": {
+      "testId": "tunnel-manager-awareness",
+      "selector": "[data-testid=\"tunnel-manager-awareness\"]"
+    },
     "toolbar.container": {
       "testId": "mobile-toolbar",
       "selector": "[data-testid=\"mobile-toolbar\"]"
@@ -588,6 +644,10 @@
       "testId": "voice-error-tooltip",
       "selector": "[data-testid=\"voice-error-tooltip\"]"
     },
+    "ai.open": {
+      "testId": "toolbar-ai",
+      "selector": "[data-testid=\"toolbar-ai\"]"
+    },
     "ai.input": {
       "testId": "ai-input",
       "selector": "[data-testid=\"ai-input\"]"
@@ -615,6 +675,14 @@
     "ai.error": {
       "testId": "ai-input-error",
       "selector": "[data-testid=\"ai-input-error\"]"
+    },
+    "ai.resolutionStrip": {
+      "testId": "ai-resolution-strip",
+      "selector": "[data-testid=\"ai-resolution-strip\"]"
+    },
+    "ai.providerProvenance": {
+      "testId": "ai-provider-provenance",
+      "selector": "[data-testid=\"ai-provider-provenance\"]"
     },
     "provider.refresh": {
       "testId": "provider-refresh",

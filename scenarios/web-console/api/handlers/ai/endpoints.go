@@ -11,6 +11,25 @@ import (
 // RPC in ai.proto breaks this file at compile time.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "ai_generate_rest",
+		Path:        "/api/v1/ai/generate",
+		Method:      "POST",
+		Summary:     "Generate a shell command with payment-required semantics",
+		Description: "Browser REST exception that preserves typed 402 credits refusals and resolves the upgrade destination at runtime.",
+		Category:    "ai",
+		RESTException: &module.RESTException{
+			Reason: "payment_required_semantics",
+			Note:   "Connect transport maps resource exhaustion to 429; this browser endpoint preserves the paid-surface 402 contract.",
+		},
+		Request: &module.Schema{Type: "object", Properties: map[string]string{"prompt": "string", "context": "string"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"command": "string", "provider": "string"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Prompt missing"},
+			{Status: 402, Code: "credits_required", Description: "Routed inference requires credits"},
+			{Status: 503, Code: "unavailable", Description: "All AI providers failed"},
+		},
+	},
+	{
 		ID:          "ai_generate",
 		Path:        aiconnect.AIServiceGenerateProcedure,
 		Method:      "POST",

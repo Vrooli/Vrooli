@@ -3,11 +3,73 @@ package ai
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"connectrpc.com/connect"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestOpenRouterProvider_ResolvesCredentialPerRequest(t *testing.T) {
+	var gotKey string
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		gotKey = r.Header.Get("Authorization")
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"choices":[{"message":{"content":"echo ok"}}]}`)), Header: make(http.Header)}, nil
+	})}
+	p := &OpenRouterProvider{
+		Role: "chat.default", Client: client, KeyResolver: StaticKeyResolver{Key: "authority-key"},
+		Runner: func(context.Context, []string) ([]byte, error) { return []byte("vendor/model"), nil },
+	}
+	got, err := p.Generate(context.Background(), "system", "user")
+	if err != nil || got != "echo ok" {
+		t.Fatalf("Generate = %q, %v", got, err)
+	}
+	if gotKey != "Bearer authority-key" {
+		t.Fatalf("authorization = %q, want authority key", gotKey)
+	}
+}
+
+type meteredInferenceFixture struct {
+	inferenceconnect.UnimplementedInferenceServiceHandler
+	auth string
+	last *inferencev1.RunRequest
+}
+
+func (f *meteredInferenceFixture) Run(_ context.Context, request *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
+	f.auth = request.Header().Get("Authorization")
+	f.last = request.Msg
+	return connect.NewResponse(&inferencev1.RunResponse{ValueJson: `"echo routed"`, Provider: "fixture", Validated: true}), nil
+}
+
+func TestMeteredProvider_ForwardsConsumerTokenAndRemoteProfile(t *testing.T) {
+	fixture := &meteredInferenceFixture{}
+	path, handler := inferenceconnect.NewInferenceServiceHandler(fixture)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	provider := NewMeteredProvider(server.URL)
+	got, err := provider.Generate(WithConsumerToken(context.Background(), "signed-access"), "system", "user")
+	if err != nil || got != "echo routed" {
+		t.Fatalf("Generate = %q, %v", got, err)
+	}
+	if fixture.auth != "Bearer signed-access" {
+		t.Fatalf("authorization = %q", fixture.auth)
+	}
+	if fixture.last == nil || fixture.last.GetProfile() != sharedv1.Profile_PROFILE_REMOTE_ONLY {
+		t.Fatalf("request profile = %v, want remote_only", fixture.last.GetProfile())
+	}
+}
 
 // TestOpenRouterProvider_ResolvesRole verifies the provider resolves a policy
 // role (not a hard-coded slug) through the resource-openrouter seam.

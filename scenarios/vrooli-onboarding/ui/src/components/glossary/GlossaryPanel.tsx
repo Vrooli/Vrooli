@@ -3,13 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Loader2, BookOpen } from "lucide-react";
 import { fetchGlossary } from "../../lib/api";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
-import { SearchInput, type SearchInputHandle } from "../ui/SearchInput";
-import { Button } from "../ui/button";
-import { StatusBadge } from "../ui/StatusBadge";
+import { SearchInput } from "@vrooli/react-component-library/SearchInput/1";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 
 export function GlossaryPanel() {
   const [searchTerm, setSearchTerm] = useState("");
-  const searchRef = useRef<SearchInputHandle>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const { debounced: debouncedSearch, isPending: debouncing } = useDebouncedValue(searchTerm, 300);
 
   const { data, isLoading } = useQuery({
@@ -33,17 +33,25 @@ export function GlossaryPanel() {
 
       {/* Search */}
       <div className="mt-4">
-        <SearchInput
-          ref={searchRef}
-          value={searchTerm}
-          onChange={setSearchTerm}
-          placeholder="Search terms..."
-          ariaLabel="Search glossary terms"
-          testId="glossary-search"
-          clearTestId="glossary-clear-search"
-          busy={debouncing}
-          busyTestId="glossary-debounce-indicator"
-        />
+        <div className="flex items-center gap-2">
+          <SearchInput ref={searchRef} value={searchTerm} onChange={(event) => { setSearchTerm(event.target.value); }} placeholder="Search terms..." aria-label="Search glossary terms" data-testid="glossary-search" />
+          {searchTerm && (
+            <Button
+              type="button"
+              variant="ghost"
+              data-testid="glossary-clear-search"
+              aria-label="Clear glossary search"
+              onClick={() => { setSearchTerm(""); searchRef.current?.focus(); }}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+        {debouncing && (
+          <span className="mt-1 block text-xs text-muted" data-testid="glossary-debounce-indicator" aria-live="polite">
+            Updating results…
+          </span>
+        )}
       </div>
 
       {/* Results count */}

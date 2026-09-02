@@ -1,14 +1,11 @@
 import { create } from 'zustand';
-
-// Get landing page URL from environment or use default
-const landingPageEnv = (import.meta.env as { VITE_LANDING_PAGE_URL?: unknown }).VITE_LANDING_PAGE_URL;
-const LPBS_URL =
-  typeof landingPageEnv === 'string' && landingPageEnv.length > 0
-    ? landingPageEnv
-    : 'https://vrooli.com';
+import { LANDING_PAGE_URL as LPBS_URL } from '@shared/upgradeDestination';
+import { AuthClient } from '@vrooli/react-component-library/AuthClient/1.0.0';
 
 const WEB_ACCESS_TOKEN_KEY = 'vrooli.web.access-token';
 const AUTH_STATE_KEY = 'auth_state';
+
+const localAuthClient = new AuthClient({ baseURL: window.location.origin });
 
 interface WebAccessToken {
   accessToken: string;
@@ -91,12 +88,11 @@ async function completeWebCallback(): Promise<AuthUser | null> {
 
   // The rotating refresh token crosses only the same-origin server boundary;
   // it is never written to browser storage and never returned by BAS.
-  const response = await fetch('/api/v1/auth/subscription/session', {
+  await localAuthClient.request('/api/v1/auth/subscription/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: refreshToken }),
   });
-  if (!response.ok) throw new Error('Subscription session could not be stored');
 
   sessionStorage.setItem(WEB_ACCESS_TOKEN_KEY, JSON.stringify({ accessToken, expiresAt } satisfies WebAccessToken));
   return decodeDisplayClaims(accessToken);
@@ -110,12 +106,9 @@ async function checkWebSession(): Promise<AuthUser | null> {
   // This status endpoint intentionally reveals configuration only; BAS will
   // perform a real signed refresh before using the credential.
   try {
-    const response = await fetch('/api/v1/auth/subscription/session');
-    if (response.ok) {
-      const body = await response.json() as { configured?: boolean };
-      if (body.configured === true) {
-        return { id: 'vrooli-subscription', email: '', emailVerified: true };
-      }
+    const body = await localAuthClient.request<{ configured?: boolean }>('/api/v1/auth/subscription/session');
+    if (body.configured === true) {
+      return { id: 'vrooli-subscription', email: '', emailVerified: true };
     }
   } catch {
     // Offline startup remains unauthenticated until a local token is present.
@@ -220,7 +213,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         // deployments. Best-effort deletion is safe because local state is
         // cleared regardless of network availability.
         try {
-          await fetch('/api/v1/auth/subscription/session', { method: 'DELETE' });
+          await localAuthClient.request('/api/v1/auth/subscription/session', { method: 'DELETE' });
         } catch {
           // Continue clearing browser state.
         }

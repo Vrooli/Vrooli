@@ -86,6 +86,7 @@ type CatalogVerifyReport struct {
 	// NotComparableReason states why the count comparison was skipped. Empty
 	// when Comparable is true.
 	NotComparableReason string
+	ScenarioGaps        []string
 }
 
 type importedNode struct {
@@ -802,6 +803,21 @@ func (s *Store) VerifyCatalog(ctx context.Context, sourcePath string, mode offer
 		return nil, err
 	}
 	report := &CatalogVerifyReport{Files: make([]CatalogVerifyFile, 0, len(importReport.Files))}
+	if root, rootErr := findRepositoryRoot(); rootErr == nil {
+		nodes, nodeErr := s.ListNodes(ctx, offerspb.NodeKind_DELIVERABLE, offerspb.Status_STATUS_UNSPECIFIED)
+		if nodeErr != nil {
+			return nil, nodeErr
+		}
+		for _, node := range nodes {
+			if node.Status == offerspb.Status_RETIRED {
+				continue
+			}
+			if _, statErr := os.Stat(filepath.Join(root, "scenarios", node.Name)); os.IsNotExist(statErr) {
+				report.ScenarioGaps = append(report.ScenarioGaps, fmt.Sprintf("%s (rank %d)", node.Name, node.ReleaseRank))
+			}
+		}
+		sort.Strings(report.ScenarioGaps)
+	}
 	comparableFiles := make([]int, 0)
 	expectedNodes := 0
 	for i, file := range importReport.Files {
@@ -930,6 +946,25 @@ func (s *Store) VerifyCatalog(ctx context.Context, sourcePath string, mode offer
 		}
 	}
 	return report, nil
+}
+
+func findRepositoryRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "scenarios")); err == nil {
+			if _, err := os.Stat(filepath.Join(dir, "packages")); err == nil {
+				return dir, nil
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("repository root not found from %s", dir)
+		}
+		dir = parent
+	}
 }
 
 func boolInt(value bool) int {

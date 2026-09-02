@@ -25,7 +25,7 @@ import { fetchCapabilities } from "../../api/capabilities";
 import { useWorkspaceStore } from "../../stores/useWorkspaceStore";
 import { Button } from "../ui/button";
 
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 function SessionPolicyControl({
   session,

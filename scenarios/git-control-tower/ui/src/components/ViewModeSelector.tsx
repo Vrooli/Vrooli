@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { FileDiff, FileText, Eye } from "lucide-react";
-import { Tabs } from "@vrooli/react-component-library/Tabs/1.2.0";
+import { Tabs } from "@vrooli/react-component-library/Tabs/1";
 import type { ViewMode } from "../lib/api";
 import { getFileTypeInfo } from "../lib/fileTypes";
 

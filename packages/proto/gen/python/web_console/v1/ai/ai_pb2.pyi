@@ -39,18 +39,22 @@ class SuggestResponse(_message.Message):
     def __init__(self, commands: _Optional[_Iterable[str]] = ..., provider: _Optional[str] = ...) -> None: ...
 
 class ProviderConfig(_message.Message):
-    __slots__ = ("name", "enabled", "priority", "timeout_sec", "max_retries")
+    __slots__ = ("name", "enabled", "priority", "timeout_sec", "max_retries", "key_configured", "key_source")
     NAME_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     PRIORITY_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_SEC_FIELD_NUMBER: _ClassVar[int]
     MAX_RETRIES_FIELD_NUMBER: _ClassVar[int]
+    KEY_CONFIGURED_FIELD_NUMBER: _ClassVar[int]
+    KEY_SOURCE_FIELD_NUMBER: _ClassVar[int]
     name: str
     enabled: bool
     priority: int
     timeout_sec: int
     max_retries: int
-    def __init__(self, name: _Optional[str] = ..., enabled: _Optional[bool] = ..., priority: _Optional[int] = ..., timeout_sec: _Optional[int] = ..., max_retries: _Optional[int] = ...) -> None: ...
+    key_configured: bool
+    key_source: str
+    def __init__(self, name: _Optional[str] = ..., enabled: _Optional[bool] = ..., priority: _Optional[int] = ..., timeout_sec: _Optional[int] = ..., max_retries: _Optional[int] = ..., key_configured: _Optional[bool] = ..., key_source: _Optional[str] = ...) -> None: ...
 
 class ProviderHealth(_message.Message):
     __slots__ = ("name", "available", "last_check", "last_latency", "error_count", "success_count", "error_rate")

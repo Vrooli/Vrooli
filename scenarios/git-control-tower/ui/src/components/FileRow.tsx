@@ -16,7 +16,7 @@ import {
 import { useLongPress } from "../hooks";
 import { MobileContext, type FileRowProps } from "./FileListTypes";
 import { runHue } from "../lib/runAttribution";
-import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 
 export const FileRow = memo(function FileRow({
   file,

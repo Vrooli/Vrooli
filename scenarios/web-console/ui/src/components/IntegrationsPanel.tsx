@@ -53,6 +53,19 @@ function supportsBackendAction(cap: CapabilityState): boolean {
   return cap.dependencyKind === "scenario" && (cap.actionKind === "scenario_start" || cap.actionKind === "scenario_restart");
 }
 
+function TunnelManagerAwarenessCard() {
+  return (
+    <div data-testid="tunnel-manager-awareness" className="rounded-lg border border-dashed border-wc-default bg-wc-surface-input/50 px-3 py-2">
+      <div className="flex items-center gap-2">
+        <Circle className="h-4 w-4 text-wc-text-faint" />
+        <span className="text-xs font-medium text-wc-text-primary">Secure remote access</span>
+        <span className="rounded bg-wc-surface px-1.5 py-0.5 text-[11px] text-wc-text-faint">Planned</span>
+      </div>
+      <p className="mt-1 text-[11px] text-wc-text-faint">Tunnel Manager will provide secure remote access in a future release. This card is informational and cannot be activated yet.</p>
+    </div>
+  );
+}
+
 function CapabilityCard({ cap, actionPending, actionResult, actionError, onRunAction }: CapabilityCardProps) {
   const { t } = useTranslation();
   const isUnavailable = cap.status === "unavailable";
@@ -269,6 +282,7 @@ export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
   if (capabilities.length === 0) {
     return (
       <div className="space-y-3">
+        <TunnelManagerAwarenessCard />
         <p className="text-[11px] text-wc-text-faint">{t(strings.integrationsPanel.noneConfigured)}</p>
       </div>
     );
@@ -276,6 +290,7 @@ export default function IntegrationsPanel({ open }: IntegrationsPanelProps) {
 
   return (
     <div className="space-y-4">
+      <TunnelManagerAwarenessCard />
       <div className="flex items-center justify-between px-1">
         <span className="text-[11px] text-wc-text-faint">
           {t(strings.integrationsPanel.activeCount, { active: activeCount, total: capabilities.length })}

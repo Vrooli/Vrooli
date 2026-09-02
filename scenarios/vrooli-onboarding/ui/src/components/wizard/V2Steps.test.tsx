@@ -2,13 +2,13 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import { renderWithProviders } from "@vrooli/api-base/testing";
-import { StepDerivedResources } from "./StepDerivedResources";
-import { StepHostRequirements } from "./StepHostRequirements";
+import { DerivedResourceStep } from "./DerivedResourceStep";
+import { HostRequirementStep } from "./HostRequirementStep";
 import { StepIntegrationsDeferred } from "./StepIntegrationsDeferred";
 import { StepOperatingMode } from "./StepOperatingMode";
 import { StepApply } from "./StepApply";
 import { StepReadiness } from "./StepReadiness";
-import { StepSelectScenarios } from "./StepSelectScenarios";
+import { ScenarioCatalogStep } from "./ScenarioCatalogStep";
 import { StepCoreSet } from "./StepCoreSet";
 
 const api = vi.hoisted(() => ({
@@ -112,7 +112,7 @@ describe("V2 onboarding wizard steps", () => {
   it("derives resources and lets operators select optional scenarios", async () => {
     const onToggle = vi.fn();
     const onResourceToggle = vi.fn();
-    renderWithProviders(<><StepSelectScenarios selected={new Set()} onToggle={onToggle} /><StepDerivedResources selected={new Set(["writer"])} operatorState={{ version: "1", updated_at: "now", resources: { ollama: { enabled: true } } }} onToggle={onResourceToggle} /></>);
+    renderWithProviders(<><ScenarioCatalogStep selected={new Set()} onToggle={onToggle} /><DerivedResourceStep selected={new Set(["writer"])} operatorState={{ version: "1", updated_at: "now", resources: { ollama: { enabled: true } } }} onToggle={onResourceToggle} /></>);
     expect(await screen.findByTestId("scenario-card-writer")).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(screen.getByTestId("scenario-card-writer"));
     expect(onToggle).toHaveBeenCalledWith("writer");
@@ -135,7 +135,7 @@ describe("V2 onboarding wizard steps", () => {
   it("shows manifest-derived host requirements and sends opt-ins to the owner", async () => {
     const onTool = vi.fn();
     const onSafeguard = vi.fn();
-    renderWithProviders(<StepHostRequirements onTool={onTool} onSafeguard={onSafeguard} onHostConfig={vi.fn()} />);
+    renderWithProviders(<HostRequirementStep onTool={onTool} onSafeguard={onSafeguard} onHostConfig={vi.fn()} />);
     expect(await screen.findByText("git")).toBeInTheDocument();
     const firewall = screen.getByRole("checkbox", { name: /firewall/i });
     fireEvent.click(firewall);
@@ -145,7 +145,7 @@ describe("V2 onboarding wizard steps", () => {
 
   it("renders generic manifest config fields and emits their values", async () => {
     const onConfig = vi.fn();
-    renderWithProviders(<StepHostRequirements onTool={vi.fn()} onSafeguard={vi.fn()} onHostConfig={(kind, name, config) => onConfig(kind, name, config)} />);
+    renderWithProviders(<HostRequirementStep onTool={vi.fn()} onSafeguard={vi.fn()} onHostConfig={(kind, name, config) => onConfig(kind, name, config)} />);
     const field = await screen.findByLabelText("target");
     fireEvent.change(field, { target: { value: "collector.example:6666" } });
     expect(onConfig).toHaveBeenCalledWith("host_safeguards", "firewall", { target: "collector.example:6666" });
@@ -233,7 +233,7 @@ describe("V2 onboarding wizard steps", () => {
       }],
     });
     const onConfig = vi.fn();
-    renderWithProviders(<StepHostRequirements onTool={vi.fn()} onSafeguard={vi.fn()} onHostConfig={(kind, name, config) => onConfig(kind, name, config)} />);
+    renderWithProviders(<HostRequirementStep onTool={vi.fn()} onSafeguard={vi.fn()} onHostConfig={(kind, name, config) => onConfig(kind, name, config)} />);
     fireEvent.change(await screen.findByLabelText("mode"), { target: { value: "enforce" } });
     fireEvent.click(screen.getByLabelText("enabled"));
     fireEvent.change(screen.getByLabelText("retries"), { target: { value: "3" } });

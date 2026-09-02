@@ -14,7 +14,7 @@ import { SnippetBodyEditor } from "../snippets/SnippetBodyEditor";
 import { SnippetSaveSheet } from "../snippets/SnippetSaveSheet";
 import { Button } from "../ui/button";
 
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 // [REQ:P0-015g] Personal snippet management
 

@@ -27,12 +27,12 @@ func TestInjectEntitlementIgnoresForgedIdentityHeaders(t *testing.T) {
 
 func TestWriteErrorUsesStableShape(t *testing.T) {
 	recorder := httptest.NewRecorder()
-	WriteError(recorder, http.StatusServiceUnavailable, ErrorAuthorityUnavailable, Decision{Reason: ReasonLeaseUnavailable})
+	WriteError(recorder, http.StatusServiceUnavailable, ErrorAuthorityUnavailable, Decision{Reason: ReasonLeaseUnavailable, UpgradePath: "http://lpbs.local/subscribe"})
 	var got ErrorResponse
 	if err := json.Unmarshal(recorder.Body.Bytes(), &got); err != nil {
 		t.Fatal(err)
 	}
-	if got.ErrorType != ErrorAuthorityUnavailable || !got.Retryable {
+	if got.ErrorType != ErrorAuthorityUnavailable || !got.Retryable || got.UpgradePath != "http://lpbs.local/subscribe" {
 		t.Fatalf("error = %+v", got)
 	}
 }

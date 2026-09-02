@@ -1,28 +1,11 @@
 {
-  "name": "vrooli-onboarding-ui",
-  "version": "1.0.0",
-  "description": "React + Vite front-end for Vrooli Onboarding",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm selector:manifest && pnpm type-check && vite build",
-    "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx",
-    "lint:fix": "eslint src --ext ts,tsx --fix",
-    "strings:check": "node scripts/strings-check.mjs",
-    "type-check": "pnpm selector:manifest && tsc --noEmit",
-    "test": "pnpm selector:manifest && vitest run --coverage",
-    "test:coverage": "pnpm selector:manifest && vitest run --coverage",
-    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
-    "test:no-coverage": "vitest run"
-  },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",
     "@tanstack/react-query": "^5.59.0",
     "@types/node": "^26.3.0",
     "@vrooli/api-base": "file:../../../packages/api-base",
     "@vrooli/iframe-bridge": "file:../../../packages/iframe-bridge",
+    "@vrooli/react-component-library": "file:../../../packages/react-component-library",
     "axe-core": "^4.12.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -35,6 +18,7 @@
     "react-i18next": "15.1.1",
     "tailwind-merge": "^2.3.0"
   },
+  "description": "React + Vite front-end for Vrooli Onboarding",
   "devDependencies": {
     "@eslint/js": "^9",
     "@testing-library/jest-dom": "^6.6.3",
@@ -60,5 +44,22 @@
     "vite": "^5.4.6",
     "vitest": "^2.1.4"
   },
-  "packageManager": "pnpm@9.12.1"
+  "name": "vrooli-onboarding-ui",
+  "packageManager": "pnpm@9.12.1",
+  "private": true,
+  "scripts": {
+    "build": "pnpm selector:manifest \u0026\u0026 pnpm type-check \u0026\u0026 vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "lint": "eslint src --ext ts,tsx",
+    "lint:fix": "eslint src --ext ts,tsx --fix",
+    "preview": "vite preview",
+    "selector:manifest": "node ./scripts/generate-selector-manifest.mjs",
+    "strings:check": "node scripts/strings-check.mjs",
+    "test": "pnpm selector:manifest \u0026\u0026 vitest run --coverage",
+    "test:coverage": "pnpm selector:manifest \u0026\u0026 vitest run --coverage",
+    "test:no-coverage": "vitest run",
+    "type-check": "pnpm selector:manifest \u0026\u0026 tsc --noEmit"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

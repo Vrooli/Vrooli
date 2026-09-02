@@ -13,7 +13,7 @@ import { strings } from "../consts/strings";
 import { Button } from "./ui/button";
 import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 import AppearancePreview from "./appearance/AppearancePreview";
 import HeaderColorPicker from "./appearance/HeaderColorPicker";
 import ThemePicker from "./appearance/ThemePicker";

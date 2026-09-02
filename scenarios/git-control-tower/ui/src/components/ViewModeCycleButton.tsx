@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { List, Layers, FolderTree } from "lucide-react";
 import type { FileViewMode } from "../lib/api";
-import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 
 interface ViewModeCycleButtonProps {
   mode: FileViewMode;

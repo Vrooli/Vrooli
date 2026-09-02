@@ -21,6 +21,7 @@
     "13-remote-terminal-targets/module.json",
     "14-session-groups-roles-and-handoffs/module.json",
     "15-message-snippets-and-actions/module.json",
+    "16-account-and-paid-inference/module.json",
     "90-uncovered-targets/module.json"
   ],
   "modules": [
@@ -113,6 +114,12 @@
       "path": "15-message-snippets-and-actions",
       "priority": "P0",
       "title": "Message Snippets And Actions"
+    },
+    {
+      "id": "MOD-P0-016",
+      "path": "16-account-and-paid-inference",
+      "priority": "P0",
+      "title": "Account And Paid Inference"
     }
   ]
 }

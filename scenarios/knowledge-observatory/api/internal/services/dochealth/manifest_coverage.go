@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"knowledge-observatory/internal/doccontract"
 )
 
 type manifestCoverage struct {
@@ -34,8 +36,10 @@ func checkManifestCoverage(scenarioDir, manifestRel string, requireAll bool, fou
 
 	var manifestDocs []string
 	if perr := parseJSONArray(data, &manifestDocs); perr != nil {
-		if perr := parseJSONDocsField(data, &manifestDocs); perr != nil {
-			return out, coverage, fmt.Errorf("invalid manifest format: %v", perr)
+		if perr := parseJSONSectionsField(data, &manifestDocs); perr != nil {
+			if perr := parseJSONDocsField(data, &manifestDocs); perr != nil {
+				return out, coverage, fmt.Errorf("invalid manifest format: %v", perr)
+			}
 		}
 	}
 
@@ -101,6 +105,40 @@ func parseJSONDocsField(data []byte, out *[]string) error {
 	if err := json.Unmarshal(data, &obj); err != nil {
 		return err
 	}
+	if len(obj.Docs) == 0 {
+		return fmt.Errorf("manifest declares no documents")
+	}
 	*out = obj.Docs
+	return nil
+}
+
+// parseJSONSectionsField reads the v2 scenario docs manifest, whose documents
+// live at sections[].documents[].path. Every real manifest in the repository
+// uses this shape; the bare-array and {"docs":[...]} forms above are older
+// fixtures. Paths are stated relative to docs/, so they are normalized to
+// scenario-relative form to match the discovered file set.
+func parseJSONSectionsField(data []byte, out *[]string) error {
+	var manifest struct {
+		Sections []struct {
+			Documents []struct {
+				Path string `json:"path"`
+			} `json:"documents"`
+		} `json:"sections"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return err
+	}
+	var docs []string
+	for _, section := range manifest.Sections {
+		for _, doc := range section.Documents {
+			if normalized := doccontract.NormalizeManifestPath(doc.Path); normalized != "" {
+				docs = append(docs, normalized)
+			}
+		}
+	}
+	if len(docs) == 0 {
+		return fmt.Errorf("manifest declares no documents in sections")
+	}
+	*out = docs
 	return nil
 }

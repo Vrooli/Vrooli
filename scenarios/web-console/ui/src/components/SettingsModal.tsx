@@ -18,6 +18,7 @@ import SnippetsPanel from "./settings/SnippetsPanel";
 import TtsSettingsSection from "./settings/TtsSettingsSection";
 import VoiceInputSection from "./settings/VoiceInputSection";
 import WorkspaceSection from "./settings/WorkspaceSection";
+import AccountSection from "./settings/AccountSection";
 import {
   DEFAULT_SETTINGS_TAB,
   SETTINGS_TAB_IDS,
@@ -57,6 +58,7 @@ type SettingsSectionComponent = ComponentType<{
 }>;
 
 const SECTION_COMPONENTS: Record<SettingsTabId, SettingsSectionComponent> = {
+  account: AccountSection as SettingsSectionComponent,
   sessions: SessionManagementSection,
   workspace: WorkspaceSection as SettingsSectionComponent,
   "voice-input": VoiceInputSection as SettingsSectionComponent,

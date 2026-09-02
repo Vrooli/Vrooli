@@ -7,6 +7,7 @@ export interface APIErrorBody {
   category?: "validation" | "resource_limit" | "dependency" | "internal";
   recovery?: string;
   retry?: boolean;
+  upgrade_path?: string;
 }
 
 /**
@@ -20,6 +21,7 @@ export class APIError extends Error {
   readonly recovery: string;
   readonly retry: boolean;
   readonly status: number;
+  readonly upgradePath: string;
 
   constructor(status: number, body: APIErrorBody) {
     super(body.error);
@@ -29,6 +31,7 @@ export class APIError extends Error {
     this.category = body.category ?? "internal";
     this.recovery = body.recovery ?? "";
     this.retry = body.retry ?? false;
+    this.upgradePath = body.upgrade_path ?? "";
   }
 }
 
@@ -61,6 +64,7 @@ export interface ErrorInfo {
   message: string;
   recovery?: string;
   retry?: boolean;
+  upgradePath?: string;
 }
 
 /**
@@ -71,7 +75,7 @@ export interface ErrorInfo {
 export function toErrorInfo(err: unknown): ErrorInfo {
   const message = err instanceof Error ? err.message : "Unknown error";
   if (err instanceof APIError) {
-    return { message, recovery: err.recovery || undefined, retry: err.retry || undefined };
+    return { message, recovery: err.recovery || undefined, retry: err.retry || undefined, upgradePath: err.upgradePath || undefined };
   }
   return { message };
 }

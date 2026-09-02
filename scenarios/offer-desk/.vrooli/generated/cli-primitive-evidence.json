@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "offer-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "5d41d899ddffefbd1ed79a8412862f23de059eaa4875dbccd7fdcbd8a52995fb",
+  "manifest_hash": "6edf4d26c32e06340ffa7f7029405b717eed5f6604c98226cdbcf3cc0931ef8b",
   "commands": [
     {
       "path": "offers board-show",
@@ -67,6 +67,14 @@
       "group": "offers",
       "command": "catalog-merge",
       "binding": "CatalogService.MergeNodes",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "offers catalog-rename",
+      "group": "offers",
+      "command": "catalog-rename",
+      "binding": "CatalogService.RenameNode",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },

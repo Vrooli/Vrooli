@@ -61,6 +61,8 @@ message ProviderConfig {
   int32 priority = 3; // lower = tried first
   int32 timeout_sec = 4;
   int32 max_retries = 5;
+  bool key_configured = 6;
+  string key_source = 7; // credential_authority, environment, or none
 }
 
 // ProviderHealth is the runtime health snapshot for a single provider.

@@ -26,10 +26,10 @@ func TestV2HandoffProjectsEffectiveSelectionWithoutOperatorStateInternals(t *tes
 	if !got.Apply || len(got.Scenarios) != 1 || got.Scenarios[0] != "alpha" {
 		t.Fatalf("selection = %+v", got)
 	}
-	if got.OperatingMode["alpha"].AutoRestart != true {
+	if got.OperatingMode["alpha"] != "auto-restart" {
 		t.Fatalf("operating mode = %+v", got.OperatingMode)
 	}
-	if len(got.OptionalResources) != 0 || len(got.Host.Tools) != 0 || len(got.Host.Safeguards) != 0 {
+	if len(got.OptionalResources) != 0 || len(got.HostTools) != 0 || len(got.HostSafeguards) != 0 {
 		t.Fatalf("unexpected optional capabilities = %+v", got)
 	}
 	for _, forbidden := range []string{"selection_digest", "private", "operator-state"} {
@@ -50,6 +50,24 @@ func TestV2HandoffRejectsInvalidIdentityAndUnknownFields(t *testing.T) {
 		if w.Code != http.StatusBadRequest {
 			t.Fatalf("body %s: status = %d, want %d: %s", body, w.Code, http.StatusBadRequest, w.Body.String())
 		}
+	}
+}
+
+func TestV2HandoffUsesMachineDesiredSelection(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_ROOT", root)
+	t.Setenv("BUNDLE_ROOT", "")
+	body := `{"machine_id":"machine-1","node_id":"node-1","node_kind":"agent","desired_selection":{"scenarios":["machine-scenario"],"optional_resources":["machine-resource"],"host_tools":["machine-tool"],"apply":false}}`
+	w := doRequest(t, NewServer(), http.MethodPost, "/api/v2/handoff", body)
+	if w.Code != http.StatusOK {
+		t.Fatalf("handoff = %d: %s", w.Code, w.Body.String())
+	}
+	var got onboardingHandoffSelection
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if !got.Apply || len(got.Scenarios) != 1 || got.Scenarios[0] != "machine-scenario" || len(got.OptionalResources) != 1 || got.OptionalResources[0] != "machine-resource" || len(got.HostTools) != 1 {
+		t.Fatalf("desired selection was not returned: %+v", got)
 	}
 }
 

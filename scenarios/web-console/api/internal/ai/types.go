@@ -8,11 +8,13 @@ const DefaultProviderTimeout = 30 * time.Second
 
 // Config holds the configuration for a single AI provider.
 type Config struct {
-	Name       string `json:"name"`
-	Enabled    bool   `json:"enabled"`
-	Priority   int    `json:"priority"`
-	TimeoutSec int    `json:"timeout_sec"`
-	MaxRetries int    `json:"max_retries"`
+	Name          string `json:"name"`
+	Enabled       bool   `json:"enabled"`
+	Priority      int    `json:"priority"`
+	TimeoutSec    int    `json:"timeout_sec"`
+	MaxRetries    int    `json:"max_retries"`
+	KeyConfigured bool   `json:"key_configured,omitempty"`
+	KeySource     string `json:"key_source,omitempty"`
 }
 
 // Health tracks runtime health for a single AI provider.

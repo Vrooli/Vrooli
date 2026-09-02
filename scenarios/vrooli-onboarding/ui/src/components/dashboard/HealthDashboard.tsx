@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ResourceHealthStatus } from "../../types";
 import { fetchResourceHealth } from "../../lib/api";
 import { cn } from "../../lib/utils";
-import { Button } from "../ui/button";
-import { StatusBadge } from "../ui/StatusBadge";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 
 interface HealthDashboardProps {
   onNavigateToWizard?: () => void;
@@ -40,7 +40,7 @@ function HealthCard({ res }: { res: ResourceHealthStatus }) {
       </div>
       <div className="mt-1.5 hidden items-center gap-2 text-xs text-muted sm:mt-2 sm:flex">
         <StatusBadge>{res.category}</StatusBadge>
-        <StatusBadge tone={res.available ? "healthy" : "warning"}>{res.status}</StatusBadge>
+              <StatusBadge tone={res.available ? "success" : "warning"}>{res.status}</StatusBadge>
       </div>
     </div>
   );
@@ -79,7 +79,7 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
           </span>
           {!isLoading && !error && resources.length > 0 && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={() => void refetch()}
               disabled={isRefetching}
@@ -111,7 +111,7 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
             {error instanceof Error ? error.message : "Unknown error"}
           </p>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => void refetch()}
             className="mt-4"
@@ -131,7 +131,7 @@ export function HealthDashboard({ onNavigateToWizard }: HealthDashboardProps = {
           <p className="mt-1 text-xs text-muted">Complete the setup wizard to configure resources.</p>
           {onNavigateToWizard && (
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={onNavigateToWizard}
               className="mt-4"

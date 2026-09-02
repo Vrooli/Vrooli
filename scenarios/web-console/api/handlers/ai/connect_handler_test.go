@@ -3,10 +3,14 @@ package ai
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
+	internalai "web-console/internal/ai"
 )
 
 type fakeAIService struct {
@@ -15,6 +19,20 @@ type fakeAIService struct {
 	updateErr   error
 	snapshot    ConfigSnapshot
 	updated     UpdateConfigRequest
+}
+
+func TestRESTGenerateCreditsRefusalUsesPaymentRequired(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/ai/generate", strings.NewReader(`{"prompt":"route this"}`))
+	request.Host = "127.0.0.1:16382"
+	request.Header.Set("Authorization", "Bearer signed-access")
+	restGenerateHandler(&fakeAIService{generateErr: internalai.ErrCreditsRequired}).ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusPaymentRequired {
+		t.Fatalf("status = %d, want 402; body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"error_type":"credits_required"`) {
+		t.Fatalf("body = %s, want typed credits error", recorder.Body.String())
+	}
 }
 
 func (f *fakeAIService) Generate(context.Context, string, string) (string, string, error) {

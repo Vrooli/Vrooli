@@ -241,6 +241,8 @@ type ProviderConfig struct {
 	Priority      int32                  `protobuf:"varint,3,opt,name=priority,proto3" json:"priority,omitempty"` // lower = tried first
 	TimeoutSec    int32                  `protobuf:"varint,4,opt,name=timeout_sec,json=timeoutSec,proto3" json:"timeout_sec,omitempty"`
 	MaxRetries    int32                  `protobuf:"varint,5,opt,name=max_retries,json=maxRetries,proto3" json:"max_retries,omitempty"`
+	KeyConfigured bool                   `protobuf:"varint,6,opt,name=key_configured,json=keyConfigured,proto3" json:"key_configured,omitempty"`
+	KeySource     string                 `protobuf:"bytes,7,opt,name=key_source,json=keySource,proto3" json:"key_source,omitempty"` // credential_authority, environment, or none
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -308,6 +310,20 @@ func (x *ProviderConfig) GetMaxRetries() int32 {
 		return x.MaxRetries
 	}
 	return 0
+}
+
+func (x *ProviderConfig) GetKeyConfigured() bool {
+	if x != nil {
+		return x.KeyConfigured
+	}
+	return false
+}
+
+func (x *ProviderConfig) GetKeySource() string {
+	if x != nil {
+		return x.KeySource
+	}
+	return ""
 }
 
 // ProviderHealth is the runtime health snapshot for a single provider.
@@ -750,7 +766,7 @@ const file_web_console_v1_ai_ai_proto_rawDesc = "" +
 	"\acontext\x18\x02 \x01(\tR\acontext\"I\n" +
 	"\x0fSuggestResponse\x12\x1a\n" +
 	"\bcommands\x18\x01 \x03(\tR\bcommands\x12\x1a\n" +
-	"\bprovider\x18\x02 \x01(\tR\bprovider\"\x9c\x01\n" +
+	"\bprovider\x18\x02 \x01(\tR\bprovider\"\xe2\x01\n" +
 	"\x0eProviderConfig\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12\x1a\n" +
@@ -758,7 +774,10 @@ const file_web_console_v1_ai_ai_proto_rawDesc = "" +
 	"\vtimeout_sec\x18\x04 \x01(\x05R\n" +
 	"timeoutSec\x12\x1f\n" +
 	"\vmax_retries\x18\x05 \x01(\x05R\n" +
-	"maxRetries\"\xe9\x01\n" +
+	"maxRetries\x12%\n" +
+	"\x0ekey_configured\x18\x06 \x01(\bR\rkeyConfigured\x12\x1d\n" +
+	"\n" +
+	"key_source\x18\a \x01(\tR\tkeySource\"\xe9\x01\n" +
 	"\x0eProviderHealth\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
 	"\tavailable\x18\x02 \x01(\bR\tavailable\x12\x1d\n" +

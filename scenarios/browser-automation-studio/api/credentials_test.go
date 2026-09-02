@@ -11,6 +11,7 @@ import (
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 type credentialHandlerStore struct{ value string }
@@ -83,7 +84,7 @@ func TestSubscriptionSessionRejectsCrossOriginRemoteRequest(t *testing.T) {
 	req.Host = "bas.example.test"
 	req.Header.Set("Origin", "https://attacker.example.test")
 	res := httptest.NewRecorder()
-	subscriptionSessionHandler(testCredentialClient(t))(res, req)
+	monetization.NewSessionModule(testCredentialClient(t), lpbsAccountIdentity, lpbsAccountField).Provision(res, req)
 	if res.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, body = %s", res.Code, res.Body.String())
 	}
@@ -94,7 +95,7 @@ func TestSubscriptionSessionAcceptsLoopbackWithoutOrigin(t *testing.T) {
 	req.Host = "127.0.0.1:18080"
 	req.RemoteAddr = "127.0.0.1:54321"
 	res := httptest.NewRecorder()
-	subscriptionSessionHandler(testCredentialClient(t))(res, req)
+	monetization.NewSessionModule(testCredentialClient(t), lpbsAccountIdentity, lpbsAccountField).Provision(res, req)
 	if res.Code != http.StatusCreated || strings.Contains(res.Body.String(), "refresh-secret") {
 		t.Fatalf("status/body unsafe: status=%d body=%s", res.Code, res.Body.String())
 	}
@@ -107,7 +108,7 @@ func TestSubscriptionSessionDoesNotTrustSpoofedHostOrForwardedHost(t *testing.T)
 	req.Header.Set("Origin", "https://attacker.example.test")
 	req.Header.Set("X-Forwarded-Host", "attacker.example.test")
 	res := httptest.NewRecorder()
-	subscriptionSessionHandler(testCredentialClient(t))(res, req)
+	monetization.NewSessionModule(testCredentialClient(t), lpbsAccountIdentity, lpbsAccountField).Provision(res, req)
 	if res.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, body = %s; spoofed host headers must not bypass origin checks", res.Code, res.Body.String())
 	}

@@ -1096,6 +1096,11 @@ export const strings = {
     tabHandoffRules: "settings.tabHandoffRules",
     tabTemplates: "settings.tabTemplates",
     tabs: {
+      account: {
+        description: "settings.tabs.account.description",
+        label: "settings.tabs.account.label",
+        shortLabel: "settings.tabs.account.shortLabel",
+      },
       integrations: {
         description: "settings.tabs.integrations.description",
         label: "settings.tabs.integrations.label",

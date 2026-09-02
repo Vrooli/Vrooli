@@ -129,3 +129,10 @@ landing and are tracked here:
   `<Profiler id="FileList">` boundary; if comparison-run data shows
   per-commit cost exceeds ~5 ms or row counts grow into the hundreds,
   virtualize via `@tanstack/react-virtual` (already a dep).
+
+## Work ladder
+
+- Rung: W3
+- Evidence: the shared RCL bottom-navigation implementation and GCT mobile shell were changed together; local lint, type-check, production build, and 44-file/399-test UI validation passed, while the comprehensive scenario run remains in progress at architecture.
+- Blocker: no contract or obligation defect was found for this UI migration; RCL visual contract execution is limited by the unavailable BAS Playwright driver at `127.0.0.1:24485`.
+- Measured: 2026-08-30

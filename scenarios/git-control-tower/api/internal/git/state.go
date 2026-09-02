@@ -68,7 +68,11 @@ func Capture(ctx context.Context, repoDir string) (State, error) {
 // is populated. A non-repository directory returns ErrNotARepository.
 func CaptureWith(ctx context.Context, repoDir string, run Runner) (State, error) {
 	if _, err := run(ctx, repoDir, "rev-parse", "--is-inside-work-tree"); err != nil {
-		return State{}, ErrNotARepository
+		// Keep the stable sentinel for callers that need to classify a
+		// non-repository, but retain the probe failure. The old implementation
+		// erased stderr and made permissions, malformed paths, and canceled
+		// commands indistinguishable from an actually missing work tree.
+		return State{}, fmt.Errorf("%w: %w", ErrNotARepository, err)
 	}
 
 	st := State{Sandboxed: os.Getenv("VROOLI_SANDBOX_MERGED") != ""}

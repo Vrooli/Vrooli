@@ -3,6 +3,78 @@
   "version": "1.0.0",
   "endpoints": [
     {
+      "id": "ai_generate_rest",
+      "path": "/api/v1/ai/generate",
+      "method": "POST",
+      "summary": "Generate a shell command with payment-required semantics",
+      "description": "Browser REST exception that preserves typed 402 credits refusals and resolves the upgrade destination at runtime.",
+      "category": "ai",
+      "rest_exception": {"reason": "payment_required_semantics", "note": "Connect transport maps resource exhaustion to 429; this browser endpoint preserves the paid-surface 402 contract."}
+    },
+    {
+      "id": "subscription_session_provision",
+      "path": "/api/v1/auth/subscription/session",
+      "method": "POST",
+      "summary": "Store a subscription refresh token",
+      "description": "Stores the device-scoped refresh token in the credential authority and returns metadata only.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Carries a browser-supplied refresh token and cannot use generated Connect clients."}
+    },
+    {
+      "id": "subscription_session_status",
+      "path": "/api/v1/auth/subscription/session",
+      "method": "GET",
+      "summary": "Read subscription session status",
+      "description": "Returns whether the subscription refresh token is configured, never the token.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Metadata-only REST exception paired with the browser subscription surface."}
+    },
+    {
+      "id": "subscription_session_delete",
+      "path": "/api/v1/auth/subscription/session",
+      "method": "DELETE",
+      "summary": "Remove the subscription session",
+      "description": "Deletes the device-scoped refresh token and clears the in-process access token.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Credential deletion is a browser REST exception."}
+    },
+    {
+      "id": "subscription_summary",
+      "path": "/api/v1/auth/subscription/summary",
+      "method": "GET",
+      "summary": "Read the paid account summary",
+      "description": "Returns metadata-only account, plan, credit, and synchronization status after authenticating the shared subscription lease.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_surface", "note": "Metadata-only browser REST endpoint for the account surface."}
+    },
+    {
+      "id": "credential_provision",
+      "path": "/api/v1/credentials/provision",
+      "method": "POST",
+      "summary": "Store a declared user credential",
+      "description": "Provisions a declared credential and returns metadata only; credential values never leave the authority.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Carries a browser-supplied secret and cannot use a generated Connect client."}
+    },
+    {
+      "id": "credential_delete",
+      "path": "/api/v1/credentials/provision",
+      "method": "DELETE",
+      "summary": "Remove a declared user credential",
+      "description": "Deletes a credential by identity and field without accepting or returning its value.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Credential deletion is a browser REST exception."}
+    },
+    {
+      "id": "credential_test",
+      "path": "/api/v1/credentials/test",
+      "method": "POST",
+      "summary": "Test the declared OpenRouter credential",
+      "description": "Performs a minimal provider authentication check and returns validity metadata without returning the key.",
+      "category": "auth",
+      "rest_exception": {"reason": "browser_secret_input", "note": "Provider credential verification is a browser REST exception."}
+    },
+    {
       "id": "health",
       "path": "/health",
       "method": "GET",

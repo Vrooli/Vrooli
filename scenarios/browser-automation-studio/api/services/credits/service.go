@@ -1059,6 +1059,16 @@ func (s *Service) DrainOutbox(ctx context.Context, limit int) (int, error) {
 	return s.monetizationOutbox.Drain(ctx, limit)
 }
 
+// PendingOutboxCount reports the durable Class B usage backlog for the
+// account-surface identity. It deliberately reads the outbox store rather
+// than an in-memory worker queue, so the UI remains truthful across restarts.
+func (s *Service) PendingOutboxCount(ctx context.Context, userIdentity string) (int, error) {
+	if s.monetizationOutbox == nil {
+		return 0, errors.New("shared usage outbox is unavailable")
+	}
+	return s.monetizationOutbox.PendingCount(ctx, normalizeIdentity(userIdentity))
+}
+
 func (s *Service) resolveLPBSAccess(ctx context.Context) (string, error) {
 	if s.lpbsAccessToken != nil {
 		return s.lpbsAccessToken(ctx)

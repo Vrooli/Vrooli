@@ -13,7 +13,7 @@ import { strings } from "../../consts/strings";
 import { Button } from "../ui/button";
 
 import { IconButton } from "@vrooli/react-component-library/IconButton";
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 // [REQ:P0-014h] Handoff Capture Rules
 

@@ -1084,6 +1084,11 @@
     "tabHandoffRules": "Suggestions",
     "tabTemplates": "Templates",
     "tabs": {
+      "account": {
+        "description": "Subscription identity, credits, and private provider keys.",
+        "label": "Account",
+        "shortLabel": "Account"
+      },
       "integrations": {
         "description": "Connected services and provider configuration.",
         "label": "Integrations",

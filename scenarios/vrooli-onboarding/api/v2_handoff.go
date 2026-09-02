@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
 
 const onboardingHandoffBodyLimit = 64 << 10
@@ -14,27 +16,13 @@ const onboardingHandoffBodyLimit = 64 << 10
 // bridge sends identity only; onboarding remains the authority for the
 // selection that is returned.
 type onboardingHandoffRequest struct {
-	MachineID string `json:"machine_id"`
-	NodeID    string `json:"node_id"`
-	NodeKind  string `json:"node_kind"`
+	MachineID        string                      `json:"machine_id"`
+	NodeID           string                      `json:"node_id"`
+	NodeKind         string                      `json:"node_kind"`
+	DesiredSelection *onboardingHandoffSelection `json:"desired_selection,omitempty"`
 }
 
-type onboardingHandoffSelection struct {
-	Scenarios         []string                         `json:"scenarios,omitempty"`
-	OptionalResources []string                         `json:"optional_resources,omitempty"`
-	Host              onboardingHandoffHost            `json:"host,omitempty"`
-	OperatingMode     map[string]onboardingHandoffMode `json:"operating_mode,omitempty"`
-	Apply             bool                             `json:"apply"`
-}
-
-type onboardingHandoffHost struct {
-	Tools      []string `json:"tools,omitempty"`
-	Safeguards []string `json:"safeguards,omitempty"`
-}
-
-type onboardingHandoffMode struct {
-	AutoRestart bool `json:"auto_restart"`
-}
+type onboardingHandoffSelection = setupv1.Selection
 
 // handleV2Handoff is the read-only JSON seam consumed by vrooli-bridge. It
 // projects the effective, manifest-derived selection into the bridge contract
@@ -49,6 +37,19 @@ func (s *Server) handleV2Handoff(w http.ResponseWriter, r *http.Request) {
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&request); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid onboarding handoff request: " + err.Error()})
+		return
+	}
+	if request.DesiredSelection != nil {
+		selection := *request.DesiredSelection
+		selection.Apply = true
+		sort.Strings(selection.Scenarios)
+		sort.Strings(selection.OptionalResources)
+		sort.Strings(selection.HostTools)
+		sort.Strings(selection.HostSafeguards)
+		if len(selection.OperatingMode) == 0 {
+			selection.OperatingMode = nil
+		}
+		writeJSON(w, http.StatusOK, selection)
 		return
 	}
 	if strings.TrimSpace(request.NodeID) == "" {
@@ -96,13 +97,13 @@ func (s *Server) handleV2Handoff(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	selection := onboardingHandoffSelection{Apply: true, OperatingMode: map[string]onboardingHandoffMode{}}
+	selection := onboardingHandoffSelection{SchemaVersion: "v1", Apply: true, OperatingMode: map[string]string{}}
 	for _, model := range models {
 		if model.Enabled {
 			selection.Scenarios = append(selection.Scenarios, model.Name)
 		}
 		if choice, ok := state.Scenarios[model.Name]; ok && choice.AutoRestart != nil {
-			selection.OperatingMode[model.Name] = onboardingHandoffMode{AutoRestart: *choice.AutoRestart}
+			selection.OperatingMode[model.Name] = map[bool]string{true: "auto-restart", false: "manual"}[*choice.AutoRestart]
 		}
 	}
 	for _, member := range closure.Resources {
@@ -112,18 +113,18 @@ func (s *Server) handleV2Handoff(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, item := range requirements.Tools {
 		if item.Status == "opted_in" {
-			selection.Host.Tools = append(selection.Host.Tools, item.Name)
+			selection.HostTools = append(selection.HostTools, item.Name)
 		}
 	}
 	for _, item := range requirements.Safeguards {
 		if item.Status == "opted_in" {
-			selection.Host.Safeguards = append(selection.Host.Safeguards, item.Name)
+			selection.HostSafeguards = append(selection.HostSafeguards, item.Name)
 		}
 	}
 	sort.Strings(selection.Scenarios)
 	sort.Strings(selection.OptionalResources)
-	sort.Strings(selection.Host.Tools)
-	sort.Strings(selection.Host.Safeguards)
+	sort.Strings(selection.HostTools)
+	sort.Strings(selection.HostSafeguards)
 	if len(selection.OperatingMode) == 0 {
 		selection.OperatingMode = nil
 	}

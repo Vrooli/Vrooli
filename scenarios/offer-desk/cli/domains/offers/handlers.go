@@ -41,7 +41,7 @@ func (h *handlers) catalogImport(c cliapp.OperationContext) (*offerspb.ImportCat
 	if strings.EqualFold(c.Flag("source-mode"), "fixture") {
 		mode = offerspb.SourceMode_SOURCE_MODE_FIXTURE
 	}
-	r, err := h.c.ImportCatalog(context.Background(), connect.NewRequest(&offerspb.ImportCatalogRequest{SourcePath: c.Flag("source-path"), SourceMode: mode, Apply: strings.EqualFold(c.Flag("apply"), "true"), Actor: "operator"}))
+	r, err := h.c.ImportCatalog(context.Background(), connect.NewRequest(&offerspb.ImportCatalogRequest{SourcePath: c.Flag("source-path"), SourceMode: mode, Apply: strings.EqualFold(c.Flag("apply"), "true"), Actor: c.Flag("actor")}))
 	if err != nil && r == nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (h *handlers) catalogMerge(c cliapp.OperationContext) (*offerspb.MergeNodes
 	if raw := strings.TrimSpace(c.Flag("dry-run")); raw != "" {
 		dryRun = !strings.EqualFold(raw, "false")
 	}
-	r, err := h.c.MergeNodes(context.Background(), connect.NewRequest(&offerspb.MergeNodesRequest{SurvivingId: c.Flag("surviving-id"), DuplicateId: c.Flag("duplicate-id"), Actor: "operator", DryRun: dryRun}))
+	r, err := h.c.MergeNodes(context.Background(), connect.NewRequest(&offerspb.MergeNodesRequest{SurvivingId: c.Flag("surviving-id"), DuplicateId: c.Flag("duplicate-id"), Actor: c.Flag("actor"), Reason: c.Flag("reason"), DryRun: dryRun}))
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (h *handlers) create(c cliapp.OperationContext) (*offerspb.CreateNodeRespon
 }
 
 func (h *handlers) setClass(c cliapp.OperationContext) (*offerspb.SetDeliverableClassResponse, error) {
-	r, err := h.c.SetDeliverableClass(context.Background(), connect.NewRequest(&offerspb.SetDeliverableClassRequest{NodeId: c.Flag("node-id"), DeliverableClass: parseDeliverableClass(c.Flag("class")), FinishBar: parseFinishBar(c.Flag("finish-bar")), Actor: "operator"}))
+	r, err := h.c.SetDeliverableClass(context.Background(), connect.NewRequest(&offerspb.SetDeliverableClassRequest{NodeId: c.Flag("node-id"), DeliverableClass: parseDeliverableClass(c.Flag("class")), FinishBar: parseFinishBar(c.Flag("finish-bar")), Actor: c.Flag("actor"), Reason: c.Flag("reason")}))
 	if err != nil {
 		return nil, err
 	}
@@ -271,11 +271,23 @@ func (h *handlers) enabling(c cliapp.OperationContext) (*offerspb.ReleaseLadderR
 
 func (h *handlers) rank(c cliapp.OperationContext) (*offerspb.SetReleaseRankResponse, error) {
 	rank := int32(parseInt(c.Flag("release-rank")))
-	r, err := h.c.SetReleaseRank(context.Background(), connect.NewRequest(&offerspb.SetReleaseRankRequest{NodeId: c.Flag("node-id"), ReleaseRank: rank, Actor: "operator"}))
+	r, err := h.c.SetReleaseRank(context.Background(), connect.NewRequest(&offerspb.SetReleaseRankRequest{NodeId: c.Flag("node-id"), ReleaseRank: rank, Actor: c.Flag("actor"), Reason: c.Flag("reason")}))
 	if err != nil {
 		return nil, err
 	}
 	return r.Msg, nil
+}
+
+func (h *handlers) rename(c cliapp.OperationContext) (*offerspb.RenameNodeResponse, error) {
+	r, err := h.c.RenameNode(context.Background(), connect.NewRequest(&offerspb.RenameNodeRequest{NodeId: c.Flag("node-id"), Name: c.Flag("name"), Actor: c.Flag("actor"), Reason: c.Flag("reason")}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func renameReport(_ cliapp.OperationContext, m *offerspb.RenameNodeResponse) cliapp.MutationReport {
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Renamed %s to %s (prior name %s).", m.Node.Id, m.Node.Name, m.PriorName)}}
 }
 
 func (h *handlers) prerequisites(c cliapp.OperationContext) (*offerspb.PrerequisiteWalkResponse, error) {
@@ -391,7 +403,7 @@ func catalogImportReport(_ cliapp.OperationContext, m *offerspb.ImportCatalogRes
 
 func (h *handlers) catalogMapAccount(c cliapp.OperationContext) (*offerspb.MapAccountResponse, error) {
 	r, err := h.c.MapAccount(context.Background(), connect.NewRequest(&offerspb.MapAccountRequest{
-		NodeId: c.Flag("node-id"), ActualAccountId: c.Flag("account-id"), Actor: "operator", Reason: c.Flag("reason"),
+		NodeId: c.Flag("node-id"), ActualAccountId: c.Flag("account-id"), Actor: c.Flag("actor"), Reason: c.Flag("reason"),
 	}))
 	if err != nil {
 		return nil, err
@@ -416,7 +428,7 @@ func catalogMergeReport(_ cliapp.OperationContext, m *offerspb.MergeNodesRespons
 }
 
 func catalogVerifyReport(_ cliapp.OperationContext, m *offerspb.VerifyCatalogResponse) cliapp.ListReport {
-	summary := []string{fmt.Sprintf("Catalog verification reconciled=%t, comparable=%t, files=%d, drift=%d, duplicate_identities=%d, orphan_edges=%d, extra_nodes=%d.", m.Reconciled, m.Comparable, len(m.Files), m.TotalDrift, len(m.DuplicateIdentities), len(m.OrphanEdgeIds), len(m.ExtraNodeIds))}
+	summary := []string{fmt.Sprintf("Catalog verification reconciled=%t, comparable=%t, files=%d, drift=%d, duplicate_identities=%d, orphan_edges=%d, extra_nodes=%d, scenario_gaps=%d.", m.Reconciled, m.Comparable, len(m.Files), m.TotalDrift, len(m.DuplicateIdentities), len(m.OrphanEdgeIds), len(m.ExtraNodeIds), len(m.ScenarioGaps))}
 	// A bare "reconciled=true" reads as "the import was verified" even when no
 	// count comparison ran. The reason is printed beside it so a human cannot
 	// draw that conclusion from this output alone.

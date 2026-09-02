@@ -1,3 +1,5 @@
+import { librarySelectors } from "./selectors.library";
+export { librarySelectors };
 /**
  * Vrooli Ascension selector registry
  *
@@ -459,7 +461,7 @@ const dynamicSelectorDefinitions: DynamicSelectorTree = {
   },
 };
 
-const registry = createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions);
+const registry = createSelectorRegistry({ library: librarySelectors, ...literalSelectors }, dynamicSelectorDefinitions);
 
 export const selectors = registry.selectors;
 export type Selectors = typeof selectors;

@@ -75,7 +75,7 @@
           "ref": "ui/src/components/wizard/V2Steps.test.tsx",
           "phase": "unit",
           "status": "failing",
-          "notes": "Evidence target: `ui/src/components/wizard/StepHostRequirements.test.tsx`; this requirement remains planned until that evidence is added. a fixture safeguard with a novel config schema renders its fields and emits a validated patch."
+          "notes": "Evidence target: `ui/src/components/wizard/HostRequirementStep.test.tsx`; this requirement remains planned until that evidence is added. a fixture safeguard with a novel config schema renders its fields and emits a validated patch."
         }
       ]
     },

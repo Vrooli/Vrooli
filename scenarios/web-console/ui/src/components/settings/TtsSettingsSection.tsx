@@ -15,7 +15,7 @@ import { getTTSHookStatus, updateTTSHookConfig } from "../../api/ttsHook";
 import { useTextToSpeech } from "../../hooks/useTextToSpeech";
 import { SettingsSlider, SettingsToggle } from "./primitives";
 import { useSummarizeSettings } from "./useSummarizeSettings";
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 // TtsSettingsSection split-of-concerns:
 //   - voice / speed / response-format / summarization knobs → audio-integration

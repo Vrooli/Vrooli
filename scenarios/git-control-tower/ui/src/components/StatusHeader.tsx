@@ -10,7 +10,7 @@ import type { ViewingFileBlame } from "./BlameModeHeader";
 import { BranchSelector, type BranchActions, type RepoActions } from "./BranchSelector";
 import { HealthIndicator } from "./HealthIndicator";
 import { FileStatsBadges } from "./FileStatsBadges";
-import { IconButton } from "@vrooli/react-component-library/IconButton/3.1.2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
 import { HistoryModeHeader } from "./HistoryModeHeader";
 import { BlameModeHeader } from "./BlameModeHeader";
 import { SyncButton } from "./SyncButton";

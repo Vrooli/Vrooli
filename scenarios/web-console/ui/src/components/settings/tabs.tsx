@@ -11,11 +11,13 @@ import {
   TerminalSquare,
   Volume2,
   Waves,
+  CircleUserRound,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { strings } from "../../consts/strings";
 
 export const SETTINGS_TAB_IDS = [
+  "account",
   "sessions",
   "workspace",
   "voice-input",
@@ -39,6 +41,7 @@ export interface SettingsTabDefinition {
 }
 
 const TAB_ICONS: Record<SettingsTabId, typeof TerminalSquare> = {
+  account: CircleUserRound,
   sessions: TerminalSquare,
   workspace: Settings2,
   "voice-input": Waves,
@@ -52,6 +55,11 @@ const TAB_ICONS: Record<SettingsTabId, typeof TerminalSquare> = {
 };
 
 const TAB_STRING_KEYS = {
+  account: {
+    label: "settings.tabs.account.label",
+    shortLabel: "settings.tabs.account.shortLabel",
+    description: "settings.tabs.account.description",
+  },
   sessions: {
     label: strings.settings.tabs.sessions.label,
     shortLabel: strings.settings.tabs.sessions.shortLabel,

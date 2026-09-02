@@ -9,6 +9,7 @@ import {
   type ErrorEnvelope,
 } from "@vrooli/proto-types/web-console/v1/errors/errors_pb";
 import { deviceIdentity } from "../lib/deviceIdentity";
+import { getAccessToken } from "../lib/auth";
 
 export const API_BASE = resolveApiBase();
 /** HTTP base for legacy REST/WebSocket routes that live below /api/v1. */
@@ -20,9 +21,11 @@ const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 // live at /vrooli.web_console.v1.<domain>.<Service>/<RPC>).
 export const transport = createScenarioConnectTransport({
   baseUrl: API_BASE,
-  fetch: (input, init) => {
+  fetch: async (input, init) => {
     const headers = new Headers(init?.headers);
     headers.set("X-Vrooli-Device-Id", deviceIdentity().id);
+    const token = await getAccessToken();
+    if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
     const request = globalThis["fetch"];
     return request(input, { ...init, headers });
   },

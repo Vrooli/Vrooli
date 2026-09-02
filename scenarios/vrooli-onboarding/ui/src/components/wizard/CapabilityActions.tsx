@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { applyCapability, previewCapability } from "../../lib/api";
 import type { CapabilityInput, CapabilityPreview, CapabilityResult, CapabilityStatus } from "../../types";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 
 interface CapabilityActionsProps {
   statuses: CapabilityStatus[];
@@ -140,7 +140,7 @@ function CapabilityCard({
     {preview && <div className="mt-3 rounded-md border border-primary-soft/30 bg-primary-soft/10 p-3 text-sm" data-testid={`capability-preview-${descriptor.id}`}><p className="font-medium">Review preview</p><ul className="mt-1 list-disc pl-5">{(preview.mutations ?? []).map((mutation) => <li key={mutation.id}>{mutation.summary}{mutation.reversible ? " · reversible" : ""}</li>)}</ul>{preview.remediation && <p className="mt-2 text-xs text-muted">{preview.remediation}</p>}</div>}
     {result && <div className={`mt-3 rounded-md border p-3 text-sm ${result.state === "ready" ? "border-primary-soft/30 bg-primary-soft/10" : "border-warning/30 bg-warning-surface"}`} data-testid={`capability-result-${descriptor.id}`} role="status"><p className="font-medium">{result.outcome} · {result.state}</p>{result.remediation && <p className="mt-1 text-xs text-muted">{result.remediation}</p>}{result.evidence && <EvidenceList evidence={result.evidence} />}</div>}
     {hasAction && <div className="mt-3 flex flex-wrap gap-2">
-      <Button type="button" variant="outline" disabled={busy || !canPreview} onClick={() => { void onPreview(); }}>{busy ? "Working…" : "Preview"}</Button>
+      <Button type="button" variant="secondary" disabled={busy || !canPreview} onClick={() => { void onPreview(); }}>{busy ? "Working…" : "Preview"}</Button>
       <Button type="button" disabled={busy || !canApply} onClick={() => { void onApply(); }}>Apply reviewed capability</Button>
     </div>}
   </article>;

@@ -1,5 +1,25 @@
 {
   "selectors": {
+    "library.forms.search-input.root": {
+      "testId": "forms.search-input",
+      "selector": "[data-testid=\"forms.search-input\"]"
+    },
+    "library.controls.button.root": {
+      "testId": "controls.button",
+      "selector": "[data-testid=\"controls.button\"]"
+    },
+    "library.controls.button.icon": {
+      "testId": "controls.button.icon",
+      "selector": "[data-testid=\"controls.button.icon\"]"
+    },
+    "library.controls.button.label": {
+      "testId": "controls.button.label",
+      "selector": "[data-testid=\"controls.button.label\"]"
+    },
+    "library.react-component-library:StatusBadge.root": {
+      "testId": "react-component-library:StatusBadge",
+      "selector": "[data-testid=\"react-component-library:StatusBadge\"]"
+    },
     "app.skipToContent": {
       "testId": "skip-to-content",
       "selector": "[data-testid=\"skip-to-content\"]"

@@ -99,6 +99,8 @@ func TestRenderTypeScriptEmitsReplayHelper(t *testing.T) {
 		"statusOf: (state) => state.status",
 		"assertFormalTransitionsReplay",
 		"assertFormalTracesReplay",
+		`from "@vrooli/flow-runtime"`,
+		`from "@vrooli/flow-runtime/node"`,
 	} {
 		if !strings.Contains(helper, want) {
 			t.Fatalf("generated TypeScript replay helper missing %q:\n%s", want, helper)

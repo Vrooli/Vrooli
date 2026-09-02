@@ -165,9 +165,18 @@ func protoGrid(grid internalportability.Grid, entries []internalportability.Entr
 				Mismatch:      platform.Mismatch, Reason: platform.Reason,
 			}
 			for _, architecture := range platform.Architectures {
-				platformClaim.Architectures = append(platformClaim.Architectures, &portabilityv1.ResourceArchitectureStatus{
+				status := &portabilityv1.ResourceArchitectureStatus{
 					Architecture: architecture.Architecture, Support: architecture.Support, Reason: architecture.Reason,
-				})
+					Qualification: string(architecture.Qualification), QualificationReason: architecture.Reason,
+					AgeDays: int32(architecture.AgeDays), Aged: architecture.Aged,
+					AcquisitionResolvable: architecture.AcquisitionResolvable, AcquisitionReason: architecture.AcquisitionReason,
+				}
+				if architecture.Evidence != nil {
+					status.EvidenceNode = architecture.Evidence.Node
+					status.EvidenceRunId = architecture.Evidence.RunID
+					status.EvidenceObservedAt = timestamppb.New(architecture.Evidence.ObservedAt)
+				}
+				platformClaim.Architectures = append(platformClaim.Architectures, status)
 			}
 			claim.Platforms = append(claim.Platforms, platformClaim)
 		}

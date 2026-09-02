@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/ai"
+	internalai "web-console/internal/ai"
 )
 
 // Deps wires the seams the Connect AI handler needs.
@@ -43,6 +44,7 @@ var ErrProviderUnavailable = errors.New("ai provider unavailable")
 var ErrUnknownProvider = errors.New("unknown provider")
 
 func (h *connectHandler) Generate(ctx context.Context, req *connect.Request[aiv1.GenerateRequest]) (*connect.Response[aiv1.GenerateResponse], error) {
+	ctx = internalai.WithConsumerToken(ctx, req.Header().Get("Authorization"))
 	prompt := strings.TrimSpace(req.Msg.GetPrompt())
 	if prompt == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("prompt is required"))
@@ -50,12 +52,18 @@ func (h *connectHandler) Generate(ctx context.Context, req *connect.Request[aiv1
 	command, provider, err := h.deps.Service.Generate(ctx, prompt, req.Msg.GetContext())
 	if err != nil {
 		h.deps.Logger.Printf("ai.Generate: %v", err)
+		if errors.Is(err, internalai.ErrCreditsRequired) {
+			refusal := connect.NewError(connect.CodeResourceExhausted, errors.New("credits required"))
+			refusal.Meta().Set("X-Vrooli-Error-Type", "credits_required")
+			return nil, refusal
+		}
 		return nil, connect.NewError(connect.CodeUnavailable, ErrProviderUnavailable)
 	}
 	return connect.NewResponse(&aiv1.GenerateResponse{Command: command, Provider: provider}), nil
 }
 
 func (h *connectHandler) Suggest(ctx context.Context, req *connect.Request[aiv1.SuggestRequest]) (*connect.Response[aiv1.SuggestResponse], error) {
+	ctx = internalai.WithConsumerToken(ctx, req.Header().Get("Authorization"))
 	prompt := strings.TrimSpace(req.Msg.GetPrompt())
 	if prompt == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("prompt is required"))
@@ -63,6 +71,11 @@ func (h *connectHandler) Suggest(ctx context.Context, req *connect.Request[aiv1.
 	commands, provider, err := h.deps.Service.Suggest(ctx, prompt, req.Msg.GetContext())
 	if err != nil {
 		h.deps.Logger.Printf("ai.Suggest: %v", err)
+		if errors.Is(err, internalai.ErrCreditsRequired) {
+			refusal := connect.NewError(connect.CodeResourceExhausted, errors.New("credits required"))
+			refusal.Meta().Set("X-Vrooli-Error-Type", "credits_required")
+			return nil, refusal
+		}
 		return nil, connect.NewError(connect.CodeUnavailable, ErrProviderUnavailable)
 	}
 	return connect.NewResponse(&aiv1.SuggestResponse{Commands: commands, Provider: provider}), nil
@@ -113,11 +126,13 @@ func (h *connectHandler) GetHealth(ctx context.Context, _ *connect.Request[aiv1.
 
 func configToProto(c ProviderConfig) *aiv1.ProviderConfig {
 	return &aiv1.ProviderConfig{
-		Name:       c.Name,
-		Enabled:    c.Enabled,
-		Priority:   int32(c.Priority),
-		TimeoutSec: int32(c.TimeoutSec),
-		MaxRetries: int32(c.MaxRetries),
+		Name:          c.Name,
+		Enabled:       c.Enabled,
+		Priority:      int32(c.Priority),
+		TimeoutSec:    int32(c.TimeoutSec),
+		MaxRetries:    int32(c.MaxRetries),
+		KeyConfigured: c.KeyConfigured,
+		KeySource:     c.KeySource,
 	}
 }
 

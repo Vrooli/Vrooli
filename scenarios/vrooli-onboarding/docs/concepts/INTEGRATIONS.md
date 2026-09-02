@@ -2,6 +2,14 @@
 
 ## What onboarding integrates with
 
+### Target-aware REST reach
+
+The onboarding API remains the authority for operator state on the configured
+machine. A request with `target=local` executes locally. A request with another
+registered node id is dispatched through Bridge's governed scenario channel;
+the node executes the same `/api/v2/...` handler with the original HTTP verb.
+The browser therefore does not carry a second remote state implementation.
+
 | Counterpart | Direction | Contract |
 |---|---|---|
 | `internal/operatorstate` | Onboarding → | Field-scoped merge patches. The only write path for operator decisions |
@@ -10,6 +18,19 @@
 | `secrets-manager` | Peer | Owns credential lifecycle, keyring repair, and recovery bundles. Onboarding provisions and reports; it does not duplicate that surface |
 | `scenario-to-desktop` | ← Onboarding | Consumes the union export to decide bundle contents; supplies the bundle root and app-data state root at runtime |
 | `vrooli-bridge` | ← Onboarding | Drives the non-interactive surface against a remote host and reads back a readiness report and exit code |
+
+The same setup/v1 operator-input contract is also consumable by a target-aware
+client. A local target resolves directly to this scenario; a registered node
+is reached through Bridge's catalog-admitted scenario procedure proxy. The
+client submits desired configuration once and reattaches to durable apply or
+onboarding state rather than creating a second remote configuration authority.
+
+Bridge carries the generated `setup/v1.Selection` as the capability-shaped
+handoff document. It includes target, scenarios, resources, host tools and
+safeguards, credentials, trust, update, session, operating-mode, and apply
+intent. Bridge owns the desired machine copy; this scenario applies the
+document locally and reports durable step status and readiness back to the
+caller.
 | `scenario-to-cloud` | ← Onboarding | Same surface for a VPS target |
 | `vrooli-autoheal` | ← Onboarding | Reads the committed selection and the completion marker to know what should be running |
 | `search-hub` | ← Onboarding | Indexes the operator-surface feed so a setting is findable by intent *(deferred)* |

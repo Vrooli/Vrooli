@@ -18,7 +18,7 @@ Environment variables consumed by the API:
 - `CORS_ALLOWED_ORIGINS` (comma-separated list)
 - `SKIP_DB_CONNECT` or `SKIP_DB_TESTS` (disable DB connect)
 - `VROOLI_SCENARIOS_ROOT` (absolute path to scenarios root for doc health)
-- `VROOLI_REPO_ROOT` (repo root used to infer `scenarios/` for doc health)
+- `VROOLI_ROOT` (repo root used to infer `scenarios/` for doc health)
 
 [CODE: api/server.go]
 [CODE: api/docs_root.go]

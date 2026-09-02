@@ -7,7 +7,7 @@ import HeaderColorPicker from "../appearance/HeaderColorPicker";
 import ThemePicker from "../appearance/ThemePicker";
 import FontSizeStepper from "../appearance/FontSizeStepper";
 
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 export default function NewPaneDefaultsSection() {
   const { t } = useTranslation();

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -25,6 +26,13 @@ func TestRequireAIAccessFailsClosedWithoutLease(t *testing.T) {
 	if rr.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", rr.Code)
 	}
+	var response map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode refusal: %v", err)
+	}
+	if response["upgrade_path"] != "/settings/subscription" {
+		t.Fatalf("upgrade_path = %v, want /settings/subscription", response["upgrade_path"])
+	}
 }
 
 func TestRequireAIAccessUsesLeaseFeatures(t *testing.T) {
@@ -47,6 +55,7 @@ func TestRequireAIAccessUsesLeaseFeatures(t *testing.T) {
 			rr := httptest.NewRecorder()
 			ctx := entitlement.WithEntitlement(req.Context(), &entitlement.Entitlement{
 				UserIdentity: "user@example.com",
+				Status:       entitlement.StatusActive,
 				Tier:         entitlement.TierFree,
 				Features:     tt.features,
 			})

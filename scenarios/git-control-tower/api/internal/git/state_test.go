@@ -88,10 +88,19 @@ func TestCaptureDetachedHead(t *testing.T) {
 }
 
 func TestCaptureNonRepository(t *testing.T) {
-	run := fakeRunner(nil, map[string]bool{"rev-parse --is-inside-work-tree": true})
+	probeErr := errors.New("git probe failed: permission denied")
+	run := func(_ context.Context, _ string, args ...string) ([]byte, error) {
+		if strings.Join(args, " ") == "rev-parse --is-inside-work-tree" {
+			return nil, probeErr
+		}
+		return nil, errors.New("unexpected git call")
+	}
 	_, err := CaptureWith(context.Background(), "/notrepo", run)
 	if !errors.Is(err, ErrNotARepository) {
 		t.Fatalf("expected ErrNotARepository, got %v", err)
+	}
+	if !errors.Is(err, probeErr) {
+		t.Fatalf("expected probe cause to be retained, got %v", err)
 	}
 }
 

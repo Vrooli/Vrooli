@@ -33,11 +33,14 @@ type catalogReader interface {
 }
 
 type declaration struct {
-	Version   int       `json:"version"`
-	BundleKey string    `json:"bundle_key"`
-	AppKey    string    `json:"app_key"`
-	Features  []surface `json:"features"`
-	Meters    []surface `json:"meters"`
+	Version             int       `json:"version"`
+	BundleKey           string    `json:"bundle_key"`
+	AppKey              string    `json:"app_key"`
+	RequiresEntitlement bool      `json:"requires_entitlement"`
+	Features            []surface `json:"features"`
+	Meters              []surface `json:"meters"`
+	AccountSurfacePaths []string  `json:"account_surface_paths"`
+	JourneyProbePaths   []string  `json:"journey_probe_paths"`
 }
 
 type surface struct {
@@ -285,6 +288,10 @@ func scanLiveReconciliation(root string, declaration declaration) []*commonv1.As
 			findingValue = finding("money.unregistered_app_key", "Declared app is not registered in LPBS", candidate.Location, candidate.Message)
 		case "money.meter_missing_tier_limits":
 			findingValue = finding("money.meter_missing_tier_limits", "Declared meter is missing a tier limit", candidate.Location, candidate.Message)
+		case "money.no_account_surface":
+			findingValue = finding("money.no_account_surface", "Entitled scenario has no account surface", candidate.Location, candidate.Message)
+		case "money.no_journey_probe":
+			findingValue = finding("money.no_journey_probe", "Entitled scenario has no journey probe", candidate.Location, candidate.Message)
 		}
 		if findingValue != nil {
 			findings = append(findings, findingValue)
@@ -297,6 +304,18 @@ func validateDeclaration(root, manifest string, declaration declaration) []*comm
 	var findings []*commonv1.AssessmentFinding
 	if declaration.Version != 2 || strings.TrimSpace(declaration.BundleKey) == "" || strings.TrimSpace(declaration.AppKey) == "" {
 		findings = append(findings, finding("money.undeclared_monetization", "Monetization declaration has invalid identity", manifest, "Use version 2 and provide non-empty bundle_key and app_key values."))
+	}
+	if declaration.RequiresEntitlement {
+		if len(declaration.AccountSurfacePaths) == 0 {
+			findings = append(findings, finding("money.no_account_surface", "Entitled scenario has no declared account surface", manifest, "Declare account_surface_paths for the sign-in, plan, subscription, and credit surface."))
+		} else if missing := missingPaths(root, declaration.AccountSurfacePaths); missing != "" {
+			findings = append(findings, finding("money.no_account_surface", "Declared account surface path is missing", missing, "Add the account surface or correct account_surface_paths."))
+		}
+		if len(declaration.JourneyProbePaths) == 0 {
+			findings = append(findings, finding("money.no_journey_probe", "Entitled scenario has no declared journey probe", manifest, "Declare journey_probe_paths for the provider-neutral monetization journey endpoint."))
+		} else if missing := missingPaths(root, declaration.JourneyProbePaths); missing != "" {
+			findings = append(findings, finding("money.no_journey_probe", "Declared journey probe path is missing", missing, "Add the journey probe or correct journey_probe_paths."))
+		}
 	}
 	seenFeatures := map[string]struct{}{}
 	for _, feature := range declaration.Features {

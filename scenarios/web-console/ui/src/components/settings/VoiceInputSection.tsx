@@ -55,7 +55,7 @@ import {
 import { formatShortcutFromEvent } from "../../lib/shortcutParser";
 import { Button } from "../ui/button";
 import { SettingsSlider, SettingsToggle } from "./primitives";
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 /** Lease reasons meaning the page/OS pulled the mic, so an in-flight settings
  *  capture must be cancelled (not processed/uploaded). */

@@ -26,6 +26,13 @@ func observedState(observed map[string]string, id string) string {
 	return applyStateUnknown
 }
 
+func plannedRequirementState(status string, observed map[string]string, id string) string {
+	if status == "not_applicable" {
+		return "not_applicable"
+	}
+	return observedState(observed, id)
+}
+
 // observeApplyStates measures the host for the item kinds that can be checked
 // without side effects. Tools resolve through PATH; safeguards resolve through
 // their declared verification files, or, when they are handler-owned, through
@@ -68,16 +75,16 @@ func applyStateFromReadiness(status string) string {
 func buildApplyPlan(input applyPlanInput) []applyItem {
 	items := make([]applyItem, 0, len(input.Requirements.Tools)+len(input.Requirements.Safeguards)+len(input.Closure.Resources)+len(input.Closure.Scenarios))
 	for _, item := range input.Requirements.Tools {
-		if item.Status != "required" && item.Status != "opted_in" {
+		if item.Status != "required" && item.Status != "opted_in" && item.Status != "not_applicable" {
 			continue
 		}
-		items = append(items, applyItem{ID: "tool:" + item.Name, Kind: "tool", Name: item.Name, Required: item.Required, Privileged: item.Privilege == "elevated", State: observedState(input.Observed, "tool:"+item.Name)})
+		items = append(items, applyItem{ID: "tool:" + item.Name, Kind: "tool", Name: item.Name, Required: item.Required, Privileged: item.Privilege == "elevated", State: plannedRequirementState(item.Status, input.Observed, "tool:"+item.Name)})
 	}
 	for _, item := range input.Requirements.Safeguards {
-		if item.Status != "required" && item.Status != "opted_in" {
+		if item.Status != "required" && item.Status != "opted_in" && item.Status != "not_applicable" {
 			continue
 		}
-		items = append(items, applyItem{ID: "safeguard:" + item.Name, Kind: "safeguard", Name: item.Name, Required: item.Required, Privileged: item.Privilege == "elevated", State: observedState(input.Observed, "safeguard:"+item.Name)})
+		items = append(items, applyItem{ID: "safeguard:" + item.Name, Kind: "safeguard", Name: item.Name, Required: item.Required, Privileged: item.Privilege == "elevated", State: plannedRequirementState(item.Status, input.Observed, "safeguard:"+item.Name)})
 	}
 	for _, member := range input.Closure.Resources {
 		if choice, ok := input.State.Resources[member.Name]; ok && choice.Enabled != nil && !*choice.Enabled && !member.Required {

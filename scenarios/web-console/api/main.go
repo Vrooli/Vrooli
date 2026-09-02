@@ -92,6 +92,9 @@ type Server struct {
 	handoffRules          inthandoffrules.Store
 	snippets              intsnippets.Store
 	hookAuthToken         string
+	credentialClient      credentialclient.Client
+	subscriptionResolver  *credentialclient.ConsumerSessionResolver
+	entitlements          *entitlementclient.Client
 	codexTailer           *CodexTailer
 	claudeTailer          *ClaudeTailer
 	grokTailer            *GrokTailer
@@ -290,7 +293,7 @@ func NewServer(db *database.RoutedDB) *Server {
 		metrics:           metrics,
 		backendRegistry:   backendRegistry,
 		sessionStore:      sessionStore,
-		aiChain:           intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider()),
+		aiChain:           intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider(), intai.NewMeteredProvider(os.Getenv("AI_GATEWAY_URL"))),
 		shortcuts:         NewSQLShortcutStore(db),
 		aiConfig:          intai.NewSQLConfigStore(context.Background(), db),
 		sweeper:           session.NewExpirationSweeper(sessions, eventLog, metrics),
@@ -322,23 +325,35 @@ func NewServer(db *database.RoutedDB) *Server {
 	}
 	if authority, authorityErr := credentialauthority.Default(); authorityErr == nil {
 		if credentials, clientErr := credentialclient.NewClient(credentialclient.ClientOptions{Authority: authority}); clientErr == nil {
+			srv.credentialClient = credentials
 			resolver := &credentialclient.ConsumerSessionResolver{Credentials: credentials, LPBSBaseURL: getEnvOrDefault("LPBS_URL", "http://localhost:15000")}
+			srv.subscriptionResolver = resolver
 			resolveToken := func(ctx context.Context, baseURL string) (string, error) {
 				access, err := resolver.ResolveAt(ctx, baseURL)
 				return access.AccessToken, err
 			}
-			srv.monetization = monetization.NewGate(entitlementclient.NewClient(resolver.LPBSBaseURL, resolveToken, &http.Client{Timeout: 15 * time.Second}), resolver, "business_suite")
+			srv.entitlements = entitlementclient.NewClient(resolver.LPBSBaseURL, resolveToken, &http.Client{Timeout: 15 * time.Second})
+			srv.monetization = monetization.NewGate(srv.entitlements, resolver, "business_suite")
 			store := monetization.NewSQLStore(db, monetization.SQLDialectSQLite)
 			transport := &lpbsMonetizationTransport{baseURL: resolver.LPBSBaseURL, resolveToken: resolveToken, client: &http.Client{Timeout: 15 * time.Second}}
 			srv.monetizationOutbox = monetization.NewOutbox(store, transport)
 			go srv.drainMonetizationOutbox()
 		}
 	}
+	if srv.credentialClient != nil {
+		srv.aiChain = intai.NewChain(intai.NewOllamaProvider(), intai.NewOpenRouterProvider(intai.NewCredentialKeyResolver(srv.credentialClient)), intai.NewMeteredProvider(os.Getenv("AI_GATEWAY_URL")))
+	}
 	srv.systemContext = intai.DiscoverSystemContext(intai.DefaultLookPath)
 	log.Printf("system-context: os=%s/%s shell=%s tools-found=%d",
 		srv.systemContext.OS, srv.systemContext.Arch,
 		srv.systemContext.Shell, intai.CountFoundTools(srv.systemContext.Tools))
 	srv.ai = intai.NewService(srv.aiChain, srv.aiConfig, srv.systemContext, srv.events, &srv.metrics.AIGenerations, &srv.metrics.AISuggestions)
+	srv.ai.SetActivationEmitter(func(eventType string) {
+		srv.emitActivationOnce(context.Background(), eventType)
+	})
+	if srv.credentialClient != nil {
+		srv.ai.SetKeyResolver(intai.NewCredentialKeyResolver(srv.credentialClient))
+	}
 
 	ollamaURL := getEnvOrDefault("OLLAMA_URL", "http://localhost:11434")
 	openrouterKey := os.Getenv("OPENROUTER_API_KEY")
@@ -412,16 +427,33 @@ func NewServer(db *database.RoutedDB) *Server {
 		// boot-blocking dependency on a voice add-on.
 		log.Printf("audio-tools adoption: not reachable yet (%v); voice features degraded until it is up", err)
 	}
-	srv.sttPort = &audioports.RemoteSpeechToText{Client: atClient}
-	srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient}
+	audioCredentials := func(ctx context.Context) audiotoolsint.Credentials {
+		creds := audiotoolsint.Credentials{BYOKProvider: "openrouter"}
+		if srv.credentialClient != nil {
+			if key, resolveErr := srv.credentialClient.Resolve(ctx, webConsoleOpenRouterIdentity, webConsoleOpenRouterField); resolveErr == nil {
+				creds.BYOKKey = key
+			}
+		}
+		if srv.subscriptionResolver != nil {
+			if access, resolveErr := srv.subscriptionResolver.Resolve(ctx); resolveErr == nil {
+				creds.LPBSToken = access.AccessToken
+				if identity, identityErr := resolveLPBSIdentity(ctx, srv.subscriptionResolver.LPBSBaseURL, access.AccessToken); identityErr == nil {
+					creds.UserIdentity = identity
+				}
+			}
+		}
+		return creds
+	}
+	srv.sttPort = &audioports.RemoteSpeechToText{Client: atClient, Credentials: audioCredentials}
+	srv.ttsPort = &audioports.RemoteTextToSpeech{Client: atClient, Credentials: audioCredentials}
 	srv.speechProcessor = &audioports.RemoteSpeechTextProcessor{Client: atClient}
-	srv.summarizer = &audioports.RemoteSummarizer{Client: atClient}
-	srv.streamConfigAdmin = &audioports.RemoteStreamConfigAdmin{Client: atClient}
-	srv.wakeWordAdmin = &audioports.RemoteWakeWordAdmin{Client: atClient}
-	srv.speakerAdmin = &audioports.RemoteSpeakerAdmin{Client: atClient}
-	srv.ttsConfigAdmin = &audioports.RemoteTTSConfigAdmin{Client: atClient}
-	srv.summarizeConfigAdmin = &audioports.RemoteSummarizeConfigAdmin{Client: atClient}
-	srv.playbackRecorder = &audioports.RemotePlaybackEventRecorder{Client: atClient}
+	srv.summarizer = &audioports.RemoteSummarizer{Client: atClient, Credentials: audioCredentials}
+	srv.streamConfigAdmin = &audioports.RemoteStreamConfigAdmin{Client: atClient, Credentials: audioCredentials}
+	srv.wakeWordAdmin = &audioports.RemoteWakeWordAdmin{Client: atClient, Credentials: audioCredentials}
+	srv.speakerAdmin = &audioports.RemoteSpeakerAdmin{Client: atClient, Credentials: audioCredentials}
+	srv.ttsConfigAdmin = &audioports.RemoteTTSConfigAdmin{Client: atClient, Credentials: audioCredentials}
+	srv.summarizeConfigAdmin = &audioports.RemoteSummarizeConfigAdmin{Client: atClient, Credentials: audioCredentials}
+	srv.playbackRecorder = &audioports.RemotePlaybackEventRecorder{Client: atClient, Credentials: audioCredentials}
 	srv.audioToolsResolver = atResolver
 	log.Printf("audio-tools adoption: STT/TTS/processor/summarize + admin/runtime ports wired to %s", atClient.BaseURL())
 

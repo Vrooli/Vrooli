@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"hello-mobile/internal/notes/flow/generated"
-	"hello-mobile/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/packages/proto/modeltest"
 )
 
 func TestAttachmentUploadFormalReplay(t *testing.T) {

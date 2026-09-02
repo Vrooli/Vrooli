@@ -34,7 +34,7 @@ import { strings } from "../../consts/strings";
 import { toErrorInfo } from "../../lib/errors";
 import { assessCapture, governedRewrite } from "../../lib/captureSafety";
 import { moveItem } from "../launcher/agentGrid";
-import { SettingsList } from "@vrooli/react-component-library/SettingsList/0";
+import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
 
 interface ShortcutDraft {
   /** Stable identity for React and for reordering. Never the array index. */

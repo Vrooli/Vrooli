@@ -99,6 +99,8 @@ Use this table shape when appending entries.
 
 ## Cross-references
 
+| 2026-09-01 | codex | superseded-plan-reconciliation-20260901 | Reconciled the three superseded monetization drafts before executing the replacement plan: `repair-the-monetization-instrument-make-catalog-identity` has 14 phases (11 delivered, 3 partial, 0 open) and was executed on 2026-08-17; its 2026-08-25 mirror is a stale re-import. `monetization-ecosystem-readiness-a-shared-paid-surface-kit` has 16 phases (10 delivered, 4 partial, 2 open). `monetization-kit-v2-make-monetizing-a-scenario-a-wiring` has 11 phases (0 delivered, 3 partial, 8 open). The three plans remain readable and unarchived; this entry is the durable reconciliation record for the replacement plan. |
+
 - [`PROBLEMS.md`](PROBLEMS.md) — known issues, tech debt, and deferred work
 - [`DECISIONS.md`](DECISIONS.md) — durable decisions and tradeoffs
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system map

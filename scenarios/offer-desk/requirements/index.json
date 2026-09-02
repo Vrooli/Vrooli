@@ -10,5 +10,6 @@
     "03-migration/module.json",
     "04-integration/module.json",
     "05-console/module.json"
+    ,"06-release-ladder/module.json"
   ]
 }

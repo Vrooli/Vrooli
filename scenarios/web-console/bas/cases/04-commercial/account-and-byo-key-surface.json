@@ -1,0 +1,28 @@
+{
+  "id": "7e1c9cf1-0b66-4d25-8b8e-1f6f4f6c4d1a",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "account-and-byo-key-surface",
+  "folder_path": "/bas/cases/04-commercial",
+  "description": "Open the commercial account surface and verify signed-out local mode plus BYOK controls.",
+  "metadata": { "name": "account-and-byo-key-surface", "description": "Open the commercial account surface and verify signed-out local mode plus BYOK controls.", "execution_mode": "mutating", "reset": "full", "labels": { "reset": "full", "requires_confirmation": "true", "routed_isolation": "true", "seed": "seed", "spec_entry_id": "account", "requirements_json": "[\"WEBCONSO-P0-009\", \"WEBCONSO-P0-010\"]" } },
+  "tags": ["reset:full", "requirements_json:[\"WEBCONSO-P0-009\", \"WEBCONSO-P0-010\"]"],
+  "version": 1,
+  "flow_definition": {
+    "settings": { "viewport_width": 1440, "viewport_height": 900 },
+    "nodes": [
+      { "id": "open-workspace", "action": { "type": "ACTION_TYPE_SUBFLOW", "subflow": { "workflow_path": "actions/open-workspace.json" } } },
+      { "id": "open-settings", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/workspace.settings" } } },
+      { "id": "open-account", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/settings.accountTab" } } },
+      { "id": "assert-account", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/settings.account", "timeout_ms": 10000 } } },
+      { "id": "assert-key-input", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/settings.openRouterKeyInput", "timeout_ms": 10000 } } },
+      { "id": "assert-local-badge", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/settings.subscriptionBadge", "timeout_ms": 10000 } } }
+    ],
+    "edges": [
+      { "id": "e1", "source": "open-workspace", "target": "open-settings", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e2", "source": "open-settings", "target": "open-account", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e3", "source": "open-account", "target": "assert-account", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e4", "source": "assert-account", "target": "assert-key-input", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+      { "id": "e5", "source": "assert-key-input", "target": "assert-local-badge", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+    ]
+  }
+}

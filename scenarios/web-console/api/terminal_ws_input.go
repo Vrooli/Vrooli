@@ -12,6 +12,7 @@ package main
 // (screaming architecture) and §8.2 (input kind/reason wire contract).
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -106,6 +107,9 @@ func (s *Server) dispatchInputMessage(
 		go func() {
 			writeErr := <-result
 			sess.CompleteInputFor(client, data, writeErr)
+			if writeErr == nil && strings.Contains(string(data), "\n") {
+				s.emitActivationOnce(context.Background(), activationFirstCommandRun)
+			}
 			s.writeStdinAck(conn, writeMu, sess, client, sessionID, writeErr)
 		}()
 	case wireproto.MsgTypeHello:

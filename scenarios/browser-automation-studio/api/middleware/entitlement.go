@@ -8,6 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // EntitlementMiddleware provides request-scoped entitlement checking.
@@ -82,11 +84,13 @@ func (m *EntitlementMiddleware) RequireActiveSubscription(next http.Handler) htt
 			return
 		}
 
-		ent := entitlement.FromContext(r.Context())
-		if ent == nil || !ent.IsActive() {
-			writeEntitlementError(w, http.StatusForbidden, "SUBSCRIPTION_REQUIRED",
-				"An active subscription is required for this feature")
+		decision := m.featureDecision(r.Context(), "", 0)
+		if !decision.Allowed {
+			monetization.WriteError(w, http.StatusForbidden, monetization.ErrorSubscriptionRequired, decision)
 			return
+		}
+		if decision.Warning {
+			w.Header().Set("X-Entitlement-Warning", monetization.ReasonPastDue)
 		}
 
 		next.ServeHTTP(w, r)
@@ -101,10 +105,9 @@ func (m *EntitlementMiddleware) RequireAIAccess(next http.Handler) http.Handler 
 			return
 		}
 
-		userIdentity := entitlement.UserIdentityFromContext(r.Context())
-		if !m.canUseAI(r.Context(), userIdentity) {
-			writeEntitlementError(w, http.StatusForbidden, "AI_ACCESS_REQUIRED",
-				"AI features require Pro tier or higher")
+		decision := m.featureDecision(r.Context(), entitlement.FeatureAI, 0)
+		if !decision.Allowed {
+			monetization.WriteError(w, http.StatusForbidden, monetization.ErrorRankRequired, decision)
 			return
 		}
 
@@ -120,15 +123,25 @@ func (m *EntitlementMiddleware) RequireRecordingAccess(next http.Handler) http.H
 			return
 		}
 
-		userIdentity := entitlement.UserIdentityFromContext(r.Context())
-		if !m.canUseRecording(r.Context(), userIdentity) {
-			writeEntitlementError(w, http.StatusForbidden, "RECORDING_ACCESS_REQUIRED",
-				"Recording features require Solo tier or higher")
+		decision := m.featureDecision(r.Context(), entitlement.FeatureRecording, 0)
+		if !decision.Allowed {
+			monetization.WriteError(w, http.StatusForbidden, monetization.ErrorRankRequired, decision)
 			return
 		}
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (m *EntitlementMiddleware) featureDecision(ctx context.Context, feature string, minPlanRank int32) monetization.Decision {
+	const upgradePath = "/settings/subscription"
+	ent := entitlement.FromContext(ctx)
+	if ent == nil {
+		return monetization.Decision{Reason: monetization.ReasonLeaseUnavailable, UpgradePath: upgradePath}
+	}
+	payload := entitlementclient.Payload{Status: string(ent.Status), PlanRank: ent.PlanRank, Features: ent.Features, Limits: ent.Limits}
+	decision := monetization.StatusDecision(payload, upgradePath)
+	return monetization.FeatureDecision(payload, feature, minPlanRank, decision)
 }
 
 func bearerToken(authorization string) string {
@@ -145,20 +158,6 @@ func (m *EntitlementMiddleware) entitlementsEnabled(_ context.Context) bool {
 	return true
 }
 
-func (m *EntitlementMiddleware) canUseAI(ctx context.Context, userIdentity string) bool {
-	if ent := entitlement.FromContext(ctx); ent != nil {
-		return m.service.CanUseAIWithEntitlement(ent)
-	}
-	return m.service.CanUseAI(ctx, userIdentity)
-}
-
-func (m *EntitlementMiddleware) canUseRecording(ctx context.Context, userIdentity string) bool {
-	if ent := entitlement.FromContext(ctx); ent != nil {
-		return m.service.CanUseRecordingWithEntitlement(ent)
-	}
-	return m.service.CanUseRecording(ctx, userIdentity)
-}
-
 func (m *EntitlementMiddleware) resolveStoredUserIdentity(ctx context.Context) string {
 	if m.settingsRepo == nil {
 		return ""
@@ -168,14 +167,4 @@ func (m *EntitlementMiddleware) resolveStoredUserIdentity(ctx context.Context) s
 		return ""
 	}
 	return strings.TrimSpace(strings.ToLower(value))
-}
-
-// writeEntitlementError writes a standardized entitlement error response.
-func writeEntitlementError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	// Simple JSON without importing encoding/json to keep middleware lightweight
-	if _, err := w.Write([]byte(`{"error":{"code":"` + code + `","message":"` + message + `"}}`)); err != nil {
-		return
-	}
 }

@@ -9,6 +9,8 @@ import (
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
+const testUpgradePath = "/upgrade"
+
 func TestStatusDecision(t *testing.T) {
 	for _, test := range []struct {
 		status  string
@@ -24,8 +26,8 @@ func TestStatusDecision(t *testing.T) {
 		{status: "unknown", reason: ReasonSubscriptionInactive},
 	} {
 		t.Run(test.status, func(t *testing.T) {
-			got := StatusDecision(entitlementclient.Payload{Status: test.status}, "/upgrade")
-			if got.Allowed != test.allowed || got.Warning != test.warning || got.Reason != test.reason || got.UpgradePath != "/upgrade" {
+			got := StatusDecision(entitlementclient.Payload{Status: test.status}, testUpgradePath)
+			if got.Allowed != test.allowed || got.Warning != test.warning || got.Reason != test.reason || got.UpgradePath != testUpgradePath {
 				t.Fatalf("decision = %+v, want allowed=%v warning=%v reason=%q", got, test.allowed, test.warning, test.reason)
 			}
 		})
@@ -54,10 +56,51 @@ func TestLeaseValuesDriveRankFeaturesAndLimits(t *testing.T) {
 	}
 }
 
+func TestFeatureDecisionCoversCommercialReasonVocabulary(t *testing.T) {
+	active := entitlementclient.Payload{Status: "active", PlanRank: 2, Features: []string{"ai"}}
+	for _, test := range []struct {
+		name     string
+		payload  entitlementclient.Payload
+		feature  string
+		rank     int32
+		decision Decision
+		want     string
+	}{
+		{name: "allowed", payload: active, decision: StatusDecision(active, testUpgradePath), want: ReasonAllowed},
+		{name: "past due", payload: entitlementclient.Payload{Status: "past_due"}, decision: StatusDecision(entitlementclient.Payload{Status: "past_due"}, testUpgradePath), want: ReasonPastDue},
+		{name: "feature missing", payload: active, feature: "recording", decision: StatusDecision(active, testUpgradePath), want: ReasonFeatureMissing},
+		{name: "rank insufficient", payload: active, rank: 3, decision: StatusDecision(active, testUpgradePath), want: ReasonRankInsufficient},
+		{name: "subscription inactive", payload: entitlementclient.Payload{Status: "canceled"}, decision: StatusDecision(entitlementclient.Payload{Status: "canceled"}, testUpgradePath), want: ReasonSubscriptionInactive},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got := FeatureDecision(test.payload, test.feature, test.rank, test.decision)
+			if got.Reason != test.want || got.UpgradePath != testUpgradePath {
+				t.Fatalf("decision = %+v, want reason=%q with upgrade path", got, test.want)
+			}
+		})
+	}
+
+	for _, test := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{name: "lease unavailable", err: entitlementclient.ErrLeaseUnavailable, want: ReasonLeaseUnavailable},
+		{name: "lease expired", err: entitlementclient.ErrLeaseExpired, want: ReasonLeaseExpired},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got := fallbackDecision(test.err, testUpgradePath)
+			if got.Reason != test.want {
+				t.Fatalf("decision = %+v, want reason=%q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestGateFallsBackToFreeTierWhenLeaseUnavailableOrExpired(t *testing.T) {
 	for _, err := range []error{entitlementclient.ErrLeaseUnavailable, entitlementclient.ErrLeaseExpired} {
-		decision := fallbackDecision(err, "/upgrade")
-		if decision.Allowed || decision.UpgradePath != "/upgrade" {
+		decision := fallbackDecision(err, testUpgradePath)
+		if decision.Allowed || decision.UpgradePath != testUpgradePath {
 			t.Fatalf("fallback decision = %+v", decision)
 		}
 		if errors.Is(err, entitlementclient.ErrLeaseExpired) && decision.Reason != ReasonLeaseExpired {

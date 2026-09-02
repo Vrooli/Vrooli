@@ -24,13 +24,18 @@ const (
 // against config-driven enable/timeout/health policy and implements the
 // handlers/ai.Backend interface so handlers can talk to it directly.
 type Service struct {
-	chain     *Chain
-	configs   ConfigStore
-	sysCtx    *SystemContext
-	events    EventEmitter
-	genCount  *atomic.Int64
-	suggCount *atomic.Int64
+	chain       *Chain
+	configs     ConfigStore
+	sysCtx      *SystemContext
+	events      EventEmitter
+	genCount    *atomic.Int64
+	suggCount   *atomic.Int64
+	keyResolver KeyResolver
+	activation  func(string)
 }
+
+func (s *Service) SetKeyResolver(resolver KeyResolver)       { s.keyResolver = resolver }
+func (s *Service) SetActivationEmitter(emitter func(string)) { s.activation = emitter }
 
 // NewService constructs a Service from its collaborators. genCount and
 // suggCount are atomic counters owned by the caller (the metrics aggregator)
@@ -120,6 +125,9 @@ func (s *Service) EmitGenerate(provider, prompt string) {
 		"provider": provider,
 		"prompt":   prompt,
 	})
+	if s.activation != nil {
+		s.activation("activation.first_ai_command_accepted")
+	}
 }
 
 // EmitSuggest satisfies handlers/ai.Backend.
@@ -149,7 +157,20 @@ func (s *Service) IncrSuggestions() {
 }
 
 // GetConfigs satisfies handlers/ai.Backend.
-func (s *Service) GetConfigs(ctx context.Context) []Config { return s.configs.GetConfigs(ctx) }
+func (s *Service) GetConfigs(ctx context.Context) []Config {
+	configs := s.configs.GetConfigs(ctx)
+	if s.keyResolver != nil {
+		if key, source, err := s.keyResolver.Resolve(ctx); err == nil {
+			for i := range configs {
+				if configs[i].Name == "openrouter" {
+					configs[i].KeyConfigured = key != ""
+					configs[i].KeySource = string(source)
+				}
+			}
+		}
+	}
+	return configs
+}
 
 // GetHealth satisfies handlers/ai.Backend.
 func (s *Service) GetHealth(ctx context.Context) []Health { return s.configs.GetHealth(ctx) }

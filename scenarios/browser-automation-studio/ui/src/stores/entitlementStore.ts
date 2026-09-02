@@ -2,85 +2,34 @@ import { ConnectError } from '@connectrpc/connect';
 import { create } from 'zustand';
 import type {
   EntitlementStatus,
-  OperationLogEntry as ProtoOperationLogEntry,
-  OperationLogPage as ProtoOperationLogPage,
-  UsageSummary as ProtoUsageSummary,
 } from '@vrooli/proto-types/browser-automation-studio/v1/entitlement/entitlement_pb';
-import type { Timestamp } from '@bufbuild/protobuf/wkt';
 
 import { entitlementClient } from '../api/entitlement';
-import { PLAN_CONFIG, type PlanTier } from '@components/MonetizationAccount';
+import { EntitlementStore } from '@vrooli/react-component-library/EntitlementStore/1.0.0';
+import {
+  toOperationLogPage,
+  toUsagePeriod,
+  type EntitlementStatusResponse,
+  type OperationLogEntry,
+  type SubscriptionStatus,
+  type SubscriptionTier,
+  type UsagePeriod,
+} from './entitlementTypes';
 
-// Subscription tier names and presentation are owned by the shared account
-// component; this alias keeps the store focused on transport/state mapping.
-export type SubscriptionTier = PlanTier;
-export type SubscriptionStatus = 'active' | 'trialing' | 'past_due' | 'canceled' | 'inactive';
+export {
+  TIER_CONFIG,
+  type EntitlementStatusResponse,
+  type FeatureAccessSummary,
+  type OperationLogEntry,
+  type OperationLogPage,
+  type SubscriptionStatus,
+  type SubscriptionTier,
+  type UsagePeriod,
+} from './entitlementTypes';
 
-// API response type (kept in snake_case for downstream consumer compatibility).
-export interface EntitlementStatusResponse {
-  user_identity: string;
-  status: SubscriptionStatus;
-  tier: SubscriptionTier;
-  is_active: boolean;
-  features: string[];
-  feature_access?: FeatureAccessSummary[];
-  monthly_limit: number; // -1 for unlimited
-  monthly_used: number;
-  monthly_remaining: number; // -1 for unlimited
-  requires_watermark: boolean;
-  can_use_ai: boolean;
-  can_use_recording: boolean;
-  entitlements_enabled: boolean;
-
-  // AI Credits
-  ai_credits_used: number;
-  ai_credits_limit: number;
-  ai_credits_remaining: number;
-  ai_requests_count: number;
-  ai_reset_date: string;
-}
-
-export interface FeatureAccessSummary {
-  id: string;
-  label: string;
-  description: string;
-  required_tier?: SubscriptionTier;
-  has_access: boolean;
-}
-
-// Usage history types (snake_case for consumer compatibility).
-export interface UsagePeriod {
-  billing_month: string;
-  total_credits_used: number;
-  total_operations: number;
-  by_operation: Record<string, number>;
-  operation_counts: Record<string, number>;
-  credits_limit: number;
-  credits_remaining: number;
-  period_start: string;
-  period_end: string;
-  reset_date: string;
-}
-
-export interface OperationLogEntry {
-  id: string;
-  operation_type: string;
-  credits_charged: number;
-  success: boolean;
-  created_at: string;
-  metadata?: Record<string, unknown>;
-  error_message?: string;
-}
-
-export interface OperationLogPage {
-  user_identity: string;
-  billing_month: string;
-  operations: OperationLogEntry[];
-  total: number;
-  limit: number;
-  offset: number;
-  has_more: boolean;
-}
+// The shared store owns the cross-scenario snapshot contract; Zustand below
+// remains the BAS-specific reactive adapter for its historical UI selectors.
+const sharedEntitlementStore = new EntitlementStore();
 
 interface EntitlementState {
   userEmail: string;
@@ -89,6 +38,7 @@ interface EntitlementState {
   error: string | null;
   lastFetched: Date | null;
   isOffline: boolean;
+  pendingSyncCount: number | null;
 
   usageHistory: UsagePeriod[];
   historyLoading: boolean;
@@ -102,6 +52,7 @@ interface EntitlementState {
   setUserEmail: (email: string) => Promise<void>;
   clearUserEmail: () => Promise<void>;
   refreshEntitlement: () => Promise<void>;
+  fetchPendingSyncCount: () => Promise<void>;
   getUserEmail: () => Promise<string>;
   fetchUsageHistory: (months?: number, offset?: number) => Promise<void>;
   fetchOperationLog: (month: string, category?: string, limit?: number, offset?: number) => Promise<void>;
@@ -119,28 +70,6 @@ export const isValidEmail = (email: string): boolean => {
   return domain.length > 0 && domain.includes('.') && !domain.endsWith('.');
 };
 
-export const TIER_CONFIG = PLAN_CONFIG;
-
-// Status display configuration
-export const STATUS_CONFIG: Record<SubscriptionStatus, { label: string; color: string; icon: 'check' | 'clock' | 'alert' | 'x' }> = {
-  active: { label: 'Active', color: 'text-green-400', icon: 'check' },
-  trialing: { label: 'Trial', color: 'text-blue-400', icon: 'clock' },
-  past_due: { label: 'Past Due', color: 'text-amber-400', icon: 'alert' },
-  canceled: { label: 'Canceled', color: 'text-red-400', icon: 'x' },
-  inactive: { label: 'Inactive', color: 'text-gray-400', icon: 'x' },
-};
-
-// ----------------------------------------------------------------------------
-// proto → store-shape adapters
-// ----------------------------------------------------------------------------
-
-const tsToIso = (ts?: Timestamp): string => {
-  if (!ts) return '';
-  const seconds = typeof ts.seconds === 'bigint' ? Number(ts.seconds) : Number(ts.seconds ?? 0);
-  const nanos = Number(ts.nanos ?? 0);
-  return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000)).toISOString();
-};
-
 const toMaybeTier = (value: string | undefined): SubscriptionTier | undefined => {
   if (!value) return undefined;
   if (value === 'free' || value === 'solo' || value === 'pro' || value === 'studio' || value === 'business') {
@@ -151,7 +80,7 @@ const toMaybeTier = (value: string | undefined): SubscriptionTier | undefined =>
 
 const toStatus = (proto: EntitlementStatus | undefined): EntitlementStatusResponse | null => {
   if (!proto) return null;
-  return {
+  const result = {
     user_identity: proto.userIdentity,
     status: (proto.status || 'inactive') as SubscriptionStatus,
     tier: (toMaybeTier(proto.tier) ?? 'free') as SubscriptionTier,
@@ -177,40 +106,9 @@ const toStatus = (proto: EntitlementStatus | undefined): EntitlementStatusRespon
     ai_requests_count: proto.aiRequestsCount,
     ai_reset_date: proto.aiResetDate,
   };
+  sharedEntitlementStore.set({ identity: result.user_identity, tier: result.tier, status: result.status, features: result.features });
+  return result;
 };
-
-const toUsagePeriod = (u: ProtoUsageSummary): UsagePeriod => ({
-  billing_month: u.billingMonth,
-  total_credits_used: u.totalCreditsUsed,
-  total_operations: u.totalOperations,
-  by_operation: { ...u.byOperation },
-  operation_counts: { ...u.operationCounts },
-  credits_limit: u.creditsLimit,
-  credits_remaining: u.creditsRemaining,
-  period_start: tsToIso(u.periodStart),
-  period_end: tsToIso(u.periodEnd),
-  reset_date: tsToIso(u.resetDate),
-});
-
-const toOperationLogEntry = (e: ProtoOperationLogEntry): OperationLogEntry => ({
-  id: e.id,
-  operation_type: e.operationType,
-  credits_charged: e.creditsCharged,
-  success: e.success,
-  created_at: tsToIso(e.createdAt),
-  metadata: e.metadata ? (e.metadata.fields as unknown as Record<string, unknown>) : undefined,
-  error_message: e.errorMessage || undefined,
-});
-
-const toOperationLogPage = (p: ProtoOperationLogPage): OperationLogPage => ({
-  user_identity: p.userIdentity,
-  billing_month: p.billingMonth,
-  operations: (p.operations ?? []).map(toOperationLogEntry),
-  total: p.total,
-  limit: p.limit,
-  offset: p.offset,
-  has_more: p.hasMore,
-});
 
 const messageFromError = (err: unknown, fallback: string): string => {
   if (err instanceof ConnectError) return err.message;
@@ -238,6 +136,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   error: null,
   lastFetched: null,
   isOffline: false,
+  pendingSyncCount: null,
 
   usageHistory: [],
   historyLoading: false,
@@ -269,6 +168,18 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
         isLoading: false,
         isOffline: isNetworkLikeError(err),
       });
+    }
+  },
+
+  fetchPendingSyncCount: async () => {
+    try {
+      const response = await fetch('/api/v1/monetization/outbox/pending');
+      if (!response.ok) throw new Error(`pending usage request failed: ${response.status}`);
+      const body = (await response.json()) as { pending?: unknown };
+      const pending = typeof body.pending === 'number' && Number.isFinite(body.pending) ? body.pending : 0;
+      set({ pendingSyncCount: Math.max(0, Math.floor(pending)) });
+    } catch {
+      set({ pendingSyncCount: null });
     }
   },
 

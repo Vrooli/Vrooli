@@ -90,9 +90,10 @@ const (
 // ErrorResponse is the stable, non-authority-leaking error shape for paid
 // surfaces. The raw LPBS message is never copied into this response.
 type ErrorResponse struct {
-	Error     string `json:"error"`
-	ErrorType string `json:"error_type"`
-	Retryable bool   `json:"retryable"`
+	Error       string `json:"error"`
+	ErrorType   string `json:"error_type"`
+	Retryable   bool   `json:"retryable"`
+	UpgradePath string `json:"upgrade_path,omitempty"`
 }
 
 // WriteError writes the shared paid-surface error shape.
@@ -103,7 +104,7 @@ func WriteError(w http.ResponseWriter, status int, errorType string, decision De
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(ErrorResponse{Error: errorType, ErrorType: errorType, Retryable: retryable})
+	_ = json.NewEncoder(w).Encode(ErrorResponse{Error: errorType, ErrorType: errorType, Retryable: retryable, UpgradePath: decision.UpgradePath})
 }
 
 // CreditsDisplay converts internal credit units to the public display unit.

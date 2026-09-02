@@ -10,11 +10,17 @@ import (
 	"github.com/vrooli/vrooli/internal/operatorinput"
 )
 
-func (s *Server) handleV2OperatorInputs(w http.ResponseWriter, _ *http.Request) {
+func (s *Server) handleV2OperatorInputs(w http.ResponseWriter, r *http.Request) {
 	queue, err := operatorinput.Load()
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
+	}
+	// The target is part of the transport contract. The durable queue remains
+	// target-neutral; Bridge resolves the selected node when this request is
+	// dispatched, so no node identity is persisted with an answer.
+	if target := strings.TrimSpace(r.URL.Query().Get("target")); target != "" && target != "local" {
+		w.Header().Set("X-Vrooli-Target", target)
 	}
 	writeJSON(w, http.StatusOK, queue)
 }

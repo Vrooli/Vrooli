@@ -78,6 +78,17 @@ func TestAssessCompletionReportsUnsuccessfulApplyItems(t *testing.T) {
 	requireStrings(t, "apply blockers", blockerNames(assessment.Blockers), []string{"apply/safeguard:kernel_config"})
 }
 
+func TestAssessCompletionAcceptsNotApplicableApplyItems(t *testing.T) {
+	run := applyRun{Items: []applyItemResult{{applyItem: applyItem{Kind: "safeguard", Name: "linux-only", State: "not_applicable"}, Outcome: "not_applicable"}}}
+	assessment := assessCompletion(readinessResponse{}, &run)
+	if len(assessment.Blockers) != 0 {
+		t.Fatalf("not-applicable item blocked completion: %#v", assessment.Blockers)
+	}
+	if got := applyDisposition("not_applicable"); got != "not_applicable" {
+		t.Fatalf("disposition = %q, want not_applicable", got)
+	}
+}
+
 // [REQ:ONB-READY-DEGRADED-CONTINUE]
 // The acknowledgement names the exact degraded set it accepted, so accepting
 // one gap cannot authorise completion over a different one later.

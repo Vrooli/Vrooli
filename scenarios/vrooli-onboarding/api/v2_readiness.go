@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/storage"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/packages/hostreq"
 )
 
@@ -371,6 +372,25 @@ func buildReadinessResponse(ctx context.Context) (readinessResponse, error) {
 	for _, safeguard := range hosts.Safeguards {
 		response.Hosts = append(response.Hosts, inspectSafeguardReadiness(root, safeguard))
 	}
+	// Credential delivery is only finishable when the node's own authority can
+	// accept a value. Keep this as a named host fact so a locked login
+	// collection is actionable rather than being misreported as a generic
+	// credential question.
+	storeCtx, storeCancel := context.WithTimeout(ctx, 5*time.Second)
+	store := hostinventory.CredentialStoreStatus(storeCtx)
+	storeCancel()
+	storeStatus := store.State
+	if storeStatus == "" {
+		storeStatus = "unknown"
+	}
+	storeFact := hostReadiness{readinessItem: readinessItem{
+		Name: "credential_store", Category: "system", Status: storeStatus,
+		Detail: store.Reason, Remediation: "Run `vrooli credentials keyring unlock` and retry configuration.", Required: true,
+	}, Kind: "credential_store", Required: true}
+	response.Hosts = append(response.Hosts, storeFact)
+	if storeStatus == "locked" || storeStatus == "unresponsive" {
+		response.Status = lessReady(response.Status, "missing")
+	}
 	sort.Slice(response.Hosts, func(i, j int) bool {
 		return response.Hosts[i].Kind+response.Hosts[i].Name < response.Hosts[j].Kind+response.Hosts[j].Name
 	})
@@ -443,9 +463,9 @@ func inspectToolReadiness(item hostItem) hostReadiness {
 		return result
 	}
 	if !hostPlatformSupported(item.Platforms) {
-		result.Status = "unsupported"
+		result.Status = "not_applicable"
 		result.Detail = "This tool is not declared for the current operating system."
-		result.Remediation = "Use a supported deployment target or deselect the optional capability."
+		result.Remediation = "This capability is not applicable on the current operating system."
 		return result
 	}
 	if len(item.Commands) == 0 {
@@ -473,9 +493,9 @@ func inspectSafeguardReadiness(root string, item hostItem) hostReadiness {
 		return result
 	}
 	if !hostPlatformSupported(item.Platforms) {
-		result.Status = "unsupported"
+		result.Status = "not_applicable"
 		result.Detail = "This safeguard is not declared for the current operating system."
-		result.Remediation = "Use a supported deployment target or deselect the optional safeguard."
+		result.Remediation = "This safeguard is not applicable on the current operating system."
 		return result
 	}
 	data, err := hostManifest(root, "safeguards", item.Name)
@@ -581,12 +601,18 @@ func observeHandlerSafeguard(root string, item hostItem) hostReadiness {
 			result.Detail = "This safeguard requires an action Vrooli will not take on the operator's behalf."
 		}
 		result.Remediation = "Complete the manual step this safeguard declares, then rerun validation."
-	case "unsupported", "not_applicable":
+	case "unsupported":
 		result.Status = "unsupported"
 		if result.Detail == "" {
 			result.Detail = "This safeguard does not apply to this host."
 		}
 		result.Remediation = "Deselect this safeguard, or run on a host it supports."
+	case "not_applicable":
+		result.Status = "not_applicable"
+		if result.Detail == "" {
+			result.Detail = "This safeguard does not apply to this host."
+		}
+		result.Remediation = "No action is required on this operating system."
 	default:
 		// "failed" and any state added later. An inspection that did not reach
 		// a verdict must not be rendered as one.
@@ -640,7 +666,7 @@ func sortCredentialReadiness(items []credentialReadiness) {
 }
 
 func lessReady(current, candidate string) string {
-	priority := map[string]int{"ready": 0, "deferred": 0, "degraded": 1, "missing": 2, "unsupported": 3}
+	priority := map[string]int{"ready": 0, "deferred": 0, "not_applicable": 0, "degraded": 1, "missing": 2, "unsupported": 3}
 	if priority[candidate] > priority[current] {
 		return candidate
 	}

@@ -41,7 +41,7 @@
   "concurrency": { "mode": "provider-serial" },
   "determinism": { "default": "file-determined", "inputs": [".vrooli/monetization.json", "**/*.go"], "reason": "The provider scans scenario source and manifest state." },
   "maturity": {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "levels": [
       { "id": "L0", "name": "Inventory unavailable", "description": "Monetization surfaces cannot be inspected.", "entry_criteria": ["The target is applicable."], "exit_criteria": ["Source and declaration surfaces are readable."] },
       { "id": "L1", "name": "Trust boundary", "description": "The static trust-boundary checks run and findings are visible.", "entry_criteria": ["Source surfaces are readable."], "exit_criteria": ["No shared service secret or symmetric verifier is present."] },
@@ -72,6 +72,8 @@
       ,"money.unknown_bundle_key": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Use the LPBS runtime bundle key." }
       ,"money.unregistered_app_key": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Register the declared app through the delivery catalog." }
       ,"money.live_catalog_unavailable": { "capability_id": "monetization_boundary", "local_level_impact": "L4", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Restore the LPBS database/catalog authority before declaring conformance." }
+      ,"money.no_account_surface": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "capability_gap", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare and expose the account surface for an entitled scenario." }
+      ,"money.no_journey_probe": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "capability_gap", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare and expose a provider-neutral monetization journey probe." }
     },
     "fallback": {
       "capability_id": "monetization_boundary",

@@ -1,0 +1,30 @@
+{
+  "id": "7e1c9cf1-0b66-4d25-8b8e-1f6f4f6c4d1e",
+  "project_id": "0c037e4d-dd01-4c3b-a23b-0e6a9e3ac9ff",
+  "name": "generation-byok-source",
+  "folder_path": "/bas/cases/04-commercial",
+  "description": "Verify the AI surface exposes the same resolution strip and provider provenance contract for a BYOK response.",
+  "metadata": { "name": "generation-byok-source", "description": "Verify the AI surface exposes the same resolution strip and provider provenance contract for a BYOK response.", "execution_mode": "mutating", "reset": "full", "labels": { "reset": "full", "requires_confirmation": "true", "routed_isolation": "true", "seed": "seed", "spec_entry_id": "generation-byok", "requirements_json": "[\"WEBCONSO-P0-010\"]" } },
+  "tags": ["reset:full", "requirements_json:[\"WEBCONSO-P0-010\"]"],
+  "version": 1,
+  "flow_definition": { "settings": { "viewport_width": 1440, "viewport_height": 900 }, "nodes": [
+    { "id": "open-workspace", "action": { "type": "ACTION_TYPE_SUBFLOW", "subflow": { "workflow_path": "actions/open-workspace.json" } } },
+    { "id": "open-ai", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/ai.open" } } },
+    { "id": "assert-order", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/ai.resolutionStrip", "timeout_ms": 10000 } } },
+    { "id": "prompt", "action": { "type": "ACTION_TYPE_INPUT", "input": { "selector": "@selector/ai.prompt", "value": "print the current directory", "clear_first": true } } },
+    { "id": "mock-ai", "action": { "type": "ACTION_TYPE_NETWORK_MOCK", "networkMock": { "operation": "NETWORK_MOCK_OPERATION_MOCK", "urlPattern": "*/api/v1/ai/generate", "method": "POST", "statusCode": 200, "body": "{\"command\":\"pwd\",\"provider\":\"openrouter\"}", "headers": { "content-type": "application/json" } } } },
+    { "id": "generate", "action": { "type": "ACTION_TYPE_CLICK", "click": { "selector": "@selector/ai.generate" } } },
+    { "id": "assert-provenance", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/ai.providerProvenance", "timeout_ms": 30000 } } },
+    { "id": "verify-provenance-order", "action": { "type": "ACTION_TYPE_EVALUATE", "evaluate": { "expression": "(() => { const strip = document.querySelector('[data-testid=\"ai-resolution-strip\"]'); const provenance = document.querySelector('[data-testid=\"ai-provider-provenance\"]'); const order = (strip?.getAttribute('data-source-order') || '').split(','); const source = provenance?.getAttribute('data-provider') || ''; document.body.setAttribute('data-source-provenance-aligned', order.includes(source) ? 'true' : 'false'); })()" } } },
+    { "id": "assert-provenance-order", "action": { "type": "ACTION_TYPE_ASSERT", "assert": { "selector": "@selector/commercial.sourceProvenanceAligned", "timeout_ms": 5000 } } }
+  ], "edges": [
+    { "id": "e1", "source": "open-workspace", "target": "open-ai", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e2", "source": "open-ai", "target": "assert-order", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e3", "source": "assert-order", "target": "prompt", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e4", "source": "prompt", "target": "mock-ai", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e4b", "source": "mock-ai", "target": "generate", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e5", "source": "generate", "target": "assert-provenance", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e6", "source": "assert-provenance", "target": "verify-provenance-order", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" },
+    { "id": "e7", "source": "verify-provenance-order", "target": "assert-provenance-order", "type": "WORKFLOW_EDGE_TYPE_DEFAULT" }
+  ] }
+}

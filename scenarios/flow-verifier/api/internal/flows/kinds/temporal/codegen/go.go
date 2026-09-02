@@ -118,7 +118,7 @@ func renderGoReplayHelper(flow model.Flow, opts Options) (string, error) {
 	fmt.Fprintf(&b, "package %s\n\n", pkg)
 	b.WriteString("import (\n")
 	b.WriteString("\t\"testing\"\n\n")
-	fmt.Fprintf(&b, "\t%q\n", modulePath+"/internal/testutil/modeltest")
+	fmt.Fprintf(&b, "\t%q\n", "github.com/vrooli/vrooli/packages/proto/modeltest")
 	b.WriteString(")\n\n")
 	fmt.Fprintf(&b, "// Transition is the shape the hand-authored test must supply. The\n")
 	fmt.Fprintf(&b, "// wrapper around %s should produce one of these for delegation.\n", rt.StatusType)

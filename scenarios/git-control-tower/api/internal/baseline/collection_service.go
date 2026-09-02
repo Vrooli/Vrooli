@@ -174,7 +174,7 @@ func (s *Service) StartCollectionCapture(ctx context.Context, req StartCollectio
 	if branch == "" {
 		state, err := s.captureGit(ctx, req.RepoDir)
 		if err != nil {
-			return StartCollectionCaptureResult{}, fmt.Errorf("read git state: %w", err)
+			return StartCollectionCaptureResult{}, fmt.Errorf("read git state at %q: %w", req.RepoDir, err)
 		}
 		branch = ResolveStorageBranch(state)
 	}
@@ -435,7 +435,7 @@ func (s *Service) ExtendCollection(ctx context.Context, req ExtendCollectionRequ
 	if branch == "" {
 		state, err := s.captureGit(ctx, req.RepoDir)
 		if err != nil {
-			return ExtendCollectionResult{}, fmt.Errorf("read git state: %w", err)
+			return ExtendCollectionResult{}, fmt.Errorf("read git state at %q: %w", req.RepoDir, err)
 		}
 		branch = ResolveStorageBranch(state)
 	}

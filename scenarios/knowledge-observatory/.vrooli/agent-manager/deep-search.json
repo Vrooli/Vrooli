@@ -11,5 +11,6 @@
   "sandboxConfig": {
     "mode": "SANDBOX_MODE_OFF"
   },
-  "createdBy": "knowledge-observatory"
+  "createdBy": "knowledge-observatory",
+  "effort": "medium"
 }

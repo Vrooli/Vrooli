@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Wand2, Activity, BookOpen } from "lucide-react";
 import { WizardShell } from "./components/wizard/WizardShell";
 import { HealthDashboard } from "./components/dashboard/HealthDashboard";
@@ -6,8 +6,10 @@ import { GlossaryPanel } from "./components/glossary/GlossaryPanel";
 import { useGlobalKeyboardShortcuts } from "./hooks/useGlobalKeyboardShortcuts";
 import { useWizardState } from "./hooks/useWizardState";
 import { cn } from "./lib/utils";
-import { Button } from "./components/ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { stepRegistry } from "./components/wizard/stepRegistry";
+import { fetchV2Targets } from "./lib/api";
+import type { OnboardingTarget } from "./types";
 
 type AppView = "wizard" | "dashboard" | "glossary";
 
@@ -49,6 +51,11 @@ export default function App() {
   const [view, setView] = useState<AppView>(() =>
     initialViewForPath(window.location.pathname),
   );
+  const [target, setTarget] = useState(() => new URLSearchParams(window.location.search).get("target") || "local");
+  const [targetOptions, setTargetOptions] = useState<OnboardingTarget[]>([{ id: "local", name: "This machine", status: "local" }]);
+  useEffect(() => {
+    fetchV2Targets().then((result) => setTargetOptions(result.targets)).catch(() => undefined);
+  }, []);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const {
@@ -106,6 +113,22 @@ export default function App() {
       setView(viewId);
       tabRefs.current[index]?.focus();
     }
+  });
+
+  // The shared FormWizard owns step navigation; each step still receives the
+  // same durable state and callbacks, so the question schema is rendered once
+  // by the registry rather than reimplemented in the shell.
+  const renderStep = (step: (typeof steps)[number]) => stepRegistry[step.id]?.({
+    step,
+    selectedScenarios,
+    operatorState,
+    toggleScenario,
+    setCoreSeed,
+    setScenarioAutoRestart,
+    setHostOptIn,
+    setHostConfig,
+    setResourceEnabled,
+    target,
   });
 
   return (
@@ -239,24 +262,23 @@ export default function App() {
                 nextLabel={nextLabel}
                 showPrev={currentStep > 0}
                 showNext={!isLastStep}
+                target={target}
+                onTargetChange={(nextTarget) => {
+                  const normalized = nextTarget.trim() || "local";
+                  setTarget(normalized);
+                  const params = new URLSearchParams(window.location.search);
+                  params.set("target", normalized);
+                  window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+                }}
+                targetOptions={targetOptions}
+                stepContents={steps.map((step, index) => index === currentStep ? (
+                  <div ref={stepContentRef} key={step.id} className="animate-step-enter">
+                    {renderStep(step)}
+                  </div>
+                ) : null)}
               >
-                <div
-                  ref={stepContentRef}
-                  key={currentStep}
-                  className="animate-step-enter"
-                >
-                  {steps[currentStep] &&
-                    stepRegistry[steps[currentStep].id]?.({
-                      step: steps[currentStep],
-                      selectedScenarios,
-                      operatorState,
-                      toggleScenario,
-                      setCoreSeed,
-                      setScenarioAutoRestart,
-                      setHostOptIn,
-                      setHostConfig,
-                      setResourceEnabled,
-                    })}
+                <div ref={stepContentRef} key={currentStep} className="animate-step-enter">
+                  {steps[currentStep] && renderStep(steps[currentStep])}
                 </div>
               </WizardShell>
             )}

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/browser-automation-studio/config"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
@@ -56,9 +57,9 @@ func NewService(cfg config.EntitlementConfig, log *logrus.Logger) *Service {
 	svc := &Service{
 		cfg: cfg,
 		log: log,
-		httpClient: &http.Client{
+		httpClient: apihttp.NewTestModeClient(&http.Client{
 			Timeout: cfg.RequestTimeout,
-		},
+		}),
 	}
 	svc.rebuildGate()
 	return svc

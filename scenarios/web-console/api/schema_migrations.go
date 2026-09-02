@@ -71,6 +71,9 @@ func initSchemaWithProviders(ctx context.Context, db dbx.Handle, providers []dat
 	if err := ensureConversationFTS(ctx, db); err != nil {
 		return fmt.Errorf("migration: conversation FTS: %w", err)
 	}
+	if err := ensureActivationEvents(ctx, db); err != nil {
+		return fmt.Errorf("migration: activation events: %w", err)
+	}
 
 	if err := migrateSessionsAgentTypeConstraint(ctx, db); err != nil {
 		return fmt.Errorf("migration: %w", err)

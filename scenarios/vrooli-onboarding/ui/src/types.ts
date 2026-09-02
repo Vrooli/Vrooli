@@ -198,9 +198,18 @@ export interface V2Step {
 export interface V2StepsResponse {
   steps: V2Step[];
 }
+export interface OnboardingTarget {
+  id: string;
+  name?: string;
+  status?: string;
+}
+export interface V2TargetsResponse {
+  targets: OnboardingTarget[];
+  error?: string;
+}
 export interface OperatorInputRequest {
   id: string;
-  kind: "secret" | "choice" | "confirm";
+  kind: "secret" | "choice" | "confirm" | "path" | "enum" | "boolean" | "duration" | "confirmation";
   title: string;
   description?: string;
   default?: string;
@@ -208,6 +217,9 @@ export interface OperatorInputRequest {
   unblocks?: string[];
   validation?: string;
   required: boolean;
+  candidates?: CapabilityCandidate[];
+  capability_id?: string;
+  input_id?: string;
 }
 export interface OperatorInputQueue {
   version: number;

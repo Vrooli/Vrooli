@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Switch } from "@vrooli/react-component-library/Switch";
 import { Slider } from "@vrooli/react-component-library/Slider";
-import { useSettingsRowLabelId } from "@vrooli/react-component-library/SettingsList/0";
+import { useSettingsRowLabelId } from "@vrooli/react-component-library/SettingsList/1";
 import { cn } from "../../lib/classnames";
 
 /**

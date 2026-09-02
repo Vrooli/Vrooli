@@ -3936,16 +3936,19 @@ func (x *GoalImpact) GetProjectedPriority() int32 {
 }
 
 type ReleaseLadderEntry struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	Deliverable     *Node                  `protobuf:"bytes,1,opt,name=deliverable,proto3" json:"deliverable,omitempty"`
-	UnlockedRamps   []*Node                `protobuf:"bytes,2,rep,name=unlocked_ramps,json=unlockedRamps,proto3" json:"unlocked_ramps,omitempty"`
-	UnlockedStreams []*Node                `protobuf:"bytes,3,rep,name=unlocked_streams,json=unlockedStreams,proto3" json:"unlocked_streams,omitempty"`
-	Audiences       []*Node                `protobuf:"bytes,4,rep,name=audiences,proto3" json:"audiences,omitempty"`
-	CumulativeRamps []*Node                `protobuf:"bytes,5,rep,name=cumulative_ramps,json=cumulativeRamps,proto3" json:"cumulative_ramps,omitempty"`
-	Enablers        []*PrerequisiteNode    `protobuf:"bytes,6,rep,name=enablers,proto3" json:"enablers,omitempty"`
-	GoalImpacts     []*GoalImpact          `protobuf:"bytes,7,rep,name=goal_impacts,json=goalImpacts,proto3" json:"goal_impacts,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	Deliverable             *Node                  `protobuf:"bytes,1,opt,name=deliverable,proto3" json:"deliverable,omitempty"`
+	UnlockedRamps           []*Node                `protobuf:"bytes,2,rep,name=unlocked_ramps,json=unlockedRamps,proto3" json:"unlocked_ramps,omitempty"`
+	UnlockedStreams         []*Node                `protobuf:"bytes,3,rep,name=unlocked_streams,json=unlockedStreams,proto3" json:"unlocked_streams,omitempty"`
+	Audiences               []*Node                `protobuf:"bytes,4,rep,name=audiences,proto3" json:"audiences,omitempty"`
+	CumulativeRamps         []*Node                `protobuf:"bytes,5,rep,name=cumulative_ramps,json=cumulativeRamps,proto3" json:"cumulative_ramps,omitempty"`
+	Enablers                []*PrerequisiteNode    `protobuf:"bytes,6,rep,name=enablers,proto3" json:"enablers,omitempty"`
+	GoalImpacts             []*GoalImpact          `protobuf:"bytes,7,rep,name=goal_impacts,json=goalImpacts,proto3" json:"goal_impacts,omitempty"`
+	ReadinessGoalExists     bool                   `protobuf:"varint,8,opt,name=readiness_goal_exists,json=readinessGoalExists,proto3" json:"readiness_goal_exists,omitempty"`
+	ReadinessGoalClosed     bool                   `protobuf:"varint,9,opt,name=readiness_goal_closed,json=readinessGoalClosed,proto3" json:"readiness_goal_closed,omitempty"`
+	ReadinessApprovedCommit string                 `protobuf:"bytes,10,opt,name=readiness_approved_commit,json=readinessApprovedCommit,proto3" json:"readiness_approved_commit,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *ReleaseLadderEntry) Reset() {
@@ -4025,6 +4028,27 @@ func (x *ReleaseLadderEntry) GetGoalImpacts() []*GoalImpact {
 		return x.GoalImpacts
 	}
 	return nil
+}
+
+func (x *ReleaseLadderEntry) GetReadinessGoalExists() bool {
+	if x != nil {
+		return x.ReadinessGoalExists
+	}
+	return false
+}
+
+func (x *ReleaseLadderEntry) GetReadinessGoalClosed() bool {
+	if x != nil {
+		return x.ReadinessGoalClosed
+	}
+	return false
+}
+
+func (x *ReleaseLadderEntry) GetReadinessApprovedCommit() string {
+	if x != nil {
+		return x.ReadinessApprovedCommit
+	}
+	return ""
 }
 
 type ReleaseLadderResponse struct {
@@ -5041,7 +5065,7 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\n" +
 	"goal_title\x18\x02 \x01(\tR\tgoalTitle\x12)\n" +
 	"\x10deliverable_name\x18\x03 \x01(\tR\x0fdeliverableName\x12-\n" +
-	"\x12projected_priority\x18\x04 \x01(\x05R\x11projectedPriority\"\x97\x04\n" +
+	"\x12projected_priority\x18\x04 \x01(\x05R\x11projectedPriority\"\xbb\x05\n" +
 	"\x12ReleaseLadderEntry\x12C\n" +
 	"\vdeliverable\x18\x01 \x01(\v2!.vrooli.offer_desk.v1.offers.NodeR\vdeliverable\x12H\n" +
 	"\x0eunlocked_ramps\x18\x02 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\runlockedRamps\x12L\n" +
@@ -5049,7 +5073,11 @@ const file_offer_desk_v1_offers_offers_proto_rawDesc = "" +
 	"\taudiences\x18\x04 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\taudiences\x12L\n" +
 	"\x10cumulative_ramps\x18\x05 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\x0fcumulativeRamps\x12I\n" +
 	"\benablers\x18\x06 \x03(\v2-.vrooli.offer_desk.v1.offers.PrerequisiteNodeR\benablers\x12J\n" +
-	"\fgoal_impacts\x18\a \x03(\v2'.vrooli.offer_desk.v1.offers.GoalImpactR\vgoalImpacts\"\xf8\x03\n" +
+	"\fgoal_impacts\x18\a \x03(\v2'.vrooli.offer_desk.v1.offers.GoalImpactR\vgoalImpacts\x122\n" +
+	"\x15readiness_goal_exists\x18\b \x01(\bR\x13readinessGoalExists\x122\n" +
+	"\x15readiness_goal_closed\x18\t \x01(\bR\x13readinessGoalClosed\x12:\n" +
+	"\x19readiness_approved_commit\x18\n" +
+	" \x01(\tR\x17readinessApprovedCommit\"\xf8\x03\n" +
 	"\x15ReleaseLadderResponse\x12I\n" +
 	"\aentries\x18\x01 \x03(\v2/.vrooli.offer_desk.v1.offers.ReleaseLadderEntryR\aentries\x127\n" +
 	"\x05ramps\x18\x02 \x03(\v2!.vrooli.offer_desk.v1.offers.NodeR\x05ramps\x12;\n" +

@@ -563,7 +563,7 @@ func (s *Service) buildManifestSkeleton(ctx context.Context, req CreateRequest) 
 	}
 	gitState, err := s.captureGit(ctx, req.RepoDir)
 	if err != nil {
-		return BaselineManifest{}, fmt.Errorf("read git state: %w", err)
+		return BaselineManifest{}, fmt.Errorf("read git state at %q: %w", req.RepoDir, err)
 	}
 	branch := strings.TrimSpace(req.Branch)
 	if branch == "" {

@@ -17,10 +17,19 @@ func TestLiveMonetizationManifestConforms(t *testing.T) {
 		t.Fatal("resolve test location")
 	}
 	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "..", "..", ".."))
-	for _, scenario := range []string{"landing-page-business-suite", "browser-automation-studio", "web-console"} {
+	for _, scenario := range []string{"landing-page-business-suite"} {
 		findings := scan(filepath.Join(root, "scenarios", scenario))
 		for _, finding := range findings {
 			t.Errorf("%s live conformance finding %s at %s: %s", scenario, finding.Code, finding.Location, finding.Message)
+		}
+	}
+	if findings := scan(filepath.Join(root, "scenarios", "browser-automation-studio")); len(findings) != 0 {
+		t.Errorf("browser-automation-studio should have no paid-surface findings: %v", findings)
+	}
+	for _, scenario := range []string{"web-console"} {
+		findings := scan(filepath.Join(root, "scenarios", scenario))
+		if !hasFindingCode(findings, "money.no_account_surface") || !hasFindingCode(findings, "money.no_journey_probe") {
+			t.Errorf("%s should report undeclared paid-surface seams: %v", scenario, findings)
 		}
 	}
 }

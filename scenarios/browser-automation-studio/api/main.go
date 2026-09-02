@@ -70,6 +70,7 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 
 	// Unified recording service for timeline persistence
 	unifiedrecording "github.com/vrooli/browser-automation-studio/services/recording"
@@ -596,10 +597,25 @@ func main() {
 	r.Get("/ws/execution/{executionId}/frames", handler.HandleDriverExecutionFrameStream) // WebSocket for playwright-driver binary frame streaming (execution mode)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		sessionModule := monetization.NewSessionModule(credentialClient, lpbsAccountIdentity, lpbsAccountField)
 		r.Post("/credentials/provision", credentialProvisionHandler(credentialClient))
-		r.Post("/auth/subscription/session", subscriptionSessionHandler(credentialClient))
-		r.Get("/auth/subscription/session", subscriptionSessionStatusHandler(credentialClient))
-		r.Delete("/auth/subscription/session", subscriptionSessionDeleteHandler(credentialClient))
+		r.Post("/auth/subscription/session", sessionModule.Provision)
+		r.Get("/auth/subscription/session", sessionModule.Status)
+		r.Delete("/auth/subscription/session", sessionModule.Delete)
+		r.Get("/monetization/outbox/pending", func(w http.ResponseWriter, req *http.Request) {
+			identity, err := repo.GetSetting(req.Context(), "user_identity")
+			if err != nil {
+				http.Error(w, "unable to read monetization identity", http.StatusInternalServerError)
+				return
+			}
+			pending, err := creditService.PendingOutboxCount(req.Context(), identity)
+			if err != nil {
+				http.Error(w, "unable to read pending monetization usage", http.StatusServiceUnavailable)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]int{"pending": pending})
+		})
 		// Health endpoint under /api/v1 for consistency
 		r.Get("/health", healthHandler)
 
@@ -652,7 +668,7 @@ func main() {
 					return "", fmt.Errorf("create LPBS identity request: %w", err)
 				}
 				request.Header.Set("Authorization", "Bearer "+token)
-				response, err := (&http.Client{Timeout: 15 * time.Second}).Do(request) // #nosec G704 -- LPBS URL is operator-configured.
+				response, err := apihttp.NewTestModeClient(&http.Client{Timeout: 15 * time.Second}).Do(request) // #nosec G704 -- LPBS URL is operator-configured.
 				if err != nil {
 					return "", fmt.Errorf("resolve LPBS consumer identity: %w", err)
 				}
@@ -683,7 +699,7 @@ func main() {
 					return 0, err
 				}
 				request.Header.Set("Authorization", "Bearer "+token)
-				response, err := (&http.Client{Timeout: 20 * time.Second}).Do(request) // #nosec G704 -- LPBS URL is operator-configured.
+				response, err := apihttp.NewTestModeClient(&http.Client{Timeout: 20 * time.Second}).Do(request) // #nosec G704 -- LPBS URL is operator-configured.
 				if err != nil {
 					return 0, fmt.Errorf("fetch LPBS usage summary: %w", err)
 				}
@@ -768,7 +784,7 @@ func main() {
 				}
 				request.Header.Set("Content-Type", "application/json")
 				request.Header.Set("Authorization", "Bearer "+token)
-				response, err := (&http.Client{Timeout: 20 * time.Second}).Do(request) // #nosec G704 -- baseURL is operator-configured LPBS authority.
+				response, err := apihttp.NewTestModeClient(&http.Client{Timeout: 20 * time.Second}).Do(request) // #nosec G704 -- baseURL is operator-configured LPBS authority.
 				if err != nil {
 					http.Error(w, "LPBS Class A probe: "+err.Error(), http.StatusBadGateway)
 					return

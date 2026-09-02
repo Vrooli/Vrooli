@@ -1,5 +1,6 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { Input } from "@vrooli/react-component-library/Input/1";
+import FormWizard from "@vrooli/react-component-library/FormWizard";
 import { cn } from "../../lib/utils";
 import type { V2Step } from "../../types";
 
@@ -14,6 +15,10 @@ interface WizardShellProps {
   showPrev?: boolean;
   showNext?: boolean;
   children: React.ReactNode;
+  stepContents?: React.ReactNode[];
+  target?: string;
+  onTargetChange?: (target: string) => void;
+  targetOptions?: Array<{ id: string; name?: string; status?: string }>;
 }
 
 export function WizardShell({
@@ -27,12 +32,24 @@ export function WizardShell({
   showPrev = true,
   showNext = true,
   children,
+  stepContents,
+  target = "local",
+  onTargetChange,
+  targetOptions = [],
 }: WizardShellProps) {
   return (
     <div
       className="flex min-h-full flex-col bg-surface text-foreground"
       data-testid="wizard-shell"
     >
+      <div className="border-b border-muted bg-surface px-3 py-3 sm:px-6" data-testid="wizard-target-chrome">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-3">
+          <label htmlFor="wizard-target" className="text-sm font-medium">Configuring target</label>
+          <Input id="wizard-target" value={target} onChange={(event) => onTargetChange?.(event.target.value)} list="wizard-target-options" aria-describedby="wizard-target-help" data-testid="wizard-target" className="min-w-0 flex-1" />
+          <datalist id="wizard-target-options">{targetOptions.map((option) => <option key={option.id} value={option.id}>{option.name || option.id}</option>)}</datalist>
+          <span id="wizard-target-help" className="text-xs text-muted">Use <code>local</code> or a registered node id.</span>
+        </div>
+      </div>
       {/* Step indicator */}
       <section
         className="border-b border-muted bg-surface-muted px-2 py-2 sm:px-6 sm:py-4"
@@ -167,41 +184,39 @@ export function WizardShell({
 
       {/* Content - reduced padding on mobile, extra bottom padding for sticky nav */}
       <div className="flex-1 overflow-auto px-3 py-4 sm:px-6 sm:py-8 pb-20 sm:pb-8">
-        <div className="mx-auto max-w-3xl">{children}</div>
-      </div>
-
-      {/* Navigation - sticky on mobile for thumb access */}
-      <div
-        className="sticky bottom-0 border-t border-muted bg-surface/95 backdrop-blur-sm px-3 py-2.5 sm:static sm:bg-surface-muted sm:px-6 sm:py-4"
-        style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
-      >
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <div>
-            {showPrev && currentStep > 0 && (
-              <Button
-                variant="outline"
-                onClick={onPrev}
-                data-testid="wizard-prev"
-                aria-label="Go to previous step"
-              >
-                <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
-                Back
-              </Button>
-            )}
-          </div>
-          <div>
-            {showNext && (
-              <Button
-                onClick={onNext}
-                disabled={nextDisabled}
-                data-testid="wizard-next"
-                aria-label={nextLabel}
-              >
-                {nextLabel}
-                <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
-              </Button>
-            )}
-          </div>
+        <div className="mx-auto max-w-3xl">
+          <FormWizard
+            key={steps.map((step) => step.id).join("/")}
+            steps={steps.map((step, index) => ({
+              id: step.id,
+              title: step.title,
+              content: stepContents?.[index] ?? (index === currentStep ? children : null),
+            }))}
+            initialStep={currentStep}
+            activeStep={currentStep}
+            onStepChange={(index) => {
+              if (onGoToStep) {
+                onGoToStep(index);
+              } else if (index > currentStep) {
+                onNext();
+              } else if (index < currentStep) {
+                onPrev();
+              }
+            }}
+            draftKey="vrooli-onboarding"
+            showStepNavigation={false}
+            showHeading={false}
+            showPrevious={showPrev && currentStep > 0}
+            showNext={showNext}
+            showSave={false}
+            nextLabel={nextLabel}
+            nextDisabled={nextDisabled}
+            nextTestId="wizard-next"
+            previousTestId="wizard-prev"
+            nextAriaLabel={nextLabel}
+            previousAriaLabel="Go to previous step"
+            className="min-h-0"
+          />
         </div>
       </div>
     </div>

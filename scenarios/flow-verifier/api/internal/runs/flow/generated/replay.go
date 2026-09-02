@@ -5,7 +5,7 @@ package generated
 import (
 	"testing"
 
-	"flow-verifier/internal/testutil/modeltest"
+	"github.com/vrooli/vrooli/packages/proto/modeltest"
 )
 
 // Transition is the shape the hand-authored test must supply. The

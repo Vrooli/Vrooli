@@ -9,6 +9,8 @@ import (
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
+const generatedFileMode = 0o644
+
 func main() {
 	root, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
@@ -24,7 +26,7 @@ func main() {
 	}
 	data = append(data, '\n')
 	path := filepath.Join(root, "packages", "monetization-go", "meter-inventory.json")
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, generatedFileMode); err != nil {
 		fail(err)
 	}
 	fmt.Println(path)

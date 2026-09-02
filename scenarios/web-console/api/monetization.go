@@ -14,54 +14,11 @@ import (
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
-// monetizationGate is the only web-console paid-surface decision point. The
-// lease remains authoritative; local UI state cannot grant voice access.
+// monetizationGate keeps the shared lease gate available to UI-facing paid
+// decisions. Server-side charges must be enforced by the trusted provider.
 type monetizationGate struct {
 	gate   *monetization.Gate
 	outbox *monetization.Outbox
-}
-
-// voiceSynthesis is the Class B local-capacity enforcement chokepoint.
-func (m monetizationGate) voiceSynthesis(w http.ResponseWriter, r *http.Request) {
-	identity := bearerIdentityHint(r.Header.Get("Authorization"))
-	if m.gate == nil || identity == "" {
-		monetization.WriteError(w, http.StatusUnauthorized, monetization.ErrorUnauthorized, monetization.Decision{Reason: monetization.ReasonLeaseUnavailable})
-		return
-	}
-	decision := m.gate.Feature(r.Context(), identity, "voice_synthesis", 2)
-	if !decision.Allowed {
-		monetization.WriteError(w, http.StatusForbidden, monetization.ErrorSubscriptionRequired, decision)
-		return
-	}
-	// Class B work is local and is recorded durably before its delivery loop.
-	if err := m.enqueueUsage(r.Context(), identity); err != nil {
-		monetization.WriteError(w, http.StatusServiceUnavailable, monetization.ErrorAuthorityUnavailable, decision)
-		return
-	}
-	if decision.Warning {
-		w.Header().Set("X-Entitlement-Warning", monetization.ReasonPastDue)
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (m monetizationGate) enqueueUsage(ctx context.Context, identity string) error {
-	if m.outbox == nil {
-		return monetization.ErrNilOutbox
-	}
-	operationID, err := monetization.NewOperationID()
-	if err != nil {
-		return err
-	}
-	return m.outbox.Enqueue(ctx, monetization.Usage{
-		OperationID:  operationID,
-		UserIdentity: identity,
-		BundleKey:    "business_suite",
-		AppKey:       "web-console",
-		MeterKey:     "voice_minutes",
-		Units:        1,
-		OccurredAt:   time.Now().UTC(),
-		Metadata:     map[string]string{"operation": "voice_synthesis"},
-	})
 }
 
 type monetizationUsageReport struct {
@@ -80,6 +37,35 @@ type lpbsMonetizationTransport struct {
 	baseURL      string
 	resolveToken func(context.Context, string) (string, error)
 	client       *http.Client
+}
+
+func resolveLPBSIdentity(ctx context.Context, baseURL, accessToken string) (string, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/api/v1/auth/me", nil)
+	if err != nil {
+		return "", err
+	}
+	request.Header.Set("Authorization", "Bearer "+accessToken)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("LPBS identity lookup returned status %d", response.StatusCode)
+	}
+	var payload struct {
+		User struct {
+			Email string `json:"email"`
+		} `json:"user"`
+	}
+	if err := json.NewDecoder(response.Body).Decode(&payload); err != nil {
+		return "", err
+	}
+	identity := strings.TrimSpace(payload.User.Email)
+	if identity == "" {
+		return "", fmt.Errorf("LPBS identity lookup returned no user identity")
+	}
+	return identity, nil
 }
 
 func (t *lpbsMonetizationTransport) Report(ctx context.Context, usage monetization.Usage) error {

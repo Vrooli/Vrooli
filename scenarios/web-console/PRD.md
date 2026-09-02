@@ -8,7 +8,7 @@
 
 ## 🎯 Overview
 
-**Purpose**: Web Console delivers a full-fidelity terminal experience in the browser with pane-based workflows, durable sessions, and AI-assisted input generation for authenticated parent scenarios.
+**Purpose**: Web Console delivers a full-fidelity terminal experience in the browser with pane-based workflows, durable sessions, and AI-assisted input generation for authenticated parent scenarios. It is useful without an account and supports an optional Vrooli subscription identity and user-owned provider keys.
 
 **Primary Users**:
 - Operators and engineers running interactive CLI workflows (Claude Code, Codex, diagnostics)
@@ -31,6 +31,7 @@
 - [ ] OT-P0-003 | Durable Session Continuity | Default session expiration is never; reconnect restores live state, transcript history, and output generated while client was offline
 - [ ] OT-P0-004 | Proxy-Correct Networking via api-base | UI uses shared api-base for HTTP/WebSocket routing under parent proxying with no direct-origin assumptions
 - [ ] OT-P0-005 | AI Input with Provider Fallback | AI command generation uses Ollama first with OpenRouter fallback and deterministic failover behavior
+- [ ] OT-P0-009 | Account and Provider Source Surface | Settings can connect the device-scoped Vrooli subscription session or provision an OpenRouter BYOK key without returning secrets; the active source is visible.
 - [ ] OT-P0-006 | New Terminal Launcher with Configurable Shortcuts | New-terminal flow offers empty shell and configurable shortcut entries; default entries include `vrooli agent launch --runner claude --arg=--dangerously-skip-permissions` and `codex --yolo`
 - [ ] OT-P0-007 | Mobile Terminal Usability Toolbar | Floating keyboard toolbar provides required terminal keys/chords for practical mobile usage
 - [ ] OT-P0-008 | Sidebar/Drawer Controls Surface | Drawer exposes session/workspace status, sender-owned message snippets, bounded message actions, and core controls without blocking primary terminal workflow
@@ -52,6 +53,19 @@
 - Data + storage expectations: Durable local transcript/session persistence by default with provider adapters as extension points
 - Integration strategy: Authenticated parent embedding + WebSocket streaming + `postMessage` bridge contract
 - Non-goals: Built-in public auth surface, direct internet exposure, and replacing parent-level RBAC policy
+
+**Commercial and Trust Boundary.**
+
+Web Console remains single-operator and machine-owned; a subscription identity is
+not multi-user session isolation or RBAC. Local Ollama and a user-provided
+OpenRouter key are free paths. When Vrooli supplies inference, Web Console
+forwards the consumer access token to `ai-gateway`, which owns `ai_credits`
+reserve and settlement. Web Console never decides that money was spent.
+
+The account tab is optional, stores refresh credentials only in the credential
+authority, and shows plan, balance, and pending synchronization from the signed
+lease when that authority is available. An unavailable account must not block
+local terminal use.
 
 ## 🤝 Dependencies & Launch Plan
 

@@ -244,7 +244,10 @@ const applyOutcomeApplying = "applying"
 
 type applyItemResult struct {
 	applyItem
-	Outcome     string `json:"outcome"`
+	Outcome string `json:"outcome"`
+	// Disposition is the stable operator-facing vocabulary. Outcome remains
+	// for compatibility with existing clients and carries execution detail.
+	Disposition string `json:"disposition,omitempty"`
 	Error       string `json:"error,omitempty"`
 	Remediation string `json:"remediation,omitempty"`
 	BlockedBy   string `json:"blocked_by,omitempty"`
@@ -379,10 +382,30 @@ func storeApplyRun(run applyRun) {
 }
 
 func updateApplyRun(run applyRun) {
+	for index := range run.Items {
+		run.Items[index].Disposition = applyDisposition(run.Items[index].Outcome)
+	}
 	applyRuns.Lock()
 	applyRuns.items[run.ID] = run
 	applyRuns.Unlock()
 	_ = persistApplyRun(run)
+}
+
+func applyDisposition(outcome string) string {
+	switch outcome {
+	case "applied":
+		return "applied"
+	case "already_satisfied":
+		return "already_present"
+	case "not_applicable":
+		return "not_applicable"
+	case "blocked", "failed", "timed_out", "needs_elevation":
+		return "blocked"
+	case "skipped_self", "pending", "applying":
+		return "skipped"
+	default:
+		return "blocked"
+	}
 }
 
 // applyRunSnapshot reads a run, preferring the persisted copy.
@@ -436,11 +459,16 @@ func (s *Server) buildApplyRun(ctx context.Context) (applyRun, error) {
 	run := applyRun{ID: fmt.Sprintf("apply-%d", now.UnixNano()), Status: "pending", SelectionDigest: selectionDigest(items), StartedAt: now.UTC().Format(time.RFC3339), Items: make([]applyItemResult, 0, len(items))}
 	for _, item := range items {
 		run.Items = append(run.Items, applyItemResult{applyItem: item, Outcome: "pending"})
+		if item.State == "not_applicable" {
+			run.Items[len(run.Items)-1].Outcome = "not_applicable"
+		}
 	}
 	if state.Completion != nil && state.Completion.SelectionDigest == run.SelectionDigest {
 		run.Status = "already_satisfied"
 		for i := range run.Items {
-			run.Items[i].Outcome = "already_satisfied"
+			if run.Items[i].Outcome != "not_applicable" {
+				run.Items[i].Outcome = "already_satisfied"
+			}
 		}
 		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
 	}
@@ -506,6 +534,10 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 	failed := map[string]error{}
 	for i := range run.Items {
 		item := run.Items[i].applyItem
+		if run.Items[i].Outcome == "not_applicable" {
+			updateApplyRun(run)
+			continue
+		}
 		for _, dependency := range item.Dependencies {
 			if dependencyErr, ok := failed[dependency]; ok {
 				run.Items[i].Outcome = "blocked"

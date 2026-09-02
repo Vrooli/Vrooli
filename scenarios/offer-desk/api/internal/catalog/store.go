@@ -20,9 +20,20 @@ import (
 var schemaSQL embed.FS
 
 type Store struct {
-	db  *database.RoutedDB
-	now func() time.Time
+	db                *database.RoutedDB
+	now               func() time.Time
+	readinessProvider ReadinessProvider
 }
+
+// ReadinessState is a read-only projection supplied by deployment-manager.
+// Offer Desk displays it but never derives or approves it.
+type ReadinessState struct {
+	GoalExists     bool
+	GoalClosed     bool
+	ApprovedCommit string
+}
+
+type ReadinessProvider func(context.Context, *offerspb.Node) (ReadinessState, error)
 
 func NewStore(db *database.RoutedDB, now func() time.Time) *Store {
 	if now == nil {
@@ -47,6 +58,8 @@ func NewStore(db *database.RoutedDB, now func() time.Time) *Store {
 }
 func (s *Store) DB() *database.RoutedDB { return s.db }
 func (s *Store) Schema() string         { b, _ := schemaSQL.ReadFile("schema.sql"); return string(b) }
+
+func (s *Store) SetReadinessProvider(provider ReadinessProvider) { s.readinessProvider = provider }
 
 func (s *Store) CreateNode(ctx context.Context, kind offerspb.NodeKind, name string, status offerspb.Status, trigger, actualAccountID string) (*offerspb.Node, error) {
 	return s.CreateNodeWithDetails(ctx, kind, name, status, trigger, actualAccountID, offerspb.DeliverableClass_MARKETED, offerspb.FinishBar_FINISH_BAR_UNSPECIFIED)
@@ -240,7 +253,11 @@ func (s *Store) Transition(ctx context.Context, id string, to offerspb.Status, a
 
 // SetDeliverableClass changes the scheduling classification and finish bar of
 // a deliverable. The audit row preserves who made the decision.
-func (s *Store) SetDeliverableClass(ctx context.Context, nodeID string, class offerspb.DeliverableClass, finish offerspb.FinishBar, actor string) (*offerspb.Node, error) {
+func (s *Store) SetDeliverableClass(ctx context.Context, nodeID string, class offerspb.DeliverableClass, finish offerspb.FinishBar, actor string, reasons ...string) (*offerspb.Node, error) {
+	reason := ""
+	if len(reasons) > 0 {
+		reason = reasons[0]
+	}
 	if strings.TrimSpace(actor) == "" {
 		return nil, errors.New("deliverable classification requires an actor")
 	}
@@ -268,8 +285,51 @@ func (s *Store) SetDeliverableClass(ctx context.Context, nodeID string, class of
 	if t, e := time.Parse(time.RFC3339Nano, created); e == nil {
 		n.CreatedAt = timestamppb.New(t)
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), nodeID, actor, status, status, fmt.Sprintf("deliverable class changed from %d to %d; finish bar %d (prior class %d, finish bar %d)", class, class, finish, priorClass, priorFinish), s.now().UTC().Format(time.RFC3339Nano))
+	if strings.TrimSpace(reason) == "" {
+		reason = fmt.Sprintf("deliverable class changed from %d to %d; finish bar %d (prior class %d, finish bar %d)", priorClass, class, finish, priorClass, priorFinish)
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), nodeID, actor, status, status, reason, s.now().UTC().Format(time.RFC3339Nano))
 	return &n, err
+}
+
+func (s *Store) RenameNode(ctx context.Context, nodeID, name, actor, reason string) (*offerspb.Node, string, error) {
+	if strings.TrimSpace(nodeID) == "" {
+		return nil, "", errors.New("rule rename_requires_node_id refused empty node id")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, "", errors.New("rule rename_requires_non_empty_name refused empty name")
+	}
+	if strings.TrimSpace(actor) == "" {
+		return nil, "", errors.New("rule rename_requires_actor refused missing actor")
+	}
+	n, err := s.GetNode(ctx, nodeID)
+	if err != nil {
+		return nil, "", err
+	}
+	if n.Name == name {
+		return n, n.Name, nil
+	}
+	var conflict string
+	err = s.db.QueryRowContext(ctx, `SELECT id FROM nodes WHERE kind=? AND name=? AND id<>? AND status<>? LIMIT 1`, int32(n.Kind), name, nodeID, int32(offerspb.Status_RETIRED)).Scan(&conflict)
+	if err == nil {
+		return nil, "", fmt.Errorf("rule rename_unique_live_name refused: conflicting node id %s", conflict)
+	}
+	if err != sql.ErrNoRows {
+		return nil, "", err
+	}
+	if _, err := s.db.ExecContext(ctx, `UPDATE nodes SET name=? WHERE id=?`, name, nodeID); err != nil {
+		return nil, "", err
+	}
+	priorName := n.Name
+	if strings.TrimSpace(reason) == "" {
+		reason = fmt.Sprintf("renamed from %q to %q", priorName, name)
+	}
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), nodeID, actor, int32(n.Status), int32(n.Status), reason+fmt.Sprintf("; prior_name=%s", priorName), s.now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return nil, "", err
+	}
+	n.Name = name
+	return n, priorName, nil
 }
 
 func (s *Store) ListEdges(ctx context.Context, nodeID string) ([]*offerspb.Edge, error) {
@@ -401,9 +461,8 @@ func (s *Store) enablesCycle(ctx context.Context, fromID, toID string) []string 
 	return nil
 }
 
-// MergeNodes is the only catalog operation that removes a node. The caller
-// supplies the survivor explicitly; every reference move, edge collapse,
-// audit write, and final delete happens in one transaction.
+// MergeNodes retires the duplicate after moving its references, preserving an
+// undoable identity row instead of hard-deleting a schedule record.
 func (s *Store) MergeNodes(ctx context.Context, request *offerspb.MergeNodesRequest) (*offerspb.MergeNodesResponse, error) {
 	if request == nil || strings.TrimSpace(request.SurvivingId) == "" || strings.TrimSpace(request.DuplicateId) == "" {
 		return nil, errors.New("merge requires surviving_id and duplicate_id")
@@ -424,11 +483,13 @@ func (s *Store) MergeNodes(ctx context.Context, request *offerspb.MergeNodesRequ
 	}
 	load := func(id string) (*nodeRow, error) {
 		row := &nodeRow{}
-		if err := tx.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank FROM nodes WHERE id=?`, id).Scan(&row.node.Id, &row.kind, &row.node.Name, &row.status, &row.node.TriggerId, &row.createdAt, &row.node.ActualAccountId, &row.node.ReleaseRank); err != nil {
+		var class, finish int32
+		if err := tx.QueryRowContext(ctx, `SELECT id,kind,name,status,trigger_id,created_at,actual_account_id,release_rank,deliverable_class,finish_bar FROM nodes WHERE id=?`, id).Scan(&row.node.Id, &row.kind, &row.node.Name, &row.status, &row.node.TriggerId, &row.createdAt, &row.node.ActualAccountId, &row.node.ReleaseRank, &class, &finish); err != nil {
 			return row, fmt.Errorf("merge refused: node %q not found: %w", id, err)
 		}
 		row.node.Kind = offerspb.NodeKind(row.kind)
 		row.node.Status = offerspb.Status(row.status)
+		row.node.DeliverableClass, row.node.FinishBar = offerspb.DeliverableClass(class), offerspb.FinishBar(finish)
 		if parsed, parseErr := time.Parse(time.RFC3339Nano, row.createdAt); parseErr == nil {
 			row.node.CreatedAt = timestamppb.New(parsed)
 		}
@@ -554,13 +615,18 @@ func (s *Store) MergeNodes(ctx context.Context, request *offerspb.MergeNodesRequ
 		}
 		response.Surviving.TriggerId = duplicate.node.TriggerId
 	}
-	reason := fmt.Sprintf("merged duplicate node: surviving_id=%s duplicate_id=%s", request.SurvivingId, request.DuplicateId)
+	reason := request.Reason
+	if strings.TrimSpace(reason) == "" {
+		reason = fmt.Sprintf("merged duplicate node: surviving_id=%s duplicate_id=%s", request.SurvivingId, request.DuplicateId)
+	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO catalog_audit(id,node_id,actor,prior_status,next_status,reason,created_at,related_node_id) VALUES(?,?,?,?,?,?,?,?)`, uuid.NewString(), request.SurvivingId, request.Actor, survivor.status, survivor.status, reason, s.now().UTC().Format(time.RFC3339Nano), request.DuplicateId); err != nil {
 		return nil, err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM nodes WHERE id=?`, request.DuplicateId); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE nodes SET status=? WHERE id=?`, int32(offerspb.Status_RETIRED), request.DuplicateId); err != nil {
 		return nil, err
 	}
+	duplicate.node.Status = offerspb.Status_RETIRED
+	response.Retired = &duplicate.node
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}

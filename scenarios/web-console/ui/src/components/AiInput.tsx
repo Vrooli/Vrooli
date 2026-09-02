@@ -7,7 +7,7 @@ import { Button } from "./ui/button";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { generateAICommand } from "../api/ai";
 import { strings } from "../consts/strings";
-import { toErrorInfo } from "../lib/errors";
+import { toErrorInfo, type ErrorInfo } from "../lib/errors";
 import { writeText } from "../lib/clipboard";
 import { useWorkspaceStore } from "../stores/useWorkspaceStore";
 
@@ -29,7 +29,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
   const [command, setCommand] = useState<string | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ErrorInfo | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // Track the active generation request so we can ignore stale responses
   const generationIdRef = useRef(0);
@@ -67,7 +67,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
     } catch (err) {
       if (generationIdRef.current !== thisGeneration) return;
       const info = toErrorInfo(err);
-      setError(info.message);
+      setError(info);
     } finally {
       if (generationIdRef.current === thisGeneration) {
         setIsLoading(false);
@@ -127,6 +127,9 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
       testId="ai-input"
     >
       <div className="h-full overflow-y-auto p-3">
+          <div data-testid="ai-resolution-strip" data-source-order="ollama,openrouter,vrooli" className="mb-2 rounded border border-wc-default bg-wc-surface-input/40 px-2 py-1.5 text-[10px] text-wc-text-faint">
+            Resolution order: Ollama → your OpenRouter key → Vrooli subscription
+          </div>
           <div className="flex items-center gap-2">
             <input
               ref={inputRef}
@@ -166,7 +169,8 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
           {error && (
             <div data-testid="ai-input-error" className="mt-1.5 flex items-center gap-1.5 text-xs text-wc-error-detail">
               <AlertCircle className="h-3 w-3 shrink-0" />
-              <span>{error}</span>
+              <span>{error.message}</span>
+              {error.upgradePath && <a className="underline" href={error.upgradePath} target="_blank" rel="noreferrer">Upgrade</a>}
             </div>
           )}
 
@@ -176,7 +180,7 @@ export default function AiInput({ onExecute }: { onExecute: (command: string) =>
                 {command}
               </code>
               {provider && (
-                <span className="text-[10px] text-wc-text-faint shrink-0">
+                <span data-testid="ai-provider-provenance" data-provider={provider} className="text-[10px] text-wc-text-faint shrink-0">
                   {t(strings.aiInput.viaProvider, { provider })}
                 </span>
               )}

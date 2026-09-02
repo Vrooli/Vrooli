@@ -4,6 +4,13 @@
   "bundle_key": "business_suite",
   "app_key": "browser-automation-studio",
   "requires_entitlement": true,
+  "account_surface_paths": [
+    "ui/src/components/MonetizationAccount.tsx",
+    "api/main.go"
+  ],
+  "journey_probe_paths": [
+    "api/main.go"
+  ],
   "features": [
     {"key": "ai", "class": "A", "enforcement_paths": ["api/middleware/entitlement.go", "api/handlers/ai/ai_analysis.go", "api/services/ai/provider_vrooli.go"]},
     {"key": "recording", "class": "B", "enforcement_paths": ["api/middleware/entitlement.go"]},

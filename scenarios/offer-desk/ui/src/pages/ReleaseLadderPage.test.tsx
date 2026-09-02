@@ -41,4 +41,37 @@ describe("release ladder states", () => {
     renderWithProviders(<ReleaseLadderPage />);
     await waitFor(() => expect(screen.getByTestId("page-release-ladder")).toHaveAttribute("data-experience-state", "request-error"));
   });
+
+  it("shows goal impacts on each scheduled ladder row", async () => {
+    api.fetchReleaseLadder.mockResolvedValue({ entries: [{ deliverable: { id: "d1", name: "Console", releaseRank: 1 }, goalImpacts: [{ goalName: "console-readiness" }] }] });
+    renderWithProviders(<ReleaseLadderPage />);
+    const row = await screen.findByRole("row", { name: /Console/ });
+    expect(row).toHaveTextContent("console-readiness");
+  });
+
+  it("shows the deployment-manager readiness projection per deliverable", async () => {
+    api.fetchReleaseLadder.mockResolvedValue({ entries: [{ deliverable: { id: "d1", name: "Console", releaseRank: 1 }, readinessGoalExists: true, readinessGoalClosed: true, readinessApprovedCommit: "abc123" }] });
+    renderWithProviders(<ReleaseLadderPage />);
+    expect(await screen.findByTestId("readiness-d1")).toHaveTextContent("closed (abc123)");
+  });
+
+  it("sorts enabling work by urgency and labels zero urgency", async () => {
+    api.fetchReleaseLadder.mockResolvedValue({ entries: [{ deliverable: { id: "d1", name: "Console", releaseRank: 1 } }], enabling: [
+      { node: { id: "zero", name: "Nothing", finishBar: "OPERATOR_FACING" }, derivedUrgency: 0 },
+      { node: { id: "two", name: "Two", finishBar: "OPERATOR_FACING" }, derivedUrgency: 2 },
+      { node: { id: "one", name: "One", finishBar: "OPERATOR_FACING" }, derivedUrgency: 1 },
+    ] });
+    renderWithProviders(<ReleaseLadderPage />);
+    const panel = await screen.findByTestId("release-ladder-enabling");
+    const text = panel.textContent ?? "";
+    expect(text.indexOf("One")).toBeLessThan(text.indexOf("Two"));
+    expect(text.indexOf("Two")).toBeLessThan(text.indexOf("Nothing"));
+    expect(screen.getByText("Enables nothing scheduled")).toBeVisible();
+  });
+
+  it("warns when marketed deliverables are unscheduled", async () => {
+    api.fetchReleaseLadder.mockResolvedValue({ entries: [], unscheduled: [{ id: "d2", name: "Unscheduled app" }] });
+    renderWithProviders(<ReleaseLadderPage />);
+    expect(await screen.findByTestId("release-ladder-unscheduled")).toHaveTextContent("Unscheduled app");
+  });
 });

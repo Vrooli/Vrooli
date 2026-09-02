@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -47,6 +48,9 @@ func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock)
 		clock = schedule.System()
 	}
 	s := &Service{store: catalog.NewStore(db, clock.Now), logger: logger, clock: clock, bookID: os.Getenv("MONEY_LEDGER_BOOK_ID")}
+	if readinessBase, err := discovery.ResolveScenarioURLDefault(context.Background(), "deployment-manager"); err == nil && readinessBase != "" {
+		s.store.SetReadinessProvider(deploymentReadinessProvider(&http.Client{Timeout: 700 * time.Millisecond}, readinessBase))
+	}
 	base := os.Getenv("MONEY_LEDGER_API_URL")
 	if base == "" {
 		// The declared scenario dependency is the default wiring. An explicit
@@ -65,6 +69,32 @@ func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock)
 		s.goals = swarmconnect.NewGoalServiceClient(&http.Client{Timeout: 700 * time.Millisecond}, swarmBase)
 	}
 	return s
+}
+
+func deploymentReadinessProvider(client *http.Client, baseURL string) catalog.ReadinessProvider {
+	return func(ctx context.Context, node *offerspb.Node) (catalog.ReadinessState, error) {
+		request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/api/v1/readiness/state?scenario="+url.QueryEscape(node.GetName()), nil)
+		if err != nil {
+			return catalog.ReadinessState{}, err
+		}
+		response, err := client.Do(request)
+		if err != nil {
+			return catalog.ReadinessState{}, err
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			return catalog.ReadinessState{}, fmt.Errorf("readiness state returned %s", response.Status)
+		}
+		var state struct {
+			GoalExists     bool   `json:"goal_exists"`
+			GoalClosed     bool   `json:"goal_closed"`
+			ApprovedCommit string `json:"approved_commit"`
+		}
+		if err := json.NewDecoder(response.Body).Decode(&state); err != nil {
+			return catalog.ReadinessState{}, err
+		}
+		return catalog.ReadinessState{GoalExists: state.GoalExists, GoalClosed: state.GoalClosed, ApprovedCommit: state.ApprovedCommit}, nil
+	}
 }
 
 func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) module.Module {
@@ -210,7 +240,7 @@ func (s *Service) SetDeliverableClass(ctx context.Context, r *connect.Request[of
 	if n, err := s.store.GetNode(ctx, r.Msg.NodeId); err == nil {
 		prior = n
 	}
-	n, err := s.store.SetDeliverableClass(ctx, r.Msg.NodeId, r.Msg.DeliverableClass, r.Msg.FinishBar, r.Msg.Actor)
+	n, err := s.store.SetDeliverableClass(ctx, r.Msg.NodeId, r.Msg.DeliverableClass, r.Msg.FinishBar, r.Msg.Actor, r.Msg.Reason)
 	if err != nil {
 		return nil, invalid(err)
 	}
@@ -246,7 +276,7 @@ func (s *Service) CreateEdge(ctx context.Context, r *connect.Request[offerspb.Cr
 }
 
 func (s *Service) SetReleaseRank(ctx context.Context, r *connect.Request[offerspb.SetReleaseRankRequest]) (*connect.Response[offerspb.SetReleaseRankResponse], error) {
-	n, prior, err := s.store.SetReleaseRank(ctx, r.Msg.NodeId, r.Msg.ReleaseRank, r.Msg.Actor)
+	n, prior, err := s.store.SetReleaseRank(ctx, r.Msg.NodeId, r.Msg.ReleaseRank, r.Msg.Actor, r.Msg.Reason)
 	if err != nil {
 		return nil, invalid(err)
 	}
@@ -365,6 +395,14 @@ func (s *Service) MergeNodes(ctx context.Context, r *connect.Request[offerspb.Me
 	return connect.NewResponse(response), nil
 }
 
+func (s *Service) RenameNode(ctx context.Context, r *connect.Request[offerspb.RenameNodeRequest]) (*connect.Response[offerspb.RenameNodeResponse], error) {
+	node, prior, err := s.store.RenameNode(ctx, r.Msg.NodeId, r.Msg.Name, r.Msg.Actor, r.Msg.Reason)
+	if err != nil {
+		return nil, invalid(err)
+	}
+	return connect.NewResponse(&offerspb.RenameNodeResponse{Node: node, PriorName: prior}), nil
+}
+
 func (s *Service) MapAccount(ctx context.Context, r *connect.Request[offerspb.MapAccountRequest]) (*connect.Response[offerspb.MapAccountResponse], error) {
 	node, prior, err := s.store.MapAccount(ctx, r.Msg)
 	if err != nil {
@@ -390,6 +428,7 @@ func (s *Service) VerifyCatalog(ctx context.Context, r *connect.Request[offerspb
 	response.DuplicateIdentities = append(response.DuplicateIdentities, report.DuplicateIdentities...)
 	response.OrphanEdgeIds = append(response.OrphanEdgeIds, report.OrphanEdgeIds...)
 	response.ExtraNodeIds = append(response.ExtraNodeIds, report.ExtraNodeIds...)
+	response.ScenarioGaps = append(response.ScenarioGaps, report.ScenarioGaps...)
 	return connect.NewResponse(response), nil
 }
 
@@ -604,7 +643,6 @@ func findSpaceProjection() string {
 		if parent == dir {
 			return filepath.Join("scenarios", "offer-desk", "docs", "spaces", "offers.json")
 		}
-		dir = parent
 	}
 }
 
@@ -621,7 +659,7 @@ func ep(id, path, summary string) module.EndpointDescriptor {
 }
 
 var Endpoints = []module.EndpointDescriptor{
-	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"), ep("catalog_map_account", "/vrooli.offer_desk.v1.offers.CatalogService/MapAccount", "Map a node to the ledger account holding its actuals"), ep("catalog_merge", "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes", "Dry-run or apply an audited duplicate-node merge"), ep("catalog_verify", "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog", "Verify source counts and graph identity reconciliation"), ep("catalog_set_release_rank", "/vrooli.offer_desk.v1.offers.CatalogService/SetReleaseRank", "Set an operator-owned deliverable release rank"), ep("catalog_set_class", "/vrooli.offer_desk.v1.offers.CatalogService/SetDeliverableClass", "Classify a deliverable and set its finish bar"),
+	ep("catalog_create", "/vrooli.offer_desk.v1.offers.CatalogService/CreateNode", "Create a typed offer-graph node"), ep("catalog_list", "/vrooli.offer_desk.v1.offers.CatalogService/ListNodes", "List offer-graph nodes"), ep("catalog_transition", "/vrooli.offer_desk.v1.offers.CatalogService/Transition", "Transition a node through the enforced lifecycle"), ep("catalog_edge", "/vrooli.offer_desk.v1.offers.CatalogService/CreateEdge", "Create a typed graph edge"), ep("catalog_edges", "/vrooli.offer_desk.v1.offers.CatalogService/ListEdges", "List typed graph edges"), ep("catalog_import", "/vrooli.offer_desk.v1.offers.CatalogService/ImportCatalog", "Rehearse or apply a declared catalog source"), ep("catalog_map_account", "/vrooli.offer_desk.v1.offers.CatalogService/MapAccount", "Map a node to the ledger account holding its actuals"), ep("catalog_merge", "/vrooli.offer_desk.v1.offers.CatalogService/MergeNodes", "Dry-run or apply an audited duplicate-node merge"), ep("catalog_rename", "/vrooli.offer_desk.v1.offers.CatalogService/RenameNode", "Rename a catalog node without changing its identity"), ep("catalog_verify", "/vrooli.offer_desk.v1.offers.CatalogService/VerifyCatalog", "Verify source counts and graph identity reconciliation"), ep("catalog_set_release_rank", "/vrooli.offer_desk.v1.offers.CatalogService/SetReleaseRank", "Set an operator-owned deliverable release rank"), ep("catalog_set_class", "/vrooli.offer_desk.v1.offers.CatalogService/SetDeliverableClass", "Classify a deliverable and set its finish bar"),
 	ep("catalog_meters", "/vrooli.offer_desk.v1.offers.CatalogService/GetMeterInventory", "Read meter vocabulary and graph conformance"), ep("gates_trigger", "/vrooli.offer_desk.v1.offers.GatesService/DeclareTrigger", "Declare a machine-evaluable trigger"), ep("gates_fact", "/vrooli.offer_desk.v1.offers.GatesService/AddFact", "Record an observed fact"), ep("gates_evaluate", "/vrooli.offer_desk.v1.offers.GatesService/Evaluate", "Evaluate candidate triggers"), ep("gates_promote", "/vrooli.offer_desk.v1.offers.GatesService/Promote", "Create an operator promotion proposal"), ep("gates_proposals", "/vrooli.offer_desk.v1.offers.GatesService/ListProposals", "List promotion proposals and decline history"), ep("board_show", "/vrooli.offer_desk.v1.offers.BoardService/GetBoard", "Read the ranked offer board"),
 	ep("board_release_ladder", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetReleaseLadder", "Read the typed release ladder"), ep("board_enabling", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetEnablingDeliverables", "Read enabling deliverables and derived urgency"), ep("board_prerequisites", "/vrooli.offer_desk.v1.offers.ReleaseLadderService/GetPrerequisites", "Walk stream prerequisites and unshipped deliverables"), ep("space_projection", "/vrooli.offer_desk.v1.offers.SpaceService/GetProjection", "Read monetization obligation cells"),
 }

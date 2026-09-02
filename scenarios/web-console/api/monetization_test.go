@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -46,14 +45,6 @@ func TestBearerIdentityHintAndUsageTransport(t *testing.T) {
 	}
 	if err := (&lpbsMonetizationTransport{}).Report(context.Background(), monetization.Usage{}); err == nil {
 		t.Fatal("unconfigured usage transport unexpectedly succeeded")
-	}
-	if err := (&monetizationGate{}).enqueueUsage(context.Background(), "alice"); err == nil {
-		t.Fatal("nil outbox unexpectedly accepted usage")
-	}
-	r := httptest.NewRecorder()
-	(&monetizationGate{}).voiceSynthesis(r, httptest.NewRequest(http.MethodPost, "/", strings.NewReader("{}")))
-	if r.Code != http.StatusUnauthorized {
-		t.Fatalf("unauthorized voice synthesis = %d", r.Code)
 	}
 }
 

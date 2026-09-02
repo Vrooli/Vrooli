@@ -1,16 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, CircleAlert, Loader2 } from "lucide-react";
-import { acknowledgeDegraded, applyOnboarding, fetchCapabilities, fetchV2ApplyPlan, fetchV2ApplyStatus, fetchV2Readiness, provisionCredential } from "../../lib/api";
+import { acknowledgeDegraded, applyOnboarding, fetchCapabilities, fetchV2ApplyPlan, fetchV2ApplyStatus, fetchV2Readiness, fetchOperatorInputs, provisionCredential, resolveOperatorInputs } from "../../lib/api";
 import { pollApplyRun } from "../../lib/applyRun";
 import { ApplyPlanDisclosure } from "./ApplyPlanDisclosure";
 import type { CompletionBlocker, ReadinessItem } from "../../types";
-import { Button } from "../ui/button";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { CapabilityActions } from "./CapabilityActions";
+import { GeneratedForm } from "@vrooli/react-component-library/GeneratedForm/1";
+import { PasswordInput } from "@vrooli/react-component-library/PasswordInput/2";
+import { toGeneratedFields, type OperatorInput } from "@vrooli/react-component-library/ValidationAdapter/1";
+import type { GeneratedField } from "@vrooli/react-component-library/GeneratedForm/1";
 
-export function StepReadiness({ title = "Validation" }: { title?: "Credentials" | "Apply" | "Validation" }) {
+export function StepReadiness({ title = "Validation", target = "local" }: { title?: "Credentials" | "Apply" | "Validation"; target?: string }) {
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["v2-readiness"], queryFn: fetchV2Readiness });
   const { data: capabilities, refetch: refetchCapabilities } = useQuery({ queryKey: ["capabilities"], queryFn: fetchCapabilities, enabled: title === "Credentials" });
+  const { data: operatorInputs } = useQuery({ queryKey: ["operator-inputs", target], queryFn: () => fetchOperatorInputs(target), enabled: title === "Credentials" });
   const { data: plan } = useQuery({ queryKey: ["v2-apply-plan"], queryFn: fetchV2ApplyPlan, enabled: title === "Apply" });
   const [values, setValues] = useState<Record<string, string>>({});
   const [provisioning, setProvisioning] = useState<string | null>(null);
@@ -91,6 +96,7 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
     {applyError && <p className="mt-4 text-sm text-danger" role="alert">{applyError}</p>}
     {applyReconnecting && <p className="mt-4 text-sm text-muted" role="status" data-testid="apply-reconnecting">The onboarding API restarted while applying. The run is still going; reconnecting&hellip;</p>}
     {title === "Credentials" && capabilities && <CapabilityActions statuses={capabilities.capabilities} onRefresh={() => { void Promise.all([refetchCapabilities(), refetch()]); }} />}
+    {title === "Credentials" && operatorInputs && <SchemaQuestionSet target={target} requests={operatorInputs.requests} />}
     {data?.credential_diagnosis?.provider && <div data-testid="backend-diagnosis" className="mt-4 rounded-lg border border-warning/30 bg-warning-surface p-3 text-sm"><p className="font-medium text-warning">Credential provider diagnosis</p><p className="mt-1 text-foreground">{data.credential_diagnosis.provider.condition} · {data.credential_diagnosis.provider.backend}</p>{data.credential_diagnosis.provider.explanation && <p className="mt-1 text-xs text-muted">{data.credential_diagnosis.provider.explanation}</p>}{data.credential_diagnosis.provider.fix && <p className="mt-1 text-xs text-primary-soft">Next: {data.credential_diagnosis.provider.fix}</p>}{data.credential_diagnosis.provider.write_condition && <p className="mt-1 text-xs text-muted">Write reachability: {data.credential_diagnosis.provider.write_condition}. {data.credential_diagnosis.provider.write_fix}</p>}</div>}
       {data && <>
       <div className="mt-6 flex items-center gap-2" role="status" data-testid="readiness-summary">{data.status === "ready" ? <CheckCircle2 className="h-5 w-5 text-primary" /> : <CircleAlert className="h-5 w-5 text-warning" />}<span className={data.status === "ready" ? "text-primary" : "text-warning"}>{data.status === "ready" ? "Ready" : `${data.status}: action required`}</span></div>
@@ -103,14 +109,14 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
         </div>
       </section>}
       {applyState && <table className="mt-3 w-full text-left text-xs text-muted" data-testid="apply-report" role="table"><caption className="sr-only">Apply results</caption><thead><tr><th scope="col">Item</th><th scope="col">Outcome</th></tr></thead><tbody>{applyState.items.map((item) => <tr key={item.name}><td className="py-1">{item.name}</td><td className="py-1">{item.outcome}{item.error ? ` — ${item.error}` : ""}</td></tr>)}</tbody></table>}
-      {applyState?.items.some((item) => item.outcome === "blocked" || item.outcome === "failed") && <><p data-testid="skipped-note" role="note" className="mt-3 text-sm text-warning">Some items were skipped or failed. Resolve the reported dependency or host issue before trying again.</p><Button data-testid="retry" type="button" variant="outline" onClick={() => { void apply(); }}>Apply again</Button></>}
+      {applyState?.items.some((item) => item.outcome === "blocked" || item.outcome === "failed") && <><p data-testid="skipped-note" role="note" className="mt-3 text-sm text-warning">Some items were skipped or failed. Resolve the reported dependency or host issue before trying again.</p><Button data-testid="retry" type="button" variant="secondary" onClick={() => { void apply(); }}>Apply again</Button></>}
       {title === "Validation" && <>
         <BlockerList title="Blocking" testID="readiness-blockers" items={data.blockers ?? []} tone="danger" />
         <BlockerList title="Degraded (optional)" testID="readiness-degraded" items={data.degraded ?? []} tone="warning" />
         {acknowledgeError && <p className="mt-3 text-sm text-danger" role="alert">{acknowledgeError}</p>}
         <div className="mt-4 flex flex-wrap gap-3">
-          <Button data-testid="recheck" type="button" variant="outline" onClick={() => { void refetch(); }}>Recheck</Button>
-          {(data.blockers ?? []).length === 0 && (data.degraded ?? []).length > 0 && !data.degraded_acknowledged && <Button data-testid="readiness-continue-degraded" type="button" variant="outline" disabled={acknowledging} onClick={() => { void acceptDegraded(); }}>{acknowledging ? "Recording…" : "Accept the degraded items"}</Button>}
+          <Button data-testid="recheck" type="button" variant="secondary" onClick={() => { void refetch(); }}>Recheck</Button>
+          {(data.blockers ?? []).length === 0 && (data.degraded ?? []).length > 0 && !data.degraded_acknowledged && <Button data-testid="readiness-continue-degraded" type="button" variant="secondary" disabled={acknowledging} onClick={() => { void acceptDegraded(); }}>{acknowledging ? "Recording…" : "Accept the degraded items"}</Button>}
           {(data.degraded ?? []).length > 0 && data.degraded_acknowledged && <p role="status" className="text-sm text-warning">The degraded items above are recorded as accepted.</p>}
         </div>
         {(data.blockers ?? []).length > 0 && <p data-testid="finish-blocked" role="note" className="mt-3 text-sm text-danger">Configuration cannot be reported complete while a blocking item remains. Resolve the items above, then recheck.</p>}
@@ -124,6 +130,43 @@ export function StepReadiness({ title = "Validation" }: { title?: "Credentials" 
       {title === "Validation" && <><ReadinessGroup title="Host requirements" items={data.hosts} /><ReadinessGroup title="Integrations" items={data.integrations.filter((item) => item.category === "integration")} /><ReadinessGroup title="System checks" items={data.integrations.filter((item) => item.category === "system")} /></>}
     </>}
   </div>;
+}
+
+function SchemaQuestionSet({ target, requests }: { target: string; requests: import("../../types").OperatorInputRequest[] }) {
+  const [secretValues, setSecretValues] = useState<Record<string, string>>({});
+  const [message, setMessage] = useState<string | null>(null);
+  const secrets = requests.filter((request) => request.kind === "secret");
+  const regular = requests.filter((request) => request.kind !== "secret");
+  const adapted = requests.map((request) => ({
+    id: request.id,
+    kind: request.kind,
+    label: request.title,
+    description: request.description,
+    required: request.required,
+    defaultValue: request.default,
+    options: request.options?.map((value) => ({ value, label: value })),
+    candidates: request.candidates?.map((candidate) => ({ label: candidate.label, value: candidate.id, status: candidate.status, risk: candidate.risk, remediation: candidate.remediation })),
+    validation: request.validation,
+  }));
+  const fields = toGeneratedFields(adapted.filter((request) => request.kind !== "secret") as OperatorInput[]) as GeneratedField[];
+  const submit = async (values: Record<string, unknown>) => {
+    const answers = requests.map((request) => ({ request_id: request.id, value: String(request.kind === "secret" ? secretValues[request.id] ?? "" : values[request.id] ?? "") }));
+    try {
+      await resolveOperatorInputs(answers, target);
+      setMessage("Answers submitted securely. The target is being rechecked.");
+    } catch {
+      setMessage("The target rejected these answers. Review the reported remediation and try again.");
+    }
+  };
+  if (requests.length === 0) return null;
+  return <section className="mt-4 rounded-lg border border-muted bg-surface-muted p-4" data-testid="target-question-set" aria-label={`Outstanding questions for ${target}`}>
+    <h2 className="text-lg font-medium">Outstanding questions for <code>{target}</code></h2>
+    <p className="mt-1 text-sm text-muted">These controls come from the target setup schema. Secret answers stay in memory until sealed delivery.</p>
+    {secrets.map((request) => <PasswordInput key={request.id} name={request.id} label={request.title} value={secretValues[request.id] ?? ""} onValueChange={(value: string) => setSecretValues((current) => ({ ...current, [request.id]: value }))} autoComplete="new-password" revealable={false} />)}
+    {regular.length > 0 && <GeneratedForm mode="uncontrolled" fields={fields} onSubmit={submit} submitLabel="Submit answers" />}
+    {secrets.length > 0 && <Button type="button" className="mt-3" onClick={() => { void submit({}); }}>Submit secret answers</Button>}
+    {message && <p className="mt-3 text-sm" role="status" data-testid="target-question-status">{message}</p>}
+  </section>;
 }
 
 /**
