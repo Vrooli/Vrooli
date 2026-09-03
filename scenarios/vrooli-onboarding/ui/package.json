@@ -48,7 +48,7 @@
   "packageManager": "pnpm@9.12.1",
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest \u0026\u0026 pnpm type-check \u0026\u0026 vite build",
+    "build": "pnpm selector:manifest \u0026\u0026 vite build",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",

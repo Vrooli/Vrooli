@@ -4,7 +4,7 @@
   "description": "Type-safe Playwright driver for browser automation",
   "main": "dist/server.js",
   "scripts": {
-    "build": "esbuild src/server.ts --bundle --platform=node --target=node18 --outfile=dist/server.js --external:rebrowser-playwright --external:winston --external:prom-client --external:uuid --external:zod --external:@bufbuild/protobuf --external:@bufbuild/protobuf/* --external:ws && node scripts/stage-browser-scripts.mjs",
+    "build": "esbuild src/server.ts --bundle --platform=node --target=node18 --outfile=dist/server.js --external:rebrowser-playwright --external:winston --external:prom-client --external:uuid --external:zod --external:@bufbuild/protobuf --external:@bufbuild/protobuf/* --external:ws && node scripts/stage-browser-scripts.mjs && node scripts/ensure-browsers.mjs",
     "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "dev": "ts-node src/server.ts",
     "start": "node dist/server.js",
@@ -23,7 +23,8 @@
     "format": "prettier --write 'src/**/*.ts' 'tests/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts' 'tests/**/*.ts'",
     "typecheck": "tsc --noEmit",
-    "clean": "node scripts/clean.mjs"
+    "clean": "node scripts/clean.mjs",
+    "browsers:ensure": "node scripts/ensure-browsers.mjs"
   },
   "dependencies": {
     "@bufbuild/protobuf": "^2.10.1",

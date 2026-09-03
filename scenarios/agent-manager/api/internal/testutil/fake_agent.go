@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+
+	"github.com/vrooli/envkit-go"
 )
 
 var (
@@ -34,6 +36,7 @@ func BuildFakeAgent(t testing.TB) string {
 		fakeAgentPath = filepath.Join(dir, "fake-agent")
 		cmd := exec.Command("go", "build", "-o", fakeAgentPath, "./cmd/fake-agent")
 		cmd.Dir = apiRoot
+		cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
 		fakeAgentErr = cmd.Run()
 	})
 	if fakeAgentErr != nil {

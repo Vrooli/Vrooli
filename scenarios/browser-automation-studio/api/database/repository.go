@@ -586,6 +586,21 @@ func (r *repository) ListExecutionsByStatus(ctx context.Context, status string, 
 	return executions, nil
 }
 
+// ListExecutionsByStatusOldest returns the oldest terminal-index rows first.
+// Recovery previews use this bounded query so they can advance through aged
+// evidence without loading the complete execution table into the API.
+func (r *repository) ListExecutionsByStatusOldest(ctx context.Context, status string, limit, offset int) ([]*ExecutionIndex, error) {
+	base := fmt.Sprintf("SELECT %s FROM executions WHERE status = ? ORDER BY started_at ASC", executionSelectColumns)
+	queryWithPaging, pagingArgs := appendLimitOffset(base, limit, offset)
+	args := append([]any{status}, pagingArgs...)
+	query := r.db.Rebind(queryWithPaging)
+	var executions []*ExecutionIndex
+	if err := r.db.SelectContext(ctx, &executions, query, args...); err != nil {
+		return nil, fmt.Errorf("failed to list oldest executions by status: %w", err)
+	}
+	return executions, nil
+}
+
 // ============================================================================
 // Schedule Operations
 // ============================================================================

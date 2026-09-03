@@ -5,7 +5,6 @@ package coverage
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,56 +16,17 @@ import (
 
 	"github.com/vrooli/api-core/spacedoc"
 	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/setpoint"
 )
 
-type Bar struct {
-	ID          string   `json:"id"`
-	CellRef     string   `json:"cell_ref"`
-	Projection  string   `json:"projection"`
-	TargetKind  string   `json:"target_kind"`
-	Deadband    string   `json:"deadband"`
-	Sustain     string   `json:"sustain"`
-	Actuator    string   `json:"actuator"`
-	DecisionRef string   `json:"decision_ref"`
-	Unit        string   `json:"unit,omitempty"`
-	Min         *float64 `json:"min,omitempty"`
-	Max         *float64 `json:"max,omitempty"`
-	// Gradeable records whether the operator authored a threshold this bar can
-	// be graded against. A prose-only deadband is not a defect in itself, but
-	// it must say so rather than letting every reading fall through to
-	// "not evaluated" with no stated reason.
-	Gradeable          bool   `json:"gradeable"`
-	NotGradeableReason string `json:"not_gradeable_reason,omitempty"`
-	// Provisional marks a bar authored alongside its projection and not yet
-	// ratified by an operator setpoint review.
-	Provisional       bool   `json:"provisional,omitempty"`
-	ProvisionalReason string `json:"provisional_reason,omitempty"`
-	// RatificationNote records the evidence a setpoint review accepted when it
-	// cleared Provisional. It is carried on the typed surface rather than kept
-	// in a document, because a reader deciding whether to trust a bar needs the
-	// reason beside the number: a ratification whose evidence is one hop away
-	// is indistinguishable from a bar nobody ever looked at.
-	RatificationNote string `json:"ratification_note,omitempty"`
-}
-
-type Unmapped struct {
-	TargetKind string `json:"target_kind"`
-	Reason     string `json:"reason"`
-	Revisit    string `json:"revisit,omitempty"`
-}
-
-type setpointFile struct {
-	SchemaVersion string `json:"schema_version"`
-	Confidence    struct {
-		Level     string `json:"level"`
-		Rationale string `json:"rationale"`
-	} `json:"confidence"`
-	Constants struct {
-		RetentionMarginDays int `json:"retention_margin_days"`
-	} `json:"constants"`
-	Bars     []Bar      `json:"bars"`
-	Unmapped []Unmapped `json:"unmapped"`
-}
+// The setpoint types are internal/setpoint's: one parser for the bar file,
+// one shape served by this scenario. The aliases keep the coverage surface's
+// names for its handlers and tests.
+type (
+	Bar          = setpoint.Bar
+	Unmapped     = setpoint.Unmapped
+	setpointFile = setpoint.Document
+)
 
 type SpaceReader interface {
 	Read(context.Context, spacedoc.Projection) (*spacedoc.SpaceDefinition, error)
@@ -116,38 +76,16 @@ func NewFileSpaceReader() (FileSpaceReader, error) {
 	return FileSpaceReader{Root: root}, nil
 }
 
+// LoadSetpoint reads the bar file through internal/setpoint, the only parser
+// of reliability-setpoint.json; every invariant the file must hold (unique
+// cells, reasons on ungradeable bars, units and thresholds on gradeable
+// ones) is enforced there.
 func LoadSetpoint(root string) (setpointFile, error) {
-	path := filepath.Join(root, "scenarios", "infrastructure-manager", "setpoint", "reliability-setpoint.json")
-	raw, err := os.ReadFile(path)
+	sp, err := setpoint.Load(filepath.Join(root, filepath.FromSlash(setpoint.RelativePath)))
 	if err != nil {
-		return setpointFile{}, fmt.Errorf("read setpoint: %w", err)
+		return setpointFile{}, err
 	}
-	var file setpointFile
-	if err := json.Unmarshal(raw, &file); err != nil {
-		return setpointFile{}, fmt.Errorf("parse setpoint: %w", err)
-	}
-	if len(file.Bars) == 0 {
-		return file, fmt.Errorf("setpoint: bars is empty")
-	}
-	for i, bar := range file.Bars {
-		if strings.TrimSpace(bar.ID) == "" || strings.TrimSpace(bar.CellRef) == "" || strings.TrimSpace(bar.DecisionRef) == "" {
-			return file, fmt.Errorf("setpoint: bar %d requires id, cell_ref and decision_ref", i)
-		}
-		// A bar that is neither gradeable nor explains why is the failure this
-		// check exists to catch: it reads as a target while grading nothing.
-		if !bar.Gradeable && strings.TrimSpace(bar.NotGradeableReason) == "" {
-			return file, fmt.Errorf("setpoint: bar %q is not gradeable and states no reason", bar.ID)
-		}
-		if bar.Gradeable {
-			if bar.Min == nil && bar.Max == nil {
-				return file, fmt.Errorf("setpoint: bar %q is marked gradeable but authors no min or max", bar.ID)
-			}
-			if strings.TrimSpace(bar.Unit) == "" {
-				return file, fmt.Errorf("setpoint: bar %q is marked gradeable but names no unit", bar.ID)
-			}
-		}
-	}
-	return file, nil
+	return sp.Document, nil
 }
 
 // RetentionFloor derives the minimum history window from the operator-authored

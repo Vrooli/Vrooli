@@ -660,9 +660,6 @@ type Orchestrator struct {
 	// Policy evaluation
 	policy policy.Evaluator
 
-	// Lock management
-	locks sandbox.LockManager
-
 	// Real-time event broadcasting (WebSocket)
 	broadcaster EventBroadcaster
 
@@ -959,13 +956,6 @@ func WithInvocationReadModel(store invocationreadmodel.Store) Option {
 func WithArtifacts(a artifact.Collector) Option {
 	return func(o *Orchestrator) {
 		o.artifacts = a
-	}
-}
-
-// WithLocks sets the lock manager.
-func WithLocks(l sandbox.LockManager) Option {
-	return func(o *Orchestrator) {
-		o.locks = l
 	}
 }
 

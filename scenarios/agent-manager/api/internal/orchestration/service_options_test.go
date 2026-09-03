@@ -27,7 +27,6 @@ func TestOrchestratorOptionsApplyAndPreserveConstructorInvariants(t *testing.T) 
 		WithPolicy(nil),
 		WithEvents(nil),
 		WithArtifacts(nil),
-		WithLocks(nil),
 		WithCheckpoints(nil),
 		WithIdempotency(nil),
 		WithWorkflowRepository(nil),

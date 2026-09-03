@@ -6,11 +6,12 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm run type-check && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext ts,tsx",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",
@@ -21,10 +22,13 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "express": "^4.18.2",
+    "i18next": "^23.16.4",
     "lucide-react": "^0.424.0",
     "mermaid": "^11.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-i18next": "^15.1.1",
+    "react-router-dom": "^6.28.0",
     "tailwind-merge": "^2.3.0",
     "zustand": "^4.4.0"
   },

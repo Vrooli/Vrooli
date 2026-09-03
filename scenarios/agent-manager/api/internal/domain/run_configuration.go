@@ -706,20 +706,6 @@ type PolicyRules struct {
 	DeniedRunners  []RunnerType `json:"deniedRunners,omitempty"`
 }
 
-// -----------------------------------------------------------------------------
-// ScopeLock - Concurrency control
-// -----------------------------------------------------------------------------
-
-// ScopeLock represents an exclusive lock on a path scope.
-type ScopeLock struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	RunID       uuid.UUID `json:"runId" db:"run_id"`
-	ScopePath   string    `json:"scopePath" db:"scope_path"`
-	ProjectRoot string    `json:"projectRoot" db:"project_root"`
-	AcquiredAt  time.Time `json:"acquiredAt" db:"acquired_at"`
-	ExpiresAt   time.Time `json:"expiresAt" db:"expires_at"`
-}
-
 // =============================================================================
 // IDEMPOTENCY & REPLAY SAFETY
 // =============================================================================

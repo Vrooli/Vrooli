@@ -504,8 +504,6 @@ func TestGetAppScenarioStatus_PreservesHyphenatedIdentifier(t *testing.T) {
 set -eu
 echo "$@" >> %s
 
-if [ "${1:-}" = "--no-stale-check" ]; then shift; fi
-
 if [ "$1" = "scenario" ] && [ "$2" = "list" ]; then
 cat <<'JSON'
 {
@@ -626,8 +624,7 @@ exit 1
 	commands := strings.Split(strings.TrimSpace(string(logData)), "\n")
 	found := false
 	for _, cmd := range commands {
-		// The typed CLI client prefixes --no-stale-check; assert the identifier
-		// is passed to the status command rather than the exact flag set.
+		// Assert the identifier is passed to the status command.
 		if strings.HasSuffix(cmd, "scenario status app-monitor --json") {
 			found = true
 			break
@@ -647,8 +644,6 @@ func TestGetAppScenarioStatus_FallbackIdentifierAndNoisyOutput(t *testing.T) {
 	script := fmt.Sprintf(`#!/bin/sh
 set -eu
 echo "$@" >> %s
-
-if [ "${1:-}" = "--no-stale-check" ]; then shift; fi
 
 if [ "$1" = "scenario" ] && [ "$2" = "status" ]; then
   if [ "${3:-}" = "--json" ]; then
@@ -739,7 +734,7 @@ exit 1
 	commands := strings.Split(strings.TrimSpace(string(logData)), "\n")
 	found := false
 	for _, cmd := range commands {
-		// The typed CLI client prefixes --no-stale-check; match on the identifier.
+		// Match on the identifier.
 		if strings.HasSuffix(cmd, "scenario status browser-automation-studio --json") {
 			found = true
 			break

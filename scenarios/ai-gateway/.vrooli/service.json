@@ -188,5 +188,21 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/ai-gateway/SKILL.md",
+      "programs": []
+    },
+    "improve": {
+      "source": "skills/ai-gateway-improve/SKILL.md",
+      "programs": [
+        "ai-gateway.setpoint-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "ai-gateway-usage"
+    }
   }
 }

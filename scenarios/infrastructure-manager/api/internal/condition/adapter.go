@@ -22,7 +22,7 @@ import (
 // readerProjections are the projections this scenario has a live typed reader
 // for. Everything else reports an explicitly unconfigured source rather than
 // an empty-but-healthy result.
-var readerProjections = []string{"availability", "commissioning", "recovery", "substrate"}
+var readerProjections = []string{"availability", "commissioning", "headroom", "recovery", "substrate"}
 
 // NewConfiguredService wires the condition domain's read-only source adapters.
 // Handler packages only translate transport messages; source setup and band
@@ -61,6 +61,10 @@ func NewConfiguredService(root string, db *database.RoutedDB, clk schedule.Clock
 	}
 	readers := make(map[string]sources.Reader, len(readerProjections))
 	for _, projection := range readerProjections {
+		if projection == "headroom" {
+			readers[projection] = sources.StorageReader{Resolver: resolver, HTTP: httpClient}
+			continue
+		}
 		if projection == "commissioning" {
 			readers[projection] = sources.HostRequirementsReader{Root: root}
 			continue
@@ -170,7 +174,7 @@ func (s fanoutSource) Read(ctx context.Context, projection string) ([]Observatio
 	readings := make([]Observation, 0, len(result.Observations))
 	for _, reading := range result.Observations {
 		trust := TrustInput{
-			Available: result.Available, Ghost: reading.TrustHints.Ghost,
+			Available: result.Available && !reading.TrustHints.Unavailable, Ghost: reading.TrustHints.Ghost,
 			Saturated: reading.TrustHints.Saturated, Shelved: reading.TrustHints.Shelved,
 			UnitMatches: reading.TrustHints.UnitMatches,
 		}
@@ -190,6 +194,9 @@ func (s fanoutSource) Read(ctx context.Context, projection string) ([]Observatio
 func sourceID(projection string) string {
 	if projection == "commissioning" {
 		return "control-plane/host-requirements"
+	}
+	if projection == "headroom" {
+		return "storage-manager"
 	}
 	return "vrooli-autoheal"
 }

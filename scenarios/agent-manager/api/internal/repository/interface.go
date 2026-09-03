@@ -266,31 +266,6 @@ type PolicyRepository interface {
 }
 
 // -----------------------------------------------------------------------------
-// LockRepository - ScopeLock persistence
-// -----------------------------------------------------------------------------
-
-// LockRepository provides persistence for ScopeLock entities.
-type LockRepository interface {
-	// Acquire attempts to acquire a lock.
-	Acquire(ctx context.Context, lock *domain.ScopeLock) error
-
-	// Release releases a lock by ID.
-	Release(ctx context.Context, id uuid.UUID) error
-
-	// ReleaseByRun releases all locks for a run.
-	ReleaseByRun(ctx context.Context, runID uuid.UUID) error
-
-	// Check finds overlapping locks for a scope.
-	Check(ctx context.Context, scopePath, projectRoot string) ([]*domain.ScopeLock, error)
-
-	// Refresh extends a lock's expiration.
-	Refresh(ctx context.Context, id uuid.UUID, newExpiry int64) error
-
-	// CleanupExpired removes expired locks.
-	CleanupExpired(ctx context.Context) (int, error)
-}
-
-// -----------------------------------------------------------------------------
 // CheckpointRepository - Run checkpoint persistence
 // -----------------------------------------------------------------------------
 

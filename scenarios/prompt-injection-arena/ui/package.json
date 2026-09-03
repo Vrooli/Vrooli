@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vrooli lifecycle protect -- node server.js",
     "start": "vrooli lifecycle protect -- node server.js",
-    "build": "echo 'No build step required for vanilla JS app'",
+    "build": "node scripts/build.mjs",
     "test": "echo 'No tests specified'"
   },
   "dependencies": {

@@ -1,0 +1,141 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "browser-automation-studio.navigate-intent",
+  "version": "1",
+  "purpose": "Start one bounded AI vision-navigation against an existing browser session, read its status exactly once, and classify it as reached, human_pause, budget, in_progress, or failed.",
+  "inputs": {
+    "session": {
+      "type": "string",
+      "required": true,
+      "description": "Existing playwright-driver browser session id (from `browser-automation-studio observability sessions`)."
+    },
+    "prompt": {
+      "type": "string",
+      "required": true,
+      "description": "Natural-language navigation instruction."
+    },
+    "max_steps": {
+      "type": "integer",
+      "default": 10,
+      "description": "Step budget, 1..25 (the CLI allows up to 100; this program caps lower)."
+    },
+    "navigator": {
+      "type": "string",
+      "enum": [
+        "playwright",
+        "claude_code"
+      ],
+      "description": "Preferred navigator; auto-select when absent."
+    },
+    "model": {
+      "type": "string",
+      "required": true,
+      "description": "Vision model identifier. Required: the binding has no default and a caller must not hardcode a model slug (ai-gateway guardrail); pick from the navigator's documented models."
+    }
+  },
+  "assumptions": [
+    "browser-automation-studio is running and the session id names a live browser session",
+    "vision-navigation has no wait verb; a single status read right after start usually says navigating, and the caller re-reads by hand",
+    "the navigator's credit policy may refuse the start; that is reported refused, not retried",
+    "an unknown session id surfaces as `driver error: status 404` from the driver and is classified session_not_found"
+  ],
+  "invariants": [
+    "exactly one navigation is started; no retry, no abort, no resume",
+    "status is read exactly once; there is no polling loop",
+    "the envelope is printed exactly once, on every path"
+  ],
+  "bindings": [
+    {
+      "id": "browser-automation-studio/vision-navigation/start",
+      "effect": "write"
+    },
+    {
+      "id": "browser-automation-studio/vision-navigation/status",
+      "effect": "read",
+      "optional": true
+    }
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "act",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "navigation_id": "navigation session UUID",
+      "start_status": "lifecycle marker returned by start",
+      "status": "driver status at the single read: idle|navigating|awaiting_human|completed|failed|aborted|max_steps_reached|loop_detected",
+      "step_count": "steps taken at the read",
+      "total_tokens": "tokens consumed at the read",
+      "navigator_type": "navigator that took the session",
+      "outcome": "reached | human_pause | budget | in_progress | failed | unknown"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "session_not_found",
+        "credits_required",
+        "budget_exhausted",
+        "navigation_failed",
+        "model_required",
+        "navigation_pending"
+      ]
+    },
+    "evidence": "navigation:<id>"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 0,
+    "delegated_runs": 0,
+    "materialize_limit": 0
+  },
+  "fixtures": [
+    {
+      "id": "no-session",
+      "inputs": {
+        "prompt": "open the home page"
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "no-model",
+      "inputs": {
+        "session": "00000000-0000-0000-0000-000000000000",
+        "prompt": "open the home page",
+        "max_steps": 1
+      },
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "browser-automation-studio"
+}

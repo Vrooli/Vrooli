@@ -36,9 +36,21 @@
     "description": "Central orchestration and governance layer for running AI agents against the codebase in a controlled, reviewable, and extensible way",
     "platform_capabilities": {
       "agent-orchestration": {
-        "linux": {"status": "build-verified", "mechanism": "native-go-agent-manager-api", "evidence": "Linux module and handler contract tests; host qualification is not claimed"},
-        "macos": {"status": "unqualified", "mechanism": "portable-go-api-with-platform-guarded-host-probes", "evidence": "darwin cross-build; no real-host qualification"},
-        "windows": {"status": "unqualified", "mechanism": "portable-go-api-with-platform-guarded-host-probes", "evidence": "windows cross-build; no real-host qualification"}
+        "linux": {
+          "status": "build-verified",
+          "mechanism": "native-go-agent-manager-api",
+          "evidence": "Linux module and handler contract tests; host qualification is not claimed"
+        },
+        "macos": {
+          "status": "unqualified",
+          "mechanism": "portable-go-api-with-platform-guarded-host-probes",
+          "evidence": "darwin cross-build; no real-host qualification"
+        },
+        "windows": {
+          "status": "unqualified",
+          "mechanism": "portable-go-api-with-platform-guarded-host-probes",
+          "evidence": "windows cross-build; no real-host qualification"
+        }
       }
     },
     "version": "0.0.1",
@@ -91,7 +103,11 @@
       "range": "20000-24999"
     }
   },
-  "generation": { "template": { "id": "react-vite" } },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -243,5 +259,38 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/agent-manager/SKILL.md",
+      "programs": [
+        "agent-manager.friction-digest"
+      ]
+    },
+    "improve": {
+      "source": "skills/agent-manager-improve/SKILL.md",
+      "programs": [
+        "agent-manager.setpoint-read"
+      ]
+    },
+    "feature": [
+      {
+        "source": "skills/investigating-agent-runs/SKILL.md"
+      },
+      {
+        "source": "skills/reviewing-agent-run-efficiency/SKILL.md"
+      }
+    ],
+    "learning": {
+      "scope": "agent-manager-usage"
+    },
+    "contract": [
+      {
+        "source": "skills/agent-manager-process-investigation/SKILL.md"
+      },
+      {
+        "source": "skills/agent-manager-process-investigation-apply/SKILL.md"
+      }
+    ]
   }
 }

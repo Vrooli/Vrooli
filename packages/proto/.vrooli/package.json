@@ -27,7 +27,9 @@
       "generate": [
         {
           "name": "generate",
-          "run": ["make", "generate"],
+          "run": ["go", "run", "-mod=mod", "./cmd/protogen", "generate", "--changed"],
+          "inputs": ["schemas/**", "vendor/**", "buf.yaml", "buf.gen.yaml", "buf.lock", "cmd/protogen/**", "protogen/**", "genmanifest/**"],
+          "ignore": ["**/*_test.go"],
           "outputs": ["gen/**"]
         }
       ]

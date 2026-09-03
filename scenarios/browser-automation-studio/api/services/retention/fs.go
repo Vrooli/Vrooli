@@ -1,9 +1,10 @@
 package retention
 
 import (
-	"io/fs"
+	"context"
 	"os"
-	"path/filepath"
+
+	coreRetention "github.com/vrooli/api-core/retention"
 )
 
 // OSFileSystem is the production FileSystem backed by the local disk.
@@ -14,40 +15,32 @@ var _ FileSystem = OSFileSystem{}
 // DirSize walks dir and sums the size of regular files. A missing directory
 // returns (0, false, nil).
 func (OSFileSystem) DirSize(dir string) (int64, bool, error) {
-	info, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return 0, false, nil
-		}
-		return 0, false, err
-	}
-	if !info.IsDir() {
-		// A non-directory at this path: report its size, treat as present.
-		return info.Size(), true, nil
-	}
+	return coreRetention.MeasureDirectory(context.Background(), dir)
+}
 
-	var total int64
-	walkErr := filepath.WalkDir(dir, func(_ string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		fi, statErr := d.Info()
-		if statErr != nil {
-			return statErr
-		}
-		total += fi.Size()
-		return nil
-	})
-	if walkErr != nil {
-		return total, true, walkErr
+func (OSFileSystem) Exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
 	}
-	return total, true, nil
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }
 
 // RemoveAll removes dir and its contents. Removing a missing path is a no-op.
 func (OSFileSystem) RemoveAll(dir string) error {
-	return os.RemoveAll(dir)
+	return coreRetention.RemovePath(context.Background(), dir)
+}
+
+// DeleteContained routes domain-selected artifact deletion through the shared
+// engine while preserving the retention service's database-driven selection.
+func (OSFileSystem) DeleteContained(ctx context.Context, root, target string) error {
+	pruner, err := coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{Path: root})
+	if err != nil {
+		return err
+	}
+	_, err = pruner.Delete(ctx, coreRetention.Candidates{{Path: target}}, coreRetention.Batch{MaxItems: 1})
+	return err
 }

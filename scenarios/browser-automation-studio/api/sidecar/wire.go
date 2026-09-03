@@ -224,15 +224,32 @@ func gatewayEnvironment(gatewayURL string) string {
 }
 
 func loadScenarioSettings() (map[string]any, error) {
-	_, source, _, ok := runtime.Caller(0)
-	if !ok {
-		return nil, fmt.Errorf("locate browser-automation-studio source")
+	scenarioRoot, err := scenarioRootDir()
+	if err != nil {
+		return nil, err
 	}
-	scenarioRoot := filepath.Clean(filepath.Join(filepath.Dir(source), "../.."))
 	return scenarioconfig.Load(
 		filepath.Join(scenarioRoot, ".vrooli", "config.json"),
 		filepath.Join(scenarioRoot, ".vrooli", "config.schema.json"),
 	)
+}
+
+// scenarioRootDir resolves the scenario checkout directory. The lifecycle
+// exports VROOLI_SCENARIO_DIR (and VROOLI_ROOT) to the api process; the
+// runtime.Caller fallback only works for non-trimpath builds, because
+// -trimpath rewrites source paths to module paths.
+func scenarioRootDir() (string, error) {
+	if dir := strings.TrimSpace(os.Getenv("VROOLI_SCENARIO_DIR")); dir != "" {
+		return filepath.Clean(dir), nil
+	}
+	if root := strings.TrimSpace(os.Getenv("VROOLI_ROOT")); root != "" {
+		return filepath.Join(root, "scenarios", "browser-automation-studio"), nil
+	}
+	_, source, _, ok := runtime.Caller(0)
+	if !ok || !filepath.IsAbs(source) {
+		return "", fmt.Errorf("locate browser-automation-studio scenario root: set VROOLI_SCENARIO_DIR")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(source), "../..")), nil
 }
 
 func recoveryAdminSecret() (string, error) {

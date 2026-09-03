@@ -1,619 +1,196 @@
 ---
 name: "browser-automation-studio"
-description: "Reference for using BAS CLI to execute workflows, analyze artifacts, and debug UI automation failures"
+description: "Decide how to run a browser task with Browser Automation Studio: a single-page capture Action, an existing typed workflow through smoke-flow, a draft through author-flow, an intent through navigate-intent, or the whole task through do-task. Recall before and journal after every attempt in the bas-usage scope."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["skill"]
+  tags: ["skill", "browser", "automation", "bas", "workflow", "screenshot", "capture", "e2e", "ui", "selector", "vision-navigation", "smoke test", "console logs", "network"]
   icon: "play"
   status: "active"
-  revision: 46
+  revision: 48
   createdAt: "2026-01-25T00:00:00Z"
-  updatedAt: "2026-02-04T13:13:54Z"
+  updatedAt: "2026-09-02T20:00:00Z"
   requires:
-    scenarios: ["prompt-manager", "swarm-manager", "vrooli"]
-    commands: ["prompt-manager actions", "prompt-manager discover", "prompt-manager skill", "prompt-manager skill read", "swarm-manager", "vrooli scenario"]
+    scenarios: ["browser-automation-studio", "program-runtime", "vrooli-memory", "prompt-manager", "workflow-health"]
+    commands: ["browser-automation-studio capture", "browser-automation-studio workflows", "browser-automation-studio executions", "browser-automation-studio session-profiles", "browser-automation-studio observability", "browser-automation-studio vision-navigation", "browser-automation-studio schema", "browser-automation-studio status", "program-runtime sessions", "program-runtime programs submit", "vrooli-memory recall", "vrooli-memory journal note", "vrooli-memory facets", "prompt-manager action", "prompt-manager skill read"]
+  learning:
+    scope: "bas-usage"
+    capture: "every attempt"
   origin:
     kind: "authored"
 ---
-## Steer focus: Browser Automation Studio
+## Tools focus: Browser Automation Studio
 
-Reference for using Browser Automation Studio (BAS) to execute browser workflows, validate UI behavior, and debug automation failures.
+Use Browser Automation Studio (BAS) to observe or drive a real browser against a running scenario or a site: one-page captures, persisted typed workflows, ad hoc drafts, and AI navigation by intent. This skill is the judgment that `--help` does not carry: which leaf to take, how to read a program envelope, what to remember. Command syntax lives in `browser-automation-studio <group> help`.
 
-BAS is a **browser automation tool** that lets you:
-- Run smoke tests to verify pages load correctly
-- Validate that UI elements exist and behave as expected
-- Execute multi-step user journeys
-- Capture screenshots and artifacts for debugging
+**In scope:** choosing and running the leaf for a browser task; reading and journaling the outcome. **Out of scope:** e2e strategy, `bas/` asset layout, selector registries, and validation cases (`prompt-manager skill read e2e-testing`); regulating BAS itself (`browser-automation-studio-improve`); memory mechanics (`prompt-manager skill read vrooli-memory`).
 
-This skill covers **tool usage**. For e2e testing strategy, workflow organization, selector registry setup, and requirements integration, see the **e2e-testing** skill.
+Required reading: `prompt-manager skill read vrooli-memory` (scopes, pins, rules), `prompt-manager skill read program-runtime` (how a program step runs).
 
-Required reading:
-- `prompt-manager skill read knowledge-observatory-tools`
+### Running a program step
 
-Optional reading:
-- `prompt-manager skill read e2e-testing`
-
----
-
-### **1. When to Use BAS**
+A leaf that reads `run browser-automation-studio.<program>` means: prepend `inputs = {...}` to `scenarios/browser-automation-studio/.vrooli/program-runtime/<program>.py` in a scratch file, then
 
 ```
-                    What do you need to verify?
-                              │
-          ┌───────────────────┼───────────────────┐
-          │                   │                   │
-          ▼                   ▼                   ▼
-    Page loads?        Element exists?      User journey?
-          │                   │                   │
-          ▼                   ▼                   ▼
-    Smoke test         Element check        Flow execution
-    (navigate +        (navigate +          (multi-step
-     screenshot)        assert node)         workflow)
+program-runtime sessions create --name <task> --json          # fresh session per run: inputs persist inside a session
+program-runtime programs submit --session-id <id> --source-file <scratch.py> --provenance operator --json
+program-runtime sessions delete <id> --reason "<task> done"
 ```
 
-| Scenario | BAS Approach |
-|----------|--------------|
-| Verify a page loads without errors | Smoke test: navigate + screenshot |
-| Check a button/form/element exists | Element check: navigate + assert |
-| Test login → dashboard flow | Flow execution: multi-step workflow |
-| Debug why a UI test failed | Artifact analysis: screenshots + logs |
-| Validate a bug fix works | Regression test: targeted workflow |
+Read the envelope from `.program.stdout`. Branch on `status` first, then `errors[0].class`. The contract beside the program (`<program>.json`) is the vocabulary; this skill only names its values.
 
-**When NOT to use BAS:**
-- Pure API testing (use integration tests)
-- Unit-level logic (use unit tests)
-- Performance benchmarking (use dedicated tools)
+### Before acting (recall)
 
----
+1. `vrooli-memory recall wake --scope bas-usage` for the ambient set. [S1]
+2. `vrooli-memory recall recall "<site or task>" --scope bas-usage --limit 5` for the target. [S1]
+3. A `site-note` that names a wait, selector, profile, or viewport → apply that in-use setting (table below) before choosing a leaf.
 
-### **2. Selector References**
-
-BAS workflows use `@selector/` references to target UI elements via `data-testid` attributes. This indirection means workflows survive UI refactors.
-
-```json
-{
-  "type": "click",
-  "data": {
-    "selector": "@selector/dashboard.newProjectButton"
-  }
-}
-```
-
-For selector registry setup, naming conventions, and component integration, see the **e2e-testing** skill.
-
----
-
-### **3. Workflow Location & Structure**
-
-Workflows live in `scenarios/{{TARGET}}/bas/` (where {{TARGET}} is the scenario you're testing) organized into `actions/`, `flows/`, and `cases/` directories. Use `browser-automation-studio schema workflow` to get the current workflow structure.
-
-For organization patterns, hierarchy rules, and requirements integration, see the **e2e-testing** skill.
-
----
-
-### **4. Core CLI Commands**
-
-#### Single-location capture (prefer for one-page checks)
-
-When all you need is a snapshot of one page — a screenshot, the JS console output, the network requests, or any combination — use `capture` instead of authoring a `workflow execute --step navigate --step screenshot` pipeline. `capture` is one Connect-RPC call against `CaptureService.Capture` and supports a viewport preset / explicit width-height, a wait-for condition, and a CSV of capture types in a single browser session.
-
-```bash
-# Desktop screenshot of a running scenario:
-browser-automation-studio capture --url scenario=app-monitor,path=/ --capture screenshot --out /tmp/audit
-
-# Mobile-viewport screenshot:
-browser-automation-studio capture --url https://example.com --capture screenshot --dimensions mobile --out /tmp/mobile
-
-# Full UI audit (screenshot + console + network) from one page load:
-browser-automation-studio capture --url scenario=swarm-manager,path=/backlog --capture screenshot,console-logs,network --out /tmp/audit --json
-```
-
-Available `--capture` types: `screenshot`, `console-logs`, `network`, `video`, `dom`, `performance` (CSV, default: `screenshot`). Dimensions presets: `mobile` (390x844), `tablet` (768x1024), `desktop` (1440x900). `--width`/`--height` override the preset. `--wait-for` accepts a CSS selector, the string `networkidle`, or a numeric millisecond timeout. `--dry-run` validates a request without producing artifacts. `--json` emits the proto wire shape; default human output is a Mutation Contract report.
-
-Equivalent prompt-manager actions wrap this command with fixed flags so agents discover them via `prompt-manager discover`:
-
-| Action | Wraps |
-|---|---|
-| `bas.screenshot` | desktop screenshot |
-| `bas.screenshot.mobile` | mobile screenshot |
-| `bas.console-logs` | console capture only |
-| `bas.network` | network capture only |
-| `bas.audit` | screenshot + console + network in one session |
-| `bas.status` | BAS health check |
-
-Use `workflow execute` (below) when you need multi-step interaction — login, click, type, multi-page navigation. Capture is only for the single-location case.
-
-#### Execute a Workflow
-
-There are three ways to execute workflows: by name (stored workflow), from a JSON file, or inline with `--step` flags.
-
-**By stored workflow name:**
-```bash
-# Execute a workflow stored in BAS by name
-browser-automation-studio workflow execute my-login-workflow --wait
-
-# List available workflows first
-browser-automation-studio workflow list
-```
-
-> **Note:** Workflow names must be unique. If multiple workflows share the same name, execution will fail with "multiple workflows match name". Use `--from-file` instead, or rename workflows to be unique.
-
-**From JSON file:**
-
-> **Note:** The `--from-file` flag accepts both absolute and relative paths:
-> - **Absolute paths** work from any directory
-> - **Relative paths** are resolved against the current working directory first
-> - If `--project-root` is provided, relative paths are also resolved against it
-
-```bash
-# Run a workflow from a file (use absolute path)
-browser-automation-studio workflow execute \
-  --from-file /abs/path/to/scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
-  --output /tmp/bas/{{TARGET}}/cases/01-foundation/login \
-  --wait
-
-# Or use --project-root with relative path
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/login.json \
-  --project-root /abs/path/to/scenarios/{{TARGET}}/bas \
-  --output /tmp/bas/{{TARGET}}/cases/01-foundation/login \
-  --wait
-
-# Run with a starting URL (for workflows without navigate node)
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/actions/open-project.json \
-  --start-url http://localhost:3000/ \
-  --output /tmp/bas/{{TARGET}}/actions/open-project \
-  --wait
-
-# Run with parameters (nested in initial_params)
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/flows/checkout.json \
-  --params '{"initial_params": {"username": "test@example.com"}}' \
-  --output /tmp/bas/{{TARGET}}/flows/checkout \
-  --wait
-```
-
-> **Note:** Custom parameters must be nested in `initial_params`. Example: `--params '{"initial_params": {"username": "test"}}'`
-
-**Inline step execution (for quick tests without JSON files):**
-```bash
-# Simple smoke test
-browser-automation-studio workflow execute \
-  --step navigate "http://localhost:3000/dashboard" waitUntil=networkidle \
-  --step screenshot fullPage=true \
-  --output /tmp/bas/{{TARGET}}/navigate-dashboard \
-  --wait
-
-# Navigate to a scenario and assert an element exists
-# Note: Use selector= prefix for attribute selectors containing '='
-browser-automation-studio workflow execute \
-  --step navigate scenario=knowledge-observatory path=/dashboard \
-  --step assert selector="[data-testid='dashboard-container']" assertMode=exists \
-  --step screenshot \
-  --output /tmp/bas/{{TARGET}}/assert-dashboard-container \
-  --wait
-
-# Fill a form and submit
-browser-automation-studio workflow execute \
-  --step navigate "http://localhost:3000/login" \
-  --step type "#email" text=test@example.com \
-  --step type "#password" text=secret123 \
-  --step click "#submit" \
-  --step assert selector="[data-testid='dashboard']" assertMode=exists \
-  --output /tmp/bas/{{TARGET}}/assert-login-form \
-  --wait
-```
-
-> **Important:** When using CSS attribute selectors like `[data-testid='dashboard']`, prefix with `selector=` to avoid the `=` being parsed as a key-value delimiter.
-
-> **Tip:** For navigate steps, you can use either a positional URL or `url=` prefix:
-> ```bash
-> # Both are equivalent:
-> --step navigate https://example.com/path
-> --step navigate url=https://example.com/path
-> ```
-
-**Step format:** `--step <type> [positional] [key=value ...]`
-
-Use `browser-automation-studio schema steps` to see all available step types, their positional arguments, and required/optional key-value parameters. Use `browser-automation-studio schema steps --cli-only` for only CLI-supported steps.
-
-**When to use each approach:**
-
-| Approach | Use When |
-|----------|----------|
-| `--step` flags | Quick tests, smoke tests, debugging, simple linear flows |
-| JSON file | Reusable workflows, complex branching, stored in bas/ |
-| Stored name | Workflows already created via UI or API |
-
-#### Workflow Management
-
-```bash
-# List all stored workflows
-browser-automation-studio workflow list
-
-# Validate workflow JSON syntax
-browser-automation-studio workflow lint scenarios/{{TARGET}}/bas/cases/01-foundation/login.json
-```
-
----
-
-### **5. Schema Reference**
-
-Use schema commands to discover step syntax and workflow structure.
-
-```bash
-# Get full workflow schema
-browser-automation-studio schema workflow
-
-# Get schema for specific node types
-browser-automation-studio schema workflow --nodes navigate,click,assert
-
-# List available node types
-browser-automation-studio schema node-types
-
-# Get inline step format reference (positional args, key-value pairs)
-browser-automation-studio schema steps
-
-# Get CLI-supported steps only
-browser-automation-studio schema steps --cli-only
-
-# Get schema in different formats
-browser-automation-studio schema steps --format json
-browser-automation-studio schema steps --format markdown
-```
-
----
-
-### **6. Example: Smoke Test Cycle**
-
-This example shows the full cycle: run a smoke test and interpret results.
-
-#### Quick Approach: Inline Steps
-
-For quick smoke tests, use inline `--step` flags:
-
-```bash
-# Run smoke test with export
-browser-automation-studio workflow execute \
-  --step navigate scenario={{TARGET}} path=/dashboard waitUntil=networkidle \
-  --step screenshot fullPage=true \
-  --output /tmp/bas/{{TARGET}}/navigate-dashboard \
-  --wait
-```
-
-Check results:
-```bash
-cat /tmp/bas/{{TARGET}}/navigate-dashboard/README.md
-```
-
-#### File-Based Approach (for reusable tests)
-
-For workflows you want to save and reuse, create a JSON file in `scenarios/{{TARGET}}/bas/`. Use `browser-automation-studio schema workflow` to get the current workflow structure.
-
-```bash
-# Run a saved workflow
-browser-automation-studio workflow execute \
-  --from-file scenarios/{{TARGET}}/bas/cases/01-foundation/smoke.json \
-  --output /tmp/bas/{{TARGET}}/cases/01-foundation/smoke \
-  --wait
-
-# Check results
-cat /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/README.md
-
-# View screenshots (format: step-NN-<step-id>.png)
-ls /tmp/bas/{{TARGET}}/cases/01-foundation/smoke/screenshots/
-```
-
----
-
-### **7. Node Types & Assert Modes**
-
-For complete node schemas and field definitions, use:
-
-```bash
-browser-automation-studio schema workflow --nodes navigate,click,assert,wait
-browser-automation-studio schema node-types
-```
-
-#### Assert Modes Quick Reference
-
-| Mode | Validates |
-|------|-----------|
-| `exists` | Element is in DOM |
-| `not_exists` | Element is NOT in DOM |
-| `visible` | Element is visible |
-| `hidden` | Element is hidden |
-| `text_contains` | Element contains expected text (use `expectedText=`) |
-| `text_equals` | Element text matches exactly (use `expectedText=`) |
-| `attribute_contains` | Attribute contains value (use `attributeName=` and `expectedValue=`) |
-| `attribute_equals` | Attribute matches exactly (use `attributeName=` and `expectedValue=`) |
-
----
-
-### **8. Debugging Failures**
+### The tree
 
 ```
-                    Workflow failed?
-                          │
-          ┌───────────────┴───────────────┐
-         YES                              NO
-          │                                │
-          ▼                                ▼
-   Check result.json                 Success - done
-   for error type
-          │
-          ▼
-   ┌──────────────────────────────────────────────────────┐
-   │                    Error Type?                        │
-   ├──────────────────────────────────────────────────────┤
-   │                                                       │
-   │  "SELECTOR_NOT_FOUND"                                 │
-   │    1. Check selector exists in selectors.ts           │
-   │    2. Verify data-testid is on the component          │
-   │    3. View last screenshot - is element visible?      │
-   │    4. Check if element is in iframe/shadow DOM        │
-   │                                                       │
-   ├──────────────────────────────────────────────────────┤
-   │                                                       │
-   │  "TIMEOUT"                                            │
-   │    1. Check network-*.json for slow/failed requests   │
-   │    2. View screenshots/ for last screenshot           │
-   │    3. Check console-*.json for JS errors              │
-   │    4. Increase timeoutMs in the failing node          │
-   │    5. Add wait node before the action                 │
-   │                                                       │
-   ├──────────────────────────────────────────────────────┤
-   │                                                       │
-   │  "ASSERTION_FAILED"                                   │
-   │    1. Check expectedText vs actual in result.json     │
-   │    2. View DOM snapshot at failing step               │
-   │    3. Verify selector targets correct element         │
-   │    4. Check if content is dynamic/async loaded        │
-   │                                                       │
-   ├──────────────────────────────────────────────────────┤
-   │                                                       │
-   │  "NAVIGATION_ERROR"                                   │
-   │    1. Check network-*.json for 4xx/5xx responses      │
-   │    2. Verify scenario is running:                     │
-   │       vrooli scenario status {{TARGET}}               │
-   │    3. Check console-*.json for JS errors on load      │
-   │    4. Verify the URL/route exists in the application  │
-   │                                                       │
-   └──────────────────────────────────────────────────────┘
+What does the task need?
+├─ One page, no interaction (does it load, what does it log, what does it request)
+│   ├─ desktop screenshot ............................ Action bas.screenshot            [S2]
+│   ├─ mobile viewport screenshot .................... Action bas.screenshot.mobile     [S2]
+│   ├─ console output only ........................... Action bas.console-logs          [S2]
+│   ├─ network requests only ......................... Action bas.network               [S2]
+│   ├─ screenshot + console + network in one load .... Action bas.audit                 [S2]
+│   ├─ a readiness condition or viewport the Actions do not fix
+│   │     browser-automation-studio capture --url <url> --capture <csv> --wait-for <css|networkidle|ms> --dimensions <preset> [S1]
+│   └─ is BAS itself up ................................ Action bas.status                [S2]
+├─ Interaction, or more than one page
+│   ├─ You know the workflow id ....................... run browser-automation-studio.smoke-flow      [S3]
+│   ├─ You do not ..................................... run browser-automation-studio.find-flows      [S3]
+│   │     ├─ candidates[0].fit is strong and runnable_by_id ... smoke-flow with that id           [S3]
+│   │     ├─ the candidate is a bas/ asset (runnable_by_id false) ... it is a validation case: e2e-testing [S0]
+│   │     ├─ no candidate, you can write the flow ....... author-flow                              [S3]
+│   │     └─ no candidate, a live browser session exists . navigate-intent                          [S3]
+│   ├─ You hold a V2 flow object not yet persisted ..... run browser-automation-studio.author-flow     [S3]
+│   ├─ You want the whole task done with memory ........ run browser-automation-studio.do-task         [S4]
+│   └─ Inline steps for one quick check ............... browser-automation-studio workflows execute-adhoc --flow-file <f> --wait [S1]
+└─ Requirements evidence in scenarios/<target>/bas/ .... e2e-testing, not this tree                [S0]
 ```
 
-#### Debug Order (Critical)
+Actions are run with `prompt-manager action run <id>`; the six ids above are listed by `prompt-manager action list`.
 
-When tests fail, debug **bottom-up through the hierarchy**:
+### Branching on the envelope
 
-1. **Actions first** - Verify atomic steps work in isolation
-2. **Flows second** - Verify composed journeys complete
-3. **Cases last** - Verify assertions match expected behavior
+**smoke-flow** (`workflow_id`; optional `session_profile`, `parameters` as an object matching the workflow's `ExecutionParameters`, `version`)
 
-This isolates failures to the smallest reproducible unit.
+| status | errors[0].class | Next leaf |
+|---|---|---|
+| ok | — | Done. Capture a `workflow-verdict` pass. |
+| failed | workflow_not_found | find-flows. |
+| failed | profile_not_found | `browser-automation-studio session-profiles list`; create or refresh (settings table); rerun once. [S1] |
+| failed | selector_not_found | Debug order steps 1–3; capture a `site-note` (facet selector). A `@selector/` reference → e2e-testing. |
+| failed | timeout | Capture a `site-note` (facet wait). Raise the node's timeout or add a wait node in the flow → author-flow. |
+| failed | auth_required | Session profile row in the settings table; rerun once with `parameters` carrying the credentials the flow declares. |
+| failed | step_failed | Debug order. |
+| partial | timeout (`outcome: still_running`) | `browser-automation-studio executions get <execution_id>` once by hand. Do not loop. [S1] |
+| unavailable | scenario_unreachable | `vrooli scenario status browser-automation-studio`; stop until `running`. [S1] |
+| refused | no_grant, not_run_eligible | Request the grant through the session path; stop. |
 
----
+**find-flows** (`task`; optional `scenario`, `k`)
 
-### **9. When to Create or Update Workflows**
+| status | errors[0].class or signal | Next leaf |
+|---|---|---|
+| ok or partial | `candidates[0].fit` strong, `runnable_by_id` true | smoke-flow with `candidates[0].id`. |
+| ok or partial | `candidates[0].runnable_by_id` false | A `bas/` validation asset: e2e-testing. |
+| ok or partial | `candidates` empty | author-flow, or navigate-intent with a session. |
+| partial | search_unavailable | search-hub was unreachable; the candidates come from `workflows list` alone. Rerun when search-hub is running if the list is empty. |
 
-| Situation | Action |
-|-----------|--------|
-| New feature added | Create smoke test (navigate + screenshot) |
-| New user journey | Create flow in `flows/` |
-| New requirement to validate | Create case in `cases/` with assertions |
-| Bug fix for UI issue | Add regression test targeting the fix |
-| UI refactor | Update selector registry, verify existing workflows pass |
-| Selector changed | Update `selectors.ts`, workflows auto-update via `@selector/` |
-| Flaky test | Investigate root cause, add wait nodes or increase timeouts |
+**author-flow** (`flow` object; optional `name`, `folder`)
 
-**Workflow creation priority:**
-1. Critical user journeys (login, checkout, core features)
-2. Areas with recent bugs
-3. Complex interactions prone to regression
-4. New features as they're built
+| status | errors[0].class | Next leaf |
+|---|---|---|
+| partial | no_governed_binding, `persistable: true` | Write the flow to a file; run `signals.persist_command` (`workflows create ... --folder-path candidates`). [S1] |
+| failed | validation_failed | Fix the draft against `browser-automation-studio schema workflow --nodes <types>`; rerun. [S1] |
+| failed | selector_not_found, timeout, auth_required, step_failed | As smoke-flow. |
+| failed | no_governed_binding (on `ai_prompt`) | AI generation has no governed path from a program; write the flow yourself. This is permanent until BAS exposes the binding, so do not retry. |
 
----
+**navigate-intent** (`session`, `prompt`, `model`; optional `max_steps` ≤ 25, `navigator`). `model` is required and is never defaulted: the binding carries no proto default, and the program fails in `validate` with `model_required` when you omit it. Read the model from `browser-automation-studio vision-navigation list-navigators` and pass it.
 
-### **10. Session Management**
+| status | errors[0].class or signal | Next leaf |
+|---|---|---|
+| ok | `outcome: reached` | Done. Capture a `task-record`. |
+| partial | `outcome: in_progress` or `human_pause` | `browser-automation-studio vision-navigation status <navigation_id>` once by hand; `vision-navigation resume <id>` when it says `awaiting_human`. [S1] |
+| failed | budget_exhausted | Narrow the prompt, or raise `max_steps` once (≤ 25). |
+| failed | session_not_found | `browser-automation-studio observability sessions` for a live session id. [S1] |
+| failed | navigation_failed | Debug order step 5 on the start URL; capture a `site-note` (facet failure). |
+| refused | credits_required | `browser-automation-studio vision-navigation list-navigators`; stop. [S1] |
+| failed | model_required | You omitted `model`. Read one from `vision-navigation list-navigators` and pass it; never hardcode a slug in a skill or program. |
 
-Session profiles store browser state (cookies, localStorage) for reuse across workflow executions. Use them for **manual testing and development workflows** where re-authenticating each time would be tedious.
+**do-task** (`task`; optional `scenario`, `k`, `workflow_ids`, `session`, `recurrence_threshold`, `model`, resolved as in navigate-intent when the fallback runs). The contract budget is async: submit with `--async --wait-timeout 900s`.
 
-> **For automated test suites**, use the subflow-based authentication pattern instead. See the **e2e-testing** skill for details.
+| status | errors[0].class or signal | Next leaf |
+|---|---|---|
+| ok | — | Done. Memory already written by the program; do not double-write. |
+| partial | navigation_pending | Status read as in navigate-intent. |
+| partial | memory_unavailable | Done; capture the `task-record` by hand. |
+| any | `prior_attempts` ≥ 2 | Read the recalled task-records (`vrooli-memory recall recall "<task>" --scope bas-usage`) before choosing again. [S1] |
+| failed | no_candidates | author-flow, or navigate-intent with a session. |
+| failed | selector_not_found, timeout, auth_required, step_failed | As smoke-flow, for `attempts[-1]`. |
+| any | `author_recommended: true` | author-flow with a draft of the navigated path, then persist. |
 
-#### Session Profile Workflow
+### After acting, always (capture)
 
-```
-Create profile → Sign in → Save session → Reuse
-     │              │            │           │
-     ▼              ▼            ▼           ▼
-  session       workflow     --save-    --session-
-  create       execute      session     profile
-```
-
-#### CLI Commands
-
-**Create a session profile:**
-```bash
-# Create with a specific name
-browser-automation-studio session create "Dev Account"
-
-# Create without a name (auto-generates "Session N")
-browser-automation-studio session create
-```
-
-**Sign in and save the session:**
-```bash
-# Execute sign-in workflow and save resulting auth state to profile
-browser-automation-studio workflow execute \
-  --from-file bas/actions/login.json \
-  --save-session "Dev Account" \
-  --initial-params '{"username":"dev@example.com","password":"..."}' \
-  --wait
-```
-
-**Reuse session for subsequent testing:**
-```bash
-# Execute workflow with pre-authenticated browser context (skips sign-in)
-browser-automation-studio workflow execute \
-  --from-file bas/cases/02-features/admin-dashboard.json \
-  --session-profile "Dev Account" \
-  --wait
-```
-
-**Force fresh session (ignore saved state):**
-```bash
-browser-automation-studio workflow execute \
-  --from-file bas/cases/01-foundation/01-auth/login-flow.json \
-  --fresh-session \
-  --wait
-```
-
-#### Managing Sessions
-
-```bash
-# List all session profiles
-browser-automation-studio session list
-
-# View profile details (shows browser profile, last used, storage stats)
-browser-automation-studio session show "Dev Account"
-
-# Rename a session profile
-browser-automation-studio session rename "Dev Account" "Production Account"
-
-# Clear storage state (force re-login on next use)
-browser-automation-studio session clear-storage "Dev Account"
-
-# Delete a profile (prompts for confirmation)
-browser-automation-studio session delete "Dev Account"
-
-# Delete without confirmation prompt
-browser-automation-studio session delete "Dev Account" --force
-
-# All commands support --json for programmatic output
-browser-automation-studio session list --json
-browser-automation-studio session create "New Profile" --json
-browser-automation-studio session show "Dev Account" --json
-browser-automation-studio session rename "Old Name" "New Name" --json
-browser-automation-studio session delete "Dev Account" --json
-browser-automation-studio session clear-storage "Dev Account" --json
-```
-
-> **Tip:** All session commands support short ID prefixes (minimum 4 characters). Use the first 8 characters shown in `session list` output:
-> ```bash
-> browser-automation-studio session show 5677c9e3  # Instead of full UUID
-> ```
-
-#### Refreshing Sessions (Load + Save)
-
-Use `--session-profile` and `--save-session` together to load existing state, run a workflow that may update tokens or cookies, and save the refreshed state back:
-
-```bash
-# Load existing session, perform actions that refresh tokens, save updated state
-browser-automation-studio workflow execute \
-  --from-file bas/actions/refresh-auth.json \
-  --session-profile "Dev Account" \
-  --save-session "Dev Account" \
-  --wait
-```
-
-This is useful for:
-- **Token refresh flows**: Load session with expiring tokens, hit refresh endpoint, save new tokens
-- **Session extension**: Perform activity to keep session alive
-- **Incremental state building**: Add new cookies/localStorage to existing session
-
-#### Understanding `session show` Output
-
-The `session show` command displays comprehensive profile information:
+One note per attempt, unless do-task ran (it writes its own):
 
 ```
-Session Profile
-===============
-  ID:         9a6cf317-f2ab-4d31-8914-03bc3435a1bf
-  Name:       Dev Account
-  Created:    2026-01-30 00:35:22
-  Updated:    2026-01-30 00:35:53
-  Last Used:  2026-01-30 00:35:53
-
-Browser Profile              # Only shown if configured
----------------
-  Preset:     stealth        # none, stealth, or custom
-  Mouse:      natural        # linear or natural movement style
-  Scroll:     stepped        # smooth or stepped scrolling
-  Typing:     50-150ms delay # Human-like typing delays
-  Pauses:     enabled        # Micro-pauses between actions
-  Stealth:    no-automation-flag, webdriver-patch, headless-bypass
-  Ad Block:   ads_and_tracking
-
-Storage State
--------------
-  Cookies:      3 (1 expired)  # Warning shown for expired cookies
-  Origins:      2
-  LocalStorage: 5 items
-
-  Cookies:
-    session_id (example.com): abc123...
-    auth_token (example.com): [HIDDEN]  # Sensitive values masked
-
-  LocalStorage:
-    https://example.com:
-      user_preferences: {"theme":"dark"...}
+vrooli-memory journal note "task-record: <task> | <leaf> | <status>/<class>" --scope bas-usage --kind task-record \
+  --trigger "<task>" --approach "<leaf>" --evidence "execution:<id>" --outcome "<status>/<class>"
 ```
 
-**Key fields:**
-- **Browser Profile**: Anti-detection and behavior settings (stealth mode, typing delays, etc.)
-- **Storage State**: Saved cookies and localStorage that will be injected on next use
-- **Expired cookies warning**: Alerts you when authentication may fail due to stale cookies
+Kinds (`--kind`): `task-record` (every attempt), `site-note` (a fact about a site: wait, selector, profile, dimensions, failure), `workflow-verdict` (`<workflow id> passed|failed <class>`).
 
-#### When to Use Session Profiles
+Facets on this host: the `bas-usage` scope carries the six default facets (`vrooli-memory facets list --scope bas-usage`), so classification and corrections use those ids: a site-note is an `environment-fact`, a task-record an `episode`, a workflow-verdict an `entity-record`, a repeated failure a `gotcha`, and pinned advice a `standing-rule`. The BAS vocabulary (`bas-site`, `bas-flow`, `bas-selector`, `bas-wait`, `bas-profile`, `bas-dimensions`, `bas-failure`) needs a scope created with `--facets-json` because facets are fixed at creation; that is a later `scope-bootstrap` run, after which the declaration in `service.json` switches to the new scope.
 
-| Use Case | Session Profile? |
-|----------|------------------|
-| Manual testing and debugging | ✅ Yes |
-| Development workflows | ✅ Yes |
-| Long-running admin operations | ✅ Yes |
-| Automated test suites | ❌ No (use subflows) |
-| CI/CD pipelines | ❌ No (use fresh sessions) |
+Curation leaves, at the branch where the evidence appears: a site-note confirmed on its third attempt → `vrooli-memory facets pin <entry-id> --scope bas-usage` [S1]; advice that failed on retry → `vrooli-memory facets supersede <entry-id> --scope bas-usage --replacement-entry-id <new>` [S1]; a pattern repeated across sites → propose a rule with `run vrooli-memory.scope-bootstrap` [S3].
 
-**Why not for automated tests?**
+### In-use settings
 
-| Session Profiles | Subflow-Based Auth |
-|------------------|-------------------|
-| State may be stale (expired cookies) | Always fresh login |
-| Test depends on profile existence | Test is self-contained |
-| Harder to debug failures | Full login flow in trace |
-| Not CI-friendly | Works anywhere |
+| Symptom | Move | Journal |
+|---|---|---|
+| Login step fails, cookies expired, `auth_required` | `browser-automation-studio session-profiles list`; `session-profiles update <id> --browser-profile '<json>'` to change fingerprint settings; re-run the login flow to refresh stored state (e2e-testing) | `site-note`, facet profile |
+| Page not ready at capture | `browser-automation-studio capture ... --wait-for networkidle`, `--wait-for '<css>'`, or `--wait-for <ms>` | `site-note`, facet wait |
+| Layout differs by viewport | `browser-automation-studio capture ... --dimensions mobile` (or `tablet`, `desktop`, `--width/--height`) | `site-note`, facet dimensions |
+| Failed runs crowd the artifact store | `browser-automation-studio executions retention-preview --max-age-days <n> --keep-latest <m>`, then `executions retention-run` with the same flags and `--confirm` | `task-record` |
+| A run needs a trace or HAR for debugging | `browser-automation-studio workflows execute <id> --wait --requires-trace --requires-har` | `task-record` |
+| Driver looks unhealthy | `browser-automation-studio observability status`; `observability sessions` | — |
 
-For automated testing patterns, see the **e2e-testing** skill section on "Authenticated Testing Patterns".
+No retention knob is exposed through `observability config-set`: `config-get` showed zero runtime overrides on 2026-09-02, and that surface configures the playwright-driver, not execution retention. Use the retention commands above.
 
----
+### Debug order
 
-### **11. Output Expectations**
+1. `browser-automation-studio executions get <execution-id>` — status and the error string (`step N failed: ...`). [S1]
+2. `browser-automation-studio executions timeline <execution-id>` — the failed entry and its action. [S1]
+3. `browser-automation-studio executions screenshots <execution-id>` — the last frame; a failed run may retain none (`docs/PROBLEMS.md` 2026-07-27). [S1]
+4. `browser-automation-studio executions recorded-traces <execution-id>` when the run requested a trace. [S1]
+5. Re-observe the failing page: Action `bas.audit` on its URL. [S2]
+6. Driver-side suspicion only: `browser-automation-studio drills list`, then `drills run --name <DRILL>` (development only). [S1]
 
-### **Execution safety labels**
+### Safety
 
-Set `metadata.execution_mode` on every workflow. `observer` workflows may use
-only navigate, screenshot, assert, extract, and wait nodes. A click, input, or
-mutating subflow is rejected by workflow-health before execution. Relabel such
-a case `mutating` and add `requires_confirmation: "true"` and
-`routed_isolation: "true"`; the platform supplies the test-mode header only
-after it proves the target's SQL and file isolation lease.
+- Cases without `metadata.safety` are not run by an agent. Add the label or leave the case to a human.
+- Never point a workflow at a production URL from a `test`-provenance session. Use a scenario target (`scenario=<name>,path=/`) or a site you own.
+- Respect execution labels. `observer` workflows only navigate, screenshot, assert, extract, and wait; a `mutating` workflow needs `requires_confirmation` and `routed_isolation` and is refused by workflow-health otherwise (e2e-testing).
+- Run workflows only against scenarios and sites you own or are permitted to test. Vision navigation spends credits under the navigator's policy: `browser-automation-studio vision-navigation list-navigators` before a first run.
+- `executions retention-run` deletes rows and artifact directories; run `retention-preview` first.
+- Never start a scenario from a program or a skill step; the lifecycle owns that.
 
-When using BAS for investigation, use `knowledge-observatory-tools` to read the current `problems` doc for `{{TARGET}}`, then document findings under the **E2E Issues** section with execution IDs, output paths, root causes, fixes, and status.
+### Troubleshooting & Edge Cases
 
-You may:
-* Execute workflows to validate UI behavior
-* Analyze artifacts to diagnose failures
-* Create temporary workflows in `/tmp/` for debugging
-* Update selector registry when adding testability
-* Add `data-testid` attributes to components
-
-You **must**:
-* Document findings with execution IDs for reproducibility
-* Link artifacts (screenshots, logs) in documentation
-* Identify root causes, not just symptoms
-* Provide actionable remediation steps
-* Use selector registry for all new selectors
+| Symptom | Likely cause | First check | Fix |
+|---|---|---|---|
+| Every program returns `unavailable`/`scenario_unreachable` | BAS stopped or restarting; it restarts often under test | `vrooli scenario status browser-automation-studio` | Wait for `running`; rerun once |
+| `no running runtime ports` mid-program | BAS restarted during the run | same | Rerun; journal nothing |
+| `no proto field matches "flow_file"` | `--flow-file` is CLI-local | `program-runtime bindings describe browser-automation-studio/workflows/validate --json` | Pass the flow as an object (`flow` input); author-flow already does |
+| `workflows execute` says multiple workflows match | Name-based execution | `browser-automation-studio workflows list` | Use the UUID |
+| A timeout is classified `selector_not_found` | Playwright phrases selector waits as timeouts; the classifier prefers the selector class | timeline entry's action | Read the step action; treat as wait when the element exists |
+| `recall wake` says scope not registered | `bas-usage` missing on this host | `vrooli-memory scopes list` | `vrooli-memory scopes create bas-usage --label "BAS usage learnings" --wake-budget 48 --max-entry-lines 2 --facets-json '[{"id":"bas-site","label":"Site"},{"id":"bas-flow","label":"Flow"},{"id":"bas-selector","label":"Selector"},{"id":"bas-wait","label":"Wait"},{"id":"bas-profile","label":"Profile"},{"id":"bas-dimensions","label":"Dimensions"},{"id":"bas-failure","label":"Failure"}]'` (facet ids are unique across scopes and fixed at creation; the scope on this host was created with the six defaults instead, see §After acting) [S1] |
+| Screenshots list is empty for a failed run | Evidence gap (PROBLEMS.md 2026-07-27) | `executions screenshots <id>` | Rerun with `--requires-trace`; the improve skill tracks `failed-run-evidence` |
+| `uxmetrics` returns an entitlement error | Pro-tier gate | `browser-automation-studio entitlement status` | Not a run failure; skip the metric |
+| vision-navigation `model is required` | The binding has no proto default and the program does not invent one | `browser-automation-studio vision-navigation list-navigators` | Pass `model` explicitly on every call |
+| A timeline read fails with `no determinable primary response field` | `executions/timeline` carries two repeated fields (`entries`, `logs`), so the projection is ambiguous | `program-runtime bindings describe browser-automation-studio/executions/timeline` | Pass `rows="entries"`: `executions.timeline(execution_id=<id>, rows="entries")` returns the step rows (`stepIndex`, `action`, `durationMs`, `context`) |

@@ -7,4 +7,6 @@ require (
 	golang.org/x/sys v0.42.0
 )
 
+require github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
+
 replace github.com/vrooli/repo-contract-go => ../repo-contract-go

@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "confidence": {
     "level": "SKETCH",
-    "rationale": "The eleven reliability spaces exist and every gradeable bar carries a unit, but the obligation list they should derive from has not been approved as a separate registry. The host-pressure bars were ratified on 2026-08-22 against captured readings and joined to their autoheal and control-plane sensors; older device-layer bars remain provisional pending their separate joins. The setpoint denominator remains SKETCH: confidence is lifted by naming obligations, not by ratifying bars.",
+    "rationale": "The eleven reliability spaces exist and every gradeable bar carries a unit, but the obligation list they should derive from has not been approved as a separate registry. The host-pressure bars were ratified on 2026-08-22 against captured readings and joined to their autoheal and control-plane sensors; older device-layer bars remain provisional pending their separate joins. The setpoint denominator remains SKETCH: confidence is lifted by naming obligations, not by ratifying bars. On 2026-09-02 the duplicate availability/A2 entry (the never-authored restart-frequency value bar) was merged into the ratified crash-loop bar so every cell_ref is unique, and substrate/SB20 was added for the supervisor's memory-PSI gate; internal/setpoint is now the only parser and enforces uniqueness.",
     "recorded_on": "2026-08-20"
   },
   "constants": {
@@ -38,18 +38,6 @@
       "unit": "critical events / 24h",
       "max": 500.0,
       "gradeable": true
-    },
-    {
-      "id": "availability-restart-frequency",
-      "cell_ref": "availability/A2",
-      "projection": "availability",
-      "target_kind": "restart-frequency",
-      "deadband": "target exceeded in fewer than 2 consecutive windows",
-      "sustain": "2 windows",
-      "actuator": "runtime-health-finding",
-      "decision_ref": "2026-07-23-round-2",
-      "gradeable": false,
-      "not_gradeable_reason": "The deadband states a sustain rule ('fewer than 2 consecutive windows') but no value threshold for restart frequency. The value bar was never authored."
     },
     {
       "id": "availability-cold-start-latency",
@@ -218,6 +206,58 @@
       "decision_ref": "2026-08-03-storage-growth-slope",
       "unit": "percent of declared ceiling",
       "max": 100.0,
+      "gradeable": true
+    },
+    {
+      "id": "headroom-declared-ceilings",
+      "cell_ref": "headroom/H3",
+      "projection": "headroom",
+      "target_kind": "storage-declared-ceilings",
+      "deadband": "declared storage entries have an explicit, policy-backed ceiling",
+      "sustain": "one storage reader sample",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-09-02-disk-recovery-that-recovers",
+      "unit": "percent of owners",
+      "max": 100.0,
+      "gradeable": true
+    },
+    {
+      "id": "headroom-recovery-efficacy",
+      "cell_ref": "headroom/H4",
+      "projection": "headroom",
+      "target_kind": "storage-recovery-efficacy",
+      "deadband": "recovery actions reclaim typed bytes and reach their free-space target",
+      "sustain": "one recovery history sample",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-09-02-disk-recovery-that-recovers",
+      "unit": "percent of recovery runs reaching target",
+      "max": 100.0,
+      "gradeable": true
+    },
+    {
+      "id": "headroom-budget-truth",
+      "cell_ref": "headroom/H5",
+      "projection": "headroom",
+      "target_kind": "storage-budget-truth",
+      "deadband": "enforced budget receipts agree with measured declared bytes",
+      "sustain": "one storage reader sample",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-09-02-disk-recovery-that-recovers",
+      "unit": "percent of measured declared bytes with agreeing enforcement",
+      "max": 100.0,
+      "gradeable": true
+    },
+    {
+      "id": "headroom-hot-writers",
+      "cell_ref": "headroom/H6",
+      "projection": "headroom",
+      "target_kind": "storage-hot-writers",
+      "deadband": "no governed root exceeds its declared hot-writer limit",
+      "sustain": "one sensor window",
+      "actuator": "runtime-health-finding",
+      "decision_ref": "2026-09-02-disk-recovery-that-recovers",
+      "unit": "bytes per hour",
+      "max": 21474836480.0,
       "gradeable": true
     },
     {
@@ -525,6 +565,20 @@
       "max": 0.0,
       "gradeable": true,
       "ratification_note": "Ratified against the workload-owner fixture and live reconciliation join. Under whole_host, zero unmanaged workloads is the gradeable bar; under vrooli_only unmanaged workloads remain informational because they represent the operator's other work. A posture change is a setpoint-visible event, not a silent behavior change."
+    },
+    {
+      "id": "substrate-memory-psi-stall",
+      "cell_ref": "substrate/SB20",
+      "projection": "substrate",
+      "target_kind": "memory-stall",
+      "deadband": "memory PSI some.avg10 remains below 10%; the runtime supervisor refuses to start a recovery while the host is above the bar",
+      "sustain": "one read",
+      "actuator": "runtime-recovery-gate",
+      "decision_ref": "2026-09-02-polite-host",
+      "unit": "percent",
+      "max": 10.0,
+      "gradeable": true,
+      "ratification_note": "Lifted from the runtime supervisor's compiled DefaultPressureSomeAvg10 on 2026-09-02 so the third pressure reader shares the setpoint; the gate is instantaneous by design (a recovery attempted into a stalling host makes the stall worse), so the sustain is one read."
     },
     {
       "id": "availability-declared-crash-loop",

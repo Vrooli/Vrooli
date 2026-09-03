@@ -54,11 +54,13 @@ func (h *connectHandler) GetCondition(ctx context.Context, req *connect.Request[
 	for _, source := range snapshot.Sources {
 		response.Sources = append(response.Sources, protoSource(source))
 	}
-	for _, source := range internalcondition.PeerSourceAvailability(projection, snapshot.At) {
-		if source.Source == "vrooli-autoheal" {
-			continue
+	if projection != "" {
+		for _, source := range internalcondition.PeerSourceAvailability(projection, snapshot.At) {
+			if source.Source == "vrooli-autoheal" {
+				continue
+			}
+			response.Sources = append(response.Sources, protoSource(source))
 		}
-		response.Sources = append(response.Sources, protoSource(source))
 	}
 	return connect.NewResponse(response), nil
 }

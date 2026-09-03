@@ -207,7 +207,7 @@
   "hostSafeguards": [
     {
       "name": "clock",
-      "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if \u003e5 minutes off",
+      "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if >5 minutes off",
       "reason": "Verify system clock accuracy for TLS certificate validation and JWT operations",
       "required": false,
       "when": [
@@ -368,7 +368,7 @@
     },
     {
       "name": "pstore_ramoops",
-      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.\u003ctimestamp\u003e. REQUIRES OPERATOR REBOOT — Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
+      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.<timestamp>. REQUIRES OPERATOR REBOOT — Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
       "reason": "RAM-backed pstore fallback for hosts without native pstore — opt-in only, requires explicit memory-region configuration",
       "required": false,
       "when": [
@@ -415,11 +415,22 @@
     },
     {
       "name": "autoheal_watchdog",
-      "notes": "Installs and verifies the autoheal loop in the invoking user's native scheduler. Dedicated-host policy enables Linux lingering for pre-login startup; shared-host policy remains login-scoped.",
+      "notes": "Installs and verifies the autoheal loop in the invoking user's native scheduler. Dedicated-host policy enables Linux lingering for pre-login startup; shared-host policy remains login-scoped. Re-inspected in the readiness phase by the autoheal boot-recovery readiness check.",
       "reason": "Ensure the supervisor that repairs failed workloads survives reboot and is not dependent on a separate scenario install command",
       "required": true,
       "when": [
-        "setup"
+        "setup",
+        "readiness"
+      ]
+    },
+    {
+      "name": "runtime_supervisor",
+      "notes": "Renders the runtime supervisor unit from the shared ServiceDefinition, validates it with the native manager, installs and enables it as the invoking user, restarts it when its content changed, and proves it active. Re-inspected in the readiness phase with the unit's NRestarts and Result as evidence.",
+      "reason": "The supervisor unit was the only long-lived unit setup never converged; on 2026-09-02 a unit rendered two weeks earlier crash-looped 495 times after boot because its argv no longer parsed",
+      "required": true,
+      "when": [
+        "setup",
+        "readiness"
       ]
     },
     {
@@ -428,7 +439,8 @@
       "reason": "Give setup ownership of the last line of defense so every host has it, rather than depending on a hand-placed systemd unit that existed on exactly one machine",
       "required": true,
       "when": [
-        "setup"
+        "setup",
+        "readiness"
       ]
     },
     {
@@ -447,6 +459,16 @@
       "required": true,
       "when": [
         "setup"
+      ]
+    },
+    {
+      "name": "agent_session_containment",
+      "notes": "Writes ~/.config/systemd/user/vrooli-agents.slice as the invoking user (CPUWeight=50, MemoryHigh=50%, MemoryMax=60%, TasksMax=4096, ManagedOOMMemoryPressure=kill; typed config), reloads the user manager, starts the slice, and reads the live cgroup back before it claims applied. Needs no privilege. The coding-agent launcher and the web console start every session in a scope under this slice. Re-inspected in the readiness phase.",
+      "reason": "On 2026-09-02 three agent sessions building at once drove a 32-core host to a 15-minute load of 1,499 with nothing able to stop them: their slice had MemoryMax=infinity, TasksMax=164514 and was excluded from systemd-oomd. A user-manager slice with ceilings makes a build storm the slice's problem, not the host's",
+      "required": true,
+      "when": [
+        "setup",
+        "readiness"
       ]
     },
     {
@@ -469,6 +491,21 @@
     }
   ],
   "hostTools": [
+    {
+      "name": "uv",
+      "required": false,
+      "version": ">=0.5.0",
+      "reason": "Optional Python builder and typecheck fixture support",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "environments": [
+        "development",
+        "production",
+        "minimal"
+      ]
+    },
     {
       "environments": [
         "development",

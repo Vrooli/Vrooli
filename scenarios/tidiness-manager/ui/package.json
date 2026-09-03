@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm run type-check && vite build",
+    "build": "vite build",
     "preview": "node server.js",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",

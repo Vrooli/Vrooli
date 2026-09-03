@@ -8,6 +8,15 @@ importers:
 
   .:
     dependencies:
+      '@bufbuild/protobuf':
+        specifier: ^2.12.0
+        version: 2.12.0
+      '@connectrpc/connect':
+        specifier: ^2.1.1
+        version: 2.1.1(@bufbuild/protobuf@2.12.0)
+      '@connectrpc/connect-web':
+        specifier: ^2.1.1
+        version: 2.1.1(@bufbuild/protobuf@2.12.0)(@connectrpc/connect@2.1.1(@bufbuild/protobuf@2.12.0))
       '@fontsource/inter':
         specifier: 5.1.1
         version: 5.1.1
@@ -26,6 +35,9 @@ importers:
       '@vrooli/iframe-bridge':
         specifier: file:../../../packages/iframe-bridge
         version: file:../../../packages/iframe-bridge
+      '@vrooli/proto-types':
+        specifier: file:../../../packages/proto/gen/typescript
+        version: file:../../../packages/proto/gen/typescript
       '@vrooli/react-component-library':
         specifier: file:../../../packages/react-component-library
         version: file:../../../packages/react-component-library(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -999,6 +1011,10 @@ packages:
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
+
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
+    resolution: {directory: ../../../packages/proto/gen/typescript, type: directory}
+    engines: {node: '>=18.0.0'}
 
   '@vrooli/react-component-library@file:../../../packages/react-component-library':
     resolution: {directory: ../../../packages/react-component-library, type: directory}
@@ -3725,6 +3741,10 @@ snapshots:
       - react-native
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
+
+  '@vrooli/proto-types@file:../../../packages/proto/gen/typescript':
+    dependencies:
+      '@bufbuild/protobuf': 2.12.0
 
   '@vrooli/react-component-library@file:../../../packages/react-component-library(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:

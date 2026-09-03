@@ -19,6 +19,25 @@ signals are still validated without inventing model conclusions.
 **Status**: Deliberate honesty boundary; add the runtime readers and provider
 credentials before claiming those measurements are available.
 
+### R-007: Dead scope-lock code pretended to serialize editors (resolved 2026-09-02)
+**Symptom**: On 2026-09-02 one agent session deleted another's tolerance
+table and tests within minutes of their creation; nothing on the host could
+say which sessions were editing the tree.
+**Root cause**: `LockRepository`, `LockManager`, `domain.ScopeLock` and the
+`scope_locks` table were unwired dead code: the orchestrator held a `locks`
+field no caller ever set, so the lock surface read as a capability while
+serializing nothing. The launcher also never sent a working directory, so the
+`runs` row could not name a tree.
+**Fix**: The lock repository, manager, domain type, validation, table and
+tests were deleted. Visibility now lives where the process does: the launcher
+records an editor lease (tree, scope, pid, claims) in the control plane's
+runtime registry, sends `working_dir` and `scope` at attach, and advisory
+claims name an overlapping holder at launch (`docs/reference/agent-sessions.md`).
+**Validation**: `TestLauncherSendsWorkingDirAndScope` and
+`TestClaimOverlapNamesHolderAndContinues` (`packages/cli-core/cliutil`);
+`TestEditorLeaseExpiresOnlyOnProofOfDeath` (`internal/scenarioruntime`);
+agent-manager's domain and database suites pass without the lock code.
+
 ### R-006: Installed resource policy CLIs lagged the repository schema (resolved 2026-08-04)
 **Symptom**: Investigation creation returned HTTP 400 because every
 `code.smart` runner candidate failed resource-role preflight with only

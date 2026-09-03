@@ -210,7 +210,7 @@ func globToRegex(pattern string) string {
 
 // DefaultInvestigationPromptTemplate is the fallback prompt for investigation agents
 // when prompt-manager is unavailable. Keep in sync with the SKILL.md file:
-// scenarios/prompt-manager/store/skills/packs/core/agent-manager-process-investigation/SKILL.md
+// scenarios/agent-manager/skills/agent-manager-process-investigation/SKILL.md
 const DefaultInvestigationPromptTemplate = `## Investigation
 
 Diagnose why the attached agent run(s) failed. Produce a structured report classifying root causes and recommending specific, actionable fixes.
@@ -280,7 +280,7 @@ Context attachments below contain the key data — read them before exploring fu
 
 // DefaultApplyInvestigationPromptTemplate is the fallback prompt for apply agents
 // when prompt-manager is unavailable. Keep in sync with the SKILL.md file:
-// scenarios/prompt-manager/store/skills/packs/core/agent-manager-process-investigation-apply/SKILL.md
+// scenarios/agent-manager/skills/agent-manager-process-investigation-apply/SKILL.md
 const DefaultApplyInvestigationPromptTemplate = `## Apply Investigation Fixes
 
 Implement the recommendations from the attached investigation report. Produce a change report documenting what was applied, verified, and deferred.

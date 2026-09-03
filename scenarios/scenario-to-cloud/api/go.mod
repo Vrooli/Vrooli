@@ -31,10 +31,10 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
-	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/mod v0.37.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/tools v0.42.0 // indirect
+	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -69,4 +69,3 @@ replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
-

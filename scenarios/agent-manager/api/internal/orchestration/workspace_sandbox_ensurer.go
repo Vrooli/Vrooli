@@ -47,7 +47,7 @@ func NewCommandWorkspaceSandboxEnsurer(provider sandboxAvailabilityChecker, leve
 	return &CommandWorkspaceSandboxEnsurer{
 		provider: provider,
 		levers:   levers,
-		command:  []string{"vrooli", "--no-stale-check", "scenario", "start", "workspace-sandbox"},
+		command:  []string{"vrooli", "scenario", "start", "workspace-sandbox"},
 	}
 }
 

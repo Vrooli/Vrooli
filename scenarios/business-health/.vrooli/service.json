@@ -62,7 +62,8 @@
     "freshness": {
       "inputs": [
         "cli/**",
-        ".vrooli/service.json"
+        ".vrooli/service.json",
+        "../../packages/cli-core"
       ]
     },
     "source_build": {

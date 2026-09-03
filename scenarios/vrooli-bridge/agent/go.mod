@@ -9,6 +9,7 @@ require (
 	github.com/vrooli/cliresolve v0.0.0
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/mdns-go v0.0.0
+	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/capabilityprobe v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0

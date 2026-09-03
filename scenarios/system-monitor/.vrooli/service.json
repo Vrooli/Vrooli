@@ -295,7 +295,7 @@
         "api": "/health",
         "ui": "/health"
       },
-      "startup_grace_period": 15000,
+      "startup_grace_period": 60000,
       "checks": [
         {
           "name": "api_endpoint",

@@ -30,7 +30,6 @@ type Repositories struct {
 	Checkpoints           repository.CheckpointRepository
 	Idempotency           repository.IdempotencyRepository
 	Policies              repository.PolicyRepository
-	Locks                 repository.LockRepository
 	Stats                 repository.StatsRepository
 	InvestigationSettings repository.InvestigationSettingsRepository
 	Findings              findings.Repository
@@ -52,7 +51,6 @@ func NewRepositories(db *DB, log *logrus.Logger) *Repositories {
 		Checkpoints:           &checkpointRepository{db: db, log: log},
 		Idempotency:           &idempotencyRepository{db: db, log: log},
 		Policies:              &policyRepository{db: db, log: log},
-		Locks:                 &lockRepository{db: db, log: log},
 		Stats:                 &statsRepository{db: db, log: log},
 		InvestigationSettings: &investigationSettingsRepository{db: db, log: log},
 		Findings:              findings.NewSQLiteRepository(db),

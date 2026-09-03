@@ -6,7 +6,15 @@ import { fileURLToPath } from "node:url";
 
 const uiRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const buildDir = join(uiRoot, "build");
-const distDir = join(uiRoot, "dist");
+const args = process.argv.slice(2);
+const outDirIndex = args.indexOf("--outDir");
+const requestedOutDir = outDirIndex >= 0 ? args[outDirIndex + 1] : "";
+const distDir = requestedOutDir ? resolve(requestedOutDir) : join(uiRoot, "dist");
+
+if (outDirIndex >= 0 && !requestedOutDir) {
+  console.error("Missing value for --outDir");
+  process.exit(2);
+}
 
 if (!existsSync(buildDir)) {
   console.error(`Missing build output at ${buildDir}`);
@@ -14,4 +22,4 @@ if (!existsSync(buildDir)) {
 }
 rmSync(distDir, { recursive: true, force: true });
 cpSync(buildDir, distDir, { recursive: true });
-console.log("Staged build/ into dist/");
+console.log(`Staged build/ into ${distDir}`);

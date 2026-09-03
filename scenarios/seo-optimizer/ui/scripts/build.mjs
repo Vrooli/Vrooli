@@ -5,7 +5,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const uiRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const dist = join(uiRoot, "dist");
+const requestedOutDir = process.argv.find((arg) => arg.startsWith("--outDir="))?.slice("--outDir=".length)
+  ?? (() => {
+    const index = process.argv.indexOf("--outDir");
+    return index >= 0 ? process.argv[index + 1] : null;
+  })();
+const dist = requestedOutDir ? resolve(uiRoot, requestedOutDir) : join(uiRoot, "dist");
 const assets = ["index.html", "styles.css", "script.js", "bridge-init.js"];
 
 rmSync(dist, { recursive: true, force: true });

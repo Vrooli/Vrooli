@@ -81,7 +81,11 @@
         "name": "Browser Automation Studio terminal recordings",
         "safety_tier": "safe_with_owner",
         "default_mode": "disabled",
-        "default_approval": "owner"
+        "default_approval": "owner",
+        "storage_entries": [
+          "recordings",
+          "captures"
+        ]
       }
     ],
     "rationale": "Storage surfaces include durable project and seed state plus separately budgeted regenerable execution evidence."
@@ -183,7 +187,11 @@
       "range": "24400-24499"
     }
   },
-  "generation": { "template": { "id": "react-vite" } },
+  "generation": {
+    "template": {
+      "id": "react-vite"
+    }
+  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -567,6 +575,28 @@
         },
         "supervised_by": "api"
       }
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/browser-automation-studio/SKILL.md",
+      "programs": [
+        "browser-automation-studio.smoke-flow",
+        "browser-automation-studio.find-flows",
+        "browser-automation-studio.author-flow",
+        "browser-automation-studio.navigate-intent",
+        "browser-automation-studio.do-task"
+      ]
+    },
+    "improve": {
+      "source": "skills/browser-automation-studio-improve/SKILL.md",
+      "programs": [
+        "browser-automation-studio.setpoint-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "bas-usage"
     }
   }
 }

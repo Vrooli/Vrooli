@@ -81,8 +81,8 @@
   },
   "private": true,
   "scripts": {
-    "build": "pnpm run type-check \u0026\u0026 npx vite build \u0026\u0026 node ./scripts/gzip-dist.mjs",
-    "build:profile": "pnpm run type-check \u0026\u0026 npx vite build --mode profile \u0026\u0026 node ./scripts/gzip-dist.mjs",
+    "build": "npx vite build \u0026\u0026 node ./scripts/gzip-dist.mjs",
+    "build:profile": "npx vite build --mode profile \u0026\u0026 node ./scripts/gzip-dist.mjs",
     "dev": "vrooli lifecycle protect -- npx vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

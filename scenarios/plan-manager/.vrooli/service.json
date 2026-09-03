@@ -201,5 +201,48 @@
         "port": "ui"
       }
     }
+  },
+  "retention": {
+    "budgets": {
+      "log_entries": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "plan-manager.db",
+          "table": "log_entries",
+          "time_column": "created_at"
+        },
+        "max_age": "365d",
+        "max_bytes": "256MiB",
+        "pruner": "builtin",
+        "rationale": "Append-only operational log (decisions, findings, bugs, records, notes) written during plan execution. It only grows: nothing in the API deletes from it. A plan's durable narrative is the rendered plan itself, so a year of raw log rows is generous for post-hoc review while bounding a table that is otherwise unbounded by construction. The byte ceiling is the real bound because volume is driven by how chatty execution is, which is not a function of time."
+      },
+      "validation_operations": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "plan-manager.db",
+          "table": "validation_operations",
+          "time_column": "updated_at"
+        },
+        "max_age": "180d",
+        "max_bytes": "128MiB",
+        "pruner": "builtin",
+        "rationale": "Transient records of in-flight validation runs. The durable verdict lives on the plan and its phases, so these rows stop being useful once the run they describe has been read. Half a year outlives any realistic resume window."
+      },
+      "candidate_revisions": {
+        "target": {
+          "kind": "sqlite_table",
+          "class": "data",
+          "database": "plan-manager.db",
+          "table": "candidate_revisions",
+          "time_column": "expires_at"
+        },
+        "max_age": "30d",
+        "max_bytes": "64MiB",
+        "pruner": "builtin",
+        "rationale": "Whole-plan proposal buffers that already carry an expires_at column, so they are expiring by design and simply had no sweeper. Pruning on expires_at rather than created_at honours the lifetime the producer declared."
+      }
+    }
   }
 }

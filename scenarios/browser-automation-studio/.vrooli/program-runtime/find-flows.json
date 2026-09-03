@@ -1,0 +1,128 @@
+{
+  "$schema": "../../../program-runtime/schemas/program-contract.schema.json",
+  "name": "browser-automation-studio.find-flows",
+  "version": "1",
+  "purpose": "Rank persisted BAS workflows, scenario-owned bas/ assets, and search-hub workflow hits against a task with a deterministic fit label; one ai.classify call only to break a tie at the k boundary.",
+  "inputs": {
+    "task": {
+      "type": "string",
+      "required": true,
+      "description": "The browser task in plain words."
+    },
+    "scenario": {
+      "type": "string",
+      "description": "Scenario whose bas/ assets workflow-health should search; without it that source is skipped."
+    },
+    "k": {
+      "type": "integer",
+      "default": 5,
+      "description": "Maximum candidates returned (1..20)."
+    }
+  },
+  "assumptions": [
+    "browser-automation-studio and workflow-health are running; a stopped owner marks its own source unavailable rather than emptying the candidate list"
+  ],
+  "invariants": [
+    "no binding with effect write or destructive is called",
+    "at most k candidates are returned; no row set above 100 is materialized",
+    "ai.classify runs at most once, and only to break a tie at the k boundary",
+    "the envelope is printed exactly once, on every path",
+    "No memory I/O: this is an S3 step; do-task (S4) owns recall and capture in bas-usage."
+  ],
+  "bindings": [
+    {
+      "id": "browser-automation-studio/workflows/list",
+      "effect": "read"
+    },
+    {
+      "id": "workflow-health/workflows/search",
+      "effect": "read",
+      "optional": true
+    },
+    {
+      "id": "search-hub/query/query",
+      "effect": "read",
+      "optional": true,
+      "note": "Called with rows=\"ranked\" (the response has four repeated fields)."
+    }
+  ],
+  "verbs": [
+    "ai.classify"
+  ],
+  "outputs": {
+    "status": {
+      "enum": [
+        "ok",
+        "partial",
+        "unavailable",
+        "refused",
+        "failed"
+      ]
+    },
+    "phase": {
+      "enum": [
+        "validate",
+        "collect",
+        "classify",
+        "report"
+      ]
+    },
+    "signals": {
+      "candidates": "up to k of {source, id, name, folder, overlap, fit(strong|weak), runnable_by_id, mutating?, leaf_type?, ai?} sorted by overlap desc",
+      "sources": "row counts per source: workflows_list, workflow_health (null when no scenario was given), search_hub; null when that source failed",
+      "tie_broken_by_ai": "true when ai.classify ran"
+    },
+    "errors": {
+      "classes": [
+        "scenario_unreachable",
+        "no_grant",
+        "not_run_eligible",
+        "inference_spend_exceeded",
+        "delegated_run_spend_exceeded",
+        "ambiguous_response",
+        "invalid_input",
+        "deadline_exceeded",
+        "binding_error",
+        "kernel_runtime",
+        "inference_unavailable"
+      ]
+    },
+    "evidence": "candidate ids in rank order"
+  },
+  "budget": {
+    "wall_ms": 60000,
+    "inference_calls": 1,
+    "delegated_runs": 0,
+    "materialize_limit": 100
+  },
+  "fixtures": [
+    {
+      "id": "no-task",
+      "inputs": {},
+      "expect": {
+        "status": [
+          "failed"
+        ]
+      }
+    },
+    {
+      "id": "smoke",
+      "inputs": {
+        "task": "demo smoke workflow",
+        "scenario": "browser-automation-studio",
+        "k": 3
+      },
+      "expect": {
+        "status": [
+          "ok",
+          "partial"
+        ]
+      },
+      "requires": [
+        "browser-automation-studio"
+      ]
+    }
+  ],
+  "rung": "S3",
+  "owner_skill": "browser-automation-studio"
+}

@@ -6,7 +6,7 @@ require (
 	connectrpc.com/connect v1.19.2
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
-	github.com/stretchr/testify v1.11.1
+	github.com/stretchr/testify v1.12.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/vrooli v0.0.0
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
@@ -46,7 +46,6 @@ require (
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
-
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 

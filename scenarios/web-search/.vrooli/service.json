@@ -203,5 +203,24 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/web-search/SKILL.md",
+      "programs": [
+        "web-search.research"
+      ]
+    },
+    "improve": {
+      "source": "skills/web-search-improve/SKILL.md",
+      "programs": [
+        "web-search.setpoint-read",
+        "web-search.findings-curate"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "ledger": "findings"
+    }
   }
 }

@@ -209,5 +209,34 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/program-runtime/SKILL.md",
+      "programs": [
+        "program-runtime.fleet-fanout",
+        "program-runtime.concurrent-fanout",
+        "program-runtime.typed-inference",
+        "program-runtime.batch-inference",
+        "program-runtime.handle-shaping",
+        "program-runtime.delegated-run",
+        "program-runtime.watch-set",
+        "program-runtime.failure-triage",
+        "program-runtime.registry-sweep"
+      ]
+    },
+    "improve": {
+      "source": "skills/program-runtime-improve/SKILL.md",
+      "programs": [
+        "program-runtime.setpoint-read",
+        "program-runtime.improve-cycle",
+        "program-runtime.library-curate"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "program-runtime-usage"
+    },
+    "waivers": {}
   }
 }

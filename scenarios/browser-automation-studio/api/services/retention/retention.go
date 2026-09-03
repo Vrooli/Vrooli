@@ -51,11 +51,28 @@ type FileSystem interface {
 	RemoveAll(dir string) error
 }
 
+type containedDeleter interface {
+	DeleteContained(context.Context, string, string) error
+}
+
+type pathExistence interface {
+	Exists(path string) (bool, error)
+}
+
 // ExecutionStore is the minimal repository surface retention needs.
 type ExecutionStore interface {
+	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
 	ListExecutions(ctx context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*database.ExecutionIndex, error)
 	ListExecutionsByStatus(ctx context.Context, status string, limit, offset int) ([]*database.ExecutionIndex, error)
 	DeleteExecution(ctx context.Context, id uuid.UUID) error
+}
+
+// oldestExecutionStore is an optional optimization for bounded recovery
+// previews. The base interface remains compatible with repository fakes and
+// other callers, while the production repository can select the oldest rows
+// in SQL instead of loading the complete terminal index.
+type oldestExecutionStore interface {
+	ListExecutionsByStatusOldest(ctx context.Context, status string, limit, offset int) ([]*database.ExecutionIndex, error)
 }
 
 // Service performs retention sweeps.
@@ -108,6 +125,13 @@ type Options struct {
 	// not a declaration of total storage capacity; the owner declaration remains
 	// the source of the age/size policy shown to operators.
 	MaxBytes int64
+	// MaxItems bounds one scheduled sweep by execution directories. Zero keeps
+	// the existing unbounded behavior for explicit operator previews.
+	MaxItems int
+	// EstimatedBytes optionally supplies sizes from an already validated
+	// preview. Apply callers may use this to avoid re-walking large artifact
+	// trees; deletion still revalidates containment through the deleter.
+	EstimatedBytes map[uuid.UUID]int64
 	// Apply performs deletion. When false, the sweep is a pure dry-run.
 	Apply bool
 }
@@ -163,6 +187,12 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 	})
 
 	protected := s.computeProtected(candidates, opts.KeepLatest)
+	if opts.MaxItems > 0 && len(candidates) > opts.MaxItems {
+		// candidates are newest-first; retain the oldest slice so a bounded tick
+		// makes steady progress through expired evidence while keep_latest
+		// remains protected in the full candidate set above.
+		candidates = candidates[len(candidates)-opts.MaxItems:]
+	}
 	selectedBySize := s.selectByMaxBytes(candidates, protected, opts)
 
 	cleanRoot := filepath.Clean(s.recordingsRoot)
@@ -211,7 +241,16 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 		}
 		item.ArtifactDir = artifactDir
 
-		size, exists, sizeErr := s.fs.DirSize(artifactDir)
+		size, exists, sizeErr := int64(0), false, error(nil)
+		if estimated, ok := opts.EstimatedBytes[exec.ID]; ok && estimated >= 0 {
+			size = estimated
+			exists = true
+			if checker, ok := s.fs.(pathExistence); ok {
+				exists, sizeErr = checker.Exists(artifactDir)
+			}
+		} else {
+			size, exists, sizeErr = s.fs.DirSize(artifactDir)
+		}
 		if sizeErr != nil {
 			if s.log != nil {
 				s.log.WithError(sizeErr).WithField("artifact_dir", artifactDir).Warn("retention: failed to size artifact directory")
@@ -231,11 +270,17 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 
 		// Apply mode: delete files first, then the DB row.
 		if exists {
-			if err := s.fs.RemoveAll(artifactDir); err != nil {
+			var deleteErr error
+			if deleter, ok := s.fs.(containedDeleter); ok {
+				deleteErr = deleter.DeleteContained(ctx, cleanRoot, artifactDir)
+			} else {
+				deleteErr = s.fs.RemoveAll(artifactDir)
+			}
+			if deleteErr != nil {
 				if s.log != nil {
-					s.log.WithError(err).WithField("artifact_dir", artifactDir).Error("retention: failed to remove artifact directory")
+					s.log.WithError(deleteErr).WithField("artifact_dir", artifactDir).Error("retention: failed to remove artifact directory")
 				}
-				report.errored(item, fmt.Sprintf("%s: %v", ReasonDeleteDirFailed, err))
+				report.errored(item, fmt.Sprintf("%s: %v", ReasonDeleteDirFailed, deleteErr))
 				continue
 			}
 		} else {
@@ -300,6 +345,29 @@ func (s *Service) gatherCandidates(ctx context.Context, opts Options, status str
 	if status != "" {
 		targetStatuses = []string{status}
 	}
+	// Recovery applies carry an exact preview ID set. Fetch only those rows;
+	// listing every terminal execution would turn each bounded owner batch into
+	// a full-index scan and can saturate BAS on large evidence stores.
+	if len(opts.ExecutionIDs) > 0 {
+		out := make([]*database.ExecutionIndex, 0, len(opts.ExecutionIDs))
+		for _, id := range opts.ExecutionIDs {
+			entry, err := s.store.GetExecution(ctx, id)
+			if err != nil {
+				if errors.Is(err, database.ErrNotFound) {
+					continue
+				}
+				return nil, fmt.Errorf("get execution %q: %w", id, err)
+			}
+			if entry == nil || !database.IsTerminalStatus(entry.Status) {
+				continue
+			}
+			if status != "" && entry.Status != status {
+				continue
+			}
+			out = append(out, entry)
+		}
+		return out, nil
+	}
 
 	// When a workflow/project filter is present the repository can only filter by
 	// those dimensions, so we list and filter to terminal statuses in memory.
@@ -323,7 +391,17 @@ func (s *Service) gatherCandidates(ctx context.Context, opts Options, status str
 
 	var out []*database.ExecutionIndex
 	for _, st := range targetStatuses {
-		list, err := s.store.ListExecutionsByStatus(ctx, st, 0, 0)
+		limit := 0
+		if opts.MaxItems > 0 {
+			limit = opts.MaxItems
+		}
+		var list []*database.ExecutionIndex
+		var err error
+		if oldest, ok := s.store.(oldestExecutionStore); ok && limit > 0 {
+			list, err = oldest.ListExecutionsByStatusOldest(ctx, st, limit, 0)
+		} else {
+			list, err = s.store.ListExecutionsByStatus(ctx, st, limit, 0)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("list executions by status %q: %w", st, err)
 		}

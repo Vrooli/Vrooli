@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -746,40 +745,6 @@ func (c *RunCheckpoint) Validate() error {
 	}
 
 	return nil
-}
-
-// =============================================================================
-// SCOPE LOCK VALIDATION
-// =============================================================================
-
-// Validate checks that a ScopeLock is valid.
-func (l *ScopeLock) Validate() error {
-	if l.RunID == uuid.Nil {
-		return NewValidationError("runId", "field is required")
-	}
-
-	if strings.TrimSpace(l.ScopePath) == "" {
-		return NewValidationError("scopePath", "field is required")
-	}
-
-	if l.AcquiredAt.IsZero() {
-		return NewValidationError("acquiredAt", "field is required")
-	}
-
-	if l.ExpiresAt.IsZero() {
-		return NewValidationError("expiresAt", "field is required")
-	}
-
-	if l.ExpiresAt.Before(l.AcquiredAt) {
-		return NewValidationError("expiresAt", "must be after acquiredAt")
-	}
-
-	return nil
-}
-
-// IsExpired returns whether this lock has expired.
-func (l *ScopeLock) IsExpired() bool {
-	return time.Now().After(l.ExpiresAt)
 }
 
 // =============================================================================

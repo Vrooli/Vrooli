@@ -133,3 +133,23 @@ contract exists to remove.
 - Source availability is reported beside the space and never collapsed into a
   zero numerator.
 - A new cell is a document change, not an `infrastructure-manager` code change.
+# Storage headroom reader
+
+The reliability instrument reads the typed Storage Manager feed through the
+storage source adapter. The feed is observational: it contains device census,
+growth, declared ceilings, recovery efficacy, budget truth, and hot-writer
+readings. The instrument assigns a trust verdict to each reading and does not
+recompute deletion decisions.
+
+The storage projection maps these cells:
+
+- H1: device census and available bytes.
+- H2: measured growth slope.
+- H3: declared storage ceilings.
+- H4: recovery efficacy and recent terminal runs.
+- H5: budget truth and exceeded budgets.
+- H6: hot writers and their observed rates.
+
+An unavailable or stale storage feed is reported as unavailable, not as a
+healthy zero. Operators can compare the instrument with
+`storage-manager storage infra-health --json`.

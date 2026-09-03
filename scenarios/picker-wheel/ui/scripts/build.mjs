@@ -5,7 +5,11 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const uiRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const dist = join(uiRoot, "dist");
+const outDirIndex = process.argv.indexOf("--outDir");
+const requestedOutDir = outDirIndex >= 0 ? process.argv[outDirIndex + 1] : "";
+const dist = requestedOutDir && !requestedOutDir.startsWith("-")
+  ? resolve(requestedOutDir)
+  : join(uiRoot, "dist");
 const assets = ["index.html", "styles.css", "script.js"];
 
 rmSync(dist, { recursive: true, force: true });
@@ -19,4 +23,4 @@ if (missing.length > 0) {
 for (const asset of assets) {
   cpSync(join(uiRoot, asset), join(dist, asset));
 }
-console.log(`Staged ${assets.length} asset(s) into dist/`);
+console.log(`Staged ${assets.length} asset(s) into ${dist}`);

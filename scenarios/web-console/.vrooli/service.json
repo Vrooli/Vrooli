@@ -423,6 +423,46 @@
         "model_roles": [
           "chat.default"
         ]
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable Claude Code agent exposed through the operator action surface.",
+        "degraded_behavior": "Claude Code remains unavailable until an operator explicitly installs it."
+      },
+      "codex": {
+        "type": "codex",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable Codex agent exposed through the operator action surface.",
+        "degraded_behavior": "Codex remains unavailable until an operator explicitly installs it."
+      },
+      "opencode": {
+        "type": "opencode",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable OpenCode agent exposed through the operator action surface.",
+        "degraded_behavior": "OpenCode remains unavailable until an operator explicitly installs it."
+      },
+      "grok": {
+        "type": "grok",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable Grok agent exposed through the operator action surface.",
+        "degraded_behavior": "Grok remains unavailable until an operator explicitly installs it."
+      },
+      "antigravity": {
+        "type": "antigravity",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Optional locally installable Antigravity agent exposed through the operator action surface.",
+        "degraded_behavior": "Antigravity remains unavailable until an operator explicitly installs it."
       }
     },
     "scenarios": {

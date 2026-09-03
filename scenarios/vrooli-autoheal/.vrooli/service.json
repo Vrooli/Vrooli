@@ -539,7 +539,12 @@
     "freshness": {
       "inputs": [
         "api/**",
-        "cli/**",
+        "cli/*.go",
+        "cli/go.mod",
+        "cli/go.sum",
+        "cli/manifest.json",
+        "cli/domains/**",
+        "cli/internal/**",
         ".vrooli/service.json"
       ]
     },
@@ -650,6 +655,21 @@
         ],
         "cwd": "ui",
         "port": "ui"
+      }
+    },
+    "loop": {
+      "role": "sidecar",
+      "build": {
+        "kind": "go_module",
+        "dir": "cli/loop",
+        "output": "cli/vrooli-autoheal-loop"
+      },
+      "run": {
+        "argv": [
+          "{{bin.loop}}"
+        ],
+        "cwd": "cli/loop",
+        "supervised_by": "api"
       }
     }
   },

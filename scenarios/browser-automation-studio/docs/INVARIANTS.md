@@ -23,3 +23,14 @@ The focused evidence, workflow, API-handler, and export tests are the current dr
 ## Accepted Gaps
 
 There are no accepted gaps for these evidence invariants. Legacy executions may not have an `evidence.proto.json` package; export keeps a read-only fallback to the existing timeline solely for those historical records. New execution writes produce the versioned package.
+# Storage retention invariants
+
+Recordings and captures are regenerable owner data with a seven-day retention
+budget. The retention sweep selects complete execution directories and uses
+the shared retention engine for containment, re-stat, deletion, and receipts.
+It may resume after a timeout; a partial sweep does not claim that the budget
+is true.
+
+Performance traces use one compressed trace per execution. The trace is
+opt-in for diagnostics and is off by default, so a normal run does not emit a
+stat/open line for every repository file.

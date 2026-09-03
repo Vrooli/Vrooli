@@ -92,7 +92,7 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
-          "timeout": 10000,
+          "timeout": 2000,
           "interval": 30000
         },
         {
@@ -103,7 +103,7 @@
           "interval": 30000
         }
       ],
-      "startup_grace_period": 15000
+      "startup_grace_period": 60000
     }
   },
   "dependencies": {

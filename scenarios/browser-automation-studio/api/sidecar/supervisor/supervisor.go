@@ -101,14 +101,22 @@ func (s *ProcessSupervisor) waitForHealthy(ctx context.Context) error {
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
+	// Keep the last health error: a timeout alone hides the real cause (a
+	// missing browser build, a port clash) that the driver already reported.
+	var lastErr error
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("startup timeout: %w", ctx.Err())
+			if lastErr != nil {
+				return fmt.Errorf("startup timeout: %w (last health check: %v)", ctx.Err(), lastErr)
+			}
+			return fmt.Errorf("startup timeout: %w (health endpoint never answered)", ctx.Err())
 		case <-ticker.C:
-			if err := s.healthCheck(ctx); err == nil {
+			err := s.healthCheck(ctx)
+			if err == nil {
 				return nil
 			}
+			lastErr = err
 		}
 	}
 }

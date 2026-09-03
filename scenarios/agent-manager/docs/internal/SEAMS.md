@@ -539,10 +539,6 @@ type Provider interface {
   - Supports full/partial approval workflows
   - Health checks for availability monitoring
 
-**Related interface:** `sandbox.LockManager`
-- Manages scope-based locking for concurrent runs
-- Prevents overlapping path scopes from conflicting
-
 ### 2a. Workspace Sandbox Ensurer (`orchestration` / `phases`)
 
 **Purpose:** Ensure the `workspace-sandbox` scenario is available at the moment a sandboxed run needs it.
@@ -1025,7 +1021,6 @@ type Collector interface {
 - `RunRepository` - Run CRUD with status filtering and recommendation extraction
 - `EventRepository` - Append-only event log
 - `PolicyRepository` - Policy CRUD with scope matching
-- `LockRepository` - Scope lock management
 - `CheckpointRepository` - Run checkpoint persistence
 - `IdempotencyRepository` - Idempotency key tracking
 - `StatsRepository` - Aggregation queries for analytics (status counts, cost, duration, breakdowns)

@@ -389,34 +389,6 @@ type PathValidationResult struct {
 	Error             string `json:"error,omitempty"`
 }
 
-// -----------------------------------------------------------------------------
-// Scope Lock Interface
-// -----------------------------------------------------------------------------
-
-// LockManager handles scope-based locking for concurrent runs.
-type LockManager interface {
-	// Acquire attempts to acquire a lock for the given scope.
-	// Returns an error if the scope overlaps with an existing lock.
-	Acquire(ctx context.Context, req LockRequest) (*domain.ScopeLock, error)
-
-	// Release releases a previously acquired lock.
-	Release(ctx context.Context, lockID uuid.UUID) error
-
-	// Check verifies if a scope can be locked without acquiring.
-	Check(ctx context.Context, scopePath, projectRoot string) (bool, []domain.ScopeConflict, error)
-
-	// Refresh extends the expiration time of a lock.
-	Refresh(ctx context.Context, lockID uuid.UUID, extension time.Duration) error
-}
-
-// LockRequest contains parameters for acquiring a scope lock.
-type LockRequest struct {
-	RunID       uuid.UUID
-	ScopePath   string
-	ProjectRoot string
-	TTL         time.Duration
-}
-
 // ExecProcessRequest contains parameters for ExecProcess.
 //
 // Protected-mode runners (claude_code, codex, opencode) populate this when

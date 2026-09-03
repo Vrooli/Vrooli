@@ -36,6 +36,11 @@
         },
         "required": false,
         "startup_policy": "try_start"
+      },
+      "scenario-auditor": {
+        "description": "Standards compliance and rule findings used by review surfaces",
+        "required": false,
+        "startup_policy": "try_start"
       }
     }
   },

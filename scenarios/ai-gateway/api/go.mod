@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.12.1
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/measures-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0

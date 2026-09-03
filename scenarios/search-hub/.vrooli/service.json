@@ -208,5 +208,24 @@
         "port": "ui"
       }
     }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/search-hub/SKILL.md",
+      "programs": [
+        "search-hub.research"
+      ]
+    },
+    "improve": {
+      "source": "skills/search-hub-improve/SKILL.md",
+      "programs": [
+        "search-hub.setpoint-read",
+        "search-hub.provider-quality-read"
+      ]
+    },
+    "feature": [],
+    "learning": {
+      "scope": "search-hub-usage"
+    }
   }
 }

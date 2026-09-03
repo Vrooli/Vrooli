@@ -4,21 +4,21 @@ go 1.25.0
 
 require (
 	connectrpc.com/connect v1.19.2
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.12.1
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 )
 
+require go.yaml.in/yaml/v3 v3.0.5 // indirect
+
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	github.com/vrooli/vrooli v0.0.0
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
@@ -38,3 +38,5 @@ replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
+
+replace github.com/vrooli/cliresolve => ../../../packages/cliresolve

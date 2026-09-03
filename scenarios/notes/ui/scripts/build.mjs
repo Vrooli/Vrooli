@@ -6,7 +6,11 @@ import { fileURLToPath } from "node:url";
 
 const uiRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const source = join(uiRoot, "src");
-const dist = join(uiRoot, "dist");
+const outDirIndex = process.argv.indexOf("--outDir");
+const requestedOutDir = outDirIndex >= 0 ? process.argv[outDirIndex + 1] : "";
+const dist = requestedOutDir && !requestedOutDir.startsWith("-")
+  ? resolve(requestedOutDir)
+  : join(uiRoot, "dist");
 
 if (!existsSync(source)) {
   console.error(`Missing source directory: ${source}`);
@@ -16,4 +20,4 @@ if (!existsSync(source)) {
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 cpSync(source, dist, { recursive: true });
-console.log("Staged src/ into dist/");
+console.log(`Staged src/ into ${dist}`);

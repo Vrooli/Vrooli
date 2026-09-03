@@ -14,9 +14,10 @@ import (
 
 // fakeFS is an in-memory FileSystem for deterministic tests.
 type fakeFS struct {
-	sizes   map[string]int64 // dir -> bytes (presence means exists)
-	removed []string
-	failOn  map[string]bool // dirs whose RemoveAll should fail
+	sizes     map[string]int64 // dir -> bytes (presence means exists)
+	removed   []string
+	failOn    map[string]bool // dirs whose RemoveAll should fail
+	sizeCalls int
 }
 
 func newFakeFS() *fakeFS {
@@ -24,11 +25,32 @@ func newFakeFS() *fakeFS {
 }
 
 func (f *fakeFS) DirSize(dir string) (int64, bool, error) {
+	f.sizeCalls++
 	size, ok := f.sizes[dir]
 	if !ok {
 		return 0, false, nil
 	}
 	return size, true, nil
+}
+
+func TestSweep_ApplyUsesPreviewBytesWithoutRecursiveResizing(t *testing.T) {
+	wf := uuid.New()
+	old := mkExec(t, database.ExecutionStatusCompleted, 10, wf)
+	store := &fakeStore{execs: []*database.ExecutionIndex{old}}
+	fs := newFakeFS()
+	dir := filepath.Join(testRoot, old.ID.String())
+	fs.sizes[dir] = 4096
+
+	report, err := newService(store, fs).Sweep(context.Background(), Options{
+		MaxAgeDays: 3, Apply: true, ExecutionIDs: []uuid.UUID{old.ID},
+		EstimatedBytes: map[uuid.UUID]int64{old.ID: 4096},
+	})
+	if err != nil {
+		t.Fatalf("sweep: %v", err)
+	}
+	if report.RemovedCount != 1 || fs.sizeCalls != 0 {
+		t.Fatalf("removed=%d size_calls=%d, want one removal without recursive sizing", report.RemovedCount, fs.sizeCalls)
+	}
 }
 
 func (f *fakeFS) RemoveAll(dir string) error {
@@ -45,6 +67,15 @@ type fakeStore struct {
 	execs   []*database.ExecutionIndex
 	deleted []uuid.UUID
 	failDel map[uuid.UUID]bool
+}
+
+func (s *fakeStore) GetExecution(_ context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	for _, e := range s.execs {
+		if e.ID == id {
+			return e, nil
+		}
+	}
+	return nil, database.ErrNotFound
 }
 
 func (s *fakeStore) ListExecutions(_ context.Context, workflowID *uuid.UUID, projectID *uuid.UUID, _, _ int) ([]*database.ExecutionIndex, error) {
@@ -130,6 +161,25 @@ func TestSweep_DryRunNoSideEffects(t *testing.T) {
 	}
 	if len(fs.removed) != 0 {
 		t.Fatalf("dry-run must not remove directories, removed %d", len(fs.removed))
+	}
+}
+
+func TestSweep_MaxItemsProcessesOldestSlice(t *testing.T) {
+	wf := uuid.New()
+	oldest := mkExec(t, database.ExecutionStatusCompleted, 20, wf)
+	middle := mkExec(t, database.ExecutionStatusCompleted, 10, wf)
+	newest := mkExec(t, database.ExecutionStatusCompleted, 2, wf)
+	store := &fakeStore{execs: []*database.ExecutionIndex{oldest, middle, newest}}
+	fs := newFakeFS()
+	for _, exec := range []*database.ExecutionIndex{oldest, middle, newest} {
+		fs.sizes[filepath.Join(testRoot, exec.ID.String())] = 100
+	}
+	report, err := newService(store, fs).Sweep(context.Background(), Options{MaxAgeDays: 1, MaxItems: 1, Apply: false})
+	if err != nil {
+		t.Fatalf("sweep: %v", err)
+	}
+	if len(report.Removed) != 1 || report.Removed[0].ExecutionID != oldest.ID {
+		t.Fatalf("bounded sweep removed = %#v, want oldest execution only", report.Removed)
 	}
 }
 

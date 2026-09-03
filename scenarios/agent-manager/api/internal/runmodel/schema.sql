@@ -144,21 +144,6 @@ CREATE TABLE IF NOT EXISTS idempotency_records (
 CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_records(expires_at);
 CREATE INDEX IF NOT EXISTS idx_idempotency_status ON idempotency_records(status);
 -- ============================================================================
--- Scope Locks - Concurrency control
--- ============================================================================
-CREATE TABLE IF NOT EXISTS scope_locks (
-    id TEXT PRIMARY KEY,
-    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
-    scope_path TEXT NOT NULL,
-    project_root TEXT,
-    acquired_at TEXT DEFAULT (datetime('now')),
-    expires_at TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_scope_locks_run_id ON scope_locks(run_id);
-CREATE INDEX IF NOT EXISTS idx_scope_locks_scope ON scope_locks(scope_path, project_root);
-CREATE INDEX IF NOT EXISTS idx_scope_locks_expires ON scope_locks(expires_at);
--- ============================================================================
 -- Investigation Settings - Global investigation configuration (singleton table)
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS investigation_settings (

@@ -23,6 +23,9 @@ type Observation struct {
 // TrustHints carries raw source facts across the transport boundary. The
 // condition domain, not a source client, turns these facts into a verdict.
 type TrustHints struct {
+	// Unavailable keeps a typed cell present when its owner cannot provide a
+	// trustworthy value, instead of making the cell look unconfigured.
+	Unavailable bool
 	Ghost       bool
 	Saturated   bool
 	Shelved     bool
