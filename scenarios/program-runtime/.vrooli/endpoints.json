@@ -89,6 +89,14 @@
       "category": "bindings"
     },
     {
+      "id": "bindings_sweep",
+      "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/SweepBindings",
+      "method": "POST",
+      "summary": "Exercise safe reachable read-effect bindings with operator provenance.",
+      "description": "",
+      "category": "bindings"
+    },
+    {
       "id": "bindings_act",
       "path": "/vrooli.program_runtime.v1.bindings.BindingRegistryService/ResolveActCells",
       "method": "POST",
@@ -145,6 +153,14 @@
       "category": "programs"
     },
     {
+      "id": "programs_wait",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/WaitForProgram",
+      "method": "POST",
+      "summary": "Block until a program reaches a terminal state.",
+      "description": "",
+      "category": "programs"
+    },
+    {
       "id": "programs_list",
       "path": "/vrooli.program_runtime.v1.programs.ProgramService/ListPrograms",
       "method": "POST",
@@ -177,6 +193,54 @@
       "category": "programs"
     },
     {
+      "id": "programs_governance_share",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/GovernanceShare",
+      "method": "POST",
+      "summary": "Report governed versus observed program calls over a window.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "programs_authoring_eval",
+      "path": "/vrooli.program_runtime.v1.programs.ProgramService/RunAuthoringEval",
+      "method": "POST",
+      "summary": "Measure first-attempt authoring against the versioned corpus.",
+      "description": "",
+      "category": "programs"
+    },
+    {
+      "id": "library_list",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/ListLibrary",
+      "method": "POST",
+      "summary": "List versioned library programs.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "library_get",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/GetLibrary",
+      "method": "POST",
+      "summary": "Read one library program.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "library_promote",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/PromoteLibrary",
+      "method": "POST",
+      "summary": "Explicitly promote a successful program.",
+      "description": "",
+      "category": "library"
+    },
+    {
+      "id": "library_set_current",
+      "path": "/vrooli.program_runtime.v1.library.LibraryService/SetCurrentLibrary",
+      "method": "POST",
+      "summary": "Set the current version for new sessions.",
+      "description": "",
+      "category": "library"
+    },
+    {
       "id": "sessions_create",
       "path": "/vrooli.program_runtime.v1.sessions.SessionService/CreateSession",
       "method": "POST",
@@ -197,6 +261,14 @@
       "path": "/vrooli.program_runtime.v1.sessions.SessionService/ListSessions",
       "method": "POST",
       "summary": "List program sessions.",
+      "description": "",
+      "category": "sessions"
+    },
+    {
+      "id": "sessions_delegations",
+      "path": "/vrooli.program_runtime.v1.sessions.SessionService/ListDelegations",
+      "method": "POST",
+      "summary": "List retained delegated session executions.",
       "description": "",
       "category": "sessions"
     },
@@ -223,6 +295,30 @@
       "summary": "List typed program-runtime events.",
       "description": "",
       "category": "telemetry"
+    },
+    {
+      "id": "shapes_list",
+      "path": "/vrooli.program_runtime.v1.shapes.ShapeService/ListShapes",
+      "method": "POST",
+      "summary": "List observed and nominated binding shapes.",
+      "description": "",
+      "category": "shapes"
+    },
+    {
+      "id": "shapes_get",
+      "path": "/vrooli.program_runtime.v1.shapes.ShapeService/GetShape",
+      "method": "POST",
+      "summary": "Read one binding shape.",
+      "description": "",
+      "category": "shapes"
+    },
+    {
+      "id": "shapes_expire",
+      "path": "/vrooli.program_runtime.v1.shapes.ShapeService/ExpireShapes",
+      "method": "POST",
+      "summary": "Expire observed binding shapes.",
+      "description": "",
+      "category": "shapes"
     }
   ]
 }

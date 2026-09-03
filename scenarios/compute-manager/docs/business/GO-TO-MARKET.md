@@ -91,7 +91,7 @@ the same code. The only thing being sold is not having an account.
 
 The paid path reads as a narrow P2 add-on for a market this document
 admits may not exist. That framing is too small, and
-`path:docs/monetization/strategy/TIERS.md` is where the larger one is
+`path:../../../docs/monetization/strategy/TIERS.md` is where the larger one is
 written down.
 
 Tier 3, `hosted_cloud`, is "a managed, per-account Vrooli instance on our
@@ -377,4 +377,4 @@ the Reseller Policy §5 forbids it.
 - [`../internal/PERFORMANCE.md`](../internal/PERFORMANCE.md): the timing budgets that turn into cost
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md): validation signals and telemetry
 - Paid-features contract: `path:docs/concepts/PAID_FEATURES.md`
-- Delivery tiers and the Tier 3 revisit trigger: `path:docs/monetization/strategy/TIERS.md`
+- Delivery tiers and the Tier 3 revisit trigger: `path:../../../docs/monetization/strategy/TIERS.md`

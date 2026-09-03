@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"compute-manager/internal/capabilities"
+	appconfig "compute-manager/internal/config"
 	"compute-manager/internal/modules"
 	"compute-manager/internal/server"
 
@@ -23,6 +25,12 @@ import (
 
 	capsH "compute-manager/handlers/capabilities"
 	healthH "compute-manager/handlers/health"
+	instanceH "compute-manager/handlers/instance"
+	intentH "compute-manager/handlers/intent"
+	meterH "compute-manager/handlers/meter"
+	reconcileH "compute-manager/handlers/reconcile"
+	internalinstance "compute-manager/internal/instance"
+	"compute-manager/internal/provider"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -49,12 +57,15 @@ func main() {
 	if preflight.Run(preflight.Config{ScenarioName: "compute-manager"}) {
 		return
 	}
+	if _, err := appconfig.Load(); err != nil {
+		log.Fatalf("configuration invalid: %v", err)
+	}
 
 	db, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		Scenario:     "compute-manager",
-		MaxOpenConns: 1,
-		MaxIdleConns: 1,
+		MaxOpenConns: 8,
+		MaxIdleConns: 8,
 	})
 	if err != nil {
 		log.Fatalf("Database connection failed: %v", err)
@@ -69,10 +80,30 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
+	instanceModule, err := instanceH.NewModuleWithRepository(&provider.Fake{}, time.Now, &internalinstance.Repository{DB: db.Primary()})
+	if err != nil {
+		log.Fatalf("instance module configuration failed: %v", err)
+	}
+	intentModule, err := intentH.NewModule(db.Primary())
+	if err != nil {
+		log.Fatalf("intent module configuration failed: %v", err)
+	}
+	meterModule, err := meterH.NewModule(db.Primary())
+	if err != nil {
+		log.Fatalf("meter module configuration failed: %v", err)
+	}
+	reconcileModule, err := reconcileH.NewModule(db.Primary())
+	if err != nil {
+		log.Fatalf("reconcile module configuration failed: %v", err)
+	}
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "compute-manager-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
+		instanceModule,
+		intentModule,
+		meterModule,
+		reconcileModule,
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

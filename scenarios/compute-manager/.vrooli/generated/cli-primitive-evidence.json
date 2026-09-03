@@ -1,0 +1,40 @@
+{
+  "schema": "cli-primitive-evidence/v1",
+  "do_not_edit": "GENERATED FILE — do not edit by hand. Regenerate it from the scenario's CLI evidence test (UPDATE_CLI_EVIDENCE=1), which rebuilds this artifact from cli/manifest.json and the cli-core primitive handlers.",
+  "source_manifest": "cli/manifest.json",
+  "scenario": "compute-manager",
+  "generator": "v1.0.0",
+  "manifest_hash": "733a76b1b18fb0fe212ea8be308be95e06d0c0e19fa2daf4ec77af77df6b40df",
+  "commands": [
+    {
+      "path": "instance destroy",
+      "group": "instance",
+      "command": "destroy",
+      "binding": "InstanceService.DestroyInstance"
+    },
+    {
+      "path": "instance extend",
+      "group": "instance",
+      "command": "extend",
+      "binding": "InstanceService.ExtendInstance"
+    },
+    {
+      "path": "instance get",
+      "group": "instance",
+      "command": "get",
+      "binding": "InstanceService.GetInstance"
+    },
+    {
+      "path": "instance list",
+      "group": "instance",
+      "command": "list",
+      "binding": "InstanceService.ListInstances"
+    },
+    {
+      "path": "instance request",
+      "group": "instance",
+      "command": "request",
+      "binding": "InstanceService.RequestInstance"
+    }
+  ]
+}

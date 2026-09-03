@@ -180,7 +180,7 @@ describe('CheckoutPage', () => {
     expect(await screen.findByRole('heading', { name: 'Solo Monthly', level: 2 })).toBeInTheDocument();
     await waitFor(() => { expect(createCheckoutSession).toHaveBeenCalledTimes(1); });
     view.unmount();
-    resolveSession({ url: 'https://checkout.example.test/session' });
+    resolveSession({ url: 'https://checkout.example.test/session', session_id: 'cs_test_123' });
     await Promise.resolve();
   });
 

@@ -324,6 +324,36 @@ func TestRequireAdminOrService_RejectsBearerWithoutAdminSession(t *testing.T) {
 	}
 }
 
+func TestRequireAdminOrService_AllowsConfiguredServiceToken(t *testing.T) {
+	t.Setenv("LPBS_TEST_CREDENTIAL_FALLBACK", "1")
+	t.Setenv("LPBS_SERVICE_SECRET", "service-token")
+	server := &Server{}
+	called := false
+	handler := server.requireAdminOrService(func(w http.ResponseWriter, r *http.Request) {
+		called = r.Context().Value(servicePrincipalContextKey) == "lpbs-service"
+		w.WriteHeader(http.StatusNoContent)
+	})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer service-token")
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	if rr.Code != http.StatusNoContent || !called {
+		t.Fatalf("service request was not accepted and attributed: status=%d called=%v", rr.Code, called)
+	}
+}
+
+func TestRequireAdminOrService_RejectsMalformedAuthorization(t *testing.T) {
+	server := &Server{}
+	handler := server.requireAdminOrService(func(http.ResponseWriter, *http.Request) { t.Fatal("malformed token reached handler") })
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Token service-token")
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status=%d, want %d", rr.Code, http.StatusUnauthorized)
+	}
+}
+
 func TestRequireAdminOrService_AllowsValidAdminSessionFallback(t *testing.T) {
 	mockSession := NewMockSessionManager()
 	mockSession.SetSessionValues("admin_session", map[interface{}]interface{}{

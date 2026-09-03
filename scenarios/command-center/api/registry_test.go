@@ -12,7 +12,7 @@ func TestAuthoredMetricsHaveExplicitTypedBindings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(reg.Metrics) != 38 {
+	if len(reg.Metrics) != 37 {
 		t.Fatalf("metrics = %d, want current authored set", len(reg.Metrics))
 	}
 	for _, metric := range reg.Metrics {
@@ -30,17 +30,32 @@ func TestAuthoredMetricsHaveExplicitTypedBindings(t *testing.T) {
 }
 
 func TestLoadRegistry_ValidFile(t *testing.T) {
-	reg, err := LoadRegistry(filepath.Join("..", "config", "gap-registry.json"))
+	reg, err := LoadRegistry(filepath.Join("..", "config", "outcome-registry.json"))
 	if err != nil {
 		t.Fatalf("load registry: %v", err)
 	}
-	if reg.Version == "" {
-		t.Fatalf("expected non-empty version")
+	if reg.SchemaVersion == "" {
+		t.Fatalf("expected non-empty schema version")
 	}
 	for _, id := range []string{"mission-control", "hive", "forge", "ledger", "broadcast", "panorama"} {
 		entries := reg.Dashboard(id)
 		if len(entries) == 0 {
 			t.Errorf("dashboard %q has no metrics", id)
+		}
+	}
+}
+
+func TestOutcomeRegistrySelectorsAreDeclared(t *testing.T) {
+	reg, err := LoadRegistry(filepath.Join("..", "config", "outcome-registry.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, metric := range reg.Metrics {
+		if metric.Coverage == CoverageMissing {
+			continue
+		}
+		if _, ok := selectors[metric.Source.Selector]; !ok {
+			t.Errorf("metric %q names undeclared selector %q", metric.ID, metric.Source.Selector)
 		}
 	}
 }
@@ -68,6 +83,18 @@ func TestLoadRegistry_UnknownField_Rejected(t *testing.T) {
 	}
 	if _, err := LoadRegistry(path); err == nil {
 		t.Fatal("expected decode error for unknown field, got nil")
+	}
+}
+
+func TestLoadRegistry_UnknownOriginRejected(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "registry.json")
+	payload := `{"schemaVersion":"2.0.0","origins":{"local":{"mode":"discovery","environment":"local","display":"Local"}},"metrics":[{"id":"x","label":"x","unit":"count","source":{"integrationId":"x","featureId":"x","selector":"x","expectedUnit":"count","contractVersion":"legacy.v1","sourceTimePolicy":"producer_required","ttlSeconds":60,"origin":"missing"},"coverage":"NOW"}],"rooms":[],"tombstones":[]}`
+	if err := os.WriteFile(path, []byte(payload), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadRegistry(path); err == nil || !strings.Contains(err.Error(), "unknown origin") {
+		t.Fatalf("expected unknown origin error, got %v", err)
 	}
 }
 
@@ -114,7 +141,7 @@ func TestOutcomeRegistryCarriesIndependentReadingAxesAndSamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reg.SchemaVersion != "2.0.0" || len(reg.Metrics) != 38 {
+	if reg.SchemaVersion != "2.0.0" || len(reg.Metrics) != 37 {
 		t.Fatalf("schema=%s metrics=%d", reg.SchemaVersion, len(reg.Metrics))
 	}
 	for _, m := range reg.Metrics {

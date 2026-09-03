@@ -26,8 +26,8 @@
     "dashboard": {
       "title": "ホーム",
       "description": "オペレーターが最初に目にする画面です。出荷前にここに何を置くか決めてください。",
-      "placeholderTitle": "このシナリオのホーム画面はまだ決まっていません",
-      "placeholderDescription": "START-HERE のゲート 5 を開き、このページが答える一つの問いを決めてください。このプレースホルダーをその画面に置き換えます。隣のヘルスカードは、ライブラリ部品で作ったシナリオ所有機能の例です。"
+      "placeholderTitle": "コンピューティング在庫",
+      "placeholderDescription": "プロバイダーのインスタンスは稼働していません。容量要求と調整結果がここに表示されます。"
     },
     "settings": {
       "title": "設定",

@@ -148,7 +148,7 @@ func TestIntegrationsConnectGetIncludesIndependentFeatureState(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(resp.Msg.GetFeatures()) == 0 || resp.Msg.GetFeatures()[0].GetStatus() != integrationv1.FeatureStatus_FEATURE_STATUS_UNKNOWN {
-		t.Fatalf("feature state = %+v, want independently unknown until a producer feature probe exists", resp.Msg.GetFeatures())
+		t.Fatalf("feature state = %+v, want unknown when health fails", resp.Msg.GetFeatures())
 	}
 }
 
@@ -161,6 +161,18 @@ func TestIntegrationWireActionIsNotEligibleWhileScenarioIsHealthy(t *testing.T) 
 	message := messageFromState(state)
 	if message.GetAction() == nil || message.GetAction().GetEligible() || message.GetAction().GetRequiresConfirmation() {
 		t.Fatalf("healthy scenario action policy=%+v, want ineligible without confirmation", message.GetAction())
+	}
+}
+
+func TestIntegrationWireOwnerGuidanceIsNonActuating(t *testing.T) {
+	message := messageFromState(capreg.State{
+		Def:         capreg.Def{ID: "prompt-manager", DependencyKind: capreg.DependencyScenario, DependencySlug: "prompt-manager"},
+		Status:      capreg.StatusUnavailable,
+		ActionKind:  capreg.ActionKindOwnerGuidance,
+		ActionLabel: "Review Prompt Manager",
+	})
+	if message.GetAction() == nil || message.GetAction().GetEligible() || message.GetAction().GetRequiresConfirmation() {
+		t.Fatalf("owner guidance action policy=%+v, want non-actuating and non-confirmation-gated", message.GetAction())
 	}
 }
 
@@ -269,7 +281,7 @@ func setUnavailableUpstreams(t *testing.T) {
 	t.Setenv("SWARM_MANAGER_BASE_URL", "http://127.0.0.1:1")
 	t.Setenv("LPBS_BASE_URL", "http://127.0.0.1:1")
 	t.Setenv("PROMPT_MANAGER_BASE_URL", "http://127.0.0.1:1")
-	t.Setenv("VROOLI_CORE_BASE_URL", "http://127.0.0.1:1")
+	t.Setenv("VROOLI_API_BASE_URL", "http://127.0.0.1:1")
 }
 
 func TestScenarioAddressResolutionHonorsExplicitRuntimeOverrides(t *testing.T) {
@@ -285,9 +297,10 @@ func TestScenarioAddressResolutionHonorsExplicitRuntimeOverrides(t *testing.T) {
 	}
 }
 
-func TestControlPlaneAddressDoesNotGuessAStalePort(t *testing.T) {
-	t.Setenv("VROOLI_CORE_BASE_URL", "")
-	if got := resolveVrooliBaseURL(); got != "" {
-		t.Fatalf("default control-plane URL = %q, want empty until configured", got)
+func TestControlPlaneAddressUsesCanonicalFallback(t *testing.T) {
+	t.Setenv("VROOLI_API_BASE_URL", "")
+	t.Setenv("VROOLI_API_PORT", "")
+	if got := resolveControlPlaneBaseURL(); got != "http://127.0.0.1:8092" {
+		t.Fatalf("default control-plane URL = %q, want canonical default", got)
 	}
 }

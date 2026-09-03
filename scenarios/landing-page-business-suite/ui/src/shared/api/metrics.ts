@@ -6,7 +6,7 @@ import {
   type AnalyticsSummary as GeneratedAnalyticsSummary,
   type VariantStats as GeneratedVariantStats,
 } from '@vrooli/proto-types/landing-page-business-suite/v1/metrics_pb';
-import { CONNECT_API_BASE } from './common';
+import { apiGet, CONNECT_API_BASE } from './common';
 import type { AnalyticsSummary, MetricEvent, VariantStats } from './types';
 
 const metricsClient = createClient(MetricsService, createScenarioConnectTransport({ baseUrl: CONNECT_API_BASE }));
@@ -77,4 +77,38 @@ export async function getMetricsSummary(startDate?: string, endDate?: string): P
 export async function getVariantMetrics(variantSlug?: string, startDate?: string, endDate?: string): Promise<{ start_date: string; end_date: string; stats: VariantStats[] }> {
   const response = await metricsClient.getVariantStats({ variant: variantSlug ?? '', startDate: startDate ?? '', endDate: endDate ?? '' });
   return { start_date: response.startDate, end_date: response.endDate, stats: response.stats.map(variantStatsFromProto) };
+}
+
+export interface AdminRevenue {
+  mrr: number; mrr_unit: string; today: number; today_unit: string;
+  currency: string; sample_size: number; observed_at: string | null;
+}
+
+export async function getAdminRevenue(): Promise<AdminRevenue> {
+  return apiGet<AdminRevenue>('/admin/dashboard/revenue');
+}
+
+export interface AdminRevenueSummary {
+  currency: string;
+  mrr_unit: string;
+  revenue_today_unit: string;
+  revenue_window_unit: string;
+  credit_unit: string;
+  currency_excluded_count: number;
+  mrr_minor: number;
+  revenue_today_minor: number;
+  revenue_window_minor: number;
+  active_subscriptions: number;
+  subscriptions_churned_window: number;
+  churn_rate_percent: number;
+  credit_balance_total: number;
+  credit_burned_window: number;
+  usage_records_window: number;
+  sample_size: number;
+  trials_without_payment_method: number;
+  observed_at: string | null;
+}
+
+export async function getAdminRevenueSummary(): Promise<AdminRevenueSummary> {
+  return apiGet<AdminRevenueSummary>('/admin/dashboard/revenue/summary');
 }

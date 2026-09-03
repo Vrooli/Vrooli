@@ -159,14 +159,15 @@
     "descriptors": [
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "session-secret",
+    "field": "session-secret",
         "label": "Session signing secret",
         "description": "Signs session cookies. Landing Page Business Suite mints this on first start and stores it in the credential authority; there is nothing for an operator to enter.",
         "required": true,
-        "provisioning": "generated",
-        "tiers": [
-          "tier-1-local"
-        ]
+      "provisioning": "generated",
+      "tiers": [
+      "tier-1-local",
+      "tier-4-saas"
+      ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
@@ -181,32 +182,35 @@
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "service-secret",
+      "field": "service-secret",
         "label": "Service-to-service token",
         "description": "Service-to-service token minted by Landing Page Business Suite and stored in the credential authority; there is nothing for an operator to enter.",
         "required": true,
         "provisioning": "generated",
-        "tiers": [
-          "tier-1-local"
-        ]
+      "tiers": [
+        "tier-1-local",
+        "tier-4-saas"
+      ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "api-key-encryption-key",
+    "field": "api-key-encryption-key",
         "label": "API key encryption key",
         "description": "Versioned encryption ring minted by LPBS. Losing it makes sealed API-key rows unreadable; there is nothing for an operator to enter.",
         "required": true,
-        "provisioning": "generated"
+    "provisioning": "generated",
+    "tiers": ["tier-1-local", "tier-4-saas"]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "remote-profile-encryption-key",
+    "field": "remote-profile-encryption-key",
         "label": "Remote profile encryption key",
         "description": "Independent versioned encryption ring minted by LPBS. Losing it makes sealed remote profiles unreadable; there is nothing for an operator to enter.",
         "required": true,
         "provisioning": "generated",
         "tiers": [
-          "tier-1-local"
+      "tier-1-local",
+      "tier-4-saas"
         ]
       },
       {
@@ -217,18 +221,32 @@
         "required": true,
         "provisioning": "operator",
         "tiers": [
-          "tier-1-local"
+          "tier-1-local",
+          "tier-4-saas"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "consumer-auth-private-key",
+        "field": "public-base-url",
+        "label": "Public base URL",
+        "description": "Canonical HTTPS origin for the deployed Landing Page Business Suite instance and links generated for its public surfaces.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs",
+        "tiers": [
+          "tier-4-saas"
+        ]
+      },
+      {
+        "logical_id": "vrooli/landing-page-business-suite",
+    "field": "consumer-auth-private-key",
         "label": "Consumer token signing key",
         "description": "Private RSA key minted by Landing Page Business Suite and stored in the credential authority. Never distribute it to bundled scenarios.",
         "required": true,
         "provisioning": "generated",
         "tiers": [
-          "tier-1-local"
+      "tier-1-local",
+      "tier-4-saas"
         ]
       },
       {
@@ -242,31 +260,33 @@
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "stripe-secret-key",
+    "field": "stripe-secret-key",
         "label": "Stripe restricted secret key",
         "description": "Authenticates server-side Stripe API requests. Obtain it from the Stripe dashboard.",
         "required": true,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
         "tiers": [
-          "tier-1-local"
+      "tier-1-local",
+      "tier-4-saas"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "stripe-webhook-secret",
+    "field": "stripe-webhook-secret",
         "label": "Stripe webhook signing secret",
         "description": "Verifies inbound Stripe webhook signatures. Obtain it from the Stripe dashboard.",
         "required": true,
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/webhooks",
         "tiers": [
-          "tier-1-local"
+      "tier-1-local",
+      "tier-4-saas"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "stripe-publishable-key",
+    "field": "stripe-publishable-key",
         "env": "STRIPE_PUBLISHABLE_KEY",
         "label": "Stripe publishable key",
         "description": "Public client key used by the browser checkout flow.",
@@ -274,40 +294,44 @@
         "provisioning": "operator",
         "obtain_url": "https://dashboard.stripe.com/apikeys",
         "tiers": [
-          "tier-1-local"
+      "tier-1-local",
+      "tier-4-saas"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "delivery-s3-access-key-id",
+    "field": "delivery-s3-access-key-id",
         "label": "Download bucket access key ID",
         "description": "Optional account identifier for signing desktop download URLs; leave unset when using an instance role.",
         "required": false,
         "provisioning": "operator",
         "tiers": [
-          "tier-1-local"
+      "tier-1-local",
+      "tier-4-saas"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "delivery-s3-secret-access-key",
+    "field": "delivery-s3-secret-access-key",
         "label": "Download bucket secret access key",
         "description": "Optional signing key for desktop download URLs; leave unset when using an instance role.",
         "required": false,
         "provisioning": "operator",
         "tiers": [
-          "tier-1-local"
+      "tier-1-local",
+      "tier-4-saas"
         ]
       },
       {
         "logical_id": "vrooli/landing-page-business-suite",
-        "field": "delivery-s3-session-token",
+    "field": "delivery-s3-session-token",
         "label": "Download bucket session token",
         "description": "Optional session token for temporary download-bucket credentials.",
         "required": false,
         "provisioning": "operator",
         "tiers": [
-          "tier-1-local"
+      "tier-1-local",
+      "tier-4-saas"
         ]
       },
       {

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Accept a program, execute it in its session, return only what it materializes, and retain the corpus. Owns handles, inference and delegation callables, and provenance.",
-    "last_validated_at": "2026-08-26T16:11:12-04:00",
+    "last_validated_at": "2026-09-03T13:49:11-04:00",
     "module": "programs",
     "prd_ref": "PRD.md",
     "priority": "P0",
@@ -193,29 +193,32 @@
     },
     {
       "id": "PRT-P2-002",
-      "title": "Program corpus mining",
-      "status": "planned",
+      "title": "Recurring program shape ledger",
+      "status": "in_progress",
       "prd_ref": "OT-P2-002",
       "category": "programs.mining",
       "criticality": "P2",
-      "description": "The Program Runtime MAY analyze recurring program shapes in the corpus and propose them as skill or action candidates with their call sites as evidence.",
+      "description": "The Program Runtime MUST derive recurring successful binding shapes from the durable corpus, retain provenance and session evidence, resolve contract coverage, and nominate only uncovered shapes that meet the recurrence and session gate.",
       "tags": [
         "corpus",
         "skills",
-        "meta-optimization"
+        "shapes",
+        "coverage"
       ],
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/shapes/repository_test.go::TestObserveAggregatesAndTracksSessions",
           "phase": "unit",
           "status": "failing",
-          "notes": "No validation target exists: MineFailures reports recurring failure shapes, but no scenario-owned surface proposes skill or action candidates with call-site evidence."
+          "notes": "Successful binding invocations are canonicalized into an idempotent shape ledger with session provenance; insufficient shapes are skipped."
         },
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/shapes/repository_test.go::TestShapeTransitionsEmitOnceAndCarryCoverage",
           "phase": "acceptance",
-          "status": "not_implemented",
-          "notes": "Status correction (2026-08-11): this remains planned because the scenario does not yet propose recurring shapes as skill/action candidates or attach call sites. The prerequisite corpus is now durable SQLite, and the new typed failure/refusal/unresolved projections provide evidence for a future consumer; those projections do not claim the candidate-generation requirement is complete."
+          "status": "implemented",
+          "notes": "The typed shapes list/get/expire surfaces expose covered and uncovered ledger rows; nomination and coverage-miss telemetry are emitted exactly once per transition."
         }
       ]
     },
@@ -238,7 +241,7 @@
           "type": "test",
           "phase": "unit",
           "status": "failing",
-          "notes": "API library and retention tests prove copy-on-promote, failed-source rejection, current-version stamping, and preservation of a promoted source while an unpromoted program is deleted."
+          "notes": "API library and retention tests prove copy-on-promote, failed-source rejection, current-version stamping, and preservation of a promoted source while an unpromoted program is deleted; callable discovery is a current-catalog join."
         },
         {
           "type": "manual",

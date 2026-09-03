@@ -64,7 +64,7 @@ func (store *writeTestStore) LoadAll() error                  { return store.loa
 func (store *writeTestStore) add(slug, name string) {
 	store.variants[slug] = &experimentation.VariantSnapshot{Variant: experimentation.VariantSnapshotMeta{
 		Slug: slug, Name: name, Weight: 50,
-		Axes: map[string]string{"persona": "ops_leader", "jtbd": "launch_bundle", "conversionStyle": "demo_led"},
+		Axes: map[string]string{"persona": "silentFounder", "jtbd": "entrepreneurship", "conversionStyle": "emotional"},
 	}}
 }
 
@@ -206,7 +206,7 @@ func TestExport(t *testing.T) {
 }
 
 func TestImport(t *testing.T) {
-	payload := experimentation.VariantSnapshotInput{Variant: experimentation.VariantSnapshotMetaInput{Slug: "import-me", Name: "Imported", Axes: map[string]string{"persona": "ops_leader"}}, Sections: []experimentation.VariantSectionInput{{SectionType: "hero"}}}
+	payload := experimentation.VariantSnapshotInput{Variant: experimentation.VariantSnapshotMetaInput{Slug: "import-me", Name: "Imported", Axes: map[string]string{"persona": "silentFounder"}}, Sections: []experimentation.VariantSectionInput{{SectionType: "hero"}}}
 	body, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatal(err)

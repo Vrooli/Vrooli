@@ -26,8 +26,8 @@
     "dashboard": {
       "title": "Home",
       "description": "The first thing an operator sees. Decide what belongs here before you ship.",
-      "placeholderTitle": "This scenario has not decided its home surface yet",
-      "placeholderDescription": "Open START-HERE, Gate 5, and name the one question this page answers. Replace this placeholder with that surface. The health card beside it is the example of a scenario-owned feature built from library parts."
+      "placeholderTitle": "Compute inventory",
+      "placeholderDescription": "No provider-backed instances are running. Requested capacity and reconciliation findings will appear here."
     },
     "settings": {
       "title": "Settings",

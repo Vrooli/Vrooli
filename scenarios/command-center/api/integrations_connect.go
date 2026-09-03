@@ -15,10 +15,12 @@ func (s integrationsConnectService) List(ctx context.Context, _ *connect.Request
 	snap := s.server.integrationSnapshot(ctx, false)
 	return connect.NewResponse(&commonv1.ListIntegrationsResponse{Integrations: messagesFromStates(snap.States), GeneratedAt: snap.GeneratedAt.Format("2006-01-02T15:04:05Z07:00")}), nil
 }
+
 func (s integrationsConnectService) Refresh(ctx context.Context, _ *connect.Request[commonv1.RefreshIntegrationsRequest]) (*connect.Response[commonv1.ListIntegrationsResponse], error) {
 	snap := s.server.integrationSnapshot(ctx, true)
 	return connect.NewResponse(&commonv1.ListIntegrationsResponse{Integrations: messagesFromStates(snap.States), GeneratedAt: snap.GeneratedAt.Format("2006-01-02T15:04:05Z07:00")}), nil
 }
+
 func (s integrationsConnectService) Get(ctx context.Context, req *connect.Request[commonv1.GetIntegrationRequest]) (*connect.Response[commonv1.GetIntegrationResponse], error) {
 	for _, state := range s.server.integrationSnapshot(ctx, false).States {
 		if state.ID == req.Msg.GetIntegrationId() {
@@ -53,16 +55,17 @@ func featureStatus(status string) commonv1.FeatureStatus {
 		return commonv1.FeatureStatus_FEATURE_STATUS_UNSPECIFIED
 	}
 }
+
 func (s integrationsConnectService) RunAction(ctx context.Context, req *connect.Request[commonv1.RunIntegrationActionRequest]) (*connect.Response[commonv1.RunIntegrationActionResponse], error) {
-	if !req.Msg.GetConfirmed() {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("confirmation required"))
-	}
 	for _, state := range s.server.integrationSnapshot(ctx, false).States {
 		if state.ID == req.Msg.GetIntegrationId() {
 			if actionKindName(req.Msg.GetAction()) != state.ActionKind {
 				return nil, connect.NewError(connect.CodePermissionDenied, errors.New("action is not eligible"))
 			}
 			if state.ActionKind == capabilityregistry.ActionKindScenarioStart || state.ActionKind == capabilityregistry.ActionKindScenarioRestart {
+				if !req.Msg.GetConfirmed() {
+					return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("confirmation required"))
+				}
 				if !lifecycleActionEligible(state) {
 					return nil, connect.NewError(connect.CodePermissionDenied, errors.New("lifecycle recovery requires an unavailable integration"))
 				}
@@ -70,6 +73,9 @@ func (s integrationsConnectService) RunAction(ctx context.Context, req *connect.
 			if lifecycleActionEligible(state) {
 				result, err := s.server.actionService.Run(ctx, capabilityregistry.LifecycleActionRequest{IntegrationID: state.ID, ActionKind: state.ActionKind})
 				if err != nil {
+					if errors.Is(err, capabilityregistry.ErrActionInFlight) {
+						return nil, connect.NewError(connect.CodeAborted, err)
+					}
 					return nil, connect.NewError(connect.CodeInvalidArgument, err)
 				}
 				return connect.NewResponse(&commonv1.RunIntegrationActionResponse{IntegrationId: state.ID, Action: req.Msg.GetAction(), Status: result.Status, Message: result.Message, RequestId: req.Msg.GetRequestId()}), nil
@@ -95,9 +101,6 @@ func actionKindName(v commonv1.ActionKind) capabilityregistry.ActionKind {
 	}
 }
 
-func (s integrationsConnectService) integrationMessages(ctx context.Context, force bool) []*commonv1.Integration {
-	return messagesFromStates(s.server.integrationSnapshot(ctx, force).States)
-}
 func messagesFromStates(states []capabilityregistry.State) []*commonv1.Integration {
 	out := make([]*commonv1.Integration, 0, len(states))
 	for _, state := range states {
@@ -105,6 +108,7 @@ func messagesFromStates(states []capabilityregistry.State) []*commonv1.Integrati
 	}
 	return out
 }
+
 func messageFromState(state capabilityregistry.State) *commonv1.Integration {
 	features := make([]*commonv1.Feature, 0, len(state.Features))
 	for _, id := range state.Features {
@@ -116,14 +120,7 @@ func messageFromState(state capabilityregistry.State) *commonv1.Integration {
 }
 
 func stateActionEligible(state capabilityregistry.State) bool {
-	switch state.ActionKind {
-	case capabilityregistry.ActionKindScenarioStart, capabilityregistry.ActionKindScenarioRestart:
-		return lifecycleActionEligible(state)
-	case capabilityregistry.ActionKindOwnerGuidance, capabilityregistry.ActionKindOperatorCommand:
-		return true
-	default:
-		return false
-	}
+	return lifecycleActionEligible(state)
 }
 
 func criticality(v capabilityregistry.Criticality) commonv1.Criticality {
@@ -148,6 +145,7 @@ func platformVerdict(v capabilityregistry.PlatformVerdict) *commonv1.PlatformVer
 	}
 	return result
 }
+
 func dependencyKind(v capabilityregistry.DependencyKind) commonv1.DependencyKind {
 	switch v {
 	case capabilityregistry.DependencyScenario:
@@ -159,6 +157,7 @@ func dependencyKind(v capabilityregistry.DependencyKind) commonv1.DependencyKind
 	}
 	return commonv1.DependencyKind_DEPENDENCY_KIND_UNSPECIFIED
 }
+
 func lifecycleStatus(v capabilityregistry.Status) commonv1.LifecycleStatus {
 	switch v {
 	case capabilityregistry.StatusAvailable:
@@ -170,6 +169,7 @@ func lifecycleStatus(v capabilityregistry.Status) commonv1.LifecycleStatus {
 	}
 	return commonv1.LifecycleStatus_LIFECYCLE_STATUS_UNSPECIFIED
 }
+
 func actionKind(v capabilityregistry.ActionKind) commonv1.ActionKind {
 	switch v {
 	case capabilityregistry.ActionKindOwnerGuidance:

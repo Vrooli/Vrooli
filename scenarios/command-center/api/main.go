@@ -23,7 +23,7 @@ func main() {
 	registryPath := resolveRegistryPath()
 	reg, err := LoadRegistry(registryPath)
 	if err != nil {
-		log.Fatalf("failed to load gap registry at %s: %v", registryPath, err)
+		log.Fatalf("failed to load outcome registry at %s: %v", registryPath, err)
 	}
 	slog.Info("loaded outcome registry", "path", registryPath, "rooms", len(reg.Rooms))
 
@@ -40,7 +40,8 @@ func main() {
 }
 
 // resolveRegistryPath returns the path to the versioned outcome registry.
-// Honors REGISTRY_PATH for tests; otherwise resolves ../config/gap-registry.json
+// Honors COMMAND_CENTER_REGISTRY_PATH for tests; otherwise resolves
+// ../config/outcome-registry.json
 // relative to the API binary's working directory.
 func resolveRegistryPath() string {
 	if p := os.Getenv("COMMAND_CENTER_REGISTRY_PATH"); p != "" {

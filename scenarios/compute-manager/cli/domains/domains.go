@@ -1,6 +1,7 @@
 package domains
 
 import (
+	instanceDomain "compute-manager/cli/domains/instance"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -34,6 +35,10 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
+	group, err := instanceDomain.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups := []cliapp.SubcommandGroup{group}
 	return groups, nil
 }

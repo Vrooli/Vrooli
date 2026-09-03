@@ -7,6 +7,7 @@ import (
 	"program-runtime/cli/domains/library"
 	"program-runtime/cli/domains/programs"
 	"program-runtime/cli/domains/sessions"
+	"program-runtime/cli/domains/shapes"
 	"program-runtime/cli/domains/telemetry"
 
 	"github.com/vrooli/api-core/spacecli"
@@ -78,5 +79,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, telemetryGroup)
+	shapesGroup, err := shapes.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, shapesGroup)
 	return groups, nil
 }

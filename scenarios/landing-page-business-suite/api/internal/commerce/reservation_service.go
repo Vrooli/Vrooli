@@ -16,20 +16,24 @@ var ErrReservationNotOwned = errors.New("reservation does not belong to authenti
 // adjustments. Its collaborators are explicit so monetization policy remains
 // testable without the root API package.
 type ReservationService struct {
-	db                  UsageStore
-	limitsSvc           LimitsServicer
-	dialect             string
-	insufficientCredits error
-	logf                func(string, map[string]interface{})
-	now                 func() time.Time
-	newID               func() string
+	db                   UsageStore
+	limitsSvc            LimitsServicer
+	dialect              string
+	insufficientCredits  error
+	logf                 func(string, map[string]interface{})
+	now                  func() time.Time
+	newID                func() string
+	reservationWindow    time.Duration
+	maxReservationWindow time.Duration
 }
 
 type ReservationRuntime struct {
-	InsufficientCredits error
-	Log                 func(string, map[string]interface{})
-	Now                 func() time.Time
-	NewID               func() string
+	InsufficientCredits  error
+	Log                  func(string, map[string]interface{})
+	Now                  func() time.Time
+	NewID                func() string
+	ReservationWindow    time.Duration
+	MaxReservationWindow time.Duration
 }
 
 func NewReservationService(db UsageStore, limits LimitsServicer, dialect string, runtime ReservationRuntime) *ReservationService {
@@ -42,13 +46,19 @@ func NewReservationService(db UsageStore, limits LimitsServicer, dialect string,
 	if runtime.NewID == nil {
 		runtime.NewID = newReservationID
 	}
+	if runtime.ReservationWindow <= 0 {
+		runtime.ReservationWindow = 10 * time.Minute
+	}
+	if runtime.MaxReservationWindow <= 0 {
+		runtime.MaxReservationWindow = 24 * time.Hour
+	}
 	if runtime.Log == nil {
 		runtime.Log = func(string, map[string]interface{}) {}
 	}
 	if runtime.InsufficientCredits == nil {
 		runtime.InsufficientCredits = errors.New("insufficient credits")
 	}
-	return &ReservationService{db: db, limitsSvc: limits, dialect: dialect, insufficientCredits: runtime.InsufficientCredits, logf: runtime.Log, now: runtime.Now, newID: runtime.NewID}
+	return &ReservationService{db: db, limitsSvc: limits, dialect: dialect, insufficientCredits: runtime.InsufficientCredits, logf: runtime.Log, now: runtime.Now, newID: runtime.NewID, reservationWindow: runtime.ReservationWindow, maxReservationWindow: runtime.MaxReservationWindow}
 }
 
 func (s *ReservationService) billingPeriod() string                           { return s.now().Format("2006-01") }
@@ -198,6 +208,16 @@ func (s *ReservationService) ReserveAndCharge(ctx context.Context, userIdentity,
 // requests could exceed the credit limit.
 // Returns the reservation ID on success.
 func (s *ReservationService) ReserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64) (string, error) {
+	return s.reserveCredits(ctx, userIdentity, tier, limitKey, amount, 0)
+}
+
+// ReserveCreditsWithWindow applies a caller-provided bounded reservation
+// window while preserving the default ReserveCredits contract.
+func (s *ReservationService) ReserveCreditsWithWindow(ctx context.Context, userIdentity, tier, limitKey string, amount int64, window time.Duration) (string, error) {
+	return s.reserveCredits(ctx, userIdentity, tier, limitKey, amount, window)
+}
+
+func (s *ReservationService) reserveCredits(ctx context.Context, userIdentity, tier, limitKey string, amount int64, requestedWindow time.Duration) (string, error) {
 	userIdentity = strings.TrimSpace(strings.ToLower(userIdentity))
 	tier = strings.TrimSpace(strings.ToLower(tier))
 	limitKey = strings.TrimSpace(strings.ToLower(limitKey))
@@ -293,9 +313,16 @@ func (s *ReservationService) ReserveCredits(ctx context.Context, userIdentity, t
 		}
 	}
 
-	// Create the reservation (expires in 10 minutes)
+	window := s.reservationWindow
+	if requestedWindow > 0 {
+		window = requestedWindow
+	}
+	if window > s.maxReservationWindow {
+		return "", fmt.Errorf("reservation window exceeds maximum of %s", s.maxReservationWindow)
+	}
+	// Create the reservation with the configured bounded window.
 	reservationID := s.generateID()
-	expiresAt := time.Now().Add(10 * time.Minute)
+	expiresAt := s.now().Add(window)
 
 	var insertQuery string
 	if s.dialect == "sqlite" {
@@ -618,7 +645,7 @@ func (s *ReservationService) AdjustUsage(ctx context.Context, userIdentity, limi
 			SET usage_amount = MAX(0, usage_amount + ?),
 			    last_operation_at = datetime('now'),
 			    updated_at = datetime('now')
-			WHERE user_identity = ? AND billing_period = ? AND limit_key = ? AND app_bundle_key IS NULL
+			WHERE user_identity = ? AND billing_period = ? AND limit_key = ?
 		`
 		_, err := s.db.ExecContext(ctx, query, adjustment, userIdentity, billingPeriod, limitKey)
 		if err != nil {
@@ -631,7 +658,7 @@ func (s *ReservationService) AdjustUsage(ctx context.Context, userIdentity, limi
 			SET usage_amount = GREATEST(0, usage_amount + $1),
 			    last_operation_at = NOW(),
 			    updated_at = NOW()
-			WHERE user_identity = $2 AND billing_period = $3 AND limit_key = $4 AND app_bundle_key IS NULL
+			WHERE user_identity = $2 AND billing_period = $3 AND limit_key = $4
 		`
 		_, err := s.db.ExecContext(ctx, query, adjustment, userIdentity, billingPeriod, limitKey)
 		if err != nil {

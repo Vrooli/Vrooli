@@ -4,6 +4,7 @@
   "required": ["schemaVersion", "rooms", "metrics", "tombstones"],
   "properties": {
     "schemaVersion": {"const": "2.0.0"},
+    "origins": {"type":"object", "additionalProperties":{"type":"object", "required":["mode","environment","display"], "properties":{"mode":{"enum":["discovery","static","relay"]},"environment":{"type":"string"},"display":{"type":"string"}}}},
     "rooms": {"type":"array", "items":{"type":"object", "required":["id","title","metricIds"]}},
     "metrics": {"type":"array", "items":{"type":"object", "required":["id","label","source","coverage"], "properties":{"coverage":{"enum":["NOW","IN-REACH","MISSING"]},"source":{"type":"object","required":["integrationId","featureId","contractVersion","selector","expectedUnit","ttlSeconds","sourceTimePolicy"]},"sample":{"type":"object","required":["value","series","basis"]},"owner":{"type":"string"},"whatIsNeeded":{"type":"string"},"firstObservedMissing":{"type":"string"}}}},
     "tombstones": {"type":"array"}

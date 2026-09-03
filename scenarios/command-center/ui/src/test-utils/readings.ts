@@ -20,6 +20,9 @@ export const makeReading = (overrides: Partial<Reading> = {}): Reading => ({
   gapOpenDays: null,
   sample: null,
   prediction: null,
+  origin: "swarm-manager",
+  origin_env: "local",
+  origin_display: "Swarm Manager",
   ...overrides,
 });
 

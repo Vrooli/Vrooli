@@ -225,7 +225,7 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| `mining` | Proposing skill and action candidates from recurring program shapes needs a corpus that does not exist until programs have run. Splitting it from `programs` before then would be a boundary drawn on a guess. | `PRT-P1-006` is green and the corpus holds enough programs for a recurring shape to be observable. |
+| `mining` | Recurring-shape nomination is now served by the shape ledger and improve-cycle filing route; a separate candidate-mining domain is not needed. | Revisit only if a distinct downstream obligation workflow earns its own contract. |
 | `refine` | Session-local harness refinement is a real capability, but its evidence is the run trajectory, which agent-manager owns, and its durable write targets are prompt-manager and vrooli-memory. Decided 2026-08-06 — not a domain here; see the durable-decision note in `docs/internal/DECISIONS.md`. | A refinement need appears whose evidence is the program corpus rather than the run trajectory. |
 | `adapters` | Non-Python kernels (`PRT-P2-004`) would justify an adapter domain. One kernel does not. | A second kernel language has a measured capability argument. |
 

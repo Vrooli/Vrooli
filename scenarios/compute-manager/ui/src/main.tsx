@@ -1,9 +1,11 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 import "./styles.css";
+import { i18n } from "./i18n";
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
 // the parent shell can route iframe bridge events to this scenario.
@@ -36,10 +38,10 @@ async function bootstrap() {
     import("./App"),
     import("./components/ErrorBoundary"),
     import("./lib/profiler"),
-    import("./i18n"),
   ]);
 
   ReactDOM.createRoot(appRoot).render(
+    <LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         {/* ErrorBoundary nests INSIDE QueryClientProvider (and after the
@@ -59,6 +61,7 @@ async function bootstrap() {
         </ErrorBoundary>
       </QueryClientProvider>
     </React.StrictMode>
+    </LibraryStringsProvider>
   );
 }
 

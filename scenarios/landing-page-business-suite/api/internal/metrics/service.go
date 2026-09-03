@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -79,6 +80,110 @@ type AnalyticsSummary struct {
 	TopCTA         string         `json:"top_cta,omitempty"`
 	TopCTACTR      float64        `json:"top_cta_ctr,omitempty"`
 	ObservedAt     *time.Time     `json:"observed_at,omitempty"`
+}
+
+// AdminRevenue is the canonical producer-owned revenue projection. Monetary
+// values are in the declared currency and unit; sample_size is active MRR
+// subscriptions included in the rollup.
+type AdminRevenue struct {
+	MRR        float64    `json:"mrr"`
+	MRRUnit    string     `json:"mrr_unit"`
+	Today      float64    `json:"today"`
+	TodayUnit  string     `json:"today_unit"`
+	Currency   string     `json:"currency"`
+	SampleSize int64      `json:"sample_size"`
+	ObservedAt *time.Time `json:"observed_at"`
+}
+
+// RevenueSummary is the complete finance-owned aggregate. Money is expressed
+// in minor settlement-currency units; rates are percentages from 0 to 100.
+type RevenueSummary struct {
+	Currency                   string     `json:"currency"`
+	MRRUnit                    string     `json:"mrr_unit"`
+	RevenueTodayUnit           string     `json:"revenue_today_unit"`
+	RevenueWindowUnit          string     `json:"revenue_window_unit"`
+	CreditUnit                 string     `json:"credit_unit"`
+	CurrencyExcludedCount      int64      `json:"currency_excluded_count"`
+	MRRMinor                   int64      `json:"mrr_minor"`
+	RevenueTodayMinor          int64      `json:"revenue_today_minor"`
+	RevenueWindowMinor         int64      `json:"revenue_window_minor"`
+	ActiveSubscriptions        int64      `json:"active_subscriptions"`
+	SubscriptionsChurnedWindow int64      `json:"subscriptions_churned_window"`
+	ChurnRatePercent           float64    `json:"churn_rate_percent"`
+	CreditBalanceTotal         int64      `json:"credit_balance_total"`
+	CreditBurnedWindow         int64      `json:"credit_burned_window"`
+	UsageRecordsWindow         int64      `json:"usage_records_window"`
+	SampleSize                 int64      `json:"sample_size"`
+	TrialsWithoutPaymentMethod int64      `json:"trials_without_payment_method"`
+	ObservedAt                 *time.Time `json:"observed_at"`
+}
+
+// GetRevenueSummary computes the documented tenant-wide rollup in one
+// producer-owned projection. The SQL keeps currency and sample counts
+// explicit, so an empty tenant returns zeros rather than an error.
+func (s *Service) GetRevenueSummary() (*RevenueSummary, error) {
+	var out RevenueSummary
+	var mrr, today, window float64
+	var active, churned, trials, creditBalance, creditBurned, usage, currencies int64
+	var currency string
+	if err := s.db.QueryRow(`SELECT
+		COALESCE(SUM(CASE WHEN sub.status = 'active' OR (sub.status = 'trialing' AND sub.customer_id IS NOT NULL)
+			THEN GREATEST(0, (CASE WHEN bp.billing_interval = 'year' THEN CASE WHEN bp.intro_enabled THEN COALESCE(NULLIF(bp.intro_amount_cents, 0), bp.amount_cents) ELSE bp.amount_cents END / 12.0
+				ELSE CASE WHEN bp.intro_enabled THEN COALESCE(NULLIF(bp.intro_amount_cents, 0), bp.amount_cents) ELSE bp.amount_cents END END)
+				* (1 - COALESCE(NULLIF(bp.metadata->>'discount_percent', '')::numeric, 0) / 100)
+				- COALESCE(NULLIF(bp.metadata->>'discount_amount_cents', '')::numeric, 0)) ELSE 0 END), 0),
+		COALESCE(COUNT(*) FILTER (WHERE sub.status = 'active' OR (sub.status = 'trialing' AND sub.customer_id IS NOT NULL)), 0),
+		COALESCE(COUNT(*) FILTER (WHERE sub.status = 'trialing' AND sub.customer_id IS NULL), 0),
+		COALESCE((SELECT NULLIF(bp2.currency, '') FROM subscriptions sub2 LEFT JOIN bundle_prices bp2 ON bp2.stripe_price_id = sub2.price_id
+			WHERE sub2.status IN ('active','trialing') AND COALESCE(bp2.billing_interval, 'one_time') IN ('month','year')
+			GROUP BY bp2.currency ORDER BY COUNT(*) DESC, bp2.currency LIMIT 1), 'usd'),
+		COALESCE(COUNT(DISTINCT NULLIF(bp.currency, '')), 0)
+		FROM subscriptions sub LEFT JOIN bundle_prices bp ON bp.stripe_price_id = sub.price_id
+		WHERE sub.status IN ('active','trialing') AND COALESCE(bp.billing_interval, 'one_time') IN ('month','year')`).Scan(&mrr, &active, &trials, &currency, &currencies); err != nil {
+		return nil, fmt.Errorf("compute revenue summary subscriptions: %w", err)
+	}
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount_cents), 0) FROM checkout_sessions WHERE status IN ('paid','complete') AND created_at >= CURRENT_DATE`).Scan(&today); err != nil {
+		return nil, fmt.Errorf("compute revenue summary today: %w", err)
+	}
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(amount_cents), 0) FROM checkout_sessions WHERE status IN ('paid','complete') AND created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&window); err != nil {
+		return nil, fmt.Errorf("compute revenue summary window: %w", err)
+	}
+	if err := s.db.QueryRow(`SELECT COUNT(*) FILTER (WHERE canceled_at >= CURRENT_DATE - INTERVAL '30 days') FROM subscriptions WHERE canceled_at IS NOT NULL`).Scan(&churned); err != nil {
+		return nil, fmt.Errorf("compute revenue summary churn: %w", err)
+	}
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(balance_credits + bonus_credits), 0) FROM credit_wallets`).Scan(&creditBalance); err != nil {
+		return nil, fmt.Errorf("compute revenue summary credits: %w", err)
+	}
+	if err := s.db.QueryRow(`SELECT COALESCE(SUM(ABS(amount_credits)), 0) FROM credit_transactions WHERE transaction_type IN ('usage','debit','consumption') AND created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&creditBurned); err != nil {
+		return nil, fmt.Errorf("compute revenue summary credit usage: %w", err)
+	}
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM usage_records WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'`).Scan(&usage); err != nil {
+		return nil, fmt.Errorf("compute revenue summary usage: %w", err)
+	}
+	if active+churned > 0 {
+		out.ChurnRatePercent = float64(churned) * 100 / float64(active+churned)
+	}
+	out.Currency, out.MRRMinor, out.RevenueTodayMinor, out.RevenueWindowMinor = currency, int64(math.Round(mrr)), int64(math.Round(today)), int64(math.Round(window))
+	out.MRRUnit, out.RevenueTodayUnit, out.RevenueWindowUnit, out.CreditUnit = "minor_currency", "minor_currency", "minor_currency", "credits"
+	if currencies > 1 {
+		out.CurrencyExcludedCount = currencies - 1
+	}
+	out.ActiveSubscriptions, out.SubscriptionsChurnedWindow, out.CreditBalanceTotal = active, churned, creditBalance
+	out.CreditBurnedWindow, out.UsageRecordsWindow, out.SampleSize, out.TrialsWithoutPaymentMethod = creditBurned, usage, active, trials
+	now := s.clock.Now().UTC()
+	out.ObservedAt = &now
+	return &out, nil
+}
+
+// GetAdminRevenue computes MRR once from active Stripe subscriptions. Annual
+// plans are normalized to one twelfth of their price; one-time plans are
+// excluded from MRR. This definition is documented in docs/concepts/MRR.md.
+func (s *Service) GetAdminRevenue() (*AdminRevenue, error) {
+	summary, err := s.GetRevenueSummary()
+	if err != nil {
+		return nil, err
+	}
+	return &AdminRevenue{MRR: float64(summary.MRRMinor) / 100, MRRUnit: "currency", Today: float64(summary.RevenueTodayMinor) / 100, TodayUnit: "currency", Currency: summary.Currency, SampleSize: summary.SampleSize, ObservedAt: summary.ObservedAt}, nil
 }
 
 func (s *Service) TrackEvent(event Event) error {

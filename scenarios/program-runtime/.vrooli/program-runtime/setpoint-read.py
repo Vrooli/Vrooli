@@ -104,7 +104,7 @@ CALLS = {
     "cond": lambda: program_runtime.bindings.condition(scenario="program-runtime", window_seconds=governance_window_seconds, rows="conditions"),
     "deleg": lambda: program_runtime.sessions.delegations(),
     "lib": lambda: program_runtime.library.list(),
-    "shapes": lambda: program_runtime.programs.mine(include_operator=False),
+    "shapes": lambda: program_runtime.shapes.list(uncovered_only=True, min_occurrences=3),
     "progs": lambda: program_runtime.programs.list(),
 }
 
@@ -200,21 +200,13 @@ def step_classify():  # CLASSIFY · deterministic; every reading is count/head/g
     else:
         dead_row("delegation-live", "deleg", target, sensor)
 
-    # library-hygiene: unpromoted agent-authored candidates, and promoted names sharing one called-binding set.
-    target, sensor = "0 candidates older than one cycle; 0 duplicate binding sets", "program-runtime library list"
-    if "lib" in h:
-        lib = h["lib"]
-        candidates = lib.filter(lambda r: r.get("origin") == "agent-authored").count()
-        sets = {}
-        for r in lib.filter(lambda r: r.get("origin") != "agent-authored").head(500):
-            key = tuple(sorted(set(r.get("calledBindingIds") or [])))
-            if key:
-                sets.setdefault(key, set()).add(r.get("name"))
-        duplicates = sum(1 for names in sets.values() if len(names) > 1)
-        row("library-hygiene", {"candidates": candidates, "duplicate_binding_sets": duplicates}, target,
-            candidates == 0 and duplicates == 0, sensor=sensor)
+    # uncovered-recurring-shapes: nominations are the actionable reuse gap.
+    target, sensor = "0 nominated shapes with no declared contract", "program-runtime shapes list --uncovered --min-occurrences 3"
+    if "shapes" in h:
+        nominated = h["shapes"].count()
+        row("uncovered-recurring-shapes", {"nominated": nominated}, target, nominated == 0, sensor=sensor)
     else:
-        dead_row("library-hygiene", "lib", target, sensor)
+        dead_row("uncovered-recurring-shapes", "shapes", target, sensor)
 
     # Rows owned elsewhere: read by the named program, or waiting on a measure that does not exist yet.
     row("attribution", None, "program_id on agent-manager facts", None, unavailable=True, reason="pending_telemetry")

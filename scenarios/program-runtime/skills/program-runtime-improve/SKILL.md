@@ -1,6 +1,6 @@
 ---
 name: "program-runtime-improve"
-description: "Regulate program-runtime against its setpoint: discovery and authoring floors, agent program failure rate, governed share, Act coverage, delegation liveness, library hygiene, attribution, and the share of its callers that own a conformant skill set. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
+  description: "Regulate program-runtime against its setpoint: discovery and authoring floors, agent program failure rate, governed share, Act coverage, delegation liveness, recurring uncovered shapes, attribution, and the share of its callers that own a conformant skill set. Routes each out-of-band row to a curation move, a work-ladder rung, or an owner."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -14,7 +14,7 @@ metadata:
   updatedAt: "2026-09-02T20:00:00Z"
   requires:
     scenarios: ["program-runtime", "prompt-manager", "agent-manager", "vrooli-memory"]
-    commands: ["program-runtime discovery eval", "program-runtime authoring eval", "program-runtime programs mine", "program-runtime programs governance-share", "program-runtime bindings act", "program-runtime bindings condition", "program-runtime sessions delegations", "program-runtime library list", "program-runtime library promote", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
+  commands: ["program-runtime discovery eval", "program-runtime authoring eval", "program-runtime programs mine", "program-runtime programs governance-share", "program-runtime bindings act", "program-runtime bindings condition", "program-runtime sessions delegations", "program-runtime library list", "program-runtime shapes list", "program-runtime programs submit", "prompt-manager skill read", "vrooli-memory journal note"]
   origin:
     kind: "authored"
 ---
@@ -47,7 +47,7 @@ Bands are targets. Readings are dated observations; re-read them every cycle wit
 | act-coverage | `program-runtime bindings act --json` → cells by verdict | 0 cells `ACT_VERDICT_AUTHORED` | 25 NOW / 1 IN-REACH / 2 AUTHORED |
 | binding-condition | `program-runtime bindings condition --json` → dormant and degraded-sustained counts | 0 degraded-sustained; dormant reviewed each cycle | pending-baseline |
 | delegation-live | `program-runtime sessions delegations --json` → count | ≥ 1 succeeded per 7 days | 0; bridge fails on workflow schema drift since 2026-08-06 |
-| library-hygiene | `program-runtime library list --json` → `origin == agent-authored` count, and duplicate binding sets among promoted entries | 0 unpromoted candidates older than one cycle; 0 duplicate binding sets | 147 `agent-authored` candidates and 13 promoted rows; fixture runs harvest into the candidate tier, so the count grows with every test |
+| uncovered-recurring-shapes | `program-runtime shapes list --uncovered --min-occurrences 3` → nominated count | 0 nominated shapes with no declared contract | pending-baseline |
 | attribution | `bindings.exercise-unattributed` measure; agent-manager episodes naming a program id | agent-manager subscribed; program id on every fact from a submit | 0 references to program-runtime in agent-manager — pending_telemetry |
 | external-friction | `run agent-manager.friction-digest` with inputs `scenario=program-runtime`, `window_days=7` → `recurring_count` | 0 recurring fingerprints with owner confidence `manifest-derived` | 0 recurring, 0 episodes for this scenario across the last 40 runs (the program reads `run_limit=40` runs; all 40 were created 2026-09-02) |
 | fleet-improve-coverage | `run prompt-manager.skill-set-read` per scenario with ≥ 50 binding invocations in 30 d (`binding_invocations` grouped by target scenario) → usage present, improve present | every such scenario has a usage and an improve skill registered | 7 of 7 named targets present on 2026-09-02; waiver grading and program-reference resolution are planned, so presence is the only graded leg today |
@@ -84,8 +84,9 @@ A run below floor is a stop: no other route runs until the corpus route (§5) ha
 | Filing | act-coverage with an AUTHORED cell | Read the cell's `unresolved_operations`; if the operation's scenario exists, W1 against it; if it does not (A10 names symbol-search), record the cell as blocked in `docs/spaces/act-space.md` notes with the date | act-coverage |
 | Filing | binding-condition degraded-sustained > 0 | `report-bug` against the binding's scenario with the condition row | binding-condition |
 | Filing | delegation-live at 0 | W3 against program-runtime for the bridge (`schema_mismatch` on workflow input), and `report-bug` against development-toolchain-validator for the 3 workflow files under its `.vrooli/agent-manager/` that still carry the removed `budgets.maxCostUsd` field | delegation-live |
-| Actuator | library-hygiene: candidates | Curation: `run program-runtime.library-curate` to group candidates by called-binding set; `program-runtime library promote --program-id <id> --name <name> --description <text> --reason "dedupe: same binding set as <name>@<v>"` for one per group; leave the rest unpromoted (retention removes them) | library-hygiene |
-| Actuator | library-hygiene: duplicate promoted names with the same binding set | Curation: `library set-current` to the newest validated version; do not delete history | library-hygiene |
+| Filing | uncovered-recurring-shapes with nominations | File a W1 obligation against the dominant scenario named by `program-runtime shapes list`. Author the declared contract in that scenario. | uncovered-recurring-shapes |
+| Filing | coverage miss telemetry for a recurring shape | File a discovery-failure report against program-runtime naming the failed binding-shape query and the covering contract; use the report-bug skill for the durable finding. | discovery-coverage-miss |
+| Filing | uncovered-recurring-shapes with a covered recurring shape | File a discovery finding against program-runtime. Name the failed intent query and the covering contract. | uncovered-recurring-shapes |
 | Filing | attribution pending | `report-bug` against agent-manager: subscribe to program-runtime and ai-gateway events; carry `program_id` on invocation facts when the executable is `program-runtime` | attribution |
 | Filing | external-friction recurring fingerprint | Read the fingerprint's episode; if the command is program-runtime's, W3 here; if the fix is skill prose, `skill-improvement-suggestions` on the usage skill | external-friction |
 | Filing | fleet-improve-coverage below band | For each scenario missing a role, file one `skill-set-authoring` run against its owner with the invocation count as the reason; never author into that scenario from here | fleet-improve-coverage |
@@ -97,7 +98,7 @@ A run below floor is a stop: no other route runs until the corpus route (§5) ha
 - Lowering a floor, or re-deriving it from runs that are not comparable (different mode, different corpus version).
 - Editing `requirements/*/module.json` status fields to match PROGRESS.md prose instead of the validation refs.
 - Marking a failure `unclassified` when its cause is in the closed vocabulary, or the reverse.
-- Promoting a candidate to make `library-hygiene` read in band without checking its binding set.
+- Loosening the nomination gate to make `uncovered-recurring-shapes` read in band.
 - Counting operator- or test-provenance programs in `agent-failure-rate`.
 - Excluding the two eval rows from the setpoint because they are unavailable in-program.
 

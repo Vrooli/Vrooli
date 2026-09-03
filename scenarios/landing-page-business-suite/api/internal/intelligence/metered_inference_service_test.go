@@ -500,6 +500,11 @@ func (m *MockUsageService) ReserveCredits(ctx context.Context, userIdentity, tie
 	if m.ReserveCreditsFn != nil {
 		return m.ReserveCreditsFn(ctx, userIdentity, tier, limitKey, amount)
 	}
+	if m.ReserveAndChargeFn != nil {
+		if err := m.ReserveAndChargeFn(ctx, userIdentity, tier, limitKey, amount, UsageReport{UserIdentity: userIdentity, LimitKey: limitKey, Amount: amount}); err != nil {
+			return "", err
+		}
+	}
 	return "test-reservation-id", nil
 }
 
@@ -622,8 +627,8 @@ func TestExecuteChat_Success(t *testing.T) {
 	if resp.Content != "Test response" {
 		t.Errorf("unexpected content: %s", resp.Content)
 	}
-	if len(mockUsage.Calls["ReserveAndCharge"]) == 0 {
-		t.Error("expected ReserveAndCharge to be called")
+	if len(mockUsage.Calls["ReserveCredits"]) == 0 {
+		t.Error("expected ReserveCredits to be called")
 	}
 }
 
@@ -702,15 +707,8 @@ func TestExecuteChat_CostUnderEstimate_Refunds(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Should have called AdjustUsage with negative amount (refund)
-	if len(mockUsage.Calls["AdjustUsage"]) == 0 {
-		t.Error("expected AdjustUsage to be called for refund")
-	} else {
-		args := mockUsage.Calls["AdjustUsage"][0].([]interface{})
-		adjustment := args[2].(int64)
-		if adjustment >= 0 {
-			t.Errorf("expected negative adjustment for refund, got: %d", adjustment)
-		}
+	if len(mockUsage.Calls["FinalizeReservation"]) == 0 {
+		t.Error("expected FinalizeReservation to be called for settlement")
 	}
 }
 
@@ -749,9 +747,9 @@ func TestExecuteChat_CostOverEstimate_Charges(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Should have called RecordUsage for additional charge
-	if len(mockUsage.Calls["RecordUsage"]) == 0 {
-		t.Error("expected RecordUsage to be called for additional charge")
+	// Settlement records the measured overage against the held reservation.
+	if len(mockUsage.Calls["FinalizeReservation"]) == 0 {
+		t.Error("expected FinalizeReservation to be called for settlement")
 	}
 }
 
@@ -781,11 +779,11 @@ func TestExecuteChat_TierLookupFails_DefaultsFree(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify "free" tier was used in ReserveAndCharge
-	if len(mockUsage.Calls["ReserveAndCharge"]) == 0 {
-		t.Fatal("expected ReserveAndCharge to be called")
+	// Verify "free" tier was used in the reservation request.
+	if len(mockUsage.Calls["ReserveCredits"]) == 0 {
+		t.Fatal("expected ReserveCredits to be called")
 	}
-	args := mockUsage.Calls["ReserveAndCharge"][0].([]interface{})
+	args := mockUsage.Calls["ReserveCredits"][0].([]interface{})
 	tier := args[1].(string)
 	if tier != "free" {
 		t.Errorf("expected tier 'free', got: %s", tier)

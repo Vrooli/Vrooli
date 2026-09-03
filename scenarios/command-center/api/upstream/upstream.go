@@ -161,6 +161,52 @@ func retryConnect(ctx context.Context, call func() error) error {
 	return lastErr
 }
 
+// typedClient owns the shared lifecycle for typed producer clients. Producers
+// provide only their resolver, feature probe, and selector-envelope projection.
+type typedClient struct {
+	name     string
+	resolve  func() string
+	http     *http.Client
+	token    string
+	features map[string]string
+	fetch    func(context.Context, *typedClient, string) (json.RawMessage, error)
+	probe    func(context.Context, *typedClient) (map[string]string, map[string]string)
+}
+
+func optionalFeatureSet(sets []map[string]string) map[string]string {
+	if len(sets) == 0 || sets[0] == nil {
+		return map[string]string{}
+	}
+	return sets[0]
+}
+
+func newTypedClient(name string, resolve func() string, token string, features map[string]string, fetch func(context.Context, *typedClient, string) (json.RawMessage, error), probe func(context.Context, *typedClient) (map[string]string, map[string]string)) *typedClient {
+	return &typedClient{name: name, resolve: resolve, http: &http.Client{Timeout: 5 * time.Second}, token: token, features: features, fetch: fetch, probe: probe}
+}
+
+func (c *typedClient) Name() string { return c.name }
+
+func (c *typedClient) ProbeFeatures(ctx context.Context) (map[string]string, map[string]string) {
+	if c.probe == nil {
+		return nil, nil
+	}
+	return c.probe(ctx, c)
+}
+
+func (c *typedClient) Fetch(ctx context.Context, path string) (json.RawMessage, error) {
+	if path == "/health" {
+		health := newResolved(c.name, c.resolve)
+		if c.token != "" {
+			health.authFn = func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+c.token) }
+		}
+		return health.Fetch(ctx, path)
+	}
+	if c.fetch == nil {
+		return nil, fmt.Errorf("%s typed client has no projection", c.name)
+	}
+	return c.fetch(ctx, c, path)
+}
+
 // NewSwarm returns a client for the Swarm Manager scenario's REST API.
 func NewSwarm(baseURL string) Client {
 	return newBase("swarm", baseURL)
@@ -175,19 +221,11 @@ func NewSwarmResolved(resolve func() string) Client {
 // NewSwarmTypedResolved uses Swarm Manager's generated StatsService for the
 // canonical portfolio projection. REST remains an explicit operational probe
 // path only; it is not a fallback for the typed projection.
-func NewSwarmTypedResolved(resolve func() string) Client {
-	return &typedSwarmClient{
-		resolve: resolve,
-		http:    &http.Client{Timeout: 5 * time.Second},
-	}
+func NewSwarmTypedResolved(resolve func() string, features ...map[string]string) Client {
+	return newTypedClient("swarm", resolve, "", optionalFeatureSet(features), swarmFetch, swarmProbe)
 }
 
-type typedSwarmClient struct {
-	resolve func() string
-	http    *http.Client
-}
-
-func (c *typedSwarmClient) ProbeFeatures(ctx context.Context) (map[string]string, map[string]string) {
+func swarmProbe(ctx context.Context, c *typedClient) (map[string]string, map[string]string) {
 	baseURL := c.resolve()
 	if baseURL == "" {
 		return nil, nil
@@ -206,19 +244,14 @@ func (c *typedSwarmClient) ProbeFeatures(ctx context.Context) (map[string]string
 	}
 	features := map[string]string{}
 	reasons := map[string]string{}
-	for _, feature := range []string{"throughput_stats", "agent_stats", "swarm_throughput", "swarm_active_agents", "timing_stats", "scope_stats", "blocking_stats", "dashboard_stats", "review_stats", "composite_throughput"} {
+	for feature := range c.features {
 		features[feature] = "compatible"
 		reasons[feature] = "StatsService.GetPortfolioStats returned the typed producer projection"
 	}
 	return features, reasons
 }
 
-func (c *typedSwarmClient) Name() string { return "swarm" }
-
-func (c *typedSwarmClient) Fetch(ctx context.Context, path string) (json.RawMessage, error) {
-	if path == "/health" {
-		return NewSwarmResolved(c.resolve).Fetch(ctx, path)
-	}
+func swarmFetch(ctx context.Context, c *typedClient, path string) (json.RawMessage, error) {
 	if path != "/api/v1/stats" {
 		return nil, fmt.Errorf("swarm typed client does not expose path %q", path)
 	}
@@ -267,6 +300,7 @@ func (c *typedSwarmClient) Fetch(ctx context.Context, path string) (json.RawMess
 			"success_rate":          response.Msg.GetAgentStats(),
 			"avg_execution_minutes": response.Msg.GetTimingStats(),
 		},
+		"sample_size": response.Msg.GetAgentStatsSampleSize(),
 		"blocking": map[string]any{
 			"currently_blocked": response.Msg.GetBlockingStats(),
 		},
@@ -294,30 +328,18 @@ func NewVrooli(baseURL string) Client {
 // NewVrooliTypedResolved uses the control plane's generated scenario-list
 // contract for the canonical inventory projection. REST remains available to
 // callers that explicitly use an operational endpoint such as /health.
-func NewVrooliTypedResolved(resolve func() string) Client {
-	return &typedVrooliClient{resolve: resolve, http: &http.Client{Timeout: 5 * time.Second}}
+func NewVrooliTypedResolved(resolve func() string, features ...map[string]string) Client {
+	return newTypedClient("vrooli", resolve, "", optionalFeatureSet(features), vrooliFetch, vrooliProbe)
 }
 
-type typedVrooliClient struct {
-	resolve func() string
-	http    *http.Client
-}
-
-func (c *typedVrooliClient) Name() string { return "vrooli" }
-
-func (c *typedVrooliClient) ProbeFeatures(ctx context.Context) (map[string]string, map[string]string) {
+func vrooliProbe(ctx context.Context, c *typedClient) (map[string]string, map[string]string) {
 	response, err := c.list(ctx)
 	if err != nil || response.Msg.GetObservedAt() == nil {
 		return nil, nil
 	}
-	features := map[string]string{
-		"scenario_inventory":     "compatible",
-		"active_scenarios":       "compatible",
-		"total_scenarios":        "compatible",
-		"scenario_health":        "compatible",
-		"scenario_health_detail": "compatible",
-		"scenario_completeness":  "compatible",
-		"scenario_ports":         "compatible",
+	features := make(map[string]string, len(c.features))
+	for feature := range c.features {
+		features[feature] = "compatible"
 	}
 	reasons := make(map[string]string, len(features))
 	for feature := range features {
@@ -326,10 +348,7 @@ func (c *typedVrooliClient) ProbeFeatures(ctx context.Context) (map[string]strin
 	return features, reasons
 }
 
-func (c *typedVrooliClient) Fetch(ctx context.Context, path string) (json.RawMessage, error) {
-	if path == "/health" {
-		return newResolved("vrooli", c.resolve).Fetch(ctx, path)
-	}
+func vrooliFetch(ctx context.Context, c *typedClient, path string) (json.RawMessage, error) {
 	if path != "/scenarios" {
 		return nil, fmt.Errorf("vrooli typed client does not expose path %q", path)
 	}
@@ -377,7 +396,7 @@ func (c *typedVrooliClient) Fetch(ctx context.Context, path string) (json.RawMes
 	return encoded, nil
 }
 
-func (c *typedVrooliClient) list(ctx context.Context) (*connect.Response[cliv1.ScenarioListResponse], error) {
+func (c *typedClient) list(ctx context.Context) (*connect.Response[cliv1.ScenarioListResponse], error) {
 	baseURL := c.resolve()
 	if baseURL == "" {
 		return nil, ErrNotAvailable
@@ -418,21 +437,11 @@ func NewLPBSResolved(resolve func() string, bearerToken string) Client {
 // NewLPBSTypedResolved uses LPBS's generated MetricsService for its canonical
 // analytics summary. REST remains an explicit operational probe path only;
 // it is not a fallback for the typed projection.
-func NewLPBSTypedResolved(resolve func() string, bearerToken string) Client {
-	return &typedLPBSClient{
-		resolve: resolve,
-		http:    &http.Client{Timeout: 5 * time.Second},
-		token:   bearerToken,
-	}
+func NewLPBSTypedResolved(resolve func() string, bearerToken string, features ...map[string]string) Client {
+	return newTypedClient("lpbs", resolve, bearerToken, optionalFeatureSet(features), lpbsFetch, lpbsProbe)
 }
 
-type typedLPBSClient struct {
-	resolve func() string
-	http    *http.Client
-	token   string
-}
-
-func (c *typedLPBSClient) ProbeFeatures(ctx context.Context) (map[string]string, map[string]string) {
+func lpbsProbe(ctx context.Context, c *typedClient) (map[string]string, map[string]string) {
 	baseURL := c.resolve()
 	if baseURL == "" {
 		return nil, nil
@@ -441,7 +450,7 @@ func (c *typedLPBSClient) ProbeFeatures(ctx context.Context) (map[string]string,
 	if c.token != "" {
 		httpClient = &http.Client{Timeout: c.http.Timeout, Transport: bearerTransport{base: c.http.Transport, token: c.token}}
 	}
-	err := retryConnect(ctx, func() error {
+	summaryErr := retryConnect(ctx, func() error {
 		baseURL := c.resolve()
 		if baseURL == "" {
 			return connect.NewError(connect.CodeUnavailable, ErrNotAvailable)
@@ -449,24 +458,43 @@ func (c *typedLPBSClient) ProbeFeatures(ctx context.Context) (map[string]string,
 		_, callErr := lpbsconnect.NewMetricsServiceClient(httpClient, baseURL).GetAnalyticsSummary(ctx, connect.NewRequest(&lpbsv1.GetAnalyticsSummaryRequest{}))
 		return callErr
 	})
-	if err != nil {
+	revenueErr := retryConnect(ctx, func() error {
+		baseURL := c.resolve()
+		if baseURL == "" {
+			return connect.NewError(connect.CodeUnavailable, ErrNotAvailable)
+		}
+		_, callErr := lpbsconnect.NewAdminRevenueServiceClient(httpClient, baseURL).GetRevenueSummary(ctx, connect.NewRequest(&lpbsv1.GetRevenueSummaryRequest{}))
+		return callErr
+	})
+	if summaryErr != nil && revenueErr != nil {
 		return nil, nil
 	}
-	features := map[string]string{"visitors": "compatible", "cta_clicks": "compatible", "conversions": "compatible", "variant_ab": "compatible"}
+	features := map[string]string{}
+	if summaryErr == nil {
+		for feature, kind := range c.features {
+			if kind != "analytics" {
+				continue
+			}
+			features[feature] = "compatible"
+		}
+	}
+	if revenueErr == nil {
+		for feature, kind := range c.features {
+			if kind != "revenue" {
+				continue
+			}
+			features[feature] = "compatible"
+		}
+	}
 	reasons := map[string]string{}
 	for feature := range features {
-		reasons[feature] = "MetricsService.GetAnalyticsSummary returned the typed producer projection"
+		reasons[feature] = "LPBS typed producer projection returned a compatible contract"
 	}
 	return features, reasons
 }
 
-func (c *typedLPBSClient) Name() string { return "lpbs" }
-
-func (c *typedLPBSClient) Fetch(ctx context.Context, path string) (json.RawMessage, error) {
-	if path == "/health" {
-		return NewLPBSResolved(c.resolve, c.token).Fetch(ctx, path)
-	}
-	if path != "/api/v1/admin/dashboard/summary" {
+func lpbsFetch(ctx context.Context, c *typedClient, path string) (json.RawMessage, error) {
+	if path != "/api/v1/admin/dashboard/summary" && path != "/api/v1/admin/dashboard/revenue" {
 		return nil, fmt.Errorf("lpbs typed client does not expose path %q", path)
 	}
 	baseURL := c.resolve()
@@ -476,6 +504,40 @@ func (c *typedLPBSClient) Fetch(ctx context.Context, path string) (json.RawMessa
 	httpClient := c.http
 	if c.token != "" {
 		httpClient = &http.Client{Timeout: c.http.Timeout, Transport: bearerTransport{base: c.http.Transport, token: c.token}}
+	}
+	if path == "/api/v1/admin/dashboard/revenue" {
+		var response *connect.Response[lpbsv1.RevenueSummary]
+		err := retryConnect(ctx, func() error {
+			baseURL := c.resolve()
+			if baseURL == "" {
+				return connect.NewError(connect.CodeUnavailable, ErrNotAvailable)
+			}
+			var callErr error
+			response, callErr = lpbsconnect.NewAdminRevenueServiceClient(httpClient, baseURL).GetRevenueSummary(ctx, connect.NewRequest(&lpbsv1.GetRevenueSummaryRequest{}))
+			return callErr
+		})
+		if err != nil {
+			return nil, fmt.Errorf("lpbs typed revenue: %w", err)
+		}
+		observedAt := ""
+		if timestamp := response.Msg.GetObservedAt(); timestamp != nil {
+			observedAt = timestamp.AsTime().UTC().Format(time.RFC3339)
+		}
+		payload := map[string]any{
+			"observed_at": observedAt, "contract_version": "revenue-summary.v1",
+			"units": map[string]string{"revenue_mrr": "currency", "revenue_today": "currency", "revenue_rollup": "currency", "composite_revenue": "currency"},
+			"revenue": map[string]any{
+				"mrr":   float64(response.Msg.GetMrrMinor()) / 100,
+				"today": float64(response.Msg.GetRevenueTodayMinor()) / 100,
+				"month": float64(response.Msg.GetRevenueWindowMinor()) / 100,
+			},
+			"sample_size": response.Msg.GetSampleSize(), "currency": response.Msg.GetCurrency(),
+		}
+		encoded, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("lpbs typed revenue encode: %w", err)
+		}
+		return encoded, nil
 	}
 	var response *connect.Response[lpbsv1.AnalyticsSummary]
 	err := retryConnect(ctx, func() error {

@@ -163,5 +163,29 @@
     "template": {
       "id": "react-vite"
     }
+  },
+  "credentials": {
+    "descriptors": [
+      {
+        "logical_id": "vrooli/command-center",
+        "field": "lpbs-service-token",
+        "label": "LPBS service token",
+        "description": "Optional server-side credential used by Command Center to read the LPBS revenue projection.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/apikeys",
+        "tiers": ["tier-1-local", "tier-4-saas"]
+      },
+      {
+        "logical_id": "vrooli/command-center",
+        "field": "lpbs-production-service-token",
+        "label": "LPBS production service token",
+        "description": "Optional server-side credential used by Command Center to attribute readings from the deployed LPBS origin.",
+        "required": false,
+        "provisioning": "operator",
+        "obtain_url": "https://dashboard.stripe.com/apikeys",
+        "tiers": ["tier-1-local"]
+      }
+    ]
   }
 }

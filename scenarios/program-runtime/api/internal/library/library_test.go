@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	internalbindings "program-runtime/internal/bindings"
 	"program-runtime/internal/programs"
 
 	"github.com/stretchr/testify/require"
@@ -15,7 +16,7 @@ import (
 
 func TestPromoteAndSetCurrentAreExplicitAndVersioned(t *testing.T) {
 	db := dbtest.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(programs.Schema), apidb.SchemaProviderFunc(Schema)))
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(programs.Schema), apidb.SchemaProviderFunc(internalbindings.Schema), apidb.SchemaProviderFunc(Schema)))
 	now := time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC)
 	_, err := db.Exec(`INSERT INTO programs (id,session_id,source,provenance,status,created_at) VALUES (?,?,?,?,?,?)`, "prog_ok", "sess", "print('ok')", "1", "succeeded", now.Format(time.RFC3339Nano))
 	require.NoError(t, err)
@@ -32,25 +33,35 @@ func TestPromoteAndSetCurrentAreExplicitAndVersioned(t *testing.T) {
 	require.ErrorIs(t, err, ErrSourceFailed)
 }
 
-func TestAddCandidateIsAutomaticTierAndIdempotent(t *testing.T) {
+func TestPromoteDerivesOnlySuccessfulInvocations(t *testing.T) {
 	db := dbtest.NewSQLite(t)
-	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(programs.Schema), apidb.SchemaProviderFunc(Schema)))
-	repo := NewRepository(db)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(programs.Schema), apidb.SchemaProviderFunc(internalbindings.Schema), apidb.SchemaProviderFunc(Schema)))
 	now := time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC)
-	p := &programsv1.Program{Id: "prog_candidate", Source: "print('candidate')", Status: programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED}
-	require.NoError(t, repo.AddCandidate(context.Background(), p, []string{"program-runtime/bindings/list"}, now))
-	require.NoError(t, repo.AddCandidate(context.Background(), p, []string{"program-runtime/bindings/list"}, now))
+	_, err := db.Exec(`INSERT INTO programs (id,session_id,source,provenance,status,created_at) VALUES (?,?,?,?,?,?)`, "prog_invocations", "sess", "print('ok')", "1", "succeeded", now.Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO binding_invocations (invocation_id,binding_id,target_scenario,session_id,program_id,provenance,outcome,reason,latency_ms,occurred_at) VALUES (?,?,?,?,?,?,?,?,?,?), (?,?,?,?,?,?,?,?,?,?)`, "inv_success", "demo/ops/read", "demo", "sess", "prog_invocations", "agent", "success", "", 1, now.Format(time.RFC3339Nano), "inv_refused", "demo/ops/delete", "demo", "sess", "prog_invocations", "agent", "refused", "denied", 1, now.Format(time.RFC3339Nano))
+	require.NoError(t, err)
+	repo := NewRepository(db)
+	got, err := repo.PromoteByID(context.Background(), "prog_invocations", "invocation-proof", "", "operator", "verified", "", nil, nil, now)
+	require.NoError(t, err)
+	require.Equal(t, []string{"demo/ops/read"}, got.GetCalledBindingIds())
+}
 
-	got, err := repo.Get(context.Background(), "candidate-prog_candidate", 1)
+func TestListCallableExcludesUnselectedVersionsAndListPaginates(t *testing.T) {
+	db := dbtest.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), db, apidb.SchemaProviderFunc(programs.Schema), apidb.SchemaProviderFunc(internalbindings.Schema), apidb.SchemaProviderFunc(Schema)))
+	for _, row := range []struct{ id, name string }{{"lib_a", "a"}, {"lib_b", "b"}, {"lib_c", "c"}} {
+		_, err := db.Exec(`INSERT INTO library_programs (id,name,version,source,description,origin,created_at,tier) VALUES (?,?,?,?,?,?,?,?)`, row.id, row.name, 1, "print(1)", row.name, "operator", "2026-09-03T00:00:00Z", "promoted")
+		require.NoError(t, err)
+	}
+	_, err := db.Exec(`INSERT INTO library_current(name,version) VALUES ('a',1),('c',1)`)
 	require.NoError(t, err)
-	require.Equal(t, "candidate", got.GetTier())
-	require.Equal(t, "agent-authored", got.GetOrigin())
-	require.Equal(t, []string{"session_id"}, got.GetDeclaredInputs())
-	require.Equal(t, []string{"bounded projection"}, got.GetDeclaredOutputs())
-	require.Equal(t, "successful governed program", got.GetCoverage())
-	require.Equal(t, now.Format(time.RFC3339Nano), got.GetValidatedAt())
-	require.Equal(t, []string{"program-runtime/bindings/list"}, got.GetCalledBindingIds())
-	rows, err := repo.List(context.Background())
+	repo := NewRepository(db)
+	callable, err := repo.ListCallable(context.Background())
 	require.NoError(t, err)
-	require.Len(t, rows, 1)
+	require.Len(t, callable, 2)
+	page, err := repo.List(context.Background(), 2, 1)
+	require.NoError(t, err)
+	require.Len(t, page, 2)
+	require.NotEqual(t, page[0].GetName(), page[1].GetName())
 }

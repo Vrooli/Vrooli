@@ -84,6 +84,8 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 |---|---|---|---|
 | 2026-08-12 | Agent-manager subscription obligation for Program Runtime events | Meta-optimization-manager reads the durable `mine*` surfaces directly over Connect; the event subscription is not required for the delivered Act/condition path. | The PRD now replaces the superseded hand-off with the still-open per-run delegated charge-receipt obligation for PRT-P1-011. The subscription row was removed rather than left as a stale external obligation. | A consumer needs program events on the shared bus for a capability not covered by the direct `mine*` surfaces. |
 
+| 2026-09-03 | Split program reuse into a declared-contract corpus and a shape-keyed nomination ledger. | The former candidate tier mixed uncallable submissions with reusable programs, and its provenance filter admitted only 1 of 858 succeeded programs. | Shapes derive only from successful binding invocations. Contract coverage uses the tightest declared superset. The `tier` field remains as an explicit promoted-only compatibility guard until the live migration completes. | Revisit the gate only when measured recurrence or a filed discovery finding shows the thresholds no longer represent reusable work. |
+
 ## Cross-References
 
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — system decisions

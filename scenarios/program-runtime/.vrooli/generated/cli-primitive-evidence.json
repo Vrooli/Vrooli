@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "program-runtime",
   "generator": "v1.0.0",
-  "manifest_hash": "f75bfe6c41ca6dfe5ef22a425fb5a1063ea00297768d5cc0fc75c1d76d3af22e",
+  "manifest_hash": "54a10fda4a0d934c5488f6dec763896cf08dd428d11ab35e088f5652ef8ec089",
   "commands": [
     {
       "path": "authoring eval",
@@ -109,6 +109,14 @@
       "observed_primitive": "proto_mutation"
     },
     {
+      "path": "library search",
+      "group": "library",
+      "command": "search",
+      "binding": ".",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
       "path": "library set-current",
       "group": "library",
       "command": "set-current",
@@ -121,6 +129,14 @@
       "group": "programs",
       "command": "get",
       "binding": "ProgramService.GetProgram",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "programs governance-share",
+      "group": "programs",
+      "command": "governance-share",
+      "binding": "vrooli.program_runtime.v1.programs.ProgramService.GovernanceShare",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
@@ -217,6 +233,30 @@
       "group": "sessions",
       "command": "list",
       "binding": "vrooli.program_runtime.v1.sessions.SessionService.ListSessions",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "shapes expire",
+      "group": "shapes",
+      "command": "expire",
+      "binding": "ShapeService.ExpireShapes",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "shapes get",
+      "group": "shapes",
+      "command": "get",
+      "binding": "ShapeService.GetShape",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "shapes list",
+      "group": "shapes",
+      "command": "list",
+      "binding": "ShapeService.ListShapes",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

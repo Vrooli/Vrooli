@@ -127,9 +127,9 @@ describe('landing API', () => {
 
       expect(result.pricing?.bundle.id).toBe(4);
       expect(result.pricing?.monthly[0]).toMatchObject({ billing_interval: 'year', intro_amount_cents: 500, plan_rank: 1, metadata: undefined });
-      expect(result.downloads[0]?.platforms[0]).toMatchObject({ artifact_id: 2, artifact_size_bytes: 0, artifact_count: 1 });
-      expect(result.downloads[0]?.storefronts[0]).toMatchObject({ badge: 'Get it' });
-      expect(result.header.nav.links[0]).toMatchObject({ section_id: 2, anchor: '#hero', children: [{ id: 'child' }] });
+      expect(result.downloads[0]?.platforms?.[0]).toMatchObject({ artifact_id: 2, artifact_size_bytes: 0, artifact_count: 1 });
+      expect(result.downloads[0]?.storefronts?.[0]).toMatchObject({ badge: 'Get it' });
+      expect(result.header.nav.links?.[0]).toMatchObject({ section_id: 2, anchor: '#hero', children: [{ id: 'child' }] });
       expect(result.intro_offers?.[0]).toMatchObject({ amount_off: 10, redeem_by: 10, duration_in_months: 2 });
     });
 

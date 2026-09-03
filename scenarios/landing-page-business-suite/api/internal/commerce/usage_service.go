@@ -64,6 +64,13 @@ func (s *UsageService) ReserveCredits(ctx context.Context, userIdentity, tier, l
 	return s.reservationService().ReserveCredits(ctx, userIdentity, tier, limitKey, amount)
 }
 
+// ReserveCreditsWithWindow exposes the bounded reservation window needed by
+// long-lived compute capacity while retaining the same ownership and limit
+// checks as the default reservation path.
+func (s *UsageService) ReserveCreditsWithWindow(ctx context.Context, userIdentity, tier, limitKey string, amount int64, window time.Duration) (string, error) {
+	return s.reservationService().ReserveCreditsWithWindow(ctx, userIdentity, tier, limitKey, amount, window)
+}
+
 func (s *UsageService) FinalizeReservation(ctx context.Context, reservationID string, actualAmount int64) error {
 	return s.reservationService().FinalizeReservation(ctx, reservationID, actualAmount)
 }

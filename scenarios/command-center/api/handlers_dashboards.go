@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"net/http"
 	"strings"
@@ -29,6 +30,9 @@ type sourceMetadata struct {
 	IntegrationStatus string            `json:"integration_status,omitempty"`
 	IntegrationReason string            `json:"integration_reason_code,omitempty"`
 	FeatureStatus     map[string]string `json:"feature_status,omitempty"`
+	Origin            string            `json:"origin,omitempty"`
+	OriginEnv         string            `json:"origin_env,omitempty"`
+	OriginDisplay     string            `json:"origin_display,omitempty"`
 }
 
 type capabilityStateView struct {
@@ -88,6 +92,7 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		if m.Source.TTLSeconds == 0 {
 			m.Source.TTLSeconds = 60
 		}
+		m.Origin, m.OriginEnv, m.OriginDisplay = s.readingOrigin(m.Source)
 		m.TTLSeconds = m.Source.TTLSeconds
 		decl := teamDeclarations[m.Source.Team]
 		m.Source.InstrumentStatus = first(m.Source.InstrumentStatus, decl["status"], "partial")
@@ -104,7 +109,7 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		if path == "" {
 			path = defaultPathFor(src)
 		}
-		env, err := s.primeSinglePath(ctx, src, path, m.Source.TTLSeconds)
+		env, err := s.fetchObservation(ctx, src, path, m.Source.TTLSeconds)
 		name := string(src)
 		if name == "" {
 			name = "none"
@@ -112,6 +117,7 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		integrationID := first(m.Source.IntegrationID, strings.TrimPrefix(strings.TrimPrefix(m.Source.Binding, "scenario:"), "resource:"), name)
 		state := integrations[integrationID]
 		metadata := sourceMetadata{IntegrationID: integrationID, IntegrationStatus: state.Status, IntegrationReason: state.ReasonCode, FeatureStatus: state.FeatureStatus}
+		metadata.Origin, metadata.OriginEnv, metadata.OriginDisplay = s.readingOrigin(m.Source)
 		if env.Data != nil {
 			metadata.FromCache, metadata.StalenessTS = env.FromCache, env.StalenessTS
 		}
@@ -150,7 +156,8 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 			continue
 		}
 		unit := first(m.Unit, m.Source.ExpectedUnit)
-		if !plausibleMetricValue(value, unit) {
+		sampleSize := producerSampleSize(payload, selectorID)
+		if !plausibleMetricValue(value, unit, sampleSize) {
 			m.Trust = TrustUntrusted
 			m.TrustReason = "selector " + selectorID + " returned an implausible value for unit " + unit
 			continue
@@ -163,10 +170,12 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 		}
 		observed := env.ObservationAt.UTC()
 		m.ObservedAt = &observed
+		now := time.Now().UTC()
+		age := now.Sub(observed)
 		switch {
-		case err == nil && !env.FromCache && !observed.After(time.Now().UTC()) && time.Since(observed) <= time.Duration(m.TTLSeconds)*time.Second:
+		case err == nil && !observed.After(now) && age <= time.Duration(m.TTLSeconds)*time.Second:
 			m.Trust = TrustValid
-		case observed.After(time.Now().UTC()):
+		case observed.After(now):
 			m.Trust = TrustUntrusted
 			m.TrustReason = "producer observation time is in the future"
 		default:
@@ -174,14 +183,27 @@ func (s *Server) readings(ctx context.Context, entries []MetricEntry) ([]MetricE
 			// past its TTL. Either way the last good reading is served with
 			// its age, and coverage is untouched.
 			m.Trust = TrustCached
-			m.TrustReason = unavailableReason(err)
+			m.TrustReason = cachedReason(age, time.Duration(m.TTLSeconds)*time.Second, err)
 		}
 	}
 	s.joinPredictions(out)
 	return out, sources
 }
 
-func plausibleMetricValue(value float64, unit string) bool {
+func (s *Server) readingOrigin(binding SourceBinding) (string, string, string) {
+	origin := first(binding.Origin, "local")
+	if spec, ok := s.registry.Origins[origin]; ok {
+		return origin, first(spec.Environment, "local"), first(spec.Display, origin)
+	}
+	return origin, "local", origin
+}
+
+const plausiblePercentSampleFloor = 100
+
+// plausibleMetricValue rejects values that are structurally inconsistent with
+// the declared unit. A sub-1 percent value with a meaningful sample is more
+// likely to be a 0..1 ratio accidentally labelled as a percent.
+func plausibleMetricValue(value float64, unit string, sampleSize int) bool {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return false
 	}
@@ -189,10 +211,38 @@ func plausibleMetricValue(value float64, unit string) bool {
 	case "count", "integer", "usd", "currency", "seconds", "minutes":
 		return value >= 0
 	case "percent", "%":
-		return value >= 0 && value <= 100
+		if value < 0 || value > 100 {
+			return false
+		}
+		return !(value > 0 && value < 1 && sampleSize >= plausiblePercentSampleFloor)
 	default:
 		return true
 	}
+}
+
+func producerSampleSize(payload any, selector string) int {
+	root, ok := payload.(map[string]any)
+	if !ok {
+		return 0
+	}
+	for _, key := range []string{"sample_size", "sampleSize"} {
+		if value, ok := root[key].(float64); ok && value >= 0 {
+			return int(value)
+		}
+	}
+	if samples, ok := root["sample_sizes"].(map[string]any); ok {
+		if value, ok := samples[selector].(float64); ok && value >= 0 {
+			return int(value)
+		}
+	}
+	return 0
+}
+
+func cachedReason(age, ttl time.Duration, err error) string {
+	if err != nil && age <= ttl {
+		return err.Error()
+	}
+	return fmt.Sprintf("observation age %s exceeds TTL %s", age.Round(time.Millisecond), ttl)
 }
 
 func unavailableReason(err error) string {
@@ -218,39 +268,7 @@ func sourceFromBinding(binding string) UpstreamSource {
 	return SourceNone
 }
 
-// primeSources fetches the upstream payloads required by the given entries
-// and returns per-source cache metadata. Fetch errors never fail the
-// request — the metric renders in gap-mode instead.
-func (s *Server) primeSources(ctx context.Context, entries []MetricEntry) map[string]sourceMetadata {
-	seen := make(map[UpstreamSource]struct{})
-	out := map[string]sourceMetadata{}
-	for _, e := range entries {
-		if effectiveCoverage(e) != CoverageNow && effectiveCoverage(e) != CoverageInReach {
-			continue
-		}
-		if _, ok := seen[e.UpstreamSource]; ok {
-			continue
-		}
-		seen[e.UpstreamSource] = struct{}{}
-
-		env, err := s.primeSingle(ctx, e.UpstreamSource)
-		switch {
-		case errors.Is(err, upstream.ErrNotAvailable):
-			out[string(e.UpstreamSource)] = sourceMetadata{FromCache: false, StalenessTS: ptrTime(time.Now().UTC())}
-		case err != nil:
-			out[string(e.UpstreamSource)] = sourceMetadata{FromCache: env.FromCache, StalenessTS: env.StalenessTS}
-		default:
-			out[string(e.UpstreamSource)] = sourceMetadata{FromCache: env.FromCache, StalenessTS: env.StalenessTS}
-		}
-	}
-	return out
-}
-
-func (s *Server) primeSingle(ctx context.Context, src UpstreamSource) (Envelope, error) {
-	return s.primeSinglePath(ctx, src, defaultPathFor(src), int(TTLFor(src)/time.Second))
-}
-
-func (s *Server) primeSinglePath(ctx context.Context, src UpstreamSource, path string, ttlSeconds int) (Envelope, error) {
+func (s *Server) fetchObservation(ctx context.Context, src UpstreamSource, path string, ttlSeconds int) (Envelope, error) {
 	client := s.clientFor(src)
 	if client == nil {
 		return Envelope{}, upstream.ErrNotAvailable

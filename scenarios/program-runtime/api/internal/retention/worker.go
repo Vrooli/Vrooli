@@ -7,6 +7,8 @@ import (
 	"log"
 	"time"
 
+	"program-runtime/internal/shapes"
+
 	"program-runtime/internal/sessions"
 )
 
@@ -44,6 +46,7 @@ type Result struct {
 	UnresolvedDeleted   int64
 	ReclamationsDeleted int64
 	TelemetryDeleted    int64
+	ShapesDeleted       int64
 }
 
 func New(options Options) *Worker {
@@ -77,7 +80,7 @@ func (w *Worker) RunOnce(ctx context.Context) (Result, error) {
 		cutoff                   time.Time
 		target                   *int64
 	}{
-		{table: "programs", column: "created_at", predicate: "NOT EXISTS (SELECT 1 FROM library_programs l WHERE l.source_program_id = programs.id)", cutoff: now.Add(-w.programs), target: &out.ProgramsDeleted},
+		{table: "programs", column: "created_at", predicate: "NOT EXISTS (SELECT 1 FROM library_programs l WHERE l.source_program_id = programs.id AND l.tier = 'promoted')", cutoff: now.Add(-w.programs), target: &out.ProgramsDeleted},
 		{table: "refusals", column: "occurred_at", cutoff: now.Add(-w.refusals), target: &out.RefusalsDeleted},
 		{table: "unresolved_binding_attempts", column: "occurred_at", cutoff: now.Add(-w.refusals), target: &out.UnresolvedDeleted},
 		{table: "reclamation_reasons", column: "reclaimed_at", cutoff: now.Add(-w.reclaims), target: &out.ReclamationsDeleted},
@@ -97,8 +100,13 @@ func (w *Worker) RunOnce(ctx context.Context) (Result, error) {
 		return out, fmt.Errorf("prune delivered telemetry: %w", err)
 	}
 	out.TelemetryDeleted, _ = result.RowsAffected()
+	shapeRepo := shapes.NewRepository(w.db)
+	out.ShapesDeleted, err = shapeRepo.Expire(ctx, now, shapes.ShapeWindow)
+	if err != nil {
+		return out, fmt.Errorf("prune program shapes: %w", err)
+	}
 	if w.logger != nil {
-		w.logger.Printf("retention pass programs_deleted=%d refusals_deleted=%d unresolved_deleted=%d reclamations_deleted=%d telemetry_deleted=%d", out.ProgramsDeleted, out.RefusalsDeleted, out.UnresolvedDeleted, out.ReclamationsDeleted, out.TelemetryDeleted)
+		w.logger.Printf("retention pass programs_deleted=%d refusals_deleted=%d unresolved_deleted=%d reclamations_deleted=%d telemetry_deleted=%d shapes_deleted=%d", out.ProgramsDeleted, out.RefusalsDeleted, out.UnresolvedDeleted, out.ReclamationsDeleted, out.TelemetryDeleted, out.ShapesDeleted)
 	}
 	return out, nil
 }

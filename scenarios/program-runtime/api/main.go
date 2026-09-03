@@ -15,12 +15,14 @@ import (
 	"program-runtime/internal/bindings"
 	"program-runtime/internal/budgets"
 	"program-runtime/internal/capabilities"
+	"program-runtime/internal/contracts"
 	"program-runtime/internal/library"
 	"program-runtime/internal/modules"
 	"program-runtime/internal/programs"
 	"program-runtime/internal/retention"
 	"program-runtime/internal/server"
 	"program-runtime/internal/sessions"
+	"program-runtime/internal/shapes"
 	"program-runtime/internal/telemetry"
 
 	"github.com/vrooli/api-core/schedule"
@@ -44,6 +46,7 @@ import (
 	measuresH "program-runtime/handlers/measures"
 	programsH "program-runtime/handlers/programs"
 	sessionsH "program-runtime/handlers/sessions"
+	shapesH "program-runtime/handlers/shapes"
 	telemetryH "program-runtime/handlers/telemetry"
 )
 
@@ -121,9 +124,6 @@ func main() {
 	if err := library.EnsureCompatibility(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("library schema compatibility failed: %v", err)
 	}
-	if err := libraryRepository.RemoveSeededAliases(context.Background()); err != nil {
-		log.Fatalf("library alias migration failed: %v", err)
-	}
 	retentionDB, err := database.Open(context.Background(), database.Config{
 		Driver:       database.DriverSQLite,
 		DSN:          dsn,
@@ -144,6 +144,24 @@ func main() {
 	if err != nil {
 		log.Fatalf("repository root resolution failed: %v", err)
 	}
+	contractIndex := contracts.NewIndex()
+	if err := contractIndex.Load(repoRoot); err != nil {
+		log.Printf("program contract index unavailable: %v", err)
+	} else {
+		invalid := 0
+		for _, contract := range contractIndex.List() {
+			if contract.ValidationError != "" {
+				invalid++
+			}
+		}
+		log.Printf("program contract index loaded=%d validation_errors=%d", len(contractIndex.List()), invalid)
+	}
+	shapeRepository := shapes.NewRepository(db.Primary(), contractIndex)
+	if resolved, resolveErr := shapeRepository.ResolveCoverage(context.Background(), contractIndex); resolveErr != nil {
+		log.Printf("program shape coverage unavailable: %v", resolveErr)
+	} else {
+		log.Printf("program shape coverage resolved=%d", resolved)
+	}
 	bindingRegistry, err := bindings.LoadWithRetry(repoRoot, 5, 100*time.Millisecond)
 	if err != nil {
 		log.Fatalf("binding registry initialization failed: %v", err)
@@ -153,6 +171,7 @@ func main() {
 	refusalRepository := bindings.NewRefusalRepository(db.Primary())
 	unresolvedRecorder, _ := refusalRepository.(bindings.UnresolvedRecorder)
 	telemetryStore := telemetry.NewStoreWithDB(db.Primary(), telemetry.NewPublisher(os.Getenv("VROOLI_EVENTS_API_BASE")))
+	shapeRepository.SetEventSink(telemetryStore)
 	telemetryStore.Start(context.Background())
 	registryBindings := bindingRegistry.List("", "")
 	bindingSpecs := make([]programs.BindingSpec, 0, len(registryBindings))
@@ -175,7 +194,7 @@ func main() {
 		return out
 	})
 	runner.SetLibraryProvider(func() []programs.LibrarySpec {
-		current, err := libraryRepository.List(context.Background())
+		current, err := libraryRepository.ListCallable(context.Background())
 		if err != nil {
 			return nil
 		}
@@ -222,7 +241,7 @@ func main() {
 			return nil
 		}
 		return unresolvedRecorder.RecordUnresolved(ctx, sessionID, provenance, attemptedName, time.Now().UTC())
-	}, CandidateSink: libraryRepository, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ExecutionBudget: func(id string) (programs.ExecutionLimits, error) {
+	}, ShapeSink: shapeRepository, RecordMemory: func(id string, bytes int64) { _ = sessionManager.SetMemoryBytes(context.Background(), id, bytes) }, ExecutionBudget: func(id string) (programs.ExecutionLimits, error) {
 		budget, err := sessionManager.ExecutionBudget(context.Background(), id)
 		if err != nil {
 			return programs.ExecutionLimits{}, err
@@ -312,9 +331,10 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		bindingsH.Module(bindingRegistry, libraryRepository),
 		programsH.Module(programService, authoringDeps),
-		libraryH.Module(libraryRepository, bindingRegistry),
+		libraryH.Module(libraryRepository, bindingRegistry, contractIndex),
 		sessionsH.Module(sessionManager),
 		telemetryH.Module(telemetryStore),
+		shapesH.Module(shapeRepository),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -329,7 +349,7 @@ func main() {
 	rootMux.Handle("/internal/program-runtime/bindings/projection/", bindingsH.ProjectionBridge(sessionManager, bindingRegistry))
 	rootMux.Handle("/internal/program-runtime/bindings/resolve-intent", bindingsH.IntentBridge(bindingRegistry, libraryRepository))
 	rootMux.Handle("/internal/program-runtime/bindings/search", bindingsH.BindingCorpusHandler(bindingRegistry))
-	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandler(libraryRepository))
+	rootMux.Handle("/internal/program-runtime/library/search", bindingsH.LibraryCorpusHandler(libraryRepository, contractIndex))
 	rootMux.Handle("/internal/program-runtime/agent/execute", bindingsH.AgentBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 	rootMux.Handle("/internal/program-runtime/agent/start", bindingsH.AgentStartBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))
 	rootMux.Handle("/internal/program-runtime/agent/collect", bindingsH.AgentCollectBridge(sessionManager, programs.NewDiscoveryDelegator(nil)))

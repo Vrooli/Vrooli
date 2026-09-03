@@ -5,11 +5,13 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	capabilityregistry "github.com/vrooli/vrooli/packages/capability-registry-go"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 
 	"command-center/upstream"
 )
@@ -39,9 +41,9 @@ func NewServer(reg *Registry) *Server {
 		cache:    NewCache(),
 		stats:    NewStatsBuffer(1024, time.Hour),
 
-		swarm:  upstream.NewSwarmTypedResolved(resolveScenarioBaseURL("swarm-manager", "SWARM_MANAGER_BASE_URL", "SWARM_MANAGER_API_PORT")),
-		vrooli: upstream.NewVrooliTypedResolved(resolveVrooliBaseURL),
-		lpbs:   upstream.NewLPBSTypedResolved(resolveScenarioBaseURL("landing-page-business-suite", "LPBS_BASE_URL", "LPBS_API_PORT"), os.Getenv("LPBS_SERVICE_TOKEN")),
+		swarm:  upstream.NewSwarmTypedResolved(resolveScenarioBaseURL("swarm-manager", "SWARM_MANAGER_BASE_URL", "SWARM_MANAGER_API_PORT"), declaredFeatureSet(reg, "swarm-manager", "")),
+		vrooli: upstream.NewVrooliTypedResolved(resolveControlPlaneBaseURL, declaredFeatureSet(reg, "vrooli-core", "")),
+		lpbs:   upstream.NewLPBSTypedResolved(resolveScenarioBaseURL("landing-page-business-suite", "LPBS_BASE_URL", "LPBS_API_PORT"), resolveLPBSServiceToken(), declaredFeatureSet(reg, "landing-page-business-suite", "lpbs")),
 	}
 	transmitter := newPromptManagerInstrumentProvider(resolveScenarioBaseURL("prompt-manager", "PROMPT_MANAGER_BASE_URL", "PROMPT_MANAGER_API_PORT"))
 	s.instrumentProvider = transmitter
@@ -53,9 +55,40 @@ func NewServer(reg *Registry) *Server {
 			panic("command-center outcome binding validation failed: " + err.Error())
 		}
 	}
-	s.actionService = capabilityregistry.LifecycleActionService{Defs: s.integrationRegistry.Definitions(), CLIPath: os.Getenv("VROOLI_CLI_PATH"), Timeout: 180 * time.Second}
+	s.actionService = capabilityregistry.LifecycleActionService{Defs: s.integrationRegistry.Definitions(), CLIPath: os.Getenv("VROOLI_CLI_PATH"), Timeout: 180 * time.Second, Tracker: capabilityregistry.NewActionTracker()}
 	s.setupRoutes()
 	return s
+}
+
+func declaredFeatureSet(reg *Registry, integrationID, kind string) map[string]string {
+	features := map[string]string{}
+	for _, metric := range reg.Metrics {
+		if metric.Source.IntegrationID != integrationID || metric.Source.FeatureID == "" {
+			continue
+		}
+		featureKind := ""
+		if kind == "lpbs" {
+			if strings.Contains(metric.Source.Read, "/revenue") {
+				featureKind = "revenue"
+			} else {
+				featureKind = "analytics"
+			}
+		}
+		features[metric.Source.FeatureID] = featureKind
+	}
+	return features
+}
+
+func resolveLPBSServiceToken() string {
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return ""
+	}
+	token, err := authority.Require(credentialauthority.Identity("vrooli/command-center"), "lpbs-service-token")
+	if err != nil {
+		return ""
+	}
+	return token
 }
 
 // Handler returns the HTTP handler wrapped with recovery middleware.
@@ -81,9 +114,12 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func resolveVrooliBaseURL() string {
-	if v := os.Getenv("VROOLI_CORE_BASE_URL"); v != "" {
+func resolveControlPlaneBaseURL() string {
+	if v := os.Getenv("VROOLI_API_BASE_URL"); v != "" {
 		return v
 	}
-	return ""
+	if v := os.Getenv("VROOLI_API_PORT"); v != "" {
+		return "http://127.0.0.1:" + v
+	}
+	return "http://127.0.0.1:8092"
 }

@@ -66,7 +66,7 @@
               "Customize Safely"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]",
+              "[pending]",
               "[Summarize]"
             ]
           }
@@ -105,7 +105,7 @@
               "Replacing The Example Domain"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -134,7 +134,7 @@
           "completion": "required",
           "validation": {
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -214,7 +214,7 @@
               "Request Lifecycle"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -251,7 +251,7 @@
               "5 \u2014 Run the tests"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         }
@@ -308,7 +308,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "requiredLinks": [
               "DOMAINS.md",
@@ -359,7 +359,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "requiredLinks": [
               "ARCHITECTURE.md",
@@ -496,7 +496,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "allowNotApplicable": true
           }
@@ -544,7 +544,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -591,7 +591,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "requiredLinks": [
               "../reference/configuration.md"
@@ -631,7 +631,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -722,7 +722,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "allowNotApplicable": true
           }
@@ -768,7 +768,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "allowNotApplicable": true
           }
@@ -822,7 +822,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -864,7 +864,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -910,7 +910,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         }
@@ -960,7 +960,7 @@
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -998,7 +998,7 @@
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         }
@@ -1042,7 +1042,7 @@
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "requiredLinks": [
               "../../.vrooli/endpoints.json"
@@ -1083,7 +1083,7 @@
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -1123,7 +1123,7 @@
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "requiredLinks": [
               ".vrooli/service.json"
@@ -1161,7 +1161,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -1286,7 +1286,7 @@
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "requiredLinks": [
               "../concepts/FLOWS.md"
@@ -1327,7 +1327,7 @@
               "Multipart REST Exceptions"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -1373,7 +1373,7 @@
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "requiredLinks": [
               "../concepts/FLOWS.md"
@@ -1420,7 +1420,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "allowNotApplicable": true
           }
@@ -1464,7 +1464,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ],
             "allowNotApplicable": true
           }
@@ -1501,7 +1501,7 @@
               "Cross-References"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -1558,7 +1558,7 @@
               "Cross-references"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         },
@@ -1611,7 +1611,7 @@
               "Progress Log"
             ],
             "forbiddenPlaceholders": [
-              "[TODO]"
+              "[pending]"
             ]
           }
         }

@@ -2518,6 +2518,21 @@
       "service": "VariantSectionService",
       "method": "DeleteVariantSection",
       "reason": "Variant section editing is an administrator UI workflow; it intentionally has no standalone CLI command."
+    },
+    {
+      "service": "AccountService",
+      "method": "GetCommercialContext",
+      "reason": "Commercial context is consumed by the authenticated web application and intentionally has no standalone CLI command."
+    },
+    {
+      "service": "AdminRevenueService",
+      "method": "GetRevenue",
+      "reason": "The legacy revenue projection remains available for compatibility; the CLI intentionally exposes no credential-bearing revenue command and the canonical typed rollup is GetRevenueSummary."
+    },
+    {
+      "service": "AdminRevenueService",
+      "method": "GetRevenueSummary",
+      "reason": "The finance rollup is an admin dashboard endpoint; the CLI exposes no credential-bearing revenue command."
     }
   ]
 }

@@ -69,9 +69,15 @@ type SourceBinding struct {
 	Selector            string `json:"selector,omitempty"`
 	ExpectedUnit        string `json:"expectedUnit,omitempty"`
 	SourceTimePolicy    string `json:"sourceTimePolicy,omitempty"`
+	Origin              string `json:"origin,omitempty"`
 	TTLSeconds          int    `json:"ttlSeconds"`
 	InstrumentStatus    string `json:"instrumentStatus,omitempty"`
 	InstrumentArchetype string `json:"instrumentArchetype,omitempty"`
+}
+type OriginSpec struct {
+	Mode        string `json:"mode"`
+	Environment string `json:"environment"`
+	Display     string `json:"display"`
 }
 type Target struct {
 	Direction string `json:"direction"`
@@ -108,6 +114,9 @@ type MetricEntry struct {
 	Prediction           *Prediction      `json:"prediction"`
 	DataSource           DataSourceStatus `json:"dataSource,omitempty"`
 	UpstreamSource       UpstreamSource   `json:"upstreamSource,omitempty"`
+	Origin               string           `json:"origin"`
+	OriginEnv            string           `json:"origin_env"`
+	OriginDisplay        string           `json:"origin_display"`
 }
 type Room struct {
 	ID            string              `json:"id"`
@@ -132,15 +141,12 @@ type Registry struct {
 	Rooms         []Room                   `json:"rooms,omitempty"`
 	Metrics       []MetricEntry            `json:"metrics,omitempty"`
 	Tombstones    []Tombstone              `json:"tombstones,omitempty"`
+	Origins       map[string]OriginSpec    `json:"origins,omitempty"`
 	Dashboards    map[string][]MetricEntry `json:"dashboards,omitempty"`
 }
 
 func validCoverage(v Coverage) bool {
 	return v == CoverageNow || v == CoverageInReach || v == CoverageMissing || v == CoverageUnregistered
-}
-
-func validTrust(v Trust) bool {
-	return v == TrustValid || v == TrustCached || v == TrustUnavailable || v == TrustUntrusted
 }
 
 func validEmpirical(v Empirical) bool {
@@ -211,6 +217,11 @@ func LoadRegistry(path string) (*Registry, error) {
 		}
 		if m.Source.SourceTimePolicy == "" {
 			m.Source.SourceTimePolicy = "producer_required"
+		}
+		if m.Source.Origin != "" {
+			if _, ok := reg.Origins[m.Source.Origin]; !ok {
+				return nil, fmt.Errorf("metric %s names unknown origin %q", m.ID, m.Source.Origin)
+			}
 		}
 		if err := validateMetricBinding(*m); err != nil {
 			return nil, err

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -229,11 +231,31 @@ func (s *Server) adminAuth() *administration.AdminAuthService {
 	return administration.NewAdminAuthService(s.db)
 }
 
-// requireAdminOrService is retained as a route-composition seam for legacy
-// admin handlers, but no longer accepts a shared service bearer token.
+// requireAdminOrService accepts either a normal admin session or the
+// server-to-server service principal. The credential is resolved from the
+// credential authority and compared in constant time; it is never logged.
 func (s *Server) requireAdminOrService(next http.HandlerFunc) http.HandlerFunc {
-	return s.requireAdmin(next)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if header := strings.TrimSpace(r.Header.Get("Authorization")); header != "" {
+			const prefix = "Bearer "
+			if !strings.HasPrefix(header, prefix) {
+				writeJSONError(w, http.StatusUnauthorized, "Invalid service authorization.", ApiErrorTypeUnauthorized)
+				return
+			}
+			provided := strings.TrimSpace(extractBearerToken(r))
+			expected, err := resolveAuthorityCredential("LPBS_" + "SERVICE_SECRET")
+			if err == nil && provided != "" && len(provided) == len(expected) && subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1 {
+				next(w, r.WithContext(context.WithValue(r.Context(), servicePrincipalContextKey, "lpbs-service")))
+				return
+			}
+		}
+		// A service credential is optional. Preserve the existing session path
+		// when it is absent or invalid so browser admins can still authenticate.
+		s.requireAdmin(next)(w, r)
+	}
 }
+
+const servicePrincipalContextKey contextKey = "service_principal"
 
 // requireAdmin is middleware to protect admin routes
 func (s *Server) requireAdmin(next http.HandlerFunc) http.HandlerFunc {

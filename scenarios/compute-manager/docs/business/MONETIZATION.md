@@ -64,7 +64,7 @@ anyone outside Vrooli ever buys a minute of it.
 ### The delivery tier this actually serves
 
 The framing above treats the paid path as a narrow P2 add-on, and that
-framing understates it. `path:docs/monetization/strategy/TIERS.md`
+framing understates it. `path:../../../docs/monetization/strategy/TIERS.md`
 describes Tier 3, `hosted_cloud`, as "a managed, per-account Vrooli
 instance on our infrastructure", calls it "probably the largest long-term
 revenue surface", and gives it a revisit trigger whose second condition is
@@ -991,5 +991,5 @@ all and are marked as such in that document's unsourced-claims table.
 - [`../operations/OBSERVABILITY.md`](../operations/OBSERVABILITY.md): telemetry needed for business validation
 - Paid-features contract: `path:docs/concepts/PAID_FEATURES.md`
 - Project-level monetization strategy: `path:docs/monetization/README.md`
-- Tier definitions and the `plan_tier` vocabulary: `path:docs/monetization/strategy/TIERS.md`
+- Tier definitions and the `plan_tier` vocabulary: `path:../../../docs/monetization/strategy/TIERS.md`
 - Catalog lifecycle and revisit-trigger discipline: `path:docs/monetization/catalogs/CATALOG.md`

@@ -28,8 +28,8 @@ func TestLiveMonetizationManifestConforms(t *testing.T) {
 	}
 	for _, scenario := range []string{"web-console"} {
 		findings := scan(filepath.Join(root, "scenarios", scenario))
-		if !hasFindingCode(findings, "money.no_account_surface") || !hasFindingCode(findings, "money.no_journey_probe") {
-			t.Errorf("%s should report undeclared paid-surface seams: %v", scenario, findings)
+		if len(findings) != 0 {
+			t.Errorf("%s has unexpected paid-surface findings: %v", scenario, findings)
 		}
 	}
 }

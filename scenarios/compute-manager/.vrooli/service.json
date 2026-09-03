@@ -150,7 +150,7 @@
         "startup_policy": "try_start",
         "supervision_precedence": "required",
         "description": "Owns node identity, pairing and first touch. This scenario creates the bridge Machine record with the instance address as a locator and starts bridge onboarding; it contains no SSH implementation of its own.",
-        "degraded_behavior": "Degrades: the instance is still created, metered and expiring on schedule while enrollment queues and retries, and is visibly flagged as not yet enrolled. Blocking creation on the trust plane would make capacity unavailable for a reason unrelated to capacity. Unattended enrollment additionally depends on bridge publishing its onboarding public key, which it does not do yet."
+        "degraded_behavior": "Degrades: the instance is still created, metered and expiring on schedule while enrollment queues and retries, and is visibly flagged as not yet enrolled. Blocking creation on the trust plane would make capacity unavailable for a reason unrelated to capacity. Enrollment obtains Bridge's owner-gated onboarding public key and injects it into first-boot configuration without carrying a password."
       },
       "treasury": {
         "type": "scenario",

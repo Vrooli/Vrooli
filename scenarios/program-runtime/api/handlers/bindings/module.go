@@ -264,9 +264,7 @@ func UnresolvedBridge(manager *sessions.Manager, recorder bindings.UnresolvedRec
 
 func resolveDescriptionID(registry *bindings.Registry, reference string) (string, error) {
 	reference = strings.TrimSpace(reference)
-	if strings.HasPrefix(reference, "vrooli.") {
-		reference = strings.TrimPrefix(reference, "vrooli.")
-	}
+	reference = strings.TrimPrefix(reference, "vrooli.")
 	pathReference := strings.ReplaceAll(reference, ".", "/")
 	for _, candidate := range registry.List("", "") {
 		id := candidate.GetId()
@@ -1061,19 +1059,6 @@ func nullVerdictDiscoveryResponse(response *bindingsv1.ResolveIntentResponse, re
 	response.Reason = reason
 	response.Result = &bindingsv1.DiscoverResult{Method: response.GetMode() + ".null", Reason: reason}
 	return response
-}
-
-func topBindingScore(response *routingv1.QueryResponse) float64 {
-	if response == nil {
-		return 0
-	}
-	var best float64
-	for _, hit := range orderedSearchHits(response) {
-		if hit.GetScore() > best {
-			best = hit.GetScore()
-		}
-	}
-	return best
 }
 
 func joinSearchHits(registry *bindings.Registry, ranked []*routingv1.SearchHit, groups []*routingv1.ProviderResultGroup, limit int) []*bindingsv1.Binding {

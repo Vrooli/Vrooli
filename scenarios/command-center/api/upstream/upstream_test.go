@@ -271,7 +271,7 @@ func TestSwarmTypedClientProvesCanonicalFeatureCompatibility(t *testing.T) {
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
 
-	probe, ok := NewSwarmTypedResolved(func() string { return srv.URL }).(FeatureProbe)
+	probe, ok := NewSwarmTypedResolved(func() string { return srv.URL }, map[string]string{"swarm_throughput": ""}).(FeatureProbe)
 	if !ok {
 		t.Fatal("typed swarm client does not expose FeatureProbe")
 	}
@@ -286,7 +286,7 @@ func TestLPBSTypedClientProvesOnlyReturnedFeatureContracts(t *testing.T) {
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
 
-	probe, ok := NewLPBSTypedResolved(func() string { return srv.URL }, "").(FeatureProbe)
+	probe, ok := NewLPBSTypedResolved(func() string { return srv.URL }, "", map[string]string{"visitors": "analytics", "conversions": "analytics", "revenue_mrr": "revenue"}).(FeatureProbe)
 	if !ok {
 		t.Fatal("typed LPBS client does not expose FeatureProbe")
 	}

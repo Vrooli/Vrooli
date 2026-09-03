@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"program-runtime/internal/bindings"
+	"program-runtime/internal/contracts"
 	"program-runtime/internal/library"
 
 	"connectrpc.com/connect"
@@ -39,6 +40,7 @@ type corpusRecord struct {
 	IndexTS          string   `json:"index_timestamp"`
 	CalledBindingIDs []string `json:"called_binding_ids,omitempty"`
 	Tier             string   `json:"tier,omitempty"`
+	Kind             string   `json:"kind"`
 }
 
 type corpusResponse struct {
@@ -46,6 +48,7 @@ type corpusResponse struct {
 	Count      int            `json:"count"`
 	IndexTS    string         `json:"index_timestamp"`
 	ProviderID string         `json:"provider_id"`
+	Reranker   string         `json:"reranker,omitempty"`
 }
 
 // BindingCorpusHandler is the provider-owned Search Hub leaf. It exposes the
@@ -104,7 +107,7 @@ func BindingCorpusHandler(registry *bindings.Registry) http.Handler {
 	})
 }
 
-func LibraryCorpusHandler(repo *library.Repository) http.Handler {
+func LibraryCorpusHandler(repo *library.Repository, indexes ...*contracts.Index) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -121,22 +124,32 @@ func LibraryCorpusHandler(repo *library.Repository) http.Handler {
 		if request.Limit <= 0 || request.Limit > 10000 {
 			request.Limit = 20
 		}
-		programs, err := repo.List(r.Context())
+		programs, err := repo.ListCallable(r.Context())
 		if err != nil {
 			writeBridgeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		stamp := time.Now().UTC().Format(time.RFC3339Nano)
 		rows := make([]scoredRecord, 0, len(programs))
+		if len(indexes) > 0 && indexes[0] != nil {
+			for _, contract := range indexes[0].List() {
+				if contract.ID == "" || contract.Purpose == "" {
+					continue
+				}
+				record := corpusRecord{ID: contract.ID, Scenario: contract.Scenario, Group: "program", Command: contract.Name, Effect: "read", Title: contract.ID, Snippet: contract.Purpose, Path: contract.SourcePath, IndexTS: stamp, CalledBindingIDs: contract.BindingIDs, Kind: "contract"}
+				record.Score = lexicalScore(request.Query, record)
+				if strings.TrimSpace(request.Query) != "" && record.Score == 0 {
+					continue
+				}
+				rows = append(rows, scoredRecord{record: record, score: record.Score})
+			}
+		}
 		for _, program := range programs {
-			if program == nil {
+			if program == nil || !program.GetCurrent() {
 				continue
 			}
 			snippet := strings.TrimSpace(program.GetDescription())
-			if program.GetTier() != "" {
-				snippet += " — tier: " + program.GetTier()
-			}
-			record := corpusRecord{ID: program.GetName(), BindingID: program.GetName(), Scenario: "program-runtime", Group: "library", Command: program.GetName(), Effect: "read", Title: program.GetName(), Snippet: snippet, Path: program.GetName(), IndexTS: stamp, CalledBindingIDs: program.GetCalledBindingIds(), Tier: program.GetTier()}
+			record := corpusRecord{ID: program.GetName(), BindingID: program.GetName(), Scenario: "program-runtime", Group: "program", Command: program.GetName(), Effect: "read", Title: program.GetName(), Snippet: snippet, Path: program.GetName(), IndexTS: stamp, CalledBindingIDs: program.GetCalledBindingIds(), Tier: program.GetTier(), Kind: "callable"}
 			record.Score = lexicalScore(request.Query, record)
 			if strings.TrimSpace(request.Query) != "" && record.Score == 0 {
 				continue
@@ -144,9 +157,6 @@ func LibraryCorpusHandler(repo *library.Repository) http.Handler {
 			rows = append(rows, scoredRecord{record: record, score: record.Score})
 		}
 		sort.SliceStable(rows, func(i, j int) bool {
-			if rows[i].record.Tier != rows[j].record.Tier {
-				return rows[i].record.Tier == "promoted"
-			}
 			if rows[i].score == rows[j].score {
 				return rows[i].record.ID < rows[j].record.ID
 			}
@@ -155,7 +165,7 @@ func LibraryCorpusHandler(repo *library.Repository) http.Handler {
 		if len(rows) > request.Limit {
 			rows = rows[:request.Limit]
 		}
-		out := corpusResponse{ProviderID: libraryProviderID, IndexTS: stamp, Records: make([]corpusRecord, 0, len(rows))}
+		out := corpusResponse{ProviderID: libraryProviderID, IndexTS: stamp, Reranker: "none", Records: make([]corpusRecord, 0, len(rows))}
 		for _, row := range rows {
 			out.Records = append(out.Records, row.record)
 		}
@@ -274,7 +284,7 @@ func lexicalScore(query string, record corpusRecord) float64 {
 	if len(terms) == 0 {
 		return 1
 	}
-	text := tokenSet(strings.Join([]string{record.BindingID, record.Scenario, record.Group, record.Command, record.Effect, record.Title, record.Snippet}, " "))
+	text := tokenSet(strings.Join(append([]string{record.BindingID, record.Scenario, record.Group, record.Command, record.Effect, record.Title, record.Snippet, record.Kind}, record.CalledBindingIDs...), " "))
 	hits := 0
 	for term := range terms {
 		if _, ok := text[term]; ok {
@@ -285,6 +295,7 @@ func lexicalScore(query string, record corpusRecord) float64 {
 }
 
 func tokenSet(value string) map[string]struct{} {
+	stopwords := map[string]struct{}{"a": {}, "an": {}, "and": {}, "for": {}, "in": {}, "of": {}, "on": {}, "the": {}, "to": {}, "with": {}}
 	value = strings.ToLower(value)
 	var builder strings.Builder
 	for _, r := range value {
@@ -297,6 +308,9 @@ func tokenSet(value string) map[string]struct{} {
 	out := make(map[string]struct{})
 	for _, token := range strings.Fields(builder.String()) {
 		if len(token) > 1 {
+			if _, stop := stopwords[token]; stop {
+				continue
+			}
 			out[token] = struct{}{}
 		}
 	}
@@ -366,8 +380,10 @@ func bindingDescriptor() *registryv1.ProviderDescriptor {
 
 func libraryDescriptor() *registryv1.ProviderDescriptor {
 	return &registryv1.ProviderDescriptor{
-		ProviderId: libraryProviderID, ProviderGroup: "program-runtime", Bucket: registryv1.Bucket_BUCKET_REUSE, Type: "library", Description: "Verified seeded and explicitly promoted reusable Program Runtime programs.",
-		Endpoint:      &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{ScenarioId: "program-runtime", Path: "/internal/program-runtime/library/search", Method: registryv1.HttpMethod_HTTP_METHOD_POST, BodyTemplate: `{"query":"{{query}}","limit":{{limit}},"type":"{{type}}"}`}}},
-		ResultMapping: &registryv1.ResultMapping{ResultsPath: "records", IdField: "id", TitleField: "title", SnippetField: "snippet", PathField: "path", ScoreField: "score", ScoreScale: registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1}, Scope: registryv1.Scope_SCOPE_PROJECT, State: registryv1.ProviderState_PROVIDER_STATE_ACTIVE, Lifecycle: registryv1.Lifecycle_LIFECYCLE_PRODUCTION, IndexTimestampField: "index_timestamp", DeclaredAt: time.Now().UTC().Format(time.RFC3339Nano),
+		ProviderId: libraryProviderID, ProviderGroup: "program-runtime", Bucket: registryv1.Bucket_BUCKET_REUSE, Type: "library", Description: "Declared scenario-owned program contracts and callable library programs.",
+		Endpoint:       &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{ScenarioId: "program-runtime", Path: "/internal/program-runtime/library/search", Method: registryv1.HttpMethod_HTTP_METHOD_POST, BodyTemplate: `{"query":"{{query}}","limit":{{limit}},"type":"{{type}}"}`}}},
+		StatusEndpoint: &registryv1.Endpoint{Kind: &registryv1.Endpoint_HttpJson{HttpJson: &registryv1.HttpJsonEndpoint{ScenarioId: "program-runtime", Path: "/internal/program-runtime/library/search", Method: registryv1.HttpMethod_HTTP_METHOD_POST, BodyTemplate: `{"query":"","limit":1}`}}},
+		ResultMapping:  &registryv1.ResultMapping{ResultsPath: "records", IdField: "id", TitleField: "title", SnippetField: "snippet", PathField: "path", ScoreField: "score", ScoreScale: registryv1.ScoreScale_SCORE_SCALE_COSINE_0_1}, Scope: registryv1.Scope_SCOPE_PROJECT, State: registryv1.ProviderState_PROVIDER_STATE_ACTIVE, Lifecycle: registryv1.Lifecycle_LIFECYCLE_PRODUCTION, IndexTimestampField: "index_timestamp", DeclaredAt: time.Now().UTC().Format(time.RFC3339Nano),
+		Tuning: &registryv1.Tuning{Engine: "lexical", RerankEnabled: false},
 	}
 }

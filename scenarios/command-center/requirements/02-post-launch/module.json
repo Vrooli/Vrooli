@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P1 operational targets: the provenance rendering contract, the composed rooms, the ambient shell, one intent vocabulary, audience modes, and the capability ladder.",
-    "last_validated_at": "2026-09-01T18:12:14-04:00",
+    "last_validated_at": "2026-09-03T15:58:52-04:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -17,7 +17,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/lib/provenance.test.ts",
+          "ref": "ui/src/lib/provenance-ink.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Each coverage/trust pair maps to its material and survives a colour-stripped render [REQ:CC-P1-001]."
@@ -34,7 +34,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/lib/provenance.test.ts",
+          "ref": "ui/src/lib/provenance-ink.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Qualifier presence per state and layout stability across state transitions [REQ:CC-P1-002]."
@@ -201,7 +201,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "ui/src/lib/provenance.test.ts",
+          "ref": "ui/src/lib/provenance-ink.test.ts",
           "phase": "unit",
           "status": "implemented",
           "notes": "Each mode's filtering and legend behaviour [REQ:CC-P1-011]."

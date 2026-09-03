@@ -15,7 +15,8 @@ Reading history (`CC-P2-002`) is the first thing that earns durable storage, and
 
 ## The registry
 
-`config/outcome-registry.json`, superseding `config/gap-registry.json`.
+`config/outcome-registry.json` is the single source of truth for metric
+bindings and gaps.
 
 ```json
 {

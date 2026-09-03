@@ -76,6 +76,7 @@ func LoadSetpoint(path string, registry *Registry) (*Setpoint, error) {
 	}
 	return &s, nil
 }
+
 func equalJSON(a, b any) bool {
 	aa, _ := json.Marshal(a)
 	bb, _ := json.Marshal(b)

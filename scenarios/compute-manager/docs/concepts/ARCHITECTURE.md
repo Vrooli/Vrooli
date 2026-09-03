@@ -97,11 +97,11 @@ remains intentional only where a payload is genuinely not proto-typed.
 The ordering rules below are the substance of this scenario. Most of its failure
 modes are ordering mistakes rather than logic mistakes.
 
-**Reserve, then record intent, then call the provider.** Reserving first means a
-refusal costs nothing and leaves no row. Recording the intent second means that
-once a provider call is possible, the record that it was attempted is already
-durable, so a create that succeeds while its response is lost is always
-recoverable. This is the invariant the reconciler depends on.
+**Record intent, then reserve credit, then call the provider.** Writing the
+intent first means a crash during reservation leaves a recoverable record
+rather than an invisible hold. A refusal leaves a cheap `refused` intent, while
+a create that succeeds with a lost response remains recoverable. This is the
+invariant the reconciler depends on.
 
 **Enrollment comes after running and is allowed to fail.** The instance is real,
 metered and expiring whether or not bridge is reachable.

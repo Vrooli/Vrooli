@@ -23,6 +23,7 @@ export interface SourceBinding {
 	 selector?: string;
 	 expectedUnit?: string;
 	 sourceTimePolicy?: string;
+	origin?: string;
   ttlSeconds?: number;
   instrumentStatus?: string;
   instrumentArchetype?: string;
@@ -55,6 +56,9 @@ export interface Reading {
   gapOpenDays: number | null;
   sample: Sample | null;
   prediction: { target: number; direction: string; remainingHorizonSeconds: number } | null;
+  origin: string;
+  origin_env: "local" | "production" | string;
+  origin_display: string;
 }
 
 export interface SourceMetadata {
@@ -64,6 +68,9 @@ export interface SourceMetadata {
   integration_status?: "available" | "unavailable" | "unknown";
   integration_reason_code?: string;
   feature_status?: Record<string, string>;
+  origin?: string;
+  origin_env?: string;
+  origin_display?: string;
 }
 
 export interface BoardRoom {

@@ -675,6 +675,14 @@
       "category": "system"
     },
     {
+      "id": "post-landing-page-business-suite-v1-accountservice-getcommercialcontext",
+      "path": "/landing_page_business_suite.v1.AccountService/GetCommercialContext",
+      "method": "POST",
+      "summary": "POST /landing_page_business_suite.v1.AccountService/GetCommercialContext",
+      "description": "Generated from api/routes.go; update the mux registration, then run make endpoints.",
+      "category": "system"
+    },
+    {
       "id": "post-landing-page-business-suite-v1-accountservice-getentitlements",
       "path": "/landing_page_business_suite.v1.AccountService/GetEntitlements",
       "method": "POST",

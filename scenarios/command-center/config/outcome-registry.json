@@ -1,6 +1,18 @@
 {
   "$schema": "./outcome-registry.schema.json",
   "schemaVersion": "2.0.0",
+  "origins": {
+    "local": {
+      "mode": "discovery",
+      "environment": "local",
+      "display": "Local instance"
+    },
+    "production": {
+      "mode": "static",
+      "environment": "production",
+      "display": "Production instance"
+    }
+  },
   "rooms": [
     {
       "id": "mission-control",
@@ -17,7 +29,6 @@
         "scenario_health",
         "swarm_throughput",
         "swarm_active_agents",
-        "system_uptime",
         "revenue_mrr",
         "revenue_today"
       ]
@@ -209,63 +220,26 @@
       "coverage": "NOW"
     },
     {
-      "id": "system_uptime",
-      "label": "Host uptime",
-      "description": "Wall-clock uptime for the local Vrooli host.",
-      "unit": "days",
-      "format": "duration.days",
-      "tags": [],
-      "source": {
-        "team": "director-swarm",
-        "binding": "scenario:vrooli-core",
-        "read": "/scenarios",
-        "select": "system_uptime",
-        "ttlSeconds": 60,
-        "integrationId": "vrooli-core",
-        "featureId": "system_uptime",
-        "contractVersion": "legacy.v1",
-        "selector": "system_uptime",
-        "expectedUnit": "days",
-        "sourceTimePolicy": "producer_required"
-      },
-      "coverage": "IN-REACH",
-      "owner": "director-swarm",
-      "whatIsNeeded": "A host uptime field on the control plane's own /health surface; the host is measurable, the surface is not built.",
-      "firstObservedMissing": "2026-09-01",
-      "sample": {
-        "value": 14.3,
-        "series": [
-          8.3,
-          9.3,
-          10.3,
-          11.3,
-          12.3,
-          14.3
-        ],
-        "basis": "hand-authored, mid-scale, reviewed 2026-09-01"
-      }
-    },
-    {
       "id": "revenue_mrr",
       "label": "Monthly recurring revenue",
       "description": "Rolling MRR computed from Stripe subscriptions.",
-      "unit": "usd",
+      "unit": "currency",
       "format": "currency.compact",
       "tags": [],
       "source": {
         "team": "director-swarm",
         "binding": "scenario:landing-page-business-suite",
-        "read": "/api/v1/admin/dashboard/summary",
+      "read": "/api/v1/admin/dashboard/revenue",
         "select": "revenue_mrr",
         "ttlSeconds": 300,
         "integrationId": "landing-page-business-suite",
         "featureId": "revenue_mrr",
         "contractVersion": "legacy.v1",
         "selector": "revenue_mrr",
-        "expectedUnit": "usd",
+        "expectedUnit": "currency",
         "sourceTimePolicy": "producer_required"
       },
-      "coverage": "MISSING",
+      "coverage": "NOW",
       "owner": "monetization",
       "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with an MRR rollup from Stripe subscriptions.",
       "firstObservedMissing": "2026-09-01",
@@ -286,23 +260,23 @@
       "id": "revenue_today",
       "label": "Revenue today",
       "description": "Sum of successful checkout sessions in the current day.",
-      "unit": "usd",
+      "unit": "currency",
       "format": "currency",
       "tags": [],
       "source": {
         "team": "director-swarm",
         "binding": "scenario:landing-page-business-suite",
-        "read": "/api/v1/admin/dashboard/summary",
+      "read": "/api/v1/admin/dashboard/revenue",
         "select": "revenue_today",
         "ttlSeconds": 300,
         "integrationId": "landing-page-business-suite",
         "featureId": "revenue_today",
         "contractVersion": "legacy.v1",
         "selector": "revenue_today",
-        "expectedUnit": "usd",
+        "expectedUnit": "currency",
         "sourceTimePolicy": "producer_required"
       },
-      "coverage": "MISSING",
+      "coverage": "NOW",
       "owner": "monetization",
       "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with a daily-rollup query.",
       "firstObservedMissing": "2026-09-01",
@@ -608,7 +582,7 @@
       "source": {
         "team": "monetization",
         "binding": "scenario:landing-page-business-suite",
-        "read": "/api/v1/admin/dashboard/summary",
+      "read": "/api/v1/admin/dashboard/summary",
         "select": "subscriber_counts",
         "ttlSeconds": 300,
         "integrationId": "landing-page-business-suite",
@@ -639,23 +613,23 @@
       "id": "revenue_rollup",
       "label": "Revenue \u00b7 30 days",
       "description": "Revenue from successful checkout sessions in the trailing thirty days.",
-      "unit": "usd",
+      "unit": "currency",
       "format": "currency.compact",
       "tags": [],
       "source": {
         "team": "monetization",
         "binding": "scenario:landing-page-business-suite",
-        "read": "/api/v1/admin/dashboard/summary",
+      "read": "/api/v1/admin/dashboard/revenue",
         "select": "revenue_rollup",
         "ttlSeconds": 300,
         "integrationId": "landing-page-business-suite",
         "featureId": "revenue_rollup",
         "contractVersion": "legacy.v1",
         "selector": "revenue_rollup",
-        "expectedUnit": "usd",
+        "expectedUnit": "currency",
         "sourceTimePolicy": "producer_required"
       },
-      "coverage": "MISSING",
+      "coverage": "NOW",
       "owner": "monetization",
       "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with a configurable window.",
       "firstObservedMissing": "2026-09-01",
@@ -1164,23 +1138,23 @@
       "id": "composite_revenue",
       "label": "Monthly recurring revenue",
       "description": "Rolling MRR, the Ledger room's headline.",
-      "unit": "usd",
+      "unit": "currency",
       "format": "currency.compact",
       "tags": [],
       "source": {
         "team": "director-swarm",
         "binding": "scenario:landing-page-business-suite",
-        "read": "/api/v1/admin/dashboard/summary",
+      "read": "/api/v1/admin/dashboard/revenue",
         "select": "composite_revenue",
         "ttlSeconds": 300,
         "integrationId": "landing-page-business-suite",
         "featureId": "composite_revenue",
         "contractVersion": "legacy.v1",
         "selector": "composite_revenue",
-        "expectedUnit": "usd",
+        "expectedUnit": "currency",
         "sourceTimePolicy": "producer_required"
       },
-      "coverage": "MISSING",
+      "coverage": "NOW",
       "owner": "monetization",
       "whatIsNeeded": "LPBS /api/v1/admin/dashboard/revenue endpoint with an MRR rollup.",
       "firstObservedMissing": "2026-09-01",

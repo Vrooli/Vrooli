@@ -2,6 +2,7 @@ package metricshttp
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -19,6 +20,15 @@ import (
 type ConnectDependencies struct {
 	Tracker EventTracker
 	Reader  AnalyticsReader
+	Revenue RevenueReader
+}
+
+type RevenueReader interface {
+	GetAdminRevenue() (*metrics.AdminRevenue, error)
+}
+
+type RevenueSummaryReader interface {
+	GetRevenueSummary() (*metrics.RevenueSummary, error)
 }
 
 // seam: interface
@@ -82,6 +92,47 @@ func (h *ConnectHandler) GetVariantStats(_ context.Context, request *connect.Req
 	return connect.NewResponse(&lpbsv1.GetVariantStatsResponse{StartDate: start.Format("2006-01-02"), EndDate: end.Format("2006-01-02"), Stats: result}), nil
 }
 
+func (h *ConnectHandler) GetRevenue(_ context.Context, _ *connect.Request[lpbsv1.GetAdminRevenueRequest]) (*connect.Response[lpbsv1.AdminRevenue], error) {
+	if h.deps.Revenue == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("revenue reader is unavailable"))
+	}
+	revenue, err := h.deps.Revenue.GetAdminRevenue()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get admin revenue: %w", err))
+	}
+	result := &lpbsv1.AdminRevenue{Mrr: revenue.MRR, MrrUnit: revenue.MRRUnit, Today: revenue.Today, TodayUnit: revenue.TodayUnit, Currency: revenue.Currency, SampleSize: revenue.SampleSize}
+	if revenue.ObservedAt != nil {
+		result.ObservedAt = timestamppb.New(*revenue.ObservedAt)
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (h *ConnectHandler) GetRevenueSummary(_ context.Context, _ *connect.Request[lpbsv1.GetRevenueSummaryRequest]) (*connect.Response[lpbsv1.RevenueSummary], error) {
+	reader, ok := h.deps.Revenue.(RevenueSummaryReader)
+	if !ok {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("revenue summary reader is unavailable"))
+	}
+	summary, err := reader.GetRevenueSummary()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("get revenue summary: %w", err))
+	}
+	result := &lpbsv1.RevenueSummary{
+		Currency: summary.Currency, MrrMinor: summary.MRRMinor, RevenueTodayMinor: summary.RevenueTodayMinor,
+		RevenueWindowMinor: summary.RevenueWindowMinor, ActiveSubscriptions: summary.ActiveSubscriptions,
+		SubscriptionsChurnedWindow: summary.SubscriptionsChurnedWindow, ChurnRatePercent: summary.ChurnRatePercent,
+		CreditBalanceTotal: summary.CreditBalanceTotal, CreditBurnedWindow: summary.CreditBurnedWindow,
+		UsageRecordsWindow: summary.UsageRecordsWindow, SampleSize: summary.SampleSize,
+		TrialsWithoutPaymentMethod: summary.TrialsWithoutPaymentMethod,
+		MrrUnit:                    summary.MRRUnit, RevenueTodayUnit: summary.RevenueTodayUnit,
+		RevenueWindowUnit: summary.RevenueWindowUnit, CreditUnit: summary.CreditUnit,
+		CurrencyExcludedCount: summary.CurrencyExcludedCount,
+	}
+	if summary.ObservedAt != nil {
+		result.ObservedAt = timestamppb.New(*summary.ObservedAt)
+	}
+	return connect.NewResponse(result), nil
+}
+
 func dates(start, end string) (time.Time, time.Time) {
 	now := time.Now()
 	from := now.AddDate(0, 0, -7)
@@ -115,6 +166,7 @@ func summaryProto(summary *metrics.AnalyticsSummary) *lpbsv1.AnalyticsSummary {
 
 func RegisterConnectRoutes(router *mux.Router, deps ConnectDependencies, requireAdmin func(http.HandlerFunc) http.HandlerFunc) {
 	_, service := lpbsconnect.NewMetricsServiceHandler(NewConnectHandler(deps))
+	_, revenueService := lpbsconnect.NewAdminRevenueServiceHandler(NewConnectHandler(deps))
 	mount := func(path string, middleware func(http.HandlerFunc) http.HandlerFunc) {
 		handler := http.HandlerFunc(service.ServeHTTP)
 		if middleware != nil {
@@ -125,4 +177,34 @@ func RegisterConnectRoutes(router *mux.Router, deps ConnectDependencies, require
 	mount(lpbsconnect.MetricsServiceTrackEventProcedure, nil)
 	mount(lpbsconnect.MetricsServiceGetAnalyticsSummaryProcedure, requireAdmin)
 	mount(lpbsconnect.MetricsServiceGetVariantStatsProcedure, requireAdmin)
+	revenueHandler := http.HandlerFunc(revenueService.ServeHTTP)
+	router.Handle(lpbsconnect.AdminRevenueServiceGetRevenueProcedure, requireAdmin(revenueHandler)).Methods(http.MethodPost)
+	router.Handle(lpbsconnect.AdminRevenueServiceGetRevenueSummaryProcedure, requireAdmin(revenueHandler)).Methods(http.MethodPost)
+	router.HandleFunc("/api/v1/admin/dashboard/revenue", requireAdmin(func(w http.ResponseWriter, _ *http.Request) {
+		if deps.Revenue == nil {
+			http.Error(w, "revenue reader is unavailable", http.StatusPreconditionFailed)
+			return
+		}
+		revenue, err := deps.Revenue.GetAdminRevenue()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(revenue)
+	})).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/admin/dashboard/revenue/summary", requireAdmin(func(w http.ResponseWriter, _ *http.Request) {
+		reader, ok := deps.Revenue.(RevenueSummaryReader)
+		if !ok {
+			http.Error(w, "revenue summary reader is unavailable", http.StatusPreconditionFailed)
+			return
+		}
+		summary, err := reader.GetRevenueSummary()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(summary)
+	})).Methods(http.MethodGet)
 }

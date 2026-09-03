@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P2 operational targets: prediction binding, reading history, and the two upstream instrument dependencies this board cannot satisfy on its own.",
-    "last_validated_at": "2026-09-01T18:12:14-04:00",
+    "last_validated_at": "2026-09-03T15:58:52-04:00",
     "module": "P2-targets",
     "priority": "P2",
     "schema_version": "1.0.0"

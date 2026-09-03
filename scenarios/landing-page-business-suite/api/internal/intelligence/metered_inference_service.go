@@ -170,14 +170,10 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 	estimate := s.estimateTokens(req.Messages, req.MaxTokens)
 	estimatedCost := s.calculateCost(req.Model, estimate.prompt, estimate.completion)
 
-	// Reserve credits atomically (check + tentative charge)
-	if err := s.usageService.ReserveAndCharge(ctx, userIdentity, tier, "ai_credits", estimatedCost, UsageReport{
-		UserIdentity: userIdentity,
-		LimitKey:     "ai_credits",
-		Amount:       estimatedCost,
-		AppBundleKey: req.Metadata.AppBundleKey,
-		Operation:    req.Metadata.Operation,
-	}); err != nil {
+	// Reserve credits before the provider call; the reservation has an explicit
+	// release path so provider failure cannot commit the estimate.
+	reservationID, err := s.usageService.ReserveCredits(ctx, userIdentity, tier, "ai_credits", estimatedCost)
+	if err != nil {
 		if errors.Is(err, ErrInsufficientCredits) || strings.Contains(err.Error(), "insufficient") {
 			return nil, ErrInsufficientCredits
 		}
@@ -187,6 +183,7 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 	// Get OpenRouter client
 	client, err := s.getOpenRouterClient(ctx)
 	if err != nil {
+		_ = s.usageService.ReleaseReservation(ctx, reservationID)
 		return nil, err
 	}
 
@@ -202,61 +199,67 @@ func (s *MeteredInferenceService) ExecuteChat(ctx context.Context, userIdentity 
 		Messages: orMessages,
 	})
 	if err != nil {
+		_ = s.usageService.ReleaseReservation(ctx, reservationID)
 		return nil, fmt.Errorf("openrouter request failed: %w", err)
 	}
 
 	// Calculate actual cost based on real token usage
 	actualCost := s.calculateCost(req.Model, orResp.Usage.PromptTokens, orResp.Usage.CompletionTokens)
 
-	// Adjust credits if actual cost differs from estimate
-	if actualCost > estimatedCost {
-		// Charge additional credits if actual cost exceeds estimate
-		extraCost := actualCost - estimatedCost
-		if err := s.usageService.RecordUsage(ctx, UsageReport{
-			UserIdentity: userIdentity,
-			LimitKey:     "ai_credits",
-			Amount:       extraCost,
-			AppBundleKey: req.Metadata.AppBundleKey,
-			Operation:    req.Metadata.Operation,
-			Metadata:     map[string]string{"type": "cost_adjustment"},
-		}); err != nil {
-			s.log("cost_adjustment_charge_failed", map[string]interface{}{
-				"level":         "warn",
-				"user_identity": userIdentity,
-				"extra_cost":    extraCost,
-				"error":         err.Error(),
-			})
-		}
-	} else if actualCost < estimatedCost {
-		// Refund overage when actual cost is less than estimated
-		refundAmount := estimatedCost - actualCost
-		refundPercent := float64(refundAmount) / float64(estimatedCost) * 100
+	{
+		// Adjust credits if actual cost differs from estimate
+		if actualCost > estimatedCost {
+			// Charge additional credits if actual cost exceeds estimate
+			extraCost := actualCost - estimatedCost
+			if err := s.usageService.RecordUsage(ctx, UsageReport{
+				UserIdentity: userIdentity,
+				LimitKey:     "ai_credits",
+				Amount:       extraCost,
+				AppBundleKey: req.Metadata.AppBundleKey,
+				Operation:    req.Metadata.Operation,
+				Metadata:     map[string]string{"type": "cost_adjustment"},
+			}); err != nil {
+				s.log("cost_adjustment_charge_failed", map[string]interface{}{
+					"level":         "warn",
+					"user_identity": userIdentity,
+					"extra_cost":    extraCost,
+					"error":         err.Error(),
+				})
+			}
+		} else if actualCost < estimatedCost {
+			// Refund overage when actual cost is less than estimated
+			refundAmount := estimatedCost - actualCost
+			refundPercent := float64(refundAmount) / float64(estimatedCost) * 100
 
-		// Log refund with security flag if unusually large (>50% indicates estimation drift)
-		logLevel := "debug"
-		if refundPercent > 50 {
-			logLevel = "warn"
-		}
-		s.log("credit_refund_issued", map[string]interface{}{
-			"level":          logLevel,
-			"user_identity":  userIdentity,
-			"refund_amount":  refundAmount,
-			"refund_percent": refundPercent,
-			"estimated_cost": estimatedCost,
-			"actual_cost":    actualCost,
-			"security":       refundPercent > 50,
-		})
-
-		if err := s.usageService.AdjustUsage(ctx, userIdentity, "ai_credits", -refundAmount, "estimate_refund"); err != nil {
-			s.log("refund_adjustment_failed", map[string]interface{}{
-				"level":          "warn",
+			// Log refund with security flag if unusually large (>50% indicates estimation drift)
+			logLevel := "debug"
+			if refundPercent > 50 {
+				logLevel = "warn"
+			}
+			s.log("credit_refund_issued", map[string]interface{}{
+				"level":          logLevel,
 				"user_identity":  userIdentity,
 				"refund_amount":  refundAmount,
+				"refund_percent": refundPercent,
 				"estimated_cost": estimatedCost,
 				"actual_cost":    actualCost,
-				"error":          err.Error(),
+				"security":       refundPercent > 50,
 			})
+
+			if err := s.usageService.AdjustUsage(ctx, userIdentity, "ai_credits", -refundAmount, "estimate_refund"); err != nil {
+				s.log("refund_adjustment_failed", map[string]interface{}{
+					"level":          "warn",
+					"user_identity":  userIdentity,
+					"refund_amount":  refundAmount,
+					"estimated_cost": estimatedCost,
+					"actual_cost":    actualCost,
+					"error":          err.Error(),
+				})
+			}
 		}
+	}
+	if err := s.usageService.FinalizeReservation(ctx, reservationID, actualCost); err != nil {
+		return nil, fmt.Errorf("finalize credit reservation: %w", err)
 	}
 
 	s.log("metered_inference_request_completed", map[string]interface{}{

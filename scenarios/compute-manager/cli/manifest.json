@@ -1,11 +1,70 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "compute-manager",
-  "description": "Compute Manager CLI surface. Single source of truth for the scenario's command groups: schema-validated against cli-manifest/v1 and cross-validated against each domain's proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. Empty because the example domain was removed by template-manager detemplate and no scenario domain has been authored yet.",
-  "groups": [],
+  "description": "Compute Manager CLI surface for requesting and inspecting provider-backed capacity.",
+  "groups": [
+    {
+      "name": "instance",
+      "description": "Request and inspect compute instances",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Get one compute instance",
+          "positionals": [{ "name": "id", "required": true, "description": "Instance id" }],
+          "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "GetInstance" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "extend",
+          "description": "Extend a compute instance lifetime",
+          "positionals": [{ "name": "id", "required": true, "description": "Instance id" }],
+          "flags": [{ "name": "until", "required": true, "description": "New expiry in RFC3339 format" }],
+          "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "ExtendInstance" },
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "destroy",
+          "description": "Destroy a compute instance",
+          "positionals": [{ "name": "id", "required": true, "description": "Instance id" }],
+          "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "DestroyInstance" },
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "list",
+          "description": "List compute instances",
+          "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "ListInstances" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "request",
+          "description": "Request a compute instance",
+          "flags": [
+            { "name": "idempotency-key", "required": true, "description": "Stable retry key" },
+            { "name": "provider", "description": "Provider name" },
+            { "name": "region", "required": true, "description": "Provider region" },
+            { "name": "size", "required": true, "description": "Provider size" },
+            { "name": "image", "description": "Provider image" },
+            { "name": "lifetime-seconds", "description": "Requested lifetime" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "InstanceService", "method": "RequestInstance" },
+          "governance": { "effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["network:internal"] }
+        }
+      ]
+    }
+  ],
   "measures": {
     "domains": []
   },
   "exceptions": [],
-  "omitted": []
+  "omitted": [
+    { "service": "IntentService", "method": "ListIntents", "reason": "Intent history is operator-audit data exposed through the API until the intent inventory command is authored." },
+    { "service": "IntentService", "method": "GetIntent", "reason": "Intent history is operator-audit data exposed through the API until the intent inventory command is authored." },
+    { "service": "MeterService", "method": "Usage", "reason": "Usage reporting is rendered with instance inventory until the dedicated metering command is authored." },
+    { "service": "MeterService", "method": "Reservations", "reason": "Reservation chains are rendered with instance inventory until the dedicated metering command is authored." },
+    { "service": "MeterService", "method": "Ceiling", "reason": "Meter ceilings are enforced server-side and will be exposed with the billing command surface." },
+    { "service": "ReconcileService", "method": "RunReconciliation", "reason": "Reconciliation runs are scheduler-owned; operators inspect findings through the inventory surface." },
+    { "service": "ReconcileService", "method": "ListFindings", "reason": "Reconciliation findings are exposed through the inventory surface until a dedicated findings command is authored." },
+    { "service": "ReconcileService", "method": "GetFinding", "reason": "Reconciliation findings are exposed through the inventory surface until a dedicated findings command is authored." },
+    { "service": "ReconcileService", "method": "QuarantineFinding", "reason": "Quarantine is a guarded operator action that will be added with the reconciliation command surface." }
+  ]
 }

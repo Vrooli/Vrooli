@@ -209,8 +209,8 @@ naming the still-running program id, not a severed connection.
 
 ### `program-runtime library`
 
-The library is versioned with automatic candidates and explicit stable
-promotion:
+The library contains declared program contracts and explicitly promoted callable
+programs:
 
 ```bash
 program-runtime library list --json
@@ -220,9 +220,9 @@ program-runtime library promote --program-id <program-id> --name probe --descrip
 program-runtime library set-current probe --version 1
 ```
 
-Successful agent programs enter the searchable `candidate` tier automatically;
-`library promote` graduates a version to `promoted`. `library get` includes the
-program contract and one freshness/drift row for each called binding.
+Declared contracts are findable through `library search` and run through their
+submit recipe. Only a current promoted version is callable as `lib.<name>()`.
+`library get` includes one freshness/drift row for each called binding.
 
 The governed-versus-observed call share is queryable over an explicit window:
 

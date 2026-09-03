@@ -24,6 +24,7 @@ import (
 	libraryH "program-runtime/handlers/library"
 	programsH "program-runtime/handlers/programs"
 	sessionsH "program-runtime/handlers/sessions"
+	shapesH "program-runtime/handlers/shapes"
 	telemetryH "program-runtime/handlers/telemetry"
 
 	apidb "github.com/vrooli/api-core/database"
@@ -35,12 +36,14 @@ import (
 	internalLibrary "program-runtime/internal/library"
 	internalPrograms "program-runtime/internal/programs"
 	internalSessions "program-runtime/internal/sessions"
+	internalShapes "program-runtime/internal/shapes"
 	internalTelemetry "program-runtime/internal/telemetry"
 
 	bindingsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/bindings"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	programsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/programs"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/sessions"
+	shapesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shapes"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
 )
 
@@ -57,6 +60,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, libraryH.Endpoints...)
 	out = append(out, sessionsH.Endpoints...)
 	out = append(out, telemetryH.Endpoints...)
+	out = append(out, shapesH.Endpoints...)
 	return out
 }
 
@@ -88,6 +92,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "library", File: libraryv1.File_program_runtime_v1_library_library_proto},
 		{Module: "sessions", File: sessionsv1.File_program_runtime_v1_sessions_sessions_proto},
 		{Module: "telemetry", File: telemetryv1.File_program_runtime_v1_telemetry_telemetry_proto},
+		{Module: "shapes", File: shapesv1.File_program_runtime_v1_shapes_shapes_proto},
 	}
 }
 
@@ -107,5 +112,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(internalLibrary.Schema),
 		apidb.SchemaProviderFunc(internalBindings.Schema),
 		apidb.SchemaProviderFunc(internalTelemetry.Schema),
+		apidb.SchemaProviderFunc(internalShapes.Schema),
 	}
 }

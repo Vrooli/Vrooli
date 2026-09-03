@@ -27,7 +27,7 @@ envelope = {
     "program": "program-runtime.improve-cycle", "version": "1",
     "status": "failed", "phase": "validate",
     "inputs": {"board": "present" if isinstance(board, dict) else "missing"},
-    "signals": {"row": None, "shape": None, "route": None, "rationale": None, "declined": []},
+    "signals": {"row": None, "shape": None, "route": None, "rationale": None, "declined": [], "event": None},
     "errors": [], "evidence": [],
 }
 work = {}
@@ -35,7 +35,7 @@ work = {}
 # Rows this program can route, in the improve skill's setpoint table order (§2). It is the tie-break for "first".
 ROW_ORDER = [
     "agent-failure-rate", "governance-share", "act-coverage", "binding-condition",
-    "delegation-live", "library-hygiene",
+    "delegation-live", "uncovered-recurring-shapes",
 ]
 
 # Deterministic route table: (row, failure shape or "*") -> route label from the improve skill §5.
@@ -48,8 +48,7 @@ ROUTES = {
     ("act-coverage", "*"): "act-w1-or-blocked-note",
     ("binding-condition", "*"): "condition-report-bug",
     ("delegation-live", "*"): "delegation-w3-and-report-bug",
-    ("library-hygiene", "duplicate"): "library-set-current",
-    ("library-hygiene", "*"): "library-curate",
+    ("uncovered-recurring-shapes", "*"): "shapes-nomination",
 }
 SHAPE_ROWS = {"agent-failure-rate"}  # rows whose sub-route is chosen by the board's failure shapes
 
@@ -97,11 +96,30 @@ def step_validate():  # VALIDATE · no binding call
         return fail("failed", "invalid_input", "board.signals.rows is not a list", "validate")
     work["rows"] = rows
     work["shapes"] = (board.get("signals") or {}).get("failure_shapes") or []
+    supplied_events = inputs.get("events")
+    work["events"] = supplied_events if isinstance(supplied_events, list) else program_runtime.telemetry.events()
     return "classify"
 
 
 def step_classify():  # CLASSIFY · first out-of-band readable row in table order, then its shape
     envelope["phase"] = "classify"
+    for kind, route, rationale in [
+        ("NOMINATION", "shapes-nomination", "new recurring uncovered shape nomination"),
+        ("COVERAGE_MISS", "discovery-coverage-miss", "recurring shape is covered by a declared contract; discovery query failed"),
+    ]:
+        if isinstance(work["events"], list):
+            matching = [event for event in work["events"] if isinstance(event, dict) and str(event.get("kind", "")).endswith(kind)][:1]
+        else:
+            matching = work["events"].filter(lambda event: str(event.get("kind", "")).endswith(kind)).head(1)
+        if matching:
+            event = matching[0]
+            envelope["signals"]["event"] = event
+            envelope["signals"]["shape"] = event.get("shapeKey") or event.get("shape_key")
+            envelope["signals"]["route"] = route
+            envelope["signals"]["rationale"] = rationale
+            envelope["evidence"].append("program-runtime telemetry events")
+            envelope["status"] = "ok"
+            return "report"
     by_name = {r.get("row"): r for r in work["rows"] if isinstance(r, dict)}
     envelope["signals"]["declined"] = [
         {"row": r.get("row"), "reason": r.get("reason")} for r in work["rows"]
@@ -142,9 +160,6 @@ def step_classify():  # CLASSIFY · first out-of-band readable row in table orde
             except Exception as exc:
                 status, klass = classify_transport(exc)
                 return fail(status, klass, exc, "classify")
-    if name == "library-hygiene":
-        reading = picked.get("reading") or {}
-        shape = "duplicate" if isinstance(reading, dict) and reading.get("duplicate_binding_sets") else "*"
     work["shape"], work["rationale"] = shape, rationale
     envelope["signals"]["shape"] = shape
     return "decide"

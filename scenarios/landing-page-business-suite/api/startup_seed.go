@@ -151,6 +151,11 @@ func seedTierLimitsDefaults(db StartupStore) error {
 		{"pro", "count_based", "voice_minutes", 600, stringPointer(bundleKey)},
 		{"studio", "count_based", "voice_minutes", 3000, stringPointer(bundleKey)},
 		{"business", "count_based", "voice_minutes", -1, stringPointer(bundleKey)},
+		{"free", "count_based", "compute_minutes", 0, stringPointer(bundleKey)},
+		{"solo", "count_based", "compute_minutes", 60, stringPointer(bundleKey)},
+		{"pro", "count_based", "compute_minutes", 600, stringPointer(bundleKey)},
+		{"studio", "count_based", "compute_minutes", 3000, stringPointer(bundleKey)},
+		{"business", "count_based", "compute_minutes", -1, stringPointer(bundleKey)},
 	}
 	for _, limit := range tierLimits {
 		if _, err := db.Exec(seedTierLimitSQL, limit.tierID, limit.limitType, limit.limitKey, limit.limitValue, limit.appBundleKey); err != nil {

@@ -490,9 +490,9 @@ func boolPtr(value bool) *bool {
 // defaultAxesSelection returns default axes selection for testing
 func defaultAxesSelection() map[string]string {
 	return map[string]string{
-		"persona":         "ops_leader",
-		"jtbd":            "launch_bundle",
-		"conversionStyle": "demo_led",
+		"persona":         "silentFounder",
+		"jtbd":            "entrepreneurship",
+		"conversionStyle": "emotional",
 	}
 }
 

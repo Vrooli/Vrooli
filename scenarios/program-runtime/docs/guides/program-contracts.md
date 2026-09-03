@@ -20,10 +20,11 @@ scenarios/<scenario>/.vrooli/program-runtime/
 
 Fixtures live inside the contract (`fixtures[]`), never in a sibling directory.
 
-The scenario directory is the source of truth. program-runtime projects each
-contract and source into the library as an entry named `<scenario>.<name>`,
-origin `scenario-owned`, versioned by content hash. A library row is never
-edited directly; edit the file.
+The scenario directory is the source of truth. program-runtime indexes each
+contract as `<scenario>.<name>` in `program-runtime library search`, using its
+purpose, inputs, and declared bindings for retrieval. Run a contract with the
+submit recipe shown by the search result. A library row is never edited
+directly; edit the file.
 
 Programs that start life in a session and are promoted with
 `program-runtime library promote` stay library-owned until a scenario adopts

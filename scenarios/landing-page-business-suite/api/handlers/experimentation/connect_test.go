@@ -20,7 +20,7 @@ func TestVariantConnectHandler_CreateArchiveAndSnapshotLifecycle(t *testing.T) {
 
 	created, err := handler.CreateVariant(ctx, connect.NewRequest(&lpbsv1.CreateVariantRequest{
 		Slug: "connect-lifecycle", Name: "Connect Lifecycle", Weight: 25,
-		Axes: map[string]string{"persona": "ops_leader", "jtbd": "launch_bundle", "conversionStyle": "demo_led"},
+		Axes: map[string]string{"persona": "silentFounder", "jtbd": "entrepreneurship", "conversionStyle": "emotional"},
 	}))
 	if err != nil {
 		t.Fatalf("CreateVariant() error = %v", err)
@@ -98,7 +98,7 @@ func TestVariantConnectHandler_ManagesSectionsByVariantScopedKey(t *testing.T) {
 	handler := newVariantConnectHandler(isolatedVariantStore(t))
 	ctx := context.Background()
 	const slug = "section-contract"
-	if _, err := handler.CreateVariant(ctx, connect.NewRequest(&lpbsv1.CreateVariantRequest{Slug: slug, Name: "Section Contract", Axes: map[string]string{"persona": "ops_leader", "jtbd": "launch_bundle", "conversionStyle": "demo_led"}})); err != nil {
+	if _, err := handler.CreateVariant(ctx, connect.NewRequest(&lpbsv1.CreateVariantRequest{Slug: slug, Name: "Section Contract", Axes: map[string]string{"persona": "silentFounder", "jtbd": "entrepreneurship", "conversionStyle": "emotional"}})); err != nil {
 		t.Fatalf("CreateVariant() error = %v", err)
 	}
 	listed, err := handler.GetVariantSections(ctx, connect.NewRequest(&lpbsv1.GetVariantSectionsRequest{Slug: slug}))

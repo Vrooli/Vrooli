@@ -73,7 +73,7 @@ func TestHandleDashboard_QualifiesTypedSwarmEnvelope(t *testing.T) {
 	}
 }
 
-func TestHandleDashboardNeverMarksCachedObservationValid(t *testing.T) {
+func TestHandleDashboardFreshCachedObservationRemainsValid(t *testing.T) {
 	s := NewServer(testRegistry())
 	s.swarm = staticUpstreamClient{
 		name: "swarm",
@@ -99,8 +99,24 @@ func TestHandleDashboardNeverMarksCachedObservationValid(t *testing.T) {
 		t.Fatalf("first reading=%+v, want VALID", first.Metrics[0])
 	}
 	second := request()
-	if second.Metrics[0].Trust != TrustCached {
-		t.Fatalf("cached reading=%+v, want CACHED", second.Metrics[0])
+	if second.Metrics[0].Trust != TrustValid || second.Metrics[0].TrustReason != "" {
+		t.Fatalf("cached reading=%+v, want VALID with no staleness reason", second.Metrics[0])
+	}
+}
+
+func TestCachedReasonNamesMeasuredAge(t *testing.T) {
+	reason := cachedReason(60*time.Second, 30*time.Second, nil)
+	if !strings.Contains(reason, "1m0s") || !strings.Contains(reason, "30s") {
+		t.Fatalf("cached reason=%q, want measured age and TTL", reason)
+	}
+}
+
+func TestPlausibleMetricValueRejectsRatioWhenSampleIsMeaningful(t *testing.T) {
+	if plausibleMetricValue(0.1667, "percent", plausiblePercentSampleFloor) {
+		t.Fatal("ratio mislabeled as percent must be rejected for a meaningful sample")
+	}
+	if !plausibleMetricValue(0.1667, "percent", plausiblePercentSampleFloor-1) {
+		t.Fatal("small genuine percent must remain possible without producer evidence")
 	}
 }
 

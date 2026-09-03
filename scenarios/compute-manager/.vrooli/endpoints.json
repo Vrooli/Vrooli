@@ -77,6 +77,118 @@
           }
         }
       }
+    },
+    {
+      "id": "instance_request",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/RequestInstance",
+      "method": "POST",
+      "summary": "Request compute capacity",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_list",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/ListInstances",
+      "method": "POST",
+      "summary": "List compute instances",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_get",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/GetInstance",
+      "method": "POST",
+      "summary": "Get a compute instance",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_extend",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/ExtendInstance",
+      "method": "POST",
+      "summary": "Extend instance lifetime",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "instance_destroy",
+      "path": "/vrooli.compute_manager.v1.instance.InstanceService/DestroyInstance",
+      "method": "POST",
+      "summary": "Destroy a compute instance",
+      "description": "",
+      "category": "instance"
+    },
+    {
+      "id": "intent_list",
+      "path": "/vrooli.compute_manager.v1.intent.IntentService/ListIntents",
+      "method": "POST",
+      "summary": "List provisioning intents",
+      "description": "",
+      "category": "intent"
+    },
+    {
+      "id": "intent_get",
+      "path": "/vrooli.compute_manager.v1.intent.IntentService/GetIntent",
+      "method": "POST",
+      "summary": "Get a provisioning intent",
+      "description": "",
+      "category": "intent"
+    },
+    {
+      "id": "meter_usage",
+      "path": "/vrooli.compute_manager.v1.meter.MeterService/Usage",
+      "method": "POST",
+      "summary": "List compute usage",
+      "description": "",
+      "category": "meter"
+    },
+    {
+      "id": "meter_reservations",
+      "path": "/vrooli.compute_manager.v1.meter.MeterService/Reservations",
+      "method": "POST",
+      "summary": "List compute reservations",
+      "description": "",
+      "category": "meter"
+    },
+    {
+      "id": "meter_ceiling",
+      "path": "/vrooli.compute_manager.v1.meter.MeterService/Ceiling",
+      "method": "POST",
+      "summary": "Get compute ceiling",
+      "description": "",
+      "category": "meter"
+    },
+    {
+      "id": "reconcile_run",
+      "path": "/vrooli.compute_manager.v1.reconcile.ReconcileService/RunReconciliation",
+      "method": "POST",
+      "summary": "Run reconciliation",
+      "description": "",
+      "category": "reconcile"
+    },
+    {
+      "id": "reconcile_list",
+      "path": "/vrooli.compute_manager.v1.reconcile.ReconcileService/ListFindings",
+      "method": "POST",
+      "summary": "List reconciliation findings",
+      "description": "",
+      "category": "reconcile"
+    },
+    {
+      "id": "reconcile_get",
+      "path": "/vrooli.compute_manager.v1.reconcile.ReconcileService/GetFinding",
+      "method": "POST",
+      "summary": "Get a reconciliation finding",
+      "description": "",
+      "category": "reconcile"
+    },
+    {
+      "id": "reconcile_quarantine",
+      "path": "/vrooli.compute_manager.v1.reconcile.ReconcileService/QuarantineFinding",
+      "method": "POST",
+      "summary": "Quarantine a reconciliation finding",
+      "description": "",
+      "category": "reconcile"
     }
   ]
 }

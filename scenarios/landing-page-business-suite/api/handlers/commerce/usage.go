@@ -151,8 +151,9 @@ func CheckLimit(svc *commerce.UsageService, deps UsageDependencies) http.Handler
 }
 
 type reservationRequest struct {
-	LimitKey string `json:"limit_key"`
-	Amount   int64  `json:"amount"`
+	LimitKey      string `json:"limit_key"`
+	Amount        int64  `json:"amount"`
+	WindowSeconds int64  `json:"window_seconds,omitempty"`
 }
 
 // ReserveCredits exposes the authenticated reservation boundary. Tier is
@@ -181,7 +182,7 @@ func ReserveCredits(svc *commerce.UsageService, accountSvc *commerce.Service, de
 				tier = subscription.GetPlanTier()
 			}
 		}
-		reservationID, err := svc.ReserveCredits(r.Context(), userIdentity, tier, request.LimitKey, request.Amount)
+		reservationID, err := svc.ReserveCreditsWithWindow(r.Context(), userIdentity, tier, request.LimitKey, request.Amount, time.Duration(request.WindowSeconds)*time.Second)
 		if err != nil {
 			status := http.StatusBadRequest
 			if strings.Contains(strings.ToLower(err.Error()), "insufficient credits") {

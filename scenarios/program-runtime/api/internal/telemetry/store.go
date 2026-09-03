@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"program-runtime/internal/sessions"
+	"program-runtime/internal/shapes"
 
 	"github.com/google/uuid"
 	telemetryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/telemetry"
@@ -34,6 +35,16 @@ type Repository interface {
 	MarkFailed(context.Context, string, int, string, time.Time) error
 	MarkDead(context.Context, string, int, string) error
 	DeleteDelivered(context.Context) (int64, error)
+}
+
+// EventSink is the narrow observation seam used by subsystems that emit
+// typed lifecycle facts without depending on the telemetry store internals.
+type EventSink interface {
+	Append(*telemetryv1.ProgramEvent)
+}
+
+func (s *Store) AppendShapeEvent(event shapes.ShapeEvent) {
+	s.Append(&telemetryv1.ProgramEvent{EventId: uuid.NewString(), OccurredAt: event.OccurredAt.Format(time.RFC3339Nano), Kind: event.Kind, ShapeKey: event.ShapeKey, ShapeBindingIds: event.BindingIDs, ShapeOccurrences: event.Occurrences, ShapeSessions: event.Sessions, DominantScenario: event.DominantScenario, CoveringContractId: event.CoveringContractID})
 }
 
 type outboxRepository struct{ db sessions.SQLExecutor }

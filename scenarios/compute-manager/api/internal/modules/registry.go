@@ -20,12 +20,21 @@ import (
 	"compute-manager/internal/module"
 
 	capsH "compute-manager/handlers/capabilities"
+	instanceH "compute-manager/handlers/instance"
+	intentH "compute-manager/handlers/intent"
+	meterH "compute-manager/handlers/meter"
+	reconcileH "compute-manager/handlers/reconcile"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "compute-manager/handlers/health"
 	localdb "compute-manager/internal/database"
+	"compute-manager/internal/store"
+	instancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/instance"
+	intentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/intent"
+	meterv1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/meter"
+	reconcilev1 "github.com/vrooli/vrooli/packages/proto/gen/go/compute-manager/v1/reconcile"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,6 +45,10 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
+	out = append(out, instanceH.Endpoints...)
+	out = append(out, intentH.Endpoints...)
+	out = append(out, meterH.Endpoints...)
+	out = append(out, reconcileH.Endpoints...)
 	return out
 }
 
@@ -61,7 +74,12 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{}
+	return []ProtoFileEntry{
+		{Module: "instance", File: instancev1.File_compute_manager_v1_instance_instance_proto},
+		{Module: "intent", File: intentv1.File_compute_manager_v1_intent_intent_proto},
+		{Module: "meter", File: meterv1.File_compute_manager_v1_meter_meter_proto},
+		{Module: "reconcile", File: reconcilev1.File_compute_manager_v1_reconcile_reconcile_proto},
+	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -75,5 +93,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(store.Schema),
 	}
 }

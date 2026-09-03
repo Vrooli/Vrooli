@@ -2,6 +2,9 @@ import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 
+// INTEROP-CRITICAL: Vite is the build boundary for the iframe-embedded UI and
+// must preserve the scenario's base path for the shell bridge.
+
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
 // tracing. The perf build is *still* a production bundle (minified, batched,

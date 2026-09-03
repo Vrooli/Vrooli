@@ -32,4 +32,10 @@ describe("ReadingTile", () => {
     expect(container.querySelector("[data-reading]")).toHaveAttribute("data-ink", "unavailable");
     expect(screen.getByText(/not answering · deadline exceeded/)).toBeInTheDocument();
   });
+  it("shows a safe origin label without exposing a URL", () => {
+    const { container } = renderWithProviders(<ul><ReadingTile reading={reading({ origin: "production", origin_env: "production", origin_display: "Production instance" })} /></ul>);
+    expect(container.querySelector("[data-reading]")).toHaveAttribute("data-origin-env", "production");
+    expect(screen.getByText("Production instance")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/https?:\/\/|127\.0\.0\.1|:\d{2,5}/);
+  });
 });

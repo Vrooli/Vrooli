@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "mission-control-metric-list-renders",
-    "description": "Navigates to /mission-control and asserts the MetricList wrapper renders with at least one [data-metric-id] entry.",
+    "description": "Navigates to /mission-control and asserts metric readings include a non-production origin marker and display label, so provenance reaches the browser without rendering a resolved URL.",
     "labels": {
       "reset": "none",
       "requirements_json": "[\"CC-UI-002\"]"
@@ -75,6 +75,40 @@
       }
     },
     {
+      "id": "assert-local-origin-env",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metric-list'] [data-reading][data-origin-env='local']",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected at least one mission-control reading to expose its local origin environment",
+          "attribute_name": "data-origin-env",
+          "expected": {
+            "string_value": "local"
+          }
+        },
+        "metadata": {
+          "label": "Assert origin environment marker"
+        }
+      }
+    },
+    {
+      "id": "assert-origin-display",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "[data-testid='metric-list'] [data-reading][data-origin]",
+          "mode": "ASSERTION_MODE_EXISTS",
+          "timeout_ms": 5000,
+          "failure_message": "Expected mission-control readings to render origin_display rather than a resolved URL"
+        },
+        "metadata": {
+          "label": "Assert origin display label"
+        }
+      }
+    },
+    {
       "id": "capture-mission-control-metrics",
       "action": {
         "type": "ACTION_TYPE_SCREENSHOT",
@@ -91,6 +125,8 @@
     { "id": "e1", "source": "navigate-mission-control", "target": "wait-metric-list", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "e2", "source": "wait-metric-list", "target": "assert-metric-list-wrapper", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
     { "id": "e3", "source": "assert-metric-list-wrapper", "target": "assert-metric-entry", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "assert-metric-entry", "target": "capture-mission-control-metrics", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    { "id": "e4", "source": "assert-metric-entry", "target": "assert-local-origin-env", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e5", "source": "assert-local-origin-env", "target": "assert-origin-display", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
+    { "id": "e6", "source": "assert-origin-display", "target": "capture-mission-control-metrics", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
   ]
 }

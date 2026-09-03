@@ -304,7 +304,7 @@ func registerContentRoutes(s *Server) {
 }
 
 func registerMetricsRoutes(s *Server) {
-	metricshttp.RegisterConnectRoutes(s.router, metricsConnectDependencies(s.metricsService), s.requireAdmin)
+	metricshttp.RegisterConnectRoutes(s.router, metricsConnectDependencies(s.metricsService), s.requireAdminOrService)
 }
 
 func registerFeedbackRoutes(s *Server) {

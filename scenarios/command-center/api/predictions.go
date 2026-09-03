@@ -31,6 +31,7 @@ func loadPredictions() ([]PredictionRecord, error) {
 	}
 	return rows, nil
 }
+
 func (s *Server) joinPredictions(readings []MetricEntry) {
 	rows, err := loadPredictions()
 	if err != nil {

@@ -53,6 +53,10 @@
       "effect": "read"
     },
     {
+      "id": "program-runtime/shapes/list",
+      "effect": "read"
+    },
+    {
       "id": "program-runtime/programs/mine",
       "effect": "read"
     },
@@ -83,7 +87,7 @@
       ]
     },
     "signals": {
-      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: discovery-floor, authoring-floor, agent-failure-rate, governance-share, act-coverage, binding-condition, delegation-live, library-hygiene, attribution, external-friction, fleet-improve-coverage; reason is one of no_governed_binding, kernel_invoke_budget, scenario_unreachable, read_elsewhere:<program>, pending_telemetry, unreliable:<why>",
+      "rows": "list of {row, reading, target, in_band, unavailable, reason} in the improve skill's table order: discovery-floor, authoring-floor, agent-failure-rate, governance-share, act-coverage, binding-condition, delegation-live, uncovered-recurring-shapes, attribution, external-friction, fleet-improve-coverage; reason is one of no_governed_binding, kernel_invoke_budget, scenario_unreachable, read_elsewhere:<program>, pending_telemetry, unreliable:<why>",
       "readable": "count of rows read from a governed binding",
       "unavailable": "count of rows declined, permanent reasons included",
       "failure_shapes": "top recurring failure shapes from programs mine, at most six"

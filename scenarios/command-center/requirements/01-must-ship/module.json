@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirements derived from the P0 operational targets: readings that carry values, the three axes, authored samples, the setpoint read, the derived board shape, the ranked surface, the open-loop self-report, and one address.",
-    "last_validated_at": "2026-09-01T18:12:14-04:00",
+    "last_validated_at": "2026-09-03T15:58:52-04:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"

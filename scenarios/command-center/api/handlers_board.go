@@ -81,9 +81,7 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleFocus(w http.ResponseWriter, r *http.Request) {
 	entries := []FocusEntry{}
 	seen := map[string]bool{}
-	for _, p := range predictionFindings(s.registry) {
-		entries = append(entries, p)
-	}
+	entries = append(entries, predictionFindings(s.registry)...)
 	for _, room := range s.registry.Rooms {
 		readings, _ := s.readings(r.Context(), s.registry.Dashboard(room.ID))
 		for _, m := range readings {

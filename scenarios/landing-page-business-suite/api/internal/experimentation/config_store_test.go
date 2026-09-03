@@ -124,9 +124,9 @@ func TestConfigStore_SaveAndLoadVariant(t *testing.T) {
 			Name:        "Test Variant",
 			Description: "A test variant",
 			Axes: map[string]string{
-				"persona":         "ops_leader",
-				"jtbd":            "launch_bundle",
-				"conversionStyle": "demo_led",
+				"persona":         "silentFounder",
+				"jtbd":            "entrepreneurship",
+				"conversionStyle": "emotional",
 			},
 			HeaderConfig: LandingHeaderConfig{
 				Branding: HeaderBrandingConfig{

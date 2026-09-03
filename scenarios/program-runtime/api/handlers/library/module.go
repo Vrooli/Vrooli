@@ -6,6 +6,7 @@ import (
 	"time"
 
 	programbindings "program-runtime/internal/bindings"
+	"program-runtime/internal/contracts"
 	"program-runtime/internal/library"
 	"program-runtime/internal/module"
 
@@ -14,25 +15,46 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	libraryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library"
 	libraryconnect "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/library/library_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/program-runtime/v1/shared"
 )
 
 type handler struct {
 	libraryconnect.UnimplementedLibraryServiceHandler
-	repo     *library.Repository
-	bindings *programbindings.Registry
+	repo      *library.Repository
+	bindings  *programbindings.Registry
+	contracts *contracts.Index
 }
 
-func Module(repo *library.Repository, registry *programbindings.Registry) module.Module {
+func Module(repo *library.Repository, registry *programbindings.Registry, indexes ...*contracts.Index) module.Module {
+	var index *contracts.Index
+	if len(indexes) > 0 {
+		index = indexes[0]
+	}
 	return module.Module{Name: "library", Mount: func(r *mux.Router) {
-		path, h := libraryconnect.NewLibraryServiceHandler(&handler{repo: repo, bindings: registry})
+		path, h := libraryconnect.NewLibraryServiceHandler(&handler{repo: repo, bindings: registry, contracts: index})
 		connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
 	}, Endpoints: Endpoints}
 }
 
-func (h *handler) ListLibrary(ctx context.Context, _ *connect.Request[libraryv1.ListLibraryRequest]) (*connect.Response[libraryv1.ListLibraryResponse], error) {
-	programs, err := h.repo.List(ctx)
+func (h *handler) ListLibrary(ctx context.Context, req *connect.Request[libraryv1.ListLibraryRequest]) (*connect.Response[libraryv1.ListLibraryResponse], error) {
+	limit, offset := int(req.Msg.GetLimit()), int(req.Msg.GetOffset())
+	if limit <= 0 {
+		limit = 50
+	}
+	var programs []*sharedv1.LibraryProgram
+	var err error
+	if strings.TrimSpace(req.Msg.GetQuery()) != "" {
+		programs, err = h.repo.ListCallable(ctx)
+	} else {
+		programs, err = h.repo.List(ctx, limit, offset)
+	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if h.contracts != nil && strings.TrimSpace(req.Msg.GetQuery()) != "" {
+		for _, contract := range h.contracts.List() {
+			programs = append(programs, &sharedv1.LibraryProgram{Name: contract.ID, Id: contract.ID, Description: contract.Purpose, Scenario: contract.Scenario, Purpose: contract.Purpose, Kind: "contract", Rung: contract.Rung, OwnerSkill: contract.OwnerSkill, ValidationError: contract.ValidationError, Path: contract.SourcePath, CalledBindingIds: contract.BindingIDs})
+		}
 	}
 	return connect.NewResponse(&libraryv1.ListLibraryResponse{Programs: programs}), nil
 }

@@ -25,6 +25,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := &handlers{client: libraryconnect.NewLibraryServiceClient(httpClient, baseURL)}
 	return cliapp.LoadFromManifestPrimitives(manifest, GroupName, map[string]cliapp.PrimitiveHandler{
 		"LibraryService.ListLibrary":       cliapp.ProtoList(h.list, h.listReport),
+		"search":                           cliapp.ProtoList(h.list, h.listReport),
 		"LibraryService.GetLibrary":        cliapp.ProtoList(h.get, h.getReport),
 		"LibraryService.PromoteLibrary":    cliapp.ProtoMutation(h.promote, h.promoteReport),
 		"LibraryService.SetCurrentLibrary": cliapp.ProtoMutation(h.setCurrent, h.currentReport),
@@ -32,27 +33,44 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 }
 
 func (h *handlers) list(ctx cliapp.OperationContext) (*libraryv1.ListLibraryResponse, error) {
-	r, err := h.client.ListLibrary(context.Background(), connect.NewRequest(&libraryv1.ListLibraryRequest{}))
-	if err != nil {
-		return nil, cliapp.WrapAPIError("list library", err, nil)
-	}
 	query := ""
 	if args := ctx.Args(); len(args) > 0 {
 		query = strings.TrimSpace(strings.ToLower(args[0]))
 	}
 	if query == "" {
+		request := &libraryv1.ListLibraryRequest{Limit: 50}
+		r, err := h.client.ListLibrary(context.Background(), connect.NewRequest(request))
+		if err != nil {
+			return nil, cliapp.WrapAPIError("list library", err, nil)
+		}
 		return r.Msg, nil
+	}
+	request := &libraryv1.ListLibraryRequest{Query: query, Limit: 50}
+	r, err := h.client.ListLibrary(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("search library", err, nil)
 	}
 	type scored struct {
 		program *sharedv1.LibraryProgram
 		score   int
 	}
 	scoredPrograms := make([]scored, 0, len(r.Msg.GetPrograms()))
+	kindFilter := strings.TrimSpace(strings.ToLower(ctx.Flag("kind")))
+	if kindFilter == "" {
+		kindFilter = "all"
+	}
 	for _, p := range r.Msg.GetPrograms() {
 		if p == nil {
 			continue
 		}
-		text := strings.ToLower(strings.Join([]string{p.GetName(), p.GetDescription(), p.GetCoverage(), p.GetSource()}, " "))
+		effectiveKind := p.GetKind()
+		if effectiveKind == "" {
+			effectiveKind = "callable"
+		}
+		if kindFilter != "all" && effectiveKind != kindFilter {
+			continue
+		}
+		text := strings.ToLower(strings.Join([]string{p.GetName(), p.GetScenario(), p.GetPurpose(), p.GetDescription(), p.GetCoverage(), strings.Join(p.GetCalledBindingIds(), " ")}, " "))
 		score := 0
 		for _, term := range strings.Fields(query) {
 			if strings.Contains(text, term) {
@@ -60,9 +78,6 @@ func (h *handlers) list(ctx cliapp.OperationContext) (*libraryv1.ListLibraryResp
 			}
 		}
 		if score > 0 {
-			if p.GetTier() == "promoted" {
-				score += 2
-			}
 			scoredPrograms = append(scoredPrograms, scored{program: p, score: score})
 		}
 	}
@@ -141,7 +156,26 @@ func (*handlers) listReport(_ cliapp.OperationContext, r *libraryv1.ListLibraryR
 		if p.GetCurrent() {
 			marker = " [current]"
 		}
-		results = append(results, fmt.Sprintf("%s v%d [%s]%s — %s", p.GetName(), p.GetVersion(), p.GetTier(), marker, p.GetDescription()))
+		kind := p.GetKind()
+		if kind == "" {
+			kind = "callable"
+		}
+		line := fmt.Sprintf("%s [%s]%s — %s", p.GetName(), kind, marker, p.GetDescription())
+		if p.GetScenario() != "" {
+			line += "\n  scenario: " + p.GetScenario()
+		}
+		if p.GetPurpose() != "" {
+			line += "\n  purpose: " + p.GetPurpose()
+		}
+		if len(p.GetCalledBindingIds()) > 0 {
+			line += "\n  bindings: " + strings.Join(p.GetCalledBindingIds(), ", ")
+		}
+		if kind == "contract" {
+			line += "\n  run: program-runtime programs submit --source <program.py>"
+		} else {
+			line += "\n  call: lib." + p.GetName() + "()"
+		}
+		results = append(results, line)
 	}
 	return cliapp.ListReport{
 		Summary:        []string{"Library programs: " + strconv.Itoa(len(programs))},

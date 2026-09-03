@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -52,16 +53,25 @@ func (c integrationChecker) CheckResult(ctx context.Context) capreg.CheckResult 
 	}
 	statuses := featureStatuses(c.features, "unknown")
 	reasons := map[string]string{}
-	if probe, ok := c.client.(upstream.FeatureProbe); ok {
-		probed, probedReasons := probe.ProbeFeatures(ctx)
-		for feature, status := range probed {
-			if _, declared := statuses[feature]; declared {
-				statuses[feature] = status
+	probe, ok := c.client.(upstream.FeatureProbe)
+	if !ok {
+		return capreg.CheckResult{Status: capreg.StatusUnknown, Message: "typed feature probe is not implemented", ReasonCode: "feature_probe_unavailable", FeatureStatus: statuses}
+	}
+	probed, probedReasons := probe.ProbeFeatures(ctx)
+	compatible := 0
+	for feature, status := range probed {
+		if _, declared := statuses[feature]; declared {
+			statuses[feature] = status
+			if status == "compatible" {
+				compatible++
 			}
 		}
-		for feature, reason := range probedReasons {
-			reasons[feature] = reason
-		}
+	}
+	for feature, reason := range probedReasons {
+		reasons[feature] = reason
+	}
+	if compatible == 0 {
+		return capreg.CheckResult{Status: capreg.StatusUnknown, Message: "health endpoint reachable but no declared feature is compatible", ReasonCode: "feature_probe_no_compatible_feature", FeatureStatus: statuses, FeatureReason: reasons}
 	}
 	return capreg.CheckResult{Status: capreg.StatusAvailable, Message: "health endpoint reachable", ReasonCode: "health_reachable", FeatureStatus: statuses, FeatureReason: reasons}
 }
@@ -76,9 +86,27 @@ func commandCenterIntegrationRegistry(s *Server) *capreg.Registry {
 	if path == "" {
 		path = "../.vrooli/service.json"
 	}
+	featuresFor := func(integrationID string) []string {
+		seen := map[string]bool{}
+		features := []string{}
+		metrics := append([]MetricEntry(nil), s.registry.Metrics...)
+		for _, dashboard := range s.registry.Dashboards {
+			metrics = append(metrics, dashboard...)
+		}
+		for _, metric := range metrics {
+			if metric.Source.IntegrationID == integrationID && !seen[metric.Source.FeatureID] {
+				seen[metric.Source.FeatureID] = true
+				features = append(features, metric.Source.FeatureID)
+			}
+		}
+		return features
+	}
+	coreFeatures := featuresFor("vrooli-core")
+	swarmFeatures := featuresFor("swarm-manager")
+	lpbsFeatures := featuresFor("landing-page-business-suite")
 	overlays := map[string]capreg.Overlay{
-		"swarm-manager":               {ID: "swarm-manager", Name: "Swarm Manager", Features: []string{"throughput_stats", "agent_stats", "swarm_throughput", "swarm_active_agents", "timing_stats", "scope_stats", "blocking_stats", "dashboard_stats", "review_stats", "composite_throughput"}, FeatureRequirements: featureRequirements([]string{"throughput_stats", "agent_stats", "swarm_throughput", "swarm_active_agents", "timing_stats", "scope_stats", "blocking_stats", "dashboard_stats", "review_stats", "composite_throughput"})},
-		"landing-page-business-suite": {ID: "landing-page-business-suite", Name: "Landing Page Business Suite", Features: []string{"visitors", "conversions", "revenue_rollup", "revenue_mrr", "revenue_today", "subscriber_counts", "churn", "credit_balances", "credit_consumption", "usage_records", "cta_clicks", "scroll_depth", "variant_ab", "composite_revenue", "composite_reach"}, FeatureRequirements: featureRequirements([]string{"visitors", "conversions", "revenue_rollup", "revenue_mrr", "revenue_today", "subscriber_counts", "churn", "credit_balances", "credit_consumption", "usage_records", "cta_clicks", "scroll_depth", "variant_ab", "composite_revenue", "composite_reach"})},
+		"swarm-manager":               {ID: "swarm-manager", Name: "Swarm Manager", Features: swarmFeatures, FeatureRequirements: featureRequirements(swarmFeatures)},
+		"landing-page-business-suite": {ID: "landing-page-business-suite", Name: "Landing Page Business Suite", Features: lpbsFeatures, FeatureRequirements: featureRequirements(lpbsFeatures)},
 		"prompt-manager":              {ID: "prompt-manager", Name: "Prompt Manager", Features: []string{"team_instrument"}, FeatureRequirements: featureRequirements([]string{"team_instrument"}), ActionKind: capreg.ActionKindOwnerGuidance, ActionLabel: "Review Prompt Manager", OperatorCommand: "vrooli scenario status prompt-manager --json"},
 	}
 	defs, err := capreg.ProjectManifest(path, overlays)
@@ -88,12 +116,11 @@ func commandCenterIntegrationRegistry(s *Server) *capreg.Registry {
 		// turn binding validation into a false success.
 		panic("command-center integration manifest invalid: " + err.Error())
 	}
-	coreFeatures := []string{"scenario_health", "scenario_inventory", "active_scenarios", "total_scenarios", "scenario_completeness", "scenario_health_detail", "scenario_ports", "system_uptime", "composite_system_health", "composite_portfolio"}
 	defs = append(defs, capreg.Def{ID: "vrooli-core", Origin: "control_plane", Name: "Vrooli Core", Description: "Control plane used for scenario discovery and lifecycle observation.", DependencyKind: capreg.DependencyControlPlane, DependencySlug: "vrooli", Features: coreFeatures, FeatureRequirements: featureRequirements(coreFeatures), ActionKind: capreg.ActionKindOwnerGuidance, ActionLabel: "Review control plane", OperatorCommand: "vrooli status --json", Enabled: true})
 	checkers := map[string]capreg.Checker{
-		"vrooli-core":                 integrationChecker{client: s.vrooli, features: []string{"scenario_health", "scenario_inventory", "active_scenarios", "total_scenarios", "scenario_completeness", "scenario_health_detail", "scenario_ports", "system_uptime", "composite_system_health", "composite_portfolio"}, slug: "vrooli", label: "Vrooli Core", failureActionKind: capreg.ActionKindOwnerGuidance, failureActionLabel: "Review control plane", failureOperatorCommand: "vrooli status --json"},
-		"swarm-manager":               integrationChecker{client: s.swarm, features: []string{"throughput_stats", "agent_stats", "swarm_throughput", "swarm_active_agents", "timing_stats", "scope_stats", "blocking_stats", "dashboard_stats", "review_stats", "composite_throughput"}, slug: "swarm-manager", label: "Swarm Manager", failureActionKind: capreg.ActionKindScenarioStart},
-		"landing-page-business-suite": integrationChecker{client: s.lpbs, features: []string{"visitors", "conversions", "revenue_rollup", "revenue_mrr", "revenue_today", "subscriber_counts", "churn", "credit_balances", "credit_consumption", "usage_records", "cta_clicks", "scroll_depth", "variant_ab", "composite_revenue", "composite_reach"}, slug: "landing-page-business-suite", label: "Landing Page Business Suite", failureActionKind: capreg.ActionKindScenarioStart},
+		"vrooli-core":                 integrationChecker{client: s.vrooli, features: coreFeatures, slug: "vrooli", label: "Vrooli Core", failureActionKind: capreg.ActionKindOwnerGuidance, failureActionLabel: "Review control plane", failureOperatorCommand: "vrooli status --json"},
+		"swarm-manager":               integrationChecker{client: s.swarm, features: swarmFeatures, slug: "swarm-manager", label: "Swarm Manager", failureActionKind: capreg.ActionKindScenarioStart},
+		"landing-page-business-suite": integrationChecker{client: s.lpbs, features: lpbsFeatures, slug: "landing-page-business-suite", label: "Landing Page Business Suite", failureActionKind: capreg.ActionKindScenarioStart},
 	}
 	// Prompt Manager is checked through the same typed transmitter used for
 	// objective and team-instrument projections. A missing transmitter remains
@@ -249,15 +276,15 @@ func (s *Server) handleIntegrationAction(w http.ResponseWriter, r *http.Request)
 	}
 	for _, state := range s.integrationSnapshot(r.Context(), false).States {
 		if state.ID == id {
-			if !req.Confirm {
-				writeError(w, 400, "confirmation_required", "Recovery actions require explicit confirmation", nil)
-				return
-			}
 			if req.Action != string(state.ActionKind) {
 				writeError(w, 400, "action_not_allowed", "Requested action is not eligible for this integration", nil)
 				return
 			}
 			if state.ActionKind == capreg.ActionKindScenarioStart || state.ActionKind == capreg.ActionKindScenarioRestart {
+				if !req.Confirm {
+					writeError(w, 400, "confirmation_required", "Recovery actions require explicit confirmation", nil)
+					return
+				}
 				if !lifecycleActionEligible(state) {
 					writeError(w, 400, "action_not_allowed", "Lifecycle recovery requires an unavailable integration", nil)
 					return
@@ -266,7 +293,13 @@ func (s *Server) handleIntegrationAction(w http.ResponseWriter, r *http.Request)
 			if lifecycleActionEligible(state) {
 				result, err := s.actionService.Run(r.Context(), capreg.LifecycleActionRequest{IntegrationID: state.ID, ActionKind: state.ActionKind})
 				if err != nil {
-					writeError(w, http.StatusBadRequest, "action_failed", err.Error(), nil)
+					status := http.StatusBadRequest
+					code := "action_failed"
+					if errors.Is(err, capreg.ErrActionInFlight) {
+						status = http.StatusConflict
+						code = "action_in_flight"
+					}
+					writeError(w, status, code, err.Error(), nil)
 					return
 				}
 				writeJSON(w, http.StatusOK, map[string]any{"integrationId": id, "action": req.Action, "status": result.Status, "success": result.Success, "message": result.Message})

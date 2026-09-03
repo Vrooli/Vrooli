@@ -350,7 +350,7 @@
       "commands": [
         {
           "name": "list",
-          "description": "List explicitly promoted library programs.",
+          "description": "List declared program contracts and selected callable library programs.",
           "binding": {
             "kind": "connect-rpc",
             "service": "LibraryService",
@@ -396,13 +396,13 @@
             {
               "name": "limit",
               "description": "Maximum number of results; defaults to 10."
+            },
+            {
+              "name": "kind",
+              "description": "Filter results to contract, callable, or all."
             }
           ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "LibraryService",
-            "method": "ListLibrary"
-          },
+          "binding": {"kind": "local"},
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -745,6 +745,40 @@
           "architecture": {
             "primitive": "proto_mutation"
           }
+        }
+      ]
+    },
+    {
+      "name": "shapes",
+      "description": "Inspect recurring binding shapes and nominations.",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List observed, nominated, and covered shapes.",
+          "flags": [
+            {"name": "uncovered", "bool": true, "description": "Only show uncovered shapes.", "bind": {"field": "uncovered_only"}},
+            {"name": "min-occurrences", "description": "Minimum occurrence count."},
+            {"name": "min-sessions", "description": "Minimum non-test session count."},
+            {"name": "limit", "description": "Maximum number of shapes."}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "ShapeService", "method": "ListShapes"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "get",
+          "description": "Read one shape by key.",
+          "positionals": [{"name": "shape-key", "required": true, "description": "Sorted binding shape key."}],
+          "binding": {"kind": "connect-rpc", "service": "ShapeService", "method": "GetShape"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "expire",
+          "description": "Expire observed shapes older than the retention window.",
+          "binding": {"kind": "connect-rpc", "service": "ShapeService", "method": "ExpireShapes"},
+          "governance": {"effect": "write", "run_eligible": false, "requires_confirmation": true, "permissions": ["admin"]},
+          "architecture": {"primitive": "proto_mutation"}
         }
       ]
     },
